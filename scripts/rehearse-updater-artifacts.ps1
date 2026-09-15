@@ -1,12 +1,35 @@
 param(
     [Parameter(Mandatory = $true)]
     [ValidateSet("windows-x86_64", "linux-x86_64", "macos-x86_64", "macos-aarch64")]
-    [string]$PlatformLabel
+    [string]$PlatformLabel,
+    [ValidateSet("legacy-skipped", "preview-final")]
+    [string]$TransitionProfile = "legacy-skipped",
+    [switch]$DescribeTransition
 )
 
 $ErrorActionPreference = "Stop"
 $root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 Set-Location -LiteralPath $root
+if ($TransitionProfile -eq "preview-final" -and $PlatformLabel -ne "linux-x86_64") {
+    $message = "The preview-final packaged transition is currently qualified only for linux-x86_64"
+    [Console]::Error.WriteLine($message)
+    throw $message
+}
+$transition = [ordered]@{
+    profile = $TransitionProfile
+    platform = $PlatformLabel
+    predecessor_version = if ($TransitionProfile -eq "preview-final") { "1.0.0-rc.2" } else { "0.1.0" }
+    candidate_version = if ($TransitionProfile -eq "preview-final") { "1.0.0" } else { "0.3.0" }
+    candidate_production_eligible = $TransitionProfile -eq "preview-final"
+}
+if ($DescribeTransition) {
+    $transition | ConvertTo-Json -Compress
+    exit 0
+}
+$predecessorVersion = $transition.predecessor_version
+$candidateVersion = $transition.candidate_version
+$candidateProductionEligible = $transition.candidate_production_eligible
+$fixtureVersions = @($predecessorVersion, $candidateVersion)
 $pnpmSpec = (Get-Content (Join-Path $root "apps/desktop/package.json") -Raw | ConvertFrom-Json).packageManager
 if ($pnpmSpec -notmatch '^pnpm@\d+\.\d+\.\d+$') { throw "Desktop packageManager must pin an exact pnpm version" }
 function Invoke-Checked([string]$Program, [string[]]$Arguments) {
@@ -88,7 +111,7 @@ try {
     $configuration | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $configPath -Encoding utf8
     Move-RehearsalInput $bundleRoot "previous-bundles"
     Move-RehearsalInput $cliRoot "previous-cli-assets"
-    foreach ($version in @("0.1.0", "0.3.0")) {
+    foreach ($version in $fixtureVersions) {
         Set-FixtureVersion $version
         Invoke-Checked "cargo" @("build", "--release", "-p", "portcove-cli", "-p", "portcove-release-tools")
         & (Join-Path $PSScriptRoot "package-cli.ps1") -PlatformLabel $PlatformLabel
@@ -110,8 +133,8 @@ try {
             $installer = Join-Path $stage "Portcove_${version}_x64-setup.exe"
             $native.installer_product_version = (Get-Item -LiteralPath $installer).VersionInfo.ProductVersion
             if ($native.installer_product_version -notin @($version, "$version.0")) { throw "NSIS product version mismatch" }
-            if ($version -eq "0.3.0") {
-                $predecessor = Join-Path $runRoot "0.1.0-$PlatformLabel/Portcove_0.1.0_x64-setup.exe"
+            if ($version -eq $candidateVersion) {
+                $predecessor = Join-Path $runRoot "$predecessorVersion-$PlatformLabel/Portcove_$($predecessorVersion)_x64-setup.exe"
                 & (Join-Path $PSScriptRoot "test-windows-installer.ps1") -InstallerPath $installer -UpgradeFromInstallerPath $predecessor -ExpectedExecutablePath (Join-Path $root "target/release/portcove-desktop.exe") -TestBase (Join-Path $runRoot "installer-test") -EvidencePath (Join-Path $runRoot "windows-passive-upgrade.json") -InstallMode Passive -ExpectedVersion $version
                 if ((Get-FileHash -LiteralPath $env:PORTCOVE_PREFERENCES -Algorithm SHA256).Hash -ne $preferencesHash) { throw "Installer rehearsal changed isolated host preferences" }
             }
@@ -157,9 +180,9 @@ try {
         Invoke-Checked "cargo" @("run", "--locked", "--quiet", "-p", "portcove-release-tools", "--example", "generate_test_updater_repository", "--", $fixtureRoot, $publicKey)
         $inputs = Join-Path $fixtureRoot "inputs"
         New-Item -ItemType Directory -Path $inputs | Out-Null
-        Copy-Item -LiteralPath (Join-Path $runRoot "0.3.0-$PlatformLabel/updater-inventory.json") -Destination (Join-Path $inputs "updater-inventory.json")
-        Copy-Item -LiteralPath (Join-Path $runRoot "0.3.0-$PlatformLabel/Portcove_0.3.0_amd64.AppImage.sig") -Destination (Join-Path $inputs "candidate.sig")
-        $contractText = (& cargo run --locked --quiet -p portcove-desktop --example prepare_appimage_update -- describe 0.1.0 | Out-String).Trim()
+        Copy-Item -LiteralPath (Join-Path $runRoot "$candidateVersion-$PlatformLabel/updater-inventory.json") -Destination (Join-Path $inputs "updater-inventory.json")
+        Copy-Item -LiteralPath (Join-Path $runRoot "$candidateVersion-$PlatformLabel/Portcove_$($candidateVersion)_amd64.AppImage.sig") -Destination (Join-Path $inputs "candidate.sig")
+        $contractText = (& cargo run --locked --quiet -p portcove-desktop --example prepare_appimage_update -- describe $predecessorVersion | Out-String).Trim()
         if ($LASTEXITCODE -ne 0) { throw "Could not derive the Linux updater fixture contract" }
         $contract = $contractText | ConvertFrom-Json
         $sourceTree = (& git rev-parse "HEAD^{tree}" | Out-String).Trim()
@@ -185,26 +208,26 @@ try {
         $descriptorPath = Join-Path $inputs "descriptor.json"
         $eligibilityPath = Join-Path $inputs "eligibility.json"
         $descriptor | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $descriptorPath -Encoding utf8
-        [ordered]@{
-            "v0.3.0" = [ordered]@{
-                version = "0.3.0"
+        $eligibility = [ordered]@{}
+        $eligibility["v$candidateVersion"] = [ordered]@{
+                version = $candidateVersion
                 preview_eligible = $true
-                production_eligible = $false
+                production_eligible = $candidateProductionEligible
                 targets = @("linux-x86_64")
-            }
-        } | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $eligibilityPath -Encoding utf8
+        }
+        $eligibility | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $eligibilityPath -Encoding utf8
         Invoke-Checked "node" @("scripts/reconstruct-application-update-records.mjs", "--input", $descriptorPath, "--eligibility", $eligibilityPath, "--output", (Join-Path $fixtureRoot "records"))
         Invoke-Checked "cargo" @("run", "--locked", "--quiet", "-p", "portcove-release-tools", "--", "build-tuf", (Join-Path $fixtureRoot "build-tuf.json"))
 
-        Set-FixtureVersion "0.1.0"
+        Set-FixtureVersion $predecessorVersion
         $env:PORTCOVE_APPLICATION_UPDATE_BUNDLED_ROOT_FILE = Join-Path $fixtureRoot "trusted-root.json"
         $metadataDirectory = (Resolve-Path -LiteralPath (Join-Path $fixtureRoot "repository/metadata")).Path
         $targetsDirectory = (Resolve-Path -LiteralPath (Join-Path $fixtureRoot "repository/targets")).Path
         $env:PORTCOVE_APPLICATION_UPDATE_METADATA_URL = ([Uri]::new($metadataDirectory.TrimEnd('/') + '/')).AbsoluteUri
         $env:PORTCOVE_APPLICATION_UPDATE_TARGETS_URL = ([Uri]::new($targetsDirectory.TrimEnd('/') + '/')).AbsoluteUri
         Invoke-Checked "corepack" @($pnpmSpec, "--dir", "apps/desktop", "tauri", "build", "--bundles", "appimage", "--config", $configPath, "--ci", "--features", "application-update-qualification")
-        $predecessor = Join-Path $bundleRoot "appimage/Portcove_0.1.0_amd64.AppImage"
-        $candidate = Join-Path $runRoot "0.3.0-$PlatformLabel/Portcove_0.3.0_amd64.AppImage"
+        $predecessor = Join-Path $bundleRoot "appimage/Portcove_$($predecessorVersion)_amd64.AppImage"
+        $candidate = Join-Path $runRoot "$candidateVersion-$PlatformLabel/Portcove_$($candidateVersion)_amd64.AppImage"
         Remove-Item -LiteralPath (Join-Path $fixtureRoot "private") -Recurse -Force
         Remove-Item -LiteralPath (Join-Path $fixtureRoot "build-tuf.json") -Force
         $linuxHarnessArguments = @(
@@ -215,13 +238,15 @@ try {
             "-MetadataPath", $metadataDirectory,
             "-TargetsPath", $targetsDirectory,
             "-StateRoot", (Join-Path $fixtureRoot "state"),
-            "-EvidencePath", (Join-Path $fixtureRoot "application-update-evidence.json")
+            "-EvidencePath", (Join-Path $fixtureRoot "application-update-evidence.json"),
+            "-PredecessorVersion", $predecessorVersion,
+            "-CandidateVersion", $candidateVersion
         )
         Invoke-Checked "dbus-run-session" (@("--", "pwsh") + $linuxHarnessArguments)
-        Move-RehearsalInput $bundleRoot "qualified-0.1.0-bundles"
+        Move-RehearsalInput $bundleRoot "qualified-$predecessorVersion-bundles"
     }
 } catch {
-    [ordered]@{ source_commit = $revision; platform = $PlatformLabel; status = "failed"; failure = $_.Exception.Message } |
+    [ordered]@{ source_commit = $revision; platform = $PlatformLabel; status = "failed"; transition_profile = $TransitionProfile; fixture_versions = $fixtureVersions; failure = $_.Exception.Message } |
         ConvertTo-Json | Set-Content -LiteralPath (Join-Path $runRoot "rehearsal-result.json") -Encoding utf8
     throw
 } finally {
@@ -231,5 +256,5 @@ try {
     $fixturePrivate = Join-Path $runRoot "linux-appimage-qualification/private"
     if ([IO.Directory]::Exists($fixturePrivate)) { [IO.Directory]::Delete($fixturePrivate, $true) }
 }
-[ordered]@{ source_commit = $revision; platform = $PlatformLabel; status = "passed"; fixture_versions = @("0.1.0", "0.3.0"); production_signing = $false } |
+[ordered]@{ source_commit = $revision; platform = $PlatformLabel; status = "passed"; transition_profile = $TransitionProfile; fixture_versions = $fixtureVersions; production_signing = $false } |
     ConvertTo-Json | Set-Content -LiteralPath (Join-Path $runRoot "rehearsal-result.json") -Encoding utf8

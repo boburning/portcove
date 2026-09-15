@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { copyFile, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 
 import {
   artifactName,
@@ -20,6 +22,21 @@ import {
 const policy = await loadPackagePolicy();
 const version = "0.3.0";
 const revision = "a".repeat(40);
+
+function runPowerShellScript(relativePath, args) {
+  return spawnSync(
+    "pwsh",
+    [
+      "-NoLogo",
+      "-NoProfile",
+      "-NonInteractive",
+      "-File",
+      fileURLToPath(new URL(relativePath, import.meta.url)),
+      ...args,
+    ],
+    { encoding: "utf8" },
+  );
+}
 
 async function fixture(t, label = "windows-x86_64") {
   const root = await mkdtemp(path.join(os.tmpdir(), "portcove-updater-"));
@@ -185,6 +202,10 @@ test("manual rehearsal retains the complete matrix without production credential
     /secrets\.|contents: write|actions: write|gh release|pull_request_target/,
   );
   assert.match(workflow, /default: all/);
+  assert.match(workflow, /transition_profile:/);
+  assert.match(workflow, /default: legacy-skipped/);
+  assert.match(workflow, /options: \[legacy-skipped, preview-final\]/);
+  assert.match(workflow, /-TransitionProfile '\$\{\{ inputs\.transition_profile \}\}'/);
   const matrix = JSON.parse(workflow.match(/label:.*fromJSON\('([^']+)'\)/)[1]);
   assert.deepEqual(matrix.all.toSorted(), releaseLabels(policy).toSorted());
   for (const label of releaseLabels(policy)) assert.deepEqual(matrix[label], [label]);
@@ -211,6 +232,11 @@ test("manual rehearsal retains the complete matrix without production credential
   // an app bundle target for updater archive/signature generation.
   assert.match(rehearsal, /else \{ "app,dmg" \}/);
   assert.match(rehearsal, /test-linux-appimage-update\.ps1/);
+  assert.match(rehearsal, /ValidateSet\("legacy-skipped", "preview-final"\)/);
+  assert.match(rehearsal, /"1\.0\.0-rc\.2"/);
+  assert.match(rehearsal, /"1\.0\.0"/);
+  assert.match(rehearsal, /-PredecessorVersion/);
+  assert.match(rehearsal, /-CandidateVersion/);
   assert.match(rehearsal, /application-update-qualification/);
   assert.match(rehearsal, /Remove-Item -LiteralPath \(Join-Path \$fixtureRoot "private"\)/);
   const linuxHarness = await readFile(
@@ -220,7 +246,9 @@ test("manual rehearsal retains the complete matrix without production credential
   assert.doesNotMatch(linuxHarness, /WEBKIT_DISABLE_COMPOSITING_MODE/);
   assert.match(linuxHarness, /PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_STAGE/);
   assert.match(linuxHarness, /PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_INTERRUPT/);
-  assert.match(linuxHarness, /schema_version = 10/);
+  assert.match(linuxHarness, /schema_version = 11/);
+  assert.match(linuxHarness, /\$PredecessorVersion = "0\.1\.0"/);
+  assert.match(linuxHarness, /\$CandidateVersion = "0\.3\.0"/);
   assert.match(linuxHarness, /truncated_payload_expected_bytes/);
   assert.match(linuxHarness, /truncated_payload_bytes/);
   assert.match(linuxHarness, /truncated_payload_exit_code/);
@@ -367,4 +395,71 @@ test("manual rehearsal retains the complete matrix without production credential
   assert.match(linuxAdapter, /Some\(std::ffi::OsStr::new\("after-exchange-sync"\)\)/);
   assert.match(linuxAdapter, /std::process::exit\(87\)/);
   assert.match(rehearsal, /Invoke-Checked "dbus-run-session"/);
+});
+
+test("packaged transition and evidence contracts execute exact profile semantics", () => {
+  const rehearsalCases = [
+    {
+      profile: "legacy-skipped",
+      expected: {
+        profile: "legacy-skipped",
+        platform: "linux-x86_64",
+        predecessor_version: "0.1.0",
+        candidate_version: "0.3.0",
+        candidate_production_eligible: false,
+      },
+    },
+    {
+      profile: "preview-final",
+      expected: {
+        profile: "preview-final",
+        platform: "linux-x86_64",
+        predecessor_version: "1.0.0-rc.2",
+        candidate_version: "1.0.0",
+        candidate_production_eligible: true,
+      },
+    },
+  ];
+  for (const { profile, expected } of rehearsalCases) {
+    const result = runPowerShellScript("./rehearse-updater-artifacts.ps1", [
+      "-PlatformLabel",
+      "linux-x86_64",
+      "-TransitionProfile",
+      profile,
+      "-DescribeTransition",
+    ]);
+    assert.equal(result.status, 0, result.stderr);
+    assert.deepEqual(JSON.parse(result.stdout), expected);
+  }
+
+  const unsupported = runPowerShellScript("./rehearse-updater-artifacts.ps1", [
+    "-PlatformLabel",
+    "windows-x86_64",
+    "-TransitionProfile",
+    "preview-final",
+    "-DescribeTransition",
+  ]);
+  assert.equal(unsupported.status, 1);
+  assert.ok(
+    unsupported.stderr
+      .split(/\r?\n/)
+      .includes(
+        "The preview-final packaged transition is currently qualified only for linux-x86_64",
+      ),
+    unsupported.stderr,
+  );
+
+  const evidence = runPowerShellScript("./test-linux-appimage-update.ps1", [
+    "-DescribeContract",
+    "-PredecessorVersion",
+    "1.0.0-rc.2",
+    "-CandidateVersion",
+    "1.0.0",
+  ]);
+  assert.equal(evidence.status, 0, evidence.stderr);
+  assert.deepEqual(JSON.parse(evidence.stdout), {
+    schema_version: 11,
+    predecessor_version: "1.0.0-rc.2",
+    candidate_version: "1.0.0",
+  });
 });
