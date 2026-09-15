@@ -465,7 +465,11 @@ pub(crate) fn prepare_runtime_source_with_tool(
             .as_ref()
             == Some(&expected);
     if reusable {
-        return verify_runtime_source_hashes(destination, required_hashes, checkpoint);
+        match verify_runtime_source_hashes(destination, required_hashes, checkpoint) {
+            Ok(()) => return Ok(()),
+            Err(error) if error.code == crate::ErrorCode::Verification => {}
+            Err(error) => return Err(error),
+        }
     }
 
     match materialization {
@@ -698,9 +702,14 @@ fn verify_runtime_source_hashes(
     required_hashes: &BTreeMap<String, String>,
     checkpoint: &dyn Fn() -> Result<()>,
 ) -> Result<()> {
+    let single_file = destination.is_file() && required_hashes.len() == 1;
     for (relative, expected) in required_hashes {
         checkpoint()?;
-        let path = destination.join(relative);
+        let path = if single_file {
+            destination.to_path_buf()
+        } else {
+            destination.join(relative)
+        };
         if !path.is_file() {
             return Err(PortcoveError::verification(format!(
                 "materialized runtime source is missing {relative}"
@@ -3378,6 +3387,44 @@ mod tests {
             &std::fs::metadata(&destination).unwrap(),
         );
         assert_eq!(reused_mtime, reuse_sentinel);
+    }
+
+    #[test]
+    fn persistent_single_file_source_is_rematerialized_when_destination_bytes_drift() {
+        let temporary = tempfile::tempdir().unwrap();
+        let source = temporary.path().join("game.z64");
+        let destination = temporary.path().join("runtime/game.z64");
+        std::fs::create_dir_all(destination.parent().unwrap()).unwrap();
+        let canonical = [0x80, 0x37, 0x12, 0x40, 1, 2, 3, 4];
+        std::fs::write(&source, canonical).unwrap();
+        let required =
+            BTreeMap::from([("game.z64".into(), hex::encode(Sha256::digest(canonical)))]);
+
+        prepare_runtime_source(
+            &source,
+            &destination,
+            RuntimeSourceMaterialization::N64BigEndian,
+            &required,
+            &|| Ok(()),
+        )
+        .unwrap();
+        let marker_path = runtime_source_marker_path(&destination).unwrap();
+        let marker = std::fs::read(&marker_path).unwrap();
+
+        std::fs::write(&destination, [0x80, 0x37, 0x12, 0x40, 5, 6, 7, 8]).unwrap();
+        assert_eq!(std::fs::read(&marker_path).unwrap(), marker);
+
+        prepare_runtime_source(
+            &source,
+            &destination,
+            RuntimeSourceMaterialization::N64BigEndian,
+            &required,
+            &|| Ok(()),
+        )
+        .unwrap();
+
+        assert_eq!(std::fs::read(destination).unwrap(), canonical);
+        assert_eq!(std::fs::read(marker_path).unwrap(), marker);
     }
 
     #[test]

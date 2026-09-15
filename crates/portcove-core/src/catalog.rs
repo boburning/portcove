@@ -853,14 +853,43 @@ impl Catalog {
                     )));
                 }
             }
-            if port.runtime_source_hashes.is_empty()
-                != (port.runtime_source_materialization
-                    != Some(RuntimeSourceMaterialization::StfsDirectory))
-            {
-                return Err(PortcoveError::usage(format!(
-                    "{} has an incomplete STFS runtime identity",
-                    port.id
-                )));
+            match port.runtime_source_materialization {
+                Some(RuntimeSourceMaterialization::StfsDirectory) => {
+                    if port.runtime_source_hashes.is_empty() {
+                        return Err(PortcoveError::usage(format!(
+                            "{} has an incomplete STFS runtime identity",
+                            port.id
+                        )));
+                    }
+                }
+                Some(materialization) if !port.runtime_source_hashes.is_empty() => {
+                    let exact_single_file_identity = matches!(
+                        materialization,
+                        RuntimeSourceMaterialization::N64BigEndian
+                            | RuntimeSourceMaterialization::Copy
+                            | RuntimeSourceMaterialization::GamecubeIso
+                            | RuntimeSourceMaterialization::Ps2Iso
+                    ) && port
+                        .runtime_source_filename
+                        .as_ref()
+                        .is_some_and(|filename| {
+                            port.runtime_source_hashes.len() == 1
+                                && port.runtime_source_hashes.contains_key(filename)
+                        });
+                    if !exact_single_file_identity {
+                        return Err(PortcoveError::usage(format!(
+                            "{} has an invalid single-file runtime identity",
+                            port.id
+                        )));
+                    }
+                }
+                None if !port.runtime_source_hashes.is_empty() => {
+                    return Err(PortcoveError::usage(format!(
+                        "{} has runtime source identities without materialization",
+                        port.id
+                    )));
+                }
+                _ => {}
             }
             let mut runtime_hash_paths = HashSet::new();
             for (relative, digest) in &port.runtime_source_hashes {
@@ -1276,6 +1305,10 @@ mod tests {
         dr_mario.runtime_source_filename = Some("drmario64.us.z64".into());
         dr_mario.runtime_source_materialization =
             Some(crate::RuntimeSourceMaterialization::N64BigEndian);
+        dr_mario.runtime_source_hashes.insert(
+            "drmario64.us.z64".into(),
+            "bb2c0dec0a8287ad256929563d0509801c2f239df883c1cf52cab05b23bd77b6".into(),
+        );
         dr_mario.launch_arguments = vec!["drmario64.us.z64".into()];
         dr_mario.persistent_paths = [
             "drmario64.us.z64",
@@ -2971,6 +3004,10 @@ mod tests {
             port.runtime_source_materialization,
             Some(crate::RuntimeSourceMaterialization::N64BigEndian)
         );
+        assert_eq!(
+            port.runtime_source_hashes.get("drmario64.us.z64"),
+            Some(&"bb2c0dec0a8287ad256929563d0509801c2f239df883c1cf52cab05b23bd77b6".into())
+        );
         assert!(
             port.persistent_paths
                 .iter()
@@ -3374,6 +3411,30 @@ mod tests {
             .persistent_paths
             .push("rom".into());
         catalog.validate().unwrap();
+    }
+
+    #[test]
+    fn single_file_runtime_hashes_bind_the_exact_destination() {
+        let mut catalog = Catalog::embedded().unwrap();
+        let port = catalog
+            .document
+            .ports
+            .iter_mut()
+            .find(|port| port.id == "dr-mario-64-recomp")
+            .unwrap();
+        let digest = port
+            .runtime_source_hashes
+            .remove("drmario64.us.z64")
+            .unwrap();
+        port.runtime_source_hashes
+            .insert("different.z64".into(), digest);
+
+        let error = catalog.validate().unwrap_err();
+        assert!(
+            error
+                .to_string()
+                .contains("invalid single-file runtime identity")
+        );
     }
 
     #[test]

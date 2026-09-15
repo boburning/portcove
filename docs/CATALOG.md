@@ -150,8 +150,10 @@ bounded automated lifecycle records cover the checksum-qualified USA Rev 0
 source, release artifact, wrapper runtime directory, immutable verification,
 three responsive D3D12 launches with normal close, no-op update, safe refusal
 of rollback without a retained version, removal preservation, and clean
-reinstall. The port remains beta: the same current AMD host failed under Auto
-and explicit Vulkan inside `amdxc64.dll`, and the evidence does not claim
+reinstall. Its persistent runtime ROM is SHA-256-bound on every reuse, so a
+restored or edited destination is rematerialized from the admitted source
+before launch. The port remains beta: the same current AMD host failed under
+Auto and explicit Vulkan inside `amdxc64.dll`, and the evidence does not claim
 hands-on gameplay, controls, audio, in-game save/load, backup restore,
 cross-version update/rollback, or non-Windows behavior. The exact identities,
 methods, and remaining boundaries are recorded in

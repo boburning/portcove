@@ -167,6 +167,9 @@ test("schema-2 migration is deterministic and preserves the frozen schema-1 proj
   assert.equal(drMario.runtime_subdirectory, "Dr. Mario 64 Recompiled x64-Release");
   assert.equal(drMario.runtime_source_filename, "drmario64.us.z64");
   assert.equal(drMario.runtime_source_materialization, "n64-big-endian");
+  assert.deepEqual(drMario.runtime_source_hashes, {
+    "drmario64.us.z64": "bb2c0dec0a8287ad256929563d0509801c2f239df883c1cf52cab05b23bd77b6",
+  });
   assert.deepEqual(drMario.launch_arguments, ["drmario64.us.z64"]);
   assert.equal(
     drMario.persistent_paths.includes("Dr. Mario 64 Recompiled x64-Release/mod_config"),

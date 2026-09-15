@@ -1528,6 +1528,10 @@ const migrated = {
                       runtime_subdirectory: "Dr. Mario 64 Recompiled x64-Release",
                       runtime_source_filename: "drmario64.us.z64",
                       runtime_source_materialization: "n64-big-endian",
+                      runtime_source_hashes: {
+                        "drmario64.us.z64":
+                          "bb2c0dec0a8287ad256929563d0509801c2f239df883c1cf52cab05b23bd77b6",
+                      },
                       launch_arguments: ["drmario64.us.z64"],
                       persistent_paths: [
                         "Dr. Mario 64 Recompiled x64-Release/drmario64.us.z64",
