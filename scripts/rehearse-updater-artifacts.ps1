@@ -3,7 +3,8 @@ param(
     [ValidateSet("windows-x86_64", "linux-x86_64", "macos-x86_64", "macos-aarch64")]
     [string]$PlatformLabel,
     [ValidateSet("legacy-skipped", "preview-final")]
-    [string]$TransitionProfile = "legacy-skipped"
+    [string]$TransitionProfile = "legacy-skipped",
+    [switch]$DescribeTransition
 )
 
 $ErrorActionPreference = "Stop"
@@ -12,9 +13,20 @@ Set-Location -LiteralPath $root
 if ($TransitionProfile -eq "preview-final" -and $PlatformLabel -ne "linux-x86_64") {
     throw "The preview-final packaged transition is currently qualified only for linux-x86_64"
 }
-$predecessorVersion = if ($TransitionProfile -eq "preview-final") { "1.0.0-rc.2" } else { "0.1.0" }
-$candidateVersion = if ($TransitionProfile -eq "preview-final") { "1.0.0" } else { "0.3.0" }
-$candidateProductionEligible = $TransitionProfile -eq "preview-final"
+$transition = [ordered]@{
+    profile = $TransitionProfile
+    platform = $PlatformLabel
+    predecessor_version = if ($TransitionProfile -eq "preview-final") { "1.0.0-rc.2" } else { "0.1.0" }
+    candidate_version = if ($TransitionProfile -eq "preview-final") { "1.0.0" } else { "0.3.0" }
+    candidate_production_eligible = $TransitionProfile -eq "preview-final"
+}
+if ($DescribeTransition) {
+    $transition | ConvertTo-Json -Compress
+    exit 0
+}
+$predecessorVersion = $transition.predecessor_version
+$candidateVersion = $transition.candidate_version
+$candidateProductionEligible = $transition.candidate_production_eligible
 $fixtureVersions = @($predecessorVersion, $candidateVersion)
 $pnpmSpec = (Get-Content (Join-Path $root "apps/desktop/package.json") -Raw | ConvertFrom-Json).packageManager
 if ($pnpmSpec -notmatch '^pnpm@\d+\.\d+\.\d+$') { throw "Desktop packageManager must pin an exact pnpm version" }

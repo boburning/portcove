@@ -1,17 +1,29 @@
+[CmdletBinding(DefaultParameterSetName = "Run")]
 param(
-    [Parameter(Mandatory = $true)][string]$PredecessorPath,
-    [Parameter(Mandatory = $true)][string]$CandidatePath,
-    [Parameter(Mandatory = $true)][string]$TrustedRootPath,
-    [Parameter(Mandatory = $true)][string]$MetadataPath,
-    [Parameter(Mandatory = $true)][string]$TargetsPath,
-    [Parameter(Mandatory = $true)][string]$StateRoot,
-    [Parameter(Mandatory = $true)][string]$EvidencePath,
+    [Parameter(Mandatory = $true, ParameterSetName = "Run")][string]$PredecessorPath,
+    [Parameter(Mandatory = $true, ParameterSetName = "Run")][string]$CandidatePath,
+    [Parameter(Mandatory = $true, ParameterSetName = "Run")][string]$TrustedRootPath,
+    [Parameter(Mandatory = $true, ParameterSetName = "Run")][string]$MetadataPath,
+    [Parameter(Mandatory = $true, ParameterSetName = "Run")][string]$TargetsPath,
+    [Parameter(Mandatory = $true, ParameterSetName = "Run")][string]$StateRoot,
+    [Parameter(Mandatory = $true, ParameterSetName = "Run")][string]$EvidencePath,
+    [Parameter(Mandatory = $true, ParameterSetName = "Describe")][switch]$DescribeContract,
     [ValidatePattern('^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$')]
     [string]$PredecessorVersion = "0.1.0",
     [ValidatePattern('^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$')]
     [string]$CandidateVersion = "0.3.0",
     [int]$StartupTimeoutSeconds = 30
 )
+
+$evidenceContract = [ordered]@{
+    schema_version = 11
+    predecessor_version = $PredecessorVersion
+    candidate_version = $CandidateVersion
+}
+if ($DescribeContract) {
+    $evidenceContract | ConvertTo-Json -Compress
+    exit 0
+}
 
 $ErrorActionPreference = "Stop"
 if (-not $IsLinux) { throw "The AppImage update harness requires Linux" }
@@ -63,12 +75,12 @@ $sentinel = Join-Path $sentinelRoot "preserve.txt"
 $sentinelHash = (Get-FileHash -LiteralPath $sentinel -Algorithm SHA256).Hash
 
 $evidence = [ordered]@{
-    schema_version = 11
+    schema_version = $evidenceContract.schema_version
     phase = "preparing"
     source_commit = (& git rev-parse HEAD | Out-String).Trim()
     platform = "linux-x86_64"
-    predecessor = [ordered]@{ version = $PredecessorVersion; path = $predecessor; sha256 = $predecessorHash }
-    candidate = [ordered]@{ version = $CandidateVersion; path = $candidate; sha256 = $candidateHash }
+    predecessor = [ordered]@{ version = $evidenceContract.predecessor_version; path = $predecessor; sha256 = $predecessorHash }
+    candidate = [ordered]@{ version = $evidenceContract.candidate_version; path = $candidate; sha256 = $candidateHash }
     stable_path = $stable
     apply_revision = $null
     truncated_payload_expected_bytes = $null
