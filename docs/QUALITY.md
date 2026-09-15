@@ -730,3 +730,24 @@ which uses the exact private host transport declarations. Its input and output
 snapshots remain separate from core's export. Strict compiler fixtures cover
 the desktop's required nullable envelope fields, camelCase launch identity and
 typed install request; Rust fixtures check actual Serde output/input behavior.
+
+## Routine merge freshness
+
+The Protect main ruleset keeps `catalog`, `dependency-review`, `frontend`,
+`rust`, and `rust-quality` required while leaving
+`strict_required_status_checks_policy` disabled. GitHub may therefore merge an
+otherwise eligible pull request whose unchanged source head is behind `main`.
+This avoids branch-only churn; it does not claim the reviewed patch was tested
+with later target changes and does not weaken the exact-head validation plan.
+
+Before a behind-main merge, record the source head and reviewed baseline, retain
+the actual separate reviewer-subagent result for that source head, confirm every
+required check succeeded, and confirm GitHub reports no merge conflict. Fetch
+the target for observation without automatically changing the source branch.
+If later target work actually intersects the patch, its dependencies, schemas,
+generated contracts, or trusted validation policy, perform the necessary
+focused reconciliation and obtain current-head validation and review. A target
+advance alone does not invalidate an unchanged patch, but a new source head,
+failed or missing check, unresolved conflict, relevant interaction, or policy
+drift still blocks. Use the normal merge or auto-merge path with
+`--match-head-commit <reviewed-head>` and never administrator bypass.
