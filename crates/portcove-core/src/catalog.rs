@@ -2732,13 +2732,14 @@ mod tests {
             "audio.json",
             "controls.json",
             "rom_path.txt",
+            "LodRecomp.log",
         ] {
             assert!(
                 port.persistent_paths.iter().any(|value| value == path),
                 "LodRecomp persistence contract is missing {path}"
             );
         }
-        assert_eq!(port.runtime_mutable_paths, ["LodRecomp.log"]);
+        assert!(port.runtime_mutable_paths.is_empty());
 
         let contract = catalog
             .source_catalog()

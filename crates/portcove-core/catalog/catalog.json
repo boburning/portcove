@@ -10670,9 +10670,7 @@
         "graphics.json",
         "audio.json",
         "controls.json",
-        "rom_path.txt"
-      ],
-      "runtime_mutable_paths": [
+        "rom_path.txt",
         "LodRecomp.log"
       ],
       "portable_marker": true,
