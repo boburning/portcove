@@ -23,7 +23,7 @@ const policy = await loadPackagePolicy();
 const version = "0.3.0";
 const revision = "a".repeat(40);
 
-function runPowerShellScript(relativePath, args) {
+function runPowerShellScript(relativePath, args, options = {}) {
   return spawnSync(
     "pwsh",
     [
@@ -34,7 +34,7 @@ function runPowerShellScript(relativePath, args) {
       fileURLToPath(new URL(relativePath, import.meta.url)),
       ...args,
     ],
-    { encoding: "utf8" },
+    { encoding: "utf8", ...options },
   );
 }
 
@@ -238,19 +238,58 @@ test("manual rehearsal retains the complete matrix without production credential
   assert.match(rehearsal, /-PredecessorVersion/);
   assert.match(rehearsal, /-CandidateVersion/);
   assert.match(rehearsal, /application-update-qualification/);
+  assert.match(rehearsal, /private_signing_inputs_absent/);
+  assert.match(rehearsal, /-PayloadPrivateKeyPath \$privateKey -RequireSigningAuthorityAbsent/);
+  const windowsHarness = rehearsal.indexOf("test-windows-installer.ps1");
+  const windowsPrivateKeyRemoval = rehearsal.lastIndexOf(
+    "Remove-Item -LiteralPath $privateKey -Force",
+    windowsHarness,
+  );
+  const windowsPrivateKeyEnvironmentRemoval = rehearsal.lastIndexOf(
+    "Remove-Item Env:TAURI_SIGNING_PRIVATE_KEY -ErrorAction SilentlyContinue",
+    windowsHarness,
+  );
+  const windowsPasswordEnvironmentRemoval = rehearsal.lastIndexOf(
+    "Remove-Item Env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD -ErrorAction SilentlyContinue",
+    windowsHarness,
+  );
+  assert.ok(
+    windowsHarness >= 0 &&
+      windowsPrivateKeyRemoval >= 0 &&
+      windowsPrivateKeyRemoval < windowsHarness,
+    "the disposable payload private key must be removed before Windows package execution",
+  );
+  assert.ok(
+    windowsPrivateKeyEnvironmentRemoval >= 0 &&
+      windowsPasswordEnvironmentRemoval >= 0 &&
+      windowsPrivateKeyEnvironmentRemoval < windowsHarness &&
+      windowsPasswordEnvironmentRemoval < windowsHarness,
+    "the Tauri signing environment must be removed before Windows package execution",
+  );
   assert.match(rehearsal, /Remove-Item -LiteralPath \(Join-Path \$fixtureRoot "private"\)/);
   assert.match(rehearsal, /Remove-Item -LiteralPath \$privateKey -Force/);
+  const linuxConsumer = rehearsal.indexOf('Invoke-Checked "dbus-run-session"');
+  const linuxPrivateKeyRemoval = rehearsal.lastIndexOf(
+    "Remove-Item -LiteralPath $privateKey -Force",
+    linuxConsumer,
+  );
+  const linuxPrivateKeyEnvironmentRemoval = rehearsal.lastIndexOf(
+    "Remove-Item Env:TAURI_SIGNING_PRIVATE_KEY -ErrorAction SilentlyContinue",
+    linuxConsumer,
+  );
+  const linuxPasswordEnvironmentRemoval = rehearsal.lastIndexOf(
+    "Remove-Item Env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD -ErrorAction SilentlyContinue",
+    linuxConsumer,
+  );
   assert.ok(
-    rehearsal.indexOf("Remove-Item -LiteralPath $privateKey -Force") <
-      rehearsal.indexOf('Invoke-Checked "dbus-run-session"'),
+    linuxConsumer >= 0 && linuxPrivateKeyRemoval >= 0 && linuxPrivateKeyRemoval < linuxConsumer,
     "the disposable payload private key must be removed before consumer execution",
   );
   assert.ok(
-    rehearsal.indexOf("Remove-Item Env:TAURI_SIGNING_PRIVATE_KEY -ErrorAction SilentlyContinue") <
-      rehearsal.indexOf('Invoke-Checked "dbus-run-session"') &&
-      rehearsal.indexOf(
-        "Remove-Item Env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD -ErrorAction SilentlyContinue",
-      ) < rehearsal.indexOf('Invoke-Checked "dbus-run-session"'),
+    linuxPrivateKeyEnvironmentRemoval >= 0 &&
+      linuxPasswordEnvironmentRemoval >= 0 &&
+      linuxPrivateKeyEnvironmentRemoval < linuxConsumer &&
+      linuxPasswordEnvironmentRemoval < linuxConsumer,
     "the Tauri signing environment must be removed before consumer execution",
   );
   const linuxHarness = await readFile(
@@ -460,6 +499,7 @@ test("packaged transition and evidence contracts execute exact profile semantics
     },
     {
       profile: "preview-final",
+      platform: "linux-x86_64",
       expected: {
         profile: "preview-final",
         platform: "linux-x86_64",
@@ -468,11 +508,22 @@ test("packaged transition and evidence contracts execute exact profile semantics
         candidate_production_eligible: true,
       },
     },
+    {
+      profile: "preview-final",
+      platform: "windows-x86_64",
+      expected: {
+        profile: "preview-final",
+        platform: "windows-x86_64",
+        predecessor_version: "1.0.0-rc.2",
+        candidate_version: "1.0.0",
+        candidate_production_eligible: true,
+      },
+    },
   ];
-  for (const { profile, expected } of rehearsalCases) {
+  for (const { profile, platform = "linux-x86_64", expected } of rehearsalCases) {
     const result = runPowerShellScript("./rehearse-updater-artifacts.ps1", [
       "-PlatformLabel",
-      "linux-x86_64",
+      platform,
       "-TransitionProfile",
       profile,
       "-DescribeTransition",
@@ -483,7 +534,7 @@ test("packaged transition and evidence contracts execute exact profile semantics
 
   const unsupported = runPowerShellScript("./rehearse-updater-artifacts.ps1", [
     "-PlatformLabel",
-    "windows-x86_64",
+    "macos-x86_64",
     "-TransitionProfile",
     "preview-final",
     "-DescribeTransition",
@@ -493,7 +544,7 @@ test("packaged transition and evidence contracts execute exact profile semantics
     unsupported.stderr
       .split(/\r?\n/)
       .includes(
-        "The preview-final packaged transition is currently qualified only for linux-x86_64",
+        "The preview-final packaged transition is currently qualified only for windows-x86_64 and linux-x86_64",
       ),
     unsupported.stderr,
   );
@@ -512,3 +563,99 @@ test("packaged transition and evidence contracts execute exact profile semantics
     candidate_version: "1.0.0",
   });
 });
+
+test(
+  "Windows installer signing-authority guard executes before any process spawn",
+  { skip: process.platform !== "win32" },
+  async (t) => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "portcove-signing-authority-"));
+    t.after(() => rm(root, { recursive: true, force: true }));
+    const privateKey = path.join(root, "private.key");
+    const removedPrivateKey = path.join(root, "removed-private.key");
+    await writeFile(privateKey, "disposable private key fixture");
+    const installer = path.join(process.env.SystemRoot, "System32", "where.exe");
+
+    const environment = (signingAuthorityPresent) => {
+      const env = { ...process.env };
+      for (const name of Object.keys(env)) {
+        if (
+          name.toUpperCase() === "TAURI_SIGNING_PRIVATE_KEY" ||
+          name.toUpperCase() === "TAURI_SIGNING_PRIVATE_KEY_PASSWORD"
+        )
+          delete env[name];
+      }
+      if (signingAuthorityPresent) {
+        env.TAURI_SIGNING_PRIVATE_KEY = privateKey;
+        env.TAURI_SIGNING_PRIVATE_KEY_PASSWORD = "fixture-password";
+      }
+      return env;
+    };
+
+    const runHarness = async (label, { requireAbsent, signingAuthorityPresent }) => {
+      const caseRoot = path.join(root, label);
+      const evidencePath = path.join(caseRoot, "evidence.json");
+      await mkdir(caseRoot);
+      const args = [
+        "-InstallerPath",
+        installer,
+        "-TestBase",
+        path.join(caseRoot, "test-base"),
+        "-EvidencePath",
+        evidencePath,
+        "-ProcessTimeoutSeconds",
+        "10",
+        "-CleanupTimeoutSeconds",
+        "2",
+      ];
+      if (requireAbsent)
+        args.push(
+          "-PayloadPrivateKeyPath",
+          signingAuthorityPresent ? privateKey : removedPrivateKey,
+          "-RequireSigningAuthorityAbsent",
+        );
+      const result = runPowerShellScript("./test-windows-installer.ps1", args, {
+        env: environment(signingAuthorityPresent),
+      });
+      return { result, evidence: JSON.parse(await readFile(evidencePath, "utf8")) };
+    };
+
+    const rejected = await runHarness("rejected", {
+      requireAbsent: true,
+      signingAuthorityPresent: true,
+    });
+    assert.equal(rejected.result.status, 1);
+    assert.match(
+      rejected.result.stderr,
+      /Disposable signing authority is available to the Windows package lifecycle/,
+    );
+    assert.equal(rejected.evidence.phase, "signing_authority_checked");
+    assert.deepEqual(rejected.evidence.private_signing_inputs_absent, {
+      payload_private_key: false,
+      signing_private_key_environment: false,
+      signing_password_environment: false,
+    });
+    assert.deepEqual(rejected.evidence.process_runs, []);
+
+    const accepted = await runHarness("accepted-positive-control", {
+      requireAbsent: true,
+      signingAuthorityPresent: false,
+    });
+    assert.equal(accepted.result.status, 1);
+    assert.doesNotMatch(accepted.result.stderr, /signing authority/i);
+    assert.deepEqual(accepted.evidence.private_signing_inputs_absent, {
+      payload_private_key: true,
+      signing_private_key_environment: true,
+      signing_password_environment: true,
+    });
+    assert.equal(accepted.evidence.process_runs.length, 1);
+
+    const compatibility = await runHarness("omitted-switch-compatibility", {
+      requireAbsent: false,
+      signingAuthorityPresent: true,
+    });
+    assert.equal(compatibility.result.status, 1);
+    assert.doesNotMatch(compatibility.result.stderr, /signing authority/i);
+    assert.equal("private_signing_inputs_absent" in compatibility.evidence, false);
+    assert.equal(compatibility.evidence.process_runs.length, 1);
+  },
+);

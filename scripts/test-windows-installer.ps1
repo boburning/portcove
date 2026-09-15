@@ -14,6 +14,8 @@ param(
     [int]$ProcessTimeoutSeconds = 120,
     [ValidateRange(1, 60)]
     [int]$CleanupTimeoutSeconds = 15,
+    [string]$PayloadPrivateKeyPath,
+    [switch]$RequireSigningAuthorityAbsent,
     [ValidateSet("", "post-spawn-verification")]
     [string]$TestFault = ""
 )
@@ -258,7 +260,23 @@ function Write-InstallerEvidence([string]$Phase, $Details = $null) {
         }
     }
 }
-Write-InstallerEvidence "initialized"
+if ($RequireSigningAuthorityAbsent) {
+    if ([string]::IsNullOrWhiteSpace($PayloadPrivateKeyPath)) {
+        throw "PayloadPrivateKeyPath is required when signing authority must be absent"
+    }
+    $privateSigningInputsAbsent = [ordered]@{
+        payload_private_key = -not [System.IO.File]::Exists([System.IO.Path]::GetFullPath($PayloadPrivateKeyPath))
+        signing_private_key_environment = $null -eq [Environment]::GetEnvironmentVariable("TAURI_SIGNING_PRIVATE_KEY", "Process")
+        signing_password_environment = $null -eq [Environment]::GetEnvironmentVariable("TAURI_SIGNING_PRIVATE_KEY_PASSWORD", "Process")
+    }
+    if ($evidence) { $evidence.private_signing_inputs_absent = $privateSigningInputsAbsent }
+    Write-InstallerEvidence "signing_authority_checked"
+    if ($privateSigningInputsAbsent.Values -contains $false) {
+        throw "Disposable signing authority is available to the Windows package lifecycle"
+    }
+} else {
+    Write-InstallerEvidence "initialized"
+}
 
 function Stop-JournaledProcess($Run, $Process, [string]$Status, [string]$Reason) {
     $Run.status = $Status

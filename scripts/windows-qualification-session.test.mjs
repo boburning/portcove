@@ -41,6 +41,18 @@ test("installer lifecycle journals every required process before spawning it", (
   assert.match(source, /-Role "candidate_uninstaller".*-AllowedRelocationRoot \$runRoot/);
   assert.match(source, /RetainedLibraryRoot must be an isolated sibling below the TestBase parent/);
   assert.match(source, /RetainedLibraryRoot must be empty before qualification/);
+  assert.match(source, /\[switch\]\$RequireSigningAuthorityAbsent/);
+  assert.match(source, /private_signing_inputs_absent/);
+  assert.match(
+    source,
+    /Disposable signing authority is available to the Windows package lifecycle/,
+  );
+  const authorityCheck = source.indexOf('Write-InstallerEvidence "signing_authority_checked"');
+  const firstSpawn = source.indexOf("Start-Process -FilePath $exact");
+  assert.ok(
+    authorityCheck >= 0 && firstSpawn > authorityCheck,
+    "signing authority must be checked and journaled before the first process spawn",
+  );
   assert.match(
     source,
     /\$requested\.Equals\(\$base, \[System\.StringComparison\]::OrdinalIgnoreCase\)/,
