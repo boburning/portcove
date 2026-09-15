@@ -341,9 +341,27 @@ export async function interruptedPreparationScenario({
     await dismissApplicationUpdateChoice();
     await browser.findElement(By.xpath('//nav//button[contains(., "Updates")]')).click();
 
-    await controls.click(
-      By.xpath(
-        `//*[@data-recovery-operation="${activity.id}"]//button[normalize-space(.)="Review private-file cleanup"]`,
+    const recoveredReviewLocator = By.css(`[data-recovery-operation="${activity.id}"]`);
+    let recoveredReview = await browser.wait(until.elementLocated(recoveredReviewLocator), 15_000);
+    await recoveredReview.findElement(By.css("summary")).click();
+    await browser.wait(
+      async () => (await recoveredReview.getAttribute("open")) !== null,
+      5_000,
+      "The recovered preparation disclosure must be open before cleanup review",
+    );
+    recoveredReview = await browser.findElement(recoveredReviewLocator);
+    if ((await recoveredReview.getAttribute("open")) === null) {
+      await recoveredReview.findElement(By.css("summary")).click();
+      await browser.wait(
+        async () => (await recoveredReview.getAttribute("open")) !== null,
+        5_000,
+        "The current recovered preparation disclosure must be open before cleanup review",
+      );
+    }
+    await clickVisible(
+      browser,
+      await recoveredReview.findElement(
+        By.xpath('.//button[normalize-space(.)="Review private-file cleanup"]'),
       ),
     );
     await browser.wait(until.elementLocated(cleanupDialog), 15_000);

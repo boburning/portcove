@@ -345,17 +345,30 @@ async function connect() {
   );
 }
 
+async function requestApplicationShutdown() {
+  await browser.executeScript(() => {
+    const native = window.__TAURI_INTERNALS__;
+    if (typeof native?.invoke !== "function") throw new Error("Tauri IPC is unavailable");
+    void native.invoke("plugin:webview|close", { label: "main" });
+    void native.invoke("plugin:window|close", { label: "main" });
+  });
+  await browser.quit();
+  browser = undefined;
+}
+
 async function restartApplication(name) {
   const snapshot = path.join(output, `${name}-processes.json`);
   const restartEvidence = path.join(output, `${name}-restart.json`);
-  const observation = { started_at: new Date().toISOString() };
+  const observation = {
+    started_at: new Date().toISOString(),
+    shutdown_request: "tauri-webview-and-window-close-then-webdriver-delete-session",
+  };
   if (process.platform === "win32") {
     observation.snapshot = observeNativeSession("Snapshot", snapshot);
     artifacts.push(snapshot);
   }
-  await browser.quit();
-  browser = undefined;
-  observation.quit_completed_at = new Date().toISOString();
+  await requestApplicationShutdown();
+  observation.session_delete_completed_at = new Date().toISOString();
   if (process.platform === "win32") {
     observation.shutdown = observeNativeSession("Wait", snapshot);
   }
@@ -656,7 +669,8 @@ try {
       for (let cycle = 0; cycle < restartCycles; cycle++) {
         const observation = {
           cycle: cycle + 1,
-          quit_started: new Date().toISOString(),
+          close_started: new Date().toISOString(),
+          shutdown_request: "tauri-webview-and-window-close-then-webdriver-delete-session",
         };
         observations.push(observation);
         const snapshot = path.join(output, `restart-${cycle + 1}-processes.json`);
@@ -664,9 +678,8 @@ try {
           observeNativeSession("Snapshot", snapshot);
           artifacts.push(snapshot);
         }
-        await browser.quit();
-        browser = undefined;
-        observation.quit_completed = new Date().toISOString();
+        await requestApplicationShutdown();
+        observation.session_delete_completed = new Date().toISOString();
         if (process.platform === "win32")
           observation.shutdown = observeNativeSession("Wait", snapshot);
         await connect();
