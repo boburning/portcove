@@ -238,6 +238,21 @@ test("manual rehearsal retains the complete matrix without production credential
   assert.match(rehearsal, /-PredecessorVersion/);
   assert.match(rehearsal, /-CandidateVersion/);
   assert.match(rehearsal, /application-update-qualification/);
+  assert.match(rehearsal, /private_signing_inputs_absent/);
+  assert.match(rehearsal, /-PayloadPrivateKeyPath \$privateKey -RequireSigningAuthorityAbsent/);
+  assert.ok(
+    rehearsal.indexOf("Remove-Item -LiteralPath $privateKey -Force") <
+      rehearsal.indexOf("test-windows-installer.ps1"),
+    "the disposable payload private key must be removed before Windows package execution",
+  );
+  assert.ok(
+    rehearsal.indexOf("Remove-Item Env:TAURI_SIGNING_PRIVATE_KEY -ErrorAction SilentlyContinue") <
+      rehearsal.indexOf("test-windows-installer.ps1") &&
+      rehearsal.indexOf(
+        "Remove-Item Env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD -ErrorAction SilentlyContinue",
+      ) < rehearsal.indexOf("test-windows-installer.ps1"),
+    "the Tauri signing environment must be removed before Windows package execution",
+  );
   assert.match(rehearsal, /Remove-Item -LiteralPath \(Join-Path \$fixtureRoot "private"\)/);
   assert.match(rehearsal, /Remove-Item -LiteralPath \$privateKey -Force/);
   assert.ok(
@@ -460,6 +475,7 @@ test("packaged transition and evidence contracts execute exact profile semantics
     },
     {
       profile: "preview-final",
+      platform: "linux-x86_64",
       expected: {
         profile: "preview-final",
         platform: "linux-x86_64",
@@ -468,11 +484,22 @@ test("packaged transition and evidence contracts execute exact profile semantics
         candidate_production_eligible: true,
       },
     },
+    {
+      profile: "preview-final",
+      platform: "windows-x86_64",
+      expected: {
+        profile: "preview-final",
+        platform: "windows-x86_64",
+        predecessor_version: "1.0.0-rc.2",
+        candidate_version: "1.0.0",
+        candidate_production_eligible: true,
+      },
+    },
   ];
-  for (const { profile, expected } of rehearsalCases) {
+  for (const { profile, platform = "linux-x86_64", expected } of rehearsalCases) {
     const result = runPowerShellScript("./rehearse-updater-artifacts.ps1", [
       "-PlatformLabel",
-      "linux-x86_64",
+      platform,
       "-TransitionProfile",
       profile,
       "-DescribeTransition",
@@ -483,7 +510,7 @@ test("packaged transition and evidence contracts execute exact profile semantics
 
   const unsupported = runPowerShellScript("./rehearse-updater-artifacts.ps1", [
     "-PlatformLabel",
-    "windows-x86_64",
+    "macos-x86_64",
     "-TransitionProfile",
     "preview-final",
     "-DescribeTransition",
@@ -493,7 +520,7 @@ test("packaged transition and evidence contracts execute exact profile semantics
     unsupported.stderr
       .split(/\r?\n/)
       .includes(
-        "The preview-final packaged transition is currently qualified only for linux-x86_64",
+        "The preview-final packaged transition is currently qualified only for windows-x86_64 and linux-x86_64",
       ),
     unsupported.stderr,
   );

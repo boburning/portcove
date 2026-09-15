@@ -10,8 +10,8 @@ param(
 $ErrorActionPreference = "Stop"
 $root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 Set-Location -LiteralPath $root
-if ($TransitionProfile -eq "preview-final" -and $PlatformLabel -ne "linux-x86_64") {
-    $message = "The preview-final packaged transition is currently qualified only for linux-x86_64"
+if ($TransitionProfile -eq "preview-final" -and $PlatformLabel -notin @("windows-x86_64", "linux-x86_64")) {
+    $message = "The preview-final packaged transition is currently qualified only for windows-x86_64 and linux-x86_64"
     [Console]::Error.WriteLine($message)
     throw $message
 }
@@ -135,7 +135,18 @@ try {
             if ($native.installer_product_version -notin @($version, "$version.0")) { throw "NSIS product version mismatch" }
             if ($version -eq $candidateVersion) {
                 $predecessor = Join-Path $runRoot "$predecessorVersion-$PlatformLabel/Portcove_$($predecessorVersion)_x64-setup.exe"
-                & (Join-Path $PSScriptRoot "test-windows-installer.ps1") -InstallerPath $installer -UpgradeFromInstallerPath $predecessor -ExpectedExecutablePath (Join-Path $root "target/release/portcove-desktop.exe") -TestBase (Join-Path $runRoot "installer-test") -EvidencePath (Join-Path $runRoot "windows-passive-upgrade.json") -InstallMode Passive -ExpectedVersion $version
+                Remove-Item -LiteralPath $privateKey -Force
+                Remove-Item Env:TAURI_SIGNING_PRIVATE_KEY -ErrorAction SilentlyContinue
+                Remove-Item Env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD -ErrorAction SilentlyContinue
+                $native.private_signing_inputs_absent = [ordered]@{
+                    payload_private_key = -not [IO.File]::Exists($privateKey)
+                    signing_private_key_environment = $null -eq [Environment]::GetEnvironmentVariable("TAURI_SIGNING_PRIVATE_KEY", "Process")
+                    signing_password_environment = $null -eq [Environment]::GetEnvironmentVariable("TAURI_SIGNING_PRIVATE_KEY_PASSWORD", "Process")
+                }
+                if ($native.private_signing_inputs_absent.Values -contains $false) {
+                    throw "Disposable signing authority remained available before Windows package execution"
+                }
+                & (Join-Path $PSScriptRoot "test-windows-installer.ps1") -InstallerPath $installer -UpgradeFromInstallerPath $predecessor -ExpectedExecutablePath (Join-Path $root "target/release/portcove-desktop.exe") -TestBase (Join-Path $runRoot "installer-test") -EvidencePath (Join-Path $runRoot "windows-passive-upgrade.json") -InstallMode Passive -ExpectedVersion $version -PayloadPrivateKeyPath $privateKey -RequireSigningAuthorityAbsent
                 if ((Get-FileHash -LiteralPath $env:PORTCOVE_PREFERENCES -Algorithm SHA256).Hash -ne $preferencesHash) { throw "Installer rehearsal changed isolated host preferences" }
             }
         } elseif ($IsLinux) {
