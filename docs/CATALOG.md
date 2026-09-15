@@ -134,10 +134,14 @@ artifact, clean managed build, immutable verification, responsive native
 launches, persistence, backup restore, removal, and clean reinstall. Its check
 contract does not claim hands-on gameplay, controls, audio, in-game save/load,
 non-Windows platforms, or v0.5.7-to-v0.6.1 update/rollback. Revelations: Persona
-v0.1.1 retains exact source and earlier Windows build observations but no exact
-qualification record. For both ports, `input.ini` is persistent user
-configuration and `psx_last_run_report.json` is reviewed disposable runtime
-output.
+v0.1.1 has exact Windows structural and bounded automated lifecycle records for
+its owned-input artifact and Track 01 contract, including v0.1.0 installation,
+v0.1.1 update, no-op, rollback/reactivation, fail-closed verification, repaired
+native launches, persistence, and backup restore. It does not claim hands-on
+gameplay, controls, audio, in-game save/load, non-Windows platforms, or removal
+and clean reinstall under the repaired configuration-copy contract. For both
+ports, `input.ini` is persistent user configuration and
+`psx_last_run_report.json` is reviewed disposable runtime output.
 
 ## Adding or changing a port
 
