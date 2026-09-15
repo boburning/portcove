@@ -106,8 +106,8 @@ The curated profiles are:
 
 - `smoke`: native bootstrap/error recovery, keyboard/compact layout, isolated
   application-update preference persistence and updater-state recovery, appearance
-  restart, accessibility, injected controller, expanded navigation and workspace
-  refresh. Reviewed install progress/cancellation remains an explicit gap.
+  restart, accessibility, injected controller, expanded navigation, workspace
+  refresh, and a reviewed install cancelled during a streamed fixture download.
 - `presentation`: empty-library, keyboard, isolated application-update preferences
   and recovery, accessibility, controller and expanded navigation presentation checks.
 - `restart`: appearance restart and workspace refresh. Positive `--reload-cycles`
@@ -116,8 +116,8 @@ The curated profiles are:
 - `owned-lifecycle`: external CLI-to-Desktop reconciliation plus reviewed preparation,
   readiness, recovery, settings, channel, backup/removal, source/adoption,
   library-move and CLI-handoff scenarios.
-- `full`: smoke, owned lifecycle and artwork. Its reviewed-install gap means it is
-  incomplete rather than universal desktop qualification.
+- `full`: smoke, owned lifecycle and artwork. It remains a curated native suite,
+  not universal desktop, physical-device, gameplay or human qualification.
 
 The runner performs the desktop doctor and storage preflight, verifies that the
 pinned Selenium workspace package resolves, builds or exactly reuses the frontend
@@ -235,10 +235,17 @@ artifacts. Failed metadata retrieval remains separate from a saved channel.
 
 The smoke scenarios exercise native IPC/bootstrap, an empty library, a rejected
 operation with usable state afterward, keyboard focus/compact layout, appearance
-persistence over a real process restart, and automated accessibility checks.
-Install/progress/cancellation requires a reviewed artifact fixture and is
-explicitly not-run in this smoke suite. Core/component tests and human acceptance
-remain separate. An incomplete report is not full desktop qualification.
+persistence over a real process restart, automated accessibility checks, and one
+reviewed install cancellation. The install scenario builds a qualification-feature
+binary, creates a checksum-pinned artifact and catalog copy inside the fresh run,
+serves only that artifact from an ephemeral loopback address, and records the exact
+request, cancellation, staging absence and successful fresh-review retry. The
+qualification feature accepts only an absolute catalog file and loopback HTTP URL;
+default and shipping binaries ignore the fixture variable and continue to require
+HTTPS direct manifests. The fixture proves native progress/cancellation and safe
+retry, not upstream availability, game compatibility, gameplay or human acceptance.
+Core/component tests and human acceptance remain separate. An incomplete report is
+not full desktop qualification.
 
 Windows restart checks capture the exact driver-owned application and child
 process identities before closing the session. Before reusing its WebView profile,

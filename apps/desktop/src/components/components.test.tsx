@@ -18,6 +18,7 @@ import { UpdateCenter } from "./UpdateCenter";
 import { RecoveryReview } from "./RecoveryReview";
 import { AdoptionModal } from "./AdoptionModal";
 import { applyOperationEvent, mostRecentOperation } from "../operation-state";
+import { OperationCancellation } from "./OperationCancellation";
 
 const port: PortDefinition = {
   ...portDefinition(),
@@ -66,6 +67,29 @@ const actions: DetailActions = {
   setPolicy: vi.fn(),
   verify: vi.fn(),
 };
+
+describe("operation cancellation", () => {
+  it("uses operation-neutral waiting copy and distinguishes finishing", () => {
+    const requested = renderToStaticMarkup(
+      <OperationCancellation
+        operationId="00000000-0000-0000-0000-000000000001"
+        state={{ phase: "preparing", requested: true }}
+      />,
+    );
+    expect(requested).toContain("Cancellation requested");
+    expect(requested).toContain("Waiting for the current safe step to stop.");
+    expect(requested).not.toContain("preparation step");
+
+    const finishing = renderToStaticMarkup(
+      <OperationCancellation
+        operationId="00000000-0000-0000-0000-000000000001"
+        state={{ phase: "finishing", requested: false }}
+      />,
+    );
+    expect(finishing).toContain("Finishing safely…");
+    expect(finishing).not.toContain("Cancel operation");
+  });
+});
 const installRecord = (overrides: Partial<InstallRecord> = {}): InstallRecord => ({
   id: "1",
   port_id: port.id,

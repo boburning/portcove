@@ -46,11 +46,10 @@ export const DESKTOP_SCENARIOS = Object.freeze([
   ),
   scenario(
     "install-progress-cancellation",
-    "Reviewed install progress and cancellation acceptance gap.",
+    "A reviewed install can be cancelled during a real streamed download and retried safely.",
     {
-      runnable: false,
-      reason: "Requires a reviewed install fixture; native smoke never downloads upstream games.",
-      host_resources: nativeResources,
+      prerequisites: ["desktop", "install-fixture"],
+      source: "desktop-install-test.mjs",
     },
   ),
   scenario("native-preparation-review-and-play", "Reviewed preparation completes before Play.", {
