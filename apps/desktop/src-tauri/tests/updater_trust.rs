@@ -37,6 +37,37 @@ use tough::schema::RoleType;
 use updater_trust_support::{Fixture, Key, expiration, nz};
 use url::Url;
 
+#[derive(Clone, Copy)]
+enum TopLevelRole {
+    Targets,
+    Snapshot,
+    Timestamp,
+}
+
+impl TopLevelRole {
+    fn filename(self) -> &'static str {
+        match self {
+            Self::Targets => "targets.json",
+            Self::Snapshot => "snapshot.json",
+            Self::Timestamp => "timestamp.json",
+        }
+    }
+
+    fn role_type(self) -> RoleType {
+        match self {
+            Self::Targets => RoleType::Targets,
+            Self::Snapshot => RoleType::Snapshot,
+            Self::Timestamp => RoleType::Timestamp,
+        }
+    }
+}
+
+#[derive(Clone, Copy)]
+enum InvalidSignature {
+    Missing,
+    WrongKey,
+}
+
 fn installed_context() -> InstalledApplicationContext {
     InstalledApplicationContext {
         current_version: "0.3.0".into(),
@@ -164,6 +195,149 @@ async fn sign_delegated_metadata_with(
     .clone()
 }
 
+async fn sign_top_level_metadata_with(
+    root: &tough::schema::Root,
+    role: TopLevelRole,
+    document: &serde_json::Value,
+    key: &Key,
+) -> Vec<u8> {
+    use aws_lc_rs::rand::SystemRandom;
+    use tough::editor::signed::SignedRole;
+    use tough::schema::{KeyHolder, Snapshot, Targets, Timestamp};
+
+    let key_source = key.source();
+    let public_key = key_source.as_sign().await.unwrap().tuf_key();
+    let key_id = public_key.key_id().unwrap();
+    let mut signing_root = root.clone();
+    signing_root.keys.insert(key_id.clone(), public_key);
+    signing_root
+        .roles
+        .get_mut(&role.role_type())
+        .unwrap()
+        .keyids = vec![key_id];
+    let holder = KeyHolder::Root(signing_root);
+    let random = SystemRandom::new();
+
+    match role {
+        TopLevelRole::Targets => SignedRole::new(
+            serde_json::from_value::<Targets>(document["signed"].clone()).unwrap(),
+            &holder,
+            &[key.source()],
+            &random,
+        )
+        .await
+        .unwrap()
+        .buffer()
+        .clone(),
+        TopLevelRole::Snapshot => SignedRole::new(
+            serde_json::from_value::<Snapshot>(document["signed"].clone()).unwrap(),
+            &holder,
+            &[key.source()],
+            &random,
+        )
+        .await
+        .unwrap()
+        .buffer()
+        .clone(),
+        TopLevelRole::Timestamp => SignedRole::new(
+            serde_json::from_value::<Timestamp>(document["signed"].clone()).unwrap(),
+            &holder,
+            &[key.source()],
+            &random,
+        )
+        .await
+        .unwrap()
+        .buffer()
+        .clone(),
+    }
+}
+
+async fn sign_top_level_parent(
+    root: &tough::schema::Root,
+    role: TopLevelRole,
+    document: &serde_json::Value,
+    key: &Key,
+) -> Vec<u8> {
+    use aws_lc_rs::rand::SystemRandom;
+    use tough::editor::signed::SignedRole;
+    use tough::schema::{KeyHolder, Snapshot, Timestamp};
+
+    let holder = KeyHolder::Root(root.clone());
+    match role {
+        TopLevelRole::Snapshot => SignedRole::new(
+            serde_json::from_value::<Snapshot>(document["signed"].clone()).unwrap(),
+            &holder,
+            &[key.source()],
+            &SystemRandom::new(),
+        )
+        .await
+        .unwrap()
+        .buffer()
+        .clone(),
+        TopLevelRole::Timestamp => SignedRole::new(
+            serde_json::from_value::<Timestamp>(document["signed"].clone()).unwrap(),
+            &holder,
+            &[key.source()],
+            &SystemRandom::new(),
+        )
+        .await
+        .unwrap()
+        .buffer()
+        .clone(),
+        TopLevelRole::Targets => unreachable!("targets has no top-level metadata parent"),
+    }
+}
+
+async fn publish_top_level_metadata_variant(
+    fixture: &Fixture,
+    root: &tough::schema::Root,
+    role: TopLevelRole,
+    role_bytes: &[u8],
+    valid_snapshot: &[u8],
+    valid_timestamp: &[u8],
+) {
+    use serde_json::json;
+    use sha2::{Digest, Sha256};
+
+    fs::write(fixture.metadata.join(role.filename()), role_bytes).unwrap();
+    if matches!(role, TopLevelRole::Timestamp) {
+        return;
+    }
+
+    let snapshot_bytes = if matches!(role, TopLevelRole::Targets) {
+        let mut snapshot_document: serde_json::Value =
+            serde_json::from_slice(valid_snapshot).unwrap();
+        let targets_metadata = &mut snapshot_document["signed"]["meta"]["targets.json"];
+        targets_metadata["hashes"]["sha256"] = json!(hex::encode(Sha256::digest(role_bytes)));
+        targets_metadata["length"] = json!(role_bytes.len());
+        let bytes = sign_top_level_parent(
+            root,
+            TopLevelRole::Snapshot,
+            &snapshot_document,
+            &fixture.online,
+        )
+        .await;
+        fs::write(fixture.metadata.join("snapshot.json"), &bytes).unwrap();
+        bytes
+    } else {
+        role_bytes.to_vec()
+    };
+
+    let mut timestamp_document: serde_json::Value =
+        serde_json::from_slice(valid_timestamp).unwrap();
+    let snapshot_metadata = &mut timestamp_document["signed"]["meta"]["snapshot.json"];
+    snapshot_metadata["hashes"]["sha256"] = json!(hex::encode(Sha256::digest(&snapshot_bytes)));
+    snapshot_metadata["length"] = json!(snapshot_bytes.len());
+    let timestamp_bytes = sign_top_level_parent(
+        root,
+        TopLevelRole::Timestamp,
+        &timestamp_document,
+        &fixture.online,
+    )
+    .await;
+    fs::write(fixture.metadata.join("timestamp.json"), timestamp_bytes).unwrap();
+}
+
 async fn publish_valid_preview_role_version(
     mut editor: tough::editor::RepositoryEditor,
     fixture: &Fixture,
@@ -216,6 +390,25 @@ fn assert_consumer_rejected_signature(error: ApplicationUpdateFreshSelectionErro
     };
     assert!(matches!(&error, TrustedRepositoryError::Authentication(_)));
     assert_eq!(error.failure_kind(), TrustedRepositoryFailureKind::Rejected);
+}
+
+fn assert_consumer_rejected_top_level_signature(
+    error: ApplicationUpdateFreshSelectionError,
+    expected_role: RoleType,
+) {
+    let ApplicationUpdateFreshSelectionError::Candidate(CandidateLoadError::Trust(error)) = error
+    else {
+        panic!("expected top-level signature authentication failure, got {error}");
+    };
+    assert_eq!(error.failure_kind(), TrustedRepositoryFailureKind::Rejected);
+    assert!(
+        matches!(
+            error,
+            TrustedRepositoryError::Authentication(error)
+                if matches!(*error, Error::VerifyMetadata { role, .. } if role == expected_role)
+        ),
+        "expected signature verification to fail for {expected_role:?}"
+    );
 }
 
 fn assert_consumer_unreachable(error: ApplicationUpdateFreshSelectionError) {
@@ -276,6 +469,97 @@ async fn select_fixture_preview_with_host_consumer(
         },
     )
     .await
+}
+
+struct TopLevelSignatureFixture<'a> {
+    fixture: &'a Fixture,
+    trusted: &'a [u8],
+    root: &'a tough::schema::Root,
+    wrong_key: &'a Key,
+    installed: &'a InstalledApplicationContext,
+    valid_targets: Vec<u8>,
+    valid_snapshot: Vec<u8>,
+    valid_timestamp: Vec<u8>,
+}
+
+impl TopLevelSignatureFixture<'_> {
+    async fn assert_rejected_and_recovers(
+        &self,
+        role: TopLevelRole,
+        invalid_signature: InvalidSignature,
+        state_name: &str,
+    ) {
+        use serde_json::json;
+
+        let valid_role = match role {
+            TopLevelRole::Targets => &self.valid_targets,
+            TopLevelRole::Snapshot => &self.valid_snapshot,
+            TopLevelRole::Timestamp => &self.valid_timestamp,
+        };
+        let valid_document: serde_json::Value = serde_json::from_slice(valid_role).unwrap();
+        let invalid_bytes = match invalid_signature {
+            InvalidSignature::Missing => {
+                let mut document = valid_document.clone();
+                document["signatures"] = json!([]);
+                serde_json::to_vec_pretty(&document).unwrap()
+            }
+            InvalidSignature::WrongKey => {
+                sign_top_level_metadata_with(self.root, role, &valid_document, self.wrong_key).await
+            }
+        };
+        let invalid_document: serde_json::Value = serde_json::from_slice(&invalid_bytes).unwrap();
+        assert_eq!(invalid_document["signed"], valid_document["signed"]);
+        assert_ne!(invalid_document["signatures"], valid_document["signatures"]);
+
+        publish_top_level_metadata_variant(
+            self.fixture,
+            self.root,
+            role,
+            &invalid_bytes,
+            &self.valid_snapshot,
+            &self.valid_timestamp,
+        )
+        .await;
+        let provider = ApplicationUpdateHostProvider::new(
+            ApplicationUpdateRepositoryConfiguration::new(
+                self.trusted.to_vec(),
+                self.fixture.metadata_url(),
+                self.fixture.targets_url(),
+                self.fixture.directory.path().join(state_name),
+            )
+            .unwrap(),
+            Arc::new(FixedInstalledContext(self.installed.clone())),
+        );
+        let choice = ApplicationUpdateChoice {
+            channel: ApplicationChannel::Stable,
+            mode: ApplicationUpdateMode::Manual,
+            paused: false,
+        };
+        let error = ApplicationUpdateFreshSelectionProvider::select(&provider, &choice)
+            .await
+            .unwrap_err();
+        assert_consumer_rejected_top_level_signature(error, role.role_type());
+
+        fs::write(
+            self.fixture.metadata.join("targets.json"),
+            &self.valid_targets,
+        )
+        .unwrap();
+        fs::write(
+            self.fixture.metadata.join("snapshot.json"),
+            &self.valid_snapshot,
+        )
+        .unwrap();
+        fs::write(
+            self.fixture.metadata.join("timestamp.json"),
+            &self.valid_timestamp,
+        )
+        .unwrap();
+        let recovered = ApplicationUpdateFreshSelectionProvider::select(&provider, &choice)
+            .await
+            .unwrap();
+        assert_consumer_selected_version(recovered, self.installed, "1.1.0");
+    }
 }
 
 #[tokio::test]
@@ -1225,7 +1509,7 @@ async fn channel_role_authenticates_keys_and_transition_candidates() {
 
     let provider = ApplicationUpdateHostProvider::new(
         ApplicationUpdateRepositoryConfiguration::new(
-            trusted,
+            trusted.clone(),
             f.metadata_url(),
             f.targets_url(),
             f.directory.path().join("host-provider-trust"),
@@ -1285,4 +1569,33 @@ async fn channel_role_authenticates_keys_and_transition_candidates() {
         .unwrap();
     assert_consumer_selected_version(recovered, &skipped_context, "1.1.0");
     assert_eq!(persisted_roles(&host_state), roles_before_outage);
+
+    let top_level_signatures = TopLevelSignatureFixture {
+        fixture: &f,
+        trusted: &trusted,
+        root: &root,
+        wrong_key: &release,
+        installed: &skipped_context,
+        valid_targets: fs::read(f.metadata.join("targets.json")).unwrap(),
+        valid_snapshot: fs::read(f.metadata.join("snapshot.json")).unwrap(),
+        valid_timestamp: fs::read(f.metadata.join("timestamp.json")).unwrap(),
+    };
+    for (role, role_name) in [
+        (TopLevelRole::Targets, "targets"),
+        (TopLevelRole::Snapshot, "snapshot"),
+        (TopLevelRole::Timestamp, "timestamp"),
+    ] {
+        for (invalid_signature, signature_name) in [
+            (InvalidSignature::Missing, "missing"),
+            (InvalidSignature::WrongKey, "wrong-key"),
+        ] {
+            top_level_signatures
+                .assert_rejected_and_recovers(
+                    role,
+                    invalid_signature,
+                    &format!("{signature_name}-{role_name}-signature-trust"),
+                )
+                .await;
+        }
+    }
 }
