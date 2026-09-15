@@ -5,6 +5,12 @@ param(
     [Parameter(Mandatory = $true, ParameterSetName = "Run")][string]$TrustedRootPath,
     [Parameter(Mandatory = $true, ParameterSetName = "Run")][string]$MetadataPath,
     [Parameter(Mandatory = $true, ParameterSetName = "Run")][string]$TargetsPath,
+    [Parameter(Mandatory = $true, ParameterSetName = "Run")][string]$MissingSignatureRepositoryPath,
+    [Parameter(Mandatory = $true, ParameterSetName = "Run")][string]$WrongSignatureRepositoryPath,
+    [Parameter(Mandatory = $true, ParameterSetName = "Run")][string]$RecoveryRepositoryPath,
+    [Parameter(Mandatory = $true, ParameterSetName = "Run")][ValidatePattern('^[0-9a-f]{64}$')][string]$WrongPayloadPublicKeySha256,
+    [Parameter(Mandatory = $true, ParameterSetName = "Run")][string]$PayloadPrivateKeyPath,
+    [Parameter(Mandatory = $true, ParameterSetName = "Run")][string]$TufPrivateRootPath,
     [Parameter(Mandatory = $true, ParameterSetName = "Run")][string]$StateRoot,
     [Parameter(Mandatory = $true, ParameterSetName = "Run")][string]$EvidencePath,
     [Parameter(Mandatory = $true, ParameterSetName = "Describe")][switch]$DescribeContract,
@@ -16,7 +22,7 @@ param(
 )
 
 $evidenceContract = [ordered]@{
-    schema_version = 11
+    schema_version = 12
     predecessor_version = $PredecessorVersion
     candidate_version = $CandidateVersion
 }
@@ -48,6 +54,24 @@ $candidate = Resolve-ExistingFile $CandidatePath "Candidate AppImage"
 $trustedRoot = Resolve-ExistingFile $TrustedRootPath "Trusted root"
 $metadata = Resolve-ExistingDirectory $MetadataPath "TUF metadata"
 $targets = Resolve-ExistingDirectory $TargetsPath "TUF targets"
+$missingSignatureRepository = Resolve-ExistingDirectory $MissingSignatureRepositoryPath "Missing-signature TUF repository"
+$wrongSignatureRepository = Resolve-ExistingDirectory $WrongSignatureRepositoryPath "Wrong-signature TUF repository"
+$recoveryRepository = Resolve-ExistingDirectory $RecoveryRepositoryPath "Payload-signature recovery TUF repository"
+$missingSignatureMetadata = Resolve-ExistingDirectory (Join-Path $missingSignatureRepository "metadata") "Missing-signature TUF metadata"
+$missingSignatureTargets = Resolve-ExistingDirectory (Join-Path $missingSignatureRepository "targets") "Missing-signature TUF targets"
+$wrongSignatureMetadata = Resolve-ExistingDirectory (Join-Path $wrongSignatureRepository "metadata") "Wrong-signature TUF metadata"
+$wrongSignatureTargets = Resolve-ExistingDirectory (Join-Path $wrongSignatureRepository "targets") "Wrong-signature TUF targets"
+$recoveryMetadata = Resolve-ExistingDirectory (Join-Path $recoveryRepository "metadata") "Payload-signature recovery TUF metadata"
+$recoveryTargets = Resolve-ExistingDirectory (Join-Path $recoveryRepository "targets") "Payload-signature recovery TUF targets"
+$removedPayloadPrivateKey = [IO.Path]::GetFullPath($PayloadPrivateKeyPath)
+$removedTufPrivateRoot = [IO.Path]::GetFullPath($TufPrivateRootPath)
+if (Test-Path -LiteralPath $removedPayloadPrivateKey) { throw "Payload private key must be absent before consumer execution" }
+if (Test-Path -LiteralPath $removedTufPrivateRoot) { throw "TUF private root must be absent before consumer execution" }
+$signingPrivateKeyEnvironmentAbsent = $null -eq [Environment]::GetEnvironmentVariable("TAURI_SIGNING_PRIVATE_KEY", "Process")
+$signingPasswordEnvironmentAbsent = $null -eq [Environment]::GetEnvironmentVariable("TAURI_SIGNING_PRIVATE_KEY_PASSWORD", "Process")
+if (-not $signingPrivateKeyEnvironmentAbsent -or -not $signingPasswordEnvironmentAbsent) {
+    throw "Tauri signing environment must be absent before consumer execution"
+}
 $state = [IO.Path]::GetFullPath($StateRoot)
 $evidenceFile = [IO.Path]::GetFullPath($EvidencePath)
 if (Test-Path -LiteralPath $state) { throw "StateRoot must be new" }
@@ -83,6 +107,39 @@ $evidence = [ordered]@{
     candidate = [ordered]@{ version = $evidenceContract.candidate_version; path = $candidate; sha256 = $candidateHash }
     stable_path = $stable
     apply_revision = $null
+    private_signing_inputs_absent = [ordered]@{
+        payload_private_key = $true
+        tuf_private_root = $true
+        signing_private_key_environment = $signingPrivateKeyEnvironmentAbsent
+        signing_password_environment = $signingPasswordEnvironmentAbsent
+    }
+    payload_signature_failures = [ordered]@{
+        wrong_disposable_public_key_sha256 = $WrongPayloadPublicKeySha256
+        missing = [ordered]@{
+            exit_code = $null
+            rejected = $false
+            staging_authority_absent = $false
+            stable_preserved = $false
+            data_preserved = $false
+            recovery_apply_revision = $null
+            recovery_candidate_sha256 = $null
+            recovery_role_versions = $null
+            recovered = $false
+            fixture_cleaned = $false
+        }
+        wrong_key = [ordered]@{
+            exit_code = $null
+            rejected = $false
+            staging_authority_absent = $false
+            stable_preserved = $false
+            data_preserved = $false
+            recovery_apply_revision = $null
+            recovery_candidate_sha256 = $null
+            recovery_role_versions = $null
+            recovered = $false
+            fixture_cleaned = $false
+        }
+    }
     truncated_payload_expected_bytes = $null
     truncated_payload_bytes = $null
     truncated_payload_exit_code = $null
@@ -151,6 +208,86 @@ function Write-Evidence([string]$Phase) {
     $temporary = "$evidenceFile.tmp"
     $evidence | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $temporary -Encoding utf8
     Move-Item -LiteralPath $temporary -Destination $evidenceFile -Force
+}
+
+function Assert-NoStagedAuthority([string]$UpdateStateRoot, [string]$Label) {
+    $stagingPath = Join-Path $UpdateStateRoot "staging.json"
+    if (Test-Path -LiteralPath $stagingPath -PathType Leaf) {
+        $staging = Get-Content -LiteralPath $stagingPath -Raw | ConvertFrom-Json
+        if ($staging.phase -ne "empty" -or $null -ne $staging.candidate -or $null -ne $staging.previous_candidate) {
+            throw "$Label retained staged candidate authority"
+        }
+    }
+    foreach ($relative in @("candidate.payload", ".candidate.payload.incoming", "apply.json")) {
+        if (Test-Path -LiteralPath (Join-Path $UpdateStateRoot $relative)) {
+            throw "$Label retained $relative authority"
+        }
+    }
+    return $true
+}
+
+function Test-PayloadSignatureFailure(
+    [string]$Label,
+    [string]$InvalidMetadata,
+    [string]$InvalidTargets,
+    [string]$ExpectedError,
+    [System.Collections.IDictionary]$Result
+) {
+    $caseRoot = Join-Path $state "payload-signature-$Label"
+    $casePreferences = Join-Path $caseRoot "preferences.json"
+    $caseUpdateRoot = Join-Path $caseRoot "update-state"
+    Write-Evidence "$Label-preparing"
+    $failureOutput = & cargo run --locked --quiet -p portcove-desktop --example prepare_appimage_update -- prepare $PredecessorVersion $trustedRoot $InvalidMetadata $InvalidTargets $candidate $casePreferences $caseUpdateRoot $libraryRoot 2>&1 | Out-String
+    $Result.exit_code = $LASTEXITCODE
+    if ($Result.exit_code -eq 0 -or $failureOutput -notmatch $ExpectedError) {
+        throw "$Label did not fail through the expected actual-consumer signature path"
+    }
+    $Result.rejected = $true
+    $Result.staging_authority_absent = Assert-NoStagedAuthority $caseUpdateRoot $Label
+    if ((Get-FileHash -LiteralPath $stable -Algorithm SHA256).Hash.ToLowerInvariant() -ne $predecessorHash) {
+        throw "$Label changed the stable AppImage"
+    }
+    $Result.stable_preserved = $true
+    if ((Get-FileHash -LiteralPath $sentinel -Algorithm SHA256).Hash -ne $sentinelHash) {
+        throw "$Label changed the persistent-data marker"
+    }
+    $Result.data_preserved = $true
+    Write-Evidence "$Label-rejected"
+
+    $recoveryOutput = & cargo run --locked --quiet -p portcove-desktop --example prepare_appimage_update -- prepare $PredecessorVersion $trustedRoot $recoveryMetadata $recoveryTargets $candidate $casePreferences $caseUpdateRoot $libraryRoot 2>&1 | Out-String
+    if ($LASTEXITCODE -ne 0) { throw "$Label did not recover through the valid version-2 repository: $recoveryOutput" }
+    $recovered = $recoveryOutput.Trim() | ConvertFrom-Json
+    if ($recovered.candidate_version -ne $CandidateVersion -or
+        $recovered.candidate_sha256 -ne $candidateHash -or
+        $recovered.apply_revision -le 0 -or
+        -not (Test-Path -LiteralPath (Join-Path $caseUpdateRoot "candidate.payload") -PathType Leaf) -or
+        -not (Test-Path -LiteralPath (Join-Path $caseUpdateRoot "apply.json") -PathType Leaf) -or
+        (Get-FileHash -LiteralPath (Join-Path $caseUpdateRoot "candidate.payload") -Algorithm SHA256).Hash.ToLowerInvariant() -ne $candidateHash) {
+        throw "$Label recovery did not stage the exact authenticated candidate"
+    }
+    if ((Get-FileHash -LiteralPath $stable -Algorithm SHA256).Hash.ToLowerInvariant() -ne $predecessorHash -or
+        (Get-FileHash -LiteralPath $sentinel -Algorithm SHA256).Hash -ne $sentinelHash) {
+        throw "$Label recovery changed stable or persistent state before replacement"
+    }
+    $recoveryTrustState = Get-Content -LiteralPath (Join-Path $caseUpdateRoot "trust/trust-state.json") -Raw | ConvertFrom-Json
+    if ($recoveryTrustState.roles.timestamp.version -ne 2 -or
+        $recoveryTrustState.roles.snapshot.version -ne 2 -or
+        $recoveryTrustState.roles.targets.version -ne 2) {
+        throw "$Label recovery did not advance the same durable trust state to version 2"
+    }
+    $Result.recovery_apply_revision = $recovered.apply_revision
+    $Result.recovery_candidate_sha256 = $recovered.candidate_sha256
+    $Result.recovery_role_versions = [ordered]@{
+        timestamp = $recoveryTrustState.roles.timestamp.version
+        snapshot = $recoveryTrustState.roles.snapshot.version
+        targets = $recoveryTrustState.roles.targets.version
+    }
+    $Result.recovered = $true
+    Write-Evidence "$Label-recovered"
+    Remove-Item -LiteralPath $caseRoot -Recurse -Force
+    $Result.fixture_cleaned = -not (Test-Path -LiteralPath $caseRoot)
+    if (-not $Result.fixture_cleaned) { throw "$Label disposable state was not removed" }
+    Write-Evidence "$Label-complete"
 }
 
 function Wait-StablePredecessorRestart([string]$StagePath, [string]$RuntimeLockPath, [int]$TimeoutSeconds, [string]$FailureLabel) {
@@ -252,6 +389,9 @@ $fullAppImageState = Join-Path $state "full-appimage-update-state"
 $fullAppImageMounted = $false
 $truncatedCandidate = Join-Path $state "truncated-candidate.AppImage"
 try {
+    Test-PayloadSignatureFailure "missing-payload-signature" $missingSignatureMetadata $missingSignatureTargets "authenticated update record is malformed:.*tauri_signature" $evidence.payload_signature_failures.missing
+    Test-PayloadSignatureFailure "wrong-key-payload-signature" $wrongSignatureMetadata $wrongSignatureTargets "payload verification material is invalid: signature does not use the selected key or streaming format" $evidence.payload_signature_failures.wrong_key
+
     Write-Evidence "truncated-payload-preparing"
     & /usr/bin/cp --preserve=mode,timestamps -- $candidate $truncatedCandidate
     if ($LASTEXITCODE -ne 0) { throw "Could not create the truncated candidate fixture" }

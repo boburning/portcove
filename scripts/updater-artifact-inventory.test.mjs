@@ -239,6 +239,20 @@ test("manual rehearsal retains the complete matrix without production credential
   assert.match(rehearsal, /-CandidateVersion/);
   assert.match(rehearsal, /application-update-qualification/);
   assert.match(rehearsal, /Remove-Item -LiteralPath \(Join-Path \$fixtureRoot "private"\)/);
+  assert.match(rehearsal, /Remove-Item -LiteralPath \$privateKey -Force/);
+  assert.ok(
+    rehearsal.indexOf("Remove-Item -LiteralPath $privateKey -Force") <
+      rehearsal.indexOf('Invoke-Checked "dbus-run-session"'),
+    "the disposable payload private key must be removed before consumer execution",
+  );
+  assert.ok(
+    rehearsal.indexOf("Remove-Item Env:TAURI_SIGNING_PRIVATE_KEY -ErrorAction SilentlyContinue") <
+      rehearsal.indexOf('Invoke-Checked "dbus-run-session"') &&
+      rehearsal.indexOf(
+        "Remove-Item Env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD -ErrorAction SilentlyContinue",
+      ) < rehearsal.indexOf('Invoke-Checked "dbus-run-session"'),
+    "the Tauri signing environment must be removed before consumer execution",
+  );
   const linuxHarness = await readFile(
     new URL("./test-linux-appimage-update.ps1", import.meta.url),
     "utf8",
@@ -246,9 +260,44 @@ test("manual rehearsal retains the complete matrix without production credential
   assert.doesNotMatch(linuxHarness, /WEBKIT_DISABLE_COMPOSITING_MODE/);
   assert.match(linuxHarness, /PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_STAGE/);
   assert.match(linuxHarness, /PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_INTERRUPT/);
-  assert.match(linuxHarness, /schema_version = 11/);
+  assert.match(linuxHarness, /schema_version = 12/);
   assert.match(linuxHarness, /\$PredecessorVersion = "0\.1\.0"/);
   assert.match(linuxHarness, /\$CandidateVersion = "0\.3\.0"/);
+  assert.match(rehearsal, /wrong-disposable\.key/);
+  assert.match(rehearsal, /repository\/missing-payload-signature/);
+  assert.match(rehearsal, /repository\/wrong-payload-signature/);
+  assert.match(rehearsal, /repository\/recovery/);
+  assert.match(
+    rehearsal,
+    /name = "recovery"; records = "records"; output = "repository\/recovery"; top_level_version = 2; delegated_version = 1/,
+  );
+  assert.match(rehearsal, /Remove\("tauri_signature"\)/);
+  assert.doesNotMatch(
+    rehearsal,
+    /Where-Object \{ \$_\.kind -eq "promotion" -and \$_\.release_path/,
+  );
+  assert.match(rehearsal, /if \(\$promotion\.release_path -eq \$releaseRecord\.path\)/);
+  assert.match(rehearsal, /\$boundPromotion\.document\.release_sha256 = \$releaseRecord\.sha256/);
+  assert.match(linuxHarness, /payload_signature_failures/);
+  assert.match(linuxHarness, /wrong_disposable_public_key_sha256/);
+  assert.match(linuxHarness, /private_signing_inputs_absent/);
+  assert.match(linuxHarness, /Payload private key must be absent before consumer execution/);
+  assert.match(linuxHarness, /TUF private root must be absent before consumer execution/);
+  assert.match(linuxHarness, /Tauri signing environment must be absent before consumer execution/);
+  assert.match(linuxHarness, /recovery_role_versions/);
+  assert.match(linuxHarness, /authenticated update record is malformed:\.\*tauri_signature/);
+  assert.match(
+    linuxHarness,
+    /payload verification material is invalid: signature does not use the selected key or streaming format/,
+  );
+  assert.match(linuxHarness, /Assert-NoStagedAuthority/);
+  assert.ok(
+    linuxHarness.indexOf('Test-PayloadSignatureFailure "missing-payload-signature"') <
+      linuxHarness.indexOf('Test-PayloadSignatureFailure "wrong-key-payload-signature"') &&
+      linuxHarness.indexOf('Test-PayloadSignatureFailure "wrong-key-payload-signature"') <
+        linuxHarness.indexOf("truncated-payload-preparing"),
+    "packaged signature rejection and recovery must precede the existing payload/replacement path",
+  );
   assert.match(linuxHarness, /truncated_payload_expected_bytes/);
   assert.match(linuxHarness, /truncated_payload_bytes/);
   assert.match(linuxHarness, /truncated_payload_exit_code/);
@@ -458,7 +507,7 @@ test("packaged transition and evidence contracts execute exact profile semantics
   ]);
   assert.equal(evidence.status, 0, evidence.stderr);
   assert.deepEqual(JSON.parse(evidence.stdout), {
-    schema_version: 11,
+    schema_version: 12,
     predecessor_version: "1.0.0-rc.2",
     candidate_version: "1.0.0",
   });

@@ -180,8 +180,12 @@ try {
         Invoke-Checked "cargo" @("run", "--locked", "--quiet", "-p", "portcove-release-tools", "--example", "generate_test_updater_repository", "--", $fixtureRoot, $publicKey)
         $inputs = Join-Path $fixtureRoot "inputs"
         New-Item -ItemType Directory -Path $inputs | Out-Null
-        Copy-Item -LiteralPath (Join-Path $runRoot "$candidateVersion-$PlatformLabel/updater-inventory.json") -Destination (Join-Path $inputs "updater-inventory.json")
-        Copy-Item -LiteralPath (Join-Path $runRoot "$candidateVersion-$PlatformLabel/Portcove_$($candidateVersion)_amd64.AppImage.sig") -Destination (Join-Path $inputs "candidate.sig")
+        $candidateStage = Join-Path $runRoot "$candidateVersion-$PlatformLabel"
+        $candidateName = "Portcove_$($candidateVersion)_amd64.AppImage"
+        $candidate = Join-Path $candidateStage $candidateName
+        $candidateInventoryPath = Join-Path $candidateStage "updater-inventory.json"
+        Copy-Item -LiteralPath $candidateInventoryPath -Destination (Join-Path $inputs "updater-inventory.json")
+        Copy-Item -LiteralPath "$candidate.sig" -Destination (Join-Path $inputs "candidate.sig")
         $contractText = (& cargo run --locked --quiet -p portcove-desktop --example prepare_appimage_update -- describe $predecessorVersion | Out-String).Trim()
         if ($LASTEXITCODE -ne 0) { throw "Could not derive the Linux updater fixture contract" }
         $contract = $contractText | ConvertFrom-Json
@@ -216,20 +220,135 @@ try {
                 targets = @("linux-x86_64")
         }
         $eligibility | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $eligibilityPath -Encoding utf8
-        Invoke-Checked "node" @("scripts/reconstruct-application-update-records.mjs", "--input", $descriptorPath, "--eligibility", $eligibilityPath, "--output", (Join-Path $fixtureRoot "records"))
-        Invoke-Checked "cargo" @("run", "--locked", "--quiet", "-p", "portcove-release-tools", "--", "build-tuf", (Join-Path $fixtureRoot "build-tuf.json"))
+
+        $wrongPayloadRoot = Join-Path $fixtureRoot "private/wrong-payload"
+        New-Item -ItemType Directory -Path $wrongPayloadRoot | Out-Null
+        $wrongPayloadPrivateKey = Join-Path $wrongPayloadRoot "wrong-disposable.key"
+        $wrongPayloadCandidate = Join-Path $wrongPayloadRoot $candidateName
+        Copy-Item -LiteralPath $candidate -Destination $wrongPayloadCandidate
+        Invoke-Checked "corepack" @($pnpmSpec, "--dir", "apps/desktop", "tauri", "signer", "generate", "--ci", "--write-keys", $wrongPayloadPrivateKey) | Out-Null
+        $wrongPayloadPublicKey = Join-Path $runRoot "wrong-disposable.key.pub"
+        Copy-Item -LiteralPath "$wrongPayloadPrivateKey.pub" -Destination $wrongPayloadPublicKey
+        $savedSigningPrivateKey = $env:TAURI_SIGNING_PRIVATE_KEY
+        try {
+            Remove-Item Env:TAURI_SIGNING_PRIVATE_KEY -ErrorAction SilentlyContinue
+            Invoke-Checked "corepack" @($pnpmSpec, "--dir", "apps/desktop", "tauri", "signer", "sign", "--private-key-path", $wrongPayloadPrivateKey, "--password", "", $wrongPayloadCandidate)
+        } finally {
+            $env:TAURI_SIGNING_PRIVATE_KEY = $savedSigningPrivateKey
+        }
+        $wrongPayloadSignature = "$wrongPayloadCandidate.sig"
+        $candidateBytes = (Get-Item -LiteralPath $candidate -Force).Length
+        $candidateHash = (Get-FileHash -LiteralPath $candidate -Algorithm SHA256).Hash.ToLowerInvariant()
+        $wrongVerificationText = (& $verifier verify $wrongPayloadCandidate $wrongPayloadSignature $wrongPayloadPublicKey $candidateHash $candidateBytes | Out-String).Trim()
+        if ($LASTEXITCODE -ne 0) { throw "The distinct disposable payload signature did not verify with its own key" }
+        $wrongVerification = $wrongVerificationText | ConvertFrom-Json
+        $candidateInventory = Get-Content -LiteralPath $candidateInventoryPath -Raw | ConvertFrom-Json -AsHashtable
+        if (-not $wrongVerification.signature_verified -or
+            $wrongVerification.sha256 -ne $candidateHash -or
+            $wrongVerification.bytes -ne $candidateBytes -or
+            $wrongVerification.public_key_sha256 -eq $candidateInventory.updater.public_key_sha256) {
+            throw "The wrong-key payload fixture does not have a distinct verified identity"
+        }
+        $wrongTauriSignature = [IO.File]::ReadAllText($wrongPayloadSignature).TrimEnd([char[]]"`r`n")
+        if ([string]::IsNullOrWhiteSpace($wrongTauriSignature) -or $wrongTauriSignature.Length -gt 16384) {
+            throw "The wrong-key payload signature is missing or oversized"
+        }
+
+        $records = Join-Path $fixtureRoot "records"
+        Invoke-Checked "node" @("scripts/reconstruct-application-update-records.mjs", "--input", $descriptorPath, "--eligibility", $eligibilityPath, "--output", $records)
+        $missingRecords = Join-Path $fixtureRoot "records-missing-payload-signature"
+        $wrongRecords = Join-Path $fixtureRoot "records-wrong-payload-signature"
+        foreach ($recordVariant in @(
+            [ordered]@{ label = "missing-signature"; root = $missingRecords; signature = $null },
+            [ordered]@{ label = "wrong-key-signature"; root = $wrongRecords; signature = $wrongTauriSignature }
+        )) {
+            Copy-Item -LiteralPath $records -Destination $recordVariant.root -Recurse
+            $manifestPath = Join-Path $recordVariant.root "reconstruction-manifest.json"
+            $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json -AsHashtable
+            $releaseRecords = @($manifest.records | Where-Object { $_.kind -eq "release" })
+            if ($releaseRecords.Count -ne 1) { throw "The $($recordVariant.label) fixture requires exactly one release record" }
+            $releaseRecord = $releaseRecords[0]
+            $releasePath = Join-Path $recordVariant.root $releaseRecord.path
+            $release = Get-Content -LiteralPath $releasePath -Raw | ConvertFrom-Json -AsHashtable
+            if (-not $release.artifact.Contains("tauri_signature")) { throw "The $($recordVariant.label) release omitted its payload signature before mutation" }
+            if ($null -eq $recordVariant.signature) {
+                $release.artifact.Remove("tauri_signature")
+            } else {
+                $release.artifact.tauri_signature = $recordVariant.signature
+            }
+            [IO.File]::WriteAllText($releasePath, ($release | ConvertTo-Json -Depth 20))
+            $releaseRecord.bytes = (Get-Item -LiteralPath $releasePath -Force).Length
+            $releaseRecord.sha256 = (Get-FileHash -LiteralPath $releasePath -Algorithm SHA256).Hash.ToLowerInvariant()
+            $promotions = @($manifest.records | Where-Object { $_.kind -eq "promotion" } | ForEach-Object {
+                    $promotionRecord = $_
+                    $promotionPath = Join-Path $recordVariant.root $promotionRecord.path
+                    $promotion = Get-Content -LiteralPath $promotionPath -Raw | ConvertFrom-Json -AsHashtable
+                    if ($promotion.release_path -eq $releaseRecord.path) {
+                        [pscustomobject]@{ record = $promotionRecord; path = $promotionPath; document = $promotion }
+                    }
+                })
+            if ($promotions.Count -eq 0) { throw "The $($recordVariant.label) release fixture has no bound promotion" }
+            foreach ($boundPromotion in $promotions) {
+                $boundPromotion.document.release_sha256 = $releaseRecord.sha256
+                [IO.File]::WriteAllText($boundPromotion.path, ($boundPromotion.document | ConvertTo-Json -Depth 20))
+                $boundPromotion.record.bytes = (Get-Item -LiteralPath $boundPromotion.path -Force).Length
+                $boundPromotion.record.sha256 = (Get-FileHash -LiteralPath $boundPromotion.path -Algorithm SHA256).Hash.ToLowerInvariant()
+            }
+            [IO.File]::WriteAllText($manifestPath, ($manifest | ConvertTo-Json -Depth 20))
+        }
+
+        $baseTufConfig = Get-Content -LiteralPath (Join-Path $fixtureRoot "build-tuf.json") -Raw | ConvertFrom-Json -AsHashtable
+        function Get-TufVariantConfig(
+            [string]$ReconstructedRecords,
+            [string]$Output,
+            [uint64]$TopLevelVersion,
+            [uint64]$DelegatedVersion
+        ) {
+            $config = $baseTufConfig | ConvertTo-Json -Depth 20 | ConvertFrom-Json -AsHashtable
+            $config.reconstructed_records = $ReconstructedRecords
+            $config.output = $Output
+            foreach ($role in @("targets", "snapshot", "timestamp")) {
+                $config.versions[$role] = $TopLevelVersion
+            }
+            foreach ($role in @("releases", "preview", "stable")) {
+                $config.versions[$role] = $DelegatedVersion
+            }
+            return $config
+        }
+        $tufVariantConfigs = @()
+        # The consumer persists replay floors for top-level roles. Advance those for
+        # recovery while delegated metadata remains a fresh version-1 fixture.
+        foreach ($variant in @(
+            [ordered]@{ name = "positive"; records = "records"; output = "repository/positive"; top_level_version = 1; delegated_version = 1 },
+            [ordered]@{ name = "missing-payload-signature"; records = "records-missing-payload-signature"; output = "repository/missing-payload-signature"; top_level_version = 1; delegated_version = 1 },
+            [ordered]@{ name = "wrong-payload-signature"; records = "records-wrong-payload-signature"; output = "repository/wrong-payload-signature"; top_level_version = 1; delegated_version = 1 },
+            [ordered]@{ name = "recovery"; records = "records"; output = "repository/recovery"; top_level_version = 2; delegated_version = 1 }
+        )) {
+            $tufBuildConfigPath = Join-Path $fixtureRoot "build-tuf-$($variant.name).json"
+            $tufBuildConfig = Get-TufVariantConfig $variant.records $variant.output $variant.top_level_version $variant.delegated_version
+            [IO.File]::WriteAllText($tufBuildConfigPath, ($tufBuildConfig | ConvertTo-Json -Depth 20))
+            $tufVariantConfigs += $tufBuildConfigPath
+        }
+        foreach ($tufBuildConfigPath in $tufVariantConfigs) {
+            Invoke-Checked "cargo" @("run", "--locked", "--quiet", "-p", "portcove-release-tools", "--", "build-tuf", $tufBuildConfigPath)
+        }
 
         Set-FixtureVersion $predecessorVersion
         $env:PORTCOVE_APPLICATION_UPDATE_BUNDLED_ROOT_FILE = Join-Path $fixtureRoot "trusted-root.json"
-        $metadataDirectory = (Resolve-Path -LiteralPath (Join-Path $fixtureRoot "repository/metadata")).Path
-        $targetsDirectory = (Resolve-Path -LiteralPath (Join-Path $fixtureRoot "repository/targets")).Path
+        $positiveRepository = Join-Path $fixtureRoot "repository/positive"
+        $metadataDirectory = (Resolve-Path -LiteralPath (Join-Path $positiveRepository "metadata")).Path
+        $targetsDirectory = (Resolve-Path -LiteralPath (Join-Path $positiveRepository "targets")).Path
         $env:PORTCOVE_APPLICATION_UPDATE_METADATA_URL = ([Uri]::new($metadataDirectory.TrimEnd('/') + '/')).AbsoluteUri
         $env:PORTCOVE_APPLICATION_UPDATE_TARGETS_URL = ([Uri]::new($targetsDirectory.TrimEnd('/') + '/')).AbsoluteUri
         Invoke-Checked "corepack" @($pnpmSpec, "--dir", "apps/desktop", "tauri", "build", "--bundles", "appimage", "--config", $configPath, "--ci", "--features", "application-update-qualification")
         $predecessor = Join-Path $bundleRoot "appimage/Portcove_$($predecessorVersion)_amd64.AppImage"
-        $candidate = Join-Path $runRoot "$candidateVersion-$PlatformLabel/Portcove_$($candidateVersion)_amd64.AppImage"
+        Remove-Item -LiteralPath $privateKey -Force
         Remove-Item -LiteralPath (Join-Path $fixtureRoot "private") -Recurse -Force
-        Remove-Item -LiteralPath (Join-Path $fixtureRoot "build-tuf.json") -Force
+        Remove-Item Env:TAURI_SIGNING_PRIVATE_KEY -ErrorAction SilentlyContinue
+        Remove-Item Env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD -ErrorAction SilentlyContinue
+        foreach ($tufConfigPath in @((Join-Path $fixtureRoot "build-tuf.json")) + $tufVariantConfigs) {
+            Remove-Item -LiteralPath $tufConfigPath -Force
+        }
         $linuxHarnessArguments = @(
             "-NoProfile", "-File", (Join-Path $PSScriptRoot "test-linux-appimage-update.ps1"),
             "-PredecessorPath", $predecessor,
@@ -237,6 +356,12 @@ try {
             "-TrustedRootPath", (Join-Path $fixtureRoot "trusted-root.json"),
             "-MetadataPath", $metadataDirectory,
             "-TargetsPath", $targetsDirectory,
+            "-MissingSignatureRepositoryPath", (Join-Path $fixtureRoot "repository/missing-payload-signature"),
+            "-WrongSignatureRepositoryPath", (Join-Path $fixtureRoot "repository/wrong-payload-signature"),
+            "-RecoveryRepositoryPath", (Join-Path $fixtureRoot "repository/recovery"),
+            "-WrongPayloadPublicKeySha256", $wrongVerification.public_key_sha256,
+            "-PayloadPrivateKeyPath", $privateKey,
+            "-TufPrivateRootPath", (Join-Path $fixtureRoot "private"),
             "-StateRoot", (Join-Path $fixtureRoot "state"),
             "-EvidencePath", (Join-Path $fixtureRoot "application-update-evidence.json"),
             "-PredecessorVersion", $predecessorVersion,
