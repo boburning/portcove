@@ -18,7 +18,9 @@ use tough::{ExpirationEnforcement, Limits, Repository, RepositoryLoader};
 use url::Url;
 
 use crate::application_update_storage::write_bytes_atomically;
-use crate::application_update_transport::{PinnedHttpsTransport, TransportSetupError};
+use crate::application_update_transport::{
+    PinnedHttpsTransport, TransportSetupError, metadata_rate_limit,
+};
 
 const STATE_SCHEMA_VERSION: u32 = 1;
 const MAX_STATE_BYTES: u64 = 64 * 1024;
@@ -59,6 +61,8 @@ pub enum TrustedRepositoryError {
     InvalidSource(String),
     #[error("application update metadata transport failed: {0}")]
     Transport(String),
+    #[error("application update metadata provider rate limit was reached")]
+    RateLimited { retry_at_unix_seconds: Option<u64> },
     #[error("application update metadata is stale: {0}")]
     Replay(String),
     #[error("application update trust state I/O failed: {0}")]
@@ -74,6 +78,7 @@ pub enum TrustedRepositoryError {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TrustedRepositoryFailureKind {
     Unreachable,
+    RateLimited,
     Stale,
     Rejected,
 }
@@ -82,11 +87,21 @@ impl TrustedRepositoryError {
     pub fn failure_kind(&self) -> TrustedRepositoryFailureKind {
         match self {
             Self::Transport(_) => TrustedRepositoryFailureKind::Unreachable,
+            Self::RateLimited { .. } => TrustedRepositoryFailureKind::RateLimited,
             Self::Replay(_) | Self::ClockRegression { .. } => TrustedRepositoryFailureKind::Stale,
             Self::Authentication(error) if authentication_failure_is_stale(error) => {
                 TrustedRepositoryFailureKind::Stale
             }
             _ => TrustedRepositoryFailureKind::Rejected,
+        }
+    }
+
+    pub fn retry_at_unix_seconds(&self) -> Option<u64> {
+        match self {
+            Self::RateLimited {
+                retry_at_unix_seconds,
+            } => *retry_at_unix_seconds,
+            _ => None,
         }
     }
 }
@@ -105,6 +120,11 @@ fn authentication_failure_is_stale(error: &tough::error::Error) -> bool {
 
 impl From<tough::error::Error> for TrustedRepositoryError {
     fn from(error: tough::error::Error) -> Self {
+        if let Some(rate_limit) = metadata_rate_limit(&error) {
+            return Self::RateLimited {
+                retry_at_unix_seconds: rate_limit.retry_at_unix_seconds,
+            };
+        }
         match error {
             error @ tough::error::Error::Transport { .. } => Self::Transport(error.to_string()),
             error => Self::Authentication(Box::new(error)),
@@ -210,15 +230,19 @@ async fn repository_transport(
         ("https", "https") => PinnedHttpsTransport::new(metadata_base_url, targets_base_url)
             .await
             .map(Some)
-            .map_err(|error| match error {
-                TransportSetupError::InvalidSource(message) => {
-                    TrustedRepositoryError::InvalidSource(message)
-                }
-                TransportSetupError::Network(message) => TrustedRepositoryError::Transport(message),
-            }),
+            .map_err(transport_setup_error),
         _ => Err(TrustedRepositoryError::InvalidSource(
             "metadata and target bases must both be local fixtures or trusted HTTPS".into(),
         )),
+    }
+}
+
+fn transport_setup_error(error: TransportSetupError) -> TrustedRepositoryError {
+    match error {
+        TransportSetupError::InvalidSource(message) => {
+            TrustedRepositoryError::InvalidSource(message)
+        }
+        TransportSetupError::Network(message) => TrustedRepositoryError::Transport(message),
     }
 }
 
@@ -653,6 +677,27 @@ pub async fn load_trusted_repository(
 ) -> Result<TrustedRepository, TrustedRepositoryError> {
     let transport =
         repository_transport(&request.metadata_base_url, &request.targets_base_url).await?;
+    load_trusted_repository_with_transport(request, transport).await
+}
+
+/// Qualification-only loopback entry point for exercising the real HTTP,
+/// TUF, persistence and consumer path without granting a production source.
+#[cfg(feature = "application-update-qualification")]
+pub async fn load_trusted_repository_from_controlled_loopback(
+    request: TrustedRepositoryRequest<'_>,
+) -> Result<TrustedRepository, TrustedRepositoryError> {
+    let transport = PinnedHttpsTransport::new_loopback_for_qualification(
+        &request.metadata_base_url,
+        &request.targets_base_url,
+    )
+    .map_err(transport_setup_error)?;
+    load_trusted_repository_with_transport(request, Some(transport)).await
+}
+
+async fn load_trusted_repository_with_transport(
+    request: TrustedRepositoryRequest<'_>,
+    transport: Option<PinnedHttpsTransport>,
+) -> Result<TrustedRepository, TrustedRepositoryError> {
     root_identity(request.bundled_root)?;
     if !request.state_directory.is_absolute() {
         return Err(TrustedRepositoryError::InvalidState(

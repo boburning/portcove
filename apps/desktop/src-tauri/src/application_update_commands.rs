@@ -756,6 +756,10 @@ fn coordinator_error(error: ApplicationUpdateCoordinatorError) -> DesktopError {
                 "The application update service could not be reached. Check the connection and try again.",
             )
             .into(),
+            CandidateLoadFailureKind::RateLimited => portcove_core::PortcoveError::network(
+                "The application update service rate limit was reached. Portcove kept the last trusted state and deferred the next automatic check.",
+            )
+            .into(),
             CandidateLoadFailureKind::Stale => portcove_core::PortcoveError::verification(
                 "Application update metadata is stale. Portcove kept the last trusted state and did not download an update.",
             )
@@ -1131,6 +1135,23 @@ mod tests {
                 .message
                 .contains("previous verified state was preserved")
         );
+        assert!(!error.message.contains("9999"));
+    }
+
+    #[test]
+    fn metadata_rate_limits_are_sanitized_and_preserve_trust_guidance() {
+        let error = coordinator_error(ApplicationUpdateCoordinatorError::Check {
+            failure: CandidateLoadFailureKind::RateLimited,
+            source: CandidateLoadError::Trust(
+                crate::application_update_trust::TrustedRepositoryError::RateLimited {
+                    retry_at_unix_seconds: Some(9_999),
+                },
+            ),
+        });
+        assert_eq!(error.code, portcove_core::ErrorCode::Network);
+        assert!(error.message.contains("rate limit"));
+        assert!(error.message.contains("last trusted state"));
+        assert!(error.message.contains("deferred"));
         assert!(!error.message.contains("9999"));
     }
 }

@@ -9,12 +9,15 @@ use std::time::{Duration, Instant};
 
 use async_trait::async_trait;
 use futures_util::{StreamExt, stream};
-use reqwest::Client;
 use reqwest::redirect::Policy;
+use reqwest::{Client, StatusCode};
 use tough::{Transport, TransportError, TransportErrorKind, TransportStream};
 use url::Url;
 
-use crate::application_update_network::{PublicDnsError, resolve_public_https_host};
+use crate::application_update_network::{
+    ProviderRateLimit, PublicDnsError, current_unix_seconds, provider_rate_limit,
+    resolve_public_https_host,
+};
 
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(15);
 const IDLE_TIMEOUT: Duration = Duration::from_secs(20);
@@ -54,6 +57,20 @@ struct TransportBudget {
     requests: AtomicU64,
     bytes: AtomicU64,
 }
+
+#[derive(Debug)]
+struct MetadataHttpStatusError {
+    status: StatusCode,
+    rate_limit: Option<ProviderRateLimit>,
+}
+
+impl std::fmt::Display for MetadataHttpStatusError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(formatter, "HTTP {}", self.status)
+    }
+}
+
+impl std::error::Error for MetadataHttpStatusError {}
 
 impl TransportBudget {
     fn new(deadline: Instant) -> Self {
@@ -170,6 +187,50 @@ impl PinnedHttpsTransport {
         })
     }
 
+    #[cfg(feature = "application-update-qualification")]
+    pub(crate) fn new_loopback_for_qualification(
+        metadata_base_url: &Url,
+        targets_base_url: &Url,
+    ) -> Result<Self, TransportSetupError> {
+        let metadata = validate_loopback_base(metadata_base_url, "metadata")?;
+        let targets = validate_loopback_base(targets_base_url, "targets")?;
+        if metadata.as_str().starts_with(targets.as_str())
+            || targets.as_str().starts_with(metadata.as_str())
+        {
+            return Err(TransportSetupError::InvalidSource(
+                "metadata and target loopback path prefixes must be distinct".into(),
+            ));
+        }
+        let client = Client::builder()
+            .redirect(Policy::none())
+            .no_proxy()
+            .referer(false)
+            .connect_timeout(CONNECT_TIMEOUT)
+            .read_timeout(IDLE_TIMEOUT)
+            .timeout(METADATA_DEADLINE)
+            .user_agent("Portcove application updater qualification/1")
+            .build()
+            .map_err(|_| {
+                TransportSetupError::Network(
+                    "could not initialize application update qualification transport".into(),
+                )
+            })?;
+        Ok(Self {
+            client,
+            bases: [
+                TrustedBase {
+                    url: metadata,
+                    kind: BaseKind::Metadata,
+                },
+                TrustedBase {
+                    url: targets,
+                    kind: BaseKind::Targets,
+                },
+            ],
+            budget: Arc::new(TransportBudget::new(Instant::now() + METADATA_DEADLINE)),
+        })
+    }
+
     fn request_limit(&self, url: &Url) -> Option<u64> {
         let base = self.bases.iter().find(|base| accepts(base, url))?;
         if base.kind == BaseKind::Targets {
@@ -212,7 +273,10 @@ impl Transport for PinnedHttpsTransport {
                 TransportError::new_with_cause(TransportErrorKind::Other, url.as_str(), error)
             })?;
         if !response.status().is_success() {
-            let kind = if matches!(response.status().as_u16(), 403 | 404 | 410) {
+            let status = response.status();
+            let rate_limit =
+                provider_rate_limit(status, response.headers(), current_unix_seconds());
+            let kind = if rate_limit.is_none() && matches!(status.as_u16(), 403 | 404 | 410) {
                 TransportErrorKind::FileNotFound
             } else {
                 TransportErrorKind::Other
@@ -220,7 +284,7 @@ impl Transport for PinnedHttpsTransport {
             return Err(TransportError::new_with_cause(
                 kind,
                 url.as_str(),
-                io::Error::other(format!("HTTP {}", response.status())),
+                MetadataHttpStatusError { status, rate_limit },
             ));
         }
         if response
@@ -315,16 +379,50 @@ fn validate_base(url: &Url, label: &str) -> Result<Url, TransportSetupError> {
     Ok(url.clone())
 }
 
+#[cfg(feature = "application-update-qualification")]
+fn validate_loopback_base(url: &Url, label: &str) -> Result<Url, TransportSetupError> {
+    let loopback = url
+        .host_str()
+        .and_then(|host| host.parse::<IpAddr>().ok())
+        .is_some_and(|address| address.is_loopback());
+    if url.as_str().len() > 4096
+        || url.scheme() != "http"
+        || !loopback
+        || !url.username().is_empty()
+        || url.password().is_some()
+        || url.port().is_none()
+        || url.query().is_some()
+        || url.fragment().is_some()
+        || url.cannot_be_a_base()
+        || !url.path().ends_with('/')
+        || url.path().contains('%')
+    {
+        return Err(TransportSetupError::InvalidSource(format!(
+            "{label} qualification base requires an explicit-port loopback HTTP URL with a trailing path separator and no credentials, escapes, query or fragment"
+        )));
+    }
+    Ok(url.clone())
+}
+
 fn accepts(base: &TrustedBase, url: &Url) -> bool {
-    url.scheme() == "https"
+    url.scheme() == base.url.scheme()
         && url.username().is_empty()
         && url.password().is_none()
-        && url.port_or_known_default() == Some(443)
+        && url.port_or_known_default() == base.url.port_or_known_default()
         && url.query().is_none()
         && url.fragment().is_none()
         && !url.path().contains('%')
         && url.origin() == base.url.origin()
         && url.as_str().starts_with(base.url.as_str())
+}
+
+pub(crate) fn metadata_rate_limit(error: &tough::error::Error) -> Option<ProviderRateLimit> {
+    let tough::error::Error::Transport { source, .. } = error else {
+        return None;
+    };
+    std::error::Error::source(source)
+        .and_then(|cause| cause.downcast_ref::<MetadataHttpStatusError>())
+        .and_then(|cause| cause.rate_limit)
 }
 
 fn other_error(url: &Url, message: &str) -> TransportError {

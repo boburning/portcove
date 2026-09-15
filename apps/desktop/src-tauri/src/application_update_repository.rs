@@ -43,6 +43,7 @@ pub enum CandidateLoadError {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CandidateLoadFailureKind {
     Unreachable,
+    RateLimited,
     Stale,
     Rejected,
 }
@@ -52,10 +53,18 @@ impl CandidateLoadError {
         match self {
             Self::Trust(error) => match error.failure_kind() {
                 TrustedRepositoryFailureKind::Unreachable => CandidateLoadFailureKind::Unreachable,
+                TrustedRepositoryFailureKind::RateLimited => CandidateLoadFailureKind::RateLimited,
                 TrustedRepositoryFailureKind::Stale => CandidateLoadFailureKind::Stale,
                 TrustedRepositoryFailureKind::Rejected => CandidateLoadFailureKind::Rejected,
             },
             _ => CandidateLoadFailureKind::Rejected,
+        }
+    }
+
+    pub fn retry_at_unix_seconds(&self) -> Option<u64> {
+        match self {
+            Self::Trust(error) => error.retry_at_unix_seconds(),
+            _ => None,
         }
     }
 }
