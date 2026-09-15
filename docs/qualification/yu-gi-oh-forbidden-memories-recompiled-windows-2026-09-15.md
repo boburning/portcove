@@ -6,21 +6,21 @@ not promote the port to Supported or manufacture hands-on evidence.
 
 ## Scope
 
-| Identity | Value |
-|---|---|
-| Portcove commit | `327626b154a45f2af52de77ab06fae54c4794ef2` |
-| Portcove version | `0.1.0-alpha.2` |
-| Platform | `windows-x86-64` |
-| Upstream ref | `v0.6.1` |
-| Upstream commit | `6b3579c6032fc59479a127824a27fc1f810e4f14` |
-| Release asset | `ygofm-0.6.1-win-x64.zip` |
-| Artifact size | `34,799,128` bytes |
-| Artifact SHA-256 | `4eed315000952dee7a751a05de4413a88777cf49609d29ab77ee3765a44d0f53` |
-| Source contract | `yu-gi-oh-forbidden-memories-recompiled-game-source` |
-| Source variant | `legacy-accepted` |
-| Source representation | `normalized-track-set` |
-| Check contract | `ygofm-windows-qualification-v1` |
-| Isolated library | `H:\Portcove-Worktrees\ygofm-v0.6.1-20260915\library` |
+| Identity              | Value                                                              |
+| --------------------- | ------------------------------------------------------------------ |
+| Portcove commit       | `327626b154a45f2af52de77ab06fae54c4794ef2`                         |
+| Portcove version      | `0.1.0-alpha.2`                                                    |
+| Platform              | `windows-x86-64`                                                   |
+| Upstream ref          | `v0.6.1`                                                           |
+| Upstream commit       | `6b3579c6032fc59479a127824a27fc1f810e4f14`                         |
+| Release asset         | `ygofm-0.6.1-win-x64.zip`                                          |
+| Artifact size         | `34,799,128` bytes                                                 |
+| Artifact SHA-256      | `4eed315000952dee7a751a05de4413a88777cf49609d29ab77ee3765a44d0f53` |
+| Source contract       | `yu-gi-oh-forbidden-memories-recompiled-game-source`               |
+| Source variant        | `legacy-accepted`                                                  |
+| Source representation | `normalized-track-set`                                             |
+| Check contract        | `ygofm-windows-qualification-v1`                                   |
+| Isolated library      | `H:\Portcove-Worktrees\ygofm-v0.6.1-20260915\library`              |
 
 The annotated upstream tag is unsigned and resolves to the commit above. The
 GitHub provider digest and the downloaded release bytes matched. The signature
@@ -32,13 +32,13 @@ admission authority for this artifact is the checksum-qualified release.
 The authorized BoburNAS copy was read-only source input. Proprietary source and
 generated game data remained outside Git.
 
-| Observation | Value |
-|---|---|
-| CHD size | `151,881,565` bytes |
-| CHD SHA-256 | `3447677c2313417e285abed0b18bd9c24c0a2efb095ede61b9b0b1edecdc8ff4` |
-| Normalized Track 01 size | `517,872,768` bytes |
-| Normalized SHA-1 | `d5785a41900a10968d4a28a390666c4b9879b796` |
-| Normalized SHA-256 | `6e22494a45bf50fa2d239cd3819a57163a5f9b91e0365babc3e101509b5c3a7c` |
+| Observation              | Value                                                              |
+| ------------------------ | ------------------------------------------------------------------ |
+| CHD size                 | `151,881,565` bytes                                                |
+| CHD SHA-256              | `3447677c2313417e285abed0b18bd9c24c0a2efb095ede61b9b0b1edecdc8ff4` |
+| Normalized Track 01 size | `517,872,768` bytes                                                |
+| Normalized SHA-1         | `d5785a41900a10968d4a28a390666c4b9879b796`                         |
+| Normalized SHA-256       | `6e22494a45bf50fa2d239cd3819a57163a5f9b91e0365babc3e101509b5c3a7c` |
 
 `source add` and a later independent `source verify` both reported
 `recognized_exact` and `current`. Portcove rechecked both normalized and storage
