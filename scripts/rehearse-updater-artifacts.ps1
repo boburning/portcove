@@ -59,6 +59,7 @@ $previousEnvironment = @{}
 foreach ($name in $environmentNames) { $previousEnvironment[$name] = [Environment]::GetEnvironmentVariable($name, "Process") }
 $privateKey = Join-Path $runRoot "disposable.key"
 $publicKey = "$privateKey.pub"
+$wrongPrivateRoot = Join-Path $runRoot "windows-payload-consumer-private"
 $bundleRoot = Join-Path $root "target/release/bundle"
 $cliRoot = Join-Path $root "release-assets"
 $bundles = if ($IsWindows) { "nsis" } elseif ($IsLinux) { "appimage,deb,rpm" } else { "app,dmg" }
@@ -138,7 +139,6 @@ try {
                 $candidateInventoryPath = Join-Path $stage "updater-inventory.json"
                 $candidateInventory = Get-Content -LiteralPath $candidateInventoryPath -Raw | ConvertFrom-Json
                 $consumerRoot = Join-Path $runRoot "windows-payload-consumer"
-                $wrongPrivateRoot = Join-Path $runRoot "windows-payload-consumer-private"
                 $wrongPrivateKey = Join-Path $wrongPrivateRoot "wrong-disposable.key"
                 $wrongCandidate = Join-Path $wrongPrivateRoot $candidateInventory.updater.filename
                 $wrongSignatureRoot = Join-Path $consumerRoot "wrong-signature"
@@ -461,6 +461,7 @@ try {
     foreach ($relative in $metadataPaths) { [IO.File]::WriteAllBytes((Join-Path $root $relative), $original[$relative]) }
     foreach ($name in $environmentNames) { [Environment]::SetEnvironmentVariable($name, $previousEnvironment[$name], "Process") }
     if ([IO.File]::Exists($privateKey)) { [IO.File]::Delete($privateKey) }
+    if ([IO.Directory]::Exists($wrongPrivateRoot)) { [IO.Directory]::Delete($wrongPrivateRoot, $true) }
     $fixturePrivate = Join-Path $runRoot "linux-appimage-qualification/private"
     if ([IO.Directory]::Exists($fixturePrivate)) { [IO.Directory]::Delete($fixturePrivate, $true) }
 }

@@ -249,6 +249,10 @@ test("manual rehearsal retains the complete matrix without production credential
   assert.match(rehearsal, /Remove-Item -LiteralPath \$wrongPrivateRoot -Recurse -Force/);
   assert.match(
     rehearsal,
+    /finally \{[\s\S]*\[IO\.Directory\]::Exists\(\$wrongPrivateRoot\)[\s\S]*\[IO\.Directory\]::Delete\(\$wrongPrivateRoot, \$true\)/,
+  );
+  assert.match(
+    rehearsal,
     /Remove-Item Env:TAURI_SIGNING_PRIVATE_KEY -ErrorAction SilentlyContinue[\s\S]*Remove-Item Env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD -ErrorAction SilentlyContinue[\s\S]*"sign", "--private-key-path", \$wrongPrivateKey, \$wrongCandidate/,
   );
   assert.doesNotMatch(rehearsal, /"--private-key-path", \$wrongPrivateKey, "--password", ""/);
