@@ -5,6 +5,7 @@ mod updater_trust_support;
 
 use std::collections::BTreeSet;
 use std::fs;
+use std::path::Path;
 use std::sync::Arc;
 
 use futures_util::TryStreamExt;
@@ -24,7 +25,7 @@ use portcove_desktop::application_update_preferences::{
     ApplicationUpdateChoice, ApplicationUpdateMode,
 };
 use portcove_desktop::application_update_repository::{
-    CandidateLoadError, select_repository_candidate,
+    CandidateLoadError, CandidateLoadFailureKind, select_repository_candidate,
 };
 use portcove_desktop::application_update_trust::{
     TrustedRepositoryError, TrustedRepositoryFailureKind, TrustedRepositoryRequest,
@@ -215,6 +216,39 @@ fn assert_consumer_rejected_signature(error: ApplicationUpdateFreshSelectionErro
     };
     assert!(matches!(&error, TrustedRepositoryError::Authentication(_)));
     assert_eq!(error.failure_kind(), TrustedRepositoryFailureKind::Rejected);
+}
+
+fn assert_consumer_unreachable(error: ApplicationUpdateFreshSelectionError) {
+    let ApplicationUpdateFreshSelectionError::Candidate(error) = error else {
+        panic!("expected unavailable repository data to fail candidate loading, got {error}");
+    };
+    assert!(matches!(
+        &error,
+        CandidateLoadError::Trust(TrustedRepositoryError::Transport(_))
+    ));
+    assert_eq!(error.failure_kind(), CandidateLoadFailureKind::Unreachable);
+}
+
+fn assert_consumer_selected_version(
+    selected: ApplicationUpdateFreshSelection,
+    installed: &InstalledApplicationContext,
+    expected_version: &str,
+) {
+    assert_eq!(&selected.installed, installed);
+    assert_eq!(
+        selected
+            .authenticated
+            .selection
+            .candidate
+            .unwrap()
+            .release
+            .version,
+        expected_version
+    );
+}
+
+fn persisted_roles(path: &Path) -> serde_json::Value {
+    serde_json::from_slice::<serde_json::Value>(&fs::read(path).unwrap()).unwrap()["roles"].clone()
 }
 
 async fn select_fixture_preview_with_host_consumer(
@@ -1199,25 +1233,56 @@ async fn channel_role_authenticates_keys_and_transition_candidates() {
         .unwrap(),
         Arc::new(FixedInstalledContext(skipped_context.clone())),
     );
-    let fresh = ApplicationUpdateFreshSelectionProvider::select(
-        &provider,
-        &ApplicationUpdateChoice {
-            channel: ApplicationChannel::Stable,
-            mode: ApplicationUpdateMode::Manual,
-            paused: false,
-        },
-    )
-    .await
-    .unwrap();
-    assert_eq!(fresh.installed, skipped_context);
-    assert_eq!(
-        fresh
-            .authenticated
-            .selection
-            .candidate
-            .unwrap()
-            .release
-            .version,
-        "1.1.0"
-    );
+    let stable_choice = ApplicationUpdateChoice {
+        channel: ApplicationChannel::Stable,
+        mode: ApplicationUpdateMode::Manual,
+        paused: false,
+    };
+    let fresh = ApplicationUpdateFreshSelectionProvider::select(&provider, &stable_choice)
+        .await
+        .unwrap();
+    assert_consumer_selected_version(fresh, &skipped_context, "1.1.0");
+
+    let host_state = f
+        .directory
+        .path()
+        .join("host-provider-trust/trust-state.json");
+    let roles_before_outage = persisted_roles(&host_state);
+    let timestamp_path = f.metadata.join("timestamp.json");
+    let timestamp_metadata = fs::read(&timestamp_path).unwrap();
+    fs::remove_file(&timestamp_path).unwrap();
+
+    let error = ApplicationUpdateFreshSelectionProvider::select(&provider, &stable_choice)
+        .await
+        .unwrap_err();
+    assert_consumer_unreachable(error);
+    assert_eq!(persisted_roles(&host_state), roles_before_outage);
+
+    fs::write(timestamp_path, timestamp_metadata).unwrap();
+    let recovered = ApplicationUpdateFreshSelectionProvider::select(&provider, &stable_choice)
+        .await
+        .unwrap();
+    assert_consumer_selected_version(recovered, &skipped_context, "1.1.0");
+    assert_eq!(persisted_roles(&host_state), roles_before_outage);
+
+    let selected_promotion_path = records
+        .iter()
+        .find(|(release_name, _, _, _)| release_name.starts_with("releases/1.1.0/"))
+        .map(|(_, _, _, promotion_path)| promotion_path)
+        .unwrap();
+    let selected_promotion = fs::read(selected_promotion_path).unwrap();
+    fs::remove_file(selected_promotion_path).unwrap();
+
+    let error = ApplicationUpdateFreshSelectionProvider::select(&provider, &stable_choice)
+        .await
+        .unwrap_err();
+    assert_consumer_unreachable(error);
+    assert_eq!(persisted_roles(&host_state), roles_before_outage);
+
+    fs::write(selected_promotion_path, selected_promotion).unwrap();
+    let recovered = ApplicationUpdateFreshSelectionProvider::select(&provider, &stable_choice)
+        .await
+        .unwrap();
+    assert_consumer_selected_version(recovered, &skipped_context, "1.1.0");
+    assert_eq!(persisted_roles(&host_state), roles_before_outage);
 }
