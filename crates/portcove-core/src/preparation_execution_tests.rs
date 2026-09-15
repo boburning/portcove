@@ -635,28 +635,39 @@ fn journal_only_preparation_cleanup_removes_only_the_stale_journal() {
         .unwrap();
     assert_eq!(activity.status, crate::ActivityStatus::Failed);
 
-    let preview = fixture
-        .service
-        .preview_preparation_cleanup(&journal.id)
-        .unwrap();
+    let reopened = PortcoveService::new(Library::open(library.root()).unwrap()).unwrap();
+    let retained_after_reopen = store.all().unwrap().remove(0);
+    assert_eq!(
+        retained_after_reopen.last_error.as_deref(),
+        Some("owned preparation interruption")
+    );
+    assert_eq!(
+        library
+            .activities(10)
+            .unwrap()
+            .into_iter()
+            .find(|current| current.id == activity.id)
+            .unwrap(),
+        activity
+    );
+
+    let preview = reopened.preview_preparation_cleanup(&journal.id).unwrap();
     assert_eq!(preview.retained_path, retained);
     assert!(preview.retained.directories.is_empty());
     assert!(preview.retained.files.is_empty());
     assert!(preview.retained.skipped_entries.is_empty());
     assert_eq!(preview.retained.total_bytes, 0);
-    let authorization = fixture
-        .service
+    let authorization = reopened
         .authorize_preparation_cleanup(&journal.id, &preview.preview_sha256)
         .unwrap();
-    let removed = fixture
-        .service
+    let removed = reopened
         .cleanup_preparation(&journal.id, &authorization.token)
         .unwrap();
     assert_eq!(removed.preview_sha256, preview.preview_sha256);
     assert!(!retained.exists());
     assert!(store.all().unwrap().is_empty());
     assert_eq!(
-        serde_json::to_value(fixture.service.status(PORT).unwrap().active.unwrap()).unwrap(),
+        serde_json::to_value(reopened.status(PORT).unwrap().active.unwrap()).unwrap(),
         serde_json::to_value(&active).unwrap()
     );
     assert_eq!(

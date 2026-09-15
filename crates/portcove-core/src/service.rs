@@ -476,6 +476,9 @@ impl PortcoveService {
     fn recover_lifecycle_operations(&self) -> Result<()> {
         let store = OperationStore::new(self.library.clone());
         for mut operation in store.all()? {
+            if self.is_reviewable_retained_preparation(&operation)? {
+                continue;
+            }
             let _guards = if operation.kind == LifecycleOperationKind::ImportSource {
                 match self.lock_source_dependents(&operation.port_id, None) {
                     Ok(guards) => guards,
@@ -531,6 +534,29 @@ impl PortcoveService {
             }
         }
         Ok(())
+    }
+
+    fn is_reviewable_retained_preparation(&self, operation: &LifecycleOperation) -> Result<bool> {
+        if operation.kind != LifecycleOperationKind::Prepare
+            || operation.phase != LifecyclePhase::Preparing
+            || operation.install.is_some()
+            || operation.preparation_process_quiesced != Some(true)
+            || operation.last_error.is_none()
+        {
+            return Ok(false);
+        }
+        self.library
+            .connection()?
+            .query_row(
+                "SELECT EXISTS(
+               SELECT 1 FROM activity_history
+               WHERE id=?1 AND operation='prepare' AND target_kind='port' AND target_id=?2
+                 AND status IN ('failed', 'cancelled')
+             )",
+                rusqlite::params![operation.id, operation.port_id],
+                |row| row.get(0),
+            )
+            .map_err(Into::into)
     }
 
     fn recover_lifecycle_operation(
