@@ -300,6 +300,29 @@ describe("workspace refresh recovery", () => {
     expect(host.textContent).toContain("Library information could not be refreshed");
   });
 
+  it("keeps a committed operation successful when its workspace refresh fails", async () => {
+    await render();
+    const committed = { id: "committed-install" };
+    const install = vi.fn().mockResolvedValue(committed);
+    vi.mocked(desktopApi.workspaceSnapshot).mockRejectedValueOnce(failureReport());
+
+    let result: typeof committed | undefined;
+    await act(async () => {
+      result = await operations.perform("install", install);
+    });
+
+    expect(result).toEqual(committed);
+    expect(install).toHaveBeenCalledOnce();
+    expect(operations.error).toBeUndefined();
+    expect(data.refreshFailure).toBeDefined();
+    expect(host.textContent).toContain("Showing the last loaded information");
+    expect(host.textContent).toContain("It does not repeat your last install");
+
+    await act(async () => data.retryRefresh());
+    expect(install).toHaveBeenCalledOnce();
+    expect(data.refreshFailure).toBeUndefined();
+  });
+
   it("retains diagnostics but marks them stale when a later check fails", async () => {
     await render();
     await act(async () => data.invalidateDiagnostics());

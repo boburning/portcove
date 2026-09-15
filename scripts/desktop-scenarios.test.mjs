@@ -35,11 +35,12 @@ test("desktop scenario catalog is nonempty, unique, and fully profiled", () => {
   }
 });
 
-test("smoke is the default and includes isolated reviewed install cancellation", () => {
+test("smoke includes isolated install cancellation and committed-refresh recovery", () => {
   const selection = resolveDesktopSelection();
   assert.equal(selection.profile, "smoke");
   assert.ok(selection.selected_scenarios.includes("keyboard-layout"));
   assert.ok(selection.selected_scenarios.includes("install-progress-cancellation"));
+  assert.ok(selection.selected_scenarios.includes("install-commit-refresh-recovery"));
   assert.ok(selection.prerequisites.includes("install-fixture"));
   assert.deepEqual(selection.known_gaps, []);
 });
@@ -79,6 +80,10 @@ test("selection rejects ambiguity, unknown IDs, and invalid reload requests", ()
   const install = resolveDesktopSelection({ scenarios: ["install-progress-cancellation"] });
   assert.deepEqual(install.selected_scenarios, ["install-progress-cancellation"]);
   assert.ok(install.prerequisites.includes("install-fixture"));
+  const refresh = resolveDesktopSelection({ scenarios: ["install-commit-refresh-recovery"] });
+  assert.deepEqual(refresh.selected_scenarios, ["install-commit-refresh-recovery"]);
+  assert.deepEqual(refresh.setup_scenarios, []);
+  assert.ok(refresh.prerequisites.includes("install-fixture"));
   assert.throws(
     () => resolveDesktopSelection({ scenarios: ["native-repeated-library-reload"] }),
     /requires --reload-cycles/,

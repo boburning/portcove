@@ -62,6 +62,13 @@ test("focused plans omit owned binaries while lifecycle plans include them", () 
   assert.equal(install.paths.cli, null);
   assert.deepEqual(install.qualification_features, ["qualification-fixtures"]);
 
+  const installRefresh = buildDesktopVerifyPlan({
+    ...common,
+    selection: resolveDesktopSelection({ scenarios: ["install-commit-refresh-recovery"] }),
+  });
+  assert.equal(installRefresh.paths.cli, null);
+  assert.deepEqual(installRefresh.qualification_features, ["qualification-fixtures"]);
+
   const lifecycle = buildDesktopVerifyPlan({
     ...common,
     selection: resolveDesktopSelection({ scenarios: ["native-reviewed-existing-install-copy"] }),

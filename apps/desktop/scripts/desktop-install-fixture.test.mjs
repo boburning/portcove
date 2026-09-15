@@ -5,7 +5,12 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { test } from "vitest";
-import { createInstallFixture, INSTALL_FIXTURE_PORT_ID } from "./desktop-install-fixture.mjs";
+import {
+  createInstallFixture,
+  INSTALL_FIXTURE_PORT_ID,
+  INSTALL_REFRESH_FIXTURE_PORT_ID,
+} from "./desktop-install-fixture.mjs";
+import { installScenarios } from "./desktop-install-test.mjs";
 
 const root = fileURLToPath(new URL("../../..", import.meta.url));
 
@@ -23,10 +28,20 @@ test("install fixture is isolated, pinned, interruptible, and retryable", async 
   try {
     const catalog = JSON.parse(await readFile(fixture.catalogPath, "utf8"));
     const port = catalog.ports.find((item) => item.id === INSTALL_FIXTURE_PORT_ID);
+    const refreshPort = catalog.ports.find((item) => item.id === INSTALL_REFRESH_FIXTURE_PORT_ID);
     assert.ok(port);
+    assert.ok(refreshPort);
+    assert.notEqual(port.id, refreshPort.id);
+    assert.notEqual(port.name, refreshPort.name);
     assert.equal(port.release.provider, "direct-manifest");
     assert.equal(port.release.direct[port.platforms[0]].url, fixture.url);
+    assert.equal(refreshPort.release.direct[refreshPort.platforms[0]].url, fixture.url);
+    assert.equal(
+      refreshPort.release.direct[refreshPort.platforms[0]].sha256,
+      port.release.direct[port.platforms[0]].sha256,
+    );
     assert.equal(port.source_profile, undefined);
+    assert.equal(refreshPort.source_profile, undefined);
 
     const controller = new AbortController();
     const first = await fetch(fixture.url, { signal: controller.signal });
@@ -51,4 +66,15 @@ test("install fixture is isolated, pinned, interruptible, and retryable", async 
   } finally {
     await fixture.close();
   }
+});
+
+test("unselected install scenarios do not require an initialized fixture", async () => {
+  const registered = [];
+  await installScenarios({
+    scenario: async (id) => registered.push(id),
+  });
+  assert.deepEqual(registered, [
+    "install-progress-cancellation",
+    "install-commit-refresh-recovery",
+  ]);
 });

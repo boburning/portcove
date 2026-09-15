@@ -235,15 +235,21 @@ artifacts. Failed metadata retrieval remains separate from a saved channel.
 
 The smoke scenarios exercise native IPC/bootstrap, an empty library, a rejected
 operation with usable state afterward, keyboard focus/compact layout, appearance
-persistence over a real process restart, automated accessibility checks, and one
-reviewed install cancellation. The install scenario builds a qualification-feature
-binary, creates a checksum-pinned artifact and catalog copy inside the fresh run,
+persistence over a real process restart, automated accessibility checks, one
+reviewed install cancellation, and a committed-install refresh failure. The install
+scenarios build a qualification-feature binary, create a checksum-pinned artifact
+and catalog copy inside the fresh run,
 serves only that artifact from an ephemeral loopback address, and records the exact
 request, cancellation, staging absence and successful fresh-review retry. The
+second synthetic port proves a committed install remains successful while immediate
+workspace reads are temporarily unavailable, retains the last view as explicitly
+stale, and retries only that read without repeating install review, download or
+mutation. The
 qualification feature accepts only an absolute catalog file and loopback HTTP URL;
 default and shipping binaries ignore the fixture variable and continue to require
 HTTPS direct manifests. The fixture proves native progress/cancellation and safe
-retry, not upstream availability, game compatibility, gameplay or human acceptance.
+retry plus refresh recovery, not upstream availability, game compatibility,
+gameplay or human acceptance.
 Core/component tests and human acceptance remain separate. An incomplete report is
 not full desktop qualification.
 
