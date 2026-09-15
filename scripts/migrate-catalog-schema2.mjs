@@ -1133,7 +1133,6 @@ const migrated = {
       },
       persistent_paths: [
         "rom.z64",
-        "castlevania2.n64.us.z64",
         "saves",
         "mods",
         "mods.json",
@@ -1142,8 +1141,8 @@ const migrated = {
         "audio.json",
         "controls.json",
         "rom_path.txt",
-        "LodRecomp.log",
       ],
+      runtime_mutable_paths: ["castlevania2.n64.us.z64", "LodRecomp.log"],
       portable_marker: true,
       runtime_source_filename: "rom.z64",
       runtime_source_materialization: "n64-big-endian",

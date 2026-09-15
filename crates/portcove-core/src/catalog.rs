@@ -659,7 +659,9 @@ impl Catalog {
                         .is_none_or(|marker| !crate::runtime::overlaps(relative, marker));
                 let portable_runtime_path = matches!(
                     port.adapter,
-                    AdapterKind::PsxRecompManaged | AdapterKind::LibultrashipPortable
+                    AdapterKind::N64RecompPortable
+                        | AdapterKind::PsxRecompManaged
+                        | AdapterKind::LibultrashipPortable
                 ) && port
                     .runtime_source_filename
                     .as_ref()
@@ -2056,7 +2058,7 @@ mod tests {
     }
 
     #[test]
-    fn libultraship_runtime_outputs_cannot_cover_owned_or_unsafe_paths() {
+    fn portable_runtime_outputs_cannot_cover_owned_or_unsafe_paths() {
         for (port_id, relative) in [
             ("ghostship", "ghostship.exe"),
             ("ghostship", "../outside.log"),
@@ -2065,6 +2067,10 @@ mod tests {
             ("ghostship", "saves"),
             ("ghostship", "sm64.o2r"),
             ("spaghetti-kart", "baserom.us.z64"),
+            ("cvlod-recomp", "LodRecomp.exe"),
+            ("cvlod-recomp", "../outside.log"),
+            ("cvlod-recomp", ".portcove-launched"),
+            ("cvlod-recomp", "rom.z64"),
         ] {
             let mut document: serde_json::Value = serde_json::from_str(EMBEDDED_CATALOG).unwrap();
             let port = document["ports"]
@@ -2723,7 +2729,6 @@ mod tests {
         assert!(port.manually_validated_platforms.is_empty());
         for path in [
             "rom.z64",
-            "castlevania2.n64.us.z64",
             "saves",
             "mods",
             "mods.json",
@@ -2732,14 +2737,16 @@ mod tests {
             "audio.json",
             "controls.json",
             "rom_path.txt",
-            "LodRecomp.log",
         ] {
             assert!(
                 port.persistent_paths.iter().any(|value| value == path),
                 "LodRecomp persistence contract is missing {path}"
             );
         }
-        assert!(port.runtime_mutable_paths.is_empty());
+        assert_eq!(
+            port.runtime_mutable_paths,
+            ["castlevania2.n64.us.z64", "LodRecomp.log"]
+        );
 
         let contract = catalog
             .source_catalog()
