@@ -1121,14 +1121,19 @@ mod tests {
         let source_catalog = migrated.source_catalog().expect("schema-2 authority");
         assert_eq!(
             source_catalog.identities.len(),
-            legacy.document().source_profiles.len() + 2
+            legacy.document().source_profiles.len() + 3
         );
         let projected_legacy_profiles = migrated
             .document()
             .source_profiles
             .iter()
             .filter(|profile| {
-                !["pokemon-snap", "castlevania-legacy-of-darkness"].contains(&profile.id.as_str())
+                ![
+                    "pokemon-snap",
+                    "castlevania-legacy-of-darkness",
+                    "super-mario-bros-nes",
+                ]
+                .contains(&profile.id.as_str())
             })
             .cloned()
             .collect::<Vec<_>>();
@@ -1207,7 +1212,14 @@ mod tests {
             .document()
             .ports
             .iter()
-            .filter(|port| !["snap64-recomp", "cvlod-recomp"].contains(&port.id.as_str()))
+            .filter(|port| {
+                ![
+                    "snap64-recomp",
+                    "cvlod-recomp",
+                    "super-mario-bros-remastered",
+                ]
+                .contains(&port.id.as_str())
+            })
             .cloned()
             .collect::<Vec<_>>();
         // Presentation and concise summaries are additive schema-2 client
@@ -1337,7 +1349,7 @@ mod tests {
 
         assert!(document.get("source_catalog").is_some());
         assert!(document.get("source_profiles").is_none());
-        assert_eq!(document["ports"].as_array().unwrap().len(), 69);
+        assert_eq!(document["ports"].as_array().unwrap().len(), 70);
     }
 
     #[test]
@@ -1576,7 +1588,12 @@ mod tests {
             .source_profiles
             .iter()
             .filter(|profile| {
-                !["pokemon-snap", "castlevania-legacy-of-darkness"].contains(&profile.id.as_str())
+                ![
+                    "pokemon-snap",
+                    "castlevania-legacy-of-darkness",
+                    "super-mario-bros-nes",
+                ]
+                .contains(&profile.id.as_str())
             })
             .cloned()
             .collect::<Vec<_>>();
@@ -2772,6 +2789,93 @@ mod tests {
                 "be60fefdbc4a98d1cf2ab6932e69825f39268e5ad1daab950ea7b8a19e53b40a",
                 "c88af33bb3d4d676ca6cd5b3676b9fe99d1a3c39904592e30ddfc06a383cea2f",
                 "0086f1aae522d1934af20cba6d9037e27ed96cf81de93a4be352fcc11cdf1408",
+            ]
+        );
+    }
+
+    #[test]
+    fn smb_remastered_uses_exact_headered_sources_and_portable_config() {
+        let catalog = Catalog::embedded().expect("catalog should load");
+        let profile = catalog.source_profile("super-mario-bros-nes").unwrap();
+        assert_eq!(profile.accepted_extensions, ["nes"]);
+        assert_eq!(
+            profile.accepted_sha1,
+            [
+                "b4140688f9a5b3434276c5a7394b56022436e57a",
+                "33d23c2f2cfa4c9efec87f7bc1321ce3ce6c89bd",
+            ]
+        );
+        assert_eq!(
+            profile.accepted_sha256,
+            [
+                "ff69421b584ce898b3d4b3ab57202900c079c45cdface84d654d0368ad796ffe",
+                "0b3d9e1f01ed1668205bab34d6c82b0e281456e137352e4f36a9b2cfa3b66dea",
+            ]
+        );
+
+        let port = catalog.port("super-mario-bros-remastered").unwrap();
+        assert_eq!(port.adapter, AdapterKind::StagedSourcePortable);
+        assert_eq!(port.channels, [ReleaseChannel::Stable]);
+        assert_eq!(
+            port.platforms,
+            [Platform::WindowsX86_64, Platform::LinuxX86_64]
+        );
+        assert_eq!(port.release.provider, crate::ReleaseSource::DirectManifest);
+        let windows_release = &port.release.direct[&Platform::WindowsX86_64];
+        assert_eq!(windows_release.version, "1.1-stable");
+        assert_eq!(windows_release.size, 76_214_255);
+        assert_eq!(
+            windows_release.sha256,
+            "164f5160b7b73f161b956fa1470813c8e21fa92424f94c8889de46111a59c109"
+        );
+        let linux_release = &port.release.direct[&Platform::LinuxX86_64];
+        assert_eq!(linux_release.version, "1.1-stable");
+        assert_eq!(linux_release.size, 69_254_798);
+        assert_eq!(
+            linux_release.sha256,
+            "12ec2413735b8fc83ce85084ec126852b1f922559cd013d27b109d2463b5bcd7"
+        );
+        assert!(port.automated_tested_platforms.is_empty());
+        assert!(port.manually_validated_platforms.is_empty());
+        assert!(port.portable_marker);
+        assert_eq!(
+            port.runtime_source_filename.as_deref(),
+            Some("config/baserom.nes")
+        );
+        assert_eq!(
+            port.runtime_source_materialization,
+            Some(RuntimeSourceMaterialization::Copy)
+        );
+        assert_eq!(port.persistent_paths, ["config"]);
+        assert!(port.runtime_mutable_paths.is_empty());
+
+        let contract = catalog
+            .source_catalog()
+            .unwrap()
+            .contracts
+            .iter()
+            .find(|contract| contract.id == "super-mario-bros-remastered-game-source")
+            .unwrap();
+        assert_eq!(contract.supported_variant_ids, ["europe", "world"]);
+        assert_eq!(
+            contract
+                .applicability
+                .iter()
+                .map(|binding| binding.upstream_ref.as_str())
+                .collect::<Vec<_>>(),
+            ["1.1-stable", "1.1-stable", "1.1-rc5", "1.1-rc5"]
+        );
+        assert_eq!(
+            contract
+                .applicability
+                .iter()
+                .map(|binding| binding.artifact_sha256.as_deref().unwrap())
+                .collect::<Vec<_>>(),
+            [
+                "164f5160b7b73f161b956fa1470813c8e21fa92424f94c8889de46111a59c109",
+                "12ec2413735b8fc83ce85084ec126852b1f922559cd013d27b109d2463b5bcd7",
+                "4077a2a29175d66512895d3f098311f4ded0b95a801301c6c8549af22e1bba3b",
+                "4c543b643115b5252ca65089614019b6b387b723c4fbe05261340e1b7a7c8c49",
             ]
         );
     }

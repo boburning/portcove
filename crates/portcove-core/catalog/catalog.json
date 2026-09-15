@@ -112,6 +112,44 @@
         "live_url": "https://github.com/fliperama86/cvlod_recomp/blob/main/castlevania2.yaml"
       },
       {
+        "id": "smb1r-1-1-stable-source-contract",
+        "role": "upstream_support",
+        "authority": "JHDev2006/Super-Mario-Bros.-Remastered-Public",
+        "authority_ref": "f379a3257ef1cf89cf4bf911f40c9262447da2c6",
+        "reviewed_at": "2026-09-14",
+        "claim": "Accepts two exact 40,976-byte headered Super Mario Bros. sources after its pinned header-strip and Base64 digest protocol",
+        "immutable_url": "https://github.com/JHDev2006/Super-Mario-Bros.-Remastered-Public/blob/f379a3257ef1cf89cf4bf911f40c9262447da2c6/Scripts/UI/RomVerifier.gd",
+        "live_url": "https://github.com/JHDev2006/Super-Mario-Bros.-Remastered-Public/blob/main/Scripts/UI/RomVerifier.gd"
+      },
+      {
+        "id": "smb1r-1-1-rc5-source-contract",
+        "role": "upstream_support",
+        "authority": "JHDev2006/Super-Mario-Bros.-Remastered-Public",
+        "authority_ref": "e39e9a27a2506278436f3705c7a8e60a4db31097",
+        "reviewed_at": "2026-09-14",
+        "claim": "Uses the same exact source validator in the selected 1.1 RC5 preview as 1.1 stable",
+        "immutable_url": "https://github.com/JHDev2006/Super-Mario-Bros.-Remastered-Public/blob/e39e9a27a2506278436f3705c7a8e60a4db31097/Scripts/UI/RomVerifier.gd",
+        "live_url": "https://github.com/JHDev2006/Super-Mario-Bros.-Remastered-Public/blob/main/Scripts/UI/RomVerifier.gd"
+      },
+      {
+        "id": "portforge-smb1-europe-identity",
+        "role": "byte_identity",
+        "authority": "zamiba/portforge-mediaitems",
+        "authority_ref": "a721d8abd27552a38513bcc21eebfa6ff6ab8121",
+        "reviewed_at": "2026-09-14",
+        "claim": "Records the exact headered 40,976-byte Super Mario Bros. Europe source identity",
+        "immutable_url": "https://github.com/zamiba/portforge-mediaitems/blob/a721d8abd27552a38513bcc21eebfa6ff6ab8121/NESCartRom/Super%20Mario%20Bros.%20(Europe)%20%C2%B7%20NES/.mediaitem.json"
+      },
+      {
+        "id": "portforge-smb1-world-identity",
+        "role": "byte_identity",
+        "authority": "zamiba/portforge-mediaitems",
+        "authority_ref": "a721d8abd27552a38513bcc21eebfa6ff6ab8121",
+        "reviewed_at": "2026-09-14",
+        "claim": "Records the exact headered 40,976-byte Super Mario Bros. World source identity",
+        "immutable_url": "https://github.com/zamiba/portforge-mediaitems/blob/a721d8abd27552a38513bcc21eebfa6ff6ab8121/NESCartRom/Super%20Mario%20Bros.%20(World)%20%C2%B7%20NES/.mediaitem.json"
+      },
+      {
         "id": "snap64-recomp-windows-2026-09-13",
         "role": "portcove_qualification",
         "authority": "boburning/portcove",
@@ -3992,6 +4030,84 @@
         "aliases": [],
         "tombstones": [],
         "evidence_gap": null
+      },
+      {
+        "id": "super-mario-bros-nes",
+        "label": "Super Mario Bros. (Europe or World) NES source",
+        "kind": "file",
+        "variants": [
+          {
+            "id": "europe",
+            "title": "Super Mario Bros.",
+            "region": "Europe",
+            "revision": null,
+            "product_codes": [],
+            "representations": [
+              {
+                "id": "headered-rom",
+                "extensions": [
+                  "nes"
+                ],
+                "kind": "raw-file",
+                "identities": [
+                  {
+                    "scope": "original-file",
+                    "sha1": "b4140688f9a5b3434276c5a7394b56022436e57a",
+                    "sha256": "ff69421b584ce898b3d4b3ab57202900c079c45cdface84d654d0368ad796ffe",
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "smb1r-1-1-stable-source-contract",
+                  "smb1r-1-1-rc5-source-contract",
+                  "portforge-smb1-europe-identity"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "smb1r-1-1-stable-source-contract",
+              "smb1r-1-1-rc5-source-contract",
+              "portforge-smb1-europe-identity"
+            ]
+          },
+          {
+            "id": "world",
+            "title": "Super Mario Bros.",
+            "region": "World",
+            "revision": null,
+            "product_codes": [],
+            "representations": [
+              {
+                "id": "headered-rom",
+                "extensions": [
+                  "nes"
+                ],
+                "kind": "raw-file",
+                "identities": [
+                  {
+                    "scope": "original-file",
+                    "sha1": "33d23c2f2cfa4c9efec87f7bc1321ce3ce6c89bd",
+                    "sha256": "0b3d9e1f01ed1668205bab34d6c82b0e281456e137352e4f36a9b2cfa3b66dea",
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "smb1r-1-1-stable-source-contract",
+                  "smb1r-1-1-rc5-source-contract",
+                  "portforge-smb1-world-identity"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "smb1r-1-1-stable-source-contract",
+              "smb1r-1-1-rc5-source-contract",
+              "portforge-smb1-world-identity"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
       }
     ],
     "contracts": [
@@ -5598,6 +5714,49 @@
           {
             "upstream_ref": "v0.2.26",
             "artifact_sha256": "0086f1aae522d1934af20cba6d9037e27ed96cf81de93a4be352fcc11cdf1408"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "super-mario-bros-remastered-game-source",
+        "port_id": "super-mario-bros-remastered",
+        "role": "game",
+        "profile_id": "super-mario-bros-nes",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "europe",
+          "world"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "smb1r-1-1-stable-source-contract",
+          "smb1r-1-1-rc5-source-contract",
+          "portforge-smb1-europe-identity",
+          "portforge-smb1-world-identity"
+        ],
+        "authority_ref": "f379a3257ef1cf89cf4bf911f40c9262447da2c6",
+        "reviewed_at": "2026-09-14",
+        "immutable_review_url": "https://github.com/JHDev2006/Super-Mario-Bros.-Remastered-Public/blob/f379a3257ef1cf89cf4bf911f40c9262447da2c6/Scripts/UI/RomVerifier.gd",
+        "live_review_url": "https://github.com/JHDev2006/Super-Mario-Bros.-Remastered-Public/blob/main/Scripts/UI/RomVerifier.gd",
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "1.1-stable",
+            "artifact_sha256": "164f5160b7b73f161b956fa1470813c8e21fa92424f94c8889de46111a59c109"
+          },
+          {
+            "upstream_ref": "1.1-stable",
+            "artifact_sha256": "12ec2413735b8fc83ce85084ec126852b1f922559cd013d27b109d2463b5bcd7"
+          },
+          {
+            "upstream_ref": "1.1-rc5",
+            "artifact_sha256": "4077a2a29175d66512895d3f098311f4ded0b95a801301c6c8549af22e1bba3b"
+          },
+          {
+            "upstream_ref": "1.1-rc5",
+            "artifact_sha256": "4c543b643115b5252ca65089614019b6b387b723c4fbe05261340e1b7a7c8c49"
           }
         ],
         "aliases": [],
@@ -10685,6 +10844,69 @@
             "role": "game",
             "profile_id": "castlevania-legacy-of-darkness",
             "label": "Castlevania: Legacy of Darkness (North America) source",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed"
+      }
+    },
+    {
+      "id": "super-mario-bros-remastered",
+      "name": "Super Mario Bros. Remastered",
+      "summary": "Native Godot remake of Super Mario Bros.",
+      "project_url": "https://github.com/JHDev2006/Super-Mario-Bros.-Remastered-Public",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "adapter": "staged-source-portable",
+      "release": {
+        "provider": "direct-manifest",
+        "direct": {
+          "windows-x86-64": {
+            "version": "1.1-stable",
+            "url": "https://github.com/JHDev2006/Super-Mario-Bros.-Remastered-Public/releases/download/1.1-stable/Windows.zip",
+            "size": 76214255,
+            "sha256": "164f5160b7b73f161b956fa1470813c8e21fa92424f94c8889de46111a59c109",
+            "published_at": "2026-09-04T19:56:56Z"
+          },
+          "linux-x86-64": {
+            "version": "1.1-stable",
+            "url": "https://github.com/JHDev2006/Super-Mario-Bros.-Remastered-Public/releases/download/1.1-stable/Linux.zip",
+            "size": 69254798,
+            "sha256": "12ec2413735b8fc83ce85084ec126852b1f922559cd013d27b109d2463b5bcd7",
+            "published_at": "2026-09-04T19:56:56Z"
+          }
+        }
+      },
+      "source_profile": "super-mario-bros-nes",
+      "executable_hints": {
+        "windows-x86-64": [
+          "SMB1R.exe"
+        ],
+        "linux-x86-64": [
+          "SMB1R.x86_64"
+        ]
+      },
+      "persistent_paths": [
+        "config"
+      ],
+      "portable_marker": true,
+      "runtime_source_filename": "config/baserom.nes",
+      "runtime_source_materialization": "copy",
+      "presentation": {
+        "installation_method": "staged-game-files",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "super-mario-bros-nes",
+            "label": "Super Mario Bros. (Europe or World) NES source",
             "verification": "catalog-identity"
           }
         ],

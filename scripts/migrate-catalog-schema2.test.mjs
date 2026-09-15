@@ -21,15 +21,15 @@ test("schema-2 migration is deterministic and preserves the frozen schema-1 proj
   const migrated = JSON.parse(readFileSync(join(catalogRoot, "catalog.json"), "utf8"));
   assert.equal(migrated.schema_version, 2);
   assert.equal("source_profiles" in migrated, false);
-  assert.equal(migrated.source_catalog.identities.length, legacy.source_profiles.length + 2);
-  assert.equal(migrated.ports.length, legacy.ports.length + 2);
+  assert.equal(migrated.source_catalog.identities.length, legacy.source_profiles.length + 3);
+  assert.equal(migrated.ports.length, legacy.ports.length + 3);
   assert.equal(
     migrated.source_catalog.contracts.length,
     legacy.ports.reduce(
       (count, port) =>
         count + Number(Boolean(port.source_profile)) + Number(Boolean(port.bios_source_profile)),
       0,
-    ) + 2,
+    ) + 3,
   );
 
   const profile = (id) => migrated.source_catalog.identities.find((item) => item.id === id);
@@ -68,6 +68,21 @@ test("schema-2 migration is deterministic and preserves the frozen schema-1 proj
     profile("castlevania-legacy-of-darkness").variants[0].representations[0].kind,
     "canonical-n64",
   );
+  assert.deepEqual(contract("super-mario-bros-remastered").supported_variant_ids, [
+    "europe",
+    "world",
+  ]);
+  assert.equal(profile("super-mario-bros-nes").variants.length, 2);
+  assert.equal(profile("super-mario-bros-nes").variants[0].representations[0].kind, "raw-file");
+  assert.equal(
+    profile("super-mario-bros-nes").variants[0].representations[0].identities[0].scope,
+    "original-file",
+  );
+  const smbRemastered = migrated.ports.find((port) => port.id === "super-mario-bros-remastered");
+  assert.deepEqual(smbRemastered.channels, ["stable"]);
+  assert.equal(smbRemastered.release.provider, "direct-manifest");
+  assert.equal(smbRemastered.release.direct["windows-x86-64"].size, 76214255);
+  assert.equal(smbRemastered.release.direct["linux-x86-64"].size, 69254798);
   assert.equal(migrated.source_catalog.qualification.length, 3);
   assert.equal(
     migrated.source_catalog.qualification.every(
