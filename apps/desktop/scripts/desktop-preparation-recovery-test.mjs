@@ -400,11 +400,16 @@ export async function interruptedPreparationScenario({
     await dismissApplicationUpdateChoice();
     await browser.findElement(By.xpath('//nav//button[contains(., "Updates")]')).click();
     await controls.click(By.css(`[data-recovery-operation="${journalOnlyId}"] summary`));
-    await controls.click(
+    const journalOnlyCleanupReview = await browser.findElement(
       By.xpath(
         `//*[@data-recovery-operation="${journalOnlyId}"]//button[normalize-space(.)="Review private-file cleanup"]`,
       ),
     );
+    await browser.executeScript(
+      'arguments[0].scrollIntoView({ block: "center", inline: "nearest" });',
+      journalOnlyCleanupReview,
+    );
+    await clickVisible(browser, journalOnlyCleanupReview);
     await browser.wait(until.elementLocated(cleanupDialog), 15_000);
     await browser.wait(
       async () => (await browser.findElement(cleanupDialog).getText()).includes(journalOnlyPath),
