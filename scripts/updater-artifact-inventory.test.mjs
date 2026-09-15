@@ -243,6 +243,10 @@ test("manual rehearsal retains the complete matrix without production credential
   assert.match(rehearsal, /windows-payload-consumer\.json/);
   assert.match(rehearsal, /verify_packaged_application_update/);
   assert.match(rehearsal, /name = "missing-signature"/);
+  assert.match(
+    rehearsal,
+    /error = "\^authenticated update identity is invalid: Tauri signature\$"/,
+  );
   assert.match(rehearsal, /name = "wrong-signature"/);
   assert.match(rehearsal, /name = "valid-signature"/);
   assert.match(rehearsal, /wrong_signature_verified_with_distinct_key = \$true/);

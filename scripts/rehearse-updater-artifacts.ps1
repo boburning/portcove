@@ -189,7 +189,7 @@ try {
                 }
                 $consumerCases = [ordered]@{}
                 foreach ($consumerCase in @(
-                    [ordered]@{ name = "missing-signature"; signature = "-"; expected_outcome = "rejected"; error = "Tauri signature encoding exceeds its limit" },
+                    [ordered]@{ name = "missing-signature"; signature = "-"; expected_outcome = "rejected"; error = "^authenticated update identity is invalid: Tauri signature$" },
                     [ordered]@{ name = "wrong-signature"; signature = $wrongSignature; expected_outcome = "rejected"; error = "signature does not use the selected key or streaming format|payload Minisign signature verification failed" },
                     [ordered]@{ name = "valid-signature"; signature = Join-Path $stage $candidateInventory.updater.signature.filename; expected_outcome = "staged"; error = $null }
                 )) {
