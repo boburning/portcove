@@ -5,7 +5,9 @@ import path from "node:path";
 import { gzipSync } from "node:zlib";
 
 export const INSTALL_FIXTURE_PORT_ID = "portcove-install-fixture";
+export const INSTALL_REFRESH_FIXTURE_PORT_ID = "portcove-install-refresh-fixture";
 const INSTALL_FIXTURE_NAME = "Portcove Install Fixture";
+const INSTALL_REFRESH_FIXTURE_NAME = "Portcove Install Refresh Fixture";
 const artifactName = "portcove-install-fixture.tar.gz";
 
 function platformContract() {
@@ -70,12 +72,12 @@ function createInstallArtifact() {
   return gzipSync(tar, { level: 0 });
 }
 
-function fixturePort({ platform, executable, url, artifact }) {
+function fixturePort({ id, name, summary, platform, executable, url, artifact }) {
   return {
-    id: INSTALL_FIXTURE_PORT_ID,
-    name: INSTALL_FIXTURE_NAME,
-    summary: "Isolated checksum-pinned native install and cancellation fixture.",
-    project_url: "https://example.invalid/portcove-install-fixture",
+    id,
+    name,
+    summary,
+    project_url: `https://example.invalid/${id}`,
     support_tier: "beta",
     channels: ["stable"],
     platforms: [platform],
@@ -174,18 +176,37 @@ export async function createInstallFixture({ root, output }) {
   const port = await listen(server);
   let url;
   let portDefinition;
+  let refreshPortDefinition;
   let artifactPath;
   let catalogPath;
   try {
     url = `http://127.0.0.1:${port}/${artifactName}`;
     const contract = platformContract();
-    portDefinition = fixturePort({ ...contract, url, artifact });
+    portDefinition = fixturePort({
+      id: INSTALL_FIXTURE_PORT_ID,
+      name: INSTALL_FIXTURE_NAME,
+      summary: "Isolated checksum-pinned native install and cancellation fixture.",
+      ...contract,
+      url,
+      artifact,
+    });
+    refreshPortDefinition = fixturePort({
+      id: INSTALL_REFRESH_FIXTURE_PORT_ID,
+      name: INSTALL_REFRESH_FIXTURE_NAME,
+      summary: "Isolated committed install and workspace refresh recovery fixture.",
+      ...contract,
+      url,
+      artifact,
+    });
+    const portDefinitions = [portDefinition, refreshPortDefinition];
     const baseCatalog = JSON.parse(
       await readFile(path.join(root, "crates", "portcove-core", "catalog", "catalog.json"), "utf8"),
     );
-    if (baseCatalog.ports.some((item) => item.id === portDefinition.id))
-      throw new Error(`${portDefinition.id} unexpectedly exists in the maintained catalog`);
-    baseCatalog.ports.push(portDefinition);
+    for (const definition of portDefinitions) {
+      if (baseCatalog.ports.some((item) => item.id === definition.id))
+        throw new Error(`${definition.id} unexpectedly exists in the maintained catalog`);
+    }
+    baseCatalog.ports.push(...portDefinitions);
     artifactPath = path.join(output, artifactName);
     catalogPath = path.join(output, "qualification-catalog.json");
     await Promise.all([
@@ -202,6 +223,7 @@ export async function createInstallFixture({ root, output }) {
     artifactPath,
     catalogPath,
     port: portDefinition,
+    refreshPort: refreshPortDefinition,
     requests,
     url,
     async close() {

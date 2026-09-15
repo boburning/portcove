@@ -17,7 +17,7 @@ import { reloadScenario } from "./desktop-reload-test.mjs";
 import { workspaceRefreshScenario } from "./desktop-workspace-refresh-test.mjs";
 import { captureAccessibilityReport } from "./desktop-review-controls.mjs";
 import { createInstallFixture } from "./desktop-install-fixture.mjs";
-import { installProgressCancellationScenario } from "./desktop-install-test.mjs";
+import { installScenarios } from "./desktop-install-test.mjs";
 import {
   desktopHarnessDeadlineMs,
   desktopScenarioById,
@@ -701,7 +701,7 @@ try {
     cli: values["preparation-cli"],
     tool: values["preparation-tool"],
   });
-  await installProgressCancellationScenario({
+  await installScenarios({
     browser,
     invoke,
     scenario,

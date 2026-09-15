@@ -52,6 +52,14 @@ export const DESKTOP_SCENARIOS = Object.freeze([
       source: "desktop-install-test.mjs",
     },
   ),
+  scenario(
+    "install-commit-refresh-recovery",
+    "A committed install remains successful when its immediate workspace refresh fails.",
+    {
+      prerequisites: ["desktop", "install-fixture"],
+      source: "desktop-install-test.mjs",
+    },
+  ),
   scenario("native-preparation-review-and-play", "Reviewed preparation completes before Play.", {
     prerequisites: ["desktop", "owned-fixture"],
     source: "desktop-preparation-test.mjs",
@@ -171,6 +179,7 @@ const smoke = [
   "native-expanded-navigation-copy",
   "native-workspace-refresh-recovery",
   "install-progress-cancellation",
+  "install-commit-refresh-recovery",
 ];
 const ownedLifecycle = [
   "native-external-cli-reconciliation",
