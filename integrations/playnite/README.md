@@ -44,10 +44,10 @@ user's ordinary Playnite library.
 
 ## Compatibility and use
 
-This revision supports **Portcove API schemas 42–47 and event schema 2**. Additional
+This revision supports **Portcove API schemas 42–48 and event schema 2**. Additional
 object fields are tolerated; incompatible schema versions and missing required
 capabilities produce an upgrade message before management. A product version
-string is not used as a compatibility guess. Use an exactly identified schema-42, schema-43, schema-44, schema-45, schema-46 or schema-47
+string is not used as a compatibility guess. Use an exactly identified schema-42, schema-43, schema-44, schema-45, schema-46, schema-47 or schema-48
 candidate until a matching public standalone release exists; the older published
 technical previews must not be described as supporting these new commands.
 See the [author guide](../../docs/INTEGRATION-AUTHOR.md).
@@ -58,6 +58,18 @@ decision applies to the selected definition or a retained installed contract. A
 hold or escalation is not converted into client consent, and unknown operation,
 outcome or reason values require a compatible client update. Core revalidates the
 decision when an operation starts.
+
+Schema 48 adds reviewed cleanup for a retained private preparation. The management
+window reads the current doctor repair plan, accepts only the known
+`retained_preparation` kind for the selected stable port identity, validates the
+complete cleanup preview and exact affected inventory, and shows the original
+installation, registered source, saved data, backups, and logs that core preserves.
+Schema-48 negotiation also requires the advertised `preparation.cleanup`
+capability before this management contract is accepted.
+Cleanup is submitted only with the exact reviewed fingerprint and explicit
+confirmation. Changed, missing, duplicated, unknown, or cross-port repair values
+fail closed; the compiled CLI remains authoritative and revalidates under its
+operation locks.
 
 Refresh imports Windows catalog entries with the key `(opaque library ID, port
 ID)`. Version/path changes do not alter it. Installation state comes from core;

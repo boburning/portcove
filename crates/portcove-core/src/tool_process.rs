@@ -30,8 +30,7 @@ pub(crate) fn run_setup(
     source: &Path,
     working_directory: &Path,
     checkpoint: &dyn Fn() -> Result<()>,
-    activity_id: &str,
-    record: &mut dyn FnMut(&ActivityDiagnostic) -> Result<()>,
+    observer: ToolProcessObserver<'_>,
 ) -> Result<SetupOutput> {
     let mut command =
         ChildProcessPolicy::native_command(ChildProcessClass::UpstreamSetup, program)?;
@@ -39,15 +38,7 @@ pub(crate) fn run_setup(
         .args(arguments)
         .arg(source)
         .current_dir(working_directory);
-    run_tool(
-        &mut command,
-        checkpoint,
-        Some(ToolDiagnosticSink {
-            activity_id,
-            phase: "preparation.setup",
-            record,
-        }),
-    )
+    run_tool(&mut command, checkpoint, observer)
 }
 
 pub(crate) struct ToolDiagnosticSink<'a> {
@@ -56,13 +47,23 @@ pub(crate) struct ToolDiagnosticSink<'a> {
     pub record: &'a mut dyn FnMut(&ActivityDiagnostic) -> Result<()>,
 }
 
-/// Supervise an already policy-admitted command with bounded redacted output.
-/// The caller owns argument construction, phase identity and diagnostic storage.
+#[derive(Default)]
+pub(crate) struct ToolProcessObserver<'a> {
+    pub diagnostics: Option<ToolDiagnosticSink<'a>>,
+    pub quiesced: Option<&'a mut dyn FnMut() -> Result<()>>,
+}
+
+/// Supervise an admitted command and report durable process-tree quiescence
+/// only on paths where no owned child or descendant can remain active.
 pub(crate) fn run_tool(
     command: &mut Command,
     checkpoint: &dyn Fn() -> Result<()>,
-    mut diagnostics: Option<ToolDiagnosticSink<'_>>,
+    observer: ToolProcessObserver<'_>,
 ) -> Result<SetupOutput> {
+    let ToolProcessObserver {
+        mut diagnostics,
+        mut quiesced,
+    } = observer;
     let capture = DiagnosticCapture::default();
     let mut snapshot = |final_capture| {
         let (id, phase) = diagnostics
@@ -74,25 +75,37 @@ pub(crate) fn run_tool(
         }
         Ok::<_, PortcoveError>(value)
     };
-    snapshot(false)?;
-    checkpoint()?;
+    if let Err(error) = snapshot(false).and_then(|_| checkpoint()) {
+        if let Some(confirm) = quiesced.as_mut() {
+            confirm()?;
+        }
+        return Err(error);
+    }
     command
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
-    #[cfg(unix)]
-    {
-        use std::os::unix::process::CommandExt;
-        command.process_group(0);
-    }
-    let mut child = command.spawn().map_err(|error| {
-        PortcoveError::launch(format!("could not start the admitted tool: {error}"))
-    })?;
+    ToolProcessGroup::prepare(command);
+    let mut child = match command.spawn() {
+        Ok(child) => child,
+        Err(error) => {
+            if let Some(confirm) = quiesced.as_mut() {
+                confirm()?;
+            }
+            return Err(PortcoveError::launch(format!(
+                "could not start the admitted tool: {error}"
+            )));
+        }
+    };
     let group = match ToolProcessGroup::attach(&child) {
         Ok(group) => group,
         Err(error) => {
             let _ = child.kill();
-            let _ = child.wait();
+            if child.wait().is_ok()
+                && let Some(confirm) = quiesced.as_mut()
+            {
+                confirm()?;
+            }
             return Err(error);
         }
     };
@@ -110,7 +123,7 @@ pub(crate) fn run_tool(
         sender,
     );
     let mut last_snapshot = Instant::now();
-    let result = loop {
+    let (result, process_quiesced) = loop {
         let observation = checkpoint().and_then(|()| {
             if last_snapshot.elapsed() >= Duration::from_millis(500) {
                 snapshot(false)?;
@@ -119,22 +132,26 @@ pub(crate) fn run_tool(
             Ok(())
         });
         if let Err(error) = observation {
-            let _ = group.terminate_and_wait(&mut child);
-            break Err(error);
+            let stopped =
+                group.terminate_and_wait(&mut child).is_ok() && group.proves_tree_quiescence();
+            break (Err(error), stopped);
         }
         match poll_setup(&mut child, &group) {
-            Ok(Some(status)) => break Ok(status),
+            Ok(Some(status)) => break (Ok(status), group.proves_tree_quiescence()),
             Ok(None) => std::thread::sleep(Duration::from_millis(25)),
             Err(error) => {
                 // On Unix an unexpected reaper can invalidate PID ownership.
                 // Retain private work rather than signal an unverified PID.
                 #[cfg(windows)]
-                {
-                    let _ = group.terminate_and_wait(&mut child);
-                }
-                break Err(PortcoveError::launch(format!(
-                    "could not observe tool completion: {error}"
-                )));
+                let stopped = group.terminate_and_wait(&mut child).is_ok();
+                #[cfg(unix)]
+                let stopped = false;
+                break (
+                    Err(PortcoveError::launch(format!(
+                        "could not observe tool completion: {error}"
+                    ))),
+                    stopped,
+                );
             }
         }
     };
@@ -145,6 +162,9 @@ pub(crate) fn run_tool(
     drop(group);
     #[cfg(unix)]
     let _ = group;
+    if process_quiesced && let Some(confirm) = quiesced.as_mut() {
+        confirm()?;
+    }
     let diagnostic = (|| {
         let drained = drain_setup_output(&receiver);
         let snapshot = snapshot(drained.is_ok())?;
@@ -257,8 +277,20 @@ pub(crate) struct ToolProcessGroup;
 
 #[cfg(unix)]
 impl ToolProcessGroup {
+    pub(crate) fn prepare(command: &mut Command) {
+        use std::os::unix::process::CommandExt;
+        command.process_group(0);
+    }
+
     pub(crate) fn attach(_child: &std::process::Child) -> Result<Self> {
         Ok(Self)
+    }
+
+    /// A process group can close ordinary descendants, but membership is
+    /// voluntary: a helper may call setsid/setpgid and escape it. Retained
+    /// cleanup must therefore remain unavailable after any Unix tool starts.
+    fn proves_tree_quiescence(&self) -> bool {
+        false
     }
 
     pub(crate) fn terminate(&self, child: &std::process::Child) {
@@ -323,6 +355,16 @@ pub(crate) struct ToolProcessGroup {
 
 #[cfg(windows)]
 impl ToolProcessGroup {
+    /// Keep the process's primary thread suspended until `attach` has placed
+    /// it in the kill-on-close job. Otherwise a fast tool can create a child
+    /// during the spawn/assignment gap that the new job does not inherit.
+    pub(crate) fn prepare(command: &mut Command) {
+        use std::os::windows::process::CommandExt;
+        use windows_sys::Win32::System::Threading::CREATE_SUSPENDED;
+
+        command.creation_flags(CREATE_SUSPENDED);
+    }
+
     pub(crate) fn attach(child: &std::process::Child) -> Result<Self> {
         use std::os::windows::io::AsRawHandle;
         use windows_sys::Win32::System::JobObjects::{
@@ -358,8 +400,19 @@ impl ToolProcessGroup {
                 windows_sys::Win32::Foundation::CloseHandle(candidate);
                 return Err(failure);
             }
-            Ok(Self { job: candidate })
+            let group = Self { job: candidate };
+            if let Err(error) = resume_primary_thread(child.id()) {
+                // Closing this configured job terminates the still-suspended
+                // leader. No admitted tool code has executed on this path.
+                drop(group);
+                return Err(error);
+            }
+            Ok(group)
         }
+    }
+
+    fn proves_tree_quiescence(&self) -> bool {
+        true
     }
 
     pub(crate) fn terminate(&self, _child: &std::process::Child) {
@@ -377,6 +430,70 @@ impl ToolProcessGroup {
         self.terminate(child);
         let _ = child.kill();
         child.wait()
+    }
+}
+
+#[cfg(windows)]
+fn resume_primary_thread(process_id: u32) -> Result<()> {
+    use windows_sys::Win32::{
+        Foundation::{CloseHandle, INVALID_HANDLE_VALUE},
+        System::{
+            Diagnostics::ToolHelp::{
+                CreateToolhelp32Snapshot, TH32CS_SNAPTHREAD, THREADENTRY32, Thread32First,
+                Thread32Next,
+            },
+            Threading::{OpenThread, ResumeThread, THREAD_SUSPEND_RESUME},
+        },
+    };
+
+    unsafe {
+        let snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0);
+        if snapshot == INVALID_HANDLE_VALUE {
+            return Err(process_group_failure());
+        }
+        let mut entry = THREADENTRY32 {
+            dwSize: std::mem::size_of::<THREADENTRY32>() as u32,
+            ..Default::default()
+        };
+        let mut thread_id = None;
+        if Thread32First(snapshot, &raw mut entry) != 0 {
+            loop {
+                if entry.th32OwnerProcessID == process_id
+                    && thread_id.replace(entry.th32ThreadID).is_some()
+                {
+                    CloseHandle(snapshot);
+                    return Err(PortcoveError::state(
+                        "the suspended native tool unexpectedly had multiple threads before containment",
+                    ));
+                }
+                if Thread32Next(snapshot, &raw mut entry) == 0 {
+                    break;
+                }
+            }
+        }
+        CloseHandle(snapshot);
+        let thread_id = thread_id.ok_or_else(|| {
+            PortcoveError::state(
+                "could not find the suspended native tool thread before containment",
+            )
+        })?;
+        let thread = OpenThread(THREAD_SUSPEND_RESUME, 0, thread_id);
+        if thread.is_null() {
+            return Err(process_group_failure());
+        }
+        let previous_count = ResumeThread(thread);
+        if previous_count == u32::MAX {
+            let failure = process_group_failure();
+            CloseHandle(thread);
+            return Err(failure);
+        }
+        CloseHandle(thread);
+        if previous_count != 1 {
+            return Err(PortcoveError::state(format!(
+                "the native tool thread had unexpected suspend count {previous_count} before containment"
+            )));
+        }
+        Ok(())
     }
 }
 

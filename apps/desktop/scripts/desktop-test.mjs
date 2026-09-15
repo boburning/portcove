@@ -334,6 +334,27 @@ async function connect() {
   );
 }
 
+async function restartApplication(name) {
+  const snapshot = path.join(output, `${name}-processes.json`);
+  const restartEvidence = path.join(output, `${name}-restart.json`);
+  const observation = { started_at: new Date().toISOString() };
+  if (process.platform === "win32") {
+    observation.snapshot = observeNativeSession("Snapshot", snapshot);
+    artifacts.push(snapshot);
+  }
+  await browser.quit();
+  browser = undefined;
+  observation.quit_completed_at = new Date().toISOString();
+  if (process.platform === "win32") {
+    observation.shutdown = observeNativeSession("Wait", snapshot);
+  }
+  await connect();
+  observation.reconnected_at = new Date().toISOString();
+  await writeFile(restartEvidence, `${JSON.stringify(observation, null, 2)}\n`, { flag: "wx" });
+  artifacts.push(restartEvidence);
+  return browser;
+}
+
 function observeNativeSession(mode, snapshot) {
   const result = spawnCommand(
     "pwsh",
@@ -679,6 +700,7 @@ try {
         output,
         artifacts,
       }),
+      restartApplication,
       cli: values["preparation-cli"],
       tool: values["preparation-tool"],
     });

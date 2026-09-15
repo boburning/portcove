@@ -18,8 +18,14 @@ fn run_fixture(root: &Path, checkpoint: &dyn Fn() -> Result<()>) -> Result<Setup
         &root.join("owned-fixture.iso"),
         root,
         checkpoint,
-        "owned-fixture",
-        &mut |_| Ok(()),
+        ToolProcessObserver {
+            diagnostics: Some(ToolDiagnosticSink {
+                activity_id: "owned-fixture",
+                phase: "preparation.setup",
+                record: &mut |_| Ok(()),
+            }),
+            quiesced: Some(&mut || Ok(())),
+        },
     )
 }
 
@@ -122,13 +128,19 @@ fn diagnostic_storage_failure_stops_the_owned_tool_before_returning() {
         &root.join("owned-fixture.iso"),
         root,
         &|| Ok(()),
-        "owned-storage-failure",
-        &mut |capture| {
-            if capture.stdout.observed_bytes > 0 {
-                Err(PortcoveError::state("owned diagnostic storage failure"))
-            } else {
-                Ok(())
-            }
+        ToolProcessObserver {
+            diagnostics: Some(ToolDiagnosticSink {
+                activity_id: "owned-storage-failure",
+                phase: "preparation.setup",
+                record: &mut |capture| {
+                    if capture.stdout.observed_bytes > 0 {
+                        Err(PortcoveError::state("owned diagnostic storage failure"))
+                    } else {
+                        Ok(())
+                    }
+                },
+            }),
+            quiesced: Some(&mut || Ok(())),
         },
     )
     .err()
@@ -186,8 +198,14 @@ fn setup_descendants_cannot_keep_writing_after_completion_or_cancellation() {
                     Ok(())
                 }
             },
-            "owned-descendant-fixture",
-            &mut |_| Ok(()),
+            ToolProcessObserver {
+                diagnostics: Some(ToolDiagnosticSink {
+                    activity_id: "owned-descendant-fixture",
+                    phase: "preparation.setup",
+                    record: &mut |_| Ok(()),
+                }),
+                quiesced: Some(&mut || Ok(())),
+            },
         );
         if cancel {
             assert_eq!(result.err().unwrap().code, crate::ErrorCode::Cancelled);
@@ -200,4 +218,42 @@ fn setup_descendants_cannot_keep_writing_after_completion_or_cancellation() {
             "setup descendant wrote after its operation returned"
         );
     }
+}
+
+#[cfg(unix)]
+#[test]
+fn detached_unix_descendant_never_records_tree_quiescence() {
+    let native = tempfile::tempdir().unwrap();
+    let program = crate::test_fixture::build_probe(native.path());
+    let working = tempfile::tempdir().unwrap();
+    let marker = working.path().join("escaped-output");
+    let ready = working.path().join("escaped-ready");
+    let arguments = vec![
+        "--setup-tree-escape".into(),
+        marker.display().to_string(),
+        ready.display().to_string(),
+    ];
+    let mut quiesced = false;
+    let output = run_setup(
+        &program,
+        &arguments,
+        &working.path().join("owned.iso"),
+        working.path(),
+        &|| Ok(()),
+        ToolProcessObserver {
+            diagnostics: None,
+            quiesced: Some(&mut || {
+                quiesced = true;
+                Ok(())
+            }),
+        },
+    )
+    .unwrap();
+    assert!(output.status.success());
+    assert!(!quiesced, "a detached helper cannot authorize cleanup");
+    std::thread::sleep(Duration::from_millis(1200));
+    assert!(
+        marker.is_file(),
+        "fixture did not prove process-group escape"
+    );
 }

@@ -3,7 +3,8 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, expect, it, vi } from "vitest";
-import type { DoctorReport } from "../types";
+import { desktopApi } from "../api";
+import type { DoctorReport, PreparationCleanupPreview } from "../types";
 import { portDefinition } from "../test-fixtures";
 import { RecoveryReview } from "./RecoveryReview";
 
@@ -23,6 +24,7 @@ const freshDiagnostics = {
   refresh: vi.fn().mockResolvedValue("completed"),
 };
 afterEach(() => {
+  vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
 
@@ -118,4 +120,79 @@ it("retains every recorded item and full long names and paths", () => {
   expect(html).toContain(longPath);
   expect(html).toContain("operation-39");
   expect(html).not.toContain("raw-machine-secret");
+});
+
+it("reviews exact private files and preserved paths before cleanup", async () => {
+  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+  const preview: PreparationCleanupPreview = {
+    format_version: 1,
+    operation_id: "owned-operation",
+    port_id: port.id,
+    retained_path: "C:\\Library\\staging\\owned-operation",
+    retained: {
+      directories: ["payload/generated"],
+      files: [
+        {
+          relative_path: "payload/generated/private.bin",
+          sha256: "a".repeat(64),
+          size: 128,
+        },
+      ],
+      skipped_entries: [{ relative_path: "payload/generated/link", reason: "symbolic link" }],
+      total_bytes: 128,
+    },
+    original_install_path: "C:\\Library\\versions\\sample\\original",
+    source_path: "D:\\Owned\\source.iso",
+    persistent_data_path: "C:\\Library\\user\\sample",
+    backup_path: "C:\\Library\\backups\\sample",
+    logs_path: "C:\\Library\\logs",
+    cleanup_is_irreversible: true,
+    interrupted_cleanup_will_retry: true,
+    preview_sha256: "b".repeat(64),
+  };
+  const load = vi.spyOn(desktopApi, "previewPreparationCleanup").mockResolvedValue(preview);
+  const cleanup = vi.spyOn(desktopApi, "cleanupPreparation").mockResolvedValue(preview);
+  const changed = vi.fn().mockResolvedValue(undefined);
+  const host = document.createElement("div");
+  document.body.append(host);
+  const root = createRoot(host);
+  try {
+    await act(async () =>
+      root.render(
+        <RecoveryReview
+          {...freshDiagnostics}
+          generation={7}
+          cleanupChanged={changed}
+          repair={{
+            generated_at: 1,
+            items: [{ ...item(), kind: "retained_preparation" }],
+          }}
+          ports={[port]}
+        />,
+      ),
+    );
+    const review = [...host.querySelectorAll("button")].find((button) =>
+      button.textContent?.includes("Review private-file cleanup"),
+    );
+    await act(async () => review?.click());
+    expect(load).toHaveBeenCalledWith("owned-operation", 7);
+    expect(host.textContent).toContain(preview.retained_path);
+    expect(host.textContent).toContain(preview.original_install_path);
+    expect(host.textContent).toContain(preview.source_path);
+    expect(host.textContent).toContain(preview.persistent_data_path);
+    expect(host.textContent).toContain("private.bin");
+    expect(host.textContent).toContain("Link or special entry");
+    expect(host.textContent).toContain("cannot be recovered");
+    expect(cleanup).not.toHaveBeenCalled();
+    const apply = [...host.querySelectorAll("button")].find((button) =>
+      button.textContent?.includes("Remove reviewed private files permanently"),
+    );
+    await act(async () => apply?.click());
+    expect(cleanup).toHaveBeenCalledWith("owned-operation", preview.preview_sha256, 7);
+    expect(changed).toHaveBeenCalledOnce();
+    expect(host.querySelector('[role="dialog"]')).toBeNull();
+  } finally {
+    await act(async () => root.unmount());
+    host.remove();
+  }
 });

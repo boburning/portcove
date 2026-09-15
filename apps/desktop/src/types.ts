@@ -22,6 +22,7 @@ export type ArtworkSlot = ArtworkState["choice"]["slot"];
 export type { InstallRecord } from "./transport-types.generated";
 
 export type PreparationPlan = Generated.TransportOutputs["preparation_plan"];
+export type PreparationCleanupPreview = Generated.TransportOutputs["preparation_cleanup_preview"];
 export type GameUpdatePlan = Generated.TransportOutputs["game_update_plan"];
 
 export type { SourceHealth } from "./transport-types.generated";

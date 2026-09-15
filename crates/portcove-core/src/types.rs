@@ -882,6 +882,7 @@ pub struct DoctorReport {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum RepairItemKind {
+    RetainedPreparation,
     PartialOperation,
     CleanupPending,
     OrphanedFinalDirectory,
@@ -1261,6 +1262,7 @@ impl CapabilityDocument {
                 "about".into(),
                 "plan".into(),
                 "preparation".into(),
+                "preparation.cleanup".into(),
                 "paths".into(),
                 "check".into(),
                 "reconcile".into(),

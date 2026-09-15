@@ -360,9 +360,15 @@ impl PortcoveService {
             .iter()
             .map(|operation| {
                 let private_preparation = operation.kind == LifecycleOperationKind::Prepare
-                    && operation.phase == LifecyclePhase::Preparing;
+                    && operation.install.is_none()
+                    && matches!(
+                        operation.phase,
+                        LifecyclePhase::Preparing | LifecyclePhase::CleanupPending
+                    );
                 RepairItem {
-                kind: if operation.phase == LifecyclePhase::CleanupPending {
+                kind: if private_preparation {
+                    RepairItemKind::RetainedPreparation
+                } else if operation.phase == LifecyclePhase::CleanupPending {
                     RepairItemKind::CleanupPending
                 } else {
                     RepairItemKind::PartialOperation
@@ -387,7 +393,11 @@ impl PortcoveService {
                         operation.kind, operation.phase
                     ) }
                 }),
-                proposed_action: if private_preparation {
+                proposed_action: if private_preparation
+                    && operation.phase == LifecyclePhase::CleanupPending
+                {
+                    "restart Portcove to retry the accepted private cleanup; review the retained files again if cleanup remains blocked"
+                } else if private_preparation {
                     "review the current activity; an interrupted private attempt cannot be resumed, so review retained work and current inputs before starting a new preparation"
                 } else {
                     "retry the recorded idempotent recovery step"
@@ -485,6 +495,9 @@ impl PortcoveService {
             let unstarted_removal = operation.kind == LifecycleOperationKind::Remove
                 && operation.phase == LifecyclePhase::Preparing
                 && operation.original_paths.is_empty();
+            let reviewed_private_cleanup = operation.kind == LifecycleOperationKind::Prepare
+                && operation.phase == LifecyclePhase::CleanupPending
+                && operation.install.is_none();
             match self.recover_lifecycle_operation(&store, &mut operation) {
                 Err(error) => {
                     operation.last_error = Some(error.message.clone());
@@ -499,13 +512,15 @@ impl PortcoveService {
                     let message = recovery_message.as_deref().unwrap_or({
                         if unstarted_removal {
                             "removal ended before managed-file publication; no versions were removed"
+                        } else if reviewed_private_cleanup {
+                            "failed preparation remained failed; reviewed private cleanup completed"
                         } else {
                             "completed during startup recovery"
                         }
                     });
                     let _ = self.library.finish_activity(
                         &operation.id,
-                        if unstarted_removal {
+                        if unstarted_removal || reviewed_private_cleanup {
                             ActivityStatus::Failed
                         } else {
                             ActivityStatus::Succeeded

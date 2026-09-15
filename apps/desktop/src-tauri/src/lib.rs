@@ -2096,6 +2096,8 @@ pub fn run() {
             adoption::adopt_port,
             removal::preview_removal,
             removal::remove_port,
+            preparation::preview_preparation_cleanup,
+            preparation::cleanup_preparation,
             launch_port,
             get_doctor_report,
             get_host_tools,

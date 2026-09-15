@@ -1,10 +1,14 @@
 // An isolated durable-state fixture followed by real core recovery and native rendering.
 import assert from "node:assert/strict";
 import path from "node:path";
-import { writeFile } from "node:fs/promises";
+import { access, writeFile } from "node:fs/promises";
 import { DatabaseSync } from "node:sqlite";
 import { By, until } from "selenium-webdriver";
-import { captureAccessibilityReport } from "./desktop-review-controls.mjs";
+import {
+  captureAccessibilityReport,
+  clickVisible,
+  reviewControls,
+} from "./desktop-review-controls.mjs";
 
 export async function interruptedPreparationScenario({
   browser,
@@ -14,8 +18,11 @@ export async function interruptedPreparationScenario({
   output,
   artifacts,
   command,
+  confirmNative,
+  restartApplication,
 }) {
   await scenario("native-interrupted-preparation-recovery", async () => {
+    browser = await restartApplication("interrupted-preparation-recovery");
     assert.equal(path.resolve(library), path.resolve(output, "library"));
     const before = command(["status", "opengoal-jak2"]);
     const activity = command(["activity"]).find(
@@ -71,6 +78,7 @@ export async function interruptedPreparationScenario({
     assert.equal(recovered.failure.presentation.mutation_state, "recovery_required");
     assert.equal(recovered.failure.details.cancel_requested, "true");
     const repair = doctor.repair.items.find((item) => item.operation_id === activity.id);
+    assert.equal(repair.kind, "retained_preparation");
     assert.match(repair.proposed_action, /cannot be resumed/);
     assert.equal(repair.path, privatePath);
     assert.deepEqual(command(["status", before.port_id]).active, before.active);
@@ -129,12 +137,19 @@ export async function interruptedPreparationScenario({
     );
     artifacts.push(evidence);
     await browser.executeScript('arguments[0].scrollIntoView({ block: "start" });', row);
-    const review = await browser.findElement(By.css(`[data-recovery-operation="${activity.id}"]`));
+    const review = await browser.wait(
+      until.elementLocated(By.css(`[data-recovery-operation="${activity.id}"]`)),
+      15_000,
+    );
     await review.findElement(By.css("summary")).click();
-    assert.match(await review.getText(), /Unfinished operation/);
+    assert.match(await review.getText(), /Retained preparation files/);
     assert.ok((await review.getText()).includes(privatePath));
     assert.match(await review.getText(), /cannot be resumed/);
-    assert.equal((await review.findElements(By.css("button,a"))).length, 0);
+    const controls = reviewControls(browser);
+    const cleanupReview = await review.findElement(
+      By.xpath('.//button[normalize-space(.)="Review private-file cleanup"]'),
+    );
+    assert.equal((await review.findElements(By.css("button,a"))).length, 1);
     await browser.executeScript('arguments[0].scrollIntoView({ block: "start" });', review);
     const recoveryAccessibility = await browser.executeAsyncScript((done) =>
       window.axe.run().then(done),
@@ -152,6 +167,122 @@ export async function interruptedPreparationScenario({
       flag: "wx",
     });
     artifacts.push(recoveryImage);
+    await clickVisible(browser, cleanupReview);
+    const cleanupDialog = By.css('[aria-labelledby="preparation-cleanup-title"]');
+    await browser.wait(until.elementLocated(cleanupDialog), 15_000);
+    await browser.wait(
+      async () => (await browser.findElement(cleanupDialog).getText()).includes(privatePath),
+      15_000,
+    );
+    const cleanupText = await browser.findElement(cleanupDialog).getText();
+    for (const expected of [
+      privatePath,
+      "Original installation preserved",
+      "Registered source preserved",
+      "Saved data preserved",
+      "Backups preserved",
+      "Logs preserved",
+      "cannot be recovered",
+      "process tree stopped",
+    ]) {
+      assert.ok(cleanupText.includes(expected), expected);
+    }
+    const cleanupAccessibility = path.join(output, "preparation-cleanup-accessibility.json");
+    await captureAccessibilityReport(browser, cleanupAccessibility, artifacts);
+    const cleanupImage = path.join(output, "native-preparation-cleanup-review.png");
+    await writeFile(cleanupImage, await browser.takeScreenshot(), {
+      encoding: "base64",
+      flag: "wx",
+    });
+    artifacts.push(cleanupImage);
+    await controls.click(controls.button("Keep retained files"));
+    await access(privatePath);
+
+    await clickVisible(browser, cleanupReview);
+    await browser.wait(until.elementLocated(cleanupDialog), 15_000);
+    await browser.wait(
+      until.elementLocated(controls.button("Remove reviewed private files permanently")),
+      15_000,
+    );
+    await writeFile(path.join(privatePath, "changed-after-review.bin"), "owned stale review");
+    await controls.click(controls.button("Remove reviewed private files permanently"));
+    await browser.wait(until.elementLocated(controls.button("Review again")), 15_000);
+    await access(privatePath);
+    await controls.click(controls.button("Review again"));
+    await browser.wait(
+      until.elementLocated(controls.button("Remove reviewed private files permanently")),
+      15_000,
+    );
+    await controls.click(controls.button("Remove reviewed private files permanently"));
+    await confirmNative(
+      "Confirm retained preparation cleanup",
+      "__observe__",
+      privatePath,
+      "preparation-cleanup-before-consent",
+    );
+    await access(privatePath);
+    await confirmNative(
+      "Confirm retained preparation cleanup",
+      "Cancel",
+      privatePath,
+      "preparation-cleanup-cancelled",
+    );
+    await browser.wait(
+      async () => (await browser.findElements(cleanupDialog)).length === 0,
+      15_000,
+    );
+    await access(privatePath);
+
+    const currentReview = await browser.wait(
+      until.elementLocated(By.css(`[data-recovery-operation="${activity.id}"]`)),
+      15_000,
+    );
+    await clickVisible(
+      browser,
+      await currentReview.findElement(
+        By.xpath('.//button[normalize-space(.)="Review private-file cleanup"]'),
+      ),
+    );
+    await browser.wait(until.elementLocated(cleanupDialog), 15_000);
+    await controls.click(controls.button("Remove reviewed private files permanently"));
+    await confirmNative(
+      "Confirm retained preparation cleanup",
+      "Remove reviewed private files",
+      privatePath,
+      "preparation-cleanup-confirmed",
+    );
+    await browser.wait(
+      async () => (await browser.findElements(cleanupDialog)).length === 0,
+      15_000,
+    );
+    await assert.rejects(access(privatePath));
+    assert.equal(
+      command(["doctor"]).repair.items.some((item) => item.operation_id === activity.id),
+      false,
+    );
+    assert.deepEqual(command(["status", before.port_id]).active, before.active);
+    assert.deepEqual(command(["activity", "log", activity.id]), retained);
+    const cleanupEvidence = path.join(output, "reviewed-preparation-cleanup.json");
+    await writeFile(
+      cleanupEvidence,
+      JSON.stringify(
+        {
+          method: "native custom review plus backend-owned confirmation",
+          operation_id: activity.id,
+          removed_private_path: privatePath,
+          stale_tree_rejected: true,
+          native_decline_preserved_private_path: true,
+          accepted_cleanup_removed_private_path: true,
+          active_install_preserved: true,
+          activity_diagnostics_preserved: true,
+        },
+        null,
+        2,
+      ),
+      { flag: "wx" },
+    );
+    artifacts.push(cleanupEvidence);
     await browser.executeScript('arguments[0].scrollIntoView({ block: "start" });', row);
   });
+  return browser;
 }

@@ -1,4 +1,6 @@
 use std::{env, fs, io::{self, Write}, process::Command, thread, time::Duration};
+#[cfg(unix)]
+use std::process::Stdio;
 
 fn main() {
     let args = env::args().skip(1).collect::<Vec<_>>();
@@ -49,6 +51,34 @@ fn main() {
             if args.get(2).is_some_and(|arg| arg == "wait") {
                 thread::sleep(Duration::from_secs(8));
             }
+        }
+        #[cfg(unix)]
+        Some("--setup-tree-escape") => {
+            let child = Command::new(env::current_exe().unwrap())
+                .args(["--escaped-grandchild", &args[1], &args[2]])
+                .stdin(Stdio::null())
+                .stdout(Stdio::null())
+                .stderr(Stdio::null())
+                .spawn()
+                .unwrap();
+            fs::write("descendant-pid", child.id().to_string()).unwrap();
+            let deadline = std::time::Instant::now() + Duration::from_secs(5);
+            while !std::path::Path::new(&args[2]).is_file() {
+                if std::time::Instant::now() >= deadline {
+                    std::process::exit(9);
+                }
+                thread::sleep(Duration::from_millis(10));
+            }
+        }
+        #[cfg(unix)]
+        Some("--escaped-grandchild") => {
+            unsafe extern "C" {
+                fn setsid() -> i32;
+            }
+            assert_ne!(unsafe { setsid() }, -1);
+            fs::write(&args[2], b"detached").unwrap();
+            thread::sleep(Duration::from_secs(1));
+            fs::write(&args[1], b"escaped").unwrap();
         }
         Some("--grandchild") => {
             thread::sleep(Duration::from_secs(1));

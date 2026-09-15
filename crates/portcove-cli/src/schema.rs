@@ -418,6 +418,12 @@ pub(crate) fn document(contract: SchemaContract) -> serde_json::Value {
                 )),
             ),
             (
+                "preparation_cleanup_preview",
+                serde_json::json!(schema_for_contract::<
+                    portcove_core::PreparationCleanupPreview,
+                >(contract)),
+            ),
+            (
                 "preparation_options",
                 serde_json::json!(schema_for_contract::<portcove_core::PreparationOptions>(
                     contract

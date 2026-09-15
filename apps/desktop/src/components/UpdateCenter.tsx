@@ -46,6 +46,7 @@ export function UpdateCenter({
   diagnosticsStale,
   diagnosticFailure,
   refreshDiagnostics,
+  cleanupChanged = refreshDiagnostics,
 }: {
   generation: number;
   repair?: DoctorReport["repair"];
@@ -53,6 +54,7 @@ export function UpdateCenter({
   diagnosticsStale: boolean;
   diagnosticFailure?: unknown;
   refreshDiagnostics: () => Promise<unknown>;
+  cleanupChanged?: () => Promise<unknown>;
   ports: PortDefinition[];
   statuses: Map<string, PortStatus>;
   activities: ActivityRecord[];
@@ -143,12 +145,14 @@ export function UpdateCenter({
         </div>
       )}
       <RecoveryReview
+        generation={generation}
         repair={repair}
         ports={ports}
         refreshing={diagnosticsRefreshing}
         stale={diagnosticsStale}
         failure={diagnosticFailure}
         refresh={refreshDiagnostics}
+        cleanupChanged={cleanupChanged}
       />
       <ActivityHistory
         ports={ports}

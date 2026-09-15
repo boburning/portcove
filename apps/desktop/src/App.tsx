@@ -570,6 +570,9 @@ function CurrentView({
         diagnosticsStale={data.diagnosticsStale}
         diagnosticFailure={data.diagnosticFailure?.error}
         refreshDiagnostics={data.refreshDiagnostics}
+        cleanupChanged={() =>
+          Promise.allSettled([data.refresh(), data.refreshDiagnosticsAfterMutation()])
+        }
         checkAll={() => {
           void updates.checkAll();
         }}

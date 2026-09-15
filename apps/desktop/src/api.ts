@@ -8,7 +8,7 @@ import type {
   PortRemovalPreview,
 } from "./types";
 import type { InstallInput, LaunchResult } from "./types";
-import type { GameUpdatePlan, PreparationPlan } from "./types";
+import type { GameUpdatePlan, PreparationCleanupPreview, PreparationPlan } from "./types";
 import type { CatalogStatus, CatalogUpdatePlan, CatalogUpdateSource } from "./types";
 import { Channel, invoke } from "@tauri-apps/api/core";
 import type { CancellationState, OperationEvent } from "./types";
@@ -395,6 +395,17 @@ export const desktopApi = {
     invoke<UpdateCheck>("check_port", { portId, generation }),
   checkInstalled: () => invoke<UpdateCheckOutcome[]>("check_installed"),
   doctor: (generation: number) => invoke<DoctorReport>("get_doctor_report", { generation }),
+  previewPreparationCleanup: (operationId: string, generation: number) =>
+    invoke<PreparationCleanupPreview>("preview_preparation_cleanup", {
+      operationId,
+      generation,
+    }),
+  cleanupPreparation: (operationId: string, expectedPreview: string, generation: number) =>
+    invoke<PreparationCleanupPreview | null>("cleanup_preparation", {
+      operationId,
+      expectedPreview,
+      generation,
+    }),
   hostTools: () => invoke<HostToolStatus[]>("get_host_tools"),
   setHostToolPath: (toolId: string, path: string) =>
     invoke<HostToolProbeResult>("set_host_tool_path", { toolId, path }),

@@ -126,6 +126,9 @@ pub(crate) struct LifecycleOperation {
     pub relocation: Option<OutputRelocationPlan>,
     pub source_import: Option<SourceImportPlan>,
     pub preparation: Option<crate::PreparationPlan>,
+    /// `Some(true)` is durable proof that no setup process from this operation
+    /// can still own the private tree. `None` is legacy or non-preparation state.
+    pub preparation_process_quiesced: Option<bool>,
     pub original_paths: Vec<PathBuf>,
     pub activate: bool,
     pub last_error: Option<String>,
@@ -154,6 +157,7 @@ impl LifecycleOperation {
             relocation: None,
             source_import: None,
             preparation: None,
+            preparation_process_quiesced: None,
             original_paths: Vec::new(),
             activate: false,
             last_error: None,
@@ -209,8 +213,9 @@ impl OperationStore {
         database::connect(self.library.root())?.execute(
             "INSERT INTO lifecycle_operations(
                id, kind, port_id, phase, staging_path, final_path, quarantine_path,
-               install_json, relocation_json, source_import_json, original_paths_json, activate, last_error, created_at, updated_at, preparation_json
-             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)
+               install_json, relocation_json, source_import_json, original_paths_json, activate, last_error, created_at, updated_at, preparation_json,
+               preparation_process_quiesced
+             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17)
              ON CONFLICT(id) DO UPDATE SET
                kind=excluded.kind,
                port_id=excluded.port_id,
@@ -223,6 +228,7 @@ impl OperationStore {
                 source_import_json=excluded.source_import_json,
                original_paths_json=excluded.original_paths_json,
                preparation_json=excluded.preparation_json,
+               preparation_process_quiesced=excluded.preparation_process_quiesced,
                activate=excluded.activate,
                last_error=excluded.last_error,
                updated_at=excluded.updated_at",
@@ -243,6 +249,7 @@ impl OperationStore {
                 operation.created_at,
                 operation.updated_at,
                 preparation_json,
+                operation.preparation_process_quiesced.map(i64::from),
             ],
         )?;
         Ok(())
@@ -258,7 +265,8 @@ impl OperationStore {
         let connection = database::connect(self.library.root())?;
         let mut statement = connection.prepare(
             "SELECT id, kind, port_id, phase, staging_path, final_path, quarantine_path,
-                    install_json, relocation_json, source_import_json, original_paths_json, activate, last_error, created_at, updated_at, preparation_json
+                    install_json, relocation_json, source_import_json, original_paths_json, activate, last_error, created_at, updated_at, preparation_json,
+                    preparation_process_quiesced
              FROM lifecycle_operations
              ORDER BY created_at, rowid",
         )?;
@@ -280,6 +288,7 @@ impl OperationStore {
                 row.get::<_, i64>(13)?,
                 row.get::<_, i64>(14)?,
                 row.get::<_, Option<String>>(15)?,
+                row.get::<_, Option<i64>>(16)?,
             ))
         })?;
         rows.map(|row| {
@@ -300,6 +309,7 @@ impl OperationStore {
                 created_at,
                 updated_at,
                 preparation_json,
+                preparation_process_quiesced,
             ) = row?;
             Ok(LifecycleOperation {
                 id,
@@ -324,6 +334,7 @@ impl OperationStore {
                 preparation: preparation_json
                     .map(|value| serde_json::from_str(&value))
                     .transpose()?,
+                preparation_process_quiesced: preparation_process_quiesced.map(|value| value != 0),
                 activate: activate != 0,
                 last_error,
                 created_at,
