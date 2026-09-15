@@ -251,9 +251,18 @@ it("explains that journal-only cleanup has no private entries to remove", async 
     expect(load).toHaveBeenCalledWith(preview.operation_id, 8);
     expect(host.textContent).toContain("0 files");
     expect(host.textContent).toContain("Affected entries (0)");
-    expect(host.textContent).toContain(
-      "The private folder is already absent; cleanup removes only its stale journal.",
+    expect(host.querySelector("#preparation-cleanup-description")?.textContent).toBe(
+      "Remove empty private preparation state and its stale recovery journal.",
     );
+    expect(host.textContent).toContain("Recorded private path cleared");
+    expect(host.textContent).toContain(
+      "No retained private entries are present. Cleanup removes the recorded private path if it exists and its stale recovery journal.",
+    );
+    expect(
+      [...host.querySelectorAll("button")].some(
+        (button) => button.textContent === "Remove empty private state",
+      ),
+    ).toBe(true);
     expect(host.textContent).toContain(preview.retained_path);
     expect(host.textContent).toContain(preview.original_install_path);
     expect(host.textContent).toContain(preview.source_path);

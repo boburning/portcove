@@ -1,6 +1,6 @@
 // An isolated durable-state fixture followed by real core recovery and native rendering.
 import assert from "node:assert/strict";
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import path from "node:path";
 import { access, writeFile } from "node:fs/promises";
 import { DatabaseSync } from "node:sqlite";
@@ -98,7 +98,7 @@ export async function interruptedPreparationScenario({
       assert.ok(activityRow);
       assert.notEqual(operation.staging_path, operation.final_path);
       privatePath = operation.staging_path;
-      journalOnlyId = `${activity.id}-journal-only`;
+      journalOnlyId = randomUUID();
       journalOnlyPath = path.join(path.dirname(privatePath), journalOnlyId);
       const plan = JSON.parse(operation.preparation_json);
       const journalOnlyDestination = createHash("sha256")
@@ -273,57 +273,6 @@ export async function interruptedPreparationScenario({
     artifacts.push(recoveryImage);
     await clickVisible(browser, cleanupReview);
     const cleanupDialog = By.css('[aria-labelledby="preparation-cleanup-title"]');
-    const visibleControl = async (locator) => {
-      for (const element of await browser.findElements(locator)) {
-        try {
-          if (await element.isDisplayed()) return element;
-        } catch (error) {
-          if (!error.message.includes("stale element reference")) throw error;
-        }
-      }
-      return false;
-    };
-    const waitForCleanupReview = (expectedPath) =>
-      browser.wait(async () => {
-        const dialogs = await browser.findElements(cleanupDialog);
-        if (dialogs.length === 0) return false;
-        try {
-          const text = await dialogs.at(-1).getText();
-          const removal = await visibleControl(
-            controls.button("Remove reviewed private files permanently"),
-          );
-          if (text.includes(expectedPath) && removal) return removal;
-          const reviewAgain = await visibleControl(controls.button("Review again"));
-          if (reviewAgain) await clickVisible(browser, reviewAgain);
-        } catch (error) {
-          if (!error.message.includes("stale element reference")) throw error;
-        }
-        return false;
-      }, 60_000);
-    const confirmReviewedCleanup = async (expectedPath, evidenceName) => {
-      let lastError;
-      for (let attempt = 0; attempt < 3; attempt += 1) {
-        try {
-          await clickVisible(browser, await waitForCleanupReview(expectedPath));
-          await confirmNative(
-            "Confirm retained preparation cleanup",
-            "Remove reviewed private files",
-            expectedPath,
-            evidenceName,
-          );
-          return;
-        } catch (error) {
-          lastError = error;
-          if (
-            !error.message.includes("stale element reference") &&
-            !error.message.includes("Wait timed out")
-          ) {
-            throw error;
-          }
-        }
-      }
-      throw lastError;
-    };
     await browser.wait(until.elementLocated(cleanupDialog), 15_000);
     await browser.wait(
       async () => (await browser.findElement(cleanupDialog).getText()).includes(privatePath),
@@ -398,7 +347,17 @@ export async function interruptedPreparationScenario({
       ),
     );
     await browser.wait(until.elementLocated(cleanupDialog), 15_000);
-    await confirmReviewedCleanup(privatePath, "preparation-cleanup-confirmed");
+    await browser.wait(
+      async () => (await browser.findElement(cleanupDialog).getText()).includes(privatePath),
+      15_000,
+    );
+    await controls.click(controls.button("Remove reviewed private files permanently"));
+    await confirmNative(
+      "Confirm retained preparation cleanup",
+      "Remove reviewed private files",
+      privatePath,
+      "preparation-cleanup-confirmed",
+    );
     await browser.wait(
       async () => (await browser.findElements(cleanupDialog)).length === 0,
       15_000,
@@ -447,12 +406,15 @@ export async function interruptedPreparationScenario({
       ),
     );
     await browser.wait(until.elementLocated(cleanupDialog), 15_000);
-    await waitForCleanupReview(journalOnlyPath);
+    await browser.wait(
+      async () => (await browser.findElement(cleanupDialog).getText()).includes(journalOnlyPath),
+      15_000,
+    );
     const journalOnlyText = await browser.findElement(cleanupDialog).getText();
     assert.match(journalOnlyText, /0 files/);
     assert.match(
       journalOnlyText,
-      /The private folder is already absent; cleanup removes only its stale journal/,
+      /No retained private entries are present\. Cleanup removes the recorded private path if it exists and its stale recovery journal/,
     );
     await assert.rejects(access(journalOnlyPath));
     const journalOnlyAccessibility = path.join(
@@ -469,7 +431,13 @@ export async function interruptedPreparationScenario({
       flag: "wx",
     });
     artifacts.push(journalOnlyImage);
-    await confirmReviewedCleanup(journalOnlyPath, "journal-only-preparation-cleanup-confirmed");
+    await controls.click(controls.button("Remove empty private state"));
+    await confirmNative(
+      "Confirm retained preparation cleanup",
+      "Remove reviewed private files",
+      journalOnlyPath,
+      "journal-only-preparation-cleanup-confirmed",
+    );
     await browser.wait(
       async () => (await browser.findElements(cleanupDialog)).length === 0,
       15_000,
