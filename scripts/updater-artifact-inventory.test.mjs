@@ -247,14 +247,12 @@ test("manual rehearsal retains the complete matrix without production credential
   assert.match(rehearsal, /name = "valid-signature"/);
   assert.match(rehearsal, /wrong_signature_verified_with_distinct_key = \$true/);
   assert.match(rehearsal, /Remove-Item -LiteralPath \$wrongPrivateRoot -Recurse -Force/);
-  const outerFinally = rehearsal.lastIndexOf("} finally {");
-  const passedResult = rehearsal.lastIndexOf(
-    '[ordered]@{ source_commit = $revision; platform = $PlatformLabel; status = "passed"',
+  const outerFinally = rehearsal.match(
+    /} finally \{\r?\n(?<body>(?:    [^\r\n]*\r?\n)+)}\r?\n\[ordered]@\{ source_commit = \$revision; platform = \$PlatformLabel; status = "passed"/,
   );
-  assert.ok(outerFinally >= 0 && passedResult > outerFinally);
-  const outerFinallyBody = rehearsal.slice(outerFinally, passedResult);
+  assert.ok(outerFinally?.groups?.body);
   assert.match(
-    outerFinallyBody,
+    outerFinally.groups.body,
     /\[IO\.Directory\]::Exists\(\$wrongPrivateRoot\)[^\r\n]*\[IO\.Directory\]::Delete\(\$wrongPrivateRoot, \$true\)/,
   );
   assert.match(
