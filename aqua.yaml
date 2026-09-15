@@ -8,6 +8,6 @@ checksum:
   require_checksum: true
 
 packages:
-  - name: astral-sh/ruff@0.16.6
+  - name: astral-sh/ruff@0.16.7
   - name: rhysd/actionlint@v1.7.12
   - name: koalaman/shellcheck@v0.11.0
