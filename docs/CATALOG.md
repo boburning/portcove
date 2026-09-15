@@ -143,6 +143,22 @@ and clean reinstall under the repaired configuration-copy contract. For both
 ports, `input.ini` is persistent user configuration and
 `psx_last_run_report.json` is reviewed disposable runtime output.
 
+Dr. Mario 64 Recompiled Plus 1.0.0 preserves the existing
+`dr-mario-64-recomp` catalog identity while replacing the inactive predecessor
+repository with its traceable successor. Its exact Windows structural and
+bounded automated lifecycle records cover the checksum-qualified USA Rev 0
+source, release artifact, wrapper runtime directory, immutable verification,
+three responsive D3D12 launches with normal close, no-op update, safe refusal
+of rollback without a retained version, removal preservation, and clean
+reinstall. Its persistent runtime ROM is SHA-256-bound on every reuse, so a
+restored or edited destination is rematerialized from the admitted source
+before launch. The port remains beta: the same current AMD host failed under
+Auto and explicit Vulkan inside `amdxc64.dll`, and the evidence does not claim
+hands-on gameplay, controls, audio, in-game save/load, backup restore,
+cross-version update/rollback, or non-Windows behavior. The exact identities,
+methods, and remaining boundaries are recorded in
+[`docs/qualification/dr-mario-64-recompiled-windows-2026-09-15.md`](qualification/dr-mario-64-recompiled-windows-2026-09-15.md).
+
 ## Adding or changing a port
 
 Managed PS1 ports pass their reviewed runtime configuration with `--game` and

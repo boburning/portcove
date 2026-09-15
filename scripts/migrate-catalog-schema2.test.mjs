@@ -133,7 +133,50 @@ test("schema-2 migration is deterministic and preserves the frozen schema-1 proj
     "states",
     "Starfox-MSU1.PAK",
   ]);
-  assert.equal(migrated.source_catalog.qualification.length, 7);
+  const drMarioProfile = profile("dr-mario-64");
+  assert.deepEqual(
+    drMarioProfile.variants.slice(1).map((item) => item.id),
+    ["usa-rev0"],
+  );
+  assert.equal(drMarioProfile.variants[1].representations[0].kind, "canonical-n64");
+  assert.deepEqual(drMarioProfile.variants[1].representations[0].identities, [
+    {
+      scope: "canonical-n64-big-endian",
+      sha1: "a130d3622ce40e0158db2da4247101f6e92206fc",
+      sha256: "bb2c0dec0a8287ad256929563d0509801c2f239df883c1cf52cab05b23bd77b6",
+      crc32: null,
+    },
+  ]);
+  const drMarioContract = contract("dr-mario-64-recomp");
+  assert.equal(drMarioContract.admission_mode, "enforced");
+  assert.deepEqual(drMarioContract.supported_variant_ids, ["usa-rev0"]);
+  assert.deepEqual(drMarioContract.applicability, [
+    {
+      upstream_ref: "1.0.0",
+      artifact_sha256: "ba749f48725e23636845c9a79a89e17859172ac80fa7b98bf4523d12c1f0d2cf",
+    },
+  ]);
+  const drMario = migrated.ports.find((port) => port.id === "dr-mario-64-recomp");
+  assert.equal(drMario.project_url, "https://github.com/theboy181/drmario64_recomp_plus");
+  assert.equal(drMario.support_tier, "beta");
+  assert.equal(drMario.release.repository, "theboy181/drmario64_recomp_plus");
+  assert.deepEqual(drMario.release.asset_hints["windows-x86-64"], [
+    "Dr.Mario.64.Recompiled-v1.0.0-Windows.zip",
+  ]);
+  assert.deepEqual(drMario.executable_hints["windows-x86-64"], ["drmario64_recomp.exe"]);
+  assert.equal(drMario.runtime_subdirectory, "Dr. Mario 64 Recompiled x64-Release");
+  assert.equal(drMario.runtime_source_filename, "drmario64.us.z64");
+  assert.equal(drMario.runtime_source_materialization, "n64-big-endian");
+  assert.deepEqual(drMario.runtime_source_hashes, {
+    "drmario64.us.z64": "bb2c0dec0a8287ad256929563d0509801c2f239df883c1cf52cab05b23bd77b6",
+  });
+  assert.deepEqual(drMario.launch_arguments, ["drmario64.us.z64"]);
+  assert.equal(
+    drMario.persistent_paths.includes("Dr. Mario 64 Recompiled x64-Release/mod_config"),
+    true,
+  );
+  assert.equal(drMario.presentation.source_requirements[0].verification, "catalog-identity");
+  assert.equal(migrated.source_catalog.qualification.length, 10);
   const ygofmQualification = migrated.source_catalog.qualification.filter(
     (record) => record.scope.port_id === "yu-gi-oh-forbidden-memories-recompiled",
   );
@@ -197,6 +240,32 @@ test("schema-2 migration is deterministic and preserves the frozen schema-1 proj
   assert.equal(
     contract("revelations-persona-recompiled").evidence_ids.includes(
       "revelations-persona-recompiled-windows-2026-09-15",
+    ),
+    true,
+  );
+  const drMarioQualification = migrated.source_catalog.qualification.filter(
+    (record) => record.scope.port_id === "dr-mario-64-recomp",
+  );
+  assert.deepEqual(
+    drMarioQualification.map((record) => [record.kind, record.outcome]),
+    [
+      ["structural_check", "passed"],
+      ["automated_lifecycle", "passed"],
+      ["known_failure", "failed"],
+    ],
+  );
+  assert.equal(
+    drMarioQualification.every(
+      (record) =>
+        record.scope.artifact_sha256 ===
+          "ba749f48725e23636845c9a79a89e17859172ac80fa7b98bf4523d12c1f0d2cf" &&
+        record.scope.upstream_ref === "1.0.0" &&
+        record.scope.contract_id === "dr-mario-64-recomp-game-source" &&
+        record.scope.variant.identity.game_id === "dr-mario-64" &&
+        record.scope.variant.identity.variant_id === "usa-rev0" &&
+        record.scope.variant.identity.representation_id === "canonical-rom" &&
+        record.scope.check_version === "dr-mario-windows-qualification-v1" &&
+        record.evidence_ids.includes("dr-mario-64-recompiled-windows-2026-09-15"),
     ),
     true,
   );
