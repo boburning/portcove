@@ -47,6 +47,7 @@ $original = @{}
 foreach ($relative in $metadataPaths) { $original[$relative] = [IO.File]::ReadAllBytes((Join-Path $root $relative)) }
 $environmentNames = @(
     "TAURI_SIGNING_PRIVATE_KEY",
+    "TAURI_SIGNING_PRIVATE_KEY_PATH",
     "TAURI_SIGNING_PRIVATE_KEY_PASSWORD",
     "CARGO_TARGET_DIR",
     "PORTCOVE_PREFERENCES",
@@ -150,13 +151,16 @@ try {
                 Invoke-Checked "corepack" @($pnpmSpec, "--dir", "apps/desktop", "tauri", "signer", "generate", "--ci", "--password", $wrongPassword, "--write-keys", $wrongPrivateKey) | Out-Null
                 $wrongPublicKey = "$wrongPrivateKey.pub"
                 $savedSigningPrivateKey = $env:TAURI_SIGNING_PRIVATE_KEY
+                $savedSigningPrivateKeyPath = $env:TAURI_SIGNING_PRIVATE_KEY_PATH
                 $savedSigningPassword = $env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD
                 try {
                     Remove-Item Env:TAURI_SIGNING_PRIVATE_KEY -ErrorAction SilentlyContinue
+                    Remove-Item Env:TAURI_SIGNING_PRIVATE_KEY_PATH -ErrorAction SilentlyContinue
                     Remove-Item Env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD -ErrorAction SilentlyContinue
                     Invoke-Checked "corepack" @($pnpmSpec, "--dir", "apps/desktop", "tauri", "signer", "sign", "--private-key-path", $wrongPrivateKey, "--password", $wrongPassword, $wrongCandidate) | Out-Null
                 } finally {
                     $env:TAURI_SIGNING_PRIVATE_KEY = $savedSigningPrivateKey
+                    $env:TAURI_SIGNING_PRIVATE_KEY_PATH = $savedSigningPrivateKeyPath
                     $env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD = $savedSigningPassword
                     $wrongPassword = $null
                 }
@@ -170,12 +174,14 @@ try {
                 Remove-Item -LiteralPath $privateKey -Force
                 Remove-Item -LiteralPath $wrongPrivateRoot -Recurse -Force
                 Remove-Item Env:TAURI_SIGNING_PRIVATE_KEY -ErrorAction SilentlyContinue
+                Remove-Item Env:TAURI_SIGNING_PRIVATE_KEY_PATH -ErrorAction SilentlyContinue
                 Remove-Item Env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD -ErrorAction SilentlyContinue
                 $native.private_signing_inputs_absent = [ordered]@{
                     payload_private_key = -not [IO.File]::Exists($privateKey)
                     wrong_payload_private_root = -not [IO.Directory]::Exists($wrongPrivateRoot)
                     wrong_payload_password = $null -eq $wrongPassword
                     signing_private_key_environment = $null -eq [Environment]::GetEnvironmentVariable("TAURI_SIGNING_PRIVATE_KEY", "Process")
+                    signing_private_key_path_environment = $null -eq [Environment]::GetEnvironmentVariable("TAURI_SIGNING_PRIVATE_KEY_PATH", "Process")
                     signing_password_environment = $null -eq [Environment]::GetEnvironmentVariable("TAURI_SIGNING_PRIVATE_KEY_PASSWORD", "Process")
                 }
                 if ($native.private_signing_inputs_absent.Values -contains $false) {
@@ -432,6 +438,7 @@ try {
         Remove-Item -LiteralPath $privateKey -Force
         Remove-Item -LiteralPath (Join-Path $fixtureRoot "private") -Recurse -Force
         Remove-Item Env:TAURI_SIGNING_PRIVATE_KEY -ErrorAction SilentlyContinue
+        Remove-Item Env:TAURI_SIGNING_PRIVATE_KEY_PATH -ErrorAction SilentlyContinue
         Remove-Item Env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD -ErrorAction SilentlyContinue
         foreach ($tufConfigPath in @((Join-Path $fixtureRoot "build-tuf.json")) + $tufVariantConfigs) {
             Remove-Item -LiteralPath $tufConfigPath -Force

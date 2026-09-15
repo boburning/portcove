@@ -43,6 +43,7 @@ test("installer lifecycle journals every required process before spawning it", (
   assert.match(source, /RetainedLibraryRoot must be empty before qualification/);
   assert.match(source, /\[switch\]\$RequireSigningAuthorityAbsent/);
   assert.match(source, /private_signing_inputs_absent/);
+  assert.match(source, /TAURI_SIGNING_PRIVATE_KEY_PATH/);
   assert.match(
     source,
     /Disposable signing authority is available to the Windows package lifecycle/,
