@@ -309,7 +309,14 @@ export async function interruptedPreparationScenario({
       15_000,
     );
     await writeFile(path.join(privatePath, "changed-after-review.bin"), "owned stale review");
-    await controls.click(controls.button("Remove reviewed private files permanently"));
+    await clickVisible(
+      browser,
+      await browser.wait(
+        until.elementLocated(controls.button("Remove reviewed private files permanently")),
+        15_000,
+      ),
+      { dispatch: "dom" },
+    );
     await browser.wait(until.elementLocated(controls.button("Review again")), 15_000);
     await access(privatePath);
     await controls.click(controls.button("Review again"));
@@ -317,7 +324,14 @@ export async function interruptedPreparationScenario({
       until.elementLocated(controls.button("Remove reviewed private files permanently")),
       15_000,
     );
-    await controls.click(controls.button("Remove reviewed private files permanently"));
+    await clickVisible(
+      browser,
+      await browser.wait(
+        until.elementLocated(controls.button("Remove reviewed private files permanently")),
+        15_000,
+      ),
+      { dispatch: "dom" },
+    );
     await confirmNative(
       "Confirm retained preparation cleanup",
       "__observe__",
@@ -369,7 +383,14 @@ export async function interruptedPreparationScenario({
       async () => (await browser.findElement(cleanupDialog).getText()).includes(privatePath),
       15_000,
     );
-    await controls.click(controls.button("Remove reviewed private files permanently"));
+    await clickVisible(
+      browser,
+      await browser.wait(
+        until.elementLocated(controls.button("Remove reviewed private files permanently")),
+        15_000,
+      ),
+      { dispatch: "dom" },
+    );
     await confirmNative(
       "Confirm retained preparation cleanup",
       "Remove reviewed private files",
@@ -481,7 +502,14 @@ export async function interruptedPreparationScenario({
       flag: "wx",
     });
     artifacts.push(journalOnlyImage);
-    await controls.click(controls.button("Remove empty private state"));
+    await clickVisible(
+      browser,
+      await browser.wait(
+        until.elementLocated(controls.button("Remove empty private state")),
+        15_000,
+      ),
+      { dispatch: "dom" },
+    );
     await confirmNative(
       "Confirm retained preparation cleanup",
       "Remove empty private state",
@@ -538,7 +566,11 @@ export async function interruptedPreparationScenario({
       { flag: "wx" },
     );
     artifacts.push(cleanupEvidence);
-    await browser.executeScript('arguments[0].scrollIntoView({ block: "start" });', row);
+    const finalInterruptedRow = await browser.wait(until.elementLocated(interruptedRows), 15_000);
+    await browser.executeScript(
+      'arguments[0].scrollIntoView({ block: "start", inline: "nearest" });',
+      finalInterruptedRow,
+    );
   });
   return browser;
 }

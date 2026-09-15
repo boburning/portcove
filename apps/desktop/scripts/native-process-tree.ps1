@@ -31,5 +31,5 @@ function Get-OwnedNativeProcessTree([int]$DriverProcessId, [string]$ApplicationP
     }
     $application = $applications[0]
     $children = @($processes | Where-Object { Test-Descendant $_ ([int]$application.ProcessId) })
-    return [pscustomobject]@{ application = $application; processes = @($application) + $children }
+    return [pscustomobject]@{ driver = $byId[$DriverProcessId]; application = $application; processes = @($application) + $children }
 }

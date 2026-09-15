@@ -235,6 +235,29 @@ test(
   },
 );
 
+test("isolated driver stop refuses stale identity without acting", windows, async () => {
+  const root = await temporaryRoot();
+  const child = await ownedChild();
+  try {
+    const snapshot = path.join(root, "processes.json");
+    const captured = run("Snapshot", snapshot);
+    assert.equal(captured.status, 0, captured.stderr);
+    const recorded = JSON.parse(await readFile(snapshot, "utf8"));
+    recorded.driver.started_filetime = (
+      BigInt(recorded.driver.started_filetime) - 10_000n
+    ).toString();
+    await writeFile(snapshot, JSON.stringify(recorded));
+
+    const result = run("StopDriver", snapshot);
+    assert.notEqual(result.status, 0, result.stdout);
+    assert.match(result.stderr, /driver identity changed before isolated tree termination/);
+    process.kill(child.pid, 0);
+  } finally {
+    await stop(child);
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("native process discovery refuses ambiguous application descendants", windows, async () => {
   const root = await temporaryRoot();
   const children = [await ownedChild(), await ownedChild()];
