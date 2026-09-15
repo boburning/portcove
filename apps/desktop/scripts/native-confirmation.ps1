@@ -23,22 +23,42 @@ $condition = [System.Windows.Automation.AndCondition]::new([System.Windows.Autom
     [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::NameProperty, $Title),
     [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::ControlTypeProperty, [System.Windows.Automation.ControlType]::Window)
 ))
+function Get-OwnedConfirmationWindows {
+    $matches = @()
+    $seen = [Collections.Generic.HashSet[string]]::new()
+    $rootMatches = [System.Windows.Automation.AutomationElement]::RootElement.FindAll([System.Windows.Automation.TreeScope]::Children, $condition)
+    $ownedCondition = [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::ProcessIdProperty, $applicationId)
+    $roots = [System.Windows.Automation.AutomationElement]::RootElement.FindAll([System.Windows.Automation.TreeScope]::Children, $ownedCondition)
+    $nestedMatches = @($roots | ForEach-Object { $_.FindAll([System.Windows.Automation.TreeScope]::Descendants, $condition) })
+    foreach ($candidate in @($rootMatches) + @($nestedMatches)) {
+        $handle = $candidate.Current.NativeWindowHandle
+        $key = if ($handle) { "handle:$handle" } else { "runtime:$($candidate.GetRuntimeId() -join '.')" }
+        if ($seen.Add($key)) { $matches += $candidate }
+    }
+    return $matches
+}
 $deadline = [DateTime]::UtcNow.AddSeconds(10)
 $window = $null
+$children = @()
 while ([DateTime]::UtcNow -lt $deadline) {
-    $windowScope = 'root'
-    $windows = [System.Windows.Automation.AutomationElement]::RootElement.FindAll([System.Windows.Automation.TreeScope]::Children, $condition)
-    if ($windows.Count -eq 0) {
-        $windowScope = 'owned-descendant'
-        $ownedCondition = [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::ProcessIdProperty, $applicationId)
-        $roots = [System.Windows.Automation.AutomationElement]::RootElement.FindAll([System.Windows.Automation.TreeScope]::Children, $ownedCondition)
-        $windows = @($roots | ForEach-Object { $_.FindAll([System.Windows.Automation.TreeScope]::Descendants, $condition) })
+    $targets = @()
+    foreach ($candidate in @(Get-OwnedConfirmationWindows)) {
+        $candidateChildren = $candidate.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)
+        $candidateText = @($candidateChildren | ForEach-Object { $_.Current.Name }) -join "`n"
+        if ($candidateText.Contains($ExpectedText)) {
+            $targets += [pscustomobject]@{ window = $candidate; children = $candidateChildren; text = $candidateText }
+        }
     }
-    if ($windows.Count -gt 1) {
-        $observed = @($windows | ForEach-Object { [pscustomobject]@{ name = $_.Current.Name; class = $_.Current.ClassName; handle = $_.Current.NativeWindowHandle } }) | ConvertTo-Json -Compress
+    if ($targets.Count -gt 1) {
+        $observed = @($targets | ForEach-Object { [pscustomobject]@{ name = $_.window.Current.Name; class = $_.window.Current.ClassName; handle = $_.window.Current.NativeWindowHandle } }) | ConvertTo-Json -Compress
         throw "Ambiguous native confirmation: $observed"
     }
-    if ($windows.Count -eq 1) { $window = $windows[0]; break }
+    if ($targets.Count -eq 1) {
+        $window = $targets[0].window
+        $children = $targets[0].children
+        $text = $targets[0].text
+        break
+    }
     Start-Sleep -Milliseconds 100
 }
 if (-not $window) {
@@ -52,10 +72,7 @@ if (-not $window) {
     }) | ConvertTo-Json -Compress
     throw "Owned native confirmation did not appear. Owned window observations: $observed"
 }
-$children = $window.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)
-$names = @($children | ForEach-Object { $_.Current.Name })
-$text = $names -join "`n"
-if (-not $text.Contains($ExpectedText)) { throw 'Native confirmation did not name the expected reviewed target.' }
+$windowScope = 'owned-exact-target'
 if ($FilePath) {
     Assert-LiveApplication
     if ($Button -ne 'Open' -or $Title -ne 'Choose local artwork') { throw 'File input is limited to the owned artwork picker.' }
@@ -71,22 +88,24 @@ if ($Button -ne '__observe__') {
     $children = @()
     do {
         # UI Automation elements can become stale while a native TaskDialog remains
-        # visible. Reacquire the same exact owned window before each bounded poll.
-        $freshWindows = [System.Windows.Automation.AutomationElement]::RootElement.FindAll([System.Windows.Automation.TreeScope]::Children, $condition)
-        if ($freshWindows.Count -eq 0 -and $windowScope -eq 'owned-descendant') {
-            $ownedCondition = [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::ProcessIdProperty, $applicationId)
-            $roots = [System.Windows.Automation.AutomationElement]::RootElement.FindAll([System.Windows.Automation.TreeScope]::Children, $ownedCondition)
-            $freshWindows = @($roots | ForEach-Object { $_.FindAll([System.Windows.Automation.TreeScope]::Descendants, $condition) })
+        # visible. Reacquire every exact owned representation and keep only the
+        # one that still names the reviewed target.
+        $freshTargets = @()
+        foreach ($candidate in @(Get-OwnedConfirmationWindows)) {
+            $candidateChildren = $candidate.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)
+            $candidateText = @($candidateChildren | ForEach-Object { $_.Current.Name }) -join "`n"
+            if ($candidateText.Contains($ExpectedText)) {
+                $freshTargets += [pscustomobject]@{ window = $candidate; children = $candidateChildren; text = $candidateText }
+            }
         }
-        if ($freshWindows.Count -gt 1) { throw 'Ambiguous native confirmation while waiting for its button.' }
-        if ($freshWindows.Count -eq 0) {
+        if ($freshTargets.Count -gt 1) { throw 'Ambiguous native confirmation while waiting for its button.' }
+        if ($freshTargets.Count -eq 0) {
             Start-Sleep -Milliseconds 100
             continue
         }
-        $window = $freshWindows[0]
-        $children = $window.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)
-        $text = @($children | ForEach-Object { $_.Current.Name }) -join "`n"
-        if (-not $text.Contains($ExpectedText)) { throw 'Native confirmation target changed while waiting for its button.' }
+        $window = $freshTargets[0].window
+        $children = $freshTargets[0].children
+        $text = $freshTargets[0].text
         $buttons = @($children | Where-Object { $_.Current.ControlType -eq [System.Windows.Automation.ControlType]::Button -and $_.Current.Name -eq $Button })
         if ($buttons.Count -gt 1) { throw 'Ambiguous native confirmation button.' }
         if ($buttons.Count -eq 1 -and $buttons[0].Current.IsEnabled) { break }
