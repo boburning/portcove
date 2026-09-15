@@ -231,6 +231,18 @@ test("manual rehearsal retains the complete matrix without production credential
   // A DMG-only Tauri build creates the bootstrap disk image but does not return
   // an app bundle target for updater archive/signature generation.
   assert.match(rehearsal, /else \{ "app,dmg" \}/);
+  assert.match(
+    rehearsal,
+    /\$expectedMachOArchitecture = if \(\$PlatformLabel -eq "macos-x86_64"\) \{ "x86_64" \} else \{ "arm64" \}/,
+  );
+  assert.match(
+    rehearsal,
+    /\$expectedProcessArchitecture = if \(\$PlatformLabel -eq "macos-x86_64"\) \{ "X64" \} else \{ "Arm64" \}/,
+  );
+  assert.match(
+    rehearsal,
+    /\$native\.process_architecture -ne \$expectedProcessArchitecture[\s\S]*\$native\.executable_architecture = \(& lipo -archs \$executable \| Out-String\)\.Trim\(\)[\s\S]*\$native\.executable_architecture -ne \$expectedMachOArchitecture/,
+  );
   assert.match(rehearsal, /test-linux-appimage-update\.ps1/);
   assert.match(rehearsal, /ValidateSet\("legacy-skipped", "preview-final"\)/);
   assert.match(rehearsal, /"1\.0\.0-rc\.2"/);

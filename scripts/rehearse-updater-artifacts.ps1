@@ -254,9 +254,15 @@ try {
             $macExtract = Join-Path $runRoot "$version-mac-extracted"
             New-Item -ItemType Directory -Path $macExtract | Out-Null
             $architecture = $PlatformLabel.Replace("macos-", "")
+            $expectedMachOArchitecture = if ($PlatformLabel -eq "macos-x86_64") { "x86_64" } else { "arm64" }
+            $expectedProcessArchitecture = if ($PlatformLabel -eq "macos-x86_64") { "X64" } else { "Arm64" }
+            if ($native.process_architecture -ne $expectedProcessArchitecture) {
+                throw "macOS runner architecture does not match $PlatformLabel"
+            }
             Invoke-Checked "tar" @("-xzf", (Join-Path $stage "Portcove_${version}_${architecture}.app.tar.gz"), "-C", $macExtract)
             $app = Join-Path $macExtract "Portcove.app"
             $plist = Join-Path $app "Contents/Info.plist"
+            $executable = Join-Path $app "Contents/MacOS/portcove-desktop"
             $native.bundle_version = (& /usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' $plist | Out-String).Trim()
             if ($LASTEXITCODE -ne 0 -or $native.bundle_version -ne $version) { throw "macOS bundle version mismatch" }
             $native.bundle_identifier = (& /usr/libexec/PlistBuddy -c 'Print CFBundleIdentifier' $plist | Out-String).Trim()
@@ -266,7 +272,11 @@ try {
             Invoke-Checked "codesign" @("--verify", "--deep", "--strict", $app)
             $signingDetails = (& codesign -dv $app 2>&1 | Out-String)
             if ($LASTEXITCODE -ne 0 -or $signingDetails -notmatch 'Signature=adhoc') { throw "Expected ad-hoc signing on final macOS updater payload" }
-            Invoke-Checked "test" @("-x", (Join-Path $app "Contents/MacOS/portcove-desktop"))
+            Invoke-Checked "test" @("-x", $executable)
+            $native.executable_architecture = (& lipo -archs $executable | Out-String).Trim()
+            if ($LASTEXITCODE -ne 0 -or $native.executable_architecture -ne $expectedMachOArchitecture) {
+                throw "macOS executable architecture does not exactly match $PlatformLabel"
+            }
             $native.native_signing = "ad-hoc"
             $native.executable_permissions_verified = $true
             if ($version -eq $candidateVersion) {
