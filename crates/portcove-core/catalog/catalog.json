@@ -122,6 +122,16 @@
         "live_url": "https://github.com/akratch/goldenballoon/blob/main/platform/rom_validation.c"
       },
       {
+        "id": "star-fox-enhanced-0-0-6-7-source-contract",
+        "role": "upstream_support",
+        "authority": "kandowontu/starfox-enhanced",
+        "authority_ref": "2455f8cc7a2f71a0dcd4b9d6f0c80e0ef2d83273",
+        "reviewed_at": "2026-09-15",
+        "claim": "Validates supported retail Star Fox and Starwing revisions before locally generating portable runtime assets",
+        "immutable_url": "https://github.com/kandowontu/starfox-enhanced/blob/2455f8cc7a2f71a0dcd4b9d6f0c80e0ef2d83273/src/app/starfox_pc.cpp",
+        "live_url": "https://github.com/kandowontu/starfox-enhanced/blob/main/src/app/starfox_pc.cpp"
+      },
+      {
         "id": "snap64-recomp-windows-2026-09-13",
         "role": "portcove_qualification",
         "authority": "boburning/portcove",
@@ -4076,6 +4086,47 @@
         "aliases": [],
         "tombstones": [],
         "evidence_gap": null
+      },
+      {
+        "id": "star-fox-enhanced-usa-v1-0",
+        "label": "Star Fox (USA) v1.0 source for Star Fox Enhanced",
+        "kind": "file",
+        "variants": [
+          {
+            "id": "usa-v1-0",
+            "title": "Star Fox",
+            "region": "USA",
+            "revision": "v1.0",
+            "product_codes": [],
+            "representations": [
+              {
+                "id": "unheadered-rom",
+                "extensions": [
+                  "sfc",
+                  "smc"
+                ],
+                "kind": "raw-file",
+                "identities": [
+                  {
+                    "scope": "normalized-content",
+                    "sha1": "1f5355534ccfaf26ae6c8f055f3e4768f9d72a7e",
+                    "sha256": "3857b5294ea8f7468849437bb2d8271564e8a0ff30774622e9c872bcbd53a84d",
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "star-fox-enhanced-0-0-6-7-source-contract"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "star-fox-enhanced-0-0-6-7-source-contract"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
       }
     ],
     "contracts": [
@@ -5710,6 +5761,33 @@
           {
             "upstream_ref": "v1.7.0",
             "artifact_sha256": "23369d7b0b4c2a7794917c8d6205125d32cca53227695f42f0f091517732bba1"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "star-fox-enhanced-game-source",
+        "port_id": "star-fox-enhanced",
+        "role": "game",
+        "profile_id": "star-fox-enhanced-usa-v1-0",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "usa-v1-0"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "star-fox-enhanced-0-0-6-7-source-contract"
+        ],
+        "authority_ref": "2455f8cc7a2f71a0dcd4b9d6f0c80e0ef2d83273",
+        "reviewed_at": "2026-09-15",
+        "immutable_review_url": "https://github.com/kandowontu/starfox-enhanced/blob/2455f8cc7a2f71a0dcd4b9d6f0c80e0ef2d83273/src/app/starfox_pc.cpp",
+        "live_review_url": "https://github.com/kandowontu/starfox-enhanced/blob/main/src/app/starfox_pc.cpp",
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.0.6.7",
+            "artifact_sha256": "e1b8569fe5712b4e2cb99effa50b8527d86311ede55f3570ae1537d414f29abe"
           }
         ],
         "aliases": [],
@@ -10863,6 +10941,65 @@
             "role": "game",
             "profile_id": "diddy-kong-racing-golden-balloon",
             "label": "Diddy Kong Racing Rev 1 source for Golden Balloon",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed"
+      }
+    },
+    {
+      "id": "star-fox-enhanced",
+      "name": "Star Fox Enhanced",
+      "summary": "Expands Star Fox and Star Fox EX with widescreen presentation and configurable controls.",
+      "project_url": "https://github.com/kandowontu/starfox-enhanced",
+      "support_tier": "beta",
+      "channels": [
+        "beta"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "adapter": "staged-source-portable",
+      "release": {
+        "repository": "kandowontu/starfox-enhanced",
+        "asset_hints": {
+          "windows-x86-64": [
+            "StarFoxEnhanced-",
+            "windows-x64.zip"
+          ]
+        }
+      },
+      "source_profile": "star-fox-enhanced-usa-v1-0",
+      "executable_hints": {
+        "windows-x86-64": [
+          "starfox_pc.exe"
+        ]
+      },
+      "persistent_paths": [
+        "Star Fox (USA).sfc",
+        "Starfox-Assets.BIN",
+        "starfox-ex.srm",
+        "pregame.cfg",
+        "input-bindings.cfg",
+        "hud-layout.cfg",
+        "states",
+        "Starfox-MSU1.PAK"
+      ],
+      "runtime_mutable_paths": [
+        "Starfox-Assets.BIN.tmp"
+      ],
+      "source_environment": "STARFOX_RETAIL_ROM",
+      "runtime_source_filename": "Star Fox (USA).sfc",
+      "runtime_source_materialization": "copy",
+      "presentation": {
+        "installation_method": "staged-game-files",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "star-fox-enhanced-usa-v1-0",
+            "label": "Star Fox (USA) v1.0 source for Star Fox Enhanced",
             "verification": "catalog-identity"
           }
         ],

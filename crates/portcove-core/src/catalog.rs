@@ -1121,7 +1121,7 @@ mod tests {
         let source_catalog = migrated.source_catalog().expect("schema-2 authority");
         assert_eq!(
             source_catalog.identities.len(),
-            legacy.document().source_profiles.len() + 3
+            legacy.document().source_profiles.len() + 4
         );
         let projected_legacy_profiles = migrated
             .document()
@@ -1132,6 +1132,7 @@ mod tests {
                     "pokemon-snap",
                     "castlevania-legacy-of-darkness",
                     "diddy-kong-racing-golden-balloon",
+                    "star-fox-enhanced-usa-v1-0",
                 ]
                 .contains(&profile.id.as_str())
             })
@@ -1217,6 +1218,7 @@ mod tests {
                     "snap64-recomp",
                     "cvlod-recomp",
                     "diddy-kong-racing-golden-balloon",
+                    "star-fox-enhanced",
                 ]
                 .contains(&port.id.as_str())
             })
@@ -1349,7 +1351,7 @@ mod tests {
 
         assert!(document.get("source_catalog").is_some());
         assert!(document.get("source_profiles").is_none());
-        assert_eq!(document["ports"].as_array().unwrap().len(), 70);
+        assert_eq!(document["ports"].as_array().unwrap().len(), 71);
     }
 
     #[test]
@@ -1592,6 +1594,7 @@ mod tests {
                     "pokemon-snap",
                     "castlevania-legacy-of-darkness",
                     "diddy-kong-racing-golden-balloon",
+                    "star-fox-enhanced-usa-v1-0",
                 ]
                 .contains(&profile.id.as_str())
             })
@@ -2882,6 +2885,87 @@ mod tests {
                 .map(|binding| binding.artifact_sha256.as_deref().unwrap())
                 .collect::<Vec<_>>(),
             ["23369d7b0b4c2a7794917c8d6205125d32cca53227695f42f0f091517732bba1",]
+        );
+    }
+
+    #[test]
+    fn star_fox_enhanced_stages_one_exact_source_and_owns_portable_outputs() {
+        let catalog = Catalog::embedded().expect("catalog should load");
+        let profile = catalog
+            .source_profile("star-fox-enhanced-usa-v1-0")
+            .unwrap();
+        assert_eq!(profile.accepted_extensions, ["sfc", "smc"]);
+        assert_eq!(
+            profile.accepted_sha1,
+            ["1f5355534ccfaf26ae6c8f055f3e4768f9d72a7e"]
+        );
+        assert_eq!(
+            profile.accepted_sha256,
+            ["3857b5294ea8f7468849437bb2d8271564e8a0ff30774622e9c872bcbd53a84d"]
+        );
+
+        let port = catalog.port("star-fox-enhanced").unwrap();
+        assert_eq!(port.adapter, AdapterKind::StagedSourcePortable);
+        assert_eq!(port.support_tier, crate::SupportTier::Beta);
+        assert_eq!(port.channels, [ReleaseChannel::Beta]);
+        assert_eq!(port.platforms, [Platform::WindowsX86_64]);
+        assert!(port.automated_tested_platforms.is_empty());
+        assert!(port.manually_validated_platforms.is_empty());
+        assert_eq!(
+            port.release
+                .asset_hints
+                .get(&Platform::WindowsX86_64)
+                .unwrap(),
+            &["StarFoxEnhanced-", "windows-x64.zip"]
+        );
+        assert_eq!(
+            port.runtime_source_filename.as_deref(),
+            Some("Star Fox (USA).sfc")
+        );
+        assert_eq!(
+            port.runtime_source_materialization,
+            Some(RuntimeSourceMaterialization::Copy)
+        );
+        assert_eq!(
+            port.source_environment.as_deref(),
+            Some("STARFOX_RETAIL_ROM")
+        );
+        assert_eq!(
+            port.persistent_paths,
+            [
+                "Star Fox (USA).sfc",
+                "Starfox-Assets.BIN",
+                "starfox-ex.srm",
+                "pregame.cfg",
+                "input-bindings.cfg",
+                "hud-layout.cfg",
+                "states",
+                "Starfox-MSU1.PAK",
+            ]
+        );
+        assert_eq!(port.runtime_mutable_paths, ["Starfox-Assets.BIN.tmp"]);
+
+        let contract = catalog
+            .source_catalog()
+            .unwrap()
+            .contracts
+            .iter()
+            .find(|contract| contract.id == "star-fox-enhanced-game-source")
+            .unwrap();
+        assert_eq!(contract.supported_variant_ids, ["usa-v1-0"]);
+        assert!(
+            contract
+                .applicability
+                .iter()
+                .all(|binding| binding.upstream_ref == "v0.0.6.7")
+        );
+        assert_eq!(
+            contract
+                .applicability
+                .iter()
+                .map(|binding| binding.artifact_sha256.as_deref().unwrap())
+                .collect::<Vec<_>>(),
+            ["e1b8569fe5712b4e2cb99effa50b8527d86311ede55f3570ae1537d414f29abe"]
         );
     }
 
