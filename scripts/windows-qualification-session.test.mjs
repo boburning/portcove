@@ -47,9 +47,10 @@ test("installer lifecycle journals every required process before spawning it", (
     source,
     /Disposable signing authority is available to the Windows package lifecycle/,
   );
+  const authorityCheck = source.indexOf('Write-InstallerEvidence "signing_authority_checked"');
+  const firstSpawn = source.indexOf("Start-Process -FilePath $exact");
   assert.ok(
-    source.indexOf('Write-InstallerEvidence "signing_authority_checked"') <
-      source.indexOf("Start-Process -FilePath $exact"),
+    authorityCheck >= 0 && firstSpawn > authorityCheck,
     "signing authority must be checked and journaled before the first process spawn",
   );
   assert.match(
