@@ -21,15 +21,15 @@ test("schema-2 migration is deterministic and preserves the frozen schema-1 proj
   const migrated = JSON.parse(readFileSync(join(catalogRoot, "catalog.json"), "utf8"));
   assert.equal(migrated.schema_version, 2);
   assert.equal("source_profiles" in migrated, false);
-  assert.equal(migrated.source_catalog.identities.length, legacy.source_profiles.length + 2);
-  assert.equal(migrated.ports.length, legacy.ports.length + 2);
+  assert.equal(migrated.source_catalog.identities.length, legacy.source_profiles.length + 3);
+  assert.equal(migrated.ports.length, legacy.ports.length + 3);
   assert.equal(
     migrated.source_catalog.contracts.length,
     legacy.ports.reduce(
       (count, port) =>
         count + Number(Boolean(port.source_profile)) + Number(Boolean(port.bios_source_profile)),
       0,
-    ) + 2,
+    ) + 3,
   );
 
   const profile = (id) => migrated.source_catalog.identities.find((item) => item.id === id);
@@ -68,6 +68,21 @@ test("schema-2 migration is deterministic and preserves the frozen schema-1 proj
     profile("castlevania-legacy-of-darkness").variants[0].representations[0].kind,
     "canonical-n64",
   );
+  assert.deepEqual(contract("diddy-kong-racing-golden-balloon").supported_variant_ids, [
+    "usa-rev1",
+    "europe-rev1",
+  ]);
+  assert.deepEqual(
+    profile("diddy-kong-racing-golden-balloon").variants.map((item) => item.id),
+    ["usa-rev1", "europe-rev1"],
+  );
+  const goldenBalloon = migrated.ports.find(
+    (port) => port.id === "diddy-kong-racing-golden-balloon",
+  );
+  assert.deepEqual(goldenBalloon.platforms, ["windows-x86-64"]);
+  assert.equal(goldenBalloon.runtime_subdirectory, "GoldenBalloon");
+  assert.equal(goldenBalloon.launch_environment.MDKR_APP_PREFS_DIR, ".");
+  assert.deepEqual(goldenBalloon.launch_arguments, ["--rom", "dkr-v80.z64"]);
   assert.equal(migrated.source_catalog.qualification.length, 3);
   assert.equal(
     migrated.source_catalog.qualification.every(

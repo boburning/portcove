@@ -112,6 +112,16 @@
         "live_url": "https://github.com/fliperama86/cvlod_recomp/blob/main/castlevania2.yaml"
       },
       {
+        "id": "golden-balloon-1-7-0-source-contract",
+        "role": "upstream_support",
+        "authority": "akratch/goldenballoon",
+        "authority_ref": "106bad37244a2f8829bab21c655d25ff4b4dcdbf",
+        "reviewed_at": "2026-09-15",
+        "claim": "Limits Golden Balloon 1.7.0 to verified US Rev 1 and European Rev 1 Diddy Kong Racing sources",
+        "immutable_url": "https://github.com/akratch/goldenballoon/blob/106bad37244a2f8829bab21c655d25ff4b4dcdbf/platform/rom_validation.c",
+        "live_url": "https://github.com/akratch/goldenballoon/blob/main/platform/rom_validation.c"
+      },
+      {
         "id": "snap64-recomp-windows-2026-09-13",
         "role": "portcove_qualification",
         "authority": "boburning/portcove",
@@ -3992,6 +4002,80 @@
         "aliases": [],
         "tombstones": [],
         "evidence_gap": null
+      },
+      {
+        "id": "diddy-kong-racing-golden-balloon",
+        "label": "Diddy Kong Racing Rev 1 source for Golden Balloon",
+        "kind": "file",
+        "variants": [
+          {
+            "id": "usa-rev1",
+            "title": "Diddy Kong Racing",
+            "region": "USA",
+            "revision": "Rev 1",
+            "product_codes": [],
+            "representations": [
+              {
+                "id": "canonical-rom",
+                "extensions": [
+                  "z64",
+                  "n64",
+                  "v64"
+                ],
+                "kind": "canonical-n64",
+                "identities": [
+                  {
+                    "scope": "canonical-n64-big-endian",
+                    "sha1": "6d96743d46f8c0cd0edb0ec5600b003c89b93755",
+                    "sha256": "7de1a8fb2a9558cfc3d9ad4497df698c1e89cf7095ac1531557df2af40ba8bcf",
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "golden-balloon-1-7-0-source-contract"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "golden-balloon-1-7-0-source-contract"
+            ]
+          },
+          {
+            "id": "europe-rev1",
+            "title": "Diddy Kong Racing",
+            "region": "Europe",
+            "revision": "Rev 1",
+            "product_codes": [],
+            "representations": [
+              {
+                "id": "canonical-rom",
+                "extensions": [
+                  "z64",
+                  "n64",
+                  "v64"
+                ],
+                "kind": "canonical-n64",
+                "identities": [
+                  {
+                    "scope": "canonical-n64-big-endian",
+                    "sha1": null,
+                    "sha256": "584d59412b3a8c675f5569516a0406128028929e31544490a4dbc3ab16a038b9",
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "golden-balloon-1-7-0-source-contract"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "golden-balloon-1-7-0-source-contract"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
       }
     ],
     "contracts": [
@@ -5598,6 +5682,34 @@
           {
             "upstream_ref": "v0.2.26",
             "artifact_sha256": "0086f1aae522d1934af20cba6d9037e27ed96cf81de93a4be352fcc11cdf1408"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "diddy-kong-racing-golden-balloon-game-source",
+        "port_id": "diddy-kong-racing-golden-balloon",
+        "role": "game",
+        "profile_id": "diddy-kong-racing-golden-balloon",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "usa-rev1",
+          "europe-rev1"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "golden-balloon-1-7-0-source-contract"
+        ],
+        "authority_ref": "106bad37244a2f8829bab21c655d25ff4b4dcdbf",
+        "reviewed_at": "2026-09-15",
+        "immutable_review_url": "https://github.com/akratch/goldenballoon/blob/106bad37244a2f8829bab21c655d25ff4b4dcdbf/platform/rom_validation.c",
+        "live_review_url": "https://github.com/akratch/goldenballoon/blob/main/platform/rom_validation.c",
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v1.7.0",
+            "artifact_sha256": "23369d7b0b4c2a7794917c8d6205125d32cca53227695f42f0f091517732bba1"
           }
         ],
         "aliases": [],
@@ -10685,6 +10797,72 @@
             "role": "game",
             "profile_id": "castlevania-legacy-of-darkness",
             "label": "Castlevania: Legacy of Darkness (North America) source",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed"
+      }
+    },
+    {
+      "id": "diddy-kong-racing-golden-balloon",
+      "name": "Golden Balloon",
+      "summary": "Native Diddy Kong Racing recompilation with strict Rev 1 source validation.",
+      "project_url": "https://github.com/akratch/goldenballoon",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "adapter": "n64-recomp-portable",
+      "release": {
+        "repository": "akratch/goldenballoon",
+        "asset_hints": {
+          "windows-x86-64": [
+            "windows-x64.zip"
+          ]
+        }
+      },
+      "source_profile": "diddy-kong-racing-golden-balloon",
+      "executable_hints": {
+        "windows-x86-64": [
+          "GoldenBalloon.exe"
+        ]
+      },
+      "persistent_paths": [
+        "GoldenBalloon/dkr-v80.z64",
+        "GoldenBalloon/save",
+        "GoldenBalloon/mods",
+        "GoldenBalloon/characters",
+        "GoldenBalloon/mdkr64.ini",
+        "GoldenBalloon/mdkr64_app.ini"
+      ],
+      "runtime_mutable_paths": [
+        "GoldenBalloon/mdkr64.log",
+        "GoldenBalloon/mdkr64.prev.log",
+        "GoldenBalloon/mdkr64-online-failure.txt"
+      ],
+      "launch_environment": {
+        "MDKR_APP_PREFS_DIR": "."
+      },
+      "portable_marker": true,
+      "runtime_subdirectory": "GoldenBalloon",
+      "runtime_source_filename": "dkr-v80.z64",
+      "runtime_source_materialization": "n64-big-endian",
+      "launch_arguments": [
+        "--rom",
+        "dkr-v80.z64"
+      ],
+      "presentation": {
+        "installation_method": "portable-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "diddy-kong-racing-golden-balloon",
+            "label": "Diddy Kong Racing Rev 1 source for Golden Balloon",
             "verification": "catalog-identity"
           }
         ],
