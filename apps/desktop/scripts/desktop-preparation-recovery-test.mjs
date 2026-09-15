@@ -399,16 +399,36 @@ export async function interruptedPreparationScenario({
     controls = reviewControls(browser);
     await dismissApplicationUpdateChoice();
     await browser.findElement(By.xpath('//nav//button[contains(., "Updates")]')).click();
-    const journalOnlyReview = await browser.wait(
-      until.elementLocated(By.css(`[data-recovery-operation="${journalOnlyId}"]`)),
+    const journalOnlyReviewLocator = By.css(`[data-recovery-operation="${journalOnlyId}"]`);
+    await browser.wait(until.elementLocated(journalOnlyReviewLocator), 15_000);
+    await browser.wait(
+      async () =>
+        (
+          await browser.findElements(
+            By.xpath(
+              '//section[@aria-label="Retained work and repairs"]//p[@role="status" and starts-with(normalize-space(.), "Refreshing recovery information")]',
+            ),
+          )
+        ).length === 0,
       15_000,
+      "Recovery diagnostics must settle before journal-only cleanup review",
     );
+    let journalOnlyReview = await browser.findElement(journalOnlyReviewLocator);
     await journalOnlyReview.findElement(By.css("summary")).click();
     await browser.wait(
       async () => (await journalOnlyReview.getAttribute("open")) !== null,
       5_000,
       "The journal-only recovery disclosure must be open before cleanup review",
     );
+    journalOnlyReview = await browser.findElement(journalOnlyReviewLocator);
+    if ((await journalOnlyReview.getAttribute("open")) === null) {
+      await journalOnlyReview.findElement(By.css("summary")).click();
+      await browser.wait(
+        async () => (await journalOnlyReview.getAttribute("open")) !== null,
+        5_000,
+        "The current journal-only recovery disclosure must be open before cleanup review",
+      );
+    }
     const journalOnlyCleanupReview = await journalOnlyReview.findElement(
       By.xpath('.//button[normalize-space(.)="Review private-file cleanup"]'),
     );
