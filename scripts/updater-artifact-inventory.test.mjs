@@ -38,6 +38,13 @@ function runPowerShellScript(relativePath, args) {
   );
 }
 
+function normalizePowerShellOutput(output) {
+  return output
+    .replace(new RegExp(`${String.fromCodePoint(27)}\\[[0-9;]*m`, "g"), "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 async function fixture(t, label = "windows-x86_64") {
   const root = await mkdtemp(path.join(os.tmpdir(), "portcove-updater-"));
   t.after(() => rm(root, { recursive: true, force: true }));
@@ -441,7 +448,7 @@ test("packaged transition and evidence contracts execute exact profile semantics
   ]);
   assert.equal(unsupported.status, 1);
   assert.match(
-    `${unsupported.stdout}\n${unsupported.stderr}`,
+    normalizePowerShellOutput(`${unsupported.stdout}\n${unsupported.stderr}`),
     /preview-final packaged transition is currently qualified only for linux-x86_64/,
   );
 
