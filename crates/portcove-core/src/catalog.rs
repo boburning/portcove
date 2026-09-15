@@ -659,7 +659,9 @@ impl Catalog {
                         .is_none_or(|marker| !crate::runtime::overlaps(relative, marker));
                 let portable_runtime_path = matches!(
                     port.adapter,
-                    AdapterKind::PsxRecompManaged | AdapterKind::LibultrashipPortable
+                    AdapterKind::N64RecompPortable
+                        | AdapterKind::PsxRecompManaged
+                        | AdapterKind::LibultrashipPortable
                 ) && port
                     .runtime_source_filename
                     .as_ref()
@@ -1119,13 +1121,15 @@ mod tests {
         let source_catalog = migrated.source_catalog().expect("schema-2 authority");
         assert_eq!(
             source_catalog.identities.len(),
-            legacy.document().source_profiles.len() + 1
+            legacy.document().source_profiles.len() + 2
         );
         let projected_legacy_profiles = migrated
             .document()
             .source_profiles
             .iter()
-            .filter(|profile| profile.id != "pokemon-snap")
+            .filter(|profile| {
+                !["pokemon-snap", "castlevania-legacy-of-darkness"].contains(&profile.id.as_str())
+            })
             .cloned()
             .collect::<Vec<_>>();
         assert_eq!(
@@ -1203,7 +1207,7 @@ mod tests {
             .document()
             .ports
             .iter()
-            .filter(|port| port.id != "snap64-recomp")
+            .filter(|port| !["snap64-recomp", "cvlod-recomp"].contains(&port.id.as_str()))
             .cloned()
             .collect::<Vec<_>>();
         // Presentation and concise summaries are additive schema-2 client
@@ -1333,7 +1337,7 @@ mod tests {
 
         assert!(document.get("source_catalog").is_some());
         assert!(document.get("source_profiles").is_none());
-        assert_eq!(document["ports"].as_array().unwrap().len(), 68);
+        assert_eq!(document["ports"].as_array().unwrap().len(), 69);
     }
 
     #[test]
@@ -1571,7 +1575,9 @@ mod tests {
             .document()
             .source_profiles
             .iter()
-            .filter(|profile| profile.id != "pokemon-snap")
+            .filter(|profile| {
+                !["pokemon-snap", "castlevania-legacy-of-darkness"].contains(&profile.id.as_str())
+            })
             .cloned()
             .collect::<Vec<_>>();
         assert_eq!(
@@ -2052,7 +2058,7 @@ mod tests {
     }
 
     #[test]
-    fn libultraship_runtime_outputs_cannot_cover_owned_or_unsafe_paths() {
+    fn portable_runtime_outputs_cannot_cover_owned_or_unsafe_paths() {
         for (port_id, relative) in [
             ("ghostship", "ghostship.exe"),
             ("ghostship", "../outside.log"),
@@ -2061,6 +2067,10 @@ mod tests {
             ("ghostship", "saves"),
             ("ghostship", "sm64.o2r"),
             ("spaghetti-kart", "baserom.us.z64"),
+            ("cvlod-recomp", "LodRecomp.exe"),
+            ("cvlod-recomp", "../outside.log"),
+            ("cvlod-recomp", ".portcove-launched"),
+            ("cvlod-recomp", "rom.z64"),
         ] {
             let mut document: serde_json::Value = serde_json::from_str(EMBEDDED_CATALOG).unwrap();
             let port = document["ports"]
@@ -2684,6 +2694,86 @@ mod tests {
                 "Snap64 persistence contract is missing {path}"
             );
         }
+    }
+
+    #[test]
+    fn cvlod_recomp_uses_an_exact_isolated_portable_source_contract() {
+        let catalog = Catalog::embedded().expect("catalog should load");
+        let profile = catalog
+            .source_profile("castlevania-legacy-of-darkness")
+            .unwrap();
+        assert_eq!(profile.accepted_extensions, vec!["z64", "n64", "v64"]);
+        assert_eq!(
+            profile.accepted_sha1,
+            vec!["879ead98f197fd05edda867655da5b1ce25aa5b8"]
+        );
+        assert!(profile.accepted_sha256.is_empty());
+
+        let port = catalog.port("cvlod-recomp").unwrap();
+        assert_eq!(port.adapter, AdapterKind::N64RecompPortable);
+        assert!(port.portable_marker);
+        assert_eq!(port.runtime_source_filename.as_deref(), Some("rom.z64"));
+        assert_eq!(
+            port.runtime_source_materialization,
+            Some(RuntimeSourceMaterialization::N64BigEndian)
+        );
+        assert_eq!(
+            port.platforms,
+            [
+                Platform::WindowsX86_64,
+                Platform::LinuxX86_64,
+                Platform::MacosAarch64,
+            ]
+        );
+        assert!(port.automated_tested_platforms.is_empty());
+        assert!(port.manually_validated_platforms.is_empty());
+        for path in [
+            "rom.z64",
+            "saves",
+            "mods",
+            "mods.json",
+            "mod_config",
+            "graphics.json",
+            "audio.json",
+            "controls.json",
+            "rom_path.txt",
+        ] {
+            assert!(
+                port.persistent_paths.iter().any(|value| value == path),
+                "LodRecomp persistence contract is missing {path}"
+            );
+        }
+        assert_eq!(
+            port.runtime_mutable_paths,
+            ["castlevania2.n64.us.z64", "LodRecomp.log"]
+        );
+
+        let contract = catalog
+            .source_catalog()
+            .unwrap()
+            .contracts
+            .iter()
+            .find(|contract| contract.id == "cvlod-recomp-game-source")
+            .unwrap();
+        assert_eq!(contract.supported_variant_ids, ["north-america"]);
+        assert!(
+            contract
+                .applicability
+                .iter()
+                .all(|binding| binding.upstream_ref == "v0.2.26")
+        );
+        assert_eq!(
+            contract
+                .applicability
+                .iter()
+                .map(|binding| binding.artifact_sha256.as_deref().unwrap())
+                .collect::<Vec<_>>(),
+            [
+                "be60fefdbc4a98d1cf2ab6932e69825f39268e5ad1daab950ea7b8a19e53b40a",
+                "c88af33bb3d4d676ca6cd5b3676b9fe99d1a3c39904592e30ddfc06a383cea2f",
+                "0086f1aae522d1934af20cba6d9037e27ed96cf81de93a4be352fcc11cdf1408",
+            ]
+        );
     }
 
     #[test]
