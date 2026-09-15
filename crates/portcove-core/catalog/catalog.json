@@ -10662,17 +10662,11 @@
       },
       "persistent_paths": [
         "rom.z64",
-        "saves",
-        "mods",
-        "mods.json",
-        "mod_config",
+        "castlevania2.n64.us.bin",
         "graphics.json",
         "audio.json",
         "controls.json",
-        "rom_path.txt"
-      ],
-      "runtime_mutable_paths": [
-        "castlevania2.n64.us.z64",
+        "rom_path.txt",
         "LodRecomp.log"
       ],
       "portable_marker": true,
