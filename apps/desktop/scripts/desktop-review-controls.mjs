@@ -16,7 +16,7 @@ async function waitForEntrance(browser, element) {
   );
 }
 
-export async function clickVisible(browser, element) {
+export async function clickVisible(browser, element, { dispatch = "webdriver" } = {}) {
   try {
     await waitForEntrance(browser, element);
     await browser.executeScript("arguments[0].focus({ preventScroll: true });", element);
@@ -36,7 +36,11 @@ export async function clickVisible(browser, element) {
       5_000,
       "The reviewed control must receive the pointer before clicking",
     );
-    await element.click();
+    if (dispatch === "dom") await browser.executeScript("arguments[0].click();", element);
+    else {
+      assert.equal(dispatch, "webdriver", `Unsupported click dispatch: ${dispatch}`);
+      await element.click();
+    }
   } catch (error) {
     const context = await browser.executeScript((element) => {
       const bounds = element.getBoundingClientRect();

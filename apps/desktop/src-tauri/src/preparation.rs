@@ -81,17 +81,35 @@ pub(crate) async fn cleanup_preparation(
             PortcoveError::conflict("retained preparation changed; review cleanup again").into(),
         );
     }
+    let retained_entry_count = preview.retained.directories.len()
+        + preview.retained.files.len()
+        + preview.retained.skipped_entries.len();
+    let (confirmation_message, confirmation_action) = if retained_entry_count == 0 {
+        (
+            format!(
+                "Remove the reviewed empty private preparation state for {}?\n\nRecorded private path: {}\nEntries: 0 (0 bytes)\n\nThe recorded path is empty or already absent. Portcove removes only that private path if it exists and its stale recovery journal. The original installation, registered source, saved data, backups, and logs are preserved. Portcove requires durable proof that the owned preparation process tree stopped before cleanup.",
+                preview.port_id,
+                preview.retained_path.display(),
+            ),
+            "Remove empty private state",
+        )
+    } else {
+        (
+            format!(
+                "Permanently remove the reviewed private preparation folder for {}?\n\nFolder: {}\nFiles: {} ({} bytes)\n\nThe original installation, registered source, saved data, backups, and logs are preserved. Portcove requires durable proof that the owned preparation process tree stopped before cleanup.",
+                preview.port_id,
+                preview.retained_path.display(),
+                preview.retained.files.len(),
+                preview.retained.total_bytes,
+            ),
+            "Remove reviewed private files",
+        )
+    };
     if !confirm_destructive(
         &app,
         "Confirm retained preparation cleanup",
-        format!(
-            "Permanently remove the reviewed private preparation folder for {}?\n\nFolder: {}\nFiles: {} ({} bytes)\n\nThe original installation, registered source, saved data, backups, and logs are preserved. Portcove requires durable proof that the owned preparation process tree stopped before cleanup.",
-            preview.port_id,
-            preview.retained_path.display(),
-            preview.retained.files.len(),
-            preview.retained.total_bytes,
-        ),
-        "Remove reviewed private files",
+        confirmation_message,
+        confirmation_action,
     )
     .await
     {

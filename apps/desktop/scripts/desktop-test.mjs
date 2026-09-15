@@ -345,20 +345,32 @@ async function connect() {
   );
 }
 
+async function requestApplicationShutdown(snapshot) {
+  await browser.quit();
+  browser = undefined;
+  const driverStop =
+    process.platform === "win32" ? observeNativeSession("StopDriver", snapshot) : undefined;
+  driver = undefined;
+  return driverStop;
+}
+
 async function restartApplication(name) {
   const snapshot = path.join(output, `${name}-processes.json`);
   const restartEvidence = path.join(output, `${name}-restart.json`);
-  const observation = { started_at: new Date().toISOString() };
+  const observation = {
+    started_at: new Date().toISOString(),
+    shutdown_request: "identity-bound-isolated-driver-tree-termination",
+  };
   if (process.platform === "win32") {
     observation.snapshot = observeNativeSession("Snapshot", snapshot);
     artifacts.push(snapshot);
   }
-  await browser.quit();
-  browser = undefined;
-  observation.quit_completed_at = new Date().toISOString();
+  observation.driver_stop = await requestApplicationShutdown(snapshot);
+  observation.session_delete_completed_at = new Date().toISOString();
   if (process.platform === "win32") {
     observation.shutdown = observeNativeSession("Wait", snapshot);
   }
+  await startDriver();
   await connect();
   observation.reconnected_at = new Date().toISOString();
   await writeFile(restartEvidence, `${JSON.stringify(observation, null, 2)}\n`, { flag: "wx" });
@@ -367,6 +379,7 @@ async function restartApplication(name) {
 }
 
 function observeNativeSession(mode, snapshot) {
+  const driverProcessId = mode === "Wait" ? 0 : driver.pid;
   const result = spawnCommand(
     "pwsh",
     [
@@ -376,7 +389,7 @@ function observeNativeSession(mode, snapshot) {
       "-Mode",
       mode,
       "-DriverProcessId",
-      String(driver.pid),
+      String(driverProcessId),
       "-ApplicationPath",
       values.app,
       "-SnapshotPath",
@@ -388,14 +401,7 @@ function observeNativeSession(mode, snapshot) {
   return JSON.parse(result.stdout);
 }
 
-try {
-  if (selection.prerequisites.includes("install-fixture")) {
-    installFixture = await createInstallFixture({ root, output });
-    inputs.push(await fileIdentity(installFixture.artifactPath));
-    inputs.push(await fileIdentity(installFixture.catalogPath));
-  }
-  await requireUnusedPort(port);
-  await requireUnusedPort(port + 1);
+async function startDriver() {
   driver = spawn(
     values.driver,
     [
@@ -438,11 +444,23 @@ try {
       const response = await fetch(`http://127.0.0.1:${port}/status`, {
         signal: AbortSignal.timeout(500),
       });
-      if (response.ok) break;
+      if (response.ok) return;
     } catch {
       /* Driver startup is bounded by the loop and connection timeout. */
     }
   }
+  throw new Error("tauri-driver did not become ready within ten seconds");
+}
+
+try {
+  if (selection.prerequisites.includes("install-fixture")) {
+    installFixture = await createInstallFixture({ root, output });
+    inputs.push(await fileIdentity(installFixture.artifactPath));
+    inputs.push(await fileIdentity(installFixture.catalogPath));
+  }
+  await requireUnusedPort(port);
+  await requireUnusedPort(port + 1);
+  await startDriver();
   await connect();
   await scenario("empty-library", async () => {
     const bootstrap = await invoke("get_bootstrap_status");
@@ -656,7 +674,8 @@ try {
       for (let cycle = 0; cycle < restartCycles; cycle++) {
         const observation = {
           cycle: cycle + 1,
-          quit_started: new Date().toISOString(),
+          close_started: new Date().toISOString(),
+          shutdown_request: "identity-bound-isolated-driver-tree-termination",
         };
         observations.push(observation);
         const snapshot = path.join(output, `restart-${cycle + 1}-processes.json`);
@@ -664,11 +683,11 @@ try {
           observeNativeSession("Snapshot", snapshot);
           artifacts.push(snapshot);
         }
-        await browser.quit();
-        browser = undefined;
-        observation.quit_completed = new Date().toISOString();
+        observation.driver_stop = await requestApplicationShutdown(snapshot);
+        observation.session_delete_completed = new Date().toISOString();
         if (process.platform === "win32")
           observation.shutdown = observeNativeSession("Wait", snapshot);
+        await startDriver();
         await connect();
         observation.connected = new Date().toISOString();
         assert.equal(
@@ -722,7 +741,7 @@ try {
       artifacts,
       confirmNative: nativeConfirmation({
         application: values.app,
-        driverPid: driver.pid,
+        getDriverPid: () => driver.pid,
         output,
         artifacts,
       }),

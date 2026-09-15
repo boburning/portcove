@@ -171,9 +171,10 @@ function PreparationCleanupDialog({
       return true;
     },
     close,
-    failureMessage: "Cleanup was not accepted. The retained private files remain unchanged.",
+    failureMessage: "Cleanup was not accepted. The retained recovery state remains unchanged.",
   });
   const dialog = useDialogFocus(dismiss);
+  const emptyReview = Boolean(preview && !hasRetainedEntries(preview));
   return (
     <div className="scrim">
       <section
@@ -186,7 +187,9 @@ function PreparationCleanupDialog({
       >
         <h2 id="preparation-cleanup-title">Review retained preparation cleanup</h2>
         <p id="preparation-cleanup-description">
-          Permanently discard one failed attempt's private working files.
+          {emptyReview
+            ? "Remove empty private preparation state and its stale recovery journal."
+            : "Permanently discard one failed attempt's private working files."}
         </p>
         {pending === "review" && <p role="status">Reading the retained private folder…</p>}
         {preview && <PreparationCleanupDetails preview={preview} />}
@@ -208,13 +211,25 @@ function PreparationCleanupDialog({
               onClick={() => void execute()}
             >
               {pending === "apply"
-                ? "Removing reviewed private files…"
-                : "Remove reviewed private files permanently"}
+                ? emptyReview
+                  ? "Removing empty private state…"
+                  : "Removing reviewed private files…"
+                : emptyReview
+                  ? "Remove empty private state"
+                  : "Remove reviewed private files permanently"}
             </button>
           )}
         </div>
       </section>
     </div>
+  );
+}
+
+function hasRetainedEntries(preview: PreparationCleanupPreview) {
+  return Boolean(
+    preview.retained.directories.length ||
+    preview.retained.files.length ||
+    preview.retained.skipped_entries.length,
   );
 }
 
@@ -238,7 +253,7 @@ function PreparationCleanupDetails({ preview }: { preview: PreparationCleanupPre
       </p>
       <dl>
         <div>
-          <dt>Private folder removed</dt>
+          <dt>{entries.length ? "Private folder removed" : "Recorded private path cleared"}</dt>
           <dd>{preview.retained_path}</dd>
         </div>
         <div>
@@ -263,9 +278,9 @@ function PreparationCleanupDetails({ preview }: { preview: PreparationCleanupPre
         </div>
       </dl>
       <p>
-        This removes only the recorded private folder and its recovery journal. The removed files
-        cannot be recovered. If cleanup is interrupted, Portcove keeps the accepted cleanup in its
-        journal and retries it when the library reopens.
+        {entries.length
+          ? "This removes only the recorded private folder and its recovery journal. The removed files cannot be recovered. If cleanup is interrupted, Portcove keeps the accepted cleanup in its journal and retries it when the library reopens."
+          : "No retained private entries are present. Cleanup removes the recorded private path if it exists and its stale recovery journal."}
       </p>
       <p>
         Portcove requires durable proof that the owned preparation process tree stopped before
@@ -282,7 +297,7 @@ function PreparationCleanupDetails({ preview }: { preview: PreparationCleanupPre
             ))}
           </ul>
         ) : (
-          <p>The private folder is already absent; cleanup removes only its stale journal.</p>
+          <p>No retained private entries were found.</p>
         )}
       </details>
     </section>

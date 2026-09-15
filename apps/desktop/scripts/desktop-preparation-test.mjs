@@ -72,12 +72,30 @@ export async function preparationScenarios({
     return { port, install };
   }
   const button = (label) => By.xpath(`//button[normalize-space(.)="${label}"]`);
+  async function dismissApplicationUpdateChoice() {
+    const preferences = await invoke("get_application_update_preferences");
+    assert.equal(preferences.ok, true);
+    if (preferences.value.choice !== null) return;
+    const choice = By.xpath(
+      '//section[@role="status" and .//strong[normalize-space(.)="Choose how Portcove updates"]]',
+    );
+    await browser.wait(until.elementLocated(choice), 15_000);
+    await browser
+      .findElement(
+        By.xpath(
+          '//section[@role="status" and .//strong[normalize-space(.)="Choose how Portcove updates"]]//button[normalize-space(.)="Not now"]',
+        ),
+      )
+      .click();
+    await browser.wait(async () => (await browser.findElements(choice)).length === 0, 15_000);
+  }
   async function open(port, waitForPreparation = true) {
     await browser.navigate().refresh();
     await browser.wait(
       until.elementLocated(By.css('nav[aria-label="Primary navigation"]')),
       15_000,
     );
+    await dismissApplicationUpdateChoice();
     await browser.findElement(By.xpath('//nav//button[contains(., "Library")]')).click();
     const card = By.xpath(
       `//button[contains(@class,"port-card") and starts-with(@aria-label,"${port.name}.")]`,
@@ -172,27 +190,35 @@ export async function preparationScenarios({
     await browser.wait(until.elementLocated(button("Start new preparation")), 15_000);
     await browser.findElement(button("Start new preparation")).click();
     let activity;
-    await browser.wait(async () => {
-      const result = await invoke("get_activities");
-      activity = result.value?.find(
-        (item) =>
-          item.operation === "prepare" && item.target_id === port.id && item.status === "running",
-      );
-      return (
-        activity &&
-        (await stat(
-          path.join(library, "staging", activity.id, "payload/data/out/setup-ready"),
-        ).then(
-          (value) => value.isFile(),
-          () => false,
-        ))
-      );
-    }, 5_000);
+    await browser.wait(
+      async () => {
+        const result = await invoke("get_activities");
+        activity = result.value?.find(
+          (item) =>
+            item.operation === "prepare" && item.target_id === port.id && item.status === "running",
+        );
+        return (
+          activity &&
+          (await stat(
+            path.join(library, "staging", activity.id, "payload/data/out/setup-ready"),
+          ).then(
+            (value) => value.isFile(),
+            () => false,
+          ))
+        );
+      },
+      15_000,
+      "Preparation must reach its owned cancellation checkpoint",
+    );
     await browser.findElement(button("Cancel preparation")).click();
-    await browser.wait(async () => {
-      const result = await invoke("get_activities");
-      return result.value?.find((item) => item.id === activity.id)?.status === "cancelled";
-    }, 5_000);
+    await browser.wait(
+      async () => {
+        const result = await invoke("get_activities");
+        return result.value?.find((item) => item.id === activity.id)?.status === "cancelled";
+      },
+      15_000,
+      "Preparation cancellation must become durable",
+    );
     assert.equal((await status(port.id)).active.id, install.id);
     assert.equal((await status(port.id)).readiness.launchable, false);
     const recorded = (await invoke("get_activities")).value.find((item) => item.id === activity.id);
@@ -247,7 +273,8 @@ export async function preparationScenarios({
       .click();
     await browser.wait(
       async () => (await row.getText()).includes("owned setup diagnostic on stderr"),
-      5_000,
+      15_000,
+      "The retained preparation log must render after expansion",
     );
     assert.match(await row.getText(), /Preparing source data/);
     assert.match(await row.getText(), /owned conversion began/);

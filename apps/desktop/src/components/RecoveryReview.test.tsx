@@ -196,3 +196,78 @@ it("reviews exact private files and preserved paths before cleanup", async () =>
     host.remove();
   }
 });
+
+it("explains that journal-only cleanup has no private entries to remove", async () => {
+  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+  const preview: PreparationCleanupPreview = {
+    format_version: 1,
+    operation_id: "journal-only-operation",
+    port_id: port.id,
+    retained_path: "C:\\Library\\staging\\journal-only-operation",
+    retained: {
+      directories: [],
+      files: [],
+      skipped_entries: [],
+      total_bytes: 0,
+    },
+    original_install_path: "C:\\Library\\versions\\sample\\original",
+    source_path: "D:\\Owned\\source.iso",
+    persistent_data_path: "C:\\Library\\user\\sample",
+    backup_path: "C:\\Library\\backups\\sample",
+    logs_path: "C:\\Library\\logs",
+    cleanup_is_irreversible: true,
+    interrupted_cleanup_will_retry: true,
+    preview_sha256: "c".repeat(64),
+  };
+  const load = vi.spyOn(desktopApi, "previewPreparationCleanup").mockResolvedValue(preview);
+  const host = document.createElement("div");
+  document.body.append(host);
+  const root = createRoot(host);
+  try {
+    await act(async () =>
+      root.render(
+        <RecoveryReview
+          {...freshDiagnostics}
+          generation={8}
+          repair={{
+            generated_at: 1,
+            items: [
+              {
+                ...item(),
+                operation_id: preview.operation_id,
+                kind: "retained_preparation",
+                path: preview.retained_path,
+              },
+            ],
+          }}
+          ports={[port]}
+        />,
+      ),
+    );
+    const review = [...host.querySelectorAll("button")].find((button) =>
+      button.textContent?.includes("Review private-file cleanup"),
+    );
+    await act(async () => review?.click());
+    expect(load).toHaveBeenCalledWith(preview.operation_id, 8);
+    expect(host.textContent).toContain("0 files");
+    expect(host.textContent).toContain("Affected entries (0)");
+    expect(host.querySelector("#preparation-cleanup-description")?.textContent).toBe(
+      "Remove empty private preparation state and its stale recovery journal.",
+    );
+    expect(host.textContent).toContain("Recorded private path cleared");
+    expect(host.textContent).toContain(
+      "No retained private entries are present. Cleanup removes the recorded private path if it exists and its stale recovery journal.",
+    );
+    expect(
+      [...host.querySelectorAll("button")].some(
+        (button) => button.textContent === "Remove empty private state",
+      ),
+    ).toBe(true);
+    expect(host.textContent).toContain(preview.retained_path);
+    expect(host.textContent).toContain(preview.original_install_path);
+    expect(host.textContent).toContain(preview.source_path);
+  } finally {
+    await act(async () => root.unmount());
+    host.remove();
+  }
+});
