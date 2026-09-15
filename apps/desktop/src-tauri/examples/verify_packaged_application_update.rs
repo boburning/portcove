@@ -60,6 +60,9 @@ struct Evidence {
     case: VerificationCase,
     outcome: &'static str,
     error: Option<String>,
+    platform_label: String,
+    updater_target: String,
+    updater_format: String,
     candidate_version: String,
     candidate_sha256: String,
     candidate_bytes: u64,
@@ -67,6 +70,12 @@ struct Evidence {
     staged_payload_sha256: Option<String>,
     staged_payload_bytes: Option<u64>,
     staging_has_candidate: bool,
+}
+
+struct CandidatePlatform {
+    os: &'static str,
+    architecture: &'static str,
+    execution_context: &'static str,
 }
 
 fn usage() -> &'static str {
@@ -111,6 +120,38 @@ fn direct_filename(path: &Path) -> Result<&str, String> {
         .ok_or_else(|| format!("path has no Unicode filename: {}", path.display()))
 }
 
+fn candidate_platform(inventory: &Inventory) -> Result<CandidatePlatform, String> {
+    match (
+        inventory.platform_label.as_str(),
+        inventory.updater.id.as_str(),
+        inventory.updater.target.as_str(),
+        inventory.updater.format.as_str(),
+    ) {
+        ("windows-x86_64", "desktop-windows-x86_64-nsis", "windows-x86_64", "nsis") => {
+            Ok(CandidatePlatform {
+                os: "windows",
+                architecture: "x86_64",
+                execution_context: "installed-current-user",
+            })
+        }
+        ("macos-x86_64", "desktop-macos-x86_64-app-tar-gz", "darwin-x86_64", "app.tar.gz") => {
+            Ok(CandidatePlatform {
+                os: "macos",
+                architecture: "x86_64",
+                execution_context: "controlled-packaged-staging",
+            })
+        }
+        ("macos-aarch64", "desktop-macos-aarch64-app-tar-gz", "darwin-aarch64", "app.tar.gz") => {
+            Ok(CandidatePlatform {
+                os: "macos",
+                architecture: "aarch64",
+                execution_context: "controlled-packaged-staging",
+            })
+        }
+        _ => Err("inventory is not an allowed controlled Portcove packaged candidate".into()),
+    }
+}
+
 fn build_candidate(
     inventory: &Inventory,
     inventory_sha256: &str,
@@ -118,15 +159,12 @@ fn build_candidate(
 ) -> Result<SelectedCandidate, String> {
     if inventory.schema_version != 1
         || inventory.repository != "boburning/portcove"
-        || inventory.platform_label != "windows-x86_64"
         || inventory.application_identifier != "io.github.portcove.portcove"
-        || inventory.updater.id != "desktop-windows-x86_64-nsis"
-        || inventory.updater.target != "windows-x86_64"
-        || inventory.updater.format != "nsis"
         || inventory.packages.is_empty()
     {
-        return Err("inventory is not the controlled Portcove Windows NSIS candidate".into());
+        return Err("inventory is not an allowed controlled Portcove packaged candidate".into());
     }
+    let platform = candidate_platform(inventory)?;
     let release_path = format!(
         "releases/{}/{}/{}.json",
         inventory.version, inventory.updater.target, inventory.updater.format
@@ -148,9 +186,9 @@ fn build_candidate(
                 inventory_sha256: inventory_sha256.to_owned(),
             },
             target: inventory.updater.target.clone(),
-            os: "windows".into(),
-            architecture: "x86_64".into(),
-            execution_context: "installed-current-user".into(),
+            os: platform.os.into(),
+            architecture: platform.architecture.into(),
+            execution_context: platform.execution_context.into(),
             package: PackageIdentity {
                 kind: inventory.updater.format.clone(),
                 owner: InstallOwner::Portcove,
@@ -281,6 +319,9 @@ async fn verify(arguments: &[String]) -> Result<Evidence, String> {
                 case,
                 outcome: "staged",
                 error: None,
+                platform_label: inventory.platform_label,
+                updater_target: inventory.updater.target,
+                updater_format: inventory.updater.format,
                 candidate_version: inventory.version,
                 candidate_sha256: inventory.updater.sha256,
                 candidate_bytes: inventory.updater.bytes,
@@ -306,6 +347,9 @@ async fn verify(arguments: &[String]) -> Result<Evidence, String> {
                 case,
                 outcome: "rejected",
                 error: Some(error.to_string()),
+                platform_label: inventory.platform_label,
+                updater_target: inventory.updater.target,
+                updater_format: inventory.updater.format,
                 candidate_version: inventory.version,
                 candidate_sha256: inventory.updater.sha256,
                 candidate_bytes: inventory.updater.bytes,
@@ -325,6 +369,33 @@ mod tests {
 
     const PUBLIC_KEY: &str = "untrusted comment: minisign public key E7620F1842B4E81F\nRWQf6LRCGA9i53mlYecO4IzT51TGPpvWucNSCh1CBM0QTaLn73Y7GFO3\n";
 
+    fn inventory(platform_label: &str, id: &str, target: &str, format: &str) -> Inventory {
+        serde_json::from_value(serde_json::json!({
+            "schema_version": 1,
+            "repository": "boburning/portcove",
+            "version": "1.0.0",
+            "source_commit": "a".repeat(40),
+            "platform_label": platform_label,
+            "application_identifier": "io.github.portcove.portcove",
+            "packages": [{}],
+            "updater": {
+                "id": id,
+                "target": target,
+                "format": format,
+                "filename": "payload",
+                "bytes": 1,
+                "sha256": "b".repeat(64),
+                "signature": {
+                    "filename": "payload.sig",
+                    "bytes": 1,
+                    "sha256": "c".repeat(64)
+                },
+                "public_key_sha256": "d".repeat(64)
+            }
+        }))
+        .unwrap()
+    }
+
     #[test]
     fn tauri_wrapper_is_decoded_before_key_identity_is_hashed() {
         let wrapped = format!(
@@ -339,6 +410,58 @@ mod tests {
             base64::engine::general_purpose::STANDARD.encode(PUBLIC_KEY)
         );
         assert_ne!(key.id, lowercase_sha256(wrapped.as_bytes()));
+    }
+
+    #[test]
+    fn packaged_candidate_platforms_are_exactly_allowlisted() {
+        for (inventory, os, architecture, execution_context) in [
+            (
+                inventory(
+                    "windows-x86_64",
+                    "desktop-windows-x86_64-nsis",
+                    "windows-x86_64",
+                    "nsis",
+                ),
+                "windows",
+                "x86_64",
+                "installed-current-user",
+            ),
+            (
+                inventory(
+                    "macos-x86_64",
+                    "desktop-macos-x86_64-app-tar-gz",
+                    "darwin-x86_64",
+                    "app.tar.gz",
+                ),
+                "macos",
+                "x86_64",
+                "controlled-packaged-staging",
+            ),
+            (
+                inventory(
+                    "macos-aarch64",
+                    "desktop-macos-aarch64-app-tar-gz",
+                    "darwin-aarch64",
+                    "app.tar.gz",
+                ),
+                "macos",
+                "aarch64",
+                "controlled-packaged-staging",
+            ),
+        ] {
+            let platform = candidate_platform(&inventory).unwrap();
+            assert_eq!(platform.os, os);
+            assert_eq!(platform.architecture, architecture);
+            assert_eq!(platform.execution_context, execution_context);
+        }
+
+        let crossed = inventory(
+            "macos-aarch64",
+            "desktop-macos-aarch64-app-tar-gz",
+            "darwin-x86_64",
+            "app.tar.gz",
+        );
+        assert!(candidate_platform(&crossed).is_err());
     }
 }
 

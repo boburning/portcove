@@ -231,6 +231,18 @@ test("manual rehearsal retains the complete matrix without production credential
   // A DMG-only Tauri build creates the bootstrap disk image but does not return
   // an app bundle target for updater archive/signature generation.
   assert.match(rehearsal, /else \{ "app,dmg" \}/);
+  assert.match(
+    rehearsal,
+    /\$expectedMachOArchitecture = if \(\$PlatformLabel -eq "macos-x86_64"\) \{ "x86_64" \} else \{ "arm64" \}/,
+  );
+  assert.match(
+    rehearsal,
+    /\$expectedProcessArchitecture = if \(\$PlatformLabel -eq "macos-x86_64"\) \{ "X64" \} else \{ "Arm64" \}/,
+  );
+  assert.match(
+    rehearsal,
+    /\$native\.process_architecture -ne \$expectedProcessArchitecture[\s\S]*\$native\.executable_architecture = \(& lipo -archs \$executable \| Out-String\)\.Trim\(\)[\s\S]*\$native\.executable_architecture -ne \$expectedMachOArchitecture/,
+  );
   assert.match(rehearsal, /test-linux-appimage-update\.ps1/);
   assert.match(rehearsal, /ValidateSet\("legacy-skipped", "preview-final"\)/);
   assert.match(rehearsal, /"1\.0\.0-rc\.2"/);
@@ -241,6 +253,8 @@ test("manual rehearsal retains the complete matrix without production credential
   assert.match(rehearsal, /private_signing_inputs_absent/);
   assert.match(rehearsal, /-PayloadPrivateKeyPath \$privateKey -RequireSigningAuthorityAbsent/);
   assert.match(rehearsal, /windows-payload-consumer\.json/);
+  assert.match(rehearsal, /\$PlatformLabel-payload-consumer\.json/);
+  assert.match(rehearsal, /Invoke-PackagedPayloadConsumer -Stage \$stage/);
   assert.match(rehearsal, /verify_packaged_application_update/);
   assert.match(rehearsal, /name = "missing-signature"/);
   assert.match(
@@ -261,10 +275,10 @@ test("manual rehearsal retains the complete matrix without production credential
   );
   assert.match(
     rehearsal,
-    /\$wrongPassword = \[Guid\]::NewGuid\(\)\.ToString\("N"\)[\s\S]*"generate", "--ci", "--password", \$wrongPassword, "--write-keys", \$wrongPrivateKey[\s\S]*Remove-Item Env:TAURI_SIGNING_PRIVATE_KEY -ErrorAction SilentlyContinue[\s\S]*Remove-Item Env:TAURI_SIGNING_PRIVATE_KEY_PATH -ErrorAction SilentlyContinue[\s\S]*Remove-Item Env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD -ErrorAction SilentlyContinue[\s\S]*"sign", "--private-key-path", \$wrongPrivateKey, "--password", \$wrongPassword, \$wrongCandidate[\s\S]*\$wrongPassword = \$null/,
+    /\$script:wrongPassword = \[Guid\]::NewGuid\(\)\.ToString\("N"\)[\s\S]*"generate", "--ci", "--password", \$script:wrongPassword, "--write-keys", \$wrongPrivateKey[\s\S]*Remove-Item Env:TAURI_SIGNING_PRIVATE_KEY -ErrorAction SilentlyContinue[\s\S]*Remove-Item Env:TAURI_SIGNING_PRIVATE_KEY_PATH -ErrorAction SilentlyContinue[\s\S]*Remove-Item Env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD -ErrorAction SilentlyContinue[\s\S]*"sign", "--private-key-path", \$wrongPrivateKey, "--password", \$script:wrongPassword, \$wrongCandidate[\s\S]*\$script:wrongPassword = \$null/,
   );
   assert.doesNotMatch(rehearsal, /"--private-key-path", \$wrongPrivateKey, "--password", ""/);
-  assert.match(rehearsal, /wrong_payload_password = \$null -eq \$wrongPassword/);
+  assert.match(rehearsal, /wrong_payload_password = \$null -eq \$script:wrongPassword/);
   const windowsConsumer = rehearsal.indexOf("verify_packaged_application_update");
   const windowsHarness = rehearsal.indexOf("test-windows-installer.ps1");
   const windowsPrivateKeyRemoval = rehearsal.lastIndexOf(
@@ -584,6 +598,28 @@ test("packaged transition and evidence contracts execute exact profile semantics
         candidate_production_eligible: true,
       },
     },
+    {
+      profile: "preview-final",
+      platform: "macos-x86_64",
+      expected: {
+        profile: "preview-final",
+        platform: "macos-x86_64",
+        predecessor_version: "1.0.0-rc.2",
+        candidate_version: "1.0.0",
+        candidate_production_eligible: true,
+      },
+    },
+    {
+      profile: "preview-final",
+      platform: "macos-aarch64",
+      expected: {
+        profile: "preview-final",
+        platform: "macos-aarch64",
+        predecessor_version: "1.0.0-rc.2",
+        candidate_version: "1.0.0",
+        candidate_production_eligible: true,
+      },
+    },
   ];
   for (const { profile, platform = "linux-x86_64", expected } of rehearsalCases) {
     const result = runPowerShellScript("./rehearse-updater-artifacts.ps1", [
@@ -596,23 +632,6 @@ test("packaged transition and evidence contracts execute exact profile semantics
     assert.equal(result.status, 0, result.stderr);
     assert.deepEqual(JSON.parse(result.stdout), expected);
   }
-
-  const unsupported = runPowerShellScript("./rehearse-updater-artifacts.ps1", [
-    "-PlatformLabel",
-    "macos-x86_64",
-    "-TransitionProfile",
-    "preview-final",
-    "-DescribeTransition",
-  ]);
-  assert.equal(unsupported.status, 1);
-  assert.ok(
-    unsupported.stderr
-      .split(/\r?\n/)
-      .includes(
-        "The preview-final packaged transition is currently qualified only for windows-x86_64 and linux-x86_64",
-      ),
-    unsupported.stderr,
-  );
 
   const evidence = runPowerShellScript("./test-linux-appimage-update.ps1", [
     "-DescribeContract",
