@@ -257,7 +257,7 @@ test("manual rehearsal retains the complete matrix without production credential
   );
   assert.match(
     rehearsal,
-    /\$wrongPassword = \[Guid\]::NewGuid\(\)\.ToString\("N"\)[\s\S]*"generate", "--ci", "--password", \$wrongPassword, "--write-keys", \$wrongPrivateKey[\s\S]*Remove-Item Env:TAURI_SIGNING_PRIVATE_KEY -ErrorAction SilentlyContinue[\s\S]*Remove-Item Env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD -ErrorAction SilentlyContinue[\s\S]*"sign", "--private-key-path", \$wrongPrivateKey, "--password", \$wrongPassword, \$wrongCandidate[\s\S]*\$wrongPassword = \$null/,
+    /\$wrongPassword = \[Guid\]::NewGuid\(\)\.ToString\("N"\)[\s\S]*"generate", "--ci", "--password", \$wrongPassword, "--write-keys", \$wrongPrivateKey[\s\S]*Remove-Item Env:TAURI_SIGNING_PRIVATE_KEY -ErrorAction SilentlyContinue[\s\S]*Remove-Item Env:TAURI_SIGNING_PRIVATE_KEY_PATH -ErrorAction SilentlyContinue[\s\S]*Remove-Item Env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD -ErrorAction SilentlyContinue[\s\S]*"sign", "--private-key-path", \$wrongPrivateKey, "--password", \$wrongPassword, \$wrongCandidate[\s\S]*\$wrongPassword = \$null/,
   );
   assert.doesNotMatch(rehearsal, /"--private-key-path", \$wrongPrivateKey, "--password", ""/);
   assert.match(rehearsal, /wrong_payload_password = \$null -eq \$wrongPassword/);
