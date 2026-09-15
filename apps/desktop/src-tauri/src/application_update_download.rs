@@ -4,12 +4,12 @@ use std::collections::BTreeSet;
 use std::io;
 use std::pin::Pin;
 use std::task::{Context, Poll};
-use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+use std::time::{Duration, Instant};
 
 use bytes::Bytes;
 use futures_util::stream::{self, BoxStream};
 use futures_util::{StreamExt, TryStreamExt};
-use reqwest::header::{CONTENT_ENCODING, HeaderMap, LOCATION, RETRY_AFTER};
+use reqwest::header::{CONTENT_ENCODING, HeaderMap, LOCATION};
 use reqwest::{Client, Response, StatusCode};
 use tokio::io::{AsyncRead, ReadBuf};
 use tokio_util::io::StreamReader;
@@ -18,7 +18,9 @@ use url::Url;
 use crate::application_update::{
     SelectedCandidate, UpdateMetadataError, validate_artifact_url, validate_selected_candidate,
 };
-use crate::application_update_network::{PublicDnsError, resolve_public_https_host};
+use crate::application_update_network::{
+    PublicDnsError, current_unix_seconds, provider_rate_limit, resolve_public_https_host,
+};
 
 const GITHUB_ASSET_HOST: &str = "release-assets.githubusercontent.com";
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(15);
@@ -149,41 +151,12 @@ fn response_failure(
     if status.is_success() {
         return None;
     }
-    let exhausted = headers
-        .get("x-ratelimit-remaining")
-        .and_then(|value| value.to_str().ok())
-        == Some("0");
-    if status == StatusCode::TOO_MANY_REQUESTS || (status == StatusCode::FORBIDDEN && exhausted) {
+    if let Some(rate_limit) = provider_rate_limit(status, headers, now_unix_seconds) {
         return Some(PayloadDownloadError::RateLimited {
-            retry_at_unix_seconds: now_unix_seconds.and_then(|now| provider_retry_at(headers, now)),
+            retry_at_unix_seconds: rate_limit.retry_at_unix_seconds,
         });
     }
     Some(PayloadDownloadError::HttpStatus(status.as_u16()))
-}
-
-fn provider_retry_at(headers: &HeaderMap, now_unix_seconds: u64) -> Option<u64> {
-    let retry_after = headers
-        .get(RETRY_AFTER)
-        .and_then(|value| value.to_str().ok())
-        .and_then(|value| value.parse::<u64>().ok())
-        .map(|seconds| now_unix_seconds.saturating_add(seconds));
-    let reset = headers
-        .get("x-ratelimit-reset")
-        .and_then(|value| value.to_str().ok())
-        .and_then(|value| value.parse::<u64>().ok())
-        .filter(|reset| *reset > now_unix_seconds);
-    match (retry_after, reset) {
-        (Some(left), Some(right)) => Some(left.max(right)),
-        (Some(value), None) | (None, Some(value)) => Some(value),
-        (None, None) => None,
-    }
-}
-
-fn current_unix_seconds() -> Option<u64> {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .ok()
-        .map(|duration| duration.as_secs())
 }
 
 async fn request(url: &Url, deadline: Instant) -> Result<Response, PayloadDownloadError> {
@@ -311,7 +284,7 @@ fn bounded_stream(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use reqwest::header::HeaderValue;
+    use reqwest::header::{HeaderValue, RETRY_AFTER};
     use tokio::io::AsyncReadExt;
 
     #[test]

@@ -1,7 +1,10 @@
 //! Shared public-network resolution for application-update transports.
 
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
-use std::time::{Duration, Instant};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+
+use reqwest::StatusCode;
+use reqwest::header::{HeaderMap, RETRY_AFTER};
 
 const DNS_TIMEOUT: Duration = Duration::from_secs(10);
 
@@ -11,6 +14,53 @@ pub(crate) enum PublicDnsError {
     InvalidDestination(String),
     #[error("{0}")]
     Network(String),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct ProviderRateLimit {
+    pub(crate) retry_at_unix_seconds: Option<u64>,
+}
+
+pub(crate) fn provider_rate_limit(
+    status: StatusCode,
+    headers: &HeaderMap,
+    now_unix_seconds: Option<u64>,
+) -> Option<ProviderRateLimit> {
+    let exhausted = headers
+        .get("x-ratelimit-remaining")
+        .and_then(|value| value.to_str().ok())
+        == Some("0");
+    if status != StatusCode::TOO_MANY_REQUESTS && !(status == StatusCode::FORBIDDEN && exhausted) {
+        return None;
+    }
+    Some(ProviderRateLimit {
+        retry_at_unix_seconds: now_unix_seconds.and_then(|now| provider_retry_at(headers, now)),
+    })
+}
+
+fn provider_retry_at(headers: &HeaderMap, now_unix_seconds: u64) -> Option<u64> {
+    let retry_after = headers
+        .get(RETRY_AFTER)
+        .and_then(|value| value.to_str().ok())
+        .and_then(|value| value.parse::<u64>().ok())
+        .map(|seconds| now_unix_seconds.saturating_add(seconds));
+    let reset = headers
+        .get("x-ratelimit-reset")
+        .and_then(|value| value.to_str().ok())
+        .and_then(|value| value.parse::<u64>().ok())
+        .filter(|reset| *reset > now_unix_seconds);
+    match (retry_after, reset) {
+        (Some(left), Some(right)) => Some(left.max(right)),
+        (Some(value), None) | (None, Some(value)) => Some(value),
+        (None, None) => None,
+    }
+}
+
+pub(crate) fn current_unix_seconds() -> Option<u64> {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .ok()
+        .map(|duration| duration.as_secs())
 }
 
 pub(crate) async fn resolve_public_https_host(

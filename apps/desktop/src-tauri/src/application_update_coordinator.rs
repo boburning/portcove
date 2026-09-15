@@ -287,6 +287,7 @@ impl ApplicationUpdateCoordinator {
         let selection = match checked {
             Ok(selection) => selection,
             Err(source) => {
+                let retry_not_before = source.retry_at_unix_seconds();
                 let completed_at = self
                     .now()
                     .map_err(ApplicationUpdateCoordinatorRunError::Coordinator)?;
@@ -296,7 +297,7 @@ impl ApplicationUpdateCoordinator {
                         preference_revision,
                         completed_at,
                         completion_jitter_seed(completed_at, schedule_revision),
-                        None,
+                        retry_not_before,
                     )
                     .map_err(ApplicationUpdateCoordinatorError::from)
                     .map_err(ApplicationUpdateCoordinatorRunError::Coordinator)?;
@@ -734,6 +735,32 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn metadata_rate_limit_preserves_provider_retry_window() {
+        let (_temporary, coordinator, preferences, schedule, _clock) = fixture();
+        choose(&preferences, 0, ApplicationUpdateMode::Automatic, false);
+        let checker = checker(Err(CandidateLoadError::Trust(
+            crate::application_update_trust::TrustedRepositoryError::RateLimited {
+                retry_at_unix_seconds: Some(50_000),
+            },
+        )));
+        assert!(matches!(
+            coordinator
+                .run(
+                    environment(ApplicationUpdateCheckRequest::Automatic),
+                    &checker
+                )
+                .await,
+            Err(ApplicationUpdateCoordinatorError::Check {
+                failure: CandidateLoadFailureKind::RateLimited,
+                ..
+            })
+        ));
+        let persisted = schedule.load().unwrap();
+        assert_eq!(persisted.consecutive_failures, 1);
+        assert_eq!(persisted.next_automatic_check_unix_seconds, Some(50_000));
+    }
+
+    #[tokio::test]
     async fn failed_completion_records_retry_instead_of_daily_success() {
         let (_temporary, coordinator, preferences, schedule, _clock) = fixture();
         choose(&preferences, 0, ApplicationUpdateMode::Automatic, false);
@@ -795,7 +822,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn check_failures_preserve_unreachable_and_stale_outcomes() {
+    async fn check_failures_preserve_network_stale_and_rate_limit_outcomes() {
         for (source, expected) in [
             (
                 CandidateLoadError::Trust(
@@ -812,6 +839,14 @@ mod tests {
                     ),
                 ),
                 CandidateLoadFailureKind::Stale,
+            ),
+            (
+                CandidateLoadError::Trust(
+                    crate::application_update_trust::TrustedRepositoryError::RateLimited {
+                        retry_at_unix_seconds: None,
+                    },
+                ),
+                CandidateLoadFailureKind::RateLimited,
             ),
         ] {
             let (_temporary, coordinator, preferences, _schedule, _clock) = fixture();
