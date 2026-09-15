@@ -204,7 +204,7 @@ other games remain readable. New installations retain their execution and
 persistence definitions in manifest schema 6, introduced with writer protocol 23.
 Protocol 25 now protects exact successor definition retention; older clients refuse
 to modify an upgraded library. The Playnite
-reference accepts API schemas 42 through 47 with event schema 2.
+reference accepts API schemas 42 through 48 with event schema 2.
 
 API schema 22 adds the core-resolved per-game output location to install plans
 and path results. It distinguishes a one-request override, the saved port
