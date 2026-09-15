@@ -2844,6 +2844,16 @@ mod tests {
         }
         assert_eq!(
             port.runtime_mutable_paths,
+            ["mdkr64.log", "mdkr64.prev.log", "mdkr64-online-failure.txt",]
+        );
+        assert_eq!(
+            port.runtime_mutable_paths
+                .iter()
+                .map(|relative| format!(
+                    "{}/{relative}",
+                    port.runtime_subdirectory.as_deref().unwrap()
+                ))
+                .collect::<Vec<_>>(),
             [
                 "GoldenBalloon/mdkr64.log",
                 "GoldenBalloon/mdkr64.prev.log",

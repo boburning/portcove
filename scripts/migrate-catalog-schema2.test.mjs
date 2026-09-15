@@ -81,6 +81,21 @@ test("schema-2 migration is deterministic and preserves the frozen schema-1 proj
   );
   assert.deepEqual(goldenBalloon.platforms, ["windows-x86-64"]);
   assert.equal(goldenBalloon.runtime_subdirectory, "GoldenBalloon");
+  assert.deepEqual(goldenBalloon.runtime_mutable_paths, [
+    "mdkr64.log",
+    "mdkr64.prev.log",
+    "mdkr64-online-failure.txt",
+  ]);
+  assert.deepEqual(
+    goldenBalloon.runtime_mutable_paths.map(
+      (relative) => `${goldenBalloon.runtime_subdirectory}/${relative}`,
+    ),
+    [
+      "GoldenBalloon/mdkr64.log",
+      "GoldenBalloon/mdkr64.prev.log",
+      "GoldenBalloon/mdkr64-online-failure.txt",
+    ],
+  );
   assert.equal(goldenBalloon.launch_environment.MDKR_APP_PREFS_DIR, ".");
   assert.deepEqual(goldenBalloon.launch_arguments, ["--rom", "dkr-v80.z64"]);
   assert.equal(migrated.source_catalog.qualification.length, 3);

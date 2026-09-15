@@ -10841,9 +10841,9 @@
         "GoldenBalloon/mdkr64_app.ini"
       ],
       "runtime_mutable_paths": [
-        "GoldenBalloon/mdkr64.log",
-        "GoldenBalloon/mdkr64.prev.log",
-        "GoldenBalloon/mdkr64-online-failure.txt"
+        "mdkr64.log",
+        "mdkr64.prev.log",
+        "mdkr64-online-failure.txt"
       ],
       "launch_environment": {
         "MDKR_APP_PREFS_DIR": "."

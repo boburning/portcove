@@ -1251,11 +1251,7 @@ const migrated = {
         "GoldenBalloon/mdkr64.ini",
         "GoldenBalloon/mdkr64_app.ini",
       ],
-      runtime_mutable_paths: [
-        "GoldenBalloon/mdkr64.log",
-        "GoldenBalloon/mdkr64.prev.log",
-        "GoldenBalloon/mdkr64-online-failure.txt",
-      ],
+      runtime_mutable_paths: ["mdkr64.log", "mdkr64.prev.log", "mdkr64-online-failure.txt"],
       launch_environment: {
         MDKR_APP_PREFS_DIR: ".",
       },
