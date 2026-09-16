@@ -457,7 +457,8 @@ actual full disk, operating-system `ENOSPC`, or a read-only filesystem. The fixt
 contains only disposable public verification material; it
 does not grant signing, feed, publication, apply or replacement authority. This is
 still controlled loopback acquisition and staging evidence, not production
-transport, a packaged update or physical-platform qualification.
+transport, a packaged update, physical-platform qualification or human-observation
+evidence.
 
 ## Freshness, replay and bounds
 
