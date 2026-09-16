@@ -37,6 +37,7 @@ test("runner holds the lock through nextest and preserves its exit status", asyn
   try {
     const status = await runRustTests(["--package", "portcove-core"], {
       tempRoot,
+      platform: "win32",
       environment: { PATH: "fixture-path" },
       spawnSync: (command) => {
         events.push(`compile:${command}`);
@@ -72,6 +73,46 @@ test("runner holds the lock through nextest and preserves its exit status", asyn
     assert.equal(registeredPlatform, null);
     assert.equal(spawnedOptions.env.PORTCOVE_HEAVY_RUST_LOCK_TOKEN, "inherited-token");
     assert.match(spawnedOptions.env.PORTCOVE_HOST_TOOL_FIXTURE, /portcove-host-tool-fixture-/u);
+  } finally {
+    await rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test("Unix runner launches nextest in a detached process group", async () => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), "portcove-rust-runner-"));
+  const events = [];
+  let spawnedOptions;
+  let registeredPlatform;
+  try {
+    const status = await runRustTests(["--package", "portcove-core"], {
+      tempRoot,
+      platform: "linux",
+      spawnSync: (command) => {
+        events.push(`compile:${command}`);
+        return { status: 0 };
+      },
+      spawn: (command, args, options) => {
+        events.push(`spawn:${command}:${args.join(" ")}`);
+        spawnedOptions = options;
+        return childProcess(708, 0);
+      },
+      acquireLock: async () => ({
+        childEnvironment: {},
+        registerChild: async (_child, registration) => {
+          registeredPlatform = registration.platform;
+        },
+        release: async () => events.push("release"),
+      }),
+      processTreeMembers: () => [],
+    });
+    assert.equal(status, 0);
+    assert.deepEqual(events, [
+      "compile:rustc",
+      "spawn:cargo-nextest:nextest run --package portcove-core",
+      "release",
+    ]);
+    assert.equal(spawnedOptions.detached, true);
+    assert.equal(registeredPlatform, "linux");
   } finally {
     await rm(tempRoot, { recursive: true, force: true });
   }
@@ -138,6 +179,7 @@ test("child registration failure terminates unguarded nextest and releases owner
     await assert.rejects(
       runRustTests([], {
         tempRoot,
+        platform: "win32",
         spawnSync: (command) => {
           if (command === "taskkill.exe") killed = true;
           return { status: 0, stdout: "", stderr: "" };
