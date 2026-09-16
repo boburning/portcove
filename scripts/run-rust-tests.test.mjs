@@ -7,7 +7,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { runRustTests } from "./run-rust-tests.mjs";
+import { parseRustRunMode, runRustTests } from "./run-rust-tests.mjs";
 
 function childProcess(pid, exitCode) {
   const child = new EventEmitter();
@@ -19,6 +19,73 @@ function childProcess(pid, exitCode) {
   if (exitCode !== null) queueMicrotask(() => child.emit("close", exitCode));
   return child;
 }
+
+test("runner distinguishes nextest, hosted preparation, and exact guarded commands", () => {
+  assert.deepEqual(parseRustRunMode(["--locked", "--workspace"]), {
+    kind: "nextest",
+    executable: "cargo-nextest",
+    args: ["nextest", "run", "--locked", "--workspace"],
+    description: "cargo-nextest nextest run --locked --workspace",
+  });
+  assert.deepEqual(parseRustRunMode(["--prepare-only"]), { kind: "prepare" });
+  assert.deepEqual(parseRustRunMode(["--guard-command", "cargo", "check", "--locked"]), {
+    kind: "guarded-command",
+    executable: "cargo",
+    args: ["check", "--locked"],
+    description: "cargo check --locked",
+  });
+  assert.throws(
+    () => parseRustRunMode(["--guard-command"]),
+    /requires an executable and optional arguments/u,
+  );
+});
+
+test("guarded command acquires admission before compilation and preserves exact execution", async () => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), "portcove-rust-runner-"));
+  const events = [];
+  let spawnedOptions;
+  try {
+    const status = await runRustTests(
+      ["--guard-command", "cargo", "check", "--locked", "--workspace", "--all-targets"],
+      {
+        tempRoot,
+        platform: "win32",
+        environment: { PATH: "fixture-path" },
+        spawnSync: (command) => {
+          events.push(`compile:${command}`);
+          return { status: 0 };
+        },
+        spawn: (command, args, options) => {
+          events.push(`spawn:${path.basename(command)}:${args.join(" ")}`);
+          spawnedOptions = options;
+          return childProcess(700, 9);
+        },
+        acquireLock: async (metadata) => {
+          events.push(`acquire:${metadata.command}`);
+          return {
+            childEnvironment: { PORTCOVE_HEAVY_RUST_LOCK_TOKEN: "guard-token" },
+            registerChild: async (child) => events.push(`register:${child.pid}`),
+            release: async () => events.push("release"),
+          };
+        },
+      },
+    );
+    assert.equal(status, 9);
+    assert.deepEqual(events.slice(0, 2), [
+      "acquire:cargo check --locked --workspace --all-targets",
+      "compile:rustc",
+    ]);
+    assert.match(
+      events[2],
+      /^spawn:portcove-process-tree-supervisor\.exe:.+registered\.gate cargo check --locked --workspace --all-targets$/u,
+    );
+    assert.deepEqual(events.slice(3), ["register:700", "release"]);
+    assert.equal(spawnedOptions.env.PORTCOVE_HOST_TOOL_FIXTURE, undefined);
+    assert.equal(spawnedOptions.env.PORTCOVE_HEAVY_RUST_LOCK_TOKEN, "guard-token");
+  } finally {
+    await rm(tempRoot, { recursive: true, force: true });
+  }
+});
 
 async function waitUntil(predicate, milliseconds = 5_000) {
   const deadline = Date.now() + milliseconds;
