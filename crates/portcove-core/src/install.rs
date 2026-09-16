@@ -46,6 +46,7 @@ pub struct InstallQualification {
     runtime_origin: RuntimeOrigin,
     generated_metadata: Vec<String>,
     critical_paths: Vec<String>,
+    protected_paths: Vec<String>,
 }
 
 impl InstallQualification {
@@ -103,12 +104,12 @@ impl InstallQualification {
             .then(|| port.runtime_source_filename.clone())
             .flatten()
             .into_iter()
-            .chain(
-                port.runtime_source_set
-                    .iter()
-                    .map(|source| source.destination.clone()),
-            )
             .collect(),
+            protected_paths: port
+                .runtime_source_set
+                .iter()
+                .map(|source| source.destination.clone())
+                .collect(),
         })
     }
 
@@ -1160,6 +1161,16 @@ fn manifest_files(
             "critical path escaped the install root",
         ));
     }
+    let protected_roots = qualification
+        .protected_paths
+        .iter()
+        .map(|relative| working_root.join(relative))
+        .collect::<Vec<_>>();
+    if protected_roots.iter().any(|path| !path.starts_with(root)) {
+        return Err(PortcoveError::verification(
+            "protected path escaped the install root",
+        ));
+    }
     let candidates = qualification
         .persistent_paths
         .iter()
@@ -1217,7 +1228,10 @@ fn manifest_files(
                     .is_some_and(|runtime| path.starts_with(runtime))
                 || critical_roots
                     .iter()
-                    .any(|critical| path == *critical || path.starts_with(critical)))
+                    .any(|critical| path == *critical || path.starts_with(critical))
+                || protected_roots
+                    .iter()
+                    .any(|protected| path == *protected || path.starts_with(protected)))
         {
             return Err(PortcoveError::verification(
                 "mutable file pattern matched executable, source, or bootstrap content",
@@ -2181,12 +2195,11 @@ mod tests {
         fs::write(root.join("game.exe"), b"trusted executable").unwrap();
         let source = root.join("baserom.us.rev0.z64");
         fs::write(&source, b"trusted source").unwrap();
-        let mut qualification = InstallQualification::test("game.exe");
-        qualification.critical_paths = vec!["baserom.us.rev0.z64".into()];
-        qualification.runtime_mutable_file_patterns = vec![crate::PersistentFilePattern {
-            prefix: "psx_freeze_dump_".into(),
-            suffix: ".json".into(),
-        }];
+        let catalog = crate::Catalog::embedded().unwrap();
+        let port = catalog.port("g-diffuser").unwrap();
+        let mut qualification =
+            crate::test_fixture::retained_qualification(port, Platform::WindowsX86_64).unwrap();
+        fs::rename(root.join("game.exe"), root.join("G-Diffuser.exe")).unwrap();
 
         let (installer, install) = create_test_install(&root, &qualification);
         let manifest = verified_manifest(&install).unwrap();
@@ -2194,8 +2207,11 @@ mod tests {
             manifest
                 .files
                 .iter()
-                .any(|file| { file.path == "baserom.us.rev0.z64" && file.critical })
+                .any(|file| { file.path == "baserom.us.rev0.z64" && !file.critical })
         );
+        installer
+            .verify_import_contract(&install, &qualification)
+            .unwrap();
         fs::write(&source, b"changed source").unwrap();
         assert!(!installer.verify(&install).unwrap().valid);
 
@@ -2204,7 +2220,8 @@ mod tests {
             prefix: "baserom.".into(),
             suffix: ".z64".into(),
         }];
-        let error = manifest_files(&root, &qualification, &root.join("game.exe")).unwrap_err();
+        let error =
+            manifest_files(&root, &qualification, &root.join("G-Diffuser.exe")).unwrap_err();
         assert!(
             error
                 .message
