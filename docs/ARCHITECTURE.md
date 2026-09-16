@@ -488,6 +488,15 @@ Make such changes as one reviewed migration: explain the pressure and tradeoffs 
 
 In this document, “thin adapter” means that the CLI and desktop do not reimplement catalog, installation, release, source, or library policy. Adapters may own concerns that exist only at their boundary, including argument and IPC translation, native dialogs, credential-store access, process attachment, and presentation-shaped aggregation. If a boundary concern becomes reusable domain behavior, move it behind the shared authority instead of copying it.
 
+Repository-owned Node maintenance tools use `scripts/github-api.mjs` as their
+single GitHub process and wire-format boundary. It owns `gh` execution, JSON
+stdin for GraphQL and REST bodies, included-response parsing, rate-limit
+metadata and generic REST page traversal. Roadmap, pull-request delivery,
+contribution conventions, repository settings and provenance clients retain
+their own domain validation and mutation policy. The shared boundary is not a
+Portcove product API, credential store or planning authority, and it cannot
+weaken exact-head, complete-inventory or readback requirements.
+
 The CLI's schema module assembles the transport schema inventory from existing
 Rust `JsonSchema`/Serde definitions. Explicit input and output contracts use
 Schemars' deserialization and serialization modes; a default accepted on input

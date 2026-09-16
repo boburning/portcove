@@ -75,8 +75,8 @@ test("pull request references are repository-bound and exact", () => {
 test("check-run pagination requires complete unique totals", () => {
   const calls = [];
   const client = new PullRequestDeliveryClient((args) => {
-    calls.push(args[4]);
-    if (args[4].includes("page=2"))
+    calls.push(args[2]);
+    if (args[2].includes("page=2"))
       return included({ total_count: 2, check_runs: [{ id: 2, name: "two" }] });
     return included(
       { total_count: 2, check_runs: [{ id: 1, name: "one" }] },
@@ -162,8 +162,8 @@ test("REST merge uses the exact SHA and verifies remote completion", () => {
   const calls = [];
   let merged = false;
   const client = new PullRequestDeliveryClient((args, input) => {
-    const method = args[3];
-    const endpoint = args[4];
+    const method = args[4];
+    const endpoint = args[2];
     calls.push({ method, endpoint, input });
     if (endpoint === "repos/boburning/portcove/pulls/7") {
       return included(
@@ -192,7 +192,7 @@ test("REST merge uses the exact SHA and verifies remote completion", () => {
 test("merge command errors are reconciled through remote readback before retry", () => {
   let merged = false;
   const client = new PullRequestDeliveryClient((args) => {
-    const endpoint = args[4];
+    const endpoint = args[2];
     if (endpoint === "repos/boburning/portcove/pulls/7")
       return included(
         merged ? pull({ merged: true, state: "closed", merge_commit_sha: merge }) : pull(),

@@ -1,8 +1,8 @@
-import { spawnSync } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { isDeepStrictEqual } from "node:util";
+import { GitHubApiClient, createGitHubRunner } from "./github-api.mjs";
 
 const scriptPath = fileURLToPath(import.meta.url);
 const projectRoot = fileURLToPath(new URL("..", import.meta.url));
@@ -17,6 +17,7 @@ const expectedBypassActors = [
     bypass_mode: "pull_request",
   },
 ];
+const github = new GitHubApiClient(createGitHubRunner({ cwd: projectRoot }));
 
 function requiredRule(ruleset, type) {
   const matches = ruleset.rules.filter((rule) => rule.type === type);
@@ -235,18 +236,7 @@ export function repositorySettingsMigration(actual, desired) {
 
 function gh(repo, args, input) {
   const endpoint = args.endpoint ? `repos/${repo}/${args.endpoint}` : `repos/${repo}`;
-  const command = ["api", endpoint, "--method", args.method];
-  if (input !== undefined) command.push("--input", "-");
-  const result = spawnSync("gh", command, {
-    cwd: projectRoot,
-    encoding: "utf8",
-    input: input === undefined ? undefined : `${JSON.stringify(input)}\n`,
-    stdio: input === undefined ? ["ignore", "pipe", "pipe"] : ["pipe", "pipe", "pipe"],
-  });
-  if (result.error) throw result.error;
-  if (result.status !== 0)
-    throw new Error(result.stderr.trim() || `gh api failed with exit ${result.status}`);
-  return result.stdout.trim() ? JSON.parse(result.stdout) : null;
+  return github.request(args.method, endpoint, input ?? null).body;
 }
 
 async function loadDesired() {

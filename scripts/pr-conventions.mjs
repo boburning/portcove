@@ -1,7 +1,7 @@
-import { spawnSync } from "node:child_process";
 import { appendFile, readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { GitHubApiClient, createGitHubRunner } from "./github-api.mjs";
 
 const scriptPath = fileURLToPath(import.meta.url);
 const projectRoot = fileURLToPath(new URL("..", import.meta.url));
@@ -277,21 +277,48 @@ export function flattenCommitPages(value, expectedCount) {
     !Array.isArray(value) ||
     value.some((page) => {
       const connection = page?.data?.repository?.pullRequest?.commits;
-      return !connection || !Array.isArray(connection.nodes);
+      return (
+        !connection ||
+        !Array.isArray(connection.nodes) ||
+        !Number.isSafeInteger(connection.totalCount) ||
+        connection.totalCount < 0 ||
+        typeof connection.pageInfo?.hasNextPage !== "boolean" ||
+        !(
+          connection.pageInfo.endCursor === null ||
+          typeof connection.pageInfo.endCursor === "string"
+        )
+      );
     })
   ) {
     throw new Error("GitHub commit pagination returned an invalid response");
   }
-  const commits = value.flatMap((page) =>
-    page.data.repository.pullRequest.commits.nodes.map((node) => {
+  const identities = new Set();
+  let reportedTotal = null;
+  const commits = value.flatMap((page, pageIndex) => {
+    const connection = page.data.repository.pullRequest.commits;
+    reportedTotal ??= connection.totalCount;
+    if (reportedTotal !== connection.totalCount) {
+      throw new Error("GitHub commit total changed during pagination");
+    }
+    const terminal = pageIndex === value.length - 1;
+    if (connection.pageInfo.hasNextPage === terminal) {
+      throw new Error("GitHub commit pagination returned an invalid terminal page");
+    }
+    return connection.nodes.map((node) => {
       const commit = node?.commit;
-      if (typeof commit?.oid !== "string" || typeof commit?.message !== "string") {
+      if (
+        typeof commit?.oid !== "string" ||
+        !commit.oid ||
+        identities.has(commit.oid) ||
+        typeof commit?.message !== "string"
+      ) {
         throw new Error("GitHub commit pagination returned an invalid commit");
       }
+      identities.add(commit.oid);
       return { sha: commit.oid, message: commit.message };
-    }),
-  );
-  if (commits.length !== expectedCount) {
+    });
+  });
+  if (reportedTotal !== expectedCount || commits.length !== expectedCount) {
     throw new Error(`GitHub returned ${commits.length} of ${expectedCount} pull request commits`);
   }
   return commits;
@@ -319,31 +346,14 @@ export function parsePullRequestReference(value, repository) {
   return Number(parts[3]);
 }
 
-function ghApi(endpoint) {
-  const args = ["api", endpoint];
-  const result = spawnSync("gh", args, {
-    cwd: projectRoot,
-    encoding: "utf8",
-    stdio: ["ignore", "pipe", "pipe"],
-    windowsHide: true,
-  });
-  if (result.error) throw result.error;
-  if (result.status !== 0)
-    throw new Error(result.stderr.trim() || `gh api failed with exit ${result.status}`);
-  try {
-    return JSON.parse(result.stdout);
-  } catch (error) {
-    throw new Error(`gh api returned invalid JSON: ${error.message}`);
-  }
-}
-
-function ghCommitPages(repository, number) {
+function ghCommitPages(repository, number, api) {
   const [owner, name] = repository.split("/");
   const query = `
     query($owner: String!, $name: String!, $number: Int!, $endCursor: String) {
       repository(owner: $owner, name: $name) {
         pullRequest(number: $number) {
           commits(first: 100, after: $endCursor) {
+            totalCount
             nodes { commit { oid message } }
             pageInfo { hasNextPage endCursor }
           }
@@ -351,43 +361,31 @@ function ghCommitPages(repository, number) {
       }
     }
   `;
-  const result = spawnSync(
-    "gh",
-    [
-      "api",
-      "graphql",
-      "--paginate",
-      "--slurp",
-      "-f",
-      `query=${query}`,
-      "-f",
-      `owner=${owner}`,
-      "-f",
-      `name=${name}`,
-      "-F",
-      `number=${number}`,
-    ],
-    {
-      cwd: projectRoot,
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "pipe"],
-      windowsHide: true,
-    },
-  );
-  if (result.error) throw result.error;
-  if (result.status !== 0)
-    throw new Error(result.stderr.trim() || `gh api graphql failed with exit ${result.status}`);
-  try {
-    return JSON.parse(result.stdout);
-  } catch (error) {
-    throw new Error(`gh api graphql returned invalid JSON: ${error.message}`);
+  const pages = [];
+  const cursors = new Set();
+  let endCursor = null;
+  for (;;) {
+    const data = api.graphql(query, { owner, name, number, endCursor }).data;
+    const connection = data?.repository?.pullRequest?.commits;
+    pages.push({ data });
+    if (connection?.pageInfo?.hasNextPage !== true) break;
+    endCursor = connection.pageInfo.endCursor;
+    if (!connection.nodes?.length || !endCursor || cursors.has(endCursor)) {
+      throw new Error("GitHub commit pagination did not advance");
+    }
+    cursors.add(endCursor);
   }
+  return pages;
 }
 
-export async function loadLivePullRequest(reference, config) {
+export async function loadLivePullRequest(
+  reference,
+  config,
+  api = new GitHubApiClient(createGitHubRunner({ cwd: projectRoot })),
+) {
   const number = parsePullRequestReference(reference, config.repository);
-  const pull = ghApi(`repos/${config.repository}/pulls/${number}`);
-  const commits = flattenCommitPages(ghCommitPages(config.repository, number), pull.commits);
+  const pull = api.request("GET", `repos/${config.repository}/pulls/${number}`).body;
+  const commits = flattenCommitPages(ghCommitPages(config.repository, number, api), pull.commits);
   return {
     number,
     url: pull.html_url,

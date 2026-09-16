@@ -5,10 +5,12 @@ import test from "node:test";
 import {
   evaluatePullRequest,
   flattenCommitPages,
+  loadLivePullRequest,
   parsePullRequestReference,
   renderFindings,
   validatePrConventionConfig,
 } from "./pr-conventions.mjs";
+import { GitHubApiClient } from "./github-api.mjs";
 
 const config = JSON.parse(
   await readFile(new URL("../.github/pr-conventions.json", import.meta.url)),
@@ -183,12 +185,17 @@ test("commit pagination must be structured and complete", () => {
       repository: {
         pullRequest: {
           commits: {
+            totalCount: 251,
             nodes: Array.from({ length: page < 2 ? 100 : 51 }, (_, index) => ({
               commit: {
                 oid: `${page}-${index}`,
                 message: `chore(repo): paginated commit ${page}-${index}`,
               },
             })),
+            pageInfo: {
+              hasNextPage: page < 2,
+              endCursor: page < 2 ? `cursor-${page}` : null,
+            },
           },
         },
       },
@@ -200,6 +207,65 @@ test("commit pagination must be structured and complete", () => {
   const malformed = structuredClone(pages);
   delete malformed[0].data.repository.pullRequest.commits.nodes[0].commit.message;
   assert.throws(() => flattenCommitPages(malformed, 251), /invalid commit/);
+  const duplicate = structuredClone(pages);
+  duplicate[1].data.repository.pullRequest.commits.nodes[0].commit.oid = "0-0";
+  assert.throws(() => flattenCommitPages(duplicate, 251), /invalid commit/);
+  const unterminated = structuredClone(pages);
+  unterminated.at(-1).data.repository.pullRequest.commits.pageInfo.hasNextPage = true;
+  assert.throws(() => flattenCommitPages(unterminated, 251), /terminal page/);
+});
+
+test("live pull request loading uses the shared JSON-stdin GraphQL transport", async () => {
+  const calls = [];
+  const api = new GitHubApiClient((args, input) => {
+    calls.push({ args, input });
+    if (args[1] === "--include") {
+      return JSON.stringify({
+        number: 608,
+        html_url: "https://github.com/boburning/portcove/pull/608",
+        title: "chore(repo): standardize conventions",
+        body: "body",
+        head: { ref: "chore/conventions", sha: headSha },
+        user: { login: "maintainer" },
+        draft: false,
+        commits: 2,
+      });
+    }
+    const request = JSON.parse(input);
+    const second = request.variables.endCursor !== null;
+    return JSON.stringify({
+      data: {
+        repository: {
+          pullRequest: {
+            commits: {
+              totalCount: 2,
+              nodes: [
+                {
+                  commit: {
+                    oid: second ? "second" : "first",
+                    message: second ? "fix(repo): finish" : "chore(repo): start",
+                  },
+                },
+              ],
+              pageInfo: second
+                ? { hasNextPage: false, endCursor: null }
+                : { hasNextPage: true, endCursor: "next" },
+            },
+          },
+        },
+      },
+    });
+  });
+  const pull = await loadLivePullRequest("608", config, api);
+  assert.deepEqual(
+    pull.commits.map((commit) => commit.sha),
+    ["first", "second"],
+  );
+  const graphqlCalls = calls.filter((call) => call.args[1] === "graphql");
+  assert.equal(graphqlCalls.length, 2);
+  assert.ok(graphqlCalls.every((call) => call.args.includes("--input")));
+  assert.equal(JSON.parse(graphqlCalls[0].input).variables.endCursor, null);
+  assert.equal(JSON.parse(graphqlCalls[1].input).variables.endCursor, "next");
 });
 
 test("pull request references accept repository numbers and URLs only", () => {
