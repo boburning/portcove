@@ -78,6 +78,18 @@ use `gh pr merge --auto --match-head-commit <reviewed-head>`. A changed source
 head requires current-head validation and review; administrator bypass remains
 outside the routine path.
 
+If the shared GraphQL quota prevents `gh pr checks` or the normal CLI merge
+after the pull request is otherwise qualified, keep the reviewed source head
+frozen. Use `just pr-watch --pr <number-or-url> --head <reviewed-head>` to watch
+the five checked-in required contexts through REST. Ready-for-review remains a
+GraphQL or signed-in GitHub UI transition; the REST fallback never simulates it.
+Once the pull request is ready, conflict-free and all exact-head contexts are
+successful, `just pr-merge-rest --pr <number-or-url> --head <reviewed-head>` may
+perform the normal squash merge with the exact SHA guard. It reads the pull
+request back and verifies the merge commit before any retry or local cleanup.
+Server-enforced review threads, permissions and repository rules remain in
+force; this path is not an administrator bypass.
+
 Draft pull requests may say that verification or review is pending. Before a
 pull request becomes ready, update its single description with final evidence
 rather than appending a second narrative. Summarize evidence in GitHub-visible

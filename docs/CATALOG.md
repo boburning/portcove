@@ -131,9 +131,15 @@ declared platform.
 Yu-Gi-Oh! Forbidden Memories v0.6.1 has exact Windows structural and bounded
 automated lifecycle records for its Track 01 contract, checksum-qualified
 artifact, clean managed build, immutable verification, responsive native
-launches, persistence, backup restore, removal, and clean reinstall. Its check
-contract does not claim hands-on gameplay, controls, audio, in-game save/load,
-non-Windows platforms, or v0.5.7-to-v0.6.1 update/rollback. Revelations: Persona
+launches, persistence, backup restore, removal, and clean reinstall. A separate
+current-client exercise covers exact v0.5.7-to-v0.6.1 update, retained-version
+rollback/reactivation, immutable verification, and bounded canonical
+persistence and backup preservation. It does not establish native v0.5.7
+launch, cross-version runtime collection or restore, hands-on gameplay,
+controls, audio, in-game save/load, or non-Windows platforms. The exact scope
+and interrupted-launch limitation are recorded in the
+[cross-version qualification record](qualification/yu-gi-oh-forbidden-memories-recompiled-windows-cross-version-2026-09-15.md).
+Revelations: Persona
 v0.1.1 has exact Windows structural and bounded automated lifecycle records for
 its owned-input artifact and Track 01 contract, including v0.1.0 installation,
 v0.1.1 update, no-op, rollback/reactivation, fail-closed verification, repaired
