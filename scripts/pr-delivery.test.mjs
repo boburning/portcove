@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   PullRequestDeliveryClient,
+  parseArguments,
   parsePullRequestReference,
   requiredContextsFromConfigs,
   watchRequiredChecks,
@@ -70,6 +71,17 @@ test("pull request references are repository-bound and exact", () => {
   assert.equal(parsePullRequestReference("https://github.com/boburning/portcove/pull/7"), 7);
   for (const value of ["0", "#7", "https://github.com/other/repo/pull/7"])
     assert.throws(() => parsePullRequestReference(value), /invalid/);
+});
+
+test("delivery arguments accept opt-in JSON without changing required values", () => {
+  assert.deepEqual(
+    parseArguments(["watch", "--pr", "7", "--json", "--head", head, "--timeout-seconds", "30"]),
+    {
+      command: "watch",
+      options: { "--pr": "7", "--json": true, "--head": head, "--timeout-seconds": "30" },
+    },
+  );
+  assert.throws(() => parseArguments(["merge", "--pr", "7", "--head"]), /invalid argument/);
 });
 
 test("check-run pagination requires complete unique totals", () => {
@@ -209,6 +221,27 @@ test("merge command errors are reconciled through remote readback before retry",
   const result = client.merge(7, head, required);
   assert.equal(result.result.sha, merge);
   assert.match(result.result.message, /readback confirmed/);
+});
+
+test("merge reports unknown when mutation and remote readback are both ambiguous", () => {
+  const client = new PullRequestDeliveryClient();
+  client.requiredCheckState = () => ({
+    pull: pull(),
+    contexts: required.map((context) => ({ context, outcome: "success", conclusion: "success" })),
+  });
+  client.request = () => {
+    throw new Error("connection closed");
+  };
+  client.pull = () => {
+    throw new Error("readback unavailable");
+  };
+  assert.throws(
+    () => client.merge(7, head, required),
+    (error) =>
+      error.operationStatus === "unknown" &&
+      error.operationEvidence.pull_request === 7 &&
+      /outcome is unknown/.test(error.message),
+  );
 });
 
 test("merge refuses draft conflict and incomplete-check states before mutation", () => {

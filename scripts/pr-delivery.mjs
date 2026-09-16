@@ -1,11 +1,24 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { GitHubApiClient, createGitHubRunner } from "./github-api.mjs";
+import {
+  GitHubApiClient,
+  createGitHubRunner,
+  githubOperationEnvelope,
+  sanitizeOperationError,
+} from "./github-api.mjs";
 
 const scriptPath = fileURLToPath(import.meta.url);
 const projectRoot = fileURLToPath(new URL("..", import.meta.url));
 const repository = "boburning/portcove";
+
+function deliveryOutcomeError(status, message, evidence = {}, cause = null) {
+  const error = new Error(message, cause ? { cause } : undefined);
+  error.code = `pr_delivery_${status}`;
+  error.operationStatus = status;
+  error.operationEvidence = evidence;
+  return error;
+}
 
 function exactKeys(value, expected, label) {
   const actual = Object.keys(value ?? {}).sort();
@@ -157,9 +170,12 @@ export class PullRequestDeliveryClient {
     try {
       readback = this.pull(number);
     } catch (error) {
-      throw new Error(
+      throw deliveryOutcomeError(
+        "unknown",
         `merge outcome is unknown after ${requestError?.message ?? "an unexpected response"}; ` +
           `remote readback failed: ${error.message}`,
+        { pull_request: number, head },
+        error,
       );
     }
     if (
@@ -183,10 +199,22 @@ export class PullRequestDeliveryClient {
       readback.head.sha !== head ||
       readback.merge_commit_sha !== result.sha
     ) {
-      throw new Error(
+      throw deliveryOutcomeError(
+        "unknown",
         `merge response is ambiguous${requestError ? ` after ${requestError.message}` : ""}; ` +
           `remote readback: merged=${readback.merged}, ` +
           `state=${readback.state}, head=${readback.head.sha}, merge=${readback.merge_commit_sha}`,
+        {
+          pull_request: number,
+          head,
+          remote: {
+            merged: readback.merged,
+            state: readback.state,
+            head: readback.head.sha,
+            merge_commit_sha: readback.merge_commit_sha,
+          },
+        },
+        requestError,
       );
     }
     return { result, readback, contexts: state.contexts };
@@ -221,15 +249,20 @@ export async function watchRequiredChecks(
   }
 }
 
-function parseArguments(argv) {
+export function parseArguments(argv) {
   const command = argv[0];
   const options = {};
-  for (let index = 1; index < argv.length; index += 2) {
+  for (let index = 1; index < argv.length; index += 1) {
     const name = argv[index];
+    if (name === "--json") {
+      options[name] = true;
+      continue;
+    }
     const value = argv[index + 1];
     if (!name?.startsWith("--") || !value || value.startsWith("--"))
       throw new Error(`invalid argument near ${name ?? "end of command"}`);
     options[name] = value;
+    index += 1;
   }
   return { command, options };
 }
@@ -249,16 +282,21 @@ async function main(argv) {
   if (["help", "--help"].includes(command)) {
     console.log(
       "usage:\n" +
-        "  node scripts/pr-delivery.mjs watch --pr <number-or-url> --head <sha> [--timeout-seconds <seconds>]\n" +
-        "  node scripts/pr-delivery.mjs merge --pr <number-or-url> --head <sha>",
+        "  node scripts/pr-delivery.mjs watch --pr <number-or-url> --head <sha> [--timeout-seconds <seconds>] [--json]\n" +
+        "  node scripts/pr-delivery.mjs merge --pr <number-or-url> --head <sha> [--json]",
     );
     return;
   }
   exactKeys(
     options,
     command === "watch"
-      ? ["--head", "--pr", ...(options["--timeout-seconds"] ? ["--timeout-seconds"] : [])]
-      : ["--head", "--pr"],
+      ? [
+          "--head",
+          "--pr",
+          ...(options["--timeout-seconds"] ? ["--timeout-seconds"] : []),
+          ...(options["--json"] ? ["--json"] : []),
+        ]
+      : ["--head", "--pr", ...(options["--json"] ? ["--json"] : [])],
     `${command} options`,
   );
   const number = parsePullRequestReference(options["--pr"]);
@@ -276,18 +314,60 @@ async function main(argv) {
       requiredContexts: contexts,
       timeoutSeconds,
     });
-    console.log(
-      `Pull request #${number} exact head ${head} passed required checks: ${state.contexts
-        .map((context) => context.context)
-        .join(", ")}.`,
-    );
+    const summary = `Pull request #${number} exact head ${head} passed required checks: ${state.contexts
+      .map((context) => context.context)
+      .join(", ")}.`;
+    if (options["--json"]) {
+      console.log(
+        JSON.stringify(
+          githubOperationEnvelope({
+            operation: "pr-delivery.watch",
+            status: "succeeded",
+            summary,
+            evidence: {
+              pull_request: number,
+              head,
+              contexts: state.contexts.map(({ context, conclusion }) => ({
+                context,
+                conclusion,
+              })),
+            },
+          }),
+        ),
+      );
+    } else {
+      console.log(summary);
+    }
     return;
   }
   if (command === "merge") {
     const merged = client.merge(number, head, contexts);
-    console.log(
-      `Merged pull request #${number} at exact head ${head} as ${merged.result.sha}; remote readback confirmed.`,
-    );
+    const summary =
+      `Merged pull request #${number} at exact head ${head} as ${merged.result.sha}; ` +
+      "remote readback confirmed.";
+    if (options["--json"]) {
+      console.log(
+        JSON.stringify(
+          githubOperationEnvelope({
+            operation: "pr-delivery.merge",
+            status: "succeeded",
+            summary,
+            evidence: {
+              pull_request: number,
+              head,
+              merge_commit_sha: merged.result.sha,
+              contexts: merged.contexts.map(({ context, conclusion }) => ({
+                context,
+                conclusion,
+              })),
+              remote_readback: true,
+            },
+          }),
+        ),
+      );
+    } else {
+      console.log(summary);
+    }
     return;
   }
   throw new Error(`unknown command: ${command}`);
@@ -297,7 +377,21 @@ if (process.argv[1] && path.resolve(process.argv[1]) === scriptPath) {
   try {
     await main(process.argv.slice(2));
   } catch (error) {
-    console.error(`pr-delivery: ${error.message}`);
+    const safeError = sanitizeOperationError(error);
+    if (process.argv.slice(3).includes("--json")) {
+      console.log(
+        JSON.stringify(
+          githubOperationEnvelope({
+            operation: `pr-delivery.${process.argv[2] ?? "unknown"}`,
+            status: error.operationStatus ?? "failed",
+            summary: safeError.message,
+            evidence: error.operationEvidence ?? {},
+            error,
+          }),
+        ),
+      );
+    }
+    console.error(`pr-delivery: ${safeError.message}`);
     process.exitCode = 1;
   }
 }

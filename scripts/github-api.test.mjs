@@ -5,9 +5,11 @@ import {
   GitHubApiClient,
   GitHubApiError,
   createGitHubRunner,
+  githubOperationEnvelope,
   nextLink,
   parseIncludedResponse,
   rateLimitFromResponse,
+  sanitizeOperationError,
 } from "./github-api.mjs";
 
 test("included GitHub responses expose the final headers body and rate limit", () => {
@@ -159,6 +161,34 @@ test("the shared runner preserves command failures without echoing stdin", () =>
       error.code === "command_failed" &&
       error.message === "request rejected" &&
       !error.message.includes("secret query"),
+  );
+});
+
+test("operation envelopes share one stable schema and redact credential-shaped errors", () => {
+  assert.deepEqual(
+    githubOperationEnvelope({
+      operation: "roadmap.set-many",
+      status: "partial",
+      summary: "one chunk remains",
+      evidence: { completed: 25, remaining: 1 },
+      error: Object.assign(new Error("authorization: github_pat_secret"), { code: "quota" }),
+    }),
+    {
+      schema_version: 1,
+      operation: "roadmap.set-many",
+      status: "partial",
+      summary: "one chunk remains",
+      evidence: { completed: 25, remaining: 1 },
+      error: { code: "quota", message: "authorization=[REDACTED]" },
+    },
+  );
+  assert.deepEqual(sanitizeOperationError(new Error("token=ghp_secret")), {
+    code: "operation_failed",
+    message: "token=[REDACTED]",
+  });
+  assert.throws(
+    () => githubOperationEnvelope({ operation: "x", status: "waiting", summary: "x" }),
+    /unsupported operation status/,
   );
 });
 
