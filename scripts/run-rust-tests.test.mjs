@@ -207,6 +207,46 @@ for (const [signal, expectedStatus] of [
   });
 }
 
+test("cancellation during registration never opens the supervisor gate", async () => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), "portcove-rust-runner-"));
+  const signalTarget = new EventEmitter();
+  const events = [];
+  let managed;
+  try {
+    const status = await runRustTests([], {
+      tempRoot,
+      platform: "linux",
+      signalTarget,
+      spawnSync: () => ({ status: 0 }),
+      spawn: () => {
+        managed = childProcess(714, null);
+        return managed;
+      },
+      writeGate: () => assert.fail("cancelled registration must not open the gate"),
+      killProcess: (pid, signal) => {
+        events.push(`kill:${pid}:${signal}`);
+        queueMicrotask(() => managed.emit("close", 1));
+        return true;
+      },
+      acquireLock: async () => ({
+        inherited: false,
+        childEnvironment: {},
+        registerChild: async () => {
+          signalTarget.emit("SIGINT");
+          return { pid: 714 };
+        },
+        release: async () => events.push("release"),
+      }),
+    });
+    assert.equal(status, 130);
+    assert.deepEqual(events, ["kill:-714:SIGKILL", "release"]);
+    assert.equal(signalTarget.listenerCount("SIGINT"), 0);
+    assert.equal(signalTarget.listenerCount("SIGTERM"), 0);
+  } finally {
+    await rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
 test("runner preserves a fast nextest exit when registration observes no live child", async () => {
   const tempRoot = await mkdtemp(path.join(os.tmpdir(), "portcove-rust-runner-"));
   let released = false;

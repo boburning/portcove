@@ -330,6 +330,10 @@ export async function runRustTests(args, dependencies = {}) {
       await proveQuiescence(false);
       return cancellation.requested() ? cancellationExitCode(cancellation.requested()) : status;
     }
+    if (cancellation.requested()) {
+      await proveQuiescence(true);
+      return cancellationExitCode(cancellation.requested());
+    }
     try {
       (dependencies.writeGate ?? writeFileSync)(gatePath, "registered\n", { flag: "wx" });
       gateOpened = true;
