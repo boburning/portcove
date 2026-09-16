@@ -2053,7 +2053,35 @@ describe("desktop components", () => {
     expect(html).not.toMatch(/activity-status">(?:succeeded|failed|cancelled|unfinished|running)</);
     expect(html).toContain("No completion recorded");
     expect(html).toContain('<button data-focusable="true">sample-rom</button>');
-    expect(html).toContain("Completed, failed, and interrupted work recorded on this device");
+    expect(html).toContain("Activity from the CLI and desktop appears here.");
+  });
+
+  it("explains empty update and activity states without internal lifecycle jargon", () => {
+    const html = renderToStaticMarkup(
+      <UpdateCenter
+        generation={1}
+        ports={[]}
+        statuses={new Map()}
+        activities={[]}
+        outcomes={[]}
+        diagnosticsRefreshing={false}
+        diagnosticsStale={false}
+        refreshDiagnostics={vi.fn()}
+        checkAll={vi.fn()}
+        onSelect={vi.fn()}
+        onOpenSources={vi.fn()}
+      />,
+    );
+    expect(html).toContain(
+      "Install a port or copy in an existing installation first. Portcove will then show its update channel, update setting, latest available release, and previous installed version here.",
+    );
+    expect(html).toContain("Activity from the CLI and desktop appears here.");
+    expect(html).toContain("No activity yet");
+    expect(html).toContain(
+      "Installs, updates, verification, restored versions, copied installations, and failures will appear here.",
+    );
+    expect(html.toLowerCase()).not.toContain("adopt");
+    expect(html).not.toContain("No operations recorded yet");
   });
 
   it("distinguishes never-loaded and stale recovery diagnostics from a healthy empty report", () => {
