@@ -1410,6 +1410,16 @@ pub fn run_hidden_helper() -> Option<i32> {
     let mut arguments = std::env::args_os();
     let _program = arguments.next();
     match arguments.next().as_deref() {
+        #[cfg(any(feature = "qualification-fixtures", test))]
+        Some(mode) if mode == "--portcove-adapter-conformance-statuses" => {
+            let library = arguments.next().map(PathBuf::from);
+            Some(match library {
+                Some(library) if arguments.next().is_none() => {
+                    run_adapter_conformance_statuses(&library)
+                }
+                _ => 2,
+            })
+        }
         Some(mode) if application_update_recovery::is_mode(mode) => {
             Some(application_update_recovery::run(arguments))
         }
@@ -1446,6 +1456,33 @@ pub fn run_hidden_helper() -> Option<i32> {
             })
         }
         _ => None,
+    }
+}
+
+#[cfg(any(feature = "qualification-fixtures", test))]
+fn adapter_conformance_statuses(library: &Path) -> DesktopResult<Vec<PortStatus>> {
+    let library = Library::open(library).map_err(DesktopError::from)?;
+    let service = PortcoveService::new(library).map_err(DesktopError::from)?;
+    statuses_with_service(&service)
+}
+
+#[cfg(any(feature = "qualification-fixtures", test))]
+fn run_adapter_conformance_statuses(library: &Path) -> i32 {
+    match adapter_conformance_statuses(library) {
+        Ok(statuses) => match serde_json::to_string(&statuses) {
+            Ok(statuses) => {
+                println!("{statuses}");
+                0
+            }
+            Err(error) => {
+                eprintln!("Could not serialize Desktop adapter statuses: {error}");
+                1
+            }
+        },
+        Err(error) => {
+            eprintln!("Could not read Desktop adapter statuses: {error:?}");
+            1
+        }
     }
 }
 
@@ -2321,15 +2358,21 @@ mod tests {
     #[test]
     fn desktop_statuses_are_the_exact_core_results() {
         let temporary = tempfile::tempdir().unwrap();
-        let library = Library::open(temporary.path().join("library")).unwrap();
+        let library_root = temporary.path().join("library");
+        let library = Library::open(&library_root).unwrap();
         let service = PortcoveService::new(library).unwrap();
 
         let core = service.statuses().unwrap();
         let desktop = statuses_with_service(&service).unwrap();
+        let qualification = adapter_conformance_statuses(&library_root).unwrap();
 
         assert_eq!(
-            serde_json::to_value(desktop).unwrap(),
-            serde_json::to_value(core).unwrap()
+            serde_json::to_value(&desktop).unwrap(),
+            serde_json::to_value(&core).unwrap()
+        );
+        assert_eq!(
+            serde_json::to_value(&qualification).unwrap(),
+            serde_json::to_value(&core).unwrap()
         );
     }
 
