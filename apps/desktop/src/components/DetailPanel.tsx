@@ -699,10 +699,11 @@ function testingCoverageLabel(
   completed: PortDefinition["platforms"],
   emptyLabel: string,
 ) {
-  if (completed.length === 0) return emptyLabel;
   const completedSet = new Set(completed);
+  const recorded = supported.filter((platform) => completedSet.has(platform));
+  if (recorded.length === 0) return emptyLabel;
   const unrecorded = supported.filter((platform) => !completedSet.has(platform));
-  const completedLabel = completed.map((platform) => platformLabel(platform)).join(" · ");
+  const completedLabel = recorded.map((platform) => platformLabel(platform)).join(" · ");
   return unrecorded.length === 0
     ? completedLabel
     : `${completedLabel} · Not recorded: ${unrecorded.map((platform) => platformLabel(platform)).join(" · ")}`;

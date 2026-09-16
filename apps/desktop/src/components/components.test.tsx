@@ -1266,9 +1266,9 @@ describe("desktop components", () => {
   it("scopes mixed testing evidence without letting evidence choose the install action", () => {
     const mixedEvidencePort = {
       ...port,
-      platforms: ["windows-x86-64", "linux-x86-64"],
-      automated_tested_platforms: ["windows-x86-64"],
-      manually_validated_platforms: ["linux-x86-64"],
+      platforms: ["windows-x86-64", "linux-x86-64", "macos-aarch64"],
+      automated_tested_platforms: ["linux-x86-64", "windows-x86-64", "windows-x86-64"],
+      manually_validated_platforms: ["windows-x86-64", "windows-x86-64"],
       source_profile: null,
     } satisfies PortDefinition;
     const renderDetails = (action: InstallPlan["action"]) =>
@@ -1283,19 +1283,23 @@ describe("desktop components", () => {
       );
 
     const eligible = renderDetails("download");
-    expect(eligible).toContain("Windows · Not recorded: Linux");
-    expect(eligible).toContain("Linux · Not recorded: Windows");
+    expect(eligible).toContain("Windows · Linux · Not recorded: Apple silicon");
+    expect(eligible).toContain("Windows · Not recorded: Linux · Apple silicon");
     const installLabel = eligible.indexOf("Install · 64.0 MiB");
+    expect(installLabel).toBeGreaterThanOrEqual(0);
     const installButton = eligible.lastIndexOf("<button", installLabel);
+    expect(installButton).toBeGreaterThanOrEqual(0);
     expect(eligible.slice(installButton, eligible.indexOf(">", installButton))).not.toContain(
       "disabled",
     );
 
     const blocked = renderDetails("blocked_unverified");
-    expect(blocked).toContain("Windows · Not recorded: Linux");
-    expect(blocked).toContain("Linux · Not recorded: Windows");
+    expect(blocked).toContain("Windows · Linux · Not recorded: Apple silicon");
+    expect(blocked).toContain("Windows · Not recorded: Linux · Apple silicon");
     const blockedLabel = blocked.indexOf("Unverified copy blocks install");
+    expect(blockedLabel).toBeGreaterThanOrEqual(0);
     const blockedButton = blocked.lastIndexOf("<button", blockedLabel);
+    expect(blockedButton).toBeGreaterThanOrEqual(0);
     expect(blocked.slice(blockedButton, blocked.indexOf(">", blockedButton))).toContain("disabled");
   });
 
