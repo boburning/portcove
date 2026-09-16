@@ -1373,7 +1373,7 @@ mod tests {
             serde_json::to_value(expected_ports).unwrap()
         );
         let qualification = &migrated.source_catalog().unwrap().qualification;
-        assert_eq!(qualification.len(), 10);
+        assert_eq!(qualification.len(), 11);
         assert_eq!(
             qualification
                 .iter()
@@ -1388,7 +1388,7 @@ mod tests {
                     record.scope.port_id == "yu-gi-oh-forbidden-memories-recompiled"
                 })
                 .count(),
-            2
+            3
         );
         assert_eq!(
             qualification
@@ -2922,20 +2922,32 @@ mod tests {
             .unwrap()
             .qualification
             .iter()
-            .find(|record| {
+            .filter(|record| {
                 record.scope == scope
                     && record.kind == crate::SourceEvidenceKind::AutomatedLifecycle
             })
-            .expect("Yu-Gi-Oh automated lifecycle evidence should exist");
+            .collect::<Vec<_>>();
+        assert_eq!(automated.len(), 2);
         assert_eq!(
-            automated.portcove_commit.as_deref(),
+            automated[0].portcove_commit.as_deref(),
+            Some("327626b154a45f2af52de77ab06fae54c4794ef2")
+        );
+        assert_eq!(
+            automated[1].portcove_commit.as_deref(),
             Some("6bf60b6e0f24a1eef7a7efcfdb181a6cc2692cef")
         );
-        assert!(automated.evidence_ids.iter().any(|evidence_id| {
+        assert!(automated[0].evidence_ids.iter().any(|evidence_id| {
+            evidence_id == "yu-gi-oh-forbidden-memories-recompiled-windows-2026-09-15"
+        }));
+        assert!(automated[1].evidence_ids.iter().any(|evidence_id| {
             evidence_id == "yu-gi-oh-forbidden-memories-recompiled-windows-cross-version-2026-09-15"
         }));
-        assert!(automated.method.contains("v0.5.7-to-v0.6.1 update"));
-        assert!(automated.method.contains("retained-version reactivation"));
+        assert!(automated[1].method.contains("v0.5.7-to-v0.6.1 update"));
+        assert!(
+            automated[1]
+                .method
+                .contains("retained-version reactivation")
+        );
     }
 
     #[test]
