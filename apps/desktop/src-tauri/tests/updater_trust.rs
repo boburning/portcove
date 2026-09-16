@@ -497,6 +497,13 @@ fn persisted_roles(path: &Path) -> serde_json::Value {
     serde_json::from_slice::<serde_json::Value>(&fs::read(path).unwrap()).unwrap()["roles"].clone()
 }
 
+fn persisted_root_version(path: &Path) -> u64 {
+    serde_json::from_slice::<serde_json::Value>(&fs::read(path).unwrap()).unwrap()["root"]
+        ["version"]
+        .as_u64()
+        .unwrap()
+}
+
 async fn select_fixture_with_host_consumer(
     fixture: &Fixture,
     trusted: &[u8],
@@ -1788,4 +1795,76 @@ async fn channel_role_authenticates_keys_and_transition_candidates() {
                 .await;
         }
     }
+
+    assert_eq!(persisted_root_version(&host_state), 1);
+    let next_root = f.root(2, &f.offline, &f.online).await;
+    let valid_next_root = f.sign_root(&next_root, &root, &f.offline).await;
+    let mut missing_signature_root: serde_json::Value =
+        serde_json::from_slice(&valid_next_root).unwrap();
+    missing_signature_root["signatures"] = serde_json::json!([]);
+    let missing_signature_root = serde_json::to_vec_pretty(&missing_signature_root).unwrap();
+    assert_eq!(
+        serde_json::from_slice::<serde_json::Value>(&missing_signature_root).unwrap()["signed"],
+        serde_json::from_slice::<serde_json::Value>(&valid_next_root).unwrap()["signed"]
+    );
+    fs::write(f.metadata.join("2.root.json"), missing_signature_root).unwrap();
+
+    let error = ApplicationUpdateFreshSelectionProvider::select(&provider, &stable_choice)
+        .await
+        .unwrap_err();
+    assert_consumer_rejected_top_level_signature(error, RoleType::Root);
+    assert_eq!(persisted_root_version(&host_state), 1);
+    assert_eq!(persisted_roles(&host_state), roles_after_refresh);
+
+    fs::write(f.metadata.join("2.root.json"), &valid_next_root).unwrap();
+    let recovered = ApplicationUpdateFreshSelectionProvider::select(&provider, &stable_choice)
+        .await
+        .unwrap();
+    assert_consumer_selected_version(recovered, &skipped_context, "1.1.0");
+    assert_eq!(persisted_root_version(&host_state), 2);
+    assert_eq!(persisted_roles(&host_state), roles_after_refresh);
+
+    let latest_root = f.root(3, &f.offline, &f.online).await;
+    let valid_latest_root = f.sign_root(&latest_root, &next_root, &f.offline).await;
+    let foreign_root_authority = f
+        .root(
+            3,
+            &[release.clone(), promotion.clone(), preview.clone()],
+            &f.online,
+        )
+        .await;
+    let wrong_key_root = f
+        .sign_root(
+            &latest_root,
+            &foreign_root_authority,
+            &[release.clone(), promotion.clone()],
+        )
+        .await;
+    let valid_latest_document: serde_json::Value =
+        serde_json::from_slice(&valid_latest_root).unwrap();
+    let wrong_key_document: serde_json::Value = serde_json::from_slice(&wrong_key_root).unwrap();
+    assert_eq!(
+        wrong_key_document["signed"],
+        valid_latest_document["signed"]
+    );
+    assert_ne!(
+        wrong_key_document["signatures"],
+        valid_latest_document["signatures"]
+    );
+    fs::write(f.metadata.join("3.root.json"), wrong_key_root).unwrap();
+
+    let error = ApplicationUpdateFreshSelectionProvider::select(&provider, &stable_choice)
+        .await
+        .unwrap_err();
+    assert_consumer_rejected_top_level_signature(error, RoleType::Root);
+    assert_eq!(persisted_root_version(&host_state), 2);
+    assert_eq!(persisted_roles(&host_state), roles_after_refresh);
+
+    fs::write(f.metadata.join("3.root.json"), valid_latest_root).unwrap();
+    let recovered = ApplicationUpdateFreshSelectionProvider::select(&provider, &stable_choice)
+        .await
+        .unwrap();
+    assert_consumer_selected_version(recovered, &skipped_context, "1.1.0");
+    assert_eq!(persisted_root_version(&host_state), 3);
+    assert_eq!(persisted_roles(&host_state), roles_after_refresh);
 }
