@@ -1536,6 +1536,7 @@ describe("desktop components", () => {
       ...port,
       upstream_status: "retired",
       channels: ["stable"],
+      executable_hints: { "windows-x86-64": ["sample.exe"] },
       release: {
         provider: "direct-manifest",
         repository: "",
