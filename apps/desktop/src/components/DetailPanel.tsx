@@ -1398,7 +1398,7 @@ function MaintenanceActions({
         }}
       >
         <Icon glyph={ShieldCheck} />
-        Verify
+        Verify installation
       </button>
       <button
         data-focusable
@@ -1409,7 +1409,7 @@ function MaintenanceActions({
         }}
       >
         <Icon glyph={RotateCcw} />
-        Rollback
+        Restore previous version
       </button>
       <RemovalControl
         key={`${port.id}:${libraryGeneration}`}
@@ -1428,7 +1428,7 @@ function DataActions({ busy, actions }: { busy?: string; actions: DetailActions 
       <button
         data-focusable
         className="button-with-icon"
-        title="Create a versioned backup of saves and settings"
+        title="Back up saves and settings"
         disabled={Boolean(busy)}
         onClick={() => {
           void actions.backup();
@@ -1464,7 +1464,7 @@ function UpdateCheckAction({ busy, check }: { busy?: string; check: DetailAction
         }}
       >
         <Icon glyph={RefreshCw} />
-        Check update
+        Check for updates
       </button>
     </div>
   );
