@@ -41,29 +41,39 @@ inventories match. Cargo still checks the native build and every selected native
 scenario still runs; see [Development tools](DEVELOPMENT-TOOLS.md) for the cache
 boundary and retained evidence.
 
-| Scope                                | Command                            | Purpose                                                                                                                                       |
-| ------------------------------------ | ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| Plan or run a coherent local change  | `just local-check [--plan]`        | select formatting, affected Rust packages, related UI tests, and exact tooling contracts from the complete local diff                         |
-| Focus a Rust edit-test loop          | `just test-rust <args>`            | pass an explicit package, target, or test-name selection through the pinned nextest fixture runner                                            |
-| Focus a UI edit-test loop            | `just test-ui-related <files>`     | run Vitest tests related through the import graph to explicit changed source files with the standard isolation and timing contract            |
-| Focus a Node tooling edit-test loop  | `just test-node <test-files>`      | run explicit Node test files with the standard hang guard and duration reporter                                                               |
-| Format supported files               | `just fmt`                         | rewrite Rust, frontend, configuration, and active documentation with the repository-pinned formatters                                         |
-| Verify all formatting                | `just fmt-check`                   | check the complete formatting contract without changing files                                                                                 |
-| Exhaustive local Rust investigation  | `just check-rust`                  | prune this workspace's disposable incremental cache, then format, compile, Clippy, tests, unused dependencies/files, and crate boundaries     |
-| Exhaustive local UI investigation    | `just check-ui`                    | Oxfmt, type-aware Oxlint, Stylelint, production build, tests, and the existing Fallow gate                                                    |
-| Playnite reference change (Windows)  | `just playnite-check`              | locked SDK/reference-assembly builds, literal process arguments and public protocol regression fixtures; optional isolated compiled-CLI reads |
-| Exhaustive source/repository check   | `just check`                       | Rust, UI, script/workflow lint, repository tooling, Roadmap, and development-tool contracts; excludes release qualification                   |
-| Deterministic release-unit check     | `just release-check`               | release metadata, packaging, updater, channel, workflow, and Windows qualification unit contracts                                             |
-| Packaged Windows qualification       | `just windows-qualification-check` | stateful Windows packaged-session integration; always observed rather than reused                                                             |
-| Release or explicit transition audit | `just audit [--plan\|--fresh]`     | staged exhaustive check, dependency policy, rscheck, release units, and applicable Windows qualification                                      |
-| Large structural investigation       | `just deep`                        | audit plus advisory Hawk and semdup analysis                                                                                                  |
-| Explicit cycle investigation         | `just cycles`                      | optional advisory module-cycle report                                                                                                         |
-| Critical core test review            | `just mutants`                     | optional mutation analysis for `portcove-core`                                                                                                |
+| Scope                                | Command                               | Purpose                                                                                                                                       |
+| ------------------------------------ | ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| Plan or run a coherent local change  | `just` or `just local-check [--plan]` | select formatting, affected Rust packages, related UI tests, and exact tooling contracts from the complete local diff                         |
+| Focus a Rust edit-test loop          | `just test-rust <args>`               | pass an explicit package, target, or test-name selection through the pinned nextest fixture runner                                            |
+| Focus a UI edit-test loop            | `just test-ui-related <files>`        | run Vitest tests related through the import graph to explicit changed source files with the standard isolation and timing contract            |
+| Focus a Node tooling edit-test loop  | `just test-node <test-files>`         | run explicit Node test files with the standard hang guard and duration reporter                                                               |
+| Format supported files               | `just fmt`                            | rewrite Rust, frontend, configuration, and active documentation with the repository-pinned formatters                                         |
+| Verify all formatting                | `just fmt-check`                      | check the complete formatting contract without changing files                                                                                 |
+| Standalone workspace type check      | `just rust-check`                     | run Cargo check for every workspace target when that isolated diagnostic is useful                                                            |
+| Exhaustive local Rust investigation  | `just check-rust`                     | preserve incremental reuse while running formatting, warnings-denied Clippy, tests, doctests, unused dependencies/files, and crate boundaries |
+| Explicit incremental-cache cleanup   | `just prune-incremental`              | safely remove only this workspace's disposable Cargo incremental state when storage or corruption evidence justifies cleanup                  |
+| Exhaustive local UI investigation    | `just check-ui`                       | Oxfmt, type-aware Oxlint, Stylelint, production build, tests, and the existing Fallow gate                                                    |
+| Playnite reference change (Windows)  | `just playnite-check`                 | locked SDK/reference-assembly builds, literal process arguments and public protocol regression fixtures; optional isolated compiled-CLI reads |
+| Exhaustive source/repository check   | `just check`                          | Rust, UI, script/workflow lint, repository tooling, Roadmap, and development-tool contracts; excludes release qualification                   |
+| Deterministic release-unit check     | `just release-check`                  | release metadata, packaging, updater, channel, workflow, and Windows qualification unit contracts                                             |
+| Packaged Windows qualification       | `just windows-qualification-check`    | stateful Windows packaged-session integration; always observed rather than reused                                                             |
+| Release or explicit transition audit | `just audit [--plan\|--fresh]`        | staged exhaustive check, dependency policy, rscheck, release units, and applicable Windows qualification                                      |
+| Large structural investigation       | `just deep`                           | audit plus advisory Hawk and semdup analysis                                                                                                  |
+| Explicit cycle investigation         | `just cycles`                         | optional advisory module-cycle report                                                                                                         |
+| Critical core test review            | `just mutants`                        | optional mutation analysis for `portcove-core`                                                                                                |
+
+The exhaustive Rust aggregate does not run standalone `cargo check` immediately
+before Clippy. Its warnings-denied `cargo clippy --workspace --all-targets -- -D
+warnings` invocation compiles and type-checks the same workspace target set, then
+adds lint enforcement. `just rust-check` remains available when an isolated Cargo
+check is the intended diagnostic.
 
 ## Local feedback and hosted authority
 
 Portcove uses three validation tiers. The inner loop runs only the test or test
-files that exercise the edit. A coherent pre-push check uses `just local-check`,
+files that exercise the edit. Bare `just` invokes the same complete diff-selected
+plan as `just local-check`; use `just local-check --plan` to inspect it without
+execution. A coherent pre-push check uses `just local-check`,
 which compares the merge base with `origin/main` by default and includes
 committed branch changes, staged and unstaged changes, renames, deletions, and
 non-ignored untracked files. Pass `--base <revision>` when another reviewed base
