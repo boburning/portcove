@@ -1,6 +1,5 @@
 import { existsSync, renameSync, writeFileSync } from "node:fs";
 import { spawn } from "node:child_process";
-import path from "node:path";
 
 const [, , gatePath, statusPath, command, ...args] = process.argv;
 if (!gatePath || !statusPath || !command) {
