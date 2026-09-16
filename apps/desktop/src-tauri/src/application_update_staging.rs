@@ -6,11 +6,17 @@
 use std::collections::BTreeSet;
 use std::fs::{self, File, OpenOptions};
 use std::path::{Path, PathBuf};
+#[cfg(feature = "application-update-qualification")]
+use std::pin::Pin;
 use std::sync::{Mutex, OnceLock};
+#[cfg(feature = "application-update-qualification")]
+use std::task::{Context, Poll};
 
 use fs2::FileExt;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
+#[cfg(feature = "application-update-qualification")]
+use tokio::io::AsyncWrite;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWriteExt};
 
 use crate::application_update::{
@@ -136,6 +142,62 @@ pub struct ApplicationUpdateStagingStore {
     root: PathBuf,
     #[cfg(feature = "application-update-qualification")]
     controlled_available_space: Option<u64>,
+    #[cfg(feature = "application-update-qualification")]
+    controlled_write_failure_after: Option<u64>,
+}
+
+#[cfg(feature = "application-update-qualification")]
+struct ControlledStagingWriter<'a> {
+    inner: &'a mut tokio::fs::File,
+    remaining: u64,
+}
+
+#[cfg(feature = "application-update-qualification")]
+impl ControlledStagingWriter<'_> {
+    fn new(inner: &mut tokio::fs::File, remaining: u64) -> ControlledStagingWriter<'_> {
+        ControlledStagingWriter { inner, remaining }
+    }
+}
+
+#[cfg(feature = "application-update-qualification")]
+impl AsyncWrite for ControlledStagingWriter<'_> {
+    fn poll_write(
+        mut self: Pin<&mut Self>,
+        context: &mut Context<'_>,
+        buffer: &[u8],
+    ) -> Poll<std::io::Result<usize>> {
+        if buffer.is_empty() {
+            return Poll::Ready(Ok(0));
+        }
+        if self.remaining == 0 {
+            return Poll::Ready(Err(std::io::Error::new(
+                std::io::ErrorKind::StorageFull,
+                "controlled application-update staging write failure",
+            )));
+        }
+
+        let permitted = usize::try_from(self.remaining.min(buffer.len() as u64))
+            .expect("permitted write length is bounded by the input buffer");
+        let result = Pin::new(&mut *self.inner).poll_write(context, &buffer[..permitted]);
+        if let Poll::Ready(Ok(written)) = result {
+            self.remaining -= written as u64;
+        }
+        result
+    }
+
+    fn poll_flush(
+        mut self: Pin<&mut Self>,
+        context: &mut Context<'_>,
+    ) -> Poll<std::io::Result<()>> {
+        Pin::new(&mut *self.inner).poll_flush(context)
+    }
+
+    fn poll_shutdown(
+        mut self: Pin<&mut Self>,
+        context: &mut Context<'_>,
+    ) -> Poll<std::io::Result<()>> {
+        Pin::new(&mut *self.inner).poll_shutdown(context)
+    }
 }
 
 struct ProcessStagingLock {
@@ -194,6 +256,8 @@ impl ApplicationUpdateStagingStore {
             root,
             #[cfg(feature = "application-update-qualification")]
             controlled_available_space: None,
+            #[cfg(feature = "application-update-qualification")]
+            controlled_write_failure_after: None,
         })
     }
 
@@ -204,6 +268,16 @@ impl ApplicationUpdateStagingStore {
     #[must_use]
     pub fn with_controlled_available_space(mut self, available: u64) -> Self {
         self.controlled_available_space = Some(available);
+        self
+    }
+
+    /// Forces the private incoming writer to fail after a bounded number of
+    /// bytes in controlled qualification. The effective boundary is clamped
+    /// below the authenticated payload length, so this can only inject failure.
+    #[cfg(feature = "application-update-qualification")]
+    #[must_use]
+    pub fn with_controlled_write_failure_after(mut self, bytes: u64) -> Self {
+        self.controlled_write_failure_after = Some(bytes);
         self
     }
 
@@ -312,18 +386,28 @@ impl ApplicationUpdateStagingStore {
             }
         };
         let mut incoming = tokio::fs::File::from_std(incoming);
-        let identity =
-            match verify_payload_to_writer(reader, &mut incoming, &candidate.release.artifact, key)
+        #[cfg(feature = "application-update-qualification")]
+        let verification = if let Some(requested) = self.controlled_write_failure_after {
+            let failure_after =
+                controlled_write_failure_after(candidate.release.artifact.bytes, requested);
+            let mut controlled = ControlledStagingWriter::new(&mut incoming, failure_after);
+            verify_payload_to_writer(reader, &mut controlled, &candidate.release.artifact, key)
                 .await
-            {
-                Ok(identity) => identity,
-                Err(error) => {
-                    drop(incoming);
-                    let _ = remove_direct_file(&incoming_path);
-                    self.restore_previous(previous.as_ref())?;
-                    return Err(error.into());
-                }
-            };
+        } else {
+            verify_payload_to_writer(reader, &mut incoming, &candidate.release.artifact, key).await
+        };
+        #[cfg(not(feature = "application-update-qualification"))]
+        let verification =
+            verify_payload_to_writer(reader, &mut incoming, &candidate.release.artifact, key).await;
+        let identity = match verification {
+            Ok(identity) => identity,
+            Err(error) => {
+                drop(incoming);
+                let _ = remove_direct_file(&incoming_path);
+                self.restore_previous(previous.as_ref())?;
+                return Err(error.into());
+            }
+        };
         if let Err(error) = async {
             incoming.flush().await?;
             incoming.sync_all().await
@@ -663,6 +747,11 @@ fn required_staging_bytes(payload_bytes: u64) -> Result<u64, ApplicationUpdateSt
 #[cfg(feature = "application-update-qualification")]
 fn controlled_available_space(observed: u64, controlled: Option<u64>) -> u64 {
     controlled.map_or(observed, |available| observed.min(available))
+}
+
+#[cfg(feature = "application-update-qualification")]
+fn controlled_write_failure_after(payload_bytes: u64, requested: u64) -> u64 {
+    requested.min(payload_bytes.saturating_sub(1))
 }
 
 fn validate_journal(journal: &StagingJournal) -> Result<(), ApplicationUpdateStagingError> {
@@ -1036,5 +1125,24 @@ mod tests {
         assert_eq!(controlled_available_space(4, None), 4);
         assert_eq!(controlled_available_space(4, Some(0)), 0);
         assert_eq!(controlled_available_space(4, Some(u64::MAX)), 4);
+    }
+
+    #[cfg(feature = "application-update-qualification")]
+    #[tokio::test]
+    async fn controlled_write_failure_is_partial_and_fail_only() {
+        assert_eq!(controlled_write_failure_after(4, 0), 0);
+        assert_eq!(controlled_write_failure_after(4, 2), 2);
+        assert_eq!(controlled_write_failure_after(4, u64::MAX), 3);
+
+        let temporary = tempfile::tempdir().unwrap();
+        let path = temporary.path().join("partial");
+        let mut file = tokio::fs::File::create(&path).await.unwrap();
+        let mut writer = ControlledStagingWriter::new(&mut file, 2);
+        let error = writer.write_all(b"test").await.unwrap_err();
+        assert_eq!(error.kind(), std::io::ErrorKind::StorageFull);
+        drop(writer);
+        file.flush().await.unwrap();
+        drop(file);
+        assert_eq!(fs::read(path).unwrap(), b"te");
     }
 }

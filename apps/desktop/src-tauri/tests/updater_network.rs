@@ -765,6 +765,29 @@ async fn controlled_payload_staging_preserves_verified_bytes_and_recovers() {
     assert_eq!(preserved.candidate, previous);
     assert_eq!(fs::read(&preserved.payload_path).unwrap(), payload);
 
+    let write_limited = ApplicationUpdateStagingStore::new(staging_root.clone())
+        .unwrap()
+        .with_controlled_write_failure_after(2);
+    let mut write_blocked = download_payload_from_controlled_loopback(&next, &server.payload_url())
+        .await
+        .unwrap();
+    let Err(ApplicationUpdateStagingError::Verification(PayloadVerificationError::Io(error))) =
+        write_limited.stage(&mut write_blocked, &next, &key).await
+    else {
+        panic!("controlled staging writer did not fail through payload verification");
+    };
+    assert_eq!(error.kind(), std::io::ErrorKind::StorageFull);
+    assert_eq!(
+        fs::read(staging_root.join("staging.json")).unwrap(),
+        baseline_journal
+    );
+    assert_eq!(fs::read(write_limited.payload_path()).unwrap(), payload);
+    assert!(!staging_root.join(".candidate.payload.incoming").exists());
+    let preserved = write_limited.reconcile().await.unwrap().unwrap();
+    assert_eq!(preserved.candidate, previous);
+    assert_eq!(fs::read(&preserved.payload_path).unwrap(), payload);
+    assert!(!staging_root.join(".candidate.payload.incoming").exists());
+
     let mut recovered = download_payload_from_controlled_loopback(&next, &server.payload_url())
         .await
         .unwrap();
