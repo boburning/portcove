@@ -94,18 +94,18 @@ node scripts/dev-storage.mjs clean
 
 The command prints the exact deletion target, accepts only this workspace's ordinary `target` directory (or an absent target), and refuses symlinks/junctions anywhere in its ancestor chain. It rejects custom targets, including other directories inside the checkout, and delegates deletion to `cargo clean --target-dir <checked-target>`. Cleanup remains available when free space is low or the old checkout is on the system drive. Stop build/editor processes using that target before invoking it; the command does not stop them for you.
 
-Broad local Rust gates (`just check-rust`, `just check`, `just audit`, and
-`just deep`) first remove only `target/debug/incremental` from the current
-workspace. This bounds the disposable cache that repeated Rust configurations
-can accumulate while retaining compiled dependencies and other reusable build
-artifacts. Focused recipes keep incremental compilation for the edit-test loop.
-The prune is idempotent, remains available below the free-space margin, and
-refuses custom targets, files, symlinks, or junctions. Run the direct
-`just prune-incremental` recipe when needed; `just clean-build` remains the
-separate full Cargo cleanup. Their supported expensive Cargo stages use the
-shared Rust-validation admission guard; queue time is reported and bounded
-separately from test execution. The lock is per host, not per drive, so moving an
-isolated checkout to the SSD does not authorize an overlapping compiler/test tree.
+Ordinary and exhaustive validation preserve `target/debug/incremental` so a
+later Cargo stage or repair can reuse the compiler's prior work. Storage
+preflight still rejects work below the configured free-space floor. When actual
+storage pressure or cache-corruption evidence justifies destructive cleanup,
+run the explicit `just prune-incremental` recipe; it removes only this
+workspace's incremental state. The prune is idempotent, remains available below
+the free-space margin, and refuses custom targets, files, symlinks, or junctions.
+`just clean-build` remains the separate full Cargo cleanup. Supported expensive
+Cargo stages use the shared Rust-validation admission guard; queue time is
+reported and bounded separately from test execution. The lock is per host, not
+per drive, so moving an isolated checkout to the SSD does not authorize an
+overlapping compiler/test tree.
 
 ## Migration and recovery
 

@@ -404,16 +404,19 @@ test("incremental prune preserves reusable Cargo artifacts and works below the m
   assert.equal(existsSync(path.join(custom, "cache")), true);
 });
 
-test("broad Rust gates prune incremental state before heavy work", () => {
+test("routine and exhaustive Rust gates preserve incremental reuse without duplicate checking", () => {
   const recipes = readFileSync(new URL("../justfile", import.meta.url), "utf8");
+  assert.match(recipes, /^default: local-check$/m);
   assert.match(
     recipes,
     /^prune-incremental:\r?\n\s+node scripts\/dev-storage\.mjs prune-incremental$/m,
   );
   assert.match(
     recipes,
-    /^check-rust: prune-incremental rustfmt-check rust-check clippy rust-test shear architecture process-policy transport-contract$/m,
+    /^check-rust: rustfmt-check clippy rust-test shear architecture process-policy transport-contract$/m,
   );
+  const exhaustiveRust = recipes.match(/^check-rust:.+$/m)?.[0] ?? "";
+  assert.doesNotMatch(exhaustiveRust, /prune-incremental|rust-check/);
   for (const focused of ["rustfmt-check", "rust-check", "clippy", "rust-test"]) {
     assert.doesNotMatch(
       recipes.match(new RegExp(`^${focused}:\\r?\\n([\\s\\S]*?)(?=^\\S)`, "m"))?.[0] ?? "",

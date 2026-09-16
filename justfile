@@ -2,7 +2,8 @@ set windows-shell := ["pwsh.exe", "-NoLogo", "-NoProfile", "-Command"]
 
 storage := "node scripts/dev-storage.mjs run --"
 
-default: check
+# The no-argument developer loop is the complete diff-selected local plan.
+default: local-check
 
 preflight:
     node scripts/dev-storage.mjs preflight
@@ -51,6 +52,7 @@ playnite-check *args:
 clean-build:
     node scripts/dev-storage.mjs clean
 
+# Explicit storage recovery; ordinary validation preserves incremental reuse.
 prune-incremental:
     node scripts/dev-storage.mjs prune-incremental
 
@@ -93,7 +95,7 @@ transport-contract:
     {{storage}} node scripts/check-transport-contract.mjs
     {{storage}} node --test scripts/check-transport-contract.integration.test.mjs
 
-check-rust: prune-incremental rustfmt-check rust-check clippy rust-test shear architecture process-policy transport-contract
+check-rust: rustfmt-check clippy rust-test shear architecture process-policy transport-contract
 
 # Frontend fast loop
 ui-transport:

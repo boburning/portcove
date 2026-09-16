@@ -63,7 +63,9 @@ Python, shell, workflow, and PowerShell lint as a group.
 ## Validation tiers and resumable audits
 
 Use focused `just test-*` commands while editing and `just local-check` before a
-coherent push. The local selector reads the complete branch and working-tree diff;
+coherent push. Bare `just` invokes that same focused selector; exhaustive
+investigation remains explicit through `just check` or its narrower aggregate
+recipes. The local selector reads the complete branch and working-tree diff;
 unknown paths fail until a tested routing rule exists. Tooling-only edits do not
 pull in native desktop or packaged Windows qualification. Oxc configuration edits
 retain formatting, typed lint, UI build/tests, rejection fixtures, and hosted
