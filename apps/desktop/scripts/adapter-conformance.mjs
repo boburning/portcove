@@ -10,6 +10,7 @@ import { parseArgs } from "node:util";
 import { createInstallFixture, INSTALL_FIXTURE_PORT_ID } from "./desktop-install-fixture.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
+const DEFINITION_FIXTURE_PORT_ID = "opengoal-jak1";
 
 function runSync(command, args, { env = process.env, timeout = 600_000 } = {}) {
   const result = spawnSync(command, args, {
@@ -86,10 +87,16 @@ export function compareStatusSnapshots(stage, cliStatuses, desktopStatuses) {
   }
 }
 
-function fixtureStatus(statuses) {
-  const status = statuses.find((item) => item.port_id === INSTALL_FIXTURE_PORT_ID);
-  assert.ok(status, `${INSTALL_FIXTURE_PORT_ID} must be present in the status result`);
+function portStatus(statuses, portId) {
+  const status = statuses.find((item) => item.port_id === portId);
+  assert.ok(status, `${portId} must be present in the status result`);
   return status;
+}
+
+function assertDefinitionOperation(status, operation, expected) {
+  const assessment = status.definition_operations?.find((item) => item.operation === operation);
+  assert.ok(assessment, `${status.port_id} must expose the ${operation} definition assessment`);
+  assert.deepEqual(assessment, { operation, ...expected });
 }
 
 function digest(value) {
@@ -135,6 +142,31 @@ async function main() {
     PORTCOVE_QUALIFICATION_CATALOG: fixture.catalogPath,
   };
   const stages = [];
+  const setDefinitionState = (action) =>
+    runSync(
+      "cargo",
+      [
+        "test",
+        "--locked",
+        "-p",
+        "portcove-core",
+        "--features",
+        "qualification-fixtures",
+        "definition_repository::tests::qualification_adapter_conformance_definition_state",
+        "--",
+        "--ignored",
+        "--exact",
+        "--nocapture",
+      ],
+      {
+        env: {
+          ...env,
+          PORTCOVE_QUALIFICATION_LIBRARY: library,
+          PORTCOVE_QUALIFICATION_DEFINITION_PORT: DEFINITION_FIXTURE_PORT_ID,
+          PORTCOVE_QUALIFICATION_DEFINITION_ACTION: action,
+        },
+      },
+    );
   const readStatuses = async (stage) => {
     const cliStatuses = parseCliStatuses(
       await run(cli, ["--library", library, "--json", "--non-interactive", "status"], { env }),
@@ -144,20 +176,27 @@ async function main() {
     );
     assert.ok(Array.isArray(desktopStatuses), "Desktop status probe must return an array");
     compareStatusSnapshots(stage, cliStatuses, desktopStatuses);
-    const selected = fixtureStatus(cliStatuses);
+    const selected = portStatus(cliStatuses, INSTALL_FIXTURE_PORT_ID);
+    const definition = portStatus(cliStatuses, DEFINITION_FIXTURE_PORT_ID);
     stages.push({
       stage,
       status_count: cliStatuses.length,
       snapshot_sha256: digest(cliStatuses),
       fixture_status: selected,
+      definition_status: definition,
     });
-    return selected;
+    return { definition, fixture: selected };
   };
 
   try {
+    setDefinitionState("select");
     const initial = await readStatuses("fresh-library");
-    assert.equal(initial.active, null);
-    assert.equal(initial.readiness.launchable, false);
+    assert.equal(initial.fixture.active, null);
+    assert.equal(initial.fixture.readiness.launchable, false);
+    assertDefinitionOperation(initial.definition, "install", {
+      eligibility: { outcome: "eligible", reason: "mandatory_checks_passed" },
+      retained: false,
+    });
 
     const installed = JSON.parse(
       await run(
@@ -168,25 +207,51 @@ async function main() {
     );
     assert.equal(installed.ok, true, "qualification fixture installation must succeed");
     const ready = await readStatuses("installed");
-    assert.ok(ready.active, "installed fixture must have an active installation");
-    assert.equal(ready.readiness.launchable, true);
+    assert.ok(ready.fixture.active, "installed fixture must have an active installation");
+    assert.equal(ready.fixture.readiness.launchable, true);
+
+    setDefinitionState("install");
+    const retained = await readStatuses("successor-definition-installed");
+    assert.ok(retained.definition.active, "successor definition must have an active installation");
+    assertDefinitionOperation(retained.definition, "install", {
+      eligibility: { outcome: "eligible", reason: "mandatory_checks_passed" },
+      retained: false,
+    });
+    for (const operation of ["prepare", "launch"])
+      assertDefinitionOperation(retained.definition, operation, {
+        eligibility: { outcome: "eligible", reason: "mandatory_checks_passed" },
+        retained: true,
+      });
+
+    setDefinitionState("revoke");
+    const revoked = await readStatuses("successor-definition-revoked");
+    for (const operation of ["prepare", "launch"])
+      assertDefinitionOperation(revoked.definition, operation, {
+        eligibility: { outcome: "hold", reason: "publisher_revoked" },
+        retained: true,
+      });
+    assert.equal(revoked.definition.readiness.launchable, false);
 
     await writeFile(
-      path.join(ready.active.path, ".portcove-manifest.json"),
+      path.join(ready.fixture.active.path, ".portcove-manifest.json"),
       "owned invalid installation manifest",
     );
     const stale = await readStatuses("invalid-installation-manifest");
-    assert.equal(stale.readiness.launchable, false);
+    assert.equal(stale.fixture.readiness.launchable, false);
     assert.ok(
-      stale.readiness.blockers.includes("invalid_installation"),
+      stale.fixture.readiness.blockers.includes("invalid_installation"),
       "invalid manifest must produce the stable invalid_installation blocker",
     );
 
     const report = {
-      schema_version: 1,
+      schema_version: 2,
       fixture_port_id: INSTALL_FIXTURE_PORT_ID,
+      definition_fixture_port_id: DEFINITION_FIXTURE_PORT_ID,
       assertions: {
         complete_status_parity: true,
+        successor_install_assessment_observed: true,
+        retained_prepare_and_launch_assessments_observed: true,
+        revoked_definition_hold_reason_observed: true,
         isolated_install_reached_launchable: true,
         invalid_manifest_rejected: true,
       },

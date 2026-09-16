@@ -166,6 +166,74 @@ pub(crate) fn post_client_catalog() -> (crate::Catalog, String) {
     (catalog, port_id)
 }
 
+/// Register a verified synthetic install against an already authenticated
+/// successor catalog. This exercises retained definition admission without
+/// requiring proprietary source material or running a title-specific setup tool.
+#[cfg(feature = "qualification-fixtures")]
+pub(crate) fn register_qualification_install(
+    library: &crate::Library,
+    catalog: &crate::Catalog,
+    port_id: &str,
+) -> crate::InstallRecord {
+    use sha2::{Digest, Sha256};
+    use std::collections::BTreeSet;
+
+    let port = catalog.port(port_id).unwrap();
+    let platform = crate::Platform::current().unwrap();
+    let version = "qualification-definition-1";
+    let artifact_bytes = format!("{port_id}:{version}");
+    let artifact = crate::ArtifactIdentity {
+        asset_name: format!("{port_id}-{version}.zip"),
+        sha256: hex::encode(Sha256::digest(artifact_bytes.as_bytes())),
+        size: artifact_bytes.len() as u64,
+    };
+    let root = library.versions_dir().join(port_id).join(&artifact.sha256);
+    fs::create_dir_all(&root).unwrap();
+
+    let mut executables = BTreeSet::new();
+    for hints in [
+        port.executable_hints.get(&platform),
+        port.setup_executable_hints.get(&platform),
+    ]
+    .into_iter()
+    .flatten()
+    {
+        executables.extend(hints.iter().cloned());
+    }
+    assert!(!executables.is_empty());
+    for relative in executables {
+        let executable = root.join(relative);
+        fs::create_dir_all(executable.parent().unwrap()).unwrap();
+        fs::write(&executable, b"qualification definition executable").unwrap();
+        crate::permissions::normalize_archive_entry(&executable, false, true).unwrap();
+    }
+
+    let id = uuid::Uuid::new_v4().to_string();
+    let qualification =
+        crate::InstallQualification::from_catalog(catalog, port_id, platform).unwrap();
+    let (manifest_sha256, selected_executable, runtime) =
+        crate::install::Installer::new(library.clone())
+            .unwrap()
+            .create_manifest(&id, port_id, version, &artifact, &qualification, &root)
+            .unwrap();
+    let install = crate::InstallRecord {
+        id,
+        port_id: port_id.into(),
+        version: version.into(),
+        path: root,
+        channel: crate::ReleaseChannel::Stable,
+        installed_at: crate::Library::now(),
+        verified: true,
+        staged: false,
+        artifact,
+        manifest_sha256,
+        selected_executable,
+        runtime,
+    };
+    library.register_install(&install, true).unwrap();
+    install
+}
+
 pub(crate) fn build_probe(directory: &Path) -> PathBuf {
     let executable = directory.join(if cfg!(windows) {
         "host_tool_probe.exe"

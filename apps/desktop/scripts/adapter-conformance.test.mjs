@@ -6,7 +6,18 @@ const status = {
   port_id: "fixture",
   active: null,
   readiness: { launchable: false, blockers: ["not_installed"] },
-  definition_operations: [],
+  definition_operations: [
+    {
+      operation: "install",
+      eligibility: { outcome: "eligible", reason: "mandatory_checks_passed" },
+      retained: false,
+    },
+    {
+      operation: "launch",
+      eligibility: { outcome: "hold", reason: "publisher_revoked" },
+      retained: true,
+    },
+  ],
 };
 
 test("parses a successful CLI status envelope", () => {
@@ -44,5 +55,26 @@ test("accepts exact status parity and reports adapter drift", () => {
         [{ ...status, readiness: { launchable: true, blockers: [] } }],
       ),
     /stale: CLI and Desktop status adapters diverged/,
+  );
+  assert.throws(
+    () =>
+      compareStatusSnapshots(
+        "operation",
+        [status],
+        [
+          {
+            ...structuredClone(status),
+            definition_operations: status.definition_operations.map((assessment) =>
+              assessment.operation === "launch"
+                ? {
+                    ...assessment,
+                    eligibility: { outcome: "eligible", reason: "mandatory_checks_passed" },
+                  }
+                : assessment,
+            ),
+          },
+        ],
+      ),
+    /operation: CLI and Desktop status adapters diverged/,
   );
 });
