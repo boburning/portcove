@@ -10541,6 +10541,10 @@ fn main() {
         ]);
         crate::launch::configure_supervised_game(&mut command);
         let mut child = command.spawn().unwrap();
+        let child_pid = child.id();
+        let child_identity = crate::launch::process_identity_for_child(&child)
+            .unwrap()
+            .unwrap();
         for _ in 0..100 {
             if started.is_file() {
                 break;
@@ -10548,10 +10552,6 @@ fn main() {
             thread::sleep(Duration::from_millis(10));
         }
         assert!(started.is_file());
-        let child_pid = child.id();
-        let child_identity = crate::launch::process_identity_for_child(&child)
-            .unwrap()
-            .unwrap();
         let reaper = thread::spawn(move || child.wait().unwrap());
         let activity = library
             .begin_activity(
