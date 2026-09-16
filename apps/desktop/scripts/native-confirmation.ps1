@@ -24,7 +24,7 @@ $condition = [System.Windows.Automation.AndCondition]::new([System.Windows.Autom
     [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::ControlTypeProperty, [System.Windows.Automation.ControlType]::Window)
 ))
 function Get-OwnedConfirmationWindows {
-    $matches = @()
+    $ownedWindows = @()
     $seen = [Collections.Generic.HashSet[string]]::new()
     $rootMatches = [System.Windows.Automation.AutomationElement]::RootElement.FindAll([System.Windows.Automation.TreeScope]::Children, $condition)
     $ownedCondition = [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::ProcessIdProperty, $applicationId)
@@ -33,9 +33,9 @@ function Get-OwnedConfirmationWindows {
     foreach ($candidate in @($rootMatches) + @($nestedMatches)) {
         $handle = $candidate.Current.NativeWindowHandle
         $key = if ($handle) { "handle:$handle" } else { "runtime:$($candidate.GetRuntimeId() -join '.')" }
-        if ($seen.Add($key)) { $matches += $candidate }
+        if ($seen.Add($key)) { $ownedWindows += $candidate }
     }
-    return $matches
+    return $ownedWindows
 }
 $deadline = [DateTime]::UtcNow.AddSeconds(10)
 $window = $null

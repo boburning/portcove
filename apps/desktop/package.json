@@ -13,6 +13,7 @@
     "release:policy": "node scripts/release-version-policy.mjs",
     "test:release-policy": "vitest run scripts/release-version-policy.test.mjs scripts/prepare-release-version.test.mjs",
     "test:install-fixture": "vitest run scripts/desktop-install-fixture.test.mjs",
+    "test:adapter-conformance": "vitest run scripts/adapter-conformance.test.mjs && node scripts/adapter-conformance.mjs",
     "release:prepare": "node scripts/prepare-release-version.mjs",
     "test:desktop": "node scripts/desktop-test.mjs",
     "dev": "vite --host 127.0.0.1 --port 1420",

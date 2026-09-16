@@ -1455,3 +1455,105 @@ async fn caller_supplied_root_is_bounded_before_repository_access() {
     assert_eq!(error.code, ErrorCode::Verification);
     assert!(error.message.contains("root exceeds"), "{}", error.message);
 }
+
+#[cfg(feature = "qualification-fixtures")]
+#[tokio::test]
+#[ignore = "explicit compiled-adapter qualification seam"]
+async fn qualification_adapter_conformance_definition_state() {
+    let library_root = std::env::var_os("PORTCOVE_QUALIFICATION_LIBRARY")
+        .expect("PORTCOVE_QUALIFICATION_LIBRARY is required");
+    let port_id = std::env::var("PORTCOVE_QUALIFICATION_DEFINITION_PORT")
+        .expect("PORTCOVE_QUALIFICATION_DEFINITION_PORT is required");
+    let action = std::env::var("PORTCOVE_QUALIFICATION_DEFINITION_ACTION")
+        .expect("PORTCOVE_QUALIFICATION_DEFINITION_ACTION is required");
+    let library = Library::open(PathBuf::from(library_root)).unwrap();
+
+    match action.as_str() {
+        "select" => {
+            let catalog = Catalog::embedded().unwrap();
+            catalog.port(&port_id).unwrap();
+            let fixture = RepositoryFixture::new();
+            let targets = repository_targets_for(&catalog, &port_id);
+            let root = fixture
+                .publish(&targets, true, &DEFINITION_ROLE_PATHS, later())
+                .await;
+            let candidate = acquire(&fixture, &root).await.unwrap();
+            select_candidate(&library, &candidate, &port_id);
+
+            let selected = library
+                .definition_selection_status()
+                .unwrap()
+                .selected
+                .unwrap();
+            assert_eq!(selected.namespace, "official");
+            assert_eq!(selected.stable_id, port_id);
+            let (selected_catalog, provenance) = library.load_catalog().unwrap();
+            assert_eq!(provenance.origin, CatalogOrigin::DefinitionSelected);
+            assert!(selected_catalog.definition_selection(&port_id).is_some());
+        }
+        "install" => {
+            let (selected_catalog, provenance) = library.load_catalog().unwrap();
+            assert_eq!(provenance.origin, CatalogOrigin::DefinitionSelected);
+            let install = crate::test_fixture::register_qualification_install(
+                &library,
+                &selected_catalog,
+                &port_id,
+            );
+            assert_eq!(install.port_id, port_id);
+            let status = PortcoveService::new(library.clone())
+                .unwrap()
+                .status(&port_id)
+                .unwrap();
+            assert_eq!(status.active.as_ref().unwrap().id, install.id);
+            for operation in [DefinitionOperation::Prepare, DefinitionOperation::Launch] {
+                let assessment = status
+                    .definition_operations
+                    .iter()
+                    .find(|assessment| assessment.operation == operation)
+                    .unwrap();
+                assert!(assessment.retained);
+                assert_eq!(
+                    assessment.eligibility.outcome,
+                    DefinitionEligibilityOutcome::Eligible
+                );
+            }
+        }
+        "revoke" => {
+            let selected = library
+                .definition_selection_status()
+                .unwrap()
+                .selected
+                .unwrap();
+            assert_eq!(selected.stable_id, port_id);
+            let updated = library
+                .connection()
+                .unwrap()
+                .execute(
+                    "UPDATE definition_publisher_policy SET status='revoked'
+                     WHERE namespace=?1 AND stable_id=?2 AND root_sha256=?3
+                       AND policy_revision=?4 AND grant_id=?5",
+                    rusqlite::params![
+                        selected.namespace,
+                        selected.stable_id,
+                        selected.repository_root_sha256,
+                        selected.policy_revision,
+                        selected.grant_id,
+                    ],
+                )
+                .unwrap();
+            assert_eq!(updated, 1);
+            let eligibility = library
+                .assess_definition_operation(
+                    &selected,
+                    DefinitionOperationContext::observed(DefinitionOperation::Launch, true, true),
+                )
+                .unwrap();
+            assert_eq!(eligibility.outcome, DefinitionEligibilityOutcome::Hold);
+            assert_eq!(
+                eligibility.reason,
+                DefinitionEligibilityReason::PublisherRevoked
+            );
+        }
+        value => panic!("unsupported qualification definition action {value}"),
+    }
+}
