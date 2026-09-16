@@ -45,7 +45,9 @@ export function OperationCancellation({
             : label}
       </button>
       {(requested || state?.requested) && (
-        <p role="status">Waiting for the current safe step to stop.</p>
+        <p role="status">
+          Portcove will stop after the current step reaches a safe stopping point.
+        </p>
       )}
       {error && <p role="alert">{error}</p>}
     </div>
