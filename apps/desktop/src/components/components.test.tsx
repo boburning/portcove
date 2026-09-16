@@ -77,7 +77,10 @@ describe("operation cancellation", () => {
       />,
     );
     expect(requested).toContain("Cancellation requested");
-    expect(requested).toContain("Waiting for the current safe step to stop.");
+    expect(requested).toContain(
+      "Portcove will stop after the current step reaches a safe stopping point.",
+    );
+    expect(requested).not.toContain("Waiting for the current safe step to stop.");
     expect(requested).not.toContain("preparation step");
 
     const finishing = renderToStaticMarkup(
