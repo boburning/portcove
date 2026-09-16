@@ -3021,7 +3021,7 @@ mod tests {
         assert_eq!(
             records
                 .iter()
-                .filter(|record| record.kind == crate::QualificationEvidenceKind::AutomatedLifecycle)
+                .filter(|record| record.kind == crate::SourceEvidenceKind::AutomatedLifecycle)
                 .count(),
             2
         );
