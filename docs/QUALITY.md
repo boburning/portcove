@@ -685,13 +685,15 @@ after test failures so fixing a failed assertion does not require a cold rebuild
 Supported local nextest commands also serialize their heavyweight Rust test tree
 across Portcove worktrees on the same machine. `scripts/run-rust-tests.mjs`
 publishes a complete lock record atomically below the shared tool-cache root
-before compiling its host fixture, invokes the pinned `cargo-nextest` executable
-directly, records that supervising process with an exact operating-system
-identity, and releases only after nextest has closed its test tree. Registration
-failure terminates the spawned process tree before releasing ownership. After
-the supervisor closes, the wrapper checks the detached Unix process group or
-Windows descendant tree, terminates any survivors, and retains the lock if it
-cannot prove quiescence. A
+before compiling its host fixture. Unix hosts invoke the pinned `cargo-nextest`
+executable in a detached process group. Windows hosts compile a small owned
+supervisor that starts nextest suspended inside a kill-on-close Job Object,
+then resumes it; closing that job terminates every remaining descendant without
+depending on mutable parent-PID snapshots. The wrapper records the supervising
+process with an exact operating-system identity and releases only after the Unix
+group or Windows Job Object has closed its test tree. Registration or cleanup
+failure retains ownership whenever quiescence cannot be proved. A legacy Windows
+record that predates Job Object containment is not reclaimed automatically. A
 matching wrapper or surviving recorded nextest supervisor remains authoritative;
 a dead or PID-reused record is reclaimed only when neither identity matches.
 Darwin adds a per-process random marker because its displayed start timestamp is

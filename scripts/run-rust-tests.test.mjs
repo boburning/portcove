@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
+import { spawn, spawnSync } from "node:child_process";
 import { EventEmitter } from "node:events";
+import { existsSync } from "node:fs";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -18,10 +20,20 @@ function childProcess(pid, exitCode) {
   return child;
 }
 
+async function waitUntil(predicate, milliseconds = 5_000) {
+  const deadline = Date.now() + milliseconds;
+  while (Date.now() < deadline) {
+    if (predicate()) return;
+    await new Promise((resolve) => setTimeout(resolve, 25));
+  }
+  assert.fail("condition did not become true before its deadline");
+}
+
 test("runner holds the lock through nextest and preserves its exit status", async () => {
   const tempRoot = await mkdtemp(path.join(os.tmpdir(), "portcove-rust-runner-"));
   const events = [];
   let spawnedOptions;
+  let registeredPlatform;
   try {
     const status = await runRustTests(["--package", "portcove-core"], {
       tempRoot,
@@ -31,7 +43,7 @@ test("runner holds the lock through nextest and preserves its exit status", asyn
         return { status: 0 };
       },
       spawn: (command, args, options) => {
-        events.push(`spawn:${command}:${args.join(" ")}`);
+        events.push(`spawn:${path.basename(command)}:${args.join(" ")}`);
         spawnedOptions = options;
         return childProcess(701, 7);
       },
@@ -39,7 +51,10 @@ test("runner holds the lock through nextest and preserves its exit status", asyn
         events.push(`acquire:${metadata.command}`);
         return {
           childEnvironment: { PORTCOVE_HEAVY_RUST_LOCK_TOKEN: "inherited-token" },
-          registerChild: async (child) => events.push(`register:${child.pid}`),
+          registerChild: async (child, registration) => {
+            registeredPlatform = registration.platform;
+            events.push(`register:${child.pid}`);
+          },
           release: async () => events.push("release"),
         };
       },
@@ -49,10 +64,12 @@ test("runner holds the lock through nextest and preserves its exit status", asyn
     assert.deepEqual(events, [
       "acquire:cargo-nextest nextest run --package portcove-core",
       "compile:rustc",
-      "spawn:cargo-nextest:nextest run --package portcove-core",
+      "compile:rustc",
+      "spawn:portcove-process-tree-supervisor.exe:cargo-nextest nextest run --package portcove-core",
       "register:701",
       "release",
     ]);
+    assert.equal(registeredPlatform, null);
     assert.equal(spawnedOptions.env.PORTCOVE_HEAVY_RUST_LOCK_TOKEN, "inherited-token");
     assert.match(spawnedOptions.env.PORTCOVE_HOST_TOOL_FIXTURE, /portcove-host-tool-fixture-/u);
   } finally {
@@ -151,20 +168,15 @@ test("child registration failure terminates unguarded nextest and releases owner
   }
 });
 
-test("runner closes surviving descendants before releasing a completed supervisor", async () => {
+test("Windows supervisor completion is the positive quiescence boundary", async () => {
   const tempRoot = await mkdtemp(path.join(os.tmpdir(), "portcove-rust-runner-"));
   const events = [];
-  let inspection = 0;
   try {
     const status = await runRustTests([], {
       tempRoot,
       platform: "win32",
-      spawnSync: (command, args) => {
-        if (command === "taskkill.exe") events.push(`tree-kill:${args[1]}`);
-        return { status: 0, stdout: "", stderr: "" };
-      },
+      spawnSync: () => ({ status: 0, stdout: "", stderr: "" }),
       spawn: () => childProcess(704, 0),
-      processTreeMembers: () => (inspection++ === 0 ? [705] : []),
       treePollMilliseconds: 0,
       acquireLock: async () => ({
         childEnvironment: {},
@@ -173,13 +185,13 @@ test("runner closes surviving descendants before releasing a completed superviso
       }),
     });
     assert.equal(status, 0);
-    assert.deepEqual(events, ["tree-kill:705", "release"]);
+    assert.deepEqual(events, ["release"]);
   } finally {
     await rm(tempRoot, { recursive: true, force: true });
   }
 });
 
-test("runner retains ownership when a descendant tree cannot be closed", async () => {
+test("runner retains ownership when a Windows supervisor cannot be terminated", async () => {
   const tempRoot = await mkdtemp(path.join(os.tmpdir(), "portcove-rust-runner-"));
   let released = false;
   try {
@@ -187,14 +199,18 @@ test("runner retains ownership when a descendant tree cannot be closed", async (
       runRustTests([], {
         tempRoot,
         platform: "win32",
-        spawnSync: () => ({ status: 0, stdout: "", stderr: "" }),
-        spawn: () => childProcess(706, 0),
-        processTreeMembers: () => [707],
+        spawnSync: (command) =>
+          command === "taskkill.exe"
+            ? { status: 1, stdout: "", stderr: "not found" }
+            : { status: 0, stdout: "", stderr: "" },
+        spawn: () => childProcess(706, null),
         treeWaitMilliseconds: 0,
         treePollMilliseconds: 0,
         acquireLock: async () => ({
           childEnvironment: {},
-          registerChild: async () => ({ pid: 706 }),
+          registerChild: async () => {
+            throw new Error("registration failed");
+          },
           release: async () => {
             released = true;
           },
@@ -207,6 +223,60 @@ test("runner retains ownership when a descendant tree cannot be closed", async (
     await rm(tempRoot, { recursive: true, force: true });
   }
 });
+
+test(
+  "Windows Job Object supervisor kills a detached grandchild when its root exits",
+  { skip: process.platform !== "win32" },
+  async () => {
+    const tempRoot = await mkdtemp(path.join(os.tmpdir(), "portcove-job-supervisor-"));
+    const supervisor = path.join(tempRoot, "supervisor.exe");
+    const pidFile = path.join(tempRoot, "descendant.pid");
+    try {
+      const compiled = spawnSync(
+        "rustc",
+        [
+          "--edition=2024",
+          "--crate-name",
+          "portcove_process_tree_supervisor_test",
+          path.resolve("scripts/fixtures/windows-process-tree-supervisor.rs.txt"),
+          "-o",
+          supervisor,
+        ],
+        { stdio: "inherit", windowsHide: true },
+      );
+      assert.equal(compiled.status, 0);
+      const rootScript = [
+        'const { spawn } = require("node:child_process")',
+        'const { writeFileSync } = require("node:fs")',
+        'const child = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"], { detached: true, stdio: "ignore", windowsHide: true })',
+        `writeFileSync(${JSON.stringify(pidFile)}, String(child.pid))`,
+        "child.unref()",
+      ].join(";");
+      const managed = spawn(supervisor, [process.execPath, "-e", rootScript], {
+        stdio: "inherit",
+        windowsHide: true,
+      });
+      const status = await new Promise((resolve, reject) => {
+        managed.once("error", reject);
+        managed.once("close", (code) => resolve(code));
+      });
+      assert.equal(status, 0);
+      await waitUntil(() => existsSync(pidFile));
+      const descendantPid = Number(await readFile(pidFile, "utf8"));
+      await waitUntil(() => {
+        try {
+          process.kill(descendantPid, 0);
+          return false;
+        } catch (error) {
+          if (error.code === "ESRCH") return true;
+          throw error;
+        }
+      });
+    } finally {
+      await rm(tempRoot, { recursive: true, force: true });
+    }
+  },
+);
 
 test("prepare-only keeps the hosted fixture behavior without taking the heavy lock", async () => {
   const tempRoot = await mkdtemp(path.join(os.tmpdir(), "portcove-rust-runner-"));

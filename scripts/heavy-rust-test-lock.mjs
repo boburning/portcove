@@ -131,45 +131,13 @@ function validProcess(record) {
   );
 }
 
-function readWindowsDescendants(rootPid, run = spawnSync) {
-  const script = [
-    "$all=@(Get-CimInstance Win32_Process | Select-Object ProcessId,ParentProcessId)",
-    `$pending=@(${rootPid})`,
-    "$seen=@{}",
-    "$found=@()",
-    "while($pending.Count -gt 0){",
-    "  $parent=$pending[0]",
-    "  if($pending.Count -eq 1){$pending=@()}else{$pending=@($pending[1..($pending.Count-1)])}",
-    "  foreach($child in @($all | Where-Object ParentProcessId -eq $parent)){",
-    "    $id=[int]$child.ProcessId",
-    "    if(-not $seen.ContainsKey($id)){$seen[$id]=$true;$found+=$id;$pending+=$id}",
-    "  }",
-    "}",
-    "$found | ForEach-Object { $_ }",
-  ].join(";");
-  const inspected = runIdentityProbe(
-    run,
-    "powershell.exe",
-    ["-NoLogo", "-NoProfile", "-NonInteractive", "-Command", script],
-    rootPid,
-    "Windows process tree",
-  );
-  if (inspected.status !== 0)
-    throw new Error(
-      `Could not inspect Windows process tree ${rootPid}: ${String(inspected.stderr).trim()}`,
-    );
-  return String(inspected.stdout)
-    .trim()
-    .split(/\s+/u)
-    .filter(Boolean)
-    .map(Number)
-    .filter((pid) => Number.isInteger(pid) && pid > 0);
-}
-
 export function processTreeMembers(record, options = {}) {
   const platform = options.platform ?? record.tree_platform ?? process.platform;
   if (platform === "win32")
-    return readWindowsDescendants(record.pid, options.spawnSync ?? spawnSync);
+    throw new Error(
+      "Legacy Windows descendant records cannot be reclaimed automatically; " +
+        "verify and remove the stale lock before retrying",
+    );
   const signal = options.killProcess ?? process.kill;
   try {
     signal(-record.pid, 0);
@@ -385,7 +353,9 @@ export async function acquireHeavyRustTestLock(metadata = {}, options = {}) {
               child,
               inspectProcessIdentity,
               processToken,
-              registration.platform ?? process.platform,
+              registration.platform === null
+                ? undefined
+                : (registration.platform ?? process.platform),
             ),
           release: async () => {
             try {

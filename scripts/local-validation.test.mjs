@@ -261,12 +261,17 @@ test("heavy Rust runner and lock changes select both guarded execution contracts
   const { selection, plan } = planFor([
     "scripts/heavy-rust-test-lock.mjs",
     "scripts/run-rust-tests.mjs",
+    "scripts/fixtures/windows-process-tree-supervisor.rs.txt",
   ]);
   assert.ok(selection.nodeTests.has("scripts/heavy-rust-test-lock.test.mjs"));
   assert.ok(selection.nodeTests.has("scripts/run-rust-tests.test.mjs"));
   assert.ok(ids(plan).includes("node-syntax:scripts/heavy-rust-test-lock.mjs"));
   assert.ok(ids(plan).includes("node-syntax:scripts/run-rust-tests.mjs"));
   assert.ok(ids(plan).includes("node-tests"));
+
+  const fixtureOnly = planFor(["scripts/fixtures/windows-process-tree-supervisor.rs.txt"]);
+  assert.ok(fixtureOnly.selection.nodeTests.has("scripts/heavy-rust-test-lock.test.mjs"));
+  assert.ok(fixtureOnly.selection.nodeTests.has("scripts/run-rust-tests.test.mjs"));
 });
 
 test("changed shell scripts run shellcheck across the maintained shell set", () => {

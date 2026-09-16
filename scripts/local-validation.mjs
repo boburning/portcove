@@ -248,6 +248,10 @@ function classifyOnePath(selection, input, fileExists, options = {}) {
     }
     if (extension === ".ps1") selection.powershellLint = true;
     if (extension === ".sh") selection.shellLint = true;
+    if (file === "scripts/fixtures/windows-process-tree-supervisor.rs.txt") {
+      addNodeTest(selection, "scripts/heavy-rust-test-lock.test.mjs");
+      addNodeTest(selection, "scripts/run-rust-tests.test.mjs");
+    }
     if (
       /(?:release|updater|package|installer|qualification|checksum|channel)/iu.test(
         path.posix.basename(file),

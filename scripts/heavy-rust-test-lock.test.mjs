@@ -446,8 +446,11 @@ test("a surviving recorded process tree blocks after its supervisor exits", asyn
   }
 });
 
-test("process-tree inspection observes an actual descendant after its supervisor exits", async () => {
-  const helper = `
+test(
+  "Unix process-group inspection observes an actual descendant after its supervisor exits",
+  { skip: process.platform === "win32" },
+  async () => {
+    const helper = `
     const { spawn } = require("node:child_process");
     const child = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"], {
       detached: process.platform === "win32",
@@ -457,36 +460,44 @@ test("process-tree inspection observes an actual descendant after its supervisor
     console.log(child.pid);
     child.unref();
   `;
-  const supervisor = spawn(process.execPath, ["-e", helper], {
-    detached: process.platform !== "win32",
-    stdio: ["ignore", "pipe", "pipe"],
-    windowsHide: true,
-  });
-  let descendantPid = null;
-  try {
-    const output = await waitForLine(supervisor.stdout, "\n");
-    descendantPid = Number(output.trim());
-    assert.equal(Number.isInteger(descendantPid), true);
-    assert.equal(await waitForExit(supervisor), 0);
-    const members = processTreeMembers({
-      pid: supervisor.pid,
-      tree_platform: process.platform,
+    const supervisor = spawn(process.execPath, ["-e", helper], {
+      detached: process.platform !== "win32",
+      stdio: ["ignore", "pipe", "pipe"],
+      windowsHide: true,
     });
-    assert.ok(members.length > 0, JSON.stringify({ descendantPid, members }));
-  } finally {
-    if (process.platform === "win32") {
-      if (descendantPid) {
+    let descendantPid = null;
+    try {
+      const output = await waitForLine(supervisor.stdout, "\n");
+      descendantPid = Number(output.trim());
+      assert.equal(Number.isInteger(descendantPid), true);
+      assert.equal(await waitForExit(supervisor), 0);
+      const members = processTreeMembers({
+        pid: supervisor.pid,
+        tree_platform: process.platform,
+      });
+      assert.ok(members.length > 0, JSON.stringify({ descendantPid, members }));
+    } finally {
+      if (process.platform === "win32") {
+        if (descendantPid) {
+          try {
+            process.kill(descendantPid, "SIGKILL");
+          } catch {}
+        }
+      } else {
         try {
-          process.kill(descendantPid, "SIGKILL");
+          process.kill(-supervisor.pid, "SIGKILL");
         } catch {}
       }
-    } else {
-      try {
-        process.kill(-supervisor.pid, "SIGKILL");
-      } catch {}
+      if (supervisor.exitCode === null) supervisor.kill();
     }
-    if (supervisor.exitCode === null) supervisor.kill();
-  }
+  },
+);
+
+test("legacy Windows descendant metadata blocks automatic reclamation", () => {
+  assert.throws(
+    () => processTreeMembers({ pid: 913, tree_platform: "win32" }),
+    /cannot be reclaimed automatically/u,
+  );
 });
 
 test("platform identity probes fail closed on their bounded timeout", () => {
