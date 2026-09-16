@@ -1,8 +1,13 @@
 import assert from "node:assert/strict";
 import { access, readFile, readdir } from "node:fs/promises";
+import path from "node:path";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
+
+import { classifyChanges } from "./local-validation.mjs";
 
 const skillsRoot = new URL("../.agents/skills/", import.meta.url);
+const projectRoot = fileURLToPath(new URL("../", import.meta.url));
 const documentationIndex = await readFile(new URL("../docs/README.md", import.meta.url), "utf8");
 const developmentTools = await readFile(
   new URL("../docs/DEVELOPMENT-TOOLS.md", import.meta.url),
@@ -33,6 +38,12 @@ function headingAnchors(source) {
         .replace(/\s+/gu, "-"),
     ),
   );
+}
+
+function repositoryPath(file) {
+  const relative = path.relative(projectRoot, fileURLToPath(file)).replaceAll(path.sep, "/");
+  assert.ok(relative && !relative.startsWith("../"), `${file.href} must stay in the repository`);
+  return relative;
 }
 
 async function assertLocalLinksResolve(file) {
@@ -100,6 +111,7 @@ test("the documentation index routes development tooling and repository skills",
 
 test("active instruction entrypoints have valid local links and anchors", async () => {
   const files = [
+    new URL("../AGENTS.md", import.meta.url),
     new URL("../CONTRIBUTING.md", import.meta.url),
     new URL("../docs/README.md", import.meta.url),
     new URL("../docs/CONTRIBUTION-CONVENTIONS.md", import.meta.url),
@@ -111,6 +123,39 @@ test("active instruction entrypoints have valid local links and anchors", async 
   files.push(...skillDirectories.map((entry) => new URL(`${entry.name}/SKILL.md`, skillsRoot)));
 
   for (const file of files) await assertLocalLinksResolve(file);
+});
+
+test("every instruction dependency selects this contract locally", async () => {
+  const files = [
+    new URL("../AGENTS.md", import.meta.url),
+    new URL("../CONTRIBUTING.md", import.meta.url),
+    new URL("../docs/README.md", import.meta.url),
+    new URL("../docs/CONTRIBUTION-CONVENTIONS.md", import.meta.url),
+    new URL("../docs/DEVELOPMENT-TOOLS.md", import.meta.url),
+  ];
+  const skillDirectories = (await readdir(skillsRoot, { withFileTypes: true })).filter((entry) =>
+    entry.isDirectory(),
+  );
+  files.push(...skillDirectories.map((entry) => new URL(`${entry.name}/SKILL.md`, skillsRoot)));
+
+  const dependencies = new Set(["crates/portcove-core/src/catalog.rs", "scripts/pr-delivery.mjs"]);
+  for (const file of files) {
+    const source = await readFile(file, "utf8");
+    dependencies.add(repositoryPath(file));
+    for (const target of localMarkdownLinks(source)) {
+      const [targetPath] = target.split("#", 1);
+      dependencies.add(repositoryPath(new URL(targetPath, file)));
+    }
+  }
+
+  const missing = [];
+  for (const dependency of dependencies) {
+    const selection = classifyChanges([{ status: "M", path: dependency }], {
+      fileExists: () => true,
+    });
+    if (!selection.nodeTests.has("scripts/repository-skills.test.mjs")) missing.push(dependency);
+  }
+  assert.deepEqual(missing, [], "every instruction dependency must select this contract locally");
 });
 
 test("documented qualification and PR-delivery commands exist", async () => {

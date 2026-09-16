@@ -86,6 +86,14 @@ const explicitNodeTests = new Map([
     ["scripts/rust-test-impact.test.mjs", "scripts/local-validation.test.mjs"],
   ],
   ["scripts/check-vitest-durations.mjs", ["scripts/test-duration-reporter.test.mjs"]],
+  ["scripts/pr-delivery.mjs", ["scripts/repository-skills.test.mjs"]],
+  ["scripts/package-local.ps1", ["scripts/repository-skills.test.mjs"]],
+  ["scripts/release-preflight.ps1", ["scripts/repository-skills.test.mjs"]],
+  ["scripts/roadmap.mjs", ["scripts/repository-skills.test.mjs"]],
+  ["scripts/test-windows-installer.ps1", ["scripts/repository-skills.test.mjs"]],
+  ["scripts/windows-qualification-session.ps1", ["scripts/repository-skills.test.mjs"]],
+  ["crates/portcove-core/catalog/catalog.json", ["scripts/repository-skills.test.mjs"]],
+  ["crates/portcove-core/src/catalog.rs", ["scripts/repository-skills.test.mjs"]],
   [
     "apps/desktop/scripts/desktop-test.mjs",
     [
