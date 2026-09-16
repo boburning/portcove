@@ -72,7 +72,7 @@ function createInstallArtifact(seed) {
   return gzipSync(tar, { level: 0 });
 }
 
-function fixturePort({ id, name, summary, platform, executable, url, artifact }) {
+function fixturePort({ id, name, summary, platform, executable, url, artifact, adapter }) {
   return {
     id,
     name,
@@ -81,7 +81,7 @@ function fixturePort({ id, name, summary, platform, executable, url, artifact })
     support_tier: "beta",
     channels: ["stable"],
     platforms: [platform],
-    adapter: "n64-recomp-portable",
+    adapter,
     release: {
       provider: "direct-manifest",
       direct: {
@@ -191,6 +191,7 @@ export async function createInstallFixture({ root, output }) {
       ...contract,
       url,
       artifact,
+      adapter: "n64-recomp-portable",
     });
     refreshPortDefinition = fixturePort({
       id: INSTALL_REFRESH_FIXTURE_PORT_ID,
@@ -199,6 +200,7 @@ export async function createInstallFixture({ root, output }) {
       ...contract,
       url,
       artifact,
+      adapter: "libultraship-portable",
     });
     const portDefinitions = [portDefinition, refreshPortDefinition];
     const baseCatalog = JSON.parse(

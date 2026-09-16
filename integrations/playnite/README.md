@@ -112,12 +112,16 @@ opaque identities, schema/capability drift, structured errors, stream terminatio
 gaps, reconnect reads and two synthetic port identities through the same generic
 transport. The normal `just playnite-check` also builds the qualification-enabled
 standalone CLI and runs the compiled client against the existing isolated,
-checksum-pinned install fixture. That real-core check covers a busy port,
-cancellation and durable failed readback; install and two version activations with
-stable library/game identities; checksum and missing-artifact failures that retain
-the verified active version; positive recovery; and current eligibility/readiness
-from a distinct source-managed definition shape. Qualification-only catalog and
-definition inputs cannot be used by a production build. Optional `-Cli` and
+checksum-pinned install fixture. That real-core check correlates each durable
+activity row to its exact streamed operation identity and drives install, update,
+progress, readiness and failures through both `n64-recomp-portable` and
+`libultraship-portable` fixture shapes without a client branch. It also covers a
+busy port, cancellation, bad checksum and missing-artifact preservation, positive
+recovery, and a real selected-definition publisher revocation that the client
+consumes as a core-owned retained launch hold and launch refusal. Owned command
+timeouts terminate the descendant process tree within a second bound before
+fixture cleanup. Qualification-only catalog and definition inputs cannot be used
+by a production build. Optional `-Cli` and
 `-Library` arguments additionally exercise discovery and nullable launch readback
 for exactly identified external candidate bytes. None of these headless checks
 substitutes for Playnite frontend interaction, packaged execution, gameplay,

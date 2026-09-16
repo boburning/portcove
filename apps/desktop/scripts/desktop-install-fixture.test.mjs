@@ -11,6 +11,7 @@ import {
   INSTALL_REFRESH_FIXTURE_PORT_ID,
 } from "./desktop-install-fixture.mjs";
 import { installScenarios } from "./desktop-install-test.mjs";
+import { run as runLifecycleCommand } from "../../../integrations/playnite/lifecycle-check.mjs";
 
 const root = fileURLToPath(new URL("../../..", import.meta.url));
 
@@ -33,6 +34,9 @@ test("install fixture is isolated, pinned, interruptible, and retryable", async 
     assert.ok(refreshPort);
     assert.notEqual(port.id, refreshPort.id);
     assert.notEqual(port.name, refreshPort.name);
+    assert.equal(port.adapter, "n64-recomp-portable");
+    assert.equal(refreshPort.adapter, "libultraship-portable");
+    assert.notEqual(port.adapter, refreshPort.adapter);
     assert.equal(port.release.provider, "direct-manifest");
     assert.equal(port.release.direct[port.platforms[0]].url, fixture.url);
     assert.equal(refreshPort.release.direct[refreshPort.platforms[0]].url, fixture.url);
@@ -106,3 +110,38 @@ test("unselected install scenarios do not require an initialized fixture", async
     "install-commit-refresh-recovery",
   ]);
 });
+
+test.runIf(process.platform === "win32")(
+  "lifecycle timeout terminates its owned descendant process tree within a second bound",
+  async () => {
+    const output = await mkdtemp(path.join(tmpdir(), "portcove-lifecycle-timeout-"));
+    const marker = path.join(output, "descendant.pid");
+    const child = [
+      'const { spawn } = require("node:child_process");',
+      'const { writeFileSync } = require("node:fs");',
+      'const descendant = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"], { stdio: "ignore" });',
+      "writeFileSync(process.argv[1], String(descendant.pid));",
+      "setInterval(() => {}, 1000);",
+    ].join(" ");
+
+    const startedAt = Date.now();
+    await assert.rejects(
+      runLifecycleCommand(process.execPath, ["-e", child, marker], {
+        echo: false,
+        timeout: 250,
+      }),
+      /timed out after 250ms/,
+    );
+    assert.ok(Date.now() - startedAt < 8_000, "timeout path exceeded its secondary bound");
+    const descendant = Number(await readFile(marker, "utf8"));
+    await waitFor(() => {
+      try {
+        process.kill(descendant, 0);
+        return false;
+      } catch (error) {
+        if (error.code === "ESRCH") return true;
+        throw error;
+      }
+    }, "owned descendant process survived lifecycle timeout cleanup");
+  },
+);

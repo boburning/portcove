@@ -169,28 +169,26 @@ internal static class ContractTests
 
         if (mode == "qualification-concurrency")
         {
-            var operation = new TaskCompletionSource<string>();
-            var install = client.Manage("ensure", new[] { "ensure", port }, record =>
-            {
-                if (Json.Field(record, "parent_operation_id") == null)
-                    operation.TrySetResult(Json.Text(record, "operation_id"));
-            });
-            if (await Task.WhenAny(operation.Task, Task.Delay(TimeSpan.FromSeconds(15))) != operation.Task)
+            var operation = new OperationCapture();
+            var install = client.Manage("ensure", new[] { "ensure", port }, operation.Observe);
+            if (await Task.WhenAny(operation.Root, Task.Delay(TimeSpan.FromSeconds(15))) != operation.Root)
                 throw new Exception("The real install emitted no root operation identity before the qualification timeout.");
 
             var competing = new PublicCli(args[1], args[2]);
             await competing.Connect();
+            var conflict = new OperationCapture();
             await ExpectFailure(
-                competing.Manage("ensure", new[] { "ensure", port }, null),
+                competing.Manage("ensure", new[] { "ensure", port }, conflict.Observe),
                 "conflict:",
                 "a real busy port is reported as conflict without fabricated success");
-            await competing.Manage("cancel", new[] { "cancel", await operation.Task }, null);
+            await CheckActivity(competing, conflict.RequireId(), port, "install", "failed");
+            await competing.Manage("cancel", new[] { "cancel", await operation.Root }, null);
             await ExpectFailure(
                 install,
                 "cancelled:",
                 "a real cancellation remains a failed operation until durable readback");
             Check(ActiveVersion(await Status(client, port)) == null, "cancelled install leaves no active version");
-            await CheckActivity(client, port, "install", "failed");
+            await CheckActivity(client, operation.RequireId(), port, "install", "cancelled");
             return;
         }
 
@@ -202,28 +200,29 @@ internal static class ContractTests
         {
             var expectedVersion = args.Length > 5 ? args[5] : null;
             var before = Identity.Game(client.LibraryId, port);
-            var events = new List<string>();
+            var operation = new OperationCapture();
             var command = mode == "qualification-install" ? "ensure" : "update";
-            await client.Manage(command, new[] { command, port }, record => events.Add(Json.Text(record, "type")));
-            Check(events.Contains("started") && events.Contains("progress") && events.Contains("finished"),
+            await client.Manage(command, new[] { command, port }, operation.Observe);
+            Check(operation.Events.Contains("started") && operation.Events.Contains("progress") && operation.Events.Contains("finished"),
                 "real " + command + " exposes started, progress, and finished events through the compiled client");
             var status = await Status(client, port);
             Check(ActiveVersion(status) == expectedVersion, "real " + command + " reaches the expected active version");
             Check(Json.Boolean(Json.Field(status, "readiness"), "launchable"), "real " + command + " reaches core-owned launch readiness");
             Check(Identity.Game(client.LibraryId, port) == before, "version activation preserves Playnite launch routing identity");
-            await CheckActivity(client, port, command == "ensure" ? "install" : "update", "succeeded");
+            await CheckActivity(client, operation.RequireId(), port, command == "ensure" ? "install" : "update", "succeeded");
             return;
         }
 
         if (mode == "qualification-failure")
         {
             if (args.Length != 7) throw new ArgumentException("Failure qualification requires active version and error code.");
+            var operation = new OperationCapture();
             await ExpectFailure(
-                client.Manage("update", new[] { "update", port }, null),
+                client.Manage("update", new[] { "update", port }, operation.Observe),
                 args[6] + ":",
                 "real " + args[6] + " update failure remains actionable and cannot fabricate success");
             Check(ActiveVersion(await Status(client, port)) == args[5], "failed update preserves the verified active version");
-            await CheckActivity(client, port, "update", "failed");
+            await CheckActivity(client, operation.RequireId(), port, "update", "failed");
             return;
         }
 
@@ -236,7 +235,31 @@ internal static class ContractTests
                 "compiled client consumes selected-definition install eligibility from core");
             Check(decisions.Any(value => value.Operation == "prepare" && value.Outcome == "eligible" && value.Retained) &&
                   decisions.Any(value => value.Operation == "launch" && value.Outcome == "eligible" && value.Retained),
-                "compiled client consumes retained preparation and launch eligibility for a second adapter shape");
+                "compiled client consumes retained preparation and launch eligibility for the source-managed definition fixture");
+            return;
+        }
+
+        if (mode == "qualification-definition-revoked")
+        {
+            var status = await Status(client, port);
+            var decisions = DefinitionOperations.Read(status);
+            Check(!decisions.Any(value => value.Operation == "install"),
+                "revoked selected definition is no longer exposed as the current install contract");
+            Check(decisions.Any(value => value.Operation == "launch" && value.Outcome == "hold" &&
+                  value.Reason == "publisher_revoked" && value.Retained),
+                "compiled client preserves the revoked retained launch hold without overriding core");
+            Check(!Json.Boolean(Json.Field(status, "readiness"), "launchable"),
+                "revoked selected-definition state removes launch readiness");
+            try
+            {
+                DefinitionOperations.RequireEligible(status, "launch");
+                throw new Exception("The client accepted launch through a revoked retained definition.");
+            }
+            catch (InvalidOperationException error)
+            {
+                Check(error.Message.Contains("publisher_revoked"),
+                    "compiled client refuses launch for the real revoked retained definition");
+            }
             return;
         }
 
@@ -263,14 +286,40 @@ internal static class ContractTests
         throw new Exception("Operation unexpectedly succeeded: " + description);
     }
 
-    private static async Task CheckActivity(PublicCli client, string port, string operation, string status)
+    private sealed class OperationCapture
+    {
+        private readonly TaskCompletionSource<string> root = new TaskCompletionSource<string>();
+        private string id;
+        internal readonly List<string> Events = new List<string>();
+        internal Task<string> Root { get { return root.Task; } }
+
+        internal void Observe(Dictionary<string, object> record)
+        {
+            Events.Add(Json.Text(record, "type"));
+            if (Json.Field(record, "parent_operation_id") != null) return;
+            var current = Json.Text(record, "operation_id");
+            if (id != null && id != current)
+                throw new InvalidOperationException("The CLI emitted multiple root operation identities.");
+            id = current;
+            root.TrySetResult(current);
+        }
+
+        internal string RequireId()
+        {
+            if (id == null) throw new Exception("The CLI emitted no root operation identity.");
+            return id;
+        }
+    }
+
+    private static async Task CheckActivity(PublicCli client, string id, string port, string operation, string status)
     {
         var activities = Json.Array(await client.Read("activity", "activity", "--limit", "200"));
         Check(activities.Any(value =>
+            (Json.Field(value, "id") as string) == id &&
             (Json.Field(value, "target_id") as string) == port &&
             Json.Text(value, "operation") == operation &&
             Json.Text(value, "status") == status),
-            "durable activity readback records " + operation + " as " + status);
+            "durable activity readback records exact operation " + id + " as " + operation + "/" + status);
     }
     private static void DefinitionOperationRecords()
     {
