@@ -309,9 +309,15 @@ deliberately coordinated short polling interval, set
 `PORTCOVE_HEAVY_RUST_WAIT_MS` to an integer from `0` through `60000`; this changes
 only lock acquisition, not any test deadline. A wrapper failure does not make a
 still-running recorded nextest supervisor stale, registration failure terminates
-the process tree before ownership is released, and PID reuse does not transfer
+the process tree before ownership is released, and supervisor completion is
+followed by a detached Unix process-group or Windows descendant-tree check. Any
+survivors are terminated; failure to prove quiescence retains the lock rather
+than admitting overlap. PID reuse does not transfer
 ownership because the exact process identity must also match. Darwin uses a
-per-process random marker rather than its second-resolution displayed start time.
+per-process title marker for the wrapper and a launch-environment marker for the
+nextest supervisor rather than its second-resolution displayed start time. The
+previous timestamp identity remains readable only to classify and migrate a
+legacy lock record during this transition.
 
 Do not remove the shared lock record, kill another worker's process, or use a direct
 `cargo nextest` invocation to evade it. Direct Cargo commands are outside this

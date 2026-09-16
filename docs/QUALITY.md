@@ -688,11 +688,16 @@ publishes a complete lock record atomically below the shared tool-cache root
 before compiling its host fixture, invokes the pinned `cargo-nextest` executable
 directly, records that supervising process with an exact operating-system
 identity, and releases only after nextest has closed its test tree. Registration
-failure terminates the spawned process tree before releasing ownership. A
+failure terminates the spawned process tree before releasing ownership. After
+the supervisor closes, the wrapper checks the detached Unix process group or
+Windows descendant tree, terminates any survivors, and retains the lock if it
+cannot prove quiescence. A
 matching wrapper or surviving recorded nextest supervisor remains authoritative;
 a dead or PID-reused record is reclaimed only when neither identity matches.
 Darwin adds a per-process random marker because its displayed start timestamp is
-only second-resolution. Acquisition polls for five seconds by default and then
+only second-resolution; one transition read accepts the previous timestamp
+record solely to classify and migrate an already-published legacy lock.
+Acquisition polls for five seconds by default and then
 reports the owning PID, workspace, command and start time. Every Windows or
 Darwin identity probe also fails closed after five seconds, so a slow platform
 probe cannot wedge acquisition indefinitely and may add at most its own bounded

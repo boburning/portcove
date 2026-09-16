@@ -43,6 +43,7 @@ test("runner holds the lock through nextest and preserves its exit status", asyn
           release: async () => events.push("release"),
         };
       },
+      processTreeMembers: () => [],
     });
     assert.equal(status, 7);
     assert.deepEqual(events, [
@@ -77,6 +78,7 @@ test("runner preserves a fast nextest exit when registration observes no live ch
           released = true;
         },
       }),
+      processTreeMembers: () => [],
     });
     assert.equal(status, 42);
     assert.equal(released, true);
@@ -119,14 +121,14 @@ test("child registration failure terminates unguarded nextest and releases owner
     await assert.rejects(
       runRustTests([], {
         tempRoot,
-        spawnSync: () => ({ status: 0 }),
+        spawnSync: (command) => {
+          if (command === "taskkill.exe") killed = true;
+          return { status: 0, stdout: "", stderr: "" };
+        },
         spawn: () => {
           child = childProcess(702, null);
           const originalKill = child.kill;
-          child.kill = () => {
-            killed = true;
-            return originalKill();
-          };
+          child.kill = () => originalKill();
           return child;
         },
         acquireLock: async () => ({
@@ -138,11 +140,69 @@ test("child registration failure terminates unguarded nextest and releases owner
             released = true;
           },
         }),
+        processTreeMembers: () => [],
       }),
       /registration failed/u,
     );
     assert.equal(killed, true);
     assert.equal(released, true);
+  } finally {
+    await rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test("runner closes surviving descendants before releasing a completed supervisor", async () => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), "portcove-rust-runner-"));
+  const events = [];
+  let inspection = 0;
+  try {
+    const status = await runRustTests([], {
+      tempRoot,
+      platform: "win32",
+      spawnSync: (command, args) => {
+        if (command === "taskkill.exe") events.push(`tree-kill:${args[1]}`);
+        return { status: 0, stdout: "", stderr: "" };
+      },
+      spawn: () => childProcess(704, 0),
+      processTreeMembers: () => (inspection++ === 0 ? [705] : []),
+      treePollMilliseconds: 0,
+      acquireLock: async () => ({
+        childEnvironment: {},
+        registerChild: async () => ({ pid: 704 }),
+        release: async () => events.push("release"),
+      }),
+    });
+    assert.equal(status, 0);
+    assert.deepEqual(events, ["tree-kill:705", "release"]);
+  } finally {
+    await rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test("runner retains ownership when a descendant tree cannot be closed", async () => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), "portcove-rust-runner-"));
+  let released = false;
+  try {
+    await assert.rejects(
+      runRustTests([], {
+        tempRoot,
+        platform: "win32",
+        spawnSync: () => ({ status: 0, stdout: "", stderr: "" }),
+        spawn: () => childProcess(706, 0),
+        processTreeMembers: () => [707],
+        treeWaitMilliseconds: 0,
+        treePollMilliseconds: 0,
+        acquireLock: async () => ({
+          childEnvironment: {},
+          registerChild: async () => ({ pid: 706 }),
+          release: async () => {
+            released = true;
+          },
+        }),
+      }),
+      /retaining the shared lock/u,
+    );
+    assert.equal(released, false);
   } finally {
     await rm(tempRoot, { recursive: true, force: true });
   }

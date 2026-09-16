@@ -5,7 +5,11 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { acquireHeavyRustTestLock, readProcessIdentity } from "./heavy-rust-test-lock.mjs";
+import {
+  acquireHeavyRustTestLock,
+  processTreeMembers,
+  readProcessIdentity,
+} from "./heavy-rust-test-lock.mjs";
 
 async function fixture() {
   const root = await mkdtemp(path.join(os.tmpdir(), "portcove-heavy-rust-lock-"));
@@ -22,12 +26,19 @@ async function writeOwner(lockPath, owner) {
 }
 
 async function readPersistedOwner(lockPath) {
+  let owner;
   try {
-    return JSON.parse(await readFile(lockPath, "utf8"));
+    owner = JSON.parse(await readFile(lockPath, "utf8"));
   } catch (error) {
     if (!["EISDIR", "EPERM"].includes(error.code)) throw error;
-    return JSON.parse(await readFile(path.join(lockPath, "owner.json"), "utf8"));
+    owner = JSON.parse(await readFile(path.join(lockPath, "owner.json"), "utf8"));
   }
+  try {
+    owner.child = JSON.parse(await readFile(`${lockPath}.child-${owner.token}`, "utf8")).child;
+  } catch (error) {
+    if (error.code !== "ENOENT") throw error;
+  }
+  return owner;
 }
 
 function owner(processRecord, child = null) {
@@ -211,6 +222,7 @@ test("registered child identity is persisted before guarded work continues", asy
       pid: 905,
       identity: "nextest-start",
       process_token: current.owner.process.process_token,
+      tree_platform: process.platform,
     });
     await current.release();
   } finally {
@@ -313,6 +325,7 @@ test("new lock publication and child replacement remain complete JSON records", 
       pid: 906,
       identity: "nextest-start",
       process_token: current.owner.process.process_token,
+      tree_platform: process.platform,
     });
     await current.release();
   } finally {
@@ -371,12 +384,108 @@ test("Darwin identity uses an exact per-process marker instead of a second-resol
   assert.equal(
     readProcessIdentity(907, {
       platform: "darwin",
+      processToken: "title-marker",
+      spawnSync: () => ({
+        status: 0,
+        stdout: "portcove-rust:title-marker node runner",
+        stderr: "",
+      }),
+    }),
+    "darwin:907:title-marker",
+  );
+  assert.equal(
+    readProcessIdentity(907, {
+      platform: "darwin",
       processToken: "different-marker",
       spawnSync,
     }),
     null,
   );
   assert.equal(calls[0].options.timeout, 5_000);
+});
+
+test("legacy Darwin start identities remain readable only for lock migration", () => {
+  assert.equal(
+    readProcessIdentity(909, {
+      platform: "darwin",
+      spawnSync: () => ({
+        status: 0,
+        stdout: "Mon Sep 15 21:00:00 2026\n",
+        stderr: "",
+      }),
+    }),
+    "darwin:909:Mon Sep 15 21:00:00 2026",
+  );
+});
+
+test("a surviving recorded process tree blocks after its supervisor exits", async () => {
+  const { root, lockPath } = await fixture();
+  const identities = new Map([[process.pid, "current-process"]]);
+  try {
+    await writeOwner(lockPath, {
+      ...owner(
+        { pid: 910, identity: "dead-wrapper" },
+        { pid: 911, identity: "dead-nextest", tree_platform: "win32" },
+      ),
+    });
+    await assert.rejects(
+      acquireHeavyRustTestLock(
+        {},
+        {
+          lockPath,
+          waitMilliseconds: 0,
+          inspectProcessIdentity: identityInspector(identities),
+          inspectProcessTree: () => [912],
+        },
+      ),
+      /child tree PID 911/u,
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("process-tree inspection observes an actual descendant after its supervisor exits", async () => {
+  const helper = `
+    const { spawn } = require("node:child_process");
+    const child = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"], {
+      detached: process.platform === "win32",
+      stdio: "ignore",
+      windowsHide: true,
+    });
+    console.log(child.pid);
+    child.unref();
+  `;
+  const supervisor = spawn(process.execPath, ["-e", helper], {
+    detached: process.platform !== "win32",
+    stdio: ["ignore", "pipe", "pipe"],
+    windowsHide: true,
+  });
+  let descendantPid = null;
+  try {
+    const output = await waitForLine(supervisor.stdout, "\n");
+    descendantPid = Number(output.trim());
+    assert.equal(Number.isInteger(descendantPid), true);
+    assert.equal(await waitForExit(supervisor), 0);
+    const members = processTreeMembers({
+      pid: supervisor.pid,
+      tree_platform: process.platform,
+    });
+    assert.ok(members.length > 0, JSON.stringify({ descendantPid, members }));
+  } finally {
+    if (process.platform === "win32") {
+      if (descendantPid) {
+        try {
+          process.kill(descendantPid, "SIGKILL");
+        } catch {}
+      }
+    } else {
+      try {
+        process.kill(-supervisor.pid, "SIGKILL");
+      } catch {}
+    }
+    if (supervisor.exitCode === null) supervisor.kill();
+  }
 });
 
 test("platform identity probes fail closed on their bounded timeout", () => {

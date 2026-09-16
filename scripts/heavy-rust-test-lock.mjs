@@ -9,6 +9,7 @@ import { toolCachePaths } from "./tool-cache.mjs";
 const waitEnvironmentName = "PORTCOVE_HEAVY_RUST_WAIT_MS";
 const inheritedTokenEnvironmentName = "PORTCOVE_HEAVY_RUST_LOCK_TOKEN";
 const processTokenEnvironmentName = "PORTCOVE_HEAVY_RUST_PROCESS_TOKEN";
+const processTitleMarkerPrefix = "portcove-rust:";
 const identityProbeTimeoutMilliseconds = 5_000;
 
 export function heavyRustTestLockPath() {
@@ -88,8 +89,18 @@ export function readProcessIdentity(pid, options = {}) {
   }
   if (platform === "darwin") {
     const processToken = options.processToken;
-    if (!processToken)
-      throw new Error("Darwin process identity requires the per-process lock token");
+    if (!processToken) {
+      const inspected = runIdentityProbe(
+        run,
+        "ps",
+        ["-o", "lstart=", "-p", String(pid)],
+        pid,
+        "legacy Darwin",
+      );
+      if (inspected.status !== 0) return null;
+      const started = String(inspected.stdout).trim().replace(/\s+/gu, " ");
+      return started ? `darwin:${pid}:${started}` : null;
+    }
     const inspected = runIdentityProbe(
       run,
       "ps",
@@ -98,8 +109,12 @@ export function readProcessIdentity(pid, options = {}) {
       "Darwin",
     );
     if (inspected.status !== 0) return null;
-    const marker = `${processTokenEnvironmentName}=${processToken}`;
-    return String(inspected.stdout).includes(marker) ? `darwin:${pid}:${processToken}` : null;
+    const command = String(inspected.stdout);
+    const environmentMarker = `${processTokenEnvironmentName}=${processToken}`;
+    const titleMarker = `${processTitleMarkerPrefix}${processToken}`;
+    return command.includes(environmentMarker) || command.includes(titleMarker)
+      ? `darwin:${pid}:${processToken}`
+      : null;
   }
   throw new Error(`unsupported process-identity platform: ${platform}`);
 }
@@ -114,6 +129,56 @@ function validProcess(record) {
     (record.process_token === undefined ||
       (typeof record.process_token === "string" && record.process_token.length > 0))
   );
+}
+
+function readWindowsDescendants(rootPid, run = spawnSync) {
+  const script = [
+    "$all=@(Get-CimInstance Win32_Process | Select-Object ProcessId,ParentProcessId)",
+    `$pending=@(${rootPid})`,
+    "$seen=@{}",
+    "$found=@()",
+    "while($pending.Count -gt 0){",
+    "  $parent=$pending[0]",
+    "  if($pending.Count -eq 1){$pending=@()}else{$pending=@($pending[1..($pending.Count-1)])}",
+    "  foreach($child in @($all | Where-Object ParentProcessId -eq $parent)){",
+    "    $id=[int]$child.ProcessId",
+    "    if(-not $seen.ContainsKey($id)){$seen[$id]=$true;$found+=$id;$pending+=$id}",
+    "  }",
+    "}",
+    "$found | ForEach-Object { $_ }",
+  ].join(";");
+  const inspected = runIdentityProbe(
+    run,
+    "powershell.exe",
+    ["-NoLogo", "-NoProfile", "-NonInteractive", "-Command", script],
+    rootPid,
+    "Windows process tree",
+  );
+  if (inspected.status !== 0)
+    throw new Error(
+      `Could not inspect Windows process tree ${rootPid}: ${String(inspected.stderr).trim()}`,
+    );
+  return String(inspected.stdout)
+    .trim()
+    .split(/\s+/u)
+    .filter(Boolean)
+    .map(Number)
+    .filter((pid) => Number.isInteger(pid) && pid > 0);
+}
+
+export function processTreeMembers(record, options = {}) {
+  const platform = options.platform ?? record.tree_platform ?? process.platform;
+  if (platform === "win32")
+    return readWindowsDescendants(record.pid, options.spawnSync ?? spawnSync);
+  const signal = options.killProcess ?? process.kill;
+  try {
+    signal(-record.pid, 0);
+    return [record.pid];
+  } catch (error) {
+    if (error.code === "ESRCH") return [];
+    if (error.code === "EPERM") return [record.pid];
+    throw error;
+  }
 }
 
 async function ownerStoragePath(lockPath) {
@@ -144,6 +209,19 @@ async function readOwner(lockPath) {
     Number.isNaN(Date.parse(owner.created_at))
   )
     throw new Error(`Heavy Rust test lock has invalid owner metadata: ${ownerPath}`);
+  const childPath = `${lockPath}.child-${owner.token}`;
+  try {
+    const childRecord = JSON.parse(await readFile(childPath, "utf8"));
+    if (
+      childRecord?.format_version !== 1 ||
+      childRecord.token !== owner.token ||
+      !validProcess(childRecord.child)
+    )
+      throw new Error(`Heavy Rust test child metadata is invalid: ${childPath}`);
+    owner.child = childRecord.child;
+  } catch (error) {
+    if (error.code !== "ENOENT") throw error;
+  }
   return owner;
 }
 
@@ -151,7 +229,7 @@ function inspectRecord(record, inspectProcessIdentity) {
   return inspectProcessIdentity(record.pid, { processToken: record.process_token });
 }
 
-function activeRecord(owner, inspectProcessIdentity) {
+function activeRecord(owner, inspectProcessIdentity, inspectProcessTree) {
   for (const [kind, record] of [
     ["owner", owner.process],
     ["child", owner.child],
@@ -159,6 +237,8 @@ function activeRecord(owner, inspectProcessIdentity) {
     if (!record) continue;
     const current = inspectRecord(record, inspectProcessIdentity);
     if (current === record.identity) return { kind, record };
+    if (kind === "child" && record.tree_platform && inspectProcessTree(record).length > 0)
+      return { kind: "child tree", record };
   }
   return null;
 }
@@ -172,12 +252,14 @@ function activeMessage(owner, active, waitMilliseconds) {
   );
 }
 
-async function atomicWriteOwner(lockPath, owner) {
-  const ownerPath = await ownerStoragePath(lockPath);
-  const pending = `${ownerPath}.pending-${owner.token}-${randomUUID()}`;
+async function publishChild(lockPath, token, child) {
+  const childPath = `${lockPath}.child-${token}`;
+  const pending = `${childPath}.candidate-${randomUUID()}`;
   try {
-    await writeFile(pending, `${JSON.stringify(owner, null, 2)}\n`, { flag: "wx" });
-    await rename(pending, ownerPath);
+    await writeFile(pending, `${JSON.stringify({ format_version: 1, token, child }, null, 2)}\n`, {
+      flag: "wx",
+    });
+    await link(pending, childPath);
   } finally {
     await rm(pending, { force: true }).catch(() => {});
   }
@@ -206,22 +288,36 @@ async function releaseOwnedLock(lockPath, token) {
   const released = `${lockPath}.released-${token}`;
   await rename(lockPath, released);
   await rm(released, { recursive: true, force: true });
+  await rm(`${lockPath}.child-${token}`, { force: true });
 }
 
-async function updateOwnedChild(lockPath, token, child, inspectProcessIdentity, processToken) {
+async function updateOwnedChild(
+  lockPath,
+  token,
+  child,
+  inspectProcessIdentity,
+  processToken,
+  treePlatform,
+) {
   const owner = await readOwner(lockPath);
   if (owner.token !== token)
     throw new Error("Heavy Rust test lock ownership changed before child registration");
   const identity = inspectProcessIdentity(child.pid, { processToken });
   if (!identity) return null;
-  owner.child = { pid: child.pid, identity, process_token: processToken };
-  await atomicWriteOwner(lockPath, owner);
+  owner.child = {
+    pid: child.pid,
+    identity,
+    process_token: processToken,
+    tree_platform: treePlatform,
+  };
+  await publishChild(lockPath, token, owner.child);
   return owner.child;
 }
 
 export async function acquireHeavyRustTestLock(metadata = {}, options = {}) {
   const lockPath = path.resolve(options.lockPath ?? heavyRustTestLockPath());
   const inspectProcessIdentity = options.inspectProcessIdentity ?? readProcessIdentity;
+  const inspectProcessTree = options.inspectProcessTree ?? ((record) => processTreeMembers(record));
   const waitMilliseconds = parseWaitMilliseconds(
     options.waitMilliseconds ?? process.env[waitEnvironmentName],
   );
@@ -235,7 +331,7 @@ export async function acquireHeavyRustTestLock(metadata = {}, options = {}) {
     const owner = await readOwner(lockPath);
     if (owner.token !== inheritedToken)
       throw new Error("Inherited Heavy Rust test lock token does not match the active owner");
-    if (!activeRecord(owner, inspectProcessIdentity))
+    if (!activeRecord(owner, inspectProcessIdentity, inspectProcessTree))
       throw new Error("Inherited Heavy Rust test lock no longer has a matching live owner");
     return {
       lockPath,
@@ -252,63 +348,85 @@ export async function acquireHeavyRustTestLock(metadata = {}, options = {}) {
 
   await mkdir(path.dirname(lockPath), { recursive: true });
   const deadline = now() + waitMilliseconds;
-  const processToken = randomUUID();
+  const processToken = randomUUID().replaceAll("-", "").slice(0, 16);
+  const originalProcessTitle = process.title;
   process.env[processTokenEnvironmentName] = processToken;
-  for (;;) {
-    const token = randomUUID();
-    const processIdentity = inspectProcessIdentity(process.pid, { processToken });
-    if (!processIdentity)
-      throw new Error(`Could not establish the current process identity for PID ${process.pid}`);
-    const owner = {
-      format_version: 1,
-      token,
-      process: { pid: process.pid, identity: processIdentity, process_token: processToken },
-      child: null,
-      created_at: new Date().toISOString(),
-      workspace: metadata.workspace ?? null,
-      command: metadata.command ?? null,
-    };
-    try {
-      await publishOwner(lockPath, owner);
-      return {
-        lockPath,
-        owner,
-        inherited: false,
-        childEnvironment: {
-          [inheritedTokenEnvironmentName]: owner.token,
-          [processTokenEnvironmentName]: processToken,
-        },
-        registerChild: (child) =>
-          updateOwnedChild(lockPath, token, child, inspectProcessIdentity, processToken),
-        release: () => releaseOwnedLock(lockPath, token),
+  if (process.platform === "darwin")
+    process.title = `${processTitleMarkerPrefix}${processToken} ${originalProcessTitle}`;
+  try {
+    for (;;) {
+      const token = randomUUID();
+      const processIdentity = inspectProcessIdentity(process.pid, { processToken });
+      if (!processIdentity)
+        throw new Error(`Could not establish the current process identity for PID ${process.pid}`);
+      const owner = {
+        format_version: 1,
+        token,
+        process: { pid: process.pid, identity: processIdentity, process_token: processToken },
+        child: null,
+        created_at: new Date().toISOString(),
+        workspace: metadata.workspace ?? null,
+        command: metadata.command ?? null,
       };
-    } catch (error) {
-      if (error.code !== "EEXIST") throw error;
-      let existing;
       try {
-        existing = await readOwner(lockPath);
-      } catch (readError) {
-        if (readError.cause?.code === "ENOENT" && now() < deadline) {
+        await publishOwner(lockPath, owner);
+        return {
+          lockPath,
+          owner,
+          inherited: false,
+          childEnvironment: {
+            [inheritedTokenEnvironmentName]: owner.token,
+            [processTokenEnvironmentName]: processToken,
+          },
+          registerChild: (child, registration = {}) =>
+            updateOwnedChild(
+              lockPath,
+              token,
+              child,
+              inspectProcessIdentity,
+              processToken,
+              registration.platform ?? process.platform,
+            ),
+          release: async () => {
+            try {
+              await releaseOwnedLock(lockPath, token);
+            } finally {
+              if (process.platform === "darwin") process.title = originalProcessTitle;
+            }
+          },
+        };
+      } catch (error) {
+        if (error.code !== "EEXIST") throw error;
+        let existing;
+        try {
+          existing = await readOwner(lockPath);
+        } catch (readError) {
+          if (readError.cause?.code === "ENOENT" && now() < deadline) {
+            await sleep(Math.min(pollMilliseconds, Math.max(1, deadline - now())));
+            continue;
+          }
+          throw readError;
+        }
+        const active = activeRecord(existing, inspectProcessIdentity, inspectProcessTree);
+        if (active) {
+          if (now() >= deadline) throw new Error(activeMessage(existing, active, waitMilliseconds));
           await sleep(Math.min(pollMilliseconds, Math.max(1, deadline - now())));
           continue;
         }
-        throw readError;
+        const stalePath = `${lockPath}.stale-${randomUUID()}`;
+        try {
+          await rename(lockPath, stalePath);
+        } catch (renameError) {
+          if (["ENOENT", "EEXIST"].includes(renameError.code)) continue;
+          throw renameError;
+        }
+        await rm(stalePath, { recursive: true, force: true });
+        await rm(`${lockPath}.child-${existing.token}`, { force: true });
       }
-      const active = activeRecord(existing, inspectProcessIdentity);
-      if (active) {
-        if (now() >= deadline) throw new Error(activeMessage(existing, active, waitMilliseconds));
-        await sleep(Math.min(pollMilliseconds, Math.max(1, deadline - now())));
-        continue;
-      }
-      const stalePath = `${lockPath}.stale-${randomUUID()}`;
-      try {
-        await rename(lockPath, stalePath);
-      } catch (renameError) {
-        if (["ENOENT", "EEXIST"].includes(renameError.code)) continue;
-        throw renameError;
-      }
-      await rm(stalePath, { recursive: true, force: true });
     }
+  } catch (error) {
+    if (process.platform === "darwin") process.title = originalProcessTitle;
+    throw error;
   }
 }
 
