@@ -23,7 +23,7 @@ directories = "6"
 ed25519-dalek = { version = "3.0.0", default-features = false, features = [
   "fast",
 ] }
-crc32fast = "1.5.1"
+crc32fast = "1.5.2"
 flate2 = "1.1.10"
 filetime = "0.2.29"
 futures-util = "0.3.34"
