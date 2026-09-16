@@ -1531,6 +1531,23 @@ describe("desktop components", () => {
     expect(html).not.toContain("staged-source-portable");
   });
 
+  it("keeps retired-upstream maintenance distinct from Portcove support", () => {
+    const html = renderToStaticMarkup(
+      <DetailPanel
+        port={{ ...port, upstream_status: "retired" }}
+        sourcePath=""
+        setSourcePath={vi.fn()}
+        actions={actions}
+      />,
+    );
+    expect(html).toContain("The upstream project is no longer maintained");
+    expect(html).toContain("Portcove can still install its pinned release");
+    expect(html).toContain("no new upstream fixes are expected");
+    expect(html).toContain("Portcove support");
+    expect(html).toContain("Stable");
+    expect(html).not.toContain("no upstream fixes or support");
+  });
+
   it("orders port details by player task and distinguishes installed from eligible versions", () => {
     const install = installRecord();
     const html = renderToStaticMarkup(
