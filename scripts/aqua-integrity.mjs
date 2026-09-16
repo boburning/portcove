@@ -47,10 +47,16 @@ function exactUnique(values, label) {
 }
 
 export function parseAquaConfig(contents) {
-  const registries = [...contents.matchAll(/^ {2}- type: standard\r?\n {4}ref: (\S+)$/gmu)];
-  if (registries.length !== 1)
-    throw new Error("aqua.yaml must define one pinned standard registry");
-  const packages = [...contents.matchAll(/^ {2}- name: ([^@\s]+)@(\S+)$/gmu)].map(
+  const normalized = contents.replaceAll("\r\n", "\n");
+  const structure =
+    /^# yaml-language-server: \$schema=https:\/\/raw\.githubusercontent\.com\/aquaproj\/aqua\/main\/json-schema\/aqua-yaml\.json\nregistries:\n  - type: standard\n    ref: (\S+)\n\nchecksum:\n  enabled: true\n  require_checksum: true\n\npackages:\n((?:  - name: [^@\s]+@\S+\n?)+)$/u.exec(
+      normalized,
+    );
+  if (!structure)
+    throw new Error(
+      "aqua.yaml must use the maintained standard registry, required checksums, and default package authority only",
+    );
+  const packages = [...structure[2].matchAll(/^ {2}- name: ([^@\s]+)@(\S+)$/gmu)].map(
     ([, name, version]) => ({ name, version }),
   );
   if (!packages.length) throw new Error("aqua.yaml must define at least one package");
@@ -65,7 +71,7 @@ export function parseAquaConfig(contents) {
       throw new Error(`${name} must use an exact version`);
     if (!assetInventories[name]) throw new Error(`no maintained platform inventory for ${name}`);
   }
-  return { registryRef: registries[0][1], packages };
+  return { registryRef: structure[1], packages };
 }
 
 export function parseReleaseChecksumId(id) {
@@ -188,6 +194,17 @@ export function requireStableNonReleaseEntries(previous, generated) {
     throw new Error("non-release Aqua checksum authority changed; review it separately");
 }
 
+export function requireUnchangedInputs(expected, observed) {
+  if (observed.configText !== expected.configText)
+    throw new Error(
+      "aqua.yaml changed while checksum repair was running; retry from current files",
+    );
+  if (observed.ledgerText !== expected.ledgerText)
+    throw new Error(
+      "aqua-checksums.json changed while checksum repair was running; retry from current files",
+    );
+}
+
 async function loadCurrent(validateInventory = true) {
   const configText = await readFile(path.join(projectRoot, "aqua.yaml"), "utf8");
   const ledgerText = await readFile(path.join(projectRoot, "aqua-checksums.json"), "utf8");
@@ -208,6 +225,7 @@ async function update() {
   const temporary = await mkdtemp(path.join(workRoot, "aqua-integrity-"));
   const stagedConfig = path.join(temporary, "aqua.yaml");
   const stagedLedger = path.join(temporary, "aqua-checksums.json");
+  const promotion = path.join(projectRoot, `aqua-checksums.json.${process.pid}.tmp`);
   try {
     await copyFile(path.join(projectRoot, "aqua.yaml"), stagedConfig);
     await copyFile(path.join(projectRoot, "aqua-checksums.json"), stagedLedger);
@@ -226,13 +244,17 @@ async function update() {
     requireStableNonReleaseEntries(current.ledger, generated);
     verifyPublisherDigests(releaseEntries, releaseMetadata(current.config));
 
-    const promotion = path.join(projectRoot, `aqua-checksums.json.${process.pid}.tmp`);
     await copyFile(stagedLedger, promotion);
+    requireUnchangedInputs(current, {
+      configText: await readFile(path.join(projectRoot, "aqua.yaml"), "utf8"),
+      ledgerText: await readFile(path.join(projectRoot, "aqua-checksums.json"), "utf8"),
+    });
     await rename(promotion, path.join(projectRoot, "aqua-checksums.json"));
     console.log(
       `Updated ${releaseEntries.length} Aqua package checksums after publisher-digest verification.`,
     );
   } finally {
+    await rm(promotion, { force: true });
     await rm(temporary, { recursive: true, force: true });
   }
 }

@@ -12,6 +12,7 @@ import {
   parseAquaConfig,
   parseReleaseChecksumId,
   requireStableNonReleaseEntries,
+  requireUnchangedInputs,
   validateAquaChecksumEntries,
   validateAquaChecksumLedger,
   verifyPublisherDigests,
@@ -136,6 +137,26 @@ test("Aqua integrity rejects stale, incomplete, unexpected and untrusted package
   const entries = validateAquaChecksumLedger(config, ledger);
   const ruff = config.packages.find(({ name }) => name === "astral-sh/ruff");
   assert.ok(ruff, "Ruff must remain in the maintained Aqua package inventory");
+  assert.throws(
+    () =>
+      parseAquaConfig(
+        aqua.replace(
+          "    ref:",
+          "  - name: alternate\n    type: local\n    path: ./alternate-registry.yaml\n  - type: standard\n    ref:",
+        ),
+      ),
+    /default package authority only/u,
+  );
+  assert.throws(
+    () =>
+      parseAquaConfig(
+        aqua.replace(
+          `  - name: ${ruff.name}@${ruff.version}`,
+          `  - name: ${ruff.name}@${ruff.version}\n    registry: alternate`,
+        ),
+      ),
+    /default package authority only/u,
+  );
 
   const missing = structuredClone(ledger);
   missing.checksums.splice(0, 1);
@@ -185,6 +206,17 @@ test("Aqua integrity rejects stale, incomplete, unexpected and untrusted package
   assert.throws(
     () => requireStableNonReleaseEntries(ledger, changedRegistry),
     /review it separately/u,
+  );
+
+  const captured = { configText: aqua, ledgerText: JSON.stringify(ledger) };
+  assert.doesNotThrow(() => requireUnchangedInputs(captured, structuredClone(captured)));
+  assert.throws(
+    () => requireUnchangedInputs(captured, { ...captured, configText: `${aqua}\n` }),
+    /aqua\.yaml changed/u,
+  );
+  assert.throws(
+    () => requireUnchangedInputs(captured, { ...captured, ledgerText: "{}" }),
+    /aqua-checksums\.json changed/u,
   );
 });
 
