@@ -409,6 +409,10 @@ function classifyOnePath(selection, input, fileExists, options = {}) {
     file === "AGENTS.md"
   ) {
     selection.scopes.add("documentation");
+    if (file.startsWith("docs/") || extension === ".md") {
+      selection.scopes.add("tooling");
+      addNodeTest(selection, "scripts/repository-skills.test.mjs");
+    }
     recognized = true;
   }
 

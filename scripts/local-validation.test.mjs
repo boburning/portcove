@@ -96,10 +96,11 @@ test("active instruction changes run their semantic contracts", () => {
   assert.deepEqual(ids(plan), ["diff-check", "oxfmt", "node-tests"]);
 });
 
-test("informational documentation stays on formatting and whitespace checks", () => {
-  const { selection, plan } = planFor(["docs/GUI-COMPETITIVE-REVIEW.md"]);
-  assert.deepEqual([...selection.scopes].sort(), ["documentation"]);
-  assert.deepEqual(ids(plan), ["diff-check", "oxfmt"]);
+test("documentation targets run the dynamic link contract", () => {
+  const { selection, plan } = planFor(["docs/ARCHITECTURE.md"]);
+  assert.deepEqual([...selection.scopes].sort(), ["documentation", "tooling"]);
+  assert.deepEqual([...selection.nodeTests], ["scripts/repository-skills.test.mjs"]);
+  assert.deepEqual(ids(plan), ["diff-check", "oxfmt", "node-tests"]);
 });
 
 test("repository skill changes run the dynamic skill contract", () => {
