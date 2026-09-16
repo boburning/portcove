@@ -78,13 +78,26 @@ async function oxlintFixture() {
   const viteDirectory = path.join(desktop, `.lint-oxlint-vite-${nonce}`);
   const viteFixture = path.join(viteDirectory, "vite.config.ts");
   const runner = path.join(root, "scripts", "run-oxlint.mjs");
-  const repository = run(process.execPath, [runner]);
-  expectSuccess("Oxlint repository scan", repository);
-  assert.match(
-    `${repository.stdout}${repository.stderr}`,
-    /Oxlint standard pass: [1-9]\d* files with [1-9]\d* active rules/u,
-    "Oxlint repository scan did not report a nonzero file and rule inventory",
-  );
+  let childInvocations = 0;
+  function assertFixtureTarget(target) {
+    assert.ok(target, "Oxlint fixture child requires an explicit target");
+    const absolute = path.resolve(target);
+    assert.ok(
+      absolute === javascriptFixture ||
+        absolute.startsWith(`${directory}${path.sep}`) ||
+        absolute.startsWith(`${viteDirectory}${path.sep}`),
+      `Oxlint fixture child escaped its isolated targets: ${target}`,
+    );
+    childInvocations += 1;
+  }
+  function runOxlint(target) {
+    assertFixtureTarget(target);
+    return run(process.execPath, [runner, target]);
+  }
+  function runOxlintAsync(target) {
+    assertFixtureTarget(target);
+    return runAsync(process.execPath, [runner, target]);
+  }
   try {
     await mkdir(directory);
     await writeFile(moduleFixture, "export const named = 1;\n");
@@ -92,13 +105,13 @@ async function oxlintFixture() {
       fixture,
       'import { useState } from "react";\nexport function Fixture() {\n  const [value] = useState(0);\n  void Promise.resolve(value);\n  return <img alt="" src="fixture" />;\n}\n',
     );
-    const valid = run(process.execPath, [runner, fixture]);
+    const valid = runOxlint(fixture);
     expectSuccess("Oxlint TypeScript", valid);
     await writeFile(
       fixture,
       'import { expect, it, vi } from "vitest";\nvi.mock("./module", () => ({ named: 1 }));\nit("accepts contextual messages", () => {\n  expect(1, "fixture context").toBe(1);\n});\n',
     );
-    expectSuccess("Oxlint Vitest policy", run(process.execPath, [runner, fixture]));
+    expectSuccess("Oxlint Vitest policy", runOxlint(fixture));
     for (const [rule, diagnostic, source] of [
       [
         "React Hooks",
@@ -163,17 +176,13 @@ async function oxlintFixture() {
       ],
     ]) {
       await writeFile(fixture, source);
-      expectFailure(`Oxlint ${rule}`, run(process.execPath, [runner, fixture]), diagnostic);
+      expectFailure(`Oxlint ${rule}`, runOxlint(fixture), diagnostic);
     }
 
     await writeFile(javascriptFixture, "export const value = 1;\n");
-    expectSuccess("Oxlint JavaScript", run(process.execPath, [runner, javascriptFixture]));
+    expectSuccess("Oxlint JavaScript", runOxlint(javascriptFixture));
     await writeFile(javascriptFixture, "missingPortcoveFunction();\n");
-    expectFailure(
-      "Oxlint JavaScript",
-      run(process.execPath, [runner, javascriptFixture]),
-      /eslint\(no-undef\)/,
-    );
+    expectFailure("Oxlint JavaScript", runOxlint(javascriptFixture), /eslint\(no-undef\)/);
 
     await mkdir(viteDirectory);
     await writeFile(
@@ -181,14 +190,14 @@ async function oxlintFixture() {
       '{"compilerOptions":{"module":"ESNext","moduleResolution":"Bundler","noEmit":true,"strict":true},"include":["vite.config.ts"]}\n',
     );
     await writeFile(viteFixture, "export default { server: { port: 5173 } };\n");
-    expectSuccess("Oxlint Vite config", run(process.execPath, [runner, viteFixture]));
+    expectSuccess("Oxlint Vite config", runOxlint(viteFixture));
     await writeFile(
       viteFixture,
       "export default function config() {\n  Promise.resolve(1);\n  return {};\n}\n",
     );
     expectFailure(
       "Oxlint type-aware Vite config",
-      run(process.execPath, [runner, viteFixture]),
+      runOxlint(viteFixture),
       /typescript\(no-floating-promises\)/,
     );
 
@@ -203,12 +212,16 @@ async function oxlintFixture() {
       'export function Fixture() {\n  return <img src="fixture" />;\n}\n',
     );
     const [hooksResult, a11yResult] = await Promise.all([
-      runAsync(process.execPath, [runner, hooksOverlap]),
-      runAsync(process.execPath, [runner, a11yOverlap]),
+      runOxlintAsync(hooksOverlap),
+      runOxlintAsync(a11yOverlap),
     ]);
     expectFailure("overlapping Oxlint Hooks fixture", hooksResult, /rules-of-hooks/);
     expectFailure("overlapping Oxlint a11y fixture", a11yResult, /alt-text/);
+    assert.ok(childInvocations > 0, "Oxlint fixture contract did not execute a child");
     console.log("Oxlint overlapping negative fixtures remained independently deterministic.");
+    console.log(
+      `Oxlint fixture contract executed ${childInvocations} targeted child invocations without a repository-wide scan.`,
+    );
   } finally {
     await rm(directory, { recursive: true, force: true });
     await rm(javascriptFixture, { force: true });

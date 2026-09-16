@@ -776,6 +776,8 @@ test("frontend tooling uses the pinned Oxc contracts without legacy quality laye
   assert.match(oxlintRunner, /sourceRoot/);
   assert.match(oxlintRunner, /viteConfig/);
   assert.match(oxlintRunner, /"--type-aware"/);
+  assert.match(oxlintRunner, /report\.number_of_files < 1/);
+  assert.match(oxlintRunner, /report\.number_of_rules < 1/);
 
   const copyChecker = await readFile(
     new URL("../apps/desktop/scripts/check-copy.mjs", import.meta.url),
