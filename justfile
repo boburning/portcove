@@ -114,38 +114,37 @@ fallow:
 
 oxlint:
     {{storage}} corepack pnpm --dir apps/desktop lint:oxlint
-    {{storage}} node scripts/lint-tools.integration.mjs oxlint
 
 stylelint:
     {{storage}} corepack pnpm --dir apps/desktop lint:style
-    {{storage}} node scripts/lint-tools.integration.mjs stylelint
+
+ui-lint-contracts:
+    {{storage}} node scripts/lint-tools.integration.mjs oxfmt oxlint stylelint
 
 ui-check: ui-transport ui-build ui-test fallow oxlint stylelint
 
-check-ui: fmt-frontend-check ui-check
+check-ui: fmt-frontend-check ui-check ui-lint-contracts
 
 fmt-frontend-check:
     {{storage}} corepack pnpm --dir apps/desktop format:check
-    {{storage}} node scripts/lint-tools.integration.mjs oxfmt
 
 # Cross-language scripts and hosted automation.
 python-lint:
     {{storage}} aqua exec -- ruff check apps/desktop/assets/brand/models/v2
-    {{storage}} node scripts/lint-tools.integration.mjs ruff
 
 shell-lint:
     {{storage}} aqua exec -- shellcheck --severity=warning scripts/bootstrap-quality-tools.sh scripts/install-linux-desktop-prerequisites.sh scripts/test-linux-package-ownership.sh
-    {{storage}} node scripts/lint-tools.integration.mjs shellcheck
 
 actions-lint:
     {{storage}} node scripts/run-actionlint.mjs
-    {{storage}} node scripts/lint-tools.integration.mjs actionlint
 
 powershell-lint:
     {{storage}} node scripts/run-powershell-lint.mjs
-    {{storage}} node scripts/lint-tools.integration.mjs psscriptanalyzer
 
-script-lint: python-lint shell-lint actions-lint powershell-lint
+script-lint-contracts:
+    {{storage}} node scripts/lint-tools.integration.mjs ruff shellcheck actionlint psscriptanalyzer
+
+script-lint: python-lint shell-lint actions-lint powershell-lint script-lint-contracts
 
 # Offline drift check and publisher-verified repair for Aqua package checksums.
 aqua-integrity-check:
