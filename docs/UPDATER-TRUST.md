@@ -439,6 +439,16 @@ TLS, GitHub delivery, a public feed, staging verification, a physical platform o
 publication. Ordinary construction still rejects loopback HTTP before opening a
 request and retains the production HTTPS/public-DNS/no-proxy/redirect policy.
 
+A separate composed qualification case passes that real controlled HTTP reader
+into the existing verified staging store. It establishes one verified staged
+candidate, rejects same-length altered bytes by authenticated SHA-256 and a
+truncated stream by early EOF, removes each incomplete incoming file, and preserves
+the exact prior candidate and payload before an exact-body retry stages the newer
+candidate. The fixture contains only disposable public verification material; it
+does not grant signing, feed, publication, apply or replacement authority. This is
+still controlled loopback acquisition and staging evidence, not production
+transport, a packaged update or physical-platform qualification.
+
 ## Freshness, replay and bounds
 
 Use safe expiration enforcement. Under one host OS lock, persist the latest verified
