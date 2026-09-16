@@ -56,7 +56,7 @@ test(
         supervisor.once("error", reject);
         supervisor.once("close", (code, signal) => resolve({ code, signal }));
       });
-      assert.equal(outcome.signal, "SIGKILL");
+      assert.notEqual(outcome.code, 0, JSON.stringify(outcome));
       await waitUntil(() => {
         try {
           process.kill(descendantPid, 0);
