@@ -112,6 +112,16 @@
         "live_url": "https://github.com/mstan/ApeEscapeRecomp/blob/master/DISC.md"
       },
       {
+        "id": "mega-man-x5-recompiled-0-1-0-alpha-source-contract",
+        "role": "upstream_support",
+        "authority": "mstan/MegaManX5Recomp",
+        "authority_ref": "c8fde08b77b8c8daae8d0955b6529de79c82d85b",
+        "reviewed_at": "2026-09-16",
+        "claim": "Limits Mega Man X5 Recompiled 0.1.0-alpha to the exact US SLUS-01334 single-track MODE2/2352 source",
+        "immutable_url": "https://github.com/mstan/MegaManX5Recomp/blob/c8fde08b77b8c8daae8d0955b6529de79c82d85b/DISC.md",
+        "live_url": "https://github.com/mstan/MegaManX5Recomp/blob/master/DISC.md"
+      },
+      {
         "id": "ape-escape-recompiled-windows-2026-09-16",
         "role": "byte_identity",
         "authority": "boburning/portcove",
@@ -130,6 +140,26 @@
         "claim": "Records exact source refusal and admission, dynamic GitHub resolution, install, verification with bounded runtime diagnostics and exact generated-source reuse, responsive launch, persistent-only backup and restore, adopt, update, rollback, retained reuse, removal, reinstall, and persistent-state preservation",
         "immutable_url": "https://github.com/boburning/portcove/blob/5219c00ab7f14fccd93200ea79eb4f7d48f02f23/docs/qualification/ape-escape-recompiled-windows-2026-09-16.md",
         "live_url": "https://github.com/boburning/portcove/blob/main/docs/qualification/ape-escape-recompiled-windows-2026-09-16.md"
+      },
+      {
+        "id": "mega-man-x5-recompiled-windows-2026-09-16",
+        "role": "byte_identity",
+        "authority": "boburning/portcove",
+        "authority_ref": "360534cb403dfe2a1834ce9fc7455d9db53da7f3",
+        "reviewed_at": "2026-09-16",
+        "claim": "Records the exact authorized USA source identity, GitHub artifact identity, archive and runtime ownership preflight, and responsive Windows launcher",
+        "immutable_url": "https://github.com/boburning/portcove/blob/360534cb403dfe2a1834ce9fc7455d9db53da7f3/docs/qualification/mega-man-x5-recompiled-windows-2026-09-16.md",
+        "live_url": "https://github.com/boburning/portcove/blob/main/docs/qualification/mega-man-x5-recompiled-windows-2026-09-16.md"
+      },
+      {
+        "id": "mega-man-x5-recompiled-windows-lifecycle-2026-09-16",
+        "role": "portcove_qualification",
+        "authority": "boburning/portcove",
+        "authority_ref": "360534cb403dfe2a1834ce9fc7455d9db53da7f3",
+        "reviewed_at": "2026-09-16",
+        "claim": "Records exact source refusal and admission, dynamic GitHub resolution, install, verification with bounded runtime diagnostics, responsive launch, persistent-only backup and restore, adopt, update, rollback, retained reuse, removal, reinstall, and persistent-state preservation",
+        "immutable_url": "https://github.com/boburning/portcove/blob/360534cb403dfe2a1834ce9fc7455d9db53da7f3/docs/qualification/mega-man-x5-recompiled-windows-2026-09-16.md",
+        "live_url": "https://github.com/boburning/portcove/blob/main/docs/qualification/mega-man-x5-recompiled-windows-2026-09-16.md"
       },
       {
         "id": "cvlod-recomp-0-2-26-source-contract",
@@ -4357,6 +4387,51 @@
         "aliases": [],
         "tombstones": [],
         "evidence_gap": null
+      },
+      {
+        "id": "mega-man-x5-psx",
+        "label": "Mega Man X5 (USA) disc",
+        "kind": "optical-disc",
+        "variants": [
+          {
+            "id": "usa-rev0",
+            "title": "Mega Man X5",
+            "region": "USA",
+            "revision": "Original",
+            "product_codes": [
+              "SLUS-01334"
+            ],
+            "representations": [
+              {
+                "id": "normalized-track-set",
+                "extensions": [
+                  "chd"
+                ],
+                "kind": "optical-track-set",
+                "track_counts": [
+                  1
+                ],
+                "identities": [
+                  {
+                    "scope": "psx-normalized-track-set",
+                    "sha1": "10709231f857636b5ccd3cd9acebc91458dcb5fd",
+                    "sha256": "be731bc4b9d3211b9267a34b8a68c769199a15479b14004ff25b67cdfebe8af4",
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "mega-man-x5-recompiled-0-1-0-alpha-source-contract"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "mega-man-x5-recompiled-0-1-0-alpha-source-contract"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
       }
     ],
     "contracts": [
@@ -6100,6 +6175,35 @@
         ],
         "aliases": [],
         "tombstones": []
+      },
+      {
+        "id": "mega-man-x5-recompiled-game-source",
+        "port_id": "mega-man-x5-recompiled",
+        "role": "game",
+        "profile_id": "mega-man-x5-psx",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "usa-rev0"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "mega-man-x5-recompiled-0-1-0-alpha-source-contract",
+          "mega-man-x5-recompiled-windows-2026-09-16",
+          "mega-man-x5-recompiled-windows-lifecycle-2026-09-16"
+        ],
+        "authority_ref": "360534cb403dfe2a1834ce9fc7455d9db53da7f3",
+        "reviewed_at": "2026-09-16",
+        "immutable_review_url": "https://github.com/boburning/portcove/blob/360534cb403dfe2a1834ce9fc7455d9db53da7f3/docs/qualification/mega-man-x5-recompiled-windows-2026-09-16.md",
+        "live_review_url": "https://github.com/boburning/portcove/blob/main/docs/qualification/mega-man-x5-recompiled-windows-2026-09-16.md",
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.0-alpha",
+            "artifact_sha256": "3e5dfea86184cb2ff05372e012cef8d94e89119105f7a0268a14f9e24b47e590"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
       }
     ],
     "validators": [
@@ -6559,6 +6663,60 @@
         "method": "Exact source admission, live GitHub resolution, install, 287-file post-launch verification with bounded dynamic diagnostics, responsive native launch, persistent-only backup and guarded restore, adopted-to-downloaded update, rollback, retained reuse, removal, reinstall, and persistent-state preservation",
         "evidence_ids": [
           "ape-escape-recompiled-windows-lifecycle-2026-09-16"
+        ]
+      },
+      {
+        "scope": {
+          "port_id": "mega-man-x5-recompiled",
+          "platform": "windows-x86-64",
+          "artifact_sha256": "3e5dfea86184cb2ff05372e012cef8d94e89119105f7a0268a14f9e24b47e590",
+          "upstream_ref": "v0.1.0-alpha",
+          "contract_id": "mega-man-x5-recompiled-game-source",
+          "variant": {
+            "state": "exact",
+            "identity": {
+              "game_id": "mega-man-x5-psx",
+              "variant_id": "usa-rev0",
+              "representation_id": "normalized-track-set"
+            }
+          },
+          "check_version": "mega-man-x5-windows-qualification-v1"
+        },
+        "kind": "structural_check",
+        "outcome": "passed",
+        "observed_at": 1789556695,
+        "portcove_version": "0.1.0-alpha.2",
+        "portcove_commit": "b2a34bc3e87ad581e8d1bfb5b9a0aaf2246ea6fe",
+        "method": "Exact GitHub release and artifact identity, normalized source identity and valid-CHD mismatch rejection, executable, persistence, generated-source, bounded runtime-output, and immutable-manifest binding checks",
+        "evidence_ids": [
+          "mega-man-x5-recompiled-windows-lifecycle-2026-09-16"
+        ]
+      },
+      {
+        "scope": {
+          "port_id": "mega-man-x5-recompiled",
+          "platform": "windows-x86-64",
+          "artifact_sha256": "3e5dfea86184cb2ff05372e012cef8d94e89119105f7a0268a14f9e24b47e590",
+          "upstream_ref": "v0.1.0-alpha",
+          "contract_id": "mega-man-x5-recompiled-game-source",
+          "variant": {
+            "state": "exact",
+            "identity": {
+              "game_id": "mega-man-x5-psx",
+              "variant_id": "usa-rev0",
+              "representation_id": "normalized-track-set"
+            }
+          },
+          "check_version": "mega-man-x5-windows-qualification-v1"
+        },
+        "kind": "automated_lifecycle",
+        "outcome": "passed",
+        "observed_at": 1789556695,
+        "portcove_version": "0.1.0-alpha.2",
+        "portcove_commit": "b2a34bc3e87ad581e8d1bfb5b9a0aaf2246ea6fe",
+        "method": "Exact source admission, live GitHub resolution, install, 287-file post-launch verification with bounded dynamic diagnostics, responsive native launch, persistent-only backup and guarded restore, adopted-to-downloaded update, rollback, retained reuse, removal, reinstall, and persistent-state preservation",
+        "evidence_ids": [
+          "mega-man-x5-recompiled-windows-lifecycle-2026-09-16"
         ]
       }
     ]
@@ -11862,6 +12020,89 @@
             "role": "game",
             "profile_id": "ape-escape-psx",
             "label": "Ape Escape (USA) disc",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed"
+      }
+    },
+    {
+      "id": "mega-man-x5-recompiled",
+      "name": "Mega Man X5 Recompiled",
+      "summary": "Native Mega Man X5 recompilation.",
+      "project_url": "https://github.com/mstan/MegaManX5Recomp",
+      "support_tier": "beta",
+      "channels": [
+        "beta"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "adapter": "staged-source-portable",
+      "release": {
+        "repository": "mstan/MegaManX5Recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "MegaManX5Recomp-",
+            "-windows-x64.zip"
+          ]
+        }
+      },
+      "source_profile": "mega-man-x5-psx",
+      "executable_hints": {
+        "windows-x86-64": [
+          "MegaManX5Recomp.exe"
+        ]
+      },
+      "persistent_paths": [
+        "saves",
+        "settings.toml",
+        "input.ini",
+        "keybinds.ini",
+        "disc.cfg",
+        "bios.cfg",
+        "mods"
+      ],
+      "runtime_mutable_paths": [
+        "cache",
+        "disc",
+        "overlay_captures.json",
+        "overlay_captures.json.d",
+        "psx_freeze_heartbeat.json",
+        "psx_last_run_report.json"
+      ],
+      "runtime_mutable_file_patterns": [
+        {
+          "prefix": "psx_freeze_dump_psx-runtime_",
+          "suffix": ".json"
+        }
+      ],
+      "launch_arguments": [
+        "--no-launcher",
+        "--memcard-dir",
+        "saves",
+        "--game",
+        "game.toml",
+        "--bios",
+        "bios/openbios.bin",
+        "--disc",
+        "disc/disc.cue"
+      ],
+      "runtime_source_filename": "disc",
+      "runtime_source_materialization": "psx-bin-cue",
+      "runtime_source_hashes": {
+        "disc.cue": "a5023a08a8330c83ada9bcfb75303359f353dd37e04db8ef7a0f23703ec56d41",
+        "disc1.bin": "be731bc4b9d3211b9267a34b8a68c769199a15479b14004ff25b67cdfebe8af4"
+      },
+      "presentation": {
+        "installation_method": "staged-game-files",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "mega-man-x5-psx",
+            "label": "Mega Man X5 (USA) disc",
             "verification": "catalog-identity"
           }
         ],

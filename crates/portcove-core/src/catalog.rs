@@ -1291,7 +1291,7 @@ mod tests {
         let source_catalog = migrated.source_catalog().expect("schema-2 authority");
         assert_eq!(
             source_catalog.identities.len(),
-            legacy.document().source_profiles.len() + 6
+            legacy.document().source_profiles.len() + 7
         );
         let projected_legacy_profiles = migrated
             .document()
@@ -1305,6 +1305,7 @@ mod tests {
                     "star-fox-enhanced-usa-v1-0",
                     "duke-nukem-zero-hour",
                     "ape-escape-psx",
+                    "mega-man-x5-psx",
                 ]
                 .contains(&profile.id.as_str())
             })
@@ -1452,6 +1453,7 @@ mod tests {
                     "star-fox-enhanced",
                     "duke-nukem-zero-hour-recompiled",
                     "ape-escape-recompiled",
+                    "mega-man-x5-recompiled",
                 ]
                 .contains(&port.id.as_str())
             })
@@ -1473,7 +1475,7 @@ mod tests {
             serde_json::to_value(expected_ports).unwrap()
         );
         let qualification = &migrated.source_catalog().unwrap().qualification;
-        assert_eq!(qualification.len(), 16);
+        assert_eq!(qualification.len(), 18);
         assert_eq!(
             qualification
                 .iter()
@@ -1515,6 +1517,13 @@ mod tests {
             qualification
                 .iter()
                 .filter(|record| record.scope.port_id == "ape-escape-recompiled")
+                .count(),
+            2
+        );
+        assert_eq!(
+            qualification
+                .iter()
+                .filter(|record| record.scope.port_id == "mega-man-x5-recompiled")
                 .count(),
             2
         );
@@ -1621,7 +1630,7 @@ mod tests {
 
         assert!(document.get("source_catalog").is_some());
         assert!(document.get("source_profiles").is_none());
-        assert_eq!(document["ports"].as_array().unwrap().len(), 73);
+        assert_eq!(document["ports"].as_array().unwrap().len(), 74);
     }
 
     #[test]
@@ -1867,6 +1876,7 @@ mod tests {
                     "star-fox-enhanced-usa-v1-0",
                     "duke-nukem-zero-hour",
                     "ape-escape-psx",
+                    "mega-man-x5-psx",
                 ]
                 .contains(&profile.id.as_str())
             })
@@ -3592,6 +3602,115 @@ mod tests {
         );
         assert_eq!(
             mismatched_artifact.automated_lifecycle,
+            crate::QualificationEvidenceState::Missing
+        );
+    }
+
+    #[test]
+    fn mega_man_x5_has_exact_source_runtime_ownership_and_windows_qualification() {
+        let catalog = Catalog::embedded().expect("catalog should load");
+        let port = catalog
+            .port("mega-man-x5-recompiled")
+            .expect("Mega Man X5 Recompiled should exist");
+        assert_eq!(port.support_tier, crate::SupportTier::Beta);
+        assert_eq!(port.adapter, AdapterKind::StagedSourcePortable);
+        assert_eq!(port.channels, vec![crate::ReleaseChannel::Beta]);
+        assert_eq!(port.platforms, vec![Platform::WindowsX86_64]);
+        assert!(port.automated_tested_platforms.is_empty());
+        assert!(port.manually_validated_platforms.is_empty());
+        assert_eq!(port.runtime_source_filename.as_deref(), Some("disc"));
+        assert_eq!(
+            port.runtime_source_materialization,
+            Some(RuntimeSourceMaterialization::PsxBinCue)
+        );
+        assert!(port.persistent_paths.iter().any(|path| path == "saves"));
+        assert!(!port.persistent_paths.iter().any(|path| path == "disc"));
+        for path in [
+            "cache",
+            "disc",
+            "overlay_captures.json",
+            "overlay_captures.json.d",
+            "psx_freeze_heartbeat.json",
+            "psx_last_run_report.json",
+        ] {
+            assert!(port.runtime_mutable_paths.iter().any(|entry| entry == path));
+        }
+        assert_eq!(port.runtime_mutable_file_patterns.len(), 1);
+        assert!(
+            port.runtime_mutable_file_patterns[0]
+                .matches("psx_freeze_dump_psx-runtime_1789544052_1.json")
+        );
+        assert!(!port.runtime_mutable_file_patterns[0].matches("other.json"));
+
+        let profile = catalog.source_profile("mega-man-x5-psx").unwrap();
+        assert_eq!(
+            profile.accepted_sha1,
+            vec!["10709231f857636b5ccd3cd9acebc91458dcb5fd"]
+        );
+        assert_eq!(
+            profile.accepted_sha256,
+            vec!["be731bc4b9d3211b9267a34b8a68c769199a15479b14004ff25b67cdfebe8af4"]
+        );
+        assert_eq!(profile.accepted_extensions, vec!["chd"]);
+        assert_eq!(
+            port.runtime_source_hashes
+                .get("disc.cue")
+                .map(String::as_str),
+            Some("a5023a08a8330c83ada9bcfb75303359f353dd37e04db8ef7a0f23703ec56d41")
+        );
+        assert_eq!(
+            port.runtime_source_hashes
+                .get("disc1.bin")
+                .map(String::as_str),
+            Some("be731bc4b9d3211b9267a34b8a68c769199a15479b14004ff25b67cdfebe8af4")
+        );
+
+        let source_catalog = catalog.source_catalog().unwrap();
+        let contract = source_catalog
+            .contracts
+            .iter()
+            .find(|contract| {
+                contract.port_id == port.id && contract.role == crate::PortSourceRole::Game
+            })
+            .expect("Mega Man X5 source contract should exist");
+        assert_eq!(contract.supported_variant_ids, vec!["usa-rev0"]);
+        assert_eq!(
+            contract.evidence_ids,
+            vec![
+                "mega-man-x5-recompiled-0-1-0-alpha-source-contract",
+                "mega-man-x5-recompiled-windows-2026-09-16",
+                "mega-man-x5-recompiled-windows-lifecycle-2026-09-16",
+            ]
+        );
+
+        let scope = crate::SourceEvidenceScope {
+            port_id: port.id.clone(),
+            platform: Platform::WindowsX86_64,
+            artifact_sha256: Some(
+                "3e5dfea86184cb2ff05372e012cef8d94e89119105f7a0268a14f9e24b47e590".into(),
+            ),
+            upstream_ref: Some("v0.1.0-alpha".into()),
+            contract_id: Some("mega-man-x5-recompiled-game-source".into()),
+            variant: crate::SourceVariantScope::Exact {
+                identity: crate::SourceIdentity {
+                    game_id: "mega-man-x5-psx".into(),
+                    variant_id: "usa-rev0".into(),
+                    representation_id: "normalized-track-set".into(),
+                },
+            },
+            check_version: Some("mega-man-x5-windows-qualification-v1".into()),
+        };
+        let qualification = source_catalog.assess_qualification(&scope);
+        assert_eq!(
+            qualification.structural_check,
+            crate::QualificationEvidenceState::Passed
+        );
+        assert_eq!(
+            qualification.automated_lifecycle,
+            crate::QualificationEvidenceState::Passed
+        );
+        assert_eq!(
+            qualification.hands_on,
             crate::QualificationEvidenceState::Missing
         );
     }
