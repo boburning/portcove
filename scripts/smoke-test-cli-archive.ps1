@@ -14,9 +14,10 @@ else {
     [System.IO.Path]::GetFullPath($env:PORTCOVE_TEMP_DIR)
 }
 [System.IO.Directory]::CreateDirectory($temporaryParent) | Out-Null
-$temporaryDirectory = Join-Path $temporaryParent ([System.Guid]::NewGuid().ToString("N"))
-$extractDirectory = Join-Path $temporaryDirectory "archive"
-$library = Join-Path $temporaryDirectory "library"
+$unicodeMarker = [char]0x03A9
+$temporaryDirectory = Join-Path $temporaryParent ("steam launch $unicodeMarker " + [System.Guid]::NewGuid().ToString("N"))
+$extractDirectory = Join-Path $temporaryDirectory "standalone CLI"
+$library = Join-Path $temporaryDirectory "Library $unicodeMarker space"
 [System.IO.Directory]::CreateDirectory($extractDirectory) | Out-Null
 [System.IO.Directory]::CreateDirectory($library) | Out-Null
 
@@ -83,11 +84,42 @@ try {
     if ($LASTEXITCODE -ne 0 -or $versionOutput -cne "portcove $Version") {
         throw "Packaged CLI version output must be exactly portcove $Version"
     }
+
+    $selectionOutput = (& $executable --library $library --json library show | Out-String).Trim() | ConvertFrom-Json
+    if ($LASTEXITCODE -ne 0 -or $selectionOutput.ok -ne $true -or $selectionOutput.command -ne "library.show") {
+        throw "Packaged CLI failed its explicit-library selection smoke test"
+    }
+    if ($selectionOutput.data.source -cne "invocation") {
+        throw "Packaged CLI did not report invocation provenance for the explicit library"
+    }
+    $resolvedLibrary = (Resolve-Path -LiteralPath $library).Path
+    $reportedLibrary = (Resolve-Path -LiteralPath ([string]$selectionOutput.data.root).Trim()).Path
+    $pathComparison = if ($PlatformLabel -eq "windows-x86_64") {
+        [System.StringComparison]::OrdinalIgnoreCase
+    }
+    else {
+        [System.StringComparison]::Ordinal
+    }
+    if (-not [string]::Equals($reportedLibrary, $resolvedLibrary, $pathComparison)) {
+        throw "Packaged CLI changed the explicit library identity: expected $resolvedLibrary, got $reportedLibrary"
+    }
+
+    $capabilitiesOutput = (& $executable --json capabilities | Out-String).Trim() | ConvertFrom-Json
+    if ($LASTEXITCODE -ne 0 -or $capabilitiesOutput.ok -ne $true -or $capabilitiesOutput.command -ne "capabilities") {
+        throw "Packaged CLI failed its launch-capability smoke test"
+    }
+    if (@($capabilitiesOutput.data.raw_stream_commands) -cnotcontains "exec") {
+        throw "Packaged CLI does not declare exec as its raw-stream launch route"
+    }
+    if (@($capabilitiesOutput.data.commands) -cnotcontains "launch.show") {
+        throw "Packaged CLI does not declare durable launch-session readback"
+    }
+
     $doctorOutput = (& $executable --library $library --json doctor | Out-String).Trim() | ConvertFrom-Json
     if ($LASTEXITCODE -ne 0 -or $doctorOutput.ok -ne $true -or $doctorOutput.command -ne "doctor") {
         throw "Packaged CLI failed its isolated-library doctor smoke test"
     }
-    Write-Output "Packaged CLI smoke test passed: $PlatformLabel; $versionOutput; $identity"
+    Write-Output "Packaged CLI smoke test passed: $PlatformLabel; $versionOutput; $identity; spaces/Unicode executable and explicit library paths; exec plus launch.show"
 }
 finally {
     $resolvedParent = [System.IO.Path]::GetFullPath($temporaryParent).TrimEnd('\', '/') + [System.IO.Path]::DirectorySeparatorChar
