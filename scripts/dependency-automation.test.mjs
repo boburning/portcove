@@ -64,6 +64,7 @@ test("Renovate is the sole conservative routine update authority", async () => {
   assert.equal(renovate.branchConcurrentLimit, 2);
   assert.equal(renovate.prHourlyLimit, 2);
   assert.equal(renovate.commitHourlyLimit, 4);
+  assert.equal(renovate.rebaseWhen, "conflicted");
   assert.equal(Object.hasOwn(renovate, "prCreation"), false);
   assert.notEqual(renovate.vulnerabilityAlerts?.enabled, false);
   assert.equal(renovate.vulnerabilityAlerts?.prConcurrentLimit, undefined);
