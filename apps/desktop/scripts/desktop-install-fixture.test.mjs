@@ -23,6 +23,67 @@ async function waitFor(predicate, message) {
   }
 }
 
+async function readOwnedProcesses(marker) {
+  return JSON.parse(await readFile(marker, "utf8"));
+}
+
+async function waitForProcessExit(pid) {
+  await waitFor(() => {
+    try {
+      process.kill(pid, 0);
+      return false;
+    } catch (error) {
+      if (error.code === "ESRCH") return true;
+      throw error;
+    }
+  }, "owned descendant process survived lifecycle timeout cleanup");
+}
+
+function killIfAlive(pid) {
+  if (!Number.isInteger(pid)) return;
+  try {
+    process.kill(pid, "SIGKILL");
+  } catch (error) {
+    if (error.code !== "ESRCH") throw error;
+  }
+}
+
+async function captureCleanupFailure(failures, action) {
+  try {
+    await action();
+  } catch (error) {
+    failures.push(error);
+  }
+}
+
+async function readOwnedProcessesIfPresent(marker) {
+  try {
+    return await readOwnedProcesses(marker);
+  } catch (error) {
+    if (error.code === "ENOENT") return undefined;
+    throw error;
+  }
+}
+
+function throwCleanupFailures(failures) {
+  if (failures.length === 1) throw failures[0];
+  if (failures.length > 1) throw new AggregateError(failures, "Timeout fixture cleanup failed");
+}
+
+async function cleanUpTimeoutFixture(output, marker, owned) {
+  const failures = [];
+  await captureCleanupFailure(failures, async () => {
+    owned ??= await readOwnedProcessesIfPresent(marker);
+  });
+  for (const pid of [owned?.descendant, owned?.parent]) {
+    await captureCleanupFailure(failures, () => {
+      killIfAlive(pid);
+    });
+  }
+  await captureCleanupFailure(failures, () => rm(output, { recursive: true, force: true }));
+  throwCleanupFailures(failures);
+}
+
 test("install fixture is isolated, pinned, interruptible, and retryable", async () => {
   const output = await mkdtemp(path.join(tmpdir(), "portcove-install-fixture-"));
   const fixture = await createInstallFixture({ root, output });
@@ -137,36 +198,15 @@ test.runIf(process.platform === "win32")(
         /timed out after 250ms/,
       );
       assert.ok(Date.now() - startedAt < 8_000, "timeout path exceeded its secondary bound");
-      owned = JSON.parse(await readFile(marker, "utf8"));
-      await waitFor(() => {
-        try {
-          process.kill(owned.descendant, 0);
-          return false;
-        } catch (error) {
-          if (error.code === "ESRCH") return true;
-          throw error;
-        }
-      }, "owned descendant process survived lifecycle timeout cleanup");
+      owned = await readOwnedProcesses(marker);
+      await waitForProcessExit(owned.descendant);
     } catch (error) {
       primaryFailure = error;
     } finally {
       try {
-        owned ??= JSON.parse(await readFile(marker, "utf8"));
+        await cleanUpTimeoutFixture(output, marker, owned);
       } catch (error) {
-        if (error.code !== "ENOENT") cleanupFailure = error;
-      }
-      for (const pid of [owned?.descendant, owned?.parent]) {
-        if (!Number.isInteger(pid)) continue;
-        try {
-          process.kill(pid, "SIGKILL");
-        } catch (error) {
-          if (error.code !== "ESRCH") cleanupFailure ??= error;
-        }
-      }
-      try {
-        await rm(output, { recursive: true, force: true });
-      } catch (error) {
-        cleanupFailure ??= error;
+        cleanupFailure = error;
       }
     }
     if (primaryFailure && cleanupFailure)
