@@ -32,7 +32,7 @@ test("schema composition rejects conflicting definitions and external references
   await assert.rejects(renderTransportTypes({ local: { $ref: "file:///forbidden-schema.json" } }));
 });
 
-test("the frontend compiler rejects real nested, nullable, optional, array and union drift", () => {
+test("one batched frontend compiler invocation rejects every maintained transport drift", () => {
   const work = path.join(root, "work");
   fs.mkdirSync(work, { recursive: true });
   const temporary = fs.mkdtempSync(path.join(work, "transport-compiler-"));
@@ -67,7 +67,9 @@ const valid: InstallRecord = { ...install, artifact: { ...install.artifact, size
     const packagePath = require.resolve("typescript/package.json");
     const packageJson = JSON.parse(fs.readFileSync(packagePath, "utf8"));
     const compiler = path.resolve(path.dirname(packagePath), packageJson.bin.tsc);
+    let compilerInvocations = 0;
     function compile(source) {
+      compilerInvocations += 1;
       fs.writeFileSync(fixture, source);
       const result = spawnSync(process.execPath, [compiler, "--project", config], {
         cwd: root,
@@ -83,25 +85,60 @@ const valid: InstallRecord = { ...install, artifact: { ...install.artifact, size
     assert.equal(valid.status, 0, valid.stdout + valid.stderr);
     const failureLine = prelude.split("\n").length;
     const cases = [
-      "const { error, ...missingError } = bootstrap; const badHostPresence: BootstrapStatus = missingError;",
-      'const badHostCasing: LaunchResult = { process_id: null, session_id: "session" };',
-      'const badRequest: InstallInput = { portId: "port", stage: "false" };',
-      'const badScalar: InstallRecord = { ...install, artifact: { ...install.artifact, size: "2" } };',
-      "const badNull: InstallRecord = { ...install, selected_executable: null };",
-      "const { active, ...missingActive } = status; const badPresence: PortStatus = missingActive;",
-      'const badArray: NonNullable<SourceInspectionReport["inspection"]> = { ...inspection, components: ["component"] };',
-      'const badEnum: InstallRecord = { ...install, channel: "invented" };',
-      'const badUnion: OperationEvent = { schema_version: 2, operation_id: "test", parent_operation_id: null, target: null, sequence: 1, timestamp_ms: 1, operation: "test", type: "progress", result: "succeeded" };',
+      {
+        name: "missing optional-host field",
+        source:
+          "const { error, ...missingError } = bootstrap; const badHostPresence: BootstrapStatus = missingError;",
+      },
+      {
+        name: "wrong host field casing",
+        source: 'const badHostCasing: LaunchResult = { process_id: null, session_id: "session" };',
+      },
+      {
+        name: "wrong request scalar",
+        source: 'const badRequest: InstallInput = { portId: "port", stage: "false" };',
+      },
+      {
+        name: "wrong nested scalar",
+        source:
+          'const badScalar: InstallRecord = { ...install, artifact: { ...install.artifact, size: "2" } };',
+      },
+      {
+        name: "unexpected null",
+        source: "const badNull: InstallRecord = { ...install, selected_executable: null };",
+      },
+      {
+        name: "missing required field",
+        source:
+          "const { active, ...missingActive } = status; const badPresence: PortStatus = missingActive;",
+      },
+      {
+        name: "wrong array member",
+        source:
+          'const badArray: NonNullable<SourceInspectionReport["inspection"]> = { ...inspection, components: ["component"] };',
+      },
+      {
+        name: "wrong enum member",
+        source: 'const badEnum: InstallRecord = { ...install, channel: "invented" };',
+      },
+      {
+        name: "wrong union branch",
+        source:
+          'const badUnion: OperationEvent = { schema_version: 2, operation_id: "test", parent_operation_id: null, target: null, sequence: 1, timestamp_ms: 1, operation: "test", type: "progress", result: "succeeded" };',
+      },
     ];
-    for (const source of cases) {
-      const invalid = compile(prelude + source + "\n");
-      assert.notEqual(invalid.status, 0, `Compiler accepted ${source}`);
+
+    const invalid = compile(prelude + cases.map(({ source }) => source).join("\n") + "\n");
+    assert.notEqual(invalid.status, 0, "Compiler accepted every invalid transport fixture");
+    for (const [index, fixtureCase] of cases.entries()) {
       assert.match(
         invalid.stdout,
-        new RegExp(`fixture\\.ts\\(${failureLine},\\d+\\): error TS\\d+`),
+        new RegExp(`fixture\\.ts\\(${failureLine + index},\\d+\\): error TS\\d+`),
+        `Compiler did not reject ${fixtureCase.name}`,
       );
-      assert.doesNotMatch(invalid.stdout + invalid.stderr, /Cannot find module|excessively deep/);
     }
+    assert.doesNotMatch(invalid.stdout + invalid.stderr, /Cannot find module|excessively deep/);
+    assert.equal(compilerInvocations, 2, "expected one positive and one batched negative compile");
   } finally {
     fs.rmSync(temporary, { recursive: true, force: true });
   }

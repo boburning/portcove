@@ -58,7 +58,10 @@ or environment mutation is performed for already verified versions.
 
 Run `just fmt-check` for the complete formatting contract, `just check-ui`
 for UI build/tests, Oxlint, Fallow, and Stylelint, or `just script-lint` for
-Python, shell, workflow, and PowerShell lint as a group.
+Python, shell, workflow, and PowerShell lint as a group. Individual formatter
+and linter recipes scan maintained source without rerunning their tool-fixture
+self-tests. The exhaustive `check-ui` and `script-lint` aggregates retain those
+self-tests through one batched fixture invocation per group.
 
 ## Validation tiers and resumable audits
 
@@ -71,10 +74,11 @@ pull in native desktop or packaged Windows qualification. Oxc configuration edit
 retain formatting, typed lint, UI build/tests, rejection fixtures, and hosted
 workflow contracts.
 
-`just check` is exhaustive for Rust, UI, script lint, generic repository tooling,
-Roadmap, and development-tool contracts, but deliberately excludes release and
-packaged qualification. Use `just release-check` for deterministic release units
-and `just windows-qualification-check` for the stateful packaged Windows session.
+`just check` is exhaustive for Rust, UI, script lint and their tool-fixture
+contracts, generic repository tooling, Roadmap, and development-tool contracts,
+but deliberately excludes release and packaged qualification. Use
+`just release-check` for deterministic release units and
+`just windows-qualification-check` for the stateful packaged Windows session.
 Required CI executes the complete selected hosted plan on every exact pull-request
 head. Focused and prose plans do not imply that the aggregate, release, or
 packaged Windows contracts ran; qualification executes its documented hosted

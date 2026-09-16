@@ -851,9 +851,33 @@ test("validation recipes separate routine, release, and packaged Windows contrac
   assert.match(catalog, /release-package-policy\.test\.mjs/);
   assert.match(windowsStorage, /run-windows-qualification\.ps1/);
   const ui = recipes.match(/^check-ui: (.+)$/m)?.[1] ?? "";
-  assert.match(ui, /fmt-frontend-check ui-check/);
+  assert.match(ui, /fmt-frontend-check ui-check ui-lint-contracts/);
   const auditUi = recipes.match(/^ui-check: (.+)$/m)?.[1] ?? "";
   assert.doesNotMatch(auditUi, /fmt-frontend-check/);
+  const recipeBody = (name) =>
+    recipes.match(new RegExp(`^${name}:\\r?\\n([\\s\\S]*?)(?=^\\S)`, "m"))?.[1] ?? "";
+  for (const scan of [
+    "fmt-frontend-check",
+    "oxlint",
+    "stylelint",
+    "python-lint",
+    "shell-lint",
+    "actions-lint",
+    "powershell-lint",
+  ])
+    assert.doesNotMatch(recipeBody(scan), /lint-tools\.integration\.mjs/);
+  assert.match(
+    recipeBody("ui-lint-contracts"),
+    /lint-tools\.integration\.mjs oxfmt oxlint stylelint/,
+  );
+  assert.match(
+    recipeBody("script-lint-contracts"),
+    /lint-tools\.integration\.mjs ruff shellcheck actionlint psscriptanalyzer/,
+  );
+  assert.match(
+    recipes.match(/^script-lint: (.+)$/m)?.[1] ?? "",
+    /python-lint shell-lint actions-lint powershell-lint script-lint-contracts/,
+  );
 });
 
 test("release and deep preflights require a fresh audit", async () => {
