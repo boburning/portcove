@@ -9,11 +9,20 @@ use std::sync::{Arc, Mutex};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use futures_util::TryStreamExt;
+use portcove_desktop::application_update::{
+    ApplicationChannel, ApplicationCompatibility, ArtifactIdentity, InstallOwner,
+    LibraryCompatibility, PackageIdentity, PromotionRecord, QualifiedRun, ReleaseRecord,
+    SelectedCandidate, UpdateMetadataError, VersionRange,
+};
+use portcove_desktop::application_update_download::{
+    PayloadDownloadError, download_payload, download_payload_from_controlled_loopback,
+};
 use portcove_desktop::application_update_trust::{
     TrustedRepository, TrustedRepositoryError, TrustedRepositoryFailureKind,
     TrustedRepositoryRequest, load_trusted_repository,
     load_trusted_repository_from_controlled_loopback,
 };
+use sha2::{Digest, Sha256};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::task::JoinHandle;
@@ -29,6 +38,74 @@ enum ResponseMode {
     RateLimited403 = 2,
     DropTimestamp = 3,
     RedirectTimestamp = 4,
+}
+
+#[derive(Clone, Copy)]
+enum PayloadResponseMode {
+    Normal = 0,
+    RateLimited = 1,
+    Drop = 2,
+    Truncated = 3,
+    Overflow = 4,
+}
+
+struct ControlledPayloadServer {
+    address: std::net::SocketAddr,
+    mode: Arc<AtomicU8>,
+    payload: Arc<Vec<u8>>,
+    requests: Arc<Mutex<Vec<String>>>,
+    task: JoinHandle<()>,
+}
+
+impl ControlledPayloadServer {
+    async fn start(payload: Vec<u8>) -> Self {
+        let listener = TcpListener::bind(("127.0.0.1", 0)).await.unwrap();
+        let address = listener.local_addr().unwrap();
+        let mode = Arc::new(AtomicU8::new(PayloadResponseMode::Normal as u8));
+        let payload = Arc::new(payload);
+        let requests = Arc::new(Mutex::new(Vec::new()));
+        let task_mode = Arc::clone(&mode);
+        let task_payload = Arc::clone(&payload);
+        let task_requests = Arc::clone(&requests);
+        let task = tokio::spawn(async move {
+            loop {
+                let Ok((stream, _)) = listener.accept().await else {
+                    return;
+                };
+                let mode = Arc::clone(&task_mode);
+                let payload = Arc::clone(&task_payload);
+                let requests = Arc::clone(&task_requests);
+                tokio::spawn(async move {
+                    serve_payload(stream, &mode, &payload, &requests).await;
+                });
+            }
+        });
+        Self {
+            address,
+            mode,
+            payload,
+            requests,
+            task,
+        }
+    }
+
+    fn set_mode(&self, mode: PayloadResponseMode) {
+        self.mode.store(mode as u8, Ordering::Release);
+    }
+
+    fn payload_url(&self) -> Url {
+        Url::parse(&format!("http://{}/payload", self.address)).unwrap()
+    }
+
+    fn request_count(&self) -> usize {
+        self.requests.lock().unwrap().len()
+    }
+}
+
+impl Drop for ControlledPayloadServer {
+    fn drop(&mut self) {
+        self.task.abort();
+    }
 }
 
 struct ControlledRepositoryServer {
@@ -203,6 +280,162 @@ async fn respond(stream: &mut TcpStream, status: &str, headers: &[&str], body: &
     }
 }
 
+async fn serve_payload(
+    mut stream: TcpStream,
+    mode: &AtomicU8,
+    payload: &[u8],
+    requests: &Mutex<Vec<String>>,
+) {
+    let mut request = Vec::new();
+    let mut buffer = [0_u8; 2048];
+    while request.len() <= 16 * 1024 {
+        let Ok(read) = stream.read(&mut buffer).await else {
+            return;
+        };
+        if read == 0 {
+            return;
+        }
+        request.extend_from_slice(&buffer[..read]);
+        if request.windows(4).any(|window| window == b"\r\n\r\n") {
+            break;
+        }
+    }
+    let Some(line_end) = request.windows(2).position(|window| window == b"\r\n") else {
+        return;
+    };
+    let Ok(line) = std::str::from_utf8(&request[..line_end]) else {
+        return;
+    };
+    let mut fields = line.split_whitespace();
+    if fields.next() != Some("GET") {
+        return;
+    }
+    let Some(path) = fields.next() else {
+        return;
+    };
+    requests.lock().unwrap().push(path.to_owned());
+    if path != "/payload" {
+        respond(&mut stream, "404 Not Found", &[], &[]).await;
+        return;
+    }
+
+    match mode.load(Ordering::Acquire) {
+        value if value == PayloadResponseMode::RateLimited as u8 => {
+            respond(
+                &mut stream,
+                "429 Too Many Requests",
+                &["Retry-After: 120", "X-RateLimit-Remaining: 0"],
+                &[],
+            )
+            .await;
+        }
+        value if value == PayloadResponseMode::Drop as u8 => {}
+        value if value == PayloadResponseMode::Truncated as u8 => {
+            respond_without_length(&mut stream, &payload[..payload.len() - 1]).await;
+        }
+        value if value == PayloadResponseMode::Overflow as u8 => {
+            let mut oversized = payload.to_vec();
+            oversized.push(b'!');
+            respond_without_length(&mut stream, &oversized).await;
+        }
+        _ => respond(&mut stream, "200 OK", &[], payload).await,
+    }
+}
+
+async fn respond_without_length(stream: &mut TcpStream, body: &[u8]) {
+    if stream
+        .write_all(b"HTTP/1.1 200 OK\r\nConnection: close\r\n\r\n")
+        .await
+        .is_ok()
+    {
+        let _ = stream.write_all(body).await;
+    }
+}
+
+fn payload_candidate(payload: &[u8]) -> SelectedCandidate {
+    let version = "1.0.0";
+    let target = "linux-x86_64";
+    let package = "appimage";
+    let release_path = format!("releases/{version}/{target}/{package}.json");
+    let release_sha256 = "a".repeat(64);
+    SelectedCandidate {
+        release_path: release_path.clone(),
+        release_sha256: release_sha256.clone(),
+        release: ReleaseRecord {
+            schema_version: 1,
+            version: version.into(),
+            source_commit: "b".repeat(40),
+            source_tree: "c".repeat(40),
+            qualified_run: QualifiedRun {
+                workflow: "release.yml".into(),
+                workflow_commit: "d".repeat(40),
+                run_id: 1,
+                attempt: 1,
+                inventory_sha256: "e".repeat(64),
+            },
+            target: target.into(),
+            os: "linux".into(),
+            architecture: "x86_64".into(),
+            execution_context: "desktop".into(),
+            package: PackageIdentity {
+                kind: package.into(),
+                owner: InstallOwner::Portcove,
+                product_id: "portcove".into(),
+            },
+            artifact: ArtifactIdentity {
+                url: format!(
+                    "https://github.com/boburning/portcove/releases/download/v{version}/Portcove.AppImage"
+                ),
+                sha256: hex::encode(Sha256::digest(payload)),
+                bytes: payload.len() as u64,
+                tauri_signature: "qualification-signature".into(),
+                payload_key_id: "f".repeat(64),
+            },
+            compatibility: ApplicationCompatibility {
+                minimum_os_version: "1.0.0".into(),
+                required_capabilities: Vec::new(),
+                cli_protocol: VersionRange { min: 1, max: 1 },
+                catalog_formats: vec![1],
+                library: LibraryCompatibility {
+                    read: VersionRange { min: 1, max: 1 },
+                    write_schema: 1,
+                    lock_protocol: "portcove-v1".into(),
+                },
+            },
+            evidence_ids: vec!["controlled-payload-http".into()],
+        },
+        promotion: PromotionRecord {
+            schema_version: 1,
+            channel: ApplicationChannel::Preview,
+            target: target.into(),
+            package: package.into(),
+            version: version.into(),
+            release_path,
+            release_sha256,
+            eligible: true,
+            production_eligible: false,
+            withdrawn: false,
+            reason: None,
+            required_bridge: None,
+        },
+    }
+}
+
+async fn read_controlled_payload(
+    server: &ControlledPayloadServer,
+    candidate: &SelectedCandidate,
+) -> Result<Vec<u8>, String> {
+    let mut download = download_payload_from_controlled_loopback(candidate, &server.payload_url())
+        .await
+        .map_err(|error| error.to_string())?;
+    let mut bytes = Vec::new();
+    download
+        .read_to_end(&mut bytes)
+        .await
+        .map_err(|error| error.to_string())?;
+    Ok(bytes)
+}
+
 async fn load(
     server: &ControlledRepositoryServer,
     trusted: &[u8],
@@ -329,4 +562,94 @@ async fn controlled_http_consumer_honors_rate_limits_outages_and_redirect_refusa
             .any(|path| path == "/redirected/timestamp.json"),
         "the no-redirect transport must not follow the controlled redirect"
     );
+}
+
+#[tokio::test]
+async fn controlled_payload_consumer_rejects_network_failures_and_recovers() {
+    let payload = b"authenticated payload fixture".to_vec();
+    let candidate = payload_candidate(&payload);
+    let server = ControlledPayloadServer::start(payload.clone()).await;
+
+    let mut loopback_candidate = candidate.clone();
+    loopback_candidate.release.artifact.url = server.payload_url().to_string();
+    let Err(production_error) = download_payload(&loopback_candidate).await else {
+        panic!("production payload transport accepted loopback HTTP");
+    };
+    assert!(matches!(
+        production_error,
+        PayloadDownloadError::Candidate(UpdateMetadataError::InvalidIdentity(_))
+    ));
+    assert_eq!(server.request_count(), 0);
+
+    let retained = tempfile::tempdir().unwrap();
+    let retained_payload = retained.path().join("last-accepted-payload");
+    fs::write(&retained_payload, &payload).unwrap();
+    assert_eq!(
+        read_controlled_payload(&server, &candidate).await.unwrap(),
+        payload
+    );
+
+    server.set_mode(PayloadResponseMode::RateLimited);
+    let before = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_secs();
+    let Err(rate_limit) =
+        download_payload_from_controlled_loopback(&candidate, &server.payload_url()).await
+    else {
+        panic!("controlled payload transport ignored the provider rate limit");
+    };
+    let PayloadDownloadError::RateLimited {
+        retry_at_unix_seconds: Some(retry_at),
+    } = rate_limit
+    else {
+        panic!("expected provider retry hint, got {rate_limit}");
+    };
+    assert!((before + 120..=before + 125).contains(&retry_at));
+    assert_eq!(fs::read(&retained_payload).unwrap(), payload);
+    server.set_mode(PayloadResponseMode::Normal);
+    assert_eq!(
+        read_controlled_payload(&server, &candidate).await.unwrap(),
+        payload
+    );
+
+    server.set_mode(PayloadResponseMode::Drop);
+    let Err(drop_error) =
+        download_payload_from_controlled_loopback(&candidate, &server.payload_url()).await
+    else {
+        panic!("controlled payload transport accepted a dropped response");
+    };
+    assert!(matches!(drop_error, PayloadDownloadError::Network(_)));
+    assert_eq!(fs::read(&retained_payload).unwrap(), payload);
+    server.set_mode(PayloadResponseMode::Normal);
+    assert_eq!(
+        read_controlled_payload(&server, &candidate).await.unwrap(),
+        payload
+    );
+
+    for (mode, expected) in [
+        (
+            PayloadResponseMode::Truncated,
+            "ended before authenticated length",
+        ),
+        (
+            PayloadResponseMode::Overflow,
+            "exceeded authenticated length",
+        ),
+    ] {
+        server.set_mode(mode);
+        let error = read_controlled_payload(&server, &candidate)
+            .await
+            .unwrap_err();
+        assert!(error.contains(expected), "unexpected stream error: {error}");
+        assert_eq!(fs::read(&retained_payload).unwrap(), payload);
+
+        server.set_mode(PayloadResponseMode::Normal);
+        assert_eq!(
+            read_controlled_payload(&server, &candidate).await.unwrap(),
+            payload
+        );
+    }
+
+    assert_eq!(server.payload.as_slice(), payload);
 }
