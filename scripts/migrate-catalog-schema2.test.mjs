@@ -21,15 +21,15 @@ test("schema-2 migration is deterministic and preserves the frozen schema-1 proj
   const migrated = JSON.parse(readFileSync(join(catalogRoot, "catalog.json"), "utf8"));
   assert.equal(migrated.schema_version, 2);
   assert.equal("source_profiles" in migrated, false);
-  assert.equal(migrated.source_catalog.identities.length, legacy.source_profiles.length + 4);
-  assert.equal(migrated.ports.length, legacy.ports.length + 4);
+  assert.equal(migrated.source_catalog.identities.length, legacy.source_profiles.length + 5);
+  assert.equal(migrated.ports.length, legacy.ports.length + 5);
   assert.equal(
     migrated.source_catalog.contracts.length,
     legacy.ports.reduce(
       (count, port) =>
         count + Number(Boolean(port.source_profile)) + Number(Boolean(port.bios_source_profile)),
       0,
-    ) + 4,
+    ) + 5,
   );
 
   const profile = (id) => migrated.source_catalog.identities.find((item) => item.id === id);
@@ -133,6 +133,38 @@ test("schema-2 migration is deterministic and preserves the frozen schema-1 proj
     "states",
     "Starfox-MSU1.PAK",
   ]);
+  const dnzhProfile = profile("duke-nukem-zero-hour");
+  assert.deepEqual(dnzhProfile.variants.map((item) => item.id), ["usa"]);
+  assert.deepEqual(dnzhProfile.variants[0].representations[0].identities, [
+    {
+      scope: "canonical-n64-big-endian",
+      sha1: "de4db292cc6cf5dd1dd1d3c9700cf8e5c3078410",
+      sha256: "5ba016567c53b0d111eb175347c6eee603c31783cd2bb3fea97f31b5ff74190f",
+      crc32: null,
+    },
+  ]);
+  const dnzhContract = contract("duke-nukem-zero-hour-recompiled");
+  assert.deepEqual(dnzhContract.supported_variant_ids, ["usa"]);
+  assert.deepEqual(dnzhContract.applicability, [
+    {
+      upstream_ref: "0.0.3",
+      artifact_sha256: "ece88320327ffc58ec73e084c23aca274a016e45dd3558a684d59c37f88bdbc3",
+    },
+  ]);
+  const dnzh = migrated.ports.find(
+    (port) => port.id === "duke-nukem-zero-hour-recompiled",
+  );
+  assert.equal(dnzh.release.provider, "gitlab");
+  assert.equal(dnzh.release.repository, "sonicdcer/DNZHRecomp");
+  assert.deepEqual(dnzh.release.asset_hints["windows-x86-64"], [
+    "windows-relwithdebinfo",
+  ]);
+  assert.equal(dnzh.adapter, "n64-recomp-portable");
+  assert.equal(dnzh.portable_marker, true);
+  assert.equal(dnzh.runtime_source_filename, "dnzh.us.z64");
+  assert.equal(dnzh.runtime_source_materialization, "n64-big-endian");
+  assert.equal(dnzh.persistent_paths.includes("saves"), true);
+  assert.equal(dnzh.persistent_paths.includes("mod_config"), true);
   const drMarioProfile = profile("dr-mario-64");
   assert.deepEqual(
     drMarioProfile.variants.slice(1).map((item) => item.id),

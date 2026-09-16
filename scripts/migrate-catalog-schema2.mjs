@@ -112,6 +112,17 @@ const reviewedSources = {
     path: "src/app/starfox_pc.cpp",
     reviewedAt: "2026-09-15",
   },
+  dukeNukemZeroHour: {
+    upstreamEvidenceId: "dnzh-recompiled-0-0-3-source-contract",
+    sourceEvidenceId: "duke-nukem-zero-hour-windows-2026-09-16",
+    repository: "sonicdcer/DNZHRecomp",
+    ref: "54e61d02f236687fbc93760afce6bff4aa8df24f",
+    tag: "0.0.3",
+    liveRef: "main",
+    path: "src/main/main.cpp",
+    reviewedAt: "2026-09-16",
+    qualificationRef: "bdb32b9fdb4869722d2aa3741112c254a1867cbb",
+  },
 };
 
 function upstreamEvidence(source, claim) {
@@ -193,6 +204,29 @@ const evidence = [
     reviewedSources.starFoxEnhanced,
     "Validates supported retail Star Fox and Starwing revisions before locally generating portable runtime assets",
   ),
+  {
+    id: reviewedSources.dukeNukemZeroHour.upstreamEvidenceId,
+    role: "upstream_support",
+    authority: reviewedSources.dukeNukemZeroHour.repository,
+    authority_ref: reviewedSources.dukeNukemZeroHour.ref,
+    reviewed_at: reviewedSources.dukeNukemZeroHour.reviewedAt,
+    claim:
+      "Registers the retail Duke Nukem: Zero Hour ROM identity and an executable-adjacent portable data root",
+    immutable_url: `https://gitlab.com/${reviewedSources.dukeNukemZeroHour.repository}/-/blob/${reviewedSources.dukeNukemZeroHour.ref}/${reviewedSources.dukeNukemZeroHour.path}`,
+    live_url: `https://gitlab.com/${reviewedSources.dukeNukemZeroHour.repository}/-/blob/${reviewedSources.dukeNukemZeroHour.liveRef}/${reviewedSources.dukeNukemZeroHour.path}`,
+  },
+  {
+    id: reviewedSources.dukeNukemZeroHour.sourceEvidenceId,
+    role: "byte_identity",
+    authority: "boburning/portcove",
+    authority_ref: reviewedSources.dukeNukemZeroHour.qualificationRef,
+    reviewed_at: reviewedSources.dukeNukemZeroHour.reviewedAt,
+    claim:
+      "Records the exact authorized US source identity, GitLab artifact identity, portable-path preflight, and source-accepted Windows launcher",
+    immutable_url: `https://github.com/boburning/portcove/blob/${reviewedSources.dukeNukemZeroHour.qualificationRef}/docs/qualification/duke-nukem-zero-hour-windows-2026-09-16.md`,
+    live_url:
+      "https://github.com/boburning/portcove/blob/main/docs/qualification/duke-nukem-zero-hour-windows-2026-09-16.md",
+  },
   {
     id: "snap64-recomp-windows-2026-09-13",
     role: "portcove_qualification",
@@ -597,6 +631,30 @@ identities.push({
   evidence_gap: null,
 });
 
+identities.push({
+  id: "duke-nukem-zero-hour",
+  label: "Duke Nukem: Zero Hour (USA) source",
+  kind: "file",
+  variants: [
+    n64Variant(
+      "usa",
+      "Duke Nukem: Zero Hour",
+      "USA",
+      null,
+      [
+        {
+          sha1: "de4db292cc6cf5dd1dd1d3c9700cf8e5c3078410",
+          sha256: "5ba016567c53b0d111eb175347c6eee603c31783cd2bb3fea97f31b5ff74190f",
+        },
+      ],
+      reviewedSources.dukeNukemZeroHour.sourceEvidenceId,
+    ),
+  ],
+  aliases: [],
+  tombstones: [],
+  evidence_gap: null,
+});
+
 applyReviewedVariants("ghostship-source", [
   n64Variant(
     "super-mario-64-us",
@@ -986,6 +1044,34 @@ contracts.push({
   tombstones: [],
 });
 
+contracts.push({
+  id: "duke-nukem-zero-hour-recompiled-game-source",
+  port_id: "duke-nukem-zero-hour-recompiled",
+  role: "game",
+  profile_id: "duke-nukem-zero-hour",
+  admission_mode: "enforced",
+  supported_variant_ids: ["usa"],
+  validator_contract_id: null,
+  evidence_ids: [
+    reviewedSources.dukeNukemZeroHour.upstreamEvidenceId,
+    reviewedSources.dukeNukemZeroHour.sourceEvidenceId,
+  ],
+  authority_ref: reviewedSources.dukeNukemZeroHour.qualificationRef,
+  reviewed_at: reviewedSources.dukeNukemZeroHour.reviewedAt,
+  immutable_review_url: `https://github.com/boburning/portcove/blob/${reviewedSources.dukeNukemZeroHour.qualificationRef}/docs/qualification/duke-nukem-zero-hour-windows-2026-09-16.md`,
+  live_review_url:
+    "https://github.com/boburning/portcove/blob/main/docs/qualification/duke-nukem-zero-hour-windows-2026-09-16.md",
+  evidence_gap: null,
+  applicability: [
+    {
+      upstream_ref: reviewedSources.dukeNukemZeroHour.tag,
+      artifact_sha256: "ece88320327ffc58ec73e084c23aca274a016e45dd3558a684d59c37f88bdbc3",
+    },
+  ],
+  aliases: [],
+  tombstones: [],
+});
+
 function reviewContract(portId, source, supportedVariantIds, extraEvidenceIds = []) {
   const contract = contracts.find(
     (candidate) => candidate.port_id === portId && candidate.role === "game",
@@ -1164,6 +1250,7 @@ const normalizedSummaries = {
     "Native Diddy Kong Racing recompilation with strict Rev 1 source validation.",
   "star-fox-enhanced":
     "Expands Star Fox and Star Fox EX with widescreen presentation and configurable controls.",
+  "duke-nukem-zero-hour-recompiled": "Native Duke Nukem: Zero Hour recompilation.",
 };
 
 function sourceRequirement(port, role, field) {
@@ -1812,6 +1899,48 @@ const migrated = {
       ],
       runtime_mutable_paths: ["Starfox-Assets.BIN.tmp"],
       source_environment: "STARFOX_RETAIL_ROM",
+    }),
+    withPresentation({
+      id: "duke-nukem-zero-hour-recompiled",
+      name: "Duke Nukem: Zero Hour Recompiled",
+      summary: "Native Duke Nukem: Zero Hour recompilation.",
+      project_url: "https://gitlab.com/sonicdcer/DNZHRecomp",
+      support_tier: "beta",
+      channels: ["stable"],
+      platforms: ["windows-x86-64"],
+      automated_tested_platforms: [],
+      manually_validated_platforms: [],
+      adapter: "n64-recomp-portable",
+      release: {
+        provider: "gitlab",
+        repository: "sonicdcer/DNZHRecomp",
+        asset_hints: {
+          "windows-x86-64": ["windows-relwithdebinfo"],
+        },
+      },
+      source_profile: "duke-nukem-zero-hour",
+      executable_hints: {
+        "windows-x86-64": ["DNZHRecompiled.exe"],
+      },
+      persistent_paths: [
+        "dnzh.us.z64",
+        "saves",
+        "mods",
+        "mods.json",
+        "mods.json.bak",
+        "mod_config",
+        "general.json",
+        "general.json.bak",
+        "graphics.json",
+        "graphics.json.bak",
+        "controls.json",
+        "controls.json.bak",
+        "sound.json",
+        "sound.json.bak",
+      ],
+      portable_marker: true,
+      runtime_source_filename: "dnzh.us.z64",
+      runtime_source_materialization: "n64-big-endian",
     }),
   ],
 };

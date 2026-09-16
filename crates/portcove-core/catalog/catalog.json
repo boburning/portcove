@@ -132,6 +132,26 @@
         "live_url": "https://github.com/kandowontu/starfox-enhanced/blob/main/src/app/starfox_pc.cpp"
       },
       {
+        "id": "dnzh-recompiled-0-0-3-source-contract",
+        "role": "upstream_support",
+        "authority": "sonicdcer/DNZHRecomp",
+        "authority_ref": "54e61d02f236687fbc93760afce6bff4aa8df24f",
+        "reviewed_at": "2026-09-16",
+        "claim": "Registers the retail Duke Nukem: Zero Hour ROM identity and an executable-adjacent portable data root",
+        "immutable_url": "https://gitlab.com/sonicdcer/DNZHRecomp/-/blob/54e61d02f236687fbc93760afce6bff4aa8df24f/src/main/main.cpp",
+        "live_url": "https://gitlab.com/sonicdcer/DNZHRecomp/-/blob/main/src/main/main.cpp"
+      },
+      {
+        "id": "duke-nukem-zero-hour-windows-2026-09-16",
+        "role": "byte_identity",
+        "authority": "boburning/portcove",
+        "authority_ref": "bdb32b9fdb4869722d2aa3741112c254a1867cbb",
+        "reviewed_at": "2026-09-16",
+        "claim": "Records the exact authorized US source identity, GitLab artifact identity, portable-path preflight, and source-accepted Windows launcher",
+        "immutable_url": "https://github.com/boburning/portcove/blob/bdb32b9fdb4869722d2aa3741112c254a1867cbb/docs/qualification/duke-nukem-zero-hour-windows-2026-09-16.md",
+        "live_url": "https://github.com/boburning/portcove/blob/main/docs/qualification/duke-nukem-zero-hour-windows-2026-09-16.md"
+      },
+      {
         "id": "snap64-recomp-windows-2026-09-13",
         "role": "portcove_qualification",
         "authority": "boburning/portcove",
@@ -4210,6 +4230,48 @@
         "aliases": [],
         "tombstones": [],
         "evidence_gap": null
+      },
+      {
+        "id": "duke-nukem-zero-hour",
+        "label": "Duke Nukem: Zero Hour (USA) source",
+        "kind": "file",
+        "variants": [
+          {
+            "id": "usa",
+            "title": "Duke Nukem: Zero Hour",
+            "region": "USA",
+            "revision": null,
+            "product_codes": [],
+            "representations": [
+              {
+                "id": "canonical-rom",
+                "extensions": [
+                  "z64",
+                  "n64",
+                  "v64"
+                ],
+                "kind": "canonical-n64",
+                "identities": [
+                  {
+                    "scope": "canonical-n64-big-endian",
+                    "sha1": "de4db292cc6cf5dd1dd1d3c9700cf8e5c3078410",
+                    "sha256": "5ba016567c53b0d111eb175347c6eee603c31783cd2bb3fea97f31b5ff74190f",
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "duke-nukem-zero-hour-windows-2026-09-16"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "duke-nukem-zero-hour-windows-2026-09-16"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
       }
     ],
     "contracts": [
@@ -5891,6 +5953,34 @@
           {
             "upstream_ref": "v0.0.6.7",
             "artifact_sha256": "e1b8569fe5712b4e2cb99effa50b8527d86311ede55f3570ae1537d414f29abe"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "duke-nukem-zero-hour-recompiled-game-source",
+        "port_id": "duke-nukem-zero-hour-recompiled",
+        "role": "game",
+        "profile_id": "duke-nukem-zero-hour",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "usa"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "dnzh-recompiled-0-0-3-source-contract",
+          "duke-nukem-zero-hour-windows-2026-09-16"
+        ],
+        "authority_ref": "bdb32b9fdb4869722d2aa3741112c254a1867cbb",
+        "reviewed_at": "2026-09-16",
+        "immutable_review_url": "https://github.com/boburning/portcove/blob/bdb32b9fdb4869722d2aa3741112c254a1867cbb/docs/qualification/duke-nukem-zero-hour-windows-2026-09-16.md",
+        "live_review_url": "https://github.com/boburning/portcove/blob/main/docs/qualification/duke-nukem-zero-hour-windows-2026-09-16.md",
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "0.0.3",
+            "artifact_sha256": "ece88320327ffc58ec73e084c23aca274a016e45dd3558a684d59c37f88bdbc3"
           }
         ],
         "aliases": [],
@@ -11404,6 +11494,68 @@
             "role": "game",
             "profile_id": "star-fox-enhanced-usa-v1-0",
             "label": "Star Fox (USA) v1.0 source for Star Fox Enhanced",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed"
+      }
+    },
+    {
+      "id": "duke-nukem-zero-hour-recompiled",
+      "name": "Duke Nukem: Zero Hour Recompiled",
+      "summary": "Native Duke Nukem: Zero Hour recompilation.",
+      "project_url": "https://gitlab.com/sonicdcer/DNZHRecomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "adapter": "n64-recomp-portable",
+      "release": {
+        "provider": "gitlab",
+        "repository": "sonicdcer/DNZHRecomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "windows-relwithdebinfo"
+          ]
+        }
+      },
+      "source_profile": "duke-nukem-zero-hour",
+      "executable_hints": {
+        "windows-x86-64": [
+          "DNZHRecompiled.exe"
+        ]
+      },
+      "persistent_paths": [
+        "dnzh.us.z64",
+        "saves",
+        "mods",
+        "mods.json",
+        "mods.json.bak",
+        "mod_config",
+        "general.json",
+        "general.json.bak",
+        "graphics.json",
+        "graphics.json.bak",
+        "controls.json",
+        "controls.json.bak",
+        "sound.json",
+        "sound.json.bak"
+      ],
+      "portable_marker": true,
+      "runtime_source_filename": "dnzh.us.z64",
+      "runtime_source_materialization": "n64-big-endian",
+      "presentation": {
+        "installation_method": "portable-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "duke-nukem-zero-hour",
+            "label": "Duke Nukem: Zero Hour (USA) source",
             "verification": "catalog-identity"
           }
         ],
