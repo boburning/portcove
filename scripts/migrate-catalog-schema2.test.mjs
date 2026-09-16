@@ -221,7 +221,7 @@ test("schema-2 migration is deterministic and preserves the frozen schema-1 proj
     true,
   );
   assert.equal(drMario.presentation.source_requirements[0].verification, "catalog-identity");
-  assert.equal(migrated.source_catalog.qualification.length, 12);
+  assert.equal(migrated.source_catalog.qualification.length, 14);
   const ygofmQualification = migrated.source_catalog.qualification.filter(
     (record) => record.scope.port_id === "yu-gi-oh-forbidden-memories-recompiled",
   );
@@ -325,6 +325,47 @@ test("schema-2 migration is deterministic and preserves the frozen schema-1 proj
       "revelations-persona-recompiled-windows-reinstall-2026-09-15",
     ),
     true,
+  );
+  const dnzhQualification = migrated.source_catalog.qualification.filter(
+    (record) => record.scope.port_id === "duke-nukem-zero-hour-recompiled",
+  );
+  assert.deepEqual(
+    dnzhQualification.map((record) => [record.kind, record.outcome]),
+    [
+      ["structural_check", "passed"],
+      ["automated_lifecycle", "passed"],
+    ],
+  );
+  assert.equal(
+    dnzhQualification.every(
+      (record) =>
+        record.scope.artifact_sha256 ===
+          "ece88320327ffc58ec73e084c23aca274a016e45dd3558a684d59c37f88bdbc3" &&
+        record.scope.upstream_ref === "0.0.3" &&
+        record.scope.contract_id === "duke-nukem-zero-hour-recompiled-game-source" &&
+        record.scope.variant.identity.game_id === "duke-nukem-zero-hour" &&
+        record.scope.variant.identity.variant_id === "usa" &&
+        record.scope.variant.identity.representation_id === "canonical-rom" &&
+        record.scope.check_version === "dnzh-windows-qualification-v1" &&
+        record.portcove_commit === "73702601fa3f24c5b47f7aff43e228c75c4370ba" &&
+        record.evidence_ids.includes(
+          "duke-nukem-zero-hour-windows-lifecycle-2026-09-16",
+        ),
+    ),
+    true,
+  );
+  assert.match(dnzhQualification[1].method, /live GitLab resolution/);
+  assert.match(dnzhQualification[1].method, /adopted-to-downloaded update/);
+  assert.match(dnzhQualification[1].method, /removal, reinstall/);
+  assert.equal(
+    contract("duke-nukem-zero-hour-recompiled").evidence_ids.includes(
+      "duke-nukem-zero-hour-windows-lifecycle-2026-09-16",
+    ),
+    true,
+  );
+  assert.equal(
+    contract("duke-nukem-zero-hour-recompiled").authority_ref,
+    "73702601fa3f24c5b47f7aff43e228c75c4370ba",
   );
   const drMarioQualification = migrated.source_catalog.qualification.filter(
     (record) => record.scope.port_id === "dr-mario-64-recomp",

@@ -115,6 +115,7 @@ const reviewedSources = {
   dukeNukemZeroHour: {
     upstreamEvidenceId: "dnzh-recompiled-0-0-3-source-contract",
     sourceEvidenceId: "duke-nukem-zero-hour-windows-2026-09-16",
+    lifecycleEvidenceId: "duke-nukem-zero-hour-windows-lifecycle-2026-09-16",
     repository: "sonicdcer/DNZHRecomp",
     ref: "54e61d02f236687fbc93760afce6bff4aa8df24f",
     tag: "0.0.3",
@@ -122,6 +123,7 @@ const reviewedSources = {
     path: "src/main/main.cpp",
     reviewedAt: "2026-09-16",
     qualificationRef: "bdb32b9fdb4869722d2aa3741112c254a1867cbb",
+    lifecycleRef: "73702601fa3f24c5b47f7aff43e228c75c4370ba",
   },
 };
 
@@ -224,6 +226,18 @@ const evidence = [
     claim:
       "Records the exact authorized US source identity, GitLab artifact identity, portable-path preflight, and source-accepted Windows launcher",
     immutable_url: `https://github.com/boburning/portcove/blob/${reviewedSources.dukeNukemZeroHour.qualificationRef}/docs/qualification/duke-nukem-zero-hour-windows-2026-09-16.md`,
+    live_url:
+      "https://github.com/boburning/portcove/blob/main/docs/qualification/duke-nukem-zero-hour-windows-2026-09-16.md",
+  },
+  {
+    id: reviewedSources.dukeNukemZeroHour.lifecycleEvidenceId,
+    role: "portcove_qualification",
+    authority: "boburning/portcove",
+    authority_ref: reviewedSources.dukeNukemZeroHour.lifecycleRef,
+    reviewed_at: reviewedSources.dukeNukemZeroHour.reviewedAt,
+    claim:
+      "Records exact source refusal and admission, dynamic GitLab resolution, install, verification, responsive launch, backup and restore, adopt, update, rollback, retained reuse, removal, reinstall, and persistent-state preservation",
+    immutable_url: `https://github.com/boburning/portcove/blob/${reviewedSources.dukeNukemZeroHour.lifecycleRef}/docs/qualification/duke-nukem-zero-hour-windows-2026-09-16.md`,
     live_url:
       "https://github.com/boburning/portcove/blob/main/docs/qualification/duke-nukem-zero-hour-windows-2026-09-16.md",
   },
@@ -1055,10 +1069,11 @@ contracts.push({
   evidence_ids: [
     reviewedSources.dukeNukemZeroHour.upstreamEvidenceId,
     reviewedSources.dukeNukemZeroHour.sourceEvidenceId,
+    reviewedSources.dukeNukemZeroHour.lifecycleEvidenceId,
   ],
-  authority_ref: reviewedSources.dukeNukemZeroHour.qualificationRef,
+  authority_ref: reviewedSources.dukeNukemZeroHour.lifecycleRef,
   reviewed_at: reviewedSources.dukeNukemZeroHour.reviewedAt,
-  immutable_review_url: `https://github.com/boburning/portcove/blob/${reviewedSources.dukeNukemZeroHour.qualificationRef}/docs/qualification/duke-nukem-zero-hour-windows-2026-09-16.md`,
+  immutable_review_url: `https://github.com/boburning/portcove/blob/${reviewedSources.dukeNukemZeroHour.lifecycleRef}/docs/qualification/duke-nukem-zero-hour-windows-2026-09-16.md`,
   live_review_url:
     "https://github.com/boburning/portcove/blob/main/docs/qualification/duke-nukem-zero-hour-windows-2026-09-16.md",
   evidence_gap: null,
@@ -1625,6 +1640,58 @@ const migrated = {
         method:
           "Automatic and explicit Vulkan rendering reached the Nintendo boot logo, then failed in amdxc64.dll 32.0.31041.1004 with exception 0xc0000005",
         evidence_ids: ["dr-mario-64-recompiled-windows-2026-09-15"],
+      },
+      {
+        scope: {
+          port_id: "duke-nukem-zero-hour-recompiled",
+          platform: "windows-x86-64",
+          artifact_sha256: "ece88320327ffc58ec73e084c23aca274a016e45dd3558a684d59c37f88bdbc3",
+          upstream_ref: "0.0.3",
+          contract_id: "duke-nukem-zero-hour-recompiled-game-source",
+          variant: {
+            state: "exact",
+            identity: {
+              game_id: "duke-nukem-zero-hour",
+              variant_id: "usa",
+              representation_id: "canonical-rom",
+            },
+          },
+          check_version: "dnzh-windows-qualification-v1",
+        },
+        kind: "structural_check",
+        outcome: "passed",
+        observed_at: 1789535391,
+        portcove_version: "0.1.0-alpha.2",
+        portcove_commit: reviewedSources.dukeNukemZeroHour.lifecycleRef,
+        method:
+          "Exact GitLab release and artifact identity, canonical source identity and mismatch rejection, executable, portable persistence, source materialization, and immutable-manifest binding checks",
+        evidence_ids: [reviewedSources.dukeNukemZeroHour.lifecycleEvidenceId],
+      },
+      {
+        scope: {
+          port_id: "duke-nukem-zero-hour-recompiled",
+          platform: "windows-x86-64",
+          artifact_sha256: "ece88320327ffc58ec73e084c23aca274a016e45dd3558a684d59c37f88bdbc3",
+          upstream_ref: "0.0.3",
+          contract_id: "duke-nukem-zero-hour-recompiled-game-source",
+          variant: {
+            state: "exact",
+            identity: {
+              game_id: "duke-nukem-zero-hour",
+              variant_id: "usa",
+              representation_id: "canonical-rom",
+            },
+          },
+          check_version: "dnzh-windows-qualification-v1",
+        },
+        kind: "automated_lifecycle",
+        outcome: "passed",
+        observed_at: 1789535391,
+        portcove_version: "0.1.0-alpha.2",
+        portcove_commit: reviewedSources.dukeNukemZeroHour.lifecycleRef,
+        method:
+          "Exact source admission, live GitLab resolution, install, 47-file verification, responsive native launches, fail-closed and successful restore, adopted-to-downloaded update, rollback, retained reuse, removal, reinstall, and persistent-state preservation",
+        evidence_ids: [reviewedSources.dukeNukemZeroHour.lifecycleEvidenceId],
       },
     ],
   },
