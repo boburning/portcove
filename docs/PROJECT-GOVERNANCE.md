@@ -230,18 +230,20 @@ with quiet success and deduplicated exceptions identifying affected operations,
 failed rules, evidence and resume conditions. Discovery has no admission
 authority. Engineering/policy/authority changes still require scoped review;
 neither an agent nor a candidate may change its own protected acceptance rules.
-Routine authorized work follows mandatory CI, an explicit separate review
-result, substantive finding repair, current-revision and authority confirmation,
-then normal merge or auto-merge. An implementation or continuation request
-authorizes that routine workflow within its scope without repeated owner
-approval. Codex may perform the separate review as a distinct pass over the
-final diff, acceptance, and safety invariants, recording the commit, findings,
-repairs, and re-review result. It does not inherently require a human or second
-agent; additional trusted repository reviewer requirements still apply. Ask
-the owner only for an unresolved blocker, intrinsically required manual
-participation, or authority not already granted, and continue unrelated
-authorized work. A timeout, cancellation, or absence of comments is not a
-successful review. Administrator bypass is emergency-only. Protected
+Routine authorized work follows mandatory CI, an actual separate non-writing
+reviewer-subagent result, substantive finding repair, current-revision and
+authority confirmation, then the guarded normal merge path. An implementation
+or continuation request authorizes that routine workflow within its scope
+without repeated owner approval. The implementation owner dispatches the
+reviewer with the exact source head, baseline, complete change, acceptance, and
+evidence; records its real findings and limitations; repairs substantive
+findings; and obtains applicable re-review for changed code. Implementer
+self-review is not independent review. Ask the owner only for an unresolved
+blocker, intrinsically required manual participation, or authority not already
+granted, and continue unrelated authorized work. Unavailable delegation holds
+the affected merge, not every other lane. A timeout, cancellation, empty
+response, or absence of comments is not a successful review. Administrator
+bypass is emergency-only. Protected
 acceptance, merge authority, signing/publication permission, credentials, and
 other meaningful boundaries require separate owner authorization; candidates
 cannot alter or self-authorize their own gate. Privileged handling treats

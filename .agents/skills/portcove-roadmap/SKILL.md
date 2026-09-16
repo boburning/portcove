@@ -3,7 +3,8 @@ name: portcove-roadmap
 description: Perform Portcove issue intake, dependency and live GitHub Project reconciliation using the repository roadmap commands. Use for backlog and release-readiness work, not product implementation.
 ---
 
-Read [PROJECT-GOVERNANCE.md](../../../docs/PROJECT-GOVERNANCE.md) and inspect current commands in [roadmap.mjs](../../../scripts/roadmap.mjs). GitHub Projects is the live authority; never create a local backlog mirror.
+Resolve the current checkout root with `git rev-parse --show-toplevel` before using
+paths below. Read [PROJECT-GOVERNANCE.md](../../../docs/PROJECT-GOVERNANCE.md) and inspect current commands in [roadmap.mjs](../../../scripts/roadmap.mjs). GitHub Projects is the live authority; never create a local backlog mirror.
 
 Read every page of the relevant inventory and require unique counts to match totals. An API failure, stalled cursor, changing total or incomplete dependency read invalidates the result. REST may recover issue reads but does not establish Project fields it did not return.
 

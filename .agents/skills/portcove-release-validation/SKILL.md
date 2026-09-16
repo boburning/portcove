@@ -1,9 +1,10 @@
 ---
 name: portcove-release-validation
-description: Prepare or validate Portcove packages, upgrade and rollback evidence using existing release tooling. Use for release candidates and installer qualification, not permission to publish or sign releases.
+description: Prepare or validate Portcove releases, packages, updaters, signing policy, upgrades, and rollbacks with existing tooling. Use for candidates, installer qualification, or protected release-policy changes; not permission to publish, sign, change keys, or widen authority.
 ---
 
-Resolve the checkout root and read [RELEASING.md](../../../docs/RELEASING.md), the linked issue, and current release/dependency fields in the live Project. Repository release docs define the package policy; the Project defines unfinished commitments.
+Resolve the current checkout root with `git rev-parse --show-toplevel` and read
+[RELEASING.md](../../../docs/RELEASING.md), [DELIVERY.md](../../../docs/DELIVERY.md), [UPDATER-TRUST.md](../../../docs/UPDATER-TRUST.md), [UPGRADING.md](../../../docs/UPGRADING.md), the linked issue, and current release/dependency fields in the live Project. Read [SIGNED-CATALOG.md](../../../docs/SIGNED-CATALOG.md) only when catalog signing is in scope. Repository release docs define package and application-signing policy; the Project defines unfinished commitments.
 
 Inspect parameters in [release-preflight.ps1](../../../scripts/release-preflight.ps1), [package-local.ps1](../../../scripts/package-local.ps1), and [test-windows-installer.ps1](../../../scripts/test-windows-installer.ps1) before invoking them. Reuse repository scripts rather than reproducing package selection, signing, or checksum logic in a skill.
 

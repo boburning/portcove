@@ -12,17 +12,22 @@ are documented in [Contribution conventions](CONTRIBUTION-CONVENTIONS.md).
 The `Protect main` ruleset blocks deletion and force-pushes, requires a pull
 request and resolved review threads, and requires the `catalog`,
 `dependency-review`, `frontend`, `rust`, and `rust-quality` checks from
-`.github/workflows/ci.yml` against an up-to-date main revision. Required
-approvals are zero; last-push and mandatory CODEOWNERS approval are disabled.
+`.github/workflows/ci.yml` on the current source head. Strict base freshness is
+disabled, so an independently reviewed unchanged source may merge behind
+unrelated `main` advances after the interaction checks in
+[Quality](QUALITY.md#routine-merge-freshness). Required approvals are zero;
+last-push and mandatory CODEOWNERS approval are disabled.
 GitHub's additional-approval setting for unattributed Copilot pull requests is
 retained but has no effect when required approvals are zero. The only bypass
 actor remains the built-in repository-admin role restricted to pull requests;
 it is emergency-only, never the routine solo-maintainer path.
 
 Repository auto-merge capability is enabled, but pull requests are not enrolled
-automatically. Routine authorized work must still have all mandatory checks, an
-explicit separate review result with substantive findings repaired, resolved
-threads, and current revision/authority confirmation before normal auto-merge.
+automatically. Routine authorized work uses the exact-head guarded immediate
+merge in [Contribution conventions](CONTRIBUTION-CONVENTIONS.md) only after all
+mandatory checks, an actual separate non-writing reviewer-subagent result,
+substantive finding repair, resolved threads, and current revision/authority
+confirmation. Auto-merge remains an explicitly justified deferred exception.
 Candidate-controlled workflow changes cannot establish or remove their own
 trusted gate. Fully unattended engineering requires a separately implemented
 trusted controller and end-to-end negative/recovery proof; this policy change

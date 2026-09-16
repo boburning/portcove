@@ -529,7 +529,7 @@ export function buildPlan(selection, context = {}) {
         .map((file) => `- ${file}`)
         .join(
           "\n",
-        )}\nAdd and test a focused rule; exhaustive CI must not be replaced by silent local success.`,
+        )}\nAdd and test a focused rule; the required hosted plan must not be replaced by silent local success.`,
     );
   }
   const mergeBase = context.mergeBase ?? "<merge-base>";
