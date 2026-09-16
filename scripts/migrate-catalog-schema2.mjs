@@ -1192,6 +1192,16 @@ function withPresentation(port) {
   };
 }
 
+const linuxAssetHints = {
+  "zelda64-recomp": "Linux-X64.zip",
+  "banjo-recomp": "Linux-X64.",
+  "bm64-recomp": "Linux-X64-Release",
+  "harvest-moon-64-recomp": "Linux-X64.zip",
+  "bomberman-hero-recomp": "Linux-X64-Release",
+  "trouble-makers-recomp": "TroubleMakers-x86_64.AppImage",
+  "goemon64-recomp": "Linux-X64",
+};
+
 const migrated = {
   schema_version: 2,
   // Legacy qualification arrays intentionally remain on each port. They do
@@ -1549,14 +1559,14 @@ const migrated = {
                       "psx_freeze_heartbeat.json",
                     ],
                   }
-                : port.id === "bm64-recomp"
+                : Object.hasOwn(linuxAssetHints, port.id)
                   ? {
                       ...port,
                       release: {
                         ...port.release,
                         asset_hints: {
                           ...port.release.asset_hints,
-                          "linux-x86-64": ["Linux-X64-Release"],
+                          "linux-x86-64": [linuxAssetHints[port.id]],
                         },
                       },
                     }
