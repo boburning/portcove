@@ -2,7 +2,13 @@ import { spawnSync } from "node:child_process";
 import { access, readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { GitHubApiClient, createGitHubRunner, githubRateLimitMessage } from "./github-api.mjs";
+import {
+  GitHubApiClient,
+  createGitHubRunner,
+  githubOperationEnvelope,
+  githubRateLimitMessage,
+  sanitizeOperationError,
+} from "./github-api.mjs";
 import { acquireOwnedProcessLock } from "./process-lock.mjs";
 
 const scriptPath = fileURLToPath(import.meta.url);
@@ -106,6 +112,7 @@ const setFlags = new Map([
   ["--effort", "Effort"],
 ]);
 const maximumBatchAssignments = 100;
+export const maximumMutationChunkAssignments = 25;
 
 function requireExactKeys(value, expected, label) {
   const actual = Object.keys(value ?? {}).sort();
@@ -165,7 +172,204 @@ export function setManyRequiredReserve(preflightCost, pendingAssignments) {
   ) {
     throw new Error("set-many quota inputs are invalid");
   }
-  return 2 * preflightCost + pendingAssignments + 100;
+  return 2 * preflightCost + Math.min(pendingAssignments, maximumMutationChunkAssignments) + 100;
+}
+
+function setManyOutcomeError(status, message, evidence, cause = null) {
+  const error = new Error(message, cause ? { cause } : undefined);
+  error.code = `set_many_${status}`;
+  error.operationStatus = status;
+  error.operationEvidence = evidence;
+  return error;
+}
+
+function setManyEvidence(plan, state) {
+  return {
+    assignments: plan.assignments,
+    pending_at_start: plan.pending.length,
+    already_applied_at_start: plan.alreadyApplied.length,
+    verified: state.verified,
+    verified_after_attempt: state.verifiedAfterAttempt,
+    reconciled: state.reconciled,
+    reconciled_after_error: state.reconciledAfterError,
+    remaining: Math.max(0, plan.pending.length - state.processed),
+    chunks: state.chunks,
+    rate_limit: state.rateLimit
+      ? { remaining: state.rateLimit.remaining, reset_at: state.rateLimit.resetAt }
+      : null,
+    doctor: state.doctor,
+  };
+}
+
+export async function executeSetMany({
+  client,
+  config,
+  spec,
+  apply = false,
+  doctor = runDoctor,
+  onPlan = () => {},
+}) {
+  const before = client.sampleGraphqlRate();
+  const plan = client.planSetMany(spec);
+  const after = client.sampleGraphqlRate();
+  if (after.used < before.used)
+    throw new Error("GitHub GraphQL rate-limit window changed during set-many preflight; retry");
+  const preflightCost = after.used - before.used;
+  const state = {
+    verified: plan.alreadyApplied.length,
+    verifiedAfterAttempt: 0,
+    reconciled: plan.alreadyApplied.length,
+    reconciledAfterError: 0,
+    processed: 0,
+    chunks: [],
+    rateLimit: after,
+    doctor: "not_run",
+  };
+  const requiredReserve = setManyRequiredReserve(preflightCost, plan.pending.length);
+  const planSummary =
+    `${plan.pending.length} pending, ${plan.alreadyApplied.length} already applied, ` +
+    `${preflightCost} GraphQL points observed during preflight, ${after.remaining} remain, ` +
+    `${requiredReserve} required before the next mutation.`;
+  if (!apply) {
+    return {
+      status: "planned",
+      summary: `Set-many plan: ${planSummary}`,
+      evidence: setManyEvidence(plan, state),
+    };
+  }
+  onPlan(`Set-many plan: ${planSummary}`);
+
+  for (let offset = 0; offset < plan.pending.length; offset += maximumMutationChunkAssignments) {
+    const chunk = plan.pending.slice(offset, offset + maximumMutationChunkAssignments);
+    const chunkPlan = { ...plan, pending: chunk, alreadyApplied: [] };
+    let beforeMutation;
+    try {
+      beforeMutation = client.verifySetMany(chunkPlan);
+    } catch (error) {
+      throw setManyOutcomeError(
+        "unknown",
+        `set-many could not establish the pre-mutation state for chunk ${state.chunks.length + 1}: ${error.message}`,
+        setManyEvidence(plan, state),
+        error,
+      );
+    }
+    const unexpected = beforeMutation.filter(
+      (result) => result.observed !== result.from && result.observed !== result.to,
+    );
+    if (unexpected.length) {
+      throw setManyOutcomeError(
+        "partial",
+        `set-many stopped before mutation because ${unexpected
+          .map(
+            (result) =>
+              `${result.target} ${result.fieldName}=${JSON.stringify(result.observed)} expected ${JSON.stringify(result.from)} or ${JSON.stringify(result.to)}`,
+          )
+          .join("; ")}`,
+        setManyEvidence(plan, state),
+      );
+    }
+    const pending = beforeMutation.filter((result) => result.observed === result.from);
+    const alreadyDesired = beforeMutation.length - pending.length;
+    state.reconciled += alreadyDesired;
+    state.verified += alreadyDesired;
+    state.processed += alreadyDesired;
+
+    let mutationError = null;
+    if (pending.length) {
+      const rate = client.sampleGraphqlRate();
+      state.rateLimit = rate;
+      const chunkReserve = setManyRequiredReserve(preflightCost, pending.length);
+      if (rate.remaining < chunkReserve) {
+        throw setManyOutcomeError(
+          "partial",
+          `${githubRateLimitMessage(rate, "set-many stopped before mutation")}; ${chunkReserve} points are required to preserve the recovery reserve`,
+          setManyEvidence(plan, state),
+        );
+      }
+      try {
+        client.applySetMany(plan, pending);
+      } catch (error) {
+        mutationError = error;
+      }
+    }
+
+    let afterMutation;
+    try {
+      afterMutation = client.verifySetMany(chunkPlan);
+    } catch (error) {
+      throw setManyOutcomeError(
+        mutationError ? "unknown" : "partial",
+        `set-many could not establish the post-mutation state for chunk ${state.chunks.length + 1}: ${error.message}`,
+        setManyEvidence(plan, state),
+        error,
+      );
+    }
+    const verified = afterMutation.filter((result) => result.verified);
+    const mismatches = afterMutation.filter((result) => !result.verified);
+    const newlyVerified = verified.length - alreadyDesired;
+    state.verifiedAfterAttempt += newlyVerified;
+    state.verified += newlyVerified;
+    state.processed += newlyVerified;
+    if (mutationError && newlyVerified > 0) state.reconciledAfterError += newlyVerified;
+    state.chunks.push({
+      index: state.chunks.length + 1,
+      assignments: chunk.length,
+      attempted: pending.length,
+      verified: verified.length,
+      reconciled_after_error: mutationError ? newlyVerified : 0,
+    });
+    if (mismatches.length) {
+      throw setManyOutcomeError(
+        "partial",
+        `set-many stopped after readback mismatches: ${mismatches
+          .map(
+            (result) =>
+              `${result.target} ${result.fieldName}=${JSON.stringify(result.observed)} expected ${JSON.stringify(result.to)}`,
+          )
+          .join("; ")}`,
+        setManyEvidence(plan, state),
+        mutationError,
+      );
+    }
+  }
+
+  let finalVerification;
+  try {
+    finalVerification = client.verifySetMany(plan);
+  } catch (error) {
+    throw setManyOutcomeError(
+      "unknown",
+      `set-many final readback failed: ${error.message}`,
+      setManyEvidence(plan, state),
+      error,
+    );
+  }
+  const finalMismatches = finalVerification.filter((result) => !result.verified);
+  if (finalMismatches.length) {
+    throw setManyOutcomeError(
+      "partial",
+      `set-many final readback found ${finalMismatches.length} mismatched assignments`,
+      setManyEvidence(plan, state),
+    );
+  }
+  state.verified = finalVerification.length;
+  try {
+    await doctor(config, client, { quiet: true });
+    state.doctor = "passed";
+  } catch (error) {
+    state.doctor = "failed";
+    throw setManyOutcomeError(
+      "partial",
+      `set-many verified every assignment but the final doctor failed: ${error.message}`,
+      setManyEvidence(plan, state),
+      error,
+    );
+  }
+  return {
+    status: "succeeded",
+    summary: `Set-many verified ${finalVerification.length} field assignments and completed the final doctor.`,
+    evidence: setManyEvidence(plan, state),
+  };
 }
 
 function normalizedKey(value) {
@@ -873,7 +1077,7 @@ export function parseArguments(argv) {
       continue;
     }
     const [name, inline] = token.split("=", 2);
-    if (name === "--apply" && inline === undefined) {
+    if (["--apply", "--json"].includes(name) && inline === undefined) {
       options[name] = true;
       continue;
     }
@@ -895,7 +1099,7 @@ usage:
   node scripts/roadmap.mjs capture-feature --title <title> [planning field options]
   node scripts/roadmap.mjs promote <draft-item-id> [--spec-file <path>]
   node scripts/roadmap.mjs set <item-or-issue> [field options]
-  node scripts/roadmap.mjs set-many --spec-file <path> [--apply]
+  node scripts/roadmap.mjs set-many --spec-file <path> [--apply] [--json]
   node scripts/roadmap.mjs move <item> --before <item>
   node scripts/roadmap.mjs next
   node scripts/roadmap.mjs readiness --release <release>
@@ -2097,8 +2301,8 @@ export class RoadmapClient {
     return { context, pending, alreadyApplied, assignments: validated.assignments };
   }
 
-  applySetMany(plan) {
-    const inputs = plan.pending.map((change) =>
+  applySetMany(plan, changes = plan.pending) {
+    const inputs = changes.map((change) =>
       this.fieldMutationInput(plan.context, change.itemId, change.fieldName, change.to),
     );
     this.mutateFieldInputs(inputs);
@@ -2446,7 +2650,8 @@ function roadmapLockPath() {
   return path.join(result.stdout.trim(), "portcove-locks", "roadmap");
 }
 
-async function runDoctor(config, client) {
+async function runDoctor(config, client, { quiet = false } = {}) {
+  const log = quiet ? () => {} : console.log;
   client.gh(["auth", "status"]);
   const number = config.project.number;
   const context = client.completeProjectContext(number);
@@ -2506,25 +2711,23 @@ async function runDoctor(config, client) {
       `Project drift:\n${[...drift, ...roadmapErrors].map((value) => `- ${value}`).join("\n")}`,
     );
   }
-  console.log(`Portcove Roadmap #${number} is reachable at ${details.url}.`);
-  console.log(
+  log(`Portcove Roadmap #${number} is reachable at ${details.url}.`);
+  log(
     `Verified identity, PUBLIC visibility, repository linkage, ${fields.length} fields, and ${views.length} view layouts/filters/visible-field sets.`,
   );
-  console.log(
+  log(
     `Verified ${repositoryIssues.filter((issue) => itemBody(issue).includes(portMarker)).length} repository port issues, ${catalog.ports.length} canonical catalog issues, one supported-source plan owner, and all ${uxAuditOriginIds.length} final UX audit origins.`,
   );
   if (stage.diagnostics.length)
-    console.log(
-      `Supported platform scope:\n${stage.diagnostics.map((value) => `- ${value}`).join("\n")}`,
-    );
+    log(`Supported platform scope:\n${stage.diagnostics.map((value) => `- ${value}`).join("\n")}`);
   if (stage.warnings.length)
-    console.log(
+    log(
       `Conservative Port-stage warnings:\n${stage.warnings.map((value) => `- ${value}`).join("\n")}`,
     );
-  console.log(
+  log(
     `${config.active_release} readiness has ${readiness.unfinishedRequired.length} unfinished required outcomes and ${readiness.opportunistic.length} opportunistic outcomes.`,
   );
-  console.log(
+  log(
     `Manual confirmation required because GitHub does not expose a reliable readable configuration API:\n${manualUiChecklist(config).join("\n")}`,
   );
   return { number, details, fields, views, repositoryIssues, items };
@@ -2647,74 +2850,31 @@ async function main(argv) {
     }
     if (parsed.command === "set-many") {
       if (parsed.positionals.length)
-        throw new Error("usage: roadmap.mjs set-many --spec-file <path> [--apply]");
+        throw new Error("usage: roadmap.mjs set-many --spec-file <path> [--apply] [--json]");
       if ("--apply" in parsed.options && parsed.options["--apply"] !== true)
         throw new Error("--apply does not accept a value");
+      if ("--json" in parsed.options && parsed.options["--json"] !== true)
+        throw new Error("--json does not accept a value");
       for (const option of Object.keys(parsed.options)) {
-        if (!["--apply", "--spec-file"].includes(option))
+        if (!["--apply", "--json", "--spec-file"].includes(option))
           throw new Error(`unsupported set-many option: ${option}`);
       }
       const specPath = path.resolve(projectRoot, requiredOption(parsed.options, "--spec-file"));
       const spec = JSON.parse(await readFile(specPath, "utf8"));
-      const before = client.sampleGraphqlRate();
-      const plan = client.planSetMany(spec);
-      const after = client.sampleGraphqlRate();
-      if (after.used < before.used)
-        throw new Error(
-          "GitHub GraphQL rate-limit window changed during set-many preflight; retry",
+      const result = await executeSetMany({
+        client,
+        config,
+        spec,
+        apply: parsed.options["--apply"] === true,
+        onPlan: parsed.options["--json"] ? undefined : (summary) => console.log(summary),
+      });
+      if (parsed.options["--json"]) {
+        console.log(
+          JSON.stringify(githubOperationEnvelope({ operation: "roadmap.set-many", ...result })),
         );
-      const preflightCost = after.used - before.used;
-      const requiredReserve = setManyRequiredReserve(preflightCost, plan.pending.length);
-      console.log(
-        `Set-many plan: ${plan.pending.length} pending, ${plan.alreadyApplied.length} already applied, ` +
-          `${preflightCost} GraphQL points observed during preflight, ${after.remaining} remain, ` +
-          `${requiredReserve} required before mutation.`,
-      );
-      if (!parsed.options["--apply"]) return;
-      if (after.remaining < requiredReserve)
-        throw new Error(
-          `${githubRateLimitMessage(after, "set-many refused before mutation")}; ` +
-            `${requiredReserve} points are required`,
-        );
-
-      let mutationError = null;
-      try {
-        client.applySetMany(plan);
-      } catch (error) {
-        mutationError = error;
+      } else {
+        console.log(result.summary);
       }
-      let verification = [];
-      let verificationError = null;
-      try {
-        verification = client.verifySetMany(plan);
-      } catch (error) {
-        verificationError = error;
-      }
-      let doctorError = null;
-      try {
-        await runDoctor(config, client);
-      } catch (error) {
-        doctorError = error;
-      }
-      const mismatches = verification.filter((result) => !result.verified);
-      if (mutationError || verificationError || mismatches.length || doctorError) {
-        const failures = [
-          mutationError && `mutation reported: ${mutationError.message}`,
-          verificationError && `readback failed: ${verificationError.message}`,
-          mismatches.length &&
-            `readback mismatches: ${mismatches
-              .map(
-                (result) =>
-                  `${result.target} ${result.fieldName}=${JSON.stringify(result.observed)} expected ${JSON.stringify(result.to)}`,
-              )
-              .join("; ")}`,
-          doctorError && `final doctor failed: ${doctorError.message}`,
-        ].filter(Boolean);
-        throw new Error(`set-many did not establish complete success: ${failures.join("; ")}`);
-      }
-      console.log(
-        `Set-many verified ${verification.length} field assignments and completed the final doctor.`,
-      );
       return;
     }
     if (parsed.command === "move") {
@@ -2808,7 +2968,22 @@ if (process.argv[1] && path.resolve(process.argv[1]) === scriptPath) {
   try {
     await main(process.argv.slice(2));
   } catch (error) {
-    console.error(`roadmap: ${error.message}`);
+    const json = process.argv[2] === "set-many" && process.argv.slice(3).includes("--json");
+    const safeError = sanitizeOperationError(error);
+    if (json) {
+      console.log(
+        JSON.stringify(
+          githubOperationEnvelope({
+            operation: "roadmap.set-many",
+            status: error.operationStatus ?? "failed",
+            summary: safeError.message,
+            evidence: error.operationEvidence ?? {},
+            error,
+          }),
+        ),
+      );
+    }
+    console.error(`roadmap: ${safeError.message}`);
     process.exitCode = 1;
   }
 }

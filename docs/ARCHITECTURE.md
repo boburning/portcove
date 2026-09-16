@@ -497,6 +497,13 @@ their own domain validation and mutation policy. The shared boundary is not a
 Portcove product API, credential store or planning authority, and it cannot
 weaken exact-head, complete-inventory or readback requirements.
 
+Automation-facing GitHub operations use one versioned result envelope from the
+same module. The envelope standardizes terminal status and sanitized errors,
+while operation-specific evidence remains owned by the caller. Human output is
+the default and JSON is opt-in. Project bulk mutations are bounded, quota-aware
+and readback-gated per chunk so transport ambiguity produces resumable evidence
+instead of an automatic replay.
+
 The CLI's schema module assembles the transport schema inventory from existing
 Rust `JsonSchema`/Serde definitions. Explicit input and output contracts use
 Schemars' deserialization and serialization modes; a default accepted on input
