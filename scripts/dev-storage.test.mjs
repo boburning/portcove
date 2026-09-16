@@ -420,6 +420,18 @@ test("broad Rust gates prune incremental state before heavy work", () => {
       /prune-incremental/,
     );
   }
+  assert.match(
+    recipes,
+    /^rust-check:\r?\n\s+\{\{storage\}\} node scripts\/run-rust-tests\.mjs --guard-command cargo check --workspace --all-targets$/m,
+  );
+  assert.match(
+    recipes,
+    /^clippy:\r?\n\s+\{\{storage\}\} node scripts\/run-rust-tests\.mjs --guard-command cargo clippy --workspace --all-targets -- -D warnings$/m,
+  );
+  assert.match(
+    recipes,
+    /^rust-test:\r?\n\s+\{\{storage\}\} node scripts\/run-rust-tests\.mjs --locked --workspace\r?\n\s+\{\{storage\}\} node scripts\/run-rust-tests\.mjs --guard-command cargo test --locked --workspace --doc$/m,
+  );
 });
 
 test(

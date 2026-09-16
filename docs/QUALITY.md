@@ -706,8 +706,11 @@ This changes scheduling
 only; every Rust test retains the same deadline. CI caches compiled dependencies
 after test failures so fixing a failed assertion does not require a cold rebuild.
 
-Supported local nextest commands also serialize their heavyweight Rust test tree
-across Portcove worktrees on the same machine. `scripts/run-rust-tests.mjs`
+Supported local Rust validation commands serialize their heavyweight compiler
+and test work across Portcove worktrees on the same machine. The maintained
+`rust-check`, `clippy`, and documentation-test recipes enter admission before
+starting Cargo, and nextest enters the same admission before compiling its host
+fixture. `scripts/run-rust-tests.mjs`
 publishes a complete lock record atomically below the shared tool-cache root
 before compiling its host fixture. Each host first starts an owned containment
 supervisor behind a registration gate; it cannot launch the pinned
@@ -729,18 +732,23 @@ a dead or PID-reused record is reclaimed only when neither identity matches.
 Darwin adds a per-process random marker because its displayed start timestamp is
 only second-resolution; one transition read accepts the previous timestamp
 record solely to classify and migrate an already-published legacy lock.
-Acquisition polls for five seconds by default and then
-reports the owning PID, workspace, command and start time. Every Windows or
-Darwin identity probe uses repository-required PowerShell 7 and also fails closed after five seconds, so a slow platform
-probe cannot wedge acquisition indefinitely and may add at most its own bounded
-probe interval to the configured polling interval.
-`PORTCOVE_HEAVY_RUST_WAIT_MS` may set a bounded 0 through 60000 millisecond wait
-for an explicitly coordinated run. Retry after the named command finishes; do
-not delete the lock record or terminate another worker's process.
+Admission is bounded to one hour by default, polls at five-second intervals, and
+immediately reports the owning PID, workspace, command and start time. It emits
+another owner report every thirty seconds so an active queue remains visible
+without repeatedly invoking an expensive platform identity probe. The monotonic
+queue duration is outside every admitted command's own execution budget. Every
+Windows or Darwin identity probe uses repository-required PowerShell 7 and also
+fails closed after five seconds, so a slow platform probe cannot wedge
+acquisition indefinitely and may add at most its own bounded probe interval to
+the configured polling interval.
+`PORTCOVE_HEAVY_RUST_WAIT_MS` may set a bounded 0 through 3600000 millisecond wait
+for an explicitly coordinated run. Cancellation stops only the queued command.
+Do not delete the lock record or terminate another worker's process.
 
 This machine guard covers `just test-rust`, selected Rust stages in
-`just local-check`, `just rust-test`, and the aggregate commands that reach the same
-wrapper. It does not cover direct Cargo/nextest invocations, hosted jobs, whole
+`just local-check`, `just rust-check`, `just clippy`, `just rust-test`, and the
+aggregate commands that reach the same wrapper. It does not cover direct
+Cargo/nextest invocations, hosted jobs, whole
 Codex tasks, or native desktop sessions. The native desktop lock remains a
 separate foreground-resource contract. The guard does not change nextest's two
 test threads, watchdogs, retries, partitions, assertions, or required CI.

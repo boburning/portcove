@@ -72,6 +72,16 @@ The launcher creates the temporary, packaging, and pnpm directories after a succ
 
 `PORTCOVE_TEMP_DIR`, `PORTCOVE_OUTPUT_DIR`, and `PORTCOVE_PNPM_STORE_DIR` override their defaults; relative values are resolved from the repository root. Cargo owns target selection through its configuration or `CARGO_TARGET_DIR`. `apps/desktop/pnpm-workspace.yaml` supplies the default store for direct pnpm commands; the launcher applies its checked override to pnpm itself. The PowerShell packaging/release scripts use the same checked layout and restore the caller's environment afterward. Local packaging requires its output below the workspace and excludes configured build/scratch/store/output directories from the source ZIP. Installer qualification uses a private run directory below project temporary storage and retains failed-run evidence; an explicit `-TestBase` selects a different qualification root.
 
+On a host where the workspace volume is rotational, sustained fixture-heavy
+validation can saturate that volume even after cross-worktree Rust admission is
+serialized. Set `PORTCOVE_TEMP_DIR` to a unique directory for this worktree on a
+non-system SSD before invoking the normal `just` entrypoint. The storage
+preflight reports the resolved volume and enforces the same free-space floor.
+Do not share one scratch directory between worktrees, and do not treat this
+controlled local scratch relocation as packaged, production-feed, or
+physical-platform evidence. Keep Cargo targets per worktree unless the entire
+isolated validation checkout is deliberately located on that SSD.
+
 Required CI runs the storage regression suite in both the Windows `rust` job and Linux `rust-quality` job. CI, release, and deep-quality workflows export the workspace store before pnpm cache discovery, so the cached directory and the install directory agree even when a setup action runs from the repository root.
 
 Run rust-analyzer from the non-system-volume workspace so its Cargo metadata resolves the same `target` directory. Do not create validation-mode-specific target directories unless a tool proves that isolation is required. These controls cover repository build and scratch data; they do not relocate installed tools, Cargo's global registry, or other user-level caches. Native executables receive their arguments directly. Windows batch shims support spaced arguments but reject shell expansion/control characters rather than interpreting them.
@@ -92,7 +102,10 @@ artifacts. Focused recipes keep incremental compilation for the edit-test loop.
 The prune is idempotent, remains available below the free-space margin, and
 refuses custom targets, files, symlinks, or junctions. Run the direct
 `just prune-incremental` recipe when needed; `just clean-build` remains the
-separate full Cargo cleanup.
+separate full Cargo cleanup. Their supported expensive Cargo stages use the
+shared Rust-validation admission guard; queue time is reported and bounded
+separately from test execution. The lock is per host, not per drive, so moving an
+isolated checkout to the SSD does not authorize an overlapping compiler/test tree.
 
 ## Migration and recovery
 

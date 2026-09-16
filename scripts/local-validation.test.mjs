@@ -183,6 +183,36 @@ test("root Rust dependency changes compile, lint, and use the broad workspace te
   ]);
 });
 
+test("supported local Rust compilation and tests acquire admission before starting work", () => {
+  const focused = planFor(["crates/portcove-core/src/database.rs"]).plan;
+  for (const id of [
+    "rust-check:portcove-core",
+    "rust-clippy:portcove-core",
+    "rust-docs:portcove-core",
+  ]) {
+    const entry = focused.find((candidate) => candidate.id === id);
+    assert.ok(entry, `missing ${id}`);
+    assert.equal(entry.executable, process.execPath);
+    assert.deepEqual(entry.args.slice(0, 2), ["scripts/run-rust-tests.mjs", "--guard-command"]);
+  }
+  const focusedTests = focused.find((candidate) => candidate.id === "rust-tests:portcove-core");
+  assert.ok(focusedTests);
+  assert.equal(focusedTests.executable, process.execPath);
+  assert.deepEqual(focusedTests.args.slice(0, 2), ["scripts/run-rust-tests.mjs", "--locked"]);
+
+  const workspace = planFor(["Cargo.lock"]).plan;
+  for (const id of ["rust-workspace-check", "rust-workspace-clippy"]) {
+    const entry = workspace.find((candidate) => candidate.id === id);
+    assert.ok(entry, `missing ${id}`);
+    assert.equal(entry.executable, process.execPath);
+    assert.deepEqual(entry.args.slice(0, 2), ["scripts/run-rust-tests.mjs", "--guard-command"]);
+  }
+  const workspaceTests = workspace.find((candidate) => candidate.id === "rust-workspace-tests");
+  assert.ok(workspaceTests);
+  assert.equal(workspaceTests.executable, process.execPath);
+  assert.deepEqual(workspaceTests.args.slice(0, 2), ["scripts/run-rust-tests.mjs", "--locked"]);
+});
+
 test("UI sources build, lint, and run import-related tests", () => {
   const { selection, plan } = planFor(["apps/desktop/src/view-model.ts"]);
   assert.equal(selection.uiFullTests, false);
