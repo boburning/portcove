@@ -8,6 +8,7 @@ use std::sync::atomic::{AtomicU8, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use base64::Engine as _;
 use futures_util::TryStreamExt;
 use portcove_desktop::application_update::{
     ApplicationChannel, ApplicationCompatibility, ArtifactIdentity, InstallOwner,
@@ -16,6 +17,12 @@ use portcove_desktop::application_update::{
 };
 use portcove_desktop::application_update_download::{
     PayloadDownloadError, download_payload, download_payload_from_controlled_loopback,
+};
+use portcove_desktop::application_update_payload::{
+    PayloadVerificationError, PayloadVerificationKey,
+};
+use portcove_desktop::application_update_staging::{
+    ApplicationUpdateStagingError, ApplicationUpdateStagingStore,
 };
 use portcove_desktop::application_update_trust::{
     TrustedRepository, TrustedRepositoryError, TrustedRepositoryFailureKind,
@@ -30,6 +37,9 @@ use tough::TargetName;
 use url::Url;
 
 use updater_trust_support::{Fixture, expiration};
+
+const PUBLIC_KEY: &str = "untrusted comment: minisign public key E7620F1842B4E81F\nRWQf6LRCGA9i53mlYecO4IzT51TGPpvWucNSCh1CBM0QTaLn73Y7GFO3\n";
+const PREHASHED_SIGNATURE: &str = "untrusted comment: signature from minisign secret key\nRUQf6LRCGA9i559r3g7V1qNyJDApGip8MfqcadIgT9CuhV3EMhHoN1mGTkUidF/z7SrlQgXdy8ofjb7bNJJylDOocrCo8KLzZwo=\ntrusted comment: timestamp:1556193335\tfile:test\ny/rUw2y8/hOUYjZU71eHp/Wo1KZ40fGy2VJEDl34XMJM+TX48Ss/17u3IvIfbVR1FkZZSNCisQbuQY+bHwhEBg==\n";
 
 #[derive(Clone, Copy)]
 enum ResponseMode {
@@ -47,6 +57,7 @@ enum PayloadResponseMode {
     Drop = 2,
     Truncated = 3,
     Overflow = 4,
+    AlteredSameLength = 5,
 }
 
 struct ControlledPayloadServer {
@@ -340,6 +351,11 @@ async fn serve_payload(
             oversized.push(b'!');
             respond_without_length(&mut stream, &oversized).await;
         }
+        value if value == PayloadResponseMode::AlteredSameLength as u8 => {
+            let mut altered = payload.to_vec();
+            *altered.first_mut().expect("payload fixture is nonempty") ^= 1;
+            respond_without_length(&mut stream, &altered).await;
+        }
         _ => respond(&mut stream, "200 OK", &[], payload).await,
     }
 }
@@ -354,8 +370,14 @@ async fn respond_without_length(stream: &mut TcpStream, body: &[u8]) {
     }
 }
 
-fn payload_candidate(payload: &[u8]) -> SelectedCandidate {
-    let version = "1.0.0";
+fn payload_key() -> PayloadVerificationKey {
+    PayloadVerificationKey {
+        id: hex::encode(Sha256::digest(PUBLIC_KEY.as_bytes())),
+        tauri_public_key: base64::engine::general_purpose::STANDARD.encode(PUBLIC_KEY.as_bytes()),
+    }
+}
+
+fn payload_candidate(version: &str, payload: &[u8]) -> SelectedCandidate {
     let target = "linux-x86_64";
     let package = "appimage";
     let release_path = format!("releases/{version}/{target}/{package}.json");
@@ -390,8 +412,9 @@ fn payload_candidate(payload: &[u8]) -> SelectedCandidate {
                 ),
                 sha256: hex::encode(Sha256::digest(payload)),
                 bytes: payload.len() as u64,
-                tauri_signature: "qualification-signature".into(),
-                payload_key_id: "f".repeat(64),
+                tauri_signature: base64::engine::general_purpose::STANDARD
+                    .encode(PREHASHED_SIGNATURE.as_bytes()),
+                payload_key_id: payload_key().id,
             },
             compatibility: ApplicationCompatibility {
                 minimum_os_version: "1.0.0".into(),
@@ -569,7 +592,7 @@ async fn controlled_http_consumer_honors_rate_limits_outages_and_redirect_refusa
 #[tokio::test]
 async fn controlled_payload_consumer_rejects_network_failures_and_recovers() {
     let payload = b"authenticated payload fixture".to_vec();
-    let candidate = payload_candidate(&payload);
+    let candidate = payload_candidate("1.0.0", &payload);
     let server = ControlledPayloadServer::start(payload.clone()).await;
 
     let mut loopback_candidate = candidate.clone();
@@ -654,4 +677,73 @@ async fn controlled_payload_consumer_rejects_network_failures_and_recovers() {
     }
 
     assert_eq!(server.payload.as_slice(), payload);
+}
+
+#[tokio::test]
+async fn controlled_payload_staging_preserves_verified_bytes_and_recovers() {
+    let payload = b"test".to_vec();
+    let server = ControlledPayloadServer::start(payload.clone()).await;
+    let temporary = tempfile::tempdir().unwrap();
+    let staging_root = temporary.path().join("staging");
+    let staging = ApplicationUpdateStagingStore::new(staging_root.clone()).unwrap();
+    let key = payload_key();
+    let previous = payload_candidate("1.0.0", &payload);
+    let next = payload_candidate("1.1.0", &payload);
+
+    let mut baseline = download_payload_from_controlled_loopback(&previous, &server.payload_url())
+        .await
+        .unwrap();
+    let staged = staging.stage(&mut baseline, &previous, &key).await.unwrap();
+    assert_eq!(staged.candidate, previous);
+    assert_eq!(fs::read(&staged.payload_path).unwrap(), payload);
+    let baseline_journal = fs::read(staging_root.join("staging.json")).unwrap();
+
+    server.set_mode(PayloadResponseMode::AlteredSameLength);
+    let mut altered = download_payload_from_controlled_loopback(&next, &server.payload_url())
+        .await
+        .unwrap();
+    assert!(matches!(
+        staging.stage(&mut altered, &next, &key).await,
+        Err(ApplicationUpdateStagingError::Verification(
+            PayloadVerificationError::HashMismatch
+        ))
+    ));
+    assert_eq!(
+        fs::read(staging_root.join("staging.json")).unwrap(),
+        baseline_journal
+    );
+    assert!(!staging_root.join(".candidate.payload.incoming").exists());
+    let preserved = staging.reconcile().await.unwrap().unwrap();
+    assert_eq!(preserved.candidate, previous);
+    assert_eq!(fs::read(&preserved.payload_path).unwrap(), payload);
+    assert!(!staging_root.join(".candidate.payload.incoming").exists());
+
+    server.set_mode(PayloadResponseMode::Truncated);
+    let mut truncated = download_payload_from_controlled_loopback(&next, &server.payload_url())
+        .await
+        .unwrap();
+    let Err(ApplicationUpdateStagingError::Verification(PayloadVerificationError::Io(error))) =
+        staging.stage(&mut truncated, &next, &key).await
+    else {
+        panic!("truncated HTTP payload did not fail through the staging verifier");
+    };
+    assert_eq!(error.kind(), std::io::ErrorKind::UnexpectedEof);
+    assert_eq!(
+        fs::read(staging_root.join("staging.json")).unwrap(),
+        baseline_journal
+    );
+    assert!(!staging_root.join(".candidate.payload.incoming").exists());
+    let preserved = staging.reconcile().await.unwrap().unwrap();
+    assert_eq!(preserved.candidate, previous);
+    assert_eq!(fs::read(&preserved.payload_path).unwrap(), payload);
+    assert!(!staging_root.join(".candidate.payload.incoming").exists());
+
+    server.set_mode(PayloadResponseMode::Normal);
+    let mut recovered = download_payload_from_controlled_loopback(&next, &server.payload_url())
+        .await
+        .unwrap();
+    let staged = staging.stage(&mut recovered, &next, &key).await.unwrap();
+    assert_eq!(staged.candidate, next);
+    assert_eq!(fs::read(&staged.payload_path).unwrap(), payload);
+    assert!(!staging_root.join(".candidate.payload.incoming").exists());
 }
