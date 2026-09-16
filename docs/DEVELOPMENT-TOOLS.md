@@ -297,6 +297,21 @@ repository's scheduling configuration; doctests run in Cargo separately. Do not
 duplicate this orchestration in a skill or a competing recipe. Record cold
 compilation separately from warm test execution when comparing performance.
 
+The wrapper owns one shared-host heavyweight Rust-test slot across Portcove
+worktrees. It waits up to five seconds, then refuses to overlap a live owner and
+prints that owner's PID, workspace, command and start time. Wait for that command
+to finish and rerun the same supported command. For a deliberately coordinated
+short wait, set `PORTCOVE_HEAVY_RUST_WAIT_MS` to an integer from `0` through
+`60000`; this changes only lock acquisition, not any test deadline. A wrapper
+failure does not make a still-running recorded nextest child stale, and PID reuse
+does not transfer ownership because the process start identity must also match.
+
+Do not remove the shared lock, kill another worker's process, or use a direct
+`cargo nextest` invocation to evade it. Direct Cargo commands are outside this
+guard, as are native desktop sessions, which retain their separate focus-taking
+lock and evidence rules. `--prepare-only` compiles the hosted fixture without
+taking the local heavyweight slot because it does not execute nextest.
+
 ## Targeted safety experiments
 
 The core property tests generate archive-path aliases and digest/scope combinations.

@@ -1,0 +1,141 @@
+import assert from "node:assert/strict";
+import { EventEmitter } from "node:events";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+import test from "node:test";
+
+import { runRustTests } from "./run-rust-tests.mjs";
+
+function childProcess(pid, exitCode) {
+  const child = new EventEmitter();
+  child.pid = pid;
+  child.kill = () => {
+    queueMicrotask(() => child.emit("close", 1));
+    return true;
+  };
+  if (exitCode !== null) queueMicrotask(() => child.emit("close", exitCode));
+  return child;
+}
+
+test("runner holds the lock through nextest and preserves its exit status", async () => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), "portcove-rust-runner-"));
+  const events = [];
+  let spawnedOptions;
+  try {
+    const status = await runRustTests(["--package", "portcove-core"], {
+      tempRoot,
+      environment: { PATH: "fixture-path" },
+      spawnSync: (command) => {
+        events.push(`compile:${command}`);
+        return { status: 0 };
+      },
+      spawn: (command, args, options) => {
+        events.push(`spawn:${command}:${args.join(" ")}`);
+        spawnedOptions = options;
+        return childProcess(701, 7);
+      },
+      acquireLock: async (metadata) => {
+        events.push(`acquire:${metadata.command}`);
+        return {
+          childEnvironment: { PORTCOVE_HEAVY_RUST_LOCK_TOKEN: "inherited-token" },
+          registerChild: async (child) => events.push(`register:${child.pid}`),
+          release: async () => events.push("release"),
+        };
+      },
+    });
+    assert.equal(status, 7);
+    assert.deepEqual(events, [
+      "acquire:cargo nextest run --package portcove-core",
+      "compile:rustc",
+      "spawn:cargo:nextest run --package portcove-core",
+      "register:701",
+      "release",
+    ]);
+    assert.equal(spawnedOptions.env.PORTCOVE_HEAVY_RUST_LOCK_TOKEN, "inherited-token");
+    assert.match(spawnedOptions.env.PORTCOVE_HOST_TOOL_FIXTURE, /portcove-host-tool-fixture-/u);
+  } finally {
+    await rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test("compile failure releases the lock and never starts nextest", async () => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), "portcove-rust-runner-"));
+  let released = false;
+  try {
+    await assert.rejects(
+      runRustTests([], {
+        tempRoot,
+        spawnSync: () => ({ status: 1 }),
+        spawn: () => assert.fail("nextest must not start after fixture compilation fails"),
+        acquireLock: async () => ({
+          childEnvironment: {},
+          registerChild: async () => {},
+          release: async () => {
+            released = true;
+          },
+        }),
+      }),
+      /fixture compilation failed/u,
+    );
+    assert.equal(released, true);
+  } finally {
+    await rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test("child registration failure terminates unguarded nextest and releases ownership", async () => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), "portcove-rust-runner-"));
+  let child;
+  let released = false;
+  let killed = false;
+  try {
+    await assert.rejects(
+      runRustTests([], {
+        tempRoot,
+        spawnSync: () => ({ status: 0 }),
+        spawn: () => {
+          child = childProcess(702, null);
+          const originalKill = child.kill;
+          child.kill = () => {
+            killed = true;
+            return originalKill();
+          };
+          return child;
+        },
+        acquireLock: async () => ({
+          childEnvironment: {},
+          registerChild: async () => {
+            throw new Error("registration failed");
+          },
+          release: async () => {
+            released = true;
+          },
+        }),
+      }),
+      /registration failed/u,
+    );
+    assert.equal(killed, true);
+    assert.equal(released, true);
+  } finally {
+    await rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test("prepare-only keeps the hosted fixture behavior without taking the heavy lock", async () => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), "portcove-rust-runner-"));
+  const environmentFile = path.join(tempRoot, "github-env.txt");
+  try {
+    const status = await runRustTests(["--prepare-only"], {
+      tempRoot,
+      environment: { GITHUB_ENV: environmentFile },
+      spawnSync: () => ({ status: 0 }),
+      spawn: () => assert.fail("prepare-only must not start nextest"),
+      acquireLock: async () => assert.fail("prepare-only must not take the heavy lock"),
+    });
+    assert.equal(status, 0);
+    assert.match(await readFile(environmentFile, "utf8"), /^PORTCOVE_HOST_TOOL_FIXTURE=.+/u);
+  } finally {
+    await rm(tempRoot, { recursive: true, force: true });
+  }
+});
