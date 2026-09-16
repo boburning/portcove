@@ -211,6 +211,21 @@ beta; gameplay, dual-analog controls, audio, in-game save/load, Linux, signing,
 and publication are unclaimed. Exact identities and boundaries are recorded in
 the [Windows qualification record](qualification/ape-escape-recompiled-windows-2026-09-16.md).
 
+Mega Man X5 Recompiled v0.1.0-alpha has exact Windows structural and bounded
+automated lifecycle records for the normalized USA Original `SLUS-01334`
+source and GitHub artifact. They cover valid-CHD mismatch refusal, dynamic
+release resolution, installation, 287-file immutable verification after a
+responsive native launch, bounded dynamic freeze diagnostics, persistent-only
+backup and guarded restore, adoption, update, rollback, retained release reuse,
+managed removal, clean reinstall, and byte-identical persistent-state
+restoration. Generated `disc/`, JIT `cache/`, overlay captures, heartbeat, run
+report, and `psx_freeze_dump_psx-runtime_*.json` files remain disposable and
+outside backups. The definition has no release-version field, and any future
+artifact or source identity requires its own qualification. The port remains
+beta; gameplay, controls, audio, in-game save/load, Linux, signing, and
+publication are unclaimed. Exact identities and boundaries are recorded in the
+[Windows qualification record](qualification/mega-man-x5-recompiled-windows-2026-09-16.md).
+
 ## Adding or changing a port
 
 Managed PS1 ports pass their reviewed runtime configuration with `--game` and
