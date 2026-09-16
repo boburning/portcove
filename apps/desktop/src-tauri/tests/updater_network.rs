@@ -698,6 +698,60 @@ async fn controlled_payload_staging_preserves_verified_bytes_and_recovers() {
     assert_eq!(fs::read(&staged.payload_path).unwrap(), payload);
     let baseline_journal = fs::read(staging_root.join("staging.json")).unwrap();
 
+    server.set_mode(PayloadResponseMode::RateLimited);
+    let before = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_secs();
+    let Err(rate_limit) =
+        download_payload_from_controlled_loopback(&next, &server.payload_url()).await
+    else {
+        panic!("controlled payload transport ignored the provider rate limit");
+    };
+    let PayloadDownloadError::RateLimited {
+        retry_at_unix_seconds: Some(retry_at),
+    } = rate_limit
+    else {
+        panic!("expected provider retry hint, got {rate_limit}");
+    };
+    assert!((before + 120..=before + 125).contains(&retry_at));
+    assert_eq!(
+        fs::read(staging_root.join("staging.json")).unwrap(),
+        baseline_journal
+    );
+    assert_eq!(fs::read(staging.payload_path()).unwrap(), payload);
+    assert!(!staging_root.join(".candidate.payload.incoming").exists());
+    let preserved = staging.reconcile().await.unwrap().unwrap();
+    assert_eq!(preserved.candidate, previous);
+    assert_eq!(fs::read(&preserved.payload_path).unwrap(), payload);
+    server.set_mode(PayloadResponseMode::Normal);
+    assert_eq!(
+        read_controlled_payload(&server, &next).await.unwrap(),
+        payload
+    );
+
+    server.set_mode(PayloadResponseMode::Drop);
+    let Err(drop_error) =
+        download_payload_from_controlled_loopback(&next, &server.payload_url()).await
+    else {
+        panic!("controlled payload transport accepted a dropped response");
+    };
+    assert!(matches!(drop_error, PayloadDownloadError::Network(_)));
+    assert_eq!(
+        fs::read(staging_root.join("staging.json")).unwrap(),
+        baseline_journal
+    );
+    assert_eq!(fs::read(staging.payload_path()).unwrap(), payload);
+    assert!(!staging_root.join(".candidate.payload.incoming").exists());
+    let preserved = staging.reconcile().await.unwrap().unwrap();
+    assert_eq!(preserved.candidate, previous);
+    assert_eq!(fs::read(&preserved.payload_path).unwrap(), payload);
+    server.set_mode(PayloadResponseMode::Normal);
+    assert_eq!(
+        read_controlled_payload(&server, &next).await.unwrap(),
+        payload
+    );
+
     server.set_mode(PayloadResponseMode::AlteredSameLength);
     let mut altered = download_payload_from_controlled_loopback(&next, &server.payload_url())
         .await
