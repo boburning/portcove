@@ -204,7 +204,9 @@ test("active validation guidance describes the selected hosted plan accurately",
       [
         new URL("../AGENTS.md", import.meta.url),
         new URL("../CONTRIBUTING.md", import.meta.url),
+        new URL("../docs/DEVELOPMENT-TOOLS.md", import.meta.url),
         new URL("../docs/QUALITY.md", import.meta.url),
+        new URL("../docs/REPOSITORY-SETTINGS.md", import.meta.url),
         new URL("../justfile", import.meta.url),
         new URL("./local-validation.mjs", import.meta.url),
       ].map((file) => readFile(file, "utf8")),
@@ -214,6 +216,10 @@ test("active validation guidance describes the selected hosted plan accurately",
   assert.match(guidance, /complete selected hosted plan/u);
   assert.doesNotMatch(guidance, /(?:ordinary )?exhaustive merge gate/iu);
   assert.doesNotMatch(guidance, /runs its exhaustive cross-platform plan/iu);
+  assert.doesNotMatch(
+    guidance,
+    /Required CI executes those contracts independently on every exact pull-request head/iu,
+  );
 });
 
 test("application plan preserves stable identity and scopes repository changes", () => {

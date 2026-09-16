@@ -63,6 +63,24 @@ const oxfmtExtensions = new Set([
 ]);
 
 const explicitNodeTests = new Map([
+  ["AGENTS.md", ["scripts/repository-settings.test.mjs", "scripts/repository-skills.test.mjs"]],
+  [
+    "CONTRIBUTING.md",
+    ["scripts/repository-settings.test.mjs", "scripts/repository-skills.test.mjs"],
+  ],
+  ["docs/README.md", ["scripts/repository-skills.test.mjs"]],
+  [
+    "docs/CONTRIBUTION-CONVENTIONS.md",
+    ["scripts/repository-settings.test.mjs", "scripts/repository-skills.test.mjs"],
+  ],
+  [
+    "docs/DEVELOPMENT-TOOLS.md",
+    ["scripts/repository-settings.test.mjs", "scripts/repository-skills.test.mjs"],
+  ],
+  ["docs/PROJECT-GOVERNANCE.md", ["scripts/repository-settings.test.mjs"]],
+  ["docs/QUALITY.md", ["scripts/repository-settings.test.mjs"]],
+  ["docs/REPOSITORY-SETTINGS.md", ["scripts/repository-settings.test.mjs"]],
+  ["scripts/local-validation.mjs", ["scripts/repository-settings.test.mjs"]],
   [
     ".config/rust-test-impact.json",
     ["scripts/rust-test-impact.test.mjs", "scripts/local-validation.test.mjs"],
@@ -112,6 +130,7 @@ const explicitNodeTests = new Map([
       "scripts/dev-storage.test.mjs",
       "scripts/ci-workflow.test.mjs",
       "scripts/dependency-automation.test.mjs",
+      "scripts/repository-settings.test.mjs",
     ],
   ],
   [".oxfmtrc.json", ["scripts/local-validation.test.mjs", "scripts/ci-workflow.test.mjs"]],
@@ -390,6 +409,12 @@ function classifyOnePath(selection, input, fileExists, options = {}) {
     file === "AGENTS.md"
   ) {
     selection.scopes.add("documentation");
+    recognized = true;
+  }
+
+  if (file.startsWith(".agents/skills/") && file.endsWith("/SKILL.md")) {
+    selection.scopes.add("tooling");
+    addNodeTest(selection, "scripts/repository-skills.test.mjs");
     recognized = true;
   }
 

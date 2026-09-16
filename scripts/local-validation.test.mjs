@@ -86,10 +86,26 @@ test("shared local planning retains raw file modes and both rename paths", () =>
   ]);
 });
 
-test("documentation-only changes stay on formatting and whitespace checks", () => {
+test("active instruction changes run their semantic contracts", () => {
   const { selection, plan } = planFor(["docs/QUALITY.md", "AGENTS.md"]);
+  assert.deepEqual([...selection.scopes].sort(), ["documentation", "tooling"]);
+  assert.deepEqual([...selection.nodeTests].sort(), [
+    "scripts/repository-settings.test.mjs",
+    "scripts/repository-skills.test.mjs",
+  ]);
+  assert.deepEqual(ids(plan), ["diff-check", "oxfmt", "node-tests"]);
+});
+
+test("informational documentation stays on formatting and whitespace checks", () => {
+  const { selection, plan } = planFor(["docs/GUI-COMPETITIVE-REVIEW.md"]);
   assert.deepEqual([...selection.scopes].sort(), ["documentation"]);
   assert.deepEqual(ids(plan), ["diff-check", "oxfmt"]);
+});
+
+test("repository skill changes run the dynamic skill contract", () => {
+  const { selection, plan } = planFor([".agents/skills/portcove-release-validation/SKILL.md"]);
+  assert.deepEqual([...selection.nodeTests], ["scripts/repository-skills.test.mjs"]);
+  assert.deepEqual(ids(plan), ["diff-check", "oxfmt", "node-tests"]);
 });
 
 test("a Rust source change checks and tests only its affected package", () => {

@@ -73,8 +73,10 @@ workflow contracts.
 Roadmap, and development-tool contracts, but deliberately excludes release and
 packaged qualification. Use `just release-check` for deterministic release units
 and `just windows-qualification-check` for the stateful packaged Windows session.
-Required CI executes those contracts independently on every exact pull-request
-head.
+Required CI executes the complete selected hosted plan on every exact pull-request
+head. Focused and prose plans do not imply that the aggregate, release, or
+packaged Windows contracts ran; qualification executes its documented hosted
+coverage, while packaged acceptance remains a separate obligation when required.
 
 `just audit --plan` explains which named formatting, Rust, UI, script-lint,
 repository-tooling, Roadmap, development-tool, dependency-policy, rscheck,
