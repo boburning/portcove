@@ -10,10 +10,40 @@ const scriptPath = fileURLToPath(import.meta.url);
 const root = fileURLToPath(new URL("../", import.meta.url));
 
 function waitForChild(child) {
-  return new Promise((resolve, reject) => {
-    child.once("error", reject);
-    child.once("close", (code) => resolve(code ?? 1));
+  let outcome = null;
+  const completed = new Promise((resolve, reject) => {
+    child.once("error", (error) => {
+      outcome = { error };
+      reject(error);
+    });
+    child.once("close", (code) => {
+      if (outcome?.error) return;
+      outcome = { code: code ?? 1 };
+      resolve(outcome.code);
+    });
   });
+  completed.catch(() => {});
+  return { completed, outcome: () => outcome };
+}
+
+async function terminateChildTree(child, completed, dependencies) {
+  const platform = dependencies.platform ?? process.platform;
+  const runSync = dependencies.spawnSync ?? spawnSync;
+  if (platform === "win32") {
+    runSync("taskkill.exe", ["/PID", String(child.pid), "/T", "/F"], {
+      stdio: "ignore",
+      timeout: 5_000,
+      windowsHide: true,
+    });
+  } else {
+    try {
+      (dependencies.killProcess ?? process.kill)(-child.pid, "SIGKILL");
+    } catch (error) {
+      if (error.code !== "ESRCH") throw error;
+    }
+  }
+  child.kill();
+  await completed.catch(() => {});
 }
 
 export async function runRustTests(args, dependencies = {}) {
@@ -34,7 +64,10 @@ export async function runRustTests(args, dependencies = {}) {
   let lock = null;
   try {
     if (!prepareOnly) {
-      lock = await acquireLock({ workspace: root, command: `cargo nextest run ${args.join(" ")}` });
+      lock = await acquireLock({
+        workspace: root,
+        command: `cargo-nextest nextest run ${args.join(" ")}`,
+      });
     }
     const compiled = runSync(
       "rustc",
@@ -55,8 +88,10 @@ export async function runRustTests(args, dependencies = {}) {
       retained = true; // The runner owns cleanup after all test steps finish.
       return 0;
     }
-    const tested = start("cargo", ["nextest", "run", ...args], {
+    const platform = dependencies.platform ?? process.platform;
+    const tested = start("cargo-nextest", ["nextest", "run", ...args], {
       cwd: root,
+      detached: platform !== "win32",
       stdio: "inherit",
       windowsHide: true,
       env: {
@@ -65,15 +100,18 @@ export async function runRustTests(args, dependencies = {}) {
         PORTCOVE_HOST_TOOL_FIXTURE: executable,
       },
     });
-    const completed = waitForChild(tested);
+    const observation = waitForChild(tested);
     try {
-      await lock.registerChild(tested);
+      const registered = await lock.registerChild(tested);
+      if (registered === null) return await observation.completed;
     } catch (error) {
-      tested.kill();
-      await completed.catch(() => {});
+      const finished = observation.outcome();
+      if (finished?.error) throw finished.error;
+      if (finished && Object.hasOwn(finished, "code")) return finished.code;
+      await terminateChildTree(tested, observation.completed, dependencies);
       throw error;
     }
-    return await completed;
+    return await observation.completed;
   } finally {
     if (lock) await lock.release();
     if (!retained) rmSync(directory, { recursive: true, force: true });

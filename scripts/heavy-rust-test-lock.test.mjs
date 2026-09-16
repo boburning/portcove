@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { lstat, mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { acquireHeavyRustTestLock } from "./heavy-rust-test-lock.mjs";
+import { acquireHeavyRustTestLock, readProcessIdentity } from "./heavy-rust-test-lock.mjs";
 
 async function fixture() {
   const root = await mkdtemp(path.join(os.tmpdir(), "portcove-heavy-rust-lock-"));
@@ -19,6 +19,15 @@ function identityInspector(identities) {
 async function writeOwner(lockPath, owner) {
   await mkdir(lockPath);
   await writeFile(path.join(lockPath, "owner.json"), `${JSON.stringify(owner, null, 2)}\n`);
+}
+
+async function readPersistedOwner(lockPath) {
+  try {
+    return JSON.parse(await readFile(lockPath, "utf8"));
+  } catch (error) {
+    if (!["EISDIR", "EPERM"].includes(error.code)) throw error;
+    return JSON.parse(await readFile(path.join(lockPath, "owner.json"), "utf8"));
+  }
 }
 
 function owner(processRecord, child = null) {
@@ -44,6 +53,7 @@ function waitForLine(stream, expected) {
     };
     stream.on("data", onData);
     stream.once("error", reject);
+    stream.once("end", () => reject(new Error(`stream ended before ${expected}: ${text}`)));
   });
 }
 
@@ -173,10 +183,7 @@ test("dead and PID-reused records are reclaimed only when no identity matches", 
       },
     );
     assert.equal(current.owner.workspace, "replacement");
-    assert.equal(
-      JSON.parse(await readFile(path.join(lockPath, "owner.json"), "utf8")).token,
-      current.owner.token,
-    );
+    assert.equal((await readPersistedOwner(lockPath)).token, current.owner.token);
     await current.release();
   } finally {
     await rm(root, { recursive: true, force: true });
@@ -199,8 +206,12 @@ test("registered child identity is persisted before guarded work continues", asy
       },
     );
     await current.registerChild({ pid: 905 });
-    const persisted = JSON.parse(await readFile(path.join(lockPath, "owner.json"), "utf8"));
-    assert.deepEqual(persisted.child, { pid: 905, identity: "nextest-start" });
+    const persisted = await readPersistedOwner(lockPath);
+    assert.deepEqual(persisted.child, {
+      pid: 905,
+      identity: "nextest-start",
+      process_token: current.owner.process.process_token,
+    });
     await current.release();
   } finally {
     await rm(root, { recursive: true, force: true });
@@ -230,10 +241,7 @@ test("inherited ownership accepts only the active token and never releases the p
     assert.equal(inherited.inherited, true);
     await inherited.registerChild({ pid: 999 });
     await inherited.release();
-    assert.equal(
-      JSON.parse(await readFile(path.join(lockPath, "owner.json"), "utf8")).token,
-      parent.owner.token,
-    );
+    assert.equal((await readPersistedOwner(lockPath)).token, parent.owner.token);
     await assert.rejects(
       acquireHeavyRustTestLock(
         {},
@@ -264,9 +272,9 @@ test("release refuses ownership changes and unreadable metadata remains fail clo
       },
     );
     const changed = { ...current.owner, token: "changed-token" };
-    await writeFile(path.join(lockPath, "owner.json"), JSON.stringify(changed));
+    await writeFile(lockPath, JSON.stringify(changed));
     await assert.rejects(current.release(), /ownership changed/u);
-    await writeFile(path.join(lockPath, "owner.json"), "not json");
+    await writeFile(lockPath, "not json");
     await assert.rejects(
       acquireHeavyRustTestLock(
         {},
@@ -278,6 +286,35 @@ test("release refuses ownership changes and unreadable metadata remains fail clo
       ),
       /owner is unreadable/u,
     );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("new lock publication and child replacement remain complete JSON records", async () => {
+  const { root, lockPath } = await fixture();
+  const identities = new Map([
+    [process.pid, "current-process"],
+    [906, "nextest-start"],
+  ]);
+  try {
+    const current = await acquireHeavyRustTestLock(
+      { workspace: "atomic-worktree" },
+      {
+        lockPath,
+        waitMilliseconds: 0,
+        inspectProcessIdentity: identityInspector(identities),
+      },
+    );
+    assert.equal((await lstat(lockPath)).isFile(), true);
+    assert.equal((await readPersistedOwner(lockPath)).child, null);
+    await current.registerChild({ pid: 906 });
+    assert.deepEqual((await readPersistedOwner(lockPath)).child, {
+      pid: 906,
+      identity: "nextest-start",
+      process_token: current.owner.process.process_token,
+    });
+    await current.release();
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -311,4 +348,45 @@ test("bounded wait retries a live owner and reports the configured limit", async
   } finally {
     await rm(root, { recursive: true, force: true });
   }
+});
+
+test("Darwin identity uses an exact per-process marker instead of a second-resolution start", () => {
+  const calls = [];
+  const spawnSync = (command, args, options) => {
+    calls.push({ command, args, options });
+    return {
+      status: 0,
+      stdout: "node runner PORTCOVE_HEAVY_RUST_PROCESS_TOKEN=exact-marker",
+      stderr: "",
+    };
+  };
+  assert.equal(
+    readProcessIdentity(907, {
+      platform: "darwin",
+      processToken: "exact-marker",
+      spawnSync,
+    }),
+    "darwin:907:exact-marker",
+  );
+  assert.equal(
+    readProcessIdentity(907, {
+      platform: "darwin",
+      processToken: "different-marker",
+      spawnSync,
+    }),
+    null,
+  );
+  assert.equal(calls[0].options.timeout, 5_000);
+});
+
+test("platform identity probes fail closed on their bounded timeout", () => {
+  const error = Object.assign(new Error("probe timeout"), { code: "ETIMEDOUT" });
+  assert.throws(
+    () =>
+      readProcessIdentity(908, {
+        platform: "win32",
+        spawnSync: () => ({ error, status: null, stdout: "", stderr: "" }),
+      }),
+    /identity probe timed out/u,
+  );
 });

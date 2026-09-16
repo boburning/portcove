@@ -1,13 +1,15 @@
 import { randomUUID } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
-import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { link, lstat, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 import { toolCachePaths } from "./tool-cache.mjs";
 
 const waitEnvironmentName = "PORTCOVE_HEAVY_RUST_WAIT_MS";
 const inheritedTokenEnvironmentName = "PORTCOVE_HEAVY_RUST_LOCK_TOKEN";
+const processTokenEnvironmentName = "PORTCOVE_HEAVY_RUST_PROCESS_TOKEN";
+const identityProbeTimeoutMilliseconds = 5_000;
 
 export function heavyRustTestLockPath() {
   return path.join(toolCachePaths().sharedRoot, "locks", "heavy-rust-tests");
@@ -21,6 +23,21 @@ function parseWaitMilliseconds(value) {
   if (!Number.isSafeInteger(milliseconds) || milliseconds > 60_000)
     throw new Error(`${waitEnvironmentName} must be an integer from 0 through 60000`);
   return milliseconds;
+}
+
+function runIdentityProbe(run, command, args, pid, platform) {
+  const inspected = run(command, args, {
+    encoding: "utf8",
+    timeout: identityProbeTimeoutMilliseconds,
+    windowsHide: true,
+  });
+  if (inspected.error) {
+    const timedOut = inspected.error.code === "ETIMEDOUT" ? " timed out" : " failed";
+    throw new Error(`Could not inspect ${platform} process ${pid}: identity probe${timedOut}`, {
+      cause: inspected.error,
+    });
+  }
+  return inspected;
 }
 
 export function readProcessIdentity(pid, options = {}) {
@@ -43,11 +60,14 @@ export function readProcessIdentity(pid, options = {}) {
       return `linux:${bootId}:${pid}:${startTicks}`;
     } catch (error) {
       if (error.code === "ENOENT") return null;
-      throw new Error(`Could not inspect Linux process ${pid}: ${error.message}`, { cause: error });
+      throw new Error(`Could not inspect Linux process ${pid}: ${error.message}`, {
+        cause: error,
+      });
     }
   }
   if (platform === "win32") {
-    const inspected = run(
+    const inspected = runIdentityProbe(
+      run,
       "powershell.exe",
       [
         "-NoLogo",
@@ -56,9 +76,9 @@ export function readProcessIdentity(pid, options = {}) {
         "-Command",
         `$p=Get-CimInstance Win32_Process -Filter 'ProcessId = ${pid}'; if ($null -ne $p) { $p.CreationDate.ToUniversalTime().Ticks }`,
       ],
-      { encoding: "utf8", windowsHide: true },
+      pid,
+      "Windows",
     );
-    if (inspected.error) throw inspected.error;
     if (inspected.status !== 0)
       throw new Error(
         `Could not inspect Windows process ${pid}: ${String(inspected.stderr).trim()}`,
@@ -67,14 +87,19 @@ export function readProcessIdentity(pid, options = {}) {
     return started ? `win32:${pid}:${started}` : null;
   }
   if (platform === "darwin") {
-    const inspected = run("ps", ["-o", "lstart=", "-p", String(pid)], {
-      encoding: "utf8",
-      windowsHide: true,
-    });
-    if (inspected.error) throw inspected.error;
+    const processToken = options.processToken;
+    if (!processToken)
+      throw new Error("Darwin process identity requires the per-process lock token");
+    const inspected = runIdentityProbe(
+      run,
+      "ps",
+      ["eww", "-o", "command=", "-p", String(pid)],
+      pid,
+      "Darwin",
+    );
     if (inspected.status !== 0) return null;
-    const started = String(inspected.stdout).trim().replace(/\s+/gu, " ");
-    return started ? `darwin:${pid}:${started}` : null;
+    const marker = `${processTokenEnvironmentName}=${processToken}`;
+    return String(inspected.stdout).includes(marker) ? `darwin:${pid}:${processToken}` : null;
   }
   throw new Error(`unsupported process-identity platform: ${platform}`);
 }
@@ -85,12 +110,23 @@ function validProcess(record) {
     Number.isInteger(record.pid) &&
     record.pid > 0 &&
     typeof record.identity === "string" &&
-    record.identity.length > 0
+    record.identity.length > 0 &&
+    (record.process_token === undefined ||
+      (typeof record.process_token === "string" && record.process_token.length > 0))
   );
 }
 
+async function ownerStoragePath(lockPath) {
+  try {
+    return (await lstat(lockPath)).isDirectory() ? path.join(lockPath, "owner.json") : lockPath;
+  } catch (error) {
+    if (error.code === "ENOENT") return lockPath;
+    throw error;
+  }
+}
+
 async function readOwner(lockPath) {
-  const ownerPath = path.join(lockPath, "owner.json");
+  const ownerPath = await ownerStoragePath(lockPath);
   let owner;
   try {
     owner = JSON.parse(await readFile(ownerPath, "utf8"));
@@ -111,13 +147,17 @@ async function readOwner(lockPath) {
   return owner;
 }
 
+function inspectRecord(record, inspectProcessIdentity) {
+  return inspectProcessIdentity(record.pid, { processToken: record.process_token });
+}
+
 function activeRecord(owner, inspectProcessIdentity) {
   for (const [kind, record] of [
     ["owner", owner.process],
     ["child", owner.child],
   ]) {
     if (!record) continue;
-    const current = inspectProcessIdentity(record.pid);
+    const current = inspectRecord(record, inspectProcessIdentity);
     if (current === record.identity) return { kind, record };
   }
   return null;
@@ -132,6 +172,27 @@ function activeMessage(owner, active, waitMilliseconds) {
   );
 }
 
+async function atomicWriteOwner(lockPath, owner) {
+  const ownerPath = await ownerStoragePath(lockPath);
+  const pending = `${ownerPath}.pending-${owner.token}-${randomUUID()}`;
+  try {
+    await writeFile(pending, `${JSON.stringify(owner, null, 2)}\n`, { flag: "wx" });
+    await rename(pending, ownerPath);
+  } finally {
+    await rm(pending, { force: true }).catch(() => {});
+  }
+}
+
+async function publishOwner(lockPath, owner) {
+  const pending = `${lockPath}.candidate-${owner.token}`;
+  try {
+    await writeFile(pending, `${JSON.stringify(owner, null, 2)}\n`, { flag: "wx" });
+    await link(pending, lockPath);
+  } finally {
+    await rm(pending, { force: true }).catch(() => {});
+  }
+}
+
 async function releaseOwnedLock(lockPath, token) {
   let owner;
   try {
@@ -144,18 +205,17 @@ async function releaseOwnedLock(lockPath, token) {
     throw new Error("Heavy Rust test lock ownership changed before release; refusing removal");
   const released = `${lockPath}.released-${token}`;
   await rename(lockPath, released);
-  await rm(released, { recursive: true });
+  await rm(released, { recursive: true, force: true });
 }
 
-async function updateOwnedChild(lockPath, token, child, inspectProcessIdentity) {
+async function updateOwnedChild(lockPath, token, child, inspectProcessIdentity, processToken) {
   const owner = await readOwner(lockPath);
   if (owner.token !== token)
     throw new Error("Heavy Rust test lock ownership changed before child registration");
-  const identity = inspectProcessIdentity(child.pid);
-  if (!identity)
-    throw new Error(`Heavy Rust test child PID ${child.pid} exited before it could be registered`);
-  owner.child = { pid: child.pid, identity };
-  await writeFile(path.join(lockPath, "owner.json"), `${JSON.stringify(owner, null, 2)}\n`);
+  const identity = inspectProcessIdentity(child.pid, { processToken });
+  if (!identity) return null;
+  owner.child = { pid: child.pid, identity, process_token: processToken };
+  await atomicWriteOwner(lockPath, owner);
   return owner.child;
 }
 
@@ -181,7 +241,10 @@ export async function acquireHeavyRustTestLock(metadata = {}, options = {}) {
       lockPath,
       owner,
       inherited: true,
-      childEnvironment: { [inheritedTokenEnvironmentName]: owner.token },
+      childEnvironment: {
+        [inheritedTokenEnvironmentName]: owner.token,
+        [processTokenEnvironmentName]: owner.process.process_token,
+      },
       registerChild: async () => {},
       release: async () => {},
     };
@@ -189,36 +252,34 @@ export async function acquireHeavyRustTestLock(metadata = {}, options = {}) {
 
   await mkdir(path.dirname(lockPath), { recursive: true });
   const deadline = now() + waitMilliseconds;
+  const processToken = randomUUID();
+  process.env[processTokenEnvironmentName] = processToken;
   for (;;) {
     const token = randomUUID();
-    const processIdentity = inspectProcessIdentity(process.pid);
+    const processIdentity = inspectProcessIdentity(process.pid, { processToken });
     if (!processIdentity)
       throw new Error(`Could not establish the current process identity for PID ${process.pid}`);
     const owner = {
       format_version: 1,
       token,
-      process: { pid: process.pid, identity: processIdentity },
+      process: { pid: process.pid, identity: processIdentity, process_token: processToken },
       child: null,
       created_at: new Date().toISOString(),
       workspace: metadata.workspace ?? null,
       command: metadata.command ?? null,
     };
     try {
-      await mkdir(lockPath);
-      try {
-        await writeFile(path.join(lockPath, "owner.json"), `${JSON.stringify(owner, null, 2)}\n`, {
-          flag: "wx",
-        });
-      } catch (error) {
-        await rm(lockPath, { recursive: true }).catch(() => {});
-        throw error;
-      }
+      await publishOwner(lockPath, owner);
       return {
         lockPath,
         owner,
         inherited: false,
-        childEnvironment: { [inheritedTokenEnvironmentName]: owner.token },
-        registerChild: (child) => updateOwnedChild(lockPath, token, child, inspectProcessIdentity),
+        childEnvironment: {
+          [inheritedTokenEnvironmentName]: owner.token,
+          [processTokenEnvironmentName]: processToken,
+        },
+        registerChild: (child) =>
+          updateOwnedChild(lockPath, token, child, inspectProcessIdentity, processToken),
         release: () => releaseOwnedLock(lockPath, token),
       };
     } catch (error) {
@@ -246,12 +307,13 @@ export async function acquireHeavyRustTestLock(metadata = {}, options = {}) {
         if (["ENOENT", "EEXIST"].includes(renameError.code)) continue;
         throw renameError;
       }
-      await rm(stalePath, { recursive: true });
+      await rm(stalePath, { recursive: true, force: true });
     }
   }
 }
 
 export const heavyRustLockEnvironment = Object.freeze({
   inheritedToken: inheritedTokenEnvironmentName,
+  processToken: processTokenEnvironmentName,
   waitMilliseconds: waitEnvironmentName,
 });

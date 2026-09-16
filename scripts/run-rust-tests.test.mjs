@@ -46,14 +46,40 @@ test("runner holds the lock through nextest and preserves its exit status", asyn
     });
     assert.equal(status, 7);
     assert.deepEqual(events, [
-      "acquire:cargo nextest run --package portcove-core",
+      "acquire:cargo-nextest nextest run --package portcove-core",
       "compile:rustc",
-      "spawn:cargo:nextest run --package portcove-core",
+      "spawn:cargo-nextest:nextest run --package portcove-core",
       "register:701",
       "release",
     ]);
     assert.equal(spawnedOptions.env.PORTCOVE_HEAVY_RUST_LOCK_TOKEN, "inherited-token");
     assert.match(spawnedOptions.env.PORTCOVE_HOST_TOOL_FIXTURE, /portcove-host-tool-fixture-/u);
+  } finally {
+    await rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test("runner preserves a fast nextest exit when registration observes no live child", async () => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), "portcove-rust-runner-"));
+  let released = false;
+  try {
+    const status = await runRustTests(["--invalid-fast-option"], {
+      tempRoot,
+      spawnSync: () => ({ status: 0 }),
+      spawn: () => childProcess(703, 42),
+      acquireLock: async () => ({
+        childEnvironment: {},
+        registerChild: async () => {
+          await new Promise((resolve) => setImmediate(resolve));
+          return null;
+        },
+        release: async () => {
+          released = true;
+        },
+      }),
+    });
+    assert.equal(status, 42);
+    assert.equal(released, true);
   } finally {
     await rm(tempRoot, { recursive: true, force: true });
   }

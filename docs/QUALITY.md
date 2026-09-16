@@ -684,15 +684,22 @@ after test failures so fixing a failed assertion does not require a cold rebuild
 
 Supported local nextest commands also serialize their heavyweight Rust test tree
 across Portcove worktrees on the same machine. `scripts/run-rust-tests.mjs`
-acquires an atomic lock below the shared tool-cache root before compiling its
-host fixture, records the spawned nextest PID with an operating-system start
-identity, and releases only after that child closes. A matching wrapper or
-surviving recorded child remains authoritative; a dead or PID-reused record is
-reclaimed only when neither identity matches. Acquisition waits five seconds by
-default and then reports the owning PID, workspace, command and start time.
+publishes a complete lock record atomically below the shared tool-cache root
+before compiling its host fixture, invokes the pinned `cargo-nextest` executable
+directly, records that supervising process with an exact operating-system
+identity, and releases only after nextest has closed its test tree. Registration
+failure terminates the spawned process tree before releasing ownership. A
+matching wrapper or surviving recorded nextest supervisor remains authoritative;
+a dead or PID-reused record is reclaimed only when neither identity matches.
+Darwin adds a per-process random marker because its displayed start timestamp is
+only second-resolution. Acquisition polls for five seconds by default and then
+reports the owning PID, workspace, command and start time. Every Windows or
+Darwin identity probe also fails closed after five seconds, so a slow platform
+probe cannot wedge acquisition indefinitely and may add at most its own bounded
+probe interval to the configured polling interval.
 `PORTCOVE_HEAVY_RUST_WAIT_MS` may set a bounded 0 through 60000 millisecond wait
 for an explicitly coordinated run. Retry after the named command finishes; do
-not delete the lock directory or terminate another worker's process.
+not delete the lock record or terminate another worker's process.
 
 This machine guard covers `just test-rust`, selected Rust stages in
 `just local-check`, `just rust-test`, and the aggregate commands that reach the same
