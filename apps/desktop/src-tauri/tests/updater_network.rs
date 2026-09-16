@@ -739,6 +739,32 @@ async fn controlled_payload_staging_preserves_verified_bytes_and_recovers() {
     assert!(!staging_root.join(".candidate.payload.incoming").exists());
 
     server.set_mode(PayloadResponseMode::Normal);
+    let capacity_limited = ApplicationUpdateStagingStore::new(staging_root.clone())
+        .unwrap()
+        .with_controlled_available_space(0);
+    let mut capacity_blocked =
+        download_payload_from_controlled_loopback(&next, &server.payload_url())
+            .await
+            .unwrap();
+    assert!(matches!(
+        capacity_limited
+            .stage(&mut capacity_blocked, &next, &key)
+            .await,
+        Err(ApplicationUpdateStagingError::InsufficientSpace {
+            required: 8,
+            available: 0
+        })
+    ));
+    assert_eq!(
+        fs::read(staging_root.join("staging.json")).unwrap(),
+        baseline_journal
+    );
+    assert_eq!(fs::read(capacity_limited.payload_path()).unwrap(), payload);
+    assert!(!staging_root.join(".candidate.payload.incoming").exists());
+    let preserved = capacity_limited.reconcile().await.unwrap().unwrap();
+    assert_eq!(preserved.candidate, previous);
+    assert_eq!(fs::read(&preserved.payload_path).unwrap(), payload);
+
     let mut recovered = download_payload_from_controlled_loopback(&next, &server.payload_url())
         .await
         .unwrap();
