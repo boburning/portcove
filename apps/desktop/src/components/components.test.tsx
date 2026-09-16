@@ -1180,15 +1180,25 @@ describe("desktop components", () => {
         ]}
       />,
     );
+    const buttonLabels = [...installed.matchAll(/<button\b[^>]*>(.*?)<\/button>/gs)].map(
+      ([, content]) => content.replaceAll(/<[^>]+>/g, "").trim(),
+    );
     expect(uninstalled).toContain("Choose required source");
     expect(uninstalled).toContain("Choose every required source before installing");
     expect(sourceFree).toContain("Review install");
     expect(sourceFree).not.toContain("Choose required source");
     expect(uninstalled).toContain("Browse");
     expect(installed).toContain("Play");
-    expect(installed).toContain("Check update");
+    expect(buttonLabels).toContain("Check for updates");
     expect(installed).toContain("Open data folder");
     expect(installed).toContain("Back up data");
+    expect(installed).toContain('title="Back up saves and settings"');
+    expect(buttonLabels).toContain("Verify installation");
+    expect(buttonLabels).toContain("Restore previous version");
+    expect(buttonLabels).not.toContain("Check update");
+    expect(buttonLabels).not.toContain("Verify");
+    expect(buttonLabels).not.toContain("Rollback");
+    expect(installed).not.toContain("Create a versioned backup of saves and settings");
     expect(installed).toContain("1 verified snapshot");
     expect(installed).toContain("Restore");
     expect(installed).toContain("Delete");
