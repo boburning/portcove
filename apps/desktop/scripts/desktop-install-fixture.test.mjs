@@ -63,6 +63,34 @@ test("install fixture is isolated, pinned, interruptible, and retryable", async 
     );
     assert.equal(fixture.requests[1].completed, true);
     assert.equal(fixture.requests[1].bytes_sent, fixture.artifact.length);
+
+    const published = await fixture.publishRelease(INSTALL_FIXTURE_PORT_ID, {
+      version: "2.0.0-fixture",
+      publishedAt: "2026-09-16T02:00:00Z",
+      seed: 0x24300002,
+    });
+    const updatedCatalog = JSON.parse(await readFile(fixture.catalogPath, "utf8"));
+    const updatedPort = updatedCatalog.ports.find((item) => item.id === INSTALL_FIXTURE_PORT_ID);
+    const updatedRelease = updatedPort.release.direct[updatedPort.platforms[0]];
+    assert.equal(updatedRelease.version, published.version);
+    assert.equal(updatedRelease.url, published.url);
+    assert.equal(updatedRelease.sha256, published.sha256);
+    assert.notEqual(updatedRelease.sha256, port.release.direct[port.platforms[0]].sha256);
+    assert.equal(
+      createHash("sha256")
+        .update(await readFile(fixture.artifactPath))
+        .digest("hex"),
+      published.sha256,
+    );
+    const upgraded = Buffer.from(await (await fetch(published.url)).arrayBuffer());
+    assert.equal(createHash("sha256").update(upgraded).digest("hex"), published.sha256);
+    assert.equal(fixture.requests[2].completed, true);
+    const original = Buffer.from(await (await fetch(fixture.url)).arrayBuffer());
+    assert.equal(
+      createHash("sha256").update(original).digest("hex"),
+      refreshPort.release.direct[refreshPort.platforms[0]].sha256,
+    );
+    assert.equal(fixture.requests[3].completed, true);
   } finally {
     await fixture.close();
   }

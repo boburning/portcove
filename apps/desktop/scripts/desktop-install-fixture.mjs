@@ -53,9 +53,9 @@ function tarEntry(name, contents, mode) {
   return Buffer.concat([header, contents, padding]);
 }
 
-function deterministicPayload(size = 3 * 1024 * 1024) {
+function deterministicPayload(size = 3 * 1024 * 1024, seed = 0x6d2b79f5) {
   const payload = Buffer.allocUnsafe(size);
-  let state = 0x6d2b79f5;
+  let state = seed;
   for (let index = 0; index < payload.length; index++) {
     state ^= state << 13;
     state ^= state >>> 17;
@@ -65,9 +65,9 @@ function deterministicPayload(size = 3 * 1024 * 1024) {
   return payload;
 }
 
-function createInstallArtifact() {
+function createInstallArtifact(seed) {
   const { executable } = platformContract();
-  const payload = deterministicPayload();
+  const payload = deterministicPayload(3 * 1024 * 1024, seed);
   const tar = Buffer.concat([tarEntry(executable, payload, 0o755), Buffer.alloc(1024)]);
   return gzipSync(tar, { level: 0 });
 }
@@ -113,11 +113,13 @@ async function listen(server) {
 }
 
 export async function createInstallFixture({ root, output }) {
-  const artifact = createInstallArtifact();
+  let artifact = createInstallArtifact();
+  const artifacts = new Map([[`/${artifactName}`, artifact]]);
   const requests = [];
   const sockets = new Set();
   const server = createServer((request, response) => {
-    if (request.method !== "GET" || request.url !== `/${artifactName}`) {
+    const servedArtifact = request.method === "GET" ? artifacts.get(request.url) : null;
+    if (!servedArtifact) {
       response.writeHead(404).end();
       return;
     }
@@ -130,7 +132,7 @@ export async function createInstallFixture({ root, output }) {
     };
     requests.push(observation);
     response.writeHead(200, {
-      "Content-Length": artifact.length,
+      "Content-Length": servedArtifact.length,
       "Content-Type": "application/gzip",
     });
     let offset = 0;
@@ -147,13 +149,13 @@ export async function createInstallFixture({ root, output }) {
         if (timer) clearInterval(timer);
         return;
       }
-      const end = Math.min(offset + 64 * 1024, artifact.length);
+      const end = Math.min(offset + 64 * 1024, servedArtifact.length);
       if (end > offset) {
-        response.write(artifact.subarray(offset, end));
+        response.write(servedArtifact.subarray(offset, end));
         observation.bytes_sent = end;
         offset = end;
       }
-      if (offset === artifact.length) finish();
+      if (offset === servedArtifact.length) finish();
     };
     response.on("close", () => {
       if (timer) clearInterval(timer);
@@ -164,8 +166,8 @@ export async function createInstallFixture({ root, output }) {
       writeChunk();
       timer = setInterval(writeChunk, 75);
     } else {
-      response.write(artifact);
-      observation.bytes_sent = artifact.length;
+      response.write(servedArtifact);
+      observation.bytes_sent = servedArtifact.length;
       finish();
     }
   });
@@ -219,13 +221,45 @@ export async function createInstallFixture({ root, output }) {
     throw error;
   }
   return {
-    artifact,
+    get artifact() {
+      return artifact;
+    },
     artifactPath,
     catalogPath,
     port: portDefinition,
     refreshPort: refreshPortDefinition,
     requests,
     url,
+    async publishRelease(portId, { version, publishedAt, seed }) {
+      if (![INSTALL_FIXTURE_PORT_ID, INSTALL_REFRESH_FIXTURE_PORT_ID].includes(portId))
+        throw new Error(`Cannot publish an upgrade for unknown fixture port ${portId}`);
+      if (!version || !publishedAt || !Number.isInteger(seed) || seed === 0)
+        throw new Error(
+          "Fixture upgrades require a version, publication time, and nonzero integer seed",
+        );
+      const nextArtifact = createInstallArtifact(seed);
+      const catalog = JSON.parse(await readFile(catalogPath, "utf8"));
+      const definition = catalog.ports.find((value) => value.id === portId);
+      if (!definition) throw new Error(`Fixture catalog no longer contains ${portId}`);
+      const releases = Object.values(definition.release.direct);
+      if (releases.length !== 1) throw new Error("Fixture port must expose one platform release");
+      const sha256 = createHash("sha256").update(nextArtifact).digest("hex");
+      const publishedUrl = new URL(`/${portId}-${sha256.slice(0, 16)}-${artifactName}`, url).href;
+      Object.assign(releases[0], {
+        version,
+        url: publishedUrl,
+        size: nextArtifact.length,
+        sha256,
+        published_at: publishedAt,
+      });
+      artifact = nextArtifact;
+      artifacts.set(new URL(publishedUrl).pathname, nextArtifact);
+      await Promise.all([
+        writeFile(artifactPath, nextArtifact),
+        writeFile(catalogPath, `${JSON.stringify(catalog, null, 2)}\n`),
+      ]);
+      return { version, url: publishedUrl, size: nextArtifact.length, sha256 };
+    },
     async close() {
       for (const socket of sockets) socket.destroy();
       await new Promise((resolve) => server.close(resolve));

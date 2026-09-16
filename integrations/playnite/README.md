@@ -110,9 +110,18 @@ playability and the full management failure matrix are not qualified by it.
 a retail source, game artifact or port-admission bypass. It checks literal argv,
 opaque identities, schema/capability drift, structured errors, stream termination,
 gaps, reconnect reads and two synthetic port identities through the same generic
-transport. Optional real CLI checks exercise discovery and nullable launch
-readback. These do not substitute for two real adapter lifecycle scenarios,
-frontend interaction, packaged execution, gameplay or a fresh independent author.
+transport. The normal `just playnite-check` also builds the qualification-enabled
+standalone CLI and runs the compiled client against the existing isolated,
+checksum-pinned install fixture. That real-core check covers a busy port,
+cancellation and durable failed readback; install and two version activations with
+stable library/game identities; checksum and missing-artifact failures that retain
+the verified active version; positive recovery; and current eligibility/readiness
+from a distinct source-managed definition shape. Qualification-only catalog and
+definition inputs cannot be used by a production build. Optional `-Cli` and
+`-Library` arguments additionally exercise discovery and nullable launch readback
+for exactly identified external candidate bytes. None of these headless checks
+substitutes for Playnite frontend interaction, packaged execution, gameplay,
+intrinsic human observation or a fresh independent author.
 
 The client deliberately omits artwork acquisition, shortcuts, uninstall,
 destructive backup actions, catalog trust changes, application updates, automatic

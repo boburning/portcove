@@ -16,6 +16,8 @@ if ($Cli -or $Library) {
 }
 & (Join-Path $projectRoot 'tests/bin/Release/Portcove.ContractTests.exe') @arguments
 if ($LASTEXITCODE -ne 0) { throw 'Reference-client contract checks failed.' }
+node (Join-Path $projectRoot 'lifecycle-check.mjs')
+if ($LASTEXITCODE -ne 0) { throw 'Reference-client real lifecycle qualification failed.' }
 $output = @(Get-ChildItem -LiteralPath (Join-Path $projectRoot 'bin/Release') -File | Select-Object -ExpandProperty Name)
 if (@($output | Where-Object { $_ -notin @('Portcove.Playnite.dll', 'extension.yaml') }).Count) {
     throw 'Unexpected files in plugin output. Do not ship SDK or private Playnite assemblies.'
