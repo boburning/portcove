@@ -1390,7 +1390,7 @@ mod tests {
             serde_json::to_value(expected_ports).unwrap()
         );
         let qualification = &migrated.source_catalog().unwrap().qualification;
-        assert_eq!(qualification.len(), 11);
+        assert_eq!(qualification.len(), 12);
         assert_eq!(
             qualification
                 .iter()
@@ -1412,7 +1412,7 @@ mod tests {
                 .iter()
                 .filter(|record| record.scope.port_id == "revelations-persona-recompiled")
                 .count(),
-            2
+            3
         );
         assert_eq!(
             qualification
@@ -3010,6 +3010,30 @@ mod tests {
             qualification.known_failure,
             crate::QualificationEvidenceState::Missing
         );
+        let records = catalog
+            .source_catalog()
+            .unwrap()
+            .qualification
+            .iter()
+            .filter(|record| record.scope.port_id == "revelations-persona-recompiled")
+            .collect::<Vec<_>>();
+        assert_eq!(records.len(), 3);
+        assert_eq!(
+            records
+                .iter()
+                .filter(|record| record.kind == crate::SourceEvidenceKind::AutomatedLifecycle)
+                .count(),
+            2
+        );
+        assert!(records.iter().any(|record| {
+            record.evidence_ids.iter().any(|evidence_id| {
+                evidence_id == "revelations-persona-recompiled-windows-reinstall-2026-09-15"
+            }) && record.method.contains("managed removal")
+                && record
+                    .method
+                    .contains("clean reinstall with a new identity")
+                && record.method.contains("generated runtime-copy restoration")
+        }));
         let mismatched_artifact_scope = crate::SourceEvidenceScope {
             artifact_sha256: Some(
                 "0000000000000000000000000000000000000000000000000000000000000000".into(),

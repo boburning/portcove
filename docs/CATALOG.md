@@ -155,10 +155,14 @@ Revelations: Persona
 v0.1.1 has exact Windows structural and bounded automated lifecycle records for
 its owned-input artifact and Track 01 contract, including v0.1.0 installation,
 v0.1.1 update, no-op, rollback/reactivation, fail-closed verification, repaired
-native launches, persistence, and backup restore. It does not claim hands-on
-gameplay, controls, audio, in-game save/load, non-Windows platforms, or removal
-and clean reinstall under the repaired configuration-copy contract. For both
-ports, `input.ini` is persistent user configuration and
+native launches, persistence, and backup restore. A separate current-client
+exercise covers managed removal, preservation of canonical configuration, a
+genuinely clean v0.1.1 reinstall, regenerated runtime configuration,
+byte-identical restoration, final immutable verification, and a healthy backup.
+It does not claim Play/game-intro execution, hands-on gameplay, controls, audio,
+in-game save/load, or non-Windows platforms. The exact scope is recorded in the
+[clean-reinstall qualification record](qualification/revelations-persona-recompiled-windows-reinstall-2026-09-15.md).
+For both ports, `input.ini` is persistent user configuration and
 `psx_last_run_report.json` is reviewed disposable runtime output.
 
 Dr. Mario 64 Recompiled Plus 1.0.0 preserves the existing
