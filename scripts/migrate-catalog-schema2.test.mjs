@@ -189,7 +189,7 @@ test("schema-2 migration is deterministic and preserves the frozen schema-1 proj
     true,
   );
   assert.equal(drMario.presentation.source_requirements[0].verification, "catalog-identity");
-  assert.equal(migrated.source_catalog.qualification.length, 11);
+  assert.equal(migrated.source_catalog.qualification.length, 12);
   const ygofmQualification = migrated.source_catalog.qualification.filter(
     (record) => record.scope.port_id === "yu-gi-oh-forbidden-memories-recompiled",
   );
@@ -252,6 +252,7 @@ test("schema-2 migration is deterministic and preserves the frozen schema-1 proj
     [
       ["structural_check", "passed"],
       ["automated_lifecycle", "passed"],
+      ["automated_lifecycle", "passed"],
     ],
   );
   assert.equal(
@@ -260,11 +261,21 @@ test("schema-2 migration is deterministic and preserves the frozen schema-1 proj
         record.scope.artifact_sha256 ===
           "f4336030ba9c0e032061ad6892aa5ce9ff01c4cedcbaf3a5355428e6d728158a" &&
         record.scope.upstream_ref === "v0.1.1" &&
-        record.scope.check_version === "persona-windows-qualification-v1" &&
-        record.evidence_ids.includes("revelations-persona-recompiled-windows-2026-09-15"),
+        record.scope.check_version === "persona-windows-qualification-v1",
     ),
     true,
   );
+  assert.deepEqual(
+    personaQualification.map((record) => record.evidence_ids),
+    [
+      ["revelations-persona-recompiled-windows-2026-09-15"],
+      ["revelations-persona-recompiled-windows-2026-09-15"],
+      ["revelations-persona-recompiled-windows-reinstall-2026-09-15"],
+    ],
+  );
+  assert.match(personaQualification[2].method, /managed removal/);
+  assert.match(personaQualification[2].method, /clean reinstall with a new identity/);
+  assert.match(personaQualification[2].method, /generated runtime-copy restoration/);
   assert.deepEqual(contract("revelations-persona-recompiled").applicability, [
     {
       upstream_ref: "v0.1.1",
@@ -274,6 +285,12 @@ test("schema-2 migration is deterministic and preserves the frozen schema-1 proj
   assert.equal(
     contract("revelations-persona-recompiled").evidence_ids.includes(
       "revelations-persona-recompiled-windows-2026-09-15",
+    ),
+    true,
+  );
+  assert.equal(
+    contract("revelations-persona-recompiled").evidence_ids.includes(
+      "revelations-persona-recompiled-windows-reinstall-2026-09-15",
     ),
     true,
   );
