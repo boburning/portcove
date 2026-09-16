@@ -65,12 +65,12 @@ available.
 
 ## Persistent-state preservation probe
 
-The exercise used a 767-byte synthetic persistence probe at `saves/input.ini`.
-Its SHA-256 was
+The exercise used a 767-byte inert synthetic persistence probe at
+`saves/cross-version-probe.ini`. Its SHA-256 was
 `a03b43075302081d3c13f513e7d415ac3dc57a35513d36df402a6de7570d52bc`.
 The bytes came from a previously qualified valid v0.6.1 configuration but were
 explicitly treated as a cross-version probe, not as state produced or restored
-by this run.
+by this run. No `saves/input.ini` existed in this evidence tree.
 
 Backup operation `c4ae693a-0bd0-4a0c-b5db-689759e73834` created healthy backup
 `66dfee73-a810-4d82-9c17-6733ae486961`: one file, 767 bytes, tree SHA-256
