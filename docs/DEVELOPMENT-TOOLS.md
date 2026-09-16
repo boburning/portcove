@@ -36,6 +36,19 @@ prepend those shims and set Aqua and PowerShell module paths only for their chil
 processes. The bootstrap never changes the persistent user or machine `PATH` or
 environment.
 
+When an Aqua-managed package version changes in `aqua.yaml`, run
+`just aqua-integrity-update` before validation. The fixed-purpose updater invokes
+the pinned Aqua `update-checksum --prune` command against isolated staged copies,
+requires the exact maintained Windows, Linux, Intel macOS and Apple-silicon macOS
+asset inventory, and compares every generated package checksum with the matching
+GitHub release asset's publisher digest before replacing `aqua-checksums.json`.
+It preserves the pinned registry checksum exactly; a registry authority change
+fails for separate review. `just aqua-integrity-check` is offline and rejects a
+stale version, missing platform, unexpected asset, duplicate identity, or invalid
+checksum before tool installation. These commands do not grant Renovate arbitrary
+post-upgrade execution or replace Aqua's install-time checksum and attestation
+verification.
+
 Linux and macOS retain `./scripts/bootstrap-quality-tools.sh`. A checkout with
 different pins resolves a different content-keyed Aqua root while sharing identical
 versioned payloads. A failed download, checksum mismatch, unsupported architecture,

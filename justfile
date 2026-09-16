@@ -145,6 +145,13 @@ powershell-lint:
 
 script-lint: python-lint shell-lint actions-lint powershell-lint
 
+# Offline drift check and publisher-verified repair for Aqua package checksums.
+aqua-integrity-check:
+    {{storage}} node scripts/aqua-integrity.mjs --check
+
+aqua-integrity-update:
+    {{storage}} node scripts/aqua-integrity.mjs --update
+
 # Generic repository automation and governance contracts.
 repository-tools:
     {{storage}} node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/upstream-observer.test.mjs
@@ -153,6 +160,7 @@ repository-tools:
     {{storage}} node scripts/select-fast-host.mjs
     {{storage}} node scripts/check-retcomm-upstreams.mjs --offline
     {{storage}} node scripts/quality-tools.mjs --validate
+    {{storage}} node scripts/aqua-integrity.mjs --check
     {{storage}} node scripts/repository-settings.mjs --validate
 
 # Deterministic release metadata, packaging, updater, and qualification unit contracts.
