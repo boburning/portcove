@@ -1475,7 +1475,7 @@ mod tests {
             serde_json::to_value(expected_ports).unwrap()
         );
         let qualification = &migrated.source_catalog().unwrap().qualification;
-        assert_eq!(qualification.len(), 16);
+        assert_eq!(qualification.len(), 18);
         assert_eq!(
             qualification
                 .iter()
@@ -1517,6 +1517,13 @@ mod tests {
             qualification
                 .iter()
                 .filter(|record| record.scope.port_id == "ape-escape-recompiled")
+                .count(),
+            2
+        );
+        assert_eq!(
+            qualification
+                .iter()
+                .filter(|record| record.scope.port_id == "mega-man-x5-recompiled")
                 .count(),
             2
         );
@@ -1623,7 +1630,7 @@ mod tests {
 
         assert!(document.get("source_catalog").is_some());
         assert!(document.get("source_profiles").is_none());
-        assert_eq!(document["ports"].as_array().unwrap().len(), 73);
+        assert_eq!(document["ports"].as_array().unwrap().len(), 74);
     }
 
     #[test]
@@ -1869,6 +1876,7 @@ mod tests {
                     "star-fox-enhanced-usa-v1-0",
                     "duke-nukem-zero-hour",
                     "ape-escape-psx",
+                    "mega-man-x5-psx",
                 ]
                 .contains(&profile.id.as_str())
             })
