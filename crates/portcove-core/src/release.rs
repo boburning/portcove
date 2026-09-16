@@ -1397,6 +1397,81 @@ mod tests {
     }
 
     #[test]
+    fn bm64_linux_hint_selects_the_native_x64_archive_among_current_packages() {
+        let catalog = crate::Catalog::embedded().unwrap();
+        let port = catalog.port("bm64-recomp").unwrap();
+        let assets = [
+            "BM64Recompiled-AppImage-ARM64-Release.zip",
+            "BM64Recompiled-AppImage-X64-Release.zip",
+            "BM64Recompiled-Flatpak-X64-Release.zip",
+            "BM64Recompiled-Linux-ARM64-Release.zip",
+            "BM64Recompiled-Linux-X64-Release.zip",
+            "BM64Recompiled-macOS-Release.zip",
+            "BM64Recompiled-Windows-RelWithDebInfo.zip",
+        ]
+        .map(|name| GithubAsset {
+            name: name.into(),
+            browser_download_url: "https://example.invalid/package.zip".into(),
+            size: 1,
+            digest: Some(format!("sha256:{}", "a".repeat(64))),
+        });
+
+        let selected = choose_asset(port, Platform::LinuxX86_64, &assets).unwrap();
+        assert_eq!(selected.name, "BM64Recompiled-Linux-X64-Release.zip");
+    }
+
+    #[tokio::test]
+    async fn version_independent_dr_mario_hint_tracks_the_next_stable_release() {
+        let catalog = crate::Catalog::embedded().unwrap();
+        let port = catalog.port("dr-mario-64-recomp").unwrap();
+        let v1 = github_release("1.0.0", false, "Dr.Mario.64.Recompiled-v1.0.0-Windows.zip");
+        let v2 = serde_json::json!({
+            "tag_name": "1.1.0",
+            "draft": false,
+            "prerelease": false,
+            "published_at": null,
+            "assets": [{
+                "name": "Dr.Mario.64.Recompiled-v1.1.0-Windows.zip",
+                "browser_download_url": "https://downloads.example.invalid/dr-mario-v1.1.0.zip",
+                "size": 2,
+                "digest": format!("sha256:{}", "b".repeat(64))
+            }]
+        });
+
+        let responses = vec![
+            ok_json(r#"{"archived":false}"#, ""),
+            ok_json(&serde_json::to_string(&vec![v1.clone()]).unwrap(), ""),
+        ];
+        let (api_root, _, server) = serve_http(responses);
+        let baseline = GithubReleaseProvider::with_api_root(api_root)
+            .unwrap()
+            .resolve(port, ReleaseChannel::Stable, Platform::WindowsX86_64)
+            .await
+            .unwrap();
+        server.join().unwrap();
+        assert_eq!(baseline.version, "1.0.0");
+
+        let responses = vec![
+            ok_json(r#"{"archived":false}"#, ""),
+            ok_json(&serde_json::to_string(&vec![v2, v1]).unwrap(), ""),
+        ];
+        let (api_root, _, server) = serve_http(responses);
+        let successor = GithubReleaseProvider::with_api_root(api_root)
+            .unwrap()
+            .resolve(port, ReleaseChannel::Stable, Platform::WindowsX86_64)
+            .await
+            .unwrap();
+        server.join().unwrap();
+        assert_eq!(successor.version, "1.1.0");
+        assert_eq!(
+            successor.asset.name,
+            "Dr.Mario.64.Recompiled-v1.1.0-Windows.zip"
+        );
+        assert_eq!(successor.asset.sha256, "b".repeat(64));
+        assert_ne!(successor.asset.sha256, baseline.asset.sha256);
+    }
+
+    #[test]
     fn authenticated_requests_use_a_bearer_header() {
         let provider = GithubReleaseProvider::with_api_root("https://example.invalid").unwrap();
         provider.set_credential(Some("test-token".into()), GithubAuthSource::CredentialStore);

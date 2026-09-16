@@ -43,6 +43,18 @@ missing platform entries, duplicate hints, traversal, cross-platform filename
 aliases, and macOS bundle directories in place of the executable inside the
 bundle.
 
+Release asset hints identify a stable port, platform, architecture and package
+shape. Do not include an ordinary release number merely because it was the
+version used for qualification: hosted providers already select the current
+eligible channel release and obtain that artifact's independently advertised
+SHA-256. Intake must answer, with provider metadata or a controlled N/N+1 test,
+“Will the next ordinary compatible upstream release work without editing this
+definition?” When the answer is no, record the concrete selector, layout,
+integrity, source, persistence or compatibility constraint and the condition
+that would remove it. A deliberate `DirectManifest`, rolling tag, source/runtime
+identity or exact qualification record is not an asset-selection pin and must
+not be broadened to manufacture automatic updates.
+
 A standalone Linux AppImage release may use a version-bearing asset filename.
 When its port declares exactly one AppImage basename and no runtime subdirectory,
 the installer gives the verified file that declared name before writing its
