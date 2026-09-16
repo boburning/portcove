@@ -6839,7 +6839,12 @@
       ],
       "adapter": "n64-recomp-portable",
       "release": {
-        "repository": "RevoSucks/BM64Recomp"
+        "repository": "RevoSucks/BM64Recomp",
+        "asset_hints": {
+          "linux-x86-64": [
+            "Linux-X64-Release"
+          ]
+        }
       },
       "source_profile": "bomberman-64",
       "executable_hints": {
@@ -9269,7 +9274,8 @@
         "repository": "theboy181/drmario64_recomp_plus",
         "asset_hints": {
           "windows-x86-64": [
-            "Dr.Mario.64.Recompiled-v1.0.0-Windows.zip"
+            "Dr.Mario.64.Recompiled-",
+            "-Windows.zip"
           ]
         }
       },
