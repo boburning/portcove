@@ -6701,7 +6701,12 @@
         "windows-x86-64"
       ],
       "release": {
-        "repository": "Zelda64Recomp/Zelda64Recomp"
+        "repository": "Zelda64Recomp/Zelda64Recomp",
+        "asset_hints": {
+          "linux-x86-64": [
+            "Linux-X64.zip"
+          ]
+        }
       },
       "source_profile": "majoras-mask",
       "executable_hints": {
@@ -6771,7 +6776,12 @@
       ],
       "adapter": "n64-recomp-portable",
       "release": {
-        "repository": "BanjoRecomp/BanjoRecomp"
+        "repository": "BanjoRecomp/BanjoRecomp",
+        "asset_hints": {
+          "linux-x86-64": [
+            "Linux-X64."
+          ]
+        }
       },
       "source_profile": "banjo-kazooie",
       "executable_hints": {
@@ -6839,7 +6849,12 @@
       ],
       "adapter": "n64-recomp-portable",
       "release": {
-        "repository": "RevoSucks/BM64Recomp"
+        "repository": "RevoSucks/BM64Recomp",
+        "asset_hints": {
+          "linux-x86-64": [
+            "Linux-X64-Release"
+          ]
+        }
       },
       "source_profile": "bomberman-64",
       "executable_hints": {
@@ -6903,7 +6918,12 @@
       ],
       "adapter": "n64-recomp-portable",
       "release": {
-        "repository": "HarvestMoon64Recomp/HarvestMoon64Recomp"
+        "repository": "HarvestMoon64Recomp/HarvestMoon64Recomp",
+        "asset_hints": {
+          "linux-x86-64": [
+            "Linux-X64.zip"
+          ]
+        }
       },
       "source_profile": "harvest-moon-64",
       "executable_hints": {
@@ -9269,7 +9289,8 @@
         "repository": "theboy181/drmario64_recomp_plus",
         "asset_hints": {
           "windows-x86-64": [
-            "Dr.Mario.64.Recompiled-v1.0.0-Windows.zip"
+            "Dr.Mario.64.Recompiled-",
+            "-Windows.zip"
           ]
         }
       },
@@ -9734,7 +9755,12 @@
         "windows-x86-64"
       ],
       "release": {
-        "repository": "RevoSucks/BMHeroRecomp"
+        "repository": "RevoSucks/BMHeroRecomp",
+        "asset_hints": {
+          "linux-x86-64": [
+            "Linux-X64-Release"
+          ]
+        }
       },
       "source_profile": "bomberman-hero",
       "executable_hints": {
@@ -9866,7 +9892,12 @@
         "windows-x86-64"
       ],
       "release": {
-        "repository": "ThiagoLira/trouble-makers-pc-recomp"
+        "repository": "ThiagoLira/trouble-makers-pc-recomp",
+        "asset_hints": {
+          "linux-x86-64": [
+            "TroubleMakers-x86_64.AppImage"
+          ]
+        }
       },
       "source_profile": "trouble-makers",
       "executable_hints": {
@@ -9926,7 +9957,12 @@
         "windows-x86-64"
       ],
       "release": {
-        "repository": "klorfmorf/Goemon64Recomp"
+        "repository": "klorfmorf/Goemon64Recomp",
+        "asset_hints": {
+          "linux-x86-64": [
+            "Linux-X64"
+          ]
+        }
       },
       "source_profile": "goemon-64",
       "executable_hints": {

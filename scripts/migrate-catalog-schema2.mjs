@@ -1192,6 +1192,16 @@ function withPresentation(port) {
   };
 }
 
+const linuxAssetHints = {
+  "zelda64-recomp": "Linux-X64.zip",
+  "banjo-recomp": "Linux-X64.",
+  "bm64-recomp": "Linux-X64-Release",
+  "harvest-moon-64-recomp": "Linux-X64.zip",
+  "bomberman-hero-recomp": "Linux-X64-Release",
+  "trouble-makers-recomp": "TroubleMakers-x86_64.AppImage",
+  "goemon64-recomp": "Linux-X64",
+};
+
 const migrated = {
   schema_version: 2,
   // Legacy qualification arrays intentionally remain on each port. They do
@@ -1549,53 +1559,64 @@ const migrated = {
                       "psx_freeze_heartbeat.json",
                     ],
                   }
-                : port.id === "dr-mario-64-recomp"
+                : Object.hasOwn(linuxAssetHints, port.id)
                   ? {
                       ...port,
-                      project_url: "https://github.com/theboy181/drmario64_recomp_plus",
-                      support_tier: "beta",
                       release: {
-                        repository: "theboy181/drmario64_recomp_plus",
+                        ...port.release,
                         asset_hints: {
-                          "windows-x86-64": ["Dr.Mario.64.Recompiled-v1.0.0-Windows.zip"],
+                          ...port.release.asset_hints,
+                          "linux-x86-64": [linuxAssetHints[port.id]],
                         },
                       },
-                      executable_hints: {
-                        "windows-x86-64": ["drmario64_recomp.exe"],
-                      },
-                      portable_marker: true,
-                      runtime_subdirectory: "Dr. Mario 64 Recompiled x64-Release",
-                      runtime_source_filename: "drmario64.us.z64",
-                      runtime_source_materialization: "n64-big-endian",
-                      runtime_source_hashes: {
-                        "drmario64.us.z64":
-                          "bb2c0dec0a8287ad256929563d0509801c2f239df883c1cf52cab05b23bd77b6",
-                      },
-                      launch_arguments: ["drmario64.us.z64"],
-                      persistent_paths: [
-                        "Dr. Mario 64 Recompiled x64-Release/drmario64.us.z64",
-                        "Dr. Mario 64 Recompiled x64-Release/general.json",
-                        "Dr. Mario 64 Recompiled x64-Release/general.json.bak",
-                        "Dr. Mario 64 Recompiled x64-Release/graphics.json",
-                        "Dr. Mario 64 Recompiled x64-Release/graphics.json.bak",
-                        "Dr. Mario 64 Recompiled x64-Release/controls.json",
-                        "Dr. Mario 64 Recompiled x64-Release/controls.json.bak",
-                        "Dr. Mario 64 Recompiled x64-Release/sound.json",
-                        "Dr. Mario 64 Recompiled x64-Release/sound.json.bak",
-                        "Dr. Mario 64 Recompiled x64-Release/mods",
-                        "Dr. Mario 64 Recompiled x64-Release/mods.json",
-                        "Dr. Mario 64 Recompiled x64-Release/mod_config",
-                        "Dr. Mario 64 Recompiled x64-Release/saves",
-                      ],
                     }
-                  : ["opengoal-jak1", "opengoal-jak2", "opengoal-jak3"].includes(port.id)
+                  : port.id === "dr-mario-64-recomp"
                     ? {
                         ...port,
-                        // Reviewed extractor output ownership; this is not a manifest exclusion.
-                        // Pinned upstream evidence is recorded in docs/CATALOG.md.
-                        setup_output_paths: ["data/iso_data", "data/decompiler_out", "data/out"],
+                        project_url: "https://github.com/theboy181/drmario64_recomp_plus",
+                        support_tier: "beta",
+                        release: {
+                          repository: "theboy181/drmario64_recomp_plus",
+                          asset_hints: {
+                            "windows-x86-64": ["Dr.Mario.64.Recompiled-", "-Windows.zip"],
+                          },
+                        },
+                        executable_hints: {
+                          "windows-x86-64": ["drmario64_recomp.exe"],
+                        },
+                        portable_marker: true,
+                        runtime_subdirectory: "Dr. Mario 64 Recompiled x64-Release",
+                        runtime_source_filename: "drmario64.us.z64",
+                        runtime_source_materialization: "n64-big-endian",
+                        runtime_source_hashes: {
+                          "drmario64.us.z64":
+                            "bb2c0dec0a8287ad256929563d0509801c2f239df883c1cf52cab05b23bd77b6",
+                        },
+                        launch_arguments: ["drmario64.us.z64"],
+                        persistent_paths: [
+                          "Dr. Mario 64 Recompiled x64-Release/drmario64.us.z64",
+                          "Dr. Mario 64 Recompiled x64-Release/general.json",
+                          "Dr. Mario 64 Recompiled x64-Release/general.json.bak",
+                          "Dr. Mario 64 Recompiled x64-Release/graphics.json",
+                          "Dr. Mario 64 Recompiled x64-Release/graphics.json.bak",
+                          "Dr. Mario 64 Recompiled x64-Release/controls.json",
+                          "Dr. Mario 64 Recompiled x64-Release/controls.json.bak",
+                          "Dr. Mario 64 Recompiled x64-Release/sound.json",
+                          "Dr. Mario 64 Recompiled x64-Release/sound.json.bak",
+                          "Dr. Mario 64 Recompiled x64-Release/mods",
+                          "Dr. Mario 64 Recompiled x64-Release/mods.json",
+                          "Dr. Mario 64 Recompiled x64-Release/mod_config",
+                          "Dr. Mario 64 Recompiled x64-Release/saves",
+                        ],
                       }
-                    : port,
+                    : ["opengoal-jak1", "opengoal-jak2", "opengoal-jak3"].includes(port.id)
+                      ? {
+                          ...port,
+                          // Reviewed extractor output ownership; this is not a manifest exclusion.
+                          // Pinned upstream evidence is recorded in docs/CATALOG.md.
+                          setup_output_paths: ["data/iso_data", "data/decompiler_out", "data/out"],
+                        }
+                      : port,
       )
       .map(withPresentation),
     withPresentation({

@@ -1295,7 +1295,7 @@ mod tests {
         dr_mario.release.repository = "theboy181/drmario64_recomp_plus".into();
         dr_mario.release.asset_hints.insert(
             Platform::WindowsX86_64,
-            vec!["Dr.Mario.64.Recompiled-v1.0.0-Windows.zip".into()],
+            vec!["Dr.Mario.64.Recompiled-".into(), "-Windows.zip".into()],
         );
         dr_mario
             .executable_hints
@@ -1328,6 +1328,23 @@ mod tests {
         .into_iter()
         .map(|path| format!("Dr. Mario 64 Recompiled x64-Release/{path}"))
         .collect();
+        for (id, hint) in [
+            ("zelda64-recomp", "Linux-X64.zip"),
+            ("banjo-recomp", "Linux-X64."),
+            ("bm64-recomp", "Linux-X64-Release"),
+            ("harvest-moon-64-recomp", "Linux-X64.zip"),
+            ("bomberman-hero-recomp", "Linux-X64-Release"),
+            ("trouble-makers-recomp", "TroubleMakers-x86_64.AppImage"),
+            ("goemon64-recomp", "Linux-X64"),
+        ] {
+            let port = expected_ports
+                .iter_mut()
+                .find(|port| port.id == id)
+                .unwrap();
+            port.release
+                .asset_hints
+                .insert(Platform::LinuxX86_64, vec![hint.into()]);
+        }
         for id in ["opengoal-jak1", "opengoal-jak2", "opengoal-jak3"] {
             let port = expected_ports
                 .iter_mut()

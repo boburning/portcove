@@ -1397,6 +1397,303 @@ mod tests {
     }
 
     #[test]
+    fn catalog_linux_hints_select_native_packages_across_real_release_layouts() {
+        let catalog = crate::Catalog::embedded().unwrap();
+        let cases = [
+            (
+                "zelda64-recomp",
+                vec![
+                    "Zelda64Recompiled-v1.2.2-Linux-ARM64.zip",
+                    "Zelda64Recompiled-v1.2.2-Linux-Flatpak-X64.zip",
+                    "Zelda64Recompiled-v1.2.2-Linux-X64.zip",
+                ],
+                "Zelda64Recompiled-v1.2.2-Linux-X64.zip",
+            ),
+            (
+                "zelda64-recomp",
+                vec![
+                    "Zelda64Recompiled-v1.2.1-Linux-ARM64.zip",
+                    "Zelda64Recompiled-v1.2.1-Linux-X64-Flatpak.zip",
+                    "Zelda64Recompiled-v1.2.1-Linux-X64.zip",
+                ],
+                "Zelda64Recompiled-v1.2.1-Linux-X64.zip",
+            ),
+            (
+                "banjo-recomp",
+                vec![
+                    "BanjoRecompiled-v1.0.2-Linux-ARM64.tar.gz",
+                    "BanjoRecompiled-v1.0.2-Linux-Flatpak-X64.zip",
+                    "BanjoRecompiled-v1.0.2-Linux-X64.tar.gz",
+                ],
+                "BanjoRecompiled-v1.0.2-Linux-X64.tar.gz",
+            ),
+            (
+                "banjo-recomp",
+                vec![
+                    "BanjoRecompiled-v1.0.1-Linux-ARM64.zip",
+                    "BanjoRecompiled-v1.0.1-Linux-Flatpak-X64.zip",
+                    "BanjoRecompiled-v1.0.1-Linux-X64.zip",
+                ],
+                "BanjoRecompiled-v1.0.1-Linux-X64.zip",
+            ),
+            (
+                "bm64-recomp",
+                vec![
+                    "BM64Recompiled-AppImage-X64-Release.zip",
+                    "BM64Recompiled-Flatpak-X64-Release.zip",
+                    "BM64Recompiled-Linux-ARM64-Release.zip",
+                    "BM64Recompiled-Linux-X64-Release.zip",
+                ],
+                "BM64Recompiled-Linux-X64-Release.zip",
+            ),
+            (
+                "harvest-moon-64-recomp",
+                vec![
+                    "HarvestMoon64Recompiled-v1.2.1-Linux-ARM64.zip",
+                    "HarvestMoon64Recompiled-v1.2.1-Linux-Flatpak-X64.zip",
+                    "HarvestMoon64Recompiled-v1.2.1-Linux-X64.zip",
+                ],
+                "HarvestMoon64Recompiled-v1.2.1-Linux-X64.zip",
+            ),
+            (
+                "harvest-moon-64-recomp",
+                vec![
+                    "HarvestMoon64Recompiled-v1.2.0-Linux-ARM64.zip",
+                    "HarvestMoon64Recompiled-v1.2.0-Linux-Flatpak-X64.zip",
+                    "HarvestMoon64Recompiled-v1.2.0-Linux-X64.zip",
+                ],
+                "HarvestMoon64Recompiled-v1.2.0-Linux-X64.zip",
+            ),
+            (
+                "bomberman-hero-recomp",
+                vec![
+                    "BMHeroRecompiled-AppImage-X64-Release.zip",
+                    "BMHeroRecompiled-Flatpak-X64-Release.zip",
+                    "BMHeroRecompiled-Linux-ARM64-Release.zip",
+                    "BMHeroRecompiled-Linux-X64-Release.zip",
+                ],
+                "BMHeroRecompiled-Linux-X64-Release.zip",
+            ),
+            (
+                "trouble-makers-recomp",
+                vec![
+                    "TroubleMakers-SteamDeck-x86_64.AppImage",
+                    "TroubleMakers-x86_64.AppImage",
+                ],
+                "TroubleMakers-x86_64.AppImage",
+            ),
+            (
+                "goemon64-recomp",
+                vec![
+                    "Goemon64Recompiled-AppImage-X64-Release.zip",
+                    "Goemon64Recompiled-Flatpak-X64-Release.zip",
+                    "Goemon64Recompiled-Linux-ARM64-Release.zip",
+                    "Goemon64Recompiled-Linux-X64-Release.zip",
+                ],
+                "Goemon64Recompiled-Linux-X64-Release.zip",
+            ),
+            (
+                "goemon64-recomp",
+                vec![
+                    "Goemon64Recompiled-Flatpak-X64.zip",
+                    "Goemon64Recompiled-Linux-ARM64.zip",
+                    "Goemon64Recompiled-Linux-X64.zip",
+                ],
+                "Goemon64Recompiled-Linux-X64.zip",
+            ),
+        ];
+
+        for (port_id, names, expected) in cases {
+            let port = catalog.port(port_id).unwrap();
+            let assets = names
+                .into_iter()
+                .map(|name| GithubAsset {
+                    name: name.into(),
+                    browser_download_url: "https://example.invalid/package.zip".into(),
+                    size: 1,
+                    digest: Some(format!("sha256:{}", "a".repeat(64))),
+                })
+                .collect::<Vec<_>>();
+            let selected = choose_asset(port, Platform::LinuxX86_64, &assets).unwrap();
+            assert_eq!(selected.name, expected, "{port_id}");
+        }
+    }
+
+    #[tokio::test]
+    async fn native_linux_hint_tracks_a_successor_without_a_definition_edit() {
+        let catalog = crate::Catalog::embedded().unwrap();
+        let port = catalog.port("zelda64-recomp").unwrap();
+        let release = |tag: &str, digest: char| {
+            serde_json::json!({
+                "tag_name": tag,
+                "draft": false,
+                "prerelease": false,
+                "published_at": null,
+                "assets": [
+                    {
+                        "name": format!("Zelda64Recompiled-{tag}-Linux-Flatpak-X64.zip"),
+                        "browser_download_url": "https://downloads.example.invalid/flatpak.zip",
+                        "size": 1,
+                        "digest": format!("sha256:{}", digest.to_string().repeat(64))
+                    },
+                    {
+                        "name": format!("Zelda64Recompiled-{tag}-Linux-X64.zip"),
+                        "browser_download_url": "https://downloads.example.invalid/native.zip",
+                        "size": 2,
+                        "digest": format!("sha256:{}", digest.to_string().repeat(64))
+                    }
+                ]
+            })
+        };
+        let v1 = release("v1.2.2", 'a');
+        let v2 = release("v1.2.3", 'b');
+
+        let responses = vec![
+            ok_json(r#"{"archived":false}"#, ""),
+            ok_json(&serde_json::to_string(&vec![v1.clone()]).unwrap(), ""),
+        ];
+        let (api_root, _, server) = serve_http(responses);
+        let baseline = GithubReleaseProvider::with_api_root(api_root)
+            .unwrap()
+            .resolve(port, ReleaseChannel::Stable, Platform::LinuxX86_64)
+            .await
+            .unwrap();
+        server.join().unwrap();
+
+        let responses = vec![
+            ok_json(r#"{"archived":false}"#, ""),
+            ok_json(&serde_json::to_string(&vec![v2, v1]).unwrap(), ""),
+        ];
+        let (api_root, _, server) = serve_http(responses);
+        let successor = GithubReleaseProvider::with_api_root(api_root)
+            .unwrap()
+            .resolve(port, ReleaseChannel::Stable, Platform::LinuxX86_64)
+            .await
+            .unwrap();
+        server.join().unwrap();
+
+        assert_eq!(baseline.version, "v1.2.2");
+        assert_eq!(successor.version, "v1.2.3");
+        assert_eq!(
+            successor.asset.name,
+            "Zelda64Recompiled-v1.2.3-Linux-X64.zip"
+        );
+        assert_eq!(successor.asset.sha256, "b".repeat(64));
+        assert_ne!(successor.asset.sha256, baseline.asset.sha256);
+    }
+
+    #[tokio::test]
+    async fn generic_linux_appimage_hint_tracks_a_successor_without_a_definition_edit() {
+        let catalog = crate::Catalog::embedded().unwrap();
+        let port = catalog.port("trouble-makers-recomp").unwrap();
+        let release = |tag: &str, digest: char| {
+            serde_json::json!({
+                "tag_name": tag,
+                "draft": false,
+                "prerelease": true,
+                "published_at": null,
+                "assets": [
+                    {
+                        "name": "TroubleMakers-SteamDeck-x86_64.AppImage",
+                        "browser_download_url": "https://downloads.example.invalid/steamdeck.AppImage",
+                        "size": 1,
+                        "digest": format!("sha256:{}", digest.to_string().repeat(64))
+                    },
+                    {
+                        "name": "TroubleMakers-x86_64.AppImage",
+                        "browser_download_url": "https://downloads.example.invalid/linux.AppImage",
+                        "size": 2,
+                        "digest": format!("sha256:{}", digest.to_string().repeat(64))
+                    }
+                ]
+            })
+        };
+        let v1 = release("v0.8.1", 'a');
+        let v2 = release("v0.8.2", 'b');
+
+        let responses = vec![
+            ok_json(r#"{"archived":false}"#, ""),
+            ok_json(&serde_json::to_string(&vec![v1.clone()]).unwrap(), ""),
+        ];
+        let (api_root, _, server) = serve_http(responses);
+        let baseline = GithubReleaseProvider::with_api_root(api_root)
+            .unwrap()
+            .resolve(port, ReleaseChannel::Beta, Platform::LinuxX86_64)
+            .await
+            .unwrap();
+        server.join().unwrap();
+
+        let responses = vec![
+            ok_json(r#"{"archived":false}"#, ""),
+            ok_json(&serde_json::to_string(&vec![v2, v1]).unwrap(), ""),
+        ];
+        let (api_root, _, server) = serve_http(responses);
+        let successor = GithubReleaseProvider::with_api_root(api_root)
+            .unwrap()
+            .resolve(port, ReleaseChannel::Beta, Platform::LinuxX86_64)
+            .await
+            .unwrap();
+        server.join().unwrap();
+
+        assert_eq!(baseline.version, "v0.8.1");
+        assert_eq!(successor.version, "v0.8.2");
+        assert_eq!(successor.asset.name, "TroubleMakers-x86_64.AppImage");
+        assert_eq!(successor.asset.sha256, "b".repeat(64));
+        assert_ne!(successor.asset.sha256, baseline.asset.sha256);
+    }
+
+    #[tokio::test]
+    async fn version_independent_dr_mario_hint_tracks_the_next_stable_release() {
+        let catalog = crate::Catalog::embedded().unwrap();
+        let port = catalog.port("dr-mario-64-recomp").unwrap();
+        let v1 = github_release("1.0.0", false, "Dr.Mario.64.Recompiled-v1.0.0-Windows.zip");
+        let v2 = serde_json::json!({
+            "tag_name": "1.1.0",
+            "draft": false,
+            "prerelease": false,
+            "published_at": null,
+            "assets": [{
+                "name": "Dr.Mario.64.Recompiled-v1.1.0-Windows.zip",
+                "browser_download_url": "https://downloads.example.invalid/dr-mario-v1.1.0.zip",
+                "size": 2,
+                "digest": format!("sha256:{}", "b".repeat(64))
+            }]
+        });
+
+        let responses = vec![
+            ok_json(r#"{"archived":false}"#, ""),
+            ok_json(&serde_json::to_string(&vec![v1.clone()]).unwrap(), ""),
+        ];
+        let (api_root, _, server) = serve_http(responses);
+        let baseline = GithubReleaseProvider::with_api_root(api_root)
+            .unwrap()
+            .resolve(port, ReleaseChannel::Stable, Platform::WindowsX86_64)
+            .await
+            .unwrap();
+        server.join().unwrap();
+        assert_eq!(baseline.version, "1.0.0");
+
+        let responses = vec![
+            ok_json(r#"{"archived":false}"#, ""),
+            ok_json(&serde_json::to_string(&vec![v2, v1]).unwrap(), ""),
+        ];
+        let (api_root, _, server) = serve_http(responses);
+        let successor = GithubReleaseProvider::with_api_root(api_root)
+            .unwrap()
+            .resolve(port, ReleaseChannel::Stable, Platform::WindowsX86_64)
+            .await
+            .unwrap();
+        server.join().unwrap();
+        assert_eq!(successor.version, "1.1.0");
+        assert_eq!(
+            successor.asset.name,
+            "Dr.Mario.64.Recompiled-v1.1.0-Windows.zip"
+        );
+        assert_eq!(successor.asset.sha256, "b".repeat(64));
+        assert_ne!(successor.asset.sha256, baseline.asset.sha256);
+    }
+
+    #[test]
     fn authenticated_requests_use_a_bearer_header() {
         let provider = GithubReleaseProvider::with_api_root("https://example.invalid").unwrap();
         provider.set_credential(Some("test-token".into()), GithubAuthSource::CredentialStore);

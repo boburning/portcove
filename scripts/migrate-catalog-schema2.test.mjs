@@ -161,8 +161,21 @@ test("schema-2 migration is deterministic and preserves the frozen schema-1 proj
   assert.equal(drMario.support_tier, "beta");
   assert.equal(drMario.release.repository, "theboy181/drmario64_recomp_plus");
   assert.deepEqual(drMario.release.asset_hints["windows-x86-64"], [
-    "Dr.Mario.64.Recompiled-v1.0.0-Windows.zip",
+    "Dr.Mario.64.Recompiled-",
+    "-Windows.zip",
   ]);
+  for (const [id, hint] of Object.entries({
+    "zelda64-recomp": "Linux-X64.zip",
+    "banjo-recomp": "Linux-X64.",
+    "bm64-recomp": "Linux-X64-Release",
+    "harvest-moon-64-recomp": "Linux-X64.zip",
+    "bomberman-hero-recomp": "Linux-X64-Release",
+    "trouble-makers-recomp": "TroubleMakers-x86_64.AppImage",
+    "goemon64-recomp": "Linux-X64",
+  })) {
+    const port = migrated.ports.find((candidate) => candidate.id === id);
+    assert.deepEqual(port.release.asset_hints["linux-x86-64"], [hint]);
+  }
   assert.deepEqual(drMario.executable_hints["windows-x86-64"], ["drmario64_recomp.exe"]);
   assert.equal(drMario.runtime_subdirectory, "Dr. Mario 64 Recompiled x64-Release");
   assert.equal(drMario.runtime_source_filename, "drmario64.us.z64");
