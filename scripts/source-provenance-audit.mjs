@@ -401,7 +401,7 @@ export function runReadOnlyGitHubCommand(args, input, spawn = spawnSync) {
   if (result.error || result.status !== 0) {
     throw new Error(`read-only GitHub command failed: gh ${args.slice(0, 3).join(" ")}`);
   }
-  return JSON.parse(result.stdout);
+  return args.includes("--include") ? result.stdout : JSON.parse(result.stdout);
 }
 
 export function readLiveSourceProvenance({
@@ -413,7 +413,10 @@ export function readLiveSourceProvenance({
   try {
     const client = new RoadmapClient(
       { repository, owner, project: { number: projectNumber } },
-      (args, input) => JSON.stringify(run(args, input)),
+      (args, input) => {
+        const result = run(args, input);
+        return typeof result === "string" ? result : JSON.stringify(result);
+      },
     );
     const issues = client.repositoryIssues();
     const projectItems = client.itemList(projectNumber);

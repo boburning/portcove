@@ -145,6 +145,29 @@ The provenance generator leaves the previous snapshot intact when enrichment
 fails. A successful traversal is a dated observation, not an atomic snapshot
 of concurrent field edits.
 
+Repository issue coverage uses the REST issue collection, follows every
+pagination link, validates opaque node IDs and issue numbers before filtering
+pull requests, and requires an unchanged newest-record marker across the read.
+ProjectV2 fields, items, views and dependencies remain GraphQL-owned; REST issue
+coverage cannot substitute for those fields.
+
+For more than one planned field transition, prepare an ignored JSON file under
+`work/` and use `node scripts/roadmap.mjs set-many --spec-file <path>`. Each
+transition records an exact `from` value (or `null` for unset) and configured
+`to` value. The default is a read-only plan; add `--apply` only after reviewing
+the resolved targets, already-applied transitions, observed GraphQL cost and
+required reserve. Apply validates every target before one bounded mutation,
+reads back each field exactly, and runs one final doctor. A current value equal
+to `to` is an idempotent resume; any value other than `from` or `to` aborts the
+whole batch before mutation. Keep a batch at or below 100 field assignments.
+
+Live Roadmap commands serialize through an owned lock in the repository's
+shared Git common directory, so sibling worktrees cannot independently consume
+the local GraphQL budget. The lock does not coordinate other machines. Quota
+headers, the pre-mutation reserve and exact readback remain authoritative when
+another host uses the same account. Missing quota metadata or insufficient
+reserve blocks mutation and reports the provider reset time.
+
 A promoted draft or port implementation issue must state:
 
 - user outcome;
