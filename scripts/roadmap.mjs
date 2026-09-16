@@ -789,17 +789,47 @@ export function renderPortIssueBody({
   return `## User outcome\n\n${title} can be researched, prioritized, qualified, advanced, blocked, and closed independently.\n\n## Current behavior and evidence\n\n${currentEvidence}\n\n## Scope\n\n- Direct upstream: ${upstream}\n- Game/title identity: ${title}\n- Catalog ID: ${catalogLine}\n- Durable port key: ${portKeyLine}\n- Supported and candidate platforms: Unknown until evidenced\n- Release assets and integrity: Pending\n- Source requirements and accepted revisions: Pending\n- Executable/setup boundary: Pending\n- Persistence and user-data boundary: Pending\n- Adapter fit and dependencies: Pending\n- Initial Port stage: Watchlist. The live Port stage is maintained in the Portcove Roadmap.\n- Current blocker and exact resume condition: ${blocker}\n- Automated qualification: Not yet recorded\n- Manual qualification: Not yet recorded\n\n## Non-goals\n\nThis issue does not grant support, expand V1 scope, weaken source or artifact validation, or replace shared engineering dependencies.\n\n## Acceptance criteria\n\n- [ ] Every promised operation and owned port fact has explicit evidence or an honest Unknown/Not run limitation.\n- [ ] The catalog and Project agree with the independently closable port state.\n- [ ] Completion evidence links the implementation and exact qualification results.\n\n## Required tests\n\nValidate applicable admission, source, artifact, archive, executable and lifecycle checks for each promised operation/platform. Record absent optional gameplay evidence as Unknown, not failure. Integration completion does not require personal playtesting; explicit hands-on support claims still require actual observations. Unsupported management operations remain unavailable with reasons.\n\n## Documentation impact\n\nUpdate catalog.json only when actual support or qualification changes; keep mutable priority and stage in the Project.\n\n## Dependencies and blockers\n\n${blocker}\n\n## Completion evidence\n\nNo completion evidence yet.\n\n${portMarker}\n<!-- portcove-upstream: ${upstream} -->${catalogMarker}${portKeyMarker}`;
 }
 
-export function qualifiedPlatforms(port) {
-  const automated = new Set(port?.automated_tested_platforms ?? []);
-  const manual = new Set(port?.manually_validated_platforms ?? []);
+function exactQualificationPlatforms(port, qualificationRecords, kind) {
+  const declared = new Set(port?.platforms ?? []);
+  return new Set(
+    (qualificationRecords ?? [])
+      .filter(
+        (record) =>
+          record?.scope?.port_id === port?.id &&
+          record?.kind === kind &&
+          record?.outcome === "passed" &&
+          declared.has(record?.scope?.platform),
+      )
+      .map((record) => record.scope.platform),
+  );
+}
+
+export function qualifiedPlatforms(port, qualificationRecords = []) {
+  const automated = new Set(automatedPlatforms(port, qualificationRecords));
+  const manual = new Set(manualPlatforms(port, qualificationRecords));
   return (port?.platforms ?? []).filter(
     (platform) => automated.has(platform) && manual.has(platform),
   );
 }
 
-function automatedPlatforms(port) {
+function automatedPlatforms(port, qualificationRecords = []) {
   const automated = new Set(port?.automated_tested_platforms ?? []);
+  for (const platform of exactQualificationPlatforms(
+    port,
+    qualificationRecords,
+    "automated_lifecycle",
+  )) {
+    automated.add(platform);
+  }
   return (port?.platforms ?? []).filter((platform) => automated.has(platform));
+}
+
+function manualPlatforms(port, qualificationRecords = []) {
+  const manual = new Set(port?.manually_validated_platforms ?? []);
+  for (const platform of exactQualificationPlatforms(port, qualificationRecords, "hands_on")) {
+    manual.add(platform);
+  }
+  return (port?.platforms ?? []).filter((platform) => manual.has(platform));
 }
 
 function issueSection(body, heading) {
@@ -829,10 +859,22 @@ export function validatePortStageSemantics(catalog, items) {
   const warnings = [];
   const diagnostics = [];
   const portsById = new Map((catalog?.ports ?? []).map((port) => [port.id, port]));
+  const qualificationRecords = catalog?.source_catalog?.qualification ?? [];
 
   for (const port of portsById.values()) {
-    const automated = new Set(port.automated_tested_platforms ?? []);
-    for (const platform of port.manually_validated_platforms ?? []) {
+    const automated = new Set(automatedPlatforms(port, qualificationRecords));
+    const manualEvidence = new Set([
+      ...(port.manually_validated_platforms ?? []),
+      ...qualificationRecords
+        .filter(
+          (record) =>
+            record?.scope?.port_id === port.id &&
+            record?.kind === "hands_on" &&
+            record?.outcome === "passed",
+        )
+        .map((record) => record.scope.platform),
+    ]);
+    for (const platform of manualEvidence) {
       if (!(port.platforms ?? []).includes(platform) || !automated.has(platform)) {
         errors.push(
           `Catalog port ${port.id} has manual evidence without matching declared automated qualification for ${platform}`,
@@ -850,8 +892,8 @@ export function validatePortStageSemantics(catalog, items) {
     const ids = portCatalogMarkers(body);
     const id = ids.length === 1 ? ids[0] : null;
     const port = id ? portsById.get(id) : null;
-    const automated = automatedPlatforms(port);
-    const qualified = qualifiedPlatforms(port);
+    const automated = automatedPlatforms(port, qualificationRecords);
+    const qualified = qualifiedPlatforms(port, qualificationRecords);
 
     if (catalogedPortStages.has(stage) && (!id || !port || ids.length !== 1)) {
       errors.push(`${stage} port must have exactly one valid catalog ID: ${url}`);
@@ -890,15 +932,16 @@ export function validatePortStageSemantics(catalog, items) {
 
 export function planPortStageReconciliation(catalog, items) {
   const portsById = new Map((catalog?.ports ?? []).map((port) => [port.id, port]));
+  const qualificationRecords = catalog?.source_catalog?.qualification ?? [];
   const changes = [];
   for (const item of items ?? []) {
     if (fieldValue(item, "Port stage") !== "Supported") continue;
     const ids = portCatalogMarkers(itemBody(item));
     const port = ids.length === 1 ? portsById.get(ids[0]) : null;
-    if (qualifiedPlatforms(port).length) continue;
+    if (qualifiedPlatforms(port, qualificationRecords).length) continue;
     const next = !port
       ? "Watchlist"
-      : automatedPlatforms(port).length
+      : automatedPlatforms(port, qualificationRecords).length
         ? "Automated qualification"
         : "Cataloged";
     changes.push({

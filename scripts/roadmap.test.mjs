@@ -1182,6 +1182,93 @@ test("Port stage validation is evidence-based and platform-scoped", () => {
   );
 });
 
+test("Port stage validation consumes only passed exact qualification records", () => {
+  const port = {
+    id: "exact",
+    platforms: ["windows", "linux"],
+    automated_tested_platforms: [],
+    manually_validated_platforms: [],
+  };
+  const record = (kind, outcome, platform = "windows") => ({
+    scope: { port_id: port.id, platform },
+    kind,
+    outcome,
+  });
+  const item = (stage) => ({
+    id: `exact-${stage}`,
+    title: "[Port] Exact",
+    "port stage": stage,
+    content: {
+      type: "Issue",
+      number: 1,
+      url: "https://github.com/boburning/portcove/issues/1",
+      body: renderPortIssueBody({
+        title: "Exact",
+        upstream: "https://example.test/exact",
+        catalogId: port.id,
+      }),
+    },
+  });
+  const records = [
+    record("automated_lifecycle", "passed"),
+    record("automated_lifecycle", "passed"),
+    record("known_failure", "failed"),
+    record("hands_on", "passed"),
+    record("structural_check", "passed", "linux"),
+    record("automated_lifecycle", "failed", "linux"),
+  ];
+  const catalog = { ports: [port], source_catalog: { qualification: records } };
+
+  assert.deepEqual(qualifiedPlatforms(port, records), ["windows"]);
+  assert.deepEqual(validatePortStageSemantics(catalog, [item("Supported")]).errors, []);
+  assert.match(
+    validatePortStageSemantics(catalog, [item("Supported")]).diagnostics[0],
+    /qualified platforms = windows/,
+  );
+
+  for (const disallowed of [
+    [record("structural_check", "passed")],
+    [record("automated_lifecycle", "failed")],
+    [record("automated_lifecycle", "passed", "steam-deck")],
+  ]) {
+    const result = validatePortStageSemantics(
+      { ports: [port], source_catalog: { qualification: disallowed } },
+      [item("Automated qualification")],
+    );
+    assert.ok(result.errors.some((value) => value.includes("no automated evidence")));
+  }
+
+  const handsOnOnly = validatePortStageSemantics(
+    {
+      ports: [port],
+      source_catalog: { qualification: [record("hands_on", "passed")] },
+    },
+    [item("Supported")],
+  );
+  assert.ok(handsOnOnly.errors.some((value) => value.includes("manual evidence without matching")));
+  assert.ok(handsOnOnly.errors.some((value) => value.includes("no platform with matching")));
+
+  const undeclaredHandsOn = validatePortStageSemantics(
+    {
+      ports: [port],
+      source_catalog: {
+        qualification: [
+          record("automated_lifecycle", "passed"),
+          record("hands_on", "passed", "steam-deck"),
+        ],
+      },
+    },
+    [item("Automated qualification")],
+  );
+  assert.ok(
+    undeclaredHandsOn.errors.some(
+      (value) =>
+        value.includes("manual evidence without matching declared automated qualification") &&
+        value.includes("steam-deck"),
+    ),
+  );
+});
+
 test("Port stage validation rejects broken manual evidence non-catalog overclaim and unsupported rejection", () => {
   const invalidManual = {
     id: "manual-only",
@@ -1308,6 +1395,56 @@ test("Supported reconciliation only downgrades overstatement and becomes idempot
   for (const change of plan)
     items.find((candidate) => candidate.id === change.itemId)["port stage"] = change.to;
   assert.deepEqual(planPortStageReconciliation(catalog, items), []);
+});
+
+test("Supported reconciliation planning uses exact automated and hands-on records", () => {
+  const ports = ["none", "auto", "qualified"].map((id) => ({
+    id,
+    platforms: ["windows"],
+    automated_tested_platforms: [],
+    manually_validated_platforms: [],
+  }));
+  const qualification = [
+    {
+      scope: { port_id: "auto", platform: "windows" },
+      kind: "automated_lifecycle",
+      outcome: "passed",
+    },
+    {
+      scope: { port_id: "qualified", platform: "windows" },
+      kind: "automated_lifecycle",
+      outcome: "passed",
+    },
+    {
+      scope: { port_id: "qualified", platform: "windows" },
+      kind: "hands_on",
+      outcome: "passed",
+    },
+  ];
+  const items = ports.map((port) => ({
+    id: port.id,
+    title: `[Port] ${port.id}`,
+    "port stage": "Supported",
+    content: {
+      type: "Issue",
+      number: port.id,
+      body: renderPortIssueBody({
+        title: port.id,
+        upstream: `https://example.test/${port.id}`,
+        catalogId: port.id,
+      }),
+    },
+  }));
+
+  assert.deepEqual(
+    planPortStageReconciliation({ ports, source_catalog: { qualification } }, items).map(
+      (change) => [change.itemId, change.to],
+    ),
+    [
+      ["none", "Cataloged"],
+      ["auto", "Automated qualification"],
+    ],
+  );
 });
 
 test("normalization initializes only unset neutral fields and always classifies Work type as Port", () => {
