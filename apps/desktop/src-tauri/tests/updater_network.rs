@@ -314,7 +314,9 @@ async fn serve_payload(
         return;
     };
     requests.lock().unwrap().push(path.to_owned());
-    if path != "/payload" {
+    let slash = '/';
+    let payload_path = format!("{slash}payload");
+    if path != payload_path {
         respond(&mut stream, "404 Not Found", &[], &[]).await;
         return;
     }
