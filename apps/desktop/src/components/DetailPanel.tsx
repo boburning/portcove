@@ -730,7 +730,13 @@ function ProjectReleaseSummary({ port }: { port: PortDefinition }) {
         <ProjectLink href={port.project_url}>
           Open upstream project <Icon glyph={ExternalLink} size="sm" />
         </ProjectLink>
-        <span>Portcove checks this project for releases.</span>
+        <span>
+          {port.release.provider === "direct-manifest"
+            ? port.upstream_status === "retired"
+              ? "Portcove uses the pinned release recorded in the catalog."
+              : "Portcove uses the release details recorded in the catalog."
+            : "Portcove checks this project for releases."}
+        </span>
       </div>
     </>
   );
