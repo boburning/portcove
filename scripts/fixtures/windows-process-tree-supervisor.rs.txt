@@ -1,0 +1,217 @@
+#![allow(non_snake_case)]
+
+use std::env;
+use std::ffi::{c_void, OsStr};
+use std::path::Path;
+use std::mem::{size_of, zeroed};
+use std::os::windows::ffi::OsStrExt;
+use std::ptr::null;
+
+type Handle = *mut c_void;
+
+#[repr(C)]
+struct StartupInfo {
+    cb: u32,
+    reserved: *mut u16,
+    desktop: *mut u16,
+    title: *mut u16,
+    x: u32,
+    y: u32,
+    x_size: u32,
+    y_size: u32,
+    x_count_chars: u32,
+    y_count_chars: u32,
+    fill_attribute: u32,
+    flags: u32,
+    show_window: u16,
+    reserved2_size: u16,
+    reserved2: *mut u8,
+    standard_input: Handle,
+    standard_output: Handle,
+    standard_error: Handle,
+}
+
+#[repr(C)]
+struct ProcessInformation {
+    process: Handle,
+    thread: Handle,
+    process_id: u32,
+    thread_id: u32,
+}
+
+#[repr(C)]
+struct BasicLimitInformation {
+    per_process_user_time_limit: i64,
+    per_job_user_time_limit: i64,
+    limit_flags: u32,
+    minimum_working_set_size: usize,
+    maximum_working_set_size: usize,
+    active_process_limit: u32,
+    affinity: usize,
+    priority_class: u32,
+    scheduling_class: u32,
+}
+
+#[repr(C)]
+struct IoCounters {
+    read_operation_count: u64,
+    write_operation_count: u64,
+    other_operation_count: u64,
+    read_transfer_count: u64,
+    write_transfer_count: u64,
+    other_transfer_count: u64,
+}
+
+#[repr(C)]
+struct ExtendedLimitInformation {
+    basic_limit_information: BasicLimitInformation,
+    io_info: IoCounters,
+    process_memory_limit: usize,
+    job_memory_limit: usize,
+    peak_process_memory_used: usize,
+    peak_job_memory_used: usize,
+}
+
+#[link(name = "kernel32")]
+unsafe extern "system" {
+    fn CreateJobObjectW(attributes: *const c_void, name: *const u16) -> Handle;
+    fn SetInformationJobObject(job: Handle, class: i32, info: *const c_void, size: u32) -> i32;
+    fn CreateProcessW(
+        application: *const u16,
+        command_line: *mut u16,
+        process_attributes: *const c_void,
+        thread_attributes: *const c_void,
+        inherit_handles: i32,
+        creation_flags: u32,
+        environment: *const c_void,
+        current_directory: *const u16,
+        startup: *mut StartupInfo,
+        process: *mut ProcessInformation,
+    ) -> i32;
+    fn AssignProcessToJobObject(job: Handle, process: Handle) -> i32;
+    fn TerminateProcess(process: Handle, exit_code: u32) -> i32;
+    fn ResumeThread(thread: Handle) -> u32;
+    fn WaitForSingleObject(handle: Handle, milliseconds: u32) -> u32;
+    fn GetExitCodeProcess(process: Handle, exit_code: *mut u32) -> i32;
+    fn TerminateJobObject(job: Handle, exit_code: u32) -> i32;
+    fn CloseHandle(handle: Handle) -> i32;
+    fn GetStdHandle(identifier: u32) -> Handle;
+}
+
+const CREATE_SUSPENDED: u32 = 0x0000_0004;
+const STARTF_USESTDHANDLES: u32 = 0x0000_0100;
+const JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE: u32 = 0x0000_2000;
+const JOB_OBJECT_EXTENDED_LIMIT_INFORMATION: i32 = 9;
+const INFINITE: u32 = 0xffff_ffff;
+const WAIT_FAILED: u32 = 0xffff_ffff;
+const STD_INPUT_HANDLE: u32 = (-10_i32) as u32;
+const STD_OUTPUT_HANDLE: u32 = (-11_i32) as u32;
+const STD_ERROR_HANDLE: u32 = (-12_i32) as u32;
+
+fn quote(argument: &OsStr) -> String {
+    let value = argument.to_string_lossy();
+    if !value.is_empty() && !value.chars().any(|character| character == ' ' || character == '\t' || character == '"') {
+        return value.into_owned();
+    }
+    let mut quoted = String::from("\"");
+    let mut slashes = 0;
+    for character in value.chars() {
+        if character == '\\' {
+            slashes += 1;
+        } else {
+            if character == '"' {
+                quoted.push_str(&"\\".repeat(slashes * 2 + 1));
+            } else {
+                quoted.push_str(&"\\".repeat(slashes));
+            }
+            slashes = 0;
+            quoted.push(character);
+        }
+    }
+    quoted.push_str(&"\\".repeat(slashes * 2));
+    quoted.push('"');
+    quoted
+}
+
+fn fail(message: &str) -> ! {
+    fail_with(message, std::io::Error::last_os_error())
+}
+
+fn fail_with(message: &str, error: std::io::Error) -> ! {
+    eprintln!("{message}: {error}");
+    std::process::exit(1);
+}
+
+fn main() {
+    let mut supplied = env::args_os().skip(1);
+    let Some(gate_path) = supplied.next() else {
+        eprintln!("usage: portcove-process-tree-supervisor <gate> <command> [arguments...]");
+        std::process::exit(2);
+    };
+    let arguments: Vec<_> = supplied.collect();
+    if arguments.is_empty() {
+        eprintln!("usage: portcove-process-tree-supervisor <gate> <command> [arguments...]");
+        std::process::exit(2);
+    }
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
+    while !Path::new(&gate_path).exists() {
+        if std::time::Instant::now() >= deadline {
+            eprintln!("Heavy Rust supervisor registration gate timed out before command launch");
+            std::process::exit(1);
+        }
+        std::thread::sleep(std::time::Duration::from_millis(25));
+    }
+    let command = arguments.iter().map(|value| quote(value)).collect::<Vec<_>>().join(" ");
+    let mut command_line: Vec<u16> = OsStr::new(&command).encode_wide().chain(Some(0)).collect();
+
+    unsafe {
+        let job = CreateJobObjectW(null(), null());
+        if job.is_null() { fail("CreateJobObjectW failed"); }
+        let mut limits: ExtendedLimitInformation = zeroed();
+        limits.basic_limit_information.limit_flags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+        if SetInformationJobObject(job, JOB_OBJECT_EXTENDED_LIMIT_INFORMATION, &limits as *const _ as *const c_void, size_of::<ExtendedLimitInformation>() as u32) == 0 {
+            CloseHandle(job);
+            fail("SetInformationJobObject failed");
+        }
+
+        let mut startup: StartupInfo = zeroed();
+        startup.cb = size_of::<StartupInfo>() as u32;
+        startup.flags = STARTF_USESTDHANDLES;
+        startup.standard_input = GetStdHandle(STD_INPUT_HANDLE);
+        startup.standard_output = GetStdHandle(STD_OUTPUT_HANDLE);
+        startup.standard_error = GetStdHandle(STD_ERROR_HANDLE);
+        let mut process: ProcessInformation = zeroed();
+        if CreateProcessW(null(), command_line.as_mut_ptr(), null(), null(), 1, CREATE_SUSPENDED, null(), null(), &mut startup, &mut process) == 0 {
+            CloseHandle(job);
+            fail("CreateProcessW failed");
+        }
+        if AssignProcessToJobObject(job, process.process) == 0 {
+            let error = std::io::Error::last_os_error();
+            TerminateProcess(process.process, 1);
+            CloseHandle(process.thread);
+            CloseHandle(process.process);
+            CloseHandle(job);
+            fail_with("AssignProcessToJobObject failed", error);
+        }
+        if ResumeThread(process.thread) == u32::MAX {
+            CloseHandle(process.thread);
+            CloseHandle(process.process);
+            CloseHandle(job);
+            fail("ResumeThread failed");
+        }
+        CloseHandle(process.thread);
+        if WaitForSingleObject(process.process, INFINITE) == WAIT_FAILED {
+            let error = std::io::Error::last_os_error();
+            TerminateJobObject(job, 1);
+            CloseHandle(process.process);
+            CloseHandle(job);
+            fail_with("WaitForSingleObject failed", error);
+        }
+        let mut exit_code = 1;
+        if GetExitCodeProcess(process.process, &mut exit_code) == 0 { exit_code = 1; }
+        TerminateJobObject(job, exit_code);
+        CloseHandle(process.process);
+        CloseHandle(job);
+        std::process::exit(exit_code as i32);
+    }
+}
