@@ -934,10 +934,31 @@ impl Catalog {
                             port.runtime_source_hashes.len() == 1
                                 && port.runtime_source_hashes.contains_key(filename)
                         });
-                    if !exact_single_file_identity {
+                    let exact_psx_bin_cue_identity = materialization
+                        == RuntimeSourceMaterialization::PsxBinCue
+                        && port.runtime_source_hashes.contains_key("disc.cue")
+                        && port.runtime_source_hashes.contains_key("disc1.bin")
+                        && port.runtime_source_hashes.keys().all(|relative| {
+                            relative == "disc.cue"
+                                || relative
+                                    .strip_prefix("disc")
+                                    .and_then(|value| value.strip_suffix(".bin"))
+                                    .is_some_and(|value| {
+                                        !value.is_empty()
+                                            && !value.starts_with('0')
+                                            && value.bytes().all(|byte| byte.is_ascii_digit())
+                                    })
+                        });
+                    if !exact_single_file_identity && !exact_psx_bin_cue_identity {
+                        let identity_kind =
+                            if materialization == RuntimeSourceMaterialization::PsxBinCue {
+                                "PSX BIN/CUE"
+                            } else {
+                                "single-file"
+                            };
                         return Err(PortcoveError::usage(format!(
-                            "{} has an invalid single-file runtime identity",
-                            port.id
+                            "{} has an invalid {identity_kind} runtime identity",
+                            port.id,
                         )));
                     }
                 }
@@ -1270,7 +1291,7 @@ mod tests {
         let source_catalog = migrated.source_catalog().expect("schema-2 authority");
         assert_eq!(
             source_catalog.identities.len(),
-            legacy.document().source_profiles.len() + 5
+            legacy.document().source_profiles.len() + 6
         );
         let projected_legacy_profiles = migrated
             .document()
@@ -1283,6 +1304,7 @@ mod tests {
                     "diddy-kong-racing-golden-balloon",
                     "star-fox-enhanced-usa-v1-0",
                     "duke-nukem-zero-hour",
+                    "ape-escape-psx",
                 ]
                 .contains(&profile.id.as_str())
             })
@@ -1429,6 +1451,7 @@ mod tests {
                     "diddy-kong-racing-golden-balloon",
                     "star-fox-enhanced",
                     "duke-nukem-zero-hour-recompiled",
+                    "ape-escape-recompiled",
                 ]
                 .contains(&port.id.as_str())
             })
@@ -1450,7 +1473,7 @@ mod tests {
             serde_json::to_value(expected_ports).unwrap()
         );
         let qualification = &migrated.source_catalog().unwrap().qualification;
-        assert_eq!(qualification.len(), 14);
+        assert_eq!(qualification.len(), 16);
         assert_eq!(
             qualification
                 .iter()
@@ -1485,6 +1508,13 @@ mod tests {
             qualification
                 .iter()
                 .filter(|record| { record.scope.port_id == "duke-nukem-zero-hour-recompiled" })
+                .count(),
+            2
+        );
+        assert_eq!(
+            qualification
+                .iter()
+                .filter(|record| record.scope.port_id == "ape-escape-recompiled")
                 .count(),
             2
         );
@@ -1591,7 +1621,7 @@ mod tests {
 
         assert!(document.get("source_catalog").is_some());
         assert!(document.get("source_profiles").is_none());
-        assert_eq!(document["ports"].as_array().unwrap().len(), 72);
+        assert_eq!(document["ports"].as_array().unwrap().len(), 73);
     }
 
     #[test]
@@ -1836,6 +1866,7 @@ mod tests {
                     "diddy-kong-racing-golden-balloon",
                     "star-fox-enhanced-usa-v1-0",
                     "duke-nukem-zero-hour",
+                    "ape-escape-psx",
                 ]
                 .contains(&profile.id.as_str())
             })
@@ -3442,6 +3473,145 @@ mod tests {
         assert_eq!(
             mismatched_artifact.automated_lifecycle,
             crate::QualificationEvidenceState::Missing
+        );
+    }
+
+    #[test]
+    fn ape_escape_has_exact_source_runtime_ownership_and_windows_qualification() {
+        let catalog = Catalog::embedded().expect("catalog should load");
+        let port = catalog
+            .port("ape-escape-recompiled")
+            .expect("Ape Escape Recompiled should exist");
+        assert_eq!(port.support_tier, crate::SupportTier::Beta);
+        assert_eq!(port.adapter, AdapterKind::StagedSourcePortable);
+        assert_eq!(port.channels, vec![crate::ReleaseChannel::Stable]);
+        assert_eq!(port.platforms, vec![Platform::WindowsX86_64]);
+        assert!(port.automated_tested_platforms.is_empty());
+        assert!(port.manually_validated_platforms.is_empty());
+        assert_eq!(port.runtime_source_filename.as_deref(), Some("disc"));
+        assert_eq!(
+            port.runtime_source_materialization,
+            Some(RuntimeSourceMaterialization::PsxBinCue)
+        );
+        assert!(port.persistent_paths.iter().any(|path| path == "saves"));
+        assert!(!port.persistent_paths.iter().any(|path| path == "disc"));
+        for path in [
+            "cache",
+            "disc",
+            "overlay_captures.json",
+            "overlay_captures.json.d",
+            "psx_freeze_heartbeat.json",
+            "psx_last_run_report.json",
+        ] {
+            assert!(port.runtime_mutable_paths.iter().any(|entry| entry == path));
+        }
+        assert_eq!(port.runtime_mutable_file_patterns.len(), 1);
+        assert!(
+            port.runtime_mutable_file_patterns[0]
+                .matches("psx_freeze_dump_psx-runtime_1789544052_1.json")
+        );
+        assert!(!port.runtime_mutable_file_patterns[0].matches("other.json"));
+
+        let profile = catalog.source_profile("ape-escape-psx").unwrap();
+        assert_eq!(
+            profile.accepted_sha1,
+            vec!["466cce4bcd6992f57227abd270323bcdad2fb7fc"]
+        );
+        assert_eq!(
+            profile.accepted_sha256,
+            vec!["1ae17e78ebb8c782c7c1785b0a0bd7b0ee28235b8a0c83c8df887129899a852a"]
+        );
+        assert_eq!(profile.accepted_extensions, vec!["chd"]);
+        assert_eq!(
+            port.runtime_source_hashes
+                .get("disc.cue")
+                .map(String::as_str),
+            Some("a5023a08a8330c83ada9bcfb75303359f353dd37e04db8ef7a0f23703ec56d41")
+        );
+        assert_eq!(
+            port.runtime_source_hashes
+                .get("disc1.bin")
+                .map(String::as_str),
+            Some("1ae17e78ebb8c782c7c1785b0a0bd7b0ee28235b8a0c83c8df887129899a852a")
+        );
+
+        let source_catalog = catalog.source_catalog().unwrap();
+        let contract = source_catalog
+            .contracts
+            .iter()
+            .find(|contract| {
+                contract.port_id == port.id && contract.role == crate::PortSourceRole::Game
+            })
+            .expect("Ape Escape source contract should exist");
+        assert_eq!(contract.supported_variant_ids, vec!["usa-rev0"]);
+        assert!(contract.evidence_ids.iter().any(|evidence_id| {
+            evidence_id == "ape-escape-recompiled-windows-lifecycle-2026-09-16"
+        }));
+
+        let scope = crate::SourceEvidenceScope {
+            port_id: port.id.clone(),
+            platform: Platform::WindowsX86_64,
+            artifact_sha256: Some(
+                "91e2cde5f16408ff51b4b822ebba8b811c4e591263170cb49f33a486606c58e9".into(),
+            ),
+            upstream_ref: Some("v0.3.0".into()),
+            contract_id: Some("ape-escape-recompiled-game-source".into()),
+            variant: crate::SourceVariantScope::Exact {
+                identity: crate::SourceIdentity {
+                    game_id: "ape-escape-psx".into(),
+                    variant_id: "usa-rev0".into(),
+                    representation_id: "normalized-track-set".into(),
+                },
+            },
+            check_version: Some("ape-escape-windows-qualification-v1".into()),
+        };
+        let qualification = source_catalog.assess_qualification(&scope);
+        assert_eq!(
+            qualification.structural_check,
+            crate::QualificationEvidenceState::Passed
+        );
+        assert_eq!(
+            qualification.automated_lifecycle,
+            crate::QualificationEvidenceState::Passed
+        );
+        assert_eq!(
+            qualification.hands_on,
+            crate::QualificationEvidenceState::Missing
+        );
+
+        let mismatched_artifact =
+            source_catalog.assess_qualification(&crate::SourceEvidenceScope {
+                artifact_sha256: Some(
+                    "0000000000000000000000000000000000000000000000000000000000000000".into(),
+                ),
+                ..scope
+            });
+        assert_eq!(
+            mismatched_artifact.structural_check,
+            crate::QualificationEvidenceState::Missing
+        );
+        assert_eq!(
+            mismatched_artifact.automated_lifecycle,
+            crate::QualificationEvidenceState::Missing
+        );
+    }
+
+    #[test]
+    fn psx_bin_cue_runtime_identity_requires_the_cue_and_first_track() {
+        let mut catalog = Catalog::embedded().expect("catalog should load");
+        let port = catalog
+            .document
+            .ports
+            .iter_mut()
+            .find(|port| port.id == "ape-escape-recompiled")
+            .unwrap();
+        port.runtime_source_hashes.remove("disc1.bin");
+
+        let error = catalog.validate().unwrap_err();
+        assert!(
+            error
+                .to_string()
+                .contains("invalid PSX BIN/CUE runtime identity")
         );
     }
 

@@ -6,6 +6,7 @@ fn main() {
     let args = env::args().skip(1).collect::<Vec<_>>();
     match args.first().map(String::as_str) {
         Some("extractdvd") => owned_conversion(&args),
+        Some("extractcd") => owned_psx_conversion(&args),
         Some("--owned-preparation") => owned_preparation(&args),
         Some("--game") if args.iter().any(|argument| argument == "--extract") => owned_preparation(&args),
         Some("--game") => {
@@ -140,4 +141,11 @@ fn owned_conversion(args: &[String]) {
         },
         _ => panic!("unknown conversion fixture mode"),
     }
+}
+
+fn owned_psx_conversion(args: &[String]) {
+    let cue = std::path::Path::new(args.windows(2).find(|pair| pair[0] == "-o").unwrap()[1].as_str());
+    let bins = args.windows(2).find(|pair| pair[0] == "-ob").unwrap()[1].replace("%t", "1");
+    fs::write(cue, b"FILE \"disc1.bin\" BINARY\n  TRACK 01 MODE2/2352\n    INDEX 01 00:00:00\n").unwrap();
+    fs::write(bins, b"owned psx track").unwrap();
 }

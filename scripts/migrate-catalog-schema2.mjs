@@ -85,6 +85,19 @@ const reviewedSources = {
     path: "README.md",
     reviewedAt: "2026-09-13",
   },
+  apeEscapeRecomp: {
+    evidenceId: "ape-escape-recompiled-0-3-0-source-contract",
+    sourceEvidenceId: "ape-escape-recompiled-windows-2026-09-16",
+    lifecycleEvidenceId: "ape-escape-recompiled-windows-lifecycle-2026-09-16",
+    repository: "mstan/ApeEscapeRecomp",
+    ref: "831a478c355433de1021fb28cf7f7a03c895ab77",
+    tag: "v0.3.0",
+    liveRef: "master",
+    path: "DISC.md",
+    reviewedAt: "2026-09-16",
+    lifecycleRef: "58b6e05c6c29db6d8adfd0578e00e438fd285a40",
+    qualificationRef: "5219c00ab7f14fccd93200ea79eb4f7d48f02f23",
+  },
   cvlodRecomp: {
     evidenceId: "cvlod-recomp-0-2-26-source-contract",
     repository: "fliperama86/cvlod_recomp",
@@ -194,6 +207,34 @@ const evidence = [
     reviewedSources.snap64Recomp,
     "Limits Snap64 Recomp 1.0.5 to the US Pokemon Snap source and documents portable data-root isolation",
   ),
+  upstreamEvidence(
+    reviewedSources.apeEscapeRecomp,
+    "Limits Ape Escape Recompiled 0.3.0 to the exact US SCUS-94423 single-track MODE2/2352 source",
+  ),
+  {
+    id: reviewedSources.apeEscapeRecomp.sourceEvidenceId,
+    role: "byte_identity",
+    authority: "boburning/portcove",
+    authority_ref: reviewedSources.apeEscapeRecomp.qualificationRef,
+    reviewed_at: reviewedSources.apeEscapeRecomp.reviewedAt,
+    claim:
+      "Records the exact authorized USA source identity, GitHub artifact identity, archive and runtime ownership preflight, generated-source reuse repair, and responsive Windows launcher",
+    immutable_url: `https://github.com/boburning/portcove/blob/${reviewedSources.apeEscapeRecomp.qualificationRef}/docs/qualification/ape-escape-recompiled-windows-2026-09-16.md`,
+    live_url:
+      "https://github.com/boburning/portcove/blob/main/docs/qualification/ape-escape-recompiled-windows-2026-09-16.md",
+  },
+  {
+    id: reviewedSources.apeEscapeRecomp.lifecycleEvidenceId,
+    role: "portcove_qualification",
+    authority: "boburning/portcove",
+    authority_ref: reviewedSources.apeEscapeRecomp.qualificationRef,
+    reviewed_at: reviewedSources.apeEscapeRecomp.reviewedAt,
+    claim:
+      "Records exact source refusal and admission, dynamic GitHub resolution, install, verification with bounded runtime diagnostics and exact generated-source reuse, responsive launch, persistent-only backup and restore, adopt, update, rollback, retained reuse, removal, reinstall, and persistent-state preservation",
+    immutable_url: `https://github.com/boburning/portcove/blob/${reviewedSources.apeEscapeRecomp.qualificationRef}/docs/qualification/ape-escape-recompiled-windows-2026-09-16.md`,
+    live_url:
+      "https://github.com/boburning/portcove/blob/main/docs/qualification/ape-escape-recompiled-windows-2026-09-16.md",
+  },
   upstreamEvidence(
     reviewedSources.cvlodRecomp,
     "Limits LodRecomp 0.2.26 to the North American Castlevania: Legacy of Darkness source",
@@ -669,6 +710,41 @@ identities.push({
   evidence_gap: null,
 });
 
+identities.push({
+  id: "ape-escape-psx",
+  label: "Ape Escape (USA) disc",
+  kind: "optical-disc",
+  variants: [
+    {
+      id: "usa-rev0",
+      title: "Ape Escape",
+      region: "USA",
+      revision: "Rev 0",
+      product_codes: ["SCUS-94423"],
+      representations: [
+        {
+          id: "normalized-track-set",
+          extensions: ["chd"],
+          kind: "optical-track-set",
+          track_counts: [1],
+          identities: [
+            digest(
+              "psx-normalized-track-set",
+              "466cce4bcd6992f57227abd270323bcdad2fb7fc",
+              "1ae17e78ebb8c782c7c1785b0a0bd7b0ee28235b8a0c83c8df887129899a852a",
+            ),
+          ],
+          evidence_ids: [reviewedSources.apeEscapeRecomp.evidenceId],
+        },
+      ],
+      evidence_ids: [reviewedSources.apeEscapeRecomp.evidenceId],
+    },
+  ],
+  aliases: [],
+  tombstones: [],
+  evidence_gap: null,
+});
+
 applyReviewedVariants("ghostship-source", [
   n64Variant(
     "super-mario-64-us",
@@ -1087,6 +1163,35 @@ contracts.push({
   tombstones: [],
 });
 
+contracts.push({
+  id: "ape-escape-recompiled-game-source",
+  port_id: "ape-escape-recompiled",
+  role: "game",
+  profile_id: "ape-escape-psx",
+  admission_mode: "enforced",
+  supported_variant_ids: ["usa-rev0"],
+  validator_contract_id: null,
+  evidence_ids: [
+    reviewedSources.apeEscapeRecomp.evidenceId,
+    reviewedSources.apeEscapeRecomp.sourceEvidenceId,
+    reviewedSources.apeEscapeRecomp.lifecycleEvidenceId,
+  ],
+  authority_ref: reviewedSources.apeEscapeRecomp.qualificationRef,
+  reviewed_at: reviewedSources.apeEscapeRecomp.reviewedAt,
+  immutable_review_url: `https://github.com/boburning/portcove/blob/${reviewedSources.apeEscapeRecomp.qualificationRef}/docs/qualification/ape-escape-recompiled-windows-2026-09-16.md`,
+  live_review_url:
+    "https://github.com/boburning/portcove/blob/main/docs/qualification/ape-escape-recompiled-windows-2026-09-16.md",
+  evidence_gap: null,
+  applicability: [
+    {
+      upstream_ref: reviewedSources.apeEscapeRecomp.tag,
+      artifact_sha256: "91e2cde5f16408ff51b4b822ebba8b811c4e591263170cb49f33a486606c58e9",
+    },
+  ],
+  aliases: [],
+  tombstones: [],
+});
+
 function reviewContract(portId, source, supportedVariantIds, extraEvidenceIds = []) {
   const contract = contracts.find(
     (candidate) => candidate.port_id === portId && candidate.role === "game",
@@ -1266,6 +1371,7 @@ const normalizedSummaries = {
   "star-fox-enhanced":
     "Expands Star Fox and Star Fox EX with widescreen presentation and configurable controls.",
   "duke-nukem-zero-hour-recompiled": "Native Duke Nukem: Zero Hour recompilation.",
+  "ape-escape-recompiled": "Native Ape Escape recompilation.",
 };
 
 function sourceRequirement(port, role, field) {
@@ -1693,6 +1799,58 @@ const migrated = {
           "Exact source admission, live GitLab resolution, install, 47-file verification, responsive native launches, fail-closed and successful restore, adopted-to-downloaded update, rollback, retained reuse, removal, reinstall, and persistent-state preservation",
         evidence_ids: [reviewedSources.dukeNukemZeroHour.lifecycleEvidenceId],
       },
+      {
+        scope: {
+          port_id: "ape-escape-recompiled",
+          platform: "windows-x86-64",
+          artifact_sha256: "91e2cde5f16408ff51b4b822ebba8b811c4e591263170cb49f33a486606c58e9",
+          upstream_ref: "v0.3.0",
+          contract_id: "ape-escape-recompiled-game-source",
+          variant: {
+            state: "exact",
+            identity: {
+              game_id: "ape-escape-psx",
+              variant_id: "usa-rev0",
+              representation_id: "normalized-track-set",
+            },
+          },
+          check_version: "ape-escape-windows-qualification-v1",
+        },
+        kind: "structural_check",
+        outcome: "passed",
+        observed_at: 1789544598,
+        portcove_version: "0.1.0-alpha.2",
+        portcove_commit: reviewedSources.apeEscapeRecomp.lifecycleRef,
+        method:
+          "Exact GitHub release, artifact and sidecar identity, normalized source identity and valid-CHD mismatch rejection, executable, persistence, generated-source, bounded runtime-output, and immutable-manifest binding checks",
+        evidence_ids: [reviewedSources.apeEscapeRecomp.lifecycleEvidenceId],
+      },
+      {
+        scope: {
+          port_id: "ape-escape-recompiled",
+          platform: "windows-x86-64",
+          artifact_sha256: "91e2cde5f16408ff51b4b822ebba8b811c4e591263170cb49f33a486606c58e9",
+          upstream_ref: "v0.3.0",
+          contract_id: "ape-escape-recompiled-game-source",
+          variant: {
+            state: "exact",
+            identity: {
+              game_id: "ape-escape-psx",
+              variant_id: "usa-rev0",
+              representation_id: "normalized-track-set",
+            },
+          },
+          check_version: "ape-escape-windows-qualification-v1",
+        },
+        kind: "automated_lifecycle",
+        outcome: "passed",
+        observed_at: 1789544598,
+        portcove_version: "0.1.0-alpha.2",
+        portcove_commit: reviewedSources.apeEscapeRecomp.lifecycleRef,
+        method:
+          "Exact source admission, live GitHub resolution, install, 287-file post-launch verification with bounded dynamic diagnostics, responsive native launch, persistent-only backup and guarded restore, adopted-to-downloaded update, rollback, retained reuse, removal, reinstall, and persistent-state preservation",
+        evidence_ids: [reviewedSources.apeEscapeRecomp.lifecycleEvidenceId],
+      },
     ],
   },
   ports: [
@@ -2008,6 +2166,68 @@ const migrated = {
       portable_marker: true,
       runtime_source_filename: "dnzh.us.z64",
       runtime_source_materialization: "n64-big-endian",
+    }),
+    withPresentation({
+      id: "ape-escape-recompiled",
+      name: "Ape Escape Recompiled",
+      summary: "Native Ape Escape recompilation.",
+      project_url: "https://github.com/mstan/ApeEscapeRecomp",
+      support_tier: "beta",
+      channels: ["stable"],
+      platforms: ["windows-x86-64"],
+      automated_tested_platforms: [],
+      manually_validated_platforms: [],
+      adapter: "staged-source-portable",
+      release: {
+        repository: "mstan/ApeEscapeRecomp",
+        asset_hints: {
+          "windows-x86-64": ["ApeEscapeRecomp-", "-windows-x64.zip"],
+        },
+      },
+      source_profile: "ape-escape-psx",
+      executable_hints: {
+        "windows-x86-64": ["ApeEscapeRecomp.exe"],
+      },
+      persistent_paths: [
+        "saves",
+        "settings.toml",
+        "input.ini",
+        "keybinds.ini",
+        "disc.cfg",
+        "bios.cfg",
+        "mods",
+      ],
+      runtime_mutable_paths: [
+        "cache",
+        "disc",
+        "overlay_captures.json",
+        "overlay_captures.json.d",
+        "psx_freeze_heartbeat.json",
+        "psx_last_run_report.json",
+      ],
+      runtime_mutable_file_patterns: [
+        {
+          prefix: "psx_freeze_dump_psx-runtime_",
+          suffix: ".json",
+        },
+      ],
+      launch_arguments: [
+        "--no-launcher",
+        "--memcard-dir",
+        "saves",
+        "--game",
+        "game.toml",
+        "--bios",
+        "bios/openbios.bin",
+        "--disc",
+        "disc/disc.cue",
+      ],
+      runtime_source_filename: "disc",
+      runtime_source_materialization: "psx-bin-cue",
+      runtime_source_hashes: {
+        "disc.cue": "a5023a08a8330c83ada9bcfb75303359f353dd37e04db8ef7a0f23703ec56d41",
+        "disc1.bin": "1ae17e78ebb8c782c7c1785b0a0bd7b0ee28235b8a0c83c8df887129899a852a",
+      },
     }),
   ],
 };
