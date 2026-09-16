@@ -134,6 +134,8 @@ impl StagingJournal {
 #[derive(Debug, Clone)]
 pub struct ApplicationUpdateStagingStore {
     root: PathBuf,
+    #[cfg(feature = "application-update-qualification")]
+    controlled_available_space: Option<u64>,
 }
 
 struct ProcessStagingLock {
@@ -188,7 +190,21 @@ impl ApplicationUpdateStagingStore {
 
     pub fn new(root: PathBuf) -> Result<Self, ApplicationUpdateStagingError> {
         validate_root(&root)?;
-        Ok(Self { root })
+        Ok(Self {
+            root,
+            #[cfg(feature = "application-update-qualification")]
+            controlled_available_space: None,
+        })
+    }
+
+    /// Caps only the staging capacity observation in controlled qualification.
+    /// The real observation remains authoritative, so this cannot grant capacity.
+    /// Payload acquisition, verification, journaling and publication remain unchanged.
+    #[cfg(feature = "application-update-qualification")]
+    #[must_use]
+    pub fn with_controlled_available_space(mut self, available: u64) -> Self {
+        self.controlled_available_space = Some(available);
+        self
     }
 
     pub fn payload_path(&self) -> PathBuf {
@@ -259,6 +275,12 @@ impl ApplicationUpdateStagingStore {
         let _lock = self.lock()?;
         let previous = self.reconcile_locked().await?;
         let required = required_staging_bytes(candidate.release.artifact.bytes)?;
+        #[cfg(feature = "application-update-qualification")]
+        let available = controlled_available_space(
+            fs2::available_space(&self.root)?,
+            self.controlled_available_space,
+        );
+        #[cfg(not(feature = "application-update-qualification"))]
         let available = fs2::available_space(&self.root)?;
         if available < required {
             return Err(ApplicationUpdateStagingError::InsufficientSpace {
@@ -638,6 +660,11 @@ fn required_staging_bytes(payload_bytes: u64) -> Result<u64, ApplicationUpdateSt
     })
 }
 
+#[cfg(feature = "application-update-qualification")]
+fn controlled_available_space(observed: u64, controlled: Option<u64>) -> u64 {
+    controlled.map_or(observed, |available| observed.min(available))
+}
+
 fn validate_journal(journal: &StagingJournal) -> Result<(), ApplicationUpdateStagingError> {
     if journal.schema_version != STAGING_SCHEMA_VERSION {
         return Err(ApplicationUpdateStagingError::UnsupportedSchema(
@@ -1001,5 +1028,13 @@ mod tests {
         assert!(store.reconcile().await.unwrap().is_none());
         assert!(!store.payload_path().exists());
         assert_eq!(required_staging_bytes(4).unwrap(), 8);
+    }
+
+    #[cfg(feature = "application-update-qualification")]
+    #[test]
+    fn controlled_capacity_can_only_reduce_the_real_observation() {
+        assert_eq!(controlled_available_space(4, None), 4);
+        assert_eq!(controlled_available_space(4, Some(0)), 0);
+        assert_eq!(controlled_available_space(4, Some(u64::MAX)), 4);
     }
 }

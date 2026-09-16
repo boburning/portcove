@@ -444,7 +444,12 @@ into the existing verified staging store. It establishes one verified staged
 candidate, rejects same-length altered bytes by authenticated SHA-256 and a
 truncated stream by early EOF, removes each incomplete incoming file, and preserves
 the exact prior candidate and payload before an exact-body retry stages the newer
-candidate. The fixture contains only disposable public verification material; it
+candidate. A controlled qualification-only capacity observation also refuses that
+exact newer payload below the existing staging-space bound before journal mutation,
+preserves the prior verified state, and recovers when ordinary capacity observation
+is restored. This proves deterministic capacity preflight, not an actual full disk,
+mid-write `ENOSPC` or a read-only filesystem. The fixture contains only disposable
+public verification material; it
 does not grant signing, feed, publication, apply or replacement authority. This is
 still controlled loopback acquisition and staging evidence, not production
 transport, a packaged update or physical-platform qualification.
