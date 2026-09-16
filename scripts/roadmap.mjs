@@ -2,6 +2,13 @@ import { spawnSync } from "node:child_process";
 import { access, readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  githubRateLimitMessage,
+  nextLink,
+  parseIncludedResponse,
+  rateLimitFromResponse,
+} from "./github-api.mjs";
+import { acquireOwnedProcessLock } from "./process-lock.mjs";
 
 const scriptPath = fileURLToPath(import.meta.url);
 const projectRoot = path.resolve(path.dirname(scriptPath), "..");
@@ -103,6 +110,68 @@ const setFlags = new Map([
   ["--port-stage", "Port stage"],
   ["--effort", "Effort"],
 ]);
+const maximumBatchAssignments = 100;
+
+function requireExactKeys(value, expected, label) {
+  const actual = Object.keys(value ?? {}).sort();
+  const wanted = [...expected].sort();
+  if (JSON.stringify(actual) !== JSON.stringify(wanted))
+    throw new Error(`${label} must contain exactly: ${wanted.join(", ")}`);
+}
+
+export function validateSetManySpec(config, spec) {
+  requireExactKeys(spec, ["schema_version", "updates"], "set-many specification");
+  if (spec.schema_version !== 1) throw new Error("set-many schema_version must be 1");
+  if (!Array.isArray(spec.updates) || !spec.updates.length)
+    throw new Error("set-many updates must be a non-empty array");
+  const targets = new Set();
+  let assignments = 0;
+  const updates = spec.updates.map((update, updateIndex) => {
+    requireExactKeys(update, ["fields", "target"], `set-many update ${updateIndex + 1}`);
+    ensureString(update.target, `set-many update ${updateIndex + 1} target`);
+    if (targets.has(update.target)) throw new Error(`duplicate set-many target: ${update.target}`);
+    targets.add(update.target);
+    if (
+      !update.fields ||
+      typeof update.fields !== "object" ||
+      Array.isArray(update.fields) ||
+      !Object.keys(update.fields).length
+    ) {
+      throw new Error(`set-many update ${update.target} fields must be a non-empty object`);
+    }
+    const fields = {};
+    for (const [fieldName, transition] of Object.entries(update.fields)) {
+      const definition = config.fields.find((field) => field.name === fieldName);
+      if (!definition) throw new Error(`Project field not found: ${fieldName}`);
+      requireExactKeys(transition, ["from", "to"], `${update.target} ${fieldName} transition`);
+      if (transition.from !== null && !definition.options.includes(transition.from))
+        throw new Error(`${transition.from} is not a valid ${fieldName} source option`);
+      if (!definition.options.includes(transition.to))
+        throw new Error(`${transition.to} is not a valid ${fieldName} target option`);
+      if (transition.from === transition.to)
+        throw new Error(`${update.target} ${fieldName} transition does not change the value`);
+      fields[fieldName] = { from: transition.from, to: transition.to };
+      assignments += 1;
+    }
+    return { target: update.target, fields };
+  });
+  if (assignments > maximumBatchAssignments)
+    throw new Error(`set-many supports at most ${maximumBatchAssignments} field assignments`);
+  return { schema_version: 1, updates, assignments };
+}
+
+export function setManyRequiredReserve(preflightCost, pendingAssignments) {
+  if (
+    !Number.isSafeInteger(preflightCost) ||
+    preflightCost < 0 ||
+    !Number.isSafeInteger(pendingAssignments) ||
+    pendingAssignments < 0 ||
+    pendingAssignments > maximumBatchAssignments
+  ) {
+    throw new Error("set-many quota inputs are invalid");
+  }
+  return 2 * preflightCost + pendingAssignments + 100;
+}
 
 function normalizedKey(value) {
   return String(value ?? "")
@@ -809,6 +878,10 @@ export function parseArguments(argv) {
       continue;
     }
     const [name, inline] = token.split("=", 2);
+    if (name === "--apply" && inline === undefined) {
+      options[name] = true;
+      continue;
+    }
     const value = inline ?? argv[index + 1];
     if (!value || value.startsWith("--")) throw new Error(`${name} requires a value`);
     options[name] = value;
@@ -819,7 +892,7 @@ export function parseArguments(argv) {
 
 export const roadmapHelp = `Portcove Roadmap maintainer tool
 
-Usage:
+usage:
   node scripts/roadmap.mjs check
   node scripts/roadmap.mjs doctor
   node scripts/roadmap.mjs capture-port --title <title> --url <https-url> (--port-key <key> | --catalog-id <id>)
@@ -827,6 +900,7 @@ Usage:
   node scripts/roadmap.mjs capture-feature --title <title> [planning field options]
   node scripts/roadmap.mjs promote <draft-item-id> [--spec-file <path>]
   node scripts/roadmap.mjs set <item-or-issue> [field options]
+  node scripts/roadmap.mjs set-many --spec-file <path> [--apply]
   node scripts/roadmap.mjs move <item> --before <item>
   node scripts/roadmap.mjs next
   node scripts/roadmap.mjs readiness --release <release>
@@ -1387,6 +1461,7 @@ export class RoadmapClient {
   constructor(config, run = defaultRunner) {
     this.config = config;
     this.run = run;
+    this.graphqlRate = null;
   }
 
   gh(args, input) {
@@ -1398,14 +1473,39 @@ export class RoadmapClient {
     return output ? JSON.parse(output) : null;
   }
 
+  included(args, input) {
+    return parseIncludedResponse(this.gh(args, input));
+  }
+
   graphql(query, variables = {}) {
-    const result = this.json(
-      ["api", "graphql", "--input", "-"],
+    const response = this.included(
+      ["api", "graphql", "--include", "--input", "-"],
       `${JSON.stringify({ query, variables })}\n`,
     );
+    const result = response.body;
+    const rate = rateLimitFromResponse(response);
+    if (rate.remaining !== null || rate.used !== null) this.graphqlRate = rate;
     if (result?.errors?.length)
-      throw new Error(result.errors.map((error) => error.message).join("; "));
+      throw new Error(
+        `${result.errors.map((error) => error.message).join("; ")}` +
+          (rate.remaining !== null ? ` (${githubRateLimitMessage(rate)})` : ""),
+      );
     return result?.data;
+  }
+
+  sampleGraphqlRate() {
+    const rate = this.graphql(
+      "query { rateLimit { cost limit remaining resetAt used } }",
+    )?.rateLimit;
+    if (
+      !Number.isSafeInteger(rate?.remaining) ||
+      !Number.isSafeInteger(rate?.used) ||
+      typeof rate?.resetAt !== "string"
+    ) {
+      throw new Error("GitHub GraphQL rate-limit metadata is unavailable");
+    }
+    this.graphqlRate = { resource: "graphql", ...rate };
+    return this.graphqlRate;
   }
 
   readInventory(query, variables, connection, identity) {
@@ -1519,20 +1619,31 @@ export class RoadmapClient {
     ]);
   }
 
-  itemList(number, { includeDependencies = false } = {}) {
-    const details = this.projectDetails(number);
+  itemList(number, { includeDependencies = false, details: suppliedDetails = null } = {}) {
+    const details = suppliedDetails ?? this.projectDetails(number);
     if (!details?.id)
       throw new Error("incomplete GitHub inventory: Project identity is unavailable");
     const dependencies = includeDependencies
       ? "blockedBy(first: 10) { totalCount nodes { id number title url state } }"
       : "";
-    const query = `query($id: ID!, $after: String) { node(id: $id) { ... on ProjectV2 { items(first: 50, after: $after) { totalCount nodes { id content { __typename ... on DraftIssue { title body } ... on Issue { id number title body url state ${dependencies} } ... on PullRequest { number title body url state merged } } fieldValues(first: 25) { nodes { ... on ProjectV2ItemFieldSingleSelectValue { name field { ... on ProjectV2SingleSelectField { name } } } } } } pageInfo { hasNextPage endCursor } } } } }`;
+    const query = `query($id: ID!, $after: String) { node(id: $id) { ... on ProjectV2 { items(first: 50, after: $after) { totalCount nodes { id content { __typename ... on DraftIssue { title body } ... on Issue { id number title body url state ${dependencies} } ... on PullRequest { number title body url state merged } } fieldValues(first: 25) { totalCount nodes { ... on ProjectV2ItemFieldSingleSelectValue { name field { ... on ProjectV2SingleSelectField { name } } } } pageInfo { hasNextPage endCursor } } } pageInfo { hasNextPage endCursor } } } } }`;
     return this.readInventory(
       query,
       { id: details.id },
       (data) => data?.node?.items,
       (node) => node.id,
     ).map((node) => {
+      if (
+        !Number.isSafeInteger(node.fieldValues?.totalCount) ||
+        node.fieldValues.totalCount < 0 ||
+        !Array.isArray(node.fieldValues.nodes) ||
+        node.fieldValues.nodes.length !== node.fieldValues.totalCount ||
+        node.fieldValues.pageInfo?.hasNextPage !== false
+      ) {
+        throw new Error(
+          `incomplete GitHub inventory: Project item ${node.id} fields are truncated`,
+        );
+      }
       const content = node.content ? { ...node.content, type: node.content.__typename } : null;
       const fieldValues = (node.fieldValues?.nodes ?? [])
         .map((value) => ({
@@ -1551,16 +1662,63 @@ export class RoadmapClient {
   }
 
   repositoryIssues() {
-    const [owner, name, ...rest] = this.config.repository.split("/");
-    if (!owner || !name || rest.length)
-      throw new Error(`invalid repository identity: ${this.config.repository}`);
-    const query = `query($owner: String!, $name: String!, $after: String) { repository(owner: $owner, name: $name) { issues(first: 100, after: $after, orderBy: { field: CREATED_AT, direction: ASC }) { totalCount nodes { __typename number title body url state } pageInfo { hasNextPage endCursor } } } }`;
-    return this.readInventory(
-      query,
-      { owner, name },
-      (data) => data?.repository?.issues,
-      (issue) => (Number.isSafeInteger(issue.number) && issue.number > 0 ? issue.number : null),
-    ).map((issue) => ({ ...issue, type: issue.__typename ?? "Issue" }));
+    const marker = () => {
+      const response = this.included([
+        "api",
+        "--include",
+        `repos/${this.config.repository}/issues?state=all&sort=created&direction=desc&per_page=1`,
+      ]);
+      if (!Array.isArray(response.body))
+        throw new Error("incomplete GitHub inventory: malformed repository issue marker");
+      const number = response.body[0]?.number ?? 0;
+      if (!Number.isSafeInteger(number) || number < 0)
+        throw new Error("incomplete GitHub inventory: invalid repository issue marker");
+      return number;
+    };
+    const highWater = marker();
+    const records = [];
+    const nodeIds = new Set();
+    const numbers = new Set();
+    const pages = new Set();
+    let endpoint = `repos/${this.config.repository}/issues?state=all&sort=created&direction=asc&per_page=100`;
+    while (endpoint) {
+      if (pages.has(endpoint))
+        throw new Error("incomplete GitHub inventory: REST pagination did not advance");
+      pages.add(endpoint);
+      const response = this.included(["api", "--include", endpoint]);
+      if (!Array.isArray(response.body))
+        throw new Error("incomplete GitHub inventory: malformed repository issue page");
+      for (const record of response.body) {
+        if (
+          typeof record?.node_id !== "string" ||
+          !record.node_id ||
+          !Number.isSafeInteger(record.number) ||
+          record.number < 1 ||
+          nodeIds.has(record.node_id) ||
+          numbers.has(record.number)
+        ) {
+          throw new Error("incomplete GitHub inventory: missing or duplicate record identity");
+        }
+        nodeIds.add(record.node_id);
+        numbers.add(record.number);
+        records.push(record);
+      }
+      endpoint = nextLink(response.headers);
+    }
+    if (marker() !== highWater)
+      throw new Error("GitHub inventory changed during pagination; retry the read");
+    if (highWater > 0 && !numbers.has(highWater))
+      throw new Error("incomplete GitHub inventory: high-water record is missing");
+    return records
+      .filter((issue) => !issue.pull_request)
+      .map((issue) => ({
+        ...issue,
+        title: issue.title,
+        body: issue.body ?? "",
+        url: issue.html_url,
+        state: String(issue.state ?? "").toUpperCase(),
+        type: "Issue",
+      }));
   }
 
   repositoryIssue(number) {
@@ -1577,6 +1735,77 @@ export class RoadmapClient {
     const fields = unwrapCollection(this.fieldList(number), "fields");
     this._projectContext = { number, details, fields };
     return this._projectContext;
+  }
+
+  ownerType() {
+    if (this._ownerType) return this._ownerType;
+    const owner = this.json(["api", `users/${this.config.owner}`]);
+    if (!["User", "Organization"].includes(owner?.type))
+      throw new Error(`GitHub owner type is unavailable for ${this.config.owner}`);
+    this._ownerType = owner.type;
+    return this._ownerType;
+  }
+
+  completeProjectContext(number = this.config.project.number) {
+    if (this._completeProjectContext?.number === number) return this._completeProjectContext;
+    const root = this.ownerType() === "Organization" ? "organization" : "user";
+    const query = `query($login: String!, $number: Int!, $after: String) { ${root}(login: $login) { projectV2(number: $number) { id number title url public closed shortDescription readme fields(first: 100, after: $after) { totalCount nodes { __typename ... on ProjectV2Field { id name dataType } ... on ProjectV2SingleSelectField { id name dataType options { id name color description } } ... on ProjectV2IterationField { id name dataType } } pageInfo { hasNextPage endCursor } } } } }`;
+    const fields = [];
+    const identities = new Set();
+    const cursors = new Set();
+    let after = null;
+    let totalCount = null;
+    let details = null;
+    for (;;) {
+      const project = this.graphql(query, {
+        login: this.config.owner,
+        number,
+        after,
+      })?.[root]?.projectV2;
+      if (!project?.id)
+        throw new Error(`Project #${number} was not found for ${this.config.owner}`);
+      details ??= {
+        id: project.id,
+        number: project.number,
+        title: project.title,
+        url: project.url,
+        public: project.public,
+        closed: project.closed,
+        shortDescription: project.shortDescription,
+        readme: project.readme,
+      };
+      const connection = project.fields;
+      if (
+        !Array.isArray(connection?.nodes) ||
+        !Number.isSafeInteger(connection.totalCount) ||
+        connection.totalCount < 0 ||
+        typeof connection.pageInfo?.hasNextPage !== "boolean" ||
+        !(
+          connection.pageInfo.endCursor === null ||
+          typeof connection.pageInfo.endCursor === "string"
+        )
+      ) {
+        throw new Error("incomplete GitHub inventory: malformed Project field connection");
+      }
+      totalCount ??= connection.totalCount;
+      if (connection.totalCount !== totalCount)
+        throw new Error("GitHub Project fields changed during pagination; retry the read");
+      for (const field of connection.nodes) {
+        if (!field?.id || identities.has(field.id))
+          throw new Error("incomplete GitHub inventory: missing or duplicate Project field");
+        identities.add(field.id);
+        fields.push(field);
+      }
+      if (!connection.pageInfo.hasNextPage) break;
+      after = connection.pageInfo.endCursor;
+      if (!connection.nodes.length || !after || cursors.has(after) || fields.length >= totalCount)
+        throw new Error("incomplete GitHub inventory: Project field pagination did not advance");
+      cursors.add(after);
+    }
+    if (fields.length !== totalCount)
+      throw new Error("incomplete GitHub inventory: Project field count does not match total");
+    this._completeProjectContext = { number, details, fields };
+    return this._completeProjectContext;
   }
 
   ensureIssueItem(contentId) {
@@ -1775,48 +2004,84 @@ export class RoadmapClient {
   setFields(reference, values) {
     const number = this.config.project.number;
     if (number < 1) throw new Error("project number is not recorded in .github/roadmap.json");
-    const url = reference.startsWith("http")
-      ? reference
-      : /^#?\d+$/.test(reference)
-        ? `https://github.com/${this.config.repository}/issues/${reference.replace(/^#/, "")}`
-        : null;
-    if (url) {
-      for (const [field, value] of Object.entries(values)) {
-        this.gh([
-          "project",
-          "item-edit",
-          String(number),
-          "--owner",
-          this.config.owner,
-          "--url",
-          url,
-          "--field",
-          field,
-          "--value",
-          value,
-        ]);
-      }
+    const repositoryUrl = `https://github.com/${this.config.repository}/issues/`;
+    if (!/^#?\d+$/u.test(reference) && !reference.startsWith(repositoryUrl)) {
+      this.setItemFields(reference, values);
       return;
     }
+    const context = this.completeProjectContext(number);
+    const items = this.itemList(number, { details: context.details });
+    const item = this.resolveItemReference(items, reference);
+    const changes = Object.entries(values).map(([fieldName, to]) => ({
+      target: reference,
+      itemId: item.id,
+      fieldName,
+      to,
+      from: fieldValue(item, fieldName) ?? null,
+    }));
+    this.mutateFieldInputs(
+      changes.map((change) =>
+        this.fieldMutationInput(context, item.id, change.fieldName, change.to),
+      ),
+    );
+    const verification = this.verifySetMany({
+      context,
+      pending: changes,
+      alreadyApplied: [],
+    });
+    const mismatches = verification.filter((result) => !result.verified);
+    if (mismatches.length)
+      throw new Error(
+        `set readback mismatch: ${mismatches
+          .map((result) => `${result.fieldName}=${JSON.stringify(result.observed)}`)
+          .join(", ")}`,
+      );
+  }
 
-    this.setItemFields(reference, values);
+  resolveItemReference(items, reference) {
+    const repositoryUrl = `https://github.com/${this.config.repository}/issues/`;
+    const numeric = /^#?(\d+)$/u.exec(reference);
+    const urlMatch = reference.startsWith(repositoryUrl)
+      ? /^(\d+)$/u.exec(reference.slice(repositoryUrl.length))
+      : null;
+    const issueNumber = Number(numeric?.[1] ?? urlMatch?.[1]);
+    const matches = items.filter((item) =>
+      Number.isSafeInteger(issueNumber) && issueNumber > 0
+        ? item.content?.number === issueNumber
+        : item.id === reference,
+    );
+    if (matches.length !== 1)
+      throw new Error(
+        matches.length
+          ? `Project item reference is ambiguous: ${reference}`
+          : `Project item was not found: ${reference}`,
+      );
+    return matches[0];
   }
 
   setItemFields(itemId, values) {
-    const { details, fields } = this.projectContext();
+    const context = this.projectContext();
     const inputs = [];
     for (const [fieldName, value] of Object.entries(values)) {
-      const field = fields.find((candidate) => candidate.name === fieldName);
-      if (!field) throw new Error(`Project field not found: ${fieldName}`);
-      const option = field.options?.find((candidate) => candidate.name === value);
-      if (!option) throw new Error(`Project option not found: ${fieldName}=${value}`);
-      inputs.push({
-        projectId: details.id,
-        itemId,
-        fieldId: field.id,
-        value: { singleSelectOptionId: option.id },
-      });
+      inputs.push(this.fieldMutationInput(context, itemId, fieldName, value));
     }
+    this.mutateFieldInputs(inputs);
+  }
+
+  fieldMutationInput({ details, fields }, itemId, fieldName, value) {
+    const field = fields.find((candidate) => candidate.name === fieldName);
+    if (!field) throw new Error(`Project field not found: ${fieldName}`);
+    const option = field.options?.find((candidate) => candidate.name === value);
+    if (!option) throw new Error(`Project option not found: ${fieldName}=${value}`);
+    return {
+      projectId: details.id,
+      itemId,
+      fieldId: field.id,
+      value: { singleSelectOptionId: option.id },
+    };
+  }
+
+  mutateFieldInputs(inputs) {
     if (!inputs.length) return;
     const variables = Object.fromEntries(inputs.map((input, index) => [`input${index}`, input]));
     const declarations = inputs
@@ -1829,6 +2094,94 @@ export class RoadmapClient {
       )
       .join(" ");
     this.graphql(`mutation(${declarations}) { ${selections} }`, variables);
+  }
+
+  planSetMany(spec) {
+    const validated = validateSetManySpec(this.config, spec);
+    const context = this.completeProjectContext();
+    const items = this.itemList(context.number, {
+      includeDependencies: true,
+      details: context.details,
+    });
+    const pending = [];
+    const alreadyApplied = [];
+    const itemFields = new Set();
+    for (const update of validated.updates) {
+      const item = this.resolveItemReference(items, update.target);
+      for (const [fieldName, transition] of Object.entries(update.fields)) {
+        const key = `${item.id}\0${fieldName}`;
+        if (itemFields.has(key))
+          throw new Error(`duplicate set-many item field: ${update.target} ${fieldName}`);
+        itemFields.add(key);
+        const observed = fieldValue(item, fieldName) ?? null;
+        const planned = {
+          target: update.target,
+          itemId: item.id,
+          fieldName,
+          observed,
+          ...transition,
+        };
+        if (observed === transition.to) alreadyApplied.push(planned);
+        else if (observed === transition.from) pending.push(planned);
+        else {
+          throw new Error(
+            `${update.target} ${fieldName} is ${JSON.stringify(observed)}, expected ` +
+              `${JSON.stringify(transition.from)} or already-applied ${JSON.stringify(transition.to)}`,
+          );
+        }
+      }
+    }
+    return { context, pending, alreadyApplied, assignments: validated.assignments };
+  }
+
+  applySetMany(plan) {
+    const inputs = plan.pending.map((change) =>
+      this.fieldMutationInput(plan.context, change.itemId, change.fieldName, change.to),
+    );
+    this.mutateFieldInputs(inputs);
+  }
+
+  readSetManyItems(plan) {
+    const ids = [
+      ...new Set([...plan.pending, ...plan.alreadyApplied].map((change) => change.itemId)),
+    ];
+    if (!ids.length) return new Map();
+    const query = `query($ids: [ID!]!) { nodes(ids: $ids) { ... on ProjectV2Item { id fieldValues(first: 100) { totalCount nodes { ... on ProjectV2ItemFieldSingleSelectValue { name field { ... on ProjectV2SingleSelectField { name } } } } pageInfo { hasNextPage endCursor } } } } }`;
+    const nodes = this.graphql(query, { ids })?.nodes;
+    if (!Array.isArray(nodes) || nodes.length !== ids.length)
+      throw new Error("incomplete GitHub inventory: set-many readback item count differs");
+    const results = new Map();
+    for (const node of nodes) {
+      if (
+        !node?.id ||
+        results.has(node.id) ||
+        !Number.isSafeInteger(node.fieldValues?.totalCount) ||
+        node.fieldValues.totalCount < 0 ||
+        !Array.isArray(node.fieldValues.nodes) ||
+        node.fieldValues.nodes.length !== node.fieldValues.totalCount ||
+        node.fieldValues.pageInfo?.hasNextPage !== false
+      ) {
+        throw new Error("incomplete GitHub inventory: malformed or truncated set-many readback");
+      }
+      const fieldValues = node.fieldValues.nodes
+        .map((value) => ({ name: value.name, field: { name: value.field?.name } }))
+        .filter((value) => value.name && value.field.name);
+      results.set(node.id, fieldValues);
+    }
+    for (const id of ids) {
+      if (!results.has(id))
+        throw new Error(`incomplete GitHub inventory: set-many readback omitted ${id}`);
+    }
+    return results;
+  }
+
+  verifySetMany(plan) {
+    const items = this.readSetManyItems(plan);
+    return [...plan.pending, ...plan.alreadyApplied].map((change) => {
+      const observed =
+        fieldValue({ fieldValues: items.get(change.itemId) }, change.fieldName) ?? null;
+      return { ...change, observed, verified: observed === change.to };
+    });
   }
 
   capture({ title, body, fields }) {
@@ -2127,6 +2480,103 @@ function requiredOption(options, name) {
   return value;
 }
 
+function roadmapLockPath() {
+  const result = spawnSync("git", ["rev-parse", "--path-format=absolute", "--git-common-dir"], {
+    cwd: projectRoot,
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"],
+    windowsHide: true,
+  });
+  if (result.error) throw result.error;
+  if (result.status !== 0)
+    throw new Error(result.stderr.trim() || "git common directory is unavailable");
+  return path.join(result.stdout.trim(), "portcove-locks", "roadmap");
+}
+
+async function runDoctor(config, client) {
+  client.gh(["auth", "status"]);
+  const number = config.project.number;
+  const context = client.completeProjectContext(number);
+  const { details, fields } = context;
+  const projectId = details.id;
+  const views = client.viewList(projectId);
+  const audit = client.projectAudit(projectId);
+  const drift = projectMachineDrift(config, {
+    details: audit,
+    fields,
+    views,
+    repositories: audit?.repositories?.nodes ?? [],
+  });
+  const catalog = JSON.parse(await readFile(catalogPath, "utf8"));
+  const items = client.itemList(number, { includeDependencies: true, details });
+  const repositoryIssues = client.repositoryIssues();
+  const stage = validatePortStageSemantics(catalog, items);
+  const readiness = analyzeReleaseReadiness(items, config.active_release);
+  const roadmapErrors = [
+    ...readiness.migrationConflicts.map(
+      (item) => `${itemUrl(item)} retains an unmigrated active target`,
+    ),
+    ...readiness.unassignedRequired.map((item) => `${itemUrl(item)} is Required without a target`),
+    ...readiness.statusConflicts.map(
+      (item) => `${itemUrl(item)} has inconsistent repository/Project status`,
+    ),
+    ...validatePortIssueCoverage(catalog, items, config.repository, repositoryIssues),
+    ...stage.errors,
+    ...validateUxAuditOriginCoverage(repositoryIssues),
+    ...validatePlanOriginCoverage(repositoryIssues),
+    ...readiness.relevantUnclassified.map(
+      (item) =>
+        `${config.active_release} work is unclassified: ${itemUrl(item) ?? itemTitle(item)}`,
+    ),
+    ...readiness.safetyConflicts.map(
+      (item) =>
+        `${config.active_release} safety work is not Required: ${itemUrl(item) ?? itemTitle(item)}`,
+    ),
+    ...readiness.dependencyConflicts.map(
+      ({ item, dependency }) =>
+        `${itemUrl(item) ?? itemTitle(item)} has a conflicting blocking dependency ${itemUrl(dependency) ?? itemTitle(dependency)}`,
+    ),
+    ...readiness.missingProjectDependencies.map(
+      ({ item, dependency }) =>
+        `${itemUrl(item) ?? itemTitle(item)} has a blocking dependency outside the Project: ${itemUrl(dependency) ?? itemTitle(dependency)}`,
+    ),
+    ...readiness.truncatedDependencies.map(
+      (item) =>
+        `${itemUrl(item) ?? itemTitle(item)} has more than 10 blocking dependencies; readiness query is incomplete`,
+    ),
+    ...readiness.cycles.map(
+      (cycle) => `blocking dependency cycle: ${cycle.map((value) => `#${value}`).join(" -> ")}`,
+    ),
+  ];
+  if (drift.length || roadmapErrors.length) {
+    throw new Error(
+      `Project drift:\n${[...drift, ...roadmapErrors].map((value) => `- ${value}`).join("\n")}`,
+    );
+  }
+  console.log(`Portcove Roadmap #${number} is reachable at ${details.url}.`);
+  console.log(
+    `Verified identity, PUBLIC visibility, repository linkage, ${fields.length} fields, and ${views.length} view layouts/filters/visible-field sets.`,
+  );
+  console.log(
+    `Verified ${repositoryIssues.filter((issue) => itemBody(issue).includes(portMarker)).length} repository port issues, ${catalog.ports.length} canonical catalog issues, one supported-source plan owner, and all ${uxAuditOriginIds.length} final UX audit origins.`,
+  );
+  if (stage.diagnostics.length)
+    console.log(
+      `Supported platform scope:\n${stage.diagnostics.map((value) => `- ${value}`).join("\n")}`,
+    );
+  if (stage.warnings.length)
+    console.log(
+      `Conservative Port-stage warnings:\n${stage.warnings.map((value) => `- ${value}`).join("\n")}`,
+    );
+  console.log(
+    `${config.active_release} readiness has ${readiness.unfinishedRequired.length} unfinished required outcomes and ${readiness.opportunistic.length} opportunistic outcomes.`,
+  );
+  console.log(
+    `Manual confirmation required because GitHub does not expose a reliable readable configuration API:\n${manualUiChecklist(config).join("\n")}`,
+  );
+  return { number, details, fields, views, repositoryIssues, items };
+}
+
 async function main(argv) {
   const parsed = parseArguments(argv);
   if (["--help", "help"].includes(parsed.command)) {
@@ -2138,268 +2588,267 @@ async function main(argv) {
     return;
   }
   const config = await loadConfig({
-    requireProjectNumber: !["doctor", "bootstrap"].includes(parsed.command),
+    requireProjectNumber: parsed.command !== "bootstrap",
   });
   const client = new RoadmapClient(config);
-  if (parsed.command === "doctor") {
-    client.gh(["auth", "status"]);
-    const { project } = client.resolveProject();
-    const number = client.projectNumber(project);
-    const details = client.projectDetails(number);
-    const fields = unwrapCollection(client.fieldList(number), "fields");
-    const projectId = details.id ?? project.id;
-    const views = client.viewList(projectId);
-    const audit = client.projectAudit(projectId);
-    const drift = projectMachineDrift(config, {
-      details: audit,
-      fields,
-      views,
-      repositories: audit?.repositories?.nodes ?? [],
-    });
-    const catalog = JSON.parse(await readFile(catalogPath, "utf8"));
-    const items = client.itemList(number, { includeDependencies: true });
-    const repositoryIssues = client.repositoryIssues();
-    const stage = validatePortStageSemantics(catalog, items);
-    const readiness = analyzeReleaseReadiness(items, config.active_release);
-    const roadmapErrors = [
-      ...readiness.migrationConflicts.map(
-        (item) => `${itemUrl(item)} retains an unmigrated active target`,
-      ),
-      ...readiness.unassignedRequired.map(
-        (item) => `${itemUrl(item)} is Required without a target`,
-      ),
-      ...readiness.statusConflicts.map(
-        (item) => `${itemUrl(item)} has inconsistent repository/Project status`,
-      ),
-      ...validatePortIssueCoverage(catalog, items, config.repository, repositoryIssues),
-      ...stage.errors,
-      ...validateUxAuditOriginCoverage(repositoryIssues),
-      ...validatePlanOriginCoverage(repositoryIssues),
-      ...readiness.relevantUnclassified.map(
-        (item) =>
-          `${config.active_release} work is unclassified: ${itemUrl(item) ?? itemTitle(item)}`,
-      ),
-      ...readiness.safetyConflicts.map(
-        (item) =>
-          `${config.active_release} safety work is not Required: ${itemUrl(item) ?? itemTitle(item)}`,
-      ),
-      ...readiness.dependencyConflicts.map(
-        ({ item, dependency }) =>
-          `${itemUrl(item) ?? itemTitle(item)} has a conflicting blocking dependency ${itemUrl(dependency) ?? itemTitle(dependency)}`,
-      ),
-      ...readiness.missingProjectDependencies.map(
-        ({ item, dependency }) =>
-          `${itemUrl(item) ?? itemTitle(item)} has a blocking dependency outside the Project: ${itemUrl(dependency) ?? itemTitle(dependency)}`,
-      ),
-      ...readiness.truncatedDependencies.map(
-        (item) =>
-          `${itemUrl(item) ?? itemTitle(item)} has more than 10 blocking dependencies; readiness query is incomplete`,
-      ),
-      ...readiness.cycles.map(
-        (cycle) => `blocking dependency cycle: ${cycle.map((value) => `#${value}`).join(" -> ")}`,
-      ),
-    ];
-    if (drift.length || roadmapErrors.length) {
-      throw new Error(
-        `Project drift:\n${[...drift, ...roadmapErrors].map((value) => `- ${value}`).join("\n")}`,
-      );
-    }
-    console.log(`Portcove Roadmap #${number} is reachable at ${details.url ?? project.url}.`);
-    console.log(
-      `Verified identity, PUBLIC visibility, repository linkage, ${fields.length} fields, and ${views.length} view layouts/filters/visible-field sets.`,
-    );
-    console.log(
-      `Verified ${repositoryIssues.filter((issue) => itemBody(issue).includes(portMarker)).length} repository port issues, ${catalog.ports.length} canonical catalog issues, one supported-source plan owner, and all ${uxAuditOriginIds.length} final UX audit origins.`,
-    );
-    if (stage.diagnostics.length)
-      console.log(
-        `Supported platform scope:\n${stage.diagnostics.map((value) => `- ${value}`).join("\n")}`,
-      );
-    if (stage.warnings.length)
-      console.log(
-        `Conservative Port-stage warnings:\n${stage.warnings.map((value) => `- ${value}`).join("\n")}`,
-      );
-    console.log(
-      `${config.active_release} readiness has ${readiness.unfinishedRequired.length} unfinished required outcomes and ${readiness.opportunistic.length} opportunistic outcomes.`,
-    );
-    console.log(
-      `Manual confirmation required because GitHub does not expose a reliable readable configuration API:\n${manualUiChecklist(config).join("\n")}`,
-    );
-    return;
-  }
-  if (parsed.command === "bootstrap") {
-    const result = client.bootstrap();
-    console.log(
-      `${result.created ? "Created" : "Reconciled"} Portcove Roadmap #${result.number}: ${result.url}`,
-    );
-    if (config.project.number !== result.number) {
-      console.log(
-        `Record project.number=${result.number} in .github/roadmap.json before using item commands.`,
-      );
-    }
-    console.log(
-      `Machine-readable view layouts, filters, and visible columns are reconciled. Manual UI confirmation required:\n${manualUiChecklist(config).join("\n")}`,
-    );
-    return;
-  }
-  if (parsed.command === "capture-port") {
-    const title = requiredOption(parsed.options, "--title");
-    const url = requiredOption(parsed.options, "--url");
-    if (!/^https:\/\//.test(url)) throw new Error("--url must be an https URL");
-    const item = client.createPortIssue({
-      title,
-      upstream: url,
-      catalogId: parsed.options["--catalog-id"],
-      portKey: parsed.options["--port-key"],
-    });
-    console.log(
-      `Created durable port issue ${item.html_url} and added it to the Portcove Roadmap (${item.itemId}).`,
-    );
-    return;
-  }
-  if (parsed.command === "normalize-port") {
-    const value = requiredOption(parsed.options, "--issue");
-    if (!/^\d+$/.test(value) || Number(value) < 1)
-      throw new Error("--issue must be a positive repository issue number");
-    const catalog = JSON.parse(await readFile(catalogPath, "utf8"));
-    const result = client.normalizePortIssue({
-      number: Number(value),
-      catalog,
-    });
-    console.log(
-      `Normalized ${result.issue}: body ${result.bodyChanged ? "updated" : "unchanged"}; Project item ${result.projectItemAdded ? "added" : "reused"}; fields ${result.fieldsChanged.length ? `set ${result.fieldsChanged.join(", ")}` : "unchanged"}; parent relationships preserved.`,
-    );
-    return;
-  }
-  if (parsed.command === "capture-feature") {
-    const title = requiredOption(parsed.options, "--title");
-    const fields = featureIntakeFields(config, parsed.options);
-    const item = client.capture({
-      title,
-      body: "User outcome:\n- Pending triage.\n\nCurrent behavior/evidence:\n- Pending.\n\nScope:\n- Pending.\n\nNon-goals:\n- Pending.",
-      fields,
-    });
-    console.log(`Captured draft feature ${itemTitle(item)} (${item.id}).`);
-    return;
-  }
-  if (parsed.command === "promote") {
-    if (parsed.positionals.length !== 1)
-      throw new Error("usage: roadmap.mjs promote <draft-item-id>");
-    const draft = client
-      .itemList(config.project.number)
-      .find((item) => item.id === parsed.positionals[0]);
-    if (!draft) throw new Error(`draft item was not found: ${parsed.positionals[0]}`);
-    const durableBody = parsed.options["--spec-file"]
-      ? await readFile(path.resolve(projectRoot, parsed.options["--spec-file"]), "utf8")
-      : itemBody(draft);
-    validateDurableIssueBody(durableBody);
-    const item = client.promote(parsed.positionals[0], durableBody);
-    console.log(`Promoted draft to ${item?.content?.url ?? item?.id}.`);
-    return;
-  }
-  if (parsed.command === "set") {
-    if (parsed.positionals.length !== 1)
-      throw new Error("usage: roadmap.mjs set <item-or-issue> [field options]");
-    const values = {};
-    for (const [flag, value] of Object.entries(parsed.options)) {
-      const field = setFlags.get(flag);
-      if (!field) throw new Error(`unsupported set option: ${flag}`);
-      const definition = config.fields.find((candidate) => candidate.name === field);
-      if (!definition.options.includes(value))
-        throw new Error(`${value} is not a valid ${field} option`);
-      values[field] = value;
-    }
-    if (!Object.keys(values).length) throw new Error("set requires at least one field option");
-    client.setFields(parsed.positionals[0], values);
-    console.log(
-      `Updated ${parsed.positionals[0]}: ${Object.entries(values)
-        .map(([key, value]) => `${key}=${value}`)
-        .join(", ")}.`,
-    );
-    return;
-  }
-  if (parsed.command === "move") {
-    if (parsed.positionals.length !== 1)
-      throw new Error("usage: roadmap.mjs move <item> --before <item>");
-    client.moveBefore(parsed.positionals[0], requiredOption(parsed.options, "--before"));
-    console.log(`Moved ${parsed.positionals[0]} before ${parsed.options["--before"]}.`);
-    return;
-  }
-  if (parsed.command === "next") {
-    const items = selectNextItems(client.itemList(config.project.number));
-    if (!items.length) {
-      console.log("No unfinished non-workstream items are in Now or Next.");
+  const lock = await acquireOwnedProcessLock(
+    roadmapLockPath(),
+    { workspace: projectRoot, command: parsed.command },
+    { label: "Portcove Roadmap operation" },
+  );
+  try {
+    if (parsed.command === "doctor") {
+      await runDoctor(config, client);
       return;
     }
-    console.log(
-      items
-        .map(
-          (item, index) =>
-            `${index + 1}. ${itemTitle(item)} | ${fieldValue(item, "Priority") ?? "None"} | ${fieldValue(item, "Horizon")} | ${fieldValue(item, "Status") ?? "Unassigned"}${itemUrl(item) ? ` | ${itemUrl(item)}` : ""}`,
-        )
-        .join("\n"),
-    );
-    return;
-  }
-  if (parsed.command === "readiness") {
-    const release = requiredOption(parsed.options, "--release");
-    const analysis = analyzeReleaseReadiness(
-      client.itemList(config.project.number, { includeDependencies: true }),
-      release,
-    );
-    console.log(renderReadinessSummary(analysis));
-    if (!analysis.ready) process.exitCode = 1;
-    return;
-  }
-  if (parsed.command === "candidate-scope") {
-    const value = requiredOption(parsed.options, "--issues");
-    if (!/^\d+(,\d+)*$/.test(value))
-      throw new Error("--issues must be comma-separated positive issue numbers");
-    const items = client.itemList(config.project.number, {
-      includeDependencies: true,
-    });
-    const analysis = analyzeReleaseReadiness(items, "Public beta", {
-      candidateIssues: value.split(",").map(Number),
-    });
-    console.log(renderReadinessSummary(analysis));
-    console.log(
-      "This checks only the explicit candidate implementation scope and its genuine blockers. Required CI/review, exact package/signature/feed checks and current publication authority remain separate. It does not declare Public beta or 1.0 readiness.",
-    );
-    if (!analysis.ready) process.exitCode = 1;
-    return;
-  }
-  if (parsed.command === "snapshot") {
-    const release = requiredOption(parsed.options, "--release");
-    const output = requiredOption(parsed.options, "--output");
-    if (!config.fields.find((field) => field.name === "Target release").options.includes(release))
-      throw new Error(`unknown target release: ${release}`);
-    const outputPath = resolveSnapshotOutput(output);
-    const { writeFile } = await import("node:fs/promises");
-    try {
-      await access(outputPath);
-      throw new Error(`snapshot output already exists: ${output}`);
-    } catch (error) {
-      if (error.code !== "ENOENT") throw error;
+    if (parsed.command === "bootstrap") {
+      const result = client.bootstrap();
+      console.log(
+        `${result.created ? "Created" : "Reconciled"} Portcove Roadmap #${result.number}: ${result.url}`,
+      );
+      if (config.project.number !== result.number) {
+        console.log(
+          `Record project.number=${result.number} in .github/roadmap.json before using item commands.`,
+        );
+      }
+      console.log(
+        `Machine-readable view layouts, filters, and visible columns are reconciled. Manual UI confirmation required:\n${manualUiChecklist(config).join("\n")}`,
+      );
+      return;
     }
-    const [catalog, commit] = await Promise.all([
-      readFile(catalogPath, "utf8").then(JSON.parse),
-      Promise.resolve(gitHead()),
-    ]);
-    const document = renderSnapshot({
-      release,
-      generatedAt: new Date().toISOString(),
-      commit,
-      projectUrl: `https://github.com/users/${config.owner}/projects/${config.project.number}`,
-      items: client.itemList(config.project.number, {
+    if (parsed.command === "capture-port") {
+      const title = requiredOption(parsed.options, "--title");
+      const url = requiredOption(parsed.options, "--url");
+      if (!/^https:\/\//.test(url)) throw new Error("--url must be an https URL");
+      const item = client.createPortIssue({
+        title,
+        upstream: url,
+        catalogId: parsed.options["--catalog-id"],
+        portKey: parsed.options["--port-key"],
+      });
+      console.log(
+        `Created durable port issue ${item.html_url} and added it to the Portcove Roadmap (${item.itemId}).`,
+      );
+      return;
+    }
+    if (parsed.command === "normalize-port") {
+      const value = requiredOption(parsed.options, "--issue");
+      if (!/^\d+$/.test(value) || Number(value) < 1)
+        throw new Error("--issue must be a positive repository issue number");
+      const catalog = JSON.parse(await readFile(catalogPath, "utf8"));
+      const result = client.normalizePortIssue({
+        number: Number(value),
+        catalog,
+      });
+      console.log(
+        `Normalized ${result.issue}: body ${result.bodyChanged ? "updated" : "unchanged"}; Project item ${result.projectItemAdded ? "added" : "reused"}; fields ${result.fieldsChanged.length ? `set ${result.fieldsChanged.join(", ")}` : "unchanged"}; parent relationships preserved.`,
+      );
+      return;
+    }
+    if (parsed.command === "capture-feature") {
+      const title = requiredOption(parsed.options, "--title");
+      const fields = featureIntakeFields(config, parsed.options);
+      const item = client.capture({
+        title,
+        body: "User outcome:\n- Pending triage.\n\nCurrent behavior/evidence:\n- Pending.\n\nScope:\n- Pending.\n\nNon-goals:\n- Pending.",
+        fields,
+      });
+      console.log(`Captured draft feature ${itemTitle(item)} (${item.id}).`);
+      return;
+    }
+    if (parsed.command === "promote") {
+      if (parsed.positionals.length !== 1)
+        throw new Error("usage: roadmap.mjs promote <draft-item-id>");
+      const draft = client
+        .itemList(config.project.number)
+        .find((item) => item.id === parsed.positionals[0]);
+      if (!draft) throw new Error(`draft item was not found: ${parsed.positionals[0]}`);
+      const durableBody = parsed.options["--spec-file"]
+        ? await readFile(path.resolve(projectRoot, parsed.options["--spec-file"]), "utf8")
+        : itemBody(draft);
+      validateDurableIssueBody(durableBody);
+      const item = client.promote(parsed.positionals[0], durableBody);
+      console.log(`Promoted draft to ${item?.content?.url ?? item?.id}.`);
+      return;
+    }
+    if (parsed.command === "set") {
+      if (parsed.positionals.length !== 1)
+        throw new Error("usage: roadmap.mjs set <item-or-issue> [field options]");
+      const values = {};
+      for (const [flag, value] of Object.entries(parsed.options)) {
+        const field = setFlags.get(flag);
+        if (!field) throw new Error(`unsupported set option: ${flag}`);
+        const definition = config.fields.find((candidate) => candidate.name === field);
+        if (!definition.options.includes(value))
+          throw new Error(`${value} is not a valid ${field} option`);
+        values[field] = value;
+      }
+      if (!Object.keys(values).length) throw new Error("set requires at least one field option");
+      client.setFields(parsed.positionals[0], values);
+      console.log(
+        `Updated ${parsed.positionals[0]}: ${Object.entries(values)
+          .map(([key, value]) => `${key}=${value}`)
+          .join(", ")}.`,
+      );
+      return;
+    }
+    if (parsed.command === "set-many") {
+      if (parsed.positionals.length)
+        throw new Error("usage: roadmap.mjs set-many --spec-file <path> [--apply]");
+      if ("--apply" in parsed.options && parsed.options["--apply"] !== true)
+        throw new Error("--apply does not accept a value");
+      for (const option of Object.keys(parsed.options)) {
+        if (!["--apply", "--spec-file"].includes(option))
+          throw new Error(`unsupported set-many option: ${option}`);
+      }
+      const specPath = path.resolve(projectRoot, requiredOption(parsed.options, "--spec-file"));
+      const spec = JSON.parse(await readFile(specPath, "utf8"));
+      const before = client.sampleGraphqlRate();
+      const plan = client.planSetMany(spec);
+      const after = client.sampleGraphqlRate();
+      if (after.used < before.used)
+        throw new Error(
+          "GitHub GraphQL rate-limit window changed during set-many preflight; retry",
+        );
+      const preflightCost = after.used - before.used;
+      const requiredReserve = setManyRequiredReserve(preflightCost, plan.pending.length);
+      console.log(
+        `Set-many plan: ${plan.pending.length} pending, ${plan.alreadyApplied.length} already applied, ` +
+          `${preflightCost} GraphQL points observed during preflight, ${after.remaining} remain, ` +
+          `${requiredReserve} required before mutation.`,
+      );
+      if (!parsed.options["--apply"]) return;
+      if (after.remaining < requiredReserve)
+        throw new Error(
+          `${githubRateLimitMessage(after, "set-many refused before mutation")}; ` +
+            `${requiredReserve} points are required`,
+        );
+
+      let mutationError = null;
+      try {
+        client.applySetMany(plan);
+      } catch (error) {
+        mutationError = error;
+      }
+      let verification = [];
+      let verificationError = null;
+      try {
+        verification = client.verifySetMany(plan);
+      } catch (error) {
+        verificationError = error;
+      }
+      let doctorError = null;
+      try {
+        await runDoctor(config, client);
+      } catch (error) {
+        doctorError = error;
+      }
+      const mismatches = verification.filter((result) => !result.verified);
+      if (mutationError || verificationError || mismatches.length || doctorError) {
+        const failures = [
+          mutationError && `mutation reported: ${mutationError.message}`,
+          verificationError && `readback failed: ${verificationError.message}`,
+          mismatches.length &&
+            `readback mismatches: ${mismatches
+              .map(
+                (result) =>
+                  `${result.target} ${result.fieldName}=${JSON.stringify(result.observed)} expected ${JSON.stringify(result.to)}`,
+              )
+              .join("; ")}`,
+          doctorError && `final doctor failed: ${doctorError.message}`,
+        ].filter(Boolean);
+        throw new Error(`set-many did not establish complete success: ${failures.join("; ")}`);
+      }
+      console.log(
+        `Set-many verified ${verification.length} field assignments and completed the final doctor.`,
+      );
+      return;
+    }
+    if (parsed.command === "move") {
+      if (parsed.positionals.length !== 1)
+        throw new Error("usage: roadmap.mjs move <item> --before <item>");
+      client.moveBefore(parsed.positionals[0], requiredOption(parsed.options, "--before"));
+      console.log(`Moved ${parsed.positionals[0]} before ${parsed.options["--before"]}.`);
+      return;
+    }
+    if (parsed.command === "next") {
+      const items = selectNextItems(client.itemList(config.project.number));
+      if (!items.length) {
+        console.log("No unfinished non-workstream items are in Now or Next.");
+        return;
+      }
+      console.log(
+        items
+          .map(
+            (item, index) =>
+              `${index + 1}. ${itemTitle(item)} | ${fieldValue(item, "Priority") ?? "None"} | ${fieldValue(item, "Horizon")} | ${fieldValue(item, "Status") ?? "Unassigned"}${itemUrl(item) ? ` | ${itemUrl(item)}` : ""}`,
+          )
+          .join("\n"),
+      );
+      return;
+    }
+    if (parsed.command === "readiness") {
+      const release = requiredOption(parsed.options, "--release");
+      const analysis = analyzeReleaseReadiness(
+        client.itemList(config.project.number, { includeDependencies: true }),
+        release,
+      );
+      console.log(renderReadinessSummary(analysis));
+      if (!analysis.ready) process.exitCode = 1;
+      return;
+    }
+    if (parsed.command === "candidate-scope") {
+      const value = requiredOption(parsed.options, "--issues");
+      if (!/^\d+(,\d+)*$/.test(value))
+        throw new Error("--issues must be comma-separated positive issue numbers");
+      const items = client.itemList(config.project.number, {
         includeDependencies: true,
-      }),
-      catalog,
-    });
-    await writeFile(outputPath, document, { encoding: "utf8", flag: "wx" });
-    console.log(`Wrote immutable readiness snapshot ${path.relative(projectRoot, outputPath)}.`);
-    return;
+      });
+      const analysis = analyzeReleaseReadiness(items, "Public beta", {
+        candidateIssues: value.split(",").map(Number),
+      });
+      console.log(renderReadinessSummary(analysis));
+      console.log(
+        "This checks only the explicit candidate implementation scope and its genuine blockers. Required CI/review, exact package/signature/feed checks and current publication authority remain separate. It does not declare Public beta or 1.0 readiness.",
+      );
+      if (!analysis.ready) process.exitCode = 1;
+      return;
+    }
+    if (parsed.command === "snapshot") {
+      const release = requiredOption(parsed.options, "--release");
+      const output = requiredOption(parsed.options, "--output");
+      if (!config.fields.find((field) => field.name === "Target release").options.includes(release))
+        throw new Error(`unknown target release: ${release}`);
+      const outputPath = resolveSnapshotOutput(output);
+      const { writeFile } = await import("node:fs/promises");
+      try {
+        await access(outputPath);
+        throw new Error(`snapshot output already exists: ${output}`);
+      } catch (error) {
+        if (error.code !== "ENOENT") throw error;
+      }
+      const [catalog, commit] = await Promise.all([
+        readFile(catalogPath, "utf8").then(JSON.parse),
+        Promise.resolve(gitHead()),
+      ]);
+      const document = renderSnapshot({
+        release,
+        generatedAt: new Date().toISOString(),
+        commit,
+        projectUrl: `https://github.com/users/${config.owner}/projects/${config.project.number}`,
+        items: client.itemList(config.project.number, {
+          includeDependencies: true,
+        }),
+        catalog,
+      });
+      await writeFile(outputPath, document, { encoding: "utf8", flag: "wx" });
+      console.log(`Wrote immutable readiness snapshot ${path.relative(projectRoot, outputPath)}.`);
+      return;
+    }
+    throw new Error(`unknown command: ${parsed.command}`);
+  } finally {
+    await lock.release();
   }
-  throw new Error(`unknown command: ${parsed.command}`);
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === scriptPath) {

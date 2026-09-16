@@ -13,6 +13,16 @@ import {
 
 const sha = (character) => character.repeat(40);
 
+function included(body, headers = {}) {
+  return (
+    "HTTP/2.0 200 OK\r\n" +
+    Object.entries(headers)
+      .map(([name, value]) => `${name}: ${value}\r\n`)
+      .join("") +
+    `\r\n${JSON.stringify(body)}`
+  );
+}
+
 function catalog() {
   return {
     schema_version: 2,
@@ -249,14 +259,13 @@ test("live enrichment calls only bounded read commands and API errors do not exp
     run(args, input) {
       calls.push({ args, input });
       if (args[0] === "project") return { id: "PVT" };
+      if (args[0] === "api" && args[1] === "--include" && !input) return included([]);
       const page = {
         totalCount: 0,
         nodes: [],
         pageInfo: { hasNextPage: false, endCursor: null },
       };
-      return JSON.parse(input).query.includes("issues(first:")
-        ? { data: { repository: { issues: page } } }
-        : { data: { node: { items: page } } };
+      return included({ data: { node: { items: page } } });
     },
   });
   assert.deepEqual(result, {
@@ -267,10 +276,17 @@ test("live enrichment calls only bounded read commands and API errors do not exp
   assert.deepEqual(
     calls.map(({ args }) => args.slice(0, 2)),
     [
-      ["api", "graphql"],
+      ["api", "--include"],
+      ["api", "--include"],
+      ["api", "--include"],
       ["project", "view"],
       ["api", "graphql"],
     ],
+  );
+  assert.ok(
+    calls
+      .filter(({ args }) => args[0] === "api" && args[1] === "--include" && args[2])
+      .every(({ args }) => args[2].includes("/issues?state=all")),
   );
   for (const { input } of calls.filter((call) => call.input)) {
     const query = JSON.parse(input).query;
@@ -324,12 +340,40 @@ test("rendered output labels evidence authority and catalog versus research scop
 function paginatedLiveRunner(issues, projectItems, intercept = () => {}) {
   return (args, input) => {
     if (args[0] === "project") return { id: "PVT" };
-    const { query, variables } = JSON.parse(input);
-    const isIssues = query.includes("issues(first:");
-    const values = isIssues ? issues : projectItems;
-    const size = isIssues ? 100 : 50;
+    if (args[0] === "api" && args[1] === "--include" && !input) {
+      const endpoint = args[2];
+      if (endpoint.includes("direction=desc")) {
+        const latest = issues.reduce(
+          (current, issue) => (issue.number > current.number ? issue : current),
+          { number: 0 },
+        );
+        return included(latest.number ? [{ number: latest.number }] : []);
+      }
+      const pageMatch = /[?&]page=(\d+)/u.exec(endpoint);
+      const pageNumber = Number(pageMatch?.[1] ?? 1);
+      const offset = (pageNumber - 1) * 100;
+      intercept({ isIssues: true, offset });
+      const nodes = issues.slice(offset, offset + 100).map((issue) => ({
+        ...issue,
+        node_id: issue.node_id ?? `I_${issue.number}`,
+        html_url: issue.html_url ?? issue.url ?? `https://github.test/issues/${issue.number}`,
+        state: String(issue.state ?? "open").toLowerCase(),
+      }));
+      const hasNextPage = offset + nodes.length < issues.length;
+      return included(
+        nodes,
+        hasNextPage
+          ? {
+              link: `<repos/boburning/portcove/issues?state=all&sort=created&direction=asc&per_page=100&page=${pageNumber + 1}>; rel="next"`,
+            }
+          : {},
+      );
+    }
+    const { variables } = JSON.parse(input);
+    const values = projectItems;
+    const size = 50;
     const offset = Number(variables.after ?? 0);
-    intercept({ isIssues, offset });
+    intercept({ isIssues: false, offset });
     const nodes = values.slice(offset, offset + size);
     const hasNextPage = offset + nodes.length < values.length;
     const page = {
@@ -340,9 +384,7 @@ function paginatedLiveRunner(issues, projectItems, intercept = () => {}) {
         endCursor: hasNextPage ? String(offset + nodes.length) : null,
       },
     };
-    return {
-      data: isIssues ? { repository: { issues: page } } : { node: { items: page } },
-    };
+    return included({ data: { node: { items: page } } });
   };
 }
 
@@ -362,7 +404,11 @@ function largeLiveFixture() {
     ...Array.from({ length: 1001 }, (_, i) => ({
       id: `PVTI_draft_${i}`,
       content: { __typename: "DraftIssue", title: `Draft ${i}` },
-      fieldValues: { nodes: [] },
+      fieldValues: {
+        totalCount: 0,
+        nodes: [],
+        pageInfo: { hasNextPage: false, endCursor: null },
+      },
     })),
     ...input.projectItems.map((value, index) => ({
       id: `PVTI_port_${index}`,
@@ -376,6 +422,8 @@ function largeLiveFixture() {
           ["Priority", value.priority],
           ["Target release", value["target release"]],
         ].map(([name, option]) => ({ name: option, field: { name } })),
+        totalCount: 6,
+        pageInfo: { hasNextPage: false, endCursor: null },
       },
     })),
   ];
