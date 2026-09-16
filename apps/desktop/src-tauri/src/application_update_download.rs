@@ -119,28 +119,73 @@ pub async fn download_payload(
             redirects += 1;
             continue;
         }
-        if let Some(error) = response_failure(
-            response.status(),
-            response.headers(),
-            current_unix_seconds(),
-        ) {
-            return Err(error);
-        }
-        if response.headers().contains_key(CONTENT_ENCODING) {
-            return Err(PayloadDownloadError::InvalidSource(
-                "encoded payload responses are not permitted".into(),
-            ));
-        }
-        let expected = candidate.release.artifact.bytes;
-        if let Some(actual) = response.content_length()
-            && actual != expected
-        {
-            return Err(PayloadDownloadError::ContentLengthMismatch { expected, actual });
-        }
-        return Ok(PayloadDownload {
-            reader: StreamReader::new(bounded_body(response, expected, deadline)),
-        });
+        return payload_from_response(response, candidate.release.artifact.bytes, deadline);
     }
+}
+
+/// Opens an authenticated candidate through an explicit-port loopback HTTP
+/// endpoint for controlled qualification only. Production callers must use
+/// [`download_payload`], which retains the GitHub HTTPS, public-DNS and bounded
+/// redirect policy above.
+#[cfg(feature = "application-update-qualification")]
+pub async fn download_payload_from_controlled_loopback(
+    candidate: &SelectedCandidate,
+    url: &Url,
+) -> Result<PayloadDownload, PayloadDownloadError> {
+    validate_selected_candidate(candidate)?;
+    validate_controlled_loopback_url(url)?;
+    let deadline = Instant::now() + PAYLOAD_DEADLINE;
+    let client = Client::builder()
+        .redirect(reqwest::redirect::Policy::none())
+        .no_proxy()
+        .referer(false)
+        .connect_timeout(CONNECT_TIMEOUT)
+        .read_timeout(IDLE_TIMEOUT)
+        .user_agent(concat!(
+            "Portcove application updater qualification/",
+            env!("CARGO_PKG_VERSION")
+        ))
+        .build()
+        .map_err(|_| {
+            PayloadDownloadError::Network(
+                "could not initialize controlled payload transport".into(),
+            )
+        })?;
+    let remaining = deadline
+        .checked_duration_since(Instant::now())
+        .ok_or(PayloadDownloadError::Deadline)?;
+    let response = tokio::time::timeout(remaining, client.get(url.clone()).send())
+        .await
+        .map_err(|_| PayloadDownloadError::Deadline)?
+        .map_err(|_| PayloadDownloadError::Network("controlled request failed".into()))?;
+    payload_from_response(response, candidate.release.artifact.bytes, deadline)
+}
+
+fn payload_from_response(
+    response: Response,
+    expected: u64,
+    deadline: Instant,
+) -> Result<PayloadDownload, PayloadDownloadError> {
+    if let Some(error) = response_failure(
+        response.status(),
+        response.headers(),
+        current_unix_seconds(),
+    ) {
+        return Err(error);
+    }
+    if response.headers().contains_key(CONTENT_ENCODING) {
+        return Err(PayloadDownloadError::InvalidSource(
+            "encoded payload responses are not permitted".into(),
+        ));
+    }
+    if let Some(actual) = response.content_length()
+        && actual != expected
+    {
+        return Err(PayloadDownloadError::ContentLengthMismatch { expected, actual });
+    }
+    Ok(PayloadDownload {
+        reader: StreamReader::new(bounded_body(response, expected, deadline)),
+    })
 }
 
 fn response_failure(
@@ -235,6 +280,33 @@ fn validate_asset_redirect(url: &Url) -> Result<(), PayloadDownloadError> {
     Ok(())
 }
 
+#[cfg(feature = "application-update-qualification")]
+fn validate_controlled_loopback_url(url: &Url) -> Result<(), PayloadDownloadError> {
+    let loopback = match url.host() {
+        Some(url::Host::Ipv4(address)) => address.is_loopback(),
+        Some(url::Host::Ipv6(address)) => address.is_loopback(),
+        _ => false,
+    };
+    let segments = url.path_segments().map(Vec::from_iter).unwrap_or_default();
+    if url.as_str().len() > MAX_URL_BYTES
+        || url.scheme() != "http"
+        || !loopback
+        || url.port().is_none()
+        || !url.username().is_empty()
+        || url.password().is_some()
+        || url.query().is_some()
+        || url.fragment().is_some()
+        || url.path().contains('%')
+        || segments.len() != 1
+        || !safe_path_segment(segments[0])
+    {
+        return Err(PayloadDownloadError::InvalidSource(
+            "controlled URL must be explicit-port loopback HTTP with one safe path segment".into(),
+        ));
+    }
+    Ok(())
+}
+
 fn safe_path_segment(value: &str) -> bool {
     !value.is_empty()
         && value != "."
@@ -267,6 +339,12 @@ fn bounded_stream(
                 io::Error::new(io::ErrorKind::TimedOut, "payload stream stalled or expired")
             })?;
         let Some(chunk) = next else {
+            if received != expected {
+                return Err(io::Error::new(
+                    io::ErrorKind::UnexpectedEof,
+                    "payload ended before authenticated length",
+                ));
+            }
             return Ok(None);
         };
         let chunk = chunk?;
@@ -348,6 +426,16 @@ mod tests {
         ));
         let mut bytes = Vec::new();
         let error = reader.read_to_end(&mut bytes).await.unwrap_err();
+        assert!(error.to_string().contains("authenticated length"));
+
+        let source: DownloadByteStream = stream::iter([Ok(Bytes::from_static(b"short"))]).boxed();
+        let mut reader = StreamReader::new(bounded_stream(
+            source,
+            6,
+            Instant::now() + Duration::from_secs(1),
+        ));
+        let error = reader.read_to_end(&mut Vec::new()).await.unwrap_err();
+        assert_eq!(error.kind(), io::ErrorKind::UnexpectedEof);
         assert!(error.to_string().contains("authenticated length"));
 
         let source: DownloadByteStream = stream::empty().boxed();

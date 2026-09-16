@@ -429,6 +429,16 @@ identity before retaining bytes. This boundary configures no production metadata
 origin or update check and grants no staging, apply, signing, publication or native
 replacement authority.
 
+Qualification builds expose a separate explicit-port loopback HTTP entrypoint for
+the same payload response and bounded-stream consumer. The controlled integration
+fixture proves an exact positive body, provider rate-limit classification, connection
+loss, authenticated-length truncation and overflow rejection, and a successful
+retry after every failure while a previously accepted fixture file remains unchanged.
+That is acquisition-boundary evidence only: it does not exercise production DNS,
+TLS, GitHub delivery, a public feed, staging verification, a physical platform or
+publication. Ordinary construction still rejects loopback HTTP before opening a
+request and retains the production HTTPS/public-DNS/no-proxy/redirect policy.
+
 ## Freshness, replay and bounds
 
 Use safe expiration enforcement. Under one host OS lock, persist the latest verified
