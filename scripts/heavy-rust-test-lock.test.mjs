@@ -184,7 +184,10 @@ test("dead and PID-reused records are reclaimed only when no identity matches", 
   try {
     await writeOwner(
       lockPath,
-      owner({ pid: 903, identity: "old-wrapper" }, { pid: 904, identity: "old-child" }),
+      owner(
+        { pid: 903, identity: "old-wrapper" },
+        { pid: 904, identity: "old-child", containment: "windows-job" },
+      ),
     );
     const current = await acquireHeavyRustTestLock(
       { workspace: "replacement" },
@@ -325,7 +328,6 @@ test("new lock publication and child replacement remain complete JSON records", 
       pid: 906,
       identity: "nextest-start",
       process_token: current.owner.process.process_token,
-      tree_platform: process.platform,
     });
     await current.release();
   } finally {
@@ -439,6 +441,84 @@ test("a surviving recorded process tree blocks after its supervisor exits", asyn
         },
       ),
       /child tree PID 911/u,
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("Unix watchdog cleanup must prove quiescence before a dead lock is reclaimed", async () => {
+  const { root, lockPath } = await fixture();
+  const receiptPath = path.join(root, "cleanup.json");
+  const identities = new Map([[process.pid, "current-process"]]);
+  const existing = owner(
+    { pid: 915, identity: "dead-wrapper" },
+    {
+      pid: 916,
+      identity: "dead-supervisor",
+      containment: "unix-watchdog",
+      cleanup_receipt: receiptPath,
+    },
+  );
+  try {
+    await writeOwner(lockPath, existing);
+    await assert.rejects(
+      acquireHeavyRustTestLock(
+        {},
+        {
+          lockPath,
+          waitMilliseconds: 0,
+          inspectProcessIdentity: identityInspector(identities),
+        },
+      ),
+      /Unix cleanup pending/u,
+    );
+    await writeFile(receiptPath, `${JSON.stringify({ outcome: "failed:EPERM" })}\n`);
+    await assert.rejects(
+      acquireHeavyRustTestLock(
+        {},
+        {
+          lockPath,
+          waitMilliseconds: 0,
+          inspectProcessIdentity: identityInspector(identities),
+        },
+      ),
+      /Unix cleanup failed:EPERM/u,
+    );
+    await writeFile(receiptPath, `${JSON.stringify({ outcome: "quiescent" })}\n`);
+    const current = await acquireHeavyRustTestLock(
+      { workspace: "replacement" },
+      {
+        lockPath,
+        waitMilliseconds: 0,
+        inspectProcessIdentity: identityInspector(identities),
+      },
+    );
+    assert.equal(current.owner.workspace, "replacement");
+    await current.release();
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("ambiguous legacy child containment blocks automatic reclamation", async () => {
+  const { root, lockPath } = await fixture();
+  const identities = new Map([[process.pid, "current-process"]]);
+  try {
+    await writeOwner(
+      lockPath,
+      owner({ pid: 917, identity: "dead-wrapper" }, { pid: 918, identity: "dead-child" }),
+    );
+    await assert.rejects(
+      acquireHeavyRustTestLock(
+        {},
+        {
+          lockPath,
+          waitMilliseconds: 0,
+          inspectProcessIdentity: identityInspector(identities),
+        },
+      ),
+      /legacy child PID 918/u,
     );
   } finally {
     await rm(root, { recursive: true, force: true });

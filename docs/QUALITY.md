@@ -690,7 +690,8 @@ supervisor behind a registration gate; it cannot launch the pinned
 `cargo-nextest` command until the wrapper has durably published the supervisor's
 exact identity. Unix uses an anchored detached process group plus an out-of-group
 watchdog established before nextest starts; supervisor loss closes the watchdog
-pipe, kills the anchored group, and publishes cleanup evidence. Windows uses a
+pipe, kills the anchored group, waits until that group is absent, and publishes
+cleanup evidence that later acquirers must validate. Windows uses a
 kill-on-close Job Object. Closing either containment terminates every remaining
 descendant without relying on a numeric group or mutable parent-PID snapshot
 after identity mismatch. Inherited supported commands remain inside the existing
@@ -704,7 +705,7 @@ only second-resolution; one transition read accepts the previous timestamp
 record solely to classify and migrate an already-published legacy lock.
 Acquisition polls for five seconds by default and then
 reports the owning PID, workspace, command and start time. Every Windows or
-Darwin identity probe also fails closed after five seconds, so a slow platform
+Darwin identity probe uses repository-required PowerShell 7 and also fails closed after five seconds, so a slow platform
 probe cannot wedge acquisition indefinitely and may add at most its own bounded
 probe interval to the configured polling interval.
 `PORTCOVE_HEAVY_RUST_WAIT_MS` may set a bounded 0 through 60000 millisecond wait

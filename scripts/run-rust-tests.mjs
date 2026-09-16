@@ -123,13 +123,34 @@ async function waitForUnixSupervisorStatus(statusPath, observation, dependencies
   }
 }
 
+function readUnixCleanupReceipt(receiptPath) {
+  return JSON.parse(readFileSync(receiptPath, "utf8"));
+}
+
 async function waitForUnixCleanupReceipt(receiptPath, dependencies) {
   const waitMilliseconds =
     dependencies.treeWaitMilliseconds === undefined ? 5_000 : dependencies.treeWaitMilliseconds;
   const pollMilliseconds = dependencies.treePollMilliseconds ?? 25;
   const deadline = Date.now() + waitMilliseconds;
-  const receiptExists = dependencies.cleanupReceiptExists ?? existsSync;
-  while (!receiptExists(receiptPath)) {
+  const readReceipt = dependencies.readCleanupReceipt ?? readUnixCleanupReceipt;
+  for (;;) {
+    try {
+      const value = readReceipt(receiptPath);
+      if (value?.outcome !== "quiescent")
+        throw new Error(
+          `Unix Heavy Rust containment cleanup did not prove quiescence: ${value?.outcome ?? "invalid receipt"}`,
+        );
+      return value;
+    } catch (error) {
+      if (error.code !== "ENOENT" && error.cause?.code !== "ENOENT") {
+        const failure = new Error(
+          `Unix Heavy Rust supervisor cleanup evidence is invalid; retaining the shared lock: ${error.message}`,
+          { cause: error },
+        );
+        failure.code = "PORTCOVE_HEAVY_RUST_TREE_ACTIVE";
+        throw failure;
+      }
+    }
     if (Date.now() >= deadline) {
       const error = new Error(
         "Unix Heavy Rust supervisor exited without containment cleanup evidence; retaining the shared lock",
@@ -252,6 +273,8 @@ export async function runRustTests(args, dependencies = {}) {
       cleanupAttempted = true;
       try {
         await closeChildTree(tested, observation, dependencies, force);
+        if (platform !== "win32" && gateOpened)
+          await waitForUnixCleanupReceipt(cleanupReceiptPath, dependencies);
       } catch (error) {
         releaseLock = false;
         throw error;
@@ -260,7 +283,8 @@ export async function runRustTests(args, dependencies = {}) {
     let registered;
     try {
       registered = await lock.registerChild(tested, {
-        platform: null,
+        containment: platform === "win32" ? "windows-job" : "unix-watchdog",
+        cleanupReceipt: platform === "win32" ? undefined : cleanupReceiptPath,
       });
     } catch (error) {
       const finished = observation.outcome();

@@ -302,11 +302,13 @@ worktrees. It publishes complete lock metadata atomically, records an owned
 containment supervisor, and only then opens the supervisor's launch gate for the
 pinned `cargo-nextest` command. Unix anchors a detached process group and starts
 an out-of-group cleanup watchdog before nextest; Windows uses a kill-on-close
-Job Object. Nested inherited commands stay inside that existing containment.
+Job Object. The Unix watchdog publishes success only after the anchored process
+group is absent, and a new acquirer validates that receipt before reclaiming a
+dead wrapper and supervisor. Nested inherited commands stay inside that existing containment.
 It refuses to overlap a matching live owner and
 polls for five seconds by default,
 then prints that owner's PID, workspace, command and start time. Each Windows or
-Darwin identity probe separately fails closed after five seconds, so it cannot
+Darwin identity probe uses repository-required PowerShell 7 and separately fails closed after five seconds, so it cannot
 hang indefinitely but can add one bounded probe interval to the polling limit.
 Wait for the named command to finish and rerun the same supported command. For a
 deliberately coordinated short polling interval, set

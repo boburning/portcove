@@ -32,6 +32,7 @@ test(
       'const child = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"], { stdio: "ignore" })',
       `writeFileSync(${JSON.stringify(descendantPath)}, String(child.pid))`,
       "child.unref()",
+      "setInterval(() => {}, 1000)",
     ].join(";");
     const supervisor = spawn(
       process.execPath,
@@ -46,22 +47,24 @@ test(
       ],
       { detached: true, stdio: "ignore" },
     );
+    const exited = new Promise((resolve, reject) => {
+      supervisor.once("error", reject);
+      supervisor.once("close", (code, signal) => resolve({ code, signal }));
+    });
     let descendantPid;
     try {
       await new Promise((resolve) => setTimeout(resolve, 200));
       assert.equal(existsSync(startedPath), false, "managed command started before registration");
       await writeFile(gatePath, "registered\n");
-      await waitUntil(() => existsSync(statusPath), 5_000);
-      assert.deepEqual(JSON.parse(await readFile(statusPath, "utf8")), { exit_code: 0 });
+      await waitUntil(() => existsSync(descendantPath), 5_000);
+      assert.equal(existsSync(statusPath), false, "managed root exited before supervisor loss");
       descendantPid = Number(await readFile(descendantPath, "utf8"));
-      const outcome = await new Promise((resolve, reject) => {
-        supervisor.once("error", reject);
-        supervisor.once("close", (code, signal) => resolve({ code, signal }));
-      });
+      assert.equal(supervisor.kill("SIGKILL"), true);
+      const outcome = await exited;
       assert.notEqual(outcome.code, 0, JSON.stringify(outcome));
       await waitUntil(() => existsSync(cleanupReceiptPath), 5_000);
       assert.deepEqual(JSON.parse(await readFile(cleanupReceiptPath, "utf8")), {
-        outcome: "signalled",
+        outcome: "quiescent",
       });
       await waitUntil(() => {
         try {

@@ -69,7 +69,7 @@ export function readProcessIdentity(pid, options = {}) {
   if (platform === "win32") {
     const inspected = runIdentityProbe(
       run,
-      "powershell.exe",
+      "pwsh.exe",
       [
         "-NoLogo",
         "-NoProfile",
@@ -127,7 +127,13 @@ function validProcess(record) {
     typeof record.identity === "string" &&
     record.identity.length > 0 &&
     (record.process_token === undefined ||
-      (typeof record.process_token === "string" && record.process_token.length > 0))
+      (typeof record.process_token === "string" && record.process_token.length > 0)) &&
+    (record.containment === undefined ||
+      ["windows-job", "unix-watchdog"].includes(record.containment)) &&
+    (record.cleanup_receipt === undefined ||
+      (typeof record.cleanup_receipt === "string" && record.cleanup_receipt.length > 0)) &&
+    (record.containment !== "unix-watchdog" ||
+      (typeof record.cleanup_receipt === "string" && record.cleanup_receipt.length > 0))
   );
 }
 
@@ -187,7 +193,17 @@ function inspectRecord(record, inspectProcessIdentity) {
   return inspectProcessIdentity(record.pid, { processToken: record.process_token });
 }
 
-function activeRecord(owner, inspectProcessIdentity, inspectProcessTree) {
+function cleanupReceiptOutcome(record, readReceipt) {
+  try {
+    const value = JSON.parse(readReceipt(record.cleanup_receipt, "utf8"));
+    return value?.outcome === "quiescent" ? null : (value?.outcome ?? "invalid receipt");
+  } catch (error) {
+    if (error.code === "ENOENT") return "pending";
+    return `invalid: ${error.message}`;
+  }
+}
+
+function activeRecord(owner, inspectProcessIdentity, inspectProcessTree, readReceipt) {
   for (const [kind, record] of [
     ["owner", owner.process],
     ["child", owner.child],
@@ -197,6 +213,12 @@ function activeRecord(owner, inspectProcessIdentity, inspectProcessTree) {
     if (current === record.identity) return { kind, record };
     if (kind === "child" && record.tree_platform && inspectProcessTree(record).length > 0)
       return { kind: "child tree", record };
+    if (kind === "child" && record.containment === "unix-watchdog") {
+      const cleanup = cleanupReceiptOutcome(record, readReceipt);
+      if (cleanup) return { kind: `Unix cleanup ${cleanup}`, record };
+    }
+    if (kind === "child" && record.containment === undefined && record.tree_platform === undefined)
+      return { kind: "legacy child", record };
   }
   return null;
 }
@@ -255,7 +277,7 @@ async function updateOwnedChild(
   child,
   inspectProcessIdentity,
   processToken,
-  treePlatform,
+  registration,
 ) {
   const owner = await readOwner(lockPath);
   if (owner.token !== token)
@@ -266,7 +288,8 @@ async function updateOwnedChild(
     pid: child.pid,
     identity,
     process_token: processToken,
-    tree_platform: treePlatform,
+    containment: registration.containment,
+    cleanup_receipt: registration.cleanupReceipt,
   };
   await publishChild(lockPath, token, owner.child);
   return owner.child;
@@ -276,6 +299,7 @@ export async function acquireHeavyRustTestLock(metadata = {}, options = {}) {
   const lockPath = path.resolve(options.lockPath ?? heavyRustTestLockPath());
   const inspectProcessIdentity = options.inspectProcessIdentity ?? readProcessIdentity;
   const inspectProcessTree = options.inspectProcessTree ?? ((record) => processTreeMembers(record));
+  const readCleanupReceipt = options.readCleanupReceipt ?? readFileSync;
   const waitMilliseconds = parseWaitMilliseconds(
     options.waitMilliseconds ?? process.env[waitEnvironmentName],
   );
@@ -289,7 +313,7 @@ export async function acquireHeavyRustTestLock(metadata = {}, options = {}) {
     const owner = await readOwner(lockPath);
     if (owner.token !== inheritedToken)
       throw new Error("Inherited Heavy Rust test lock token does not match the active owner");
-    if (!activeRecord(owner, inspectProcessIdentity, inspectProcessTree))
+    if (!activeRecord(owner, inspectProcessIdentity, inspectProcessTree, readCleanupReceipt))
       throw new Error("Inherited Heavy Rust test lock no longer has a matching live owner");
     return {
       lockPath,
@@ -343,9 +367,7 @@ export async function acquireHeavyRustTestLock(metadata = {}, options = {}) {
               child,
               inspectProcessIdentity,
               processToken,
-              registration.platform === null
-                ? undefined
-                : (registration.platform ?? process.platform),
+              registration,
             ),
           release: async () => {
             try {
@@ -367,7 +389,12 @@ export async function acquireHeavyRustTestLock(metadata = {}, options = {}) {
           }
           throw readError;
         }
-        const active = activeRecord(existing, inspectProcessIdentity, inspectProcessTree);
+        const active = activeRecord(
+          existing,
+          inspectProcessIdentity,
+          inspectProcessTree,
+          readCleanupReceipt,
+        );
         if (active) {
           if (now() >= deadline) throw new Error(activeMessage(existing, active, waitMilliseconds));
           await sleep(Math.min(pollMilliseconds, Math.max(1, deadline - now())));

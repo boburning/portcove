@@ -33,7 +33,7 @@ test("runner holds the lock through nextest and preserves its exit status", asyn
   const tempRoot = await mkdtemp(path.join(os.tmpdir(), "portcove-rust-runner-"));
   const events = [];
   let spawnedOptions;
-  let registeredPlatform;
+  let registeredContainment;
   try {
     const status = await runRustTests(["--package", "portcove-core"], {
       tempRoot,
@@ -53,7 +53,7 @@ test("runner holds the lock through nextest and preserves its exit status", asyn
         return {
           childEnvironment: { PORTCOVE_HEAVY_RUST_LOCK_TOKEN: "inherited-token" },
           registerChild: async (child, registration) => {
-            registeredPlatform = registration.platform;
+            registeredContainment = registration.containment;
             events.push(`register:${child.pid}`);
           },
           release: async () => events.push("release"),
@@ -71,7 +71,7 @@ test("runner holds the lock through nextest and preserves its exit status", asyn
       /^spawn:portcove-process-tree-supervisor\.exe:.+registered\.gate cargo-nextest nextest run --package portcove-core$/u,
     );
     assert.deepEqual(events.slice(4), ["register:701", "release"]);
-    assert.equal(registeredPlatform, null);
+    assert.equal(registeredContainment, "windows-job");
     assert.equal(spawnedOptions.env.PORTCOVE_HEAVY_RUST_LOCK_TOKEN, "inherited-token");
     assert.match(spawnedOptions.env.PORTCOVE_HOST_TOOL_FIXTURE, /portcove-host-tool-fixture-/u);
   } finally {
@@ -85,7 +85,8 @@ test("Unix runner launches nextest in a detached process group", async () => {
   let spawnedOptions;
   let spawnedCommand;
   let spawnedArgs;
-  let registeredPlatform;
+  let registeredContainment;
+  let registeredCleanupReceipt;
   try {
     const status = await runRustTests(["--package", "portcove-core"], {
       tempRoot,
@@ -103,12 +104,13 @@ test("Unix runner launches nextest in a detached process group", async () => {
       acquireLock: async () => ({
         childEnvironment: {},
         registerChild: async (_child, registration) => {
-          registeredPlatform = registration.platform;
+          registeredContainment = registration.containment;
+          registeredCleanupReceipt = registration.cleanupReceipt;
         },
         release: async () => events.push("release"),
       }),
       readUnixSupervisorStatus: () => 0,
-      cleanupReceiptExists: () => true,
+      readCleanupReceipt: () => ({ outcome: "quiescent" }),
       killProcess: () => true,
     });
     assert.equal(status, 0);
@@ -126,7 +128,8 @@ test("Unix runner launches nextest in a detached process group", async () => {
       "portcove-core",
     ]);
     assert.equal(spawnedOptions.detached, true);
-    assert.equal(registeredPlatform, null);
+    assert.equal(registeredContainment, "unix-watchdog");
+    assert.match(registeredCleanupReceipt, /containment-cleanup\.json$/u);
   } finally {
     await rm(tempRoot, { recursive: true, force: true });
   }
@@ -366,6 +369,36 @@ test("runner retains ownership when an exited Unix supervisor has no cleanup rec
         }),
       }),
       /without containment cleanup evidence/u,
+    );
+    assert.equal(released, false);
+  } finally {
+    await rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test("runner retains ownership when Unix cleanup reports failure", async () => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), "portcove-rust-runner-"));
+  let released = false;
+  try {
+    await assert.rejects(
+      runRustTests([], {
+        tempRoot,
+        platform: "linux",
+        spawnSync: () => ({ status: 0 }),
+        spawn: () => childProcess(712, 1),
+        treeWaitMilliseconds: 0,
+        readUnixSupervisorStatus: () => 0,
+        readCleanupReceipt: () => ({ outcome: "failed:EPERM" }),
+        acquireLock: async () => ({
+          inherited: false,
+          childEnvironment: {},
+          registerChild: async () => ({ pid: 712 }),
+          release: async () => {
+            released = true;
+          },
+        }),
+      }),
+      /did not prove quiescence/u,
     );
     assert.equal(released, false);
   } finally {
