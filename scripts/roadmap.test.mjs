@@ -8,11 +8,13 @@ import {
   catalogQualificationSummary,
   completionEvidenceLinks,
   dependencyCycles,
+  executeSetMany,
   fieldValue,
   featureIntakeFields,
   findPortIssueDuplicates,
   materializeViews,
   manualUiChecklist,
+  maximumMutationChunkAssignments,
   normalizePortKey,
   parseArguments,
   parsePortIssueForm,
@@ -172,6 +174,11 @@ test("argument parsing keeps positional item references and named values distinc
     command: "set",
     positionals: ["#42"],
     options: { "--status": "In progress", "--release": "Alpha 1" },
+  });
+  assert.deepEqual(parseArguments(["set-many", "--spec-file", "plan.json", "--apply", "--json"]), {
+    command: "set-many",
+    positionals: [],
+    options: { "--spec-file": "plan.json", "--apply": true, "--json": true },
   });
   assert.throws(() => parseArguments(["move", "PVTI_1", "--before"]), /requires a value/);
 });
@@ -2126,12 +2133,129 @@ test("set-many specifications fail closed before GitHub access", () => {
   };
   assert.throws(() => validateSetManySpec(config, tooLarge), /at most 100/);
   assert.equal(setManyRequiredReserve(11, 1), 123);
+  assert.equal(setManyRequiredReserve(11, 100), 147);
   for (const values of [
     [-1, 1],
     [1, -1],
     [1, 101],
   ])
     assert.throws(() => setManyRequiredReserve(...values), /quota inputs/);
+});
+
+function adaptiveSetManyFixture(count, { rates = null, mutationError = false } = {}) {
+  const changes = Array.from({ length: count }, (_, index) => ({
+    target: `#${index + 1}`,
+    itemId: `ITEM_${index + 1}`,
+    fieldName: "Status",
+    from: "Ready",
+    to: "Done",
+  }));
+  const values = new Map(changes.map((change) => [change.itemId, change.from]));
+  const mutations = [];
+  let rateIndex = 0;
+  const client = {
+    sampleGraphqlRate() {
+      const rate = rates?.[rateIndex] ?? {
+        used: rateIndex,
+        remaining: 5000 - rateIndex,
+        resetAt: "2026-09-16T12:00:00.000Z",
+      };
+      rateIndex += 1;
+      return rate;
+    },
+    planSetMany() {
+      return { context: {}, pending: changes, alreadyApplied: [], assignments: changes.length };
+    },
+    verifySetMany(plan) {
+      return [...plan.pending, ...plan.alreadyApplied].map((change) => {
+        const observed = values.get(change.itemId);
+        return { ...change, observed, verified: observed === change.to };
+      });
+    },
+    applySetMany(_plan, pending) {
+      mutations.push(pending.map((change) => change.itemId));
+      for (const change of pending) values.set(change.itemId, change.to);
+      if (mutationError) throw new Error("connection closed after send");
+    },
+  };
+  return { changes, client, mutations, values };
+}
+
+test("set-many applies at most 25 assignments per verified adaptive chunk", async () => {
+  const fixture = adaptiveSetManyFixture(52);
+  const result = await executeSetMany({
+    client: fixture.client,
+    config,
+    spec: {},
+    apply: true,
+    doctor: async () => {},
+  });
+  assert.equal(maximumMutationChunkAssignments, 25);
+  assert.deepEqual(
+    fixture.mutations.map((chunk) => chunk.length),
+    [25, 25, 2],
+  );
+  assert.equal(result.status, "succeeded");
+  assert.equal(result.evidence.verified, 52);
+  assert.equal(result.evidence.remaining, 0);
+  assert.equal(result.evidence.chunks.length, 3);
+});
+
+test("set-many reconciles an ambiguous mutation response without retrying", async () => {
+  const fixture = adaptiveSetManyFixture(2, { mutationError: true });
+  const result = await executeSetMany({
+    client: fixture.client,
+    config,
+    spec: {},
+    apply: true,
+    doctor: async () => {},
+  });
+  assert.equal(result.status, "succeeded");
+  assert.equal(result.evidence.reconciled_after_error, 2);
+  assert.equal(fixture.mutations.length, 1);
+});
+
+test("set-many stops before the next chunk when preserving quota requires a resume", async () => {
+  const fixture = adaptiveSetManyFixture(30, {
+    rates: [
+      { used: 0, remaining: 500, resetAt: "later" },
+      { used: 10, remaining: 490, resetAt: "later" },
+      { used: 11, remaining: 489, resetAt: "later" },
+      { used: 12, remaining: 0, resetAt: "later" },
+    ],
+  });
+  await assert.rejects(
+    () =>
+      executeSetMany({
+        client: fixture.client,
+        config,
+        spec: {},
+        apply: true,
+        doctor: async () => {},
+      }),
+    (error) =>
+      error.operationStatus === "partial" &&
+      error.operationEvidence.verified === 25 &&
+      error.operationEvidence.remaining === 5,
+  );
+  assert.equal(fixture.mutations.length, 1);
+});
+
+test("set-many refuses unexpected pre-chunk state without mutation", async () => {
+  const fixture = adaptiveSetManyFixture(2);
+  fixture.values.set("ITEM_1", "In progress");
+  await assert.rejects(
+    () =>
+      executeSetMany({
+        client: fixture.client,
+        config,
+        spec: {},
+        apply: true,
+        doctor: async () => {},
+      }),
+    (error) => error.operationStatus === "partial" && /stopped before mutation/.test(error.message),
+  );
+  assert.equal(fixture.mutations.length, 0);
 });
 
 test("GraphQL failures retain provider quota and reset evidence", () => {

@@ -11,6 +11,39 @@ export class GitHubApiError extends Error {
   }
 }
 
+const operationStatuses = new Set(["planned", "succeeded", "partial", "unknown", "failed"]);
+
+export function sanitizeOperationError(error) {
+  const message = String(error?.message ?? error ?? "unknown error")
+    .replace(/(?:ghp|github_pat)_[A-Za-z0-9_]+/gu, "[REDACTED]")
+    .replace(/\b(token|authorization)\s*[:=]\s*\S+/giu, "$1=[REDACTED]")
+    .slice(0, 2000);
+  return {
+    code: typeof error?.code === "string" ? error.code : "operation_failed",
+    message,
+  };
+}
+
+export function githubOperationEnvelope({
+  operation,
+  status,
+  summary,
+  evidence = {},
+  error = null,
+}) {
+  if (typeof operation !== "string" || !operation) throw new Error("operation is required");
+  if (!operationStatuses.has(status)) throw new Error(`unsupported operation status: ${status}`);
+  if (typeof summary !== "string" || !summary) throw new Error("operation summary is required");
+  return {
+    schema_version: 1,
+    operation,
+    status,
+    summary,
+    evidence,
+    error: error === null ? null : sanitizeOperationError(error),
+  };
+}
+
 export function parseIncludedResponse(output) {
   const text = String(output ?? "").trim();
   if (!text) return { headers: new Map(), body: null };

@@ -152,6 +152,22 @@ boundary. That transport owns response headers, quota evidence and generic Link
 pagination, while this Roadmap client continues to own Project schema,
 completeness, mutation and readback decisions.
 
+Bulk Project field transitions retain a 100-assignment specification ceiling
+but execute in verified chunks of at most 25 assignments. Before every chunk,
+the client accepts only the declared source or already-applied target value,
+samples the current GraphQL quota and preserves a recovery reserve. Every
+mutation is read back before the next chunk; an ambiguous response is never
+retried blindly. A partial run stops safely and the same specification can be
+resumed because already-applied targets are reconciled explicitly. Full
+readback and the Roadmap doctor remain the final success gate.
+
+`roadmap.mjs set-many` and `pr-delivery.mjs watch|merge` retain their human
+output by default. `--json` emits one schema-versioned operation envelope on
+stdout with `planned`, `succeeded`, `partial`, `unknown` or `failed` status;
+diagnostics stay on stderr and every status other than `planned` or `succeeded`
+exits nonzero. JSON does not relax exact-head checks, mutation readback or
+inventory completeness.
+
 Repository issue coverage uses the REST issue collection, follows every
 pagination link, validates opaque node IDs and issue numbers before filtering
 pull requests, and requires an unchanged newest-record marker across the read.
