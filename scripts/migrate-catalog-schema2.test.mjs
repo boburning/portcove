@@ -171,6 +171,7 @@ test("schema-2 migration is deterministic and preserves the frozen schema-1 proj
     apeEscapeProfile.variants.map((item) => item.id),
     ["usa-rev0"],
   );
+  assert.deepEqual(apeEscapeProfile.variants[0].representations[0].extensions, ["chd"]);
   assert.deepEqual(apeEscapeProfile.variants[0].representations[0].identities, [
     {
       scope: "psx-normalized-track-set",
@@ -190,6 +191,10 @@ test("schema-2 migration is deterministic and preserves the frozen schema-1 proj
   const apeEscape = migrated.ports.find((port) => port.id === "ape-escape-recompiled");
   assert.equal(apeEscape.adapter, "staged-source-portable");
   assert.equal(apeEscape.runtime_source_materialization, "psx-bin-cue");
+  assert.deepEqual(apeEscape.runtime_source_hashes, {
+    "disc.cue": "a5023a08a8330c83ada9bcfb75303359f353dd37e04db8ef7a0f23703ec56d41",
+    "disc1.bin": "1ae17e78ebb8c782c7c1785b0a0bd7b0ee28235b8a0c83c8df887129899a852a",
+  });
   assert.deepEqual(apeEscape.persistent_paths, [
     "saves",
     "settings.toml",

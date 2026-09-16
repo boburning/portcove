@@ -723,7 +723,7 @@ identities.push({
       representations: [
         {
           id: "normalized-track-set",
-          extensions: ["chd", "cue", "bin"],
+          extensions: ["chd"],
           kind: "optical-track-set",
           track_counts: [1],
           identities: [
@@ -2223,6 +2223,11 @@ const migrated = {
       ],
       runtime_source_filename: "disc",
       runtime_source_materialization: "psx-bin-cue",
+      runtime_source_hashes: {
+        "disc.cue": "a5023a08a8330c83ada9bcfb75303359f353dd37e04db8ef7a0f23703ec56d41",
+        "disc1.bin":
+          "1ae17e78ebb8c782c7c1785b0a0bd7b0ee28235b8a0c83c8df887129899a852a",
+      },
     }),
   ],
 };

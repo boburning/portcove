@@ -934,10 +934,31 @@ impl Catalog {
                             port.runtime_source_hashes.len() == 1
                                 && port.runtime_source_hashes.contains_key(filename)
                         });
-                    if !exact_single_file_identity {
+                    let exact_psx_bin_cue_identity = materialization
+                        == RuntimeSourceMaterialization::PsxBinCue
+                        && port.runtime_source_hashes.contains_key("disc.cue")
+                        && port.runtime_source_hashes.contains_key("disc1.bin")
+                        && port.runtime_source_hashes.keys().all(|relative| {
+                            relative == "disc.cue"
+                                || relative
+                                    .strip_prefix("disc")
+                                    .and_then(|value| value.strip_suffix(".bin"))
+                                    .is_some_and(|value| {
+                                        !value.is_empty()
+                                            && !value.starts_with('0')
+                                            && value.bytes().all(|byte| byte.is_ascii_digit())
+                                    })
+                        });
+                    if !exact_single_file_identity && !exact_psx_bin_cue_identity {
+                        let identity_kind =
+                            if materialization == RuntimeSourceMaterialization::PsxBinCue {
+                                "PSX BIN/CUE"
+                            } else {
+                                "single-file"
+                            };
                         return Err(PortcoveError::usage(format!(
-                            "{} has an invalid single-file runtime identity",
-                            port.id
+                            "{} has an invalid {identity_kind} runtime identity",
+                            port.id,
                         )));
                     }
                 }
@@ -3500,6 +3521,19 @@ mod tests {
             profile.accepted_sha256,
             vec!["1ae17e78ebb8c782c7c1785b0a0bd7b0ee28235b8a0c83c8df887129899a852a"]
         );
+        assert_eq!(profile.accepted_extensions, vec!["chd"]);
+        assert_eq!(
+            port.runtime_source_hashes
+                .get("disc.cue")
+                .map(String::as_str),
+            Some("a5023a08a8330c83ada9bcfb75303359f353dd37e04db8ef7a0f23703ec56d41")
+        );
+        assert_eq!(
+            port.runtime_source_hashes
+                .get("disc1.bin")
+                .map(String::as_str),
+            Some("1ae17e78ebb8c782c7c1785b0a0bd7b0ee28235b8a0c83c8df887129899a852a")
+        );
 
         let source_catalog = catalog.source_catalog().unwrap();
         let contract = source_catalog
@@ -3559,6 +3593,25 @@ mod tests {
         assert_eq!(
             mismatched_artifact.automated_lifecycle,
             crate::QualificationEvidenceState::Missing
+        );
+    }
+
+    #[test]
+    fn psx_bin_cue_runtime_identity_requires_the_cue_and_first_track() {
+        let mut catalog = Catalog::embedded().expect("catalog should load");
+        let port = catalog
+            .document
+            .ports
+            .iter_mut()
+            .find(|port| port.id == "ape-escape-recompiled")
+            .unwrap();
+        port.runtime_source_hashes.remove("disc1.bin");
+
+        let error = catalog.validate().unwrap_err();
+        assert!(
+            error
+                .to_string()
+                .contains("invalid PSX BIN/CUE runtime identity")
         );
     }
 

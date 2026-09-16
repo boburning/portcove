@@ -476,7 +476,9 @@ pub(crate) fn prepare_runtime_source_with_tool(
         RuntimeSourceMaterialization::N64BigEndian => prepare_n64_source(source, destination)?,
         RuntimeSourceMaterialization::Copy => copy_runtime_source(source, destination)?,
         RuntimeSourceMaterialization::GamecubeIso => materialize_gamecube_iso(source, destination)?,
-        RuntimeSourceMaterialization::PsxBinCue => materialize_psx_bin_cue(source, destination)?,
+        RuntimeSourceMaterialization::PsxBinCue => {
+            materialize_psx_bin_cue(source, destination, chdman, checkpoint, observer)?
+        }
         RuntimeSourceMaterialization::PsxRawSet => materialize_psx_raw_set(source, destination)?,
         RuntimeSourceMaterialization::Ps2Iso => {
             materialize_ps2_iso(source, destination, chdman, checkpoint, observer)?
@@ -1200,7 +1202,13 @@ fn replace_atomic(temporary: &Path, destination: &Path) -> Result<()> {
     Ok(())
 }
 
-fn materialize_psx_bin_cue(source: &Path, destination: &Path) -> Result<()> {
+fn materialize_psx_bin_cue(
+    source: &Path,
+    destination: &Path,
+    pinned_tool: Option<&Path>,
+    checkpoint: &dyn Fn() -> Result<()>,
+    observer: crate::tool_process::ToolProcessObserver<'_>,
+) -> Result<()> {
     if source
         .extension()
         .and_then(|value| value.to_str())
@@ -1216,7 +1224,9 @@ fn materialize_psx_bin_cue(source: &Path, destination: &Path) -> Result<()> {
         .ok_or_else(|| PortcoveError::state("PS1 runtime destination has no parent directory"))?;
     std::fs::create_dir_all(parent)?;
     let temporary = parent.join(format!(".portcove-psx-{}", Uuid::new_v4()));
-    if let Err(error) = materialize_psx_chd(source, &temporary) {
+    if let Err(error) =
+        materialize_psx_chd_with_tool(source, &temporary, pinned_tool, checkpoint, observer)
+    {
         let _ = std::fs::remove_dir_all(&temporary);
         return Err(error);
     }
@@ -2146,11 +2156,30 @@ fn validate_disc_identity(
 }
 
 pub(crate) fn materialize_psx_chd(source: &Path, destination: &Path) -> Result<PathBuf> {
+    materialize_psx_chd_with_tool(
+        source,
+        destination,
+        None,
+        &|| Ok(()),
+        crate::tool_process::ToolProcessObserver::default(),
+    )
+}
+
+fn materialize_psx_chd_with_tool(
+    source: &Path,
+    destination: &Path,
+    pinned_tool: Option<&Path>,
+    checkpoint: &dyn Fn() -> Result<()>,
+    observer: crate::tool_process::ToolProcessObserver<'_>,
+) -> Result<PathBuf> {
     std::fs::create_dir_all(destination)?;
     let cue = destination.join("disc.cue");
     let bins = destination.join("disc%t.bin");
-    let program = resolve_chdman()?;
-    let output = ChildProcessPolicy::native_command(ChildProcessClass::HostTool, &program)?
+    let program = pinned_tool
+        .map(Path::to_path_buf)
+        .map_or_else(resolve_chdman, Ok)?;
+    let mut command = ChildProcessPolicy::native_command(ChildProcessClass::HostTool, &program)?;
+    command
         .arg("extractcd")
         .arg("-i")
         .arg(source)
@@ -2158,25 +2187,17 @@ pub(crate) fn materialize_psx_chd(source: &Path, destination: &Path) -> Result<P
         .arg(&cue)
         .arg("-ob")
         .arg(&bins)
-        .arg("-sb")
-        .stdout(Stdio::null())
-        .stderr(Stdio::piped())
-        .output()
-        .map_err(|error| {
-            PortcoveError::source(format!(
-                "could not run chdman at {} ({error})",
-                program.display()
-            ))
-            .detail("chdman_path", program.display().to_string())
-        })?;
+        .arg("-sb");
+    let output = crate::tool_process::run_tool(&mut command, checkpoint, observer)?;
     if !output.status.success() {
-        let detail = String::from_utf8_lossy(&output.stderr);
         return Err(PortcoveError::source(format!(
             "chdman could not extract {}: {}",
             source.display(),
-            detail.trim()
-        )));
+            output.output.trim()
+        ))
+        .detail("exit_code", output.status.code().unwrap_or(-1).to_string()));
     }
+    checkpoint()?;
     if !cue.is_file() {
         return Err(PortcoveError::source(
             "chdman completed without producing a cue sheet",
@@ -3425,6 +3446,26 @@ mod tests {
 
         assert_eq!(std::fs::read(destination).unwrap(), canonical);
         assert_eq!(std::fs::read(marker_path).unwrap(), marker);
+    }
+
+    #[test]
+    fn psx_bin_cue_runtime_hashes_detect_generated_source_drift() {
+        let temporary = tempfile::tempdir().unwrap();
+        let destination = temporary.path().join("disc");
+        std::fs::create_dir_all(&destination).unwrap();
+        std::fs::write(destination.join("disc.cue"), b"cue").unwrap();
+        std::fs::write(destination.join("disc1.bin"), b"track").unwrap();
+        let required = BTreeMap::from([
+            ("disc.cue".into(), hex::encode(Sha256::digest(b"cue"))),
+            ("disc1.bin".into(), hex::encode(Sha256::digest(b"track"))),
+        ]);
+
+        verify_runtime_source_hashes(&destination, &required, &|| Ok(())).unwrap();
+        std::fs::write(destination.join("disc1.bin"), b"changed").unwrap();
+
+        let error = verify_runtime_source_hashes(&destination, &required, &|| Ok(())).unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Verification);
+        assert!(error.to_string().contains("unexpected disc1.bin"));
     }
 
     #[test]

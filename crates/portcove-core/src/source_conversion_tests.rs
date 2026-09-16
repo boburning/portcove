@@ -112,3 +112,50 @@ fn failed_and_cancelled_conversion_retains_logs_and_reaps_owned_processes() {
         );
     }
 }
+
+#[test]
+fn changed_psx_runtime_track_is_rematerialized_before_reuse() {
+    let native = tempfile::tempdir().unwrap();
+    let program = crate::test_fixture::build_probe(native.path());
+    let temporary = tempfile::tempdir().unwrap();
+    let source = temporary.path().join("owned.chd");
+    let destination = temporary.path().join("disc");
+    std::fs::write(&source, b"owned source bytes").unwrap();
+    let cue = b"FILE \"disc1.bin\" BINARY\n  TRACK 01 MODE2/2352\n    INDEX 01 00:00:00\n";
+    let track = b"owned psx track";
+    let required = BTreeMap::from([
+        ("disc.cue".into(), hex::encode(sha2::Sha256::digest(cue))),
+        ("disc1.bin".into(), hex::encode(sha2::Sha256::digest(track))),
+    ]);
+
+    prepare_runtime_source_with_tool(
+        &source,
+        &destination,
+        RuntimeSourceMaterialization::PsxBinCue,
+        &required,
+        Some(&program),
+        &|| Ok(()),
+        crate::tool_process::ToolProcessObserver::default(),
+    )
+    .unwrap();
+    let marker = std::fs::read(runtime_source_marker_path(&destination).unwrap()).unwrap();
+    std::fs::write(destination.join("disc1.bin"), b"changed track").unwrap();
+
+    prepare_runtime_source_with_tool(
+        &source,
+        &destination,
+        RuntimeSourceMaterialization::PsxBinCue,
+        &required,
+        Some(&program),
+        &|| Ok(()),
+        crate::tool_process::ToolProcessObserver::default(),
+    )
+    .unwrap();
+
+    assert_eq!(std::fs::read(destination.join("disc.cue")).unwrap(), cue);
+    assert_eq!(std::fs::read(destination.join("disc1.bin")).unwrap(), track);
+    assert_eq!(
+        std::fs::read(runtime_source_marker_path(&destination).unwrap()).unwrap(),
+        marker
+    );
+}
