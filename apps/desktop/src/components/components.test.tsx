@@ -1531,6 +1531,41 @@ describe("desktop components", () => {
     expect(html).not.toContain("staged-source-portable");
   });
 
+  it("keeps retired-upstream maintenance distinct from Portcove support", () => {
+    const retiredPort: PortDefinition = {
+      ...port,
+      upstream_status: "retired",
+      channels: ["stable"],
+      executable_hints: { "windows-x86-64": ["sample.exe"] },
+      release: {
+        provider: "direct-manifest",
+        repository: "",
+        rolling_tag: null,
+        asset_hints: {},
+        direct: {
+          "windows-x86-64": {
+            version: "1.0.0",
+            url: "https://example.com/releases/sample-1.0.0.zip",
+            size: 1,
+            sha256: "a".repeat(64),
+            published_at: null,
+          },
+        },
+      },
+    };
+    const html = renderToStaticMarkup(
+      <DetailPanel port={retiredPort} sourcePath="" setSourcePath={vi.fn()} actions={actions} />,
+    );
+    expect(html).toContain("The upstream project is no longer maintained");
+    expect(html).toContain("Portcove can still install its pinned release");
+    expect(html).toContain("no new upstream fixes are expected");
+    expect(html).toContain("<small>Portcove support</small>Stable");
+    expect(html).toContain("<small>Available release channels</small>Stable");
+    expect(html).toContain("Portcove uses the pinned release recorded in the catalog");
+    expect(html).not.toContain("no upstream fixes or support");
+    expect(html).not.toContain("Portcove checks this project for releases");
+  });
+
   it("orders port details by player task and distinguishes installed from eligible versions", () => {
     const install = installRecord();
     const html = renderToStaticMarkup(
