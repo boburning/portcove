@@ -95,7 +95,8 @@ const reviewedSources = {
     liveRef: "master",
     path: "DISC.md",
     reviewedAt: "2026-09-16",
-    qualificationRef: "58b6e05c6c29db6d8adfd0578e00e438fd285a40",
+    lifecycleRef: "58b6e05c6c29db6d8adfd0578e00e438fd285a40",
+    qualificationRef: "5219c00ab7f14fccd93200ea79eb4f7d48f02f23",
   },
   cvlodRecomp: {
     evidenceId: "cvlod-recomp-0-2-26-source-contract",
@@ -217,7 +218,7 @@ const evidence = [
     authority_ref: reviewedSources.apeEscapeRecomp.qualificationRef,
     reviewed_at: reviewedSources.apeEscapeRecomp.reviewedAt,
     claim:
-      "Records the exact authorized USA source identity, GitHub artifact identity, archive and runtime ownership preflight, and responsive Windows launcher",
+      "Records the exact authorized USA source identity, GitHub artifact identity, archive and runtime ownership preflight, generated-source reuse repair, and responsive Windows launcher",
     immutable_url: `https://github.com/boburning/portcove/blob/${reviewedSources.apeEscapeRecomp.qualificationRef}/docs/qualification/ape-escape-recompiled-windows-2026-09-16.md`,
     live_url:
       "https://github.com/boburning/portcove/blob/main/docs/qualification/ape-escape-recompiled-windows-2026-09-16.md",
@@ -229,7 +230,7 @@ const evidence = [
     authority_ref: reviewedSources.apeEscapeRecomp.qualificationRef,
     reviewed_at: reviewedSources.apeEscapeRecomp.reviewedAt,
     claim:
-      "Records exact source refusal and admission, dynamic GitHub resolution, install, verification with bounded runtime diagnostics, responsive launch, persistent-only backup and restore, adopt, update, rollback, retained reuse, removal, reinstall, and persistent-state preservation",
+      "Records exact source refusal and admission, dynamic GitHub resolution, install, verification with bounded runtime diagnostics and exact generated-source reuse, responsive launch, persistent-only backup and restore, adopt, update, rollback, retained reuse, removal, reinstall, and persistent-state preservation",
     immutable_url: `https://github.com/boburning/portcove/blob/${reviewedSources.apeEscapeRecomp.qualificationRef}/docs/qualification/ape-escape-recompiled-windows-2026-09-16.md`,
     live_url:
       "https://github.com/boburning/portcove/blob/main/docs/qualification/ape-escape-recompiled-windows-2026-09-16.md",
@@ -1819,7 +1820,7 @@ const migrated = {
         outcome: "passed",
         observed_at: 1789544598,
         portcove_version: "0.1.0-alpha.2",
-        portcove_commit: reviewedSources.apeEscapeRecomp.qualificationRef,
+        portcove_commit: reviewedSources.apeEscapeRecomp.lifecycleRef,
         method:
           "Exact GitHub release, artifact and sidecar identity, normalized source identity and valid-CHD mismatch rejection, executable, persistence, generated-source, bounded runtime-output, and immutable-manifest binding checks",
         evidence_ids: [reviewedSources.apeEscapeRecomp.lifecycleEvidenceId],
@@ -1845,7 +1846,7 @@ const migrated = {
         outcome: "passed",
         observed_at: 1789544598,
         portcove_version: "0.1.0-alpha.2",
-        portcove_commit: reviewedSources.apeEscapeRecomp.qualificationRef,
+        portcove_commit: reviewedSources.apeEscapeRecomp.lifecycleRef,
         method:
           "Exact source admission, live GitHub resolution, install, 287-file post-launch verification with bounded dynamic diagnostics, responsive native launch, persistent-only backup and guarded restore, adopted-to-downloaded update, rollback, retained reuse, removal, reinstall, and persistent-state preservation",
         evidence_ids: [reviewedSources.apeEscapeRecomp.lifecycleEvidenceId],

@@ -455,7 +455,7 @@ test("schema-2 migration is deterministic and preserves the frozen schema-1 proj
   );
   assert.equal(
     contract("ape-escape-recompiled").authority_ref,
-    "58b6e05c6c29db6d8adfd0578e00e438fd285a40",
+    "5219c00ab7f14fccd93200ea79eb4f7d48f02f23",
   );
   const drMarioQualification = migrated.source_catalog.qualification.filter(
     (record) => record.scope.port_id === "dr-mario-64-recomp",
