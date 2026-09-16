@@ -103,6 +103,11 @@ impl InstallQualification {
             .then(|| port.runtime_source_filename.clone())
             .flatten()
             .into_iter()
+            .chain(
+                port.runtime_source_set
+                    .iter()
+                    .map(|source| source.destination.clone()),
+            )
             .collect(),
         })
     }
@@ -1209,10 +1214,13 @@ fn manifest_files(
                 || is_critical_companion(&path, selected, qualification.platform)?
                 || runtime_root
                     .as_ref()
-                    .is_some_and(|runtime| path.starts_with(runtime)))
+                    .is_some_and(|runtime| path.starts_with(runtime))
+                || critical_roots
+                    .iter()
+                    .any(|critical| path == *critical || path.starts_with(critical)))
         {
             return Err(PortcoveError::verification(
-                "mutable file pattern matched executable or bootstrap content",
+                "mutable file pattern matched executable, source, or bootstrap content",
             ));
         }
         if path.file_name().and_then(|value| value.to_str()) == Some(".portcove-manifest.json")
@@ -2163,6 +2171,45 @@ mod tests {
 
         let error = qualification.file_patterns(root, &selected).unwrap_err();
         assert!(error.message.contains("patterns overlap"));
+    }
+
+    #[test]
+    fn runtime_source_set_members_remain_immutable() {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path().join("payload");
+        fs::create_dir(&root).unwrap();
+        fs::write(root.join("game.exe"), b"trusted executable").unwrap();
+        let source = root.join("baserom.us.rev0.z64");
+        fs::write(&source, b"trusted source").unwrap();
+        let mut qualification = InstallQualification::test("game.exe");
+        qualification.critical_paths = vec!["baserom.us.rev0.z64".into()];
+        qualification.runtime_mutable_file_patterns = vec![crate::PersistentFilePattern {
+            prefix: "psx_freeze_dump_".into(),
+            suffix: ".json".into(),
+        }];
+
+        let (installer, install) = create_test_install(&root, &qualification);
+        let manifest = verified_manifest(&install).unwrap();
+        assert!(
+            manifest
+                .files
+                .iter()
+                .any(|file| { file.path == "baserom.us.rev0.z64" && file.critical })
+        );
+        fs::write(&source, b"changed source").unwrap();
+        assert!(!installer.verify(&install).unwrap().valid);
+
+        fs::write(&source, b"trusted source").unwrap();
+        qualification.runtime_mutable_file_patterns = vec![crate::PersistentFilePattern {
+            prefix: "baserom.".into(),
+            suffix: ".z64".into(),
+        }];
+        let error = manifest_files(&root, &qualification, &root.join("game.exe")).unwrap_err();
+        assert!(
+            error
+                .message
+                .contains("matched executable, source, or bootstrap")
+        );
     }
 
     #[test]

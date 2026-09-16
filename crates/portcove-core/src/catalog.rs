@@ -752,6 +752,10 @@ impl Catalog {
                         .as_ref()
                         .is_some_and(|relative| pattern.matches(relative))
                     || port
+                        .runtime_source_set
+                        .iter()
+                        .any(|source| pattern.matches(&source.destination))
+                    || port
                         .setup_marker
                         .as_ref()
                         .is_some_and(|relative| pattern.matches(relative))
@@ -2317,6 +2321,7 @@ mod tests {
             ("twisted-metal-4-recompiled", "persistent-path"),
             ("twisted-metal-4-recompiled", "runtime-path"),
             ("twisted-metal-4-recompiled", "generated-metadata"),
+            ("g-diffuser", "source-set"),
             ("dusklight", "unsupported-adapter"),
         ] {
             let mut document: serde_json::Value =
@@ -2360,6 +2365,12 @@ mod tests {
                     port["runtime_mutable_file_patterns"] = serde_json::json!([{
                         "prefix": ".portcove-",
                         "suffix": ".toml"
+                    }]);
+                }
+                "source-set" => {
+                    port["runtime_mutable_file_patterns"] = serde_json::json!([{
+                        "prefix": "baserom.",
+                        "suffix": ".z64"
                     }]);
                 }
                 "unsupported-adapter" => {}
