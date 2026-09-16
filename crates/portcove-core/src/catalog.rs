@@ -2917,6 +2917,25 @@ mod tests {
             qualification.known_failure,
             crate::QualificationEvidenceState::Missing
         );
+        let automated = catalog
+            .source_catalog()
+            .unwrap()
+            .qualification
+            .iter()
+            .find(|record| {
+                record.scope == scope
+                    && record.kind == crate::SourceEvidenceKind::AutomatedLifecycle
+            })
+            .expect("Yu-Gi-Oh automated lifecycle evidence should exist");
+        assert_eq!(
+            automated.portcove_commit.as_deref(),
+            Some("6bf60b6e0f24a1eef7a7efcfdb181a6cc2692cef")
+        );
+        assert!(automated.evidence_ids.iter().any(|evidence_id| {
+            evidence_id == "yu-gi-oh-forbidden-memories-recompiled-windows-cross-version-2026-09-15"
+        }));
+        assert!(automated.method.contains("v0.5.7-to-v0.6.1 update"));
+        assert!(automated.method.contains("retained-version reactivation"));
     }
 
     #[test]

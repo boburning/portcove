@@ -152,6 +152,16 @@
         "live_url": "https://github.com/boburning/portcove/blob/main/docs/qualification/yu-gi-oh-forbidden-memories-recompiled-windows-2026-09-15.md"
       },
       {
+        "id": "yu-gi-oh-forbidden-memories-recompiled-windows-cross-version-2026-09-15",
+        "role": "portcove_qualification",
+        "authority": "boburning/portcove",
+        "authority_ref": "a7611057d9e67196e2984004b54a8d161cbd5cbb",
+        "reviewed_at": "2026-09-15",
+        "claim": "Records exact Windows v0.5.7-to-v0.6.1 update, rollback, retained reactivation, immutable verification, and bounded persistence preservation evidence",
+        "immutable_url": "https://github.com/boburning/portcove/blob/a7611057d9e67196e2984004b54a8d161cbd5cbb/docs/qualification/yu-gi-oh-forbidden-memories-recompiled-windows-cross-version-2026-09-15.md",
+        "live_url": "https://github.com/boburning/portcove/blob/main/docs/qualification/yu-gi-oh-forbidden-memories-recompiled-windows-cross-version-2026-09-15.md"
+      },
+      {
         "id": "revelations-persona-recompiled-windows-2026-09-15",
         "role": "portcove_qualification",
         "authority": "boburning/portcove",
@@ -6030,12 +6040,13 @@
         },
         "kind": "automated_lifecycle",
         "outcome": "passed",
-        "observed_at": 1789487491,
+        "observed_at": 1789517758,
         "portcove_version": "0.1.0-alpha.2",
-        "portcove_commit": "327626b154a45f2af52de77ab06fae54c4794ef2",
-        "method": "Exact source admission and malformed rejection, fresh install, 2,516-file verification, three responsive native launches, collection, backup restore, removal preservation, reinstall, and restored-state relaunch",
+        "portcove_commit": "6bf60b6e0f24a1eef7a7efcfdb181a6cc2692cef",
+        "method": "Exact source admission and malformed rejection, fresh v0.6.1 install, responsive native launches, collection, backup restore, removal preservation, reinstall, exact v0.5.7-to-v0.6.1 update, rollback, retained-version reactivation, immutable verification, and bounded canonical persistence and backup preservation",
         "evidence_ids": [
-          "yu-gi-oh-forbidden-memories-recompiled-windows-2026-09-15"
+          "yu-gi-oh-forbidden-memories-recompiled-windows-2026-09-15",
+          "yu-gi-oh-forbidden-memories-recompiled-windows-cross-version-2026-09-15"
         ]
       },
       {

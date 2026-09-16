@@ -198,6 +198,16 @@ test("schema-2 migration is deterministic and preserves the frozen schema-1 proj
     ),
     true,
   );
+  const ygofmAutomated = ygofmQualification.find((record) => record.kind === "automated_lifecycle");
+  assert.equal(ygofmAutomated.portcove_commit, "6bf60b6e0f24a1eef7a7efcfdb181a6cc2692cef");
+  assert.equal(
+    ygofmAutomated.evidence_ids.includes(
+      "yu-gi-oh-forbidden-memories-recompiled-windows-cross-version-2026-09-15",
+    ),
+    true,
+  );
+  assert.match(ygofmAutomated.method, /v0\.5\.7-to-v0\.6\.1 update/);
+  assert.match(ygofmAutomated.method, /retained-version reactivation/);
   assert.deepEqual(contract("yu-gi-oh-forbidden-memories-recompiled").applicability, [
     {
       upstream_ref: "v0.6.1",
