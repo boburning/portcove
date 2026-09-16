@@ -338,16 +338,17 @@ async fn publish_top_level_metadata_variant(
     fs::write(fixture.metadata.join("timestamp.json"), timestamp_bytes).unwrap();
 }
 
-async fn publish_valid_preview_role_version(
+async fn publish_preview_role_version(
     mut editor: tough::editor::RepositoryEditor,
     fixture: &Fixture,
     preview: &Key,
     version: u64,
+    expires: jiff::Timestamp,
 ) {
     editor
         .targets_version(nz(version))
         .unwrap()
-        .targets_expires(expiration())
+        .targets_expires(expires)
         .unwrap();
     editor
         .sign_targets_editor(&[fixture.online.source()])
@@ -358,7 +359,7 @@ async fn publish_valid_preview_role_version(
         .unwrap()
         .targets_version(nz(version))
         .unwrap()
-        .targets_expires(expiration())
+        .targets_expires(expires)
         .unwrap();
     editor
         .sign_targets_editor(&[preview.source()])
@@ -368,12 +369,12 @@ async fn publish_valid_preview_role_version(
         .unwrap()
         .targets_version(nz(version))
         .unwrap()
-        .targets_expires(expiration())
+        .targets_expires(expires)
         .unwrap()
         .snapshot_version(nz(version))
-        .snapshot_expires(expiration())
+        .snapshot_expires(expires)
         .timestamp_version(nz(version))
-        .timestamp_expires(expiration());
+        .timestamp_expires(expires);
     editor
         .sign(&[fixture.online.source()])
         .await
@@ -442,6 +443,25 @@ fn assert_consumer_rejected_timestamp_replay(error: ApplicationUpdateFreshSelect
         ),
         other => panic!("expected an exact timestamp replay failure, got {other}"),
     }
+}
+
+fn assert_consumer_rejected_timestamp_expiry(error: ApplicationUpdateFreshSelectionError) {
+    let ApplicationUpdateFreshSelectionError::Candidate(CandidateLoadError::Trust(error)) = error
+    else {
+        panic!("expected expired timestamp to fail candidate loading, got {error}");
+    };
+    assert_eq!(error.failure_kind(), TrustedRepositoryFailureKind::Stale);
+    assert!(
+        matches!(
+            error,
+            TrustedRepositoryError::Authentication(ref source)
+                if matches!(source.as_ref(), Error::ExpiredMetadata {
+                    role: RoleType::Timestamp,
+                    ..
+                })
+        ),
+        "expected an exact timestamp expiry failure, got {error:?}"
+    );
 }
 
 fn assert_consumer_selected_version(
@@ -1438,7 +1458,14 @@ async fn channel_role_authenticates_keys_and_transition_candidates() {
     .unwrap_err();
     assert_consumer_rejected_signature(error);
 
-    publish_valid_preview_role_version(missing_signature_recovery_editor, &f, &preview, 2).await;
+    publish_preview_role_version(
+        missing_signature_recovery_editor,
+        &f,
+        &preview,
+        2,
+        expiration(),
+    )
+    .await;
     let recovered_missing_signature = select_fixture_preview_with_host_consumer(
         &f,
         &trusted,
@@ -1498,7 +1525,14 @@ async fn channel_role_authenticates_keys_and_transition_candidates() {
     .unwrap_err();
     assert_consumer_rejected_signature(error);
 
-    publish_valid_preview_role_version(wrong_signature_recovery_editor, &f, &preview, 3).await;
+    publish_preview_role_version(
+        wrong_signature_recovery_editor,
+        &f,
+        &preview,
+        3,
+        expiration(),
+    )
+    .await;
     let recovered_wrong_signature = select_fixture_preview_with_host_consumer(
         &f,
         &trusted,
@@ -1593,10 +1627,11 @@ async fn channel_role_authenticates_keys_and_transition_candidates() {
     assert_eq!(persisted_roles(&host_state), roles_before_outage);
 
     let replayed_timestamp = fs::read(&timestamp_path).unwrap();
-    let refresh_editor = RepositoryEditor::from_repo(root_path, f.load(&trusted).await.unwrap())
-        .await
-        .unwrap();
-    publish_valid_preview_role_version(refresh_editor, &f, &preview, 4).await;
+    let refresh_editor =
+        RepositoryEditor::from_repo(root_path.clone(), f.load(&trusted).await.unwrap())
+            .await
+            .unwrap();
+    publish_preview_role_version(refresh_editor, &f, &preview, 4, expiration()).await;
     let current_timestamp = fs::read(&timestamp_path).unwrap();
     assert_ne!(current_timestamp, replayed_timestamp);
 
@@ -1617,6 +1652,42 @@ async fn channel_role_authenticates_keys_and_transition_candidates() {
     assert_eq!(persisted_roles(&host_state), roles_after_refresh);
 
     fs::write(&timestamp_path, current_timestamp).unwrap();
+    let recovered = ApplicationUpdateFreshSelectionProvider::select(&provider, &stable_choice)
+        .await
+        .unwrap();
+    assert_consumer_selected_version(recovered, &skipped_context, "1.1.0");
+    assert_eq!(persisted_roles(&host_state), roles_after_refresh);
+
+    let accepted_metadata = [
+        "targets.json",
+        "releases.json",
+        "stable.json",
+        "preview.json",
+        "snapshot.json",
+        "timestamp.json",
+    ]
+    .map(|name| (name, fs::read(f.metadata.join(name)).unwrap()));
+    let expiry_editor = RepositoryEditor::from_repo(root_path, f.load(&trusted).await.unwrap())
+        .await
+        .unwrap();
+    publish_preview_role_version(
+        expiry_editor,
+        &f,
+        &preview,
+        5,
+        "2000-01-01T00:00:00Z".parse().unwrap(),
+    )
+    .await;
+
+    let error = ApplicationUpdateFreshSelectionProvider::select(&provider, &stable_choice)
+        .await
+        .unwrap_err();
+    assert_consumer_rejected_timestamp_expiry(error);
+    assert_eq!(persisted_roles(&host_state), roles_after_refresh);
+
+    for (name, bytes) in accepted_metadata {
+        fs::write(f.metadata.join(name), bytes).unwrap();
+    }
     let recovered = ApplicationUpdateFreshSelectionProvider::select(&provider, &stable_choice)
         .await
         .unwrap();

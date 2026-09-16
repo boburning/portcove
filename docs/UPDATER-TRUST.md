@@ -635,7 +635,9 @@ key for the selected candidate. These are deterministic repository/selection res
 not packaged application replacement or production-feed observations.
 On one durable host-provider state, the same fixture accepts a newer signed metadata
 generation, rejects an older signed timestamp as stale without lowering the accepted
-role floors, then recovers after the current signed timestamp is restored.
+role floors, then recovers after the current signed timestamp is restored. It also
+rejects a correctly signed newer generation whose timestamp is expired, preserves
+those same accepted floors, and recovers when the exact fresh generation is restored.
 Host-state fixtures additionally prove version and signed-body floors after the TUF
 cache is removed, same-process serialization, clock-regression refusal, source
 refusal before state mutation, and recovery from a failed initial bridge plus a
