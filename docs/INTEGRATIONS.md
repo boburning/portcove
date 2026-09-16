@@ -213,12 +213,38 @@ Individual games target:
 Steam entry -> supported Portcove CLI launch -> managed game
 ```
 
-The entry uses stable port and explicit library identity, not a
-version-specific upstream executable. It remains valid through ordinary game
-updates and rollback and has documented repair for application/library path
-changes or unavailable media. Neither the desktop UI nor a plugin is required
-to remain open while the game runs. Desktop Steam and Steam Deck are qualified
-separately, beginning with appropriate native Linux routes on SteamOS.
+Keep Steam's fields separate; do not paste one shell command into a target field:
+
+| Entry                | Program/target                                                                | Argument array                                                           | Start in                              |
+| -------------------- | ----------------------------------------------------------------------------- | ------------------------------------------------------------------------ | ------------------------------------- |
+| Portcove application | The stable current-user AppImage path selected under #213                     | Empty                                                                    | The AppImage's parent directory       |
+| Installed game       | A stable absolute path to `portcove` from the verified standalone CLI archive | `--library`, the absolute library root, `exec`, the stable port ID, `--` | The standalone CLI's parent directory |
+
+The argument-array row is the canonical identity. When entering it in Steam's
+Launch Options field, quote the library value as one argument if it contains
+spaces; do not add `sh -c`, interpolate a game title, or target a versioned game
+executable. A static manual entry intentionally omits `--request-id`: the CLI
+creates a fresh launch identity itself. A real external client that needs
+durable polling supplies a new UUID per launch and uses `launch show`; reusing a
+fixed UUID is rejected.
+
+The entry uses stable port and explicit library identity, not a version-specific
+upstream executable. Ordinary game update or rollback changes neither field.
+After a supported library relocation, update only the explicit library argument.
+If the separately packaged CLI is moved or replaced at a different path, repair
+the target and Start In fields; the Desktop/AppImage updater does not silently
+relocate or update that standalone executable. Unavailable removable storage or
+a missing CLI must remain a visible launch failure, never an implicit install,
+update, or fallback to another library. Neither the desktop UI nor a plugin is
+required to remain open while the game runs.
+
+Current controlled release smoke executes every actual standalone CLI package
+from an extracted path containing spaces and Unicode, selects an explicit
+spaces/Unicode library, verifies exact `invocation` provenance, and confirms the
+packaged `exec` plus `launch.show` capability surface. This proves packaged
+executable/path/library admission, not a game session or a Steam-client launch.
+Desktop Steam and Steam Deck remain separate qualification environments,
+beginning with appropriate native Linux routes on SteamOS.
 Windows-only ports, Proton/Wine configuration, additional architectures, and
 other SteamOS devices require their own scope and evidence.
 
