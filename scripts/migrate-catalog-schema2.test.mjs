@@ -156,6 +156,8 @@ test("schema-2 migration is deterministic and preserves the frozen schema-1 proj
   );
   assert.equal(dnzh.release.provider, "gitlab");
   assert.equal(dnzh.release.repository, "sonicdcer/DNZHRecomp");
+  assert.equal("version" in dnzh.release, false);
+  assert.deepEqual(dnzh.channels, ["stable"]);
   assert.deepEqual(dnzh.release.asset_hints["windows-x86-64"], [
     "windows-relwithdebinfo",
   ]);
