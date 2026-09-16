@@ -134,7 +134,10 @@ test("schema-2 migration is deterministic and preserves the frozen schema-1 proj
     "Starfox-MSU1.PAK",
   ]);
   const dnzhProfile = profile("duke-nukem-zero-hour");
-  assert.deepEqual(dnzhProfile.variants.map((item) => item.id), ["usa"]);
+  assert.deepEqual(
+    dnzhProfile.variants.map((item) => item.id),
+    ["usa"],
+  );
   assert.deepEqual(dnzhProfile.variants[0].representations[0].identities, [
     {
       scope: "canonical-n64-big-endian",
@@ -151,16 +154,12 @@ test("schema-2 migration is deterministic and preserves the frozen schema-1 proj
       artifact_sha256: "ece88320327ffc58ec73e084c23aca274a016e45dd3558a684d59c37f88bdbc3",
     },
   ]);
-  const dnzh = migrated.ports.find(
-    (port) => port.id === "duke-nukem-zero-hour-recompiled",
-  );
+  const dnzh = migrated.ports.find((port) => port.id === "duke-nukem-zero-hour-recompiled");
   assert.equal(dnzh.release.provider, "gitlab");
   assert.equal(dnzh.release.repository, "sonicdcer/DNZHRecomp");
   assert.equal("version" in dnzh.release, false);
   assert.deepEqual(dnzh.channels, ["stable"]);
-  assert.deepEqual(dnzh.release.asset_hints["windows-x86-64"], [
-    "windows-relwithdebinfo",
-  ]);
+  assert.deepEqual(dnzh.release.asset_hints["windows-x86-64"], ["windows-relwithdebinfo"]);
   assert.equal(dnzh.adapter, "n64-recomp-portable");
   assert.equal(dnzh.portable_marker, true);
   assert.equal(dnzh.runtime_source_filename, "dnzh.us.z64");
@@ -350,9 +349,7 @@ test("schema-2 migration is deterministic and preserves the frozen schema-1 proj
         record.scope.variant.identity.representation_id === "canonical-rom" &&
         record.scope.check_version === "dnzh-windows-qualification-v1" &&
         record.portcove_commit === "73702601fa3f24c5b47f7aff43e228c75c4370ba" &&
-        record.evidence_ids.includes(
-          "duke-nukem-zero-hour-windows-lifecycle-2026-09-16",
-        ),
+        record.evidence_ids.includes("duke-nukem-zero-hour-windows-lifecycle-2026-09-16"),
     ),
     true,
   );
