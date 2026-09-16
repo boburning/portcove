@@ -3,6 +3,7 @@ import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { link, lstat, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { performance } from "node:perf_hooks";
 
 import { toolCachePaths } from "./tool-cache.mjs";
 
@@ -11,18 +12,26 @@ const inheritedTokenEnvironmentName = "PORTCOVE_HEAVY_RUST_LOCK_TOKEN";
 const processTokenEnvironmentName = "PORTCOVE_HEAVY_RUST_PROCESS_TOKEN";
 const processTitleMarkerPrefix = "portcove-rust:";
 const identityProbeTimeoutMilliseconds = 5_000;
+const defaultWaitMilliseconds = 3_600_000;
+const maximumWaitMilliseconds = 3_600_000;
+const defaultPollMilliseconds = 5_000;
+const defaultReportIntervalMilliseconds = 30_000;
 
 export function heavyRustTestLockPath() {
   return path.join(toolCachePaths().sharedRoot, "locks", "heavy-rust-tests");
 }
 
 function parseWaitMilliseconds(value) {
-  if (value === undefined || value === "") return 5_000;
+  if (value === undefined || value === "") return defaultWaitMilliseconds;
   if (!/^\d+$/u.test(String(value)))
-    throw new Error(`${waitEnvironmentName} must be an integer from 0 through 60000`);
+    throw new Error(
+      `${waitEnvironmentName} must be an integer from 0 through ${maximumWaitMilliseconds}`,
+    );
   const milliseconds = Number(value);
-  if (!Number.isSafeInteger(milliseconds) || milliseconds > 60_000)
-    throw new Error(`${waitEnvironmentName} must be an integer from 0 through 60000`);
+  if (!Number.isSafeInteger(milliseconds) || milliseconds > maximumWaitMilliseconds)
+    throw new Error(
+      `${waitEnvironmentName} must be an integer from 0 through ${maximumWaitMilliseconds}`,
+    );
   return milliseconds;
 }
 
@@ -232,6 +241,14 @@ function activeMessage(owner, active, waitMilliseconds) {
   );
 }
 
+function waitingMessage(owner, active, elapsedMilliseconds, waitMilliseconds) {
+  return (
+    `Waiting for the Heavy Rust validation slot: ${active.kind} PID ${active.record.pid}, ` +
+    `workspace ${owner.workspace ?? "unknown"}, command ${owner.command ?? "unknown"}, ` +
+    `since ${owner.created_at}; queued ${elapsedMilliseconds}ms of ${waitMilliseconds}ms.`
+  );
+}
+
 async function publishChild(lockPath, token, child) {
   const childPath = `${lockPath}.child-${token}`;
   const pending = `${childPath}.candidate-${randomUUID()}`;
@@ -303,8 +320,11 @@ export async function acquireHeavyRustTestLock(metadata = {}, options = {}) {
   const waitMilliseconds = parseWaitMilliseconds(
     options.waitMilliseconds ?? process.env[waitEnvironmentName],
   );
-  const pollMilliseconds = options.pollMilliseconds ?? 250;
-  const now = options.now ?? Date.now;
+  const pollMilliseconds = options.pollMilliseconds ?? defaultPollMilliseconds;
+  const reportIntervalMilliseconds =
+    options.reportIntervalMilliseconds ?? defaultReportIntervalMilliseconds;
+  const reportWait = options.reportWait ?? ((message) => console.error(message));
+  const now = options.now ?? (() => performance.now());
   const sleep =
     options.sleep ??
     ((milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds)));
@@ -329,7 +349,10 @@ export async function acquireHeavyRustTestLock(metadata = {}, options = {}) {
   }
 
   await mkdir(path.dirname(lockPath), { recursive: true });
-  const deadline = now() + waitMilliseconds;
+  const started = now();
+  const deadline = started + waitMilliseconds;
+  let nextReport = started;
+  let reportedOwnerToken = null;
   const processToken = randomUUID().replaceAll("-", "").slice(0, 16);
   const originalProcessTitle = process.title;
   process.env[processTokenEnvironmentName] = processToken;
@@ -352,6 +375,14 @@ export async function acquireHeavyRustTestLock(metadata = {}, options = {}) {
       };
       try {
         await publishOwner(lockPath, owner);
+        if (reportedOwnerToken) {
+          reportWait(
+            `Acquired the Heavy Rust validation slot after ${Math.max(
+              0,
+              Math.round(now() - started),
+            )}ms; starting ${metadata.command ?? "the requested command"}.`,
+          );
+        }
         return {
           lockPath,
           owner,
@@ -396,8 +427,25 @@ export async function acquireHeavyRustTestLock(metadata = {}, options = {}) {
           readCleanupReceipt,
         );
         if (active) {
-          if (now() >= deadline) throw new Error(activeMessage(existing, active, waitMilliseconds));
-          await sleep(Math.min(pollMilliseconds, Math.max(1, deadline - now())));
+          const observedAt = now();
+          if (observedAt >= deadline)
+            throw new Error(activeMessage(existing, active, waitMilliseconds));
+          if (
+            waitMilliseconds > 0 &&
+            (existing.token !== reportedOwnerToken || observedAt >= nextReport)
+          ) {
+            reportWait(
+              waitingMessage(
+                existing,
+                active,
+                Math.max(0, Math.round(observedAt - started)),
+                waitMilliseconds,
+              ),
+            );
+            reportedOwnerToken = existing.token;
+            nextReport = observedAt + reportIntervalMilliseconds;
+          }
+          await sleep(Math.min(pollMilliseconds, Math.max(1, deadline - observedAt)));
           continue;
         }
         const stalePath = `${lockPath}.stale-${randomUUID()}`;
@@ -421,4 +469,11 @@ export const heavyRustLockEnvironment = Object.freeze({
   inheritedToken: inheritedTokenEnvironmentName,
   processToken: processTokenEnvironmentName,
   waitMilliseconds: waitEnvironmentName,
+});
+
+export const heavyRustLockTiming = Object.freeze({
+  defaultWaitMilliseconds,
+  maximumWaitMilliseconds,
+  defaultPollMilliseconds,
+  defaultReportIntervalMilliseconds,
 });

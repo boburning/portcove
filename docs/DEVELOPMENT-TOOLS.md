@@ -328,25 +328,30 @@ repository's scheduling configuration; doctests run in Cargo separately. Do not
 duplicate this orchestration in a skill or a competing recipe. Record cold
 compilation separately from warm test execution when comparing performance.
 
-The wrapper owns one shared-host heavyweight Rust-test slot across Portcove
-worktrees. It publishes complete lock metadata atomically, records an owned
+The wrapper owns one shared-host heavyweight Rust-validation slot across Portcove
+worktrees. Supported local-check and aggregate recipes acquire it before each
+expensive Cargo check, Clippy, nextest, or doctest process, so compiler work from
+one worktree cannot starve another worktree's timed tests. The lock is released
+between those stages; formatting, JavaScript/UI tests, research, editing, and
+review remain concurrent. The wrapper publishes complete lock metadata atomically, records an owned
 containment supervisor, and only then opens the supervisor's launch gate for the
-pinned `cargo-nextest` command. Unix anchors a detached process group and starts
+pinned exact command. Unix anchors a detached process group and starts
 an out-of-group cleanup watchdog before nextest; Windows uses a kill-on-close
 Job Object. The Unix watchdog publishes success only after the anchored process
 group is absent, and a new acquirer validates that receipt before reclaiming a
 dead wrapper and supervisor. Nested inherited commands stay inside that existing containment.
 Ctrl-C and termination requests close the owned outer containment and return the
 conventional 130 or 143 status; signal listeners are removed after the command.
-It refuses to overlap a matching live owner and
-polls for five seconds by default,
-then prints that owner's PID, workspace, command and start time. Each Windows or
+It refuses to overlap a matching live owner and waits up to 60 minutes by default,
+separately from every test or command execution deadline. It reports the owner's
+PID, workspace, command, start time, and monotonic queued time immediately and
+every 30 seconds, then reports acquisition. Live-owner identity is polled every
+five seconds rather than launching four probes per second. Each Windows or
 Darwin identity probe uses repository-required PowerShell 7 and separately fails closed after five seconds, so it cannot
 hang indefinitely but can add one bounded probe interval to the polling limit.
-Wait for the named command to finish and rerun the same supported command. For a
-deliberately coordinated short polling interval, set
-`PORTCOVE_HEAVY_RUST_WAIT_MS` to an integer from `0` through `60000`; this changes
-only lock acquisition, not any test deadline. A wrapper failure does not make a
+`PORTCOVE_HEAVY_RUST_WAIT_MS` may select a shorter explicit admission limit from
+`0` through `3600000` milliseconds; this changes only queue waiting, not any
+nextest, Node, product, cancellation, or cleanup deadline. A wrapper failure does not make a
 still-running recorded supervisor stale, registration failure cannot launch the
 guarded command, and cleanup evidence proves the detached Unix process group or
 Windows Job Object has closed. Any survivors are
@@ -359,16 +364,22 @@ nextest supervisor rather than its second-resolution displayed start time. The
 previous timestamp identity remains readable only to classify and migrate a
 legacy lock record during this transition.
 
-If the wrapper cannot prove the recorded containment quiescent, the exact resume
-condition is a supported owner/containment exit plus the wrapper's valid cleanup
-evidence. Preserve the lock and report that external condition; do not invent a
-manual recovery path or keep rerunning expensive checks while it remains false.
-
-Do not remove the shared lock record, kill another worker's process, or use a direct
-`cargo nextest` invocation to evade it. Direct Cargo commands are outside this
-guard, as are native desktop sessions, which retain their separate focus-taking
-lock and evidence rules. `--prepare-only` compiles the hosted fixture without
-taking the local heavyweight slot because it does not execute nextest.
+For a local timeout or apparent stall, run the supported recipe once and keep its
+owner/elapsed diagnostics. Queue waiting is not test execution: leave a live
+owner in place, or cancel only the queued command with Ctrl-C if other work is
+more useful. If the finite admission limit expires, ownership is unreadable, or
+cleanup cannot prove quiescence, preserve the exact message and inspect the named
+PID/workspace before retrying. When the recorded containment is not proven
+quiescent, the exact resume condition is a supported owner/containment exit plus
+the wrapper's valid cleanup evidence. Preserve the lock and report that condition;
+do not invent a manual recovery path or keep rerunning expensive checks while it
+remains false. Do not remove the lock, kill another worker, or use direct
+Cargo/nextest to evade it. After admission, diagnose any nextest timeout as a
+separate per-test failure and retain its run ID and last completed phase.
+Direct Cargo commands are outside this guard, as are native desktop sessions,
+which retain their separate focus-taking lock and evidence rules. `--prepare-only`
+compiles the hosted fixture without taking the local heavyweight slot because it
+does not execute nextest.
 
 ## Targeted safety experiments
 

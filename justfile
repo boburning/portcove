@@ -68,14 +68,14 @@ rustfmt-check:
     {{storage}} cargo fmt --all -- --check
 
 rust-check:
-    {{storage}} cargo check --workspace --all-targets
+    {{storage}} node scripts/run-rust-tests.mjs --guard-command cargo check --workspace --all-targets
 
 clippy:
-    {{storage}} cargo clippy --workspace --all-targets -- -D warnings
+    {{storage}} node scripts/run-rust-tests.mjs --guard-command cargo clippy --workspace --all-targets -- -D warnings
 
 rust-test:
     {{storage}} node scripts/run-rust-tests.mjs --locked --workspace
-    {{storage}} cargo test --locked --workspace --doc
+    {{storage}} node scripts/run-rust-tests.mjs --guard-command cargo test --locked --workspace --doc
 
 shear:
     {{storage}} cargo shear --deny-warnings

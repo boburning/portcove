@@ -7,6 +7,7 @@ import test from "node:test";
 
 import {
   acquireHeavyRustTestLock,
+  heavyRustLockTiming,
   processTreeMembers,
   readProcessIdentity,
 } from "./heavy-rust-test-lock.mjs";
@@ -338,6 +339,7 @@ test("new lock publication and child replacement remain complete JSON records", 
 test("bounded wait retries a live owner and reports the configured limit", async () => {
   const { root, lockPath } = await fixture();
   const identities = new Map([[process.pid, "current-process"]]);
+  const reports = [];
   try {
     const first = await acquireHeavyRustTestLock(
       {},
@@ -352,12 +354,117 @@ test("bounded wait retries a live owner and reports the configured limit", async
         {},
         {
           lockPath,
-          waitMilliseconds: 2,
-          pollMilliseconds: 1,
+          waitMilliseconds: 50,
+          pollMilliseconds: 10,
+          reportWait: (message) => reports.push(message),
           inspectProcessIdentity: identityInspector(identities),
         },
       ),
-      /after waiting 2ms/u,
+      /after waiting 50ms/u,
+    );
+    assert.equal(reports.length >= 1, true);
+    assert.match(reports[0], /owner PID/u);
+    assert.match(reports[0], /queued \d+ms of 50ms/u);
+    await first.release();
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("bounded wait admits the queued command after the exact owner releases", async () => {
+  const { root, lockPath } = await fixture();
+  const identities = new Map([[process.pid, "current-process"]]);
+  let first;
+  let sleeps = 0;
+  const reports = [];
+  try {
+    first = await acquireHeavyRustTestLock(
+      { workspace: "first-worktree", command: "cargo check" },
+      {
+        lockPath,
+        waitMilliseconds: 0,
+        inspectProcessIdentity: identityInspector(identities),
+      },
+    );
+    const second = await acquireHeavyRustTestLock(
+      { workspace: "second-worktree", command: "cargo clippy" },
+      {
+        lockPath,
+        waitMilliseconds: 100,
+        pollMilliseconds: 10,
+        reportWait: (message) => reports.push(message),
+        inspectProcessIdentity: identityInspector(identities),
+        sleep: async () => {
+          sleeps += 1;
+          await first.release();
+          first = null;
+        },
+      },
+    );
+    assert.equal(sleeps, 1);
+    assert.equal(second.owner.workspace, "second-worktree");
+    assert.equal(second.owner.command, "cargo clippy");
+    assert.equal(reports.length, 2);
+    assert.match(reports[0], /Waiting for the Heavy Rust validation slot/u);
+    assert.match(reports[1], /Acquired the Heavy Rust validation slot after \d+ms/u);
+    await second.release();
+  } finally {
+    if (first) await first.release();
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("default admission timing is finite and probes live owners sparsely", () => {
+  assert.deepEqual(heavyRustLockTiming, {
+    defaultWaitMilliseconds: 3_600_000,
+    maximumWaitMilliseconds: 3_600_000,
+    defaultPollMilliseconds: 5_000,
+    defaultReportIntervalMilliseconds: 30_000,
+  });
+});
+
+test("admission overrides cannot exceed the maintained finite budget", async () => {
+  await assert.rejects(
+    acquireHeavyRustTestLock({}, { waitMilliseconds: 3_600_001 }),
+    /integer from 0 through 3600000/u,
+  );
+});
+
+test("live-owner diagnostics use monotonic elapsed intervals instead of every poll", async () => {
+  const { root, lockPath } = await fixture();
+  const identities = new Map([[process.pid, "current-process"]]);
+  const reports = [];
+  let elapsed = 0;
+  try {
+    const first = await acquireHeavyRustTestLock(
+      { workspace: "owner", command: "cargo check" },
+      {
+        lockPath,
+        waitMilliseconds: 0,
+        inspectProcessIdentity: identityInspector(identities),
+      },
+    );
+    await assert.rejects(
+      acquireHeavyRustTestLock(
+        { workspace: "waiter", command: "cargo clippy" },
+        {
+          lockPath,
+          waitMilliseconds: 100,
+          pollMilliseconds: 10,
+          reportIntervalMilliseconds: 30,
+          reportWait: (message) => reports.push(message),
+          inspectProcessIdentity: identityInspector(identities),
+          now: () => elapsed,
+          sleep: async (milliseconds) => {
+            elapsed += milliseconds;
+          },
+        },
+      ),
+      /after waiting 100ms/u,
+    );
+    assert.deepEqual(
+      reports.map((message) => Number(message.match(/queued (\d+)ms/u)?.[1])),
+      [0, 30, 60, 90],
     );
     await first.release();
   } finally {

@@ -180,6 +180,16 @@ function command(id, reason, executable, args, options = {}) {
   return { id, reason, executable, args, cwd: options.cwd ?? projectRoot };
 }
 
+function heavyRustCommand(id, reason, executable, args, options = {}) {
+  return command(
+    id,
+    reason,
+    process.execPath,
+    ["scripts/run-rust-tests.mjs", "--guard-command", executable, ...args],
+    options,
+  );
+}
+
 function corepackCommand(id, reason, args, options = {}) {
   return command(id, reason, "corepack", args, options);
 }
@@ -690,13 +700,13 @@ export function buildPlan(selection, context = {}) {
 
   if (selection.workspaceRust) {
     commands.push(
-      command(
+      heavyRustCommand(
         "rust-workspace-check",
         "root dependency or toolchain change compiles every workspace target",
         "cargo",
         ["check", "--locked", "--workspace", "--all-targets"],
       ),
-      command(
+      heavyRustCommand(
         "rust-workspace-clippy",
         "root dependency or toolchain change lints every workspace target",
         "cargo",
@@ -735,13 +745,13 @@ export function buildPlan(selection, context = {}) {
       );
       if (rustTestImpactLoadError) impact.reason = `${impact.reason}; ${rustTestImpactLoadError}`;
       commands.push(
-        command(
+        heavyRustCommand(
           `rust-check:${packageName}`,
           `compile every target in affected package ${packageName}`,
           "cargo",
           ["check", "--locked", "-p", packageName, "--all-targets"],
         ),
-        command(
+        heavyRustCommand(
           `rust-clippy:${packageName}`,
           `lint every target in affected package ${packageName}`,
           "cargo",
@@ -769,7 +779,7 @@ export function buildPlan(selection, context = {}) {
           );
       if (doctestPackages.has(packageName))
         commands.push(
-          command(
+          heavyRustCommand(
             `rust-docs:${packageName}`,
             `run documentation tests for affected package ${packageName}`,
             "cargo",
