@@ -101,7 +101,7 @@ export function UpdateCenter({
           icon={RefreshCw}
           eyebrow="UPDATE CENTER"
           title="No installed ports to check"
-          description="Install or adopt a port first. Portcove will then track its channel, update policy, verified releases, and rollback state here."
+          description="Install a port or copy in an existing installation first. Portcove will then show its update channel, update setting, latest available release, and previous installed version here."
         />
       ) : (
         <div className="update-list" data-focus-group>
@@ -197,15 +197,16 @@ function ActivityHistory({
           <p className="eyebrow">ACTIVITY HISTORY</p>
           <h2>Recent activity</h2>
         </div>
-        <small>Completed, failed, and interrupted work recorded on this device.</small>
+        <small>Activity from the CLI and desktop appears here.</small>
       </div>
       {activities.length === 0 ? (
         <div className="activity-empty">
           <Icon glyph={History} />
           <div>
-            <strong>No operations recorded yet</strong>
+            <strong>No activity yet</strong>
             <span>
-              Installs, updates, verification, rollback, adoption, and failures will appear here.
+              Installs, updates, verification, restored versions, copied installations, and failures
+              will appear here.
             </span>
           </div>
         </div>
