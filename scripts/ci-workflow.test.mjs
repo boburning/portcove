@@ -7,6 +7,7 @@ const qualificationWorkflow = await readFile(
   new URL("../.github/workflows/qualification.yml", import.meta.url),
   "utf8",
 );
+const qualityGuide = await readFile(new URL("../docs/QUALITY.md", import.meta.url), "utf8");
 const windowsQualificationRunner = await readFile(
   new URL("./run-windows-qualification.ps1", import.meta.url),
   "utf8",
@@ -548,7 +549,7 @@ test("native Rust runs the full workspace on every supported Unix architecture",
   assert.doesNotMatch(nativeRust, /continue-on-error/);
 });
 
-test("Intel tests build once on Apple Silicon and execute every partition on Intel", () => {
+test("Intel tests build once and retries preserve their attempt-scoped producer chain", () => {
   assert.match(intelBuild, /runs-on: macos-15$/m);
   assert.match(intelBuild, /targets: x86_64-apple-darwin/);
   assert.match(
@@ -568,6 +569,12 @@ test("Intel tests build once on Apple Silicon and execute every partition on Int
     assert.match(section, /name: intel-rust-tests-\$\{\{ github\.run_attempt \}\}/);
     assert.doesNotMatch(section, /continue-on-error/);
   }
+  assert.match(
+    qualityGuide,
+    /gh run rerun <run-id> --job <build-intel-tests-job-id> --repo boburning\/portcove/,
+  );
+  assert.match(qualityGuide, /Do not use .*--failed.*Intel consumer/u);
+  assert.match(qualityGuide, /never reuse an\s+artifact from an earlier attempt/u);
   for (const job of ["intel_build", "intel_tests"])
     assert.ok(rust.includes(`"${job}":"` + "${{ needs." + job + '.result }}"'));
 });
