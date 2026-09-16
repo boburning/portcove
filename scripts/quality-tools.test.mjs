@@ -8,6 +8,13 @@ import {
   githubOutputs,
   validateQualityManifest,
 } from "./quality-tools.mjs";
+import {
+  parseAquaConfig,
+  parseReleaseChecksumId,
+  requireStableNonReleaseEntries,
+  validateAquaChecksumLedger,
+  verifyPublisherDigests,
+} from "./aqua-integrity.mjs";
 import { runActionlint } from "./run-actionlint.mjs";
 import { readToolPins } from "./tool-cache.mjs";
 
@@ -87,6 +94,7 @@ test("standalone lint pins use aqua checksums and PSResourceGet data", async () 
   const lock = JSON.parse(
     await readFile(new URL("../aqua-checksums.json", import.meta.url), "utf8"),
   );
+  validateAquaChecksumLedger(parseAquaConfig(aqua), lock);
   const ids = lock.checksums.map(({ id }) => id);
   assert.equal(new Set(ids).size, ids.length);
   for (const entry of lock.checksums) {
@@ -116,6 +124,62 @@ test("standalone lint pins use aqua checksums and PSResourceGet data", async () 
 
   const manager = await readFile(new URL("./quality-tools.mjs", import.meta.url), "utf8");
   assert.doesNotMatch(manager, /install-managed|PORTCOVE_QUALITY_TOOLS_DIR|managedToolPath/u);
+});
+
+test("Aqua integrity rejects stale, incomplete, unexpected and untrusted package checksums", async () => {
+  const aqua = await readFile(new URL("../aqua.yaml", import.meta.url), "utf8");
+  const config = parseAquaConfig(aqua);
+  const ledger = JSON.parse(
+    await readFile(new URL("../aqua-checksums.json", import.meta.url), "utf8"),
+  );
+  const entries = validateAquaChecksumLedger(config, ledger);
+
+  const missing = structuredClone(ledger);
+  missing.checksums.splice(0, 1);
+  assert.throws(() => validateAquaChecksumLedger(config, missing), /missing:/u);
+
+  const stale = structuredClone(ledger);
+  stale.checksums[0].id = stale.checksums[0].id.replace("/0.16.7/", "/0.16.6/");
+  assert.throws(
+    () => validateAquaChecksumLedger(config, stale),
+    /missing:.*0\.16\.7.*unexpected:.*0\.16\.6/u,
+  );
+
+  const duplicate = structuredClone(ledger);
+  duplicate.checksums.push(structuredClone(duplicate.checksums[0]));
+  assert.throws(() => validateAquaChecksumLedger(config, duplicate), /contains duplicates/u);
+
+  const unexpected = structuredClone(ledger);
+  unexpected.checksums.push({
+    id: "github_release/github.com/astral-sh/ruff/0.16.7/ruff-unreviewed-platform.zip",
+    checksum: "A".repeat(64),
+    algorithm: "sha256",
+  });
+  assert.throws(() => validateAquaChecksumLedger(config, unexpected), /unexpected:/u);
+
+  const releases = {};
+  for (const entry of entries) {
+    const identity = parseReleaseChecksumId(entry.id);
+    const key = `${identity.name}@${identity.version}`;
+    releases[key] ??= { tag_name: identity.version, assets: [] };
+    releases[key].assets.push({
+      name: identity.asset,
+      digest: `sha256:${entry.checksum.toLowerCase()}`,
+    });
+  }
+  assert.doesNotThrow(() => verifyPublisherDigests(entries, releases));
+  releases["astral-sh/ruff@0.16.7"].assets[0].digest = `sha256:${"0".repeat(64)}`;
+  assert.throws(
+    () => verifyPublisherDigests(entries, releases),
+    /publisher SHA-256 digest differs/u,
+  );
+
+  const changedRegistry = structuredClone(ledger);
+  changedRegistry.checksums.at(-1).checksum = "B".repeat(64);
+  assert.throws(
+    () => requireStableNonReleaseEntries(ledger, changedRegistry),
+    /review it separately/u,
+  );
 });
 
 test("bootstrap pins use verified official Windows download origins", () => {
