@@ -220,6 +220,19 @@ const evidence = [
       "https://github.com/boburning/portcove/blob/main/docs/qualification/yu-gi-oh-forbidden-memories-recompiled-windows-2026-09-15.md",
   },
   {
+    id: "yu-gi-oh-forbidden-memories-recompiled-windows-cross-version-2026-09-15",
+    role: "portcove_qualification",
+    authority: "boburning/portcove",
+    authority_ref: "0f472c1229d2eba597c0f2de9069b7d6b1df9901",
+    reviewed_at: "2026-09-15",
+    claim:
+      "Records exact Windows v0.5.7-to-v0.6.1 update, rollback, retained reactivation, immutable verification, and bounded persistence preservation evidence",
+    immutable_url:
+      "https://github.com/boburning/portcove/blob/0f472c1229d2eba597c0f2de9069b7d6b1df9901/docs/qualification/yu-gi-oh-forbidden-memories-recompiled-windows-cross-version-2026-09-15.md",
+    live_url:
+      "https://github.com/boburning/portcove/blob/main/docs/qualification/yu-gi-oh-forbidden-memories-recompiled-windows-cross-version-2026-09-15.md",
+  },
+  {
     id: "revelations-persona-recompiled-windows-2026-09-15",
     role: "portcove_qualification",
     authority: "boburning/portcove",
@@ -1319,6 +1332,32 @@ const migrated = {
         method:
           "Exact source admission and malformed rejection, fresh install, 2,516-file verification, three responsive native launches, collection, backup restore, removal preservation, reinstall, and restored-state relaunch",
         evidence_ids: ["yu-gi-oh-forbidden-memories-recompiled-windows-2026-09-15"],
+      },
+      {
+        scope: {
+          port_id: "yu-gi-oh-forbidden-memories-recompiled",
+          platform: "windows-x86-64",
+          artifact_sha256: "4eed315000952dee7a751a05de4413a88777cf49609d29ab77ee3765a44d0f53",
+          upstream_ref: "v0.6.1",
+          contract_id: "yu-gi-oh-forbidden-memories-recompiled-game-source",
+          variant: {
+            state: "exact",
+            identity: {
+              game_id: "yu-gi-oh-forbidden-memories-psx",
+              variant_id: "legacy-accepted",
+              representation_id: "normalized-track-set",
+            },
+          },
+          check_version: "ygofm-windows-qualification-v1",
+        },
+        kind: "automated_lifecycle",
+        outcome: "passed",
+        observed_at: 1789517758,
+        portcove_version: "0.1.0-alpha.2",
+        portcove_commit: "6bf60b6e0f24a1eef7a7efcfdb181a6cc2692cef",
+        method:
+          "Exact v0.5.7 install and immutable verification, v0.5.7-to-v0.6.1 update, rollback, retained-version reactivation, interrupted-preparation recovery, and bounded canonical persistence and backup preservation",
+        evidence_ids: ["yu-gi-oh-forbidden-memories-recompiled-windows-cross-version-2026-09-15"],
       },
       {
         scope: {

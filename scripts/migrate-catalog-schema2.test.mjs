@@ -176,7 +176,7 @@ test("schema-2 migration is deterministic and preserves the frozen schema-1 proj
     true,
   );
   assert.equal(drMario.presentation.source_requirements[0].verification, "catalog-identity");
-  assert.equal(migrated.source_catalog.qualification.length, 10);
+  assert.equal(migrated.source_catalog.qualification.length, 11);
   const ygofmQualification = migrated.source_catalog.qualification.filter(
     (record) => record.scope.port_id === "yu-gi-oh-forbidden-memories-recompiled",
   );
@@ -184,6 +184,7 @@ test("schema-2 migration is deterministic and preserves the frozen schema-1 proj
     ygofmQualification.map((record) => [record.kind, record.outcome]),
     [
       ["structural_check", "passed"],
+      ["automated_lifecycle", "passed"],
       ["automated_lifecycle", "passed"],
     ],
   );
@@ -193,11 +194,31 @@ test("schema-2 migration is deterministic and preserves the frozen schema-1 proj
         record.scope.artifact_sha256 ===
           "4eed315000952dee7a751a05de4413a88777cf49609d29ab77ee3765a44d0f53" &&
         record.scope.upstream_ref === "v0.6.1" &&
-        record.scope.check_version === "ygofm-windows-qualification-v1" &&
-        record.evidence_ids.includes("yu-gi-oh-forbidden-memories-recompiled-windows-2026-09-15"),
+        record.scope.check_version === "ygofm-windows-qualification-v1",
     ),
     true,
   );
+  const ygofmAutomated = ygofmQualification.filter(
+    (record) => record.kind === "automated_lifecycle",
+  );
+  assert.deepEqual(
+    ygofmAutomated.map((record) => record.portcove_commit),
+    ["327626b154a45f2af52de77ab06fae54c4794ef2", "6bf60b6e0f24a1eef7a7efcfdb181a6cc2692cef"],
+  );
+  assert.equal(
+    ygofmAutomated[0].evidence_ids.includes(
+      "yu-gi-oh-forbidden-memories-recompiled-windows-2026-09-15",
+    ),
+    true,
+  );
+  assert.equal(
+    ygofmAutomated[1].evidence_ids.includes(
+      "yu-gi-oh-forbidden-memories-recompiled-windows-cross-version-2026-09-15",
+    ),
+    true,
+  );
+  assert.match(ygofmAutomated[1].method, /v0\.5\.7-to-v0\.6\.1 update/);
+  assert.match(ygofmAutomated[1].method, /retained-version reactivation/);
   assert.deepEqual(contract("yu-gi-oh-forbidden-memories-recompiled").applicability, [
     {
       upstream_ref: "v0.6.1",
