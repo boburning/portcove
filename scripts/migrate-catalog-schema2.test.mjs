@@ -21,15 +21,15 @@ test("schema-2 migration is deterministic and preserves the frozen schema-1 proj
   const migrated = JSON.parse(readFileSync(join(catalogRoot, "catalog.json"), "utf8"));
   assert.equal(migrated.schema_version, 2);
   assert.equal("source_profiles" in migrated, false);
-  assert.equal(migrated.source_catalog.identities.length, legacy.source_profiles.length + 6);
-  assert.equal(migrated.ports.length, legacy.ports.length + 6);
+  assert.equal(migrated.source_catalog.identities.length, legacy.source_profiles.length + 7);
+  assert.equal(migrated.ports.length, legacy.ports.length + 7);
   assert.equal(
     migrated.source_catalog.contracts.length,
     legacy.ports.reduce(
       (count, port) =>
         count + Number(Boolean(port.source_profile)) + Number(Boolean(port.bios_source_profile)),
       0,
-    ) + 6,
+    ) + 7,
   );
 
   const profile = (id) => migrated.source_catalog.identities.find((item) => item.id === id);
@@ -213,6 +213,60 @@ test("schema-2 migration is deterministic and preserves the frozen schema-1 proj
     "psx_last_run_report.json",
   ]);
   assert.deepEqual(apeEscape.runtime_mutable_file_patterns, [
+    {
+      prefix: "psx_freeze_dump_psx-runtime_",
+      suffix: ".json",
+    },
+  ]);
+  const megaManX5Profile = profile("mega-man-x5-psx");
+  assert.deepEqual(
+    megaManX5Profile.variants.map((item) => item.id),
+    ["usa-rev0"],
+  );
+  assert.deepEqual(megaManX5Profile.variants[0].representations[0].extensions, ["chd"]);
+  assert.deepEqual(megaManX5Profile.variants[0].representations[0].identities, [
+    {
+      scope: "psx-normalized-track-set",
+      sha1: "10709231f857636b5ccd3cd9acebc91458dcb5fd",
+      sha256: "be731bc4b9d3211b9267a34b8a68c769199a15479b14004ff25b67cdfebe8af4",
+      crc32: null,
+    },
+  ]);
+  const megaManX5Contract = contract("mega-man-x5-recompiled");
+  assert.deepEqual(megaManX5Contract.supported_variant_ids, ["usa-rev0"]);
+  assert.deepEqual(megaManX5Contract.applicability, [
+    {
+      upstream_ref: "v0.1.0-alpha",
+      artifact_sha256: "3e5dfea86184cb2ff05372e012cef8d94e89119105f7a0268a14f9e24b47e590",
+    },
+  ]);
+  const megaManX5 = migrated.ports.find((port) => port.id === "mega-man-x5-recompiled");
+  assert.equal(megaManX5.adapter, "staged-source-portable");
+  assert.deepEqual(megaManX5.channels, ["beta"]);
+  assert.deepEqual(megaManX5.platforms, ["windows-x86-64"]);
+  assert.equal(megaManX5.runtime_source_materialization, "psx-bin-cue");
+  assert.deepEqual(megaManX5.runtime_source_hashes, {
+    "disc.cue": "a5023a08a8330c83ada9bcfb75303359f353dd37e04db8ef7a0f23703ec56d41",
+    "disc1.bin": "be731bc4b9d3211b9267a34b8a68c769199a15479b14004ff25b67cdfebe8af4",
+  });
+  assert.deepEqual(megaManX5.persistent_paths, [
+    "saves",
+    "settings.toml",
+    "input.ini",
+    "keybinds.ini",
+    "disc.cfg",
+    "bios.cfg",
+    "mods",
+  ]);
+  assert.deepEqual(megaManX5.runtime_mutable_paths, [
+    "cache",
+    "disc",
+    "overlay_captures.json",
+    "overlay_captures.json.d",
+    "psx_freeze_heartbeat.json",
+    "psx_last_run_report.json",
+  ]);
+  assert.deepEqual(megaManX5.runtime_mutable_file_patterns, [
     {
       prefix: "psx_freeze_dump_psx-runtime_",
       suffix: ".json",

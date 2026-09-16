@@ -98,6 +98,15 @@ const reviewedSources = {
     lifecycleRef: "58b6e05c6c29db6d8adfd0578e00e438fd285a40",
     qualificationRef: "5219c00ab7f14fccd93200ea79eb4f7d48f02f23",
   },
+  megaManX5Recomp: {
+    evidenceId: "mega-man-x5-recompiled-0-1-0-alpha-source-contract",
+    repository: "mstan/MegaManX5Recomp",
+    ref: "c8fde08b77b8c8daae8d0955b6529de79c82d85b",
+    tag: "v0.1.0-alpha",
+    liveRef: "master",
+    path: "DISC.md",
+    reviewedAt: "2026-09-16",
+  },
   cvlodRecomp: {
     evidenceId: "cvlod-recomp-0-2-26-source-contract",
     repository: "fliperama86/cvlod_recomp",
@@ -210,6 +219,10 @@ const evidence = [
   upstreamEvidence(
     reviewedSources.apeEscapeRecomp,
     "Limits Ape Escape Recompiled 0.3.0 to the exact US SCUS-94423 single-track MODE2/2352 source",
+  ),
+  upstreamEvidence(
+    reviewedSources.megaManX5Recomp,
+    "Limits Mega Man X5 Recompiled 0.1.0-alpha to the exact US SLUS-01334 single-track MODE2/2352 source",
   ),
   {
     id: reviewedSources.apeEscapeRecomp.sourceEvidenceId,
@@ -745,6 +758,41 @@ identities.push({
   evidence_gap: null,
 });
 
+identities.push({
+  id: "mega-man-x5-psx",
+  label: "Mega Man X5 (USA) disc",
+  kind: "optical-disc",
+  variants: [
+    {
+      id: "usa-rev0",
+      title: "Mega Man X5",
+      region: "USA",
+      revision: "Original",
+      product_codes: ["SLUS-01334"],
+      representations: [
+        {
+          id: "normalized-track-set",
+          extensions: ["chd"],
+          kind: "optical-track-set",
+          track_counts: [1],
+          identities: [
+            digest(
+              "psx-normalized-track-set",
+              "10709231f857636b5ccd3cd9acebc91458dcb5fd",
+              "be731bc4b9d3211b9267a34b8a68c769199a15479b14004ff25b67cdfebe8af4",
+            ),
+          ],
+          evidence_ids: [reviewedSources.megaManX5Recomp.evidenceId],
+        },
+      ],
+      evidence_ids: [reviewedSources.megaManX5Recomp.evidenceId],
+    },
+  ],
+  aliases: [],
+  tombstones: [],
+  evidence_gap: null,
+});
+
 applyReviewedVariants("ghostship-source", [
   n64Variant(
     "super-mario-64-us",
@@ -1186,6 +1234,30 @@ contracts.push({
     {
       upstream_ref: reviewedSources.apeEscapeRecomp.tag,
       artifact_sha256: "91e2cde5f16408ff51b4b822ebba8b811c4e591263170cb49f33a486606c58e9",
+    },
+  ],
+  aliases: [],
+  tombstones: [],
+});
+
+contracts.push({
+  id: "mega-man-x5-recompiled-game-source",
+  port_id: "mega-man-x5-recompiled",
+  role: "game",
+  profile_id: "mega-man-x5-psx",
+  admission_mode: "enforced",
+  supported_variant_ids: ["usa-rev0"],
+  validator_contract_id: null,
+  evidence_ids: [reviewedSources.megaManX5Recomp.evidenceId],
+  authority_ref: reviewedSources.megaManX5Recomp.ref,
+  reviewed_at: reviewedSources.megaManX5Recomp.reviewedAt,
+  immutable_review_url: `https://github.com/${reviewedSources.megaManX5Recomp.repository}/blob/${reviewedSources.megaManX5Recomp.ref}/${reviewedSources.megaManX5Recomp.path}`,
+  live_review_url: `https://github.com/${reviewedSources.megaManX5Recomp.repository}/blob/${reviewedSources.megaManX5Recomp.liveRef}/${reviewedSources.megaManX5Recomp.path}`,
+  evidence_gap: null,
+  applicability: [
+    {
+      upstream_ref: reviewedSources.megaManX5Recomp.tag,
+      artifact_sha256: "3e5dfea86184cb2ff05372e012cef8d94e89119105f7a0268a14f9e24b47e590",
     },
   ],
   aliases: [],
@@ -2227,6 +2299,68 @@ const migrated = {
       runtime_source_hashes: {
         "disc.cue": "a5023a08a8330c83ada9bcfb75303359f353dd37e04db8ef7a0f23703ec56d41",
         "disc1.bin": "1ae17e78ebb8c782c7c1785b0a0bd7b0ee28235b8a0c83c8df887129899a852a",
+      },
+    }),
+    withPresentation({
+      id: "mega-man-x5-recompiled",
+      name: "Mega Man X5 Recompiled",
+      summary: "Native Mega Man X5 recompilation.",
+      project_url: "https://github.com/mstan/MegaManX5Recomp",
+      support_tier: "beta",
+      channels: ["beta"],
+      platforms: ["windows-x86-64"],
+      automated_tested_platforms: [],
+      manually_validated_platforms: [],
+      adapter: "staged-source-portable",
+      release: {
+        repository: "mstan/MegaManX5Recomp",
+        asset_hints: {
+          "windows-x86-64": ["MegaManX5Recomp-", "-windows-x64.zip"],
+        },
+      },
+      source_profile: "mega-man-x5-psx",
+      executable_hints: {
+        "windows-x86-64": ["MegaManX5Recomp.exe"],
+      },
+      persistent_paths: [
+        "saves",
+        "settings.toml",
+        "input.ini",
+        "keybinds.ini",
+        "disc.cfg",
+        "bios.cfg",
+        "mods",
+      ],
+      runtime_mutable_paths: [
+        "cache",
+        "disc",
+        "overlay_captures.json",
+        "overlay_captures.json.d",
+        "psx_freeze_heartbeat.json",
+        "psx_last_run_report.json",
+      ],
+      runtime_mutable_file_patterns: [
+        {
+          prefix: "psx_freeze_dump_psx-runtime_",
+          suffix: ".json",
+        },
+      ],
+      launch_arguments: [
+        "--no-launcher",
+        "--memcard-dir",
+        "saves",
+        "--game",
+        "game.toml",
+        "--bios",
+        "bios/openbios.bin",
+        "--disc",
+        "disc/disc.cue",
+      ],
+      runtime_source_filename: "disc",
+      runtime_source_materialization: "psx-bin-cue",
+      runtime_source_hashes: {
+        "disc.cue": "a5023a08a8330c83ada9bcfb75303359f353dd37e04db8ef7a0f23703ec56d41",
+        "disc1.bin": "be731bc4b9d3211b9267a34b8a68c769199a15479b14004ff25b67cdfebe8af4",
       },
     }),
   ],
