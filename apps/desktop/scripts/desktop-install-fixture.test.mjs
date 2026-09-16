@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { mkdtemp, readFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -120,28 +120,62 @@ test.runIf(process.platform === "win32")(
       'const { spawn } = require("node:child_process");',
       'const { writeFileSync } = require("node:fs");',
       'const descendant = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"], { stdio: "ignore" });',
-      "writeFileSync(process.argv[1], String(descendant.pid));",
+      "writeFileSync(process.argv[1], JSON.stringify({ parent: process.pid, descendant: descendant.pid }));",
       "setInterval(() => {}, 1000);",
     ].join(" ");
 
-    const startedAt = Date.now();
-    await assert.rejects(
-      runLifecycleCommand(process.execPath, ["-e", child, marker], {
-        echo: false,
-        timeout: 250,
-      }),
-      /timed out after 250ms/,
-    );
-    assert.ok(Date.now() - startedAt < 8_000, "timeout path exceeded its secondary bound");
-    const descendant = Number(await readFile(marker, "utf8"));
-    await waitFor(() => {
+    let owned;
+    let primaryFailure;
+    let cleanupFailure;
+    try {
+      const startedAt = Date.now();
+      await assert.rejects(
+        runLifecycleCommand(process.execPath, ["-e", child, marker], {
+          echo: false,
+          timeout: 250,
+        }),
+        /timed out after 250ms/,
+      );
+      assert.ok(Date.now() - startedAt < 8_000, "timeout path exceeded its secondary bound");
+      owned = JSON.parse(await readFile(marker, "utf8"));
+      await waitFor(() => {
+        try {
+          process.kill(owned.descendant, 0);
+          return false;
+        } catch (error) {
+          if (error.code === "ESRCH") return true;
+          throw error;
+        }
+      }, "owned descendant process survived lifecycle timeout cleanup");
+    } catch (error) {
+      primaryFailure = error;
+    } finally {
       try {
-        process.kill(descendant, 0);
-        return false;
+        owned ??= JSON.parse(await readFile(marker, "utf8"));
       } catch (error) {
-        if (error.code === "ESRCH") return true;
-        throw error;
+        if (error.code !== "ENOENT") cleanupFailure = error;
       }
-    }, "owned descendant process survived lifecycle timeout cleanup");
+      for (const pid of [owned?.descendant, owned?.parent]) {
+        if (!Number.isInteger(pid)) continue;
+        try {
+          process.kill(pid, "SIGKILL");
+        } catch (error) {
+          if (error.code !== "ESRCH") cleanupFailure ??= error;
+        }
+      }
+      try {
+        await rm(output, { recursive: true, force: true });
+      } catch (error) {
+        cleanupFailure ??= error;
+      }
+    }
+    if (primaryFailure && cleanupFailure)
+      throw new AggregateError(
+        [primaryFailure, cleanupFailure],
+        "Timeout assertion and its independent cleanup both failed",
+      );
+    if (primaryFailure) throw primaryFailure;
+    if (cleanupFailure) throw cleanupFailure;
   },
+  30_000,
 );
