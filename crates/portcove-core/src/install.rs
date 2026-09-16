@@ -40,11 +40,13 @@ pub struct InstallQualification {
     persistent_paths: Vec<String>,
     persistent_file_patterns: Vec<crate::PersistentFilePattern>,
     runtime_mutable_paths: Vec<String>,
+    runtime_mutable_file_patterns: Vec<crate::PersistentFilePattern>,
     persistence_at_install_root: bool,
     runtime: Option<BundledRuntime>,
     runtime_origin: RuntimeOrigin,
     generated_metadata: Vec<String>,
     critical_paths: Vec<String>,
+    protected_paths: Vec<String>,
 }
 
 impl InstallQualification {
@@ -64,7 +66,11 @@ impl InstallQualification {
     /// Build a verification projection. New manifests require `from_catalog`.
     pub fn from_port(port: &PortDefinition, platform: Platform) -> Result<Self> {
         crate::runtime::validate(port)?;
-        for pattern in &port.persistent_file_patterns {
+        for pattern in port
+            .persistent_file_patterns
+            .iter()
+            .chain(&port.runtime_mutable_file_patterns)
+        {
             pattern.validate()?;
         }
         let executable_hints = port
@@ -86,6 +92,7 @@ impl InstallQualification {
             persistent_paths: port.persistent_paths.clone(),
             persistent_file_patterns: port.persistent_file_patterns.clone(),
             runtime_mutable_paths: port.runtime_mutable_paths.clone(),
+            runtime_mutable_file_patterns: port.runtime_mutable_file_patterns.clone(),
             persistence_at_install_root: port.adapter == AdapterKind::N64RecompPortable
                 || port.launch_from_install_root,
             runtime: port.bundled_runtime.get(&platform).cloned(),
@@ -98,6 +105,11 @@ impl InstallQualification {
             .flatten()
             .into_iter()
             .collect(),
+            protected_paths: port
+                .runtime_source_set
+                .iter()
+                .map(|source| source.destination.clone())
+                .collect(),
         })
     }
 
@@ -149,20 +161,37 @@ impl InstallQualification {
     }
 
     fn file_patterns(&self, root: &Path, selected: &Path) -> Result<Vec<ManifestFilePattern>> {
-        let working = self.persistence_root(root, selected);
-        let directory = if working == root {
-            None
-        } else {
-            Some(manifest_relative(root, &working)?)
+        let directory = |working: PathBuf| -> Result<Option<String>> {
+            if working == root {
+                Ok(None)
+            } else {
+                Ok(Some(manifest_relative(root, &working)?))
+            }
         };
-        Ok(self
+        let persistent_directory = directory(self.persistence_root(root, selected))?;
+        let runtime_directory = directory(self.runtime_root(root, selected))?;
+        let mut patterns = self
             .persistent_file_patterns
             .iter()
             .map(|pattern| ManifestFilePattern {
-                directory: directory.clone(),
+                directory: persistent_directory.clone(),
                 pattern: pattern.clone(),
             })
-            .collect())
+            .collect::<Vec<_>>();
+        for pattern in &self.runtime_mutable_file_patterns {
+            if patterns.iter().any(|existing| {
+                existing.directory == runtime_directory && existing.pattern.overlaps(pattern)
+            }) {
+                return Err(PortcoveError::usage(
+                    "persistent and nonpersistent runtime file patterns overlap",
+                ));
+            }
+            patterns.push(ManifestFilePattern {
+                directory: runtime_directory.clone(),
+                pattern: pattern.clone(),
+            });
+        }
+        Ok(patterns)
     }
 
     #[cfg(test)]
@@ -192,6 +221,7 @@ impl InstallQualification {
         port.persistent_paths.clear();
         port.persistent_file_patterns.clear();
         port.runtime_mutable_paths.clear();
+        port.runtime_mutable_file_patterns.clear();
         port.portable_marker = false;
         port.platforms = vec![
             Platform::WindowsX86_64,
@@ -671,6 +701,7 @@ impl Installer {
     ) -> Result<VerificationReport> {
         let manifest = verified_manifest(install)?;
         let mut failures = Vec::new();
+        failures.extend(mutable_file_pattern_failures(&install.path, &manifest)?);
         for file in &manifest.files {
             let candidate = manifest_member(&install.path, &file.path)?;
             if !is_regular_file_without_symlink(&candidate) {
@@ -738,6 +769,7 @@ impl Installer {
         current_mutable.extend(qualification.generated_metadata_paths(install)?);
         let manifest = verified_manifest(install)?;
         let mut failures = Vec::new();
+        failures.extend(mutable_file_pattern_failures(&install.path, &manifest)?);
         if let Some(root) = &manifest.runtime_root {
             for path in walk_files(&install.path.join(root))? {
                 let relative = manifest_relative(&install.path, &path)?;
@@ -1129,6 +1161,16 @@ fn manifest_files(
             "critical path escaped the install root",
         ));
     }
+    let protected_roots = qualification
+        .protected_paths
+        .iter()
+        .map(|relative| working_root.join(relative))
+        .collect::<Vec<_>>();
+    if protected_roots.iter().any(|path| !path.starts_with(root)) {
+        return Err(PortcoveError::verification(
+            "protected path escaped the install root",
+        ));
+    }
     let candidates = qualification
         .persistent_paths
         .iter()
@@ -1183,10 +1225,16 @@ fn manifest_files(
                 || is_critical_companion(&path, selected, qualification.platform)?
                 || runtime_root
                     .as_ref()
-                    .is_some_and(|runtime| path.starts_with(runtime)))
+                    .is_some_and(|runtime| path.starts_with(runtime))
+                || critical_roots
+                    .iter()
+                    .any(|critical| path == *critical || path.starts_with(critical))
+                || protected_roots
+                    .iter()
+                    .any(|protected| path == *protected || path.starts_with(protected)))
         {
             return Err(PortcoveError::verification(
-                "persistent file pattern matched executable or bootstrap content",
+                "mutable file pattern matched executable, source, or bootstrap content",
             ));
         }
         if path.file_name().and_then(|value| value.to_str()) == Some(".portcove-manifest.json")
@@ -1296,7 +1344,7 @@ fn verified_manifest(install: &InstallRecord) -> Result<InstallManifest> {
             })
         {
             return Err(PortcoveError::verification(
-                "persistent file pattern overlaps the executable or immutable runtime",
+                "mutable file pattern overlaps the executable or immutable runtime",
             ));
         }
     }
@@ -1606,6 +1654,44 @@ fn manifest_path_is_mutable(manifest: &InstallManifest, relative: &str) -> bool 
             .mutable_paths
             .iter()
             .any(|mutable| relative == mutable || relative.starts_with(&format!("{mutable}/")))
+}
+
+fn mutable_file_pattern_failures(
+    install_root: &Path,
+    manifest: &InstallManifest,
+) -> Result<Vec<String>> {
+    let selected = install_root.join(&manifest.selected_executable);
+    let platform = manifest.platform.unwrap_or(Platform::current()?);
+    let mut failures = std::collections::BTreeSet::new();
+    for pattern in &manifest.mutable_file_patterns {
+        let directory = pattern
+            .directory
+            .as_deref()
+            .map(|relative| manifest_member(install_root, relative))
+            .transpose()?
+            .unwrap_or_else(|| install_root.to_path_buf());
+        refuse_symlink_path_within(install_root, &directory, "mutable file pattern directory")?;
+        let entries = match fs::read_dir(&directory) {
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,
+            result => result?,
+        };
+        for entry in entries {
+            let entry = entry?;
+            let name = crate::path::unicode(Path::new(&entry.file_name()), "mutable filename")?;
+            if !pattern.pattern.matches(&name) {
+                continue;
+            }
+            let candidate = entry.path();
+            let relative = manifest_relative(install_root, &candidate)?;
+            let file_type = entry.file_type()?;
+            if file_type.is_symlink() || !file_type.is_file() {
+                failures.insert(format!("invalid mutable-pattern entry: {relative}"));
+            } else if is_executable_companion(&candidate, &selected, platform)? {
+                failures.insert(format!("unexpected launch-sensitive file: {relative}"));
+            }
+        }
+    }
+    Ok(failures.into_iter().collect())
 }
 
 fn is_critical_companion(path: &Path, selected: &Path, platform: Platform) -> Result<bool> {
@@ -2031,6 +2117,115 @@ mod tests {
         assert_eq!(
             installer.verify_critical(&install, &qualification).unwrap(),
             root.join("game.exe")
+        );
+    }
+
+    #[test]
+    fn runtime_file_patterns_ignore_only_reviewed_disposable_outputs() {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path().join("payload");
+        fs::create_dir(&root).unwrap();
+        fs::write(root.join("game.exe"), b"trusted executable").unwrap();
+        let dump = root.join("psx_freeze_dump_psx-runtime_1_2.json");
+        fs::write(&dump, b"initial diagnostic").unwrap();
+        let mut qualification = InstallQualification::test("game.exe");
+        qualification.runtime_mutable_file_patterns = vec![crate::PersistentFilePattern {
+            prefix: "psx_freeze_dump_".into(),
+            suffix: ".json".into(),
+        }];
+        let (installer, install) = create_test_install(&root, &qualification);
+
+        let manifest = verified_manifest(&install).unwrap();
+        assert_eq!(manifest.mutable_file_patterns.len(), 1);
+        assert!(
+            !manifest
+                .files
+                .iter()
+                .any(|file| file.path.ends_with(".json"))
+        );
+        fs::write(&dump, b"changed diagnostic").unwrap();
+        assert!(installer.verify(&install).unwrap().valid);
+        assert_eq!(
+            installer.verify_critical(&install, &qualification).unwrap(),
+            root.join("game.exe")
+        );
+
+        let invalid = root.join("psx_freeze_dump_directory.json");
+        fs::create_dir(&invalid).unwrap();
+        let report = installer.verify(&install).unwrap();
+        assert!(!report.valid);
+        assert!(
+            report
+                .failures
+                .iter()
+                .any(|failure| failure.contains("invalid mutable-pattern entry"))
+        );
+        assert!(installer.verify_critical(&install, &qualification).is_err());
+        fs::remove_dir(&invalid).unwrap();
+
+        fs::write(root.join("unexpected.dll"), b"unreviewed code").unwrap();
+        assert!(!installer.verify(&install).unwrap().valid);
+        assert!(installer.verify_critical(&install, &qualification).is_err());
+    }
+
+    #[test]
+    fn runtime_file_patterns_cannot_overlap_persistent_patterns() {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path();
+        let selected = root.join("game.exe");
+        let mut qualification = InstallQualification::test("game.exe");
+        qualification.persistent_file_patterns = vec![crate::PersistentFilePattern {
+            prefix: "psx_freeze_dump_".into(),
+            suffix: ".json".into(),
+        }];
+        qualification.runtime_mutable_file_patterns = vec![crate::PersistentFilePattern {
+            prefix: "psx_freeze_dump_psx-runtime_".into(),
+            suffix: "_1.json".into(),
+        }];
+
+        let error = qualification.file_patterns(root, &selected).unwrap_err();
+        assert!(error.message.contains("patterns overlap"));
+    }
+
+    #[test]
+    fn runtime_source_set_members_remain_immutable() {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path().join("payload");
+        fs::create_dir(&root).unwrap();
+        fs::write(root.join("game.exe"), b"trusted executable").unwrap();
+        let source = root.join("baserom.us.rev0.z64");
+        fs::write(&source, b"trusted source").unwrap();
+        let catalog = crate::Catalog::embedded().unwrap();
+        let port = catalog.port("g-diffuser").unwrap();
+        let mut qualification =
+            crate::test_fixture::retained_qualification(port, Platform::WindowsX86_64).unwrap();
+        fs::rename(root.join("game.exe"), root.join("G-Diffuser.exe")).unwrap();
+
+        let (installer, install) = create_test_install(&root, &qualification);
+        let manifest = verified_manifest(&install).unwrap();
+        assert!(
+            manifest
+                .files
+                .iter()
+                .any(|file| { file.path == "baserom.us.rev0.z64" && !file.critical })
+        );
+        installer
+            .verify_import_contract(&install, &qualification)
+            .unwrap();
+        fs::write(&source, b"changed source").unwrap();
+        assert!(!installer.verify(&install).unwrap().valid);
+
+        fs::write(&source, b"trusted source").unwrap();
+        qualification.runtime_mutable_file_patterns = vec![crate::PersistentFilePattern {
+            prefix: "baserom.".into(),
+            suffix: ".z64".into(),
+        }];
+        let error =
+            manifest_files(&root, &qualification, &root.join("G-Diffuser.exe")).unwrap_err();
+        assert!(
+            error
+                .message
+                .contains("matched executable, source, or bootstrap")
         );
     }
 

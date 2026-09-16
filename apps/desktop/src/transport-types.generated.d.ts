@@ -871,6 +871,7 @@ export interface PortDefinition {
   presentation?: PortPresentation | null;
   project_url: string;
   release: ReleaseSpec;
+  runtime_mutable_file_patterns?: PersistentFilePattern[];
   runtime_mutable_paths: string[];
   runtime_source_filename: string | null;
   runtime_source_hashes: {

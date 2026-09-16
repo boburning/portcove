@@ -439,6 +439,16 @@ TLS, GitHub delivery, a public feed, staging verification, a physical platform o
 publication. Ordinary construction still rejects loopback HTTP before opening a
 request and retains the production HTTPS/public-DNS/no-proxy/redirect policy.
 
+A separate composed qualification case passes that real controlled HTTP reader
+into the existing verified staging store. It establishes one verified staged
+candidate, rejects same-length altered bytes by authenticated SHA-256 and a
+truncated stream by early EOF, removes each incomplete incoming file, and preserves
+the exact prior candidate and payload before an exact-body retry stages the newer
+candidate. The fixture contains only disposable public verification material; it
+does not grant signing, feed, publication, apply or replacement authority. This is
+still controlled loopback acquisition and staging evidence, not production
+transport, a packaged update or physical-platform qualification.
+
 ## Freshness, replay and bounds
 
 Use safe expiration enforcement. Under one host OS lock, persist the latest verified
@@ -618,6 +628,9 @@ Preview-to-final release, holds Stable rather than downgrade an installed prerel
 falls back below a newer withdrawn promotion, and returns the exact top-level payload
 key for the selected candidate. These are deterministic repository/selection results,
 not packaged application replacement or production-feed observations.
+On one durable host-provider state, the same fixture accepts a newer signed metadata
+generation, rejects an older signed timestamp as stale without lowering the accepted
+role floors, then recovers after the current signed timestamp is restored.
 Host-state fixtures additionally prove version and signed-body floors after the TUF
 cache is removed, same-process serialization, clock-regression refusal, source
 refusal before state mutation, and recovery from a failed initial bridge plus a

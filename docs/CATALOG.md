@@ -218,6 +218,20 @@ bytes can be edited; an already modified immutable template also requires a
 clean reinstall. Current declarations never authorize silently accepting those
 changes to an existing manifest.
 
+Use `runtime_mutable_file_patterns` only for reviewed disposable files whose
+names vary inside the catalog-owned runtime working directory. Each rule has a
+literal nonempty `prefix` and `suffix`; it is anchored to one filename, requires
+at least one character between them, and never recurses or behaves as a general
+glob. Matching files are omitted from immutable verification but are not
+enumerated, backed up or restored. By contrast, `persistent_file_patterns` uses
+the same bounded syntax for player-owned files that must participate in those
+persistence operations, while `runtime_mutable_paths` remains the exact-path
+form for disposable runtime output. Catalog validation rejects overlapping or
+duplicate rules and conflicts with executable, source, metadata, exact-runtime
+or persistent declarations. This contract cannot claim files in roaming AppData
+or another external user-profile directory; such state needs an upstream
+redirect or a separately reviewed ownership capability.
+
 Ghostship 3.0.0 writes its disposable extraction cache to `torch.hash.yml` and
 rotates `logs/Ghostship.log` through `logs/Ghostship.10.log`. The catalog declares
 those exact runtime outputs through the existing nonpersistent runtime-path
