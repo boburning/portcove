@@ -12,6 +12,7 @@ import {
   parseAquaConfig,
   parseReleaseChecksumId,
   requireStableNonReleaseEntries,
+  validateAquaChecksumEntries,
   validateAquaChecksumLedger,
   verifyPublisherDigests,
 } from "./aqua-integrity.mjs";
@@ -140,6 +141,7 @@ test("Aqua integrity rejects stale, incomplete, unexpected and untrusted package
 
   const stale = structuredClone(ledger);
   stale.checksums[0].id = stale.checksums[0].id.replace("/0.16.7/", "/0.16.6/");
+  assert.doesNotThrow(() => validateAquaChecksumEntries(stale));
   assert.throws(
     () => validateAquaChecksumLedger(config, stale),
     /missing:.*0\.16\.7.*unexpected:.*0\.16\.6/u,

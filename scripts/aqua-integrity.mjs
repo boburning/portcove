@@ -86,14 +86,8 @@ function expectedRegistryIdentity(config) {
 }
 
 export function validateAquaChecksumLedger(config, ledger) {
-  if (!ledger || Object.keys(ledger).length !== 1 || !Array.isArray(ledger.checksums))
-    throw new Error("aqua-checksums.json must contain only a checksums array");
+  validateAquaChecksumEntries(ledger);
   const ids = ledger.checksums.map(({ id }) => id);
-  exactUnique(ids, "Aqua checksum identities");
-  for (const entry of ledger.checksums) {
-    if (entry.algorithm !== "sha256" || !/^[A-F0-9]{64}$/u.test(entry.checksum))
-      throw new Error(`invalid SHA-256 checksum entry: ${entry.id}`);
-  }
 
   const expected = [...expectedReleaseIdentities(config), expectedRegistryIdentity(config)].sort();
   const actual = [...ids].sort();
@@ -107,6 +101,17 @@ export function validateAquaChecksumLedger(config, ledger) {
     );
   }
   return ledger.checksums.filter(({ id }) => id.startsWith(releasePrefix));
+}
+
+export function validateAquaChecksumEntries(ledger) {
+  if (!ledger || Object.keys(ledger).length !== 1 || !Array.isArray(ledger.checksums))
+    throw new Error("aqua-checksums.json must contain only a checksums array");
+  const ids = ledger.checksums.map(({ id }) => id);
+  exactUnique(ids, "Aqua checksum identities");
+  for (const entry of ledger.checksums) {
+    if (entry.algorithm !== "sha256" || !/^[A-F0-9]{64}$/u.test(entry.checksum))
+      throw new Error(`invalid SHA-256 checksum entry: ${entry.id}`);
+  }
 }
 
 export function verifyPublisherDigests(entries, releases) {
@@ -183,17 +188,18 @@ export function requireStableNonReleaseEntries(previous, generated) {
     throw new Error("non-release Aqua checksum authority changed; review it separately");
 }
 
-async function loadCurrent() {
+async function loadCurrent(validateInventory = true) {
   const configText = await readFile(path.join(projectRoot, "aqua.yaml"), "utf8");
   const ledgerText = await readFile(path.join(projectRoot, "aqua-checksums.json"), "utf8");
   const config = parseAquaConfig(configText);
   const ledger = JSON.parse(ledgerText);
-  const releaseEntries = validateAquaChecksumLedger(config, ledger);
+  validateAquaChecksumEntries(ledger);
+  const releaseEntries = validateInventory ? validateAquaChecksumLedger(config, ledger) : [];
   return { configText, ledgerText, config, ledger, releaseEntries };
 }
 
 async function update() {
-  const current = await loadCurrent();
+  const current = await loadCurrent(false);
   const aquaVersion = (await readFile(path.join(projectRoot, ".aqua-version"), "utf8")).trim();
   assertPinnedAquaVersion(aquaVersion);
 
@@ -234,8 +240,8 @@ async function update() {
 async function main(argv) {
   if (argv.length !== 1 || !["--check", "--update"].includes(argv[0]))
     throw new Error("usage: aqua-integrity.mjs --check|--update");
-  const current = await loadCurrent();
   if (argv[0] === "--check") {
+    const current = await loadCurrent();
     console.log(
       `Aqua package versions and ${current.releaseEntries.length} required platform checksums are synchronized.`,
     );
