@@ -27,6 +27,7 @@ import {
   renderSnapshot,
   resolveSnapshotOutput,
   selectNextItems,
+  setManyRequiredReserve,
   uxAuditOriginIds,
   uxAuditOrigins,
   validateConfig,
@@ -34,6 +35,7 @@ import {
   validatePlanOriginCoverage,
   validatePortIssueCoverage,
   validatePortStageSemantics,
+  validateSetManySpec,
   validateUxAuditOriginCoverage,
   viewMachineDrift,
 } from "./roadmap.mjs";
@@ -1495,6 +1497,7 @@ test("capture-port creates one Project-backed issue without depending on parent 
     return "";
   };
   const client = new RoadmapClient(mockedConfig, runner);
+  client.repositoryIssues = () => [];
   const result = client.createPortIssue({
     title: "New Port",
     upstream: "https://example.test/upstream",
@@ -1609,6 +1612,7 @@ Preserve this contributor text.`;
                         state: "OPEN",
                       },
                       fieldValues: {
+                        totalCount: fieldValues().length,
                         nodes: fieldValues().map((value) => ({
                           ...value,
                           field: {
@@ -1616,6 +1620,7 @@ Preserve this contributor text.`;
                             ...value.field,
                           },
                         })),
+                        pageInfo: { hasNextPage: false, endCursor: null },
                       },
                     },
                   ],
@@ -1634,6 +1639,7 @@ Preserve this contributor text.`;
       return "";
     };
     const client = new RoadmapClient(mockedConfig, runner);
+    client.repositoryIssues = () => [{ ...issue(), type: "Issue", url: issue().html_url }];
     const catalog = { ports: [] };
     const first = client.normalizePortIssue({ number: 42, catalog });
     assert.equal(first.bodyChanged, true);
@@ -1648,34 +1654,37 @@ Preserve this contributor text.`;
   });
 }
 
-test("repository issue inventory follows every GraphQL page", () => {
+function included(body, headers = {}) {
+  const lines = Object.entries(headers).map(([name, value]) => `${name}: ${value}`);
+  return `HTTP/2.0 200 OK\r\n${lines.join("\r\n")}\r\n\r\n${JSON.stringify(body)}`;
+}
+
+function restIssue(number, overrides = {}) {
+  return {
+    node_id: `I_${number}`,
+    number,
+    title: `Issue ${number}`,
+    body: "",
+    html_url: `https://github.com/boburning/portcove/issues/${number}`,
+    state: "open",
+    ...overrides,
+  };
+}
+
+test("repository issue inventory follows every REST page and filters pull requests", () => {
   const calls = [];
-  const runner = (args, input) => {
-    calls.push({ args, input });
-    const after = JSON.parse(input).variables.after;
-    const number = after ? 2 : 1;
-    return JSON.stringify({
-      data: {
-        repository: {
-          issues: {
-            totalCount: 2,
-            nodes: [
-              {
-                __typename: "Issue",
-                number,
-                title: `Issue ${number}`,
-                body: "",
-                url: `https://github.com/boburning/portcove/issues/${number}`,
-                state: "OPEN",
-              },
-            ],
-            pageInfo: {
-              hasNextPage: !after,
-              endCursor: after ? null : "cursor-1",
-            },
-          },
-        },
-      },
+  let markers = 0;
+  const runner = (args) => {
+    calls.push(args);
+    const endpoint = args[2];
+    if (endpoint.includes("direction=desc")) {
+      markers += 1;
+      return included([restIssue(3, { pull_request: { url: "https://example.test" } })]);
+    }
+    if (endpoint === "https://api.github.test/issues?page=2")
+      return included([restIssue(3, { pull_request: { url: "https://example.test" } })]);
+    return included([restIssue(1), restIssue(2)], {
+      link: '<https://api.github.test/issues?page=2>; rel="next"',
     });
   };
   const issues = new RoadmapClient(config, runner).repositoryIssues();
@@ -1683,11 +1692,38 @@ test("repository issue inventory follows every GraphQL page", () => {
     issues.map((issue) => issue.number),
     [1, 2],
   );
-  assert.equal(calls.length, 2);
-  assert.deepEqual(
-    calls.map((call) => JSON.parse(call.input).variables.after),
-    [null, "cursor-1"],
-  );
+  assert.equal(markers, 2);
+  assert.equal(calls.length, 4);
+});
+
+test("repository issue inventory rejects pagination loops duplicates and a changing high-water mark", () => {
+  const scenarios = [
+    (args) => {
+      const endpoint = args[2];
+      if (endpoint.includes("direction=desc")) return included([restIssue(1)]);
+      return included([restIssue(1)], {
+        link: `<${endpoint}>; rel="next"`,
+      });
+    },
+    (args) => {
+      const endpoint = args[2];
+      if (endpoint.includes("direction=desc")) return included([restIssue(1)]);
+      return included([restIssue(1), restIssue(1)]);
+    },
+    (() => {
+      let marker = 1;
+      return (args) => {
+        if (args[2].includes("direction=desc")) return included([restIssue(marker++)]);
+        return included([restIssue(1)]);
+      };
+    })(),
+  ];
+  for (const runner of scenarios) {
+    assert.throws(
+      () => new RoadmapClient(config, runner).repositoryIssues(),
+      /inventory|pagination/,
+    );
+  }
 });
 
 test("promotion validation happens before any GitHub mutation", () => {
@@ -1715,17 +1751,29 @@ test("move refuses ambiguous item references", () => {
                 {
                   id: "A",
                   content: { __typename: "DraftIssue", title: "Same" },
-                  fieldValues: { nodes: [] },
+                  fieldValues: {
+                    totalCount: 0,
+                    nodes: [],
+                    pageInfo: { hasNextPage: false, endCursor: null },
+                  },
                 },
                 {
                   id: "B",
                   content: { __typename: "DraftIssue", title: "Same" },
-                  fieldValues: { nodes: [] },
+                  fieldValues: {
+                    totalCount: 0,
+                    nodes: [],
+                    pageInfo: { hasNextPage: false, endCursor: null },
+                  },
                 },
                 {
                   id: "C",
                   content: { __typename: "DraftIssue", title: "Before" },
-                  fieldValues: { nodes: [] },
+                  fieldValues: {
+                    totalCount: 0,
+                    nodes: [],
+                    pageInfo: { hasNextPage: false, endCursor: null },
+                  },
                 },
               ],
               pageInfo: { hasNextPage: false, endCursor: null },
@@ -1806,6 +1854,50 @@ test("GraphQL view pagination reads every page", () => {
   assert.equal(calls.length, 2);
 });
 
+test("complete Project context reads every field page with opaque identity checks", () => {
+  const calls = [];
+  const runner = (args, input) => {
+    calls.push({ args, input });
+    if (args[1] === "users/boburning") return JSON.stringify({ type: "User" });
+    const request = JSON.parse(input);
+    const after = request.variables.after;
+    return JSON.stringify({
+      data: {
+        user: {
+          projectV2: {
+            id: "PVT",
+            number: 1,
+            title: "Portcove Roadmap",
+            url: "https://github.test/project/1",
+            public: true,
+            closed: false,
+            fields: {
+              totalCount: 2,
+              nodes: [
+                {
+                  id: after ? "F2" : "F1",
+                  name: after ? "Priority" : "Status",
+                  dataType: "SINGLE_SELECT",
+                  options: [],
+                },
+              ],
+              pageInfo: after
+                ? { hasNextPage: false, endCursor: null }
+                : { hasNextPage: true, endCursor: "field-page-2" },
+            },
+          },
+        },
+      },
+    });
+  };
+  const context = new RoadmapClient(config, runner).completeProjectContext(1);
+  assert.deepEqual(
+    context.fields.map((field) => field.id),
+    ["F1", "F2"],
+  );
+  assert.equal(calls.filter((call) => call.input).length, 2);
+});
+
 test("GraphQL Project item pagination reads every item with normalized fields", () => {
   const calls = [];
   const runner = (args, input) => {
@@ -1817,7 +1909,9 @@ test("GraphQL Project item pagination reads every item with normalized fields", 
           id: "I2",
           content: { __typename: "DraftIssue", title: "Second", body: "Draft" },
           fieldValues: {
+            totalCount: 1,
             nodes: [{ name: "Inbox", field: { name: "Status" } }],
+            pageInfo: { hasNextPage: false, endCursor: null },
           },
         }
       : {
@@ -1831,7 +1925,9 @@ test("GraphQL Project item pagination reads every item with normalized fields", 
             state: "OPEN",
           },
           fieldValues: {
+            totalCount: 1,
             nodes: [{ name: "Port", field: { name: "Work type" } }],
+            pageInfo: { hasNextPage: false, endCursor: null },
           },
         };
     return JSON.stringify({
@@ -1861,9 +1957,212 @@ test("GraphQL Project item pagination reads every item with normalized fields", 
   assert.equal(calls.filter((call) => call.args[1] === "graphql").length, 2);
 });
 
-for (const kind of ["issues", "items"]) {
-  const node = (value) =>
-    kind === "issues" ? { number: value, __typename: "Issue" } : { id: `PVTI_${value}` };
+test("Project item inventory rejects a truncated nested field connection", () => {
+  const runner = (args) => {
+    if (args[1] === "view") return JSON.stringify({ id: "PVT" });
+    return JSON.stringify({
+      data: {
+        node: {
+          items: {
+            totalCount: 1,
+            nodes: [
+              {
+                id: "I1",
+                fieldValues: {
+                  totalCount: 2,
+                  nodes: [{ name: "Ready", field: { name: "Status" } }],
+                  pageInfo: { hasNextPage: true, endCursor: "field-page" },
+                },
+              },
+            ],
+            pageInfo: { hasNextPage: false, endCursor: null },
+          },
+        },
+      },
+    });
+  };
+  assert.throws(() => new RoadmapClient(config, runner).itemList(1), /fields are truncated/);
+});
+
+test("set-many validates transitions before one mutation and exact readback", () => {
+  const calls = [];
+  const mockedConfig = structuredClone(config);
+  mockedConfig.project.number = 7;
+  let status = "Ready";
+  const fieldConnection = () => ({
+    totalCount: 1,
+    nodes: [{ name: status, field: { name: "Status" } }],
+    pageInfo: { hasNextPage: false, endCursor: null },
+  });
+  const runner = (args, input) => {
+    calls.push({ args, input });
+    if (args[0] === "api" && args[1] === "users/boburning") return JSON.stringify({ type: "User" });
+    if (args[0] === "project" && args[1] === "view")
+      return JSON.stringify({ id: "PVT", number: 7 });
+    if (args[0] === "project" && args[1] === "field-list")
+      return JSON.stringify({
+        fields: [
+          {
+            id: "F_status",
+            name: "Status",
+            options: [
+              { id: "O_ready", name: "Ready" },
+              { id: "O_done", name: "Done" },
+            ],
+          },
+        ],
+      });
+    const request = JSON.parse(input);
+    if (request.query.includes("projectV2(number:"))
+      return JSON.stringify({
+        data: {
+          user: {
+            projectV2: {
+              id: "PVT",
+              number: 7,
+              title: "Portcove Roadmap",
+              url: "https://github.test/project/7",
+              public: true,
+              closed: false,
+              shortDescription: "Roadmap",
+              readme: "Readme",
+              fields: {
+                totalCount: 1,
+                nodes: [
+                  {
+                    __typename: "ProjectV2SingleSelectField",
+                    id: "F_status",
+                    name: "Status",
+                    dataType: "SINGLE_SELECT",
+                    options: [
+                      { id: "O_ready", name: "Ready" },
+                      { id: "O_done", name: "Done" },
+                    ],
+                  },
+                ],
+                pageInfo: { hasNextPage: false, endCursor: null },
+              },
+            },
+          },
+        },
+      });
+    if (request.query.includes("items(first: 50"))
+      return JSON.stringify({
+        data: {
+          node: {
+            items: {
+              totalCount: 1,
+              nodes: [
+                {
+                  id: "PVTI_838",
+                  content: {
+                    __typename: "Issue",
+                    number: 838,
+                    url: "https://github.com/boburning/portcove/issues/838",
+                  },
+                  fieldValues: fieldConnection(),
+                },
+              ],
+              pageInfo: { hasNextPage: false, endCursor: null },
+            },
+          },
+        },
+      });
+    if (request.query.includes("updateProjectV2ItemFieldValue")) {
+      status = "Done";
+      return JSON.stringify({ data: { f0: { projectV2Item: { id: "PVTI_838" } } } });
+    }
+    if (request.query.includes("nodes(ids:"))
+      return JSON.stringify({
+        data: { nodes: [{ id: "PVTI_838", fieldValues: fieldConnection() }] },
+      });
+    throw new Error(`unexpected GraphQL request: ${request.query}`);
+  };
+  const client = new RoadmapClient(mockedConfig, runner);
+  const spec = {
+    schema_version: 1,
+    updates: [{ target: "#838", fields: { Status: { from: "Ready", to: "Done" } } }],
+  };
+  const plan = client.planSetMany(spec);
+  assert.equal(plan.pending.length, 1);
+  client.applySetMany(plan);
+  assert.ok(client.verifySetMany(plan).every((result) => result.verified));
+  assert.equal(calls.filter((call) => call.input?.includes("items(first: 50")).length, 1);
+  assert.equal(
+    calls.filter((call) => call.input?.includes("updateProjectV2ItemFieldValue")).length,
+    1,
+  );
+});
+
+test("set-many specifications fail closed before GitHub access", () => {
+  const invalid = [
+    { schema_version: 2, updates: [] },
+    { schema_version: 1, updates: [] },
+    {
+      schema_version: 1,
+      updates: [{ target: "#1", fields: { Status: { from: "Ready", to: "Ready" } } }],
+    },
+    {
+      schema_version: 1,
+      updates: [
+        { target: "#1", fields: { Status: { from: "Ready", to: "Done" } } },
+        { target: "#1", fields: { Status: { from: "Ready", to: "Done" } } },
+      ],
+    },
+  ];
+  for (const spec of invalid) assert.throws(() => validateSetManySpec(config, spec));
+  const tooLarge = {
+    schema_version: 1,
+    updates: Array.from({ length: 11 }, (_, index) => ({
+      target: `#${index + 1}`,
+      fields: Object.fromEntries(
+        config.fields.map((field) => [
+          field.name,
+          { from: field.options[0], to: field.options[1] },
+        ]),
+      ),
+    })),
+  };
+  assert.throws(() => validateSetManySpec(config, tooLarge), /at most 100/);
+  assert.equal(setManyRequiredReserve(11, 1), 123);
+  for (const values of [
+    [-1, 1],
+    [1, -1],
+    [1, 101],
+  ])
+    assert.throws(() => setManyRequiredReserve(...values), /quota inputs/);
+});
+
+test("GraphQL failures retain provider quota and reset evidence", () => {
+  const runner = () =>
+    included(
+      {
+        data: null,
+        errors: [{ message: "API rate limit exceeded" }],
+      },
+      {
+        "x-ratelimit-resource": "graphql",
+        "x-ratelimit-limit": "5000",
+        "x-ratelimit-remaining": "0",
+        "x-ratelimit-used": "5000",
+        "x-ratelimit-reset": "1789524000",
+      },
+    );
+  assert.throws(
+    () => new RoadmapClient(config, runner).graphql("query { viewer { login } }"),
+    /0 points remain.*reset at/,
+  );
+});
+
+for (const kind of ["items"]) {
+  const node = (value) => ({
+    id: `PVTI_${value}`,
+    fieldValues: {
+      totalCount: 0,
+      nodes: [],
+      pageInfo: { hasNextPage: false, endCursor: null },
+    },
+  });
   const page = (numbers, totalCount, cursor = null) => ({
     nodes: numbers.map(node),
     totalCount,
@@ -1877,19 +2176,16 @@ for (const kind of ["issues", "items"]) {
       const current = pages[index++];
       if (current instanceof Error) throw current;
       assert.ok(index <= pages.length, "reader must stop before exhausting the fixture");
-      return JSON.stringify({
-        data:
-          kind === "issues" ? { repository: { issues: current } } : { node: { items: current } },
-      });
+      return JSON.stringify({ data: { node: { items: current } } });
     });
-    return kind === "issues" ? client.repositoryIssues() : client.itemList(1);
+    return client.itemList(1);
   }
 
   test(`${kind} inventory accepts an empty connection`, () => {
     assert.deepEqual(readPages([page([], 0)]), []);
   });
   test(`${kind} inventory accepts an exact page boundary`, () => {
-    const size = kind === "issues" ? 100 : 50;
+    const size = 50;
     assert.equal(
       readPages([
         page(
