@@ -63,11 +63,37 @@ const oxfmtExtensions = new Set([
 ]);
 
 const explicitNodeTests = new Map([
+  ["AGENTS.md", ["scripts/repository-settings.test.mjs", "scripts/repository-skills.test.mjs"]],
+  [
+    "CONTRIBUTING.md",
+    ["scripts/repository-settings.test.mjs", "scripts/repository-skills.test.mjs"],
+  ],
+  ["docs/README.md", ["scripts/repository-skills.test.mjs"]],
+  [
+    "docs/CONTRIBUTION-CONVENTIONS.md",
+    ["scripts/repository-settings.test.mjs", "scripts/repository-skills.test.mjs"],
+  ],
+  [
+    "docs/DEVELOPMENT-TOOLS.md",
+    ["scripts/repository-settings.test.mjs", "scripts/repository-skills.test.mjs"],
+  ],
+  ["docs/PROJECT-GOVERNANCE.md", ["scripts/repository-settings.test.mjs"]],
+  ["docs/QUALITY.md", ["scripts/repository-settings.test.mjs"]],
+  ["docs/REPOSITORY-SETTINGS.md", ["scripts/repository-settings.test.mjs"]],
+  ["scripts/local-validation.mjs", ["scripts/repository-settings.test.mjs"]],
   [
     ".config/rust-test-impact.json",
     ["scripts/rust-test-impact.test.mjs", "scripts/local-validation.test.mjs"],
   ],
   ["scripts/check-vitest-durations.mjs", ["scripts/test-duration-reporter.test.mjs"]],
+  ["scripts/pr-delivery.mjs", ["scripts/repository-skills.test.mjs"]],
+  ["scripts/package-local.ps1", ["scripts/repository-skills.test.mjs"]],
+  ["scripts/release-preflight.ps1", ["scripts/repository-skills.test.mjs"]],
+  ["scripts/roadmap.mjs", ["scripts/repository-skills.test.mjs"]],
+  ["scripts/test-windows-installer.ps1", ["scripts/repository-skills.test.mjs"]],
+  ["scripts/windows-qualification-session.ps1", ["scripts/repository-skills.test.mjs"]],
+  ["crates/portcove-core/catalog/catalog.json", ["scripts/repository-skills.test.mjs"]],
+  ["crates/portcove-core/src/catalog.rs", ["scripts/repository-skills.test.mjs"]],
   [
     "apps/desktop/scripts/desktop-test.mjs",
     [
@@ -112,6 +138,7 @@ const explicitNodeTests = new Map([
       "scripts/dev-storage.test.mjs",
       "scripts/ci-workflow.test.mjs",
       "scripts/dependency-automation.test.mjs",
+      "scripts/repository-settings.test.mjs",
     ],
   ],
   [".oxfmtrc.json", ["scripts/local-validation.test.mjs", "scripts/ci-workflow.test.mjs"]],
@@ -400,6 +427,16 @@ function classifyOnePath(selection, input, fileExists, options = {}) {
     file === "AGENTS.md"
   ) {
     selection.scopes.add("documentation");
+    if (file.startsWith("docs/") || extension === ".md") {
+      selection.scopes.add("tooling");
+      addNodeTest(selection, "scripts/repository-skills.test.mjs");
+    }
+    recognized = true;
+  }
+
+  if (file.startsWith(".agents/skills/") && file.endsWith("/SKILL.md")) {
+    selection.scopes.add("tooling");
+    addNodeTest(selection, "scripts/repository-skills.test.mjs");
     recognized = true;
   }
 
@@ -539,7 +576,7 @@ export function buildPlan(selection, context = {}) {
         .map((file) => `- ${file}`)
         .join(
           "\n",
-        )}\nAdd and test a focused rule; exhaustive CI must not be replaced by silent local success.`,
+        )}\nAdd and test a focused rule; the required hosted plan must not be replaced by silent local success.`,
     );
   }
   const mergeBase = context.mergeBase ?? "<merge-base>";

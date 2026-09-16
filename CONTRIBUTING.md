@@ -100,12 +100,14 @@ node scripts/dev-storage.mjs run -- corepack pnpm --dir apps/desktop install --f
 just local-check
 ```
 
-Use focused test recipes while editing. `just check` is an exhaustive local
+Use focused test recipes while editing. `just local-check` selects the complete
+local plan for the current diff. `just check` is an exhaustive local
 source/repository investigation, `just release-check` covers deterministic
 release-unit contracts, and `just windows-qualification-check` runs the packaged
 Windows session suite. Reserve `just audit` for explicit acceptance and validation
 contract work; release preflight uses `just audit --fresh`. Required GitHub CI on
-the exact reviewed head is the ordinary exhaustive merge gate.
+the exact reviewed head must complete the trusted selected hosted plan; that plan
+may be focused, exhaustive qualification, or the narrow prose path.
 
 The Windows bootstrap installs pinned Aqua itself, reuses verified payloads under
 `%LOCALAPPDATA%\Portcove\tool-cache`, and creates ignored checkout-local shims. It
@@ -128,8 +130,10 @@ no additional Roslyn analyzer package is required.
 Keep commits free of source game data, signing secrets, generated build output, local libraries, and Fallow caches.
 
 Codex and deterministic automation own feasible acceptance execution, failure
-investigation, bounded repair, separate review, and exact evidence. Do not ask
-the owner to rerun adequate automated checks. Keep packaged execution,
+investigation, bounded repair, and exact evidence. An actual separate non-writing
+reviewer subagent performs the independent final-candidate review; the implementer
+repairs substantive findings and obtains applicable re-review. Do not ask the
+owner to rerun adequate automated checks. Keep packaged execution,
 physical-device automation, and intrinsically human observations distinct; a
 synthetic fixture or process start cannot establish gameplay or comprehension.
 
@@ -142,20 +146,20 @@ Deferred with its exact resume condition. Automated evidence must not close an
 item that explicitly requires human observation. Do not create a second backlog
 in repository documentation; see [PROJECT-GOVERNANCE.md](docs/PROJECT-GOVERNANCE.md).
 
-Routine authorized work follows mandatory CI, an explicit separate review
-result, repair of substantive findings, and the normal merge or auto-merge path.
-Do not use administrator bypass routinely. Protected acceptance, merge,
+Routine authorized work follows mandatory CI, an actual separate non-writing
+reviewer-subagent result, repair of substantive findings, and the guarded merge
+path in [Contribution conventions](docs/CONTRIBUTION-CONVENTIONS.md). Do not use
+administrator bypass routinely. Protected acceptance, merge,
 signing/publication, and credential boundaries require separate explicit owner
 authorization; neither a candidate nor its automation can authorize itself.
 
 An unrelated advance of `main` does not require rebasing an unchanged pull
 request, rerunning its complete suite, or discarding its review. A behind-main
 pull request remains eligible only when its current source head has passing
-required checks, a real separate reviewer subagent has reviewed those changes,
-substantive findings are resolved, GitHub reports no conflict, and all other
-trusted requirements pass. Record both the reviewed source head and its actual
-baseline without claiming the later target state was tested. Reconcile a target
-advance that really affects dependencies, schemas, generated contracts, the
-patch, or validation policy. Refetch before merging and use
-`gh pr merge --auto --match-head-commit <reviewed-head>` so a new source head
-fails closed; never use administrator bypass.
+required checks, the separate reviewer has reviewed those changes, substantive
+findings are resolved, GitHub reports no conflict, and all other trusted
+requirements pass. Record both the reviewed source head and its actual baseline
+without claiming the later target state was tested. Reconcile a target advance
+that really affects dependencies, schemas, generated contracts, the patch, or
+validation policy. Refetch before the exact-head guarded merge; never use
+administrator bypass.

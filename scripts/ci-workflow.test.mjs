@@ -118,6 +118,8 @@ test("required CI keeps its cancellation and least-privilege contracts", () => {
   assert.match(rustQualityGate, /PORTCOVE_ALWAYS_RESULTS: '\{"provenance"/);
   assert.match(proseChecks, /^ {4}if: needs\.classify\.outputs\.mode == 'prose'$/m);
   assert.match(proseChecks, /pnpm install --frozen-lockfile/);
+  assert.match(proseChecks, /scripts\/repository-settings\.test\.mjs/);
+  assert.match(proseChecks, /scripts\/repository-skills\.test\.mjs/);
   assert.match(proseChecks, /node scripts\/check-ci-prose\.mjs/);
   for (const gate of [rust, rustQualityGate, frontendGate, catalogGate, dependencyReviewGate]) {
     assert.match(gate, /node scripts\/ci-result-gate\.mjs/);
@@ -802,6 +804,8 @@ test("frontend tooling uses the pinned Oxc contracts without legacy quality laye
 
 test("catalog executes the CI workflow contract", () => {
   assert.match(catalog, /scripts\/ci-workflow\.test\.mjs/);
+  assert.match(fastCatalog, /scripts\/repository-settings\.test\.mjs/);
+  assert.match(fastCatalog, /scripts\/repository-skills\.test\.mjs/);
 });
 
 test("routine checks retain architecture enforcement but make cycles optional", async () => {

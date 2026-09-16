@@ -73,8 +73,10 @@ workflow contracts.
 Roadmap, and development-tool contracts, but deliberately excludes release and
 packaged qualification. Use `just release-check` for deterministic release units
 and `just windows-qualification-check` for the stateful packaged Windows session.
-Required CI executes those contracts independently on every exact pull-request
-head.
+Required CI executes the complete selected hosted plan on every exact pull-request
+head. Focused and prose plans do not imply that the aggregate, release, or
+packaged Windows contracts ran; qualification executes its documented hosted
+coverage, while packaged acceptance remains a separate obligation when required.
 
 `just audit --plan` explains which named formatting, Rust, UI, script-lint,
 repository-tooling, Roadmap, development-tool, dependency-policy, rscheck,
@@ -89,12 +91,22 @@ single no-reuse run.
 
 ## Skills
 
-Repository-local skills under `.agents/skills` describe port qualification,
-release validation, roadmap reconciliation and desktop verification. They resolve
-contracts from the active checkout. General architecture and quality obligations
-remain in `AGENTS.md`; skills do not become a parallel implementation or planning
-authority. The reusable Windows diagnostics skill is installed in the user's
-Codex skill directory and can be used outside Portcove.
+Repository-local skills under `.agents/skills` progressively load task-specific
+execution detail. Each skill resolves the active checkout root before using
+paths. General architecture, authority, review, and safety obligations remain in
+`AGENTS.md`; skills do not become a parallel implementation or planning authority.
+
+| Skill                           | Load for                                                                   | Do not load merely for                                                                          |
+| ------------------------------- | -------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `portcove-desktop-verification` | Native Desktop interaction or presentation qualification                   | A routine noninteractive UI unit-test edit                                                      |
+| `portcove-port-qualification`   | New-port investigation, catalog admission, or lifecycle requalification    | Ordinary product UI work; add `portcove-roadmap` when intake or live Project fields also change |
+| `portcove-release-validation`   | Release, package, updater, signing, or protected release-policy validation | Permission to publish, sign, change keys, or widen authority                                    |
+| `portcove-roadmap`              | Issue intake, dependency, live Project, or readiness reconciliation        | Product implementation without planning mutations                                               |
+
+The reusable Windows diagnostics skill is installed in the user's Codex skill
+directory and can be used outside Portcove. Keep a repository skill focused:
+update its trigger and owning references when behavior changes instead of copying
+the same detailed contract into the root instructions.
 
 ## Native desktop smoke tests
 
@@ -159,6 +171,12 @@ Portcove qualification runners across worktrees, but it cannot prevent unrelated
 user input. Announce the foreground run and establish an uncontended window.
 Malformed or live lock ownership is never removed; a valid lock is reclaimed only
 when its recorded PID is positively absent.
+
+When the native runner reports a live owner, treat that as resource contention,
+not a harness timeout: preserve the report, continue noninteractive work, wait for
+the named runner to finish, and rerun the same exact scenario or profile. There is
+no lock override. A watchdog timeout after acquisition is a separate failed run
+and follows the retained-evidence diagnosis in the desktop-verification skill.
 
 Focused and small-profile runs retain the three-minute whole-harness watchdog.
 Owned-lifecycle and full sequences use a bounded ten-minute watchdog because they
@@ -351,9 +369,13 @@ owner/elapsed diagnostics. Queue waiting is not test execution: leave a live
 owner in place, or cancel only the queued command with Ctrl-C if other work is
 more useful. If the finite admission limit expires, ownership is unreadable, or
 cleanup cannot prove quiescence, preserve the exact message and inspect the named
-PID/workspace before retrying. Do not remove the lock, kill another worker, or use
-direct Cargo/nextest to evade it. After admission, diagnose any nextest timeout as
-a separate per-test failure and retain its run ID and last completed phase.
+PID/workspace before retrying. When the recorded containment is not proven
+quiescent, the exact resume condition is a supported owner/containment exit plus
+the wrapper's valid cleanup evidence. Preserve the lock and report that condition;
+do not invent a manual recovery path or keep rerunning expensive checks while it
+remains false. Do not remove the lock, kill another worker, or use direct
+Cargo/nextest to evade it. After admission, diagnose any nextest timeout as a
+separate per-test failure and retain its run ID and last completed phase.
 Direct Cargo commands are outside this guard, as are native desktop sessions,
 which retain their separate focus-taking lock and evidence rules. `--prepare-only`
 compiles the hosted fixture without taking the local heavyweight slot because it

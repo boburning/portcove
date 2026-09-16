@@ -95,8 +95,9 @@ becoming an empty success.
 
 The contract is intentionally conservative: shared types, service and lifecycle
 orchestration, database behavior, public module wiring, and package manifests are
-outside the focused groups. Required GitHub CI still runs its exhaustive
-cross-platform plan on the exact reviewed head. To roll back local selection,
+outside the focused groups. Required GitHub CI still runs the complete selected
+hosted plan on the exact reviewed head; shared or uncertain changes select
+exhaustive qualification. To roll back local selection,
 revert the map and selector change; the previous complete-package command remains
 the broad fallback and the aggregate commands are unchanged.
 
@@ -812,7 +813,7 @@ This avoids branch-only churn; it does not claim the reviewed patch was tested
 with later target changes and does not weaken the exact-head validation plan.
 
 Before a behind-main merge, record the source head and reviewed baseline, retain
-the actual separate reviewer-subagent result for that source head, confirm every
+the actual separate non-writing reviewer-subagent result for that source head, confirm every
 required check succeeded, and confirm GitHub reports no merge conflict. Fetch
 the target for observation without automatically changing the source branch.
 If later target work actually intersects the patch, its dependencies, schemas,
@@ -820,5 +821,6 @@ generated contracts, or trusted validation policy, perform the necessary
 focused reconciliation and obtain current-head validation and review. A target
 advance alone does not invalidate an unchanged patch, but a new source head,
 failed or missing check, unresolved conflict, relevant interaction, or policy
-drift still blocks. Use the normal merge or auto-merge path with
-`--match-head-commit <reviewed-head>` and never administrator bypass.
+drift still blocks. Use the routine exact-head guarded merge command in
+[Contribution conventions](CONTRIBUTION-CONVENTIONS.md) and never administrator
+bypass.
