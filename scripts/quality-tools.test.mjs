@@ -134,17 +134,21 @@ test("Aqua integrity rejects stale, incomplete, unexpected and untrusted package
     await readFile(new URL("../aqua-checksums.json", import.meta.url), "utf8"),
   );
   const entries = validateAquaChecksumLedger(config, ledger);
+  const ruff = config.packages.find(({ name }) => name === "astral-sh/ruff");
+  assert.ok(ruff, "Ruff must remain in the maintained Aqua package inventory");
 
   const missing = structuredClone(ledger);
   missing.checksums.splice(0, 1);
   assert.throws(() => validateAquaChecksumLedger(config, missing), /missing:/u);
 
   const stale = structuredClone(ledger);
-  stale.checksums[0].id = stale.checksums[0].id.replace("/0.16.7/", "/0.16.6/");
+  const staleVersion = "0.0.0";
+  stale.checksums[0].id = stale.checksums[0].id.replace(`/${ruff.version}/`, `/${staleVersion}/`);
   assert.doesNotThrow(() => validateAquaChecksumEntries(stale));
   assert.throws(
     () => validateAquaChecksumLedger(config, stale),
-    /missing:.*0\.16\.7.*unexpected:.*0\.16\.6/u,
+    (error) =>
+      error.message.includes(`/${ruff.version}/`) && error.message.includes(`/${staleVersion}/`),
   );
 
   const duplicate = structuredClone(ledger);
@@ -170,7 +174,7 @@ test("Aqua integrity rejects stale, incomplete, unexpected and untrusted package
     });
   }
   assert.doesNotThrow(() => verifyPublisherDigests(entries, releases));
-  releases["astral-sh/ruff@0.16.7"].assets[0].digest = `sha256:${"0".repeat(64)}`;
+  releases[`${ruff.name}@${ruff.version}`].assets[0].digest = `sha256:${"0".repeat(64)}`;
   assert.throws(
     () => verifyPublisherDigests(entries, releases),
     /publisher SHA-256 digest differs/u,
