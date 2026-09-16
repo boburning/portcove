@@ -7,6 +7,13 @@ import {
   githubOperationEnvelope,
   sanitizeOperationError,
 } from "./github-api.mjs";
+import {
+  classifyRenovateSnapshot,
+  fastLaneSummary,
+  inspectCurrentBase,
+  parseRenovateUpdates,
+  runMetadataValidation,
+} from "./renovate-fast-lane.mjs";
 
 const scriptPath = fileURLToPath(import.meta.url);
 const projectRoot = fileURLToPath(new URL("..", import.meta.url));
@@ -98,46 +105,68 @@ export class PullRequestDeliveryClient {
     );
   }
 
+  pullFiles(number) {
+    return this.api.paginateRest(`repos/${repository}/pulls/${number}/files?per_page=100`, {
+      select: (body) => body,
+      identity: (file) => (typeof file?.filename === "string" ? file.filename : null),
+      label: "pull request files",
+    });
+  }
+
+  pullCommits(number) {
+    return this.api.paginateRest(`repos/${repository}/pulls/${number}/commits?per_page=100`, {
+      select: (body) => body,
+      identity: (commit) =>
+        typeof commit?.sha === "string" && /^[0-9a-f]{40}$/u.test(commit.sha) ? commit.sha : null,
+      label: "pull request commits",
+    });
+  }
+
+  branch(name) {
+    const body = this.request(
+      "GET",
+      `repos/${repository}/branches/${encodeURIComponent(name)}`,
+    ).body;
+    if (!/^[0-9a-f]{40}$/u.test(body?.commit?.sha ?? ""))
+      throw new Error(`branch ${name} response is incomplete`);
+    return body;
+  }
+
   requiredCheckState(number, head, requiredContexts) {
     const pull = this.pull(number);
     if (pull.head.sha !== head)
       throw new Error(`pull request #${number} head changed: ${pull.head.sha} != ${head}`);
-    const candidates = new Map(requiredContexts.map((context) => [context, []]));
-    for (const run of this.checkRuns(head)) {
-      if (!candidates.has(run.name)) continue;
-      const outcome =
-        run.status === "completed"
-          ? run.conclusion === "success"
-            ? "success"
-            : "failure"
-          : "pending";
-      candidates.get(run.name).push({
-        source: "check-run",
-        outcome,
-        conclusion: run.conclusion ?? run.status,
-        url: run.html_url ?? null,
-      });
-    }
-    for (const status of this.commitStatuses(head)) {
-      if (!candidates.has(status.context)) continue;
-      const outcome =
-        status.state === "success" ? "success" : status.state === "pending" ? "pending" : "failure";
-      candidates.get(status.context).push({
-        source: "commit-status",
-        outcome,
-        conclusion: status.state,
-        url: status.target_url ?? null,
-      });
-    }
-    const contexts = requiredContexts.map((context) => {
-      const matches = candidates.get(context);
-      if (matches.length > 1)
-        return { context, outcome: "failure", conclusion: "ambiguous", observations: matches };
-      if (!matches.length)
-        return { context, outcome: "pending", conclusion: "missing", observations: [] };
-      return { context, ...matches[0], observations: matches };
-    });
+    const contexts = requiredCheckContexts(
+      this.checkRuns(head),
+      this.commitStatuses(head),
+      requiredContexts,
+    );
     return { pull, head, contexts };
+  }
+
+  renovateSnapshot(number, head, requiredContexts) {
+    const pull = this.pull(number);
+    const checkRuns = this.checkRuns(head);
+    const statuses = this.commitStatuses(head);
+    const commits = this.pullCommits(number);
+    const files = this.pullFiles(number);
+    if (!Number.isSafeInteger(pull.commits) || commits.length !== pull.commits)
+      throw new Error(
+        `pull request commit inventory is incomplete: expected ${pull.commits ?? "unknown"}, observed ${commits.length}`,
+      );
+    if (!Number.isSafeInteger(pull.changed_files) || files.length !== pull.changed_files)
+      throw new Error(
+        `pull request file inventory is incomplete: expected ${pull.changed_files ?? "unknown"}, observed ${files.length}`,
+      );
+    return {
+      pull,
+      commits,
+      files,
+      checkRuns,
+      statuses,
+      contexts: requiredCheckContexts(checkRuns, statuses, requiredContexts),
+      target: this.branch(pull.base.ref),
+    };
   }
 
   merge(number, head, requiredContexts) {
@@ -221,6 +250,64 @@ export class PullRequestDeliveryClient {
   }
 }
 
+export function requiredCheckContexts(checkRuns, statuses, requiredContexts) {
+  const candidates = new Map(requiredContexts.map((context) => [context, []]));
+  for (const run of checkRuns) {
+    if (!candidates.has(run.name)) continue;
+    const outcome =
+      run.status === "completed"
+        ? run.conclusion === "success"
+          ? "success"
+          : "failure"
+        : "pending";
+    candidates.get(run.name).push({
+      source: "check-run",
+      outcome,
+      conclusion: run.conclusion ?? run.status,
+      url: run.html_url ?? null,
+    });
+  }
+  for (const status of statuses) {
+    if (!candidates.has(status.context)) continue;
+    const outcome =
+      status.state === "success" ? "success" : status.state === "pending" ? "pending" : "failure";
+    candidates.get(status.context).push({
+      source: "commit-status",
+      outcome,
+      conclusion: status.state,
+      description: status.description ?? null,
+      url: status.target_url ?? null,
+    });
+  }
+  const contexts = requiredContexts.map((context) => {
+    const matches = candidates.get(context);
+    if (matches.length > 1)
+      return { context, outcome: "failure", conclusion: "ambiguous", observations: matches };
+    if (!matches.length)
+      return { context, outcome: "pending", conclusion: "missing", observations: [] };
+    return { context, ...matches[0], observations: matches };
+  });
+  return contexts;
+}
+
+export function renovateCheckEnvelope({ number, head, result, snapshot }) {
+  const summary = `Pull request #${number} exact head ${head}: ${fastLaneSummary(result)}.`;
+  return githubOperationEnvelope({
+    operation: "pr-delivery.renovate-check",
+    status: "succeeded",
+    summary,
+    evidence: {
+      pull_request: number,
+      head,
+      verdict: result.verdict,
+      reason: result.reason,
+      commits_observed: snapshot.commits.length,
+      files_observed: snapshot.files.length,
+      ...result.evidence,
+    },
+  });
+}
+
 export async function watchRequiredChecks(
   client,
   { number, head, requiredContexts, timeoutSeconds = 3600, intervalSeconds = 30, sleep },
@@ -283,6 +370,7 @@ async function main(argv) {
     console.log(
       "usage:\n" +
         "  node scripts/pr-delivery.mjs watch --pr <number-or-url> --head <sha> [--timeout-seconds <seconds>] [--json]\n" +
+        "  node scripts/pr-delivery.mjs renovate-check --pr <number-or-url> --head <sha> [--json]\n" +
         "  node scripts/pr-delivery.mjs merge --pr <number-or-url> --head <sha> [--json]",
     );
     return;
@@ -304,6 +392,70 @@ async function main(argv) {
   if (!/^[0-9a-f]{40}$/u.test(head ?? "")) throw new Error("--head must be a 40-character SHA");
   const contexts = await requiredContexts();
   const client = new PullRequestDeliveryClient();
+  if (command === "renovate-check") {
+    const config = JSON.parse(await readFile(path.join(projectRoot, "renovate.json"), "utf8"));
+    const snapshot = client.renovateSnapshot(number, head, contexts);
+    let baseEvidence;
+    if (snapshot.pull.head.sha !== head) {
+      baseEvidence = {
+        changedHead: snapshot.pull.head.sha,
+        currentTarget: snapshot.target.commit.sha,
+        currentMergeBase: null,
+        targetPaths: [],
+        targetDependencyPaths: [],
+      };
+    } else {
+      const [update] = parseRenovateUpdates(snapshot.pull.body);
+      const packageName = update?.packageName;
+      baseEvidence = inspectCurrentBase({
+        projectRoot,
+        number,
+        expectedHead: head,
+        currentTarget: snapshot.target.commit.sha,
+        interactionTerms: packageName ? [packageName, packageName.replaceAll("-", "_")] : [],
+      });
+    }
+    let result = classifyRenovateSnapshot({
+      ...snapshot,
+      config,
+      expectedHead: head,
+      baseEvidence,
+    });
+    if (baseEvidence.changedHead)
+      result = {
+        verdict: "reject",
+        reason: `pull request head changed to ${baseEvidence.changedHead}`,
+        evidence: { expected_head: head, observed_head: baseEvidence.changedHead },
+      };
+    if (result.verdict === "metadata-required") {
+      try {
+        const metadata = await runMetadataValidation({
+          projectRoot,
+          head,
+          manager: result.evidence.manager,
+          packageName: result.evidence.package,
+        });
+        result = {
+          ...result,
+          verdict: "merge-ready",
+          reason:
+            "remote gates and exact-head metadata validation passed; concise final review remains",
+          evidence: { ...result.evidence, metadata },
+        };
+      } catch (error) {
+        result = {
+          ...result,
+          verdict: "manual-review-required",
+          reason: `metadata validation failed: ${sanitizeOperationError(error).message}`,
+        };
+      }
+    }
+    const output = renovateCheckEnvelope({ number, head, result, snapshot });
+    if (options["--json"]) console.log(JSON.stringify(output));
+    else console.log(output.summary);
+    if (result.verdict !== "merge-ready") process.exitCode = 2;
+    return;
+  }
   if (command === "watch") {
     const timeoutSeconds = Number(options["--timeout-seconds"] ?? 3600);
     if (!Number.isSafeInteger(timeoutSeconds) || timeoutSeconds < 1)

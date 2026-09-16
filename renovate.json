@@ -5,6 +5,7 @@
   "labels": ["dependencies"],
   "automerge": false,
   "minimumReleaseAge": "3 days",
+  "minimumReleaseAgeBehaviour": "timestamp-required",
   "internalChecksFilter": "strict",
   "prConcurrentLimit": 2,
   "branchConcurrentLimit": 2,

@@ -41,24 +41,25 @@ inventories match. Cargo still checks the native build and every selected native
 scenario still runs; see [Development tools](DEVELOPMENT-TOOLS.md) for the cache
 boundary and retained evidence.
 
-| Scope                                | Command                            | Purpose                                                                                                                                       |
-| ------------------------------------ | ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| Plan or run a coherent local change  | `just local-check [--plan]`        | select formatting, affected Rust packages, related UI tests, and exact tooling contracts from the complete local diff                         |
-| Focus a Rust edit-test loop          | `just test-rust <args>`            | pass an explicit package, target, or test-name selection through the pinned nextest fixture runner                                            |
-| Focus a UI edit-test loop            | `just test-ui-related <files>`     | run Vitest tests related through the import graph to explicit changed source files with the standard isolation and timing contract            |
-| Focus a Node tooling edit-test loop  | `just test-node <test-files>`      | run explicit Node test files with the standard hang guard and duration reporter                                                               |
-| Format supported files               | `just fmt`                         | rewrite Rust, frontend, configuration, and active documentation with the repository-pinned formatters                                         |
-| Verify all formatting                | `just fmt-check`                   | check the complete formatting contract without changing files                                                                                 |
-| Exhaustive local Rust investigation  | `just check-rust`                  | prune this workspace's disposable incremental cache, then format, compile, Clippy, tests, unused dependencies/files, and crate boundaries     |
-| Exhaustive local UI investigation    | `just check-ui`                    | Oxfmt, type-aware Oxlint, Stylelint, production build, tests, and the existing Fallow gate                                                    |
-| Playnite reference change (Windows)  | `just playnite-check`              | locked SDK/reference-assembly builds, literal process arguments and public protocol regression fixtures; optional isolated compiled-CLI reads |
-| Exhaustive source/repository check   | `just check`                       | Rust, UI, script/workflow lint, repository tooling, Roadmap, and development-tool contracts; excludes release qualification                   |
-| Deterministic release-unit check     | `just release-check`               | release metadata, packaging, updater, channel, workflow, and Windows qualification unit contracts                                             |
-| Packaged Windows qualification       | `just windows-qualification-check` | stateful Windows packaged-session integration; always observed rather than reused                                                             |
-| Release or explicit transition audit | `just audit [--plan\|--fresh]`     | staged exhaustive check, dependency policy, rscheck, release units, and applicable Windows qualification                                      |
-| Large structural investigation       | `just deep`                        | audit plus advisory Hawk and semdup analysis                                                                                                  |
-| Explicit cycle investigation         | `just cycles`                      | optional advisory module-cycle report                                                                                                         |
-| Critical core test review            | `just mutants`                     | optional mutation analysis for `portcove-core`                                                                                                |
+| Scope                                | Command                                               | Purpose                                                                                                                                       |
+| ------------------------------------ | ----------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| Plan or run a coherent local change  | `just local-check [--plan]`                           | select formatting, affected Rust packages, related UI tests, and exact tooling contracts from the complete local diff                         |
+| Classify a routine Renovate PR       | `just renovate-check --pr <pr> --head <sha> [--json]` | inspect one exact head and current target once, then run only locked metadata and dependency policy for an eligible Cargo/npm update          |
+| Focus a Rust edit-test loop          | `just test-rust <args>`                               | pass an explicit package, target, or test-name selection through the pinned nextest fixture runner                                            |
+| Focus a UI edit-test loop            | `just test-ui-related <files>`                        | run Vitest tests related through the import graph to explicit changed source files with the standard isolation and timing contract            |
+| Focus a Node tooling edit-test loop  | `just test-node <test-files>`                         | run explicit Node test files with the standard hang guard and duration reporter                                                               |
+| Format supported files               | `just fmt`                                            | rewrite Rust, frontend, configuration, and active documentation with the repository-pinned formatters                                         |
+| Verify all formatting                | `just fmt-check`                                      | check the complete formatting contract without changing files                                                                                 |
+| Exhaustive local Rust investigation  | `just check-rust`                                     | prune this workspace's disposable incremental cache, then format, compile, Clippy, tests, unused dependencies/files, and crate boundaries     |
+| Exhaustive local UI investigation    | `just check-ui`                                       | Oxfmt, type-aware Oxlint, Stylelint, production build, tests, and the existing Fallow gate                                                    |
+| Playnite reference change (Windows)  | `just playnite-check`                                 | locked SDK/reference-assembly builds, literal process arguments and public protocol regression fixtures; optional isolated compiled-CLI reads |
+| Exhaustive source/repository check   | `just check`                                          | Rust, UI, script/workflow lint, repository tooling, Roadmap, and development-tool contracts; excludes release qualification                   |
+| Deterministic release-unit check     | `just release-check`                                  | release metadata, packaging, updater, channel, workflow, and Windows qualification unit contracts                                             |
+| Packaged Windows qualification       | `just windows-qualification-check`                    | stateful Windows packaged-session integration; always observed rather than reused                                                             |
+| Release or explicit transition audit | `just audit [--plan\|--fresh]`                        | staged exhaustive check, dependency policy, rscheck, release units, and applicable Windows qualification                                      |
+| Large structural investigation       | `just deep`                                           | audit plus advisory Hawk and semdup analysis                                                                                                  |
+| Explicit cycle investigation         | `just cycles`                                         | optional advisory module-cycle report                                                                                                         |
+| Critical core test review            | `just mutants`                                        | optional mutation analysis for `portcove-core`                                                                                                |
 
 ## Local feedback and hosted authority
 
@@ -80,6 +81,31 @@ host. The local selector reports the path and refuses to run until a tested
 focused rule owns it, so a broad local suite cannot silently replace that rule.
 Unsafe paths and incomplete or failed diff discovery authorize no work and
 block the classifier.
+
+The root-manifest fallback above applies to implementation and repaired
+dependency changes. A bot-only Renovate PR can instead use the manual fast lane
+when `just renovate-check` proves all of these together: one registry-backed
+Cargo or npm dependency; a stable `1.x` or newer patch/minor update; only the
+expected modified manifest and lockfile; no configured update group, security
+update, Git source, toolchain, workflow, custom manager or maintainer commit;
+successful `renovate/stability-days` and all five exact-head protected checks;
+conflict-free mergeability; and no relevant intervening target change. Cargo
+then runs locked metadata plus `cargo deny`; npm runs a frozen lockfile-only
+resolution with scripts disabled. The command creates and removes an isolated
+detached exact-head worktree and refuses any tracked mutation. It never runs
+workspace compilation, Clippy, Rust/UI tests, `just local-check`, `just audit`
+or `just deep`. Required exact-head hosted CI owns that exhaustive technical
+coverage.
+
+The command reports exactly one bounded disposition: `merge-ready`, `waiting`,
+`manual-review-required` or `reject`. `merge-ready` still requires the
+delivering agent to read the final manifest/lock diff and relevant upstream
+notes before using the existing head-guarded merge. Pending checks or release
+age are recorded once without polling. A failed hosted job is investigated at
+that job/test; at most one focused infrastructure rerun is justified before a
+repeated condition becomes a durable blocker. Valid unresolved updates remain
+open with that blocker, while only invalid, superseded or reproducibly
+incompatible updates are closed.
 
 `portcove-core` has a narrower, versioned test-impact contract in
 `.config/rust-test-impact.json`. It owns only cohesive file groups whose
@@ -499,7 +525,8 @@ operation-lock behavior.
 npm, GitHub Actions and Rust toolchains, plus regex-managed Node, repository
 quality crates, tauri-driver, Aqua and its registry/tools, PSScriptAnalyzer, and
 the release Syft version. It groups coupled ecosystems, pins action digests,
-waits three days before proposing new releases, disables automerge, and opens
+waits three days before proposing new releases, explicitly requires a release
+timestamp, disables automerge, and opens
 eligible pull requests immediately so pull-request-only CI can evaluate them.
 It automatically recreates an existing branch when that branch conflicts with
 its base, not merely because `main` advanced; the main ruleset does not require
@@ -516,6 +543,13 @@ vulnerability alerts and automated Dependabot security fixes remain enabled
 independently; the absence of `.github/dependabot.yml` retires scheduled
 Dependabot version-update jobs without disabling those repository security
 capabilities.
+
+Routine delivery remains manual. Stable registry-backed Cargo/npm patch and
+minor PRs may use `just renovate-check` and one concise final review; every
+grouped, pre-1.0, major, security, Git-sourced, repaired, framework, toolchain,
+workflow, Aqua or custom-manager update stays on the ordinary independent
+review path. The fast lane changes neither Renovate's proposal authority nor
+the protected merge rules.
 
 Current Tauri Linux dependencies transitively include the unmaintained GTK3 binding family; other transitive build paths include `proc-macro-error` and the `unic-*` family. `cargo deny check --hide-inclusion-graph -W unmaintained` keeps these visible while continuing to deny security advisories, while omitting thousands of lines of repeated transitive paths from the normal audit. There is no safe direct Portcove upgrade that removes the GTK3 set without changing Tauri's Linux webview architecture.
 
@@ -814,3 +848,11 @@ advance alone does not invalidate an unchanged patch, but a new source head,
 failed or missing check, unresolved conflict, relevant interaction, or policy
 drift still blocks. Use the normal merge or auto-merge path with
 `--match-head-commit <reviewed-head>` and never administrator bypass.
+
+The sole reviewer-subagent exception is an exact `merge-ready` result from the
+manual Renovate fast lane. That command independently inventories the current
+head, commits, files, release-age status, required checks, current target and
+target-only paths; any relevant overlap exits the exception. The delivering
+agent's concise final dependency diff/upstream review is therefore sufficient
+for that bounded class, while the same exact-head merge guard and remote
+readback remain mandatory.

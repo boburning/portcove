@@ -52,13 +52,29 @@ final diff against the current base, check acceptance and safety invariants,
 repair substantive findings, and record the reviewed commit, scope, findings,
 and re-review result. Passing tests alone is not a review.
 
+A Renovate pull request may use the manual dependency fast lane only when
+`just renovate-check --pr <number-or-url> --head <sha>` returns `merge-ready`.
+That verdict is fail-closed to one stable registry-backed Cargo or npm patch or
+minor update, bot-only commits, the expected manifest/lock pair, successful
+release age and exact-head required checks, conflict-free mergeability, and no
+relevant intervening target change. For this exact class, locked metadata and
+dependency-policy validation replace `just local-check`, hosted exact-head CI
+owns compilation/lint/test coverage, and one concise final diff plus upstream
+review by the delivering agent satisfies the separate review requirement. Do
+not dispatch a reviewer subagent merely to repeat that bounded review. A repair,
+unexpected path or author, group, security update, pre-1.0 dependency, major,
+Git source, framework/toolchain/workflow/custom manager, failed gate, or target
+interaction exits the fast lane and follows the ordinary validation and review
+workflow.
+
 Merge routine work only after mandatory CI, that explicit review result,
 substantive finding repair, and current-revision/authority confirmation. Honor
 any additional reviewer or approval requirement enforced by the trusted
 repository rules. Never use administrator bypass for the routine path.
 
-Routine pull requests do not have to contain the latest `main` merely because
-the target branch advanced. A behind-main pull request may merge when its
+Outside that exact Renovate fast lane, routine pull requests do not have to
+contain the latest `main` merely because the target branch advanced. A
+behind-main pull request may merge when its
 unchanged source head has the required validation, a real separate reviewer
 subagent has reviewed the applicable current changes and all substantive
 findings are resolved, GitHub reports no merge conflicts, and every remaining
@@ -127,7 +143,9 @@ Use three validation tiers. During implementation, run the smallest relevant
 tests with `just test-rust`, `just test-ui-related`, or `just test-node`. Before
 the first coherent push and after a substantive repair, run `just local-check`;
 it selects formatting, affected packages, related UI tests, and exact tooling
-contracts from the complete local diff. Add a tested selection rule when it
+contracts from the complete local diff. An unchanged qualifying Renovate head
+uses `just renovate-check` instead; it must leave the fast lane after any repair.
+Add a tested selection rule when it
 reports an unknown path instead of bypassing the refusal or running every suite.
 
 Open or update a draft pull request after that coherent focused evidence exists.
