@@ -328,7 +328,7 @@ test("schema-2 migration is deterministic and preserves the frozen schema-1 proj
     true,
   );
   assert.equal(drMario.presentation.source_requirements[0].verification, "catalog-identity");
-  assert.equal(migrated.source_catalog.qualification.length, 16);
+  assert.equal(migrated.source_catalog.qualification.length, 18);
   const ygofmQualification = migrated.source_catalog.qualification.filter(
     (record) => record.scope.port_id === "yu-gi-oh-forbidden-memories-recompiled",
   );
@@ -510,6 +510,45 @@ test("schema-2 migration is deterministic and preserves the frozen schema-1 proj
   assert.equal(
     contract("ape-escape-recompiled").authority_ref,
     "5219c00ab7f14fccd93200ea79eb4f7d48f02f23",
+  );
+  const megaManX5Qualification = migrated.source_catalog.qualification.filter(
+    (record) => record.scope.port_id === "mega-man-x5-recompiled",
+  );
+  assert.deepEqual(
+    megaManX5Qualification.map((record) => [record.kind, record.outcome]),
+    [
+      ["structural_check", "passed"],
+      ["automated_lifecycle", "passed"],
+    ],
+  );
+  assert.equal(
+    megaManX5Qualification.every(
+      (record) =>
+        record.scope.artifact_sha256 ===
+          "3e5dfea86184cb2ff05372e012cef8d94e89119105f7a0268a14f9e24b47e590" &&
+        record.scope.upstream_ref === "v0.1.0-alpha" &&
+        record.scope.contract_id === "mega-man-x5-recompiled-game-source" &&
+        record.scope.variant.identity.game_id === "mega-man-x5-psx" &&
+        record.scope.variant.identity.variant_id === "usa-rev0" &&
+        record.scope.variant.identity.representation_id === "normalized-track-set" &&
+        record.scope.check_version === "mega-man-x5-windows-qualification-v1" &&
+        record.portcove_commit === "b2a34bc3e87ad581e8d1bfb5b9a0aaf2246ea6fe" &&
+        record.evidence_ids.includes("mega-man-x5-recompiled-windows-lifecycle-2026-09-16"),
+    ),
+    true,
+  );
+  assert.match(megaManX5Qualification[1].method, /bounded dynamic diagnostics/);
+  assert.match(megaManX5Qualification[1].method, /retained reuse/);
+  assert.match(megaManX5Qualification[1].method, /reinstall/);
+  assert.equal(
+    contract("mega-man-x5-recompiled").evidence_ids.includes(
+      "mega-man-x5-recompiled-windows-lifecycle-2026-09-16",
+    ),
+    true,
+  );
+  assert.equal(
+    contract("mega-man-x5-recompiled").authority_ref,
+    "360534cb403dfe2a1834ce9fc7455d9db53da7f3",
   );
   const drMarioQualification = migrated.source_catalog.qualification.filter(
     (record) => record.scope.port_id === "dr-mario-64-recomp",

@@ -100,12 +100,16 @@ const reviewedSources = {
   },
   megaManX5Recomp: {
     evidenceId: "mega-man-x5-recompiled-0-1-0-alpha-source-contract",
+    sourceEvidenceId: "mega-man-x5-recompiled-windows-2026-09-16",
+    lifecycleEvidenceId: "mega-man-x5-recompiled-windows-lifecycle-2026-09-16",
     repository: "mstan/MegaManX5Recomp",
     ref: "c8fde08b77b8c8daae8d0955b6529de79c82d85b",
     tag: "v0.1.0-alpha",
     liveRef: "master",
     path: "DISC.md",
     reviewedAt: "2026-09-16",
+    lifecycleRef: "b2a34bc3e87ad581e8d1bfb5b9a0aaf2246ea6fe",
+    qualificationRef: "360534cb403dfe2a1834ce9fc7455d9db53da7f3",
   },
   cvlodRecomp: {
     evidenceId: "cvlod-recomp-0-2-26-source-contract",
@@ -247,6 +251,30 @@ const evidence = [
     immutable_url: `https://github.com/boburning/portcove/blob/${reviewedSources.apeEscapeRecomp.qualificationRef}/docs/qualification/ape-escape-recompiled-windows-2026-09-16.md`,
     live_url:
       "https://github.com/boburning/portcove/blob/main/docs/qualification/ape-escape-recompiled-windows-2026-09-16.md",
+  },
+  {
+    id: reviewedSources.megaManX5Recomp.sourceEvidenceId,
+    role: "byte_identity",
+    authority: "boburning/portcove",
+    authority_ref: reviewedSources.megaManX5Recomp.qualificationRef,
+    reviewed_at: reviewedSources.megaManX5Recomp.reviewedAt,
+    claim:
+      "Records the exact authorized USA source identity, GitHub artifact identity, archive and runtime ownership preflight, and responsive Windows launcher",
+    immutable_url: `https://github.com/boburning/portcove/blob/${reviewedSources.megaManX5Recomp.qualificationRef}/docs/qualification/mega-man-x5-recompiled-windows-2026-09-16.md`,
+    live_url:
+      "https://github.com/boburning/portcove/blob/main/docs/qualification/mega-man-x5-recompiled-windows-2026-09-16.md",
+  },
+  {
+    id: reviewedSources.megaManX5Recomp.lifecycleEvidenceId,
+    role: "portcove_qualification",
+    authority: "boburning/portcove",
+    authority_ref: reviewedSources.megaManX5Recomp.qualificationRef,
+    reviewed_at: reviewedSources.megaManX5Recomp.reviewedAt,
+    claim:
+      "Records exact source refusal and admission, dynamic GitHub resolution, install, verification with bounded runtime diagnostics, responsive launch, persistent-only backup and restore, adopt, update, rollback, retained reuse, removal, reinstall, and persistent-state preservation",
+    immutable_url: `https://github.com/boburning/portcove/blob/${reviewedSources.megaManX5Recomp.qualificationRef}/docs/qualification/mega-man-x5-recompiled-windows-2026-09-16.md`,
+    live_url:
+      "https://github.com/boburning/portcove/blob/main/docs/qualification/mega-man-x5-recompiled-windows-2026-09-16.md",
   },
   upstreamEvidence(
     reviewedSources.cvlodRecomp,
@@ -1248,11 +1276,16 @@ contracts.push({
   admission_mode: "enforced",
   supported_variant_ids: ["usa-rev0"],
   validator_contract_id: null,
-  evidence_ids: [reviewedSources.megaManX5Recomp.evidenceId],
-  authority_ref: reviewedSources.megaManX5Recomp.ref,
+  evidence_ids: [
+    reviewedSources.megaManX5Recomp.evidenceId,
+    reviewedSources.megaManX5Recomp.sourceEvidenceId,
+    reviewedSources.megaManX5Recomp.lifecycleEvidenceId,
+  ],
+  authority_ref: reviewedSources.megaManX5Recomp.qualificationRef,
   reviewed_at: reviewedSources.megaManX5Recomp.reviewedAt,
-  immutable_review_url: `https://github.com/${reviewedSources.megaManX5Recomp.repository}/blob/${reviewedSources.megaManX5Recomp.ref}/${reviewedSources.megaManX5Recomp.path}`,
-  live_review_url: `https://github.com/${reviewedSources.megaManX5Recomp.repository}/blob/${reviewedSources.megaManX5Recomp.liveRef}/${reviewedSources.megaManX5Recomp.path}`,
+  immutable_review_url: `https://github.com/boburning/portcove/blob/${reviewedSources.megaManX5Recomp.qualificationRef}/docs/qualification/mega-man-x5-recompiled-windows-2026-09-16.md`,
+  live_review_url:
+    "https://github.com/boburning/portcove/blob/main/docs/qualification/mega-man-x5-recompiled-windows-2026-09-16.md",
   evidence_gap: null,
   applicability: [
     {
@@ -1922,6 +1955,58 @@ const migrated = {
         method:
           "Exact source admission, live GitHub resolution, install, 287-file post-launch verification with bounded dynamic diagnostics, responsive native launch, persistent-only backup and guarded restore, adopted-to-downloaded update, rollback, retained reuse, removal, reinstall, and persistent-state preservation",
         evidence_ids: [reviewedSources.apeEscapeRecomp.lifecycleEvidenceId],
+      },
+      {
+        scope: {
+          port_id: "mega-man-x5-recompiled",
+          platform: "windows-x86-64",
+          artifact_sha256: "3e5dfea86184cb2ff05372e012cef8d94e89119105f7a0268a14f9e24b47e590",
+          upstream_ref: "v0.1.0-alpha",
+          contract_id: "mega-man-x5-recompiled-game-source",
+          variant: {
+            state: "exact",
+            identity: {
+              game_id: "mega-man-x5-psx",
+              variant_id: "usa-rev0",
+              representation_id: "normalized-track-set",
+            },
+          },
+          check_version: "mega-man-x5-windows-qualification-v1",
+        },
+        kind: "structural_check",
+        outcome: "passed",
+        observed_at: 1789556695,
+        portcove_version: "0.1.0-alpha.2",
+        portcove_commit: reviewedSources.megaManX5Recomp.lifecycleRef,
+        method:
+          "Exact GitHub release and artifact identity, normalized source identity and valid-CHD mismatch rejection, executable, persistence, generated-source, bounded runtime-output, and immutable-manifest binding checks",
+        evidence_ids: [reviewedSources.megaManX5Recomp.lifecycleEvidenceId],
+      },
+      {
+        scope: {
+          port_id: "mega-man-x5-recompiled",
+          platform: "windows-x86-64",
+          artifact_sha256: "3e5dfea86184cb2ff05372e012cef8d94e89119105f7a0268a14f9e24b47e590",
+          upstream_ref: "v0.1.0-alpha",
+          contract_id: "mega-man-x5-recompiled-game-source",
+          variant: {
+            state: "exact",
+            identity: {
+              game_id: "mega-man-x5-psx",
+              variant_id: "usa-rev0",
+              representation_id: "normalized-track-set",
+            },
+          },
+          check_version: "mega-man-x5-windows-qualification-v1",
+        },
+        kind: "automated_lifecycle",
+        outcome: "passed",
+        observed_at: 1789556695,
+        portcove_version: "0.1.0-alpha.2",
+        portcove_commit: reviewedSources.megaManX5Recomp.lifecycleRef,
+        method:
+          "Exact source admission, live GitHub resolution, install, 287-file post-launch verification with bounded dynamic diagnostics, responsive native launch, persistent-only backup and guarded restore, adopted-to-downloaded update, rollback, retained reuse, removal, reinstall, and persistent-state preservation",
+        evidence_ids: [reviewedSources.megaManX5Recomp.lifecycleEvidenceId],
       },
     ],
   },

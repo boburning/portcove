@@ -3599,7 +3599,7 @@ mod tests {
     }
 
     #[test]
-    fn mega_man_x5_has_exact_source_and_runtime_ownership_without_inherited_qualification() {
+    fn mega_man_x5_has_exact_source_runtime_ownership_and_windows_qualification() {
         let catalog = Catalog::embedded().expect("catalog should load");
         let port = catalog
             .port("mega-man-x5-recompiled")
@@ -3668,7 +3668,11 @@ mod tests {
         assert_eq!(contract.supported_variant_ids, vec!["usa-rev0"]);
         assert_eq!(
             contract.evidence_ids,
-            vec!["mega-man-x5-recompiled-0-1-0-alpha-source-contract"]
+            vec![
+                "mega-man-x5-recompiled-0-1-0-alpha-source-contract",
+                "mega-man-x5-recompiled-windows-2026-09-16",
+                "mega-man-x5-recompiled-windows-lifecycle-2026-09-16",
+            ]
         );
 
         let scope = crate::SourceEvidenceScope {
@@ -3691,11 +3695,11 @@ mod tests {
         let qualification = source_catalog.assess_qualification(&scope);
         assert_eq!(
             qualification.structural_check,
-            crate::QualificationEvidenceState::Missing
+            crate::QualificationEvidenceState::Passed
         );
         assert_eq!(
             qualification.automated_lifecycle,
-            crate::QualificationEvidenceState::Missing
+            crate::QualificationEvidenceState::Passed
         );
         assert_eq!(
             qualification.hands_on,
