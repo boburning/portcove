@@ -441,20 +441,25 @@ request and retains the production HTTPS/public-DNS/no-proxy/redirect policy.
 
 A separate composed qualification case passes that real controlled HTTP reader
 into the existing verified staging store. It establishes one verified staged
-candidate, rejects same-length altered bytes by authenticated SHA-256 and a
-truncated stream by early EOF, removes each incomplete incoming file, and preserves
-the exact prior candidate and payload before an exact-body retry stages the newer
-candidate. A controlled qualification-only capacity observation also refuses that
-exact newer payload below the existing staging-space bound before journal mutation,
-preserves the prior verified state, and recovers when ordinary capacity observation
-is restored. A separate fail-only qualification writer accepts two incoming bytes,
+candidate. Provider throttling with a numeric retry floor and pre-header connection
+loss both fail before staging authority, leave the exact prior journal and payload
+unchanged with no incoming file, survive reconciliation, and recover exact bytes
+through the same payload consumer after ordinary transport is restored. The case
+also rejects same-length altered bytes by authenticated SHA-256 and a truncated
+stream by early EOF, removes each incomplete incoming file, and preserves the exact
+prior candidate and payload before an exact-body retry stages the newer candidate.
+A controlled qualification-only capacity observation refuses that exact newer
+payload below the existing staging-space bound before journal mutation, preserves
+the prior verified state, and recovers when ordinary capacity observation is
+restored. A separate fail-only qualification writer accepts two incoming bytes,
 then injects `StorageFull` through the real streaming verifier. The staging store
 removes those partial bytes immediately, restores the exact prior journal and
 payload, preserves them through reconciliation, and stages the same exact newer
-body when the ordinary writer is restored. This proves deterministic capacity
-preflight plus controlled mid-write storage-error cleanup and recovery. It is not an
-actual full disk, operating-system `ENOSPC`, or a read-only filesystem. The fixture
-contains only disposable public verification material; it
+body when the ordinary writer is restored. This proves controlled transport-failure
+isolation, deterministic capacity preflight, and controlled mid-write storage-error
+cleanup and recovery. It is not real host-offline detection, production-provider
+behavior, an actual full disk, operating-system `ENOSPC`, or a read-only filesystem.
+The fixture contains only disposable public verification material; it
 does not grant signing, feed, publication, apply or replacement authority. This is
 still controlled loopback acquisition and staging evidence, not production
 transport, a packaged update, physical-platform qualification or human-observation
