@@ -74,6 +74,12 @@ healthy-startup journal reconciliation, staging and backup cleanup, and preserva
 of a library sentinel throughout the sequence.
 It deletes the disposable TUF private keys before starting either AppImage and does
 not upload private keys or mutable updater state.
+The same packaged Linux run uses a direct current-user stable AppImage path and an
+absolute desktop entry, retains exact library, game-file, save, backup and log
+markers through replacement, then performs the documented bounded rootless
+uninstall. The uninstall removes only the AppImage and that entry and proves every
+data marker remains exact. This is Ubuntu-hosted packaged lifecycle evidence, not
+SteamOS/Game Mode, removable-storage, physical-device or human setup evidence.
 These are fixture versions, never publication or release-readiness declarations.
 The script requires a clean tracked checkout, records the exact source commit and
 version-only source patch, restores metadata, and deletes its disposable private
