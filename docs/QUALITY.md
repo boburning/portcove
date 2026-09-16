@@ -605,6 +605,25 @@ of a flaky test: runners, caches and external services may differ even when the
 commit does not. No retries are scheduled by this report, and it never changes
 issues, checks, caches or runs.
 
+Qualification cross-compiles the Intel macOS test archive once, then runs both
+Intel partitions from an artifact named for `github.run_attempt`. Before
+retrying that chain, verify the workflow run's source head is the intended
+candidate and identify its unique `build-intel-tests` job. Retry that producer
+and its dependent consumers with:
+
+```powershell
+gh run view <run-id> --json headSha,jobs --repo boburning/portcove
+gh run rerun <run-id> --job <build-intel-tests-job-id> --repo boburning/portcove
+```
+
+Do not use a failed-jobs-only `--failed` rerun after an Intel consumer failure:
+GitHub can omit the already-successful producer while incrementing the attempt,
+leaving the consumer to request an artifact that was never produced. A
+producer-targeted rerun preserves the run, source head and ref while recreating
+the attempt-qualified artifact and every dependent consumer. If the producer
+cannot be identified unambiguously, rerun the complete workflow; never reuse an
+artifact from an earlier attempt, another run or another commit.
+
 Use `--since <ISO-date>` to restrict the selected recent runs to those created
 after a workflow change. Main contains already-reviewed merges; inspect the
 relevant pull-request branch as well when investigating flaky tests.
