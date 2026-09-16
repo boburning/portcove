@@ -181,6 +181,21 @@ cross-version update/rollback, or non-Windows behavior. The exact identities,
 methods, and remaining boundaries are recorded in
 [`docs/qualification/dr-mario-64-recompiled-windows-2026-09-15.md`](qualification/dr-mario-64-recompiled-windows-2026-09-15.md).
 
+Duke Nukem: Zero Hour Recompiled 0.0.3 has exact Windows structural and
+bounded automated lifecycle records for the checksum-qualified USA source and
+GitLab artifact. They cover mismatch refusal, archive-member normalization,
+dynamic release resolution, installation, 47-file immutable verification,
+responsive native launcher starts and normal close, backup and fail-closed
+restore authorization, reviewed restore, adoption, update, rollback, retained
+release reuse, managed removal, clean reinstall, and byte-identical persistent
+state restoration. The stable GitLab definition has no release-version field,
+so a future ordinary compatible release can be discovered without editing the
+definition; its new artifact does not inherit 0.0.3's qualification record.
+The port remains beta and the evidence does not claim gameplay, controls,
+audio, in-game save/load, non-Windows support, signing, or publication. Exact
+identities, methods, and boundaries are recorded in the
+[Windows qualification record](qualification/duke-nukem-zero-hour-windows-2026-09-16.md).
+
 ## Adding or changing a port
 
 Managed PS1 ports pass their reviewed runtime configuration with `--game` and
