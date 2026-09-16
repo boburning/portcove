@@ -14,7 +14,7 @@ impl PersistentFilePattern {
             || self.suffix.contains(['/', '\\'])
         {
             return Err(PortcoveError::usage(
-                "persistent file patterns need a filename prefix and suffix without directories",
+                "file patterns need a filename prefix and suffix without directories",
             ));
         }
         crate::archive::validate_relative_path(&format!("{}x{}", self.prefix, self.suffix), false)?;
@@ -39,7 +39,7 @@ impl PersistentFilePattern {
             )
         ) {
             return Err(PortcoveError::usage(
-                "persistent file patterns cannot select executable or script extensions",
+                "file patterns cannot select executable or script extensions",
             ));
         }
         Ok(())
@@ -50,6 +50,11 @@ impl PersistentFilePattern {
             && name.len() > self.prefix.len() + self.suffix.len()
             && name.starts_with(&self.prefix)
             && name.ends_with(&self.suffix)
+    }
+
+    pub(crate) fn overlaps(&self, other: &Self) -> bool {
+        (self.prefix.starts_with(&other.prefix) || other.prefix.starts_with(&self.prefix))
+            && (self.suffix.ends_with(&other.suffix) || other.suffix.ends_with(&self.suffix))
     }
 }
 
@@ -116,7 +121,12 @@ mod tests {
         let root = tempfile::tempdir().unwrap();
         fs::write(root.path().join("tmc_test.sav"), b"save").unwrap();
         fs::write(root.path().join("tmc_test.sav.exe"), b"code").unwrap();
+        fs::write(root.path().join("psx_freeze_dump_1.json"), b"diagnostic").unwrap();
         fs::write(root.path().join("other.sav"), b"unrelated").unwrap();
+        port.runtime_mutable_file_patterns = vec![PersistentFilePattern {
+            prefix: "psx_freeze_dump_".into(),
+            suffix: ".json".into(),
+        }];
         assert_eq!(entries(&port, &[root.path()]).unwrap(), ["tmc_test.sav"]);
         fs::create_dir(root.path().join("tmc_directory.sav")).unwrap();
         assert!(entries(&port, &[root.path()]).is_err());
@@ -147,6 +157,16 @@ mod tests {
                 .is_err()
             );
         }
+        assert!(
+            PersistentFilePattern {
+                prefix: "psx_freeze_dump_".into(),
+                suffix: ".json".into(),
+            }
+            .overlaps(&PersistentFilePattern {
+                prefix: "psx_freeze_dump_psx-runtime_".into(),
+                suffix: "_1.json".into(),
+            })
+        );
     }
 
     #[cfg(unix)]

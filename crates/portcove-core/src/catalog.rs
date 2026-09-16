@@ -711,6 +711,60 @@ impl Catalog {
                     )));
                 }
             }
+            let runtime_file_patterns_allowed = matches!(
+                port.adapter,
+                AdapterKind::StagedSourcePortable
+                    | AdapterKind::UpstreamManagedSetup
+                    | AdapterKind::N64RecompPortable
+                    | AdapterKind::PsxRecompManaged
+                    | AdapterKind::LibultrashipPortable
+            );
+            let mut runtime_file_patterns = Vec::new();
+            let generated_metadata = crate::adapter::generated_metadata(port)?;
+            for pattern in &port.runtime_mutable_file_patterns {
+                pattern.validate()?;
+                let executable_overlap = port
+                    .executable_hints
+                    .values()
+                    .chain(port.setup_executable_hints.values())
+                    .flatten()
+                    .any(|executable| pattern.matches(executable));
+                let metadata_overlap = [".portcove-manifest.json", ".portcove-launched"]
+                    .iter()
+                    .copied()
+                    .chain(generated_metadata.iter().map(String::as_str))
+                    .any(|relative| pattern.matches(relative));
+                if !runtime_file_patterns_allowed
+                    || runtime_file_patterns
+                        .iter()
+                        .any(|existing: &&crate::PersistentFilePattern| existing.overlaps(pattern))
+                    || port
+                        .persistent_file_patterns
+                        .iter()
+                        .any(|persistent| persistent.overlaps(pattern))
+                    || port
+                        .persistent_paths
+                        .iter()
+                        .chain(&port.runtime_mutable_paths)
+                        .any(|relative| pattern.matches(relative))
+                    || port
+                        .runtime_source_filename
+                        .as_ref()
+                        .is_some_and(|relative| pattern.matches(relative))
+                    || port
+                        .setup_marker
+                        .as_ref()
+                        .is_some_and(|relative| pattern.matches(relative))
+                    || executable_overlap
+                    || metadata_overlap
+                {
+                    return Err(PortcoveError::usage(format!(
+                        "{} has an invalid nonpersistent runtime file pattern: {}*{}",
+                        port.id, pattern.prefix, pattern.suffix
+                    )));
+                }
+                runtime_file_patterns.push(pattern);
+            }
             if let Some(directory) = &port.runtime_subdirectory
                 && (directory.is_empty()
                     || Path::new(directory)
@@ -2232,6 +2286,107 @@ mod tests {
                     .contains("invalid nonpersistent runtime path")
             );
         }
+    }
+
+    #[test]
+    fn catalog_accepts_bounded_nonpersistent_runtime_file_patterns() {
+        let mut document: serde_json::Value =
+            serde_json::from_str(EMBEDDED_CATALOG).expect("embedded JSON should parse");
+        let port = document["ports"]
+            .as_array_mut()
+            .unwrap()
+            .iter_mut()
+            .find(|port| port["id"] == "twisted-metal-4-recompiled")
+            .unwrap();
+        port["runtime_mutable_file_patterns"] = serde_json::json!([{
+            "prefix": "psx_freeze_dump_",
+            "suffix": ".json"
+        }]);
+
+        let catalog = Catalog::from_json(&document.to_string()).unwrap();
+        let port = catalog.port("twisted-metal-4-recompiled").unwrap();
+        assert_eq!(port.runtime_mutable_file_patterns.len(), 1);
+        assert!(port.runtime_mutable_file_patterns[0].matches("psx_freeze_dump_opengl_1_2.json"));
+    }
+
+    #[test]
+    fn catalog_rejects_conflicting_or_unsupported_runtime_file_patterns() {
+        for (port_id, setup) in [
+            ("twisted-metal-4-recompiled", "overlapping-pattern"),
+            ("twisted-metal-4-recompiled", "persistent-pattern"),
+            ("twisted-metal-4-recompiled", "persistent-path"),
+            ("twisted-metal-4-recompiled", "runtime-path"),
+            ("twisted-metal-4-recompiled", "generated-metadata"),
+            ("dusklight", "unsupported-adapter"),
+        ] {
+            let mut document: serde_json::Value =
+                serde_json::from_str(EMBEDDED_CATALOG).expect("embedded JSON should parse");
+            let port = document["ports"]
+                .as_array_mut()
+                .unwrap()
+                .iter_mut()
+                .find(|port| port["id"] == port_id)
+                .unwrap();
+            port["runtime_mutable_file_patterns"] = serde_json::json!([{
+                "prefix": "psx_freeze_dump_",
+                "suffix": ".json"
+            }]);
+            match setup {
+                "overlapping-pattern" => {
+                    port["runtime_mutable_file_patterns"]
+                        .as_array_mut()
+                        .unwrap()
+                        .push(serde_json::json!({
+                            "prefix": "psx_freeze_dump_opengl_",
+                            "suffix": "_1.json"
+                        }));
+                }
+                "persistent-path" => {
+                    port["persistent_paths"]
+                        .as_array_mut()
+                        .unwrap()
+                        .push(serde_json::json!("psx_freeze_dump_1.json"));
+                }
+                "persistent-pattern" => {
+                    port["persistent_file_patterns"] = serde_json::json!([{
+                        "prefix": "psx_freeze_dump_opengl_",
+                        "suffix": "_1.json"
+                    }]);
+                }
+                "runtime-path" => {
+                    port["runtime_mutable_paths"] = serde_json::json!(["psx_freeze_dump_1.json"]);
+                }
+                "generated-metadata" => {
+                    port["runtime_mutable_file_patterns"] = serde_json::json!([{
+                        "prefix": ".portcove-",
+                        "suffix": ".toml"
+                    }]);
+                }
+                "unsupported-adapter" => {}
+                _ => unreachable!(),
+            }
+
+            let error = Catalog::from_json(&document.to_string()).unwrap_err();
+            assert!(
+                error
+                    .to_string()
+                    .contains("invalid nonpersistent runtime file pattern"),
+                "{port_id}: {setup}: {error}"
+            );
+        }
+    }
+
+    #[test]
+    fn absent_runtime_file_patterns_preserve_catalog_serialization() {
+        let catalog = Catalog::embedded().unwrap();
+        let port = catalog.port("twisted-metal-4-recompiled").unwrap();
+        assert!(port.runtime_mutable_file_patterns.is_empty());
+        assert!(
+            serde_json::to_value(port)
+                .unwrap()
+                .get("runtime_mutable_file_patterns")
+                .is_none()
+        );
     }
 
     #[test]
