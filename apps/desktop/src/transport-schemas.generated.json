@@ -2463,6 +2463,12 @@
           "release": {
             "$ref": "#/$defs/ReleaseSpec"
           },
+          "runtime_mutable_file_patterns": {
+            "items": {
+              "$ref": "#/$defs/PersistentFilePattern"
+            },
+            "type": "array"
+          },
           "runtime_mutable_paths": {
             "default": [],
             "items": {
@@ -9812,6 +9818,12 @@
       "release": {
         "$ref": "#/$defs/ReleaseSpec"
       },
+      "runtime_mutable_file_patterns": {
+        "items": {
+          "$ref": "#/$defs/PersistentFilePattern"
+        },
+        "type": "array"
+      },
       "runtime_mutable_paths": {
         "default": [],
         "items": {
@@ -13634,6 +13646,12 @@
           },
           "release": {
             "$ref": "#/$defs/ReleaseSpec"
+          },
+          "runtime_mutable_file_patterns": {
+            "items": {
+              "$ref": "#/$defs/PersistentFilePattern"
+            },
+            "type": "array"
           },
           "runtime_mutable_paths": {
             "default": [],

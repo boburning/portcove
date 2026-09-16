@@ -355,6 +355,8 @@ pub struct PortDefinition {
     pub persistent_file_patterns: Vec<PersistentFilePattern>,
     #[serde(default)]
     pub runtime_mutable_paths: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub runtime_mutable_file_patterns: Vec<PersistentFilePattern>,
     #[serde(default)]
     pub portable_marker: bool,
     #[serde(default)]

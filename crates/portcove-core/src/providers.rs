@@ -127,6 +127,7 @@ mod tests {
             persistent_paths: vec![],
             persistent_file_patterns: vec![],
             runtime_mutable_paths: vec![],
+            runtime_mutable_file_patterns: vec![],
             portable_marker: false,
             source_environment: None,
             user_data_environment: None,
