@@ -87,12 +87,15 @@ const reviewedSources = {
   },
   apeEscapeRecomp: {
     evidenceId: "ape-escape-recompiled-0-3-0-source-contract",
+    sourceEvidenceId: "ape-escape-recompiled-windows-2026-09-16",
+    lifecycleEvidenceId: "ape-escape-recompiled-windows-lifecycle-2026-09-16",
     repository: "mstan/ApeEscapeRecomp",
     ref: "831a478c355433de1021fb28cf7f7a03c895ab77",
     tag: "v0.3.0",
     liveRef: "master",
     path: "DISC.md",
     reviewedAt: "2026-09-16",
+    qualificationRef: "58b6e05c6c29db6d8adfd0578e00e438fd285a40",
   },
   cvlodRecomp: {
     evidenceId: "cvlod-recomp-0-2-26-source-contract",
@@ -207,6 +210,30 @@ const evidence = [
     reviewedSources.apeEscapeRecomp,
     "Limits Ape Escape Recompiled 0.3.0 to the exact US SCUS-94423 single-track MODE2/2352 source",
   ),
+  {
+    id: reviewedSources.apeEscapeRecomp.sourceEvidenceId,
+    role: "byte_identity",
+    authority: "boburning/portcove",
+    authority_ref: reviewedSources.apeEscapeRecomp.qualificationRef,
+    reviewed_at: reviewedSources.apeEscapeRecomp.reviewedAt,
+    claim:
+      "Records the exact authorized USA source identity, GitHub artifact identity, archive and runtime ownership preflight, and responsive Windows launcher",
+    immutable_url: `https://github.com/boburning/portcove/blob/${reviewedSources.apeEscapeRecomp.qualificationRef}/docs/qualification/ape-escape-recompiled-windows-2026-09-16.md`,
+    live_url:
+      "https://github.com/boburning/portcove/blob/main/docs/qualification/ape-escape-recompiled-windows-2026-09-16.md",
+  },
+  {
+    id: reviewedSources.apeEscapeRecomp.lifecycleEvidenceId,
+    role: "portcove_qualification",
+    authority: "boburning/portcove",
+    authority_ref: reviewedSources.apeEscapeRecomp.qualificationRef,
+    reviewed_at: reviewedSources.apeEscapeRecomp.reviewedAt,
+    claim:
+      "Records exact source refusal and admission, dynamic GitHub resolution, install, verification with bounded runtime diagnostics, responsive launch, persistent-only backup and restore, adopt, update, rollback, retained reuse, removal, reinstall, and persistent-state preservation",
+    immutable_url: `https://github.com/boburning/portcove/blob/${reviewedSources.apeEscapeRecomp.qualificationRef}/docs/qualification/ape-escape-recompiled-windows-2026-09-16.md`,
+    live_url:
+      "https://github.com/boburning/portcove/blob/main/docs/qualification/ape-escape-recompiled-windows-2026-09-16.md",
+  },
   upstreamEvidence(
     reviewedSources.cvlodRecomp,
     "Limits LodRecomp 0.2.26 to the North American Castlevania: Legacy of Darkness source",
@@ -1143,11 +1170,16 @@ contracts.push({
   admission_mode: "enforced",
   supported_variant_ids: ["usa-rev0"],
   validator_contract_id: null,
-  evidence_ids: [reviewedSources.apeEscapeRecomp.evidenceId],
-  authority_ref: reviewedSources.apeEscapeRecomp.ref,
+  evidence_ids: [
+    reviewedSources.apeEscapeRecomp.evidenceId,
+    reviewedSources.apeEscapeRecomp.sourceEvidenceId,
+    reviewedSources.apeEscapeRecomp.lifecycleEvidenceId,
+  ],
+  authority_ref: reviewedSources.apeEscapeRecomp.qualificationRef,
   reviewed_at: reviewedSources.apeEscapeRecomp.reviewedAt,
-  immutable_review_url: `https://github.com/${reviewedSources.apeEscapeRecomp.repository}/blob/${reviewedSources.apeEscapeRecomp.ref}/${reviewedSources.apeEscapeRecomp.path}`,
-  live_review_url: `https://github.com/${reviewedSources.apeEscapeRecomp.repository}/blob/${reviewedSources.apeEscapeRecomp.liveRef}/${reviewedSources.apeEscapeRecomp.path}`,
+  immutable_review_url: `https://github.com/boburning/portcove/blob/${reviewedSources.apeEscapeRecomp.qualificationRef}/docs/qualification/ape-escape-recompiled-windows-2026-09-16.md`,
+  live_review_url:
+    "https://github.com/boburning/portcove/blob/main/docs/qualification/ape-escape-recompiled-windows-2026-09-16.md",
   evidence_gap: null,
   applicability: [
     {
@@ -1765,6 +1797,58 @@ const migrated = {
         method:
           "Exact source admission, live GitLab resolution, install, 47-file verification, responsive native launches, fail-closed and successful restore, adopted-to-downloaded update, rollback, retained reuse, removal, reinstall, and persistent-state preservation",
         evidence_ids: [reviewedSources.dukeNukemZeroHour.lifecycleEvidenceId],
+      },
+      {
+        scope: {
+          port_id: "ape-escape-recompiled",
+          platform: "windows-x86-64",
+          artifact_sha256: "91e2cde5f16408ff51b4b822ebba8b811c4e591263170cb49f33a486606c58e9",
+          upstream_ref: "v0.3.0",
+          contract_id: "ape-escape-recompiled-game-source",
+          variant: {
+            state: "exact",
+            identity: {
+              game_id: "ape-escape-psx",
+              variant_id: "usa-rev0",
+              representation_id: "normalized-track-set",
+            },
+          },
+          check_version: "ape-escape-windows-qualification-v1",
+        },
+        kind: "structural_check",
+        outcome: "passed",
+        observed_at: 1789544598,
+        portcove_version: "0.1.0-alpha.2",
+        portcove_commit: reviewedSources.apeEscapeRecomp.qualificationRef,
+        method:
+          "Exact GitHub release, artifact and sidecar identity, normalized source identity and valid-CHD mismatch rejection, executable, persistence, generated-source, bounded runtime-output, and immutable-manifest binding checks",
+        evidence_ids: [reviewedSources.apeEscapeRecomp.lifecycleEvidenceId],
+      },
+      {
+        scope: {
+          port_id: "ape-escape-recompiled",
+          platform: "windows-x86-64",
+          artifact_sha256: "91e2cde5f16408ff51b4b822ebba8b811c4e591263170cb49f33a486606c58e9",
+          upstream_ref: "v0.3.0",
+          contract_id: "ape-escape-recompiled-game-source",
+          variant: {
+            state: "exact",
+            identity: {
+              game_id: "ape-escape-psx",
+              variant_id: "usa-rev0",
+              representation_id: "normalized-track-set",
+            },
+          },
+          check_version: "ape-escape-windows-qualification-v1",
+        },
+        kind: "automated_lifecycle",
+        outcome: "passed",
+        observed_at: 1789544598,
+        portcove_version: "0.1.0-alpha.2",
+        portcove_commit: reviewedSources.apeEscapeRecomp.qualificationRef,
+        method:
+          "Exact source admission, live GitHub resolution, install, 287-file post-launch verification with bounded dynamic diagnostics, responsive native launch, persistent-only backup and guarded restore, adopted-to-downloaded update, rollback, retained reuse, removal, reinstall, and persistent-state preservation",
+        evidence_ids: [reviewedSources.apeEscapeRecomp.lifecycleEvidenceId],
       },
     ],
   },

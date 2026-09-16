@@ -196,6 +196,21 @@ audio, in-game save/load, non-Windows support, signing, or publication. Exact
 identities, methods, and boundaries are recorded in the
 [Windows qualification record](qualification/duke-nukem-zero-hour-windows-2026-09-16.md).
 
+Ape Escape Recompiled v0.3.0 has exact Windows structural and bounded
+automated lifecycle records for the normalized USA Rev 0 `SCUS-94423` source
+and GitHub artifact. They cover valid-CHD mismatch refusal, dynamic release
+resolution, installation, 287-file immutable verification after responsive
+native launches, bounded dynamic freeze diagnostics, persistent-only backup
+and guarded restore, adoption, update, rollback, retained release reuse,
+managed removal, clean reinstall, and byte-identical persistent-state
+restoration. Generated `disc/`, JIT `cache/`, overlay captures, heartbeat, run
+report, and `psx_freeze_dump_psx-runtime_*.json` files remain disposable and
+outside backups. The definition has no release-version field, and any future
+artifact or source identity requires its own qualification. The port remains
+beta; gameplay, dual-analog controls, audio, in-game save/load, Linux, signing,
+and publication are unclaimed. Exact identities and boundaries are recorded in
+the [Windows qualification record](qualification/ape-escape-recompiled-windows-2026-09-16.md).
+
 ## Adding or changing a port
 
 Managed PS1 ports pass their reviewed runtime configuration with `--game` and

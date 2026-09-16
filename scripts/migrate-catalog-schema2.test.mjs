@@ -213,12 +213,6 @@ test("schema-2 migration is deterministic and preserves the frozen schema-1 proj
       suffix: ".json",
     },
   ]);
-  assert.equal(
-    migrated.source_catalog.qualification.some(
-      (record) => record.scope.port_id === "ape-escape-recompiled",
-    ),
-    false,
-  );
   const drMarioProfile = profile("dr-mario-64");
   assert.deepEqual(
     drMarioProfile.variants.slice(1).map((item) => item.id),
@@ -275,7 +269,7 @@ test("schema-2 migration is deterministic and preserves the frozen schema-1 proj
     true,
   );
   assert.equal(drMario.presentation.source_requirements[0].verification, "catalog-identity");
-  assert.equal(migrated.source_catalog.qualification.length, 14);
+  assert.equal(migrated.source_catalog.qualification.length, 16);
   const ygofmQualification = migrated.source_catalog.qualification.filter(
     (record) => record.scope.port_id === "yu-gi-oh-forbidden-memories-recompiled",
   );
@@ -418,6 +412,45 @@ test("schema-2 migration is deterministic and preserves the frozen schema-1 proj
   assert.equal(
     contract("duke-nukem-zero-hour-recompiled").authority_ref,
     "73702601fa3f24c5b47f7aff43e228c75c4370ba",
+  );
+  const apeEscapeQualification = migrated.source_catalog.qualification.filter(
+    (record) => record.scope.port_id === "ape-escape-recompiled",
+  );
+  assert.deepEqual(
+    apeEscapeQualification.map((record) => [record.kind, record.outcome]),
+    [
+      ["structural_check", "passed"],
+      ["automated_lifecycle", "passed"],
+    ],
+  );
+  assert.equal(
+    apeEscapeQualification.every(
+      (record) =>
+        record.scope.artifact_sha256 ===
+          "91e2cde5f16408ff51b4b822ebba8b811c4e591263170cb49f33a486606c58e9" &&
+        record.scope.upstream_ref === "v0.3.0" &&
+        record.scope.contract_id === "ape-escape-recompiled-game-source" &&
+        record.scope.variant.identity.game_id === "ape-escape-psx" &&
+        record.scope.variant.identity.variant_id === "usa-rev0" &&
+        record.scope.variant.identity.representation_id === "normalized-track-set" &&
+        record.scope.check_version === "ape-escape-windows-qualification-v1" &&
+        record.portcove_commit === "58b6e05c6c29db6d8adfd0578e00e438fd285a40" &&
+        record.evidence_ids.includes("ape-escape-recompiled-windows-lifecycle-2026-09-16"),
+    ),
+    true,
+  );
+  assert.match(apeEscapeQualification[1].method, /bounded dynamic diagnostics/);
+  assert.match(apeEscapeQualification[1].method, /retained reuse/);
+  assert.match(apeEscapeQualification[1].method, /reinstall/);
+  assert.equal(
+    contract("ape-escape-recompiled").evidence_ids.includes(
+      "ape-escape-recompiled-windows-lifecycle-2026-09-16",
+    ),
+    true,
+  );
+  assert.equal(
+    contract("ape-escape-recompiled").authority_ref,
+    "58b6e05c6c29db6d8adfd0578e00e438fd285a40",
   );
   const drMarioQualification = migrated.source_catalog.qualification.filter(
     (record) => record.scope.port_id === "dr-mario-64-recomp",
