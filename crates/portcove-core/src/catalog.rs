@@ -1270,7 +1270,7 @@ mod tests {
         let source_catalog = migrated.source_catalog().expect("schema-2 authority");
         assert_eq!(
             source_catalog.identities.len(),
-            legacy.document().source_profiles.len() + 4
+            legacy.document().source_profiles.len() + 5
         );
         let projected_legacy_profiles = migrated
             .document()
@@ -1282,6 +1282,7 @@ mod tests {
                     "castlevania-legacy-of-darkness",
                     "diddy-kong-racing-golden-balloon",
                     "star-fox-enhanced-usa-v1-0",
+                    "duke-nukem-zero-hour",
                 ]
                 .contains(&profile.id.as_str())
             })
@@ -1427,6 +1428,7 @@ mod tests {
                     "cvlod-recomp",
                     "diddy-kong-racing-golden-balloon",
                     "star-fox-enhanced",
+                    "duke-nukem-zero-hour-recompiled",
                 ]
                 .contains(&port.id.as_str())
             })
@@ -1448,7 +1450,7 @@ mod tests {
             serde_json::to_value(expected_ports).unwrap()
         );
         let qualification = &migrated.source_catalog().unwrap().qualification;
-        assert_eq!(qualification.len(), 12);
+        assert_eq!(qualification.len(), 14);
         assert_eq!(
             qualification
                 .iter()
@@ -1478,6 +1480,13 @@ mod tests {
                 .filter(|record| record.scope.port_id == "dr-mario-64-recomp")
                 .count(),
             3
+        );
+        assert_eq!(
+            qualification
+                .iter()
+                .filter(|record| { record.scope.port_id == "duke-nukem-zero-hour-recompiled" })
+                .count(),
+            2
         );
         assert!(migrated.document().ports.iter().any(|port| {
             !port.automated_tested_platforms.is_empty()
@@ -1582,7 +1591,7 @@ mod tests {
 
         assert!(document.get("source_catalog").is_some());
         assert!(document.get("source_profiles").is_none());
-        assert_eq!(document["ports"].as_array().unwrap().len(), 71);
+        assert_eq!(document["ports"].as_array().unwrap().len(), 72);
     }
 
     #[test]
@@ -1826,6 +1835,7 @@ mod tests {
                     "castlevania-legacy-of-darkness",
                     "diddy-kong-racing-golden-balloon",
                     "star-fox-enhanced-usa-v1-0",
+                    "duke-nukem-zero-hour",
                 ]
                 .contains(&profile.id.as_str())
             })
@@ -3332,6 +3342,105 @@ mod tests {
         );
         assert_eq!(
             mismatched_artifact.known_failure,
+            crate::QualificationEvidenceState::Missing
+        );
+    }
+
+    #[test]
+    fn duke_nukem_zero_hour_has_dynamic_gitlab_and_exact_windows_qualification() {
+        let catalog = Catalog::embedded().expect("catalog should load");
+        let port = catalog
+            .port("duke-nukem-zero-hour-recompiled")
+            .expect("Duke Nukem: Zero Hour should exist");
+        assert_eq!(port.support_tier, crate::SupportTier::Beta);
+        assert_eq!(port.release.provider, crate::ReleaseSource::Gitlab);
+        assert_eq!(port.release.repository, "sonicdcer/DNZHRecomp");
+        assert_eq!(port.channels, vec![crate::ReleaseChannel::Stable]);
+        assert_eq!(
+            port.release.asset_hints.get(&Platform::WindowsX86_64),
+            Some(&vec!["windows-relwithdebinfo".into()])
+        );
+        assert!(port.portable_marker);
+        assert_eq!(port.runtime_source_filename.as_deref(), Some("dnzh.us.z64"));
+        assert_eq!(
+            port.runtime_source_materialization,
+            Some(crate::RuntimeSourceMaterialization::N64BigEndian)
+        );
+        assert!(port.automated_tested_platforms.is_empty());
+        assert!(port.manually_validated_platforms.is_empty());
+
+        let profile = catalog.source_profile("duke-nukem-zero-hour").unwrap();
+        assert_eq!(
+            profile.accepted_sha1,
+            vec!["de4db292cc6cf5dd1dd1d3c9700cf8e5c3078410"]
+        );
+        assert_eq!(
+            profile.accepted_sha256,
+            vec!["5ba016567c53b0d111eb175347c6eee603c31783cd2bb3fea97f31b5ff74190f"]
+        );
+
+        let source_catalog = catalog.source_catalog().unwrap();
+        let contract = source_catalog
+            .contracts
+            .iter()
+            .find(|contract| {
+                contract.port_id == "duke-nukem-zero-hour-recompiled"
+                    && contract.role == crate::PortSourceRole::Game
+            })
+            .expect("Duke Nukem source contract should exist");
+        assert_eq!(contract.supported_variant_ids, vec!["usa"]);
+        assert!(contract.evidence_ids.iter().any(|evidence_id| {
+            evidence_id == "duke-nukem-zero-hour-windows-lifecycle-2026-09-16"
+        }));
+
+        let scope = crate::SourceEvidenceScope {
+            port_id: port.id.clone(),
+            platform: Platform::WindowsX86_64,
+            artifact_sha256: Some(
+                "ece88320327ffc58ec73e084c23aca274a016e45dd3558a684d59c37f88bdbc3".into(),
+            ),
+            upstream_ref: Some("0.0.3".into()),
+            contract_id: Some("duke-nukem-zero-hour-recompiled-game-source".into()),
+            variant: crate::SourceVariantScope::Exact {
+                identity: crate::SourceIdentity {
+                    game_id: "duke-nukem-zero-hour".into(),
+                    variant_id: "usa".into(),
+                    representation_id: "canonical-rom".into(),
+                },
+            },
+            check_version: Some("dnzh-windows-qualification-v1".into()),
+        };
+        let qualification = source_catalog.assess_qualification(&scope);
+        assert_eq!(
+            qualification.structural_check,
+            crate::QualificationEvidenceState::Passed
+        );
+        assert_eq!(
+            qualification.automated_lifecycle,
+            crate::QualificationEvidenceState::Passed
+        );
+        assert_eq!(
+            qualification.hands_on,
+            crate::QualificationEvidenceState::Missing
+        );
+        assert_eq!(
+            qualification.known_failure,
+            crate::QualificationEvidenceState::Missing
+        );
+
+        let mismatched_artifact_scope = crate::SourceEvidenceScope {
+            artifact_sha256: Some(
+                "0000000000000000000000000000000000000000000000000000000000000000".into(),
+            ),
+            ..scope
+        };
+        let mismatched_artifact = source_catalog.assess_qualification(&mismatched_artifact_scope);
+        assert_eq!(
+            mismatched_artifact.structural_check,
+            crate::QualificationEvidenceState::Missing
+        );
+        assert_eq!(
+            mismatched_artifact.automated_lifecycle,
             crate::QualificationEvidenceState::Missing
         );
     }
