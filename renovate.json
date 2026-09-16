@@ -11,7 +11,7 @@
   "prHourlyLimit": 2,
   "commitHourlyLimit": 4,
   "rangeStrategy": "bump",
-  "rebaseWhen": "behind-base-branch",
+  "rebaseWhen": "conflicted",
   "lockFileMaintenance": {
     "enabled": true,
     "schedule": ["before 6am on monday"]

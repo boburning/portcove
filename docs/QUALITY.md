@@ -501,6 +501,11 @@ quality crates, tauri-driver, Aqua and its registry/tools, PSScriptAnalyzer, and
 the release Syft version. It groups coupled ecosystems, pins action digests,
 waits three days before proposing new releases, disables automerge, and opens
 eligible pull requests immediately so pull-request-only CI can evaluate them.
+It automatically recreates an existing branch when that branch conflicts with
+its base, not merely because `main` advanced; the main ruleset does not require
+strict behind-base freshness. A newly available dependency version, lock-file
+maintenance, or an explicit dashboard/manual retry remains a separate branch
+update trigger, and real conflicts are never suppressed.
 The reviewed `rusqlite` Git revision is excluded by its Cargo-extracted URL,
 short dependency name, manager, and datasource. Repository tests reproduce that
 identity and require every nonstandard authority and external action to remain
