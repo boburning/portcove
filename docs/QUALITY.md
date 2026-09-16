@@ -685,16 +685,16 @@ after test failures so fixing a failed assertion does not require a cold rebuild
 Supported local nextest commands also serialize their heavyweight Rust test tree
 across Portcove worktrees on the same machine. `scripts/run-rust-tests.mjs`
 publishes a complete lock record atomically below the shared tool-cache root
-before compiling its host fixture. Unix hosts invoke the pinned `cargo-nextest`
-executable in a detached process group. Windows hosts compile a small owned
-supervisor that starts nextest suspended inside a kill-on-close Job Object,
-then resumes it; closing that job terminates every remaining descendant without
-depending on mutable parent-PID snapshots. The wrapper records the supervising
-process with an exact operating-system identity and releases only after the Unix
-group or Windows Job Object has closed its test tree. Registration or cleanup
-failure retains ownership whenever quiescence cannot be proved. A legacy Windows
-record that predates Job Object containment is not reclaimed automatically. A
-matching wrapper or surviving recorded nextest supervisor remains authoritative;
+before compiling its host fixture. Each host first starts an owned containment
+supervisor behind a registration gate; it cannot launch the pinned
+`cargo-nextest` command until the wrapper has durably published the supervisor's
+exact identity. Unix uses an anchored detached process group, while Windows uses
+a kill-on-close Job Object. Closing either containment terminates every remaining
+descendant without relying on a numeric group or mutable parent-PID snapshot
+after identity mismatch. Registration or cleanup failure retains ownership
+whenever quiescence cannot be proved. A legacy descendant record from before
+supervisor containment is not reclaimed automatically. A matching wrapper or
+surviving recorded containment supervisor remains authoritative;
 a dead or PID-reused record is reclaimed only when neither identity matches.
 Darwin adds a per-process random marker because its displayed start timestamp is
 only second-resolution; one transition read accepts the previous timestamp

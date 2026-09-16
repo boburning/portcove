@@ -2,6 +2,7 @@
 
 use std::env;
 use std::ffi::{c_void, OsStr};
+use std::path::Path;
 use std::mem::{size_of, zeroed};
 use std::os::windows::ffi::OsStrExt;
 use std::ptr::null;
@@ -142,10 +143,23 @@ fn fail_with(message: &str, error: std::io::Error) -> ! {
 }
 
 fn main() {
-    let arguments: Vec<_> = env::args_os().skip(1).collect();
-    if arguments.is_empty() {
-        eprintln!("usage: portcove-process-tree-supervisor <command> [arguments...]");
+    let mut supplied = env::args_os().skip(1);
+    let Some(gate_path) = supplied.next() else {
+        eprintln!("usage: portcove-process-tree-supervisor <gate> <command> [arguments...]");
         std::process::exit(2);
+    };
+    let arguments: Vec<_> = supplied.collect();
+    if arguments.is_empty() {
+        eprintln!("usage: portcove-process-tree-supervisor <gate> <command> [arguments...]");
+        std::process::exit(2);
+    }
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
+    while !Path::new(&gate_path).exists() {
+        if std::time::Instant::now() >= deadline {
+            eprintln!("Heavy Rust supervisor registration gate timed out before command launch");
+            std::process::exit(1);
+        }
+        std::thread::sleep(std::time::Duration::from_millis(25));
     }
     let command = arguments.iter().map(|value| quote(value)).collect::<Vec<_>>().join(" ");
     let mut command_line: Vec<u16> = OsStr::new(&command).encode_wide().chain(Some(0)).collect();

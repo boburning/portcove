@@ -217,13 +217,12 @@ test("registered child identity is persisted before guarded work continues", asy
         inspectProcessIdentity: identityInspector(identities),
       },
     );
-    await current.registerChild({ pid: 905 });
+    await current.registerChild({ pid: 905 }, { platform: null });
     const persisted = await readPersistedOwner(lockPath);
     assert.deepEqual(persisted.child, {
       pid: 905,
       identity: "nextest-start",
       process_token: current.owner.process.process_token,
-      tree_platform: process.platform,
     });
     await current.release();
   } finally {
@@ -446,56 +445,16 @@ test("a surviving recorded process tree blocks after its supervisor exits", asyn
   }
 });
 
-test(
-  "Unix process-group inspection observes an actual descendant after its supervisor exits",
-  { skip: process.platform === "win32" },
-  async () => {
-    const helper = `
-    const { spawn } = require("node:child_process");
-    const child = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"], {
-      detached: process.platform === "win32",
-      stdio: "ignore",
-      windowsHide: true,
-    });
-    console.log(child.pid);
-    child.unref();
-  `;
-    const supervisor = spawn(process.execPath, ["-e", helper], {
-      detached: process.platform !== "win32",
-      stdio: ["ignore", "pipe", "pipe"],
-      windowsHide: true,
-    });
-    let descendantPid = null;
-    try {
-      const output = await waitForLine(supervisor.stdout, "\n");
-      descendantPid = Number(output.trim());
-      assert.equal(Number.isInteger(descendantPid), true);
-      assert.equal(await waitForExit(supervisor), 0);
-      const members = processTreeMembers({
-        pid: supervisor.pid,
-        tree_platform: process.platform,
-      });
-      assert.ok(members.length > 0, JSON.stringify({ descendantPid, members }));
-    } finally {
-      if (process.platform === "win32") {
-        if (descendantPid) {
-          try {
-            process.kill(descendantPid, "SIGKILL");
-          } catch {}
-        }
-      } else {
-        try {
-          process.kill(-supervisor.pid, "SIGKILL");
-        } catch {}
-      }
-      if (supervisor.exitCode === null) supervisor.kill();
-    }
-  },
-);
-
 test("legacy Windows descendant metadata blocks automatic reclamation", () => {
   assert.throws(
     () => processTreeMembers({ pid: 913, tree_platform: "win32" }),
+    /cannot be reclaimed automatically/u,
+  );
+});
+
+test("legacy Unix process-group metadata blocks automatic reclamation", () => {
+  assert.throws(
+    () => processTreeMembers({ pid: 914, tree_platform: "linux" }),
     /cannot be reclaimed automatically/u,
   );
 });

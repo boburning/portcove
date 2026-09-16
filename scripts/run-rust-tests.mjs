@@ -1,10 +1,10 @@
-import { appendFileSync, mkdtempSync, rmSync } from "node:fs";
+import { appendFileSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { spawn, spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { acquireHeavyRustTestLock, processTreeMembers } from "./heavy-rust-test-lock.mjs";
+import { acquireHeavyRustTestLock } from "./heavy-rust-test-lock.mjs";
 
 const scriptPath = fileURLToPath(import.meta.url);
 const root = fileURLToPath(new URL("../", import.meta.url));
@@ -71,50 +71,48 @@ async function closeChildTree(child, observation, dependencies, force) {
   const runSync = dependencies.spawnSync ?? spawnSync;
   const waitMilliseconds =
     dependencies.treeWaitMilliseconds === undefined ? 5_000 : dependencies.treeWaitMilliseconds;
-  if (platform === "win32") {
-    if (!force) {
-      await observation.completed.catch(() => {});
-      return;
-    }
-    const signalled = terminateWindowsTree(child.pid, runSync);
-    if (signalled) child.kill();
-    if (!(await waitForBoundedExit(observation, waitMilliseconds))) {
-      const error = new Error(
-        `Heavy Rust Job Object supervisor ${child.pid} did not exit; retaining the shared lock`,
-      );
-      error.code = "PORTCOVE_HEAVY_RUST_TREE_ACTIVE";
-      throw error;
-    }
+  if (!force) {
+    await observation.completed.catch(() => {});
     return;
   }
-  if (force && signalUnixTree(child.pid, dependencies)) child.kill();
-  await observation.completed.catch(() => {});
+  const signalled =
+    platform === "win32"
+      ? terminateWindowsTree(child.pid, runSync)
+      : signalUnixTree(child.pid, dependencies);
+  if (!signalled && observation.outcome()) return;
+  if (!(await waitForBoundedExit(observation, waitMilliseconds))) {
+    const error = new Error(
+      `Heavy Rust containment supervisor ${child.pid} did not exit; retaining the shared lock`,
+    );
+    error.code = "PORTCOVE_HEAVY_RUST_TREE_ACTIVE";
+    throw error;
+  }
+}
 
-  const inspectTree = dependencies.processTreeMembers ?? processTreeMembers;
-  const treeRecord = { pid: child.pid, tree_platform: platform };
-  const inspectOptions = {
-    platform,
-    spawnSync: runSync,
-    killProcess: dependencies.killProcess ?? process.kill,
-  };
-  const deadline = Date.now() + waitMilliseconds;
-  const pollMilliseconds = dependencies.treePollMilliseconds ?? 50;
-  let members = inspectTree(treeRecord, inspectOptions);
-  while (members.length > 0) {
-    if (platform === "win32") {
-      for (const pid of members) terminateWindowsTree(pid, runSync);
-    } else {
-      signalUnixTree(child.pid, dependencies);
+function unixSupervisorStatus(statusPath) {
+  try {
+    const value = JSON.parse(readFileSync(statusPath, "utf8"));
+    if (!Number.isInteger(value.exit_code)) throw new Error("exit_code is not an integer");
+    return value.exit_code;
+  } catch (error) {
+    throw new Error(`Unix Heavy Rust supervisor did not publish a valid result: ${error.message}`, {
+      cause: error,
+    });
+  }
+}
+
+async function waitForUnixSupervisorStatus(statusPath, observation, dependencies) {
+  const pollMilliseconds = dependencies.treePollMilliseconds ?? 25;
+  const readStatus = dependencies.readUnixSupervisorStatus ?? unixSupervisorStatus;
+  for (;;) {
+    try {
+      return readStatus(statusPath);
+    } catch (error) {
+      if (error.cause?.code !== "ENOENT") throw error;
     }
-    if (Date.now() >= deadline) {
-      const error = new Error(
-        `Heavy Rust process tree ${child.pid} did not become quiescent; retaining the shared lock`,
-      );
-      error.code = "PORTCOVE_HEAVY_RUST_TREE_ACTIVE";
-      throw error;
-    }
+    const outcome = observation.outcome();
+    if (outcome) return readStatus(statusPath);
     await new Promise((resolve) => setTimeout(resolve, pollMilliseconds));
-    members = inspectTree(treeRecord, inspectOptions);
   }
 }
 
@@ -133,6 +131,8 @@ export async function runRustTests(args, dependencies = {}) {
   const platform = dependencies.platform ?? process.platform;
   const executable = path.join(directory, platform === "win32" ? "probe.exe" : "probe");
   const supervisor = path.join(directory, "portcove-process-tree-supervisor.exe");
+  const gatePath = path.join(directory, "registered.gate");
+  const statusPath = path.join(directory, "nextest-status.json");
   const prepareOnly = args.length === 1 && args[0] === "--prepare-only";
   let retained = false;
   let lock = null;
@@ -180,11 +180,19 @@ export async function runRustTests(args, dependencies = {}) {
       if (supervisorCompiled.status !== 0)
         throw new Error("Windows process-tree supervisor compilation failed");
     }
-    const command = platform === "win32" ? supervisor : "cargo-nextest";
+    const command = platform === "win32" ? supervisor : process.execPath;
     const commandArgs =
       platform === "win32"
-        ? ["cargo-nextest", "nextest", "run", ...args]
-        : ["nextest", "run", ...args];
+        ? [gatePath, "cargo-nextest", "nextest", "run", ...args]
+        : [
+            path.join(root, "scripts/rust-test-tree-supervisor.mjs"),
+            gatePath,
+            statusPath,
+            "cargo-nextest",
+            "nextest",
+            "run",
+            ...args,
+          ];
     const tested = start(command, commandArgs, {
       cwd: root,
       detached: platform !== "win32",
@@ -197,7 +205,9 @@ export async function runRustTests(args, dependencies = {}) {
       },
     });
     const observation = waitForChild(tested);
+    let cleanupAttempted = false;
     const proveQuiescence = async (force) => {
+      cleanupAttempted = true;
       try {
         await closeChildTree(tested, observation, dependencies, force);
       } catch (error) {
@@ -208,7 +218,7 @@ export async function runRustTests(args, dependencies = {}) {
     let registered;
     try {
       registered = await lock.registerChild(tested, {
-        platform: platform === "win32" ? null : platform,
+        platform: null,
       });
     } catch (error) {
       const finished = observation.outcome();
@@ -225,9 +235,21 @@ export async function runRustTests(args, dependencies = {}) {
       await proveQuiescence(false);
       return status;
     }
-    const status = await observation.completed;
-    await proveQuiescence(false);
-    return status;
+    try {
+      (dependencies.writeGate ?? writeFileSync)(gatePath, "registered\n", { flag: "wx" });
+      if (platform === "win32") {
+        const supervisorStatus = await observation.completed;
+        await proveQuiescence(false);
+        return supervisorStatus;
+      }
+      const status = await waitForUnixSupervisorStatus(statusPath, observation, dependencies);
+      if (!observation.outcome()) await proveQuiescence(true);
+      else await proveQuiescence(false);
+      return status;
+    } catch (error) {
+      if (!cleanupAttempted) await proveQuiescence(!observation.outcome());
+      throw error;
+    }
   } finally {
     if (lock && releaseLock) await lock.release();
     if (!retained) rmSync(directory, { recursive: true, force: true });

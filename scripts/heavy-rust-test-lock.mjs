@@ -133,20 +133,10 @@ function validProcess(record) {
 
 export function processTreeMembers(record, options = {}) {
   const platform = options.platform ?? record.tree_platform ?? process.platform;
-  if (platform === "win32")
-    throw new Error(
-      "Legacy Windows descendant records cannot be reclaimed automatically; " +
-        "verify and remove the stale lock before retrying",
-    );
-  const signal = options.killProcess ?? process.kill;
-  try {
-    signal(-record.pid, 0);
-    return [record.pid];
-  } catch (error) {
-    if (error.code === "ESRCH") return [];
-    if (error.code === "EPERM") return [record.pid];
-    throw error;
-  }
+  throw new Error(
+    `Legacy ${platform} descendant records cannot be reclaimed automatically; ` +
+      "verify and remove the stale lock before retrying",
+  );
 }
 
 async function ownerStoragePath(lockPath) {
