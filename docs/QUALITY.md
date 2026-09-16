@@ -696,7 +696,9 @@ kill-on-close Job Object. Closing either containment terminates every remaining
 descendant without relying on a numeric group or mutable parent-PID snapshot
 after identity mismatch. Inherited supported commands remain inside the existing
 outer containment instead of detaching another unrecorded group. Registration or
-cleanup failure retains ownership whenever quiescence cannot be proved. A legacy descendant record from before
+cleanup failure retains ownership whenever quiescence cannot be proved. Ctrl-C
+and termination close the outer containment and retain conventional exit status.
+A legacy descendant record from before
 supervisor containment is not reclaimed automatically. A matching wrapper or
 surviving recorded containment supervisor remains authoritative;
 a dead or PID-reused record is reclaimed only when neither identity matches.

@@ -164,6 +164,49 @@ test("inherited runner stays inside the recorded outer containment", async () =>
   }
 });
 
+for (const [signal, expectedStatus] of [
+  ["SIGINT", 130],
+  ["SIGTERM", 143],
+]) {
+  test(`outer runner contains and reports ${signal} cancellation`, async () => {
+    const tempRoot = await mkdtemp(path.join(os.tmpdir(), "portcove-rust-runner-"));
+    const signalTarget = new EventEmitter();
+    const events = [];
+    let managed;
+    try {
+      const status = await runRustTests([], {
+        tempRoot,
+        platform: "linux",
+        signalTarget,
+        spawnSync: () => ({ status: 0 }),
+        spawn: () => {
+          managed = childProcess(713, null);
+          return managed;
+        },
+        writeGate: () => queueMicrotask(() => signalTarget.emit(signal)),
+        killProcess: (pid, deliveredSignal) => {
+          events.push(`kill:${pid}:${deliveredSignal}`);
+          queueMicrotask(() => managed.emit("close", 1));
+          return true;
+        },
+        readCleanupReceipt: () => ({ outcome: "quiescent" }),
+        acquireLock: async () => ({
+          inherited: false,
+          childEnvironment: {},
+          registerChild: async () => ({ pid: 713 }),
+          release: async () => events.push("release"),
+        }),
+      });
+      assert.equal(status, expectedStatus);
+      assert.deepEqual(events, ["kill:-713:SIGKILL", "release"]);
+      assert.equal(signalTarget.listenerCount("SIGINT"), 0);
+      assert.equal(signalTarget.listenerCount("SIGTERM"), 0);
+    } finally {
+      await rm(tempRoot, { recursive: true, force: true });
+    }
+  });
+}
+
 test("runner preserves a fast nextest exit when registration observes no live child", async () => {
   const tempRoot = await mkdtemp(path.join(os.tmpdir(), "portcove-rust-runner-"));
   let released = false;

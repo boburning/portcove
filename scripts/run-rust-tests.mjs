@@ -26,6 +26,36 @@ function waitForChild(child) {
   return { completed, outcome: () => outcome };
 }
 
+function observeCancellation(target) {
+  let requestedSignal = null;
+  let resolveCancellation;
+  const pending = new Promise((resolve) => {
+    resolveCancellation = resolve;
+  });
+  const listeners = new Map(
+    ["SIGINT", "SIGTERM"].map((signal) => [
+      signal,
+      () => {
+        if (requestedSignal) return;
+        requestedSignal = signal;
+        resolveCancellation({ signal });
+      },
+    ]),
+  );
+  for (const [signal, listener] of listeners) target.once(signal, listener);
+  return {
+    pending,
+    requested: () => requestedSignal,
+    dispose: () => {
+      for (const [signal, listener] of listeners) target.off(signal, listener);
+    },
+  };
+}
+
+function cancellationExitCode(signal) {
+  return signal === "SIGINT" ? 130 : 143;
+}
+
 function terminateWindowsTree(pid, runSync) {
   const terminated = runSync("taskkill.exe", ["/PID", String(pid), "/T", "/F"], {
     stdio: "ignore",
@@ -177,6 +207,7 @@ export async function runRustTests(args, dependencies = {}) {
   let retained = false;
   let lock = null;
   let releaseLock = true;
+  let cancellation = null;
   try {
     if (!prepareOnly) {
       lock = await acquireLock({
@@ -234,6 +265,7 @@ export async function runRustTests(args, dependencies = {}) {
       });
       return await waitForChild(nested).completed;
     }
+    cancellation = observeCancellation(dependencies.signalTarget ?? process);
     const command = platform === "win32" ? supervisor : process.execPath;
     const commandArgs =
       platform === "win32"
@@ -280,6 +312,10 @@ export async function runRustTests(args, dependencies = {}) {
         cleanupReceipt: platform === "win32" ? undefined : cleanupReceiptPath,
       });
     } catch (error) {
+      if (cancellation.requested()) {
+        await proveQuiescence(true);
+        return cancellationExitCode(cancellation.requested());
+      }
       const finished = observation.outcome();
       if (finished?.error) throw finished.error;
       if (finished && Object.hasOwn(finished, "code")) {
@@ -292,20 +328,29 @@ export async function runRustTests(args, dependencies = {}) {
     if (registered === null) {
       const status = await observation.completed;
       await proveQuiescence(false);
-      return status;
+      return cancellation.requested() ? cancellationExitCode(cancellation.requested()) : status;
     }
     try {
       (dependencies.writeGate ?? writeFileSync)(gatePath, "registered\n", { flag: "wx" });
       gateOpened = true;
-      if (platform === "win32") {
-        const supervisorStatus = await observation.completed;
-        await proveQuiescence(false);
-        return supervisorStatus;
+      const completion =
+        platform === "win32"
+          ? observation.completed
+          : waitForUnixSupervisorStatus(statusPath, observation, dependencies);
+      const first = await Promise.race([
+        completion.then((status) => ({ status })),
+        cancellation.pending,
+      ]);
+      if (first.signal) {
+        await proveQuiescence(true);
+        return cancellationExitCode(first.signal);
       }
-      const status = await waitForUnixSupervisorStatus(statusPath, observation, dependencies);
-      if (!observation.outcome()) await proveQuiescence(true);
+      if (platform === "win32") await proveQuiescence(false);
+      else if (!observation.outcome()) await proveQuiescence(true);
       else await waitForUnixCleanupReceipt(cleanupReceiptPath, dependencies);
-      return status;
+      return cancellation.requested()
+        ? cancellationExitCode(cancellation.requested())
+        : first.status;
     } catch (error) {
       if (!cleanupAttempted) {
         if (platform !== "win32" && gateOpened && observation.outcome()) {
@@ -322,6 +367,7 @@ export async function runRustTests(args, dependencies = {}) {
       throw error;
     }
   } finally {
+    cancellation?.dispose();
     if (lock && releaseLock) await lock.release();
     if (!retained) rmSync(directory, { recursive: true, force: true });
   }
