@@ -2,12 +2,7 @@ import { spawnSync } from "node:child_process";
 import { access, readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import {
-  githubRateLimitMessage,
-  nextLink,
-  parseIncludedResponse,
-  rateLimitFromResponse,
-} from "./github-api.mjs";
+import { GitHubApiClient, createGitHubRunner, githubRateLimitMessage } from "./github-api.mjs";
 import { acquireOwnedProcessLock } from "./process-lock.mjs";
 
 const scriptPath = fileURLToPath(import.meta.url);
@@ -1428,23 +1423,6 @@ export function projectMachineDrift(config, { details, fields, views, repositori
   return drift;
 }
 
-function defaultRunner(args, input) {
-  const command = process.env.PORTCOVE_ROADMAP_GH || "gh";
-  const result = spawnSync(command, args, {
-    cwd: projectRoot,
-    encoding: "utf8",
-    input,
-    stdio: input === undefined ? ["ignore", "pipe", "pipe"] : ["pipe", "pipe", "pipe"],
-    windowsHide: true,
-  });
-  if (result.error) throw result.error;
-  if (result.status !== 0)
-    throw new Error(
-      result.stderr.trim() || `${command} ${args.join(" ")} failed with exit ${result.status}`,
-    );
-  return result.stdout.trim();
-}
-
 function gitHead() {
   const result = spawnSync("git", ["rev-parse", "HEAD"], {
     cwd: projectRoot,
@@ -1458,14 +1436,22 @@ function gitHead() {
 }
 
 export class RoadmapClient {
-  constructor(config, run = defaultRunner) {
+  constructor(
+    config,
+    api = new GitHubApiClient(
+      createGitHubRunner({
+        cwd: projectRoot,
+        command: process.env.PORTCOVE_ROADMAP_GH || "gh",
+      }),
+    ),
+  ) {
     this.config = config;
-    this.run = run;
+    this.api = typeof api === "function" ? new GitHubApiClient(api) : api;
     this.graphqlRate = null;
   }
 
   gh(args, input) {
-    return this.run(args, input);
+    return this.api.command(args, input);
   }
 
   json(args, input) {
@@ -1473,24 +1459,16 @@ export class RoadmapClient {
     return output ? JSON.parse(output) : null;
   }
 
-  included(args, input) {
-    return parseIncludedResponse(this.gh(args, input));
-  }
-
   graphql(query, variables = {}) {
-    const response = this.included(
-      ["api", "graphql", "--include", "--input", "-"],
-      `${JSON.stringify({ query, variables })}\n`,
-    );
-    const result = response.body;
-    const rate = rateLimitFromResponse(response);
-    if (rate.remaining !== null || rate.used !== null) this.graphqlRate = rate;
-    if (result?.errors?.length)
-      throw new Error(
-        `${result.errors.map((error) => error.message).join("; ")}` +
-          (rate.remaining !== null ? ` (${githubRateLimitMessage(rate)})` : ""),
-      );
-    return result?.data;
+    try {
+      const result = this.api.graphql(query, variables);
+      if (result.rateLimit.remaining !== null || result.rateLimit.used !== null)
+        this.graphqlRate = result.rateLimit;
+      return result.data;
+    } catch (error) {
+      if (error?.rateLimit) this.graphqlRate = error.rateLimit;
+      throw error;
+    }
   }
 
   sampleGraphqlRate() {
@@ -1663,11 +1641,10 @@ export class RoadmapClient {
 
   repositoryIssues() {
     const marker = () => {
-      const response = this.included([
-        "api",
-        "--include",
+      const response = this.api.request(
+        "GET",
         `repos/${this.config.repository}/issues?state=all&sort=created&direction=desc&per_page=1`,
-      ]);
+      );
       if (!Array.isArray(response.body))
         throw new Error("incomplete GitHub inventory: malformed repository issue marker");
       const number = response.body[0]?.number ?? 0;
@@ -1676,34 +1653,20 @@ export class RoadmapClient {
       return number;
     };
     const highWater = marker();
-    const records = [];
-    const nodeIds = new Set();
+    const records = this.api.paginateRest(
+      `repos/${this.config.repository}/issues?state=all&sort=created&direction=asc&per_page=100`,
+      {
+        identity: (record) =>
+          typeof record?.node_id === "string" && record.node_id ? record.node_id : null,
+        label: "repository issue inventory",
+      },
+    );
     const numbers = new Set();
-    const pages = new Set();
-    let endpoint = `repos/${this.config.repository}/issues?state=all&sort=created&direction=asc&per_page=100`;
-    while (endpoint) {
-      if (pages.has(endpoint))
-        throw new Error("incomplete GitHub inventory: REST pagination did not advance");
-      pages.add(endpoint);
-      const response = this.included(["api", "--include", endpoint]);
-      if (!Array.isArray(response.body))
-        throw new Error("incomplete GitHub inventory: malformed repository issue page");
-      for (const record of response.body) {
-        if (
-          typeof record?.node_id !== "string" ||
-          !record.node_id ||
-          !Number.isSafeInteger(record.number) ||
-          record.number < 1 ||
-          nodeIds.has(record.node_id) ||
-          numbers.has(record.number)
-        ) {
-          throw new Error("incomplete GitHub inventory: missing or duplicate record identity");
-        }
-        nodeIds.add(record.node_id);
-        numbers.add(record.number);
-        records.push(record);
+    for (const record of records) {
+      if (!Number.isSafeInteger(record.number) || record.number < 1 || numbers.has(record.number)) {
+        throw new Error("incomplete GitHub inventory: missing or duplicate record identity");
       }
-      endpoint = nextLink(response.headers);
+      numbers.add(record.number);
     }
     if (marker() !== highWater)
       throw new Error("GitHub inventory changed during pagination; retry the read");
@@ -1722,7 +1685,7 @@ export class RoadmapClient {
   }
 
   repositoryIssue(number) {
-    const issue = this.json(["api", `repos/${this.config.repository}/issues/${number}`]);
+    const issue = this.api.request("GET", `repos/${this.config.repository}/issues/${number}`).body;
     if (!issue?.node_id || !issue?.html_url || issue.pull_request) {
       throw new Error(`repository issue #${number} was not found`);
     }
@@ -1739,7 +1702,7 @@ export class RoadmapClient {
 
   ownerType() {
     if (this._ownerType) return this._ownerType;
-    const owner = this.json(["api", `users/${this.config.owner}`]);
+    const owner = this.api.request("GET", `users/${this.config.owner}`).body;
     if (!["User", "Organization"].includes(owner?.type))
       throw new Error(`GitHub owner type is unavailable for ${this.config.owner}`);
     this._ownerType = owner.type;
@@ -2220,10 +2183,10 @@ export class RoadmapClient {
       );
     }
     const body = renderPortIssueBody({ title, upstream, catalogId, portKey });
-    const issue = this.json(
-      ["api", `repos/${this.config.repository}/issues`, "--method", "POST", "--input", "-"],
-      `${JSON.stringify({ title: issueTitle, body })}\n`,
-    );
+    const issue = this.api.request("POST", `repos/${this.config.repository}/issues`, {
+      title: issueTitle,
+      body,
+    }).body;
     if (!issue?.node_id || !issue?.html_url)
       throw new Error("GitHub did not return the created issue identity");
     const item = this.ensureIssueItem(issue.node_id);
@@ -2283,17 +2246,7 @@ export class RoadmapClient {
     const fieldUpdates = portFieldInitialization(existingItem);
 
     if (bodyChanged) {
-      this.json(
-        [
-          "api",
-          `repos/${this.config.repository}/issues/${number}`,
-          "--method",
-          "PATCH",
-          "--input",
-          "-",
-        ],
-        `${JSON.stringify({ body })}\n`,
-      );
+      this.api.request("PATCH", `repos/${this.config.repository}/issues/${number}`, { body });
     }
     const item = existingItem ?? this.ensureIssueItem(issue.node_id);
     if (Object.keys(fieldUpdates).length) this.setItemFields(item.id, fieldUpdates);

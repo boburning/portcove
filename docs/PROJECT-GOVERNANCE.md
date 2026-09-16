@@ -145,6 +145,13 @@ The provenance generator leaves the previous snapshot intact when enrichment
 fails. A successful traversal is a dated observation, not an atomic snapshot
 of concurrent field edits.
 
+Repository Node tools execute GitHub requests through the shared
+`scripts/github-api.mjs` transport. GraphQL queries and variables are serialized
+as one JSON stdin document rather than shell fields; REST bodies use the same
+boundary. That transport owns response headers, quota evidence and generic Link
+pagination, while this Roadmap client continues to own Project schema,
+completeness, mutation and readback decisions.
+
 Repository issue coverage uses the REST issue collection, follows every
 pagination link, validates opaque node IDs and issue numbers before filtering
 pull requests, and requires an unchanged newest-record marker across the read.

@@ -4,6 +4,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { createGitHubRunner } from "./github-api.mjs";
 import {
   RoadmapClient,
   fieldValue,
@@ -392,16 +393,17 @@ export function renderSourceProvenanceAudit(audit) {
 }
 
 export function runReadOnlyGitHubCommand(args, input, spawn = spawnSync) {
-  const result = spawn("gh", args, {
-    encoding: "utf8",
-    windowsHide: true,
-    input,
+  const run = createGitHubRunner({
+    cwd: projectRoot,
+    spawn,
     maxBuffer: 32 * 1024 * 1024,
   });
-  if (result.error || result.status !== 0) {
+  try {
+    const output = run(args, input);
+    return args.includes("--include") ? output : JSON.parse(output);
+  } catch {
     throw new Error(`read-only GitHub command failed: gh ${args.slice(0, 3).join(" ")}`);
   }
-  return args.includes("--include") ? result.stdout : JSON.parse(result.stdout);
 }
 
 export function readLiveSourceProvenance({

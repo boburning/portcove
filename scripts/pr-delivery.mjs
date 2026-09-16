@@ -1,26 +1,11 @@
-import { spawnSync } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { nextLink, parseIncludedResponse } from "./github-api.mjs";
+import { GitHubApiClient, createGitHubRunner } from "./github-api.mjs";
 
 const scriptPath = fileURLToPath(import.meta.url);
 const projectRoot = fileURLToPath(new URL("..", import.meta.url));
 const repository = "boburning/portcove";
-
-function defaultRunner(args, input) {
-  const result = spawnSync("gh", args, {
-    cwd: projectRoot,
-    encoding: "utf8",
-    input,
-    stdio: input === undefined ? ["ignore", "pipe", "pipe"] : ["pipe", "pipe", "pipe"],
-    windowsHide: true,
-  });
-  if (result.error) throw result.error;
-  if (result.status !== 0)
-    throw new Error(result.stderr.trim() || `gh ${args.join(" ")} failed with ${result.status}`);
-  return result.stdout.trim();
-}
 
 function exactKeys(value, expected, label) {
   const actual = Object.keys(value ?? {}).sort();
@@ -60,25 +45,12 @@ export function parsePullRequestReference(value) {
 }
 
 export class PullRequestDeliveryClient {
-  constructor(run = defaultRunner) {
-    this.run = run;
+  constructor(api = new GitHubApiClient(createGitHubRunner({ cwd: projectRoot }))) {
+    this.api = typeof api === "function" ? new GitHubApiClient(api) : api;
   }
 
   request(method, endpoint, body = null) {
-    const input = body === null ? undefined : `${JSON.stringify(body)}\n`;
-    return parseIncludedResponse(
-      this.run(
-        [
-          "api",
-          "--include",
-          "--method",
-          method,
-          endpoint,
-          ...(body === null ? [] : ["--input", "-"]),
-        ],
-        input,
-      ),
-    );
+    return this.api.request(method, endpoint, body);
   }
 
   pull(number) {
@@ -89,32 +61,12 @@ export class PullRequestDeliveryClient {
   }
 
   paginatedConnection(endpoint, key, identity) {
-    const records = [];
-    const identities = new Set();
-    const pages = new Set();
-    let totalCount = null;
-    while (endpoint) {
-      if (pages.has(endpoint)) throw new Error(`${key} pagination did not advance`);
-      pages.add(endpoint);
-      const response = this.request("GET", endpoint);
-      const values = response.body?.[key];
-      const count = response.body?.total_count;
-      if (!Array.isArray(values) || !Number.isSafeInteger(count) || count < 0)
-        throw new Error(`${key} response is incomplete`);
-      totalCount ??= count;
-      if (count !== totalCount) throw new Error(`${key} total changed during pagination`);
-      for (const value of values) {
-        const id = identity(value);
-        if (!id || identities.has(id)) throw new Error(`${key} contains a missing or duplicate ID`);
-        identities.add(id);
-        records.push(value);
-      }
-      if (records.length > totalCount) throw new Error(`${key} count exceeds reported total`);
-      endpoint = nextLink(response.headers);
-    }
-    if (records.length !== totalCount)
-      throw new Error(`${key} count does not match reported total`);
-    return records;
+    return this.api.paginateRest(endpoint, {
+      select: (body) => body?.[key],
+      identity,
+      totalCount: (body) => body?.total_count,
+      label: key,
+    });
   }
 
   checkRuns(sha) {

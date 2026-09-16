@@ -1412,6 +1412,7 @@ test("RoadmapClient capture uses mocked gh output and stores planning fields onl
           },
         ],
       });
+    if (args[1] === "graphql") return JSON.stringify({ data: {} });
     return "";
   };
   const client = new RoadmapClient(mockedConfig, runner);
@@ -1450,7 +1451,7 @@ test("capture-port creates one Project-backed issue without depending on parent 
   };
   const runner = (args, input) => {
     calls.push({ args, input });
-    if (args[0] === "api" && args[1] === "repos/boburning/portcove/issues")
+    if (args[0] === "api" && args[2] === "repos/boburning/portcove/issues")
       return JSON.stringify({
         node_id: "I_new",
         html_url: "https://github.com/boburning/portcove/issues/88",
@@ -1505,7 +1506,7 @@ test("capture-port creates one Project-backed issue without depending on parent 
   });
   assert.equal(result.itemId, "PVTI_new");
   assert.equal(
-    calls.filter((call) => call.args[1] === "repos/boburning/portcove/issues").length,
+    calls.filter((call) => call.args[2] === "repos/boburning/portcove/issues").length,
     1,
   );
   assert.ok(calls.some((call) => call.input?.includes("<!-- portcove-port -->")));
@@ -1561,13 +1562,13 @@ Preserve this contributor text.`;
       calls.push({ args, input });
       if (
         args[0] === "api" &&
-        args[1] === "repos/boburning/portcove/issues/42" &&
+        args[2] === "repos/boburning/portcove/issues/42" &&
         args.includes("PATCH")
       ) {
         body = JSON.parse(input).body;
         return JSON.stringify(issue());
       }
-      if (args[0] === "api" && args[1] === "repos/boburning/portcove/issues/42")
+      if (args[0] === "api" && args[2] === "repos/boburning/portcove/issues/42")
         return JSON.stringify(issue());
       if (args[0] === "project" && args[1] === "view") return JSON.stringify({ id: "PVT_project" });
       if (args[0] === "project" && args[1] === "field-list")
@@ -1858,7 +1859,7 @@ test("complete Project context reads every field page with opaque identity check
   const calls = [];
   const runner = (args, input) => {
     calls.push({ args, input });
-    if (args[1] === "users/boburning") return JSON.stringify({ type: "User" });
+    if (args[2] === "users/boburning") return JSON.stringify({ type: "User" });
     const request = JSON.parse(input);
     const after = request.variables.after;
     return JSON.stringify({
@@ -1996,7 +1997,7 @@ test("set-many validates transitions before one mutation and exact readback", ()
   });
   const runner = (args, input) => {
     calls.push({ args, input });
-    if (args[0] === "api" && args[1] === "users/boburning") return JSON.stringify({ type: "User" });
+    if (args[0] === "api" && args[2] === "users/boburning") return JSON.stringify({ type: "User" });
     if (args[0] === "project" && args[1] === "view")
       return JSON.stringify({ id: "PVT", number: 7 });
     if (args[0] === "project" && args[1] === "field-list")
