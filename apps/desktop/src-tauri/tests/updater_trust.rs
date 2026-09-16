@@ -345,7 +345,7 @@ async fn publish_valid_preview_role_version(
     version: u64,
 ) {
     editor
-        .targets_version(nz(1))
+        .targets_version(nz(version))
         .unwrap()
         .targets_expires(expiration())
         .unwrap();
@@ -366,7 +366,7 @@ async fn publish_valid_preview_role_version(
         .unwrap()
         .change_delegated_targets("targets")
         .unwrap()
-        .targets_version(nz(1))
+        .targets_version(nz(version))
         .unwrap()
         .targets_expires(expiration())
         .unwrap()
@@ -420,6 +420,28 @@ fn assert_consumer_unreachable(error: ApplicationUpdateFreshSelectionError) {
         CandidateLoadError::Trust(TrustedRepositoryError::Transport(_))
     ));
     assert_eq!(error.failure_kind(), CandidateLoadFailureKind::Unreachable);
+}
+
+fn assert_consumer_rejected_timestamp_replay(error: ApplicationUpdateFreshSelectionError) {
+    let ApplicationUpdateFreshSelectionError::Candidate(CandidateLoadError::Trust(error)) = error
+    else {
+        panic!("expected stale timestamp replay to fail candidate loading, got {error}");
+    };
+    assert_eq!(error.failure_kind(), TrustedRepositoryFailureKind::Stale);
+    match error {
+        TrustedRepositoryError::Authentication(error) => assert!(matches!(
+            *error,
+            Error::OlderMetadata {
+                role: RoleType::Timestamp,
+                ..
+            }
+        )),
+        TrustedRepositoryError::Replay(message) => assert_eq!(
+            message,
+            "timestamp metadata is below or differs from its replay floor"
+        ),
+        other => panic!("expected an exact timestamp replay failure, got {other}"),
+    }
 }
 
 fn assert_consumer_selected_version(
@@ -1448,7 +1470,7 @@ async fn channel_role_authenticates_keys_and_transition_candidates() {
     assert_eq!(recovered_missing_state["roles"]["timestamp"]["version"], 2);
 
     let wrong_signature_recovery_editor =
-        RepositoryEditor::from_repo(root_path, f.load(&trusted).await.unwrap())
+        RepositoryEditor::from_repo(root_path.clone(), f.load(&trusted).await.unwrap())
             .await
             .unwrap();
     let valid_preview_document: serde_json::Value =
@@ -1542,7 +1564,7 @@ async fn channel_role_authenticates_keys_and_transition_candidates() {
     assert_consumer_unreachable(error);
     assert_eq!(persisted_roles(&host_state), roles_before_outage);
 
-    fs::write(timestamp_path, timestamp_metadata).unwrap();
+    fs::write(&timestamp_path, timestamp_metadata).unwrap();
     let recovered = ApplicationUpdateFreshSelectionProvider::select(&provider, &stable_choice)
         .await
         .unwrap();
@@ -1569,6 +1591,37 @@ async fn channel_role_authenticates_keys_and_transition_candidates() {
         .unwrap();
     assert_consumer_selected_version(recovered, &skipped_context, "1.1.0");
     assert_eq!(persisted_roles(&host_state), roles_before_outage);
+
+    let replayed_timestamp = fs::read(&timestamp_path).unwrap();
+    let refresh_editor = RepositoryEditor::from_repo(root_path, f.load(&trusted).await.unwrap())
+        .await
+        .unwrap();
+    publish_valid_preview_role_version(refresh_editor, &f, &preview, 4).await;
+    let current_timestamp = fs::read(&timestamp_path).unwrap();
+    assert_ne!(current_timestamp, replayed_timestamp);
+
+    let refreshed = ApplicationUpdateFreshSelectionProvider::select(&provider, &stable_choice)
+        .await
+        .unwrap();
+    assert_consumer_selected_version(refreshed, &skipped_context, "1.1.0");
+    let roles_after_refresh = persisted_roles(&host_state);
+    assert_eq!(roles_after_refresh["targets"]["version"], 4);
+    assert_eq!(roles_after_refresh["snapshot"]["version"], 4);
+    assert_eq!(roles_after_refresh["timestamp"]["version"], 4);
+
+    fs::write(&timestamp_path, &replayed_timestamp).unwrap();
+    let error = ApplicationUpdateFreshSelectionProvider::select(&provider, &stable_choice)
+        .await
+        .unwrap_err();
+    assert_consumer_rejected_timestamp_replay(error);
+    assert_eq!(persisted_roles(&host_state), roles_after_refresh);
+
+    fs::write(&timestamp_path, current_timestamp).unwrap();
+    let recovered = ApplicationUpdateFreshSelectionProvider::select(&provider, &stable_choice)
+        .await
+        .unwrap();
+    assert_consumer_selected_version(recovered, &skipped_context, "1.1.0");
+    assert_eq!(persisted_roles(&host_state), roles_after_refresh);
 
     let top_level_signatures = TopLevelSignatureFixture {
         fixture: &f,
