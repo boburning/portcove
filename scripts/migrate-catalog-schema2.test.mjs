@@ -21,15 +21,15 @@ test("schema-2 migration is deterministic and preserves the frozen schema-1 proj
   const migrated = JSON.parse(readFileSync(join(catalogRoot, "catalog.json"), "utf8"));
   assert.equal(migrated.schema_version, 2);
   assert.equal("source_profiles" in migrated, false);
-  assert.equal(migrated.source_catalog.identities.length, legacy.source_profiles.length + 5);
-  assert.equal(migrated.ports.length, legacy.ports.length + 5);
+  assert.equal(migrated.source_catalog.identities.length, legacy.source_profiles.length + 6);
+  assert.equal(migrated.ports.length, legacy.ports.length + 6);
   assert.equal(
     migrated.source_catalog.contracts.length,
     legacy.ports.reduce(
       (count, port) =>
         count + Number(Boolean(port.source_profile)) + Number(Boolean(port.bios_source_profile)),
       0,
-    ) + 5,
+    ) + 6,
   );
 
   const profile = (id) => migrated.source_catalog.identities.find((item) => item.id === id);
@@ -166,6 +166,59 @@ test("schema-2 migration is deterministic and preserves the frozen schema-1 proj
   assert.equal(dnzh.runtime_source_materialization, "n64-big-endian");
   assert.equal(dnzh.persistent_paths.includes("saves"), true);
   assert.equal(dnzh.persistent_paths.includes("mod_config"), true);
+  const apeEscapeProfile = profile("ape-escape-psx");
+  assert.deepEqual(
+    apeEscapeProfile.variants.map((item) => item.id),
+    ["usa-rev0"],
+  );
+  assert.deepEqual(apeEscapeProfile.variants[0].representations[0].identities, [
+    {
+      scope: "psx-normalized-track-set",
+      sha1: "466cce4bcd6992f57227abd270323bcdad2fb7fc",
+      sha256: "1ae17e78ebb8c782c7c1785b0a0bd7b0ee28235b8a0c83c8df887129899a852a",
+      crc32: null,
+    },
+  ]);
+  const apeEscapeContract = contract("ape-escape-recompiled");
+  assert.deepEqual(apeEscapeContract.supported_variant_ids, ["usa-rev0"]);
+  assert.deepEqual(apeEscapeContract.applicability, [
+    {
+      upstream_ref: "v0.3.0",
+      artifact_sha256: "91e2cde5f16408ff51b4b822ebba8b811c4e591263170cb49f33a486606c58e9",
+    },
+  ]);
+  const apeEscape = migrated.ports.find((port) => port.id === "ape-escape-recompiled");
+  assert.equal(apeEscape.adapter, "staged-source-portable");
+  assert.equal(apeEscape.runtime_source_materialization, "psx-bin-cue");
+  assert.deepEqual(apeEscape.persistent_paths, [
+    "saves",
+    "settings.toml",
+    "input.ini",
+    "keybinds.ini",
+    "disc.cfg",
+    "bios.cfg",
+    "mods",
+  ]);
+  assert.deepEqual(apeEscape.runtime_mutable_paths, [
+    "cache",
+    "disc",
+    "overlay_captures.json",
+    "overlay_captures.json.d",
+    "psx_freeze_heartbeat.json",
+    "psx_last_run_report.json",
+  ]);
+  assert.deepEqual(apeEscape.runtime_mutable_file_patterns, [
+    {
+      prefix: "psx_freeze_dump_psx-runtime_",
+      suffix: ".json",
+    },
+  ]);
+  assert.equal(
+    migrated.source_catalog.qualification.some(
+      (record) => record.scope.port_id === "ape-escape-recompiled",
+    ),
+    false,
+  );
   const drMarioProfile = profile("dr-mario-64");
   assert.deepEqual(
     drMarioProfile.variants.slice(1).map((item) => item.id),

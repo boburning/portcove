@@ -85,6 +85,15 @@ const reviewedSources = {
     path: "README.md",
     reviewedAt: "2026-09-13",
   },
+  apeEscapeRecomp: {
+    evidenceId: "ape-escape-recompiled-0-3-0-source-contract",
+    repository: "mstan/ApeEscapeRecomp",
+    ref: "831a478c355433de1021fb28cf7f7a03c895ab77",
+    tag: "v0.3.0",
+    liveRef: "master",
+    path: "DISC.md",
+    reviewedAt: "2026-09-16",
+  },
   cvlodRecomp: {
     evidenceId: "cvlod-recomp-0-2-26-source-contract",
     repository: "fliperama86/cvlod_recomp",
@@ -193,6 +202,10 @@ const evidence = [
   upstreamEvidence(
     reviewedSources.snap64Recomp,
     "Limits Snap64 Recomp 1.0.5 to the US Pokemon Snap source and documents portable data-root isolation",
+  ),
+  upstreamEvidence(
+    reviewedSources.apeEscapeRecomp,
+    "Limits Ape Escape Recompiled 0.3.0 to the exact US SCUS-94423 single-track MODE2/2352 source",
   ),
   upstreamEvidence(
     reviewedSources.cvlodRecomp,
@@ -669,6 +682,41 @@ identities.push({
   evidence_gap: null,
 });
 
+identities.push({
+  id: "ape-escape-psx",
+  label: "Ape Escape (USA) disc",
+  kind: "optical-disc",
+  variants: [
+    {
+      id: "usa-rev0",
+      title: "Ape Escape",
+      region: "USA",
+      revision: "Rev 0",
+      product_codes: ["SCUS-94423"],
+      representations: [
+        {
+          id: "normalized-track-set",
+          extensions: ["chd", "cue", "bin"],
+          kind: "optical-track-set",
+          track_counts: [1],
+          identities: [
+            digest(
+              "psx-normalized-track-set",
+              "466cce4bcd6992f57227abd270323bcdad2fb7fc",
+              "1ae17e78ebb8c782c7c1785b0a0bd7b0ee28235b8a0c83c8df887129899a852a",
+            ),
+          ],
+          evidence_ids: [reviewedSources.apeEscapeRecomp.evidenceId],
+        },
+      ],
+      evidence_ids: [reviewedSources.apeEscapeRecomp.evidenceId],
+    },
+  ],
+  aliases: [],
+  tombstones: [],
+  evidence_gap: null,
+});
+
 applyReviewedVariants("ghostship-source", [
   n64Variant(
     "super-mario-64-us",
@@ -1087,6 +1135,30 @@ contracts.push({
   tombstones: [],
 });
 
+contracts.push({
+  id: "ape-escape-recompiled-game-source",
+  port_id: "ape-escape-recompiled",
+  role: "game",
+  profile_id: "ape-escape-psx",
+  admission_mode: "enforced",
+  supported_variant_ids: ["usa-rev0"],
+  validator_contract_id: null,
+  evidence_ids: [reviewedSources.apeEscapeRecomp.evidenceId],
+  authority_ref: reviewedSources.apeEscapeRecomp.ref,
+  reviewed_at: reviewedSources.apeEscapeRecomp.reviewedAt,
+  immutable_review_url: `https://github.com/${reviewedSources.apeEscapeRecomp.repository}/blob/${reviewedSources.apeEscapeRecomp.ref}/${reviewedSources.apeEscapeRecomp.path}`,
+  live_review_url: `https://github.com/${reviewedSources.apeEscapeRecomp.repository}/blob/${reviewedSources.apeEscapeRecomp.liveRef}/${reviewedSources.apeEscapeRecomp.path}`,
+  evidence_gap: null,
+  applicability: [
+    {
+      upstream_ref: reviewedSources.apeEscapeRecomp.tag,
+      artifact_sha256: "91e2cde5f16408ff51b4b822ebba8b811c4e591263170cb49f33a486606c58e9",
+    },
+  ],
+  aliases: [],
+  tombstones: [],
+});
+
 function reviewContract(portId, source, supportedVariantIds, extraEvidenceIds = []) {
   const contract = contracts.find(
     (candidate) => candidate.port_id === portId && candidate.role === "game",
@@ -1266,6 +1338,7 @@ const normalizedSummaries = {
   "star-fox-enhanced":
     "Expands Star Fox and Star Fox EX with widescreen presentation and configurable controls.",
   "duke-nukem-zero-hour-recompiled": "Native Duke Nukem: Zero Hour recompilation.",
+  "ape-escape-recompiled": "Native Ape Escape recompilation.",
 };
 
 function sourceRequirement(port, role, field) {
@@ -2008,6 +2081,64 @@ const migrated = {
       portable_marker: true,
       runtime_source_filename: "dnzh.us.z64",
       runtime_source_materialization: "n64-big-endian",
+    }),
+    withPresentation({
+      id: "ape-escape-recompiled",
+      name: "Ape Escape Recompiled",
+      summary: "Native Ape Escape recompilation.",
+      project_url: "https://github.com/mstan/ApeEscapeRecomp",
+      support_tier: "beta",
+      channels: ["stable"],
+      platforms: ["windows-x86-64"],
+      automated_tested_platforms: [],
+      manually_validated_platforms: [],
+      adapter: "staged-source-portable",
+      release: {
+        repository: "mstan/ApeEscapeRecomp",
+        asset_hints: {
+          "windows-x86-64": ["ApeEscapeRecomp-", "-windows-x64.zip"],
+        },
+      },
+      source_profile: "ape-escape-psx",
+      executable_hints: {
+        "windows-x86-64": ["ApeEscapeRecomp.exe"],
+      },
+      persistent_paths: [
+        "saves",
+        "settings.toml",
+        "input.ini",
+        "keybinds.ini",
+        "disc.cfg",
+        "bios.cfg",
+        "mods",
+      ],
+      runtime_mutable_paths: [
+        "cache",
+        "disc",
+        "overlay_captures.json",
+        "overlay_captures.json.d",
+        "psx_freeze_heartbeat.json",
+        "psx_last_run_report.json",
+      ],
+      runtime_mutable_file_patterns: [
+        {
+          prefix: "psx_freeze_dump_psx-runtime_",
+          suffix: ".json",
+        },
+      ],
+      launch_arguments: [
+        "--no-launcher",
+        "--memcard-dir",
+        "saves",
+        "--game",
+        "game.toml",
+        "--bios",
+        "bios/openbios.bin",
+        "--disc",
+        "disc/disc.cue",
+      ],
+      runtime_source_filename: "disc",
+      runtime_source_materialization: "psx-bin-cue",
     }),
   ],
 };

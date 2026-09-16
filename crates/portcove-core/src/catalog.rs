@@ -1270,7 +1270,7 @@ mod tests {
         let source_catalog = migrated.source_catalog().expect("schema-2 authority");
         assert_eq!(
             source_catalog.identities.len(),
-            legacy.document().source_profiles.len() + 5
+            legacy.document().source_profiles.len() + 6
         );
         let projected_legacy_profiles = migrated
             .document()
@@ -1283,6 +1283,7 @@ mod tests {
                     "diddy-kong-racing-golden-balloon",
                     "star-fox-enhanced-usa-v1-0",
                     "duke-nukem-zero-hour",
+                    "ape-escape-psx",
                 ]
                 .contains(&profile.id.as_str())
             })
@@ -1429,6 +1430,7 @@ mod tests {
                     "diddy-kong-racing-golden-balloon",
                     "star-fox-enhanced",
                     "duke-nukem-zero-hour-recompiled",
+                    "ape-escape-recompiled",
                 ]
                 .contains(&port.id.as_str())
             })
@@ -1591,7 +1593,7 @@ mod tests {
 
         assert!(document.get("source_catalog").is_some());
         assert!(document.get("source_profiles").is_none());
-        assert_eq!(document["ports"].as_array().unwrap().len(), 72);
+        assert_eq!(document["ports"].as_array().unwrap().len(), 73);
     }
 
     #[test]
@@ -1836,6 +1838,7 @@ mod tests {
                     "diddy-kong-racing-golden-balloon",
                     "star-fox-enhanced-usa-v1-0",
                     "duke-nukem-zero-hour",
+                    "ape-escape-psx",
                 ]
                 .contains(&profile.id.as_str())
             })
