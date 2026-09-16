@@ -10,15 +10,17 @@ contention can time out test workers before assertions begin; investigate worker
 startup and disk queues separately from slow test bodies.
 
 An additional Git worktree provides an SSD development path without replacing a
-dirty checkout. Inspect existing worktrees and the proposed destination first;
-choose an unused path and branch name. For example, after verifying H: is a
-non-system SSD and the destination does not exist:
+dirty checkout. On the primary Windows development host, keep the canonical
+checkout at `E:\Portcove-Development` and additional worktrees below
+`E:\Portcove-Worktrees` (or the configured `E:\Codex-Worktrees` root for
+Codex-managed worktrees). Inspect existing worktrees and the proposed
+destination first, then choose an unused path and branch name:
 
 ```powershell
 git worktree list
 git fetch origin
-git worktree add -b feature/my-change H:\Portcove-Worktrees\my-change origin/main
-Set-Location H:\Portcove-Worktrees\my-change
+git worktree add -b feature/my-change E:\Portcove-Worktrees\my-change origin/main
+Set-Location E:\Portcove-Worktrees\my-change
 node scripts/dev-storage.mjs preflight
 node scripts/dev-storage.mjs run -- corepack pnpm --dir apps/desktop install --frozen-lockfile
 just check
