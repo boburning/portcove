@@ -378,7 +378,7 @@ test("manual rehearsal retains the complete matrix without production credential
   assert.doesNotMatch(linuxHarness, /WEBKIT_DISABLE_COMPOSITING_MODE/);
   assert.match(linuxHarness, /PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_STAGE/);
   assert.match(linuxHarness, /PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_INTERRUPT/);
-  assert.match(linuxHarness, /schema_version = 12/);
+  assert.match(linuxHarness, /schema_version = 13/);
   assert.match(linuxHarness, /\$PredecessorVersion = "0\.1\.0"/);
   assert.match(linuxHarness, /\$CandidateVersion = "0\.3\.0"/);
   assert.match(rehearsal, /wrong-disposable\.key/);
@@ -403,6 +403,28 @@ test("manual rehearsal retains the complete matrix without production credential
   assert.match(linuxHarness, /TUF private root must be absent before consumer execution/);
   assert.match(linuxHarness, /Tauri signing environment must be absent before consumer execution/);
   assert.match(linuxHarness, /recovery_role_versions/);
+  assert.match(linuxHarness, /rootless_lifecycle/);
+  assert.match(linuxHarness, /install_scope = "current-user-direct-file"/);
+  assert.match(linuxHarness, /current_user_owned = \$true/);
+  assert.match(linuxHarness, /update_desktop_entry_preserved/);
+  assert.match(linuxHarness, /update_user_paths_preserved/);
+  assert.match(linuxHarness, /uninstall_stable_removed/);
+  assert.match(linuxHarness, /uninstall_desktop_entry_removed/);
+  assert.match(linuxHarness, /uninstall_user_paths_preserved/);
+  for (const marker of ["library", "game_files", "saves", "backups", "logs"]) {
+    assert.match(linuxHarness, new RegExp(`\\b${marker}\\s*=`));
+  }
+  assert.match(linuxHarness, /Remove-Item -LiteralPath \$desktopEntry -Force/);
+  assert.match(linuxHarness, /Remove-Item -LiteralPath \$stable -Force/);
+  assert.ok(
+    linuxHarness.indexOf("candidate-restart-complete") <
+      linuxHarness.indexOf("rootless-update-preserved") &&
+      linuxHarness.indexOf("rootless-update-preserved") <
+        linuxHarness.indexOf("rootless-uninstall-complete") &&
+      linuxHarness.indexOf("rootless-uninstall-complete") <
+        linuxHarness.indexOf('Write-Evidence "complete"'),
+    "the packaged update must complete before bounded rootless uninstall and final evidence",
+  );
   assert.match(linuxHarness, /authenticated update record is malformed:\.\*tauri_signature/);
   assert.match(
     linuxHarness,
@@ -642,7 +664,7 @@ test("packaged transition and evidence contracts execute exact profile semantics
   ]);
   assert.equal(evidence.status, 0, evidence.stderr);
   assert.deepEqual(JSON.parse(evidence.stdout), {
-    schema_version: 12,
+    schema_version: 13,
     predecessor_version: "1.0.0-rc.2",
     candidate_version: "1.0.0",
   });
