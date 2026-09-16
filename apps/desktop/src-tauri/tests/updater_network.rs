@@ -696,6 +696,7 @@ async fn controlled_payload_staging_preserves_verified_bytes_and_recovers() {
     let staged = staging.stage(&mut baseline, &previous, &key).await.unwrap();
     assert_eq!(staged.candidate, previous);
     assert_eq!(fs::read(&staged.payload_path).unwrap(), payload);
+    let baseline_journal = fs::read(staging_root.join("staging.json")).unwrap();
 
     server.set_mode(PayloadResponseMode::AlteredSameLength);
     let mut altered = download_payload_from_controlled_loopback(&next, &server.payload_url())
@@ -707,6 +708,11 @@ async fn controlled_payload_staging_preserves_verified_bytes_and_recovers() {
             PayloadVerificationError::HashMismatch
         ))
     ));
+    assert_eq!(
+        fs::read(staging_root.join("staging.json")).unwrap(),
+        baseline_journal
+    );
+    assert!(!staging_root.join(".candidate.payload.incoming").exists());
     let preserved = staging.reconcile().await.unwrap().unwrap();
     assert_eq!(preserved.candidate, previous);
     assert_eq!(fs::read(&preserved.payload_path).unwrap(), payload);
@@ -722,6 +728,11 @@ async fn controlled_payload_staging_preserves_verified_bytes_and_recovers() {
         panic!("truncated HTTP payload did not fail through the staging verifier");
     };
     assert_eq!(error.kind(), std::io::ErrorKind::UnexpectedEof);
+    assert_eq!(
+        fs::read(staging_root.join("staging.json")).unwrap(),
+        baseline_journal
+    );
+    assert!(!staging_root.join(".candidate.payload.incoming").exists());
     let preserved = staging.reconcile().await.unwrap().unwrap();
     assert_eq!(preserved.candidate, previous);
     assert_eq!(fs::read(&preserved.payload_path).unwrap(), payload);
