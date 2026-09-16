@@ -716,7 +716,7 @@ test(
     });
     assert.equal(rejected.result.status, 1);
     assert.match(
-      rejected.result.stderr,
+      rejected.result.stderr.replace(/\s+/gu, " "),
       /Disposable signing authority is available to the Windows package lifecycle/,
     );
     assert.equal(rejected.evidence.phase, "signing_authority_checked");
@@ -735,7 +735,7 @@ test(
     });
     assert.equal(pathOnlyRejected.result.status, 1);
     assert.match(
-      pathOnlyRejected.result.stderr,
+      pathOnlyRejected.result.stderr.replace(/\s+/gu, " "),
       /Disposable signing authority is available to the Windows package lifecycle/,
     );
     assert.deepEqual(pathOnlyRejected.evidence.private_signing_inputs_absent, {
