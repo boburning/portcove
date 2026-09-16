@@ -1660,6 +1660,8 @@ async fn channel_role_authenticates_keys_and_transition_candidates() {
 
     let accepted_metadata = [
         "targets.json",
+        "releases.json",
+        "stable.json",
         "preview.json",
         "snapshot.json",
         "timestamp.json",
