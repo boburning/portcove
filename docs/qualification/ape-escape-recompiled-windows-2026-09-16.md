@@ -121,6 +121,43 @@ downloaded update, rollback, retained reuse, managed removal, and clean
 reinstallation. They do not convert process reachability into gameplay
 qualification.
 
+## Independent-review repair qualification
+
+Independent review of candidate `708301987bd05f01c58ff07a10d5747acf320bd5`
+found that the generated `disc/` directory had been excluded from package
+verification without a separate exact reuse identity, and that the source
+profile advertised raw CUE/BIN inputs even though the materializer accepts a
+registered CHD. Both findings were substantive and blocked that candidate.
+
+Implementation `363028a5f206b8de08a5010fea6b19b768f0a200` repairs the boundary:
+
+- the accepted storage extension is now only `chd`;
+- `disc/disc.cue` is bound to SHA-256
+  `a5023a08a8330c83ada9bcfb75303359f353dd37e04db8ef7a0f23703ec56d41`;
+- `disc/disc1.bin` is bound to SHA-256
+  `1ae17e78ebb8c782c7c1785b0a0bd7b0ee28235b8a0c83c8df887129899a852a`;
+- launch preparation verifies both generated files before reuse. A missing or
+  changed file fails that reuse check and atomically rematerializes the complete
+  directory from the still-admitted source before the child process can start.
+
+All six preserved generated copies from the qualification libraries produced
+the same 71-byte cue hash and 432,238,800-byte BIN hash above. A new isolated
+conversion regression then materialized a test disc, changed its generated
+track while retaining the source marker, and proved that the next preparation
+detected and transactionally replaced the changed track. The focused repair
+evidence passed:
+
+- `node scripts/migrate-catalog-schema2.mjs --check`;
+- `node --test scripts/migrate-catalog-schema2.test.mjs` (1 passed);
+- `cargo test -p portcove-core adapter::source_conversion_tests -- --nocapture`
+  (2 passed, including exact generated-track drift and rematerialization);
+- `cargo test -p portcove-core catalog::tests -- --nocapture` (86 passed).
+
+This focused repair qualification verifies the defect and corrected reuse
+boundary. It does not claim a second native game launch or broaden the original
+lifecycle, gameplay, controller, audio, save/load, platform, signing, or
+publication evidence.
+
 ## Remaining evidence and limits
 
 - Windows gameplay, dual-analog controller behavior, audio, and an in-game
