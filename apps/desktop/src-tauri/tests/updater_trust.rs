@@ -532,22 +532,34 @@ struct DelegatedSignatureFixture<'a> {
     root_path: &'a Path,
 }
 
+struct DelegatedSignatureCase<'a> {
+    role_name: &'a str,
+    authorized_key: &'a Key,
+    wrong_key: &'a Key,
+    invalid_signature: InvalidSignature,
+    state_name: &'a str,
+    installed: &'a InstalledApplicationContext,
+    channel: ApplicationChannel,
+    expected_version: &'a str,
+    recovery_version: u64,
+}
+
 impl DelegatedSignatureFixture<'_> {
-    async fn assert_rejected_and_recovers(
-        &self,
-        role_name: &str,
-        authorized_key: &Key,
-        wrong_key: &Key,
-        invalid_signature: InvalidSignature,
-        state_name: &str,
-        installed: &InstalledApplicationContext,
-        channel: ApplicationChannel,
-        expected_version: &str,
-        recovery_version: u64,
-    ) {
+    async fn assert_rejected_and_recovers(&self, case: DelegatedSignatureCase<'_>) {
         use serde_json::json;
         use tough::editor::RepositoryEditor;
 
+        let DelegatedSignatureCase {
+            role_name,
+            authorized_key,
+            wrong_key,
+            invalid_signature,
+            state_name,
+            installed,
+            channel,
+            expected_version,
+            recovery_version,
+        } = case;
         let recovery_editor = RepositoryEditor::from_repo(
             self.root_path.to_path_buf(),
             self.fixture.load(self.trusted).await.unwrap(),
@@ -577,7 +589,7 @@ impl DelegatedSignatureFixture<'_> {
             self.trusted,
             state_name,
             installed.clone(),
-            channel.clone(),
+            channel,
         )
         .await
         .unwrap_err();
@@ -1538,82 +1550,82 @@ async fn channel_role_authenticates_keys_and_transition_candidates() {
         root_path: &root_path,
     };
     signature_fixture
-        .assert_rejected_and_recovers(
-            "preview",
-            &preview,
-            &promotion,
-            InvalidSignature::Missing,
-            "missing-preview-signature-trust",
-            &preview_final_context,
-            ApplicationChannel::Preview,
-            "1.0.0",
-            2,
-        )
+        .assert_rejected_and_recovers(DelegatedSignatureCase {
+            role_name: "preview",
+            authorized_key: &preview,
+            wrong_key: &promotion,
+            invalid_signature: InvalidSignature::Missing,
+            state_name: "missing-preview-signature-trust",
+            installed: &preview_final_context,
+            channel: ApplicationChannel::Preview,
+            expected_version: "1.0.0",
+            recovery_version: 2,
+        })
         .await;
     signature_fixture
-        .assert_rejected_and_recovers(
-            "preview",
-            &preview,
-            &promotion,
-            InvalidSignature::WrongKey,
-            "wrong-preview-signature-trust",
-            &preview_final_context,
-            ApplicationChannel::Preview,
-            "1.0.0",
-            3,
-        )
+        .assert_rejected_and_recovers(DelegatedSignatureCase {
+            role_name: "preview",
+            authorized_key: &preview,
+            wrong_key: &promotion,
+            invalid_signature: InvalidSignature::WrongKey,
+            state_name: "wrong-preview-signature-trust",
+            installed: &preview_final_context,
+            channel: ApplicationChannel::Preview,
+            expected_version: "1.0.0",
+            recovery_version: 3,
+        })
         .await;
     signature_fixture
-        .assert_rejected_and_recovers(
-            "stable",
-            &promotion,
-            &preview,
-            InvalidSignature::Missing,
-            "missing-stable-signature-trust",
-            &skipped_context,
-            ApplicationChannel::Stable,
-            "1.1.0",
-            4,
-        )
+        .assert_rejected_and_recovers(DelegatedSignatureCase {
+            role_name: "stable",
+            authorized_key: &promotion,
+            wrong_key: &preview,
+            invalid_signature: InvalidSignature::Missing,
+            state_name: "missing-stable-signature-trust",
+            installed: &skipped_context,
+            channel: ApplicationChannel::Stable,
+            expected_version: "1.1.0",
+            recovery_version: 4,
+        })
         .await;
     signature_fixture
-        .assert_rejected_and_recovers(
-            "stable",
-            &promotion,
-            &preview,
-            InvalidSignature::WrongKey,
-            "wrong-stable-signature-trust",
-            &skipped_context,
-            ApplicationChannel::Stable,
-            "1.1.0",
-            5,
-        )
+        .assert_rejected_and_recovers(DelegatedSignatureCase {
+            role_name: "stable",
+            authorized_key: &promotion,
+            wrong_key: &preview,
+            invalid_signature: InvalidSignature::WrongKey,
+            state_name: "wrong-stable-signature-trust",
+            installed: &skipped_context,
+            channel: ApplicationChannel::Stable,
+            expected_version: "1.1.0",
+            recovery_version: 5,
+        })
         .await;
     signature_fixture
-        .assert_rejected_and_recovers(
-            "releases",
-            &release,
-            &promotion,
-            InvalidSignature::Missing,
-            "missing-releases-signature-trust",
-            &skipped_context,
-            ApplicationChannel::Stable,
-            "1.1.0",
-            6,
-        )
+        .assert_rejected_and_recovers(DelegatedSignatureCase {
+            role_name: "releases",
+            authorized_key: &release,
+            wrong_key: &promotion,
+            invalid_signature: InvalidSignature::Missing,
+            state_name: "missing-releases-signature-trust",
+            installed: &skipped_context,
+            channel: ApplicationChannel::Stable,
+            expected_version: "1.1.0",
+            recovery_version: 6,
+        })
         .await;
     signature_fixture
-        .assert_rejected_and_recovers(
-            "releases",
-            &release,
-            &promotion,
-            InvalidSignature::WrongKey,
-            "wrong-releases-signature-trust",
-            &skipped_context,
-            ApplicationChannel::Stable,
-            "1.1.0",
-            7,
-        )
+        .assert_rejected_and_recovers(DelegatedSignatureCase {
+            role_name: "releases",
+            authorized_key: &release,
+            wrong_key: &promotion,
+            invalid_signature: InvalidSignature::WrongKey,
+            state_name: "wrong-releases-signature-trust",
+            installed: &skipped_context,
+            channel: ApplicationChannel::Stable,
+            expected_version: "1.1.0",
+            recovery_version: 7,
+        })
         .await;
 
     let provider = ApplicationUpdateHostProvider::new(
