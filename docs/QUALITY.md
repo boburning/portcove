@@ -688,11 +688,14 @@ publishes a complete lock record atomically below the shared tool-cache root
 before compiling its host fixture. Each host first starts an owned containment
 supervisor behind a registration gate; it cannot launch the pinned
 `cargo-nextest` command until the wrapper has durably published the supervisor's
-exact identity. Unix uses an anchored detached process group, while Windows uses
-a kill-on-close Job Object. Closing either containment terminates every remaining
+exact identity. Unix uses an anchored detached process group plus an out-of-group
+watchdog established before nextest starts; supervisor loss closes the watchdog
+pipe, kills the anchored group, and publishes cleanup evidence. Windows uses a
+kill-on-close Job Object. Closing either containment terminates every remaining
 descendant without relying on a numeric group or mutable parent-PID snapshot
-after identity mismatch. Registration or cleanup failure retains ownership
-whenever quiescence cannot be proved. A legacy descendant record from before
+after identity mismatch. Inherited supported commands remain inside the existing
+outer containment instead of detaching another unrecorded group. Registration or
+cleanup failure retains ownership whenever quiescence cannot be proved. A legacy descendant record from before
 supervisor containment is not reclaimed automatically. A matching wrapper or
 surviving recorded containment supervisor remains authoritative;
 a dead or PID-reused record is reclaimed only when neither identity matches.

@@ -108,6 +108,7 @@ test("Unix runner launches nextest in a detached process group", async () => {
         release: async () => events.push("release"),
       }),
       readUnixSupervisorStatus: () => 0,
+      cleanupReceiptExists: () => true,
       killProcess: () => true,
     });
     assert.equal(status, 0);
@@ -116,7 +117,8 @@ test("Unix runner launches nextest in a detached process group", async () => {
     assert.equal(spawnedArgs[0], path.resolve("scripts/rust-test-tree-supervisor.mjs"));
     assert.match(spawnedArgs[1], /registered\.gate$/u);
     assert.match(spawnedArgs[2], /nextest-status\.json$/u);
-    assert.deepEqual(spawnedArgs.slice(3), [
+    assert.match(spawnedArgs[3], /containment-cleanup\.json$/u);
+    assert.deepEqual(spawnedArgs.slice(4), [
       "cargo-nextest",
       "nextest",
       "run",
@@ -125,6 +127,35 @@ test("Unix runner launches nextest in a detached process group", async () => {
     ]);
     assert.equal(spawnedOptions.detached, true);
     assert.equal(registeredPlatform, null);
+  } finally {
+    await rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test("inherited runner stays inside the recorded outer containment", async () => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), "portcove-rust-runner-"));
+  let spawned;
+  try {
+    const status = await runRustTests(["--package", "portcove-core"], {
+      tempRoot,
+      platform: "linux",
+      spawnSync: () => ({ status: 0 }),
+      spawn: (command, args, options) => {
+        spawned = { command, args, options };
+        return childProcess(710, 0);
+      },
+      acquireLock: async () => ({
+        inherited: true,
+        childEnvironment: { PORTCOVE_HEAVY_RUST_LOCK_TOKEN: "outer-token" },
+        registerChild: async () => assert.fail("inherited execution must not detach or register"),
+        release: async () => {},
+      }),
+    });
+    assert.equal(status, 0);
+    assert.equal(spawned.command, "cargo-nextest");
+    assert.deepEqual(spawned.args, ["nextest", "run", "--package", "portcove-core"]);
+    assert.equal(spawned.options.detached, false);
+    assert.equal(spawned.options.env.PORTCOVE_HEAVY_RUST_LOCK_TOKEN, "outer-token");
   } finally {
     await rm(tempRoot, { recursive: true, force: true });
   }
@@ -307,6 +338,34 @@ test("runner retains ownership when a published child cannot be stopped after ga
         }),
       }),
       /retaining the shared lock/u,
+    );
+    assert.equal(released, false);
+  } finally {
+    await rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test("runner retains ownership when an exited Unix supervisor has no cleanup receipt", async () => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), "portcove-rust-runner-"));
+  let released = false;
+  try {
+    await assert.rejects(
+      runRustTests([], {
+        tempRoot,
+        platform: "linux",
+        spawnSync: () => ({ status: 0 }),
+        spawn: () => childProcess(711, 1),
+        treeWaitMilliseconds: 0,
+        acquireLock: async () => ({
+          inherited: false,
+          childEnvironment: {},
+          registerChild: async () => ({ pid: 711 }),
+          release: async () => {
+            released = true;
+          },
+        }),
+      }),
+      /without containment cleanup evidence/u,
     );
     assert.equal(released, false);
   } finally {

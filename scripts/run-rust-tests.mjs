@@ -1,4 +1,11 @@
-import { appendFileSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  appendFileSync,
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { spawn, spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -116,6 +123,24 @@ async function waitForUnixSupervisorStatus(statusPath, observation, dependencies
   }
 }
 
+async function waitForUnixCleanupReceipt(receiptPath, dependencies) {
+  const waitMilliseconds =
+    dependencies.treeWaitMilliseconds === undefined ? 5_000 : dependencies.treeWaitMilliseconds;
+  const pollMilliseconds = dependencies.treePollMilliseconds ?? 25;
+  const deadline = Date.now() + waitMilliseconds;
+  const receiptExists = dependencies.cleanupReceiptExists ?? existsSync;
+  while (!receiptExists(receiptPath)) {
+    if (Date.now() >= deadline) {
+      const error = new Error(
+        "Unix Heavy Rust supervisor exited without containment cleanup evidence; retaining the shared lock",
+      );
+      error.code = "PORTCOVE_HEAVY_RUST_TREE_ACTIVE";
+      throw error;
+    }
+    await new Promise((resolve) => setTimeout(resolve, pollMilliseconds));
+  }
+}
+
 export async function runRustTests(args, dependencies = {}) {
   const environment = dependencies.environment ?? process.env;
   const runSync = dependencies.spawnSync ?? spawnSync;
@@ -133,6 +158,7 @@ export async function runRustTests(args, dependencies = {}) {
   const supervisor = path.join(directory, "portcove-process-tree-supervisor.exe");
   const gatePath = path.join(directory, "registered.gate");
   const statusPath = path.join(directory, "nextest-status.json");
+  const cleanupReceiptPath = path.join(directory, "containment-cleanup.json");
   const prepareOnly = args.length === 1 && args[0] === "--prepare-only";
   let retained = false;
   let lock = null;
@@ -180,6 +206,20 @@ export async function runRustTests(args, dependencies = {}) {
       if (supervisorCompiled.status !== 0)
         throw new Error("Windows process-tree supervisor compilation failed");
     }
+    if (lock.inherited) {
+      const nested = start("cargo-nextest", ["nextest", "run", ...args], {
+        cwd: root,
+        detached: false,
+        stdio: "inherit",
+        windowsHide: true,
+        env: {
+          ...environment,
+          ...lock.childEnvironment,
+          PORTCOVE_HOST_TOOL_FIXTURE: executable,
+        },
+      });
+      return await waitForChild(nested).completed;
+    }
     const command = platform === "win32" ? supervisor : process.execPath;
     const commandArgs =
       platform === "win32"
@@ -188,6 +228,7 @@ export async function runRustTests(args, dependencies = {}) {
             path.join(root, "scripts/rust-test-tree-supervisor.mjs"),
             gatePath,
             statusPath,
+            cleanupReceiptPath,
             "cargo-nextest",
             "nextest",
             "run",
@@ -205,6 +246,7 @@ export async function runRustTests(args, dependencies = {}) {
       },
     });
     const observation = waitForChild(tested);
+    let gateOpened = false;
     let cleanupAttempted = false;
     const proveQuiescence = async (force) => {
       cleanupAttempted = true;
@@ -237,6 +279,7 @@ export async function runRustTests(args, dependencies = {}) {
     }
     try {
       (dependencies.writeGate ?? writeFileSync)(gatePath, "registered\n", { flag: "wx" });
+      gateOpened = true;
       if (platform === "win32") {
         const supervisorStatus = await observation.completed;
         await proveQuiescence(false);
@@ -244,10 +287,21 @@ export async function runRustTests(args, dependencies = {}) {
       }
       const status = await waitForUnixSupervisorStatus(statusPath, observation, dependencies);
       if (!observation.outcome()) await proveQuiescence(true);
-      else await proveQuiescence(false);
+      else await waitForUnixCleanupReceipt(cleanupReceiptPath, dependencies);
       return status;
     } catch (error) {
-      if (!cleanupAttempted) await proveQuiescence(!observation.outcome());
+      if (!cleanupAttempted) {
+        if (platform !== "win32" && gateOpened && observation.outcome()) {
+          try {
+            await waitForUnixCleanupReceipt(cleanupReceiptPath, dependencies);
+          } catch (cleanupError) {
+            releaseLock = false;
+            throw cleanupError;
+          }
+        } else {
+          await proveQuiescence(!observation.outcome());
+        }
+      }
       throw error;
     }
   } finally {

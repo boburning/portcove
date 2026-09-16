@@ -22,6 +22,7 @@ test(
     const root = await mkdtemp(path.join(os.tmpdir(), "portcove-unix-supervisor-"));
     const gatePath = path.join(root, "registered.gate");
     const statusPath = path.join(root, "status.json");
+    const cleanupReceiptPath = path.join(root, "cleanup.json");
     const startedPath = path.join(root, "started.txt");
     const descendantPath = path.join(root, "descendant.txt");
     const rootScript = [
@@ -38,6 +39,7 @@ test(
         path.resolve("scripts/rust-test-tree-supervisor.mjs"),
         gatePath,
         statusPath,
+        cleanupReceiptPath,
         process.execPath,
         "-e",
         rootScript,
@@ -57,6 +59,10 @@ test(
         supervisor.once("close", (code, signal) => resolve({ code, signal }));
       });
       assert.notEqual(outcome.code, 0, JSON.stringify(outcome));
+      await waitUntil(() => existsSync(cleanupReceiptPath), 5_000);
+      assert.deepEqual(JSON.parse(await readFile(cleanupReceiptPath, "utf8")), {
+        outcome: "signalled",
+      });
       await waitUntil(() => {
         try {
           process.kill(descendantPid, 0);
