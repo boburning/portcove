@@ -297,6 +297,43 @@ repository's scheduling configuration; doctests run in Cargo separately. Do not
 duplicate this orchestration in a skill or a competing recipe. Record cold
 compilation separately from warm test execution when comparing performance.
 
+The wrapper owns one shared-host heavyweight Rust-test slot across Portcove
+worktrees. It publishes complete lock metadata atomically, records an owned
+containment supervisor, and only then opens the supervisor's launch gate for the
+pinned `cargo-nextest` command. Unix anchors a detached process group and starts
+an out-of-group cleanup watchdog before nextest; Windows uses a kill-on-close
+Job Object. The Unix watchdog publishes success only after the anchored process
+group is absent, and a new acquirer validates that receipt before reclaiming a
+dead wrapper and supervisor. Nested inherited commands stay inside that existing containment.
+Ctrl-C and termination requests close the owned outer containment and return the
+conventional 130 or 143 status; signal listeners are removed after the command.
+It refuses to overlap a matching live owner and
+polls for five seconds by default,
+then prints that owner's PID, workspace, command and start time. Each Windows or
+Darwin identity probe uses repository-required PowerShell 7 and separately fails closed after five seconds, so it cannot
+hang indefinitely but can add one bounded probe interval to the polling limit.
+Wait for the named command to finish and rerun the same supported command. For a
+deliberately coordinated short polling interval, set
+`PORTCOVE_HEAVY_RUST_WAIT_MS` to an integer from `0` through `60000`; this changes
+only lock acquisition, not any test deadline. A wrapper failure does not make a
+still-running recorded supervisor stale, registration failure cannot launch the
+guarded command, and cleanup evidence proves the detached Unix process group or
+Windows Job Object has closed. Any survivors are
+terminated by that containment; failure to prove quiescence retains the lock rather
+than admitting overlap. PID reuse does not transfer
+ownership because the exact supervisor identity must also match. Legacy numeric
+descendant records are never reclaimed automatically. Darwin uses a
+per-process title marker for the wrapper and a launch-environment marker for the
+nextest supervisor rather than its second-resolution displayed start time. The
+previous timestamp identity remains readable only to classify and migrate a
+legacy lock record during this transition.
+
+Do not remove the shared lock record, kill another worker's process, or use a direct
+`cargo nextest` invocation to evade it. Direct Cargo commands are outside this
+guard, as are native desktop sessions, which retain their separate focus-taking
+lock and evidence rules. `--prepare-only` compiles the hosted fixture without
+taking the local heavyweight slot because it does not execute nextest.
+
 ## Targeted safety experiments
 
 The core property tests generate archive-path aliases and digest/scope combinations.

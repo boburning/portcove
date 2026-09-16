@@ -682,6 +682,45 @@ This changes scheduling
 only; every Rust test retains the same deadline. CI caches compiled dependencies
 after test failures so fixing a failed assertion does not require a cold rebuild.
 
+Supported local nextest commands also serialize their heavyweight Rust test tree
+across Portcove worktrees on the same machine. `scripts/run-rust-tests.mjs`
+publishes a complete lock record atomically below the shared tool-cache root
+before compiling its host fixture. Each host first starts an owned containment
+supervisor behind a registration gate; it cannot launch the pinned
+`cargo-nextest` command until the wrapper has durably published the supervisor's
+exact identity. Unix uses an anchored detached process group plus an out-of-group
+watchdog established before nextest starts; supervisor loss closes the watchdog
+pipe, kills the anchored group, waits until that group is absent, and publishes
+cleanup evidence that later acquirers must validate. Windows uses a
+kill-on-close Job Object. Closing either containment terminates every remaining
+descendant without relying on a numeric group or mutable parent-PID snapshot
+after identity mismatch. Inherited supported commands remain inside the existing
+outer containment instead of detaching another unrecorded group. Registration or
+cleanup failure retains ownership whenever quiescence cannot be proved. Ctrl-C
+and termination close the outer containment and retain conventional exit status.
+A legacy descendant record from before
+supervisor containment is not reclaimed automatically. A matching wrapper or
+surviving recorded containment supervisor remains authoritative;
+a dead or PID-reused record is reclaimed only when neither identity matches.
+Darwin adds a per-process random marker because its displayed start timestamp is
+only second-resolution; one transition read accepts the previous timestamp
+record solely to classify and migrate an already-published legacy lock.
+Acquisition polls for five seconds by default and then
+reports the owning PID, workspace, command and start time. Every Windows or
+Darwin identity probe uses repository-required PowerShell 7 and also fails closed after five seconds, so a slow platform
+probe cannot wedge acquisition indefinitely and may add at most its own bounded
+probe interval to the configured polling interval.
+`PORTCOVE_HEAVY_RUST_WAIT_MS` may set a bounded 0 through 60000 millisecond wait
+for an explicitly coordinated run. Retry after the named command finishes; do
+not delete the lock record or terminate another worker's process.
+
+This machine guard covers `just test-rust`, selected Rust stages in
+`just local-check`, `just rust-test`, and the aggregate commands that reach the same
+wrapper. It does not cover direct Cargo/nextest invocations, hosted jobs, whole
+Codex tasks, or native desktop sessions. The native desktop lock remains a
+separate foreground-resource contract. The guard does not change nextest's two
+test threads, watchdogs, retries, partitions, assertions, or required CI.
+
 Intel test binaries are cross-compiled for `x86_64-apple-darwin` on Apple Silicon
 and transferred in a nextest archive scoped to the current workflow attempt.
 Both partitions execute on Intel macOS, including tests which compile native
