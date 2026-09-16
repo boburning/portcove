@@ -628,6 +628,9 @@ Preview-to-final release, holds Stable rather than downgrade an installed prerel
 falls back below a newer withdrawn promotion, and returns the exact top-level payload
 key for the selected candidate. These are deterministic repository/selection results,
 not packaged application replacement or production-feed observations.
+On one durable host-provider state, the same fixture accepts a newer signed metadata
+generation, rejects an older signed timestamp as stale without lowering the accepted
+role floors, then recovers after the current signed timestamp is restored.
 Host-state fixtures additionally prove version and signed-body floors after the TUF
 cache is removed, same-process serialization, clock-regression refusal, source
 refusal before state mutation, and recovery from a failed initial bridge plus a
