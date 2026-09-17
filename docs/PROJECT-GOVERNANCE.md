@@ -325,13 +325,16 @@ including actual beta platform safety evidence. #46 owns later production
 requalification for 1.0; it is not a reverse dependency of #52. Independent
 catalog delivery, the finite preparation/artwork outcomes and the real Playnite
 reference proof are also Required for Public beta. The user-ready Playnite
-lifecycle product (#910), selected-game Steam Add/Repair/Remove (#292), and the
-reusable public-CLI gaps they consume (#30) are likewise Required. Their finite
-owners and one-way component dependencies remain intact; component owners close
-on independently testable evidence rather than waiting for downstream publication,
-and #52 and #246 remain independent outcomes without reciprocal blockers. Paid
-signing, marketplace approval, continuous Steam synchronization, Decky and
-optional package integrations do not become blockers. See [Delivery](DELIVERY.md).
+lifecycle product (#910), bounded SteamGridDB capability (#527), selected-game
+Steam Add/Repair/Update-artwork/Remove (#292), and the reusable public-CLI gaps
+they consume (#30) are likewise Required. Provider delivery does not make provider
+configuration, credentials, network access or a match mandatory at runtime. Their
+finite owners and one-way component dependencies remain intact; component owners
+close on independently testable evidence rather than waiting for downstream
+publication, and #52 and #246 remain independent outcomes without reciprocal
+blockers. Paid signing, marketplace approval, continuous Steam synchronization,
+Decky and optional package integrations do not become blockers. See
+[Delivery](DELIVERY.md).
 
 Migrations are additive: retain historical options and completed targets, capture
 a dated before-state, map affected active identities explicitly, read back each

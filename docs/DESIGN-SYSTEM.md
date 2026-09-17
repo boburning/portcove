@@ -103,6 +103,16 @@ in Appearance or Integrations with contextual picker guidance, never first-play
 API-key onboarding. Keyboard/controller navigation, focus restoration, long
 titles, scaled layouts and text status must remain usable.
 
+The selected-game Steam flow also presents **Include artwork**, any existing
+destination customization, per-role planned source and a truthful partial result.
+Its destination roles are static portrait cover, landscape cover and hero/banner;
+they do not force every role to become a new first-class Desktop display slot.
+Preserve existing Steam art by default. **Repair Steam entry** does not write art;
+**Update Steam artwork** fills missing roles by default and requires a deliberate
+choice before replacing existing art. Never stretch or destructively crop one role
+to impersonate another. Missing provider setup, network access or a match stays an
+actionable artwork limitation, not a failed shortcut or launch.
+
 Render cached display-sized thumbnails immediately and fetch asynchronously.
 Reject stale picker/library results and reconnect to shared selections after a
 frontend restart. Import local images by safe managed copy without moving or

@@ -147,6 +147,39 @@ through `launch.show`, and read the returned terminal record. Never substitute
 client-side PID checks, direct SQLite changes, automatic relaunch, or a success
 claim for the core result.
 
+## Planned destination-artwork handoff
+
+Public beta planning requires a small additive/versioned artwork handoff for an
+operating-system destination adapter such as #292. This is a future contract, not
+a shipped command or schema. Audit the existing public surface before adding any
+field. Reuse #208's core-owned asset identity, selection revision, provenance,
+accepted bytes and availability rather than exposing provider internals or teaching
+the adapter to search SteamGridDB.
+
+The initial semantic roles are static portrait cover, landscape cover and
+hero/banner. They are not provider dimensions or destination filenames, and a role
+may be unavailable. A consumer negotiates only the handoff it uses, treats unknown
+roles or consequential availability/provenance values according to the declared
+compatibility window, and never stretches or destructively crops one role into
+another. Existing cover/detail clients remain compatible and do not need to render
+every destination role.
+
+The adapter binds a preview to the exact library/port, choice revision, selected
+asset identity, destination installation/profile/entry, existing destination
+identity and write preconditions. It rereads destination state before mutation;
+changed or ambiguous state requires a fresh preview. Per-game/per-role results
+distinguish written, preserved, skipped, unavailable and failed. Missing provider
+credentials, offline access, no match or one unavailable role cannot turn a safe
+entry or prepared launch into failure.
+
+Provider credentials never cross this handoff. Provider configuration and enabled
+automatic fetching are separate from permission to reuse a suitable local asset.
+Destination writes use validated durable local copies, not disposable thumbnails
+or remote URLs. Repair preserves customization, artwork refresh fills missing roles
+by default, replacement requires deliberate consent, and cleanup is limited to
+demonstrably integration-owned unchanged bytes. No public contract field grants
+filesystem ownership, provider permission or mutation consent by itself.
+
 ## Responsiveness
 
 Measure responsiveness against representative library sizes before setting a
