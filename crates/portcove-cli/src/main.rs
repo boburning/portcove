@@ -754,6 +754,7 @@ struct SourceBatchOutcome {
 const CLI_RUNTIME_STACK_BYTES: usize = 8 * 1024 * 1024;
 
 fn main() -> ExitCode {
+    std::hint::black_box(PORTCOVE_CLI_STEAM_EXEC_IDENTITY);
     let runtime = std::thread::Builder::new()
         .name("portcove-main".into())
         .stack_size(CLI_RUNTIME_STACK_BYTES)
