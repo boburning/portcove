@@ -139,9 +139,9 @@ function operationPresentation(value: string): OperationPresentation {
     import_source: { label: "Copying game files" },
     discover_sources: { label: "Searching for game files" },
     update_catalog: { label: "Updating port catalog" },
-    "check installed": { label: "Checking for updates" },
-    check_installed: { label: "Checking for updates" },
-    reconcile_installed: { label: "Applying update settings" },
+    "check installed": { label: "Checking for updates", unit: "ports" },
+    check_installed: { label: "Checking for updates", unit: "ports" },
+    reconcile_installed: { label: "Applying update settings", unit: "ports" },
   };
   const presentation: Omit<OperationPresentation, "indeterminate"> = Object.hasOwn(
     presentations,

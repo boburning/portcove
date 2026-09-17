@@ -19,9 +19,9 @@ const event = (completed: number, total: number | null, phase = "download"): Ope
   completed,
   total,
 });
-async function render(operation: OperationEvent) {
+async function render(operation: OperationEvent | undefined, busy = "install") {
   await act(async () =>
-    root.render(<StatusLayer clearError={() => {}} busy="install" operation={operation} />),
+    root.render(<StatusLayer clearError={() => {}} busy={busy} operation={operation} />),
   );
 }
 beforeEach(() => {
@@ -162,6 +162,30 @@ describe("accessible operation progress", () => {
     expect(container.querySelector('[role="progressbar"]')?.hasAttribute("aria-valuenow")).toBe(
       false,
     );
+  });
+
+  it.each([
+    { operation: "check_installed", label: "Checking for updates" },
+    { operation: "reconcile_installed", label: "Applying update settings" },
+  ])("uses port-count copy before $operation emits progress", async ({ operation, label }) => {
+    await render({
+      schema_version: 2,
+      operation_id: operation,
+      parent_operation_id: null,
+      target: null,
+      sequence: 1,
+      timestamp_ms: 1,
+      operation,
+      type: "started",
+    });
+    expect(container.querySelector('[role="status"]')?.textContent).toBe(label);
+    expect(container.textContent).toContain("Port total not yet known.");
+  });
+
+  it("uses port-count copy before the busy-only update check starts", async () => {
+    await render(undefined, "check installed");
+    expect(container.querySelector('[role="status"]')?.textContent).toBe("Checking for updates");
+    expect(container.textContent).toContain("Port total not yet known.");
   });
 
   it.each(["future_internal_operation_code", "constructor", "__proto__", "toString"])(
