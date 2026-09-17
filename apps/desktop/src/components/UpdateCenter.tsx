@@ -359,7 +359,7 @@ function operationLabel(operation: ActivityOperation) {
     adopt: "Copied existing installation",
     remove: "Removed installed versions",
     remove_source: "Removed saved game-file location",
-    register_source: "Added game file",
+    register_source: "Saved game-file location",
     verify_source: "Verified source",
     move_library: "Moved library",
     relocate_output: "Relocated game files",

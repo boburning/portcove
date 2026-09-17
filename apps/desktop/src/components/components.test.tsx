@@ -2164,7 +2164,7 @@ describe("desktop components", () => {
     expect(html).toContain("Activity from the CLI and desktop appears here.");
   });
 
-  it("describes activity mutations with player-facing outcomes", () => {
+  it("describes activity mutations with outcomes shared producers can support", () => {
     const activities: ActivityRecord[] = [
       {
         id: "activity-backup",
@@ -2247,7 +2247,7 @@ describe("desktop components", () => {
       "Created backup",
       "Removed installed versions",
       "Removed saved game-file location",
-      "Added game file",
+      "Saved game-file location",
       "Searched for game files",
     ])
       expect(html).toContain(label);
@@ -2256,6 +2256,7 @@ describe("desktop components", () => {
       "Removed managed files",
       "Removed source reference",
       "Registered source",
+      "Added game file",
       "Searched for sources",
     ])
       expect(html).not.toContain(internalLabel);
