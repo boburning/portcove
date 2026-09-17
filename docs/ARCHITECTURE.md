@@ -314,6 +314,44 @@ React UI ── Tauri IPC ───┤
                  SQLite + library tree
 ```
 
+## Steam shortcut compatibility boundary
+
+Desktop owns the operating-system-facing adapter for a deliberately selected
+Steam installation and user profile. The adapter does not become a game-lifecycle
+authority: it receives stable port, library and standalone-CLI identities and
+creates only the Steam-facing route back to the public CLI. Core continues to own
+the installed game, update, rollback, persistence and launch behavior.
+
+Valve documents adding a non-Steam shortcut through the client, but does not
+document a supported shortcut-writing API. The initial backend foundation
+therefore labels per-profile `shortcuts.vdf` access as a reverse-engineered
+compatibility boundary. Its bounded binary-VDF reader preserves field order,
+casing, unknown fields and raw 32-bit values for the supported object/string/int
+encoding and fails closed on other encodings or ambiguous keys. It does not depend
+on a general VDF package or make unqualified promises about future Steam formats.
+
+Plans bind the exact selected installation/profile, complete file identity,
+Portcove library identity, standalone CLI path, selected ports and proposed bytes.
+Apply requires a closed-client observation from the future host adapter, reacquires
+a per-profile lock, recomputes the plan, rejects candidates beyond its own parser
+limits, and preserves a content-addressed regular-file backup. Publication
+evacuates and rechecks the reviewed source before a no-clobber same-directory
+handoff; a concurrent destination or changed source is preserved instead of being
+overwritten. A durable journal distinguishes an abandoned pre-commit operation
+from a completed replacement; an unrecognized identity preserves the journal,
+staged bytes, evacuated original and backup for inspection. The owned entry marker
+is narrow reconciliation metadata, not another lifecycle database.
+Repair changes only target, working-directory and launch-option routing (or restores
+a missing name), preserving Steam/user names, artwork references, tags and unknown
+customization. Remove requires the exact marker and never touches the Portcove
+installation or library.
+
+This foundation is not yet a renderer command or a Steam compatibility claim.
+Actual profile discovery, backend-owned process observation, native consent, UI
+presentation and real Desktop Steam qualification remain required before product
+mutation is enabled. Steam Deck and artwork/provider evidence retain their separate
+owners and acceptance environments.
+
 ## Public launch observation
 
 The external Playnite example in `integrations/playnite` consumes only the public

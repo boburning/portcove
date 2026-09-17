@@ -36,6 +36,7 @@ mod output_location;
 mod preparation;
 mod removal;
 mod source_removal;
+pub mod steam_entries;
 mod transport;
 
 use transport::{
