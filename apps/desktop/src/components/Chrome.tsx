@@ -784,10 +784,12 @@ function SourceHealth({
         <p>No source files are registered yet.</p>
       ) : (
         <div className="source-health-list">
-          {sources.map((source) => (
+          {sources.map((source, index) => (
             <SourceHealthRow
               key={`${source.profile_id}:${generation}`}
               source={source}
+              sourcePosition={index + 1}
+              sourceCount={sources.length}
               profile={profilesById.get(source.profile_id)}
               generation={generation}
               ports={ports}
@@ -812,6 +814,8 @@ function SourceHealth({
 
 function SourceHealthRow({
   source,
+  sourcePosition,
+  sourceCount,
   profile,
   generation,
   ports,
@@ -826,6 +830,8 @@ function SourceHealthRow({
   ports: PortDefinition[];
   onRemoved?: () => Promise<unknown>;
   source: SourceRecord;
+  sourcePosition: number;
+  sourceCount: number;
   profile?: SourceProfile;
   report?: SourceInspectionReport;
   outcome?: SourceVerificationOutcome;
@@ -872,7 +878,7 @@ function SourceHealthRow({
           <details>
             <summary
               data-focusable
-              aria-label={`Technical details for saved game-file location ${source.path}`}
+              aria-label={`Technical details for saved game-file location ${source.path}, saved reference ${sourcePosition} of ${sourceCount}`}
             >
               Technical details
             </summary>

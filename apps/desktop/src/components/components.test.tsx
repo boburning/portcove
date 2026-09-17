@@ -1210,7 +1210,6 @@ describe("desktop components", () => {
     const otherSource = {
       ...source,
       profile_id: "other-removed-profile",
-      path: "E:/Games/other-retained-source.bin",
     };
     const html = renderToStaticMarkup(
       <SettingsView
@@ -1230,10 +1229,10 @@ describe("desktop components", () => {
       `Catalog profile ID: <code class="source-profile-id">${source.profile_id}</code>`,
     );
     expect(html).toContain(
-      `aria-label="Technical details for saved game-file location ${source.path}"`,
+      `aria-label="Technical details for saved game-file location ${source.path}, saved reference 1 of 2"`,
     );
     expect(html).toContain(
-      `aria-label="Technical details for saved game-file location ${otherSource.path}"`,
+      `aria-label="Technical details for saved game-file location ${otherSource.path}, saved reference 2 of 2"`,
     );
     expect(html).not.toContain(`<strong>${source.profile_id}</strong>`);
     expect(html).not.toContain(">Relink source</button>");
