@@ -1,6 +1,9 @@
 use std::{fs, io::Cursor, path::Path};
 
-use crate::{ArtworkAvailability, ArtworkSlot, Library, LibraryContentKind, PortcoveService};
+use crate::{
+    ArtworkAvailability, ArtworkResolvedSource, ArtworkSlot, Library, LibraryContentKind,
+    PortcoveService,
+};
 
 fn image_file(root: &Path, name: &str, format: image::ImageFormat) -> std::path::PathBuf {
     let image = image::DynamicImage::ImageRgb8(image::RgbImage::from_pixel(
@@ -20,12 +23,52 @@ fn open_service(root: &Path) -> PortcoveService {
 }
 
 #[test]
+fn generated_fallback_is_core_owned_stable_and_independent_per_slot() {
+    let temp = tempfile::tempdir().unwrap();
+    let root = temp.path().join("library");
+    let service = open_service(&root);
+    let cover = service
+        .artwork("zelda64-recomp", ArtworkSlot::Cover)
+        .unwrap();
+    let detail = service
+        .artwork("zelda64-recomp", ArtworkSlot::Detail)
+        .unwrap();
+    let crate::GeneratedArtworkFallback {
+        identity,
+        style_version,
+        initials,
+        palette_index,
+    } = &cover.generated_fallback;
+    assert_eq!(
+        cover.resolved_source,
+        ArtworkResolvedSource::GeneratedFallback
+    );
+    assert_eq!(identity.len(), 64);
+    assert_eq!(*style_version, 1);
+    assert_eq!(initials, "Z6");
+    assert!(*palette_index < 6);
+    assert_ne!(cover.generated_fallback, detail.generated_fallback);
+    drop(service);
+    assert_eq!(
+        open_service(&root)
+            .artwork("zelda64-recomp", ArtworkSlot::Cover)
+            .unwrap()
+            .generated_fallback,
+        cover.generated_fallback
+    );
+}
+
+#[test]
 fn choices_are_per_slot_and_reset_cache_and_retirement_are_separate() {
     let temp = tempfile::tempdir().unwrap();
     let service = open_service(&temp.path().join("library"));
     let png = image_file(temp.path(), "cover.png", image::ImageFormat::Png);
     let jpeg = image_file(temp.path(), "detail.jpg", image::ImageFormat::Jpeg);
     let original = fs::read(&png).unwrap();
+    let fallback = service
+        .artwork("zelda64-recomp", ArtworkSlot::Cover)
+        .unwrap()
+        .generated_fallback;
     let cover = service
         .import_artwork("zelda64-recomp", ArtworkSlot::Cover, &png, 0)
         .unwrap();
@@ -33,6 +76,12 @@ fn choices_are_per_slot_and_reset_cache_and_retirement_are_separate() {
         .import_artwork("zelda64-recomp", ArtworkSlot::Detail, &jpeg, 0)
         .unwrap();
     assert_eq!(cover.availability, ArtworkAvailability::Available);
+    assert_eq!(
+        cover.resolved_source,
+        ArtworkResolvedSource::LocalImport {
+            asset_sha256: cover.choice.asset_sha256.clone().unwrap()
+        }
+    );
     assert_ne!(cover.choice.asset_sha256, detail.choice.asset_sha256);
     let thumbnail = service
         .artwork_thumbnail("zelda64-recomp", ArtworkSlot::Cover, 1)
@@ -59,6 +108,11 @@ fn choices_are_per_slot_and_reset_cache_and_retirement_are_separate() {
         .unwrap();
     assert_eq!(reset.choice.revision, 2);
     assert_eq!(reset.availability, ArtworkAvailability::Fallback);
+    assert_eq!(
+        reset.resolved_source,
+        ArtworkResolvedSource::GeneratedFallback
+    );
+    assert_eq!(reset.generated_fallback, fallback);
     assert_eq!(
         service
             .artwork("zelda64-recomp", ArtworkSlot::Detail)
@@ -165,6 +219,10 @@ fn unavailable_originals_retain_preference_and_do_not_block_other_library_reads(
         .unwrap();
     assert_eq!(unavailable.availability, ArtworkAvailability::Unavailable);
     assert_eq!(unavailable.choice, selected.choice);
+    assert!(matches!(
+        unavailable.resolved_source,
+        ArtworkResolvedSource::GeneratedFallback
+    ));
     assert!(
         service
             .artwork_thumbnail("zelda64-recomp", ArtworkSlot::Cover, 1)
@@ -183,13 +241,14 @@ fn unavailable_originals_retain_preference_and_do_not_block_other_library_reads(
     );
     assert!(!reopened.statuses().unwrap().is_empty());
     fs::write(original, bytes).unwrap();
-    assert_eq!(
-        reopened
-            .artwork("zelda64-recomp", ArtworkSlot::Cover)
-            .unwrap()
-            .availability,
-        ArtworkAvailability::Available
-    );
+    let restored = reopened
+        .artwork("zelda64-recomp", ArtworkSlot::Cover)
+        .unwrap();
+    assert_eq!(restored.availability, ArtworkAvailability::Available);
+    assert!(matches!(
+        restored.resolved_source,
+        ArtworkResolvedSource::LocalImport { .. }
+    ));
 }
 
 #[test]

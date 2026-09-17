@@ -54,10 +54,56 @@ export async function artworkScenario({
         assert.equal(result.ok, true, JSON.stringify(result));
         return result.value;
       };
+      const fallbackVisual = async (selector) =>
+        browser.executeScript((selector) => {
+          const frame = document.querySelector(selector);
+          const palette = [...frame.classList].find((name) => name.startsWith("palette-"));
+          return {
+            source: frame.dataset.artworkSource,
+            initials: frame.querySelector(":scope > span")?.textContent,
+            palette,
+          };
+        }, selector);
+      const expectFallbackVisual = async (selector, fallback) => {
+        const expected = {
+          source: "generated_fallback",
+          initials: fallback.initials,
+          palette: `palette-${fallback.palette_index}`,
+        };
+        const frame = await browser.wait(until.elementLocated(By.css(selector)), 10_000);
+        await browser.executeScript('arguments[0].scrollIntoView({ block: "center" });', frame);
+        await browser.wait(async () => {
+          const actual = await fallbackVisual(selector);
+          return (
+            actual.source === expected.source &&
+            actual.initials === expected.initials &&
+            actual.palette === expected.palette
+          );
+        }, 10_000);
+        assert.deepEqual(await fallbackVisual(selector), expected);
+      };
       const open = async () => {
         await observations.capture("before-reload");
         await browser.navigate().refresh();
         await observations.begin();
+        await browser.wait(
+          until.elementLocated(By.css('nav[aria-label="Primary navigation"]')),
+          15_000,
+        );
+        const preferences = await invoke("get_application_update_preferences");
+        assert.equal(preferences.ok, true);
+        if (preferences.value.choice === null) {
+          const choice = By.xpath(
+            '//section[@role="status" and .//strong[normalize-space(.)="Choose how Portcove updates"]]',
+          );
+          await browser.wait(until.elementLocated(choice), 15_000);
+          await click(
+            By.xpath(
+              '//section[@role="status" and .//strong[normalize-space(.)="Choose how Portcove updates"]]//button[normalize-space(.)="Not now"]',
+            ),
+          );
+          await browser.wait(async () => (await browser.findElements(choice)).length === 0, 15_000);
+        }
         await click(By.xpath('//nav//button[contains(., "Port catalog")]'));
         await click(
           By.xpath(
@@ -95,6 +141,12 @@ export async function artworkScenario({
       };
       await open();
       const before = await state("cover");
+      assert.equal(before.resolved_source.kind, "generated_fallback");
+      assert.match(before.generated_fallback.identity, /^[0-9a-f]{64}$/u);
+      assert.equal(before.generated_fallback.style_version, 1);
+      assert.ok(before.generated_fallback.palette_index >= 0);
+      assert.ok(before.generated_fallback.palette_index < 6);
+      await expectFallbackVisual(".detail-cover", before.generated_fallback);
       const stale = await invoke("reset_artwork", {
         portId,
         slot: "cover",
@@ -182,6 +234,10 @@ export async function artworkScenario({
       await captureAccessibilityReport(browser, report, artifacts);
       await click(control("cover", "Reset to default"));
       await browser.wait(async () => (await state("cover")).choice.asset_sha256 === null, 10_000);
+      const reset = await state("cover");
+      assert.equal(reset.resolved_source.kind, "generated_fallback");
+      assert.deepEqual(reset.generated_fallback, before.generated_fallback);
+      await expectFallbackVisual(".detail-cover", before.generated_fallback);
       assert.equal((await state("detail")).choice.asset_sha256, digest);
 
       const original = path.join(libraryRoot, "artwork", digest);
@@ -201,6 +257,8 @@ export async function artworkScenario({
         unavailable = await state("detail");
         assert.equal(unavailable.availability, "unavailable");
         assert.equal(unavailable.choice.asset_sha256, digest);
+        assert.equal(unavailable.resolved_source.kind, "generated_fallback");
+        await expectFallbackVisual(".wide-artwork", unavailable.generated_fallback);
         assert.ok(
           Array.isArray(command(["status"], bootstrap.library_root)),
           "Unavailable artwork must not prevent ordinary game status reads",
@@ -223,6 +281,7 @@ export async function artworkScenario({
             cover,
             detail,
             unavailable,
+            reset,
             geometry,
             cancelled_without_mutation: true,
             stale_generation_rejected: true,

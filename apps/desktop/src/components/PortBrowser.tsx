@@ -244,7 +244,7 @@ function ContinueCard({
   const launchable = status.readiness?.launchable === true;
   return (
     <section className="continue-card" data-focus-group aria-label={`Continue ${port.name}`}>
-      <ArtworkImage port={port} className={`continue-art art-${port.support_tier}`} />
+      <ArtworkImage port={port} className="continue-art" />
       <div>
         <p className="eyebrow">CONTINUE</p>
         <h2>{port.name}</h2>
@@ -321,8 +321,6 @@ function PortCard({
   const state = readinessPresentation(readiness);
   const channel = releaseChannelPresentation(status?.channel ?? port.support_tier);
   const updateAvailable = currentUpdateSnapshot(status)?.check.update_available;
-  const color =
-    port.id.split("").reduce((total, character) => total + character.charCodeAt(0), 0) % 6;
   const dropEligible = nativeSourceDrag.active && Boolean(port.source_profile);
   const dropTarget = dropEligible && nativeSourceDrag.targetPortId === port.id;
   return (
@@ -339,7 +337,7 @@ function PortCard({
           {dropTarget ? "Release to check" : "Drop to check for this game"}
         </span>
       )}
-      <ArtworkImage port={port} className={`card-art palette-${color}`} />
+      <ArtworkImage port={port} className="card-art" />
       <div className="card-content">
         <div className="card-kicker">
           <span className={`readiness ${state.tone}`}>

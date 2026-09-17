@@ -137,10 +137,12 @@ specifies request bounds, version semantics, and independent trust checks.
 
 ## Local artwork ownership
 
-Core owns independent cover/detail choices, copied local originals, bounded raster
-decoding and disposable thumbnails. SQLite schema 24 records assets and monotonic
-choice revisions; older writers refuse the upgraded library. API schema 44 exposes
-selection and integrity metadata through the CLI and Desktop. Catalog and signed-envelope
+Core owns independent cover/detail choices, copied local originals, deterministic
+generated fallbacks, bounded raster decoding and disposable thumbnails. SQLite
+schema 24 records assets and monotonic choice revisions; older writers refuse the
+upgraded library. API schema 44 exposes selection and integrity metadata through
+the CLI and Desktop. The schema-49 `artwork_state` object now includes an additive
+core-resolved source and generated-fallback provenance. Catalog and signed-envelope
 formats are unchanged. Local filenames, hashes and import times record provenance;
 they establish neither copyright permission nor upstream authenticity.
 
@@ -191,9 +193,23 @@ detail images are optional. Reset preserves imported originals. Source informati
 reports the original filename, dimensions and import time, with author/license
 explicitly unavailable for local imports.
 
-There is no provider, network fetch or catalog artwork default. Deterministic
-fallback remains available when there is no local choice. Provider access and
-redistribution permissions remain separate from this account-free storage contract.
+Generated fallback style 1 binds a SHA-256 identity, initials and one of six theme
+palettes to the exact catalog port ID, display name and slot. It uses no external
+image bytes or network access. An available local import resolves ahead of that
+fallback. A missing or changed selected import remains the durable choice while core
+resolves the fallback; restoring the same bytes resolves the local import again without
+substituting another asset. Reset clears only the local choice and resolves the same
+deterministic fallback. `resolved_source` describes that core decision, not a promise
+that a client decoder rendered the bytes. If thumbnail transport or browser decoding
+fails, Desktop publishes the failure through its disposable cache, renders the same
+core-provided fallback and discloses that actual rendered source without changing the
+durable choice. React consumes the core identity, initials and palette rather than
+deriving its own per-card fallback.
+
+There is still no provider, network fetch or catalog artwork default. Catalog and
+provider precedence, sparse mappings and permission-bearing external assets remain
+separate work. Provider access and redistribution permissions remain separate from
+this account-free generated-display and storage contract.
 
 The [independent definition delivery contract](DEFINITION-DELIVERY.md) keeps
 successor definition admission, retained source/execution/persistence contracts

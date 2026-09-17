@@ -81,7 +81,8 @@ pub use adapter::{host_tool_statuses, recheck_host_tool};
 pub use application_runtime::{ApplicationRuntimeGuard, ApplicationUpdateExclusivityGuard};
 pub use artwork::{
     ArtworkAvailability, ArtworkCacheClear, ArtworkChoice, ArtworkImageFormat, ArtworkMetadata,
-    ArtworkSlot, ArtworkState, ArtworkThumbnail, LocalArtworkAsset,
+    ArtworkResolvedSource, ArtworkSlot, ArtworkState, ArtworkThumbnail, GeneratedArtworkFallback,
+    LocalArtworkAsset,
 };
 pub use auth::{
     GithubAuthSource, GithubAuthStatus, GithubDeviceLogin, GithubDeviceLoginResult,

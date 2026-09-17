@@ -5,6 +5,7 @@ import { errorText } from "./view-model";
 export interface ArtworkDisplay {
   state?: ArtworkState;
   image?: string;
+  onImageError?: () => void;
   error?: string;
   loading: boolean;
 }
@@ -14,7 +15,8 @@ const maximumEntries = 32;
 
 function thumbnailUrl(thumbnail: ArtworkThumbnail, state: ArtworkState) {
   if (
-    thumbnail.asset_sha256 !== state.choice.asset_sha256 ||
+    state.resolved_source.kind !== "local_import" ||
+    thumbnail.asset_sha256 !== state.resolved_source.asset_sha256 ||
     thumbnail.choice_revision !== state.choice.revision ||
     thumbnail.png.length === 0 ||
     thumbnail.png.length > 1024 * 1024
@@ -77,18 +79,24 @@ export class ArtworkCache {
 
   private async display(portId: string, slot: ArtworkSlot, state: ArtworkState) {
     const previous = this.read(portId, slot);
+    const local =
+      state.resolved_source.kind === "local_import"
+        ? state.resolved_source.asset_sha256
+        : undefined;
     const image =
-      state.availability === "available" &&
-      previous.state?.choice.asset_sha256 === state.choice.asset_sha256 &&
+      local &&
+      previous.state?.resolved_source.kind === "local_import" &&
+      previous.state.resolved_source.asset_sha256 === local &&
       previous.state.choice.revision === state.choice.revision
         ? previous.image
         : undefined;
     this.publish(portId, slot, {
       state,
       image,
-      loading: state.availability === "available",
+      onImageError: image ? previous.onImageError : undefined,
+      loading: Boolean(local),
     });
-    if (state.availability !== "available") return;
+    if (!local) return;
     try {
       const thumbnail = await desktopApi.artworkThumbnail(
         portId,
@@ -96,9 +104,21 @@ export class ArtworkCache {
         state.choice.revision,
         this.generation,
       );
+      const image = thumbnailUrl(thumbnail, state);
       this.publish(portId, slot, {
         state,
-        image: thumbnailUrl(thumbnail, state),
+        image,
+        onImageError: () => {
+          const current = this.read(portId, slot);
+          if (current.image !== image) return;
+          this.publish(portId, slot, {
+            ...current,
+            image: undefined,
+            onImageError: undefined,
+            error: "The selected image cannot be displayed. Your choice is retained.",
+            loading: false,
+          });
+        },
         loading: false,
       });
     } catch (error) {
