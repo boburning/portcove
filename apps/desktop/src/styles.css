@@ -2274,6 +2274,10 @@ select {
 .backup-row small {
   margin-top: 3px;
 }
+.backup-checksum {
+  overflow-wrap: anywhere;
+  font-family: var(--font-mono);
+}
 .backup-actions {
   display: flex;
   flex: none;
