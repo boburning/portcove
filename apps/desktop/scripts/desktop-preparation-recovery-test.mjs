@@ -315,15 +315,13 @@ export async function interruptedPreparationScenario({
     );
     const refusedCleanupText = await browser.findElement(cleanupDialog).getText();
     assert.ok(refusedCleanupText.includes(unprovenQuiescenceSummary));
-    assert.equal(
-      (
-        await browser.findElements(
-          By.xpath(
-            '//section[@aria-labelledby="preparation-cleanup-title"]//button[normalize-space(.)="Remove reviewed private files permanently"]',
-          ),
-        )
-      ).length,
-      0,
+    assert.deepEqual(
+      await Promise.all(
+        (await browser.findElement(cleanupDialog).findElements(By.css("button"))).map((button) =>
+          button.getText(),
+        ),
+      ),
+      ["Keep retained files", "Review again"],
     );
     await access(privatePath);
     assert.ok(command(["doctor"]).repair.items.some((item) => item.operation_id === activity.id));
