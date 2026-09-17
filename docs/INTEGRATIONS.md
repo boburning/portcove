@@ -362,6 +362,46 @@ ambiguous/no match or failed art cannot block a safe entry or prepared launch.
 it does not complete #292. If safe implementation is unavailable, the commitment remains
 open with its exact blocker; continuous synchronization stays outside beta.
 
+#### Implemented controlled writer foundation
+
+The Desktop backend now has a controlled, profile-scoped foundation for the local
+shortcut file. This is not an official Valve API. Valve's current user guidance
+documents adding non-Steam games through the client and explicitly describes the
+result as a shortcut, but does not specify a programmatic writer. As a maintained
+comparison, [Steam ROM Manager at the inspected revision](https://github.com/SteamGridDB/steam-rom-manager/blob/bd66e5f4ef1eb0b4855bbd216063f547f1468368/src/lib/vdf-shortcuts-file.ts)
+still reads, merges and writes each selected profile's `shortcuts.vdf` using the
+separately maintained
+[`steam-shortcut-editor` package](https://github.com/tirish/steam-shortcut-editor/tree/d755f03e28280e64c96e4a6039739fcb41e28f0e).
+That package also warns that concurrent Steam changes can overwrite the file and
+malformed output can be deleted. Portcove does not take either project as runtime
+authority or dependency; it owns a smaller
+fail-closed compatibility boundary and must requalify it against actual supported
+Steam versions.
+
+The implemented planner supports one explicitly selected installation/profile and
+single or selected-batch Add/Repair/Remove against the actual binary shortcut
+format. It binds the original and proposed file hashes plus the selected library,
+CLI and port identities into the review hash. Repeated Add/Repair is duplicate-free.
+Repair preserves the stored app ID, user title, icon/artwork reference, tags and
+unknown fields while changing only the stable CLI route. Remove requires the exact
+Portcove marker and leaves unrelated entries, the managed installation, saved data
+and backups alone. Paths containing spaces or Unicode remain literal quoted Steam
+fields; no shell is introduced.
+
+Application requires a closed-client observation, an unchanged review, and an
+exclusive per-profile Portcove lock. A content-addressed original backup is flushed
+before a journaled same-directory atomic replacement. Recovery classifies only an
+unchanged pre-commit file or the exact committed bytes; any third identity is kept
+for manual inspection instead of being overwritten or called a rollback.
+
+Current evidence is fixture-controlled binary parsing and durable local publication,
+including stale-state, malformed-data and interrupted-journal cases. The module is
+not yet wired to renderer commands. It does **not** prove Steam consumed the entry,
+Steam was actually closed, client restart behavior, live profile discovery,
+Steam-facing launch/Stop/return, artwork placement, Desktop UI, or Steam Deck
+behavior. Those remain separate implementation and actual-platform gates for #292,
+#527 and #217.
+
 ### Optional Decky client
 
 [#293](https://github.com/boburning/portcove/issues/293) evaluates a small,
