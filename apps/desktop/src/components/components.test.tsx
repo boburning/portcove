@@ -1158,6 +1158,7 @@ describe("desktop components", () => {
       <SettingsView
         libraryRoot="C:/Portcove"
         sources={[source]}
+        sourceProfiles={[{ ...sourceProfile(), id: source.profile_id, label: "Sample cartridge" }]}
         sourceOutcomes={[
           {
             profile_id: source.profile_id,
@@ -1187,11 +1188,57 @@ describe("desktop components", () => {
       />,
     );
     expect(verified).toContain("Exact match");
+    expect(verified).toContain("Sample cartridge");
+    expect(verified).not.toContain("Saved game-file requirement unavailable");
     expect(verified).toContain("Full identity and evidence");
     expect(verified).toContain("D:/ROMs/sample.z64");
     expect(verified).toContain("Relink source");
     expect(failed).toContain("Needs attention");
     expect(failed).toContain("source changed since registration");
+  });
+
+  it("keeps a removed source-profile identity in technical details with removal available", () => {
+    const source = {
+      profile_id: `removed-${"profile".repeat(12)}`,
+      path: "D:/ROMs/retained-source.bin",
+      sha256: "a".repeat(64),
+      size: 1024,
+      storage_sha256: "a".repeat(64),
+      storage_size: 1024,
+      updated_at: 1,
+    };
+    const otherSource = {
+      ...source,
+      profile_id: "other-removed-profile",
+    };
+    const html = renderToStaticMarkup(
+      <SettingsView
+        libraryRoot="C:/Portcove"
+        sources={[source, otherSource]}
+        sourceProfiles={[]}
+        replaceSource={vi.fn()}
+      />,
+    );
+
+    expect(html).toContain("Saved game-file requirement unavailable");
+    expect(html).toContain(
+      "This saved game-file requirement is no longer present in the current catalog.",
+    );
+    expect(html).toContain("Update the catalog or remove the saved location.");
+    expect(html).toContain(
+      `Catalog profile ID: <code class="source-profile-id">${source.profile_id}</code>`,
+    );
+    expect(html).toContain(
+      `aria-label="Technical details for saved game-file location ${source.path}, saved reference 1 of 2"`,
+    );
+    expect(html).toContain(
+      `aria-label="Technical details for saved game-file location ${otherSource.path}, saved reference 2 of 2"`,
+    );
+    expect(html).not.toContain(`<strong>${source.profile_id}</strong>`);
+    expect(html).not.toContain(">Relink source</button>");
+    expect(html).toContain("Remove reference");
+    expect(html).toContain("Needs attention");
+    expect(html).not.toContain("Checking identity");
   });
 
   it("shows the saved registered path as inspected and keeps a replacement path unchecked", () => {

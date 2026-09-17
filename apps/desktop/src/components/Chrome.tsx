@@ -763,6 +763,7 @@ function SourceHealth({
   openEvidence?: (evidenceId: string) => void;
 }) {
   const byProfile = new Map(outcomes.map((outcome) => [outcome.profile_id, outcome]));
+  const profilesById = new Map(profiles.map((profile) => [profile.id, profile]));
   return (
     <article className="settings-card source-health" data-focus-group>
       <p className="eyebrow">SOURCES</p>
@@ -783,10 +784,13 @@ function SourceHealth({
         <p>No source files are registered yet.</p>
       ) : (
         <div className="source-health-list">
-          {sources.map((source) => (
+          {sources.map((source, index) => (
             <SourceHealthRow
               key={`${source.profile_id}:${generation}`}
               source={source}
+              sourcePosition={index + 1}
+              sourceCount={sources.length}
+              profile={profilesById.get(source.profile_id)}
               generation={generation}
               ports={ports}
               onRemoved={onAdded}
@@ -810,6 +814,9 @@ function SourceHealth({
 
 function SourceHealthRow({
   source,
+  sourcePosition,
+  sourceCount,
+  profile,
   generation,
   ports,
   onRemoved,
@@ -823,6 +830,9 @@ function SourceHealthRow({
   ports: PortDefinition[];
   onRemoved?: () => Promise<unknown>;
   source: SourceRecord;
+  sourcePosition: number;
+  sourceCount: number;
+  profile?: SourceProfile;
   report?: SourceInspectionReport;
   outcome?: SourceVerificationOutcome;
   busy?: string;
@@ -832,19 +842,25 @@ function SourceHealthRow({
   return (
     <div className="source-health-row" data-source-profile={source.profile_id}>
       <div>
-        <strong>{report?.expected_identity?.label ?? source.profile_id}</strong>
+        <strong>
+          {report?.expected_identity?.label ??
+            profile?.label ??
+            "Saved game-file requirement unavailable"}
+        </strong>
         <code>{source.path}</code>
       </div>
       <div className="source-health-actions">
-        <SourceState report={report} outcome={outcome} />
-        <button
-          data-focusable
-          className="small-control"
-          disabled={Boolean(busy)}
-          onClick={() => replace?.(source)}
-        >
-          Relink source
-        </button>
+        <SourceState report={report} outcome={outcome} profileAvailable={Boolean(profile)} />
+        {profile && (
+          <button
+            data-focusable
+            className="small-control"
+            disabled={Boolean(busy)}
+            onClick={() => replace?.(source)}
+          >
+            Relink source
+          </button>
+        )}
         <SourceRemovalControl
           source={source}
           generation={generation}
@@ -853,6 +869,25 @@ function SourceHealthRow({
           onRemoved={onRemoved}
         />
       </div>
+      {!profile && (
+        <div>
+          <p>
+            This saved game-file requirement is no longer present in the current catalog. Update the
+            catalog or remove the saved location.
+          </p>
+          <details>
+            <summary
+              data-focusable
+              aria-label={`Technical details for saved game-file location ${source.path}, saved reference ${sourcePosition} of ${sourceCount}`}
+            >
+              Technical details
+            </summary>
+            <small>
+              Catalog profile ID: <code className="source-profile-id">{source.profile_id}</code>
+            </small>
+          </details>
+        </div>
+      )}
       {outcome?.error && (
         <div>
           <p>{errorText(outcome.error)}</p>
@@ -861,11 +896,11 @@ function SourceHealthRow({
       )}
       {report ? (
         <SourceIdentityPanel report={report} openEvidence={openEvidence} />
-      ) : (
+      ) : profile ? (
         <p className="source-inspection-loading" role="status">
           Checking identity…
         </p>
-      )}
+      ) : null}
     </div>
   );
 }
@@ -873,10 +908,19 @@ function SourceHealthRow({
 function SourceState({
   report,
   outcome,
+  profileAvailable = true,
 }: {
   report?: SourceInspectionReport;
   outcome?: SourceVerificationOutcome;
+  profileAvailable?: boolean;
 }) {
+  if (!profileAvailable)
+    return (
+      <span className="source-state failed">
+        <Icon glyph={AlertTriangle} size="sm" />
+        Needs attention
+      </span>
+    );
   if (report) {
     if (report.state_code === "recognized_exact")
       return (
