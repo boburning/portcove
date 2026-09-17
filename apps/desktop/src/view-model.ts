@@ -195,6 +195,26 @@ export function platformLabel(value: string) {
   return Object.hasOwn(platformLabels, value) ? platformLabels[value] : "Unknown platform";
 }
 
+const installationMethodLabels: Record<
+  NonNullable<PortDefinition["presentation"]>["installation_method"],
+  string
+> = {
+  "portable-package": "Portable upstream package",
+  "portable-recompilation": "Portable native recompilation",
+  "staged-game-files": "Prepared game files beside the port",
+  "referenced-disc": "Original disc referenced at launch",
+  "generated-game-data": "Generated game data",
+  "upstream-setup": "Managed upstream setup",
+  "managed-recompilation": "Managed native recompilation",
+};
+
+export function installationMethodLabel(port: PortDefinition) {
+  const method = port.presentation?.installation_method;
+  return method && Object.hasOwn(installationMethodLabels, method)
+    ? installationMethodLabels[method]
+    : "Unavailable in this catalog";
+}
+
 const channelLabels: Record<string, string> = {
   stable: "Stable",
   beta: "Beta",
@@ -354,7 +374,10 @@ function matchesFilter(port: PortDefinition, status: PortStatus | undefined, fil
 }
 
 function searchableText(port: PortDefinition) {
-  return `${port.name} ${port.summary} ${port.id} ${port.adapter} ${port.platforms.join(" ")}`.toLowerCase();
+  const installationMethod = port.presentation?.installation_method
+    ? installationMethodLabel(port)
+    : "";
+  return `${port.name} ${port.summary} ${port.id} ${installationMethod} ${port.platforms.join(" ")} ${port.platforms.map(platformLabel).join(" ")}`.toLowerCase();
 }
 
 export function errorText(error: unknown) {

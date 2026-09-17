@@ -45,6 +45,7 @@ import { PreparationControl, type RunPreparation } from "./Preparation";
 import {
   currentUpdateSnapshot,
   formatBytes,
+  installationMethodLabel,
   platformLabel,
   releaseChannelPresentation,
 } from "../view-model";
@@ -770,13 +771,6 @@ function SavesAndSettingsSummary({ port }: { port: PortDefinition }) {
   );
 }
 
-function installationMethodLabel(port: PortDefinition) {
-  const method = port.presentation?.installation_method;
-  return method && Object.hasOwn(installationMethodPresentation, method)
-    ? installationMethodPresentation[method]
-    : "Unavailable in this catalog";
-}
-
 function ReadinessCard({ state }: { state: DetailState }) {
   return (
     <div className={`readiness-card ${state.tone}`}>
@@ -1043,19 +1037,6 @@ function TechnicalDetails({
     </details>
   );
 }
-
-const installationMethodPresentation: Record<
-  NonNullable<PortDefinition["presentation"]>["installation_method"],
-  string
-> = {
-  "portable-package": "Portable upstream package",
-  "portable-recompilation": "Portable native recompilation",
-  "staged-game-files": "Prepared game files beside the port",
-  "referenced-disc": "Original disc referenced at launch",
-  "generated-game-data": "Generated game data",
-  "upstream-setup": "Managed upstream setup",
-  "managed-recompilation": "Managed native recompilation",
-};
 
 const sourceVerificationPresentation: Record<
   NonNullable<PortDefinition["presentation"]>["source_requirements"][number]["verification"],
