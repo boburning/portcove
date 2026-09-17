@@ -658,22 +658,9 @@ fn profile_paths(request: &SteamEntryPlanRequest) -> Result<(PathBuf, PathBuf)> 
 }
 
 fn read_snapshot(path: &Path) -> Result<(Option<Vec<u8>>, Option<String>)> {
-    let metadata = match fs::symlink_metadata(path) {
-        Ok(metadata) => metadata,
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok((None, None)),
-        Err(source) => return Err(io_error("inspecting shortcuts.vdf", source)),
+    let Some(bytes) = read_regular_file(path, "selected shortcuts.vdf")? else {
+        return Ok((None, None));
     };
-    if metadata.file_type().is_symlink() || !metadata.is_file() {
-        return Err(SteamEntryError::InvalidInput(
-            "selected shortcuts.vdf is not a regular file".into(),
-        ));
-    }
-    if metadata.len() > MAX_SHORTCUTS_BYTES {
-        return Err(SteamEntryError::Malformed(format!(
-            "shortcuts.vdf exceeds the {MAX_SHORTCUTS_BYTES}-byte safety limit"
-        )));
-    }
-    let bytes = fs::read(path).map_err(|source| io_error("reading shortcuts.vdf", source))?;
     let digest = sha256(&bytes);
     Ok((Some(bytes), Some(digest)))
 }
@@ -1115,7 +1102,13 @@ pub fn recover_steam_entries(
     let (_, swap_sha256) = read_snapshot(&swap_path)?;
     let staged_known =
         staged_sha256.is_none() || staged_sha256.as_deref() == Some(journal.after_sha256.as_str());
-    let swap_known = swap_sha256.is_none() || swap_sha256 == journal.before_sha256;
+    let empty_sha256 = sha256(&[]);
+    let swap_is_unconsumed_reservation = journal.before_sha256.is_some()
+        && current_sha256 == journal.before_sha256
+        && swap_sha256.as_deref() == Some(empty_sha256.as_str());
+    let swap_known = swap_sha256.is_none()
+        || swap_sha256 == journal.before_sha256
+        || swap_is_unconsumed_reservation;
     if !staged_known || !swap_known {
         return Err(SteamEntryError::RecoveryRequired(
             "Steam entry operation files do not match the journal; every file was preserved".into(),
@@ -1183,7 +1176,7 @@ fn lock_profile(config: &Path) -> Result<File> {
 }
 
 fn read_regular_file(path: &Path, label: &str) -> Result<Option<Vec<u8>>> {
-    let mut file = match open_read_nofollow(path) {
+    let file = match open_read_nofollow(path) {
         Ok(file) => file,
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
         Err(source) => {
@@ -1217,8 +1210,9 @@ fn read_regular_file(path: &Path, label: &str) -> Result<Option<Vec<u8>>> {
             path.display()
         )));
     }
-    let mut bytes = Vec::with_capacity(metadata.len() as usize);
-    file.read_to_end(&mut bytes)
+    let mut bytes = Vec::with_capacity(metadata.len().min(MAX_SHORTCUTS_BYTES) as usize);
+    file.take(MAX_SHORTCUTS_BYTES + 1)
+        .read_to_end(&mut bytes)
         .map_err(|source| io_error(format!("reading opened {label}"), source))?;
     if bytes.len() as u64 > MAX_SHORTCUTS_BYTES {
         return Err(SteamEntryError::Conflict(format!(
@@ -1784,6 +1778,58 @@ mod tests {
             recover_steam_entries(&fixture.steam_root, "12345").unwrap(),
             SteamEntryRecoveryOutcome::CompletedCommit
         );
+    }
+
+    #[test]
+    fn recovery_discards_an_unconsumed_swap_reservation() {
+        let fixture = Fixture::new();
+        let add =
+            plan_steam_entries(fixture.add_request(vec![game("starship", "Starship")])).unwrap();
+        apply_steam_entry_plan(&add, SteamClientState::Closed).unwrap();
+        let original = fs::read(fixture.shortcuts()).unwrap();
+
+        let moved_cli = fixture.cli_path.parent().unwrap().join("moved.exe");
+        fs::write(&moved_cli, b"moved fixture cli").unwrap();
+        let request = SteamEntryPlanRequest::AddOrRepair {
+            steam_root: fixture.steam_root.clone(),
+            steam_user_id: "12345".into(),
+            library_id: "library-123".into(),
+            library_root: fixture.library_root.clone(),
+            cli_path: moved_cli,
+            games: vec![game("starship", "Starship")],
+        };
+        let plan = plan_steam_entries(request).unwrap();
+        let config = plan.shortcuts_path.parent().unwrap().to_path_buf();
+        let before_sha256 = plan.snapshot_sha256.clone().unwrap();
+        let backup_path = write_backup(&config, &original, &before_sha256).unwrap();
+        let mut proposed = VdfDocument::parse(&original).unwrap();
+        plan_document(&plan.request, &mut proposed).unwrap();
+        let proposed = proposed.encode().unwrap();
+        assert_eq!(sha256(&proposed), plan.proposed_sha256);
+        let journal = SteamEntryJournal {
+            schema_version: JOURNAL_SCHEMA_VERSION,
+            plan_sha256: plan.plan_sha256,
+            shortcuts_path: plan.shortcuts_path,
+            before_sha256: Some(before_sha256),
+            after_sha256: plan.proposed_sha256,
+            backup_path: Some(backup_path),
+        };
+        fs::write(
+            config.join(JOURNAL_FILE),
+            serde_json::to_vec(&journal).unwrap(),
+        )
+        .unwrap();
+        fs::write(config.join(REPLACEMENT_TEMPORARY_FILE), proposed).unwrap();
+        fs::write(config.join(ORIGINAL_SWAP_FILE), []).unwrap();
+
+        assert_eq!(
+            recover_steam_entries(&fixture.steam_root, "12345").unwrap(),
+            SteamEntryRecoveryOutcome::AbandonedBeforeCommit
+        );
+        assert_eq!(fs::read(fixture.shortcuts()).unwrap(), original);
+        assert!(!config.join(JOURNAL_FILE).exists());
+        assert!(!config.join(REPLACEMENT_TEMPORARY_FILE).exists());
+        assert!(!config.join(ORIGINAL_SWAP_FILE).exists());
     }
 
     #[test]
