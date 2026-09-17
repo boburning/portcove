@@ -21,14 +21,20 @@ it("presents source discovery counts and limits in player-facing language", () =
   expect(sourceDiscoveryResultSummary(2, 1_000, 1024)).toBe(
     "Found 2 exact matches. Checked 1,000 files and folders (1.0 KiB of verification data).",
   );
-  expect(
-    ["entries", "depth", "file_size", "hash_bytes", "candidates"].map(sourceDiscoveryLimitLabel),
-  ).toEqual([
+  const limits = ["entries", "depth", "file_size", "hash_bytes", "candidates"];
+  expect(limits.map((limit) => sourceDiscoveryLimitLabel(limit, "folder"))).toEqual([
     "File and folder count",
     "Folder depth",
     "Individual file size",
     "Verification data",
     "Exact-match count",
+  ]);
+  expect(limits.map((limit) => sourceDiscoveryLimitLabel(limit, "inbox"))).toEqual([
+    "File and folder count",
+    "Folder depth",
+    "Individual file size",
+    "Verification data",
+    "Possible matches checked",
   ]);
   expect(sourceDiscoveryLimitLabel("future_limit")).toBe("Another search safety limit");
 });
@@ -109,15 +115,34 @@ it("opens and scans the Inbox, then applies the exact reviewed import", async ()
           profile_id: profile.id,
           profile: "D:/Library/source-inbox/test",
         },
-        state: "unresolved",
+        state: "incomplete",
         selected: null,
-        candidates: [],
+        candidates: [
+          {
+            automatically_reusable: false,
+            inspection: {
+              profile_id: profile.id,
+              path: "D:/Library/source-inbox/test/not-a-match.iso",
+              observed_digests: [],
+              components: [],
+              assessment: {
+                health: "not_baselined",
+                classification: { state: "unrecognized" },
+                contract: { state: "not_evaluated" },
+                admission: { state: "rejected", reason: "known_mismatch" },
+                evidence: [],
+              },
+              record: null,
+              message: "This file is not an exact match.",
+            },
+          },
+        ],
         stats: {
-          entries_examined: 0,
-          candidates_inspected: 0,
-          hash_bytes: 0,
+          entries_examined: 2,
+          candidates_inspected: 1,
+          hash_bytes: 64,
           symlinks_skipped: 0,
-          limits_reached: [],
+          limits_reached: ["candidates", "file_size", "depth"],
           issues: [],
           issues_omitted: 0,
         },
@@ -192,7 +217,14 @@ it("opens and scans the Inbox, then applies the exact reviewed import", async ()
       expect.objectContaining({ max_entries: 10_000, max_candidates: 64 }),
       expect.any(Function),
     );
-    expect(host.textContent).toContain("Inbox state: unresolved");
+    expect(host.textContent).toContain("Inbox state: incomplete");
+    expect(host.textContent).toContain(
+      "Search limits prevented every possible match from being checked.",
+    );
+    expect(host.textContent).toContain("Possible matches checked");
+    expect(host.textContent).toContain("Individual file size");
+    expect(host.textContent).not.toContain("Exact-match count");
+    expect(host.textContent).not.toContain("not-a-match.iso");
     await click("Search this folder");
     expect(search).toHaveBeenCalledWith(
       { roots: ["D:/Selected"], profile_ids: [profile.id] },
@@ -202,13 +234,14 @@ it("opens and scans the Inbox, then applies the exact reviewed import", async ()
       "Found 1 exact match. Checked 3 files and folders (64 B of verification data).",
     );
     expect(host.textContent).toContain(
-      "Search stopped before every possible match could be checked.",
+      "Search limits prevented every possible match from being checked.",
     );
     expect(host.textContent).toContain("File and folder count");
     expect(host.textContent).toContain("Folder depth");
     expect(host.textContent).toContain("Individual file size");
     expect(host.textContent).toContain("Verification data");
     expect(host.textContent).toContain("Exact-match count");
+    expect(host.textContent).not.toContain("Possible matches checked");
     expect(host.textContent).not.toContain("file_size");
     expect(host.textContent).not.toContain("hash_bytes");
     await click("Review copy");

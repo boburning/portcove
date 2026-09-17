@@ -60,13 +60,13 @@ export function sourceDiscoveryResultSummary(
   return `${matches} ${entries} (${formatBytes(hashBytes)} of verification data).`;
 }
 
-export function sourceDiscoveryLimitLabel(limit: string) {
+export function sourceDiscoveryLimitLabel(limit: string, source: "folder" | "inbox" = "folder") {
   const labels: Record<string, string> = {
     entries: "File and folder count",
     depth: "Folder depth",
     file_size: "Individual file size",
     hash_bytes: "Verification data",
-    candidates: "Exact-match count",
+    candidates: source === "folder" ? "Exact-match count" : "Possible matches checked",
   };
   return labels[limit] ?? "Another search safety limit";
 }
@@ -262,20 +262,18 @@ function DiscoveryResults({ workflow }: { workflow: Workflow }) {
     ...new Set([...(report?.limits_reached ?? []), ...(inbox?.stats.limits_reached ?? [])]),
   ];
   const issues = [...(report?.issues ?? []), ...(inbox?.stats.issues ?? [])];
+  const limitSource = report ? "folder" : "inbox";
   if (!report && !inbox) return null;
   return (
     <section className="source-discovery-results" aria-label="Source search results">
       {limits.length > 0 && (
         <>
-          <p>
-            Search stopped before every possible match could be checked. Choose a more specific
-            folder to continue.
-          </p>
+          <p>Search limits prevented every possible match from being checked.</p>
           <details>
             <summary data-focusable>Search limits</summary>
             <ul>
               {limits.map((limit) => (
-                <li key={limit}>{sourceDiscoveryLimitLabel(limit)}</li>
+                <li key={limit}>{sourceDiscoveryLimitLabel(limit, limitSource)}</li>
               ))}
             </ul>
           </details>
