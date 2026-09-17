@@ -122,6 +122,7 @@ export function buildDesktopVerifyPlan({ selection, paths, drivers, source, pack
   const suffix = executableSuffix();
   const ownedFixture = selection.prerequisites.includes("owned-fixture");
   const installFixture = selection.prerequisites.includes("install-fixture");
+  const steamFixture = selection.prerequisites.includes("steam-fixture");
   return {
     format_version: 1,
     profile: selection.profile,
@@ -133,7 +134,7 @@ export function buildDesktopVerifyPlan({ selection, paths, drivers, source, pack
     harness_deadline_ms: desktopHarnessDeadlineMs(selection),
     prerequisites: selection.prerequisites,
     host_resources: selection.host_resources,
-    qualification_features: installFixture ? ["qualification-fixtures"] : [],
+    qualification_features: installFixture || steamFixture ? ["qualification-fixtures"] : [],
     source,
     workspace_packages: packages,
     drivers: drivers
@@ -385,7 +386,10 @@ async function runVerification(options, selection) {
     }
     const desktopFeatures = [
       "tauri/custom-protocol",
-      ...(selection.prerequisites.includes("install-fixture") ? ["qualification-fixtures"] : []),
+      ...(selection.prerequisites.includes("install-fixture") ||
+      selection.prerequisites.includes("steam-fixture")
+        ? ["qualification-fixtures"]
+        : []),
     ];
     await phase("desktop-build", "cargo", [
       "build",

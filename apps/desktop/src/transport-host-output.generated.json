@@ -3524,6 +3524,202 @@
     "title": "SourceBatchOutcome",
     "type": "object"
   },
+  "steam_entry_apply_result": {
+    "$defs": {
+      "SteamEntryChange": {
+        "properties": {
+          "display_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "kind": {
+            "$ref": "#/$defs/SteamEntryChangeKind"
+          },
+          "port_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "port_id",
+          "display_name",
+          "kind"
+        ],
+        "type": "object"
+      },
+      "SteamEntryChangeKind": {
+        "enum": [
+          "add",
+          "repair",
+          "remove",
+          "unchanged"
+        ],
+        "type": "string"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "backup_path": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "changes": {
+        "items": {
+          "$ref": "#/$defs/SteamEntryChange"
+        },
+        "type": "array"
+      },
+      "plan_sha256": {
+        "type": "string"
+      },
+      "shortcuts_path": {
+        "type": "string"
+      },
+      "wrote": {
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "plan_sha256",
+      "shortcuts_path",
+      "backup_path",
+      "changes",
+      "wrote"
+    ],
+    "title": "SteamEntryApplyResult",
+    "type": "object"
+  },
+  "steam_entry_review": {
+    "$defs": {
+      "SteamClientState": {
+        "enum": [
+          "closed",
+          "running",
+          "unknown"
+        ],
+        "type": "string"
+      },
+      "SteamEntryChange": {
+        "properties": {
+          "display_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "kind": {
+            "$ref": "#/$defs/SteamEntryChangeKind"
+          },
+          "port_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "port_id",
+          "display_name",
+          "kind"
+        ],
+        "type": "object"
+      },
+      "SteamEntryChangeKind": {
+        "enum": [
+          "add",
+          "repair",
+          "remove",
+          "unchanged"
+        ],
+        "type": "string"
+      },
+      "SteamEntryOperation": {
+        "enum": [
+          "add_or_repair",
+          "remove"
+        ],
+        "type": "string"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "changes": {
+        "items": {
+          "$ref": "#/$defs/SteamEntryChange"
+        },
+        "type": "array"
+      },
+      "cli_path": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "display_name": {
+        "type": "string"
+      },
+      "library_root": {
+        "type": "string"
+      },
+      "operation": {
+        "$ref": "#/$defs/SteamEntryOperation"
+      },
+      "plan_sha256": {
+        "type": "string"
+      },
+      "port_id": {
+        "type": "string"
+      },
+      "proposed_sha256": {
+        "type": "string"
+      },
+      "schema_version": {
+        "format": "uint32",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "shortcuts_path": {
+        "type": "string"
+      },
+      "snapshot_sha256": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "steam_client_state": {
+        "$ref": "#/$defs/SteamClientState"
+      },
+      "steam_root": {
+        "type": "string"
+      },
+      "steam_user_id": {
+        "type": "string"
+      },
+      "writes_required": {
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "schema_version",
+      "operation",
+      "port_id",
+      "display_name",
+      "steam_root",
+      "steam_user_id",
+      "library_root",
+      "cli_path",
+      "shortcuts_path",
+      "snapshot_sha256",
+      "proposed_sha256",
+      "plan_sha256",
+      "changes",
+      "steam_client_state",
+      "writes_required"
+    ],
+    "title": "SteamEntryReview",
+    "type": "object"
+  },
   "update_check_outcome": {
     "$defs": {
       "ArtifactIdentity": {

@@ -1,4 +1,5 @@
 import { RemovalControl, type ApplyRemoval } from "./RemovalReview";
+import { SteamEntryControl } from "./SteamEntry";
 import { ArtworkControls, ArtworkImage, DetailArtwork } from "./Artwork";
 import type { ApplyBackupAction } from "./BackupReview";
 import { ReleaseChannelControl } from "./ReleaseChannel";
@@ -1465,6 +1466,12 @@ function MaintenanceActions({
         generation={libraryGeneration}
         busy={Boolean(busy)}
         apply={actions.remove}
+      />
+      <SteamEntryControl
+        key={`steam:${port.id}:${libraryGeneration}`}
+        port={port}
+        generation={libraryGeneration}
+        busy={Boolean(busy)}
       />
     </div>
   );

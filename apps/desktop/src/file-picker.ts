@@ -82,6 +82,15 @@ export function pickLibraryFolder(currentPath: string) {
   });
 }
 
+export function pickSteamFolder(currentPath: string) {
+  return open({
+    title: "Choose Steam installation",
+    multiple: false,
+    directory: true,
+    defaultPath: currentPath || undefined,
+  });
+}
+
 export function pickGameOutputFolder(currentPath: string) {
   return open({
     title: "Choose Export / install folder",

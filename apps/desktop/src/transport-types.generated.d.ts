@@ -420,6 +420,9 @@ export type ApplicationUpdateRequestedAction = "safe-exit" | "restart-to-apply";
 export type ApplicationUpdateObservedTermination =
   "normal-exit" | "restart-to-apply" | "crash" | "os-shutdown" | "steam-stop";
 export type ApplicationUpdateRecoveryArea = "schedule" | "staging" | "apply";
+export type SteamEntryChangeKind = "add" | "repair" | "remove" | "unchanged";
+export type SteamEntryOperation = "add_or_repair" | "remove";
+export type SteamClientState = "closed" | "running" | "unknown";
 
 export interface TransportOutputs {
   about: OutputAbout;
@@ -519,6 +522,8 @@ export interface TransportOutputs {
   desktop_preparation_cleanup_preview: OutputPreparationCleanupPreview;
   desktop_reconcile_outcome: OutputReconcileBatchOutcome;
   desktop_source_verification_outcome: OutputSourceBatchOutcome;
+  desktop_steam_entry_apply_result: OutputDesktopSteamEntryApplyResult;
+  desktop_steam_entry_review: OutputDesktopSteamEntryReview;
   desktop_update_check_outcome: OutputCheckBatchOutcome;
   desktop_workspace_snapshot: OutputDesktopWorkspaceSnapshot;
 }
@@ -2143,6 +2148,38 @@ export interface OutputDesktopCliCommandContext {
 export interface OutputDesktopLaunchResult {
   processId: number | null;
   sessionId: string;
+  [k: string]: unknown;
+}
+export interface OutputDesktopSteamEntryApplyResult {
+  backup_path: string | null;
+  changes: SteamEntryChange[];
+  plan_sha256: string;
+  shortcuts_path: string;
+  wrote: boolean;
+  [k: string]: unknown;
+}
+export interface SteamEntryChange {
+  display_name: string | null;
+  kind: SteamEntryChangeKind;
+  port_id: string;
+  [k: string]: unknown;
+}
+export interface OutputDesktopSteamEntryReview {
+  changes: SteamEntryChange[];
+  cli_path: string | null;
+  display_name: string;
+  library_root: string;
+  operation: SteamEntryOperation;
+  plan_sha256: string;
+  port_id: string;
+  proposed_sha256: string;
+  schema_version: number;
+  shortcuts_path: string;
+  snapshot_sha256: string | null;
+  steam_client_state: SteamClientState;
+  steam_root: string;
+  steam_user_id: string;
+  writes_required: boolean;
   [k: string]: unknown;
 }
 export interface OutputDesktopWorkspaceSnapshot {

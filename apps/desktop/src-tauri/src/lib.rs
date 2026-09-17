@@ -37,6 +37,7 @@ mod preparation;
 mod removal;
 mod source_removal;
 pub mod steam_entries;
+pub mod steam_entry_commands;
 mod transport;
 
 use transport::{
@@ -2058,6 +2059,8 @@ pub fn run() {
             application_update_status::get_application_update_status,
             application_update_status::recover_application_update_state,
             cli_context::get_cli_command_context,
+            steam_entry_commands::preview_steam_entry,
+            steam_entry_commands::apply_steam_entry,
             library_selection::get_library_identity,
             library_selection::set_default_library,
             library_selection::reset_default_library,

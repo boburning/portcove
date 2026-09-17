@@ -78,13 +78,13 @@ pub enum SteamEntryPlanRequest {
 }
 
 impl SteamEntryPlanRequest {
-    fn steam_root(&self) -> &Path {
+    pub(crate) fn steam_root(&self) -> &Path {
         match self {
             Self::AddOrRepair { steam_root, .. } | Self::Remove { steam_root, .. } => steam_root,
         }
     }
 
-    fn steam_user_id(&self) -> &str {
+    pub(crate) fn steam_user_id(&self) -> &str {
         match self {
             Self::AddOrRepair { steam_user_id, .. } | Self::Remove { steam_user_id, .. } => {
                 steam_user_id
@@ -128,7 +128,8 @@ impl SteamEntryPlan {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
 pub enum SteamClientState {
     Closed,
     Running,

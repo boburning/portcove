@@ -183,3 +183,8 @@ export type BackupAction = BackupReview["preview"]["action"];
 export type PortRemovalPreview = Generated.TransportOutputs["port_removal_preview"];
 
 export type CliCommandContext = Generated.TransportOutputs["desktop_cli_command_context"];
+
+export type SteamEntryReview = Generated.TransportOutputs["desktop_steam_entry_review"];
+export type SteamEntryApplyResult = Generated.TransportOutputs["desktop_steam_entry_apply_result"];
+export type SteamEntryOperation = SteamEntryReview["operation"];
+export type SteamEntrySelection = Requests.TransportInputs["desktop_steam_entry_selection"];

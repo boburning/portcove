@@ -156,5 +156,39 @@
     ],
     "title": "InstallInput",
     "type": "object"
+  },
+  "steam_entry_selection": {
+    "$defs": {
+      "SteamEntryOperation": {
+        "enum": [
+          "add_or_repair",
+          "remove"
+        ],
+        "type": "string"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "operation": {
+        "$ref": "#/$defs/SteamEntryOperation"
+      },
+      "portId": {
+        "type": "string"
+      },
+      "steamRoot": {
+        "type": "string"
+      },
+      "steamUserId": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "portId",
+      "steamRoot",
+      "steamUserId",
+      "operation"
+    ],
+    "title": "SteamEntrySelection",
+    "type": "object"
   }
 }

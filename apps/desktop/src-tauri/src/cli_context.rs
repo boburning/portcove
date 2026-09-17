@@ -12,15 +12,19 @@ pub(crate) async fn get_cli_command_context(
     let state = state.inner().clone();
     blocking_worker(move || {
         let service = service_at_generation(&state, generation)?;
-        let current = std::env::current_exe().ok();
-        let search = std::env::var_os("PATH").unwrap_or_default();
         Ok(CliCommandContext {
             library_root: service.library().root().to_path_buf(),
-            executable: discover_cli(current.as_deref(), std::env::split_paths(&search)),
+            executable: discover_cli_from_environment(),
             platform: portcove_core::Platform::current()?,
         })
     })
     .await
+}
+
+pub(crate) fn discover_cli_from_environment() -> Option<PathBuf> {
+    let current = std::env::current_exe().ok();
+    let search = std::env::var_os("PATH").unwrap_or_default();
+    discover_cli(current.as_deref(), std::env::split_paths(&search))
 }
 
 fn discover_cli(current: Option<&Path>, search: impl Iterator<Item = PathBuf>) -> Option<PathBuf> {
