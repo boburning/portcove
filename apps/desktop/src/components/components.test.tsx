@@ -686,7 +686,7 @@ describe("desktop components", () => {
       port_id: port.id,
       path: `backups/sample/${index}`,
       created_at: index + 1,
-      file_count: 2,
+      file_count: 1,
       size: 1024,
       sha256: `${index}`.repeat(64),
     }));
@@ -697,6 +697,10 @@ describe("desktop components", () => {
     expect(html).toContain("Backups include saves and settings managed by Portcove.");
     expect(html).toContain("4 verified backups");
     expect(html).toContain("Show 1 older");
+    for (const backup of backups.slice(0, 3))
+      expect(html).toContain(
+        `aria-label="Technical details for backup from ${new Date(backup.created_at * 1000).toLocaleString()}"`,
+      );
     expect(html).not.toContain("3333333333");
   });
 
@@ -706,7 +710,7 @@ describe("desktop components", () => {
       port_id: port.id,
       path: "backups/sample/backup-1",
       created_at: 1,
-      file_count: 2,
+      file_count: 1,
       size: 1024,
       sha256: "a".repeat(64),
     };
@@ -719,7 +723,10 @@ describe("desktop components", () => {
     expect(empty).toContain("No backups yet");
     expect(empty).not.toContain("snapshot");
     expect(populated).toContain("1 verified backup");
+    expect(populated).toContain("1 file · 1.0 KiB");
     expect(populated).toContain("Technical details");
+    expect(populated).toContain('aria-label="Technical details for backup from ');
+    expect(populated).toContain('class="backup-checksum"');
     expect(populated.indexOf(backup.sha256)).toBeGreaterThan(populated.indexOf("<details"));
     expect(populated).not.toContain(`${backup.sha256.slice(0, 10)}…`);
   });

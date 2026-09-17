@@ -65,40 +65,49 @@ export function BackupHistory({
           </details>
         </div>
       )}
-      {visible.map((backup) => (
-        <div className="backup-row" key={backup.id} data-backup-id={backup.id}>
-          <span>
-            <strong>{new Date(backup.created_at * 1000).toLocaleString()}</strong>
-            <small>
-              {backup.file_count} files · {formatBytes(backup.size)}
-            </small>
-          </span>
-          <details>
-            <summary data-focusable>Technical details</summary>
-            <small>SHA-256 {backup.sha256}</small>
-          </details>
-          <span className="backup-actions">
-            <button
-              data-focusable
-              className="button-with-icon"
-              disabled={Boolean(busy)}
-              onClick={() => setSelection({ backup, action: "restore" })}
-            >
-              <Icon glyph={RotateCcw} />
-              Restore
-            </button>
-            <button
-              data-focusable
-              className="danger icon-button"
-              aria-label={`Delete backup from ${new Date(backup.created_at * 1000).toLocaleString()}`}
-              disabled={Boolean(busy)}
-              onClick={() => setSelection({ backup, action: "delete" })}
-            >
-              <Icon glyph={Trash2} />
-            </button>
-          </span>
-        </div>
-      ))}
+      {visible.map((backup) => {
+        const createdLabel = new Date(backup.created_at * 1000).toLocaleString();
+        return (
+          <div className="backup-row" key={backup.id} data-backup-id={backup.id}>
+            <span>
+              <strong>{createdLabel}</strong>
+              <small>
+                {backup.file_count} {backup.file_count === 1 ? "file" : "files"} ·{" "}
+                {formatBytes(backup.size)}
+              </small>
+            </span>
+            <details>
+              <summary
+                data-focusable
+                aria-label={`Technical details for backup from ${createdLabel}`}
+              >
+                Technical details
+              </summary>
+              <small className="backup-checksum">SHA-256 {backup.sha256}</small>
+            </details>
+            <span className="backup-actions">
+              <button
+                data-focusable
+                className="button-with-icon"
+                disabled={Boolean(busy)}
+                onClick={() => setSelection({ backup, action: "restore" })}
+              >
+                <Icon glyph={RotateCcw} />
+                Restore
+              </button>
+              <button
+                data-focusable
+                className="danger icon-button"
+                aria-label={`Delete backup from ${createdLabel}`}
+                disabled={Boolean(busy)}
+                onClick={() => setSelection({ backup, action: "delete" })}
+              >
+                <Icon glyph={Trash2} />
+              </button>
+            </span>
+          </div>
+        );
+      })}
       {selection && (
         <BackupReviewDialog
           key={`${selection.backup.id}:${selection.action}:${generation}`}
