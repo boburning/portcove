@@ -2154,12 +2154,16 @@ describe("desktop components", () => {
       "Failed",
       "Cancelled",
       "Status unavailable",
-      "Needs review",
+      "May have been interrupted",
       "In progress",
     ])
       expect(html).toContain(`<span class="activity-status">${label}</span>`);
     expect(html).not.toMatch(/activity-status">(?:succeeded|failed|cancelled|unfinished|running)</);
-    expect(html).toContain("No completion recorded");
+    expect(html).toContain("No completion reported");
+    expect(html).toContain(
+      "This task has not reported completion. Review its details before retrying.",
+    );
+    expect(html).not.toContain("Needs review");
     expect(html).toContain('<button data-focusable="true">sample-rom</button>');
     expect(html).toContain("Activity from the CLI and desktop appears here.");
   });

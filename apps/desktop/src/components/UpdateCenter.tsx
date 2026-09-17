@@ -246,7 +246,7 @@ function ActivityRow({
   const title =
     activity.failure?.presentation.summary ??
     (presentation.state === "unfinished"
-      ? "No completion was recorded. Review the source or port before retrying."
+      ? "This task has not reported completion. Review its details before retrying."
       : undefined);
   return (
     <div className={`activity-row ${presentation.state}`} title={title} data-focus-group>
@@ -405,8 +405,8 @@ function activityPresentation(activity: ActivityRecord) {
   if (state === "unfinished")
     return {
       state: "unfinished",
-      label: "Needs review",
-      time: "No completion recorded",
+      label: "May have been interrupted",
+      time: "No completion reported",
       icon: AlertTriangle,
     };
   return {
