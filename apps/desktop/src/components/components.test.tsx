@@ -328,8 +328,8 @@ describe("desktop components", () => {
       const html = renderToStaticMarkup(
         <StatusLayer clearError={vi.fn()} operation={operation} busy="backup" />,
       );
-      expect(html).toContain("Backup");
-      expect(html).toContain("Working");
+      expect(html).toContain("Backup in progress");
+      expect(html).toContain("Progress total not yet known.");
       expect(html).not.toContain("Old update");
       expect(html).not.toContain("width:100%");
     }
