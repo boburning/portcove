@@ -292,6 +292,20 @@ autonomous engineering are not implied.
 Application updater and catalog delivery are independent Required outcomes, with
 no reciprocal parent blocker.
 
+The finite [#917](https://github.com/boburning/portcove/issues/917) visual-polish
+and styling-architecture outcome is also Required for Public beta. It keeps
+modern native CSS and the existing semantic design-token authority, migrates
+major component presentation incrementally to CSS Modules, aligns channel and
+status color semantics, and closes the cross-surface card/sidebar/header/detail/
+Settings/motion/type/loading evidence without introducing a framework or
+preprocessor. It is a nonblocking sub-issue of #200: the parent relationship is
+organizational and does not make the broader 1.0 workstream a beta prerequisite.
+#206 retains information architecture and interaction behavior; #203 retains
+labels, formatting, localization and safe unknowns; #208/#527 retain artwork and
+provider authority; #29/#44/#47 retain their controller, minimum-width, physical
+and intrinsic human qualification. No broad owner closure blocks the finite
+visual outcome.
+
 #51/#213–#217 retain the package/controller/Gamescope/storage/device baseline,
 #290 retains plugin-free application and individual-game manual Steam launch
 routes, and #292 owns bounded user-initiated Add/Repair/Update-artwork/Remove,
@@ -311,7 +325,7 @@ supported. [Delivery](DELIVERY.md) defines acceptance and platform limits.
 
 ## 1.0 and exact production candidates
 
-Complete the finite seven outcomes above and every Required Project outcome and
+Complete the finite outcomes above and every Required Project outcome and
 genuine transitive blocker. #46 owns later exact-artifact distribution, upgrade,
 recovery and production rehearsal across declared platforms, preserving earlier
 #52 beta evidence without making #52 depend on a post-beta closure. Broader
