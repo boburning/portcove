@@ -57,6 +57,37 @@ Portcove's GUI should be the clearest view of a stronger underlying contract:
 - Shared focus trapping, Escape behavior, focus restoration, reduced motion, semantic status labels, and responsive desktop breakpoints make the Tauri interface resilient without turning it into a mobile layout.
 - The long-term design, component, and product-vocabulary contract is recorded in [DESIGN-SYSTEM.md](DESIGN-SYSTEM.md).
 
+## Approved Public beta visual-polish direction — 2026-09-17
+
+This is a planning decision, not an implemented-polish claim. Reinspection at
+main `ad7ed2f2bc1a3f6c86eb6f74c87b02a4c008e159` found a strong semantic theme
+and mature interaction surfaces, but presentation still concentrated in a
+3,765-line global stylesheet and theme validation limited to that file. No newer
+issue already owned visual-polish or styling-architecture modernization.
+
+The finite [#917](https://github.com/boburning/portcove/issues/917) outcome keeps
+the established alternate-1997-console-studio direction while making the
+desktop calmer and more launcher-like: artwork/title/readiness/action lead;
+cards shed equal-weight badge noise; sidebar and recurring headers become quieter;
+ordinary spacing and depth follow one hierarchy; detail emphasizes one action;
+Settings gains scalable logical groups; motion stays tactile and reduced-motion
+safe; typography becomes deterministic and offline; and static loading geometry
+prevents layout jumps without shimmer.
+
+The implementation direction is modern native CSS, existing semantic tokens,
+incremental CSS Modules, native nesting where useful, Stylelint, and expanded
+theme checking. It deliberately excludes CSS frameworks, preprocessors,
+CSS-in-JS, gradients, glow, blur-heavy surfaces, ornamental retro effects, Steam
+imitation, and brand redesign. True global foundations remain global while major
+component presentation moves beside its JSX/tests without an all-at-once rewrite.
+
+#917 is a nonblocking sub-issue of #200. #206 continues to own information
+architecture and interaction behavior; #203 owns wording/formatting/safe unknowns;
+#208/#527 own artwork/provider facts; semantic domain owners own readiness,
+updates, storage, source, recovery, and support state; #29/#44/#47 retain their
+input, minimum-width, physical, and intrinsic human qualification. Visual code
+renders those authorities and does not become another source of truth.
+
 ## Follow-on slices at the 2026-09-01 baseline
 
 These are intentionally separate from this pass because they require new product data or backend contracts:

@@ -128,6 +128,76 @@ future evidence remain in the issues.
 
 The crab mascot and dimensional display wordmark follow the provenance, placement, accessibility, and derivative rules in [BRAND-ASSETS.md](BRAND-ASSETS.md). Brand art is deliberately rarer and more expressive than the working interface: use it to establish identity at startup, in an empty library, in About, or at a meaningful milestone—not as wallpaper for operational controls.
 
+## Public beta visual-polish contract
+
+[#917](https://github.com/boburning/portcove/issues/917) is the finite styling
+and cross-surface visual-polish owner. It is a nonblocking sub-issue of #200;
+parentage organizes the component and does not retarget the broader workstream or
+make its closure a Public beta prerequisite. #206 retains information
+architecture, navigation, interaction, focus, content ordering, and domain-driven
+presentation. #203 retains labels, localization, formatting, and safe unknowns.
+#208 retains shared artwork selection/provenance/fallback/ingestion/cache, and
+#527 retains SteamGridDB provider behavior. #29/#44 retain controller performance,
+physical-Xbox, controller-navigation, and minimum-width qualification; #47
+retains intrinsically packaged human comprehension/controller observations.
+
+Use three levels when reviewing every surface:
+
+1. **Primary:** what game or surface is this, and what should the player do?
+2. **Secondary:** what relevant state is it currently in?
+3. **Tertiary:** how does Portcove technically manage it?
+
+Technical detail remains available, but it does not routinely compete with the
+game and primary action. Catalog and library cards lead with artwork, title,
+readiness, and the next action; secondary facts are quiet metadata rather than
+equal-weight chips. Consistent 2:3 artwork may gain modest weight where responsive
+space permits, while cards stay compact desktop controls rather than storefront
+tiles. Important attention such as an available update remains visible.
+
+Keep the sidebar stable and quiet: identity plus Library, Port Catalog, Updates,
+and Settings are primary. Contextual Library actions such as copying an existing
+installation need not occupy permanent navigation chrome. Shortcut hints remain
+discoverable without dominating every visit. Repeated page headers should be
+compact application chrome; explanatory prose and the red eyebrow are used when
+they add meaning rather than consuming every workspace.
+
+Ordinary geometry follows the spacing, radius, control, and layout scales;
+one-off measurements need an actual layout reason. Tonal differences or subtle
+borders group ordinary content, cards use restrained borders, hover strengthens
+the affordance, blue marks selection, gold marks focus, and dialogs/floating
+surfaces receive the strongest depth. Do not give every nested surface equal
+weight. No glass, blur, glow, gradients, neon, scanlines, CRT effects, pixel-font
+UI, giant SaaS radii, ornamental motion, Steam imitation, or generic Material
+restyling belongs in this contract.
+
+Preserve the existing detail order while strengthening its cover/title/readiness
+hero and one dominant Play, Install, or Review action. Evidence may justify a
+roughly 36–40rem surface on large displays or a restrained sticky primary action,
+but focus, controller navigation, compact layouts, and safety information must
+remain intact. Infrequent maintenance and technical controls use progressive
+disclosure without becoming hidden safety state. Settings grows through clear
+Appearance, Library & Storage, Game Files, Updates, Integrations, and Advanced
+grouping using the smallest scalable structure, not an automatic second sidebar.
+
+Motion remains short, tactile, and functional for press, selection, panel,
+palette, notice, disclosure, and artwork transitions. Reduced motion removes
+nonessential motion. Typography is deterministic and offline across supported
+desktop platforms: package reviewed fonts only after license and package-impact
+acceptance, otherwise use an intentional supported fallback. Loading placeholders
+preserve expected geometry without shimmer or gradients; accessible loading text
+remains authoritative.
+
+Implementation migrates component presentation incrementally to CSS Modules
+while keeping semantic/global foundations centralized. It must preserve mouse,
+keyboard and controller use, focus restoration, dialog trapping, accessible
+names, semantic HTML, status text, long titles, compact/scaled layouts, minimum
+width, and the distinction between blue selection and gold focus. Native evidence
+covers dark/light, standard/minimum/large widths, 1280×800 where applicable,
+scaling, long titles, fallback and local artwork, ready/setup/staged/error/update
+states, and Catalog, Library, Detail, Settings, and Update Center. Deterministic
+screenshots supplement rather than replace accessibility and input checks; no
+broad fragile pixel-perfect suite is required.
+
 ## Review gates
 
-Run the frontend tests and theme contract, the production build, and Fallow before accepting a design-system change. The theme contract rejects raw component colors, direct primitive consumption, gradients, missing semantic roles, and reviewed contrast regressions. Fallow should remain free of dead files, unused dependencies, duplication, circular dependencies, unused theme tokens, and above-threshold functions.
+Run the frontend tests and theme contract, the production build, and Fallow before accepting a design-system change. The theme contract rejects raw component colors, direct primitive consumption, gradients, missing semantic roles, and reviewed contrast regressions. #917 must extend equivalent protection to relevant CSS Modules before their migration is complete. Fallow should remain free of dead files, unused dependencies, duplication, circular dependencies, unused theme tokens, and above-threshold functions.
