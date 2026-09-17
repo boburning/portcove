@@ -1009,10 +1009,11 @@ fn output_location_source(source: OutputLocationSource) -> &'static str {
 
 pub(crate) fn capabilities(capabilities: &CapabilityDocument) -> String {
     format!(
-        "{} {} capabilities\nSchema: {}\nPlatforms: {}\nMachine formats: {}\nRaw streams: {}\nFailure-isolated batches: {}\nPort locking: {}",
+        "{} {} capabilities\nSchema: {}\nOperation event schema: {}\nPlatforms: {}\nMachine formats: {}\nRaw streams: {}\nFailure-isolated batches: {}\nPort locking: {}",
         clean(&capabilities.product),
         clean(&capabilities.product_version),
         capabilities.schema_version,
+        capabilities.operation_event_schema_version,
         capabilities.platforms.len(),
         capabilities.machine_formats.join(", "),
         capabilities.raw_stream_commands.join(", "),

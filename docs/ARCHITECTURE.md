@@ -337,6 +337,13 @@ identity and changed installs still fail closed, while a recoverable request wai
 only its exact child identity, collects from its exact install and finishes failed.
 No daemon, adapter job store or machine output inside raw game streams is added.
 
+API schema 50 exposes core's independent operation-event schema version in the
+shared capability document. CLI and Tauri continue to serialize the same
+core-owned value; external lifecycle clients negotiate it before consuming JSONL,
+while launch-only and read-only library clients need not adopt an unused event
+channel. This adds no event authority to either adapter and does not couple API
+envelope evolution to operation-event evolution.
+
 ## Public library identity
 
 Core exposes its existing database identity with the effective library root through

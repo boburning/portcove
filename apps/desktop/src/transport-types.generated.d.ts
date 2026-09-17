@@ -839,6 +839,10 @@ export interface OutputCapabilities {
   engine_templates: EngineTemplateCapability[];
   failure_isolated_batches: string[];
   machine_formats: string[];
+  /**
+   * Schema used by JSONL operation events, independently from result envelopes.
+   */
+  operation_event_schema_version: number;
   platforms: Platform[];
   port_operation_locking: string;
   product: string;

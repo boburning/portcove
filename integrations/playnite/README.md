@@ -50,12 +50,18 @@ user's ordinary Playnite library.
 
 ## Compatibility and use
 
-This revision supports **Portcove API schemas 42–49 and event schema 2**. Additional
-object fields are tolerated; incompatible schema versions and missing required
-capabilities produce an upgrade message before management. A product version
-string is not used as a compatibility guess. Use an exactly identified schema-42, schema-43, schema-44, schema-45, schema-46, schema-47, schema-48 or schema-49
-candidate until a matching public standalone release exists; the older published
-technical previews must not be described as supporting these new commands.
+This revision supports **Portcove API schemas 42–50 and event schema 2**. Schema
+50 advertises the independently versioned operation-event contract through
+`operation_event_schema_version`; the client consumes and rejects an unsupported
+value before lifecycle management. Launch-only and read-only library negotiation
+prove their narrower command/format sets without requiring unused management or
+raw-stream contracts. Additional object fields are tolerated; incompatible schema
+versions and missing required capabilities produce an upgrade message before
+management. A product version string is not used as a compatibility guess. Use an
+exactly identified schema-42, schema-43, schema-44, schema-45, schema-46,
+schema-47, schema-48, schema-49 or schema-50 candidate until a matching public
+standalone release exists; the older published technical previews must not be
+described as supporting these new commands.
 See the [author guide](../../docs/INTEGRATION-AUTHOR.md).
 
 Schema 47 status can include core-owned definition decisions for install,

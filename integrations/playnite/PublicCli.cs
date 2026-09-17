@@ -12,6 +12,7 @@ namespace Portcove.ReferenceClient
         internal string Executable { get; }
         internal string LibraryRoot { get; }
         internal string LibraryId { get; private set; }
+        private long operationEventSchemaVersion = 2;
 
         internal PublicCli(string executable, string libraryRoot)
         {
@@ -34,7 +35,8 @@ namespace Portcove.ReferenceClient
 
         internal async Task Connect()
         {
-            ProtocolStream.Negotiate(await Read("capabilities", "capabilities").ConfigureAwait(false));
+            operationEventSchemaVersion = ProtocolStream.Negotiate(
+                await Read("capabilities", "capabilities").ConfigureAwait(false));
             var identity = await Read("library.identity", "library", "identity").ConfigureAwait(false);
             LibraryId = Json.Text(identity, "id");
             if (LibraryId.Length == 0) throw new InvalidOperationException("The CLI returned an empty library identity.");
@@ -81,7 +83,7 @@ namespace Portcove.ReferenceClient
         {
             var args = new List<string> { mutation ? "--jsonl" : "--json" };
             args.AddRange(arguments);
-            var parser = new ProtocolStream(command, progress);
+            var parser = new ProtocolStream(command, progress, operationEventSchemaVersion);
             using (var process = Start(args))
             {
                 var output = Pump(process.StandardOutput, parser.Line);
