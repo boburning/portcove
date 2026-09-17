@@ -197,6 +197,21 @@ export async function interruptedPreparationScenario({
     assert.equal(refusedPreview.error.message, unprovenQuiescenceError);
     assert.equal(refusedPreview.error.details.recovery_action, "manual_review");
     assert.equal(refusedPreview.error.presentation.summary, unprovenQuiescenceSummary);
+    const interruptedRows = By.css(".activity-row.failed");
+    const findInterruptedRow = async () => {
+      const candidates = await browser.findElements(interruptedRows);
+      for (const candidate of candidates) {
+        const text = await candidate.getText();
+        if (
+          text.includes("Game preparation stopped before its outcome could be recorded") &&
+          text.toLowerCase().includes("failed") &&
+          text.includes("Review game preparation")
+        ) {
+          return candidate;
+        }
+      }
+      return false;
+    };
     await browser.navigate().refresh();
     await browser.wait(
       until.elementLocated(By.css('nav[aria-label="Primary navigation"]')),
@@ -214,15 +229,64 @@ export async function interruptedPreparationScenario({
     );
     assert.equal(await navigationStatus.getAttribute("aria-label"), "Activity needs attention");
     await updatesNavigation.click();
-    const interruptedRows = By.xpath(
-      '//div[contains(@class,"activity-row")][.//p[contains(.,"Game preparation stopped before its outcome could be recorded")]]',
+    await browser.wait(
+      findInterruptedRow,
+      15_000,
+      "Recovered failed preparation must appear after renderer bootstrap",
     );
+    await browser.findElement(By.xpath('//nav//button[contains(., "Settings")]')).click();
+    await browser.wait(
+      until.elementLocated(By.xpath('//h1[normalize-space(.)="Portcove settings"]')),
+      15_000,
+    );
+    await browser.findElement(By.xpath('//nav//button[contains(., "Updates")]')).click();
+    const beforeRestart = await browser.wait(
+      findInterruptedRow,
+      15_000,
+      "Failed preparation must remain discoverable after navigating away and returning",
+    );
+    const beforeRestartLog = await beforeRestart.findElement(
+      By.xpath('.//summary[normalize-space(.)="View preparation log"]'),
+    );
+    await beforeRestartLog.click();
+    const beforeRestartText = await browser.wait(async () => {
+      const text = await beforeRestart.getText();
+      return text.includes("Capture is incomplete") ? text : false;
+    }, 15_000);
+    assert.match(beforeRestartText, /Running game setup/);
+    assert.doesNotMatch(beforeRestartText, /No files were changed|The operation was cancelled/);
+    await beforeRestartLog.click();
+    await browser.navigate().refresh();
+    await browser.wait(
+      until.elementLocated(By.css('nav[aria-label="Primary navigation"]')),
+      15_000,
+    );
+    await dismissApplicationUpdateChoice();
+    const restartedNavigationStatus = await browser.wait(
+      until.elementLocated(
+        By.xpath('//nav//button[contains(., "Updates")]//*[contains(@class,"nav-status")]'),
+      ),
+      10_000,
+    );
+    assert.equal(
+      await restartedNavigationStatus.getAttribute("aria-label"),
+      "Activity needs attention",
+    );
+    await browser.findElement(By.xpath('//nav//button[contains(., "Updates")]')).click();
     const rows = await browser.wait(async () => {
       const candidates = await browser.findElements(interruptedRows);
-      if (candidates.length !== 1) return false;
-      return (await candidates[0].getText()).includes("Review game preparation")
-        ? candidates
-        : false;
+      const matches = [];
+      for (const candidate of candidates) {
+        const text = await candidate.getText();
+        if (
+          text.includes("Game preparation stopped before its outcome could be recorded") &&
+          text.toLowerCase().includes("failed") &&
+          text.includes("Review game preparation")
+        ) {
+          matches.push(candidate);
+        }
+      }
+      return matches.length === 1 ? matches : false;
     }, 15_000);
     let row;
     for (const candidate of rows) {
@@ -250,6 +314,7 @@ export async function interruptedPreparationScenario({
       await log.click();
     }
     assert.ok(row, "original retained preparation row with incomplete diagnostic capture");
+    assert.match(await row.getText(), /Running game setup/);
     assert.deepEqual(
       (await invoke("get_activities")).value.find((item) => item.id === activity.id),
       recovered,

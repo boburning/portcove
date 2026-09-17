@@ -242,9 +242,12 @@ reconnects to the durable activity and requests cancellation there, then navigat
 away and returns after the terminal outcome. It restarts the renderer before
 verifying the retained setup log through CLI and Tauri, rejects stale-library log
 reads, opens both output streams in the activity view, and exports a redacted
-support bundle. Incomplete capture and quota behavior are separate core fixtures.
-These logs contain owned synthetic output, not evidence of actual game
-compatibility, a physical process crash or resumable preparation.
+support bundle. Its dependent interruption scenario uses real core startup recovery
+to produce the distinct failed/attention state, then verifies the actionable failed
+row and incomplete phase capture after navigation and again after renderer restart.
+Incomplete capture and quota behavior are separate core fixtures. These logs
+contain owned synthetic output, not evidence of actual game compatibility, a
+physical process crash or resumable preparation.
 
 The owned readiness scenario temporarily omits one prepared fixture's assessment
 from the renderer's actual status responses. It verifies disabled Play and Continue
