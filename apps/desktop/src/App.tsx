@@ -69,6 +69,12 @@ import {
   summarizeLibrary,
 } from "./view-model";
 
+export const missingBootstrapError = {
+  code: "state",
+  message: "Portcove could not start, and no error details were provided.",
+  details: {},
+} as const;
+
 export default function App() {
   const [bootstrap, setBootstrap] = useState<BootstrapStatus>();
   const [bootstrapError, setBootstrapError] = useState<StartupFailure>();
@@ -110,13 +116,7 @@ export default function App() {
   if (!bootstrap.ready)
     return (
       <BootstrapRecovery
-        error={
-          bootstrap.error ?? {
-            code: "state",
-            message: "Portcove initialization failed without an error report.",
-            details: {},
-          }
-        }
+        error={bootstrap.error ?? missingBootstrapError}
         chooseLibrary={chooseLibrary}
         resetLibrary={resetLibrary}
       />
@@ -135,8 +135,8 @@ function BootstrapLoading() {
   return (
     <main className="bootstrap-state" aria-live="polite">
       <p className="eyebrow">Portcove</p>
-      <h1>Opening your native library</h1>
-      <p>Loading the catalog, recovery journal, and release providers.</p>
+      <h1>Opening your Portcove library</h1>
+      <p>Loading the catalog, recovery history, and release information.</p>
     </main>
   );
 }
@@ -160,7 +160,7 @@ export function BootstrapRecovery({
   return (
     <main className="bootstrap-state bootstrap-error" role="alert">
       <p className="eyebrow">Portcove could not start</p>
-      <h1>Your library needs attention</h1>
+      <h1>Portcove couldn’t open your library</h1>
       <p>{errorText(error)}</p>
       {error.presentation ? (
         <FailureDetails presentation={error.presentation} code={error.code} />

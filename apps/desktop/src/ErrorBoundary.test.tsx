@@ -16,12 +16,23 @@ describe("top-level render recovery", () => {
     const html = renderToStaticMarkup(boundary.render());
 
     expect(html).toContain('role="alert"');
-    expect(html).toContain("Portcove hit a display error");
+    expect(html).toContain("Display error");
+    expect(html).toContain(
+      "The Portcove window encountered an error. Reload it to reconnect and check the status of any active task.",
+    );
     expect(html).toContain("injected render failure");
+    expect(html).not.toContain("remains owned by the backend");
     expect(html).not.toContain("workspace");
     expect(report).toHaveBeenCalledWith(
       error,
       expect.objectContaining({ componentStack: "at BrokenPanel" }),
     );
+  });
+
+  it("labels a render failure without supplied details as an unknown display error", () => {
+    const boundary = new AppErrorBoundary({ children: <p>workspace</p> });
+    boundary.state = AppErrorBoundary.getDerivedStateFromError(new Error(""));
+
+    expect(renderToStaticMarkup(boundary.render())).toContain("Unknown display error");
   });
 });
