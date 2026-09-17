@@ -892,7 +892,31 @@ describe("desktop components", () => {
     expect(html).toContain("width:50%");
     expect(html).toContain("/brand/icons/portcove-mascot-head-256.png");
     expect(html).toContain("ABOUT &amp; CREDITS");
+    expect(html).toContain(
+      "Portcove keeps the desktop and CLI in sync across the catalog, game files, installed versions, and recovery history.",
+    );
     expect(html).toContain("/brand/logo/portcove-logo-v2-transparent.png");
+  });
+
+  it("uses player-facing catalog, update, and settings descriptions", () => {
+    const catalog = renderToStaticMarkup(
+      <PageHeader view="catalog" query="" setQuery={vi.fn()} portCount={61} />,
+    );
+    const updates = renderToStaticMarkup(<PageHeader view="updates" query="" setQuery={vi.fn()} />);
+    const settings = renderToStaticMarkup(
+      <PageHeader view="settings" query="" setQuery={vi.fn()} />,
+    );
+
+    expect(catalog).toContain(
+      "Explore 61 native game ports and recompilations available through Portcove.",
+    );
+    expect(catalog).toContain("Keep original game files local");
+    expect(catalog).not.toContain("release provenance");
+    expect(updates).toContain("Review available updates, downloaded releases, and failed checks");
+    expect(settings).toContain(
+      "Manage appearance, GitHub sign-in, game-file verification, and library storage.",
+    );
+    expect(settings).not.toContain("local storage boundaries");
   });
 
   it("keeps current and abandoned activity discoverable from primary navigation", () => {
@@ -1041,9 +1065,12 @@ describe("desktop components", () => {
     );
     expect(html).toContain("E:/Portcove");
     expect(html).toContain("512 GiB available");
-    expect(html).toContain("1.0 TiB volume");
-    expect(html).toContain('aria-label="Available library storage"');
+    expect(html).toContain("1.0 TiB total storage capacity");
+    expect(html).toContain('aria-label="Available capacity on the library volume"');
     expect(html).toContain("width:50%");
+    expect(html).toContain("Installed application files are kept separate from saves and settings");
+    expect(html).toContain("Export saved game-file locations and installed-version settings");
+    expect(html).not.toContain("recovery-safe");
   });
 
   it("shows the core host-readiness report with explicit tool states", () => {
@@ -1206,9 +1233,47 @@ describe("desktop components", () => {
       />,
     );
     expect(html).toContain("Connected as port-user");
-    expect(html).toContain("4,998 of 5,000");
+    expect(html).toContain("4,998 of 5,000 GitHub requests remaining");
     expect(html).toContain("Operating-system credential store");
     expect(html).not.toContain("Personal access token");
+  });
+
+  it("hides unavailable device sign-in without exposing build configuration", () => {
+    const html = renderToStaticMarkup(
+      <SettingsView
+        github={{
+          status: {
+            source: "anonymous",
+            authenticated: false,
+            login: null,
+            rate_limit: null,
+            device_login_available: false,
+          },
+          token: "",
+          deviceLogin: {
+            expires_at: 10,
+            interval_seconds: 5,
+            session_id: "stale-device-session",
+            user_code: "STALE-CODE",
+            verification_uri: "https://github.example/device",
+          },
+          setToken: vi.fn(),
+          saveToken: vi.fn(),
+          logout: vi.fn(),
+          beginDeviceLogin: vi.fn(),
+          refresh: vi.fn(),
+        }}
+      />,
+    );
+
+    expect(html).toContain("Sign in to GitHub for a higher release-check limit");
+    expect(html).toContain("GitHub request limit unavailable");
+    expect(html).toContain("Continue anonymously or use a personal access token");
+    expect(html).toContain('aria-label="GitHub personal access token"');
+    expect(html).not.toContain("Sign in with GitHub");
+    expect(html).not.toContain("STALE-CODE");
+    expect(html).not.toContain("https://github.example/device");
+    expect(html).not.toContain("client ID");
   });
 
   it("shows read-only source integrity outcomes", () => {
