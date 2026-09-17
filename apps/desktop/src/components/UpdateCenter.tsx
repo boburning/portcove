@@ -26,6 +26,7 @@ import type {
   DoctorReport,
   PortDefinition,
   PortStatus,
+  SourceProfile,
   UpdateCheck,
   UpdateCheckOutcome,
 } from "../types";
@@ -33,6 +34,7 @@ import { EmptyState, Icon } from "./ui";
 
 export function UpdateCenter({
   ports,
+  sourceProfiles = [],
   statuses,
   activities,
   outcomes,
@@ -56,6 +58,7 @@ export function UpdateCenter({
   refreshDiagnostics: () => Promise<unknown>;
   cleanupChanged?: () => Promise<unknown>;
   ports: PortDefinition[];
+  sourceProfiles?: SourceProfile[];
   statuses: Map<string, PortStatus>;
   activities: ActivityRecord[];
   outcomes: UpdateCheckOutcome[];
@@ -156,6 +159,7 @@ export function UpdateCenter({
       />
       <ActivityHistory
         ports={ports}
+        sourceProfiles={sourceProfiles}
         activities={activities}
         onSelect={onSelect}
         onOpenSources={onOpenSources}
@@ -177,6 +181,7 @@ function releaseLabel(check?: UpdateCheck | null) {
 
 function ActivityHistory({
   ports,
+  sourceProfiles,
   activities,
   onSelect,
   onOpenSources,
@@ -184,11 +189,13 @@ function ActivityHistory({
 }: {
   generation: number;
   ports: PortDefinition[];
+  sourceProfiles: SourceProfile[];
   activities: ActivityRecord[];
   onSelect: (portId: string) => void;
   onOpenSources: () => void;
 }) {
   const names = new Map(ports.map((port) => [port.id, port.name]));
+  const sourceNames = new Map(sourceProfiles.map((profile) => [profile.id, profile.label]));
   const visibleActivities = activityHistoryPreview(activities);
   return (
     <section className="activity-history">
@@ -216,6 +223,7 @@ function ActivityHistory({
             <ActivityRow
               activity={activity}
               names={names}
+              sourceNames={sourceNames}
               onSelect={onSelect}
               onOpenSources={onOpenSources}
               key={activity.id}
@@ -231,6 +239,7 @@ function ActivityHistory({
 function ActivityRow({
   activity,
   names,
+  sourceNames,
   onSelect,
   onOpenSources,
   generation,
@@ -238,10 +247,11 @@ function ActivityRow({
   generation: number;
   activity: ActivityRecord;
   names: ReadonlyMap<string, string>;
+  sourceNames: ReadonlyMap<string, string>;
   onSelect: (portId: string) => void;
   onOpenSources: () => void;
 }) {
-  const target = activityTarget(activity, names);
+  const target = activityTarget(activity, names, sourceNames);
   const presentation = activityPresentation(activity);
   const title =
     activity.failure?.presentation.summary ??
@@ -332,13 +342,19 @@ function ActivityTargetLink({
   return <span>{target.label}</span>;
 }
 
-function activityTarget(activity: ActivityRecord, names: ReadonlyMap<string, string>) {
+function activityTarget(
+  activity: ActivityRecord,
+  names: ReadonlyMap<string, string>,
+  sourceNames: ReadonlyMap<string, string>,
+) {
   const targetId = activity.target_id;
   const portId =
     activity.target_kind === "port" && targetId && names.has(targetId) ? targetId : undefined;
+  const sourceLabel =
+    activity.target_kind === "source" && targetId ? sourceNames.get(targetId) : undefined;
   return {
     portId,
-    label: (portId && names.get(portId)) ?? targetId ?? "Portcove library",
+    label: (portId && names.get(portId)) ?? sourceLabel ?? targetId ?? "Portcove library",
   };
 }
 

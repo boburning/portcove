@@ -2015,6 +2015,7 @@ describe("desktop components", () => {
       <UpdateCenter
         generation={1}
         ports={[port]}
+        sourceProfiles={[{ ...sourceProfile(), id: "sample-rom", label: "Sample cartridge" }]}
         statuses={new Map([[port.id, status]])}
         activities={[
           {
@@ -2064,6 +2065,18 @@ describe("desktop components", () => {
             target_id: port.id,
             status: "running",
             started_at: 1,
+          },
+          {
+            id: "activity-missing-source",
+            failure: null,
+            cancellation: null,
+            message: null,
+            operation: "verify_source",
+            target_kind: "source",
+            target_id: "removed-profile",
+            status: "succeeded",
+            started_at: 4,
+            finished_at: 5,
           },
           {
             id: "activity-4",
@@ -2164,7 +2177,9 @@ describe("desktop components", () => {
       "This task has not reported completion. Review its details before retrying.",
     );
     expect(html).not.toContain("Needs review");
-    expect(html).toContain('<button data-focusable="true">sample-rom</button>');
+    expect(html).toContain('<button data-focusable="true">Sample cartridge</button>');
+    expect(html).not.toContain('<button data-focusable="true">sample-rom</button>');
+    expect(html).toContain('<button data-focusable="true">removed-profile</button>');
     expect(html).toContain("Activity from the CLI and desktop appears here.");
   });
 
