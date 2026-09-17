@@ -30,12 +30,16 @@ error/exit behavior, durable activity readback, and a raw-stream supervised
 `exec` route. See [CLI contract](CLI.md) and [Releasing](RELEASING.md) for exact
 current behavior and package limitations.
 
-That shipped foundation is not yet the complete V1 external-client promise.
+That shipped foundation is not yet the complete Public beta external-client
+promise.
 [#30](https://github.com/boburning/portcove/issues/30) owns demonstrated public
 contract gaps and compatibility policy, while
 [#243](https://github.com/boburning/portcove/issues/243) owns the bounded real
-consumer proof and integration-author experience. Planned behavior remains
-planned until those owners contain matching implementation and evidence.
+consumer proof and integration-author experience. The current Playnite client is
+developer-loaded; [#910](https://github.com/boburning/portcove/issues/910) owns its
+separate normally installable, user-ready lifecycle product. Planned behavior
+remains planned until its canonical owner contains matching implementation and
+evidence.
 
 ## Capability and support claims
 
@@ -139,7 +143,8 @@ and conformance fixtures must permit basic development without copyrighted game
 data. Contribution, issue-reporting, support-record, maintenance-ownership, and
 migration guidance are part of the deliverable.
 
-One small general example and the Playnite client in #243 are sufficient.
+One small general example and the Playnite reference in #243 are sufficient for
+public-contract proof. They do not complete #910's user-ready product experience.
 Bindings are generated only when the reference work demonstrates value; a
 language-by-language SDK family, plugin framework, hosted REST service, and
 marketplace are not V1 prerequisites.
@@ -155,22 +160,63 @@ interventions—not a minimum integration count.
 
 ## Deliberate frontend sequence
 
-| Environment                                            | Intended first claim                       | Owner and target                                           | Boundary                                                                                                             |
-| ------------------------------------------------------ | ------------------------------------------ | ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| Playnite                                               | Real lifecycle reference client            | #243; integration workstream and Public beta qualification | Small Portcove-maintained example/regression client, not feature parity or an endlessly expanding plugin commitment. |
-| Desktop Steam / Big Picture and Steam Deck Gaming Mode | Generic/manual launch-only route           | #290; required Public beta qualification                   | Plugin-free baseline. Automatic game entries and Decky are separate.                                                 |
-| ES-DE                                                  | First reusable library-export profile      | #291; opportunistic early Post-V1                          | Thin profile over supported library/launch data, not a second manager.                                               |
-| Steam automatic entry management                       | Optional launch convenience                | #292; opportunistic early Post-V1                          | May remain manual if safe supported reconciliation is unavailable.                                                   |
-| LaunchBox / Big Box and RetroBat                       | Next Windows candidates                    | #291 evaluation sequence                                   | Proceed only for demonstrated friction, demand, reuse, and maintenance fit.                                          |
-| EmuDeck and RetroDECK                                  | Separately qualified packaged environments | #291 evaluation sequence                                   | Inspect actual ES-DE/Steam route and host/sandbox boundaries; do not inherit an ES-DE claim.                         |
-| Batocera                                               | Deployment feasibility before support      | #291 evaluation sequence                                   | Invocation alone does not prove executable or dependency compatibility.                                              |
-| Lutris, Heroic, and Pegasus                            | Second-wave candidates                     | #291 evaluation sequence                                   | Prefer community ownership where practical.                                                                          |
-| PortMaster                                             | Adjacent native-port ecosystem             | #291 evaluation sequence                                   | Evaluate interoperability separately rather than treating it as only a launcher.                                     |
-| Decky                                                  | Optional Steam-facing lifecycle client     | #293; opportunistic Post-V1                                | Prefer community maintenance; never required for baseline use or V1.                                                 |
+| Environment                                            | Intended first claim                           | Owner and target                                           | Boundary                                                                                                                       |
+| ------------------------------------------------------ | ---------------------------------------------- | ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| Playnite reference                                     | Real lifecycle contract proof                  | #243; integration workstream and Public beta qualification | Developer-loaded regression/author client with preserved evidence; it is not the user-ready package.                           |
+| Playnite product                                       | Normally installable everyday lifecycle client | #910; required Public beta product                         | Thin over core policy, useful for declared operations, with no marketplace or universal-launcher gate.                         |
+| Desktop Steam / Big Picture and Steam Deck Gaming Mode | Generic/manual launch-only route               | #290; required Public beta qualification                   | Plugin-free supported fallback and direct-launch baseline.                                                                     |
+| ES-DE                                                  | First reusable library-export profile          | #291; opportunistic early Post-V1                          | Thin profile over supported library/launch data, not a second manager.                                                         |
+| Steam selected-game entry management                   | User-initiated Add/Repair/Remove               | #292; required Public beta product                         | Exact installation/profile selection and owned-entry reconciliation; no continuous synchronization or duplicate management UI. |
+| LaunchBox / Big Box and RetroBat                       | Next Windows candidates                        | #291 evaluation sequence                                   | Proceed only for demonstrated friction, demand, reuse, and maintenance fit.                                                    |
+| EmuDeck and RetroDECK                                  | Separately qualified packaged environments     | #291 evaluation sequence                                   | Inspect actual ES-DE/Steam route and host/sandbox boundaries; do not inherit an ES-DE claim.                                   |
+| Batocera                                               | Deployment feasibility before support          | #291 evaluation sequence                                   | Invocation alone does not prove executable or dependency compatibility.                                                        |
+| Lutris, Heroic, and Pegasus                            | Second-wave candidates                         | #291 evaluation sequence                                   | Prefer community ownership where practical.                                                                                    |
+| PortMaster                                             | Adjacent native-port ecosystem                 | #291 evaluation sequence                                   | Evaluate interoperability separately rather than treating it as only a launcher.                                               |
+| Decky                                                  | Optional Steam-facing lifecycle client         | #293; opportunistic Post-V1                                | Prefer community maintenance; never required for baseline use or V1.                                                           |
 
 These priorities are product-fit choices, not a market-share ranking, mandatory
 matrix, or expansion of Portcove's supported operating systems, architectures,
 handhelds, or upstream-build commitments.
+
+## User-ready Playnite lifecycle
+
+[#910](https://github.com/boburning/portcove/issues/910) owns a normally
+installable `.pext`; building C# and enabling external-extension loading are not
+the consumer path. First use guides the player to a verified compatible Portcove
+runtime and an explicit existing or intentionally separate library. A missing or
+incompatible runtime gets an understandable install, upgrade or repair path, but
+the integration does not invent a backend installer, require Desktop to remain
+open, or imply a standalone CLI self-updater.
+
+The default personal library contains installed and explicitly selected games,
+with compatible-catalog browsing as a separate flow. It does not dump the whole
+catalog, scan whole drives by default, infer ownership from compatibility, or
+fuzzy-merge a native port with an emulated/original-game entry. Stable library and
+port identities prevent duplication across refresh, rename, update, rollback and
+supported relocation while preserving user-selected metadata and organization.
+
+The primary action is state-driven—Install, Choose original files, Finish setup,
+Play, or Review problem—with an eligible update offered separately from Play.
+File/folder selection, requirements, source validation, destination and
+consequences stay understandable while core retains policy, exact consent,
+trust, stale-plan, concurrency and preparation authority. Genuine upstream setup
+may use an explicit Desktop-mode handoff instead of a mouse-only dead end.
+
+Play launches the installed version through core supervision and never silently
+installs or updates. Supported Playnite conventions expose installed state,
+explicit install/update/uninstall, progress, cancellation, durable readback and
+recovery. Automatic game updates occur only under separately selected core policy.
+Uninstall previews exactly what core removes and preserves originals, saves,
+backups and unrelated installs; hiding or removing a Playnite entry is not
+uninstall consent. Session presentation distinguishes child start, exit/crash,
+stream loss and post-exit work instead of fabricating success or blindly retrying.
+
+The product consumes shared metadata/artwork with provenance and applicable
+export rights, allows readable generated/offline fallbacks, and supports routine
+fullscreen/controller launch and messages. Its support record names tested
+Playnite/runtime versions, package/runtime/catalog/game update boundaries,
+maintenance ownership, diagnostics and known limitations. Marketplace acceptance,
+a complete artwork catalog and a new metadata provider are not completion gates.
 
 ## Repeatable library profiles
 
@@ -264,17 +310,30 @@ controller-first use, #215 Gamescope process/focus lifecycle, #216 storage, and
 the applicable final qualification scenarios; it does not absorb device or
 package implementation.
 
-### Optional automatic entries
+### Required selected-game Add, Repair, and Remove
 
-[#292](https://github.com/boburning/portcove/issues/292) evaluates current
-mechanisms and reusable import/export tooling before any custom Steam-data
-writer. This is neither a V1 nor Steam Deck baseline gate. Any implementation
-must select the Steam installation and user, preview exact changes, reject stale
-plans, reconcile only its stable owned entries without duplicates, preserve
-unrelated games and user artwork/collections/controller configuration, and
-bound backup, recovery, restart, concurrent-Steam, partial-failure, and removable
-storage behavior. When safe automation is unavailable, documentation must say
-what remains manual.
+[#292](https://github.com/boburning/portcove/issues/292) owns user-initiated Add,
+Repair, and Remove for selected installed games, including selected batch Add.
+It investigates current primary documentation and maintained mechanisms before
+choosing a writer; it must not invent an official API or conceal a reverse-
+engineered dependency. The user selects the exact Steam installation and profile,
+previews exact changes, consents, and receives stale-plan rejection. If Steam
+must be closed, the flow explains and requests that action rather than forcing it.
+
+Repeated Add/Repair is duplicate-free and targets the active managed game through
+the verified Portcove launch runtime, explicit library, safe argument array, and
+working directory rather than a version-specific game executable. Repair covers
+runtime moves/upgrades, library relocation, missing executables, and unavailable
+removable storage without silently choosing another library. Remove affects only
+demonstrably owned selected entries and never uninstalls a game. Unrelated entries
+and user names, artwork, collections, and controller configuration are preserved;
+bookkeeping remains entry reconciliation, not another lifecycle database.
+
+Backup/recovery, missing-account, concurrent change, interrupted write, partial
+failure, spaces/Unicode, and exact ownership are part of acceptance. The manual
+#290 route remains a supported fallback and useful interim delivery, but it does
+not complete #292. If safe implementation is unavailable, the commitment remains
+open with its exact blocker; continuous synchronization stays outside beta.
 
 ### Optional Decky client
 
@@ -304,14 +363,15 @@ plugin execution, packaging, permission, or bridge design.
 ## Evidence and release sequence
 
 The integration workstream closes bounded public-contract and author-usability
-gaps and proves the real Playnite slice for Public beta. Public beta also includes
-the plugin-free Steam Deck baseline under #51/#290, the same Linux application's
-updater proof under #52, and unchanged-reference-client compatibility with
-independent catalog delivery under #246. Exact production/platform
-requalification continues toward 1.0. The cumulative 1.0 contract needs one
-independently consumable public interface and real
-reference, not a universal frontend list, community quota, automatic entries or
-Decky. Optional frontend profiles remain Post-1.0.
+gaps and proves the real Playnite reference under #243. Public beta additionally
+requires the normally installable Playnite lifecycle product under #910, selected-
+game Steam Add/Repair/Remove under #292, the plugin-free Steam Deck baseline under
+#51/#290, the same Linux application's updater proof under #52, and unchanged-
+reference-client compatibility with independent catalog delivery under #246.
+Exact production/platform requalification continues toward 1.0. The cumulative
+1.0 contract does not require a universal frontend list, community quota,
+marketplace approval, continuous Steam synchronization or Decky. Other optional
+frontend profiles remain Post-1.0.
 
 Acceptance reuses representative adapter shapes and the smallest real
 frontend/device set that supports each claim. Evidence identifies exact

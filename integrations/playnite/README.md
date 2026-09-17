@@ -9,6 +9,12 @@ assembly reference.
 This is a developer-loaded reference, not a marketplace release or a claim of
 completed Public beta qualification. [#243](https://github.com/boburning/portcove/issues/243)
 retains the exact frontend, lifecycle, independent-consumer and human evidence.
+[Issue #910](https://github.com/boburning/portcove/issues/910) separately owns the
+planned normally installable `.pext` product, guided runtime/library onboarding,
+personal-library import, state-driven setup, ordinary lifecycle operations,
+fullscreen/controller use, and user-facing support boundaries. Those capabilities
+are a Required Public beta commitment, but they are not shipped by this developer
+loading procedure or established by the reference evidence below.
 
 ## Build and load
 

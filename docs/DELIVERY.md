@@ -86,10 +86,12 @@ their applicable candidate safety checks; they need not complete the milestone.
 
 The expanded beta commitment also includes the complete finite preparation
 boundary (#31), structured presentation/artwork foundation (#208), public CLI
-and real Playnite reference proof (#30/#243), and independent catalog delivery
-(#245/#397/#398/#246). These are existing owners with their full scoped acceptance,
-not requirements to migrate every adapter, provide every artwork asset or build
-a marketplace. Application and catalog publishers retain separate authority and
+and real Playnite reference proof (#30/#243), the normally installable user-ready
+Playnite integration (#910), selected-game Steam Add/Repair/Remove (#292), and
+independent catalog delivery (#245/#397/#398/#246). These are finite owners with
+their full scoped acceptance, not requirements to migrate every adapter, provide
+every artwork asset, continuously synchronize Steam or obtain marketplace
+approval. Application and catalog publishers retain separate authority and
 component dependencies; neither parent waits for the other's closure. The later
 production package requalification in #46 remains a 1.0 commitment.
 
@@ -118,7 +120,9 @@ independent fixture work may run in parallel. Order alone creates no dependency.
 Design closes on reviewed contracts/test-key fixtures, not on future production
 credentials. #46 owns later exact-artifact production requalification; #52 must
 not wait for #46 closure. Existing Deck #51/#213–#217 and Steam route #290 retain
-their owners; automatic entries #292 and Decky #293 remain optional.
+their owners; #292 is a required selected-game entry-management input to #217's
+applicable physical scenarios. Decky #293 and continuous Steam synchronization
+remain optional.
 
 ## Consent and safe application
 
@@ -278,8 +282,11 @@ The baseline adds $0 in service/certificate fees, not zero engineering, custody
 or hardware effort. Authenticode and Developer ID/notarization are optional
 installation-trust improvements, independently authorized in response to measured
 support burden. Flatpak, extra formats/architectures, repositories, deltas,
-percentage rollouts, CLI self-update, Steam entry automation and Decky are outside
-the baseline. No paid signing or recruitment quota blocks updater completion.
+percentage rollouts, standalone CLI self-update, continuous Steam synchronization
+and Decky are outside the baseline. The separately owned #292 Add/Repair/Remove
+commitment coordinates stable runtime paths with package/updater owners without
+pretending the Desktop updater already updates the CLI. No paid signing or
+recruitment quota blocks updater completion.
 
 ## Implementation evidence
 

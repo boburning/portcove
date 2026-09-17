@@ -161,11 +161,14 @@ status checklist.
 5. **Production-ready distribution:** #46 and #52 own qualified packages and
    understandable application upgrade/recovery for every claimed platform,
    without conflating application updates with game updates.
-6. **One independently consumable integration contract:** #14, #30, and #243
-   provide a documented, tested public CLI plus one bounded real lifecycle
-   reference and fresh-workspace consumer exercise without private knowledge or
-   copied per-port rules. Multiple frontends, organic adoption, marketplace
-   acceptance, automatic Steam entries, and Decky are not gates.
+6. **Useful independently consumable integrations:** #14, #30, and #243 provide
+   a documented, tested public CLI, bounded real lifecycle reference, and
+   fresh-workspace consumer exercise without private knowledge or copied per-port
+   rules. #910 turns that reference into a normally installable, user-ready
+   Playnite lifecycle integration, while #292 provides selected-game Steam
+   Add/Repair/Remove over the same public launch authority. Additional frontends,
+   continuous synchronization, organic adoption, marketplace acceptance, and
+   Decky are not gates.
 7. **A proven autonomous catalog path:** #245 and #246 prove one accepted scope
    delivering a new compatible definition, its next routine artifact, and a safe
    correction to an unchanged client through protected acceptance and exact
@@ -270,19 +273,26 @@ bounded release/feed pipeline. Manual reinstall or compiled packages alone do
 not satisfy the gate. Missing platform evidence keeps the milestone open.
 
 The expanded commitment includes the complete finite preparation-boundary proof
-in #31, structured presentation and local-first artwork in #208/#206, the real
-Playnite reference and independent-consumer proof in #243, and the protected
-unchanged-client catalog path in #245/#397/#398/#246. Preserve their full scoped
-acceptance, existing owners and completed contributions. Optional artwork
-providers, full adapter migration, broad discovery, additional frontends and
-general autonomous engineering are not implied. Application updater and catalog
-delivery are independent Required outcomes, with no reciprocal parent blocker.
+in #31, structured presentation and local-first artwork in #208/#206, the public
+CLI and independent-consumer proof in #30/#243, the user-ready Playnite lifecycle
+integration in #910, selected-game Steam Add/Repair/Remove in #292, and the
+protected unchanged-client catalog path in #245/#397/#398/#246. This explicitly
+supersedes the earlier beta wording that limited Playnite to its developer-loaded
+reference or deferred all Steam entry management until after 1.0. Preserve the
+existing owners, completed reference evidence, and each new owner's full scoped
+acceptance. Optional artwork providers, full adapter migration, broad discovery,
+additional frontends and general autonomous engineering are not implied.
+Application updater and catalog delivery are independent Required outcomes, with
+no reciprocal parent blocker.
 
-#51/#213–#217 retain the package/controller/Gamescope/storage/device baseline and
-#290 retains plugin-free application and individual-game Steam launch routes.
-No automatic entries, Decky, root modification or separate Deck binary/channel
-is required. Qualification starts during implementation, including actual
-Gaming Mode, normal Exit versus Steam Stop, suspend and removable storage.
+#51/#213–#217 retain the package/controller/Gamescope/storage/device baseline,
+#290 retains plugin-free application and individual-game manual Steam launch
+routes, and #292 owns bounded user-initiated Add/Repair/Remove. The manual route
+remains a supported fallback and useful interim path, but it does not complete
+#292. Continuous synchronization, Decky, root modification and a separate Deck
+binary/channel are not required. Qualification starts during implementation,
+including actual Gaming Mode, normal Exit versus Steam Stop, suspend and removable
+storage.
 
 Safety-critical UX, clear game-channel controls and existing early safety
 commitments stay visible. Public beta does not freeze every 1.0 capability or
@@ -308,10 +318,11 @@ catalog updates may continue; unsupported capabilities cannot enter a client
 silently. Production declaration requires cumulative readiness and existing
 authority, not a tag suffix alone.
 
-The public CLI and #243 bounded real reference remain independently consumable
+The public CLI, #243 bounded real reference, #910 user-ready Playnite integration,
+and #292 selected-game Steam entry management remain independently consumable
 without private repository knowledge or per-port rules. Marketplace acceptance,
-community adoption, a universal frontend list, catalog counts, automatic Steam
-entries, Decky and standalone CLI self-updating are not gates.
+community adoption, a universal frontend list, catalog counts, continuous Steam
+synchronization, Decky and standalone CLI self-updating are not gates.
 
 ## Post-1.0 principles
 
@@ -327,9 +338,11 @@ Initial value order is:
    connect explicitly selected-file matches to readiness while keeping source
    match, platform artifact, prerequisites, and observed gameplay distinct.
 3. **Bring existing libraries and preferred frontends along** — first #291's
-   reusable ES-DE export profile, then #292's safe Steam-entry evaluation and
-   demand-led Windows/environment profiles; #249 remains the bounded existing-
-   library importer. #293 is a separate optional/community Decky opportunity.
+   reusable ES-DE export profile, then demand-led Windows/environment profiles;
+   #249 remains the bounded existing-library importer. #292's selected-game Steam
+   entry management is already a cumulative beta commitment, while continuous
+   synchronization remains later scope. #293 is a separate optional/community
+   Decky opportunity.
    Use inspect/preview, consent, stable ownership, duplicate prevention,
    preservation, scoped cleanup, and recovery; stop before broad promises,
    partnerships, a plugin per launcher, or copied lifecycle logic.

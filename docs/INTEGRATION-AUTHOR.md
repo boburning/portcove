@@ -12,6 +12,14 @@ consumer. Its protocol and process files are examples, not a general SDK or
 permission to copy core lifecycle rules. See [integration ownership](INTEGRATIONS.md)
 and the complete [CLI contract](CLI.md).
 
+Choose only the capability level the client needs. A launch-only client binds
+identity, readiness and supervised launch; library integration adds stable entry
+discovery/refresh; lifecycle integration adds explicit management, progress and
+recovery. A basic launcher is not required to implement every management command.
+Negotiate the operations and schemas actually used, and keep unsupported higher
+levels unavailable rather than accepting consequential data the client cannot
+interpret.
+
 ## Discover and bind
 
 Use the runtime's argument-array API with shell execution disabled. These are
@@ -31,6 +39,15 @@ unknown consequential enum values or a different schema with a migration message
 Future client revisions should extend that window only after matching fixtures
 and package tests. The product version is descriptive, never a substitute for
 these checks. Export authoritative schemas with `schema export`.
+
+Runtime discovery is a trust boundary, not permission to execute the first file
+with a matching name. Ask the user to select or approve a verified compatible
+package, validate its documented identity/checksum before negotiation, and show
+the effective library before any mutation. Reuse an intentionally selected
+library; never silently create or fall back to another one. Separate libraries
+remain separate identities. Desktop, CLI and plugins may be at different versions,
+so each consumer must reject an incompatible shared-library protocol or required
+operation without weakening core locking or migration authority.
 
 `library identity` may initialize an empty library. Its opaque ID plus catalog
 port ID forms the game key. Encode both components without delimiter collisions.
@@ -129,6 +146,15 @@ explicit recovery action, bind it to the retained request ID already observed
 through `launch.show`, and read the returned terminal record. Never substitute
 client-side PID checks, direct SQLite changes, automatic relaunch, or a success
 claim for the core result.
+
+## Responsiveness
+
+Measure responsiveness against representative library sizes before setting a
+budget. Record process invocation counts, refresh and launch latency, bounded
+polling/concurrency, cancellation and prepared offline behavior. Prefer existing
+batch reads over one CLI process per game, and refresh incrementally where the
+public contract supports it. These measurements may expose a contract gap; they
+do not by themselves justify a daemon, hidden cache authority or invented command.
 
 ## Troubleshooting and conformance
 
