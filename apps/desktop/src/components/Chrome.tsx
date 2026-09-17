@@ -680,27 +680,45 @@ function GithubSettings({ github, busy }: { github?: GithubSettingsActions; busy
   );
 }
 
+type SourceRequirementsState = "loading" | "available" | "unavailable";
+
 function SourceRequirements({
   requirements,
+  state,
   busy,
   add,
 }: {
   requirements: SourceRequirement[];
+  state: SourceRequirementsState;
   busy?: string;
   add?: (profile: SourceProfile, archive: boolean) => void;
 }) {
+  if (state === "loading")
+    return (
+      <div className="source-requirements">
+        <strong>Checking required game files…</strong>
+      </div>
+    );
+  if (state === "unavailable")
+    return (
+      <div className="source-requirements">
+        <strong>Required game files could not be checked.</strong>
+        <small>Retry loading the library before changing saved locations.</small>
+      </div>
+    );
   if (requirements.length === 0)
     return (
       <div className="source-requirements complete">
-        <strong>Installed ports have every required source reference.</strong>
+        <strong>All required game files have been added for your installed ports.</strong>
       </div>
     );
   return (
     <div className="source-requirements">
       <div className="source-requirements-heading">
         <strong>
-          {requirements.length} source{" "}
-          {requirements.length === 1 ? "requirement needs" : "requirements need"} attention
+          {requirements.length} game-file{" "}
+          {requirements.length === 1 ? "requirement" : "requirements"}{" "}
+          {requirements.length === 1 ? "needs" : "need"} attention
         </strong>
         <small>Required by installed ports</small>
       </div>
@@ -743,6 +761,7 @@ function SourceHealth({
   ports,
   sources,
   requirements,
+  requirementsState,
   outcomes,
   inspections,
   busy,
@@ -761,6 +780,7 @@ function SourceHealth({
   verify?: () => void;
   replace?: (source: SourceRecord) => void;
   requirements: SourceRequirement[];
+  requirementsState: SourceRequirementsState;
   add?: (profile: SourceProfile, archive: boolean) => void;
   profiles: SourceProfile[];
   inspections: ReadonlyMap<string, SourceInspectionReport>;
@@ -773,7 +793,7 @@ function SourceHealth({
     <article className="settings-card source-health" data-focus-group>
       <p className="eyebrow">SOURCES</p>
       <div className="settings-title">
-        <h2>Integrity</h2>
+        <h2>Game-file verification</h2>
         <button
           data-focusable
           className="small-control"
@@ -783,35 +803,44 @@ function SourceHealth({
           Verify sources
         </button>
       </div>
-      <SourceRequirements requirements={requirements} busy={busy} add={add} />
-      <SourceDiscoveryButton profiles={profiles} disabled={Boolean(busy)} onAdded={onAdded} />
-      {sources.length === 0 ? (
-        <p>No source files are registered yet.</p>
-      ) : (
-        <div className="source-health-list">
-          {sources.map((source, index) => (
-            <SourceHealthRow
-              key={`${source.profile_id}:${generation}`}
-              source={source}
-              sourcePosition={index + 1}
-              sourceCount={sources.length}
-              profile={profilesById.get(source.profile_id)}
-              generation={generation}
-              ports={ports}
-              onRemoved={onAdded}
-              report={inspections.get(source.profile_id)}
-              outcome={byProfile.get(source.profile_id)}
-              busy={busy}
-              replace={replace}
-              openEvidence={openEvidence}
-            />
-          ))}
-        </div>
-      )}
+      <SourceRequirements
+        requirements={requirements}
+        state={requirementsState}
+        busy={busy}
+        add={add}
+      />
+      <SourceDiscoveryButton
+        profiles={profiles}
+        disabled={Boolean(busy) || requirementsState !== "available"}
+        onAdded={onAdded}
+      />
+      {requirementsState === "available" &&
+        (sources.length === 0 ? (
+          <p>No source files are registered yet.</p>
+        ) : (
+          <div className="source-health-list">
+            {sources.map((source, index) => (
+              <SourceHealthRow
+                key={`${source.profile_id}:${generation}`}
+                source={source}
+                sourcePosition={index + 1}
+                sourceCount={sources.length}
+                profile={profilesById.get(source.profile_id)}
+                generation={generation}
+                ports={ports}
+                onRemoved={onAdded}
+                report={inspections.get(source.profile_id)}
+                outcome={byProfile.get(source.profile_id)}
+                busy={busy}
+                replace={replace}
+                openEvidence={openEvidence}
+              />
+            ))}
+          </div>
+        ))}
       <p>
-        Verification is local and read-only. Relink source checks the current source requirements
-        and confirms identical content at the new location before updating Portcove's reference.
-        Your source files stay untouched.
+        Portcove checks files locally and never uploads or changes them. When you choose a new
+        location, Portcove confirms that the file is an exact match before saving the new path.
       </p>
     </article>
   );
@@ -1065,12 +1094,19 @@ function DiagnosticsCard({
       <p className="eyebrow">DIAGNOSTICS</p>
       <h2>
         <Icon glyph={ShieldCheck} />
-        Redacted support bundle
+        Create support bundle
       </h2>
       <p>
-        Collect rotated desktop logs, recent operation records, and host readiness without game
-        sources or stored credentials.
+        Collect recent logs, operation history, and system details without game-file contents or
+        saved credentials.
       </p>
+      <details>
+        <summary>Review what can remain before sharing</summary>
+        <p>
+          Paths, file names, port and tool identifiers, timestamps, and other system metadata can
+          remain after sensitive values are redacted. Review the bundle before sharing it.
+        </p>
+      </details>
       <p role="status">
         {refreshing
           ? "Checking current host and library diagnostics…"
@@ -1145,6 +1181,7 @@ export function SettingsView({
   busy,
   sources = [],
   sourceNeeds = [],
+  sourceRequirementsState = "loading",
   sourceOutcomes = [],
   sourceInspections = new Map(),
   verifySources,
@@ -1178,6 +1215,7 @@ export function SettingsView({
   switchLibrary?: (path: string) => Promise<void>;
   resetLibrary?: () => Promise<void>;
   sourceNeeds?: SourceRequirement[];
+  sourceRequirementsState?: SourceRequirementsState;
   sourceOutcomes?: SourceVerificationOutcome[];
   verifySources?: () => void;
   replaceSource?: (source: SourceRecord) => void;
@@ -1227,6 +1265,7 @@ export function SettingsView({
         ports={ports}
         sources={sources}
         requirements={sourceNeeds}
+        requirementsState={sourceRequirementsState}
         outcomes={sourceOutcomes}
         inspections={sourceInspections}
         busy={busy}
@@ -1457,10 +1496,11 @@ function HostReadiness({
       ) : failure ? (
         <p>Host readiness is unavailable until diagnostics succeed.</p>
       ) : (
-        <p>Checking disc-tool readiness…</p>
+        <p>Checking disc-tool availability…</p>
       )}
       <p>
-        For some compressed disc formats, Portcove needs a disc tool to check or convert the image.
+        These optional tools are used only when Portcove must check, extract, or convert supported
+        compressed disc formats.
       </p>
     </article>
   );
