@@ -155,6 +155,7 @@ function DetailDialog({
     bios,
     biosPath,
   );
+  const runtimeUpdateAvailable = currentUpdateSnapshot(status)?.check.update_available === true;
   const state =
     installed && typeof status?.readiness?.launchable !== "boolean"
       ? {
@@ -169,6 +170,7 @@ function DetailDialog({
           Boolean(status?.staged),
           pendingSetup,
           Boolean(status?.readiness?.blockers.includes("missing_runtime")),
+          runtimeUpdateAvailable,
           status?.readiness?.source,
           status?.readiness?.bios,
           Boolean(sourcePath.trim() || biosPath?.trim()),
@@ -236,6 +238,7 @@ function DetailDialog({
           installed={installed}
           launchReady={launchReady}
           pendingSetup={pendingSetup}
+          runtimeUpdateAvailable={runtimeUpdateAvailable}
           installPlan={installPlan}
           selectedChannel={selectedChannel}
           policy={policy}
@@ -281,6 +284,7 @@ function DetailBody({
   installed,
   launchReady,
   pendingSetup,
+  runtimeUpdateAvailable,
   installPlan,
   selectedChannel,
   policy,
@@ -303,6 +307,7 @@ function DetailBody({
   installed: boolean;
   launchReady: boolean;
   pendingSetup: boolean;
+  runtimeUpdateAvailable: boolean;
   installPlan?: InstallPlan;
   selectedChannel: ReleaseChannel;
   policy: UpdatePolicy;
@@ -330,6 +335,7 @@ function DetailBody({
         installed={installed}
         launchReady={launchReady}
         pendingSetup={pendingSetup}
+        runtimeUpdateAvailable={runtimeUpdateAvailable}
         managedPreparation={managedPreparation}
         installPlan={installPlan}
         busy={busy}
@@ -401,6 +407,7 @@ function StatusActionsGroup({
   installed,
   launchReady,
   pendingSetup,
+  runtimeUpdateAvailable,
   managedPreparation,
   installPlan,
   busy,
@@ -412,6 +419,7 @@ function StatusActionsGroup({
   installed: boolean;
   launchReady: boolean;
   pendingSetup: boolean;
+  runtimeUpdateAvailable: boolean;
   managedPreparation: boolean;
   installPlan?: InstallPlan;
   busy?: string;
@@ -425,6 +433,7 @@ function StatusActionsGroup({
         invalidInstallation={Boolean(status?.readiness?.blockers.includes("invalid_installation"))}
         preparationRequired={managedPreparation && pendingSetup}
         runtimeNeeded={Boolean(status?.readiness?.blockers.includes("missing_runtime"))}
+        runtimeUpdateAvailable={runtimeUpdateAvailable}
         installed={installed}
         launchReady={launchReady}
         pendingSetup={pendingSetup}
@@ -1162,6 +1171,7 @@ function PrimaryActions({
   invalidInstallation,
   preparationRequired,
   runtimeNeeded,
+  runtimeUpdateAvailable,
   installed,
   launchReady,
   pendingSetup,
@@ -1172,6 +1182,7 @@ function PrimaryActions({
   invalidInstallation: boolean;
   preparationRequired: boolean;
   runtimeNeeded: boolean;
+  runtimeUpdateAvailable: boolean;
   installed: boolean;
   launchReady: boolean;
   pendingSetup: boolean;
@@ -1181,7 +1192,12 @@ function PrimaryActions({
 }) {
   if (invalidInstallation)
     return <p>Verify the game files below and review repair before playing.</p>;
-  if (runtimeNeeded) return <p>Review the game update below to install the required component.</p>;
+  if (runtimeNeeded)
+    return runtimeUpdateAvailable ? (
+      <p>Review the game update below to install the required component.</p>
+    ) : (
+      <p>Check for updates or verify the installation to restore the required component.</p>
+    );
   if (!installed)
     return (
       <InstallAction
@@ -1457,6 +1473,7 @@ function detailState(
   staged: boolean,
   pendingSetup: boolean,
   runtimeNeeded: boolean,
+  runtimeUpdateAvailable: boolean,
   sourceHealth?: SourceHealth | null,
   biosHealth?: SourceHealth | null,
   selectedPath = false,
@@ -1480,13 +1497,21 @@ function detailState(
       icon: Download,
     };
   if (runtimeNeeded)
-    return {
-      title: "Update required before playing",
-      description:
-        "Install the available update that includes the required component. Existing saves stay in your library.",
-      tone: "setup",
-      icon: Wrench,
-    };
+    return runtimeUpdateAvailable
+      ? {
+          title: "Update required before playing",
+          description:
+            "Install the available update that includes the required component. Existing saves stay in your library.",
+          tone: "setup",
+          icon: Wrench,
+        }
+      : {
+          title: "Required component needs repair",
+          description:
+            "Check for updates or verify the installation to restore the required component.",
+          tone: "setup",
+          icon: Wrench,
+        };
   const sourceIssue = sourceHealthState("Original source", sourceHealth);
   if (sourceIssue) return sourceIssue;
   const biosIssue = sourceHealthState("Required BIOS", biosHealth);
