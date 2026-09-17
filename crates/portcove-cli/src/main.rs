@@ -226,6 +226,8 @@ impl ArtworkCommand {
 enum LaunchCommand {
     /// Return the retained request, or null when absent; absence is not a successful outcome.
     Show { request_id: Uuid },
+    /// Recover an unfinished request after its recorded supervisor has exited.
+    Recover { request_id: Uuid },
 }
 
 #[derive(Debug, Subcommand)]
@@ -1301,9 +1303,19 @@ async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
                 |captures| human::activity_diagnostic(captures),
             )?;
         }
-        Commands::Launch { .. } => {
-            unreachable!("launch observation is handled before service initialization")
+        Commands::Launch {
+            command: LaunchCommand::Recover { request_id },
+        } => {
+            service.recover_launch_session(&request_id.to_string())?;
+            render_success(
+                mode,
+                "launch.recover",
+                service.library().launch_request(&request_id.to_string())?,
+            )?;
         }
+        Commands::Launch {
+            command: LaunchCommand::Show { .. },
+        } => unreachable!("launch observation is handled before service initialization"),
         Commands::Storage => {
             render_read_success(
                 mode,
@@ -2398,7 +2410,10 @@ fn command_name(command: &Commands) -> &'static str {
         } => "activity.log",
         Commands::Activity { .. } => "activity",
         Commands::Cancel { .. } => "cancel",
-        Commands::Launch { .. } => "launch.show",
+        Commands::Launch { command } => match command {
+            LaunchCommand::Show { .. } => "launch.show",
+            LaunchCommand::Recover { .. } => "launch.recover",
+        },
         Commands::Storage => "storage",
         Commands::Library { command } => library_command_name(command),
         Commands::Doctor => "doctor",
@@ -2811,7 +2826,7 @@ mod tests {
     #[test]
     fn capabilities_advertise_failure_isolated_batches() {
         let capabilities = CapabilityDocument::current();
-        assert_eq!(capabilities.schema_version, 48);
+        assert_eq!(capabilities.schema_version, 49);
         assert_eq!(
             capabilities.failure_isolated_batches,
             ["check", "reconcile", "update", "source.verify"]

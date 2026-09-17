@@ -357,7 +357,7 @@ namespace Portcove.ReferenceClient
 
     internal sealed class ProtocolStream
     {
-        internal const int Schema = 48;
+        internal const int Schema = 49;
         private static bool SupportedSchema(long version) => version >= 42 && version <= Schema;
         private readonly string command;
         private readonly Action<Dictionary<string, object>> progress;
@@ -382,7 +382,7 @@ namespace Portcove.ReferenceClient
             if (type == null || (type as string) == "result")
             {
                 if (!SupportedSchema(Json.Number(record, "schema_version")) || Json.Text(record, "command") != command)
-                    throw new InvalidOperationException("Unsupported Portcove response. This client requires API schema 42 through 48; install a matching CLI/client pair.");
+                    throw new InvalidOperationException("Unsupported Portcove response. This client requires API schema 42 through 49; install a matching CLI/client pair.");
                 Json.Boolean(record, "ok");
                 result = record;
                 return;
@@ -421,12 +421,14 @@ namespace Portcove.ReferenceClient
         {
             var schema = Json.Number(capabilities, "schema_version");
             if (!SupportedSchema(schema) || Json.Text(capabilities, "product") != "Portcove")
-                throw new InvalidOperationException("This reference client requires Portcove API schema 42 through 48. Select a compatible CLI or update the client.");
+                throw new InvalidOperationException("This reference client requires Portcove API schema 42 through 49. Select a compatible CLI or update the client.");
             var commands = Json.Array(Json.Field(capabilities, "commands")).OfType<string>().ToArray();
             foreach (var required in new[] { "catalog", "source", "status", "activity", "cancel", "library.identity", "launch.show", "exec", "ensure", "update", "preparation" })
                 if (!commands.Contains(required)) throw new InvalidOperationException("The CLI lacks " + required + ". Select a compatible standalone Portcove CLI.");
             if (schema >= 48 && !commands.Contains("preparation.cleanup"))
                 throw new InvalidOperationException("The schema-48 CLI lacks preparation.cleanup. Select a complete matching CLI or update the client.");
+            if (schema >= 49 && !commands.Contains("launch.recover"))
+                throw new InvalidOperationException("The schema-49 CLI lacks launch.recover. Select a complete matching CLI or update the client.");
             var formats = Json.Array(Json.Field(capabilities, "machine_formats")).OfType<string>();
             if (!formats.Contains("json") || !formats.Contains("jsonl") || !Json.Array(Json.Field(capabilities, "raw_stream_commands")).Contains("exec"))
                 throw new InvalidOperationException("The CLI lacks the required JSON/JSONL and raw supervised launch contracts.");

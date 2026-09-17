@@ -194,6 +194,13 @@ fn preparation_roundtrip(chd: bool) {
     };
     assert!(played.status.success(), "{played:?}");
     assert!(String::from_utf8_lossy(&played.stdout).contains("owned game launched"));
+    if !chd {
+        super::launch_contract::recover_interrupted_prepared_launch(
+            &library,
+            &preferences,
+            &port.id,
+        );
+    }
     assert_eq!(
         fs::read(log).unwrap(),
         b"setup must not run during CLI exec"

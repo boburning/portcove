@@ -228,6 +228,16 @@ creates a fresh launch identity itself. A real external client that needs
 durable polling supplies a new UUID per launch and uses `launch show`; reusing a
 fixed UUID is rejected.
 
+If that client loses its Portcove supervisor and `launch show` still reports an
+unfinished request, it may explicitly invoke `launch recover <request-id>`.
+Recovery succeeds only after core proves the recorded supervisor is gone, retains
+the per-port exclusion, follows only the recorded child with its process-start
+identity, and still matches the exact registered install. It waits for that child
+when necessary, performs exact-install collection, and records a failed terminal
+outcome. Live supervisors, ambiguous child creation, missing identity, or install
+drift remain manual-review conflicts. Steam Stop or another hard termination must
+not be described as giving the game an opportunity to flush saves.
+
 The entry uses stable port and explicit library identity, not a version-specific
 upstream executable. Ordinary game update or rollback changes neither field.
 After a supported library relocation, update only the explicit library argument.
@@ -241,7 +251,7 @@ required to remain open while the game runs.
 Current controlled release smoke executes every actual standalone CLI package
 from an extracted path containing spaces and Unicode, selects an explicit
 spaces/Unicode library, verifies exact `invocation` provenance, and confirms the
-packaged `exec` plus `launch.show` capability surface. This proves packaged
+packaged `exec`, `launch.show`, and `launch.recover` capability surface. This proves packaged
 executable/path/library admission, not a game session or a Steam-client launch.
 Desktop Steam and Steam Deck remain separate qualification environments,
 beginning with appropriate native Linux routes on SteamOS.

@@ -114,12 +114,15 @@ try {
     if (@($capabilitiesOutput.data.commands) -cnotcontains "launch.show") {
         throw "Packaged CLI does not declare durable launch-session readback"
     }
+    if (@($capabilitiesOutput.data.commands) -cnotcontains "launch.recover") {
+        throw "Packaged CLI does not declare durable launch-session recovery"
+    }
 
     $doctorOutput = (& $executable --library $library --json doctor | Out-String).Trim() | ConvertFrom-Json
     if ($LASTEXITCODE -ne 0 -or $doctorOutput.ok -ne $true -or $doctorOutput.command -ne "doctor") {
         throw "Packaged CLI failed its isolated-library doctor smoke test"
     }
-    Write-Output "Packaged CLI smoke test passed: $PlatformLabel; $versionOutput; $identity; spaces/Unicode executable and explicit library paths; exec plus launch.show"
+    Write-Output "Packaged CLI smoke test passed: $PlatformLabel; $versionOutput; $identity; spaces/Unicode executable and explicit library paths; exec plus launch.show and launch.recover"
 }
 finally {
     $resolvedParent = [System.IO.Path]::GetFullPath($temporaryParent).TrimEnd('\', '/') + [System.IO.Path]::DirectorySeparatorChar

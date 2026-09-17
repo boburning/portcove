@@ -51,7 +51,7 @@ internal static class ContractTests
     private static object Capabilities() => new
     {
         schema_version = 42, product = "Portcove",
-        commands = new[] { "catalog", "source", "status", "activity", "cancel", "library.identity", "launch.show", "exec", "ensure", "update", "preparation", "preparation.cleanup" },
+        commands = new[] { "catalog", "source", "status", "activity", "cancel", "library.identity", "launch.show", "launch.recover", "exec", "ensure", "update", "preparation", "preparation.cleanup" },
         machine_formats = new[] { "json", "jsonl" }, raw_stream_commands = new[] { "exec" }
     };
     private static async Task Run(string[] args)
@@ -102,6 +102,15 @@ internal static class ContractTests
         Reject(() => ProtocolStream.Negotiate(incomplete48),
             "schema 48 without its cleanup capability rejected");
         bad["schema_version"] = 49;
+        ProtocolStream.Negotiate(bad);
+        Check(true, "explicit launch recovery API schema negotiated");
+        var incomplete49 = Json.Object(Json.Parse(Json.Print(Capabilities())));
+        incomplete49["schema_version"] = 49;
+        incomplete49["commands"] = Json.Array(Json.Field(incomplete49, "commands"))
+            .Where(command => !Equals(command, "launch.recover")).ToArray();
+        Reject(() => ProtocolStream.Negotiate(incomplete49),
+            "schema 49 without its launch recovery capability rejected");
+        bad["schema_version"] = 50;
         Reject(() => ProtocolStream.Negotiate(bad), "future schema rejected with migration guidance");
         bad["schema_version"] = 42; bad["commands"] = new object[0];
         Reject(() => ProtocolStream.Negotiate(bad), "missing command capability rejected");
