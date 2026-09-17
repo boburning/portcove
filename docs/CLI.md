@@ -22,6 +22,27 @@ file documents current implemented behavior. Future completeness and
 compatibility gaps remain owned by #30 and are not shipped merely because they
 are described in the roadmap.
 
+The Public beta contract keeps launch-only, library, and lifecycle consumers
+independently useful: a basic launcher negotiates only the operations, formats,
+schemas, and consequential semantics it uses rather than implementing every
+management command. #30 audits the implemented surface before adding anything
+and owns only demonstrated shared gaps needed by consumers such as #910 Playnite
+and #292 Steam entry management. Required answers include stable identity,
+metadata/artwork references, installation and readiness, requirements, allowed
+next actions, stable blocked reasons, update eligibility, operation results, and
+launcher-ready program, argument-array, working-directory, and explicit-library
+information. This acceptance direction neither invents command names or DTOs nor
+claims a missing answer exists in the current CLI.
+
+That audit also covers verified runtime/library binding, operation-specific and
+mixed-version compatibility, batch-read reuse, bounded polling/concurrency,
+cancellation, prepared offline behavior, and measured refresh/launch
+responsiveness. Budgets follow representative measurements rather than planning
+claims. Runtime discovery must not blindly execute an untrusted candidate, and
+no gap by itself authorizes a daemon, hidden cache authority, private API, or
+standalone CLI self-updater. The implemented behavior below remains authoritative
+until an exact reviewed change closes a demonstrated gap.
+
 Future eligibility/evidence and independent-definition work must use one core
 assessment across CLI, Tauri and integrations. Operation availability and reasons,
 publisher origin/trust, digest provenance, source compatibility and scoped test
