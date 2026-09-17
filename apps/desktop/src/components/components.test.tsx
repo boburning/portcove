@@ -2164,6 +2164,104 @@ describe("desktop components", () => {
     expect(html).toContain("Activity from the CLI and desktop appears here.");
   });
 
+  it("describes activity mutations with outcomes shared producers can support", () => {
+    const activities: ActivityRecord[] = [
+      {
+        id: "activity-backup",
+        failure: null,
+        cancellation: null,
+        message: null,
+        operation: "backup",
+        target_kind: "port",
+        target_id: port.id,
+        status: "succeeded",
+        started_at: 10,
+        finished_at: 11,
+      },
+      {
+        id: "activity-remove",
+        failure: null,
+        cancellation: null,
+        message: null,
+        operation: "remove",
+        target_kind: "port",
+        target_id: port.id,
+        status: "succeeded",
+        started_at: 11,
+        finished_at: 12,
+      },
+      {
+        id: "activity-remove-source",
+        failure: null,
+        cancellation: null,
+        message: null,
+        operation: "remove_source",
+        target_kind: "source",
+        target_id: "sample-rom",
+        status: "succeeded",
+        started_at: 12,
+        finished_at: 13,
+      },
+      {
+        id: "activity-register-source",
+        failure: null,
+        cancellation: null,
+        message: null,
+        operation: "register_source",
+        target_kind: "source",
+        target_id: "sample-rom",
+        status: "succeeded",
+        started_at: 13,
+        finished_at: 14,
+      },
+      {
+        id: "activity-discover-sources",
+        failure: null,
+        cancellation: null,
+        message: null,
+        operation: "discover_sources",
+        target_kind: "library",
+        target_id: null,
+        status: "succeeded",
+        started_at: 14,
+        finished_at: 15,
+      },
+    ];
+    const html = renderToStaticMarkup(
+      <UpdateCenter
+        generation={1}
+        ports={[port]}
+        statuses={new Map()}
+        activities={activities}
+        outcomes={[]}
+        diagnosticsRefreshing={false}
+        diagnosticsStale={false}
+        refreshDiagnostics={vi.fn()}
+        checkAll={vi.fn()}
+        onSelect={vi.fn()}
+        onOpenSources={vi.fn()}
+      />,
+    );
+
+    for (const label of [
+      "Created backup",
+      "Removed installed versions",
+      "Removed saved game-file location",
+      "Saved game-file location",
+      "Searched for game files",
+    ])
+      expect(html).toContain(label);
+    for (const internalLabel of [
+      "Backed up data",
+      "Removed managed files",
+      "Removed source reference",
+      "Registered source",
+      "Added game file",
+      "Searched for sources",
+    ])
+      expect(html).not.toContain(internalLabel);
+  });
+
   it("explains empty update and activity states without internal lifecycle jargon", () => {
     const html = renderToStaticMarkup(
       <UpdateCenter
