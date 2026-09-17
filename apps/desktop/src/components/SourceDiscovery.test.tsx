@@ -47,16 +47,16 @@ it("opens and scans the Inbox, then applies the exact reviewed import", async ()
     kind: "file",
     accepted_extensions: ["iso"],
     accepted_sha1: [],
-    accepted_sha256: [],
+    accepted_sha256: ["b".repeat(64)],
     disc: null,
     members: [],
   };
   const candidate = {
     profile_id: profile.id,
     path: "D:/Selected/game.iso",
-    sha256: "a".repeat(64),
+    sha256: "b".repeat(64),
     size: 64,
-    storage_sha256: "a".repeat(64),
+    storage_sha256: "b".repeat(64),
     storage_size: 64,
     updated_at: 1,
   };
@@ -123,7 +123,14 @@ it("opens and scans the Inbox, then applies the exact reviewed import", async ()
             inspection: {
               profile_id: profile.id,
               path: "D:/Library/source-inbox/test/not-a-match.iso",
-              observed_digests: [],
+              observed_digests: [
+                {
+                  algorithm: "sha256",
+                  scope: "original-file",
+                  size: 64,
+                  value: "c".repeat(64),
+                },
+              ],
               components: [],
               assessment: {
                 health: "not_baselined",
