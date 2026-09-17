@@ -1181,7 +1181,7 @@ function PrimaryActions({
 }) {
   if (invalidInstallation)
     return <p>Verify the game files below and review repair before playing.</p>;
-  if (runtimeNeeded) return <p>Review the game update below to install the required runtime.</p>;
+  if (runtimeNeeded) return <p>Review the game update below to install the required component.</p>;
   if (!installed)
     return (
       <InstallAction
@@ -1481,9 +1481,9 @@ function detailState(
     };
   if (runtimeNeeded)
     return {
-      title: "Verified runtime required",
+      title: "Update required before playing",
       description:
-        "Review the update to install this port with its required runtime. Existing saves stay in your library.",
+        "Install the available update that includes the required component. Existing saves stay in your library.",
       tone: "setup",
       icon: Wrench,
     };
@@ -1498,9 +1498,8 @@ function detailState(
     biosHealth !== "unregistered"
   )
     return {
-      title: "Prepare game data",
-      description:
-        "Review the default setup below. Play becomes available after preparation succeeds.",
+      title: "Game files required",
+      description: "Run the port's setup before playing for the first time.",
       tone: "setup",
       icon: Wrench,
     };
@@ -1522,22 +1521,21 @@ function detailState(
     };
   if (pendingSetup)
     return {
-      title: "First launch setup",
-      description:
-        "The source is registered. Portcove will run and verify the upstream setup before play.",
+      title: "Game files required",
+      description: "Run the port's setup before playing for the first time.",
       tone: "setup",
       icon: Wrench,
     };
   if (staged)
     return {
-      title: "Ready · update staged",
-      description: "Play the current version or activate the verified staged release.",
+      title: "Ready to play · update downloaded",
+      description: "Play the installed version or review the downloaded update.",
       tone: "staged",
       icon: RefreshCw,
     };
   return {
-    title: "Ready to launch",
-    description: "The active version and every required local source are available.",
+    title: "Ready to play",
+    description: "The installed version and all required game files are available.",
     tone: "ready",
     icon: CheckCircle2,
   };

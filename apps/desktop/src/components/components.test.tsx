@@ -289,7 +289,7 @@ describe("desktop components", () => {
     expect(html).toContain("Saved data handling</small>Unavailable in this catalog");
   });
 
-  it("routes a missing verified runtime to reviewed installation instead of Play", () => {
+  it("routes a missing required component to the available update instead of Play", () => {
     const html = renderToStaticMarkup(
       <DetailPanel
         port={{ ...port, source_profile: null }}
@@ -310,10 +310,79 @@ describe("desktop components", () => {
         }}
       />,
     );
-    expect(html).toContain("Verified runtime required");
+    expect(html).toContain("Update required before playing");
+    expect(html).toContain("Install the available update that includes the required component");
     expect(html).toContain("Review game update");
+    expect(html).not.toContain("runtime");
     expect(html).not.toContain("Play now");
     expect(html).not.toContain("Choose required source");
+  });
+
+  it("names managed first-run preparation as required game files", () => {
+    const html = renderToStaticMarkup(
+      <DetailPanel
+        port={{
+          ...port,
+          adapter: "upstream-managed-setup",
+          source_profile: null,
+          setup_output_paths: ["prepared"],
+        }}
+        sourcePath=""
+        setSourcePath={vi.fn()}
+        actions={actions}
+        status={{
+          ...portStatus(),
+          active: installRecord(),
+          readiness: {
+            launchable: false,
+            blockers: ["preparation_required"],
+            pending_setup: true,
+          },
+        }}
+      />,
+    );
+    expect(html).toContain("Game files required");
+    expect(html).toContain("Run the port&#x27;s setup before playing for the first time.");
+    expect(html).not.toContain("Prepare game data</strong>");
+    expect(html).not.toContain("upstream setup");
+  });
+
+  it("uses player-facing ready and downloaded-update labels", () => {
+    const status: PortStatus = {
+      ...portStatus(),
+      active: installRecord(),
+      readiness: {
+        launchable: true,
+        blockers: [],
+        pending_setup: false,
+      },
+    };
+    const ready = renderToStaticMarkup(
+      <DetailPanel
+        port={{ ...port, source_profile: null }}
+        sourcePath=""
+        setSourcePath={vi.fn()}
+        actions={actions}
+        status={status}
+      />,
+    );
+    const downloaded = renderToStaticMarkup(
+      <DetailPanel
+        port={{ ...port, source_profile: null }}
+        sourcePath=""
+        setSourcePath={vi.fn()}
+        actions={actions}
+        status={{ ...status, staged: { ...installRecord(), id: "2", staged: true } }}
+      />,
+    );
+
+    expect(ready).toContain("Ready to play");
+    expect(ready).toContain("The installed version and all required game files are available.");
+    expect(downloaded).toContain("Ready to play · update downloaded");
+    expect(downloaded).toContain("Play the installed version or review the downloaded update.");
+    expect(`${ready}${downloaded}`).not.toContain("Ready to launch");
+    expect(`${ready}${downloaded}`).not.toContain("update staged");
+    expect(`${ready}${downloaded}`).not.toContain("active version");
   });
 
   it("shows installation repair without asking for a different source", () => {
