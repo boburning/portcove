@@ -179,6 +179,7 @@ test("packaged CLI smoke covers the plugin-free launcher path and library contra
   assert.match(cliSmoke, /Resolve-Path -LiteralPath \(\[string\]\$selectionOutput\.data\.root\)/);
   assert.match(cliSmoke, /data\.raw_stream_commands\) -cnotcontains "exec"/);
   assert.match(cliSmoke, /data\.commands\) -cnotcontains "launch\.show"/);
+  assert.match(cliSmoke, /data\.commands\) -cnotcontains "launch\.recover"/);
   assert.doesNotMatch(cliSmoke, /Start-Process|cmd(?:\.exe)?|\/bin\/sh/iu);
 });
 

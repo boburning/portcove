@@ -8,6 +8,7 @@ use std::{
 };
 
 const REQUEST: &str = "19C66CF0-656F-4A02-9C0B-DBA89767AB4E";
+const RECOVERY_REQUEST: &str = "8D7F7B8B-3632-4C77-8B14-3FC8C338D9C3";
 
 #[test]
 fn launch_observation_is_versioned_nullable_and_rejects_invalid_ids_before_opening() {
@@ -15,6 +16,7 @@ fn launch_observation_is_versioned_nullable_and_rejects_invalid_ids_before_openi
     let library = temporary.path().join("library");
     for args in [
         vec!["--json", "launch", "show", "not-a-uuid"],
+        vec!["--json", "launch", "recover", "not-a-uuid"],
         vec![
             "--json",
             "exec",
@@ -29,7 +31,7 @@ fn launch_observation_is_versioned_nullable_and_rejects_invalid_ids_before_openi
         assert!(!library.exists());
     }
     let absent = json_stdout(&portcove(&library, &["--json", "launch", "show", REQUEST]));
-    assert_eq!(absent["schema_version"], 48);
+    assert_eq!(absent["schema_version"], 49);
     assert_eq!(absent["command"], "launch.show");
     assert_eq!(absent["ok"], true);
     assert!(absent["data"].is_null());
@@ -43,11 +45,111 @@ fn launch_observation_is_versioned_nullable_and_rejects_invalid_ids_before_openi
             .unwrap()
             .contains(&serde_json::json!("launch.show"))
     );
+    assert!(
+        capabilities["data"]["commands"]
+            .as_array()
+            .unwrap()
+            .contains(&serde_json::json!("launch.recover"))
+    );
     let schema = json_stdout(&portcove(
         &library,
         &["--json", "schema", "export", "--contract", "output"],
     ));
     assert!(schema["data"]["launch_request"].is_object());
+}
+
+pub(super) fn recover_interrupted_prepared_launch(
+    library: &Path,
+    preferences: &Path,
+    port_id: &str,
+) {
+    let release = library
+        .parent()
+        .unwrap()
+        .join("release-interrupted-owned-game");
+    let read = || {
+        json_stdout(&portcove_tool(
+            preferences,
+            library,
+            &["--json", "launch", "show", RECOVERY_REQUEST],
+        ))
+    };
+    let mut supervisor = portcove_core::ChildProcessPolicy::native_command(
+        portcove_core::ChildProcessClass::HostIntegration,
+        cli_binary(),
+    )
+    .unwrap()
+    .env("PORTCOVE_PREFERENCES", preferences)
+    .arg("--library")
+    .arg(library)
+    .args([
+        "--non-interactive",
+        "exec",
+        port_id,
+        "--request-id",
+        RECOVERY_REQUEST,
+        "--",
+        "--owned-wait",
+    ])
+    .arg(&release)
+    .stdout(Stdio::piped())
+    .stderr(Stdio::piped())
+    .spawn()
+    .unwrap();
+    let deadline = Instant::now() + Duration::from_secs(8);
+    let running = loop {
+        let observed = read();
+        if observed["data"]["phase"] == "running" {
+            break observed["data"].clone();
+        }
+        assert!(
+            supervisor.try_wait().unwrap().is_none(),
+            "launch ended before interruption: {observed}"
+        );
+        assert!(
+            Instant::now() < deadline,
+            "interrupted launch observation timed out: {observed}"
+        );
+        thread::sleep(Duration::from_millis(20));
+    };
+    let child_pid = running["child_pid"].as_u64().unwrap();
+    supervisor.kill().unwrap();
+    fs::write(&release, b"finish interrupted owned game").unwrap();
+    let interrupted = supervisor.wait_with_output().unwrap();
+    assert!(!interrupted.status.success());
+
+    let recovered = portcove_tool(
+        preferences,
+        library,
+        &["--json", "launch", "recover", RECOVERY_REQUEST],
+    );
+    assert!(recovered.status.success(), "{recovered:?}");
+    let recovered = json_stdout(&recovered);
+    assert_eq!(recovered["schema_version"], 49);
+    assert_eq!(recovered["command"], "launch.recover");
+    assert_eq!(
+        recovered["data"]["id"],
+        RECOVERY_REQUEST.to_ascii_lowercase()
+    );
+    assert_eq!(recovered["data"]["port_id"], port_id);
+    assert_eq!(recovered["data"]["child_pid"], child_pid);
+    assert_eq!(recovered["data"]["phase"], "recovering");
+    assert_eq!(recovered["data"]["outcome"], "failed");
+    assert!(recovered["data"]["exit_code"].is_null());
+    assert!(
+        recovered["data"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("recorded session was recovered")
+    );
+    assert_eq!(read()["data"], recovered["data"]);
+    let replay = portcove_tool(
+        preferences,
+        library,
+        &["--json", "launch", "recover", RECOVERY_REQUEST],
+    );
+    assert_eq!(replay.status.code(), Some(4));
+    assert_eq!(json_stdout(&replay)["error"]["code"], "not_found");
 }
 
 pub(super) fn observe_prepared_launch(library: &Path, preferences: &Path, port_id: &str) -> Output {

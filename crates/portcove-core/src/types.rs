@@ -1281,6 +1281,7 @@ impl CapabilityDocument {
                 "exec".into(),
                 "launch".into(),
                 "launch.show".into(),
+                "launch.recover".into(),
                 "capabilities".into(),
                 "schema".into(),
             ],

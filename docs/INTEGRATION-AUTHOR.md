@@ -26,7 +26,7 @@ program/argument objects, not shell command strings:
 
 Check the envelope's schema, command, `ok`, data/error and exit status. Negotiate
 required command names, JSON/JSONL formats and raw `exec`. The reference's current
-window is API 42–48/event 2; tolerate additive object fields within it and reject
+window is API 42–49/event 2; tolerate additive object fields within it and reject
 unknown consequential enum values or a different schema with a migration message.
 Future client revisions should extend that window only after matching fixtures
 and package tests. The product version is descriptive, never a substitute for
@@ -47,6 +47,7 @@ the process. Invoke the same program with these argument arrays:
 ```json
 ["--library","H:/fixtures/library","--non-interactive","exec","shipwright","--request-id","19c66cf0-656f-4a02-9c0b-dba89767ab4e"]
 ["--library","H:/fixtures/library","--non-interactive","--json","launch","show","19c66cf0-656f-4a02-9c0b-dba89767ab4e"]
+["--library","H:/fixtures/library","--non-interactive","--json","launch","recover","19c66cf0-656f-4a02-9c0b-dba89767ab4e"]
 ```
 
 The UUID above is illustrative; never reuse it for separate real attempts. Read
@@ -63,6 +64,14 @@ acceptance time, not a precise child-start clock. Returned PIDs are observations
 not authority to terminate a process. A lost wrapper or reader cannot establish
 successful gameplay or saved data. Core's retained request and activity are the
 reconnect authority; the client need only retain a reference pointer.
+
+Do not call `launch recover` while the recorded supervisor is live. After a
+lost supervisor leaves an unfinished request, the explicit command delegates to
+core's exact-identity recovery and returns the retained failed terminal record.
+It may wait for the exact recorded child to exit. A spawning-phase ambiguity,
+missing process-start identity, changed install, or live supervisor remains a
+conflict requiring review. Recovery does not prove that a hard-killed game flushed
+its own saves; it only performs the collection that core can verify afterward.
 
 ## Optional management
 
@@ -81,7 +90,7 @@ failure does not imply earlier registration was undone.
 
 Event records have **event schema 2 at the root**; they are not nested in API
 envelopes. A final root record has `type: "result"` and a negotiated API
-schema within the client's 42–48 window. Some
+schema within the client's 42–49 window. Some
 commands emit only the result. Track sequences per operation ID and parent IDs;
 do not fabricate progress when a phase or event is missing. A valid terminal
 result and matching exit status establish the command response; refresh core
@@ -114,6 +123,12 @@ outside the action. Submit `preparation cleanup` only with the exact reviewed
 `preview_sha256` and explicit confirmation. Changed, missing, duplicated,
 unknown or cross-port repair values require a fresh read and review; never reuse
 an earlier fingerprint or infer cleanup from an interrupted preparation.
+
+Schema 49 adds `launch.recover`. Negotiate the capability before offering an
+explicit recovery action, bind it to the retained request ID already observed
+through `launch.show`, and read the returned terminal record. Never substitute
+client-side PID checks, direct SQLite changes, automatic relaunch, or a success
+claim for the core result.
 
 ## Troubleshooting and conformance
 
