@@ -1158,6 +1158,25 @@ describe("desktop components", () => {
     expect(html).not.toContain("Diagnostics are current");
   });
 
+  it("explains support-bundle and optional disc-tool boundaries", () => {
+    const html = renderToStaticMarkup(
+      <SettingsView createSupportBundle={vi.fn()} refreshDiagnostics={vi.fn()} />,
+    );
+
+    expect(html).toContain("Create support bundle");
+    expect(html).toContain(
+      "Collect recent logs, operation history, and system details without game-file contents or saved credentials.",
+    );
+    expect(html).toContain("Review what can remain before sharing");
+    expect(html).toContain("Paths, file names, port and tool identifiers, timestamps");
+    expect(html).toContain("Review the bundle before sharing it");
+    expect(html).toContain("Checking disc-tool availability");
+    expect(html).toContain(
+      "These optional tools are used only when Portcove must check, extract, or convert supported compressed disc formats.",
+    );
+    expect(html).not.toContain("privacy-safe");
+  });
+
   it("renders an accessible system, dark, and light appearance choice", () => {
     const html = renderToStaticMarkup(
       <SettingsView
@@ -1304,6 +1323,7 @@ describe("desktop components", () => {
     const verified = renderToStaticMarkup(
       <SettingsView
         libraryRoot="C:/Portcove"
+        sourceRequirementsState="available"
         sources={[source]}
         sourceProfiles={[{ ...sourceProfile(), id: source.profile_id, label: "Sample cartridge" }]}
         sourceOutcomes={[
@@ -1322,6 +1342,7 @@ describe("desktop components", () => {
     const failed = renderToStaticMarkup(
       <SettingsView
         libraryRoot="C:/Portcove"
+        sourceRequirementsState="available"
         sources={[source]}
         sourceOutcomes={[
           {
@@ -1361,6 +1382,7 @@ describe("desktop components", () => {
     const html = renderToStaticMarkup(
       <SettingsView
         libraryRoot="C:/Portcove"
+        sourceRequirementsState="available"
         sources={[source, otherSource]}
         sourceProfiles={[]}
         replaceSource={vi.fn()}
@@ -1443,29 +1465,89 @@ describe("desktop components", () => {
   });
 
   it("surfaces missing installed-library source requirements in settings", () => {
-    const html = renderToStaticMarkup(
+    const requirement = {
+      profile: {
+        ...sourceProfile(),
+        id: "sample-set",
+        label: "Sample source set",
+        kind: "file-set" as const,
+        accepted_extensions: [],
+      },
+      requiredBy: [{ portId: port.id, portName: port.name, role: "Game source" as const }],
+    };
+    const registeredSource = {
+      profile_id: requirement.profile.id,
+      path: "D:/ROMs/loading-source.bin",
+      sha256: "a".repeat(64),
+      size: 1024,
+      storage_sha256: "a".repeat(64),
+      storage_size: 1024,
+      updated_at: 1,
+    };
+    const unavailableInputs = {
+      libraryRoot: "C:/Portcove",
+      sources: [registeredSource],
+      sourceProfiles: [requirement.profile],
+    };
+    const loading = renderToStaticMarkup(<SettingsView {...unavailableInputs} />);
+    const unavailable = renderToStaticMarkup(
+      <SettingsView {...unavailableInputs} sourceRequirementsState="unavailable" />,
+    );
+    const complete = renderToStaticMarkup(
+      <SettingsView libraryRoot="C:/Portcove" sourceRequirementsState="available" />,
+    );
+    const singular = renderToStaticMarkup(
       <SettingsView
         libraryRoot="C:/Portcove"
-        sourceNeeds={[
-          {
-            profile: {
-              ...sourceProfile(),
-              id: "sample-set",
-              label: "Sample source set",
-              kind: "file-set",
-              accepted_extensions: [],
-            },
-            requiredBy: [{ portId: port.id, portName: port.name, role: "Game source" }],
-          },
-        ]}
+        sourceNeeds={[requirement]}
+        sourceRequirementsState="available"
         addSource={vi.fn()}
       />,
     );
-    expect(html).toContain("1 source requirement needs attention");
-    expect(html).toContain("Sample source set");
-    expect(html).toContain("Sample Port · Game source");
-    expect(html).toContain("Add source");
-    expect(html).toContain("Add ZIP");
+    const plural = renderToStaticMarkup(
+      <SettingsView
+        libraryRoot="C:/Portcove"
+        sourceNeeds={[
+          requirement,
+          {
+            ...requirement,
+            profile: { ...requirement.profile, id: "second-set", label: "Second source set" },
+          },
+        ]}
+        sourceRequirementsState="available"
+        addSource={vi.fn()}
+      />,
+    );
+
+    expect(loading).toContain("Checking required game files");
+    expect(loading).not.toContain("All required game files have been added");
+    expect(loading).not.toContain("No source files are registered yet");
+    expect(loading.match(/<button\b([^>]*)>Find source files<\/button>/)?.[1]).toContain(
+      "disabled",
+    );
+    expect(loading).not.toContain(requirement.profile.label);
+    expect(loading).not.toContain(registeredSource.path);
+    expect(unavailable).toContain("Required game files could not be checked");
+    expect(unavailable).toContain("Retry loading the library before changing saved locations");
+    expect(unavailable).not.toContain("All required game files have been added");
+    expect(unavailable).not.toContain("No source files are registered yet");
+    expect(unavailable.match(/<button\b([^>]*)>Find source files<\/button>/)?.[1]).toContain(
+      "disabled",
+    );
+    expect(unavailable).not.toContain(requirement.profile.label);
+    expect(unavailable).not.toContain(registeredSource.path);
+    expect(complete).toContain("All required game files have been added for your installed ports");
+    expect(complete).toContain("No source files are registered yet");
+    expect(singular).toContain("1 game-file requirement needs attention");
+    expect(plural).toContain("2 game-file requirements need attention");
+    expect(singular).toContain("Game-file verification");
+    expect(singular).toContain("Portcove checks files locally and never uploads or changes them");
+    expect(singular).toContain("confirms that the file is an exact match");
+    expect(singular).toContain("Sample source set");
+    expect(singular).toContain("Sample Port · Game source");
+    expect(singular).toContain("Add source");
+    expect(singular).toContain("Add ZIP");
+    expect(singular).not.toContain("source requirement needs attention");
   });
 
   it.each([null, installRecord(), installRecord({ verified: false })])(

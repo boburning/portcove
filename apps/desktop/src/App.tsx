@@ -697,6 +697,9 @@ function CurrentView({
           );
         }}
         sourceNeeds={model.sourceNeeds}
+        sourceRequirementsState={
+          data.catalog ? "available" : data.refreshFailure ? "unavailable" : "loading"
+        }
         addSource={(profile, archive) => {
           void addRequiredSource(
             profile,
