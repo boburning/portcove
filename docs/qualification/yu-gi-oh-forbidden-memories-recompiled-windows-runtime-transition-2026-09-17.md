@@ -29,19 +29,21 @@ behavior.
 
 The exact retained library from the earlier qualification remained under
 `H:\Portcove-Worktrees\ygofm-v0.5.7-to-v0.6.1-20260915\library-main-6bf60b6`.
-Before mutation, all 20,664 files and 1,278,658,169 bytes were copied to a new
-recovery snapshot under
-`H:\Portcove-Worktrees\ygofm-runtime-transition-20260917\library`. Source and
-copy had the same database SHA-256,
+Before opening or mutating either library with the current core, all 20,664
+files and 1,278,658,169 bytes were copied to
+`H:\Portcove-Worktrees\ygofm-runtime-transition-20260917\library`. At that
+pre-open checkpoint, source and copy had the same database SHA-256,
 `18547bd397845f3ea9ea7a9d6ebe5c39dd2d08a57eadae28965ac8003771f71b`.
 
 Opening that byte copy demonstrated the expected fail-closed ownership
 boundary: its database still named the original absolute installation roots,
 so current core reported `invalid_installation` and refused rollback and
 verification with `registered install path is outside an owned output root`.
-The copy was retained as a recovery snapshot, not relabeled as a runnable
-library. The already isolated original library remained the controlled mutable
-session after its exact pre-session state had been preserved.
+That negative control subsequently updated the copied metadata database, so the
+retained copy is a bounded working copy and evidence source, not an untouched
+recovery snapshot or a runnable library. The already isolated original library
+remained the controlled mutable session; the initial equality above records the
+pre-open checkpoint but does not claim the copy remains byte-identical.
 
 The source contract and proprietary input identity did not change from the
 earlier record: normalized Track 01 SHA-1
