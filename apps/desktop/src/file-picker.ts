@@ -10,7 +10,11 @@ export function pickArtworkPath() {
   });
 }
 
-export async function pickSourcePath(profile: SourceProfile, currentPath: string) {
+export async function pickSourcePath(
+  profile: SourceProfile,
+  currentPath: string,
+  purpose: "game" | "bios" = "game",
+) {
   if (profile.kind === "file-set" && currentPath.toLowerCase().endsWith(".zip")) {
     return pickSourceArchivePath(currentPath);
   }
@@ -31,7 +35,14 @@ export async function pickSourcePath(profile: SourceProfile, currentPath: string
     directory,
     defaultPath: currentPath || undefined,
     filters:
-      !directory && extensions.length ? [{ name: "Original game file", extensions }] : undefined,
+      !directory && extensions.length
+        ? [
+            {
+              name: purpose === "bios" ? "Required BIOS file or ZIP" : "Original game file",
+              extensions,
+            },
+          ]
+        : undefined,
   });
 }
 

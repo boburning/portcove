@@ -757,7 +757,7 @@ function SelectedPortPanel({
   const pickBios = model.biosProfile
     ? () => {
         void applyPathChoice(
-          pickSourcePath(model.biosProfile!, ui.biosPath),
+          pickSourcePath(model.biosProfile!, ui.biosPath, "bios"),
           ui.setBiosPath,
           operations.setError,
         );

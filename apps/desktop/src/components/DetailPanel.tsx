@@ -236,6 +236,8 @@ function DetailDialog({
           state={state}
           sources={sources}
           installed={installed}
+          sourceReady={sourceReady}
+          biosReady={biosReady}
           launchReady={launchReady}
           pendingSetup={pendingSetup}
           runtimeUpdateAvailable={runtimeUpdateAvailable}
@@ -282,6 +284,8 @@ function DetailBody({
   state,
   sources,
   installed,
+  sourceReady,
+  biosReady,
   launchReady,
   pendingSetup,
   runtimeUpdateAvailable,
@@ -305,6 +309,8 @@ function DetailBody({
   state: DetailState;
   sources: SourceControls;
   installed: boolean;
+  sourceReady: boolean;
+  biosReady: boolean;
   launchReady: boolean;
   pendingSetup: boolean;
   runtimeUpdateAvailable: boolean;
@@ -333,6 +339,8 @@ function DetailBody({
         status={status}
         state={state}
         installed={installed}
+        sourceReady={sourceReady}
+        biosReady={biosReady}
         launchReady={launchReady}
         pendingSetup={pendingSetup}
         runtimeUpdateAvailable={runtimeUpdateAvailable}
@@ -405,6 +413,8 @@ function StatusActionsGroup({
   status,
   state,
   installed,
+  sourceReady,
+  biosReady,
   launchReady,
   pendingSetup,
   runtimeUpdateAvailable,
@@ -417,6 +427,8 @@ function StatusActionsGroup({
   status?: PortStatus;
   state: DetailState;
   installed: boolean;
+  sourceReady: boolean;
+  biosReady: boolean;
   launchReady: boolean;
   pendingSetup: boolean;
   runtimeUpdateAvailable: boolean;
@@ -435,6 +447,8 @@ function StatusActionsGroup({
         runtimeNeeded={Boolean(status?.readiness?.blockers.includes("missing_runtime"))}
         runtimeUpdateAvailable={runtimeUpdateAvailable}
         installed={installed}
+        sourceReady={sourceReady}
+        biosReady={biosReady}
         launchReady={launchReady}
         pendingSetup={pendingSetup}
         plan={installPlan}
@@ -1098,9 +1112,11 @@ function SourceField({
   const copy = sourceFieldCopy(profile, bios);
   const selectedOverride = Boolean(path.trim()) && (!source || path !== source.path);
   const sourceNote = selectedOverride
-    ? "Selected path has not been checked. Portcove validates these files when you continue."
+    ? bios
+      ? "Selected BIOS file has not been checked. Portcove validates it when you continue."
+      : "Selected path has not been checked. Portcove validates these files when you continue."
     : source
-      ? sourceHealthNote(inspection?.health ?? health, source)
+      ? sourceHealthNote(inspection?.health ?? health, source, bios)
       : copy.note;
   const inputId = `source-${profileId}`;
   return (
@@ -1131,7 +1147,7 @@ function SourceField({
       </div>
       <small>{sourceNote}</small>
       {selectedOverride && source && health && health !== "current" && (
-        <small>{sourceHealthNote(health, source)}</small>
+        <small>{sourceHealthNote(health, source, bios)}</small>
       )}
       {!selectedOverride && inspection && (
         <SourceIdentityPanel report={inspection} openEvidence={openEvidence} />
@@ -1140,15 +1156,22 @@ function SourceField({
   );
 }
 
-function sourceHealthNote(health: SourceHealth | null | undefined, source: SourceRecord) {
+function sourceHealthNote(
+  health: SourceHealth | null | undefined,
+  source: SourceRecord,
+  bios: boolean,
+) {
   const hash = `${source.sha256.slice(0, 12)}…`;
-  if (health === "current") return `Current registered bytes checked · ${hash}`;
-  if (health === "changed") return "Registered source changed since it was added.";
-  if (health === "missing") return "Registered source file is missing.";
-  if (health === "unreadable") return "Registered source cannot be read.";
-  if (health === "not_checked") return `Registered · current bytes not checked · ${hash}`;
-  if (health === "not_baselined") return "Selected game files have no saved identity baseline.";
-  return `Registered · ${hash}`;
+  const label = bios ? "BIOS file" : "game files";
+  if (health === "current") return `Current registered ${label} checked · ${hash}`;
+  if (health === "changed")
+    return `Registered ${label} changed since ${bios ? "it was" : "they were"} added.`;
+  if (health === "missing") return `Registered ${label} ${bios ? "is" : "are"} missing.`;
+  if (health === "unreadable") return `Registered ${label} cannot be read.`;
+  if (health === "not_checked") return `Registered ${label} · current bytes not checked · ${hash}`;
+  if (health === "not_baselined")
+    return `Selected ${label} ${bios ? "has" : "have"} no saved identity baseline.`;
+  return `Registered ${label} · ${hash}`;
 }
 
 function sourceFieldCopy(profile: SourceProfile | undefined, bios: boolean) {
@@ -1176,6 +1199,8 @@ function PrimaryActions({
   runtimeNeeded,
   runtimeUpdateAvailable,
   installed,
+  sourceReady,
+  biosReady,
   launchReady,
   pendingSetup,
   plan,
@@ -1187,6 +1212,8 @@ function PrimaryActions({
   runtimeNeeded: boolean;
   runtimeUpdateAvailable: boolean;
   installed: boolean;
+  sourceReady: boolean;
+  biosReady: boolean;
   launchReady: boolean;
   pendingSetup: boolean;
   plan?: InstallPlan;
@@ -1207,6 +1234,8 @@ function PrimaryActions({
     return (
       <InstallAction
         ready={launchReady}
+        sourceReady={sourceReady}
+        biosReady={biosReady}
         plan={plan}
         busy={busy}
         install={actions.install}
@@ -1245,31 +1274,43 @@ function PrimaryActions({
 
 function InstallAction({
   ready,
+  sourceReady,
+  biosReady,
   plan,
   busy,
   install,
   review,
 }: {
   ready: boolean;
+  sourceReady: boolean;
+  biosReady: boolean;
   plan?: InstallPlan;
   busy?: string;
   install: AsyncAction;
   review: AsyncAction;
 }) {
-  if (!ready)
+  if (!ready) {
+    const buttonLabel =
+      !sourceReady && !biosReady
+        ? "Choose game files and BIOS"
+        : !biosReady
+          ? "Choose BIOS file"
+          : "Choose game files";
+    const title =
+      !sourceReady && !biosReady
+        ? "Add all required game files and the BIOS file before installing"
+        : !biosReady
+          ? "Add the required BIOS file before installing"
+          : "Add all required game files before installing";
     return (
       <div className="actions primary-actions">
-        <button
-          data-focusable
-          className="primary wide button-with-icon"
-          title="Add all required game files before installing"
-          disabled
-        >
+        <button data-focusable className="primary wide button-with-icon" title={title} disabled>
           <Icon glyph={AlertTriangle} />
-          Choose game files
+          {buttonLabel}
         </button>
       </div>
     );
+  }
   if (!plan)
     return (
       <div className="actions primary-actions">
