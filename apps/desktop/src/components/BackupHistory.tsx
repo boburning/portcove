@@ -31,9 +31,10 @@ export function BackupHistory({
   return (
     <div className="backup-history">
       <div className="backup-heading">
-        <span>Data backups</span>
+        <span>Backups</span>
         <small>{backupSummary(backups.length)}</small>
       </div>
+      <p>Backups include saves and settings managed by Portcove.</p>
       {state !== "healthy" && (
         <div className={`backup-inventory-notice ${state}`} role="status">
           <strong>
@@ -69,9 +70,13 @@ export function BackupHistory({
           <span>
             <strong>{new Date(backup.created_at * 1000).toLocaleString()}</strong>
             <small>
-              {backup.file_count} files · {formatBytes(backup.size)} · {backup.sha256.slice(0, 10)}…
+              {backup.file_count} files · {formatBytes(backup.size)}
             </small>
           </span>
+          <details>
+            <summary data-focusable>Technical details</summary>
+            <small>SHA-256 {backup.sha256}</small>
+          </details>
           <span className="backup-actions">
             <button
               data-focusable
@@ -132,6 +137,6 @@ function problemLabel(kind: BackupProblem["kind"]) {
 }
 
 function backupSummary(count: number) {
-  if (!count) return "No snapshots yet";
-  return `${count} verified snapshot${count === 1 ? "" : "s"}`;
+  if (!count) return "No backups yet";
+  return `${count} verified backup${count === 1 ? "" : "s"}`;
 }

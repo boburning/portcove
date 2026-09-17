@@ -693,9 +693,35 @@ describe("desktop components", () => {
     const html = renderToStaticMarkup(
       <BackupHistory backups={backups} restore={vi.fn()} remove={vi.fn()} />,
     );
-    expect(html).toContain("4 verified snapshots");
+    expect(html).toContain("Backups");
+    expect(html).toContain("Backups include saves and settings managed by Portcove.");
+    expect(html).toContain("4 verified backups");
     expect(html).toContain("Show 1 older");
     expect(html).not.toContain("3333333333");
+  });
+
+  it("uses count-aware backup wording and keeps checksum identity in technical details", () => {
+    const backup = {
+      id: "backup-1",
+      port_id: port.id,
+      path: "backups/sample/backup-1",
+      created_at: 1,
+      file_count: 2,
+      size: 1024,
+      sha256: "a".repeat(64),
+    };
+    const empty = renderToStaticMarkup(
+      <BackupHistory backups={[]} restore={vi.fn()} remove={vi.fn()} />,
+    );
+    const populated = renderToStaticMarkup(
+      <BackupHistory backups={[backup]} restore={vi.fn()} remove={vi.fn()} />,
+    );
+    expect(empty).toContain("No backups yet");
+    expect(empty).not.toContain("snapshot");
+    expect(populated).toContain("1 verified backup");
+    expect(populated).toContain("Technical details");
+    expect(populated.indexOf(backup.sha256)).toBeGreaterThan(populated.indexOf("<details"));
+    expect(populated).not.toContain(`${backup.sha256.slice(0, 10)}…`);
   });
 
   it("keeps verified backups usable while exposing degraded and recovery details", () => {
@@ -729,7 +755,7 @@ describe("desktop components", () => {
       />,
     );
     expect(html).toContain("Backup recovery required");
-    expect(html).toContain("1 verified snapshot");
+    expect(html).toContain("1 verified backup");
     expect(html).toContain("Technical details");
     expect(html).toContain("Deletion was interrupted");
     expect(html).toContain("Restore");
@@ -1444,7 +1470,7 @@ describe("desktop components", () => {
     expect(buttonLabels).not.toContain("Verify");
     expect(buttonLabels).not.toContain("Rollback");
     expect(installed).not.toContain("Create a versioned backup of saves and settings");
-    expect(installed).toContain("1 verified snapshot");
+    expect(installed).toContain("1 verified backup");
     expect(installed).toContain("Restore");
     expect(installed).toContain("Delete");
     expect(installed).toContain("Remove managed files");
