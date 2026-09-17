@@ -333,11 +333,14 @@ on a general VDF package or make unqualified promises about future Steam formats
 Plans bind the exact selected installation/profile, complete file identity,
 Portcove library identity, standalone CLI path, selected ports and proposed bytes.
 Apply requires a closed-client observation from the future host adapter, reacquires
-a per-profile lock, recomputes the plan, preserves a content-addressed backup and
-publishes through a same-directory atomic replacement. A durable journal
-distinguishes an abandoned pre-commit operation from a completed replacement; an
-unrecognized identity preserves the journal and backup for inspection. The owned
-entry marker is narrow reconciliation metadata, not another lifecycle database.
+a per-profile lock, recomputes the plan, rejects candidates beyond its own parser
+limits, and preserves a content-addressed regular-file backup. Publication
+evacuates and rechecks the reviewed source before a no-clobber same-directory
+handoff; a concurrent destination or changed source is preserved instead of being
+overwritten. A durable journal distinguishes an abandoned pre-commit operation
+from a completed replacement; an unrecognized identity preserves the journal,
+staged bytes, evacuated original and backup for inspection. The owned entry marker
+is narrow reconciliation metadata, not another lifecycle database.
 Repair changes only target, working-directory and launch-option routing (or restores
 a missing name), preserving Steam/user names, artwork references, tags and unknown
 customization. Remove requires the exact marker and never touches the Portcove

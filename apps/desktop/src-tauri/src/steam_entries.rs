@@ -13,7 +13,7 @@ use sha2::{Digest, Sha256};
 use std::{
     collections::BTreeSet,
     fs::{self, File, OpenOptions},
-    io::Write,
+    io::{Read, Write},
     path::{Path, PathBuf},
 };
 use thiserror::Error;
@@ -28,6 +28,7 @@ const LOCK_FILE: &str = "shortcuts.vdf.portcove-lock";
 const JOURNAL_FILE: &str = "shortcuts.vdf.portcove-journal.json";
 const JOURNAL_TEMPORARY_FILE: &str = "shortcuts.vdf.portcove-journal.tmp";
 const REPLACEMENT_TEMPORARY_FILE: &str = "shortcuts.vdf.portcove-replace.tmp";
+const ORIGINAL_SWAP_FILE: &str = "shortcuts.vdf.portcove-original.tmp";
 
 #[derive(Debug, Error)]
 pub enum SteamEntryError {
@@ -365,6 +366,18 @@ fn field_string<'a>(fields: &'a [VdfField], name: &str) -> Result<Option<&'a str
     }
 }
 
+fn field_int(fields: &[VdfField], name: &str) -> Result<Option<u32>> {
+    let Some(index) = unique_field_index(fields, name)? else {
+        return Ok(None);
+    };
+    match fields[index].value {
+        VdfValue::Int(value) => Ok(Some(value)),
+        _ => Err(SteamEntryError::Malformed(format!(
+            "shortcut field {name} is not a 32-bit integer"
+        ))),
+    }
+}
+
 fn set_string(fields: &mut Vec<VdfField>, name: &str, value: String) -> Result<bool> {
     reject_nul(&value, name)?;
     if let Some(index) = unique_field_index(fields, name)? {
@@ -492,6 +505,7 @@ fn build_shortcut(
     key: String,
     target: &SteamGameEntryTarget,
     marker: String,
+    app_id: u32,
     executable: &str,
     start_directory: &str,
     launch_options: &str,
@@ -502,12 +516,6 @@ fn build_shortcut(
             "display name cannot be blank".into(),
         ));
     }
-    let app_id = steam_crc32(
-        executable
-            .as_bytes()
-            .iter()
-            .chain(target.display_name.as_bytes()),
-    ) | 0x8000_0000;
     Ok(VdfField {
         key,
         value: VdfValue::Object(vec![
@@ -535,6 +543,30 @@ fn build_shortcut(
             },
         ]),
     })
+}
+
+fn shortcut_app_id(executable: &str, display_name: &str) -> u32 {
+    steam_crc32(executable.as_bytes().iter().chain(display_name.as_bytes())) | 0x8000_0000
+}
+
+fn require_unique_app_id(
+    entries: &[VdfField],
+    app_id: u32,
+    owned_index: Option<usize>,
+    port_id: &str,
+) -> Result<()> {
+    for (index, entry) in entries.iter().enumerate() {
+        if Some(index) == owned_index {
+            continue;
+        }
+        if field_int(shortcut_fields(entry)?, "appid")? == Some(app_id) {
+            return Err(SteamEntryError::Conflict(format!(
+                "Steam AppID {app_id} for {port_id} is already used by shortcut {}; choose a distinct Steam display name before adding or repairing this route",
+                entry.key
+            )));
+        }
+    }
+    Ok(())
 }
 
 fn string_field(key: &str, value: &str) -> VdfField {
@@ -646,6 +678,16 @@ fn read_snapshot(path: &Path) -> Result<(Option<Vec<u8>>, Option<String>)> {
     Ok((Some(bytes), Some(digest)))
 }
 
+fn validate_candidate_bytes(bytes: &[u8]) -> Result<()> {
+    if bytes.len() as u64 > MAX_SHORTCUTS_BYTES {
+        return Err(SteamEntryError::InvalidInput(format!(
+            "planned shortcuts.vdf exceeds the {MAX_SHORTCUTS_BYTES}-byte safety limit"
+        )));
+    }
+    let document = VdfDocument::parse(bytes)?;
+    validate_shortcut_entries(document.shortcuts()?)
+}
+
 fn require_regular_file(path: &Path, label: &str) -> Result<()> {
     if !path.is_absolute() {
         return Err(SteamEntryError::InvalidInput(format!(
@@ -723,6 +765,15 @@ fn plan_document(
                 let launch_options = format!("--library {library} exec {} --", target.port_id);
                 let entries = document.shortcuts_mut()?;
                 if let Some(index) = owned_entry_index(entries, &marker)? {
+                    let existing_fields = shortcut_fields(&entries[index])?;
+                    let existing_app_id =
+                        field_int(existing_fields, "appid")?.ok_or_else(|| {
+                            SteamEntryError::Malformed(format!(
+                                "owned shortcut {} has no Steam AppID",
+                                entries[index].key
+                            ))
+                        })?;
+                    require_unique_app_id(entries, existing_app_id, Some(index), &target.port_id)?;
                     let fields = shortcut_fields_mut(&mut entries[index])?;
                     let existing_display_name = field_string(fields, "appname")?.map(str::to_owned);
                     let display_name = existing_display_name
@@ -743,11 +794,20 @@ fn plan_document(
                         },
                     });
                 } else {
+                    reject_nul(&target.display_name, "display name")?;
+                    if target.display_name.trim().is_empty() {
+                        return Err(SteamEntryError::InvalidInput(
+                            "display name cannot be blank".into(),
+                        ));
+                    }
+                    let app_id = shortcut_app_id(&executable, &target.display_name);
+                    require_unique_app_id(entries, app_id, None, &target.port_id)?;
                     let key = entries.len().to_string();
                     entries.push(build_shortcut(
                         key,
                         target,
                         marker,
+                        app_id,
                         &executable,
                         &start_directory,
                         &launch_options,
@@ -807,7 +867,12 @@ fn plan_document(
 pub fn plan_steam_entries(request: SteamEntryPlanRequest) -> Result<SteamEntryPlan> {
     let (config, shortcuts_path) = profile_paths(&request)?;
     let journal_path = config.join(JOURNAL_FILE);
-    if fs::symlink_metadata(&journal_path).is_ok() {
+    let staged_path = config.join(REPLACEMENT_TEMPORARY_FILE);
+    let swap_path = config.join(ORIGINAL_SWAP_FILE);
+    if [&journal_path, &staged_path, &swap_path]
+        .iter()
+        .any(|path| fs::symlink_metadata(path).is_ok())
+    {
         return Err(SteamEntryError::RecoveryRequired(
             journal_path.display().to_string(),
         ));
@@ -819,6 +884,7 @@ pub fn plan_steam_entries(request: SteamEntryPlanRequest) -> Result<SteamEntryPl
     };
     let changes = plan_document(&request, &mut document)?;
     let proposed = document.encode()?;
+    validate_candidate_bytes(&proposed)?;
     let proposed_sha256 = sha256(&proposed);
     let plan_sha256 = hash_plan(
         &request,
@@ -842,6 +908,17 @@ pub fn apply_steam_entry_plan(
     reviewed: &SteamEntryPlan,
     client_state: SteamClientState,
 ) -> Result<SteamEntryApplyResult> {
+    apply_steam_entry_plan_with_hook(reviewed, client_state, |_| {})
+}
+
+fn apply_steam_entry_plan_with_hook<F>(
+    reviewed: &SteamEntryPlan,
+    client_state: SteamClientState,
+    before_evacuation: F,
+) -> Result<SteamEntryApplyResult>
+where
+    F: FnOnce(&Path),
+{
     if reviewed.schema_version != PLAN_SCHEMA_VERSION {
         return Err(SteamEntryError::InvalidInput(format!(
             "Steam entry plan schema {} is unsupported",
@@ -862,10 +939,14 @@ pub fn apply_steam_entry_plan(
         }
     }
     let (config, shortcuts_path) = profile_paths(&reviewed.request)?;
-    let lock = lock_profile(&config)?;
+    let _lock = lock_profile(&config)?;
     let journal_path = config.join(JOURNAL_FILE);
-    if journal_path.exists() {
-        drop(lock);
+    let staged_path = config.join(REPLACEMENT_TEMPORARY_FILE);
+    let swap_path = config.join(ORIGINAL_SWAP_FILE);
+    if [&journal_path, &staged_path, &swap_path]
+        .iter()
+        .any(|path| fs::symlink_metadata(path).is_ok())
+    {
         return Err(SteamEntryError::RecoveryRequired(
             journal_path.display().to_string(),
         ));
@@ -896,6 +977,7 @@ pub fn apply_steam_entry_plan(
     };
     plan_document(&reviewed.request, &mut proposed_document)?;
     let proposed = proposed_document.encode()?;
+    validate_candidate_bytes(&proposed)?;
     if sha256(&proposed) != reviewed.proposed_sha256 || before_sha256 != reviewed.snapshot_sha256 {
         return Err(SteamEntryError::Conflict(
             "shortcuts.vdf changed after the reviewed plan was confirmed".into(),
@@ -924,21 +1006,63 @@ pub fn apply_steam_entry_plan(
         &serde_json::to_vec_pretty(&journal)?,
     )
     .map_err(|source| io_error("publishing the Steam entry recovery journal", source))?;
-    crate::application_update_storage::write_bytes_atomically(
-        &config,
-        REPLACEMENT_TEMPORARY_FILE,
-        SHORTCUTS_FILE,
-        &proposed,
-    )
-    .map_err(|source| io_error("atomically replacing shortcuts.vdf", source))?;
+    write_staged_file(&staged_path, &proposed)?;
+    before_evacuation(&shortcuts_path);
+
+    if let Some(expected_before) = reviewed.snapshot_sha256.as_deref() {
+        create_swap_placeholder(&swap_path)?;
+        if let Err(source) = crate::application_update_storage::replace_file_atomically(
+            &config,
+            SHORTCUTS_FILE,
+            ORIGINAL_SWAP_FILE,
+        ) {
+            return Err(SteamEntryError::RecoveryRequired(format!(
+                "could not evacuate the reviewed shortcuts file without losing recovery state: {source}; {} was preserved",
+                journal_path.display()
+            )));
+        }
+        let (_, evacuated_sha256) = read_snapshot(&swap_path)?;
+        if evacuated_sha256.as_deref() != Some(expected_before) {
+            if let Err(source) = rename_noreplace(&swap_path, &shortcuts_path) {
+                return Err(SteamEntryError::RecoveryRequired(format!(
+                    "shortcuts.vdf changed during publication and the changed file could not be restored without clobbering another writer: {source}; {} was preserved",
+                    journal_path.display()
+                )));
+            }
+            remove_regular_file(&staged_path, "staged Steam shortcut replacement")?;
+            remove_regular_file(&journal_path, "Steam entry recovery journal")?;
+            sync_directory_if_supported(&config)?;
+            return Err(SteamEntryError::Conflict(
+                "shortcuts.vdf changed during publication; the external bytes were restored and no Portcove change was committed".into(),
+            ));
+        }
+    } else if fs::symlink_metadata(&shortcuts_path).is_ok() {
+        return Err(SteamEntryError::RecoveryRequired(format!(
+            "shortcuts.vdf appeared during publication; {} and the staged candidate were preserved",
+            journal_path.display()
+        )));
+    }
+
+    if let Err(source) = rename_noreplace(&staged_path, &shortcuts_path) {
+        return Err(SteamEntryError::RecoveryRequired(format!(
+            "could not publish the reviewed Steam shortcut bytes without clobbering a concurrent writer: {source}; {} was preserved",
+            journal_path.display()
+        )));
+    }
     let (_, committed_sha256) = read_snapshot(&shortcuts_path)?;
     if committed_sha256.as_deref() != Some(reviewed.proposed_sha256.as_str()) {
         return Err(SteamEntryError::RecoveryRequired(
             journal_path.display().to_string(),
         ));
     }
-    fs::remove_file(&journal_path)
-        .map_err(|source| io_error("clearing the Steam entry recovery journal", source))?;
+    if let Some(expected_before) = reviewed.snapshot_sha256.as_deref() {
+        remove_regular_file_with_hash(
+            &swap_path,
+            expected_before,
+            "evacuated original Steam shortcuts file",
+        )?;
+    }
+    remove_regular_file(&journal_path, "Steam entry recovery journal")?;
     sync_directory_if_supported(&config)?;
     Ok(SteamEntryApplyResult {
         plan_sha256: current.plan_sha256,
@@ -962,12 +1086,20 @@ pub fn recover_steam_entries(
     let (config, shortcuts_path) = profile_paths(&request)?;
     let _lock = lock_profile(&config)?;
     let journal_path = config.join(JOURNAL_FILE);
-    let bytes = match fs::read(&journal_path) {
-        Ok(bytes) => bytes,
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+    let staged_path = config.join(REPLACEMENT_TEMPORARY_FILE);
+    let swap_path = config.join(ORIGINAL_SWAP_FILE);
+    let bytes = match read_regular_file(&journal_path, "Steam entry recovery journal")? {
+        Some(bytes) => bytes,
+        None => {
+            if fs::symlink_metadata(&staged_path).is_ok()
+                || fs::symlink_metadata(&swap_path).is_ok()
+            {
+                return Err(SteamEntryError::RecoveryRequired(
+                    "orphaned Steam entry operation files exist without a journal".into(),
+                ));
+            }
             return Ok(SteamEntryRecoveryOutcome::NoJournal);
         }
-        Err(source) => return Err(io_error("reading the Steam entry recovery journal", source)),
     };
     let journal: SteamEntryJournal = serde_json::from_slice(&bytes)?;
     if journal.schema_version != JOURNAL_SCHEMA_VERSION || journal.shortcuts_path != shortcuts_path
@@ -977,25 +1109,63 @@ pub fn recover_steam_entries(
             journal_path.display()
         )));
     }
+    verify_journal_backup(&config, &journal)?;
     let (_, current_sha256) = read_snapshot(&shortcuts_path)?;
-    let outcome = if current_sha256 == journal.before_sha256 {
-        SteamEntryRecoveryOutcome::AbandonedBeforeCommit
-    } else if current_sha256.as_deref() == Some(journal.after_sha256.as_str()) {
+    let (_, staged_sha256) = read_snapshot(&staged_path)?;
+    let (_, swap_sha256) = read_snapshot(&swap_path)?;
+    let staged_known =
+        staged_sha256.is_none() || staged_sha256.as_deref() == Some(journal.after_sha256.as_str());
+    let swap_known = swap_sha256.is_none() || swap_sha256 == journal.before_sha256;
+    if !staged_known || !swap_known {
+        return Err(SteamEntryError::RecoveryRequired(
+            "Steam entry operation files do not match the journal; every file was preserved".into(),
+        ));
+    }
+    let outcome = if current_sha256.as_deref() == Some(journal.after_sha256.as_str()) {
         SteamEntryRecoveryOutcome::CompletedCommit
+    } else if current_sha256 == journal.before_sha256 {
+        SteamEntryRecoveryOutcome::AbandonedBeforeCommit
+    } else if current_sha256.is_none()
+        && journal.before_sha256.is_some()
+        && swap_sha256 == journal.before_sha256
+    {
+        rename_noreplace(&swap_path, &shortcuts_path).map_err(|source| {
+            SteamEntryError::RecoveryRequired(format!(
+                "the evacuated original could not be restored without clobbering another writer: {source}"
+            ))
+        })?;
+        SteamEntryRecoveryOutcome::AbandonedBeforeCommit
     } else {
         return Err(SteamEntryError::RecoveryRequired(format!(
-            "{} does not match the pre-operation or committed shortcut identity; the journal and backup were preserved",
+            "{} does not match the pre-operation or committed shortcut identity; the journal, backup, staged candidate and evacuated original were preserved",
             shortcuts_path.display()
         )));
     };
-    fs::remove_file(&journal_path)
-        .map_err(|source| io_error("clearing the recovered Steam entry journal", source))?;
+    if let Some(expected) = staged_sha256.as_deref() {
+        remove_regular_file_with_hash(&staged_path, expected, "staged Steam shortcut replacement")?;
+    }
+    if let Some(expected) = swap_sha256.as_deref() {
+        remove_regular_file_with_hash(
+            &swap_path,
+            expected,
+            "evacuated original Steam shortcuts file",
+        )?;
+    }
+    remove_regular_file(&journal_path, "Steam entry recovery journal")?;
     sync_directory_if_supported(&config)?;
     Ok(outcome)
 }
 
 fn lock_profile(config: &Path) -> Result<File> {
     let path = config.join(LOCK_FILE);
+    if let Ok(metadata) = fs::symlink_metadata(&path)
+        && (metadata.file_type().is_symlink() || !metadata.is_file())
+    {
+        return Err(SteamEntryError::Conflict(format!(
+            "Steam profile mutation lock {} is not a regular file",
+            path.display()
+        )));
+    }
     let file = OpenOptions::new()
         .read(true)
         .write(true)
@@ -1012,8 +1182,217 @@ fn lock_profile(config: &Path) -> Result<File> {
     Ok(file)
 }
 
+fn read_regular_file(path: &Path, label: &str) -> Result<Option<Vec<u8>>> {
+    let mut file = match open_read_nofollow(path) {
+        Ok(file) => file,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(source) => {
+            if fs::symlink_metadata(path)
+                .map(|metadata| metadata.file_type().is_symlink() || !metadata.is_file())
+                .unwrap_or(false)
+            {
+                return Err(SteamEntryError::Conflict(format!(
+                    "{label} {} is not an independent regular file",
+                    path.display()
+                )));
+            }
+            return Err(io_error(
+                format!("opening {label} without link traversal"),
+                source,
+            ));
+        }
+    };
+    let metadata = file
+        .metadata()
+        .map_err(|source| io_error(format!("inspecting opened {label}"), source))?;
+    if metadata.file_type().is_symlink() || !metadata.is_file() {
+        return Err(SteamEntryError::Conflict(format!(
+            "{label} {} is not an independent regular file",
+            path.display()
+        )));
+    }
+    if metadata.len() > MAX_SHORTCUTS_BYTES {
+        return Err(SteamEntryError::Conflict(format!(
+            "{label} {} exceeds the safety limit",
+            path.display()
+        )));
+    }
+    let mut bytes = Vec::with_capacity(metadata.len() as usize);
+    file.read_to_end(&mut bytes)
+        .map_err(|source| io_error(format!("reading opened {label}"), source))?;
+    if bytes.len() as u64 > MAX_SHORTCUTS_BYTES {
+        return Err(SteamEntryError::Conflict(format!(
+            "{label} {} grew beyond the safety limit while it was read",
+            path.display()
+        )));
+    }
+    Ok(Some(bytes))
+}
+
+#[cfg(windows)]
+fn open_read_nofollow(path: &Path) -> std::io::Result<File> {
+    use std::os::windows::fs::OpenOptionsExt;
+    use windows_sys::Win32::Storage::FileSystem::FILE_FLAG_OPEN_REPARSE_POINT;
+
+    OpenOptions::new()
+        .read(true)
+        .custom_flags(FILE_FLAG_OPEN_REPARSE_POINT)
+        .open(path)
+}
+
+#[cfg(unix)]
+fn open_read_nofollow(path: &Path) -> std::io::Result<File> {
+    use std::os::unix::fs::OpenOptionsExt;
+
+    OpenOptions::new()
+        .read(true)
+        .custom_flags(libc::O_NOFOLLOW | libc::O_CLOEXEC)
+        .open(path)
+}
+
+#[cfg(not(any(windows, unix)))]
+fn open_read_nofollow(path: &Path) -> std::io::Result<File> {
+    OpenOptions::new().read(true).open(path)
+}
+
+fn write_staged_file(path: &Path, bytes: &[u8]) -> Result<()> {
+    let mut file = OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(path)
+        .map_err(|source| io_error("creating the staged Steam shortcut replacement", source))?;
+    file.write_all(bytes)
+        .and_then(|()| file.sync_all())
+        .map_err(|source| io_error("writing the staged Steam shortcut replacement", source))?;
+    sync_directory_if_supported(path.parent().expect("staged file has a parent"))
+}
+
+fn create_swap_placeholder(path: &Path) -> Result<()> {
+    let file = OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(path)
+        .map_err(|source| io_error("reserving the evacuated-original path", source))?;
+    file.sync_all()
+        .map_err(|source| io_error("flushing the evacuated-original reservation", source))?;
+    sync_directory_if_supported(path.parent().expect("swap file has a parent"))
+}
+
+#[cfg(windows)]
+fn rename_noreplace(source: &Path, destination: &Path) -> std::io::Result<()> {
+    use std::os::windows::ffi::OsStrExt;
+    use windows_sys::Win32::Storage::FileSystem::{MOVEFILE_WRITE_THROUGH, MoveFileExW};
+
+    fn wide(path: &Path) -> std::io::Result<Vec<u16>> {
+        let mut value = path.as_os_str().encode_wide().collect::<Vec<_>>();
+        if value.contains(&0) {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "path contains a null character",
+            ));
+        }
+        value.push(0);
+        Ok(value)
+    }
+
+    let source = wide(source)?;
+    let destination = wide(destination)?;
+    // SAFETY: both buffers are valid, null-terminated UTF-16 for the call.
+    // Omitting MOVEFILE_REPLACE_EXISTING is the no-clobber precondition.
+    if unsafe {
+        MoveFileExW(
+            source.as_ptr(),
+            destination.as_ptr(),
+            MOVEFILE_WRITE_THROUGH,
+        )
+    } == 0
+    {
+        return Err(std::io::Error::last_os_error());
+    }
+    Ok(())
+}
+
+#[cfg(unix)]
+fn rename_noreplace(source: &Path, destination: &Path) -> std::io::Result<()> {
+    let parent = destination
+        .parent()
+        .ok_or_else(|| std::io::Error::other("destination has no parent"))?;
+    fs::hard_link(source, destination)?;
+    File::open(parent)?.sync_all()?;
+    fs::remove_file(source)?;
+    File::open(parent)?.sync_all()
+}
+
+#[cfg(not(any(windows, unix)))]
+fn rename_noreplace(_source: &Path, _destination: &Path) -> std::io::Result<()> {
+    Err(std::io::Error::new(
+        std::io::ErrorKind::Unsupported,
+        "no-clobber file publication is unavailable on this platform",
+    ))
+}
+
+fn remove_regular_file(path: &Path, label: &str) -> Result<()> {
+    let Some(_) = read_regular_file(path, label)? else {
+        return Ok(());
+    };
+    fs::remove_file(path).map_err(|source| io_error(format!("removing {label}"), source))
+}
+
+fn remove_regular_file_with_hash(path: &Path, expected: &str, label: &str) -> Result<()> {
+    let Some(bytes) = read_regular_file(path, label)? else {
+        return Ok(());
+    };
+    if sha256(&bytes) != expected {
+        return Err(SteamEntryError::RecoveryRequired(format!(
+            "{label} {} changed; it was preserved",
+            path.display()
+        )));
+    }
+    fs::remove_file(path).map_err(|source| io_error(format!("removing {label}"), source))
+}
+
+fn verify_journal_backup(config: &Path, journal: &SteamEntryJournal) -> Result<()> {
+    match journal.before_sha256.as_deref() {
+        None if journal.backup_path.is_none() => Ok(()),
+        None => Err(SteamEntryError::RecoveryRequired(
+            "journal records a backup for a previously absent shortcut file".into(),
+        )),
+        Some(digest) => {
+            let expected = config.join(format!("shortcuts.vdf.portcove-backup-{digest}"));
+            if journal.backup_path.as_deref() != Some(expected.as_path()) {
+                return Err(SteamEntryError::RecoveryRequired(
+                    "journal backup path does not match the reviewed content identity".into(),
+                ));
+            }
+            let bytes =
+                read_regular_file(&expected, "Steam shortcuts backup")?.ok_or_else(|| {
+                    SteamEntryError::RecoveryRequired(format!(
+                        "required Steam shortcuts backup {} is missing",
+                        expected.display()
+                    ))
+                })?;
+            if sha256(&bytes) != digest {
+                return Err(SteamEntryError::RecoveryRequired(format!(
+                    "Steam shortcuts backup {} does not match its recorded identity",
+                    expected.display()
+                )));
+            }
+            Ok(())
+        }
+    }
+}
+
 fn write_backup(config: &Path, bytes: &[u8], digest: &str) -> Result<PathBuf> {
     let path = config.join(format!("shortcuts.vdf.portcove-backup-{digest}"));
+    if let Some(existing) = read_regular_file(&path, "existing Steam shortcuts backup")? {
+        if existing != bytes {
+            return Err(SteamEntryError::Conflict(format!(
+                "existing backup {} does not match its content identity",
+                path.display()
+            )));
+        }
+        return Ok(path);
+    }
     match OpenOptions::new().write(true).create_new(true).open(&path) {
         Ok(mut file) => {
             file.write_all(bytes)
@@ -1022,15 +1401,20 @@ fn write_backup(config: &Path, bytes: &[u8], digest: &str) -> Result<PathBuf> {
             sync_directory_if_supported(config)?;
         }
         Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {
-            let existing = fs::read(&path).map_err(|source| {
-                io_error("verifying the existing Steam shortcuts backup", source)
-            })?;
+            let existing =
+                read_regular_file(&path, "racing Steam shortcuts backup")?.ok_or_else(|| {
+                    SteamEntryError::Conflict(format!(
+                        "backup {} disappeared during collision handling",
+                        path.display()
+                    ))
+                })?;
             if existing != bytes {
                 return Err(SteamEntryError::Conflict(format!(
-                    "existing backup {} does not match its content identity",
+                    "racing backup {} does not match its content identity",
                     path.display()
                 )));
             }
+            return Ok(path);
         }
         Err(source) => return Err(io_error("creating the Steam shortcuts backup", source)),
     }
@@ -1462,6 +1846,127 @@ mod tests {
             repair.snapshot_sha256.as_deref().unwrap()
         ));
         fs::write(&backup, b"wrong bytes").unwrap();
+        assert!(matches!(
+            apply_steam_entry_plan(&repair, SteamClientState::Closed),
+            Err(SteamEntryError::Conflict(_))
+        ));
+        assert_eq!(fs::read(fixture.shortcuts()).unwrap(), original);
+        assert!(!fixture.config.join(JOURNAL_FILE).exists());
+    }
+
+    #[test]
+    fn planned_candidate_must_remain_within_the_parser_byte_limit() {
+        let fixture = Fixture::new();
+        let oversized_name = "x".repeat(MAX_SHORTCUTS_BYTES as usize);
+        assert!(matches!(
+            plan_steam_entries(fixture.add_request(vec![game("starship", &oversized_name)])),
+            Err(SteamEntryError::InvalidInput(message))
+                if message.contains("byte safety limit")
+        ));
+        assert!(!fixture.shortcuts().exists());
+    }
+
+    #[test]
+    fn planned_candidate_must_remain_within_the_parser_field_limit() {
+        let fixture = Fixture::new();
+        let entries = (0..(MAX_VDF_FIELDS - 1))
+            .map(|index| VdfField {
+                key: index.to_string(),
+                value: VdfValue::Object(Vec::new()),
+            })
+            .collect();
+        let document = VdfDocument {
+            fields: vec![VdfField {
+                key: "shortcuts".into(),
+                value: VdfValue::Object(entries),
+            }],
+        };
+        fs::write(fixture.shortcuts(), document.encode().unwrap()).unwrap();
+        assert!(matches!(
+            plan_steam_entries(
+                fixture.add_request(vec![game("starship", "Starship")])
+            ),
+            Err(SteamEntryError::Malformed(message))
+                if message.contains("field count exceeds")
+        ));
+    }
+
+    #[test]
+    fn colliding_canonical_app_ids_fail_before_any_write() {
+        let fixture = Fixture::new();
+        let request = fixture.add_request(vec![
+            game("starship", "Shared Steam title"),
+            game("soh", "Shared Steam title"),
+        ]);
+        assert!(matches!(
+            plan_steam_entries(request),
+            Err(SteamEntryError::Conflict(message)) if message.contains("AppID")
+        ));
+        assert!(!fixture.shortcuts().exists());
+    }
+
+    #[test]
+    fn publication_restores_a_concurrent_external_edit_without_clobbering_it() {
+        let fixture = Fixture::new();
+        let add =
+            plan_steam_entries(fixture.add_request(vec![game("starship", "Starship")])).unwrap();
+        apply_steam_entry_plan(&add, SteamClientState::Closed).unwrap();
+
+        let moved_cli = fixture.cli_path.parent().unwrap().join("moved.exe");
+        fs::write(&moved_cli, b"moved fixture cli").unwrap();
+        let repair_request = SteamEntryPlanRequest::AddOrRepair {
+            steam_root: fixture.steam_root.clone(),
+            steam_user_id: "12345".into(),
+            library_id: "library-123".into(),
+            library_root: fixture.library_root.clone(),
+            cli_path: moved_cli,
+            games: vec![game("starship", "Starship")],
+        };
+        let repair = plan_steam_entries(repair_request).unwrap();
+        let mut external = VdfDocument::parse(&fs::read(fixture.shortcuts()).unwrap()).unwrap();
+        shortcut_fields_mut(&mut external.shortcuts_mut().unwrap()[0])
+            .unwrap()
+            .push(string_field("ExternalEdit", "preserve me"));
+        let external_bytes = external.encode().unwrap();
+
+        let result =
+            apply_steam_entry_plan_with_hook(&repair, SteamClientState::Closed, |shortcuts_path| {
+                fs::write(shortcuts_path, &external_bytes).unwrap()
+            });
+        assert!(matches!(result, Err(SteamEntryError::Conflict(_))));
+        assert_eq!(fs::read(fixture.shortcuts()).unwrap(), external_bytes);
+        assert!(!fixture.config.join(JOURNAL_FILE).exists());
+        assert!(!fixture.config.join(REPLACEMENT_TEMPORARY_FILE).exists());
+        assert!(!fixture.config.join(ORIGINAL_SWAP_FILE).exists());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn symlinked_content_addressed_backup_is_never_followed() {
+        use std::os::unix::fs::symlink;
+
+        let fixture = Fixture::new();
+        let add =
+            plan_steam_entries(fixture.add_request(vec![game("starship", "Starship")])).unwrap();
+        apply_steam_entry_plan(&add, SteamClientState::Closed).unwrap();
+        let original = fs::read(fixture.shortcuts()).unwrap();
+        let moved_cli = fixture.cli_path.parent().unwrap().join("moved.exe");
+        fs::write(&moved_cli, b"moved fixture cli").unwrap();
+        let repair = plan_steam_entries(SteamEntryPlanRequest::AddOrRepair {
+            steam_root: fixture.steam_root.clone(),
+            steam_user_id: "12345".into(),
+            library_id: "library-123".into(),
+            library_root: fixture.library_root.clone(),
+            cli_path: moved_cli,
+            games: vec![game("starship", "Starship")],
+        })
+        .unwrap();
+        let backup = fixture.config.join(format!(
+            "shortcuts.vdf.portcove-backup-{}",
+            repair.snapshot_sha256.as_deref().unwrap()
+        ));
+        symlink(fixture.shortcuts(), &backup).unwrap();
+
         assert!(matches!(
             apply_steam_entry_plan(&repair, SteamClientState::Closed),
             Err(SteamEntryError::Conflict(_))

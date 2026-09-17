@@ -381,26 +381,34 @@ Steam versions.
 The implemented planner supports one explicitly selected installation/profile and
 single or selected-batch Add/Repair/Remove against the actual binary shortcut
 format. It binds the original and proposed file hashes plus the selected library,
-CLI and port identities into the review hash. Repeated Add/Repair is duplicate-free.
-Repair preserves the stored app ID, user title, icon/artwork reference, tags and
-unknown fields while changing only the stable CLI route. Remove requires the exact
+CLI and port identities into the review hash. Repeated Add/Repair reconciles by the
+exact ownership marker. A new canonical Steam AppID must be unique across the
+selected profile; a collision between Portcove routes or with an unrelated entry
+fails before mutation rather than creating an ambiguous duplicate. Repair
+preserves the stored app ID, user title, icon/artwork reference, tags and unknown
+fields while changing only the stable CLI route. Remove requires the exact
 Portcove marker and leaves unrelated entries, the managed installation, saved data
 and backups alone. Paths containing spaces or Unicode remain literal quoted Steam
 fields; no shell is introduced.
 
 Application requires a closed-client observation, an unchanged review, and an
-exclusive per-profile Portcove lock. A content-addressed original backup is flushed
-before a journaled same-directory atomic replacement. Recovery classifies only an
-unchanged pre-commit file or the exact committed bytes; any third identity is kept
-for manual inspection instead of being overwritten or called a rollback.
+exclusive per-profile Portcove lock. The encoded candidate must remain within the
+same byte, nesting and field-count limits used for reading. A content-addressed
+regular-file backup is flushed before publication; a symlink, directory or
+same-name file with different bytes is never followed or replaced. The journaled
+publication evacuates and rechecks the reviewed source, then installs the staged
+candidate through a no-clobber handoff. A concurrent edit is restored when that is
+unambiguous; a concurrent destination or any third identity keeps the journal,
+staged bytes, evacuated original and backup for manual reconciliation instead of
+overwriting data or calling the outcome a rollback.
 
 Current evidence is fixture-controlled binary parsing and durable local publication,
-including stale-state, malformed-data and interrupted-journal cases. The module is
-not yet wired to renderer commands. It does **not** prove Steam consumed the entry,
-Steam was actually closed, client restart behavior, live profile discovery,
-Steam-facing launch/Stop/return, artwork placement, Desktop UI, or Steam Deck
-behavior. Those remain separate implementation and actual-platform gates for #292,
-#527 and #217.
+including stale-state, parser-limit, AppID-collision, concurrent-edit,
+malformed-data and interrupted-journal cases. The module is not yet wired to
+renderer commands. It does **not** prove Steam consumed the entry, Steam was
+actually closed, client restart behavior, live profile discovery, Steam-facing
+launch/Stop/return, artwork placement, Desktop UI, or Steam Deck behavior. Those
+remain separate implementation and actual-platform gates for #292, #527 and #217.
 
 ### Optional Decky client
 
