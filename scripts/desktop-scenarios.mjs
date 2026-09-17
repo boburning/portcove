@@ -76,17 +76,21 @@ export const DESKTOP_SCENARIOS = Object.freeze([
   }),
   scenario(
     "native-preparation-cancellation",
-    "Preparation cancellation retains recovery evidence.",
+    "Preparation stays discoverable across navigation, cancellation and renderer restart.",
     {
       prerequisites: ["desktop", "owned-fixture"],
       source: "desktop-preparation-test.mjs",
     },
   ),
-  scenario("native-interrupted-preparation-recovery", "Interrupted preparation recovers durably.", {
-    prerequisites: ["desktop", "owned-fixture"],
-    dependencies: ["native-preparation-cancellation"],
-    source: "desktop-preparation-recovery-test.mjs",
-  }),
+  scenario(
+    "native-interrupted-preparation-recovery",
+    "Interrupted preparation stays actionable across navigation and renderer restart.",
+    {
+      prerequisites: ["desktop", "owned-fixture"],
+      dependencies: ["native-preparation-cancellation"],
+      source: "desktop-preparation-recovery-test.mjs",
+    },
+  ),
   scenario(
     "native-update-settings-save-without-execution",
     "Saving update settings does not execute an update.",
