@@ -32,14 +32,15 @@ pub(crate) async fn import_library(
         return Err(PortcoveError::conflict("import plan changed; review it again").into());
     }
     let message = format!(
-        "Restore {} application versions and their local data from {} into {}? Only import a backup you trust. The input files will be retained.",
+        "Restore {} application versions and their local data from {} into {}? Only restore a Portcove export you trust. The input files will be retained.",
         plan.metadata.application_versions.len(),
         plan.content_root.display(),
         plan.destination_root.display()
     );
-    if !crate::confirm_destructive(&app, "Confirm library import", message, "Import library").await
+    if !crate::confirm_destructive(&app, "Confirm library restore", message, "Restore library")
+        .await
     {
-        return Err(PortcoveError::conflict("library import was not confirmed").into());
+        return Err(PortcoveError::conflict("library restore was not confirmed").into());
     }
     let state = state.inner().clone();
     blocking_worker(move || {

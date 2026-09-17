@@ -150,9 +150,9 @@ it("names the recorded installation and source paths without promising relocatio
     plan.metadata.source_references[0].path,
   ])
     expect(host.textContent).toContain(value);
-  expect(host.textContent).toContain("1 source registration keeps its recorded location.");
+  expect(host.textContent).toContain("1 saved game-file location will stay unchanged.");
   expect(host.textContent).toContain(
-    "Copying Source Inbox files does not redirect their registrations.",
+    "Copying Source Inbox files does not redirect these saved locations.",
   );
   expect(host.textContent).toContain(
     "Original game files, saves, backups and artwork remain in place.",
@@ -161,6 +161,18 @@ it("names the recorded installation and source paths without promising relocatio
   expect(host.textContent).toContain("There is no single undo action");
   expect(host.textContent).toContain("this dialog cannot cancel it");
   expect(host.textContent).toContain("use the recorded move or import recovery");
+});
+
+it("uses a count-aware saved game-file location summary", async () => {
+  const plan = fixture();
+  plan.metadata.source_references.push({
+    ...plan.metadata.source_references[0],
+    profile_id: "owned-bios",
+    path: "D:/Owned BIOS/bios.bin",
+  });
+  await render(plan);
+  expect(host.textContent).toContain("2 saved game-file locations will stay unchanged.");
+  expect(host.textContent).toContain("D:/Owned BIOS/bios.bin");
 });
 
 it("replaces displayed inventory with the current plan and distinguishes empty metadata", async () => {
@@ -175,6 +187,6 @@ it("replaces displayed inventory with the current plan and distinguishes empty m
   expect(host.textContent).toContain("current-port/current.save");
   expect(host.textContent).not.toContain("owned-port/save.bin");
   expect(host.textContent).toContain("No installed versions are recorded in this plan.");
-  expect(host.textContent).toContain("No source registrations are included.");
+  expect(host.textContent).toContain("No saved game-file locations are included.");
   expect(host.textContent).not.toContain("owned-disc");
 });

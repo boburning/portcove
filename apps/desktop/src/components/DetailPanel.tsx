@@ -155,15 +155,7 @@ function DetailDialog({
     bios,
     biosPath,
   );
-  const selectedSourcePath = Boolean(sourcePath.trim()) && (!source || sourcePath !== source.path);
-  const selectedBiosPath = Boolean(biosPath?.trim()) && (!bios || biosPath?.trim() !== bios.path);
-  const selectedRequirement = selectedSourcePath
-    ? selectedBiosPath
-      ? "both"
-      : "game"
-    : selectedBiosPath
-      ? "bios"
-      : undefined;
+  const selectedRequirement = selectedSourceRequirement(source, sourcePath, bios, biosPath);
   const runtimeUpdateAvailable = currentUpdateSnapshot(status)?.check.update_available === true;
   const state =
     installed && typeof status?.readiness?.launchable !== "boolean"
@@ -1546,36 +1538,8 @@ function detailState(
       tone: "setup",
       icon: AlertTriangle,
     };
-  if (!installed)
-    return {
-      title: "Available to install",
-      description:
-        selectedRequirement === "bios"
-          ? "The selected BIOS file has not been checked. Portcove validates it when you continue installation."
-          : selectedRequirement === "both"
-            ? "The selected game files and BIOS file have not been checked. Portcove validates them when you continue installation."
-            : selectedRequirement === "game"
-              ? "Selected game files have not been checked. Portcove validates them when you continue installation."
-              : "Portcove will check required game files and verify the release before it becomes active.",
-      tone: "available",
-      icon: Download,
-    };
-  if (runtimeNeeded)
-    return runtimeUpdateAvailable
-      ? {
-          title: "Update required before playing",
-          description:
-            "Install the available update that includes the required component. Existing saves stay in your library.",
-          tone: "setup",
-          icon: Wrench,
-        }
-      : {
-          title: "Required component unavailable",
-          description:
-            "Check for updates. If none is available, verify the installation for diagnostic details.",
-          tone: "setup",
-          icon: Wrench,
-        };
+  if (!installed) return availableInstallState(selectedRequirement);
+  if (runtimeNeeded) return runtimeRequirementState(runtimeUpdateAvailable);
   const sourceIssue = sourceHealthState("game", sourceHealth);
   if (sourceIssue) return sourceIssue;
   const biosIssue = sourceHealthState("bios", biosHealth);
@@ -1600,23 +1564,7 @@ function detailState(
       tone: "setup",
       icon: Wrench,
     };
-  if (selectedRequirement)
-    return {
-      title:
-        selectedRequirement === "bios"
-          ? "BIOS file needs checking"
-          : selectedRequirement === "both"
-            ? "Game files and BIOS need checking"
-            : "Game files need checking",
-      description:
-        selectedRequirement === "bios"
-          ? "The selected BIOS file has not been checked. Portcove validates it before starting the game."
-          : selectedRequirement === "both"
-            ? "The selected game files and BIOS file have not been checked. Portcove validates them before starting the game."
-            : "The selected game-file path has not been checked. Portcove validates it before starting the game.",
-      tone: "setup",
-      icon: Wrench,
-    };
+  if (selectedRequirement) return selectedRequirementState(selectedRequirement);
   if (pendingSetup)
     return {
       title: "Game files required",
@@ -1636,6 +1584,82 @@ function detailState(
     description: "The installed version and all required game files are available.",
     tone: "ready",
     icon: CheckCircle2,
+  };
+}
+
+type SelectedRequirement = "game" | "bios" | "both";
+
+function selectedSourceRequirement(
+  source: SourceRecord | undefined,
+  sourcePath: string,
+  bios: SourceRecord | undefined,
+  biosPath: string | undefined,
+): SelectedRequirement | undefined {
+  const gameSelected = Boolean(sourcePath.trim()) && sourcePath !== source?.path;
+  const biosSelection = biosPath?.trim();
+  const biosSelected = Boolean(biosSelection) && biosSelection !== bios?.path;
+  if (gameSelected && biosSelected) return "both";
+  if (gameSelected) return "game";
+  if (biosSelected) return "bios";
+  return undefined;
+}
+
+function availableInstallState(selectedRequirement?: SelectedRequirement) {
+  let description =
+    "Portcove will check required game files and verify the release before it becomes active.";
+  if (selectedRequirement === "bios")
+    description =
+      "The selected BIOS file has not been checked. Portcove validates it when you continue installation.";
+  if (selectedRequirement === "both")
+    description =
+      "The selected game files and BIOS file have not been checked. Portcove validates them when you continue installation.";
+  if (selectedRequirement === "game")
+    description =
+      "Selected game files have not been checked. Portcove validates them when you continue installation.";
+  return { title: "Available to install", description, tone: "available", icon: Download };
+}
+
+function runtimeRequirementState(updateAvailable: boolean) {
+  return updateAvailable
+    ? {
+        title: "Update required before playing",
+        description:
+          "Install the available update that includes the required component. Existing saves stay in your library.",
+        tone: "setup",
+        icon: Wrench,
+      }
+    : {
+        title: "Required component unavailable",
+        description:
+          "Check for updates. If none is available, verify the installation for diagnostic details.",
+        tone: "setup",
+        icon: Wrench,
+      };
+}
+
+function selectedRequirementState(requirement: SelectedRequirement) {
+  if (requirement === "bios")
+    return {
+      title: "BIOS file needs checking",
+      description:
+        "The selected BIOS file has not been checked. Portcove validates it before starting the game.",
+      tone: "setup",
+      icon: Wrench,
+    };
+  if (requirement === "both")
+    return {
+      title: "Game files and BIOS need checking",
+      description:
+        "The selected game files and BIOS file have not been checked. Portcove validates them before starting the game.",
+      tone: "setup",
+      icon: Wrench,
+    };
+  return {
+    title: "Game files need checking",
+    description:
+      "The selected game-file path has not been checked. Portcove validates it before starting the game.",
+    tone: "setup",
+    icon: Wrench,
   };
 }
 

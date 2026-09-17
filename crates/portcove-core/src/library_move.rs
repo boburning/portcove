@@ -296,9 +296,10 @@ fn ensure_move_activity(library: &Library, journal: &TransferJournal) -> Result<
 
 fn authority(journal: &TransferJournal, state: AuthorityState) -> LibraryAuthority {
     LibraryAuthority {
-        schema_version: 1,
+        schema_version: 2,
         transfer_id: journal.transfer_id.clone(),
         state,
+        source_root: Some(journal.plan.source_root.clone()),
         destination: journal.plan.destination_root.clone(),
     }
 }
@@ -336,9 +337,14 @@ fn result(journal: &TransferJournal, completed: bool) -> LibraryMoveResult {
 }
 
 fn recovery_error(error: PortcoveError, journal: &TransferJournal) -> PortcoveError {
+    let abort_available = matches!(
+        journal.phase,
+        TransferPhase::Copying | TransferPhase::Verified
+    ) && source_authority_allows_abort(journal);
     error
         .detail("transfer_id", &journal.transfer_id)
         .detail("recovery_action", "library resume-move")
+        .detail("move_abort_available", abort_available.to_string())
         .detail(
             "retained_source",
             journal.plan.source_root.display().to_string(),
@@ -347,6 +353,16 @@ fn recovery_error(error: PortcoveError, journal: &TransferJournal) -> PortcoveEr
             "destination",
             journal.plan.destination_root.display().to_string(),
         )
+}
+
+fn source_authority_allows_abort(journal: &TransferJournal) -> bool {
+    let Ok(Some(marker)) = library_authority::authority(&journal.plan.source_root) else {
+        return false;
+    };
+    marker.transfer_id == journal.transfer_id
+        && marker.state == AuthorityState::Pending
+        && marker.source_root.as_deref() == Some(journal.plan.source_root.as_path())
+        && marker.destination == journal.plan.destination_root
 }
 
 #[cfg(test)]
@@ -471,6 +487,20 @@ mod tests {
         })
         .unwrap_err();
         assert_eq!(error.message, "simulated process interruption");
+        let source_detail = fs::canonicalize(&source).unwrap().display().to_string();
+        assert_eq!(
+            error
+                .details
+                .get("move_abort_available")
+                .map(String::as_str),
+            Some(
+                if matches!(fault, TransferPhase::Copying | TransferPhase::Verified) {
+                    "true"
+                } else {
+                    "false"
+                }
+            )
+        );
         if fault == TransferPhase::Complete {
             let current = Library::open(&source).unwrap();
             assert_eq!(current.root(), fs::canonicalize(&destination).unwrap());
@@ -479,8 +509,39 @@ mod tests {
                 b"new save after activation",
             )
             .unwrap();
+        } else if fault == TransferPhase::Published {
+            let open_error = Library::open(&source).unwrap_err();
+            assert_eq!(
+                open_error
+                    .details
+                    .get("move_abort_available")
+                    .map(String::as_str),
+                Some("false")
+            );
+            assert_eq!(
+                open_error
+                    .details
+                    .get("retained_source")
+                    .map(String::as_str),
+                Some(source_detail.as_str())
+            );
+            assert!(Library::open(&destination).is_err());
         } else {
-            assert!(Library::open(&source).is_err());
+            let open_error = Library::open(&source).unwrap_err();
+            assert_eq!(
+                open_error
+                    .details
+                    .get("move_abort_available")
+                    .map(String::as_str),
+                Some("true")
+            );
+            assert_eq!(
+                open_error
+                    .details
+                    .get("retained_source")
+                    .map(String::as_str),
+                Some(source_detail.as_str())
+            );
             assert!(Library::open(&destination).is_err());
         }
         assert!(
@@ -647,5 +708,51 @@ mod tests {
         journal.write().unwrap();
         PortcoveService::abort_library_move(&source).unwrap();
         assert!(Library::open(&source).is_ok());
+    }
+
+    #[test]
+    fn immediate_recovery_fails_closed_after_source_authority_is_published() {
+        let temporary = tempfile::tempdir().unwrap();
+        let source = temporary.path().join("source");
+        let destination = temporary.path().join("destination");
+        let service = fixture(&source);
+        let plan = service.plan_library_move(&destination).unwrap();
+        drop(service);
+        let source = fs::canonicalize(source).unwrap();
+        let journal = TransferJournal {
+            schema_version: 1,
+            transfer_id: uuid::Uuid::new_v4().to_string(),
+            plan,
+            phase: TransferPhase::Verified,
+        };
+        library_authority::write_authority(
+            &source,
+            &authority(&journal, AuthorityState::Moved),
+            false,
+        )
+        .unwrap();
+
+        let error = recovery_error(
+            PortcoveError::state("source authority sync failed after publication"),
+            &journal,
+        );
+        let source_detail = source.display().to_string();
+        assert_eq!(
+            error
+                .details
+                .get("move_abort_available")
+                .map(String::as_str),
+            Some("false")
+        );
+        assert_eq!(
+            error.details.get("retained_source").map(String::as_str),
+            Some(source_detail.as_str())
+        );
+        assert_eq!(
+            PortcoveService::abort_library_move(&source)
+                .unwrap_err()
+                .code,
+            ErrorCode::State
+        );
     }
 }

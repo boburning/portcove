@@ -649,7 +649,7 @@ try {
       () =>
         browser.executeScript(() => {
           const control = [...document.querySelectorAll("button")].find(
-            (element) => element.textContent?.trim() === "Import library",
+            (element) => element.textContent?.trim() === "Restore library",
           );
           return (
             control instanceof HTMLButtonElement &&

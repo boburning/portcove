@@ -68,7 +68,42 @@ describe("Portcove app shell", () => {
         }}
       />,
     );
-    expect(html).toContain("Resume import");
+    expect(html).toContain("Resume restore");
     expect(html).not.toContain("Resume move");
+  });
+
+  it("offers move abort only when the core marks it available", () => {
+    const preActivation = renderToStaticMarkup(
+      <BootstrapRecovery
+        error={{
+          code: "conflict",
+          message: "Move needs recovery",
+          details: {
+            transfer_id: "move-id",
+            retained_source: "E:/Library",
+            recovery_action: "resume_library_move",
+            move_abort_available: "true",
+          },
+        }}
+      />,
+    );
+    expect(preActivation).toContain("Keep using original library");
+
+    const postActivation = renderToStaticMarkup(
+      <BootstrapRecovery
+        error={{
+          code: "conflict",
+          message: "Move needs recovery",
+          details: {
+            transfer_id: "move-id",
+            retained_source: "E:/Library",
+            recovery_action: "resume_library_move",
+            move_abort_available: "false",
+          },
+        }}
+      />,
+    );
+    expect(postActivation).not.toContain("Keep using original library");
+    expect(postActivation).toContain("recovery can only resume the move");
   });
 });

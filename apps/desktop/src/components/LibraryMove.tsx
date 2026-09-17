@@ -38,6 +38,7 @@ function LibraryMoveDialog({ close }: { close: () => void }) {
   };
   const dialog = useDialogFocus(dismiss);
   const recoveryRoot = transferRecoveryRoot(error);
+  const canKeepOriginal = transferRecoveryCanKeepOriginal(error);
   const run = async (label: string, operation: () => Promise<void>) => {
     setBusy(label);
     setError(undefined);
@@ -72,7 +73,7 @@ function LibraryMoveDialog({ close }: { close: () => void }) {
         <p className="modal-description">
           Copy and verify application versions, saves, backups, and toolchains before switching to
           the new folder. The original folder stays available for recovery. Original game sources
-          stay at their current paths.
+          and other saved game-file locations stay unchanged.
         </p>
         <NavigationHints />
         <label htmlFor="library-destination">New library folder</label>
@@ -110,6 +111,7 @@ function LibraryMoveDialog({ close }: { close: () => void }) {
         {recoveryRoot && (
           <LibraryMoveRecovery
             source={recoveryRoot}
+            canKeepOriginal={canKeepOriginal}
             onBusyChange={(active) => setBusy(active ? "Recovering your library…" : "")}
           />
         )}
@@ -155,9 +157,11 @@ function LibraryMoveDialog({ close }: { close: () => void }) {
 
 export function LibraryMoveRecovery({
   source,
+  canKeepOriginal,
   onBusyChange,
 }: {
   source: string;
+  canKeepOriginal: boolean;
   onBusyChange?: (active: boolean) => void;
 }) {
   const [busy, setBusy] = useState(false);
@@ -178,11 +182,13 @@ export function LibraryMoveRecovery({
   };
   return (
     <section aria-label="Library move recovery">
-      <p>
-        A library move needs recovery. Resume verifies the copy before finishing. Abort returns to
-        the original only while the new copy has not been activated. Both choices retain all copied
-        files.
-      </p>
+      <p>Resume the move to check the new copy and finish switching libraries.</p>
+      {canKeepOriginal ? (
+        <p>Keep using the original library before the new copy is activated.</p>
+      ) : (
+        <p>The new copy is already activated, so recovery can only resume the move.</p>
+      )}
+      <p>Neither option deletes the copied files.</p>
       <div className="actions">
         <button
           data-focusable
@@ -193,15 +199,17 @@ export function LibraryMoveRecovery({
         >
           Resume move
         </button>
-        <button
-          data-focusable
-          disabled={busy}
-          onClick={() => {
-            void recover(true);
-          }}
-        >
-          Abort move
-        </button>
+        {canKeepOriginal && (
+          <button
+            data-focusable
+            disabled={busy}
+            onClick={() => {
+              void recover(true);
+            }}
+          >
+            Keep using original library
+          </button>
+        )}
       </div>
       {busy && <p role="status">Recovering the library move…</p>}
       {error && <p role="alert">{error}</p>}
@@ -225,6 +233,18 @@ export function transferRecoveryRoot(
   return (details.transfer_id || details.recovery_action) && typeof details[key] === "string"
     ? details[key]
     : undefined;
+}
+
+export function transferRecoveryCanKeepOriginal(error: unknown): boolean {
+  if (
+    typeof error !== "object" ||
+    !error ||
+    !("details" in error) ||
+    typeof error.details !== "object" ||
+    !error.details
+  )
+    return false;
+  return (error.details as Record<string, unknown>).move_abort_available === "true";
 }
 
 export function LibraryCopySummary({
@@ -278,18 +298,18 @@ export function LibraryCopySummary({
       {plan.content.map((tree) => (
         <LibraryCopyTree key={tree.relative_path} tree={tree} />
       ))}
-      <h3>Source registrations</h3>
+      <h3>Saved game-file locations</h3>
       <p>
         {formatCountMessage(plan.metadata.source_references.length, {
-          zero: "No source registrations are included.",
-          one: "1 source registration keeps its recorded location.",
-          other: "{count} source registrations keep their recorded locations.",
-          unknown: "Source registration count is unavailable.",
+          zero: "No saved game-file locations are included.",
+          one: "1 saved game-file location will stay unchanged.",
+          other: "{count} saved game-file locations will stay unchanged.",
+          unknown: "Saved game-file location count is unavailable.",
         })}
       </p>
       {plan.metadata.source_references.length > 0 && (
         <details>
-          <summary data-focusable>Recorded source locations</summary>
+          <summary data-focusable>Saved game-file locations</summary>
           <ul>
             {plan.metadata.source_references.map((reference) => (
               <li key={reference.profile_id}>
@@ -302,8 +322,8 @@ export function LibraryCopySummary({
         </details>
       )}
       <p>
-        Copying Source Inbox files does not redirect their registrations. Keep the recorded source
-        locations available until you explicitly register another location.
+        Copying Source Inbox files does not redirect these saved locations. Keep the original game
+        files available until you explicitly add another location.
       </p>
       <p>
         Original game files, saves, backups and artwork remain in place. Later saves and settings

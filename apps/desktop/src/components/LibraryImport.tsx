@@ -23,7 +23,7 @@ export function LibraryImportButton({
         disabled={disabled}
         onClick={() => setOpen(true)}
       >
-        Import library
+        Restore library
       </button>
       {open && <LibraryImportDialog libraryRoot={libraryRoot} close={() => setOpen(false)} />}
     </>
@@ -58,7 +58,7 @@ function LibraryImportDialog({ libraryRoot, close }: { libraryRoot: string; clos
     }
   };
   const choose = (field: "metadata" | "content") =>
-    run("Choosing your backup…", async () => {
+    run("Choosing your export…", async () => {
       const path =
         field === "metadata" ? await pickMetadataImportPath() : await pickInstallFolder(content);
       if (path) {
@@ -76,18 +76,21 @@ function LibraryImportDialog({ libraryRoot, close }: { libraryRoot: string; clos
         aria-modal="true"
         aria-labelledby="import-library-title"
       >
-        <p className="eyebrow">LIBRARY BACKUP</p>
-        <h2 id="import-library-title">Import your library</h2>
+        <p className="eyebrow">RESTORE PORTCOVE LIBRARY</p>
+        <h2 id="import-library-title">Restore your library</h2>
         <p className="modal-description">
-          Restore a trusted metadata export and its copied application, save, backup, and toolchain
-          folders into this empty library. Portcove verifies the copy before opening it and keeps
-          the backup files unchanged.
+          Restore a Portcove export and its copied library data into this empty library. Portcove
+          checks the copy before opening it and does not change the export.
+        </p>
+        <p>
+          <strong>Use an export you trust.</strong> Review its source, destination, required space,
+          installed versions, saved game-file locations, and copied files before restoring it.
         </p>
         <p>
           Destination: <code>{libraryRoot}</code>
         </p>
         <NavigationHints />
-        <label htmlFor="import-metadata">Metadata export</label>
+        <label htmlFor="import-metadata">Portcove export file</label>
         <div className="path-entry">
           <input
             data-autofocus
@@ -99,7 +102,7 @@ function LibraryImportDialog({ libraryRoot, close }: { libraryRoot: string; clos
               setMetadata(event.target.value);
               setPlan(undefined);
             }}
-            placeholder="portcove-library.json"
+            placeholder="Choose a Portcove library export"
           />
           <button
             data-focusable
@@ -111,7 +114,7 @@ function LibraryImportDialog({ libraryRoot, close }: { libraryRoot: string; clos
             Choose file
           </button>
         </div>
-        <label htmlFor="import-content">Copied library folder</label>
+        <label htmlFor="import-content">Exported library folder</label>
         <div className="path-entry">
           <input
             data-focusable
@@ -122,7 +125,7 @@ function LibraryImportDialog({ libraryRoot, close }: { libraryRoot: string; clos
               setContent(event.target.value);
               setPlan(undefined);
             }}
-            placeholder="Folder containing versions, user, backups, and toolchains"
+            placeholder="Folder containing the exported Portcove library"
           />
           <button
             data-focusable
@@ -135,17 +138,17 @@ function LibraryImportDialog({ libraryRoot, close }: { libraryRoot: string; clos
           </button>
         </div>
         {plan && (
-          <LibraryCopySummary plan={plan} source={plan.content_root} label="Library import plan" />
+          <LibraryCopySummary plan={plan} source={plan.content_root} label="Library restore plan" />
         )}
         {busy && <p role="status">{busy} Keep Portcove open until this finishes.</p>}
         {error != null && <p role="alert">{errorText(error)}</p>}
         {transferAttempted && !busy && (
-          <p>Closing this review refreshes the library before you continue.</p>
+          <p>Closing this restore review refreshes the library before you continue.</p>
         )}
         {recoveryRoot && (
           <LibraryImportRecovery
             destination={recoveryRoot}
-            onBusyChange={(active) => setBusy(active ? "Recovering your import…" : "")}
+            onBusyChange={(active) => setBusy(active ? "Recovering your restore…" : "")}
           />
         )}
         <div className="actions">
@@ -159,7 +162,7 @@ function LibraryImportDialog({ libraryRoot, close }: { libraryRoot: string; clos
                 className="primary"
                 disabled={Boolean(busy)}
                 onClick={() => {
-                  void run("Copying and verifying your backup…", async () => {
+                  void run("Copying and verifying the restored library…", async () => {
                     setTransferAttempted(true);
                     await desktopApi.importLibrary(
                       plan.metadata_file.path,
@@ -170,7 +173,7 @@ function LibraryImportDialog({ libraryRoot, close }: { libraryRoot: string; clos
                   });
                 }}
               >
-                Import this backup
+                Restore this library
               </button>
             ) : (
               <button
@@ -178,12 +181,12 @@ function LibraryImportDialog({ libraryRoot, close }: { libraryRoot: string; clos
                 className="primary"
                 disabled={Boolean(busy) || !metadata.trim() || !content.trim()}
                 onClick={() => {
-                  void run("Reviewing your backup…", async () =>
+                  void run("Reviewing your restore…", async () =>
                     setPlan(await desktopApi.planLibraryImport(metadata, content)),
                   );
                 }}
               >
-                Review import
+                Review restore
               </button>
             ))}
         </div>
@@ -216,10 +219,10 @@ export function LibraryImportRecovery({
     }
   };
   return (
-    <section aria-label="Library import recovery">
+    <section aria-label="Library restore recovery">
       <p>
-        Resume the import to verify and finish the restored copy. The original backup stays
-        unchanged. Incomplete copies remain closed until recovery succeeds.
+        Resume the restore to verify and finish opening the copied library. The Portcove export
+        stays unchanged. Incomplete copies remain closed until recovery succeeds.
       </p>
       <button
         data-focusable
@@ -228,9 +231,9 @@ export function LibraryImportRecovery({
           void recover();
         }}
       >
-        Resume import
+        Resume restore
       </button>
-      {busy && <p role="status">Recovering the library import…</p>}
+      {busy && <p role="status">Recovering the library restore…</p>}
       {error && <p role="alert">{error}</p>}
     </section>
   );
