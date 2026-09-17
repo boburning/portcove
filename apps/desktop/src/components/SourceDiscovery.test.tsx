@@ -77,7 +77,7 @@ it("opens and scans the Inbox, then applies the exact reviewed import", async ()
     profile_id: profile.id,
     mode: "copy",
     source: candidate,
-    admission_mode: "structural_checks",
+    admission_mode: "exact_identity",
     destination: "D:/Library/source-inbox/test/game.iso",
     destination_exists: false,
     existing_registration: null,
@@ -256,6 +256,7 @@ it("opens and scans the Inbox, then applies the exact reviewed import", async ()
     expect(host.textContent).toContain("Source changed after discovery");
     await click("Review copy");
     expect(host.textContent).toContain(plan.destination);
+    expect(plan.admission_mode).toBe("exact_identity");
     await click("Copy to Inbox");
     expect(importSource).toHaveBeenCalledWith(
       profile.id,
