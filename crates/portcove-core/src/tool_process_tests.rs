@@ -1,5 +1,5 @@
 use super::*;
-use std::{fs, io::Write, time::Instant};
+use std::{collections::BTreeMap, fs, io::Write, time::Instant};
 
 const CHILD_TEST: &str = "tool_process::tests::setup_fixture_child";
 
@@ -17,6 +17,7 @@ fn run_fixture(root: &Path, checkpoint: &dyn Fn() -> Result<()>) -> Result<Setup
         &["--exact".into(), CHILD_TEST.into(), "--nocapture".into()],
         &root.join("owned-fixture.iso"),
         root,
+        &Default::default(),
         checkpoint,
         ToolProcessObserver {
             diagnostics: Some(ToolDiagnosticSink {
@@ -52,6 +53,13 @@ fn setup_fixture_child() {
                 .write_all(b"finished excess output")
                 .unwrap();
         }
+        "environment" => {
+            fs::write(
+                "setup-fixture-environment",
+                std::env::var("PORTCOVE_SETUP_FIXTURE").unwrap(),
+            )
+            .unwrap();
+        }
         "wait" => {
             // A finite fallback keeps a failed parent assertion from leaving a
             // permanent process. A passing cancellation test kills it promptly.
@@ -84,6 +92,27 @@ fn verbose_setup_is_drained_with_bounded_capture() {
     assert!(output.status.success());
     assert!(output.truncated);
     assert!(output.output.len() <= SETUP_OUTPUT_LIMIT);
+}
+
+#[test]
+fn setup_receives_the_reviewed_environment_overlay() {
+    let temporary = fixture("environment");
+    let environment = BTreeMap::from([("PORTCOVE_SETUP_FIXTURE".into(), "owned".into())]);
+    let output = run_setup(
+        &std::env::current_exe().unwrap(),
+        &["--exact".into(), CHILD_TEST.into(), "--nocapture".into()],
+        &temporary.path().join("owned-fixture.iso"),
+        temporary.path(),
+        &environment,
+        &|| Ok(()),
+        ToolProcessObserver::default(),
+    )
+    .unwrap();
+    assert!(output.status.success());
+    assert_eq!(
+        fs::read_to_string(temporary.path().join("setup-fixture-environment")).unwrap(),
+        "owned"
+    );
 }
 
 #[test]
@@ -127,6 +156,7 @@ fn diagnostic_storage_failure_stops_the_owned_tool_before_returning() {
         &["--exact".into(), CHILD_TEST.into(), "--nocapture".into()],
         &root.join("owned-fixture.iso"),
         root,
+        &Default::default(),
         &|| Ok(()),
         ToolProcessObserver {
             diagnostics: Some(ToolDiagnosticSink {
@@ -188,6 +218,7 @@ fn setup_descendants_cannot_keep_writing_after_completion_or_cancellation() {
             &arguments,
             &working.path().join("owned.iso"),
             working.path(),
+            &Default::default(),
             &|| {
                 if cancel && working.path().join("descendant-pid").is_file() {
                     Err(PortcoveError::new(
@@ -239,6 +270,7 @@ fn detached_unix_descendant_never_records_tree_quiescence() {
         &arguments,
         &working.path().join("owned.iso"),
         working.path(),
+        &Default::default(),
         &|| Ok(()),
         ToolProcessObserver {
             diagnostics: None,

@@ -559,8 +559,9 @@ dependency. Existing lifecycle execution remains unchanged by planning.
 
 Explicit core preparation copies a fully verified installation to a unique
 private directory, materializes its reviewed source, and runs only the admitted
-native setup executable with catalog arguments. It checks the declared generated
-output ownership and preserves executable, source and save identities before
+native setup executable with catalog arguments and the narrowly reviewed setup
+environment. Generated outputs may be exact files or directories. It checks the
+declared generated output ownership and preserves executable, source and save identities before
 creating a derivative manifest and receipt. The existing lifecycle journal owns
 publication and recovery; no second job database or state owner is introduced.
 Publication preserves a separately staged update and retains the original
@@ -582,8 +583,11 @@ host and default options. Changed identities require a new preparation review.
 Already completed legacy installations retain the existing manifest/setup/source
 binding without synthesizing historical definition evidence. Missing new receipts
 cannot be treated as legacy installs. Tools recorded as generation provenance need
-not remain installed to play immutable output. Other adapter families retain their
-existing behavior. No crate or durable state ownership boundary changes.
+not remain installed to play immutable output. Libultraship definitions may opt
+into this same transaction for source-derived, version-owned game data; their
+setup process receives the private directory as `SHIP_HOME`, while ordinary
+launch still receives canonical per-port user data. Other adapter families retain
+their existing behavior. No crate or durable state ownership boundary changes.
 
 Game-update settings and execution are separate. Saving a policy only persists
 that setting through core. The desktop uses explicit reviewed updates rather

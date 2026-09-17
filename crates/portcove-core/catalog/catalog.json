@@ -280,6 +280,25 @@
         "claim": "Records the exact Dr. Mario 64 Recompiled Plus 1.0.0 Windows source, successor, runtime-root, and bounded lifecycle qualification",
         "immutable_url": "https://github.com/boburning/portcove/blob/ecee7d02cb30bd8081b3181e09b7aa5c8ed8436f/docs/qualification/dr-mario-64-recompiled-windows-2026-09-15.md",
         "live_url": "https://github.com/boburning/portcove/blob/main/docs/qualification/dr-mario-64-recompiled-windows-2026-09-15.md"
+      },
+      {
+        "id": "paperboat-1-0-0-source-contract",
+        "role": "upstream_support",
+        "authority": "HarbourMasters/PaperBoat",
+        "authority_ref": "5489baad1c08bc134ed894b96cf66c3da615deed",
+        "reviewed_at": "2026-09-17",
+        "claim": "Lists the exact North American Paper Mario source accepted by PaperBoat 1.0.0 and its pm64.o2r output",
+        "immutable_url": "https://github.com/HarbourMasters/PaperBoat/blob/5489baad1c08bc134ed894b96cf66c3da615deed/config.yml",
+        "live_url": "https://github.com/HarbourMasters/PaperBoat/blob/develop/config.yml"
+      },
+      {
+        "id": "portcove-n64-byte-order-normalization-2026-09-17",
+        "role": "byte_identity",
+        "authority": "boburning/portcove",
+        "authority_ref": "45e884c5a05fc5583abf14ca6fb99436ca5ca8c0",
+        "reviewed_at": "2026-09-17",
+        "claim": "Normalizes z64, n64, and v64 byte orders to canonical big-endian bytes before exact identity verification and private runtime materialization",
+        "immutable_url": "https://github.com/boburning/portcove/blob/45e884c5a05fc5583abf14ca6fb99436ca5ca8c0/crates/portcove-core/src/adapter.rs"
       }
     ],
     "identities": [
@@ -3923,6 +3942,50 @@
         "evidence_gap": null
       },
       {
+        "id": "paperboat-paper-mario-us",
+        "label": "Paper Mario (North America) source",
+        "kind": "file",
+        "variants": [
+          {
+            "id": "north-america",
+            "title": "Paper Mario",
+            "region": "North America",
+            "revision": null,
+            "product_codes": [],
+            "representations": [
+              {
+                "id": "normalized-source",
+                "extensions": [
+                  "n64",
+                  "v64",
+                  "z64"
+                ],
+                "kind": "canonical-n64",
+                "identities": [
+                  {
+                    "scope": "canonical-n64-big-endian",
+                    "sha1": "3837f44cda784b466c9a2d99df70d77c322b97a0",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "paperboat-1-0-0-source-contract",
+                  "portcove-n64-byte-order-normalization-2026-09-17"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "paperboat-1-0-0-source-contract",
+              "portcove-n64-byte-order-normalization-2026-09-17"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
+      },
+      {
         "id": "opengoal-jak1-disc",
         "label": "Jak and Daxter retail disc validated by the pinned OpenGOAL extractor",
         "kind": "optical-disc",
@@ -6002,6 +6065,29 @@
         "tombstones": []
       },
       {
+        "id": "paperboat-game-source",
+        "port_id": "paperboat",
+        "role": "game",
+        "profile_id": "paperboat-paper-mario-us",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "north-america"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "paperboat-1-0-0-source-contract",
+          "portcove-n64-byte-order-normalization-2026-09-17"
+        ],
+        "authority_ref": "5489baad1c08bc134ed894b96cf66c3da615deed",
+        "reviewed_at": "2026-09-17",
+        "immutable_review_url": "https://github.com/HarbourMasters/PaperBoat/blob/5489baad1c08bc134ed894b96cf66c3da615deed/config.yml",
+        "live_review_url": "https://github.com/HarbourMasters/PaperBoat/blob/develop/config.yml",
+        "evidence_gap": null,
+        "applicability": [],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
         "id": "snap64-recomp-game-source",
         "port_id": "snap64-recomp",
         "role": "game",
@@ -7009,6 +7095,79 @@
             "role": "game",
             "profile_id": "ghostship-source",
             "label": "Super Mario 64 (US) source",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed"
+      }
+    },
+    {
+      "id": "paperboat",
+      "name": "PaperBoat",
+      "summary": "Native Paper Mario port from Harbour Masters.",
+      "project_url": "https://github.com/HarbourMasters/PaperBoat",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "adapter": "libultraship-portable",
+      "release": {
+        "repository": "HarbourMasters/PaperBoat",
+        "asset_hints": {
+          "windows-x86-64": [
+            "win64"
+          ],
+          "linux-x86-64": [
+            "linux"
+          ]
+        }
+      },
+      "source_profile": "paperboat-paper-mario-us",
+      "runtime_source_filename": "paper-mario.us.z64",
+      "runtime_source_materialization": "n64-big-endian",
+      "setup_executable_hints": {
+        "windows-x86-64": [
+          "Paperboat.exe"
+        ],
+        "linux-x86-64": [
+          "Paperboat.AppImage"
+        ]
+      },
+      "setup_marker": "pm64.o2r",
+      "setup_output_paths": [
+        "pm64.o2r",
+        "torch.hash.yml"
+      ],
+      "executable_hints": {
+        "windows-x86-64": [
+          "Paperboat.exe"
+        ],
+        "linux-x86-64": [
+          "Paperboat.AppImage"
+        ]
+      },
+      "persistent_paths": [
+        "mods",
+        "saves",
+        "default.sav",
+        "paperboat.cfg.json",
+        "imgui.ini",
+        "cvars.cfg"
+      ],
+      "runtime_mutable_paths": [
+        "logs"
+      ],
+      "presentation": {
+        "installation_method": "generated-game-data",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "paperboat-paper-mario-us",
+            "label": "Paper Mario (North America) source",
             "verification": "catalog-identity"
           }
         ],

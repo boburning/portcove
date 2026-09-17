@@ -21,15 +21,15 @@ test("schema-2 migration is deterministic and preserves the frozen schema-1 proj
   const migrated = JSON.parse(readFileSync(join(catalogRoot, "catalog.json"), "utf8"));
   assert.equal(migrated.schema_version, 2);
   assert.equal("source_profiles" in migrated, false);
-  assert.equal(migrated.source_catalog.identities.length, legacy.source_profiles.length + 7);
-  assert.equal(migrated.ports.length, legacy.ports.length + 7);
+  assert.equal(migrated.source_catalog.identities.length, legacy.source_profiles.length + 8);
+  assert.equal(migrated.ports.length, legacy.ports.length + 8);
   assert.equal(
     migrated.source_catalog.contracts.length,
     legacy.ports.reduce(
       (count, port) =>
         count + Number(Boolean(port.source_profile)) + Number(Boolean(port.bios_source_profile)),
       0,
-    ) + 7,
+    ) + 8,
   );
 
   const profile = (id) => migrated.source_catalog.identities.find((item) => item.id === id);
@@ -62,6 +62,20 @@ test("schema-2 migration is deterministic and preserves the frozen schema-1 proj
     assert.equal(contract(portId).supported_variant_ids.includes("legacy-accepted"), false);
   }
   assert.deepEqual(contract("snap64-recomp").supported_variant_ids, ["usa-rev0"]);
+  assert.deepEqual(contract("paperboat").supported_variant_ids, ["north-america"]);
+  assert.deepEqual(profile("paperboat-paper-mario-us").variants[0].representations[0].identities, [
+    {
+      scope: "canonical-n64-big-endian",
+      sha1: "3837f44cda784b466c9a2d99df70d77c322b97a0",
+      sha256: null,
+      crc32: null,
+    },
+  ]);
+  const paperBoat = migrated.ports.find((port) => port.id === "paperboat");
+  assert.equal(paperBoat.presentation.installation_method, "generated-game-data");
+  assert.deepEqual(paperBoat.setup_output_paths, ["pm64.o2r", "torch.hash.yml"]);
+  assert.equal(paperBoat.persistent_paths.includes("pm64.o2r"), false);
+  assert.equal(paperBoat.persistent_paths.includes("saves"), true);
   assert.equal(profile("pokemon-snap").variants[0].representations[0].kind, "canonical-n64");
   assert.deepEqual(contract("cvlod-recomp").supported_variant_ids, ["north-america"]);
   assert.equal(

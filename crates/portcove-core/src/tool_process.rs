@@ -3,6 +3,7 @@
 #[path = "tool_process_tests.rs"]
 mod tests;
 use std::{
+    collections::BTreeMap,
     io::Read,
     path::Path,
     process::{Command, ExitStatus, Stdio},
@@ -29,6 +30,7 @@ pub(crate) fn run_setup(
     arguments: &[String],
     source: &Path,
     working_directory: &Path,
+    environment: &BTreeMap<String, String>,
     checkpoint: &dyn Fn() -> Result<()>,
     observer: ToolProcessObserver<'_>,
 ) -> Result<SetupOutput> {
@@ -37,7 +39,8 @@ pub(crate) fn run_setup(
     command
         .args(arguments)
         .arg(source)
-        .current_dir(working_directory);
+        .current_dir(working_directory)
+        .envs(environment);
     run_tool(&mut command, checkpoint, observer)
 }
 

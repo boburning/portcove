@@ -1,9 +1,9 @@
 # Catalog policy
 
-For upstream-managed setup, `setup_output_paths` declares safe relative generated
-directories. They cannot overlap game/setup executables, persistent data,
+For managed setup, `setup_output_paths` declares safe relative generated files
+or directories. They cannot overlap game/setup executables, persistent data,
 disposable runtime state, the materialized source, or one another. The completion
-marker must belong to a declared output directory. Older definitions may omit
+marker must belong to a declared output path. Older definitions may omit
 the field and remain readable, but cannot acquire the explicit preparation-plan
 capability without a reviewed output contract. These paths add no manifest
 exclusion or permission to trust newly hashed files.
@@ -13,6 +13,18 @@ following the [extractor](https://github.com/open-goal/jak-project/blob/ce97ce95
 and its [decompilation output](https://github.com/open-goal/jak-project/blob/ce97ce959b8c773097f593bf42f470555f6a6e2b/decompiler/decompilation_process.cpp)
 contract. Saves and `data/log` remain separately owned. These declarations are
 implementation facts, not new artifact or platform qualification.
+
+PaperBoat uses the same isolated preparation transaction through the
+Libultraship adapter. Portcove normalizes the registered Paper Mario source to a
+private big-endian `.z64`, runs only the checksum-qualified PaperBoat executable,
+and admits `pm64.o2r` plus the optional Torch hash record as version-owned output.
+The upstream setup window remains visible; after generation the user chooses its
+close option rather than launching outside Portcove. `SHIP_HOME` points at the
+private copy during setup and at canonical user data during supervised play.
+Generated game data therefore rolls back with its release, while saves,
+configuration and mods remain separately backed-up player data. Logs remain
+disposable. This contract does not claim a ROM, gameplay, Steam Deck, macOS, or
+unpublished-release qualification.
 
 `crates/portcove-core/catalog/catalog.json` is the machine-readable authority
 for actual ports, platforms, upstream sources, release channels, adapters,

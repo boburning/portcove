@@ -121,6 +121,11 @@ export function PreparationControl({
             Each attempt starts from the reviewed inputs in a new private copy and retains earlier
             partial work.
           </p>
+          <p>
+            If the upstream setup opens a window, finish generating the game data there and choose
+            its option to close setup instead of launching. Portcove will then verify and activate
+            the generated result.
+          </p>
           <button
             ref={applyButton}
             data-focusable
