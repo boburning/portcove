@@ -2056,6 +2056,12 @@
         },
         "type": "array"
       },
+      "operation_event_schema_version": {
+        "description": "Schema used by JSONL operation events, independently from result envelopes.",
+        "format": "uint32",
+        "minimum": 0,
+        "type": "integer"
+      },
       "platforms": {
         "items": {
           "$ref": "#/$defs/Platform"
@@ -2085,6 +2091,7 @@
     },
     "required": [
       "schema_version",
+      "operation_event_schema_version",
       "product",
       "product_version",
       "commands",

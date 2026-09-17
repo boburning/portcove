@@ -43,15 +43,22 @@ internal static class ContractTests
         schema_version = 42, type = "result", command, ok, data,
         error = ok ? null : new { code = "conflict", message = "Owned fixture port is busy" }
     });
-    private static string Event(int sequence) => Json.Print(new
-    {
-        schema_version = 2, operation_id = "request", parent_operation_id = (string)null,
-        sequence, timestamp_ms = 1, operation = "install", type = sequence == 0 ? "started" : "progress"
-    });
+    private static string Event(int sequence) => sequence == 0
+        ? Json.Print(new
+        {
+            schema_version = 2, operation_id = "request", parent_operation_id = (string)null,
+            sequence, timestamp_ms = 1, operation = "install", target = (object)null, type = "started"
+        })
+        : Json.Print(new
+        {
+            schema_version = 2, operation_id = "request", parent_operation_id = (string)null,
+            sequence, timestamp_ms = 1, operation = "install", target = (object)null, type = "progress",
+            phase = "download", completed = sequence, total = (long?)null
+        });
     private static object Capabilities() => new
     {
         schema_version = 42, product = "Portcove",
-        commands = new[] { "catalog", "source", "status", "activity", "cancel", "library.identity", "launch.show", "launch.recover", "exec", "ensure", "update", "preparation", "preparation.cleanup" },
+        commands = new[] { "capabilities", "catalog", "source", "status", "activity", "cancel", "doctor", "library.identity", "launch.show", "launch.recover", "exec", "ensure", "update", "preparation", "preparation.cleanup" },
         machine_formats = new[] { "json", "jsonl" }, raw_stream_commands = new[] { "exec" }
     };
     private static async Task Run(string[] args)
@@ -77,6 +84,41 @@ internal static class ContractTests
         Reject(() => PublicCli.RequireAbsolute(@"\root-relative"), "root-relative path rejected");
         ProtocolStream.Negotiate(Json.Parse(Json.Print(Capabilities())));
         Check(true, "supported capabilities negotiated");
+        var contradictoryLegacyEvent = Json.Object(Json.Parse(Json.Print(Capabilities())));
+        contradictoryLegacyEvent["operation_event_schema_version"] = 3;
+        Reject(() => ProtocolStream.Negotiate(contradictoryLegacyEvent),
+            "contradictory legacy event schema rejected");
+        var launchOnly = Json.Object(Json.Parse(Json.Print(Capabilities())));
+        launchOnly["commands"] = new[] { "capabilities", "status", "library.identity", "launch.show", "exec" };
+        launchOnly["machine_formats"] = new[] { "json" };
+        ProtocolStream.Negotiate(launchOnly, ConsumerCapability.LaunchOnly);
+        Check(true, "launch-only negotiation does not require unused library or lifecycle commands");
+        var libraryOnly = Json.Object(Json.Parse(Json.Print(Capabilities())));
+        libraryOnly["commands"] = new[] { "capabilities", "catalog", "status", "library.identity" };
+        libraryOnly["machine_formats"] = new[] { "json" };
+        libraryOnly["raw_stream_commands"] = new object[0];
+        ProtocolStream.Negotiate(libraryOnly, ConsumerCapability.Library);
+        Check(true, "library negotiation does not require launch or lifecycle contracts");
+        var lifecycleOnly = Json.Object(Json.Parse(Json.Print(Capabilities())));
+        lifecycleOnly["schema_version"] = 50;
+        lifecycleOnly["operation_event_schema_version"] = 2;
+        lifecycleOnly["commands"] = new[] { "capabilities", "source", "status", "activity", "cancel", "doctor", "library.identity", "ensure", "update", "preparation", "preparation.cleanup" };
+        lifecycleOnly["raw_stream_commands"] = new object[0];
+        Check(ProtocolStream.Negotiate(lifecycleOnly, ConsumerCapability.Lifecycle) == 2,
+            "lifecycle negotiation consumes the advertised operation-event schema");
+        var badEvent = Json.Object(Json.Parse(Json.Print(lifecycleOnly)));
+        badEvent["operation_event_schema_version"] = 3;
+        Reject(() => ProtocolStream.Negotiate(badEvent, ConsumerCapability.Lifecycle),
+            "unknown lifecycle event schema rejected");
+        var missingEvent = Json.Object(Json.Parse(Json.Print(lifecycleOnly)));
+        missingEvent.Remove("operation_event_schema_version");
+        Reject(() => ProtocolStream.Negotiate(missingEvent, ConsumerCapability.Lifecycle),
+            "schema 50 lifecycle without its event-schema authority rejected");
+        var launchWithoutEvent = Json.Object(Json.Parse(Json.Print(launchOnly)));
+        launchWithoutEvent["schema_version"] = 50;
+        launchWithoutEvent["commands"] = new[] { "capabilities", "status", "library.identity", "launch.show", "exec" };
+        ProtocolStream.Negotiate(launchWithoutEvent, ConsumerCapability.LaunchOnly);
+        Check(true, "launch-only negotiation ignores an unused lifecycle event channel");
         var bad = Json.Object(Json.Parse(Json.Print(Capabilities()))); bad["schema_version"] = 43;
         ProtocolStream.Negotiate(bad);
         Check(true, "retained-contract API schema negotiated");
@@ -104,19 +146,24 @@ internal static class ContractTests
         bad["schema_version"] = 49;
         ProtocolStream.Negotiate(bad);
         Check(true, "explicit launch recovery API schema negotiated");
-        var incomplete49 = Json.Object(Json.Parse(Json.Print(Capabilities())));
-        incomplete49["schema_version"] = 49;
-        incomplete49["commands"] = Json.Array(Json.Field(incomplete49, "commands"))
-            .Where(command => !Equals(command, "launch.recover")).ToArray();
-        Reject(() => ProtocolStream.Negotiate(incomplete49),
-            "schema 49 without its launch recovery capability rejected");
+        var launch49WithoutRecovery = Json.Object(Json.Parse(Json.Print(launchOnly)));
+        launch49WithoutRecovery["schema_version"] = 49;
+        ProtocolStream.Negotiate(launch49WithoutRecovery, ConsumerCapability.LaunchOnly);
+        Check(true, "schema 49 launch-only negotiation ignores unused launch recovery");
         bad["schema_version"] = 50;
+        bad["operation_event_schema_version"] = 2;
+        ProtocolStream.Negotiate(bad);
+        Check(true, "operation-event negotiation API schema accepted");
+        bad["schema_version"] = 51;
         Reject(() => ProtocolStream.Negotiate(bad), "future schema rejected with migration guidance");
         bad["schema_version"] = 42; bad["commands"] = new object[0];
         Reject(() => ProtocolStream.Negotiate(bad), "missing command capability rejected");
         bad = Json.Object(Json.Parse(Json.Print(Capabilities())));
         bad["commands"] = Json.Array(Json.Field(bad, "commands")).Where(command => !Equals(command, "cancel")).ToArray();
         Reject(() => ProtocolStream.Negotiate(bad), "missing cancellation capability rejected before management");
+        bad = Json.Object(Json.Parse(Json.Print(Capabilities())));
+        bad["commands"] = Json.Array(Json.Field(bad, "commands")).Where(command => !Equals(command, "doctor")).ToArray();
+        Reject(() => ProtocolStream.Negotiate(bad), "missing doctor capability rejected before management");
         var absent = new ProtocolStream("launch.show"); absent.Line(Result("launch.show", null));
         Check(absent.Finish(0) == null, "absent launch remains unknown/null");
         var stream = new ProtocolStream("ensure"); stream.Line(Event(0)); stream.Line(Event(1)); stream.Line(Result("ensure", new { id = "owned" }));
@@ -128,6 +175,14 @@ internal static class ContractTests
         Reject(() => lost.Finish(0), "lost final stream never succeeds from exit code");
         var gap = new ProtocolStream("ensure"); gap.Line(Event(0)); gap.Line(Event(3)); gap.Line(Result("ensure", null)); gap.Finish(0);
         Check(gap.EventGap, "sequence gap requires durable readback");
+        var unknownEvent = Json.Object(Json.Parse(Event(0))); unknownEvent["type"] = "future_consequential_event";
+        Reject(() => new ProtocolStream("ensure").Line(Json.Print(unknownEvent)), "unknown event type rejected");
+        var incompleteProgress = Json.Object(Json.Parse(Event(1))); incompleteProgress.Remove("phase");
+        Reject(() => new ProtocolStream("ensure").Line(Json.Print(incompleteProgress)), "malformed progress event rejected");
+        var invalidProgress = Json.Object(Json.Parse(Event(1))); invalidProgress["completed"] = -1;
+        Reject(() => new ProtocolStream("ensure").Line(Json.Print(invalidProgress)), "negative progress event rejected");
+        var unknownFinished = Json.Object(Json.Parse(Event(0))); unknownFinished["type"] = "finished"; unknownFinished["result"] = "future_result";
+        Reject(() => new ProtocolStream("ensure").Line(Json.Print(unknownFinished)), "unknown finished result rejected");
         var disagreement = new ProtocolStream("ensure"); disagreement.Line(Result("ensure", null));
         Reject(() => disagreement.Finish(1), "exit/result disagreement rejected");
         var failure = new ProtocolStream("ensure"); failure.Line(Result("ensure", null, false));

@@ -355,21 +355,30 @@ namespace Portcove.ReferenceClient
         internal static string Join(IEnumerable<string> values) => string.Join(" ", values.Select(Quote));
     }
 
+    internal enum ConsumerCapability
+    {
+        LaunchOnly,
+        Library,
+        Lifecycle
+    }
+
     internal sealed class ProtocolStream
     {
-        internal const int Schema = 49;
+        internal const int Schema = 50;
         private static bool SupportedSchema(long version) => version >= 42 && version <= Schema;
         private readonly string command;
         private readonly Action<Dictionary<string, object>> progress;
+        private readonly long operationEventSchemaVersion;
         private readonly Dictionary<string, long> sequences = new Dictionary<string, long>(StringComparer.Ordinal);
         private Dictionary<string, object> result;
         internal bool EventGap { get; private set; }
         internal string OperationId { get; private set; }
 
-        internal ProtocolStream(string command, Action<Dictionary<string, object>> progress = null)
+        internal ProtocolStream(string command, Action<Dictionary<string, object>> progress = null, long operationEventSchemaVersion = 2)
         {
             this.command = command;
             this.progress = progress;
+            this.operationEventSchemaVersion = operationEventSchemaVersion;
         }
 
         internal void Line(string line)
@@ -382,13 +391,14 @@ namespace Portcove.ReferenceClient
             if (type == null || (type as string) == "result")
             {
                 if (!SupportedSchema(Json.Number(record, "schema_version")) || Json.Text(record, "command") != command)
-                    throw new InvalidOperationException("Unsupported Portcove response. This client requires API schema 42 through 49; install a matching CLI/client pair.");
+                    throw new InvalidOperationException("Unsupported Portcove response. This client requires API schema 42 through 50; install a matching CLI/client pair.");
                 Json.Boolean(record, "ok");
                 result = record;
                 return;
             }
-            if (Json.Number(record, "schema_version") != 2)
+            if (Json.Number(record, "schema_version") != operationEventSchemaVersion)
                 throw new InvalidOperationException("Unsupported Portcove event schema. Refresh durable activity and update the client.");
+            ValidateEvent(record);
             var id = Json.Text(record, "operation_id");
             if (id.Length == 0 || id.Length > 1024 || (!sequences.ContainsKey(id) && sequences.Count >= 1024))
                 throw new InvalidOperationException("The CLI event identities exceed the bounded reference-client contract. Refresh durable state.");
@@ -404,6 +414,48 @@ namespace Portcove.ReferenceClient
             progress?.Invoke(record);
         }
 
+        private static void ValidateEvent(Dictionary<string, object> record)
+        {
+            var type = Json.Text(record, "type");
+            Json.Number(record, "timestamp_ms");
+            Json.Text(record, "operation");
+            var parent = Json.Field(record, "parent_operation_id");
+            if (parent != null && !(parent is string))
+                throw new InvalidOperationException("Invalid Portcove event parent identity.");
+            var target = Json.Field(record, "target");
+            if (target != null)
+            {
+                var targetKind = Json.Text(target, "kind");
+                if (!new[] { "port", "source", "library" }.Contains(targetKind))
+                    throw new InvalidOperationException("Unknown Portcove event target kind. Refresh durable activity and update the client.");
+                Json.Text(target, "id");
+            }
+
+            switch (type)
+            {
+                case "started":
+                    return;
+                case "progress":
+                    Json.Text(record, "phase");
+                    var completed = Json.Number(record, "completed");
+                    var total = Json.Field(record, "total");
+                    if (completed < 0 || (total != null && Json.Number(record, "total") < 0))
+                        throw new InvalidOperationException("Invalid Portcove event progress bounds.");
+                    return;
+                case "message":
+                    Json.Text(record, "level");
+                    Json.Text(record, "message");
+                    return;
+                case "finished":
+                    var outcome = Json.Text(record, "result");
+                    if (!new[] { "succeeded", "failed", "cancelled" }.Contains(outcome))
+                        throw new InvalidOperationException("Unknown Portcove event result. Refresh durable activity and update the client.");
+                    return;
+                default:
+                    throw new InvalidOperationException("Unknown Portcove event type. Refresh durable activity and update the client.");
+            }
+        }
+
         internal object Finish(int exitCode)
         {
             if (result == null) throw new InvalidOperationException("The CLI stream ended without a final result. Refresh activity and current state before deciding what to do; do not retry automatically.");
@@ -417,21 +469,61 @@ namespace Portcove.ReferenceClient
             return Json.Field(result, "data");
         }
 
-        internal static void Negotiate(object capabilities)
+        internal static long Negotiate(object capabilities) => Negotiate(
+            capabilities,
+            ConsumerCapability.LaunchOnly,
+            ConsumerCapability.Library,
+            ConsumerCapability.Lifecycle);
+
+        internal static long Negotiate(object capabilities, params ConsumerCapability[] requiredCapabilities)
         {
             var schema = Json.Number(capabilities, "schema_version");
             if (!SupportedSchema(schema) || Json.Text(capabilities, "product") != "Portcove")
-                throw new InvalidOperationException("This reference client requires Portcove API schema 42 through 49. Select a compatible CLI or update the client.");
+                throw new InvalidOperationException("This reference client requires Portcove API schema 42 through 50. Select a compatible CLI or update the client.");
+            if (requiredCapabilities == null || requiredCapabilities.Length == 0)
+                throw new InvalidOperationException("Select at least one Portcove consumer capability before negotiation.");
             var commands = Json.Array(Json.Field(capabilities, "commands")).OfType<string>().ToArray();
-            foreach (var required in new[] { "catalog", "source", "status", "activity", "cancel", "library.identity", "launch.show", "exec", "ensure", "update", "preparation" })
+            var requiredCommands = new HashSet<string>(StringComparer.Ordinal) { "capabilities" };
+            foreach (var capability in requiredCapabilities.Distinct())
+            {
+                switch (capability)
+                {
+                    case ConsumerCapability.LaunchOnly:
+                        requiredCommands.UnionWith(new[] { "status", "library.identity", "launch.show", "exec" });
+                        break;
+                    case ConsumerCapability.Library:
+                        requiredCommands.UnionWith(new[] { "catalog", "status", "library.identity" });
+                        break;
+                    case ConsumerCapability.Lifecycle:
+                        requiredCommands.UnionWith(new[] { "source", "status", "activity", "cancel", "doctor", "library.identity", "ensure", "update", "preparation" });
+                        if (schema >= 48) requiredCommands.Add("preparation.cleanup");
+                        break;
+                    default:
+                        throw new InvalidOperationException("Unknown Portcove consumer capability.");
+                }
+            }
+            foreach (var required in requiredCommands)
                 if (!commands.Contains(required)) throw new InvalidOperationException("The CLI lacks " + required + ". Select a compatible standalone Portcove CLI.");
-            if (schema >= 48 && !commands.Contains("preparation.cleanup"))
-                throw new InvalidOperationException("The schema-48 CLI lacks preparation.cleanup. Select a complete matching CLI or update the client.");
-            if (schema >= 49 && !commands.Contains("launch.recover"))
-                throw new InvalidOperationException("The schema-49 CLI lacks launch.recover. Select a complete matching CLI or update the client.");
-            var formats = Json.Array(Json.Field(capabilities, "machine_formats")).OfType<string>();
-            if (!formats.Contains("json") || !formats.Contains("jsonl") || !Json.Array(Json.Field(capabilities, "raw_stream_commands")).Contains("exec"))
-                throw new InvalidOperationException("The CLI lacks the required JSON/JSONL and raw supervised launch contracts.");
+            var formats = Json.Array(Json.Field(capabilities, "machine_formats")).OfType<string>().ToArray();
+            if (!formats.Contains("json"))
+                throw new InvalidOperationException("The CLI lacks the required JSON machine contract.");
+            if (requiredCapabilities.Contains(ConsumerCapability.LaunchOnly) &&
+                !Json.Array(Json.Field(capabilities, "raw_stream_commands")).Contains("exec"))
+                throw new InvalidOperationException("The CLI lacks the required raw supervised launch contract.");
+
+            var operationEventSchemaVersion = 2L;
+            if (requiredCapabilities.Contains(ConsumerCapability.Lifecycle))
+            {
+                if (!formats.Contains("jsonl"))
+                    throw new InvalidOperationException("The CLI lacks the required JSONL operation-event contract.");
+                object advertised;
+                var hasAdvertisedEventSchema = Json.Object(capabilities).TryGetValue("operation_event_schema_version", out advertised);
+                if (schema >= 50 || hasAdvertisedEventSchema)
+                    operationEventSchemaVersion = Json.Number(capabilities, "operation_event_schema_version");
+                if (operationEventSchemaVersion != 2)
+                    throw new InvalidOperationException("Unsupported Portcove event schema. Select a compatible CLI/client pair.");
+            }
+            return operationEventSchemaVersion;
         }
     }
 }

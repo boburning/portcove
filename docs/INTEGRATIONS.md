@@ -24,8 +24,8 @@ Technical-alpha releases include separate CLI archives for the declared Windows,
 Linux, and macOS targets. Alpha 1 and Alpha 2 retain their original unversioned
 filenames and platform manifests; future releases use versioned CLI names and one aggregate
 checksum manifest. They do not require the desktop application to run. The CLI
-currently provides versioned JSON results, JSONL operation
-events, schema and capability discovery, explicit library selection, stable
+currently provides versioned JSON results, independently versioned JSONL
+operation events, schema and capability discovery, explicit library selection, stable
 error/exit behavior, durable activity readback, and a raw-stream supervised
 `exec` route. See [CLI contract](CLI.md) and [Releasing](RELEASING.md) for exact
 current behavior and package limitations.

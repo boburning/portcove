@@ -33,12 +33,17 @@ program/argument objects, not shell command strings:
 ```
 
 Check the envelope's schema, command, `ok`, data/error and exit status. Negotiate
-required command names, JSON/JSONL formats and raw `exec`. The reference's current
-window is API 42–49/event 2; tolerate additive object fields within it and reject
-unknown consequential enum values or a different schema with a migration message.
-Future client revisions should extend that window only after matching fixtures
-and package tests. The product version is descriptive, never a substitute for
-these checks. Export authoritative schemas with `schema export`.
+only the required command names and formats: launch-only needs JSON plus raw
+`exec`, read-only library integration needs JSON, and lifecycle operations add
+JSONL. The reference's current window is API 42–50/event 2; schema 50 advertises
+the event authority as `operation_event_schema_version`, while the historical
+42–49 window retains its documented event-2 contract. A client that does not use
+lifecycle events does not reject a runtime solely because it cannot interpret an
+unused event channel. Tolerate additive object fields within the supported window
+and reject unknown consequential enum values or a different used schema with a
+migration message. Future client revisions should extend that window only after
+matching fixtures and package tests. The product version is descriptive, never a
+substitute for these checks. Export authoritative schemas with `schema export`.
 
 Runtime discovery is a trust boundary, not permission to execute the first file
 with a matching name. Ask the user to select or approve a verified compatible
@@ -107,7 +112,7 @@ failure does not imply earlier registration was undone.
 
 Event records have **event schema 2 at the root**; they are not nested in API
 envelopes. A final root record has `type: "result"` and a negotiated API
-schema within the client's 42–49 window. Some
+schema within the client's 42–50 window. Some
 commands emit only the result. Track sequences per operation ID and parent IDs;
 do not fabricate progress when a phase or event is missing. A valid terminal
 result and matching exit status establish the command response; refresh core

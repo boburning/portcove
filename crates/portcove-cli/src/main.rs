@@ -2826,7 +2826,11 @@ mod tests {
     #[test]
     fn capabilities_advertise_failure_isolated_batches() {
         let capabilities = CapabilityDocument::current();
-        assert_eq!(capabilities.schema_version, 49);
+        assert_eq!(capabilities.schema_version, 50);
+        assert_eq!(
+            capabilities.operation_event_schema_version,
+            portcove_core::OPERATION_EVENT_SCHEMA_VERSION
+        );
         assert_eq!(
             capabilities.failure_isolated_batches,
             ["check", "reconcile", "update", "source.verify"]

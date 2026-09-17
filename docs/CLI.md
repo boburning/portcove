@@ -66,6 +66,13 @@ its recorded supervisor exits. Recovery retains core's exact child/start/install
 checks and reports a failed terminal launch; it never converts interruption into
 success.
 
+Schema 50 adds `operation_event_schema_version` to `capabilities`. API result
+envelopes and JSONL operation events are independently versioned, so a lifecycle
+consumer must negotiate both instead of assuming the event version from the API
+version. Launch-only and read-only library consumers do not need JSONL or the
+event schema and may negotiate only their used commands, `json`, and—for
+launch—raw supervised `exec`.
+
 Schema 46 adds the `definition_selected` catalog provenance origin. Core reports
 that origin only while the exact selected definition is fresh, still authorized,
 and scoped to its selected port. A rejected selection keeps the existing catalog
@@ -97,7 +104,7 @@ The CLI API schema version is independent of the Portcove release version. Every
 
 ```json
 {
-  "schema_version": 47,
+  "schema_version": 50,
   "ok": true,
   "command": "status",
   "data": {},
@@ -229,7 +236,9 @@ other games remain readable. New installations retain their execution and
 persistence definitions in manifest schema 6, introduced with writer protocol 23.
 Protocol 25 now protects exact successor definition retention; older clients refuse
 to modify an upgraded library. The Playnite
-reference accepts API schemas 42 through 49 with event schema 2.
+reference accepts API schemas 42 through 50 with event schema 2. Schema 50
+advertises that event version explicitly; the historical 42–49 window retains
+its documented event-2 contract.
 
 API schema 22 adds the core-resolved per-game output location to install plans
 and path results. It distinguishes a one-request override, the saved port
