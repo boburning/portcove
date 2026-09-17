@@ -125,7 +125,7 @@ export function Sidebar({
       <div className="sidebar-footer">
         <button data-focusable className="secondary full button-with-icon" onClick={onAdopt}>
           <Icon glyph={FolderInput} />
-          Adopt an install
+          Copy existing installation
         </button>
         <NavigationHints controller={controller} workspace />
       </div>

@@ -107,8 +107,8 @@ export function RemovalReviewDialog({
             </p>
             <p>{preview.persistent_data_path}</p>
             <p>
-              Backups, registered original game sources and the original folders used for adoption
-              are preserved. Other games are unaffected.
+              Backups, registered original game sources and the original folders used for copied
+              installations are preserved. Other games are unaffected.
             </p>
             <p>
               The game must be stopped. Files inside the listed managed folders will be deleted;

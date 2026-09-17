@@ -385,6 +385,7 @@ describe("desktop components", () => {
         close={vi.fn()}
         review={vi.fn()}
         adopt={vi.fn()}
+        ports={[port]}
         preview={{
           source: "D:/Existing",
           detected_port_ids: ["sample"],
@@ -428,12 +429,16 @@ describe("desktop components", () => {
       />,
     );
     expect(html).toContain("1 file · 2.0 KiB");
-    expect(html).toContain("1 skipped entry");
+    expect(html).toContain("Sample Port");
+    expect(html).toContain("Catalog ID: <code>sample</code>");
+    expect(html).toContain("1 unsupported item will remain only in the original folder");
     expect(html).toContain("linked-save");
     expect(html).toContain("Continue to copy confirmation");
     expect(html).toContain("E:/Games");
     expect(html).toContain("D:/Library/user/sample");
     expect(html).toContain("Matching saved files are replaced");
+    expect(html).not.toContain("SAFE ADOPTION");
+    expect(html).not.toContain("Bring an existing install into Portcove");
     expect(html).toContain("No automatic safety backup");
     expect(html).toContain("cannot cancel");
   });
@@ -528,7 +533,7 @@ describe("desktop components", () => {
       ),
       renderToStaticMarkup(<SettingsView libraryRoot="C:/Portcove" />),
     ].join(" ");
-    expect(html).toContain("Adopt an install");
+    expect(html).toContain("Copy existing installation");
     expect(html).toContain("Find a native port");
     expect(html).toContain("Problem");
     expect(html).toContain("C:/Portcove");
@@ -1521,6 +1526,8 @@ describe("desktop components", () => {
     expect(emptyLibrary).toContain("/brand/mascot/portcove-mascot-v2-front.png");
     expect(emptyLibrary).toContain('aria-hidden="true"');
     expect(emptyLibrary).toContain("No installed ports yet");
+    expect(emptyLibrary).toContain("copy an existing supported installation");
+    expect(emptyLibrary.toLowerCase()).not.toContain("adopt");
     expect(emptyLibrary).not.toContain("Clear search and filters");
     expect(filteredEmptyLibrary).toContain("No installed ports match your search and filters");
     expect(filteredEmptyLibrary).toContain("Clear search and filters");
@@ -1936,6 +1943,18 @@ describe("desktop components", () => {
             finished_at: 2,
           },
           {
+            id: "activity-copy",
+            failure: null,
+            cancellation: null,
+            message: null,
+            operation: "adopt",
+            target_kind: "port",
+            target_id: port.id,
+            status: "succeeded",
+            started_at: 2,
+            finished_at: 3,
+          },
+          {
             id: "activity-2",
             failure: null,
             cancellation: null,
@@ -2039,6 +2058,8 @@ describe("desktop components", () => {
     expect(html).toContain("Recent activity");
     expect(html).toContain("Updated port");
     expect(html).toContain("Verified source");
+    expect(html).toContain("Copied existing installation");
+    expect(html).not.toContain("Adopted installation");
     expect(html).toContain("Older activity details are available in a redacted support bundle");
     expect(html).not.toContain("source changed");
     for (const label of [

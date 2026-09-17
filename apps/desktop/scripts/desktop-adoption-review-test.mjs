@@ -55,7 +55,7 @@ export async function adoptionReviewScenario({
     const { button, click } = reviewControls(browser);
     const dialog = By.css('[aria-labelledby="adopt-title"]');
     const open = async () => {
-      await click(button("Adopt an install"));
+      await click(button("Copy existing installation"));
       const input = await browser.findElement(By.id("adopt-path"));
       await input.clear();
       await input.sendKeys(original);
@@ -69,6 +69,9 @@ export async function adoptionReviewScenario({
     await open();
     let text = await browser.findElement(dialog).getText();
     for (const expected of [
+      "Add an existing installation to Portcove",
+      port.name,
+      `Catalog ID: ${port.id}`,
       original,
       paths.user_data_root,
       previous.path,

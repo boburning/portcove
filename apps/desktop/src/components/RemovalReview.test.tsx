@@ -56,6 +56,8 @@ it("lists every affected path, removed settings and preserved data before explic
     "not an undo",
   ])
     expect(container.textContent).toContain(text);
+  expect(container.textContent).toContain("original folders used for copied installations");
+  expect(container.textContent?.toLowerCase()).not.toContain("adoption");
   expect(container.querySelector("[data-autofocus]")?.textContent).toBe("Keep installed files");
   await click("Remove these managed folders");
   expect(apply).toHaveBeenCalledExactlyOnceWith("reviewed-installations");

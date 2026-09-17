@@ -2,7 +2,7 @@ import { FolderInput, FolderOpen, ShieldCheck, X } from "lucide-react";
 import { formatBytes } from "../view-model";
 import { useDialogFocus } from "../dialog";
 import { Icon, NavigationHints } from "./ui";
-import type { AdoptionPreview } from "../types";
+import type { AdoptionPreview, PortDefinition } from "../types";
 
 export function AdoptionModal({
   path,
@@ -15,6 +15,7 @@ export function AdoptionModal({
   review,
   adopt,
   pickFolder,
+  ports = [],
 }: {
   path: string;
   setPath: (path: string) => void;
@@ -26,11 +27,13 @@ export function AdoptionModal({
   review: () => void;
   adopt: () => void;
   pickFolder?: () => void;
+  ports?: readonly PortDefinition[];
 }) {
   const dismiss = () => {
     if (!applying) close();
   };
   const dialog = useDialogFocus(dismiss);
+  const identifiedPort = preview ? adoptionPort(preview, ports) : undefined;
   return (
     <div className="scrim">
       <section
@@ -44,7 +47,7 @@ export function AdoptionModal({
         <button
           data-focusable
           className="close icon-button"
-          aria-label="Close adoption dialog"
+          aria-label="Close copy installation dialog"
           onClick={dismiss}
           disabled={applying}
         >
@@ -53,11 +56,11 @@ export function AdoptionModal({
         <span className="modal-icon">
           <Icon glyph={FolderInput} size="lg" />
         </span>
-        <p className="eyebrow">SAFE ADOPTION</p>
-        <h2 id="adopt-title">Bring an existing install into Portcove</h2>
+        <p className="eyebrow">COPY EXISTING INSTALLATION</p>
+        <h2 id="adopt-title">Add an existing installation to Portcove</h2>
         <p className="modal-description" id="adopt-description">
-          Portcove previews the folder, identifies the port, and copies application files into its
-          managed library. The original folder is never changed or deleted.
+          Portcove checks the folder, identifies the port, and copies supported application files
+          into your library without changing the original.
         </p>
         <p className="inline-assurance">
           <Icon glyph={ShieldCheck} /> Review first, then confirm before copying.
@@ -88,12 +91,20 @@ export function AdoptionModal({
           )}
         </div>
         {preview && (
-          <section className="adoption-plan adoption-review" aria-label="Adoption copy plan">
+          <section
+            className="adoption-plan adoption-review"
+            aria-label="Existing installation copy plan"
+          >
             <p>
-              <strong>
-                {preview.selected_port_id ??
-                  (preview.detected_port_ids.join(", ") || "No port detected")}
-              </strong>
+              <strong>{identifiedPort?.name ?? "Unknown port"}</strong>
+              {identifiedPort?.id && (
+                <>
+                  <br />
+                  <small>
+                    Catalog ID: <code>{identifiedPort.id}</code>
+                  </small>
+                </>
+              )}
             </p>
             <p>
               {preview.copy_plan.files.length.toLocaleString()}{" "}
@@ -103,8 +114,9 @@ export function AdoptionModal({
             {preview.copy_plan.skipped_entries.length > 0 && (
               <details>
                 <summary>
-                  {preview.copy_plan.skipped_entries.length} skipped{" "}
-                  {preview.copy_plan.skipped_entries.length === 1 ? "entry" : "entries"}
+                  {preview.copy_plan.skipped_entries.length} unsupported{" "}
+                  {preview.copy_plan.skipped_entries.length === 1 ? "item" : "items"} will remain
+                  only in the original folder
                 </summary>
                 <ul>
                   {preview.copy_plan.skipped_entries.map((entry) => (
@@ -121,7 +133,7 @@ export function AdoptionModal({
             {preview.destination && <AdoptionConsequences destination={preview.destination} />}
             <p>
               The original folder, registered sources, existing backups and other games remain
-              unchanged. Skipped entries stay only in the original folder.
+              unchanged.
             </p>
             <p>
               There is no single undo action. Removing the managed copy later does not restore
@@ -154,7 +166,7 @@ export function AdoptionModal({
               onClick={adopt}
             >
               <Icon glyph={FolderInput} />
-              {applying ? "Waiting for copy…" : "Continue to copy confirmation"}
+              {applying ? "Copying…" : "Continue to copy confirmation"}
             </button>
           ) : (
             <button
@@ -165,7 +177,7 @@ export function AdoptionModal({
             >
               <Icon glyph={FolderInput} />
               {applying
-                ? "Waiting for copy…"
+                ? "Copying…"
                 : busy === "preview adoption"
                   ? "Reviewing…"
                   : "Review copy plan"}
@@ -175,6 +187,13 @@ export function AdoptionModal({
       </section>
     </div>
   );
+}
+
+function adoptionPort(preview: AdoptionPreview, ports: readonly PortDefinition[]) {
+  const portId = preview.selected_port_id ?? preview.detected_port_ids[0];
+  if (!portId) return undefined;
+  const name = ports.find((port) => port.id === portId)?.name;
+  return { id: portId, name };
 }
 
 function AdoptionConsequences({

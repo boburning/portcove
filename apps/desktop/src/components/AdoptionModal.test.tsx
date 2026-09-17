@@ -40,6 +40,8 @@ it("keeps an uncancellable copy open and inputs locked even while another operat
     expect(container.querySelector('[role="alert"]')?.textContent).toContain(
       "Check the library and activity history",
     );
+    expect(container.textContent).toContain("Copying…");
+    expect(container.textContent).not.toContain("Waiting for copy");
   } finally {
     await act(async () => root.unmount());
     container.remove();
