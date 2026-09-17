@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { act } from "react";
 import { createRoot } from "react-dom/client";
+import { renderToStaticMarkup } from "react-dom/server";
 import { expect, it, vi } from "vitest";
 import { desktopApi } from "../api";
 import * as picker from "../file-picker";
@@ -74,18 +75,31 @@ it("requires explicit review, invalidates changed candidates and uses core prove
     );
     expect(review).not.toHaveBeenCalled();
     await click("Manage catalog updates");
+    expect(host.textContent).toContain("Verify the publisher key through a trusted channel.");
+    expect(button("Stop trusting")).toBeDefined();
     await click("Choose file");
     expect(apply).not.toHaveBeenCalled();
     await click("Review update");
     expect(review).toHaveBeenCalledWith(plan.source);
-    expect(host.textContent).toContain("Verified version 1");
-    await click("Apply reviewed update");
+    expect(host.textContent).toContain("Catalog update ready");
+    expect(host.textContent).toContain("Catalog signature valid");
+    expect(host.textContent).toContain("Signed by");
+    expect(host.textContent).toContain(plan.key_id);
+    expect(host.textContent).toContain("Publisher trusted");
+    expect(host.textContent).toContain("Sequence 1 accepted");
+    expect(host.textContent).toContain("1 port will change.");
+    const technical = host.querySelector(
+      'summary[aria-label="Technical details for catalog update sequence 1"]',
+    )?.parentElement;
+    expect(technical?.textContent).toContain("example");
+    expect(technical?.textContent).toContain(plan.envelope_sha256);
+    await click("Apply catalog update");
     expect(apply).toHaveBeenCalledWith(plan.source, "review", expect.any(Function));
     expect(host.textContent).toContain("Catalog changed; review again");
-    expect(button("Apply reviewed update")).toBeUndefined();
+    expect(button("Apply catalog update")).toBeUndefined();
     expect(refresh).not.toHaveBeenCalled();
     await click("Review update");
-    await click("Apply reviewed update");
+    await click("Apply catalog update");
     expect(refresh).toHaveBeenCalledOnce();
     expect(host.textContent).toContain("Signed catalog · version 1");
     expect(button("Use built-in catalog").disabled).toBe(false);
@@ -97,4 +111,43 @@ it("requires explicit review, invalidates changed candidates and uses core prove
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
   }
+});
+
+it("keeps fallback diagnostics in distinct technical disclosures with safe summaries", () => {
+  const reasons = [
+    "catalog signing key is not trusted",
+    "catalog sequence or validity interval is invalid, future-dated, or expired",
+    "selected definition was not loaded: future internal diagnostic",
+    "future opaque catalog diagnostic",
+  ];
+  const html = renderToStaticMarkup(
+    <CatalogSettings
+      disabled={false}
+      provenance={{
+        origin: "embedded",
+        catalog_sha256: "a".repeat(64),
+        sequence: null,
+        key_id: null,
+        expires_at: null,
+        fallback_reasons: reasons,
+      }}
+    />,
+  );
+  expect(html).toContain("signed by a publisher that is no longer trusted");
+  expect(html).toContain("expired or had invalid dates");
+  expect(html).toContain("selected catalog definition could not be loaded");
+  expect(html).toContain("A saved catalog could not be used");
+  const host = document.createElement("div");
+  host.innerHTML = html;
+  const disclosures = [...host.querySelectorAll("details")];
+  expect(disclosures).toHaveLength(reasons.length);
+  for (const [index, reason] of reasons.entries()) {
+    expect(html).toContain(
+      `aria-label="Technical details for catalog fallback ${index + 1} of ${reasons.length}"`,
+    );
+    expect(disclosures[index].textContent).toContain(reason);
+  }
+  for (const disclosure of disclosures) disclosure.remove();
+  for (const reason of reasons) expect(host.textContent).not.toContain(reason);
+  expect(html).not.toContain("Update unavailable:");
 });
