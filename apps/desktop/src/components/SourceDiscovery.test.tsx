@@ -5,7 +5,33 @@ import { expect, it, vi } from "vitest";
 import { desktopApi } from "../api";
 import * as picker from "../file-picker";
 import type { SourceDiscoveryReport, SourceImportPlan, SourceProfile } from "../types";
-import { SourceDiscoveryButton } from "./SourceDiscovery";
+import {
+  SourceDiscoveryButton,
+  sourceDiscoveryLimitLabel,
+  sourceDiscoveryResultSummary,
+} from "./SourceDiscovery";
+
+it("presents source discovery counts and limits in player-facing language", () => {
+  expect(sourceDiscoveryResultSummary(0, 0, 0)).toBe(
+    "Found no exact matches. Checked no files or folders (0 B of verification data).",
+  );
+  expect(sourceDiscoveryResultSummary(1, 1, 64)).toBe(
+    "Found 1 exact match. Checked 1 file or folder (64 B of verification data).",
+  );
+  expect(sourceDiscoveryResultSummary(2, 1_000, 1024)).toBe(
+    "Found 2 exact matches. Checked 1,000 files and folders (1.0 KiB of verification data).",
+  );
+  expect(
+    ["entries", "depth", "file_size", "hash_bytes", "candidates"].map(sourceDiscoveryLimitLabel),
+  ).toEqual([
+    "File and folder count",
+    "Folder depth",
+    "Individual file size",
+    "Verification data",
+    "Exact-match count",
+  ]);
+  expect(sourceDiscoveryLimitLabel("future_limit")).toBe("Another search safety limit");
+});
 
 it("opens and scans the Inbox, then applies the exact reviewed import", async () => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
@@ -36,7 +62,7 @@ it("opens and scans the Inbox, then applies the exact reviewed import", async ()
     files_hashed: 1,
     hash_bytes: 64,
     symlinks_skipped: 0,
-    limits_reached: [],
+    limits_reached: ["entries", "depth", "file_size", "hash_bytes", "candidates"],
     issues: [],
     issues_omitted: 0,
   };
@@ -149,11 +175,14 @@ it("opens and scans the Inbox, then applies the exact reviewed import", async ()
         <SourceDiscoveryButton profiles={[profile]} disabled={false} onAdded={refresh} />,
       ),
     );
-    await click("Find source files");
+    await click("Choose game files");
+    expect(host.textContent).toContain(
+      "Portcove searches only the folders you choose, checks possible matches, and lets you add an exact match. Nothing is uploaded or moved.",
+    );
     await click("Choose folder");
     expect(control("Search this folder").disabled).toBe(true);
     await click("Choose folder");
-    await click("Required source");
+    await click("Required game files");
     await click("Owned game source");
     await click("Open Source Inbox");
     expect(openInbox).toHaveBeenCalledWith(profile.id);
@@ -169,6 +198,19 @@ it("opens and scans the Inbox, then applies the exact reviewed import", async ()
       { roots: ["D:/Selected"], profile_ids: [profile.id] },
       expect.any(Function),
     );
+    expect(host.textContent).toContain(
+      "Found 1 exact match. Checked 3 files and folders (64 B of verification data).",
+    );
+    expect(host.textContent).toContain(
+      "Search stopped before every possible match could be checked.",
+    );
+    expect(host.textContent).toContain("File and folder count");
+    expect(host.textContent).toContain("Folder depth");
+    expect(host.textContent).toContain("Individual file size");
+    expect(host.textContent).toContain("Verification data");
+    expect(host.textContent).toContain("Exact-match count");
+    expect(host.textContent).not.toContain("file_size");
+    expect(host.textContent).not.toContain("hash_bytes");
     await click("Review copy");
     expect(review).toHaveBeenCalledWith(profile.id, candidate.path, "copy");
     expect(host.textContent).toContain("Source changed after discovery");
@@ -243,9 +285,9 @@ it("keeps cancellation tied to the emitted durable operation", async () => {
     await act(async () =>
       root.render(<SourceDiscoveryButton profiles={[profile]} disabled={false} />),
     );
-    await click("Find source files");
+    await click("Choose game files");
     await click("Choose folder");
-    await click("Required source");
+    await click("Required game files");
     await click("Owned game source");
     await click("Search this folder");
     await click("Cancel operation");

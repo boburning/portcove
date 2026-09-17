@@ -12,7 +12,7 @@ import type {
   SourceProfile,
   SourceRecord,
 } from "../types";
-import { errorText, formatBytes, isCancellation } from "../view-model";
+import { errorText, formatBytes, formatCountMessage, isCancellation } from "../view-model";
 import { OperationCancellation } from "./OperationCancellation";
 import { ChoiceMenu } from "./ChoiceMenu";
 import { NavigationHints } from "./ui";
@@ -39,6 +39,37 @@ const importModes: Record<SourceImportMode, { label: string; explanation: string
     explanation: "No source bytes are copied or removed.",
   },
 };
+
+export function sourceDiscoveryResultSummary(
+  exactMatches: number,
+  entriesExamined: number,
+  hashBytes: number,
+) {
+  const matches = formatCountMessage(exactMatches, {
+    zero: "Found no exact matches.",
+    one: "Found 1 exact match.",
+    other: "Found {count} exact matches.",
+    unknown: "Exact match count is unavailable.",
+  });
+  const entries = formatCountMessage(entriesExamined, {
+    zero: "Checked no files or folders",
+    one: "Checked 1 file or folder",
+    other: "Checked {count} files and folders",
+    unknown: "File and folder count is unavailable",
+  });
+  return `${matches} ${entries} (${formatBytes(hashBytes)} of verification data).`;
+}
+
+export function sourceDiscoveryLimitLabel(limit: string) {
+  const labels: Record<string, string> = {
+    entries: "File and folder count",
+    depth: "Folder depth",
+    file_size: "Individual file size",
+    hash_bytes: "Verification data",
+    candidates: "Exact-match count",
+  };
+  return labels[limit] ?? "Another search safety limit";
+}
 
 export function sourceImportModePresentation(mode: string) {
   return Object.hasOwn(importModes, mode)
@@ -69,7 +100,7 @@ export function SourceDiscoveryButton({
         disabled={disabled || profiles.length === 0}
         onClick={() => setOpen(true)}
       >
-        Find source files
+        Choose game files
       </button>
       {open && (
         <SourceDiscoveryDialog profiles={profiles} onAdded={onAdded} close={() => setOpen(false)} />
@@ -227,15 +258,28 @@ function DiscoveryResults({ workflow }: { workflow: Workflow }) {
       candidate.inspection.record ? [candidate.inspection.record] : [],
     ) ??
     [];
-  const limits = [...(report?.limits_reached ?? []), ...(inbox?.stats.limits_reached ?? [])];
+  const limits = [
+    ...new Set([...(report?.limits_reached ?? []), ...(inbox?.stats.limits_reached ?? [])]),
+  ];
   const issues = [...(report?.issues ?? []), ...(inbox?.stats.issues ?? [])];
   if (!report && !inbox) return null;
   return (
     <section className="source-discovery-results" aria-label="Source search results">
       {limits.length > 0 && (
-        <p>
-          Search limits were reached. Choose a more specific folder to finish checking candidates.
-        </p>
+        <>
+          <p>
+            Search stopped before every possible match could be checked. Choose a more specific
+            folder to continue.
+          </p>
+          <details>
+            <summary data-focusable>Search limits</summary>
+            <ul>
+              {limits.map((limit) => (
+                <li key={limit}>{sourceDiscoveryLimitLabel(limit)}</li>
+              ))}
+            </ul>
+          </details>
+        </>
       )}
       {candidates.map((candidate) => (
         <div className="source-health-row" key={`${candidate.profile_id}:${candidate.path}`}>
@@ -353,7 +397,7 @@ function SourceDiscoveryDialog({
   };
   const dialog = useDialogFocus(dismiss);
   const choices = [
-    { value: "", label: "Choose the source you need" },
+    { value: "", label: "Choose the game files you need" },
     ...[...profiles]
       .sort((left, right) => left.label.localeCompare(right.label))
       .map((item) => ({ value: item.id, label: item.label })),
@@ -368,15 +412,18 @@ function SourceDiscoveryDialog({
         aria-labelledby="source-discovery-title"
       >
         <p className="eyebrow">LOCAL SOURCES</p>
-        <h2 id="source-discovery-title">Find source files</h2>
+        <h2 id="source-discovery-title">Choose game files</h2>
         <p className="modal-description">
-          Choose the source you need. Portcove can scan its private Inbox or a folder you select,
-          then review a safe copy, an explicit move, or registration at the current location. Source
-          contents stay local.
+          Portcove searches only the folders you choose, checks possible matches, and lets you add
+          an exact match. Nothing is uploaded or moved.
+        </p>
+        <p className="modal-description">
+          After a match is found, review whether to copy it to Source Inbox, move it there, or use
+          its current location.
         </p>
         <NavigationHints />
         <ChoiceMenu
-          label="Required source"
+          label="Required game files"
           value={profile}
           options={choices}
           disabled={Boolean(busy)}
@@ -433,18 +480,24 @@ function SourceDiscoveryDialog({
         )}
         {report && (
           <p>
-            {report.candidates.length} validated{" "}
-            {report.candidates.length === 1 ? "match" : "matches"}. Checked{" "}
-            {report.entries_examined.toLocaleString()} entries and hashed{" "}
-            {formatBytes(report.hash_bytes)}.
+            {sourceDiscoveryResultSummary(
+              report.candidates.length,
+              report.entries_examined,
+              report.hash_bytes,
+            )}
           </p>
         )}
         {inbox && (
           <section aria-label="Source Inbox scan result">
             <p>
-              Inbox state: {inbox.state.replaceAll("_", " ")}. Checked{" "}
-              {inbox.stats.entries_examined.toLocaleString()} entries and hashed{" "}
-              {formatBytes(inbox.stats.hash_bytes)}.
+              Inbox state: {inbox.state.replaceAll("_", " ")}.{" "}
+              {formatCountMessage(inbox.stats.entries_examined, {
+                zero: "Checked no files or folders",
+                one: "Checked 1 file or folder",
+                other: "Checked {count} files and folders",
+                unknown: "File and folder count is unavailable",
+              })}{" "}
+              ({formatBytes(inbox.stats.hash_bytes)} of verification data).
             </p>
             {inbox.selected && (
               <p>
