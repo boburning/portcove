@@ -1477,6 +1477,36 @@ describe("desktop components", () => {
     expect(html).toContain("Install · 64.0 MiB");
   });
 
+  it.each([
+    ["use_staged", "Use ready release", "Use ready release"],
+    ["reuse_retained", "Use previous release", "Use previous release"],
+  ] as const)(
+    "names the %s local install plan by its player outcome",
+    (action, planLabel, button) => {
+      const html = renderToStaticMarkup(
+        <DetailPanel
+          port={{ ...port, source_profile: null }}
+          sourcePath=""
+          setSourcePath={vi.fn()}
+          actions={actions}
+          installPlan={{
+            ...reviewedInstallPlan(action),
+            bundled_runtime: bundledRuntime,
+          }}
+        />,
+      );
+      expect(html).toContain(planLabel);
+      expect(html).toContain(button);
+      expect(html).toContain("Local release already checked");
+      expect(html).toContain("Required component included · 1.0 KiB");
+      expect(html).not.toContain("verified runtime");
+      expect(html).not.toContain("Verified local release");
+      expect(html).not.toContain("Use verified release");
+      expect(html).not.toContain("staged release");
+      expect(html).not.toContain("retained release");
+    },
+  );
+
   it("keeps an untested port in the default catalog with its eligible install enabled", () => {
     const untestedPort = {
       ...port,
@@ -1551,14 +1581,14 @@ describe("desktop components", () => {
     const blocked = renderDetails("blocked_unverified");
     expect(blocked).toContain("Windows · Linux · Not recorded: Apple silicon");
     expect(blocked).toContain("Windows · Not recorded: Linux · Apple silicon");
-    const blockedLabel = blocked.indexOf("Unverified copy blocks install");
+    const blockedLabel = blocked.indexOf("Verify or replace the local copy before installing");
     expect(blockedLabel).toBeGreaterThanOrEqual(0);
     const blockedButton = blocked.lastIndexOf("<button", blockedLabel);
     expect(blockedButton).toBeGreaterThanOrEqual(0);
     expect(blocked.slice(blockedButton, blocked.indexOf(">", blockedButton))).toContain("disabled");
   });
 
-  it("does not describe a blocked local copy as verified", () => {
+  it("describes a local copy that needs checking and keeps installation blocked", () => {
     const html = renderToStaticMarkup(
       <DetailPanel
         port={{ ...port, source_profile: null }}
@@ -1568,8 +1598,13 @@ describe("desktop components", () => {
         installPlan={reviewedInstallPlan("blocked_unverified")}
       />,
     );
-    expect(html).toContain("Local copy needs verification");
-    expect(html).toContain("Unverified copy blocks install");
+    expect(html).toContain("Local copy needs checking");
+    expect(html).toContain("Verify or replace the local copy before installing");
+    const label = html.indexOf("Verify or replace the local copy before installing");
+    const button = html.lastIndexOf("<button", label);
+    expect(button).toBeGreaterThanOrEqual(0);
+    expect(html.slice(button, html.indexOf(">", button))).toContain("disabled");
+    expect(html).not.toContain("Unverified copy");
     expect(html).not.toContain("Verified local release");
     expect(html).not.toContain("Use verified release");
   });
@@ -1589,8 +1624,12 @@ describe("desktop components", () => {
       expect(html).toContain("Review install again");
       expect(html).toContain("cannot display the installation plan");
       for (const label of [
-        "Use verified release",
-        "Verified local release",
+        "Use installed release",
+        "Use ready release",
+        "Use previous release",
+        "Local release already checked",
+        "Required component included",
+        "Verify or replace the local copy before installing",
         "No download",
         "Install ·",
       ])
