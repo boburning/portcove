@@ -29,13 +29,13 @@ export class AppErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundar
 function RenderRecovery({ error }: { error: Error }) {
   return (
     <main className="bootstrap-recovery" role="alert">
-      <p className="eyebrow">DESKTOP RECOVERY</p>
-      <h1>Portcove hit a display error</h1>
+      <p className="eyebrow">DISPLAY ERROR</p>
+      <h1>Display error</h1>
       <p>
-        Your library operation state remains owned by the backend. Reload the interface to reconnect
-        to it.
+        The Portcove window encountered an error. Reload it to reconnect and check the status of any
+        active task.
       </p>
-      <pre>{error.message || "Unknown render failure"}</pre>
+      <pre>{error.message || "Unknown display error"}</pre>
       <button type="button" onClick={() => window.location.reload()}>
         Reload Portcove
       </button>
