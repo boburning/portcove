@@ -133,49 +133,64 @@ const runtimeIdentity = {
   target_directory: bundledRuntime.target_directory,
 } satisfies NonNullable<InstallRecord["runtime"]>;
 
-const missingRuntimeStatus = (updateAvailable: boolean): PortStatus => {
+const missingRuntimeFixture = (updateAvailable: boolean) => {
   const active = installRecord({ runtime: runtimeIdentity });
-  const requiredRuntime = updateAvailable
+  const requiredBundledRuntime = updateAvailable
     ? {
-        ...runtimeIdentity,
-        artifact: {
-          ...runtimeIdentity.artifact,
-          asset_name: "runtime-2.zip",
+        ...bundledRuntime,
+        asset: {
+          ...bundledRuntime.asset,
+          name: "runtime-2.zip",
           sha256: "e".repeat(64),
         },
+        executable: "runtime-2.exe",
       }
-    : runtimeIdentity;
-  return {
-    ...portStatus(),
-    active,
-    readiness: {
-      launchable: false,
-      blockers: ["missing_runtime"],
-      pending_setup: false,
+    : bundledRuntime;
+  const requiredRuntime = {
+    archive_root: requiredBundledRuntime.archive_root,
+    artifact: {
+      asset_name: requiredBundledRuntime.asset.name,
+      sha256: requiredBundledRuntime.asset.sha256,
+      size: requiredBundledRuntime.asset.size,
     },
-    last_update_check: {
-      checked_at: 2,
-      check: {
-        port_id: port.id,
-        channel: active.channel,
-        installed_version: active.version,
-        installed_artifact: active.artifact,
-        installed_runtime: active.runtime,
-        required_runtime: requiredRuntime,
-        update_available: updateAvailable,
-        release: {
-          published_at: null,
-          version: active.version,
+    executable: requiredBundledRuntime.executable,
+    origin: "verified_download" as const,
+    target_directory: requiredBundledRuntime.target_directory,
+  };
+  return {
+    bundledRuntime: requiredBundledRuntime,
+    status: {
+      ...portStatus(),
+      active,
+      readiness: {
+        launchable: false,
+        blockers: ["missing_runtime"],
+        pending_setup: false,
+      },
+      last_update_check: {
+        checked_at: 2,
+        check: {
+          port_id: port.id,
           channel: active.channel,
-          asset: {
-            name: active.artifact.asset_name,
-            url: "https://example.com/sample.zip",
-            size: active.artifact.size,
-            sha256: active.artifact.sha256,
+          installed_version: active.version,
+          installed_artifact: active.artifact,
+          installed_runtime: active.runtime,
+          required_runtime: requiredRuntime,
+          update_available: updateAvailable,
+          release: {
+            published_at: null,
+            version: active.version,
+            channel: active.channel,
+            asset: {
+              name: active.artifact.asset_name,
+              url: "https://example.com/sample.zip",
+              size: active.artifact.size,
+              sha256: active.artifact.sha256,
+            },
           },
         },
       },
-    },
+    } satisfies PortStatus,
   };
 };
 
@@ -360,17 +375,18 @@ describe("desktop components", () => {
   });
 
   it("routes a missing required component to the available update instead of Play", () => {
+    const fixture = missingRuntimeFixture(true);
     const html = renderToStaticMarkup(
       <DetailPanel
         port={{
           ...port,
-          bundled_runtime: { "windows-x86-64": bundledRuntime },
+          bundled_runtime: { "windows-x86-64": fixture.bundledRuntime },
           source_profile: null,
         }}
         sourcePath=""
         setSourcePath={vi.fn()}
         actions={actions}
-        status={missingRuntimeStatus(true)}
+        status={fixture.status}
       />,
     );
     expect(html).toContain("Update required before playing");
@@ -382,22 +398,23 @@ describe("desktop components", () => {
   });
 
   it("does not promise an update when a recorded required component needs repair", () => {
+    const fixture = missingRuntimeFixture(false);
     const html = renderToStaticMarkup(
       <DetailPanel
         port={{
           ...port,
-          bundled_runtime: { "windows-x86-64": bundledRuntime },
+          bundled_runtime: { "windows-x86-64": fixture.bundledRuntime },
           source_profile: null,
         }}
         sourcePath=""
         setSourcePath={vi.fn()}
         actions={actions}
-        status={missingRuntimeStatus(false)}
+        status={fixture.status}
       />,
     );
-    expect(html).toContain("Required component needs repair");
+    expect(html).toContain("Required component unavailable");
     expect(html).toContain(
-      "Check for updates or verify the installation to restore the required component.",
+      "Check for updates. If none is available, verify the installation for diagnostic details.",
     );
     expect(html).not.toContain("Update required before playing");
     expect(html).not.toContain("Install the available update");

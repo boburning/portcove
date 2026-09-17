@@ -1196,7 +1196,9 @@ function PrimaryActions({
     return runtimeUpdateAvailable ? (
       <p>Review the game update below to install the required component.</p>
     ) : (
-      <p>Check for updates or verify the installation to restore the required component.</p>
+      <p>
+        Check for updates. If none is available, verify the installation for diagnostic details.
+      </p>
     );
   if (!installed)
     return (
@@ -1506,9 +1508,9 @@ function detailState(
           icon: Wrench,
         }
       : {
-          title: "Required component needs repair",
+          title: "Required component unavailable",
           description:
-            "Check for updates or verify the installation to restore the required component.",
+            "Check for updates. If none is available, verify the installation for diagnostic details.",
           tone: "setup",
           icon: Wrench,
         };
