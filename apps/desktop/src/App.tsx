@@ -163,7 +163,11 @@ export function BootstrapRecovery({
       <h1>Portcove couldn’t start</h1>
       <p>{errorText(error)}</p>
       {error.presentation ? (
-        <FailureDetails presentation={error.presentation} code={error.code} />
+        <FailureDetails
+          presentation={error.presentation}
+          code={error.code}
+          contextLabel={startupDetailLabel}
+        />
       ) : (
         <StartupTechnicalDetails error={error} />
       )}

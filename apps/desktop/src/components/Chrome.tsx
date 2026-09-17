@@ -870,9 +870,14 @@ function SourceHealthRow({
             catalog or remove the saved location.
           </p>
           <details>
-            <summary data-focusable>Technical details</summary>
+            <summary
+              data-focusable
+              aria-label={`Technical details for saved game-file location ${source.path}`}
+            >
+              Technical details
+            </summary>
             <small>
-              Catalog profile ID: <code>{source.profile_id}</code>
+              Catalog profile ID: <code className="source-profile-id">{source.profile_id}</code>
             </small>
           </details>
         </div>

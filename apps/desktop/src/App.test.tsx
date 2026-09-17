@@ -1,6 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import App, { BootstrapRecovery, missingBootstrapError } from "./App";
+import { failureReport } from "./test-fixtures";
 
 describe("Portcove app shell", () => {
   it("renders a useful startup state before Tauri returns library data", () => {
@@ -13,19 +14,16 @@ describe("Portcove app shell", () => {
   });
 
   it("renders startup failures as a recovery surface without library actions", () => {
-    const html = renderToStaticMarkup(
-      <BootstrapRecovery
-        error={{
-          code: "state",
-          message: "The configured library cannot be opened.",
-          details: { path: "Z:\\Portcove" },
-        }}
-      />,
-    );
+    const error = failureReport();
+    error.message = "The configured library cannot be opened.";
+    error.presentation.summary = "The configured library cannot be opened.";
+    error.details = { path: "Z:\\Portcove" };
+    error.presentation.technical_context = { path: "Z:\\Portcove" };
+    const html = renderToStaticMarkup(<BootstrapRecovery error={error} />);
     expect(html).toContain("Portcove couldn’t start");
     expect(html).toContain("The configured library cannot be opened.");
     expect(html).toContain("Z:\\Portcove");
-    expect(html).toContain("Technical details");
+    expect(html).toContain("View technical details");
     expect(html).toContain("<dt>Path</dt>");
     expect(html).not.toContain("<dt>path</dt>");
     expect(html.indexOf("Z:\\Portcove")).toBeGreaterThan(html.indexOf("<details"));
@@ -36,17 +34,11 @@ describe("Portcove app shell", () => {
   });
 
   it("keeps unrecognized startup fields exact inside technical details", () => {
-    const html = renderToStaticMarkup(
-      <BootstrapRecovery
-        error={{
-          code: "state",
-          message: "A future startup error occurred.",
-          details: { future_field: "exact-value" },
-        }}
-      />,
-    );
+    const error = failureReport();
+    error.presentation.technical_context = { future_field: "exact-value" };
+    const html = renderToStaticMarkup(<BootstrapRecovery error={error} />);
 
-    expect(html).toContain('<summary data-focusable="true">Technical details</summary>');
+    expect(html).toContain('<summary data-focusable="true">View technical details</summary>');
     expect(html).toContain("<dt><code>future_field</code></dt>");
     expect(html).toContain("exact-value");
     expect(html.indexOf("future_field")).toBeGreaterThan(html.indexOf("<details"));

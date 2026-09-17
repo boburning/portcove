@@ -2332,7 +2332,6 @@ impl PortcoveService {
     }
 
     pub fn preview_source_removal(&self, profile_id: &str) -> Result<SourceRemovalPreview> {
-        self.catalog.source_profile(profile_id)?;
         let source = self.library.source(profile_id)?.ok_or_else(|| {
             PortcoveError::not_found(format!("source profile {profile_id} is not registered"))
         })?;
@@ -9166,6 +9165,51 @@ fn main() {
             .unwrap();
         assert_eq!(removed.preview_sha256, current.preview_sha256);
         assert!(library.source("banjo-kazooie").unwrap().is_none());
+    }
+
+    #[test]
+    fn source_removal_preserves_bytes_when_the_catalog_profile_is_absent() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let source_path = temporary.path().join("retired-source.bin");
+        let source_bytes = b"registered source from a retired catalog profile";
+        fs::write(&source_path, source_bytes).unwrap();
+        let (storage_sha256, storage_size) = crate::adapter::hash_file(&source_path).unwrap();
+        library
+            .register_source(&SourceRecord {
+                profile_id: "retired-catalog-profile".into(),
+                path: source_path.clone(),
+                sha256: storage_sha256.clone(),
+                size: storage_size,
+                storage_sha256,
+                storage_size,
+                updated_at: Library::now(),
+                observed_identity: None,
+            })
+            .unwrap();
+        let service = PortcoveService::new(library.clone()).unwrap();
+        assert!(
+            service
+                .catalog()
+                .source_profile("retired-catalog-profile")
+                .is_err()
+        );
+
+        let preview = service
+            .preview_source_removal("retired-catalog-profile")
+            .unwrap();
+        assert!(preview.dependent_port_ids.is_empty());
+        assert!(preview.installed_dependent_port_ids.is_empty());
+        let authorization = service
+            .authorize_source_removal("retired-catalog-profile", &preview.preview_sha256)
+            .unwrap();
+        let removed = service
+            .remove_source("retired-catalog-profile", &authorization.token)
+            .unwrap();
+
+        assert_eq!(removed.preview_sha256, preview.preview_sha256);
+        assert!(library.source("retired-catalog-profile").unwrap().is_none());
+        assert_eq!(fs::read(source_path).unwrap(), source_bytes);
     }
 
     #[test]

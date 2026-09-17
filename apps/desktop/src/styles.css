@@ -2941,6 +2941,13 @@ select {
   white-space: nowrap;
 }
 
+.source-health-row code.source-profile-id {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
 .source-health-row > small {
   grid-column: 1 / -1;
   color: var(--color-danger-text);

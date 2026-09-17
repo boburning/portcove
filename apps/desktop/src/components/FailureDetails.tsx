@@ -16,9 +16,11 @@ const outcomes: Record<Presentation["mutation_state"], string> = {
 export function FailureDetails({
   presentation,
   code,
+  contextLabel,
 }: {
   presentation: FailureDisplay;
   code?: string;
+  contextLabel?: (key: string) => string | undefined;
 }) {
   const [copied, setCopied] = useState(false);
   const technical = JSON.stringify(
@@ -41,7 +43,41 @@ export function FailureDetails({
       </p>
       <details>
         <summary data-focusable>View technical details</summary>
-        <pre>{technical}</pre>
+        {contextLabel ? (
+          <dl>
+            {code && (
+              <div>
+                <dt>Error code</dt>
+                <dd>{code}</dd>
+              </div>
+            )}
+            <div>
+              <dt>Outcome</dt>
+              <dd>{presentation.mutation_state}</dd>
+            </div>
+            {presentation.phase && (
+              <div>
+                <dt>Phase</dt>
+                <dd>{presentation.phase}</dd>
+              </div>
+            )}
+            <div>
+              <dt>Message</dt>
+              <dd>{presentation.technical_message}</dd>
+            </div>
+            {Object.entries(presentation.technical_context).map(([key, value]) => {
+              const label = contextLabel(key);
+              return (
+                <div key={key}>
+                  <dt>{label ?? <code>{key}</code>}</dt>
+                  <dd>{value}</dd>
+                </div>
+              );
+            })}
+          </dl>
+        ) : (
+          <pre>{technical}</pre>
+        )}
         <button
           data-focusable
           onClick={() => {

@@ -1199,7 +1199,7 @@ describe("desktop components", () => {
 
   it("keeps a removed source-profile identity in technical details with removal available", () => {
     const source = {
-      profile_id: "removed-profile",
+      profile_id: `removed-${"profile".repeat(12)}`,
       path: "D:/ROMs/retained-source.bin",
       sha256: "a".repeat(64),
       size: 1024,
@@ -1207,10 +1207,15 @@ describe("desktop components", () => {
       storage_size: 1024,
       updated_at: 1,
     };
+    const otherSource = {
+      ...source,
+      profile_id: "other-removed-profile",
+      path: "E:/Games/other-retained-source.bin",
+    };
     const html = renderToStaticMarkup(
       <SettingsView
         libraryRoot="C:/Portcove"
-        sources={[source]}
+        sources={[source, otherSource]}
         sourceProfiles={[]}
         replaceSource={vi.fn()}
       />,
@@ -1221,8 +1226,16 @@ describe("desktop components", () => {
       "This saved game-file requirement is no longer present in the current catalog.",
     );
     expect(html).toContain("Update the catalog or remove the saved location.");
-    expect(html).toContain("Catalog profile ID: <code>removed-profile</code>");
-    expect(html).not.toContain("<strong>removed-profile</strong>");
+    expect(html).toContain(
+      `Catalog profile ID: <code class="source-profile-id">${source.profile_id}</code>`,
+    );
+    expect(html).toContain(
+      `aria-label="Technical details for saved game-file location ${source.path}"`,
+    );
+    expect(html).toContain(
+      `aria-label="Technical details for saved game-file location ${otherSource.path}"`,
+    );
+    expect(html).not.toContain(`<strong>${source.profile_id}</strong>`);
     expect(html).not.toContain(">Relink source</button>");
     expect(html).toContain("Remove reference");
     expect(html).toContain("Needs attention");
