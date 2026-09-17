@@ -398,6 +398,7 @@ namespace Portcove.ReferenceClient
             }
             if (Json.Number(record, "schema_version") != operationEventSchemaVersion)
                 throw new InvalidOperationException("Unsupported Portcove event schema. Refresh durable activity and update the client.");
+            ValidateEvent(record);
             var id = Json.Text(record, "operation_id");
             if (id.Length == 0 || id.Length > 1024 || (!sequences.ContainsKey(id) && sequences.Count >= 1024))
                 throw new InvalidOperationException("The CLI event identities exceed the bounded reference-client contract. Refresh durable state.");
@@ -411,6 +412,48 @@ namespace Portcove.ReferenceClient
                 OperationId = id;
             }
             progress?.Invoke(record);
+        }
+
+        private static void ValidateEvent(Dictionary<string, object> record)
+        {
+            var type = Json.Text(record, "type");
+            Json.Number(record, "timestamp_ms");
+            Json.Text(record, "operation");
+            var parent = Json.Field(record, "parent_operation_id");
+            if (parent != null && !(parent is string))
+                throw new InvalidOperationException("Invalid Portcove event parent identity.");
+            var target = Json.Field(record, "target");
+            if (target != null)
+            {
+                var targetKind = Json.Text(target, "kind");
+                if (!new[] { "port", "source", "library" }.Contains(targetKind))
+                    throw new InvalidOperationException("Unknown Portcove event target kind. Refresh durable activity and update the client.");
+                Json.Text(target, "id");
+            }
+
+            switch (type)
+            {
+                case "started":
+                    return;
+                case "progress":
+                    Json.Text(record, "phase");
+                    var completed = Json.Number(record, "completed");
+                    var total = Json.Field(record, "total");
+                    if (completed < 0 || (total != null && Json.Number(record, "total") < 0))
+                        throw new InvalidOperationException("Invalid Portcove event progress bounds.");
+                    return;
+                case "message":
+                    Json.Text(record, "level");
+                    Json.Text(record, "message");
+                    return;
+                case "finished":
+                    var outcome = Json.Text(record, "result");
+                    if (!new[] { "succeeded", "failed", "cancelled" }.Contains(outcome))
+                        throw new InvalidOperationException("Unknown Portcove event result. Refresh durable activity and update the client.");
+                    return;
+                default:
+                    throw new InvalidOperationException("Unknown Portcove event type. Refresh durable activity and update the client.");
+            }
         }
 
         internal object Finish(int exitCode)
@@ -447,13 +490,12 @@ namespace Portcove.ReferenceClient
                 {
                     case ConsumerCapability.LaunchOnly:
                         requiredCommands.UnionWith(new[] { "status", "library.identity", "launch.show", "exec" });
-                        if (schema >= 49) requiredCommands.Add("launch.recover");
                         break;
                     case ConsumerCapability.Library:
                         requiredCommands.UnionWith(new[] { "catalog", "status", "library.identity" });
                         break;
                     case ConsumerCapability.Lifecycle:
-                        requiredCommands.UnionWith(new[] { "source", "status", "activity", "cancel", "library.identity", "ensure", "update", "preparation" });
+                        requiredCommands.UnionWith(new[] { "source", "status", "activity", "cancel", "doctor", "library.identity", "ensure", "update", "preparation" });
                         if (schema >= 48) requiredCommands.Add("preparation.cleanup");
                         break;
                     default:
