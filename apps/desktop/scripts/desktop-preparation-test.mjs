@@ -499,6 +499,7 @@ export async function preparationScenarios({
     output,
     artifacts,
     command,
+    confirmNative,
   });
   await cliHandoffScenario({
     browser,

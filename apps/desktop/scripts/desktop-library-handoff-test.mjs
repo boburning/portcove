@@ -1,7 +1,7 @@
 // Copy the harness-owned library, preserve its originals, and observe the new desktop generation.
 import assert from "node:assert/strict";
 import path from "node:path";
-import { writeFile, realpath } from "node:fs/promises";
+import { access, mkdir, readFile, realpath, writeFile } from "node:fs/promises";
 import { By, until } from "selenium-webdriver";
 import { fileIdentity } from "../../../scripts/development-evidence.mjs";
 import {
@@ -18,6 +18,7 @@ export async function libraryHandoffScenario({
   output,
   artifacts,
   command,
+  confirmNative,
 }) {
   await scenario("native-library-move-invalidates-prior-reviews", async () => {
     assert.equal(path.resolve(library), path.resolve(output, "library"));
@@ -64,7 +65,9 @@ export async function libraryHandoffScenario({
     const plan = await browser.findElement(By.css('[aria-label="Library move plan"]')).getText();
     assert.ok(plan.includes(destination) && plan.includes(source));
     assert.ok(plan.includes(portId) && plan.includes(active.version));
-    assert.ok(plan.includes("Copying Source Inbox files does not redirect their registrations."));
+    assert.ok(plan.includes("Saved game-file locations"));
+    assert.ok(plan.includes("1 saved game-file location will stay unchanged."));
+    assert.ok(plan.includes("Copying Source Inbox files does not redirect these saved locations."));
     assert.ok(plan.includes("this dialog cannot cancel it"));
     await click(
       By.xpath(
@@ -135,6 +138,110 @@ export async function libraryHandoffScenario({
       copied.push(copy);
     }
     assert.deepEqual((await invoke("get_sources")).value, sources);
+
+    const metadata = path.join(output, "library-restore-export.json");
+    command(["library", "export", "--output", metadata], destination);
+    const exportedMetadata = await fileIdentity(metadata);
+    const exportedSave = await fileIdentity(
+      path.join(destination, path.relative(paths.library_root, preserved[0].path)),
+    );
+    const restoreRoot = path.join(output, "restored-library");
+    await mkdir(restoreRoot);
+    const restoreSelection = await invoke("set_default_library", { path: restoreRoot });
+    assert.equal(restoreSelection.ok, true);
+    await browser.navigate().refresh();
+    await click(By.xpath('//nav//button[contains(., "Settings")]'));
+    await click(button("Restore library"));
+    await browser.findElement(By.id("import-metadata")).sendKeys(metadata);
+    await browser.findElement(By.id("import-content")).sendKeys(destination);
+    await click(button("Review restore"));
+    await browser.wait(until.elementLocated(button("Restore this library")), 15_000);
+    const restoreReview = await browser
+      .findElement(By.css('[aria-label="Library restore plan"]'))
+      .getText();
+    assert.ok(restoreReview.includes(destination) && restoreReview.includes(restoreRoot));
+    assert.ok(restoreReview.includes("Saved game-file locations"));
+    await assertCompactReview(browser, '[role="dialog"]');
+    const restoreAccessibility = path.join(output, "library-restore-accessibility.json");
+    await captureAccessibilityReport(browser, restoreAccessibility, artifacts);
+    const restoreImage = path.join(output, "native-library-restore-review.png");
+    await writeFile(restoreImage, await browser.takeScreenshot(), {
+      encoding: "base64",
+      flag: "wx",
+    });
+    artifacts.push(restoreImage);
+    const beforeRestore = (await invoke("get_bootstrap_status")).value;
+    await click(button("Restore this library"));
+    await confirmNative(
+      "Confirm library restore",
+      "__observe__",
+      "Only restore a Portcove export you trust.",
+      "library-native-restore-before-consent",
+    );
+    assert.deepEqual(await fileIdentity(metadata), exportedMetadata);
+    assert.deepEqual(await fileIdentity(exportedSave.path), exportedSave);
+    await confirmNative(
+      "Confirm library restore",
+      "Restore library",
+      "Only restore a Portcove export you trust.",
+      "library-native-restore-confirmed",
+    );
+    let afterRestore;
+    await browser.wait(async () => {
+      afterRestore = (await invoke("get_bootstrap_status")).value;
+      return afterRestore?.ready && afterRestore.generation > beforeRestore.generation;
+    }, 15_000);
+    assert.equal(await realpath(afterRestore.library_root), await realpath(restoreRoot));
+    assert.equal(command(["status", portId], restoreRoot).active.id, active.id);
+    assert.deepEqual(await fileIdentity(metadata), exportedMetadata);
+    assert.deepEqual(await fileIdentity(exportedSave.path), exportedSave);
+
+    // After review, wait for core's pending authority marker before changing an
+    // owned save. This deterministically exercises the actual pre-activation
+    // recovery surface without manufacturing a journal or production state.
+    const recoveryDestination = path.join(output, "retained-recovery-copy");
+    const recoverySave = path.join(
+      restoreRoot,
+      path.relative(paths.library_root, preserved[0].path),
+    );
+    const recoveryPaths = command(["paths", portId], restoreRoot);
+    await writeFile(
+      path.join(recoveryPaths.user_data_root, "owned-recovery-copy-window.bin"),
+      Buffer.alloc(256 * 1024 * 1024, 0x5a),
+    );
+    await browser.navigate().refresh();
+    await click(By.xpath('//nav//button[contains(., "Settings")]'));
+    await click(button("Move library"));
+    await browser.findElement(By.id("library-destination")).sendKeys(recoveryDestination);
+    await click(button("Review move"));
+    await browser.wait(until.elementLocated(button("Move to this folder")), 15_000);
+    const beforeRecovery = (await invoke("get_bootstrap_status")).value;
+    await click(button("Move to this folder"));
+    await waitForFile(path.join(restoreRoot, ".portcove-authority.json"));
+    await writeFile(recoverySave, `${await readFile(recoverySave, "utf8")}\nchanged after review`);
+    await browser.wait(until.elementLocated(button("Keep using original library")), 15_000);
+    assert.ok(
+      (
+        await browser.findElement(By.css('[aria-label="Library move recovery"]')).getText()
+      ).includes("before the new copy is activated"),
+    );
+    await assertCompactReview(browser, '[role="dialog"]');
+    const recoveryAccessibility = path.join(output, "library-move-recovery-accessibility.json");
+    await captureAccessibilityReport(browser, recoveryAccessibility, artifacts);
+    const recoveryImage = path.join(output, "native-library-move-recovery.png");
+    await writeFile(recoveryImage, await browser.takeScreenshot(), {
+      encoding: "base64",
+      flag: "wx",
+    });
+    artifacts.push(recoveryImage);
+    await click(button("Keep using original library"));
+    let afterRecovery;
+    await browser.wait(async () => {
+      afterRecovery = (await invoke("get_bootstrap_status")).value;
+      return afterRecovery?.ready && afterRecovery.generation > beforeRecovery.generation;
+    }, 15_000);
+    assert.equal(await realpath(afterRecovery.library_root), await realpath(restoreRoot));
+    await access(recoveryDestination);
     const result = path.join(output, "library-handoff-result.json");
     await writeFile(
       result,
@@ -147,10 +254,23 @@ export async function libraryHandoffScenario({
           stale_identity_generation_rejected: true,
           preserved_originals: preserved,
           copied,
+          restore: {
+            before: beforeRestore,
+            after: afterRestore,
+            trusted_native_confirmation: true,
+            unchanged_export_metadata: exportedMetadata,
+            unchanged_export_content: exportedSave,
+          },
+          recovery: {
+            before: beforeRecovery,
+            after: afterRecovery,
+            pre_activation_abort_offered: true,
+            copied_destination_retained: recoveryDestination,
+          },
           preserved_active_identity: active.id,
           stale_generation_rejected: true,
           evidence:
-            "native owned-library copy and frontend handoff; no physical interruption claim",
+            "native owned-library move, trusted-export restore confirmation, and controlled pre-activation recovery; no physical interruption or production-feed claim",
         },
         null,
         2,
@@ -159,4 +279,17 @@ export async function libraryHandoffScenario({
     );
     artifacts.push(result);
   });
+}
+
+async function waitForFile(file, timeout = 15_000) {
+  const deadline = Date.now() + timeout;
+  while (Date.now() < deadline) {
+    try {
+      await access(file);
+      return;
+    } catch {
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+  }
+  throw new Error(`Timed out waiting for ${file}`);
 }

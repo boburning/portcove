@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AdoptionModal } from "./components/AdoptionModal";
-import { LibraryMoveRecovery, transferRecoveryRoot } from "./components/LibraryMove";
+import {
+  LibraryMoveRecovery,
+  transferRecoveryCanKeepOriginal,
+  transferRecoveryRoot,
+} from "./components/LibraryMove";
 import { LibraryImportRecovery } from "./components/LibraryImport";
 import {
   PageHeader,
@@ -157,6 +161,7 @@ export function BootstrapRecovery({
   const [actionError, setActionError] = useState<string>();
   useGamepadNavigation(() => {});
   const recoveryRoot = transferRecoveryRoot(error);
+  const canKeepOriginal = transferRecoveryCanKeepOriginal(error);
   const importRoot = transferRecoveryRoot(error, "import_destination");
   return (
     <main className="bootstrap-state bootstrap-error" role="alert">
@@ -198,7 +203,9 @@ export function BootstrapRecovery({
         </button>
       </div>
       {actionError && <p role="alert">{actionError}</p>}
-      {recoveryRoot && <LibraryMoveRecovery source={recoveryRoot} />}
+      {recoveryRoot && (
+        <LibraryMoveRecovery source={recoveryRoot} canKeepOriginal={canKeepOriginal} />
+      )}
       {importRoot && <LibraryImportRecovery destination={importRoot} />}
     </main>
   );

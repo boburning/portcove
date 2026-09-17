@@ -141,10 +141,11 @@ export const DESKTOP_SCENARIOS = Object.freeze([
   }),
   scenario(
     "native-library-move-invalidates-prior-reviews",
-    "Library handoff invalidates stale reviews.",
+    "Library move, restore, and recovery invalidate stale reviews.",
     {
-      prerequisites: ["desktop", "owned-fixture"],
+      prerequisites: ["desktop", "owned-fixture", "native-dialog"],
       dependencies: ["native-preparation-review-and-play", "native-reviewed-existing-install-copy"],
+      host_resources: [...nativeResources, "native-dialog"],
       source: "desktop-library-handoff-test.mjs",
     },
   ),
