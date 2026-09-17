@@ -19,33 +19,40 @@ it("requires explicit review, invalidates changed candidates and uses core prove
       expires_at: null,
       fallback_reasons: [],
     },
-    trusted_keys: [{ key_id: "b".repeat(64), public_key: "c".repeat(64) }],
+    trusted_keys: [
+      {
+        key_id: "21fe31dfa154a261626bf854046fd2271b7bed4b6abe45aa58877ef47f9721b9",
+        public_key: "d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a",
+      },
+    ],
     highest_sequence: 0,
     updates_enabled: false,
     can_rollback: false,
     can_use_cached: false,
-    state_sha256: "initial",
+    state_sha256: "e".repeat(64),
   };
   const plan: CatalogUpdatePlan = {
     source: { kind: "file", value: "D:/catalog.json" },
     envelope_sha256: "d".repeat(64),
-    key_id: "b".repeat(64),
+    key_id: status.trusted_keys[0].key_id,
     sequence: 1,
-    issued_at: 1800000000,
-    expires_at: 1800003600,
-    changed_port_ids: ["example"],
+    issued_at: 1789620000,
+    expires_at: 1789706400,
+    changed_port_ids: ["shipwright"],
     current: status.provenance,
-    plan_sha256: "review",
+    plan_sha256: "fe5c62deb351405b326acc1ccada7931fd11f224e8c4849c7731d3891be15947",
   };
   const zeroChangePlan: CatalogUpdatePlan = {
     ...plan,
+    envelope_sha256: "e".repeat(64),
     changed_port_ids: [],
-    plan_sha256: "review-zero",
+    plan_sha256: "1437af5c9a99b06c3e1c634f9f564874ca1f820a58f96b3f46e896d946c750ab",
   };
   const manyChangePlan: CatalogUpdatePlan = {
     ...plan,
-    changed_port_ids: ["example", "other"],
-    plan_sha256: "review-many",
+    envelope_sha256: "f".repeat(64),
+    changed_port_ids: ["shipwright", "2ship2harkinian"],
+    plan_sha256: "6eb79ca92dacff3ee56468a26c5675d4c5415f0a5eb8ce70b56baac32b5b8d22",
   };
   vi.spyOn(desktopApi, "catalogStatus").mockResolvedValue(status);
   vi.spyOn(picker, "pickSignedCatalogPath").mockResolvedValue("D:/catalog.json");
@@ -109,7 +116,7 @@ it("requires explicit review, invalidates changed candidates and uses core prove
     const technical = host.querySelector(
       'summary[aria-label="Technical details for catalog update sequence 1"]',
     )?.parentElement;
-    expect(technical?.textContent).toContain("example");
+    expect(technical?.textContent).toContain("shipwright");
     expect(technical?.textContent).toContain(plan.envelope_sha256);
     await click("Review update");
     expect(host.textContent).toContain("No port information will change.");
@@ -118,7 +125,7 @@ it("requires explicit review, invalidates changed candidates and uses core prove
     await click("Review update");
     expect(host.textContent).toContain("1 port will change.");
     await click("Apply catalog update");
-    expect(apply).toHaveBeenCalledWith(plan.source, "review", expect.any(Function));
+    expect(apply).toHaveBeenCalledWith(plan.source, plan.plan_sha256, expect.any(Function));
     expect(host.textContent).toContain("Catalog changed; review again");
     expect(button("Apply catalog update")).toBeUndefined();
     expect(refresh).not.toHaveBeenCalled();
