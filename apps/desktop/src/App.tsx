@@ -567,6 +567,7 @@ function CurrentView({
       <UpdateCenter
         generation={bootstrap.generation}
         ports={data.catalog?.ports ?? []}
+        sourceProfiles={data.catalog?.source_profiles ?? []}
         statuses={model.statusMap}
         activities={data.activities}
         outcomes={updates.outcomes}
