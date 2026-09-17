@@ -4341,7 +4341,7 @@ mod tests {
     }
 
     #[test]
-    fn paperboat_prepares_exact_version_owned_game_data_without_claiming_player_data() {
+    fn paperboat_keeps_generated_game_data_separate_from_player_state() {
         let catalog = Catalog::embedded().expect("catalog should load");
         let profile = catalog.source_profile("paperboat-paper-mario-us").unwrap();
         assert_eq!(
@@ -4362,6 +4362,7 @@ mod tests {
         assert_eq!(port.setup_output_paths, ["pm64.o2r", "torch.hash.yml"]);
         assert!(crate::preparation::managed(port));
         assert!(!port.persistent_paths.contains(&"pm64.o2r".into()));
+        assert!(port.persistent_paths.contains(&"saves".into()));
         crate::preparation::validate_output_contract(port).unwrap();
 
         let mut overlapping = port.clone();

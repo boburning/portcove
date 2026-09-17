@@ -80,12 +80,14 @@ setup executable, output outside the reviewed paths, or changed candidate fails
 without replacing the active installation.
 
 `pm64.o2r` is version-owned rather than player-owned, so an update or rollback
-cannot silently reuse generated data across incompatible releases. The separate
-player-data contract contains `mods`, `default.sav`, `paperboat.cfg.json`,
-`imgui.ini` and `cvars.cfg`. Runtime `logs` are disposable and excluded from
-backup ownership. Normal launch points `SHIP_HOME` at canonical Portcove user
-data, including on Linux; Windows remains portable in the supervised working
-directory and uses the same synchronization contract.
+cannot silently reuse generated data across incompatible releases. PaperBoat's
+tagged save manager cancels the engine's original save events and reads, writes
+and erases `saves/file{slot}.json`; the player-data contract therefore owns the
+complete `saves` directory alongside `mods`, `default.sav`,
+`paperboat.cfg.json`, `imgui.ini` and `cvars.cfg`. Runtime `logs` are disposable
+and excluded from backup ownership. Normal launch points `SHIP_HOME` at
+canonical Portcove user data, including on Linux; Windows remains portable in
+the supervised working directory and uses the same synchronization contract.
 
 ## Bounded runtime observations
 

@@ -60,6 +60,15 @@ const reviewedSources = {
     liveRef: "main",
     path: "config.yml",
   },
+  paperBoat: {
+    evidenceId: "paperboat-1-0-0-source-contract",
+    repository: "HarbourMasters/PaperBoat",
+    ref: "5489baad1c08bc134ed894b96cf66c3da615deed",
+    tag: "1.0.0",
+    liveRef: "develop",
+    path: "config.yml",
+    reviewedAt: "2026-09-17",
+  },
   banjoRecomp: {
     evidenceId: "banjo-recompiled-1-0-2-source-contract",
     repository: "BanjoRecomp/BanjoRecomp",
@@ -401,6 +410,21 @@ const evidence = [
     live_url:
       "https://github.com/boburning/portcove/blob/main/docs/qualification/dr-mario-64-recompiled-windows-2026-09-15.md",
   },
+  upstreamEvidence(
+    reviewedSources.paperBoat,
+    "Lists the exact North American Paper Mario source accepted by PaperBoat 1.0.0 and its pm64.o2r output",
+  ),
+  {
+    id: "portcove-n64-byte-order-normalization-2026-09-17",
+    role: "byte_identity",
+    authority: "boburning/portcove",
+    authority_ref: "45e884c5a05fc5583abf14ca6fb99436ca5ca8c0",
+    reviewed_at: "2026-09-17",
+    claim:
+      "Normalizes z64, n64, and v64 byte orders to canonical big-endian bytes before exact identity verification and private runtime materialization",
+    immutable_url:
+      "https://github.com/boburning/portcove/blob/45e884c5a05fc5583abf14ca6fb99436ca5ca8c0/crates/portcove-core/src/adapter.rs",
+  },
 ];
 
 function digest(scope, sha1, sha256, crc32) {
@@ -580,6 +604,45 @@ const identities = legacy.source_profiles.map((profile) => {
     evidence_gap: informational ? rep.evidence_gap : null,
   };
 });
+
+const paperBoatProfile = {
+  id: "paperboat-paper-mario-us",
+  label: "Paper Mario (North America) source",
+  kind: "file",
+  variants: [
+    {
+      id: "north-america",
+      title: "Paper Mario",
+      region: "North America",
+      revision: null,
+      product_codes: [],
+      representations: [
+        {
+          id: "normalized-source",
+          extensions: ["n64", "v64", "z64"],
+          kind: "canonical-n64",
+          identities: [
+            digest("canonical-n64-big-endian", "3837f44cda784b466c9a2d99df70d77c322b97a0"),
+          ],
+          evidence_ids: [
+            reviewedSources.paperBoat.evidenceId,
+            "portcove-n64-byte-order-normalization-2026-09-17",
+          ],
+        },
+      ],
+      evidence_ids: [
+        reviewedSources.paperBoat.evidenceId,
+        "portcove-n64-byte-order-normalization-2026-09-17",
+      ],
+    },
+  ],
+  aliases: [],
+  tombstones: [],
+  evidence_gap: null,
+};
+const paperMarioIndex = identities.findIndex((profile) => profile.id === "paper-mario-us");
+if (paperMarioIndex < 0) throw new Error("missing Paper Mario migration anchor");
+identities.splice(paperMarioIndex + 1, 0, paperBoatProfile);
 
 function canonicalN64Representation(id, hashes, evidenceId) {
   return {
@@ -1106,6 +1169,33 @@ for (const port of legacy.ports) {
   }
 }
 
+const paperBoatContract = {
+  id: "paperboat-game-source",
+  port_id: "paperboat",
+  role: "game",
+  profile_id: paperBoatProfile.id,
+  admission_mode: "enforced",
+  supported_variant_ids: ["north-america"],
+  validator_contract_id: null,
+  evidence_ids: [
+    reviewedSources.paperBoat.evidenceId,
+    "portcove-n64-byte-order-normalization-2026-09-17",
+  ],
+  authority_ref: reviewedSources.paperBoat.ref,
+  reviewed_at: reviewedSources.paperBoat.reviewedAt,
+  immutable_review_url: `https://github.com/${reviewedSources.paperBoat.repository}/blob/${reviewedSources.paperBoat.ref}/${reviewedSources.paperBoat.path}`,
+  live_review_url: `https://github.com/${reviewedSources.paperBoat.repository}/blob/${reviewedSources.paperBoat.liveRef}/${reviewedSources.paperBoat.path}`,
+  evidence_gap: null,
+  applicability: [],
+  aliases: [],
+  tombstones: [],
+};
+const paperMarioContractIndex = contracts.findIndex(
+  (contract) => contract.id === "paper-mario-recut-game-source",
+);
+if (paperMarioContractIndex < 0) throw new Error("missing Paper Mario contract migration anchor");
+contracts.splice(paperMarioContractIndex + 1, 0, paperBoatContract);
+
 contracts.push({
   id: "snap64-recomp-game-source",
   port_id: "snap64-recomp",
@@ -1469,6 +1559,7 @@ const normalizedSummaries = {
   "opengoal-jak3": "Native OpenGOAL port of Jak 3.",
   "mega-man-x6-recompiled": "Native Mega Man X6 recompilation.",
   "paper-mario-recut": "Native Paper Mario recompilation.",
+  paperboat: "Native Paper Mario port from Harbour Masters.",
   "snap64-recomp": "Native Pokémon Snap static recompilation.",
   "cvlod-recomp": "Native Castlevania: Legacy of Darkness recompilation.",
   "diddy-kong-racing-golden-balloon":
@@ -1509,7 +1600,7 @@ function withPresentation(port) {
     ...port,
     summary: normalizedSummaries[port.id] ?? port.summary,
     presentation: {
-      installation_method: installationMethod,
+      installation_method: port.id === "paperboat" ? "generated-game-data" : installationMethod,
       source_requirements: [
         sourceRequirement(port, "game", "source_profile"),
         sourceRequirement(port, "bios", "bios_source_profile"),
@@ -1527,6 +1618,46 @@ const linuxAssetHints = {
   "bomberman-hero-recomp": "Linux-X64-Release",
   "trouble-makers-recomp": "TroubleMakers-x86_64.AppImage",
   "goemon64-recomp": "Linux-X64",
+};
+
+const paperBoatPort = {
+  id: "paperboat",
+  name: "PaperBoat",
+  summary: "Native Paper Mario port from Harbour Masters.",
+  project_url: "https://github.com/HarbourMasters/PaperBoat",
+  support_tier: "beta",
+  channels: ["stable"],
+  platforms: ["windows-x86-64", "linux-x86-64"],
+  adapter: "libultraship-portable",
+  release: {
+    repository: "HarbourMasters/PaperBoat",
+    asset_hints: {
+      "windows-x86-64": ["win64"],
+      "linux-x86-64": ["linux"],
+    },
+  },
+  source_profile: paperBoatProfile.id,
+  runtime_source_filename: "paper-mario.us.z64",
+  runtime_source_materialization: "n64-big-endian",
+  setup_executable_hints: {
+    "windows-x86-64": ["Paperboat.exe"],
+    "linux-x86-64": ["Paperboat.AppImage"],
+  },
+  setup_marker: "pm64.o2r",
+  setup_output_paths: ["pm64.o2r", "torch.hash.yml"],
+  executable_hints: {
+    "windows-x86-64": ["Paperboat.exe"],
+    "linux-x86-64": ["Paperboat.AppImage"],
+  },
+  persistent_paths: [
+    "mods",
+    "saves",
+    "default.sav",
+    "paperboat.cfg.json",
+    "imgui.ini",
+    "cvars.cfg",
+  ],
+  runtime_mutable_paths: ["logs"],
 };
 
 const migrated = {
@@ -2127,7 +2258,10 @@ const migrated = {
                         }
                       : port,
       )
-      .map(withPresentation),
+      .flatMap((port) => {
+        const presented = withPresentation(port);
+        return port.id === "ghostship" ? [presented, withPresentation(paperBoatPort)] : [presented];
+      }),
     withPresentation({
       id: "snap64-recomp",
       name: "Snap64 Recomp",
