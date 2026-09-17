@@ -22,19 +22,23 @@ describe("Portcove app shell", () => {
         }}
       />,
     );
-    expect(html).toContain("Portcove couldn’t open your library");
+    expect(html).toContain("Portcove couldn’t start");
     expect(html).toContain("The configured library cannot be opened.");
     expect(html).toContain("Z:\\Portcove");
+    expect(html).toContain("If the current library is the cause");
+    expect(html).not.toContain("Portcove couldn’t open your library");
     expect(html).toContain("Retry startup");
     expect(html).not.toContain("Install");
   });
 
-  it("uses an honest fallback when startup returns no error details", () => {
-    expect(missingBootstrapError).toEqual({
-      code: "state",
-      message: "Portcove could not start, and no error details were provided.",
-      details: {},
-    });
+  it("does not attribute an unclassified startup failure to the library", () => {
+    const html = renderToStaticMarkup(<BootstrapRecovery error={missingBootstrapError} />);
+
+    expect(html).toContain("Portcove couldn’t start");
+    expect(html).toContain("Portcove could not start, and no error details were provided.");
+    expect(html).toContain("Review the error details, then retry startup.");
+    expect(html).not.toContain("Portcove couldn’t open your library");
+    expect(html).not.toContain("Check the configured library path");
   });
 
   it("uses import recovery for an interrupted import", () => {

@@ -160,7 +160,7 @@ export function BootstrapRecovery({
   return (
     <main className="bootstrap-state bootstrap-error" role="alert">
       <p className="eyebrow">Portcove could not start</p>
-      <h1>Portcove couldn’t open your library</h1>
+      <h1>Portcove couldn’t start</h1>
       <p>{errorText(error)}</p>
       {error.presentation ? (
         <FailureDetails presentation={error.presentation} code={error.code} />
@@ -179,8 +179,8 @@ export function BootstrapRecovery({
         </dl>
       )}
       <p>
-        Check the configured library path, access permissions, and available space, then retry.
-        Portcove will run recovery checks again before enabling library actions.
+        Review the error details, then retry startup. If the current library is the cause, you can
+        choose another library or return to the platform default.
       </p>
       <div className="button-row">
         <button type="button" onClick={() => window.location.reload()}>
