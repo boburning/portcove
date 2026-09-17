@@ -85,15 +85,15 @@ export async function adoptionReviewScenario({
     await open();
     await click(button("Continue to copy confirmation"));
     await confirmNative(
-      "Confirm adoption",
+      "Confirm existing installation copy",
       "__observe__",
-      paths.user_data_root,
+      "No unsupported items were found in the reviewed copy plan.",
       "adoption-native-before-consent",
     );
     assert.equal(await readFile(current, "utf8"), "current settings");
     assert.equal(command(["status", port.id]).active.id, previous.id);
     await confirmNative(
-      "Confirm adoption",
+      "Confirm existing installation copy",
       "Cancel",
       paths.user_data_root,
       "adoption-native-cancelled",
@@ -147,7 +147,7 @@ export async function adoptionReviewScenario({
     artifacts.push(screenshot);
     await click(button("Continue to copy confirmation"));
     await confirmNative(
-      "Confirm adoption",
+      "Confirm existing installation copy",
       "Copy into Portcove",
       paths.user_data_root,
       "adoption-native-confirmed",

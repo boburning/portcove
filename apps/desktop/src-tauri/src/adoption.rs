@@ -43,7 +43,7 @@ pub(crate) async fn adopt_port(
         .as_ref()
         .ok_or_else(|| PortcoveError::conflict("select one detected port before adoption"))?;
     let message = format!(
-        "Copy {} files ({} bytes) into Portcove?\n\nOriginal: {}\nDestination: {}\nSaved data: {}\n\nCatalog-selected saved data will be merged, replacing matching saved files. No automatic safety backup is created. Existing versions and backups remain; the copy becomes active. The original folder will not be modified. {} entries are skipped.",
+        "Copy {} files ({} bytes) into Portcove?\n\nOriginal: {}\nDestination: {}\nSaved data: {}\n\nCatalog-selected saved data will be merged, replacing matching saved files. No automatic safety backup is created. Existing versions and backups remain; the copy becomes active. The original folder will not be modified. {}",
         preview.copy_plan.files.len(),
         preview.copy_plan.total_bytes,
         preview.source.display(),
@@ -52,9 +52,16 @@ pub(crate) async fn adopt_port(
             .effective_output_directory
             .display(),
         destination.output_location.user_data_root.display(),
-        preview.copy_plan.skipped_entries.len(),
+        unsupported_items_disclosure(preview.copy_plan.skipped_entries.len()),
     );
-    if !confirm_destructive(&app, "Confirm adoption", message, "Copy into Portcove").await {
+    if !confirm_destructive(
+        &app,
+        "Confirm existing installation copy",
+        message,
+        "Copy into Portcove",
+    )
+    .await
+    {
         return Ok(None);
     }
     let state = state.inner().clone();
@@ -67,4 +74,33 @@ pub(crate) async fn adopt_port(
             .map_err(Into::into)
     })
     .await
+}
+
+fn unsupported_items_disclosure(count: usize) -> String {
+    match count {
+        0 => "No unsupported items were found in the reviewed copy plan.".to_owned(),
+        1 => "1 unsupported item will remain only in the original folder.".to_owned(),
+        _ => format!("{count} unsupported items will remain only in the original folder."),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::unsupported_items_disclosure;
+
+    #[test]
+    fn unsupported_copy_items_name_where_they_remain() {
+        assert_eq!(
+            unsupported_items_disclosure(0),
+            "No unsupported items were found in the reviewed copy plan."
+        );
+        assert_eq!(
+            unsupported_items_disclosure(1),
+            "1 unsupported item will remain only in the original folder."
+        );
+        assert_eq!(
+            unsupported_items_disclosure(3),
+            "3 unsupported items will remain only in the original folder."
+        );
+    }
 }

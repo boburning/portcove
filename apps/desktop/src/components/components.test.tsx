@@ -443,6 +443,41 @@ describe("desktop components", () => {
     expect(html).toContain("cannot cancel");
   });
 
+  it("lists every detected port without presenting an ambiguous match as selected", () => {
+    const other = { ...port, id: "other", name: "Other Port" };
+    const html = renderToStaticMarkup(
+      <AdoptionModal
+        path="D:/Ambiguous"
+        setPath={vi.fn()}
+        close={vi.fn()}
+        review={vi.fn()}
+        adopt={vi.fn()}
+        ports={[port, other]}
+        preview={{
+          source: "D:/Ambiguous",
+          detected_port_ids: [port.id, other.id],
+          selected_port_id: null,
+          application_files_will_be_copied: true,
+          original_will_be_modified: false,
+          copy_plan: {
+            directories: [],
+            files: [],
+            skipped_entries: [],
+            total_bytes: 0,
+          },
+          destination: null,
+          plan_sha256: "d".repeat(64),
+        }}
+      />,
+    );
+    expect(html).toContain("Multiple supported ports detected");
+    expect(html).toContain("Sample Port — Catalog ID: <code>sample</code>");
+    expect(html).toContain("Other Port — Catalog ID: <code>other</code>");
+    expect(html).toContain("Choose the matching port in Portcove");
+    expect(html).toContain('disabled=""');
+    expect(html).not.toContain("Sample Port</strong>");
+  });
+
   it("keeps older backups reachable without expanding the detail panel by default", () => {
     const backups = Array.from({ length: 4 }, (_, index) => ({
       id: `backup-${index}`,

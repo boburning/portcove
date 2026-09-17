@@ -33,7 +33,7 @@ export function AdoptionModal({
     if (!applying) close();
   };
   const dialog = useDialogFocus(dismiss);
-  const identifiedPort = preview ? adoptionPort(preview, ports) : undefined;
+  const portIdentity = preview ? adoptionPortIdentity(preview, ports) : undefined;
   return (
     <div className="scrim">
       <section
@@ -96,16 +96,34 @@ export function AdoptionModal({
             aria-label="Existing installation copy plan"
           >
             <p>
-              <strong>{identifiedPort?.name ?? "Unknown port"}</strong>
-              {identifiedPort?.id && (
+              <strong>
+                {portIdentity?.kind === "selected"
+                  ? (portIdentity.ports[0]?.name ?? "Unknown catalog port")
+                  : portIdentity?.kind === "ambiguous"
+                    ? "Multiple supported ports detected"
+                    : "No supported port detected"}
+              </strong>
+              {portIdentity?.kind === "selected" && portIdentity.ports[0]?.id && (
                 <>
                   <br />
                   <small>
-                    Catalog ID: <code>{identifiedPort.id}</code>
+                    Catalog ID: <code>{portIdentity.ports[0].id}</code>
                   </small>
                 </>
               )}
             </p>
+            {portIdentity?.kind === "ambiguous" && (
+              <>
+                <p>Choose the matching port in Portcove before reviewing this folder again.</p>
+                <ul aria-label="Detected ports">
+                  {portIdentity.ports.map((port) => (
+                    <li key={port.id}>
+                      {port.name ?? "Unknown catalog port"} — Catalog ID: <code>{port.id}</code>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
             <p>
               {preview.copy_plan.files.length.toLocaleString()}{" "}
               {preview.copy_plan.files.length === 1 ? "file" : "files"} ·{" "}
@@ -189,11 +207,16 @@ export function AdoptionModal({
   );
 }
 
-function adoptionPort(preview: AdoptionPreview, ports: readonly PortDefinition[]) {
-  const portId = preview.selected_port_id ?? preview.detected_port_ids[0];
-  if (!portId) return undefined;
-  const name = ports.find((port) => port.id === portId)?.name;
-  return { id: portId, name };
+function adoptionPortIdentity(preview: AdoptionPreview, ports: readonly PortDefinition[]) {
+  const presentation = (id: string) => ({
+    id,
+    name: ports.find((port) => port.id === id)?.name,
+  });
+  if (preview.selected_port_id)
+    return { kind: "selected" as const, ports: [presentation(preview.selected_port_id)] };
+  if (preview.detected_port_ids.length > 0)
+    return { kind: "ambiguous" as const, ports: preview.detected_port_ids.map(presentation) };
+  return { kind: "none" as const, ports: [] };
 }
 
 function AdoptionConsequences({
