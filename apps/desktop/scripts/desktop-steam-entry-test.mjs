@@ -32,21 +32,21 @@ export async function steamEntryScenario({
     await browser.wait(until.elementLocated(dialog), 15_000);
     await browser.findElement(By.id("steam-installation")).sendKeys(steamRoot);
     await browser.findElement(By.id("steam-profile")).sendKeys(steamUserId);
+    const preview = await invoke("preview_steam_entry", {
+      request: { portId: port.id, steamRoot, steamUserId, operation: "add_or_repair" },
+      generation: (await invoke("get_bootstrap_status")).value.generation,
+    });
+    assert.equal(preview.ok, true, JSON.stringify(preview));
+    assert.equal(preview.value.plan_sha256.length, 64);
+    assert.equal(preview.value.cli_sha256.length, 64);
+    assert.equal(preview.value.cli_product_version, "0.1.0-alpha.2");
+    assert.equal(preview.value.writes_required, true);
     await click(button("Review Add / Repair"));
     await browser.wait(until.elementLocated(button("Apply reviewed Add / Repair")), 15_000);
     const reviewed = await browser.findElement(dialog).getText();
     assert.ok(reviewed.includes(shortcuts));
     assert.ok(reviewed.includes("add"));
     assert.ok(reviewed.includes("Steam appears closed"));
-    const preview = await invoke("preview_steam_entry", {
-      request: { portId: port.id, steamRoot, steamUserId, operation: "add_or_repair" },
-      generation: (await invoke("get_bootstrap_status")).value.generation,
-    });
-    assert.equal(preview.ok, true);
-    assert.equal(preview.value.plan_sha256.length, 64);
-    assert.equal(preview.value.cli_sha256.length, 64);
-    assert.equal(preview.value.cli_product_version, "0.1.0-alpha.2");
-    assert.equal(preview.value.writes_required, true);
     const accessibility = path.join(output, "steam-entry-review-accessibility.json");
     await captureAccessibilityReport(browser, accessibility, artifacts);
     await click(button("Apply reviewed Add / Repair"));
