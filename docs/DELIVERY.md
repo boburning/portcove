@@ -87,13 +87,14 @@ their applicable candidate safety checks; they need not complete the milestone.
 The expanded beta commitment also includes the complete finite preparation
 boundary (#31), structured presentation/artwork foundation (#208), public CLI
 and real Playnite reference proof (#30/#243), the normally installable user-ready
-Playnite integration (#910), selected-game Steam Add/Repair/Remove (#292), and
-independent catalog delivery (#245/#397/#398/#246). These are finite owners with
-their full scoped acceptance, not requirements to migrate every adapter, provide
-every artwork asset, continuously synchronize Steam or obtain marketplace
-approval. Application and catalog publishers retain separate authority and
-component dependencies; neither parent waits for the other's closure. The later
-production package requalification in #46 remains a 1.0 commitment.
+Playnite integration (#910), the bounded SteamGridDB capability (#527), selected-
+game Steam Add/Repair/Update-artwork/Remove (#292), and independent catalog
+delivery (#245/#397/#398/#246). These are finite owners with their full scoped
+acceptance, not requirements to migrate every adapter, provide every artwork asset,
+make a provider mandatory at runtime, continuously synchronize Steam or obtain
+marketplace approval. Application and catalog publishers retain separate authority
+and component dependencies; neither parent waits for the other's closure. The
+later production package requalification in #46 remains a 1.0 commitment.
 
 1.0 requires the finite outcomes in [Roadmap](ROADMAP.md): unassisted first play,
 management/recovery, a user-controlled library, accessible flagship UX, qualified
@@ -283,10 +284,12 @@ or hardware effort. Authenticode and Developer ID/notarization are optional
 installation-trust improvements, independently authorized in response to measured
 support burden. Flatpak, extra formats/architectures, repositories, deltas,
 percentage rollouts, standalone CLI self-update, continuous Steam synchronization
-and Decky are outside the baseline. The separately owned #292 Add/Repair/Remove
-commitment coordinates stable runtime paths with package/updater owners without
-pretending the Desktop updater already updates the CLI. No paid signing or
-recruitment quota blocks updater completion.
+and Decky are outside the baseline. The separately owned #292
+Add/Repair/Update-artwork/Remove commitment coordinates stable runtime paths with
+package/updater owners and consumes #527 through #208's shared artwork authority,
+without pretending the Desktop updater already updates the CLI or making remote
+art a launch dependency. No paid signing or recruitment quota blocks updater
+completion.
 
 ## Implementation evidence
 

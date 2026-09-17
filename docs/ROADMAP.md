@@ -132,12 +132,16 @@ contracts must preserve them explicitly, excluding credentials and any remote
 files without redistribution permission. Defaults need actual permission;
 attribution, public availability and local hashes are not rights evidence.
 
-[#527](https://github.com/boburning/portcove/issues/527) owns optional SteamGridDB
-access using a user-supplied credential, subject to verified application-use and
-retention conditions. Provider failure or unresolved access affects only that
-scope, never foundational artwork, compatible catalog delivery or 1.0. Steam
-entry management remains separate under #292. These are future requirements,
-not implemented artwork support or an activated provider.
+[#527](https://github.com/boburning/portcove/issues/527) owns the bounded
+SteamGridDB capability for Portcove's picker and the Public beta Steam artwork
+handoff, using one user-supplied credential subject to verified application-use,
+same-user Steam installation, cache/retention, withdrawal and attribution
+conditions. Delivering that provider capability is Required; configuring or using
+it remains optional for each user. Provider failure or unresolved access never
+blocks foundational artwork, catalog delivery, game lifecycle, or #292 Add/Repair
+without remote art. #292 alone owns Steam destination writes through #208's shared
+selection/provenance handoff. These are future requirements, not implemented
+provider or Steam-artwork support.
 
 ## Finite 1.0 outcome contract
 
@@ -166,9 +170,10 @@ status checklist.
    fresh-workspace consumer exercise without private knowledge or copied per-port
    rules. #910 turns that reference into a normally installable, user-ready
    Playnite lifecycle integration, while #292 provides selected-game Steam
-   Add/Repair/Remove over the same public launch authority. Additional frontends,
-   continuous synchronization, organic adoption, marketplace acceptance, and
-   Decky are not gates.
+   Add/Repair/Update-artwork/Remove over the same public launch authority with
+   #527's bounded provider capability. Provider use remains optional at runtime.
+   Additional frontends, continuous synchronization, organic adoption,
+   marketplace acceptance, and Decky are not gates.
 7. **A proven autonomous catalog path:** #245 and #246 prove one accepted scope
    delivering a new compatible definition, its next routine artifact, and a safe
    correction to an unchanged client through protected acceptance and exact
@@ -273,21 +278,24 @@ bounded release/feed pipeline. Manual reinstall or compiled packages alone do
 not satisfy the gate. Missing platform evidence keeps the milestone open.
 
 The expanded commitment includes the complete finite preparation-boundary proof
-in #31, structured presentation and local-first artwork in #208/#206, the public
-CLI and independent-consumer proof in #30/#243, the user-ready Playnite lifecycle
-integration in #910, selected-game Steam Add/Repair/Remove in #292, and the
-protected unchanged-client catalog path in #245/#397/#398/#246. This explicitly
+in #31, structured presentation and local-first artwork in #208/#206, the bounded
+SteamGridDB capability in #527, the public CLI and independent-consumer proof in
+#30/#243, the user-ready Playnite lifecycle integration in #910, selected-game
+Steam Add/Repair/Update-artwork/Remove in #292, and the protected unchanged-client
+catalog path in #245/#397/#398/#246. This explicitly
 supersedes the earlier beta wording that limited Playnite to its developer-loaded
 reference or deferred all Steam entry management until after 1.0. Preserve the
 existing owners, completed reference evidence, and each new owner's full scoped
-acceptance. Optional artwork providers, full adapter migration, broad discovery,
-additional frontends and general autonomous engineering are not implied.
+acceptance. Additional artwork providers, provider-mandatory runtime behavior,
+full adapter migration, broad discovery, additional frontends and general
+autonomous engineering are not implied.
 Application updater and catalog delivery are independent Required outcomes, with
 no reciprocal parent blocker.
 
 #51/#213–#217 retain the package/controller/Gamescope/storage/device baseline,
 #290 retains plugin-free application and individual-game manual Steam launch
-routes, and #292 owns bounded user-initiated Add/Repair/Remove. The manual route
+routes, and #292 owns bounded user-initiated Add/Repair/Update-artwork/Remove,
+consuming #527 only through #208's shared artwork authority. The manual route
 remains a supported fallback and useful interim path, but it does not complete
 #292. Continuous synchronization, Decky, root modification and a separate Deck
 binary/channel are not required. Qualification starts during implementation,
