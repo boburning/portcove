@@ -189,7 +189,7 @@ function BrowserEmptyState({
         }
         eyebrow="EMPTY LIBRARY"
         title="No installed ports yet"
-        description="Browse the catalog to install a supported port, or adopt an existing native installation without changing the original folder."
+        description="Browse the catalog to install a supported port, or copy an existing supported installation without changing the original folder."
         action={
           <>
             <button data-focusable className="primary button-with-icon" onClick={onBrowseCatalog}>

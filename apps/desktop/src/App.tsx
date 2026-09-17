@@ -54,6 +54,7 @@ import type {
   BootstrapStatus,
   DesktopError,
   HostToolStatus,
+  PortDefinition,
   SourceProfile,
   SourceRecord,
 } from "./types";
@@ -419,7 +420,12 @@ function Workspace({
           libraryGeneration={bootstrap.generation}
           openSourceIntake={openSourceIntake}
         />
-        <AdoptionOverlay ui={ui} operations={operations} libraryGeneration={bootstrap.generation} />
+        <AdoptionOverlay
+          ui={ui}
+          operations={operations}
+          libraryGeneration={bootstrap.generation}
+          ports={data.catalog?.ports ?? []}
+        />
         <CommandPalette
           open={commandSurface.open}
           commands={commandSurface.commands}
@@ -788,10 +794,12 @@ function AdoptionOverlay({
   ui,
   operations,
   libraryGeneration,
+  ports,
 }: {
   ui: UiState;
   operations: OperationState;
   libraryGeneration: number;
+  ports: readonly PortDefinition[];
 }) {
   const finish = () => {
     ui.setAdoptOpen(false);
@@ -814,6 +822,7 @@ function AdoptionOverlay({
     <AdoptionModal
       path={ui.adoptPath}
       setPath={setPath}
+      ports={ports}
       preview={planning.preview}
       copyFailed={planning.copyFailed}
       applying={planning.applying}

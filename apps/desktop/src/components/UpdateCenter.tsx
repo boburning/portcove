@@ -356,7 +356,7 @@ function operationLabel(operation: ActivityOperation) {
     verify_install: "Verified installation",
     activate: "Activated staged release",
     rollback: "Rolled back release",
-    adopt: "Adopted installation",
+    adopt: "Copied existing installation",
     remove: "Removed managed files",
     remove_source: "Removed source reference",
     register_source: "Registered source",
