@@ -1512,12 +1512,74 @@
         ],
         "type": "string"
       },
+      "ArtworkResolvedSource": {
+        "description": "The source core resolves for one slot before a client attempts to transport\nor render it. A client can still display the generated fallback if a\nresolved local import cannot be decoded or presented safely.",
+        "oneOf": [
+          {
+            "properties": {
+              "asset_sha256": {
+                "type": "string"
+              },
+              "kind": {
+                "const": "local_import",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "asset_sha256"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "kind": {
+                "const": "generated_fallback",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "type": "object"
+          }
+        ]
+      },
       "ArtworkSlot": {
         "enum": [
           "cover",
           "detail"
         ],
         "type": "string"
+      },
+      "GeneratedArtworkFallback": {
+        "additionalProperties": false,
+        "properties": {
+          "identity": {
+            "type": "string"
+          },
+          "initials": {
+            "type": "string"
+          },
+          "palette_index": {
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "style_version": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "identity",
+          "style_version",
+          "initials",
+          "palette_index"
+        ],
+        "type": "object"
       },
       "LocalArtworkAsset": {
         "additionalProperties": false,
@@ -1572,11 +1634,17 @@
       "choice": {
         "$ref": "#/$defs/ArtworkChoice"
       },
+      "generated_fallback": {
+        "$ref": "#/$defs/GeneratedArtworkFallback"
+      },
       "reason": {
         "type": [
           "string",
           "null"
         ]
+      },
+      "resolved_source": {
+        "$ref": "#/$defs/ArtworkResolvedSource"
       },
       "selection": {
         "anyOf": [
@@ -1593,7 +1661,9 @@
       "choice",
       "selection",
       "availability",
-      "reason"
+      "reason",
+      "resolved_source",
+      "generated_fallback"
     ],
     "title": "ArtworkState",
     "type": "object"

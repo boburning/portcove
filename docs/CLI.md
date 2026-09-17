@@ -493,12 +493,20 @@ unused asset and explicit confirmation; external source images are never removed
 
 Core copies static PNG/JPEG images into library-owned storage, preserves the first
 filename/import time for deduplicated content and reports `available`, `unavailable`
-or `fallback`. Missing/changed images retain the explicit choice. Local hashes
-describe integrity, not rights or authenticity; copyright permission remains
-unknown. Artwork errors do not block normal catalog or game lifecycle operations.
+or `fallback`. The additive schema-49 `resolved_source` field identifies the source
+core resolved before a client transports or renders it, while `generated_fallback`
+supplies a deterministic identity, style version, initials and palette for every slot.
+Available local imports resolve first. A missing/changed import retains the explicit
+choice and local provenance while core resolves the generated fallback; restoration
+resolves the same local asset again. A client that cannot safely transport or decode a
+resolved local preview displays the generated fallback and must disclose that actual
+rendered source without changing the durable choice. The generated fallback uses no external image asset. Local hashes
+describe integrity, not rights or authenticity; copyright permission for imports
+remains unknown. Artwork errors do not block normal catalog or game lifecycle operations.
 The [architecture limits](ARCHITECTURE.md#local-artwork-ownership) apply to both
 encoded input and decoding. Clear-cache affects only disposable thumbnails, which
-are rebuilt when requested by a client. These commands activate no online provider.
+are rebuilt when requested by a client. These commands activate no catalog artwork
+default or online provider.
 
 ## Library metadata
 

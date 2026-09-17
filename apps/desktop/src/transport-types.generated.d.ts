@@ -88,6 +88,21 @@ export type ArtworkImageFormat = "png" | "jpeg";
 export type OutputArtworkAssets = LocalArtworkAsset[];
 export type ArtworkAvailability = "fallback" | "available" | "unavailable";
 export type ArtworkSlot = "cover" | "detail";
+/**
+ * The source core resolves for one slot before a client attempts to transport
+ * or render it. A client can still display the generated fallback if a
+ * resolved local import cannot be decoded or presented safely.
+ */
+export type ArtworkResolvedSource =
+  | {
+      asset_sha256: string;
+      kind: "local_import";
+      [k: string]: unknown;
+    }
+  | {
+      kind: "generated_fallback";
+      [k: string]: unknown;
+    };
 export type BackupAction = "restore" | "delete";
 export type BackupProblemKind =
   | "missing_manifest"
@@ -757,7 +772,9 @@ export interface OutputArtworkCacheClear {
 export interface OutputArtworkState {
   availability: ArtworkAvailability;
   choice: ArtworkChoice;
+  generated_fallback: GeneratedArtworkFallback;
   reason: string | null;
+  resolved_source: ArtworkResolvedSource;
   selection: LocalArtworkAsset | null;
   [k: string]: unknown;
 }
@@ -766,6 +783,12 @@ export interface ArtworkChoice {
   port_id: string;
   revision: number;
   slot: ArtworkSlot;
+}
+export interface GeneratedArtworkFallback {
+  identity: string;
+  initials: string;
+  palette_index: number;
+  style_version: number;
 }
 export interface OutputArtworkThumbnail {
   asset_sha256: string;

@@ -78,6 +78,45 @@ describe("disposable artwork display cache", () => {
     expect(cache.read("sample", "cover").error).toContain("preview changed");
   });
 
+  it("keeps cached image rejection live while a matching refresh thumbnail is pending", async () => {
+    vi.spyOn(desktopApi, "artwork").mockResolvedValue(artworkState("sample", "cover", 1, true));
+    let finishRefresh!: (value: {
+      asset_sha256: string;
+      choice_revision: number;
+      png: number[];
+    }) => void;
+    const thumbnail = vi
+      .spyOn(desktopApi, "artworkThumbnail")
+      .mockResolvedValueOnce({
+        asset_sha256: "a".repeat(64),
+        choice_revision: 1,
+        png: [137, 80, 78, 71],
+      })
+      .mockReturnValueOnce(
+        new Promise((resolve) => {
+          finishRefresh = resolve;
+        }),
+      );
+    const cache = new ArtworkCache(7);
+    await cache.load("sample", "cover");
+    const image = cache.read("sample", "cover").image;
+
+    const refresh = cache.load("sample", "cover", true);
+    await vi.waitFor(() => expect(thumbnail).toHaveBeenCalledTimes(2));
+    expect(cache.read("sample", "cover").image).toBe(image);
+    cache.read("sample", "cover").onImageError?.();
+    expect(cache.read("sample", "cover").image).toBeUndefined();
+    expect(cache.read("sample", "cover").error).toContain("choice is retained");
+
+    finishRefresh({
+      asset_sha256: "a".repeat(64),
+      choice_revision: 1,
+      png: [137, 80, 78, 71],
+    });
+    await refresh;
+    expect(cache.read("sample", "cover").image).toMatch(/^data:image\/png;base64,/);
+  });
+
   it("keeps a successful selection when thumbnail loading fails and refreshes missing originals", async () => {
     const selected = artworkState("sample", "cover", 1, true);
     vi.spyOn(desktopApi, "importArtwork").mockResolvedValue(selected);
@@ -91,9 +130,12 @@ describe("disposable artwork display cache", () => {
       ...selected,
       availability: "unavailable",
       reason: "Selected image missing; choice retained.",
+      resolved_source: { kind: "generated_fallback" },
     });
     await cache.load("sample", "cover", true);
     expect(cache.read("sample", "cover").state?.reason).toContain("choice retained");
+    expect(cache.read("sample", "cover").state?.generated_fallback.initials).toBe("SF");
+    expect(cache.read("sample", "cover").image).toBeUndefined();
     expect(thumbnails).toHaveBeenCalledTimes(1);
   });
 

@@ -35,6 +35,15 @@ export function artworkState(
     selection: asset,
     availability: selected ? "available" : "fallback",
     reason: null,
+    resolved_source: selected
+      ? { kind: "local_import", asset_sha256: asset!.sha256 }
+      : { kind: "generated_fallback" },
+    generated_fallback: {
+      identity: "f".repeat(64),
+      style_version: 1,
+      initials: "SF",
+      palette_index: 4,
+    },
   };
 }
 

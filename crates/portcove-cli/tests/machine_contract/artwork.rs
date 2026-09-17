@@ -12,6 +12,26 @@ fn artwork_cli_preserves_choices_and_requires_explicit_unused_removal() {
         .map(|offset| u8::from_str_radix(&encoded[offset..offset + 2], 16).unwrap())
         .collect::<Vec<_>>();
     std::fs::write(&source, &bytes).unwrap();
+    let fallback = json_stdout(&portcove(
+        &library,
+        &["--json", "artwork", "show", "zelda64-recomp"],
+    ));
+    assert_eq!(
+        fallback["data"]["resolved_source"]["kind"],
+        "generated_fallback"
+    );
+    assert_eq!(fallback["data"]["generated_fallback"]["style_version"], 1);
+    assert_eq!(fallback["data"]["generated_fallback"]["initials"], "Z6");
+    assert!(
+        fallback["data"]["generated_fallback"]["identity"]
+            .as_str()
+            .is_some_and(|identity| identity.len() == 64)
+    );
+    assert!(
+        fallback["data"]["generated_fallback"]["palette_index"]
+            .as_u64()
+            .is_some_and(|palette| palette < 6)
+    );
     let imported = portcove(
         &library,
         &[
@@ -34,6 +54,8 @@ fn artwork_cli_preserves_choices_and_requires_explicit_unused_removal() {
     assert_eq!(imported["command"], "artwork.import");
     assert_eq!(imported["data"]["choice"]["revision"], 1);
     let id = imported["data"]["choice"]["asset_sha256"].as_str().unwrap();
+    assert_eq!(imported["data"]["resolved_source"]["kind"], "local_import");
+    assert_eq!(imported["data"]["resolved_source"]["asset_sha256"], id);
     let stale = portcove(
         &library,
         &[
@@ -57,20 +79,22 @@ fn artwork_cli_preserves_choices_and_requires_explicit_unused_removal() {
         &["--json", "artwork", "show", "zelda64-recomp"],
     ));
     assert_eq!(shown["data"]["choice"], imported["data"]["choice"]);
-    assert!(
-        portcove(
-            &library,
-            &[
-                "--json",
-                "artwork",
-                "reset",
-                "zelda64-recomp",
-                "--expected-revision",
-                "1"
-            ]
-        )
-        .status
-        .success()
+    let reset = portcove(
+        &library,
+        &[
+            "--json",
+            "artwork",
+            "reset",
+            "zelda64-recomp",
+            "--expected-revision",
+            "1",
+        ],
+    );
+    assert!(reset.status.success());
+    let reset = json_stdout(&reset);
+    assert_eq!(
+        reset["data"]["generated_fallback"],
+        fallback["data"]["generated_fallback"]
     );
     let denied = portcove(
         &library,

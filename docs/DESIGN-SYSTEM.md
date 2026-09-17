@@ -74,7 +74,7 @@ Vertical navigation visits the nearest visual row before considering horizontal 
 
 Portcove targets dense desktop use and a minimum 960-pixel-wide Tauri window. At narrower supported widths, the shell reduces nonessential labels and column count before hiding technical data. Reduced-motion preference removes nonessential transitions and progress animation.
 
-## Planned game artwork
+## Game artwork
 
 [#208](https://github.com/boburning/portcove/issues/208) owns the shared artwork
 contract; [#206](https://github.com/boburning/portcove/issues/206) owns its desktop
@@ -84,6 +84,16 @@ ratios instead of silently cropping important content. Wide detail imagery is
 optional; titles, status and actions remain readable outside images, including
 generated fallback states. Logos, icons, animation and a crop editor are not
 required for this slice.
+
+The current account-free fallback is a core-owned style with a stable identity,
+initials and palette per port and slot. Desktop renders that exact result before an
+explicit local image is chosen and whenever retained local bytes are unavailable;
+it does not infer another title-based fallback. The source disclosure identifies
+the Portcove generator and exact fallback identity without claiming third-party
+artwork rights. If thumbnail transport or browser decoding fails after core resolves
+a local import, the shared display cache switches every visible consumer and its source
+disclosure to this generated fallback without changing the durable local choice.
+Catalog-selected and provider assets remain separate planned sources.
 
 Provide **Change artwork**, **Choose local image**, **Browse SteamGridDB** when
 configured, **Reset to default**, and source/author information. Reset affects

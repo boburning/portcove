@@ -794,6 +794,7 @@ h2 {
 }
 
 .continue-art {
+  --art-color: var(--color-art-blue);
   width: 68px;
   aspect-ratio: 2 / 3;
   display: grid;
@@ -802,7 +803,7 @@ h2 {
   overflow: hidden;
   border-radius: var(--radius-lg);
   color: var(--color-art-text);
-  background: var(--color-art-blue);
+  background: var(--art-color);
   font-size: var(--text-xl);
   font-weight: 900;
   letter-spacing: -0.06em;
@@ -1107,13 +1108,6 @@ h2 {
 .palette-5 {
   --art-color: var(--color-art-red);
 }
-.art-beta {
-  background: var(--color-art-yellow);
-}
-.art-rolling {
-  background: var(--color-art-blue);
-}
-
 .card-content {
   min-width: 0;
   display: flex;
@@ -1563,10 +1557,11 @@ h2 {
 }
 
 .detail-cover {
+  --art-color: var(--color-art-neutral);
   width: 6rem;
   aspect-ratio: 2 / 3;
   flex: 0 0 6rem;
-  background: var(--color-art-neutral);
+  background: var(--art-color);
   border-radius: var(--radius-md);
 }
 .detail-hero > div {
@@ -1585,9 +1580,10 @@ h2 {
   margin-block: var(--space-5);
 }
 .wide-artwork {
+  --art-color: var(--color-art-neutral);
   width: 100%;
   aspect-ratio: 16 / 9;
-  background: var(--color-art-neutral);
+  background: var(--art-color);
   border-radius: var(--radius-md);
 }
 .artwork-controls {
