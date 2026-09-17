@@ -1569,6 +1569,10 @@ describe("desktop components", () => {
     expect(filteredEmptyLibrary).not.toContain("No installed ports yet");
     expect(loading).toContain("/brand/logo/portcove-logo-v2-transparent.png");
     expect(loading).toContain('alt="Portcove"');
+    expect(loading).toContain(
+      "Loading the catalog, added game files, and installed ports from this device.",
+    );
+    expect(loading).not.toContain("shared local catalog");
   });
 
   it("keeps adapter internals out of the primary detail view", () => {
@@ -1837,6 +1841,12 @@ describe("desktop components", () => {
       channel: "stable",
       update_policy: "notify",
       active: install,
+      readiness: {
+        launchable: true,
+        blockers: [],
+        pending_setup: false,
+        source: "current",
+      },
       last_update_check: {
         checked_at: 2,
         check: {
@@ -1873,10 +1883,51 @@ describe("desktop components", () => {
         loading={false}
       />,
     );
-    expect(html).toContain("Launch ready");
+    expect(html).toContain("Ready to play");
+    expect(html).toContain("View details");
+    expect(html).toContain("Updates downloaded");
     expect(html).toContain("Update available");
     expect(html).toContain("setup and recovery options");
+    expect(html).not.toContain("Launch ready");
+    expect(html).not.toContain("Play options");
+    expect(html).not.toContain("Staged updates");
     expect(html).not.toContain("rollback-safe");
+  });
+
+  it("labels a downloaded update without exposing staging terminology", () => {
+    const install = installRecord();
+    const status: PortStatus = {
+      ...portStatus(),
+      port_id: port.id,
+      channel: "stable",
+      update_policy: "stage",
+      active: install,
+      staged: { ...install, id: "2", version: "2.0", staged: true },
+      readiness: {
+        launchable: true,
+        blockers: [],
+        pending_setup: false,
+        source: "current",
+      },
+    };
+    const html = renderToStaticMarkup(
+      <PortBrowser
+        view="library"
+        ports={[port]}
+        statuses={new Map([[port.id, status]])}
+        overview={{ installed: 1, ready: 1, needsSetup: 0, staged: 1 }}
+        filter="ready"
+        setFilter={vi.fn()}
+        onSelect={vi.fn()}
+        loading={false}
+      />,
+    );
+
+    expect(html).toContain("Update downloaded");
+    expect(html).toContain("Updates downloaded");
+    expect(html).toContain("Review update");
+    expect(html).not.toContain("Update staged");
+    expect(html).not.toContain("Staged updates");
   });
 
   it("offers Continue only from a recorded successful launch", () => {
@@ -1912,7 +1963,8 @@ describe("desktop components", () => {
     );
     expect(html).toContain("CONTINUE");
     expect(html).toContain("Play again");
-    expect(html).toContain("Last successful session");
+    expect(html).toContain("Last played");
+    expect(html).not.toContain("Last successful session");
   });
 
   it("routes Continue to setup when previously launched source bytes changed", () => {

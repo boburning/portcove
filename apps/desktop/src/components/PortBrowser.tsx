@@ -162,7 +162,7 @@ function LoadingState() {
       </div>
       <div>
         <strong>Loading your port library</strong>
-        <p>Reading the shared local catalog, sources, and install state.</p>
+        <p>Loading the catalog, added game files, and installed ports from this device.</p>
       </div>
     </section>
   );
@@ -248,7 +248,7 @@ function ContinueCard({
       <div>
         <p className="eyebrow">CONTINUE</p>
         <h2>{port.name}</h2>
-        <p className="continue-meta">Last successful session · {status.active?.version}</p>
+        <p className="continue-meta">Last played · {status.active?.version}</p>
       </div>
       <div className="continue-actions">
         <button data-focusable onClick={() => details(port.id)}>
@@ -276,7 +276,7 @@ function LibrarySummary({ overview }: { overview: LibraryOverview }) {
         </span>
         <p>
           <strong className="summary-value">{overview.ready}</strong>
-          <small>Launch ready</small>
+          <small>Ready to play</small>
         </p>
       </div>
       <div>
@@ -294,7 +294,7 @@ function LibrarySummary({ overview }: { overview: LibraryOverview }) {
         </span>
         <p>
           <strong className="summary-value">{overview.staged}</strong>
-          <small>Staged updates</small>
+          <small>Updates downloaded</small>
         </p>
       </div>
       <p className="summary-note">
@@ -389,7 +389,7 @@ function readinessPresentation(readiness: PortReadiness) {
       action: "View details",
       tone: "available",
     },
-    ready: { label: "Launch ready", action: "Play options", tone: "ready" },
+    ready: { label: "Ready to play", action: "View details", tone: "ready" },
     source: { label: "Source required", action: "Finish setup", tone: "setup" },
     repair: {
       label: "Installation needs repair",
@@ -403,7 +403,7 @@ function readinessPresentation(readiness: PortReadiness) {
     },
     bios: { label: "BIOS required", action: "Finish setup", tone: "setup" },
     setup: { label: "Setup required", action: "Finish setup", tone: "setup" },
-    staged: { label: "Update staged", action: "Review update", tone: "staged" },
+    staged: { label: "Update downloaded", action: "Review update", tone: "staged" },
     unknown: {
       label: "Readiness unavailable",
       action: "Review game",
