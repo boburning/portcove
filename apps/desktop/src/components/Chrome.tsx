@@ -231,18 +231,18 @@ function pageCopy(view: View, portCount: number) {
     catalog: {
       eyebrow: "PORT CATALOG",
       title: "Find a native port",
-      description: `Explore ${portCount} curated decomps and recompilations with explicit release provenance.`,
+      description: `Explore ${portCount} native game ports and recompilations available through Portcove. Keep original game files local, review updates, and restore previous versions.`,
     },
     updates: {
       eyebrow: "UPDATES",
       title: "Keep every port current",
-      description: "See every version decision, staged release, and failure in one place.",
+      description: "Review available updates, downloaded releases, and failed checks in one place.",
     },
     settings: {
       eyebrow: "SETTINGS",
       title: "Portcove settings",
       description:
-        "Control appearance, authentication, source integrity, and local storage boundaries.",
+        "Manage appearance, GitHub sign-in, game-file verification, and library storage.",
     },
   };
   return copy[view];
@@ -545,16 +545,19 @@ function GithubConnection({ status }: { status?: GithubAuthStatus }) {
         </span>
       </div>
       <p>
-        {githubQuota(status)}. Authentication raises GitHub's allowance and makes unchanged
-        conditional checks free of the primary limit.
+        {!connected && "Sign in to GitHub for a higher release-check limit. "}
+        {githubQuota(status)}.
       </p>
+      <small>
+        Repeated checks for an unchanged GitHub release may not use the primary request limit.
+      </small>
     </>
   );
 }
 
 function githubQuota(status?: GithubAuthStatus) {
-  if (!status?.rate_limit) return "Rate allowance unavailable";
-  return `${status.rate_limit.remaining.toLocaleString()} of ${status.rate_limit.limit.toLocaleString()} requests remaining`;
+  if (!status?.rate_limit) return "GitHub request limit unavailable";
+  return `${status.rate_limit.remaining.toLocaleString()} of ${status.rate_limit.limit.toLocaleString()} GitHub requests remaining`;
 }
 
 function DeviceLogin({ login }: { login?: GithubDeviceLogin }) {
@@ -601,17 +604,19 @@ function GithubActions({ github, busy }: { github?: GithubSettingsActions; busy:
   const status = github?.status;
   return (
     <div className="actions compact">
-      {!status?.authenticated && status?.source !== "environment" && (
-        <button
-          data-focusable
-          disabled={busy || !status?.device_login_available}
-          onClick={() => {
-            void github?.beginDeviceLogin();
-          }}
-        >
-          Sign in with GitHub
-        </button>
-      )}
+      {!status?.authenticated &&
+        status?.source !== "environment" &&
+        status?.device_login_available && (
+          <button
+            data-focusable
+            disabled={busy}
+            onClick={() => {
+              void github?.beginDeviceLogin();
+            }}
+          >
+            Sign in with GitHub
+          </button>
+        )}
       {status?.source === "credential_store" && (
         <button
           data-focusable
@@ -652,11 +657,11 @@ function GithubNotes({ status }: { status?: GithubAuthStatus }) {
         anonymously.
       </small>
     );
-  if (!status?.device_login_available && !status?.authenticated)
+  if (status && !status.device_login_available && !status.authenticated)
     return (
       <small>
-        Device login needs a Portcove GitHub App client ID in this build. Token and anonymous modes
-        remain available.
+        This version of Portcove does not support GitHub device sign-in. Continue anonymously or use
+        a personal access token.
       </small>
     );
   return null;
@@ -667,7 +672,7 @@ function GithubSettings({ github, busy }: { github?: GithubSettingsActions; busy
     <article className="settings-card github-auth" data-focus-group>
       <p className="eyebrow">GITHUB</p>
       <GithubConnection status={github?.status} />
-      <DeviceLogin login={github?.deviceLogin} />
+      {github?.status?.device_login_available && <DeviceLogin login={github.deviceLogin} />}
       <TokenEntry github={github} busy={!!busy} />
       <GithubActions github={github} busy={!!busy} />
       <GithubNotes status={github?.status} />
@@ -1005,8 +1010,8 @@ function AboutCard() {
         <p className="eyebrow">ABOUT &amp; CREDITS</p>
         <h2>One harbor for native ports</h2>
         <p>
-          Portcove keeps the desktop and CLI on the same reviewed catalog, local sources, managed
-          versions, and recovery-safe history.
+          Portcove keeps the desktop and CLI in sync across the catalog, game files, installed
+          versions, and recovery history.
         </p>
         <dl className="about-facts">
           <div>
@@ -1612,12 +1617,12 @@ function StorageCard({
         <div className="storage-capacity">
           <div>
             <strong>{formatBytes(available)} available</strong>
-            <span>{formatBytes(total)} volume</span>
+            <span>{formatBytes(total)} total storage capacity</span>
           </div>
           <div
             className="storage-meter"
             role="meter"
-            aria-label="Available library storage"
+            aria-label="Available capacity on the library volume"
             aria-valuemin={0}
             aria-valuemax={total}
             aria-valuenow={available}
@@ -1629,8 +1634,8 @@ function StorageCard({
         <p>Storage capacity is unavailable for this location.</p>
       )}
       <p>
-        <Icon glyph={ShieldCheck} size="sm" /> Application versions are isolated from saves,
-        configuration, mods, and original sources.
+        <Icon glyph={ShieldCheck} size="sm" /> Installed application files are kept separate from
+        saves and settings.
       </p>
       <button
         data-focusable
@@ -1643,8 +1648,8 @@ function StorageCard({
         Export metadata
       </button>
       <p>
-        Export source references and version settings. Game files, saves, backups, toolchains, and
-        credentials are not included.
+        Export saved game-file locations and installed-version settings. Game files, saves, backups,
+        toolchains, and credentials are not included.
       </p>
       {exported && (
         <p role="status">
