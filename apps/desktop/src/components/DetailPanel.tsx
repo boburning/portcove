@@ -929,7 +929,7 @@ function originalSourceField(mode: "missing" | "registered", controls: SourceCon
   if (!profileId || controls.sourceReady !== (mode === "registered")) return null;
   return (
     <SourceField
-      heading="Original source"
+      heading="Game files"
       profileId={profileId}
       profile={controls.sourceProfile}
       source={controls.source}
@@ -1094,7 +1094,8 @@ function SourceField({
   pickArchive?: () => void;
   openEvidence?: (evidenceId: string) => void;
 }) {
-  const copy = sourceFieldCopy(profile);
+  const bios = heading === "Required BIOS";
+  const copy = sourceFieldCopy(profile, bios);
   const selectedOverride = Boolean(path.trim()) && (!source || path !== source.path);
   const sourceNote = selectedOverride
     ? "Selected path has not been checked. Portcove validates these files when you continue."
@@ -1118,13 +1119,13 @@ function SourceField({
         {pick && (
           <button data-focusable className="button-with-icon" type="button" onClick={pick}>
             <Icon glyph={FolderOpen} />
-            Browse
+            {bios ? "Choose BIOS file" : "Choose game files"}
           </button>
         )}
         {pickArchive && (
           <button data-focusable className="button-with-icon" type="button" onClick={pickArchive}>
             <Icon glyph={FileArchive} />
-            ZIP
+            Choose ZIP file
           </button>
         )}
       </div>
@@ -1150,20 +1151,22 @@ function sourceHealthNote(health: SourceHealth | null | undefined, source: Sourc
   return `Registered · ${hash}`;
 }
 
-function sourceFieldCopy(profile?: SourceProfile) {
+function sourceFieldCopy(profile: SourceProfile | undefined, bios: boolean) {
   if (profile?.kind === "file-set")
     return {
-      placeholder: "Choose or paste the folder or ZIP containing the required sources",
-      note: "Select one exact source folder or ZIP; never uploaded.",
+      placeholder: "Choose the folder or ZIP file that contains the required game files",
+      note: "Portcove checks this location without uploading or changing it.",
     };
   if (profile?.kind === "psx-disc" && (profile.disc?.discs?.length ?? 0) > 1)
     return {
-      placeholder: "Choose or paste the folder containing the required sources",
-      note: "Select one folder containing exactly the required source set; never uploaded.",
+      placeholder: "Choose the folder that contains all required game discs",
+      note: "Portcove checks this folder without uploading or changing it.",
     };
   return {
-    placeholder: "Choose or paste the full source file path",
-    note: "Referenced in place; never uploaded.",
+    placeholder: bios ? "Choose the required BIOS file" : "Choose the required game file",
+    note: bios
+      ? "Portcove uses this BIOS file in place and never uploads or changes it."
+      : "Portcove uses this game file in place and never uploads or changes it.",
   };
 }
 
@@ -1259,11 +1262,11 @@ function InstallAction({
         <button
           data-focusable
           className="primary wide button-with-icon"
-          title="Choose every required source before installing"
+          title="Add all required game files before installing"
           disabled
         >
           <Icon glyph={AlertTriangle} />
-          Choose required source
+          Choose game files
         </button>
       </div>
     );
@@ -1518,9 +1521,9 @@ function detailState(
           tone: "setup",
           icon: Wrench,
         };
-  const sourceIssue = sourceHealthState("Original source", sourceHealth);
+  const sourceIssue = sourceHealthState("game", sourceHealth);
   if (sourceIssue) return sourceIssue;
-  const biosIssue = sourceHealthState("Required BIOS", biosHealth);
+  const biosIssue = sourceHealthState("bios", biosHealth);
   if (biosIssue) return biosIssue;
   if (
     pendingSetup &&
@@ -1572,25 +1575,34 @@ function detailState(
   };
 }
 
-function sourceHealthState(label: string, health?: SourceHealth | null) {
+function sourceHealthState(kind: "game" | "bios", health?: SourceHealth | null) {
+  const label = kind === "bios" ? "Required BIOS file" : "Game files";
+  const chooseAgain =
+    kind === "bios"
+      ? "Choose and add the required BIOS file again before playing."
+      : "Choose and add the game files again before playing.";
+  const restoreAccess =
+    kind === "bios"
+      ? "Restore access to the required BIOS file or add it again before playing."
+      : "Restore access to the game files or add them again before playing.";
   if (health === "changed")
     return {
       title: `${label} changed`,
-      description: `Choose and register ${label.toLowerCase()} again before play.`,
+      description: chooseAgain,
       tone: "setup",
       icon: AlertTriangle,
     };
   if (health === "missing")
     return {
       title: `${label} missing`,
-      description: `Choose and register ${label.toLowerCase()} again before play.`,
+      description: chooseAgain,
       tone: "setup",
       icon: AlertTriangle,
     };
   if (health === "unreadable")
     return {
       title: `${label} unreadable`,
-      description: `Restore access to ${label.toLowerCase()} or register it again before play.`,
+      description: restoreAccess,
       tone: "setup",
       icon: AlertTriangle,
     };

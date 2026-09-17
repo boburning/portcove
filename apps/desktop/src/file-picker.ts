@@ -31,7 +31,7 @@ export async function pickSourcePath(profile: SourceProfile, currentPath: string
     directory,
     defaultPath: currentPath || undefined,
     filters:
-      !directory && extensions.length ? [{ name: "Original game source", extensions }] : undefined,
+      !directory && extensions.length ? [{ name: "Original game file", extensions }] : undefined,
   });
 }
 
@@ -40,7 +40,7 @@ export function pickSourceArchivePath(currentPath: string) {
     multiple: false,
     directory: false,
     defaultPath: currentPath || undefined,
-    filters: [{ name: "ZIP source set", extensions: ["zip"] }],
+    filters: [{ name: "ZIP file containing required game files", extensions: ["zip"] }],
   });
 }
 

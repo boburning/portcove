@@ -32,7 +32,7 @@ describe("native path pickers", () => {
       multiple: false,
       directory: false,
       defaultPath: "D:/Sources/old.z64",
-      filters: [{ name: "Original game source", extensions: ["z64", "n64", "zip"] }],
+      filters: [{ name: "Original game file", extensions: ["z64", "n64", "zip"] }],
     });
   });
 
@@ -51,7 +51,7 @@ describe("native path pickers", () => {
       multiple: false,
       directory: false,
       defaultPath: undefined,
-      filters: [{ name: "Original game source", extensions: ["chd"] }],
+      filters: [{ name: "Original game file", extensions: ["chd"] }],
     });
   });
 
@@ -129,7 +129,7 @@ describe("native path pickers", () => {
       multiple: false,
       directory: false,
       defaultPath: undefined,
-      filters: [{ name: "ZIP source set", extensions: ["zip"] }],
+      filters: [{ name: "ZIP file containing required game files", extensions: ["zip"] }],
     });
   });
 

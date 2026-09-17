@@ -574,11 +574,41 @@ describe("desktop components", () => {
         }}
       />,
     );
-    expect(html).toContain("Original source changed");
+    expect(html).toContain("Game files changed");
+    expect(html).toContain("Choose and add the game files again before playing.");
     expect(html).toContain("Registered source changed since it was added");
     expect(html).toContain("Play unavailable");
     expect(html).not.toContain("Play now");
   });
+
+  it("uses player-facing BIOS recovery copy before playing", () => {
+    const html = renderToStaticMarkup(
+      <DetailPanel
+        port={{ ...port, bios_source_profile: "psx-bios" }}
+        sourcePath="source.z64"
+        setSourcePath={vi.fn()}
+        actions={actions}
+        status={{
+          ...portStatus(),
+          port_id: port.id,
+          channel: "stable",
+          update_policy: "notify",
+          active: installRecord(),
+          readiness: {
+            launchable: false,
+            blockers: ["changed_bios"],
+            pending_setup: false,
+            bios: "changed",
+          },
+        }}
+      />,
+    );
+    expect(html).toContain("Required BIOS file changed");
+    expect(html).toContain("Choose and add the required BIOS file again before playing.");
+    expect(html).toContain("Play unavailable");
+    expect(html).not.toContain("Play now");
+  });
+
   it("shows the reviewed adoption copy plan and skipped entries before copying", () => {
     const html = renderToStaticMarkup(
       <AdoptionModal
@@ -1508,11 +1538,14 @@ describe("desktop components", () => {
     const buttonLabels = [...installed.matchAll(/<button\b[^>]*>(.*?)<\/button>/gs)].map(
       ([, content]) => content.replaceAll(/<[^>]+>/g, "").trim(),
     );
-    expect(uninstalled).toContain("Choose required source");
-    expect(uninstalled).toContain("Choose every required source before installing");
+    expect(uninstalled).toContain("Choose game files");
+    expect(uninstalled).toContain("Add all required game files before installing");
+    expect(uninstalled).toContain("Choose the required game file");
+    expect(uninstalled).toContain(
+      "Portcove uses this game file in place and never uploads or changes it.",
+    );
     expect(sourceFree).toContain("Review install");
-    expect(sourceFree).not.toContain("Choose required source");
-    expect(uninstalled).toContain("Browse");
+    expect(sourceFree).not.toContain("Choose game files");
     expect(installed).toContain("Play");
     expect(buttonLabels).toContain("Check for updates");
     expect(installed).toContain("Open data folder");
@@ -1761,12 +1794,63 @@ describe("desktop components", () => {
       />,
     );
     expect(html).toContain("Three-disc set");
-    expect(html).toContain("folder containing the required sources");
-    expect(html).toContain("exactly the required source set");
+    expect(html).toContain("Choose the folder that contains all required game discs");
+    expect(html).toContain("Portcove checks this folder without uploading or changing it.");
+    expect(html).toContain("Choose game files");
+  });
+
+  it("explains folder and ZIP choices for an exact game-file set", () => {
+    const html = renderToStaticMarkup(
+      <DetailPanel
+        port={port}
+        sourceProfile={{
+          ...sourceProfile(),
+          id: "sample-rom",
+          label: "Required game-file set",
+          kind: "file-set",
+          accepted_extensions: [],
+          members: [],
+        }}
+        sourcePath=""
+        setSourcePath={vi.fn()}
+        pickSource={vi.fn()}
+        pickSourceArchive={vi.fn()}
+        actions={actions}
+      />,
+    );
+    expect(html).toContain("Choose the folder or ZIP file that contains the required game files");
+    expect(html).toContain("Portcove checks this location without uploading or changing it.");
+    expect(html).toContain("Choose game files");
+    expect(html).toContain("Choose ZIP file");
   });
 
   it("renders an independently selectable required BIOS", () => {
-    const html = renderToStaticMarkup(
+    const unselected = renderToStaticMarkup(
+      <DetailPanel
+        port={{ ...port, bios_source_profile: "psx-bios" }}
+        sourcePath="game.chd"
+        setSourcePath={vi.fn()}
+        biosPath=""
+        setBiosPath={vi.fn()}
+        pickBios={vi.fn()}
+        biosProfile={{
+          ...sourceProfile(),
+          id: "psx-bios",
+          label: "PlayStation SCPH-1001 BIOS",
+          accepted_extensions: ["bin"],
+        }}
+        actions={actions}
+      />,
+    );
+    expect(unselected).toContain("Required BIOS");
+    expect(unselected).toContain("PlayStation SCPH-1001 BIOS");
+    expect(unselected).toContain("Choose the required BIOS file");
+    expect(unselected).toContain(
+      "Portcove uses this BIOS file in place and never uploads or changes it.",
+    );
+    expect(unselected).toContain("Choose BIOS file");
+
+    const selected = renderToStaticMarkup(
       <DetailPanel
         port={{ ...port, bios_source_profile: "psx-bios" }}
         sourcePath="game.chd"
@@ -1783,9 +1867,13 @@ describe("desktop components", () => {
         actions={actions}
       />,
     );
-    expect(html).toContain("Required BIOS");
-    expect(html).toContain("PlayStation SCPH-1001 BIOS");
-    expect(html).toContain("scph1001.bin");
+    expect(selected).toContain("scph1001.bin");
+    expect(selected).toContain(
+      "Selected path has not been checked. Portcove validates these files when you continue.",
+    );
+    expect(selected).not.toContain(
+      "Portcove uses this BIOS file in place and never uploads or changes it.",
+    );
   });
 
   it("offers activation when an update is staged", () => {
