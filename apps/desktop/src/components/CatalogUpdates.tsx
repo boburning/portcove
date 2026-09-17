@@ -59,10 +59,54 @@ function CatalogOrigin({ provenance }: { provenance?: CatalogProvenance }) {
         <p>Valid until {new Date(provenance.expires_at * 1000).toLocaleString()}.</p>
       )}
       {provenance.fallback_reasons.map((reason, index) => (
-        <p key={`${index}:${reason}`}>Update unavailable: {reason}</p>
+        <CatalogFallbackReason
+          key={`${index}:${reason}`}
+          reason={reason}
+          position={index + 1}
+          count={provenance.fallback_reasons.length}
+        />
       ))}
     </>
   );
+}
+
+function CatalogFallbackReason({
+  reason,
+  position,
+  count,
+}: {
+  reason: string;
+  position: number;
+  count: number;
+}) {
+  return (
+    <div className="catalog-fallback-reason">
+      <p>{catalogFallbackSummary(reason)}</p>
+      <details>
+        <summary
+          data-focusable
+          aria-label={`Technical details for catalog fallback ${position} of ${count}`}
+        >
+          Technical details
+        </summary>
+        <code>{reason}</code>
+      </details>
+    </div>
+  );
+}
+
+function catalogFallbackSummary(reason: string) {
+  if (reason.includes("selected definition was not loaded"))
+    return "The selected catalog definition could not be loaded. Portcove continued with the available catalog information.";
+  if (reason.includes("replay floor"))
+    return "A saved catalog did not match the accepted update sequence. Portcove continued with the available catalog information.";
+  if (reason.includes("signing key is not trusted"))
+    return "A saved catalog was signed by a publisher that is no longer trusted. Portcove continued with the available catalog information.";
+  if (reason.includes("signature verification failed"))
+    return "A saved catalog did not pass signature verification. Portcove continued with the available catalog information.";
+  if (reason.includes("validity interval"))
+    return "A saved catalog was expired or had invalid dates. Portcove continued with the available catalog information.";
+  return "A saved catalog could not be used. Portcove continued with the available catalog information.";
 }
 
 function CatalogUpdatesDialog({
@@ -171,10 +215,10 @@ function PublisherTrust({ status, busy, run, changed }: CatalogActions) {
     <>
       <h3>Trusted publishers</h3>
       <p>
-        Use a publisher’s public key that you have verified with them. Trust allows that publisher
-        to change release download locations.
+        Verify the publisher key through a trusted channel. Trust allows that publisher to change
+        release download locations.
       </p>
-      {status.trusted_keys.length === 0 && <p>No publishers configured.</p>}
+      {status.trusted_keys.length === 0 && <p>No trusted publishers.</p>}
       {status.trusted_keys.map((key) => (
         <div className="source-health-row" key={key.key_id}>
           <div>
@@ -190,7 +234,7 @@ function PublisherTrust({ status, busy, run, changed }: CatalogActions) {
               );
             }}
           >
-            Remove trust
+            Stop trusting
           </button>
         </div>
       ))}
@@ -305,15 +349,39 @@ function CatalogReview({
       </button>
       {plan && (
         <section aria-label="Catalog update review">
-          <h3>Verified version {plan.sequence}</h3>
+          <h3>Catalog update ready</h3>
           <p>
-            {plan.changed_port_ids.length} ports change. Valid until{" "}
-            {new Date(plan.expires_at * 1000).toLocaleString()}.
+            <strong>Catalog signature valid</strong>
           </p>
           <p>
-            Publisher fingerprint: <code>{plan.key_id}</code>
+            <strong>Signed by</strong> <code>{plan.key_id}</code>
           </p>
-          <p>{plan.changed_port_ids.join(", ") || "No port metadata changes."}</p>
+          <p>
+            <strong>Publisher trusted</strong>
+          </p>
+          <p>
+            <strong>Sequence {plan.sequence} accepted</strong>
+          </p>
+          <p>Valid until {new Date(plan.expires_at * 1000).toLocaleString()}.</p>
+          <p>{catalogChangeSummary(plan.changed_port_ids.length)}</p>
+          <details>
+            <summary
+              data-focusable
+              aria-label={`Technical details for catalog update sequence ${plan.sequence}`}
+            >
+              Technical details
+            </summary>
+            <dl>
+              <dt>Changed port IDs</dt>
+              <dd>
+                <code>{plan.changed_port_ids.join(", ") || "None"}</code>
+              </dd>
+              <dt>Envelope SHA-256</dt>
+              <dd>
+                <code>{plan.envelope_sha256}</code>
+              </dd>
+            </dl>
+          </details>
           <button
             data-focusable
             className="primary"
@@ -334,12 +402,18 @@ function CatalogReview({
               });
             }}
           >
-            Apply reviewed update
+            Apply catalog update
           </button>
         </section>
       )}
     </>
   );
+}
+
+function catalogChangeSummary(count: number) {
+  if (count === 0) return "No port information will change.";
+  if (count === 1) return "1 port will change.";
+  return `${count.toLocaleString()} ports will change.`;
 }
 
 function CatalogSelection({ status, busy, run, changed }: CatalogActions) {
