@@ -165,18 +165,7 @@ export function BootstrapRecovery({
       {error.presentation ? (
         <FailureDetails presentation={error.presentation} code={error.code} />
       ) : (
-        <dl>
-          <div>
-            <dt>Error code</dt>
-            <dd>{error.code}</dd>
-          </div>
-          {Object.entries(error.details).map(([key, value]) => (
-            <div key={key}>
-              <dt>{key}</dt>
-              <dd>{value}</dd>
-            </div>
-          ))}
-        </dl>
+        <StartupTechnicalDetails error={error} />
       )}
       <p>
         Review the error details, then retry startup. If the current library is the cause, you can
@@ -208,6 +197,49 @@ export function BootstrapRecovery({
       {importRoot && <LibraryImportRecovery destination={importRoot} />}
     </main>
   );
+}
+
+function StartupTechnicalDetails({ error }: { error: StartupFailure }) {
+  return (
+    <details>
+      <summary data-focusable>Technical details</summary>
+      <dl>
+        <div>
+          <dt>Error code</dt>
+          <dd>{error.code}</dd>
+        </div>
+        {Object.entries(error.details).map(([key, value]) => {
+          const label = startupDetailLabel(key);
+          return (
+            <div key={key}>
+              <dt>{label ?? <code>{key}</code>}</dt>
+              <dd>{value}</dd>
+            </div>
+          );
+        })}
+      </dl>
+    </details>
+  );
+}
+
+function startupDetailLabel(key: string) {
+  const labels: Record<string, string> = {
+    path: "Path",
+    library_root: "Library folder",
+    lock_path: "Library lock file",
+    cause: "Cause",
+    expected_version: "Expected version",
+    actual_version: "Actual version",
+    library_schema_version: "Library format version",
+    supported_schema_version: "Supported library format version",
+    migration_version: "Migration version",
+    migration_name: "Migration",
+    recovery_action: "Recovery action",
+    transfer_id: "Transfer ID",
+    import_destination: "Import destination",
+    retained_source: "Original library folder",
+  };
+  return Object.hasOwn(labels, key) ? labels[key] : undefined;
 }
 
 function Workspace({
