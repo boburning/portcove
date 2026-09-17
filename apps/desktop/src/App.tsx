@@ -24,6 +24,7 @@ import {
   pickMetadataExportPath,
   pickSourceArchivePath,
   pickSourcePath,
+  type SourcePickerPurpose,
 } from "./file-picker";
 import { desktopApi } from "./api";
 import { useWorkspaceScroll } from "./keyboard-shortcuts";
@@ -287,7 +288,14 @@ function Workspace({
       const profile = data.catalog?.source_profiles?.find(
         (candidate) => candidate.id === profileId,
       );
-      if (port && profile) setSourceIntake({ portId, portName: port.name, profile, paths });
+      if (port && profile)
+        setSourceIntake({
+          portId,
+          portName: port.name,
+          profile,
+          purpose: port.bios_source_profile === profileId ? "bios" : "game",
+          paths,
+        });
     },
     [data.catalog],
   );
@@ -680,11 +688,23 @@ function CurrentView({
           const profile = data.catalog?.source_profiles?.find(
             (candidate) => candidate.id === source.profile_id,
           );
-          void replaceRegisteredSource(profile, source, operations.perform, operations.setError);
+          void replaceRegisteredSource(
+            profile,
+            source,
+            sourcePickerPurpose(source.profile_id, data.catalog?.ports ?? []),
+            operations.perform,
+            operations.setError,
+          );
         }}
         sourceNeeds={model.sourceNeeds}
         addSource={(profile, archive) => {
-          void addRequiredSource(profile, archive, operations.perform, operations.setError);
+          void addRequiredSource(
+            profile,
+            archive,
+            sourcePickerPurpose(profile.id, data.catalog?.ports ?? []),
+            operations.perform,
+            operations.setError,
+          );
         }}
       />
     );
@@ -757,7 +777,7 @@ function SelectedPortPanel({
   const pickBios = model.biosProfile
     ? () => {
         void applyPathChoice(
-          pickSourcePath(model.biosProfile!, ui.biosPath),
+          pickSourcePath(model.biosProfile!, ui.biosPath, "bios"),
           ui.setBiosPath,
           operations.setError,
         );
@@ -897,6 +917,7 @@ async function applyPathChoice(
 async function replaceRegisteredSource(
   profile: SourceProfile | undefined,
   source: SourceRecord,
+  purpose: SourcePickerPurpose,
   perform: Perform,
   setError: (error?: string) => void,
 ) {
@@ -905,7 +926,7 @@ async function replaceRegisteredSource(
     return;
   }
   try {
-    const path = await pickSourcePath(profile, source.path);
+    const path = await pickSourcePath(profile, source.path, purpose);
     if (path)
       await perform("relink source", async () => {
         const plan = await desktopApi.planSourceRelink(profile.id, path);
@@ -919,13 +940,23 @@ async function replaceRegisteredSource(
 async function addRequiredSource(
   profile: SourceProfile,
   archive: boolean,
+  purpose: SourcePickerPurpose,
   perform: Perform,
   setError: (error?: string) => void,
 ) {
   try {
-    const path = await (archive ? pickSourceArchivePath("") : pickSourcePath(profile, ""));
+    const path = await (archive
+      ? pickSourceArchivePath("", purpose)
+      : pickSourcePath(profile, "", purpose));
     if (path) await perform("add source", () => desktopApi.addSource(profile.id, path));
   } catch (value) {
     setError(errorText(value));
   }
+}
+
+function sourcePickerPurpose(
+  profileId: string,
+  ports: readonly PortDefinition[],
+): SourcePickerPurpose {
+  return ports.some((port) => port.bios_source_profile === profileId) ? "bios" : "game";
 }

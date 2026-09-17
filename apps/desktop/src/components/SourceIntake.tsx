@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { FileSearch } from "lucide-react";
 import { desktopApi } from "../api";
 import { useDialogFocus } from "../dialog";
-import { pickSourcePath } from "../file-picker";
+import { pickSourcePath, type SourcePickerPurpose } from "../file-picker";
 import type {
   HostToolStatus,
   SourceImportMode,
@@ -24,6 +24,7 @@ export interface SourceIntakeRequest {
   portId: string;
   portName: string;
   profile: SourceProfile;
+  purpose: SourcePickerPurpose;
   paths: string[];
 }
 
@@ -36,11 +37,41 @@ interface SourceIntakeDialogProps {
   hostToolActions?: HostToolActions;
 }
 
+function sourceIntakeCopy(purpose: SourcePickerPurpose) {
+  if (purpose === "bios")
+    return {
+      eyebrow: "BIOS FILE CHECK",
+      title: (portName: string) => `Check BIOS for ${portName}`,
+      description:
+        "Portcove checks the selected BIOS file for this game only. Checking does not install, register, copy, move, replace, or delete anything.",
+      checking: "Checking BIOS file…",
+      choose: "Choose BIOS file to check",
+      resultLabel: "BIOS file check result",
+      unchanged: "Your selected BIOS file remains unchanged.",
+      addLabel: "Add checked BIOS file",
+      addExplanation:
+        "Checking is complete. Choose a separate action only if you want Portcove to add this BIOS file.",
+    };
+  return {
+    eyebrow: "GAME FILE CHECK",
+    title: (portName: string) => `Check files for ${portName}`,
+    description:
+      "Portcove checks the selected files for this game only. Checking does not install, register, copy, move, replace, or delete anything.",
+    checking: "Checking game files…",
+    choose: "Choose game files to check",
+    resultLabel: "Game file check result",
+    unchanged: "Your selected game files remain unchanged.",
+    addLabel: "Add checked game files",
+    addExplanation:
+      "Checking is complete. Choose a separate action only if you want Portcove to add these files.",
+  };
+}
+
 export function SourceIntakeDialog(props: SourceIntakeDialogProps) {
   const { request } = props;
   return (
     <SourceIntakeSession
-      key={`${request.portId}:${request.profile.id}:${JSON.stringify(request.paths)}`}
+      key={`${request.portId}:${request.profile.id}:${request.purpose}:${JSON.stringify(request.paths)}`}
       {...props}
     />
   );
@@ -54,9 +85,10 @@ function SourceIntakeSession({
   hostTools = [],
   hostToolActions,
 }: SourceIntakeDialogProps) {
+  const copy = sourceIntakeCopy(request.purpose);
   const [result, setResult] = useState<SourceIntakeInspection>();
   const [plan, setPlan] = useState<SourceImportPlan>();
-  const [busy, setBusy] = useState(request.paths.length > 0 ? "Checking game files…" : "");
+  const [busy, setBusy] = useState(request.paths.length > 0 ? copy.checking : "");
   const [error, setError] = useState<string>();
   const [notice, setNotice] = useState<string>();
   const [selectedPaths, setSelectedPaths] = useState(request.paths);
@@ -86,14 +118,14 @@ function SourceIntakeSession({
       const current = ++intent.current;
       selectedPathsRef.current = paths;
       setSelectedPaths(paths);
-      setBusy("Checking game files…");
+      setBusy(copy.checking);
       setError(undefined);
       setNotice(undefined);
       setPlan(undefined);
       setResult(undefined);
       await loadInspection(paths, current);
     },
-    [loadInspection],
+    [copy.checking, loadInspection],
   );
 
   useEffect(() => {
@@ -119,7 +151,7 @@ function SourceIntakeSession({
   const choose = async () => {
     setError(undefined);
     try {
-      const path = await pickSourcePath(request.profile, selectedPaths[0] ?? "");
+      const path = await pickSourcePath(request.profile, selectedPaths[0] ?? "", request.purpose);
       if (path) await inspect([path]);
       else setNotice("File selection cancelled. Nothing was changed.");
     } catch (value) {
@@ -207,12 +239,9 @@ function SourceIntakeSession({
         aria-modal="true"
         aria-labelledby="source-intake-title"
       >
-        <p className="eyebrow">GAME FILE CHECK</p>
-        <h2 id="source-intake-title">Check files for {request.portName}</h2>
-        <p className="modal-description">
-          Portcove checks the selected files for this game only. Checking does not install,
-          register, copy, move, replace, or delete anything.
-        </p>
+        <p className="eyebrow">{copy.eyebrow}</p>
+        <h2 id="source-intake-title">{copy.title(request.portName)}</h2>
+        <p className="modal-description">{copy.description}</p>
         <NavigationHints />
         <div className="source-intake-picker">
           <button
@@ -226,13 +255,13 @@ function SourceIntakeSession({
             }}
           >
             <Icon glyph={FileSearch} />
-            Choose game files to check
+            {copy.choose}
           </button>
           <small>{request.profile.label}</small>
         </div>
         {busy && <p role="status">{busy}</p>}
         {result && (
-          <section className="source-intake-result" aria-label="Game file check result">
+          <section className="source-intake-result" aria-label={copy.resultLabel}>
             {!result.report && (
               <>
                 <p className="source-intake-summary" role="status">
@@ -255,7 +284,7 @@ function SourceIntakeSession({
                 <h3>Preparation tool needed</h3>
                 <p>
                   This source format needs {requiredTool.display_name} before Portcove can finish
-                  checking it. Your selected game files remain unchanged.
+                  checking it. {copy.unchanged}
                 </p>
                 <HostToolRow
                   tool={requiredTool}
@@ -266,11 +295,8 @@ function SourceIntakeSession({
               </section>
             )}
             {candidate && !plan && (
-              <div className="source-intake-actions" aria-label="Add checked game files">
-                <p>
-                  Checking is complete. Choose a separate action only if you want Portcove to add
-                  these files.
-                </p>
+              <div className="source-intake-actions" aria-label={copy.addLabel}>
+                <p>{copy.addExplanation}</p>
                 <div className="actions">
                   <button
                     data-focusable

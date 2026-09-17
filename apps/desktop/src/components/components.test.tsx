@@ -19,6 +19,13 @@ import { RecoveryReview } from "./RecoveryReview";
 import { AdoptionModal } from "./AdoptionModal";
 import { applyOperationEvent, mostRecentOperation } from "../operation-state";
 import { OperationCancellation } from "./OperationCancellation";
+import embeddedCatalog from "../../../../crates/portcove-core/catalog/catalog.json";
+
+function currentCatalogPort(id: string): PortDefinition {
+  const serialized = embeddedCatalog.ports.find((candidate) => candidate.id === id);
+  if (!serialized) throw new Error(`Missing embedded catalog port ${id}`);
+  return { ...portDefinition(), ...serialized } as unknown as PortDefinition;
+}
 
 const port: PortDefinition = {
   ...portDefinition(),
@@ -49,6 +56,34 @@ const port: PortDefinition = {
   },
   release: portDefinition().release,
   executable_hints: {},
+};
+const biosPort = currentCatalogPort("mortal-kombat-4-recompiled");
+const psxBiosProfile = {
+  ...sourceProfile(),
+  id: "psx-scph-1001-bios",
+  label: "PlayStation SCPH-1001 BIOS",
+  accepted_extensions: ["bin", "rom"],
+  accepted_sha1: ["10155d8d6e6e832d6ea66db9bc098321fb5e8ebf"],
+  accepted_sha256: ["71af94d1e47a68c11e8fdb9f8368040601514a42a5a399cda48c7d3bff1e99d3"],
+};
+const mortalKombat4Profile = {
+  ...sourceProfile(),
+  id: "mortal-kombat-4-psx",
+  label: "Mortal Kombat 4 (USA) disc",
+  kind: "psx-disc" as const,
+  accepted_extensions: ["chd"],
+  accepted_sha1: ["21515cdd9829521a2db76a83300b77e83855fa88"],
+  accepted_sha256: ["c43311155c03f7f9c23e7228bbf8874a5fdaa0984dbbefa356e5899eb40038a3"],
+  disc: { track_counts: [23], discs: [] },
+};
+const mortalKombat4Source = {
+  profile_id: mortalKombat4Profile.id,
+  path: "game.chd",
+  sha256: mortalKombat4Profile.accepted_sha256[0],
+  size: 1,
+  storage_sha256: mortalKombat4Profile.accepted_sha256[0],
+  storage_size: 1,
+  updated_at: 1,
 };
 const actions: DetailActions = {
   activate: vi.fn(),
@@ -574,11 +609,58 @@ describe("desktop components", () => {
         }}
       />,
     );
-    expect(html).toContain("Original source changed");
-    expect(html).toContain("Registered source changed since it was added");
+    expect(html).toContain("Game files changed");
+    expect(html).toContain("Choose and add the game files again before playing.");
+    expect(html).toContain("Registered game files changed since they were added");
     expect(html).toContain("Play unavailable");
     expect(html).not.toContain("Play now");
   });
+
+  it("uses player-facing BIOS recovery copy before playing", () => {
+    const bios = {
+      profile_id: "psx-scph-1001-bios",
+      path: "scph1001.bin",
+      sha256: "a".repeat(64),
+      size: 524_288,
+      storage_sha256: "a".repeat(64),
+      storage_size: 524_288,
+      updated_at: 1,
+    };
+    const html = renderToStaticMarkup(
+      <DetailPanel
+        port={biosPort}
+        source={mortalKombat4Source}
+        sourceProfile={mortalKombat4Profile}
+        sourcePath="game.chd"
+        setSourcePath={vi.fn()}
+        bios={bios}
+        biosPath="scph1001.bin"
+        setBiosPath={vi.fn()}
+        pickBios={vi.fn()}
+        biosProfile={psxBiosProfile}
+        actions={actions}
+        status={{
+          ...portStatus(),
+          port_id: biosPort.id,
+          channel: "stable",
+          update_policy: "notify",
+          active: installRecord(),
+          readiness: {
+            launchable: false,
+            blockers: ["changed_bios"],
+            pending_setup: false,
+            bios: "changed",
+          },
+        }}
+      />,
+    );
+    expect(html).toContain("Required BIOS file changed");
+    expect(html).toContain("Choose and add the required BIOS file again before playing.");
+    expect(html).toContain("Registered BIOS file changed since it was added.");
+    expect(html).toContain("Play unavailable");
+    expect(html).not.toContain("Play now");
+  });
+
   it("shows the reviewed adoption copy plan and skipped entries before copying", () => {
     const html = renderToStaticMarkup(
       <AdoptionModal
@@ -1289,7 +1371,9 @@ describe("desktop components", () => {
     expect(saved).toContain("Exact match");
     expect(saved).toContain("Exact registered identity.");
     expect(saved).not.toContain("Selected path has not been checked");
+    expect(saved).not.toContain("Selected game files have not been checked");
     expect(replacement).toContain("Selected path has not been checked");
+    expect(replacement).toContain("Selected game files have not been checked");
     expect(replacement).not.toContain("Exact registered identity.");
   });
 
@@ -1508,11 +1592,14 @@ describe("desktop components", () => {
     const buttonLabels = [...installed.matchAll(/<button\b[^>]*>(.*?)<\/button>/gs)].map(
       ([, content]) => content.replaceAll(/<[^>]+>/g, "").trim(),
     );
-    expect(uninstalled).toContain("Choose required source");
-    expect(uninstalled).toContain("Choose every required source before installing");
+    expect(uninstalled).toContain("Choose game files");
+    expect(uninstalled).toContain("Add all required game files before installing");
+    expect(uninstalled).toContain("Choose the required game file");
+    expect(uninstalled).toContain(
+      "Portcove uses this game file in place and never uploads or changes it.",
+    );
     expect(sourceFree).toContain("Review install");
-    expect(sourceFree).not.toContain("Choose required source");
-    expect(uninstalled).toContain("Browse");
+    expect(sourceFree).not.toContain("Choose game files");
     expect(installed).toContain("Play");
     expect(buttonLabels).toContain("Check for updates");
     expect(installed).toContain("Open data folder");
@@ -1720,33 +1807,39 @@ describe("desktop components", () => {
   it("explains the folder contract for a multi-disc source", () => {
     const html = renderToStaticMarkup(
       <DetailPanel
-        port={port}
+        port={currentCatalogPort("final-fantasy-vii-recompiled")}
         sourceProfile={{
           ...sourceProfile(),
-          id: "sample-rom",
-          label: "Three-disc set",
+          id: "final-fantasy-vii-psx",
+          label: "Final Fantasy VII (USA) three-disc set",
           kind: "psx-disc",
           accepted_extensions: ["chd"],
           disc: {
             track_counts: [1],
             discs: [
               {
-                accepted_sha1: [],
-                accepted_sha256: [],
+                accepted_sha1: ["1f890164ac4daeba07def64bb5b636bfaa1d3ab9"],
+                accepted_sha256: [
+                  "385d416b651f8ab2a9dee78718e6dd7ae5d83af37507395b990c4d7923d9e5bd",
+                ],
                 accepted_volume_ids: [],
                 label: "Disc 1",
                 track_counts: [1],
               },
               {
-                accepted_sha1: [],
-                accepted_sha256: [],
+                accepted_sha1: ["9b8456c661722b032e24f2596840b06ea5cbdd46"],
+                accepted_sha256: [
+                  "1b9c745af8f68bf58dcbb464c3bb0c16bfa87b72d99bfa6b39615fa052ce681a",
+                ],
                 accepted_volume_ids: [],
                 label: "Disc 2",
                 track_counts: [1],
               },
               {
-                accepted_sha1: [],
-                accepted_sha256: [],
+                accepted_sha1: ["0d9614fcd1288bbff2c53e690c6f626d3ac28fd0"],
+                accepted_sha256: [
+                  "9afd82845c2b0388335c4bee04d78e946ae683c473a5f5c567cd944e11190414",
+                ],
                 accepted_volume_ids: [],
                 label: "Disc 3",
                 track_counts: [1],
@@ -1760,32 +1853,142 @@ describe("desktop components", () => {
         actions={actions}
       />,
     );
-    expect(html).toContain("Three-disc set");
-    expect(html).toContain("folder containing the required sources");
-    expect(html).toContain("exactly the required source set");
+    const buttonLabels = [...html.matchAll(/<button\b[^>]*>(.*?)<\/button>/gs)].map(([, content]) =>
+      content.replaceAll(/<[^>]+>/g, "").trim(),
+    );
+    expect(html).toContain("Final Fantasy VII (USA) three-disc set");
+    expect(html).toContain("Choose the folder that contains all required game discs");
+    expect(html).toContain("Portcove checks this folder without uploading or changing it.");
+    expect(buttonLabels.filter((label) => label === "Choose game files")).toHaveLength(2);
+  });
+
+  it("explains folder and ZIP choices for an exact game-file set", () => {
+    const html = renderToStaticMarkup(
+      <DetailPanel
+        port={currentCatalogPort("g-diffuser")}
+        sourceProfile={{
+          ...sourceProfile(),
+          id: "g-diffuser-source-set",
+          label: "F-Zero X G-Diffuser cartridge, Expansion Kit, and 64DD IPL set",
+          kind: "file-set",
+          accepted_extensions: [],
+          members: [
+            {
+              id: "cartridge",
+              label: "F-Zero X (USA Rev 0) cartridge",
+              accepted_filenames: ["baserom.us.rev0.z64"],
+              accepted_sha1: ["5f658e88ffa9de23cba6986a8fd3d3a90d7b4340"],
+              accepted_sha256: ["2be0f861c30752bbdfa727753a454108bc973c27ad814744f191b1278c1f482d"],
+              accepted_crc32: [],
+            },
+            {
+              id: "expansion-kit",
+              label: "English translated F-Zero X Expansion Kit disk",
+              accepted_filenames: ["baserom.translated.ek.ndd"],
+              accepted_sha1: ["fde9fa6f29a52be0144bda74caf8583c036c20ce"],
+              accepted_sha256: [],
+              accepted_crc32: [],
+            },
+            {
+              id: "ipl",
+              label: "Nintendo 64DD IPL",
+              accepted_filenames: ["N64DDIPLROM.n64", "64DD_IPL_US_MJR.n64"],
+              accepted_sha1: [
+                "bf861922dcb78c316360e3e742f4f70ff63c9bc3",
+                "3c5b93ca231550c68693a14f03cea8d5dbd1be9e",
+              ],
+              accepted_sha256: [],
+              accepted_crc32: [],
+            },
+          ],
+        }}
+        sourcePath=""
+        setSourcePath={vi.fn()}
+        pickSource={vi.fn()}
+        pickSourceArchive={vi.fn()}
+        actions={actions}
+      />,
+    );
+    const buttonLabels = [...html.matchAll(/<button\b[^>]*>(.*?)<\/button>/gs)].map(([, content]) =>
+      content.replaceAll(/<[^>]+>/g, "").trim(),
+    );
+    expect(html).toContain("Choose the folder or ZIP file that contains the required game files");
+    expect(html).toContain("Portcove checks this location without uploading or changing it.");
+    expect(buttonLabels.filter((label) => label === "Choose game files")).toHaveLength(2);
+    expect(buttonLabels).toContain("Choose ZIP file");
   });
 
   it("renders an independently selectable required BIOS", () => {
-    const html = renderToStaticMarkup(
+    const unselected = renderToStaticMarkup(
       <DetailPanel
-        port={{ ...port, bios_source_profile: "psx-bios" }}
+        port={biosPort}
+        source={mortalKombat4Source}
+        sourceProfile={mortalKombat4Profile}
+        sourcePath="game.chd"
+        setSourcePath={vi.fn()}
+        biosPath=""
+        setBiosPath={vi.fn()}
+        pickBios={vi.fn()}
+        biosProfile={psxBiosProfile}
+        actions={actions}
+      />,
+    );
+    expect(unselected).toContain("Required BIOS");
+    expect(unselected).toContain("PlayStation SCPH-1001 BIOS");
+    expect(unselected).toContain("Choose the required BIOS file");
+    expect(unselected).toContain(
+      "Portcove uses this BIOS file in place and never uploads or changes it.",
+    );
+    expect(unselected).toContain("Choose BIOS file");
+    const unselectedButtons = [...unselected.matchAll(/<button\b[^>]*>(.*?)<\/button>/gs)].map(
+      ([, content]) => content.replaceAll(/<[^>]+>/g, "").trim(),
+    );
+    expect(unselectedButtons.filter((label) => label === "Choose BIOS file")).toHaveLength(2);
+    expect(unselected).toContain("Add the required BIOS file before installing");
+
+    const selected = renderToStaticMarkup(
+      <DetailPanel
+        port={biosPort}
+        source={mortalKombat4Source}
+        sourceProfile={mortalKombat4Profile}
         sourcePath="game.chd"
         setSourcePath={vi.fn()}
         biosPath="scph1001.bin"
         setBiosPath={vi.fn()}
         pickBios={vi.fn()}
-        biosProfile={{
-          ...sourceProfile(),
-          id: "psx-bios",
-          label: "PlayStation SCPH-1001 BIOS",
-          accepted_extensions: ["bin"],
-        }}
+        biosProfile={psxBiosProfile}
         actions={actions}
       />,
     );
-    expect(html).toContain("Required BIOS");
-    expect(html).toContain("PlayStation SCPH-1001 BIOS");
-    expect(html).toContain("scph1001.bin");
+    expect(selected).toContain("scph1001.bin");
+    expect(selected).toContain(
+      "Selected BIOS file has not been checked. Portcove validates it when you continue.",
+    );
+    expect(selected).toContain("The selected BIOS file has not been checked");
+    expect(selected).not.toContain("Selected game files have not been checked");
+    expect(selected).not.toContain(
+      "Portcove uses this BIOS file in place and never uploads or changes it.",
+    );
+  });
+
+  it("names both missing game files and BIOS before install", () => {
+    const html = renderToStaticMarkup(
+      <DetailPanel
+        port={biosPort}
+        sourceProfile={mortalKombat4Profile}
+        sourcePath=""
+        setSourcePath={vi.fn()}
+        pickSource={vi.fn()}
+        biosProfile={psxBiosProfile}
+        biosPath=""
+        setBiosPath={vi.fn()}
+        pickBios={vi.fn()}
+        actions={actions}
+      />,
+    );
+    const primary = html.match(/<div class="actions primary-actions">(.*?)<\/div>/s)?.[1];
+    expect(primary).toContain("Choose game files and BIOS");
+    expect(primary).toContain("Add all required game files and the BIOS file before installing");
   });
 
   it("offers activation when an update is staged", () => {

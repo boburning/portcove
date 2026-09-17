@@ -1,6 +1,8 @@
 import { open, save } from "@tauri-apps/plugin-dialog";
 import type { SourceProfile } from "./types";
 
+export type SourcePickerPurpose = "game" | "bios";
+
 export function pickArtworkPath() {
   return open({
     title: "Choose local artwork",
@@ -10,9 +12,13 @@ export function pickArtworkPath() {
   });
 }
 
-export async function pickSourcePath(profile: SourceProfile, currentPath: string) {
+export async function pickSourcePath(
+  profile: SourceProfile,
+  currentPath: string,
+  purpose: SourcePickerPurpose = "game",
+) {
   if (profile.kind === "file-set" && currentPath.toLowerCase().endsWith(".zip")) {
-    return pickSourceArchivePath(currentPath);
+    return pickSourceArchivePath(currentPath, purpose);
   }
   const directory =
     profile.kind === "file-set" ||
@@ -31,16 +37,31 @@ export async function pickSourcePath(profile: SourceProfile, currentPath: string
     directory,
     defaultPath: currentPath || undefined,
     filters:
-      !directory && extensions.length ? [{ name: "Original game source", extensions }] : undefined,
+      !directory && extensions.length
+        ? [
+            {
+              name: purpose === "bios" ? "Required BIOS file or ZIP" : "Original game file",
+              extensions,
+            },
+          ]
+        : undefined,
   });
 }
 
-export function pickSourceArchivePath(currentPath: string) {
+export function pickSourceArchivePath(currentPath: string, purpose: SourcePickerPurpose = "game") {
   return open({
     multiple: false,
     directory: false,
     defaultPath: currentPath || undefined,
-    filters: [{ name: "ZIP source set", extensions: ["zip"] }],
+    filters: [
+      {
+        name:
+          purpose === "bios"
+            ? "ZIP file containing the required BIOS"
+            : "ZIP file containing required game files",
+        extensions: ["zip"],
+      },
+    ],
   });
 }
 
