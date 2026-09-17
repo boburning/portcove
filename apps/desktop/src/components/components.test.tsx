@@ -1522,7 +1522,7 @@ describe("desktop components", () => {
     expect(loading).toContain("Checking required game files");
     expect(loading).not.toContain("All required game files have been added");
     expect(loading).not.toContain("No source files are registered yet");
-    expect(loading.match(/<button\b([^>]*)>Find source files<\/button>/)?.[1]).toContain(
+    expect(loading.match(/<button\b([^>]*)>Choose game files<\/button>/)?.[1]).toContain(
       "disabled",
     );
     expect(loading).not.toContain(requirement.profile.label);
@@ -1531,7 +1531,7 @@ describe("desktop components", () => {
     expect(unavailable).toContain("Retry loading the library before changing saved locations");
     expect(unavailable).not.toContain("All required game files have been added");
     expect(unavailable).not.toContain("No source files are registered yet");
-    expect(unavailable.match(/<button\b([^>]*)>Find source files<\/button>/)?.[1]).toContain(
+    expect(unavailable.match(/<button\b([^>]*)>Choose game files<\/button>/)?.[1]).toContain(
       "disabled",
     );
     expect(unavailable).not.toContain(requirement.profile.label);
