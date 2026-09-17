@@ -155,6 +155,7 @@ function DetailDialog({
     bios,
     biosPath,
   );
+  const runtimeUpdateAvailable = currentUpdateSnapshot(status)?.check.update_available === true;
   const state =
     installed && typeof status?.readiness?.launchable !== "boolean"
       ? {
@@ -169,6 +170,7 @@ function DetailDialog({
           Boolean(status?.staged),
           pendingSetup,
           Boolean(status?.readiness?.blockers.includes("missing_runtime")),
+          runtimeUpdateAvailable,
           status?.readiness?.source,
           status?.readiness?.bios,
           Boolean(sourcePath.trim() || biosPath?.trim()),
@@ -236,6 +238,7 @@ function DetailDialog({
           installed={installed}
           launchReady={launchReady}
           pendingSetup={pendingSetup}
+          runtimeUpdateAvailable={runtimeUpdateAvailable}
           installPlan={installPlan}
           selectedChannel={selectedChannel}
           policy={policy}
@@ -281,6 +284,7 @@ function DetailBody({
   installed,
   launchReady,
   pendingSetup,
+  runtimeUpdateAvailable,
   installPlan,
   selectedChannel,
   policy,
@@ -303,6 +307,7 @@ function DetailBody({
   installed: boolean;
   launchReady: boolean;
   pendingSetup: boolean;
+  runtimeUpdateAvailable: boolean;
   installPlan?: InstallPlan;
   selectedChannel: ReleaseChannel;
   policy: UpdatePolicy;
@@ -330,6 +335,7 @@ function DetailBody({
         installed={installed}
         launchReady={launchReady}
         pendingSetup={pendingSetup}
+        runtimeUpdateAvailable={runtimeUpdateAvailable}
         managedPreparation={managedPreparation}
         installPlan={installPlan}
         busy={busy}
@@ -401,6 +407,7 @@ function StatusActionsGroup({
   installed,
   launchReady,
   pendingSetup,
+  runtimeUpdateAvailable,
   managedPreparation,
   installPlan,
   busy,
@@ -412,6 +419,7 @@ function StatusActionsGroup({
   installed: boolean;
   launchReady: boolean;
   pendingSetup: boolean;
+  runtimeUpdateAvailable: boolean;
   managedPreparation: boolean;
   installPlan?: InstallPlan;
   busy?: string;
@@ -425,6 +433,7 @@ function StatusActionsGroup({
         invalidInstallation={Boolean(status?.readiness?.blockers.includes("invalid_installation"))}
         preparationRequired={managedPreparation && pendingSetup}
         runtimeNeeded={Boolean(status?.readiness?.blockers.includes("missing_runtime"))}
+        runtimeUpdateAvailable={runtimeUpdateAvailable}
         installed={installed}
         launchReady={launchReady}
         pendingSetup={pendingSetup}
@@ -1162,6 +1171,7 @@ function PrimaryActions({
   invalidInstallation,
   preparationRequired,
   runtimeNeeded,
+  runtimeUpdateAvailable,
   installed,
   launchReady,
   pendingSetup,
@@ -1172,6 +1182,7 @@ function PrimaryActions({
   invalidInstallation: boolean;
   preparationRequired: boolean;
   runtimeNeeded: boolean;
+  runtimeUpdateAvailable: boolean;
   installed: boolean;
   launchReady: boolean;
   pendingSetup: boolean;
@@ -1181,7 +1192,14 @@ function PrimaryActions({
 }) {
   if (invalidInstallation)
     return <p>Verify the game files below and review repair before playing.</p>;
-  if (runtimeNeeded) return <p>Review the game update below to install the required runtime.</p>;
+  if (runtimeNeeded)
+    return runtimeUpdateAvailable ? (
+      <p>Review the game update below to install the required component.</p>
+    ) : (
+      <p>
+        Check for updates. If none is available, verify the installation for diagnostic details.
+      </p>
+    );
   if (!installed)
     return (
       <InstallAction
@@ -1457,6 +1475,7 @@ function detailState(
   staged: boolean,
   pendingSetup: boolean,
   runtimeNeeded: boolean,
+  runtimeUpdateAvailable: boolean,
   sourceHealth?: SourceHealth | null,
   biosHealth?: SourceHealth | null,
   selectedPath = false,
@@ -1480,13 +1499,21 @@ function detailState(
       icon: Download,
     };
   if (runtimeNeeded)
-    return {
-      title: "Verified runtime required",
-      description:
-        "Review the update to install this port with its required runtime. Existing saves stay in your library.",
-      tone: "setup",
-      icon: Wrench,
-    };
+    return runtimeUpdateAvailable
+      ? {
+          title: "Update required before playing",
+          description:
+            "Install the available update that includes the required component. Existing saves stay in your library.",
+          tone: "setup",
+          icon: Wrench,
+        }
+      : {
+          title: "Required component unavailable",
+          description:
+            "Check for updates. If none is available, verify the installation for diagnostic details.",
+          tone: "setup",
+          icon: Wrench,
+        };
   const sourceIssue = sourceHealthState("Original source", sourceHealth);
   if (sourceIssue) return sourceIssue;
   const biosIssue = sourceHealthState("Required BIOS", biosHealth);
@@ -1498,9 +1525,8 @@ function detailState(
     biosHealth !== "unregistered"
   )
     return {
-      title: "Prepare game data",
-      description:
-        "Review the default setup below. Play becomes available after preparation succeeds.",
+      title: "Game files required",
+      description: "Run the port's setup before playing for the first time.",
       tone: "setup",
       icon: Wrench,
     };
@@ -1522,22 +1548,21 @@ function detailState(
     };
   if (pendingSetup)
     return {
-      title: "First launch setup",
-      description:
-        "The source is registered. Portcove will run and verify the upstream setup before play.",
+      title: "Game files required",
+      description: "Run the port's setup before playing for the first time.",
       tone: "setup",
       icon: Wrench,
     };
   if (staged)
     return {
-      title: "Ready · update staged",
-      description: "Play the current version or activate the verified staged release.",
+      title: "Ready to play · update downloaded",
+      description: "Play the installed version or review the downloaded update.",
       tone: "staged",
       icon: RefreshCw,
     };
   return {
-    title: "Ready to launch",
-    description: "The active version and every required local source are available.",
+    title: "Ready to play",
+    description: "The installed version and all required game files are available.",
     tone: "ready",
     icon: CheckCircle2,
   };

@@ -109,6 +109,91 @@ const installRecord = (overrides: Partial<InstallRecord> = {}): InstallRecord =>
   ...overrides,
 });
 
+const bundledRuntime = {
+  archive_root: "runtime",
+  asset: {
+    name: "runtime.zip",
+    url: "https://example.com/runtime.zip",
+    size: 1024,
+    sha256: "d".repeat(64),
+  },
+  executable: "runtime.exe",
+  target_directory: "runtime",
+} satisfies NonNullable<PortDefinition["bundled_runtime"]["windows-x86-64"]>;
+
+const runtimeIdentity = {
+  archive_root: bundledRuntime.archive_root,
+  artifact: {
+    asset_name: bundledRuntime.asset.name,
+    sha256: bundledRuntime.asset.sha256,
+    size: bundledRuntime.asset.size,
+  },
+  executable: bundledRuntime.executable,
+  origin: "verified_download",
+  target_directory: bundledRuntime.target_directory,
+} satisfies NonNullable<InstallRecord["runtime"]>;
+
+const missingRuntimeFixture = (updateAvailable: boolean) => {
+  const active = installRecord({ runtime: runtimeIdentity });
+  const requiredBundledRuntime = updateAvailable
+    ? {
+        ...bundledRuntime,
+        asset: {
+          ...bundledRuntime.asset,
+          name: "runtime-2.zip",
+          sha256: "e".repeat(64),
+        },
+        executable: "runtime-2.exe",
+      }
+    : bundledRuntime;
+  const requiredRuntime = {
+    archive_root: requiredBundledRuntime.archive_root,
+    artifact: {
+      asset_name: requiredBundledRuntime.asset.name,
+      sha256: requiredBundledRuntime.asset.sha256,
+      size: requiredBundledRuntime.asset.size,
+    },
+    executable: requiredBundledRuntime.executable,
+    origin: "verified_download" as const,
+    target_directory: requiredBundledRuntime.target_directory,
+  };
+  return {
+    bundledRuntime: requiredBundledRuntime,
+    status: {
+      ...portStatus(),
+      active,
+      readiness: {
+        launchable: false,
+        blockers: ["missing_runtime"],
+        pending_setup: false,
+      },
+      last_update_check: {
+        checked_at: 2,
+        check: {
+          port_id: port.id,
+          channel: active.channel,
+          installed_version: active.version,
+          installed_artifact: active.artifact,
+          installed_runtime: active.runtime,
+          required_runtime: requiredRuntime,
+          update_available: updateAvailable,
+          release: {
+            published_at: null,
+            version: active.version,
+            channel: active.channel,
+            asset: {
+              name: active.artifact.asset_name,
+              url: "https://example.com/sample.zip",
+              size: active.artifact.size,
+              sha256: active.artifact.sha256,
+            },
+          },
+        },
+      },
+    } satisfies PortStatus,
+  };
+};
+
 const reviewedInstallPlan = (action: InstallPlan["action"] = "download"): InstallPlan => ({
   bundled_runtime: null,
   port_id: port.id,
@@ -289,31 +374,148 @@ describe("desktop components", () => {
     expect(html).toContain("Saved data handling</small>Unavailable in this catalog");
   });
 
-  it("routes a missing verified runtime to reviewed installation instead of Play", () => {
+  it("routes a missing required component to the available update instead of Play", () => {
+    const fixture = missingRuntimeFixture(true);
     const html = renderToStaticMarkup(
+      <DetailPanel
+        port={{
+          ...port,
+          bundled_runtime: { "windows-x86-64": fixture.bundledRuntime },
+          source_profile: null,
+        }}
+        sourcePath=""
+        setSourcePath={vi.fn()}
+        actions={actions}
+        status={fixture.status}
+      />,
+    );
+    expect(html).toContain("Update required before playing");
+    expect(html).toContain("Install the available update that includes the required component");
+    expect(html).toContain("Review game update");
+    expect(html).not.toContain("Verified runtime required");
+    expect(html).not.toContain("Play now");
+    expect(html).not.toContain("Choose required source");
+  });
+
+  it("does not promise an update when a recorded required component needs repair", () => {
+    const fixture = missingRuntimeFixture(false);
+    const html = renderToStaticMarkup(
+      <DetailPanel
+        port={{
+          ...port,
+          bundled_runtime: { "windows-x86-64": fixture.bundledRuntime },
+          source_profile: null,
+        }}
+        sourcePath=""
+        setSourcePath={vi.fn()}
+        actions={actions}
+        status={fixture.status}
+      />,
+    );
+    expect(html).toContain("Required component unavailable");
+    expect(html).toContain(
+      "Check for updates. If none is available, verify the installation for diagnostic details.",
+    );
+    expect(html).not.toContain("Update required before playing");
+    expect(html).not.toContain("Install the available update");
+    expect(html).not.toContain("Play now");
+  });
+
+  it("names managed first-run preparation as required game files", () => {
+    const profileId = "opengoal-jak1-disc";
+    const html = renderToStaticMarkup(
+      <DetailPanel
+        port={{
+          ...port,
+          adapter: "upstream-managed-setup",
+          executable_hints: { "windows-x86-64": ["gk.exe"] },
+          launch_arguments: ["--game", "jak1", "--portable"],
+          presentation: {
+            installation_method: "upstream-setup",
+            source_requirements: [
+              {
+                role: "game",
+                profile_id: profileId,
+                label: "Jak and Daxter retail disc",
+                verification: "upstream-validator",
+              },
+            ],
+            saves_and_settings: "portcove-managed",
+          },
+          runtime_source_filename: "source.iso",
+          runtime_source_materialization: "ps2-iso",
+          setup_arguments: ["--game", "jak1", "--extract", "--validate"],
+          setup_executable_hints: { "windows-x86-64": ["extractor.exe"] },
+          setup_marker: "data/out/jak1/iso/0COMMON.TXT",
+          setup_output_paths: ["data/iso_data", "data/decompiler_out", "data/out"],
+          source_profile: profileId,
+        }}
+        source={{
+          profile_id: profileId,
+          path: "source.iso",
+          sha256: "a".repeat(64),
+          size: 1024,
+          storage_sha256: "a".repeat(64),
+          storage_size: 1024,
+          updated_at: 1,
+        }}
+        sourcePath="source.iso"
+        setSourcePath={vi.fn()}
+        actions={actions}
+        status={{
+          ...portStatus(),
+          active: installRecord(),
+          readiness: {
+            launchable: false,
+            blockers: ["preparation_required"],
+            pending_setup: true,
+            source: "current",
+          },
+        }}
+      />,
+    );
+    expect(html).toContain("Game files required");
+    expect(html).toContain("Run the port&#x27;s setup before playing for the first time.");
+    expect(html).not.toContain("Prepare game data</strong>");
+    expect(html).not.toContain("Portcove will run and verify the upstream setup before play.");
+  });
+
+  it("uses player-facing ready and downloaded-update labels", () => {
+    const status: PortStatus = {
+      ...portStatus(),
+      active: installRecord(),
+      readiness: {
+        launchable: true,
+        blockers: [],
+        pending_setup: false,
+      },
+    };
+    const ready = renderToStaticMarkup(
       <DetailPanel
         port={{ ...port, source_profile: null }}
         sourcePath=""
         setSourcePath={vi.fn()}
         actions={actions}
-        status={{
-          ...portStatus(),
-          port_id: port.id,
-          channel: "stable",
-          update_policy: "notify",
-          active: installRecord(),
-          readiness: {
-            launchable: false,
-            blockers: ["missing_runtime"],
-            pending_setup: false,
-          },
-        }}
+        status={status}
       />,
     );
-    expect(html).toContain("Verified runtime required");
-    expect(html).toContain("Review game update");
-    expect(html).not.toContain("Play now");
-    expect(html).not.toContain("Choose required source");
+    const downloaded = renderToStaticMarkup(
+      <DetailPanel
+        port={{ ...port, source_profile: null }}
+        sourcePath=""
+        setSourcePath={vi.fn()}
+        actions={actions}
+        status={{ ...status, staged: { ...installRecord(), id: "2", staged: true } }}
+      />,
+    );
+
+    expect(ready).toContain("Ready to play");
+    expect(ready).toContain("The installed version and all required game files are available.");
+    expect(downloaded).toContain("Ready to play · update downloaded");
+    expect(downloaded).toContain("Play the installed version or review the downloaded update.");
+    expect(`${ready}${downloaded}`).not.toContain("Ready to launch");
+    expect(`${ready}${downloaded}`).not.toContain("update staged");
+    expect(`${ready}${downloaded}`).not.toContain("active version");
   });
 
   it("shows installation repair without asking for a different source", () => {
