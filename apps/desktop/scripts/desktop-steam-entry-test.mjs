@@ -44,6 +44,8 @@ export async function steamEntryScenario({
     });
     assert.equal(preview.ok, true);
     assert.equal(preview.value.plan_sha256.length, 64);
+    assert.equal(preview.value.cli_sha256.length, 64);
+    assert.equal(preview.value.cli_product_version, "0.1.0-alpha.2");
     assert.equal(preview.value.writes_required, true);
     const accessibility = path.join(output, "steam-entry-review-accessibility.json");
     await captureAccessibilityReport(browser, accessibility, artifacts);

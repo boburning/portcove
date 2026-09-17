@@ -410,10 +410,15 @@ user chooses a Steam installation folder and enters the exact numeric profile
 directory, then reviews the resolved shortcut file, library, standalone CLI and
 Add/Repair/Remove result before a separate confirmation. The host derives the
 installed port and durable library identities itself, observes the main Steam
-process, never closes it, and reconstructs the plan after consent; an unknown or
-running process and any changed profile, library, runtime or selection fail
-closed. Remove remains available without a CLI only when the selected profile
-contains an exact owned entry; Add/Repair requires a discovered standalone CLI.
+process, never closes it, and reconstructs the complete host context and plan
+after consent; an unknown or running process and any changed installed game,
+profile, library, runtime or selection fail closed. Remove remains available
+without a CLI only when the selected profile contains an exact owned entry.
+Add/Repair accepts only a standalone CLI whose passive embedded marker advertises
+this Portcove version's Steam `exec` contract, shows its SHA-256 in the review,
+binds that identity into the plan, and rehashes the same no-follow regular file
+before writing. Desktop does not execute or shell out to a discovered candidate,
+and this compatibility marker is not a publisher-signature claim.
 
 This consumer is not profile discovery, batch selection, artwork delivery, or an
 actual Steam-client qualification. Controlled host and renderer tests prove the

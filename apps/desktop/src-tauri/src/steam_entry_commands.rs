@@ -5,8 +5,9 @@
 //! than trusting renderer-provided process or library state.
 
 use crate::steam_entries::{
-    SteamClientState, SteamEntryApplyResult, SteamEntryChange, SteamEntryError, SteamEntryPlan,
-    SteamEntryPlanRequest, SteamGameEntryTarget, apply_steam_entry_plan, plan_steam_entries,
+    SteamCliIdentity, SteamClientState, SteamEntryApplyResult, SteamEntryChange, SteamEntryError,
+    SteamEntryPlan, SteamEntryPlanRequest, SteamGameEntryTarget, apply_steam_entry_plan,
+    plan_steam_entries,
 };
 use crate::{
     DesktopError, DesktopResult, DesktopState, blocking_worker, cli_context, confirm_destructive,
@@ -43,6 +44,8 @@ pub struct SteamEntryReview {
     pub steam_user_id: String,
     pub library_root: PathBuf,
     pub cli_path: Option<PathBuf>,
+    pub cli_sha256: Option<String>,
+    pub cli_product_version: Option<String>,
     pub shortcuts_path: PathBuf,
     pub snapshot_sha256: Option<String>,
     pub proposed_sha256: String,
@@ -58,7 +61,7 @@ struct SteamEntryContext {
     display_name: String,
     library_id: String,
     library_root: PathBuf,
-    cli_path: Option<PathBuf>,
+    cli: Option<cli_context::CliExecutableIdentity>,
 }
 
 #[tauri::command]
@@ -91,15 +94,17 @@ pub(crate) async fn apply_steam_entry(
     expected_plan_sha256: String,
     generation: u64,
 ) -> DesktopResult<Option<SteamEntryApplyResult>> {
-    let state_for_review = state.inner().clone();
+    let state_for_apply = state.inner().clone();
+    let state_for_review = state_for_apply.clone();
+    let request_for_review = request.clone();
     let (review, plan) = blocking_worker(move || {
         let service = service_at_generation(&state_for_review, generation)?;
-        let context = entry_context(&service, &request.port_id)?;
+        let context = entry_context(&service, &request_for_review.port_id)?;
         let plan = plan_entry(
             &context,
-            request.steam_root,
-            request.steam_user_id,
-            request.operation,
+            request_for_review.steam_root,
+            request_for_review.steam_user_id,
+            request_for_review.operation,
         )
         .map_err(steam_error)?;
         if plan.plan_sha256 != expected_plan_sha256 {
@@ -126,8 +131,11 @@ pub(crate) async fn apply_steam_entry(
         return Ok(None);
     }
     blocking_worker(move || {
+        let service = service_at_generation(&state_for_apply, generation)?;
+        let context = entry_context(&service, &request.port_id)?;
+        let current = revalidate_reviewed_plan(&context, &request, &plan).map_err(steam_error)?;
         let client_state = observe_steam_client();
-        apply_steam_entry_plan(&plan, client_state)
+        apply_steam_entry_plan(&current, client_state)
             .map(Some)
             .map_err(steam_error)
     })
@@ -148,7 +156,7 @@ fn entry_context(service: &PortcoveService, port_id: &str) -> DesktopResult<Stea
         display_name: port.name.clone(),
         library_id: library.id,
         library_root: library.root,
-        cli_path: cli_context::discover_cli_from_environment(),
+        cli: cli_context::discover_cli_identity_from_environment(),
     })
 }
 
@@ -175,11 +183,19 @@ fn plan_entry(
             steam_user_id,
             library_id: context.library_id.clone(),
             library_root: context.library_root.clone(),
-            cli_path: context.cli_path.clone().ok_or_else(|| {
-                SteamEntryError::InvalidInput(
-                    "the standalone Portcove CLI was not found; install it or add it to PATH before creating a Steam entry".into(),
-                )
-            })?,
+            cli: context
+                .cli
+                .clone()
+                .map(|identity| SteamCliIdentity {
+                    path: identity.path,
+                    sha256: identity.sha256,
+                    product_version: identity.product_version,
+                })
+                .ok_or_else(|| {
+                    SteamEntryError::InvalidInput(
+                        "a compatible standalone Portcove CLI was not found; install this Portcove version or add it to PATH before creating a Steam entry".into(),
+                    )
+                })?,
             games: vec![SteamGameEntryTarget {
                 port_id: context.port_id.clone(),
                 display_name: context.display_name.clone(),
@@ -193,6 +209,25 @@ fn plan_entry(
         },
     };
     plan_steam_entries(request)
+}
+
+fn revalidate_reviewed_plan(
+    context: &SteamEntryContext,
+    request: &SteamEntrySelection,
+    reviewed: &SteamEntryPlan,
+) -> Result<SteamEntryPlan, SteamEntryError> {
+    let current = plan_entry(
+        context,
+        request.steam_root.clone(),
+        request.steam_user_id.clone(),
+        request.operation,
+    )?;
+    if current != *reviewed {
+        return Err(SteamEntryError::Conflict(
+            "the installed game, Portcove library, standalone CLI, Steam profile, or reviewed plan changed while consent was open".into(),
+        ));
+    }
+    Ok(current)
 }
 
 fn review_from_plan(
@@ -209,7 +244,12 @@ fn review_from_plan(
         steam_root: plan.request.steam_root().to_path_buf(),
         steam_user_id: plan.request.steam_user_id().to_owned(),
         library_root: context.library_root.clone(),
-        cli_path: context.cli_path.clone(),
+        cli_path: context.cli.as_ref().map(|identity| identity.path.clone()),
+        cli_sha256: context.cli.as_ref().map(|identity| identity.sha256.clone()),
+        cli_product_version: context
+            .cli
+            .as_ref()
+            .map(|identity| identity.product_version.clone()),
         shortcuts_path: plan.shortcuts_path.clone(),
         snapshot_sha256: plan.snapshot_sha256.clone(),
         proposed_sha256: plan.proposed_sha256.clone(),
@@ -311,7 +351,8 @@ fn running_process_names() -> Result<Vec<String>, ()> {
 
 #[cfg(target_os = "linux")]
 fn running_process_names() -> Result<Vec<String>, ()> {
-    let entries = std::fs::read_dir("/proc").map_err(|_| ())?;
+    let proc_root = PathBuf::from(std::path::MAIN_SEPARATOR.to_string()).join("proc");
+    let entries = std::fs::read_dir(proc_root).map_err(|_| ())?;
     let names = entries
         .filter_map(Result::ok)
         .filter(|entry| {
@@ -341,13 +382,20 @@ mod tests {
         let cli_path = root.join("Portcove tools/portcove.exe");
         std::fs::create_dir_all(&library_root).unwrap();
         std::fs::create_dir_all(cli_path.parent().unwrap()).unwrap();
-        std::fs::write(&cli_path, b"controlled CLI fixture").unwrap();
+        let mut cli_bytes = b"controlled CLI fixture".to_vec();
+        cli_bytes.extend_from_slice(cli_context::CLI_STEAM_EXEC_IDENTITY.as_bytes());
+        std::fs::write(&cli_path, cli_bytes).unwrap();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(&cli_path, std::fs::Permissions::from_mode(0o700)).unwrap();
+        }
         SteamEntryContext {
             port_id: "example-port".into(),
             display_name: "Example Port".into(),
             library_id: "library-123".into(),
             library_root,
-            cli_path: Some(cli_path),
+            cli: Some(cli_context::inspect_cli(&cli_path).unwrap()),
         }
     }
 
@@ -370,6 +418,11 @@ mod tests {
         assert_eq!(review.changes.len(), 1);
         assert!(review.writes_required);
         assert!(review.cli_path.unwrap().is_absolute());
+        assert_eq!(review.cli_sha256.unwrap().len(), 64);
+        assert_eq!(
+            review.cli_product_version.as_deref(),
+            Some(env!("CARGO_PKG_VERSION"))
+        );
         assert!(
             review
                 .shortcuts_path
@@ -383,7 +436,7 @@ mod tests {
         let steam_root = root.path().join("Steam");
         std::fs::create_dir_all(steam_root.join("userdata/42/config")).unwrap();
         let mut context = context(root.path());
-        context.cli_path = None;
+        context.cli = None;
         assert!(matches!(
             plan_entry(
                 &context,
@@ -401,6 +454,34 @@ mod tests {
         )
         .unwrap();
         assert!(!remove.changes_required());
+    }
+
+    #[test]
+    fn post_consent_revalidation_rejects_changed_host_context() {
+        let root = tempfile::tempdir().unwrap();
+        let steam_root = root.path().join("Steam");
+        std::fs::create_dir_all(steam_root.join("userdata/42/config")).unwrap();
+        let original = context(root.path());
+        let request = SteamEntrySelection {
+            port_id: original.port_id.clone(),
+            steam_root,
+            steam_user_id: "42".into(),
+            operation: SteamEntryOperation::AddOrRepair,
+        };
+        let reviewed = plan_entry(
+            &original,
+            request.steam_root.clone(),
+            request.steam_user_id.clone(),
+            request.operation,
+        )
+        .unwrap();
+        let mut changed = original;
+        changed.library_id = "replacement-library".into();
+        assert!(matches!(
+            revalidate_reviewed_plan(&changed, &request, &reviewed),
+            Err(SteamEntryError::Conflict(_))
+        ));
+        assert!(!reviewed.shortcuts_path.exists());
     }
 
     #[test]

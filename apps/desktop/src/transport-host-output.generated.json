@@ -3655,6 +3655,18 @@
           "null"
         ]
       },
+      "cli_product_version": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "cli_sha256": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
       "display_name": {
         "type": "string"
       },
@@ -3709,6 +3721,8 @@
       "steam_user_id",
       "library_root",
       "cli_path",
+      "cli_sha256",
+      "cli_product_version",
       "shortcuts_path",
       "snapshot_sha256",
       "proposed_sha256",

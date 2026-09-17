@@ -2167,6 +2167,8 @@ export interface SteamEntryChange {
 export interface OutputDesktopSteamEntryReview {
   changes: SteamEntryChange[];
   cli_path: string | null;
+  cli_product_version: string | null;
+  cli_sha256: string | null;
   display_name: string;
   library_root: string;
   operation: SteamEntryOperation;

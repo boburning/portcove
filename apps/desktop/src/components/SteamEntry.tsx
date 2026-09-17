@@ -273,6 +273,14 @@ function SteamEntryReviewDetails({ review }: { review: SteamEntryReview }) {
           <dt>Standalone CLI</dt>
           <dd>{review.cli_path ?? "Not required for this removal review"}</dd>
         </div>
+        {review.cli_sha256 && (
+          <div>
+            <dt>CLI identity</dt>
+            <dd>
+              Portcove {review.cli_product_version}; SHA-256 {review.cli_sha256}
+            </dd>
+          </div>
+        )}
       </dl>
       <ul>
         {review.changes.map((change) => (
@@ -294,8 +302,9 @@ function SteamEntryReviewDetails({ review }: { review: SteamEntryReview }) {
       )}
       {review.steam_client_state === "closed" && review.writes_required && (
         <p>
-          Steam appears closed. Final consent rechecks this process state and the exact reviewed
-          profile bytes before writing. A concurrent change is rejected.
+          Steam appears closed. Final consent rechecks this process state, the installed game,
+          Portcove library, compatible CLI bytes, and exact reviewed profile before writing. A
+          concurrent change is rejected.
         </p>
       )}
       <p>

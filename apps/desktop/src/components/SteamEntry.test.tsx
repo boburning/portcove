@@ -17,6 +17,8 @@ const review: SteamEntryReview = {
   steam_user_id: "12345",
   library_root: "E:\\Portcove Library",
   cli_path: "C:\\Portcove\\portcove.exe",
+  cli_sha256: "c".repeat(64),
+  cli_product_version: "0.1.0-alpha.2",
   shortcuts_path: "C:\\Steam\\userdata\\12345\\config\\shortcuts.vdf",
   snapshot_sha256: "before",
   proposed_sha256: "after",
@@ -84,7 +86,14 @@ it("uses the selected installation and profile, shows exact consumer evidence, a
     "add_or_repair",
     7,
   );
-  for (const value of [review.shortcuts_path, review.library_root, review.cli_path!, "add"])
+  for (const value of [
+    review.shortcuts_path,
+    review.library_root,
+    review.cli_path!,
+    review.cli_sha256!,
+    review.cli_product_version!,
+    "add",
+  ])
     expect(container.textContent).toContain(value);
   await click("Apply reviewed Add / Repair");
   expect(apply).toHaveBeenCalledExactlyOnceWith(
