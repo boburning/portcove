@@ -325,7 +325,7 @@ supported. [Delivery](DELIVERY.md) defines acceptance and platform limits.
 
 ## 1.0 and exact production candidates
 
-Complete the finite seven outcomes above and every Required Project outcome and
+Complete the finite outcomes above and every Required Project outcome and
 genuine transitive blocker. #46 owns later exact-artifact distribution, upgrade,
 recovery and production rehearsal across declared platforms, preserving earlier
 #52 beta evidence without making #52 depend on a post-beta closure. Broader

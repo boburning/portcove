@@ -62,7 +62,7 @@ Portcove's GUI should be the clearest view of a stronger underlying contract:
 This is a planning decision, not an implemented-polish claim. Reinspection at
 main `ad7ed2f2bc1a3f6c86eb6f74c87b02a4c008e159` found a strong semantic theme
 and mature interaction surfaces, but presentation still concentrated in a
-3,765-line global stylesheet and theme validation limited to that file. No newer
+3,765-nonblank-line global stylesheet and theme validation limited to that file. No newer
 issue already owned visual-polish or styling-architecture modernization.
 
 The finite [#917](https://github.com/boburning/portcove/issues/917) outcome keeps

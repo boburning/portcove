@@ -181,11 +181,11 @@ grouping using the smallest scalable structure, not an automatic second sidebar.
 
 Motion remains short, tactile, and functional for press, selection, panel,
 palette, notice, disclosure, and artwork transitions. Reduced motion removes
-nonessential motion. Typography is deterministic and offline across supported
-desktop platforms: package reviewed fonts only after license and package-impact
-acceptance, otherwise use an intentional supported fallback. Loading placeholders
-preserve expected geometry without shimmer or gradients; accessible loading text
-remains authoritative.
+nonessential motion. Typography must become deterministic and offline across
+supported desktop platforms: package reviewed fonts only after license and
+package-impact acceptance, otherwise use an intentional supported fallback.
+Loading placeholders must preserve expected geometry without shimmer or
+gradients; accessible loading text remains authoritative.
 
 Implementation migrates component presentation incrementally to CSS Modules
 while keeping semantic/global foundations centralized. It must preserve mouse,
