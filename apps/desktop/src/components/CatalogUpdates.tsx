@@ -104,7 +104,7 @@ function catalogFallbackSummary(reason: string) {
     return "A saved catalog was signed by a publisher that is no longer trusted. Portcove continued with the available catalog information.";
   if (reason.includes("signature verification failed"))
     return "A saved catalog did not pass signature verification. Portcove continued with the available catalog information.";
-  if (reason.includes("validity interval") || reason.includes("expired"))
+  if (reason.includes("validity interval"))
     return "A saved catalog was expired or had invalid dates. Portcove continued with the available catalog information.";
   return "A saved catalog could not be used. Portcove continued with the available catalog information.";
 }

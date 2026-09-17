@@ -37,9 +37,24 @@ it("requires explicit review, invalidates changed candidates and uses core prove
     current: status.provenance,
     plan_sha256: "review",
   };
+  const zeroChangePlan: CatalogUpdatePlan = {
+    ...plan,
+    changed_port_ids: [],
+    plan_sha256: "review-zero",
+  };
+  const manyChangePlan: CatalogUpdatePlan = {
+    ...plan,
+    changed_port_ids: ["example", "other"],
+    plan_sha256: "review-many",
+  };
   vi.spyOn(desktopApi, "catalogStatus").mockResolvedValue(status);
   vi.spyOn(picker, "pickSignedCatalogPath").mockResolvedValue("D:/catalog.json");
-  const review = vi.spyOn(desktopApi, "planCatalogUpdate").mockResolvedValue(plan);
+  const review = vi
+    .spyOn(desktopApi, "planCatalogUpdate")
+    .mockResolvedValueOnce(plan)
+    .mockResolvedValueOnce(zeroChangePlan)
+    .mockResolvedValueOnce(manyChangePlan)
+    .mockResolvedValue(plan);
   const apply = vi
     .spyOn(desktopApi, "applyCatalogUpdate")
     .mockRejectedValueOnce({
@@ -87,12 +102,21 @@ it("requires explicit review, invalidates changed candidates and uses core prove
     expect(host.textContent).toContain(plan.key_id);
     expect(host.textContent).toContain("Publisher trusted");
     expect(host.textContent).toContain("Sequence 1 accepted");
+    expect(host.textContent).toContain(
+      `Valid until ${new Date(plan.expires_at * 1000).toLocaleString()}.`,
+    );
     expect(host.textContent).toContain("1 port will change.");
     const technical = host.querySelector(
       'summary[aria-label="Technical details for catalog update sequence 1"]',
     )?.parentElement;
     expect(technical?.textContent).toContain("example");
     expect(technical?.textContent).toContain(plan.envelope_sha256);
+    await click("Review update");
+    expect(host.textContent).toContain("No port information will change.");
+    await click("Review update");
+    expect(host.textContent).toContain("2 ports will change.");
+    await click("Review update");
+    expect(host.textContent).toContain("1 port will change.");
     await click("Apply catalog update");
     expect(apply).toHaveBeenCalledWith(plan.source, "review", expect.any(Function));
     expect(host.textContent).toContain("Catalog changed; review again");
@@ -118,6 +142,7 @@ it("keeps fallback diagnostics in distinct technical disclosures with safe summa
     "catalog signing key is not trusted",
     "catalog sequence or validity interval is invalid, future-dated, or expired",
     "selected definition was not loaded: future internal diagnostic",
+    "future cache lease expired during recovery",
     "future opaque catalog diagnostic",
   ];
   const html = renderToStaticMarkup(
@@ -141,6 +166,9 @@ it("keeps fallback diagnostics in distinct technical disclosures with safe summa
   host.innerHTML = html;
   const disclosures = [...host.querySelectorAll("details")];
   expect(disclosures).toHaveLength(reasons.length);
+  expect(disclosures[3].parentElement?.querySelector("p")?.textContent).toBe(
+    "A saved catalog could not be used. Portcove continued with the available catalog information.",
+  );
   for (const [index, reason] of reasons.entries()) {
     expect(html).toContain(
       `aria-label="Technical details for catalog fallback ${index + 1} of ${reasons.length}"`,
