@@ -85,50 +85,92 @@ export function progressPresentation(
   detail: string;
   range?: { current: number; total: number; percent: number };
 } {
-  const label = operationLabel(
+  const presentation = operationPresentation(
     operation?.type === "progress" ? operation.phase : (operation?.operation ?? busy),
   );
-  const unknown = { label, detail: "Working… Total not yet known." };
-  if (operation?.type === "message") return { label, detail: operation.message };
+  const unknown = { label: presentation.label, detail: presentation.indeterminate };
+  if (operation?.type === "message")
+    return { label: presentation.label, detail: operation.message };
   if (operation?.type !== "progress") return unknown;
   const { completed, total } = operation;
   if (!Number.isSafeInteger(completed) || completed < 0) return unknown;
-  if (completed === 0 && total === 0) return { label, detail: "No work reported yet." };
+  if (completed === 0 && total === 0)
+    return { label: presentation.label, detail: emptyProgressDetail(presentation.unit) };
   if (total === null || !Number.isSafeInteger(total) || total <= 0) return unknown;
   const current = Math.min(completed, total);
   return {
-    label,
-    detail: `${completed.toLocaleString()} of ${total.toLocaleString()}`,
+    label: presentation.label,
+    detail: progressDetail(completed, total, presentation.unit),
     range: { current, total, percent: (current / total) * 100 },
   };
 }
 
-function operationLabel(value: string) {
-  const labels: Record<string, string> = {
-    download: "Downloading files",
-    copy: "Copying files",
-    "psx-toolchain-download": "Downloading preparation tools",
-    install: "Installing game",
-    update: "Updating game",
-    prepare: "Preparing game",
-    launch: "Starting game",
-    verify: "Checking files",
-    verify_install: "Checking installed files",
-    verify_source: "Checking game files",
-    backup: "Backup in progress",
-    restore: "Restoring saved data",
-    rollback: "Restoring previous version",
-    activate: "Activating staged version",
-    adopt: "Copying existing installation",
-    remove: "Removing managed files",
-    move_library: "Moving library",
-    import_library: "Importing library",
-    import_source: "Copying game files",
-    discover_sources: "Searching for game files",
-    update_catalog: "Updating port catalog",
-    "check installed": "Checking for updates",
+type ProgressUnit = "bytes" | "ports";
+
+type OperationPresentation = {
+  label: string;
+  unit?: ProgressUnit;
+  indeterminate: string;
+};
+
+function operationPresentation(value: string): OperationPresentation {
+  const presentations: Record<string, Omit<OperationPresentation, "indeterminate">> = {
+    download: { label: "Downloading release", unit: "bytes" },
+    copy: { label: "Copying game files", unit: "bytes" },
+    "psx-toolchain-download": { label: "Downloading preparation tools", unit: "bytes" },
+    "Checking installed ports": { label: "Checking installed ports", unit: "ports" },
+    "Applying update policies": { label: "Applying update settings", unit: "ports" },
+    install: { label: "Installing game" },
+    update: { label: "Updating game" },
+    prepare: { label: "Preparing game" },
+    launch: { label: "Starting game" },
+    verify: { label: "Checking files" },
+    verify_install: { label: "Checking installed files" },
+    verify_source: { label: "Checking game files" },
+    verify_sources: { label: "Checking game files" },
+    backup: { label: "Backup in progress" },
+    restore: { label: "Restoring saved data" },
+    rollback: { label: "Restoring previous version" },
+    activate: { label: "Activating staged version" },
+    adopt: { label: "Copying existing installation" },
+    remove: { label: "Removing managed files" },
+    move_library: { label: "Moving library" },
+    import_library: { label: "Importing library" },
+    import_source: { label: "Copying game files" },
+    discover_sources: { label: "Searching for game files" },
+    update_catalog: { label: "Updating port catalog" },
+    "check installed": { label: "Checking for updates", unit: "ports" },
+    check_installed: { label: "Checking for updates", unit: "ports" },
+    reconcile_installed: { label: "Applying update settings", unit: "ports" },
   };
-  return Object.hasOwn(labels, value) ? labels[value] : "Working";
+  const presentation: Omit<OperationPresentation, "indeterminate"> = Object.hasOwn(
+    presentations,
+    value,
+  )
+    ? presentations[value]
+    : { label: "Working" };
+  return {
+    ...presentation,
+    indeterminate:
+      presentation.unit === "bytes"
+        ? "Total size not yet known."
+        : presentation.unit === "ports"
+          ? "Port total not yet known."
+          : "Progress total not yet known.",
+  };
+}
+
+function emptyProgressDetail(unit: ProgressUnit | undefined) {
+  if (unit === "bytes") return "No bytes reported yet.";
+  if (unit === "ports") return "No ports reported yet.";
+  return "No work reported yet.";
+}
+
+function progressDetail(completed: number, total: number, unit: ProgressUnit | undefined) {
+  if (unit === "bytes") return `${formatBytes(completed)} of ${formatBytes(total)}`;
+  const count = `${completed.toLocaleString()} of ${total.toLocaleString()}`;
+  if (unit === "ports") return `${count} ${total === 1 ? "port" : "ports"}`;
+  return count;
 }
 
 type CountMessages = Partial<Record<"one" | "two" | "few" | "many", string>> & {
