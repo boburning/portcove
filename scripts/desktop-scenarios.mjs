@@ -76,7 +76,7 @@ export const DESKTOP_SCENARIOS = Object.freeze([
   }),
   scenario(
     "native-preparation-cancellation",
-    "Preparation cancellation retains recovery evidence.",
+    "Preparation stays discoverable across navigation, cancellation and renderer restart.",
     {
       prerequisites: ["desktop", "owned-fixture"],
       source: "desktop-preparation-test.mjs",

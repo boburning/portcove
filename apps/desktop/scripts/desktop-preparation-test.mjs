@@ -210,7 +210,20 @@ export async function preparationScenarios({
       15_000,
       "Preparation must reach its owned cancellation checkpoint",
     );
-    await browser.findElement(button("Cancel preparation")).click();
+    await browser.findElement(By.css('button[aria-label="Close port details"]')).click();
+    await browser.findElement(By.xpath('//nav//button[contains(., "Updates")]')).click();
+    const runningRowSelector = By.xpath(
+      '//div[contains(@class, "activity-row") and contains(@class, "running")][.//strong[normalize-space(.)="Prepared game data"]]',
+    );
+    const runningRow = await browser.wait(
+      until.elementLocated(runningRowSelector),
+      15_000,
+      "Running preparation must remain discoverable after navigating away",
+    );
+    const runningText = await runningRow.getText();
+    assert.ok(runningText.includes(port.name));
+    assert.match(runningText, /In progress/);
+    await runningRow.findElement(button("Cancel operation")).click();
     await browser.wait(
       async () => {
         const result = await invoke("get_activities");
@@ -226,6 +239,17 @@ export async function preparationScenarios({
     assert.equal(recorded.failure.presentation.tone, "neutral");
     assert.equal(recorded.failure.presentation.mutation_state, "recovery_required");
     assert.equal(recorded.failure.presentation.phase, "preparation.setup");
+    await browser.findElement(By.xpath('//nav//button[contains(., "Settings")]')).click();
+    await browser.wait(
+      until.elementLocated(By.xpath('//h1[normalize-space(.)="Portcove settings"]')),
+      15_000,
+    );
+    await browser.findElement(By.xpath('//nav//button[contains(., "Updates")]')).click();
+    await browser.wait(
+      until.elementLocated(By.css(".activity-row.cancelled .failure-details")),
+      15_000,
+      "Cancelled preparation must remain discoverable after navigating away and returning",
+    );
     await browser.navigate().refresh();
     await browser.wait(
       until.elementLocated(By.css('nav[aria-label="Primary navigation"]')),
