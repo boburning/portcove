@@ -19,6 +19,13 @@ import { RecoveryReview } from "./RecoveryReview";
 import { AdoptionModal } from "./AdoptionModal";
 import { applyOperationEvent, mostRecentOperation } from "../operation-state";
 import { OperationCancellation } from "./OperationCancellation";
+import embeddedCatalog from "../../../../crates/portcove-core/catalog/catalog.json";
+
+function currentCatalogPort(id: string): PortDefinition {
+  const serialized = embeddedCatalog.ports.find((candidate) => candidate.id === id);
+  if (!serialized) throw new Error(`Missing embedded catalog port ${id}`);
+  return { ...portDefinition(), ...serialized } as unknown as PortDefinition;
+}
 
 const port: PortDefinition = {
   ...portDefinition(),
@@ -50,31 +57,7 @@ const port: PortDefinition = {
   release: portDefinition().release,
   executable_hints: {},
 };
-const biosPort: PortDefinition = {
-  ...port,
-  id: "mortal-kombat-4-recompiled",
-  adapter: "psx-recomp-managed",
-  source_profile: "mortal-kombat-4-psx",
-  bios_source_profile: "psx-scph-1001-bios",
-  presentation: {
-    installation_method: "managed-recompilation",
-    source_requirements: [
-      {
-        role: "game",
-        profile_id: "mortal-kombat-4-psx",
-        label: "Mortal Kombat 4 (USA) disc",
-        verification: "catalog-identity",
-      },
-      {
-        role: "bios",
-        profile_id: "psx-scph-1001-bios",
-        label: "PlayStation SCPH-1001 BIOS",
-        verification: "catalog-identity",
-      },
-    ],
-    saves_and_settings: "portcove-managed",
-  },
-};
+const biosPort = currentCatalogPort("mortal-kombat-4-recompiled");
 const psxBiosProfile = {
   ...sourceProfile(),
   id: "psx-scph-1001-bios",
@@ -82,6 +65,25 @@ const psxBiosProfile = {
   accepted_extensions: ["bin", "rom"],
   accepted_sha1: ["10155d8d6e6e832d6ea66db9bc098321fb5e8ebf"],
   accepted_sha256: ["71af94d1e47a68c11e8fdb9f8368040601514a42a5a399cda48c7d3bff1e99d3"],
+};
+const mortalKombat4Profile = {
+  ...sourceProfile(),
+  id: "mortal-kombat-4-psx",
+  label: "Mortal Kombat 4 (USA) disc",
+  kind: "psx-disc" as const,
+  accepted_extensions: ["chd"],
+  accepted_sha1: ["21515cdd9829521a2db76a83300b77e83855fa88"],
+  accepted_sha256: ["c43311155c03f7f9c23e7228bbf8874a5fdaa0984dbbefa356e5899eb40038a3"],
+  disc: { track_counts: [23], discs: [] },
+};
+const mortalKombat4Source = {
+  profile_id: mortalKombat4Profile.id,
+  path: "game.chd",
+  sha256: mortalKombat4Profile.accepted_sha256[0],
+  size: 1,
+  storage_sha256: mortalKombat4Profile.accepted_sha256[0],
+  storage_size: 1,
+  updated_at: 1,
 };
 const actions: DetailActions = {
   activate: vi.fn(),
@@ -627,6 +629,8 @@ describe("desktop components", () => {
     const html = renderToStaticMarkup(
       <DetailPanel
         port={biosPort}
+        source={mortalKombat4Source}
+        sourceProfile={mortalKombat4Profile}
         sourcePath="game.chd"
         setSourcePath={vi.fn()}
         bios={bios}
@@ -1367,7 +1371,9 @@ describe("desktop components", () => {
     expect(saved).toContain("Exact match");
     expect(saved).toContain("Exact registered identity.");
     expect(saved).not.toContain("Selected path has not been checked");
+    expect(saved).not.toContain("Selected game files have not been checked");
     expect(replacement).toContain("Selected path has not been checked");
+    expect(replacement).toContain("Selected game files have not been checked");
     expect(replacement).not.toContain("Exact registered identity.");
   });
 
@@ -1801,27 +1807,7 @@ describe("desktop components", () => {
   it("explains the folder contract for a multi-disc source", () => {
     const html = renderToStaticMarkup(
       <DetailPanel
-        port={{
-          ...port,
-          id: "final-fantasy-vii-recompiled",
-          adapter: "psx-recomp-managed",
-          source_profile: "final-fantasy-vii-psx",
-          runtime_source_filename: "runtime-discs",
-          runtime_source_materialization: "psx-raw-set",
-          runtime_subdirectory: "build-portcove",
-          presentation: {
-            installation_method: "managed-recompilation",
-            source_requirements: [
-              {
-                role: "game",
-                profile_id: "final-fantasy-vii-psx",
-                label: "Final Fantasy VII (USA) three-disc set",
-                verification: "catalog-identity",
-              },
-            ],
-            saves_and_settings: "portcove-managed",
-          },
-        }}
+        port={currentCatalogPort("final-fantasy-vii-recompiled")}
         sourceProfile={{
           ...sourceProfile(),
           id: "final-fantasy-vii-psx",
@@ -1879,40 +1865,7 @@ describe("desktop components", () => {
   it("explains folder and ZIP choices for an exact game-file set", () => {
     const html = renderToStaticMarkup(
       <DetailPanel
-        port={{
-          ...port,
-          id: "g-diffuser",
-          source_profile: "g-diffuser-source-set",
-          runtime_source_set: [
-            {
-              source_filenames: ["baserom.us.rev0.z64"],
-              destination: "baserom.us.rev0.z64",
-              materialization: "n64-big-endian",
-            },
-            {
-              source_filenames: ["baserom.translated.ek.ndd"],
-              destination: "baserom.translated.ek.ndd",
-              materialization: "copy",
-            },
-            {
-              source_filenames: ["N64DDIPLROM.n64", "64DD_IPL_US_MJR.n64"],
-              destination: "N64DDIPLROM.n64",
-              materialization: "copy",
-            },
-          ],
-          presentation: {
-            installation_method: "staged-game-files",
-            source_requirements: [
-              {
-                role: "game",
-                profile_id: "g-diffuser-source-set",
-                label: "F-Zero X G-Diffuser cartridge, Expansion Kit, and 64DD IPL set",
-                verification: "catalog-identity",
-              },
-            ],
-            saves_and_settings: "portcove-managed",
-          },
-        }}
+        port={currentCatalogPort("g-diffuser")}
         sourceProfile={{
           ...sourceProfile(),
           id: "g-diffuser-source-set",
@@ -1969,6 +1922,8 @@ describe("desktop components", () => {
     const unselected = renderToStaticMarkup(
       <DetailPanel
         port={biosPort}
+        source={mortalKombat4Source}
+        sourceProfile={mortalKombat4Profile}
         sourcePath="game.chd"
         setSourcePath={vi.fn()}
         biosPath=""
@@ -1994,6 +1949,8 @@ describe("desktop components", () => {
     const selected = renderToStaticMarkup(
       <DetailPanel
         port={biosPort}
+        source={mortalKombat4Source}
+        sourceProfile={mortalKombat4Profile}
         sourcePath="game.chd"
         setSourcePath={vi.fn()}
         biosPath="scph1001.bin"
@@ -2007,9 +1964,31 @@ describe("desktop components", () => {
     expect(selected).toContain(
       "Selected BIOS file has not been checked. Portcove validates it when you continue.",
     );
+    expect(selected).toContain("The selected BIOS file has not been checked");
+    expect(selected).not.toContain("Selected game files have not been checked");
     expect(selected).not.toContain(
       "Portcove uses this BIOS file in place and never uploads or changes it.",
     );
+  });
+
+  it("names both missing game files and BIOS before install", () => {
+    const html = renderToStaticMarkup(
+      <DetailPanel
+        port={biosPort}
+        sourceProfile={mortalKombat4Profile}
+        sourcePath=""
+        setSourcePath={vi.fn()}
+        pickSource={vi.fn()}
+        biosProfile={psxBiosProfile}
+        biosPath=""
+        setBiosPath={vi.fn()}
+        pickBios={vi.fn()}
+        actions={actions}
+      />,
+    );
+    const primary = html.match(/<div class="actions primary-actions">(.*?)<\/div>/s)?.[1];
+    expect(primary).toContain("Choose game files and BIOS");
+    expect(primary).toContain("Add all required game files and the BIOS file before installing");
   });
 
   it("offers activation when an update is staged", () => {

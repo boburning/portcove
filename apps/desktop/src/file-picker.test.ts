@@ -163,6 +163,17 @@ describe("native path pickers", () => {
     });
   });
 
+  it("keeps a BIOS ZIP filter distinct from game-file archives", async () => {
+    openMock.mockResolvedValue("D:/Sources/bios.zip");
+    await expect(pickSourceArchivePath("", "bios")).resolves.toBe("D:/Sources/bios.zip");
+    expect(openMock).toHaveBeenCalledWith({
+      multiple: false,
+      directory: false,
+      defaultPath: undefined,
+      filters: [{ name: "ZIP file containing the required BIOS", extensions: ["zip"] }],
+    });
+  });
+
   it("opens a single directory picker and preserves cancellation", async () => {
     openMock.mockResolvedValue(null);
     await expect(pickInstallFolder("")).resolves.toBeNull();
