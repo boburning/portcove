@@ -9,6 +9,37 @@ use std::{
     time::{Duration, Instant},
 };
 
+#[test]
+fn isolated_setup_copies_only_declared_generated_outputs() {
+    let temporary = tempfile::tempdir().unwrap();
+    let source = temporary.path().join("setup-runtime");
+    let payload = temporary.path().join("payload");
+    fs::create_dir_all(source.join("generated/assets")).unwrap();
+    fs::create_dir_all(&payload).unwrap();
+    fs::write(source.join("pm64.o2r"), b"generated archive").unwrap();
+    fs::write(source.join("generated/assets/owned.bin"), b"owned output").unwrap();
+    fs::write(source.join("paperboat.cfg.json"), b"setup-only defaults").unwrap();
+    let mut port = crate::Catalog::embedded()
+        .unwrap()
+        .port("paperboat")
+        .unwrap()
+        .clone();
+    port.setup_output_paths = vec!["pm64.o2r".into(), "generated".into(), "optional".into()];
+
+    super::super::execution::copy_setup_outputs(&port, &source, &payload).unwrap();
+
+    assert_eq!(
+        fs::read(payload.join("pm64.o2r")).unwrap(),
+        b"generated archive"
+    );
+    assert_eq!(
+        fs::read(payload.join("generated/assets/owned.bin")).unwrap(),
+        b"owned output"
+    );
+    assert!(!payload.join("paperboat.cfg.json").exists());
+    assert!(!payload.join("optional").exists());
+}
+
 impl Fixture {
     fn native(mode: &str) -> Self {
         let mut fixture = Self::new();

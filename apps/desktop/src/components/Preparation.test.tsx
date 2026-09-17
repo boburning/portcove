@@ -88,6 +88,7 @@ it("reviews without executing and binds explicit confirmation to the returned pl
   expect(review).toHaveBeenCalledWith("sample", 7);
   expect(run).not.toHaveBeenCalled();
   expect(container.textContent).toContain("E:/owned.iso");
+  expect(container.textContent).toContain("choose its option to close setup instead of launching");
   expect(document.activeElement?.textContent).toBe("Start new preparation");
   await click("Start new preparation");
   expect(run).toHaveBeenCalledWith("reviewed-plan", expect.any(Function));

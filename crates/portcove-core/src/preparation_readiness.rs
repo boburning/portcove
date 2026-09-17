@@ -6,7 +6,10 @@ use crate::{
 };
 
 pub(crate) fn managed(port: &PortDefinition) -> bool {
-    port.adapter == AdapterKind::UpstreamManagedSetup && !port.setup_output_paths.is_empty()
+    matches!(
+        port.adapter,
+        AdapterKind::UpstreamManagedSetup | AdapterKind::LibultrashipPortable
+    ) && !port.setup_output_paths.is_empty()
 }
 
 impl PortcoveService {

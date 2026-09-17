@@ -4766,7 +4766,8 @@ fn default_channel(port: &PortDefinition) -> ReleaseChannel {
 }
 
 fn writes_directly_to_user_root(port: &PortDefinition) -> bool {
-    port.user_data_environment.is_some() || port.adapter == crate::AdapterKind::LibultrashipPortable
+    port.user_data_environment.is_some()
+        || (port.adapter == crate::AdapterKind::LibultrashipPortable && !cfg!(windows))
 }
 
 fn data_version(connection: &rusqlite::Connection) -> Result<i64> {
@@ -5167,6 +5168,20 @@ mod tests {
     use crate::{AdapterKind, ArtifactIdentity, ChildProcessClass};
 
     use super::*;
+
+    #[test]
+    fn libultraship_persistence_matches_the_host_storage_contract() {
+        let port = Catalog::embedded()
+            .unwrap()
+            .port("paperboat")
+            .unwrap()
+            .clone();
+        assert_eq!(writes_directly_to_user_root(&port), !cfg!(windows));
+
+        let mut explicit = port;
+        explicit.user_data_environment = Some("PORTCOVE_OWNED_USER_ROOT".into());
+        assert!(writes_directly_to_user_root(&explicit));
+    }
 
     #[test]
     fn channel_choices_follow_catalog_and_survive_restart_without_installation_changes() {

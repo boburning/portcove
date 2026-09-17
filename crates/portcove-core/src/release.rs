@@ -1374,6 +1374,87 @@ mod tests {
     }
 
     #[test]
+    fn paperboat_hints_select_exact_runnable_assets_from_the_complete_release_inventory() {
+        let catalog = crate::Catalog::embedded().unwrap();
+        let port = catalog.port("paperboat").unwrap();
+        let assets = [
+            ("Paperboat-Mulberry-Alfa-Linux.zip", 'a'),
+            ("Paperboat-Mulberry-Alfa-Mac.zip", 'b'),
+            ("Paperboat-Mulberry-Alfa-Win64.zip", 'c'),
+        ]
+        .map(|(name, digest)| GithubAsset {
+            name: name.into(),
+            browser_download_url: format!("https://downloads.example.invalid/{name}"),
+            size: 1,
+            digest: Some(format!("sha256:{}", digest.to_string().repeat(64))),
+        });
+
+        assert_eq!(
+            choose_asset(port, Platform::WindowsX86_64, &assets)
+                .unwrap()
+                .name,
+            "Paperboat-Mulberry-Alfa-Win64.zip"
+        );
+        assert_eq!(
+            choose_asset(port, Platform::LinuxX86_64, &assets)
+                .unwrap()
+                .name,
+            "Paperboat-Mulberry-Alfa-Linux.zip"
+        );
+    }
+
+    #[tokio::test]
+    async fn paperboat_hint_tracks_a_successor_without_a_definition_edit() {
+        let catalog = crate::Catalog::embedded().unwrap();
+        let port = catalog.port("paperboat").unwrap();
+        let release = |tag: &str, digest: char| {
+            serde_json::json!({
+                "tag_name": tag,
+                "draft": false,
+                "prerelease": false,
+                "published_at": null,
+                "assets": [{
+                    "name": format!("Paperboat-{tag}-Win64.zip"),
+                    "browser_download_url": format!("https://downloads.example.invalid/paperboat-{tag}.zip"),
+                    "size": 1,
+                    "digest": format!("sha256:{}", digest.to_string().repeat(64))
+                }]
+            })
+        };
+        let v1 = release("1.0.0", 'a');
+        let v2 = release("1.1.0", 'b');
+
+        let responses = vec![
+            ok_json(r#"{"archived":false}"#, ""),
+            ok_json(&serde_json::to_string(&vec![v1.clone()]).unwrap(), ""),
+        ];
+        let (api_root, _, server) = serve_http(responses);
+        let baseline = GithubReleaseProvider::with_api_root(api_root)
+            .unwrap()
+            .resolve(port, ReleaseChannel::Stable, Platform::WindowsX86_64)
+            .await
+            .unwrap();
+        server.join().unwrap();
+
+        let responses = vec![
+            ok_json(r#"{"archived":false}"#, ""),
+            ok_json(&serde_json::to_string(&vec![v2, v1]).unwrap(), ""),
+        ];
+        let (api_root, _, server) = serve_http(responses);
+        let successor = GithubReleaseProvider::with_api_root(api_root)
+            .unwrap()
+            .resolve(port, ReleaseChannel::Stable, Platform::WindowsX86_64)
+            .await
+            .unwrap();
+        server.join().unwrap();
+
+        assert_eq!(baseline.version, "1.0.0");
+        assert_eq!(successor.version, "1.1.0");
+        assert_eq!(successor.asset.sha256, "b".repeat(64));
+        assert_ne!(successor.asset.sha256, baseline.asset.sha256);
+    }
+
+    #[test]
     fn runnable_archive_wins_over_matching_symbol_archive() {
         let catalog = crate::Catalog::embedded().unwrap();
         let port = catalog.port("re-blue").unwrap();
