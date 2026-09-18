@@ -146,4 +146,54 @@ describe("application-update preference read owner", () => {
     expect(unmounted.preferences).toBeUndefined();
     expect(host.textContent).toBe("");
   });
+
+  it.each([1, 4])("accepts a fresh externally recovered revision %s", async (revision) => {
+    const recovered = { ...saved, revision, choice: null };
+    vi.spyOn(desktopApi, "applicationUpdatePreferences")
+      .mockResolvedValueOnce(saved)
+      .mockResolvedValueOnce(recovered);
+    await act(async () => root.render(<Fixture />));
+    await act(async () => {
+      await state.refresh();
+    });
+    expect(state.preferences).toBe(recovered);
+    expect(state.choiceRequired).toBe(true);
+  });
+
+  it("invalidates pre-recovery reads including their returned value", async () => {
+    const old = deferred<ApplicationUpdatePreferences>();
+    vi.spyOn(desktopApi, "applicationUpdatePreferences")
+      .mockResolvedValueOnce(saved)
+      .mockReturnValueOnce(old.promise);
+    await act(async () => root.render(<Fixture />));
+    let pending!: Promise<ApplicationUpdatePreferences>;
+    await act(async () => {
+      pending = state.refresh();
+    });
+    const recovered = { ...saved, revision: 1, choice: null };
+    await act(async () => {
+      state.acceptRecovered(recovered);
+    });
+    await act(async () => old.resolve({ ...saved, revision: 5 }));
+    expect(await pending).toBe(recovered);
+    expect(state.preferences).toBe(recovered);
+    expect(state.loading).toBe(false);
+  });
+
+  it("binds dismissal to identity when recovery reuses a revision", async () => {
+    vi.spyOn(desktopApi, "applicationUpdatePreferences").mockResolvedValue({
+      ...saved,
+      choice: null,
+    });
+    await act(async () => root.render(<Fixture />));
+    await act(async () => state.dismiss());
+    expect(state.choiceRequired).toBe(false);
+    await act(async () => {
+      state.accept({ ...saved, revision: 5 });
+    });
+    await act(async () => {
+      state.acceptRecovered({ ...saved, choice: null });
+    });
+    expect(state.choiceRequired).toBe(true);
+  });
 });

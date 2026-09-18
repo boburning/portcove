@@ -1325,8 +1325,11 @@ Application-update preferences use one app-session read owner in
 `features/application-update`. The global choice prompt, transition readback and
 Settings consume that owner; Settings keeps only its unsaved draft and operation
 presentation. Concurrent reads coalesce, Settings entry still refreshes external
-changes, equal revisions retain identity, and older revisions cannot replace a
-newer accepted value. Read failures disable preference-dependent controls until
+changes, and unchanged snapshots retain identity. Reads racing accepted mutations
+cannot replace them. Fresh host reads and explicit recovery can establish a new
+identity at a lower or equal revision after malformed-state repair; recovery
+invalidates old in-flight reads. Drafts and prompts bind to snapshot identity,
+not just the reusable revision number. Read failures disable preference-dependent controls until
 retry or a successful host mutation supplies current state. This small explicit
 owner does not need a second query cache. Host-side revision checks, trust and
 update eligibility remain authoritative; cached preferences never authorize an

@@ -535,16 +535,16 @@ export function ApplicationUpdateSettings({
   const refreshPreferences = preferencesState?.refresh;
   const [status, setStatus] = useState<ApplicationUpdateStatus>();
   const [draftState, setDraftState] = useState<{
-    revision: number | undefined;
+    source: ApplicationUpdatePreferences | undefined;
     choice: ApplicationUpdateChoice;
-  }>({ revision: undefined, choice: recommendedChoice });
+  }>({ source: undefined, choice: recommendedChoice });
   const draft =
-    draftState.revision === preferences?.revision
+    draftState.source === preferences
       ? draftState.choice
       : (preferences?.choice ?? recommendedChoice);
   const setDraft = (next: SetStateAction<ApplicationUpdateChoice>) =>
     setDraftState({
-      revision: preferences?.revision,
+      source: preferences,
       choice: typeof next === "function" ? next(draft) : next,
     });
   const [actionBusy, setBusy] = useState("");
@@ -669,7 +669,8 @@ export function ApplicationUpdateSettings({
         ? await desktopApi.resetApplicationUpdatePreferences()
         : await desktopApi.recoverApplicationUpdatePreferences();
       if (!requests.current.isCurrent(request)) return;
-      applyPreferences(value);
+      if (recovering) preferencesState?.acceptRecovered(value);
+      else applyPreferences(value);
       setNotice(
         recovering
           ? "Damaged update settings reset. No choice is saved, and automatic application update checks remain off."

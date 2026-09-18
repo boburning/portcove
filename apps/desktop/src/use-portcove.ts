@@ -40,7 +40,7 @@ import { useApplicationUpdatePreferences } from "./features/application-update/u
 export function useApplicationUpdateChoice(reportError?: (error: unknown) => void) {
   const state = useApplicationUpdatePreferences();
   const { preferences, refresh } = state;
-  const [dismissedRevision, setDismissedRevision] = useState<number>();
+  const [dismissedPreferences, setDismissedPreferences] = useState<ApplicationUpdatePreferences>();
   useEffect(() => {
     let disposed = false;
     void refresh().catch((error: unknown) => {
@@ -51,10 +51,10 @@ export function useApplicationUpdateChoice(reportError?: (error: unknown) => voi
     };
   }, [refresh, reportError]);
   const choiceRequired = Boolean(
-    preferences && !preferences.choice && dismissedRevision !== preferences.revision,
+    preferences && !preferences.choice && dismissedPreferences !== preferences,
   );
   const dismiss = useCallback(() => {
-    if (preferences && !preferences.choice) setDismissedRevision(preferences.revision);
+    if (preferences && !preferences.choice) setDismissedPreferences(preferences);
   }, [preferences]);
   return { ...state, choiceRequired, dismiss };
 }
@@ -72,9 +72,13 @@ export function useApplicationUpdateProductionTransition({
 }) {
   const requests = useRef(new LatestRequestGeneration());
   const actions = useRef(new LatestRequestGeneration());
-  const [snapshot, setSnapshot] = useState<ApplicationUpdateProductionTransition>();
+  const [boundSnapshot, setSnapshot] = useState<{
+    preferences: ApplicationUpdatePreferences;
+    value: ApplicationUpdateProductionTransition;
+  }>();
+  const snapshot = boundSnapshot?.value;
   const [busy, setBusy] = useState(false);
-  const [dismissedRevision, setDismissedRevision] = useState<number>();
+  const [dismissedPreferences, setDismissedPreferences] = useState<ApplicationUpdatePreferences>();
   const preferenceRevision = preferences?.revision;
 
   useEffect(() => {
@@ -86,12 +90,12 @@ export function useApplicationUpdateProductionTransition({
 
   useEffect(() => {
     const tracker = requests.current;
-    if (preferenceRevision === undefined) return;
+    if (!preferences) return;
     const request = tracker.begin();
     void desktopApi
       .applicationUpdateProductionTransition()
       .then((next) => {
-        if (tracker.isCurrent(request)) setSnapshot(next);
+        if (tracker.isCurrent(request)) setSnapshot({ preferences, value: next });
       })
       .catch((error: unknown) => {
         if (tracker.isCurrent(request)) reportError?.(error);
@@ -99,7 +103,7 @@ export function useApplicationUpdateProductionTransition({
     return () => {
       tracker.begin();
     };
-  }, [preferenceRevision, reportError]);
+  }, [preferences, reportError]);
 
   const complete = useCallback(
     async (decision: ApplicationUpdateProductionDecision) => {
@@ -113,7 +117,7 @@ export function useApplicationUpdateProductionTransition({
         );
         if (!actions.current.isCurrent(request)) return false;
         acceptPreferences(result.preferences);
-        setSnapshot(result.transition);
+        setSnapshot({ preferences: result.preferences, value: result.transition });
         return true;
       } catch (error) {
         if (!actions.current.isCurrent(request)) return false;
@@ -124,8 +128,8 @@ export function useApplicationUpdateProductionTransition({
             desktopApi.applicationUpdateProductionTransition(),
           ]);
           if (actions.current.isCurrent(request)) {
-            acceptPreferences(currentPreferences);
-            setSnapshot(currentTransition);
+            // refreshPreferences already publishes through the shared owner.
+            setSnapshot({ preferences: currentPreferences, value: currentTransition });
           }
         } catch {
           // The original typed error remains the actionable report.
@@ -140,12 +144,13 @@ export function useApplicationUpdateProductionTransition({
 
   const offerRequired = Boolean(
     snapshot?.offer_required &&
+    boundSnapshot?.preferences === preferences &&
     snapshot.preference_revision === preferenceRevision &&
-    dismissedRevision !== preferenceRevision,
+    dismissedPreferences !== preferences,
   );
   const dismiss = useCallback(() => {
-    if (snapshot?.offer_required) setDismissedRevision(snapshot.preference_revision);
-  }, [snapshot]);
+    if (snapshot?.offer_required) setDismissedPreferences(preferences);
+  }, [snapshot, preferences]);
   return { snapshot, offerRequired, busy, complete, dismiss };
 }
 

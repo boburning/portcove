@@ -185,6 +185,33 @@ describe("ApplicationUpdateSettings", () => {
     expect(button("Manual").getAttribute("aria-pressed")).toBe("true");
   });
 
+  it("replaces cached consent after malformed-state recovery restarts the revision", async () => {
+    vi.spyOn(desktopApi, "applicationUpdatePreferences")
+      .mockResolvedValueOnce(savedChoice)
+      .mockRejectedValueOnce({ code: "state", message: "Malformed preferences" });
+    const recover = vi
+      .spyOn(desktopApi, "recoverApplicationUpdatePreferences")
+      .mockResolvedValue({ ...missingChoice, revision: 1 });
+    const save = vi.spyOn(desktopApi, "setApplicationUpdatePreferences").mockResolvedValue({
+      ...savedChoice,
+      revision: 2,
+    });
+    await render();
+    await act(async () => root.render(<SettingsFixture visible={false} />));
+    await render();
+    await click("Reset update settings");
+    expect(recover).toHaveBeenCalledOnce();
+    expect(host.querySelector("output")?.getAttribute("data-preference-revision")).toBe("1");
+    expect(host.textContent).toContain("Automatic checks remain off until you save one.");
+    await click("Manual");
+    await click("Save application update settings");
+    expect(save).toHaveBeenCalledExactlyOnceWith(1, {
+      channel: "preview",
+      mode: "manual",
+      paused: false,
+    });
+  });
+
   it("discards unsaved changes and clears consent only through explicit actions", async () => {
     vi.spyOn(desktopApi, "applicationUpdatePreferences").mockResolvedValue(savedChoice);
     const save = vi.spyOn(desktopApi, "setApplicationUpdatePreferences");
