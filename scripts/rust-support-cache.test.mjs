@@ -73,6 +73,32 @@ test("cold build publishes once and warm hits copy verified bytes into fresh fix
   assert.doesNotMatch(String(await readFile(path.join(state.root, "second.exe"))), /mutated/u);
 });
 
+test("a concurrent valid publisher wins without reusing or retaining the losing candidate", async (t) => {
+  const state = await fixture();
+  t.after(() => rm(state.root, { recursive: true, force: true }));
+  const winnerEvents = [];
+  let nested = false;
+  const result = prepare(state, {
+    outputName: "outer.exe",
+    runSync: (_command, args) => {
+      assert.equal(nested, false);
+      nested = true;
+      const winner = prepare(state, {
+        outputName: "winner.exe",
+        runSync: compilerRun(winnerEvents, "winner"),
+      });
+      assert.equal(winner.outcome, "built");
+      writeFileSync(args.at(-1), "losing concurrent bytes\n");
+      return { status: 0 };
+    },
+  });
+  assert.equal(result.outcome, "built");
+  assert.equal(winnerEvents.length, 1);
+  assert.match(String(await readFile(path.join(state.root, "outer.exe"))), /^winner:/u);
+  const productRoot = path.join(state.target, "portcove-rust-support", "v1", "host-tool-probe");
+  assert.deepEqual(readdirSync(productRoot), [result.fingerprint]);
+});
+
 test("source, flags, compiler, target, and relevant environment identities invalidate reuse", async (t) => {
   const state = await fixture();
   t.after(() => rm(state.root, { recursive: true, force: true }));
@@ -229,35 +255,99 @@ test("retention keeps only the newest bounded set of immutable identities", asyn
   );
 });
 
-test("compiler identity binds verbose version, sysroot, and hashed compile environment", () => {
+test("compiler identity binds version, sysroot, platform linkers, and compile environment", () => {
   const probes = [];
-  const identity = rustSupportCompilerIdentity({
-    environment: {
-      PATH: "one",
-      RUSTFLAGS: "-C target-cpu=native",
-      PORTCOVE_HEAVY_RUST_LOCK_TOKEN: "must-not-enter-identity",
-    },
-    runSync: (_command, args) => {
-      probes.push(args);
-      return {
-        status: 0,
-        stdout: args.includes("sysroot") ? "C:/rust/sysroot\n" : "rustc 1.98.1\nhost: test\n",
-      };
-    },
-  });
+  for (const [platform, commands] of [
+    ["win32", ["rustc", "link"]],
+    ["linux", ["rustc", "cc", "ld"]],
+  ]) {
+    const identity = rustSupportCompilerIdentity({
+      environment: {
+        PATH: "one",
+        RUSTFLAGS: "-C target-cpu=native",
+        PORTCOVE_HEAVY_RUST_LOCK_TOKEN: "must-not-enter-identity",
+      },
+      platform,
+      runSync: (_command, args) => {
+        probes.push(args);
+        return {
+          status: 0,
+          stdout: args.includes("sysroot") ? "C:/rust/sysroot\n" : "rustc 1.98.1\nhost: test\n",
+        };
+      },
+    });
+    assert.equal(identity.verbose_version, "rustc 1.98.1\nhost: test");
+    assert.equal(identity.sysroot, "C:/rust/sysroot");
+    assert.deepEqual(
+      identity.commands,
+      commands.map((command) => ({ command, resolved: null })),
+    );
+    assert.deepEqual(
+      identity.environment.map(({ name }) => name),
+      ["RUSTFLAGS"],
+    );
+    assert.ok(
+      identity.environment.every(({ value_sha256 }) => /^[a-f0-9]{64}$/u.test(value_sha256)),
+    );
+  }
   assert.deepEqual(probes, [
     ["--version", "--verbose"],
     ["--print", "sysroot"],
+    ["--version", "--verbose"],
+    ["--print", "sysroot"],
   ]);
-  assert.equal(identity.verbose_version, "rustc 1.98.1\nhost: test");
-  assert.equal(identity.sysroot, "C:/rust/sysroot");
-  assert.deepEqual(identity.commands, [
-    { command: "rustc", resolved: null },
-    { command: "link", resolved: null },
-  ]);
-  assert.deepEqual(
-    identity.environment.map(({ name }) => name),
-    ["RUSTFLAGS"],
+});
+
+test("resolved compiler and linker bytes invalidate the reusable artifact identity", async (t) => {
+  const state = await fixture();
+  t.after(() => rm(state.root, { recursive: true, force: true }));
+  const tools = path.join(state.root, "tools");
+  mkdirSync(tools);
+  for (const command of ["rustc", "cc", "ld"])
+    writeFileSync(path.join(tools, command), `${command} version one\n`);
+  const environment = { PATH: tools };
+  const identify = () =>
+    rustSupportCompilerIdentity({
+      environment,
+      platform: "linux",
+      runSync: (_command, args) => ({
+        status: 0,
+        stdout: args.includes("sysroot") ? "/fixture/sysroot\n" : "rustc fixture\nhost: test\n",
+      }),
+    });
+  const events = [];
+  const firstCompiler = identify();
+  const first = prepare(state, { compiler: firstCompiler, runSync: compilerRun(events) });
+
+  writeFileSync(path.join(tools, "rustc"), "rustc version two\n");
+  const changedCompilerIdentity = identify();
+  const changedCompiler = prepare(state, {
+    compiler: changedCompilerIdentity,
+    outputName: "changed-compiler.exe",
+    runSync: compilerRun(events),
+  });
+
+  writeFileSync(path.join(tools, "cc"), "cc version two\n");
+  const changedLinkerIdentity = identify();
+  const changedLinker = prepare(state, {
+    compiler: changedLinkerIdentity,
+    outputName: "changed-linker.exe",
+    runSync: compilerRun(events),
+  });
+
+  assert.equal(events.length, 3);
+  assert.equal(
+    new Set([first.fingerprint, changedCompiler.fingerprint, changedLinker.fingerprint]).size,
+    3,
   );
-  assert.ok(identity.environment.every(({ value_sha256 }) => /^[a-f0-9]{64}$/u.test(value_sha256)));
+  assert.notEqual(firstCompiler.commands[0].sha256, changedCompilerIdentity.commands[0].sha256);
+  assert.equal(
+    changedCompilerIdentity.commands[0].sha256,
+    changedLinkerIdentity.commands[0].sha256,
+  );
+  assert.notEqual(
+    changedCompilerIdentity.commands[1].sha256,
+    changedLinkerIdentity.commands[1].sha256,
+  );
+  assert.ok(changedLinkerIdentity.commands.every(({ resolved }) => resolved !== null));
 });
