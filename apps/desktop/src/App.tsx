@@ -286,6 +286,7 @@ function Workspace({
   const applicationUpdateProductionTransition = useApplicationUpdateProductionTransition({
     preferences: applicationUpdateChoice.preferences,
     acceptPreferences: applicationUpdateChoice.accept,
+    refreshPreferences: applicationUpdateChoice.refresh,
     reportError: operations.setError,
   });
   const [sourceIntake, setSourceIntake] = useState<SourceIntakeRequest>();
@@ -457,7 +458,7 @@ function Workspace({
             nativeSourceDrag={nativeSourceDrag}
             hostToolActions={hostToolActions}
             applicationUpdateNotice={applicationUpdate.notice}
-            onApplicationUpdatePreferencesChanged={applicationUpdateChoice.accept}
+            applicationUpdatePreferences={applicationUpdateChoice}
           />
         </main>
         <SelectedPortPanel
@@ -595,7 +596,7 @@ function CurrentView({
   nativeSourceDrag,
   hostToolActions,
   applicationUpdateNotice,
-  onApplicationUpdatePreferencesChanged,
+  applicationUpdatePreferences,
 }: {
   data: DataState;
   ui: UiState;
@@ -611,7 +612,7 @@ function CurrentView({
   nativeSourceDrag: ReturnType<typeof useNativeSourceDrop>;
   hostToolActions: HostToolActions;
   applicationUpdateNotice: ReturnType<typeof useApplicationUpdateNotice>["notice"];
-  onApplicationUpdatePreferencesChanged: ReturnType<typeof useApplicationUpdateChoice>["accept"];
+  applicationUpdatePreferences: ReturnType<typeof useApplicationUpdateChoice>;
 }) {
   if (ui.view === "updates")
     return (
@@ -658,7 +659,7 @@ function CurrentView({
         onCatalogChanged={data.refreshAfterMutation}
         hostToolActions={hostToolActions}
         applicationUpdateNotice={applicationUpdateNotice}
-        onApplicationUpdatePreferencesChanged={onApplicationUpdatePreferencesChanged}
+        applicationUpdatePreferences={applicationUpdatePreferences}
         diagnosticsRefreshing={data.diagnosticRefreshing}
         diagnosticsStale={data.diagnosticsStale}
         diagnosticFailure={data.diagnosticFailure?.error}

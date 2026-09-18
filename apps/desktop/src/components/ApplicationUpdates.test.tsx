@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act } from "react";
+import { act, useEffect } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { desktopApi } from "../api";
@@ -9,6 +9,7 @@ import type {
   ApplicationUpdateStatus,
 } from "../types";
 import { ApplicationUpdateSettings } from "./ApplicationUpdates";
+import { useApplicationUpdateChoice } from "../use-portcove";
 
 const missingChoice: ApplicationUpdatePreferences = {
   schema_version: 1,
@@ -32,6 +33,36 @@ const idleStatus: ApplicationUpdateStatus = {
   apply: null,
   recovery_required: [],
 };
+
+function SettingsFixture({
+  automaticNotice,
+  onPreferencesChanged,
+  generation,
+  visible = true,
+}: {
+  automaticNotice?: ApplicationUpdateNoticeSnapshot["notice"];
+  onPreferencesChanged?: (preferences: ApplicationUpdatePreferences) => void;
+  generation?: number;
+  visible?: boolean;
+}) {
+  const state = useApplicationUpdateChoice();
+  useEffect(() => {
+    if (state.preferences) onPreferencesChanged?.(state.preferences);
+  }, [state.preferences, onPreferencesChanged]);
+  return (
+    <>
+      <output data-preference-revision={state.preferences?.revision} />
+      {visible && (
+        <ApplicationUpdateSettings
+          currentVersion="0.1.0-alpha.2"
+          generation={generation}
+          automaticNotice={automaticNotice}
+          preferencesState={state}
+        />
+      )}
+    </>
+  );
+}
 
 describe("ApplicationUpdateSettings", () => {
   let root: Root;
@@ -70,8 +101,7 @@ describe("ApplicationUpdateSettings", () => {
   ) => {
     await act(async () =>
       root.render(
-        <ApplicationUpdateSettings
-          currentVersion="0.1.0-alpha.2"
+        <SettingsFixture
           automaticNotice={automaticNotice}
           onPreferencesChanged={onPreferencesChanged}
         />,
@@ -116,6 +146,70 @@ describe("ApplicationUpdateSettings", () => {
       "No update check, download, install, or restart was started.",
     );
     expect(button("Save application update settings").disabled).toBe(true);
+  });
+
+  it("shares the startup read with Settings and publishes saves to the global owner", async () => {
+    const read = vi
+      .spyOn(desktopApi, "applicationUpdatePreferences")
+      .mockResolvedValue(savedChoice);
+    vi.spyOn(desktopApi, "setApplicationUpdatePreferences").mockResolvedValue({
+      ...savedChoice,
+      revision: 5,
+      choice: { channel: "stable", mode: "manual", paused: false },
+    });
+    await render();
+    expect(read).toHaveBeenCalledTimes(1);
+    expect(host.querySelector("output")?.getAttribute("data-preference-revision")).toBe("4");
+    await click("Stable");
+    await click("Save application update settings");
+    expect(read).toHaveBeenCalledTimes(1);
+    expect(host.querySelector("output")?.getAttribute("data-preference-revision")).toBe("5");
+  });
+
+  it("refreshes external changes on Settings re-entry through the same owner", async () => {
+    const read = vi
+      .spyOn(desktopApi, "applicationUpdatePreferences")
+      .mockResolvedValueOnce(savedChoice)
+      .mockResolvedValueOnce({
+        ...savedChoice,
+        revision: 6,
+        choice: { channel: "stable", mode: "manual", paused: false },
+      });
+    await render();
+    await act(async () => root.render(<SettingsFixture visible={false} />));
+    expect(read).toHaveBeenCalledTimes(1);
+    await render();
+    expect(read).toHaveBeenCalledTimes(2);
+    expect(host.querySelector("output")?.getAttribute("data-preference-revision")).toBe("6");
+    expect(button("Stable").getAttribute("aria-pressed")).toBe("true");
+    expect(button("Manual").getAttribute("aria-pressed")).toBe("true");
+  });
+
+  it("replaces cached consent after malformed-state recovery restarts the revision", async () => {
+    vi.spyOn(desktopApi, "applicationUpdatePreferences")
+      .mockResolvedValueOnce(savedChoice)
+      .mockRejectedValueOnce({ code: "state", message: "Malformed preferences" });
+    const recover = vi
+      .spyOn(desktopApi, "recoverApplicationUpdatePreferences")
+      .mockResolvedValue({ ...missingChoice, revision: 1 });
+    const save = vi.spyOn(desktopApi, "setApplicationUpdatePreferences").mockResolvedValue({
+      ...savedChoice,
+      revision: 2,
+    });
+    await render();
+    await act(async () => root.render(<SettingsFixture visible={false} />));
+    await render();
+    await click("Reset update settings");
+    expect(recover).toHaveBeenCalledOnce();
+    expect(host.querySelector("output")?.getAttribute("data-preference-revision")).toBe("1");
+    expect(host.textContent).toContain("Automatic checks remain off until you save one.");
+    await click("Manual");
+    await click("Save application update settings");
+    expect(save).toHaveBeenCalledExactlyOnceWith(1, {
+      channel: "preview",
+      mode: "manual",
+      paused: false,
+    });
   });
 
   it("discards unsaved changes and clears consent only through explicit actions", async () => {
@@ -461,9 +555,7 @@ describe("ApplicationUpdateSettings", () => {
       .spyOn(desktopApi, "restartToApplyApplicationUpdate")
       .mockResolvedValue(undefined);
 
-    await act(async () =>
-      root.render(<ApplicationUpdateSettings currentVersion="0.1.0-alpha.2" generation={17} />),
-    );
+    await act(async () => root.render(<SettingsFixture generation={17} />));
     await click("Restart to update");
 
     expect(restart).toHaveBeenCalledExactlyOnceWith(17);

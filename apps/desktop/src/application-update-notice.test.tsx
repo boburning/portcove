@@ -5,7 +5,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { listen } from "@tauri-apps/api/event";
 import { desktopApi } from "./api";
 import { StatusLayer } from "./components/Chrome";
-import type { ApplicationUpdateNoticeSnapshot, ApplicationUpdatePreferences } from "./types";
+import type {
+  ApplicationUpdateNoticeSnapshot,
+  ApplicationUpdatePreferences,
+  ApplicationUpdateProductionTransition,
+} from "./types";
 import {
   useApplicationUpdateChoice,
   useApplicationUpdateNotice,
@@ -219,6 +223,7 @@ describe("application update notice", () => {
       current = useApplicationUpdateProductionTransition({
         preferences,
         acceptPreferences: setPreferences,
+        refreshPreferences: desktopApi.applicationUpdatePreferences,
       });
       return null;
     }
@@ -255,11 +260,13 @@ describe("application update notice", () => {
     vi.spyOn(desktopApi, "applicationUpdatePreferences").mockResolvedValue(currentPreferences);
     const reportError = vi.fn();
     const acceptPreferences = vi.fn();
+    const refreshPreferences = vi.fn().mockResolvedValue(currentPreferences);
     let current!: ReturnType<typeof useApplicationUpdateProductionTransition>;
     function Fixture() {
       current = useApplicationUpdateProductionTransition({
         preferences: preview,
         acceptPreferences,
+        refreshPreferences,
         reportError,
       });
       return null;
@@ -269,7 +276,8 @@ describe("application update notice", () => {
     await act(async () => {});
     await act(async () => current.complete("keep-preview"));
     expect(reportError).toHaveBeenCalledExactlyOnceWith(new Error("preference changed"));
-    expect(acceptPreferences).toHaveBeenCalledWith(currentPreferences);
+    expect(refreshPreferences).toHaveBeenCalledOnce();
+    expect(acceptPreferences).not.toHaveBeenCalled();
   });
 
   it("offers the production channels once with accessible explicit actions", async () => {
@@ -304,6 +312,43 @@ describe("application update notice", () => {
     expect(useStable).toHaveBeenCalledOnce();
     expect(keepPreview).toHaveBeenCalledOnce();
     expect(dismiss).toHaveBeenCalledOnce();
+  });
+
+  it("rechecks transition identity when recovered preferences reuse a revision", async () => {
+    const preview: ApplicationUpdatePreferences = {
+      schema_version: 1,
+      revision: 4,
+      choice: { channel: "preview", mode: "manual", paused: false },
+    };
+    let resolve!: (value: ApplicationUpdateProductionTransition) => void;
+    const read = vi
+      .spyOn(desktopApi, "applicationUpdateProductionTransition")
+      .mockResolvedValueOnce({ schema_version: 1, preference_revision: 4, offer_required: true })
+      .mockReturnValueOnce(
+        new Promise((done) => {
+          resolve = done;
+        }),
+      );
+    const acceptPreferences = vi.fn();
+    const refreshPreferences = vi.fn();
+    let state!: ReturnType<typeof useApplicationUpdateProductionTransition>;
+    function Fixture({ preferences }: { preferences: ApplicationUpdatePreferences }) {
+      state = useApplicationUpdateProductionTransition({
+        preferences,
+        acceptPreferences,
+        refreshPreferences,
+      });
+      return null;
+    }
+    await act(async () => root.render(<Fixture preferences={preview} />));
+    expect(state.offerRequired).toBe(true);
+    await act(async () => root.render(<Fixture preferences={{ ...preview, choice: null }} />));
+    expect(read).toHaveBeenCalledTimes(2);
+    expect(state.offerRequired).toBe(false);
+    await act(async () =>
+      resolve({ schema_version: 1, preference_revision: 4, offer_required: false }),
+    );
+    expect(state.offerRequired).toBe(false);
   });
 
   it("keeps a current update notice ahead of the production transition offer", async () => {
