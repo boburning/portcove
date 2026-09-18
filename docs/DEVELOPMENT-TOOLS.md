@@ -185,11 +185,31 @@ issue/PR and link a short #793 checkpoint. No second ledger, scheduler or daemon
 needed. Choose a cohesive independently verifiable outcome, not setup-heavy trivial
 fragments or an unrelated mega-refactor.
 
-[#924](https://github.com/boburning/portcove/issues/924) separately plans a typed,
-deterministic, nonmutating development-only frontend scenario loop for presentation
-work that does not need native compilation on every edit. It uses actual components
-and generated transport contracts, is excluded from release builds, and never replaces
-the native harness for IPC, focus, controller, platform or packaged acceptance.
+#### Static component scenarios
+
+From the checkout root, run
+`node scripts/dev-storage.mjs run -- corepack pnpm --dir apps/desktop dev`, then open
+`http://127.0.0.1:1420/scenarios.html` in an ordinary browser. The development-only
+page offers typed deterministic empty-library, ready-game, missing-source,
+missing-tool, staged-update, interrupted-operation, refresh-failure and unavailable
+artwork/provider previews. It uses actual components and generated transport types,
+with the existing test-fixture builders; it is not another policy backend.
+
+Previews use React static rendering, not mounting or hydration. Their controls are
+inert, callbacks refuse execution, and effects, subscriptions and native operations
+do not run. The entry refuses production mode and a Tauri bridge before importing
+the scenarios. Vite's production bundle gate rejects scenario modules, shared test
+fixtures or the scenario HTML entrypoint. Every scenario names what is simulated.
+The unavailable-provider case previews a failure notice, not image decoding; the
+interrupted case previews supplied backup recovery state, not a crash. The preview
+contains the detail-dialog scrim inline and disables its entrance animation; it
+does not reproduce modal focus or overlay behavior.
+
+Edit components/styles through normal Vite reloads and rerun focused tests. This
+loop provides static layout/copy feedback without native compilation. It does not
+qualify interactions, focus, controllers, IPC, platform or packages; use the native
+harness for those obligations. #924's cache and feature-boundary migrations remain
+separate work, not implied by these previews.
 
 ## Skills
 

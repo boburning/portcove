@@ -519,6 +519,27 @@ test("every tracked repository path has an explicit local selection owner", () =
   assert.deepEqual([...selection.unknown].sort(), []);
 });
 
+test("the exact development scenario entry selects full UI coverage without admitting other HTML", () => {
+  for (const status of ["M", "A", "D"]) {
+    const { selection } = planFor([{ status, path: "apps/desktop/scenarios.html" }]);
+    assert.equal(selection.ui, true);
+    assert.equal(selection.uiFullTests, true);
+    assert.equal(selection.unknown.size, 0);
+  }
+  const renamed = classifyChanges(
+    [
+      {
+        status: "R100",
+        previousPath: "apps/desktop/scenarios.html",
+        path: "apps/desktop/unknown.html",
+      },
+    ],
+    { fileExists: allFilesExist },
+  );
+  assert.equal(renamed.uiFullTests, true);
+  assert.ok(renamed.unknown.has("apps/desktop/unknown.html"));
+});
+
 test("unknown paths refuse local execution until a focused rule owns them", () => {
   const selection = classifyChanges([change("new-subsystem/input.bin")], {
     fileExists: allFilesExist,
