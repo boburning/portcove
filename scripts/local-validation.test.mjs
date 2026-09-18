@@ -257,8 +257,9 @@ test("frontend configuration changes use the complete small UI suite", () => {
   const scripts = JSON.parse(
     readFileSync(new URL("../apps/desktop/package.json", import.meta.url), "utf8"),
   ).scripts;
-  assert.match(scripts.test, /check-theme\.mjs/u);
-  assert.match(scripts.test, /check-copy\.mjs/u);
+  const aggregateCommands = scripts.test.split(/\s*&&\s*/u);
+  assert.ok(aggregateCommands.includes("node scripts/check-theme.mjs"));
+  assert.ok(aggregateCommands.includes("node scripts/check-copy.mjs"));
 });
 
 test("command-identical obligations execute once while retaining every selection reason", () => {
@@ -311,15 +312,47 @@ test("command-identical stages with different evidence roles remain distinct", (
   assert.deepEqual(ids(plan), ["first", "second"]);
 });
 
-test("a reused stage id cannot hide conflicting commands", () => {
+test("a reused stage id cannot hide conflicting commands or obligations", () => {
   assert.throws(
     () =>
       deduplicateCommands([
         { id: "same", reason: "one", executable: "one", args: [], cwd: "." },
         { id: "same", reason: "two", executable: "two", args: [], cwd: "." },
       ]),
-    /selected conflicting commands/u,
+    /selected conflicting commands or obligations/u,
   );
+  assert.throws(
+    () =>
+      deduplicateCommands([
+        {
+          id: "same",
+          reason: "compile",
+          executable: "same",
+          args: [],
+          cwd: ".",
+          obligation: "compile",
+        },
+        {
+          id: "same",
+          reason: "security",
+          executable: "same",
+          args: [],
+          cwd: ".",
+          obligation: "security",
+        },
+      ]),
+    /selected conflicting commands or obligations/u,
+  );
+});
+
+test("an exactly repeated stage id retains every selection reason", () => {
+  const plan = deduplicateCommands([
+    { id: "same", reason: "first", executable: "same", args: [], cwd: "." },
+    { id: "same", reason: "second", executable: "same", args: [], cwd: "." },
+  ]);
+  assert.deepEqual(ids(plan), ["same"]);
+  assert.deepEqual(plan[0].selectedIds, ["same"]);
+  assert.match(plan[0].reason, /first; also selected as same: second/u);
 });
 
 test("Oxc configuration changes retain formatting, lint, UI, fixture, and workflow contracts", () => {

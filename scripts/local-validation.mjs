@@ -200,24 +200,29 @@ export function deduplicateCommands(commands) {
   const byObligation = new Map();
   for (const entry of commands) {
     const identity = commandIdentity(entry);
+    const obligation = entry.obligation ?? entry.id;
     const existingId = byId.get(entry.id);
     if (existingId) {
-      if (commandIdentity(existingId) !== identity)
-        throw new Error(`validation stage ${entry.id} selected conflicting commands`);
+      if (existingId.identity !== identity || existingId.obligation !== obligation)
+        throw new Error(
+          `validation stage ${entry.id} selected conflicting commands or obligations`,
+        );
+      existingId.retained.reason = `${existingId.retained.reason}; also selected as ${entry.id}: ${entry.reason}`;
       continue;
     }
-    byId.set(entry.id, entry);
 
-    const obligationIdentity = JSON.stringify([entry.obligation ?? entry.id, identity]);
+    const obligationIdentity = JSON.stringify([obligation, identity]);
     const existing = byObligation.get(obligationIdentity);
     if (existing) {
       existing.selectedIds.push(entry.id);
       existing.reason = `${existing.reason}; also selected as ${entry.id}: ${entry.reason}`;
+      byId.set(entry.id, { identity, obligation, retained: existing });
       continue;
     }
     const retained = { ...entry, selectedIds: [entry.id] };
     unique.push(retained);
     byObligation.set(obligationIdentity, retained);
+    byId.set(entry.id, { identity, obligation, retained });
   }
   return unique;
 }
