@@ -116,6 +116,7 @@ test("active instruction entrypoints have valid local links and anchors", async 
     new URL("../docs/README.md", import.meta.url),
     new URL("../docs/CONTRIBUTION-CONVENTIONS.md", import.meta.url),
     new URL("../docs/DEVELOPMENT-TOOLS.md", import.meta.url),
+    new URL("../docs/DEVELOPMENT-STORAGE.md", import.meta.url),
   ];
   const skillDirectories = (await readdir(skillsRoot, { withFileTypes: true })).filter((entry) =>
     entry.isDirectory(),
@@ -132,6 +133,7 @@ test("every instruction dependency selects this contract locally", async () => {
     new URL("../docs/README.md", import.meta.url),
     new URL("../docs/CONTRIBUTION-CONVENTIONS.md", import.meta.url),
     new URL("../docs/DEVELOPMENT-TOOLS.md", import.meta.url),
+    new URL("../docs/DEVELOPMENT-STORAGE.md", import.meta.url),
   ];
   const skillDirectories = (await readdir(skillsRoot, { withFileTypes: true })).filter((entry) =>
     entry.isDirectory(),
@@ -156,6 +158,61 @@ test("every instruction dependency selects this contract locally", async () => {
     if (!selection.nodeTests.has("scripts/repository-skills.test.mjs")) missing.push(dependency);
   }
   assert.deepEqual(missing, [], "every instruction dependency must select this contract locally");
+});
+
+test("warm workflow routes start and resume without an unconditional cold bootstrap", async () => {
+  const storage = await readFile(
+    new URL("../docs/DEVELOPMENT-STORAGE.md", import.meta.url),
+    "utf8",
+  );
+  for (const source of [storage, documentationIndex])
+    assert.match(source, /DEVELOPMENT-TOOLS\.md#warm-single-session-workflow/u);
+  const setup = storage.split("## Bootstrap and preflight")[0];
+  assert.match(setup, /conditional new-workspace setup/u);
+  const commands = [...setup.matchAll(/```powershell\r?\n([\s\S]*?)```/gu)].map(
+    (match) => match[1],
+  );
+  assert.ok(commands.length > 0);
+  for (const command of commands) {
+    assert.doesNotMatch(command, /^just (?:check|audit)\s*$/mu);
+    assert.doesNotMatch(command, /install --frozen-lockfile|cargo clean|git (?:reset|stash)/u);
+  }
+  assert.match(storage, /Only when frontend dependencies are missing or incompatible/u);
+});
+
+test("warm workflow decision cases preserve ownership, evidence and exact-head review", () => {
+  const section = developmentTools
+    .split("### Warm single-session workflow")[1]
+    ?.split("## Skills")[0];
+  assert.ok(section);
+  const rows = new Map(
+    [...section.matchAll(/^\| ([^|]+) \| ([^|]+) \|$/gmu)].map((match) => [
+      match[1].trim(),
+      match[2].trim(),
+    ]),
+  );
+  const cases = [
+    ["New task", /reuse healthy dependencies/u],
+    ["Resumed task", /preserve failed evidence.*exact next action/u],
+    ["Dirty or unowned checkout", /Refuse branch transition.*without stash, reset or overwrite/u],
+    ["Active editor/compiler", /creation time, parent chain.*proven-owned/u],
+    ["Duplicate owned server", /workspace, parent and listening port.*Unknown ownership blocks/u],
+    ["Shared guard queue", /cancel only your queued command.*Never delete a lock/u],
+    ["Repeated bootstrap", /reported mismatch instead of reinstalling healthy/u],
+    ["Changed source head", /current-head checks and independent re-review/u],
+    ["Target-only advance", /relevant interactions.*does not automatically require rebase/u],
+    ["Reviewer finding", /Preserve the finding.*that reviewer/u],
+    ["Unavailable delegation", /REVIEW READY.*pause that merge/u],
+  ];
+  for (const [name, obligation] of cases) {
+    assert.ok(rows.has(name), `missing read-only decision scenario: ${name}`);
+    assert.match(rows.get(name), obligation, name);
+  }
+  assert.match(section, /source head, target tip and\s+merge-base; complete changed-file list/u);
+  assert.match(section, /unrun coverage\s+and target interactions/u);
+  assert.match(section, /actual task identifier, reviewed revisions,\s+findings and limitations/u);
+  assert.match(section, /process absence alone is not an ownership transfer/u);
+  assert.match(section, /exact resume command\/condition/u);
 });
 
 test("documented qualification and PR-delivery commands exist", async () => {
