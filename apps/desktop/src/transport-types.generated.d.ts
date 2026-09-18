@@ -103,6 +103,19 @@ export type ArtworkResolvedSource =
       kind: "generated_fallback";
       [k: string]: unknown;
     };
+/**
+ * Public reviewed backup actions; persisted manifests remain an implementation detail.
+ *
+ * ```
+ * use portcove_core::{BackupAction, PortcoveService};
+ * let action = BackupAction::Restore;
+ * let _ = action;
+ * ```
+ *
+ * ```compile_fail,E0432
+ * use portcove_core::BackupManifest;
+ * ```
+ */
 export type BackupAction = "restore" | "delete";
 export type BackupProblemKind =
   | "missing_manifest"
