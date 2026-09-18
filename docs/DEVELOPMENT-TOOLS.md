@@ -104,33 +104,86 @@ Windows qualification stages always execute. Use `just audit --fresh` for releas
 preflight, validation-contract changes, and acceptance that explicitly requires a
 single no-reuse run.
 
-### Planned warm single-session workflow
+### Warm single-session workflow
 
-[#923](https://github.com/boburning/portcove/issues/923) owns a concise planned
-normal workflow for one persistent Codex implementation session. Reuse a healthy,
-owned checkout, installed dependencies and incremental artifacts; starting a new
-task context does not imply a worktree, reinstall, Cargo cleanup, full bootstrap or
-exhaustive validation. A branch transition must first prove clean/owned state and
-must not stash, reset, delete or overwrite unrelated work. Independently active
-worktrees keep separate mutable Cargo targets. Existing heavy-Rust and native-session
-guards remain required because editors, development servers or other owned processes
-can still use the host.
+Start or resume one cohesive outcome in the existing healthy, owned checkout.
+A new task context does not require a new worktree, reinstall, Cargo cleanup,
+bootstrap or exhaustive validation. Keep installed dependencies and incremental
+artifacts. A new isolated checkout is justified by actual concurrent ownership,
+an unsafe preserved checkout, or a measured isolation requirement; follow
+[Development storage](DEVELOPMENT-STORAGE.md) only for that case.
 
-The compact task contract names the canonical issue/outcome, relevant files and
-contracts, boundaries/non-goals, narrow edit-test command, coherent pre-push plan,
-completion evidence and expected resources. The reviewer handoff names exact source,
-target and merge-base, changed areas, acceptance, executed checks, evidence and
-limitations. Review remains an actual separate non-writing activity and may inspect
-valid evidence or run discriminating checks without automatically duplicating every
-implementation command. A changed source head still requires applicable current-head
-review and validation.
+1. Read the canonical issue's unmet acceptance, current PR and latest relevant
+   #793 reservation. Resolve `git rev-parse --show-toplevel`, then inspect
+   `git status --short --branch --untracked-files=all`, `git rev-parse HEAD` and
+   `git worktree list --porcelain`. Reconcile them with the recorded owner,
+   branch and evidence; process absence alone is not an ownership transfer.
+2. Resume the current branch and failed obligation before selecting another
+   task. Before any branch transition, require a clean checkout, known ownership,
+   terminal owned build/native operations, and preserved relevant ignored evidence.
+   If any condition is unknown or false, refuse the transition. Do not stash,
+   reset, delete or overwrite work to make it possible. After a confirmed merge,
+   fetch the target, inspect relevant drift and create the next branch in this
+   same checkout only when those conditions hold.
+3. Keep a compact task contract in the issue/PR or #793 note: **outcome and
+   acceptance; checkout, branch and head; reserved files and owning references;
+   boundaries/non-goals; narrow edit-test command; coherent pre-push plan;
+   resources; completed/failed evidence; exact next action**. Link existing
+   evidence instead of copying the initiative or creating a local status ledger.
+4. Run the smallest relevant `just test-rust`, `just test-ui-related` or
+   `just test-node` loop, then `just local-check` before the coherent push and
+   after substantive repair. `just local-check --plan` explains selection without
+   running it. Use `just doctor` when prerequisite health is unknown or changed;
+   install/bootstrap only the reported missing or mismatched prerequisite.
+   [Quality](QUALITY.md) still governs protected changes and exhaustive acceptance.
+5. Freeze one cohesive PR and dispatch its actual separate non-writing reviewer.
+   Follow [Contribution conventions](CONTRIBUTION-CONVENTIONS.md) for review,
+   required exact-head CI, target interaction checks and guarded merge. The
+   helper may inspect retained evidence and run discriminating tests; it must not
+   bootstrap a second full environment or duplicate a complete suite without an
+   identified need. Keep one heavyweight workflow active at a time.
 
-When unexpected work appears, diagnose editor Cargo checks, duplicate owned Vite or
-native servers, stale owned processes, queue waits and repeated bootstrap separately.
-Observe ownership before action; do not kill unrelated processes, delete locks, or
-change editor, antivirus, storage or global tools automatically. Resume state stays in
-the canonical issue/PR, #793 reservation and existing retained evidence surfaces;
-there is no new ledger, controller, scheduler or daemon.
+The reviewer brief supplies **PR and owning issue; source head, target tip and
+merge-base; complete changed-file list and relevant surrounding code; acceptance
+and boundaries; exact commands/results and retained evidence paths; unrun coverage
+and target interactions**. Record the actual task identifier, reviewed revisions,
+findings and limitations. The implementer repairs findings and obtains applicable
+re-review; implementer self-review is not independent review. A completed PR is a
+checkpoint, not permission to close broader unmet acceptance.
+
+#### Resume and diagnosis decisions
+
+| Observed case             | Next safe action                                                                                                                                                                                                        |
+| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| New task                  | Verify issue, checkout and ownership; reuse healthy dependencies and run the narrow loop.                                                                                                                               |
+| Resumed task              | Read the compact contract, preserve failed evidence, and resume the exact next action before picking new work.                                                                                                          |
+| Dirty or unowned checkout | Refuse branch transition; preserve all changes and resolve ownership without stash, reset or overwrite.                                                                                                                 |
+| Active editor/compiler    | Inspect the reported PID, creation time, parent chain and command; an editor check is not the guarded test runner. Wait, or stop only your proven-owned operation through its originating editor/terminal if safe.      |
+| Duplicate owned server    | Identify each Vite/native server's workspace, parent and listening port; reuse the correct healthy server or stop only a proven-owned duplicate through its originating terminal. Unknown ownership blocks that action. |
+| Shared guard queue        | Retain owner and elapsed diagnostics; wait or cancel only your queued command. Never delete a lock or bypass admission with direct Cargo/nextest.                                                                       |
+| Repeated bootstrap        | Compare the doctor result and pinned tool/dependency identity; repair the reported mismatch instead of reinstalling healthy dependencies.                                                                               |
+| Changed source head       | Freeze the new candidate and obtain applicable current-head checks and independent re-review.                                                                                                                           |
+| Target-only advance       | Fetch and inspect target-only changes for relevant interactions; an unchanged source does not automatically require rebase or full rerun.                                                                               |
+| Reviewer finding          | Preserve the finding, repair it, and return the changed candidate to that reviewer for applicable re-review.                                                                                                            |
+| Unavailable delegation    | Record REVIEW READY with PR/head and the concrete limitation; pause that merge and continue authorized nonconflicting work.                                                                                             |
+
+For a named Windows PID, `Get-CimInstance Win32_Process -Filter "ProcessId = 1234"`
+reports `ProcessId`, `ParentProcessId`, `CreationDate`, `ExecutablePath` and
+`CommandLine`; replace 1234 with the observed PID and inspect its parent identities.
+For a suspected server, `Get-NetTCPConnection -State Listen -OwningProcess 1234`
+can identify its ports. These are read-only clues, not ownership proof by name or
+PID alone. Missing paths, stale identities or unreadable ancestry mean unknown.
+Retain only relevant sanitized diagnostics, not full environment or command dumps.
+Never kill unrelated processes or change global editor, antivirus or storage settings
+automatically. Existing [Rust admission](#rust-test-runner) and native-session guards
+remain authoritative; separate worktrees keep separate mutable Cargo targets.
+
+At a handoff, record current head and dirty state, active owned process/session
+identities or confirmed terminal state, evidence locations, unresolved findings or
+external boundaries, and the exact resume command/condition. Put it on the current
+issue/PR and link a short #793 checkpoint. No second ledger, scheduler or daemon is
+needed. Choose a cohesive independently verifiable outcome, not setup-heavy trivial
+fragments or an unrelated mega-refactor.
 
 [#924](https://github.com/boburning/portcove/issues/924) separately plans a typed,
 deterministic, nonmutating development-only frontend scenario loop for presentation

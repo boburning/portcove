@@ -46,6 +46,10 @@ the approved future delivery contract; it does not activate production updating,
 signing, or publication. `UPDATER-TRUST.md` owns application self-update trust and
 replacement, while game installation and update behavior remains core-owned.
 
+For starting or resuming work in a healthy checkout, use the
+[warm single-session workflow](DEVELOPMENT-TOOLS.md#warm-single-session-workflow),
+including its compact task/reviewer handoff and ownership-first diagnosis.
+
 ## Product and presentation guidance
 
 - [Design system](DESIGN-SYSTEM.md)

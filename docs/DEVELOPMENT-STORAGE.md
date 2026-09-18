@@ -9,8 +9,12 @@ frontend dependencies and relative-path tests on the checkout's volume. Storage
 contention can time out test workers before assertions begin; investigate worker
 startup and disk queues separately from slow test bodies.
 
+For ordinary tasks, first follow the [warm single-session workflow](DEVELOPMENT-TOOLS.md#warm-single-session-workflow).
+Reuse the verified owned checkout and its healthy dependencies; the examples below
+are conditional new-workspace setup, not a per-task startup checklist.
+
 An additional Git worktree provides an SSD development path without replacing a
-dirty checkout. On the primary Windows development host, keep the canonical
+dirty checkout when actual isolation is needed. On the primary Windows development host, keep the canonical
 checkout at `E:\Portcove-Development` and additional worktrees below
 `E:\Portcove-Worktrees` (or the configured `E:\Codex-Worktrees` root for
 Codex-managed worktrees). Inspect existing worktrees and the proposed
@@ -22,9 +26,14 @@ git fetch origin
 git worktree add -b feature/my-change E:\Portcove-Worktrees\my-change origin/main
 Set-Location E:\Portcove-Worktrees\my-change
 node scripts/dev-storage.mjs preflight
-node scripts/dev-storage.mjs run -- corepack pnpm --dir apps/desktop install --frozen-lockfile
-just check
+just doctor
+just local-check --plan
 ```
+
+Provision only prerequisites reported missing or mismatched by the doctor. A new
+frontend workspace normally needs the pinned frozen install described below; a
+healthy existing workspace does not. Then use the task's focused validation;
+`just check` is not an automatic startup or branch-transition step.
 
 The defaults below keep the entire new workspace on that SSD. Check for inherited
 `CARGO_TARGET_DIR`, `PORTCOVE_TEMP_DIR`, `PORTCOVE_PNPM_STORE_DIR` and
@@ -39,13 +48,18 @@ problem; it does not erase evidence from a failed HDD run.
 
 Clone or copy the repository to a deliberately selected development path on the spacious volume, such as `E:\Portcove-Development`. Do not copy an old `target`, `node_modules`, `dist`, or `src-tauri/gen` directory; they are reconstructed from `Cargo.lock` and `apps/desktop/pnpm-lock.yaml`. Preserve ignored source inputs, qualification evidence, and final outputs unless each item has separately been proved disposable.
 
-From the new workspace, inspect the resolved layout before a heavy command:
+From the new workspace, inspect the resolved layout and prerequisites before a
+heavy command:
 
 ```powershell
 node scripts/dev-storage.mjs preflight
-node scripts/dev-storage.mjs run -- corepack pnpm --dir apps/desktop install --frozen-lockfile
-just check
+just doctor
 ```
+
+Only when frontend dependencies are missing or incompatible with the lockfile,
+run `node scripts/dev-storage.mjs run -- corepack pnpm --dir apps/desktop install --frozen-lockfile`.
+Use the owning task's narrow test command and `just local-check`; exhaustive
+validation remains required only for its documented acceptance or investigation.
 
 The read-only preflight resolves the workspace and Cargo target through `cargo metadata`, follows existing symlinks and junctions (including ancestors of directories not yet created), and prints the physical storage paths. It stops on Windows if the workspace, Cargo target, project temporary directory, packaging output, pnpm store, frontend dependencies/output, or Tauri generated directory resolves to the system drive. It also stops when any relevant filesystem has less than 20 GiB free. `PORTCOVE_MIN_FREE_GIB` or `--minimum-free-gib` can raise that margin for release or mutation work; lowering it should be an explicit, temporary decision based on a measured build. `preflight --json` returns the same checked layout for scripts.
 
