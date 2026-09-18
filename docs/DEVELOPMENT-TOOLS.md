@@ -95,6 +95,40 @@ Windows qualification stages always execute. Use `just audit --fresh` for releas
 preflight, validation-contract changes, and acceptance that explicitly requires a
 single no-reuse run.
 
+### Planned warm single-session workflow
+
+[#923](https://github.com/boburning/portcove/issues/923) owns a concise planned
+normal workflow for one persistent Codex implementation session. Reuse a healthy,
+owned checkout, installed dependencies and incremental artifacts; starting a new
+task context does not imply a worktree, reinstall, Cargo cleanup, full bootstrap or
+exhaustive validation. A branch transition must first prove clean/owned state and
+must not stash, reset, delete or overwrite unrelated work. Independently active
+worktrees keep separate mutable Cargo targets. Existing heavy-Rust and native-session
+guards remain required because editors, development servers or other owned processes
+can still use the host.
+
+The compact task contract names the canonical issue/outcome, relevant files and
+contracts, boundaries/non-goals, narrow edit-test command, coherent pre-push plan,
+completion evidence and expected resources. The reviewer handoff names exact source,
+target and merge-base, changed areas, acceptance, executed checks, evidence and
+limitations. Review remains an actual separate non-writing activity and may inspect
+valid evidence or run discriminating checks without automatically duplicating every
+implementation command. A changed source head still requires applicable current-head
+review and validation.
+
+When unexpected work appears, diagnose editor Cargo checks, duplicate owned Vite or
+native servers, stale owned processes, queue waits and repeated bootstrap separately.
+Observe ownership before action; do not kill unrelated processes, delete locks, or
+change editor, antivirus, storage or global tools automatically. Resume state stays in
+the canonical issue/PR, #793 reservation and existing retained evidence surfaces;
+there is no new ledger, controller, scheduler or daemon.
+
+[#924](https://github.com/boburning/portcove/issues/924) separately plans a typed,
+deterministic, nonmutating development-only frontend scenario loop for presentation
+work that does not need native compilation on every edit. It uses actual components
+and generated transport contracts, is excluded from release builds, and never replaces
+the native harness for IPC, focus, controller, platform or packaged acceptance.
+
 ## Skills
 
 Repository-local skills under `.agents/skills` progressively load task-specific

@@ -68,6 +68,36 @@ warnings` invocation compiles and type-checks the same workspace target set, the
 adds lint enforcement. `just rust-check` remains available when an isolated Cargo
 check is the intended diagnostic.
 
+### Planned single-session validation consolidation
+
+[#922](https://github.com/boburning/portcove/issues/922) owns the remaining planned
+single-session validation/build cost work. Its first implementation slice records
+comparable cold, warm and no-change observations for a frontend/style change, a
+focused pure-Rust change, a broader lifecycle change, and a mixed tooling/frontend
+change. Evidence separates context preparation, resource-queue wait, support-program
+preparation, compile/link, test execution, orchestration, review/repair, and hosted
+validation/merge. Existing stage durations and guard evidence remain the record;
+there is no new dashboard or arbitrary speed gate.
+
+The planned deduplication is semantic. It may remove a Cargo check followed by an
+equivalent Clippy compilation, union compatible Rust impact filters after proving
+every selected group nonvacuous, coalesce an identical lint obligation selected by
+different stage IDs, and give theme/copy checks one owner when an aggregate already
+runs them. Different packages, targets, features, profiles, environments, generated
+contracts, isolation or evidence roles remain distinct. Deletions, renames, new or
+unknown paths continue to fail safely. A protected selector change qualifies under
+the pre-change policy, adversarial tests, a fresh audit, exhaustive hosted checks,
+and separate review.
+
+Unchanged host-tool fixtures and containment supervisors may reuse only their
+compiled product after complete input/toolchain/target/flag/environment identity,
+trusted atomic publication, corruption/interruption rejection, provenance and
+bounded retention are proven. Every invocation still creates fresh mutable fixture
+data, gates, receipts, temporary paths, process supervision, cleanup and test
+evidence. Optional compiler cache, debug-information, crate-boundary, storage/I/O,
+editor or concurrency experiments follow only after repeated waste is removed and
+measurements justify them. This planned contract does not yet establish a speedup.
+
 ## Local feedback and hosted authority
 
 Portcove uses three validation tiers. The inner loop runs only the test or test
