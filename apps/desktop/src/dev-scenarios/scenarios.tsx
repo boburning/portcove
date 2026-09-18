@@ -3,7 +3,7 @@ import { DetailPanel, type DetailActions } from "../components/DetailPanel";
 import { PortBrowser } from "../components/PortBrowser";
 import { BackupHistory } from "../components/BackupHistory";
 import { HostToolRow, StatusLayer } from "../components/Chrome";
-import { WorkspaceRefreshNotice } from "../components/WorkspaceRefreshNotice";
+import { WorkspaceRefreshNotice } from "../features/workspace/WorkspaceRefreshNotice";
 import { failureReport, portDefinition, portStatus, sourceProfile } from "../test-fixtures";
 import type { InstallRecord, PortStatus } from "../types";
 

@@ -1299,6 +1299,19 @@ coordinators. Strict Mode setup replay and library changes dispose the old gener
 waiters as disposed, and cannot reuse or reopen a coordinator whose callbacks belong to the prior
 lifetime.
 
+The `features/workspace` unit owns the workspace cache hook, refresh-failure
+presentation and their colocated integration tests. Application composition and
+development scenarios import it directly; the former root hook module does not
+re-export or retain a competing workspace implementation. `shared` owns the
+generic request-coalescing/generation and subscription-lifecycle utilities and
+their tests. The existing Fallow gate loads `apps/desktop/.fallowrc.json` and
+rejects imports from shared code into feature code, including type-only imports,
+re-exports and literal dynamic imports. Isolated tests execute that same policy
+with allowed shared/shared and feature/shared controls. Other root modules and
+legacy components are not yet classified as shared or feature-owned; this first
+boundary does not claim complete frontend coverage. Existing common styles and
+failure-detail UI remain in place without a new barrel or compatibility adapter.
+
 For workspace data, `usePortcoveData` remains the single explicit frontend cache
 owner: it owns read coalescing, generations, subscriptions, invalidation and
 visible refresh failure. Adding TanStack Query alongside it would introduce a

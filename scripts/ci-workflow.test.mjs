@@ -792,12 +792,25 @@ test("frontend tooling uses the pinned Oxc contracts without legacy quality laye
   assert.equal(oxfmt.sortPackageJson, true);
   assert.ok(oxfmt.ignorePatterns.includes("**/*.toml"));
 
+  const fallow = JSON.parse(
+    await readFile(new URL("../apps/desktop/.fallowrc.json", import.meta.url), "utf8"),
+  );
+  assert.deepEqual(fallow, {
+    $schema: "./node_modules/fallow/schema.json",
+    boundaries: {
+      zones: [
+        { name: "shared", patterns: ["src/shared/**"] },
+        { name: "features", patterns: ["src/features/**"] },
+      ],
+      rules: [{ from: "shared", allow: ["shared"], allowTypeOnly: [] }],
+    },
+  });
+
   for (const retired of [
     "../.prettierignore",
     "../prettier.config.mjs",
     "../eslint.config.mjs",
     "../apps/desktop/eslint.config.mjs",
-    "../apps/desktop/.fallowrc.json",
     "./run-eslint.mjs",
   ]) {
     await assert.rejects(readFile(new URL(retired, import.meta.url)), { code: "ENOENT" });
