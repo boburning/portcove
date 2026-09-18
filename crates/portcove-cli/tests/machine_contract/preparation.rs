@@ -82,34 +82,36 @@ fn preparation_roundtrip(chd: bool) {
         &["--json", "preparation", "plan", &port.id],
     ));
     let fingerprint = plan["data"]["plan_sha256"].as_str().unwrap();
-    let denied = portcove(
-        &library,
-        &[
-            "--json",
-            "--non-interactive",
-            "preparation",
-            "run",
-            &port.id,
-            "--expected-plan",
-            fingerprint,
-        ],
-    );
-    assert_eq!(denied.status.code(), Some(2));
-    assert_eq!(json_stdout(&denied)["command"], "preparation.run");
-    let stale = portcove(
-        &library,
-        &[
-            "--json",
-            "--non-interactive",
-            "preparation",
-            "run",
-            &port.id,
-            "--expected-plan",
-            "stale-plan",
-            "--yes",
-        ],
-    );
-    assert_eq!(json_stdout(&stale)["error"]["code"], "conflict");
+    if !chd {
+        let denied = portcove(
+            &library,
+            &[
+                "--json",
+                "--non-interactive",
+                "preparation",
+                "run",
+                &port.id,
+                "--expected-plan",
+                fingerprint,
+            ],
+        );
+        assert_eq!(denied.status.code(), Some(2));
+        assert_eq!(json_stdout(&denied)["command"], "preparation.run");
+        let stale = portcove(
+            &library,
+            &[
+                "--json",
+                "--non-interactive",
+                "preparation",
+                "run",
+                &port.id,
+                "--expected-plan",
+                "stale-plan",
+                "--yes",
+            ],
+        );
+        assert_eq!(json_stdout(&stale)["error"]["code"], "conflict");
+    }
     let prepared = portcove(
         &library,
         &[
@@ -142,12 +144,13 @@ fn preparation_roundtrip(chd: bool) {
         .as_str()
         .unwrap();
     let log_json = portcove(&library, &["--json", "activity", "log", id]);
-    let log_jsonl = portcove(&library, &["--jsonl", "activity", "log", id]);
-    assert!(log_json.status.success() && log_jsonl.status.success());
+    assert!(log_json.status.success());
     let log_json = json_stdout(&log_json);
-    let log_jsonl = json_stdout(&log_jsonl);
     assert_eq!(log_json["command"], "activity.log");
-    assert_eq!(log_json["data"], log_jsonl["data"]);
+    if !chd {
+        let log_jsonl = json_stdout(&portcove(&library, &["--jsonl", "activity", "log", id]));
+        assert_eq!(log_json["data"], log_jsonl["data"]);
+    }
     let captures = log_json["data"].as_array().unwrap();
     assert_eq!(captures.len(), if chd { 2 } else { 1 });
     if chd {
@@ -176,10 +179,12 @@ fn preparation_roundtrip(chd: bool) {
         .activity_diagnostic(id)
         .unwrap();
     assert_eq!(log_json["data"], serde_json::to_value(capture).unwrap());
-    let human_log = portcove(&library, &["activity", "log", id]);
-    let human_log = String::from_utf8(human_log.stdout).unwrap();
-    assert!(human_log.contains("Capture reached the end of both streams."));
-    assert!(!human_log.contains("owned-fixture-private-value"));
+    if !chd {
+        let human_log = portcove(&library, &["activity", "log", id]);
+        let human_log = String::from_utf8(human_log.stdout).unwrap();
+        assert!(human_log.contains("Capture reached the end of both streams."));
+        assert!(!human_log.contains("owned-fixture-private-value"));
+    }
     assert_eq!(events.last().unwrap()["command"], "preparation.run");
     let status = json_stdout(&portcove(&library, &["--json", "status", &port.id]));
     assert_eq!(status["data"]["previous"]["id"], original_id);

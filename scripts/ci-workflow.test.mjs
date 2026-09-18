@@ -1026,6 +1026,30 @@ test("Rust reports slow tests, terminates hangs and retains documentation covera
   );
   assert.match(config, /^retries = 0$/m);
   assert.doesNotMatch(config, /on-timeout|default-filter/);
+  assert.match(
+    config,
+    /filter = 'package\(portcove-cli\)'\r?\nthreads-required = 2\r?\npriority = -100/,
+  );
+  assert.match(
+    config,
+    /filter = 'package\(portcove-core\) & test\(output_relocation::tests::\)'\r?\nthreads-required = 2/,
+  );
+  assert.match(
+    config,
+    /filter = 'package\(portcove-core\) & test\(cancellation::tests::\)'\r?\nthreads-required = 2/,
+  );
+  assert.match(
+    config,
+    /filter = 'package\(portcove-core\) & test\(activity_diagnostics::tests::\)'\r?\nthreads-required = 2\r?\npriority = -50/,
+  );
+  assert.match(
+    config,
+    /filter = 'package\(portcove-core\) & test\(database::tests::\)'\r?\nthreads-required = 2/,
+  );
+  assert.match(
+    config,
+    /filter = 'package\(portcove-core\) & test\(adapter::source_conversion_tests::failed_and_cancelled_conversion_retains_logs_and_reaps_owned_processes\)'\r?\nthreads-required = 2/,
+  );
   for (const override of config.split("[[profile.default.overrides]]").slice(1)) {
     assert.doesNotMatch(override, /slow-timeout|retries/);
   }

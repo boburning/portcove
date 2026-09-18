@@ -134,7 +134,7 @@ fn human_failures_keep_paths_and_credentials_out_of_primary_copy() {
 }
 
 #[test]
-fn activity_history_keeps_human_details_opt_in_and_machine_records_unchanged() {
+fn activity_history_plain_output_keeps_failure_details_private() {
     let temporary = tempfile::tempdir().unwrap();
     let library = temporary.path().join("library");
     let private_id = "fixture-token=owned-private";
@@ -158,11 +158,31 @@ fn activity_history_keeps_human_details_opt_in_and_machine_records_unchanged() {
     );
     assert!(!plain.contains("owned-private"));
     assert!(!plain.contains("No files were changed"));
+}
+
+#[test]
+fn activity_history_technical_output_keeps_failure_details_redacted() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = temporary.path().join("library");
+    let private_id = "fixture-token=owned-private";
+    let failed = portcove(&library, &["--json", "verify", private_id]);
+    assert!(!failed.status.success());
     let technical = portcove(&library, &["--technical-details", "activity"]);
     let technical = human_stdout(&technical);
     assert!(technical.contains("Technical details (redacted):"));
     assert!(technical.contains("[REDACTED]"));
     assert!(!technical.contains("owned-private"));
+}
+
+#[test]
+fn activity_history_keeps_machine_records_unchanged_across_formats() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = temporary.path().join("library");
+    let private_id = "fixture-token=owned-private";
+    let failed = portcove(&library, &["--json", "verify", private_id]);
+    assert!(!failed.status.success());
+    let before = json_stdout(&portcove(&library, &["--json", "activity"]));
+    let id = before["data"][0]["id"].as_str().unwrap();
     let after = json_stdout(&portcove(
         &library,
         &["--technical-details", "--json", "activity"],

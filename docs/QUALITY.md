@@ -110,6 +110,13 @@ editor or concurrency experiments follow only after repeated waste is removed an
 measurements justify them. This remaining contract does not yet establish a
 support-product speedup.
 
+The exhaustive Rust runner retains two test slots and the thirty-second hang
+deadline. Cohesive filesystem, database, diagnostics, cancellation, catalog and
+native-process lifecycle families reserve both slots instead of competing with an
+unrelated case. Diagnostics are deferred until the initial process-start burst has
+cleared, and the real-process CLI contracts run last. These are ordering and
+isolation boundaries only: failures are not retried and no timeout is enlarged.
+
 ## Local feedback and hosted authority
 
 Portcove uses three validation tiers. The inner loop runs only the test or test
@@ -751,9 +758,17 @@ Windows and its exhaustive CI partitions. This bounds filesystem contention
 without serializing unrelated fixtures; explicit nextest thread settings remain
 available for diagnosis. CLI free-space
 snapshot contracts share a scheduling group because their existing in-process
-mutex cannot synchronize nextest's separate processes. Full signed-catalog tests
-and CLI process contracts
-reserve both default CPU slots while verifying complete snapshots. Intel macOS
+mutex cannot synchronize nextest's separate processes. Output-relocation lifecycle
+tests reserve both slots so their managed-tree copies do not contend with each
+other or an unrelated filesystem lifecycle case. Full signed-catalog
+tests, bounded diagnostics capture, database migrations, cancellation lifecycle
+cases, and CLI process contracts reserve both default CPU slots while verifying complete snapshots. The native
+conversion failure cleanup race does the same while it reaps owned process trees.
+CLI contracts also use nextest's lowest priority so an exhaustive workspace run
+drains default-priority in-process tests before beginning repeated executable
+launches. This ordering introduces no test dependency and changes neither the
+two-thread budget nor the thirty-second hang deadline.
+Intel macOS
 uses two exhaustive hash partitions to keep this work off the critical path.
 This changes scheduling
 only; every Rust test retains the same deadline. CI caches compiled dependencies
