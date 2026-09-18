@@ -292,6 +292,41 @@ autonomous engineering are not implied.
 Application updater and catalog delivery are independent Required outcomes, with
 no reciprocal parent blocker.
 
+The finite [#921](https://github.com/boburning/portcove/issues/921) architecture
+and development-agility initiative is also Required for Public beta. It adds five
+independently closable residual owners without reopening completed foundations:
+[#922](https://github.com/boburning/portcove/issues/922) owns the measured
+single-session baseline, equivalent-work validation deduplication, safe compiled
+support-program reuse, and only then measured bottleneck experiments;
+[#923](https://github.com/boburning/portcove/issues/923) owns the warm-checkout
+task, resume, diagnosis, and compact independent-review handoff contract;
+[#924](https://github.com/boburning/portcove/issues/924) owns development-only
+typed frontend scenarios, one backend-state cache authority, and feature-owned UI
+structure; [#925](https://github.com/boburning/portcove/issues/925) owns residual
+core domain, lifecycle, persistence, and justified host-integration seams; and
+[#926](https://github.com/boburning/portcove/issues/926) owns mechanical IPC/Tauri
+exposure alignment and repository-tooling ownership. The umbrella owns only their
+finite integrated compatibility and migration-cleanup proof.
+
+Execute this work serially for one persistent Codex implementation session:
+measure and remove repeated validation/build work first, preserve the warm workflow
+and concise handoffs, then take cohesive core/contract and frontend-scenario slices,
+the remaining persistence/updater/styling/tooling consolidation, and final integrated
+acceptance. This is priority order, not a blanket dependency chain. It requires no
+frontend/backend worker split, worktree farm, parallel compiler load, new scheduler,
+paid service, hardware, or assumed host tuning. Existing heavy-Rust and native-session
+guards remain in force.
+
+#921 reuses #917 for styling and visual architecture, #206 for interaction/focus/
+navigation, #202/#204 for failure/mutation/review/confirmation presentation, and
+#245/#397/#398/#246 for independent definition delivery. #30 retains the public CLI
+contract and #243 the independent-consumer proof; #52 retains application-update and
+platform acceptance. Completed #31/#32/#741/#753/#777/#839/#869/#882 evidence remains
+valid scoped foundation. #284 and optional cache, linker, host/editor, storage, or
+antivirus experiments stay outside the Required outcome unless separate measured work
+and authority make a bounded change necessary. Planning these outcomes implements no
+refactor, speedup, qualification, signing, publication, or release readiness.
+
 The finite [#917](https://github.com/boburning/portcove/issues/917) visual-polish
 and styling-architecture outcome is also Required for Public beta. It keeps
 modern native CSS and the existing semantic design-token authority, migrates

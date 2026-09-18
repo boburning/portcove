@@ -648,6 +648,40 @@ another selected library. No new durable job or installation authority is added.
 
 ## Monorepo and deliverable decision
 
+### Planned Public beta consolidation
+
+[#921](https://github.com/boburning/portcove/issues/921) owns a finite planned
+consolidation before Public beta. It preserves this monorepo and the established
+dependency direction: CLI to core, Tauri backend to core, and React to Tauri IPC.
+`PortcoveService` remains a stable facade where useful. The planned work narrows
+private domain seams, public exports, operation-specific lifecycle states, typed
+identities/requests/outcomes, durable ordering, and lock/recovery contracts without
+introducing universal managers, repositories, dependency injection, one state
+machine for unlike workflows, or one crate per feature.
+
+The residual component owners are explicit. [#925](https://github.com/boburning/portcove/issues/925)
+owns core domain/lifecycle/persistence and measured host-integration boundaries.
+[#926](https://github.com/boburning/portcove/issues/926) extends the existing
+Rust-owned transport gate to command names, registrations and Tauri exposure while
+#30 retains public CLI wire behavior and #243 retains independent-consumer proof.
+[#924](https://github.com/boburning/portcove/issues/924) extends the coherent
+snapshot/coalescing and bounded operation-event foundations from #741/#32 into one
+frontend backend-state cache and feature-owned structure, with deterministic
+development-only scenarios excluded from release builds. #917 remains the styling
+and visual-architecture owner; #206 interaction/focus/navigation; #202/#204 failure,
+mutation, review and confirmation presentation; and #245/#397/#398/#246 independent
+definition delivery.
+
+Any internal crate split is an evidenced ownership/dependency decision, not a proxy
+for moving files. In particular, a private host updater crate or pure Steam boundary
+may be selected only after measurement and must leave application-update trust,
+staging, replacement, quiescence and recovery with the Desktop host. SQLite,
+released library/install/save/manifest formats, public identifiers and supported
+consumer contracts remain compatible through incremental migrations. Temporary
+adapters must be removed after their consumers migrate or retained only with an
+explicit compatibility reason. These are approved future outcomes, not descriptions
+of current implementation completion.
+
 `portcove-release-tools` is an unpublished, offline repository tool for checking
 application artifact signatures and constructing signed application-update TUF
 metadata from an already reconstructed target inventory. It uses maintained
