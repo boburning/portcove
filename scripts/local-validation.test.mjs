@@ -1,10 +1,12 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import {
   buildPlan,
   classifyChanges,
+  deduplicateCommands,
   executePlan,
   formatCommand,
   localChangesFromRaw,
@@ -115,7 +117,6 @@ test("a Rust source change checks and tests only its affected package", () => {
   assert.deepEqual(ids(plan), [
     "diff-check",
     "rustfmt",
-    "rust-check:portcove-core",
     "rust-clippy:portcove-core",
     "rust-tests:portcove-core",
     "rust-docs:portcove-core",
@@ -127,7 +128,6 @@ test("mapped module-local Rust changes run the owned focused group", () => {
   assert.deepEqual(ids(plan), [
     "diff-check",
     "rustfmt",
-    "rust-check:portcove-core",
     "rust-clippy:portcove-core",
     "rust-tests:portcove-core:source-inspection",
     "rust-docs:portcove-core",
@@ -188,12 +188,11 @@ test("doctest capability comes from Cargo target metadata", () => {
   assert.deepEqual([...packages], ["library"]);
 });
 
-test("root Rust dependency changes compile, lint, and use the broad workspace test fallback", () => {
+test("Clippy owns equivalent Rust compilation before the broad workspace test fallback", () => {
   const { plan } = planFor(["Cargo.lock"]);
   assert.deepEqual(ids(plan), [
     "diff-check",
     "rustfmt",
-    "rust-workspace-check",
     "rust-workspace-clippy",
     "dependency-policy",
     "rust-workspace-tests",
@@ -202,11 +201,8 @@ test("root Rust dependency changes compile, lint, and use the broad workspace te
 
 test("supported local Rust compilation and tests acquire admission before starting work", () => {
   const focused = planFor(["crates/portcove-core/src/database.rs"]).plan;
-  for (const id of [
-    "rust-check:portcove-core",
-    "rust-clippy:portcove-core",
-    "rust-docs:portcove-core",
-  ]) {
+  assert.ok(!ids(focused).includes("rust-check:portcove-core"));
+  for (const id of ["rust-clippy:portcove-core", "rust-docs:portcove-core"]) {
     const entry = focused.find((candidate) => candidate.id === id);
     assert.ok(entry, `missing ${id}`);
     assert.equal(entry.executable, process.execPath);
@@ -218,7 +214,8 @@ test("supported local Rust compilation and tests acquire admission before starti
   assert.deepEqual(focusedTests.args.slice(0, 2), ["scripts/run-rust-tests.mjs", "--locked"]);
 
   const workspace = planFor(["Cargo.lock"]).plan;
-  for (const id of ["rust-workspace-check", "rust-workspace-clippy"]) {
+  assert.ok(!ids(workspace).includes("rust-workspace-check"));
+  for (const id of ["rust-workspace-clippy"]) {
     const entry = workspace.find((candidate) => candidate.id === id);
     assert.ok(entry, `missing ${id}`);
     assert.equal(entry.executable, process.execPath);
@@ -255,6 +252,107 @@ test("frontend configuration changes use the complete small UI suite", () => {
   assert.equal(selection.uiFullTests, true);
   assert.ok(ids(plan).includes("ui-tests"));
   assert.ok(!ids(plan).includes("ui-related-tests"));
+  assert.ok(!ids(plan).includes("ui-theme-copy"));
+  assert.ok(!ids(plan).includes("ui-copy"));
+  const scripts = JSON.parse(
+    readFileSync(new URL("../apps/desktop/package.json", import.meta.url), "utf8"),
+  ).scripts;
+  const aggregateCommands = scripts.test.split(/\s*&&\s*/u);
+  assert.ok(aggregateCommands.includes("node scripts/check-theme.mjs"));
+  assert.ok(aggregateCommands.includes("node scripts/check-copy.mjs"));
+});
+
+test("command-identical obligations execute once while retaining every selection reason", () => {
+  const duplicate = {
+    id: "second-lint",
+    reason: "second owner",
+    executable: "lint",
+    args: ["--all"],
+    cwd: ".",
+    obligation: "complete-lint",
+  };
+  const plan = deduplicateCommands([
+    { ...duplicate, id: "first-lint", reason: "first owner" },
+    duplicate,
+    { id: "tests", reason: "tests", executable: "test", args: [], cwd: "." },
+  ]);
+  assert.deepEqual(ids(plan), ["first-lint", "tests"]);
+  assert.deepEqual(plan[0].selectedIds, ["first-lint", "second-lint"]);
+  assert.match(plan[0].reason, /first owner; also selected as second-lint: second owner/u);
+
+  const seen = [];
+  executePlan(plan, {
+    spawn(executable) {
+      seen.push(executable);
+      return { status: 0 };
+    },
+  });
+  assert.deepEqual(seen, ["lint", "test"]);
+});
+
+test("command-identical stages with different evidence roles remain distinct", () => {
+  const plan = deduplicateCommands([
+    {
+      id: "first",
+      reason: "first role",
+      executable: "same",
+      args: [],
+      cwd: ".",
+      obligation: "first-evidence",
+    },
+    {
+      id: "second",
+      reason: "second role",
+      executable: "same",
+      args: [],
+      cwd: ".",
+      obligation: "second-evidence",
+    },
+  ]);
+  assert.deepEqual(ids(plan), ["first", "second"]);
+});
+
+test("a reused stage id cannot hide conflicting commands or obligations", () => {
+  assert.throws(
+    () =>
+      deduplicateCommands([
+        { id: "same", reason: "one", executable: "one", args: [], cwd: "." },
+        { id: "same", reason: "two", executable: "two", args: [], cwd: "." },
+      ]),
+    /selected conflicting commands or obligations/u,
+  );
+  assert.throws(
+    () =>
+      deduplicateCommands([
+        {
+          id: "same",
+          reason: "compile",
+          executable: "same",
+          args: [],
+          cwd: ".",
+          obligation: "compile",
+        },
+        {
+          id: "same",
+          reason: "security",
+          executable: "same",
+          args: [],
+          cwd: ".",
+          obligation: "security",
+        },
+      ]),
+    /selected conflicting commands or obligations/u,
+  );
+});
+
+test("an exactly repeated stage id retains every selection reason", () => {
+  const plan = deduplicateCommands([
+    { id: "same", reason: "first", executable: "same", args: [], cwd: "." },
+    { id: "same", reason: "second", executable: "same", args: [], cwd: "." },
+  ]);
+  assert.deepEqual(ids(plan), ["same"]);
+  assert.deepEqual(plan[0].selectedIds, ["same"]);
+  assert.match(plan[0].reason, /first; also selected as same: second/u);
 });
 
 test("Oxc configuration changes retain formatting, lint, UI, fixture, and workflow contracts", () => {
