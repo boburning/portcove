@@ -11,7 +11,21 @@ const root = fileURLToPath(new URL("../", import.meta.url));
 const guardedCommandMarker = "--guard-command";
 
 export function parseRustRunMode(args) {
+  if (args[0] === "--locked" && args[1] === "--impact-union") args = args.slice(1);
   if (args.length === 1 && args[0] === "--prepare-only") return { kind: "prepare" };
+  if (args[0] === "--impact-union") {
+    if (
+      args.length < 4 ||
+      args.slice(1).some((value) => !/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(value))
+    )
+      throw new Error("--impact-union requires one package and at least two group IDs");
+    return {
+      kind: "nextest",
+      executable: process.execPath,
+      args: [path.join(root, "scripts/rust-test-impact.mjs"), "--run", ...args.slice(1)],
+      description: `Rust impact union ${args.slice(1).join(" ")}`,
+    };
+  }
   if (args[0] === guardedCommandMarker) {
     const executable = args[1];
     if (!executable)

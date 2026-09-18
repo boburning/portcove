@@ -138,13 +138,21 @@ test("mapped module-local Rust changes run the owned focused group", () => {
   assert.match(tests.reason, /explicit test-impact ownership/u);
 });
 
-test("mapped Rust responsibilities union as separate attributable groups", () => {
+test("mapped Rust responsibilities run one attributable guarded union", () => {
   const { plan } = planFor([
     "crates/portcove-core/src/source_report.rs",
     "crates/portcove-core/src/release/observation.rs",
   ]);
-  assert.ok(ids(plan).includes("rust-tests:portcove-core:source-inspection"));
-  assert.ok(ids(plan).includes("rust-tests:portcove-core:release-discovery"));
+  const union = plan.find((entry) => entry.id === "rust-tests:portcove-core:union");
+  assert.deepEqual(union.args, [
+    "scripts/run-rust-tests.mjs",
+    "--impact-union",
+    "portcove-core",
+    "release-discovery",
+    "source-inspection",
+  ]);
+  assert.match(union.reason, /release-discovery/u);
+  assert.match(union.reason, /source-inspection/u);
   assert.ok(!ids(plan).includes("rust-tests:portcove-core"));
 });
 
