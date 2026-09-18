@@ -12,6 +12,200 @@ export function checkTransportContract(schemas, sourceText) {
     : ["Generated transport schemas differ from the Rust output contract"];
 }
 
+function sortedUnique(values, label) {
+  const sorted = [...values].sort();
+  const duplicates = sorted.filter((value, index) => value === sorted[index - 1]);
+  if (duplicates.length > 0)
+    throw new Error(`${label} contains duplicate commands: ${[...new Set(duplicates)].join(", ")}`);
+  return sorted;
+}
+
+function commandName(pathname) {
+  return pathname.split("::").at(-1);
+}
+
+export function extractRegisteredDesktopCommands(sourceText) {
+  const inventories = [...sourceText.matchAll(/tauri::generate_handler!\s*\[([\s\S]*?)\]/gu)];
+  if (inventories.length !== 1)
+    throw new Error(
+      `expected exactly one tauri::generate_handler! inventory, found ${inventories.length}`,
+    );
+  const body = inventories[0][1]
+    .replaceAll(/\/\*[\s\S]*?\*\//gu, "")
+    .replaceAll(/\/\/[^\r\n]*/gu, "");
+  const paths = body
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+  if (paths.length === 0) throw new Error("the Tauri command registration inventory is empty");
+  for (const pathname of paths)
+    if (!/^(?:[A-Za-z_][A-Za-z0-9_]*::)*[A-Za-z_][A-Za-z0-9_]*$/u.test(pathname))
+      throw new Error(`unsupported Tauri command registration: ${pathname}`);
+  return sortedUnique(paths.map(commandName), "Tauri registration inventory");
+}
+
+export function extractDeclaredDesktopCommands(sources) {
+  const commands = [];
+  let attributes = 0;
+  for (const sourceText of sources) {
+    attributes += [...sourceText.matchAll(/#\s*\[\s*tauri::command\b/gu)].length;
+    for (const match of sourceText.matchAll(
+      /#\s*\[\s*tauri::command\s*\]\s*(?:pub(?:\s*\([^)]*\))?\s+)?(?:async\s+)?fn\s+([A-Za-z_][A-Za-z0-9_]*)/gu,
+    ))
+      commands.push(match[1]);
+  }
+  if (commands.length !== attributes)
+    throw new Error(
+      `parsed ${commands.length} of ${attributes} #[tauri::command] declarations; command attributes must remain bare and directly attached to a function`,
+    );
+  if (commands.length === 0)
+    throw new Error("the Rust Tauri command declaration inventory is empty");
+  return sortedUnique(commands, "Rust Tauri command declarations");
+}
+
+function sourceTokens(sourceText) {
+  const tokens = [];
+  for (let index = 0; index < sourceText.length;) {
+    const character = sourceText[index];
+    if (/\s/u.test(character)) {
+      index += 1;
+      continue;
+    }
+    if (sourceText.startsWith("//", index)) {
+      index = sourceText.indexOf("\n", index + 2);
+      if (index === -1) break;
+      continue;
+    }
+    if (sourceText.startsWith("/*", index)) {
+      const end = sourceText.indexOf("*/", index + 2);
+      if (end === -1) throw new Error("unterminated frontend block comment");
+      index = end + 2;
+      continue;
+    }
+    if (character === '"' || character === "'") {
+      const quote = character;
+      let value = "";
+      let closed = false;
+      index += 1;
+      while (index < sourceText.length) {
+        const next = sourceText[index];
+        if (next === quote) {
+          closed = true;
+          index += 1;
+          break;
+        }
+        if (next === "\\")
+          throw new Error("desktop command names must not use escaped string literals");
+        value += next;
+        index += 1;
+      }
+      if (!closed) throw new Error("unterminated frontend string literal");
+      tokens.push({ kind: "string", value });
+      continue;
+    }
+    if (character === "`") {
+      let closed = false;
+      index += 1;
+      while (index < sourceText.length) {
+        if (sourceText[index] === "\\") {
+          index += 2;
+          continue;
+        }
+        if (sourceText[index] === "`") {
+          closed = true;
+          index += 1;
+          break;
+        }
+        index += 1;
+      }
+      if (!closed) throw new Error("unterminated frontend template literal");
+      tokens.push({ kind: "template", value: null });
+      continue;
+    }
+    if (/[A-Za-z_$]/u.test(character)) {
+      const start = index;
+      index += 1;
+      while (index < sourceText.length && /[A-Za-z0-9_$]/u.test(sourceText[index])) index += 1;
+      tokens.push({ kind: "identifier", value: sourceText.slice(start, index) });
+      continue;
+    }
+    tokens.push({ kind: "punctuation", value: character });
+    index += 1;
+  }
+  return tokens;
+}
+
+export function extractFrontendDesktopCommands(sourceText) {
+  const tokens = sourceTokens(sourceText);
+  const commands = [];
+  for (let index = 0; index < tokens.length; index += 1) {
+    if (tokens[index].kind !== "identifier" || tokens[index].value !== "invoke") continue;
+    let cursor = index + 1;
+    if (tokens[cursor]?.value === "<") {
+      let depth = 0;
+      do {
+        if (tokens[cursor]?.value === "<") depth += 1;
+        else if (tokens[cursor]?.value === ">") depth -= 1;
+        cursor += 1;
+        if (cursor >= tokens.length && depth > 0)
+          throw new Error("unterminated invoke type arguments");
+      } while (depth > 0);
+    }
+    if (tokens[cursor]?.value !== "(") continue;
+    const command = tokens[cursor + 1];
+    if (command?.kind !== "string")
+      throw new Error("frontend invoke commands must use a direct string literal");
+    if (!/^[a-z][a-z0-9_]*$/u.test(command.value))
+      throw new Error(`invalid frontend command name: ${command.value}`);
+    commands.push(command.value);
+  }
+  if (commands.length === 0) throw new Error("the frontend command invocation inventory is empty");
+  return sortedUnique(commands, "frontend command invocations");
+}
+
+function inventoryDifference(expected, actual) {
+  const actualSet = new Set(actual);
+  return expected.filter((value) => !actualSet.has(value));
+}
+
+export function checkDesktopCommandContract({
+  registrationSource,
+  declarationSources,
+  frontendSource,
+}) {
+  try {
+    const registered = extractRegisteredDesktopCommands(registrationSource);
+    const declared = extractDeclaredDesktopCommands(declarationSources);
+    const frontend = extractFrontendDesktopCommands(frontendSource);
+    const failures = [];
+    for (const [label, actual] of [
+      ["Rust declarations", declared],
+      ["frontend invocations", frontend],
+    ]) {
+      const missing = inventoryDifference(registered, actual);
+      const extra = inventoryDifference(actual, registered);
+      if (missing.length > 0)
+        failures.push(`${label} omit registered commands: ${missing.join(", ")}`);
+      if (extra.length > 0)
+        failures.push(`${label} expose unregistered commands: ${extra.join(", ")}`);
+    }
+    return failures;
+  } catch (error) {
+    return [error instanceof Error ? error.message : String(error)];
+  }
+}
+
+function rustSources(directory) {
+  const sources = [];
+  for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+    const target = path.join(directory, entry.name);
+    if (entry.isDirectory()) sources.push(...rustSources(target));
+    else if (entry.isFile() && entry.name.endsWith(".rs"))
+      sources.push(fs.readFileSync(target, "utf8"));
+  }
+  return sources;
+}
+
 function exportSchemas(root, contract) {
   const command = spawnSync(
     "cargo",
@@ -115,13 +309,21 @@ function main() {
       ),
     );
   }
+  const desktopRustRoot = path.join(root, "apps", "desktop", "src-tauri", "src");
+  failures.push(
+    ...checkDesktopCommandContract({
+      registrationSource: fs.readFileSync(path.join(desktopRustRoot, "lib.rs"), "utf8"),
+      declarationSources: rustSources(desktopRustRoot),
+      frontendSource: fs.readFileSync(path.join(root, "apps", "desktop", "src", "api.ts"), "utf8"),
+    }).map((message) => `Desktop commands: ${message}`),
+  );
   if (failures.length > 0) {
     process.stderr.write(`Transport contract drift:\n- ${failures.join("\n- ")}\n`);
     process.exit(1);
   }
 
   process.stdout.write(
-    "Generated serialization schemas match Rust; the frontend compiler checks their derived types.\n",
+    "Generated serialization schemas and desktop command exposure match Rust; the frontend compiler checks derived types.\n",
   );
 }
 

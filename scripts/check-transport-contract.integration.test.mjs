@@ -8,6 +8,16 @@ import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
+test("live Rust schemas and desktop command exposure match their checked-in consumers", () => {
+  const result = spawnSync(
+    process.execPath,
+    [path.join(root, "scripts", "check-transport-contract.mjs")],
+    { cwd: root, encoding: "utf8" },
+  );
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  assert.match(result.stdout, /desktop command exposure match Rust/);
+});
+
 for (const contract of ["core", "desktop"])
   test(`rejects ${contract} drift against its compiled Rust serialization contract`, () => {
     const temporary = fs.mkdtempSync(path.join(os.tmpdir(), "portcove-transport-"));

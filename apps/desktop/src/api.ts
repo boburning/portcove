@@ -46,7 +46,10 @@ import type {
   BackupInventory,
   BackupRecord,
   BootstrapStatus,
+  CapabilityDocument,
   CatalogDocument,
+  DefinitionCapabilityReport,
+  DefinitionCapabilityRequest,
   DoctorReport,
   GithubAuthStatus,
   GithubDeviceLogin,
@@ -55,6 +58,7 @@ import type {
   HostToolStatus,
   InstallPlan,
   InstallRecord,
+  LibraryIdentity,
   LibraryMetadataFile,
   OutputDestinationPreview,
   OutputRelocationPlan,
@@ -167,6 +171,8 @@ export const desktopApi = {
     }),
   cliCommandContext: (generation: number) =>
     invoke<CliCommandContext>("get_cli_command_context", { generation }),
+  libraryIdentity: (generation: number) =>
+    invoke<LibraryIdentity>("get_library_identity", { generation }),
   previewSteamEntry: (
     portId: string,
     steamRoot: string,
@@ -192,6 +198,9 @@ export const desktopApi = {
       generation,
     }),
   catalogStatus: () => invoke<CatalogStatus>("get_catalog_status"),
+  engineCapabilities: () => invoke<CapabilityDocument>("get_engine_capabilities"),
+  checkDefinitionCapabilities: (request: DefinitionCapabilityRequest) =>
+    invoke<DefinitionCapabilityReport>("check_definition_capabilities", { request }),
   trustCatalogKey: (publicKey: string) =>
     invoke<CatalogStatus | null>("trust_catalog_key", { publicKey }),
   revokeCatalogKey: (keyId: string, expectedState: string) =>

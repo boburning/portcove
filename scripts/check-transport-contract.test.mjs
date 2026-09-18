@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { checkTransportContract } from "./check-transport-contract.mjs";
+import {
+  checkDesktopCommandContract,
+  checkTransportContract,
+  extractDeclaredDesktopCommands,
+  extractFrontendDesktopCommands,
+  extractRegisteredDesktopCommands,
+} from "./check-transport-contract.mjs";
 import { renderTransportSchemas } from "./transport-schemas.mjs";
 
 const schemas = {
@@ -58,4 +64,114 @@ test("invalid or absent schema inventories cannot generate an empty passing cont
   for (const invalid of [null, [], {}, { response: null }])
     assert.throws(() => renderTransportSchemas(invalid), /named JSON schemas/);
   assert.equal(checkTransportContract(schemas, "").length, 1);
+});
+
+const registrationSource = `
+  .invoke_handler(tauri::generate_handler![
+    catalog::get_catalog,
+    set_policy,
+  ])
+`;
+const declarationSources = [
+  `#[tauri::command]\npub async fn get_catalog() {}`,
+  `#[tauri::command]\nfn set_policy() {}`,
+];
+const frontendSource = `
+  import { invoke } from "@tauri-apps/api/core";
+  // invoke("commented_out")
+  export const api = {
+    catalog: () => invoke<Catalog>("get_catalog"),
+    policy: () => invoke<void>("set_policy", { value: true }),
+  };
+`;
+
+test("desktop command declarations, registrations, and literal frontend bindings agree", () => {
+  assert.deepEqual(extractRegisteredDesktopCommands(registrationSource), [
+    "get_catalog",
+    "set_policy",
+  ]);
+  assert.deepEqual(extractDeclaredDesktopCommands(declarationSources), [
+    "get_catalog",
+    "set_policy",
+  ]);
+  assert.deepEqual(extractFrontendDesktopCommands(frontendSource), ["get_catalog", "set_policy"]);
+  assert.deepEqual(
+    checkDesktopCommandContract({ registrationSource, declarationSources, frontendSource }),
+    [],
+  );
+});
+
+test("missing, extra, duplicate, and dynamic desktop exposure fails closed", () => {
+  const missingFrontend = frontendSource.replace(
+    'policy: () => invoke<void>("set_policy", { value: true }),',
+    "",
+  );
+  assert.match(
+    checkDesktopCommandContract({
+      registrationSource,
+      declarationSources,
+      frontendSource: missingFrontend,
+    }).join("\n"),
+    /frontend invocations omit registered commands: set_policy/,
+  );
+
+  assert.match(
+    checkDesktopCommandContract({
+      registrationSource,
+      declarationSources: [
+        ...declarationSources,
+        `#[tauri::command]\nfn unregistered_admin_command() {}`,
+      ],
+      frontendSource,
+    }).join("\n"),
+    /Rust declarations expose unregistered commands: unregistered_admin_command/,
+  );
+
+  assert.match(
+    checkDesktopCommandContract({
+      registrationSource: registrationSource.replace("set_policy,", "set_policy, set_policy,"),
+      declarationSources,
+      frontendSource,
+    }).join("\n"),
+    /duplicate commands: set_policy/,
+  );
+
+  assert.match(
+    checkDesktopCommandContract({
+      registrationSource,
+      declarationSources,
+      frontendSource: frontendSource.replace('"set_policy"', "selectedCommand"),
+    }).join("\n"),
+    /direct string literal/,
+  );
+});
+
+test("a coherent registration and frontend rename cannot hide declaration drift", () => {
+  const renamedRegistration = registrationSource.replace("get_catalog", "renamed_catalog");
+  const renamedFrontend = frontendSource.replace("get_catalog", "renamed_catalog");
+  assert.match(
+    checkDesktopCommandContract({
+      registrationSource: renamedRegistration,
+      declarationSources,
+      frontendSource: renamedFrontend,
+    }).join("\n"),
+    /Rust declarations omit registered commands: renamed_catalog/,
+  );
+});
+
+test("unsupported command attributes and unparsed registration syntax fail closed", () => {
+  assert.throws(
+    () =>
+      extractDeclaredDesktopCommands([
+        `#[tauri::command(rename_all = "snake_case")]\nfn named() {}`,
+      ]),
+    /parsed 0 of 1/,
+  );
+  assert.throws(
+    () =>
+      extractRegisteredDesktopCommands(
+        `.invoke_handler(tauri::generate_handler![catalog::get_catalog, conditional!()])`,
+      ),
+    /unsupported Tauri command registration/,
+  );
 });

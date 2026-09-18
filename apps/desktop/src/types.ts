@@ -15,6 +15,10 @@ export type { SourceRepresentation } from "./transport-types.generated";
 export type { PortDefinition } from "./transport-types.generated";
 
 export type CatalogDocument = Generated.TransportOutputs["catalog"];
+export type CapabilityDocument = Generated.TransportOutputs["capabilities"];
+export type DefinitionCapabilityReport = Generated.TransportOutputs["definition_capability_report"];
+export type DefinitionCapabilityRequest = Requests.TransportInputs["definition_capability_request"];
+export type LibraryIdentity = Generated.TransportOutputs["library_identity"];
 export type ArtworkState = Generated.TransportOutputs["artwork_state"];
 export type ArtworkThumbnail = Generated.TransportOutputs["artwork_thumbnail"];
 export type ArtworkSlot = ArtworkState["choice"]["slot"];
