@@ -1,3 +1,8 @@
+import {
+  useApplicationUpdateChoice,
+  useApplicationUpdateNotice,
+  useApplicationUpdateProductionTransition,
+} from "./features/application-update/use-application-update";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { usePortcoveData } from "./features/workspace/use-workspace-data";
 import { AdoptionModal } from "./components/AdoptionModal";
@@ -41,9 +46,6 @@ import { useNativeSourceDrop } from "./native-source-drop";
 import { useCommandSurface } from "./use-command-surface";
 import {
   useAdoptionPlanning,
-  useApplicationUpdateChoice,
-  useApplicationUpdateNotice,
-  useApplicationUpdateProductionTransition,
   detailActions,
   type Perform,
   useGithubAuth,

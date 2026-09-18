@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type SetStateAction } from "react";
-import { desktopApi } from "../api";
-import { LatestRequestGeneration } from "../shared/concurrency-state";
-import type { ApplicationUpdatePreferencesState } from "../features/application-update/use-application-update-preferences";
+import { desktopApi } from "../../api";
+import { LatestRequestGeneration } from "../../shared/concurrency-state";
+import type { ApplicationUpdatePreferencesState } from "./use-application-update-preferences";
 import type {
   ApplicationUpdateChoice,
   ApplicationUpdateCheckPhase,
@@ -10,8 +10,8 @@ import type {
   ApplicationUpdatePreferences,
   ApplicationUpdateRecoveryArea,
   ApplicationUpdateStatus,
-} from "../types";
-import { errorText } from "../view-model";
+} from "../../types";
+import { errorText } from "../../view-model";
 
 const recommendedChoice: ApplicationUpdateChoice = {
   channel: "preview",

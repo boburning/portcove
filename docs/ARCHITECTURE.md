@@ -1334,6 +1334,11 @@ retry or a successful host mutation supplies current state. This small explicit
 owner does not need a second query cache. Host-side revision checks, trust and
 update eligibility remain authoritative; cached preferences never authorize an
 update. Status and notice streams retain their existing separate owners.
+The application-update Settings component, choice/transition/notice hooks and
+their tests are colocated with that read owner in `features/application-update`.
+App and the remaining legacy Settings composition import the feature directly;
+`use-portcove.ts` no longer owns or re-exports these hooks. The existing shared-to-
+feature import rule applies without adding a second boundary checker.
 
 The existing complete essential-snapshot identity comparison also controls state
 publication. An unchanged catalog/status/source snapshot retains all three React

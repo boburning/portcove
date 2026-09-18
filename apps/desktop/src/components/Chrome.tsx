@@ -56,7 +56,7 @@ import { ExternalLink } from "./ExternalLink";
 import { LibraryMoveButton } from "./LibraryMove";
 import { LibraryImportButton } from "./LibraryImport";
 import { CatalogSettings } from "./CatalogUpdates";
-import { ApplicationUpdateSettings } from "./ApplicationUpdates";
+import { ApplicationUpdateSettings } from "../features/application-update/ApplicationUpdates";
 import type { ApplicationUpdatePreferencesState } from "../features/application-update/use-application-update-preferences";
 import { SourceDiscoveryButton } from "./SourceDiscovery";
 import { SourceIdentityPanel } from "./SourceIdentity";
