@@ -314,6 +314,40 @@ React UI ── Tauri IPC ───┤
                  SQLite + library tree
 ```
 
+## Backup service ownership
+
+`PortcoveService` remains the public facade for create/list/review/authorize/
+restore/delete backup operations. Its stable `BackupAction` and
+`BackupActionPreview` DTOs remain at the existing public paths. The private
+`service::backups` module owns their implementation, manifest decoding, inventory
+classification, payload copying and fingerprint helpers. These helpers and the
+persisted manifest representation are not exported. There is no new manager,
+crate, public schema or adapter authority.
+
+| Responsibility                                    | Owner and dependency direction                                                                               |
+| ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| Public backup methods and review DTOs             | Existing service facade; CLI and Tauri call the same API                                                     |
+| Backup orchestration and private representation   | `service/backups.rs`, using library authorization/locking, durability and the existing adoption copy planner |
+| Startup recovery and cross-lifecycle coordination | Existing service/recovery machinery; calls the same crate-private backup-directory identity check            |
+
+The existing Cargo-metadata architecture gate retains the core/adapter dependency
+rules. Rust module privacy keeps backup implementation helpers inside their owner;
+the public API doctest pairs an available action type with a rejected internal
+manifest import. Other service responsibilities remain incremental #925 work.
+
+Durable ordering is unchanged. Creation locks the port, reconciles launched user
+data, writes and syncs a private payload/manifest, then publishes through the
+existing backup-directory durability helpers. Restore records lifecycle intent,
+uses the existing port lock and one-use state-bound authorization, validates and
+stages the selected payload, and creates the safety backup before replacing live
+data. It records payload publication and metadata commit before retiring retained
+recovery data. Deletion rechecks its content-bound review under the port lock,
+records the prepared intent, quarantines with no replacement, records publication,
+removes only that quarantine, then records metadata commit and retires the journal.
+The existing fault points and recovery rules still distinguish those phases;
+activity finalization remains separate from payload publication. Manifest bytes,
+journal fields, paths, lock order and legacy interpretation are unchanged.
+
 ## Steam shortcut compatibility boundary
 
 Desktop owns the operating-system-facing adapter for a deliberately selected
