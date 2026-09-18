@@ -219,6 +219,7 @@ describe("application update notice", () => {
       current = useApplicationUpdateProductionTransition({
         preferences,
         acceptPreferences: setPreferences,
+        refreshPreferences: desktopApi.applicationUpdatePreferences,
       });
       return null;
     }
@@ -260,6 +261,7 @@ describe("application update notice", () => {
       current = useApplicationUpdateProductionTransition({
         preferences: preview,
         acceptPreferences,
+        refreshPreferences: desktopApi.applicationUpdatePreferences,
         reportError,
       });
       return null;

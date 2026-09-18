@@ -35,43 +35,39 @@ import {
   removePendingOperation,
 } from "./shared/concurrency-state";
 import { startManagedSubscription } from "./shared/subscription-lifecycle";
+import { useApplicationUpdatePreferences } from "./features/application-update/use-application-update-preferences";
 
 export function useApplicationUpdateChoice(reportError?: (error: unknown) => void) {
-  const [preferences, setPreferences] = useState<ApplicationUpdatePreferences>();
+  const state = useApplicationUpdatePreferences();
+  const { preferences, refresh } = state;
   const [dismissedRevision, setDismissedRevision] = useState<number>();
-  const accept = useCallback((next: ApplicationUpdatePreferences) => {
-    setPreferences((current) => (!current || next.revision >= current.revision ? next : current));
-  }, []);
   useEffect(() => {
     let disposed = false;
-    void desktopApi
-      .applicationUpdatePreferences()
-      .then((next) => {
-        if (!disposed) accept(next);
-      })
-      .catch((error: unknown) => {
-        if (!disposed) reportError?.(error);
-      });
+    void refresh().catch((error: unknown) => {
+      if (!disposed) reportError?.(error);
+    });
     return () => {
       disposed = true;
     };
-  }, [accept, reportError]);
+  }, [refresh, reportError]);
   const choiceRequired = Boolean(
     preferences && !preferences.choice && dismissedRevision !== preferences.revision,
   );
   const dismiss = useCallback(() => {
     if (preferences && !preferences.choice) setDismissedRevision(preferences.revision);
   }, [preferences]);
-  return { preferences, choiceRequired, accept, dismiss };
+  return { ...state, choiceRequired, dismiss };
 }
 
 export function useApplicationUpdateProductionTransition({
   preferences,
   acceptPreferences,
+  refreshPreferences,
   reportError,
 }: {
   preferences: ApplicationUpdatePreferences | undefined;
   acceptPreferences: (preferences: ApplicationUpdatePreferences) => void;
+  refreshPreferences: () => Promise<ApplicationUpdatePreferences>;
   reportError?: (error: unknown) => void;
 }) {
   const requests = useRef(new LatestRequestGeneration());
@@ -124,7 +120,7 @@ export function useApplicationUpdateProductionTransition({
         reportError?.(error);
         try {
           const [currentPreferences, currentTransition] = await Promise.all([
-            desktopApi.applicationUpdatePreferences(),
+            refreshPreferences(),
             desktopApi.applicationUpdateProductionTransition(),
           ]);
           if (actions.current.isCurrent(request)) {
@@ -139,7 +135,7 @@ export function useApplicationUpdateProductionTransition({
         if (actions.current.isCurrent(request)) setBusy(false);
       }
     },
-    [acceptPreferences, preferenceRevision, reportError],
+    [acceptPreferences, refreshPreferences, preferenceRevision, reportError],
   );
 
   const offerRequired = Boolean(

@@ -25,7 +25,6 @@ import type {
   ActivityRecord,
   PortDefinition,
   ApplicationUpdateNoticeSnapshot,
-  ApplicationUpdatePreferences,
   DoctorReport,
   GithubAuthStatus,
   GithubDeviceLogin,
@@ -58,6 +57,7 @@ import { LibraryMoveButton } from "./LibraryMove";
 import { LibraryImportButton } from "./LibraryImport";
 import { CatalogSettings } from "./CatalogUpdates";
 import { ApplicationUpdateSettings } from "./ApplicationUpdates";
+import type { ApplicationUpdatePreferencesState } from "../features/application-update/use-application-update-preferences";
 import { SourceDiscoveryButton } from "./SourceDiscovery";
 import { SourceIdentityPanel } from "./SourceIdentity";
 import { Icon, NavigationHints, Shortcut } from "./ui";
@@ -1196,7 +1196,7 @@ export function SettingsView({
   hostToolActions,
   openSourceEvidence,
   applicationUpdateNotice,
-  onApplicationUpdatePreferencesChanged,
+  applicationUpdatePreferences,
   diagnosticsRefreshing,
   diagnosticsStale,
   diagnosticFailure,
@@ -1230,7 +1230,7 @@ export function SettingsView({
   onCatalogChanged?: () => Promise<unknown>;
   hostToolActions?: HostToolActions;
   applicationUpdateNotice?: ApplicationUpdateNoticeSnapshot["notice"];
-  onApplicationUpdatePreferencesChanged?: (preferences: ApplicationUpdatePreferences) => void;
+  applicationUpdatePreferences?: ApplicationUpdatePreferencesState;
   diagnosticsRefreshing?: boolean;
   diagnosticsStale?: boolean;
   diagnosticFailure?: unknown;
@@ -1304,7 +1304,7 @@ export function SettingsView({
         generation={generation}
         disabled={Boolean(busy)}
         automaticNotice={applicationUpdateNotice}
-        onPreferencesChanged={onApplicationUpdatePreferencesChanged}
+        preferencesState={applicationUpdatePreferences}
       />
       <article className="settings-card">
         <p className="eyebrow">PRIVACY</p>
