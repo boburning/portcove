@@ -74,6 +74,15 @@ pull in native desktop or packaged Windows qualification. Oxc configuration edit
 retain formatting, typed lint, UI build/tests, rejection fixtures, and hosted
 workflow contracts.
 
+The local planner executes one warnings-denied Clippy command, rather than an
+equivalent Cargo check immediately followed by Clippy, for each selected package
+or workspace target set. It coalesces the same Oxlint invocation selected by both
+tooling and UI only because both declare the same semantic obligation; command
+text alone cannot merge distinct evidence roles. Complete UI tests own their
+included theme and copy checks, while related-test plans retain the standalone
+checks. The printed reason lists every coalesced selector so reduced process count
+does not hide why an obligation ran.
+
 `just check` is exhaustive for Rust, UI, script lint and their tool-fixture
 contracts, generic repository tooling, Roadmap, and development-tool contracts,
 but deliberately excludes release and packaged qualification. Use

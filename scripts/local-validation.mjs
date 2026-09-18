@@ -110,7 +110,10 @@ const explicitNodeTests = new Map([
   [".node-version", ["scripts/dependency-automation.test.mjs"]],
   ["Cargo.toml", ["scripts/dependency-automation.test.mjs"]],
   ["rust-toolchain.toml", ["scripts/dependency-automation.test.mjs"]],
-  ["apps/desktop/package.json", ["scripts/dependency-automation.test.mjs"]],
+  [
+    "apps/desktop/package.json",
+    ["scripts/dependency-automation.test.mjs", "scripts/local-validation.test.mjs"],
+  ],
   ["apps/desktop/pnpm-workspace.yaml", ["scripts/dependency-automation.test.mjs"]],
   [".github/dependabot.yml", ["scripts/dependency-automation.test.mjs"]],
   [
@@ -177,7 +180,46 @@ function normalizePath(value) {
 }
 
 function command(id, reason, executable, args, options = {}) {
-  return { id, reason, executable, args, cwd: options.cwd ?? projectRoot };
+  return {
+    id,
+    reason,
+    executable,
+    args,
+    cwd: options.cwd ?? projectRoot,
+    obligation: options.obligation ?? id,
+  };
+}
+
+function commandIdentity(entry) {
+  return JSON.stringify([entry.cwd, entry.executable, entry.args]);
+}
+
+export function deduplicateCommands(commands) {
+  const unique = [];
+  const byId = new Map();
+  const byObligation = new Map();
+  for (const entry of commands) {
+    const identity = commandIdentity(entry);
+    const existingId = byId.get(entry.id);
+    if (existingId) {
+      if (commandIdentity(existingId) !== identity)
+        throw new Error(`validation stage ${entry.id} selected conflicting commands`);
+      continue;
+    }
+    byId.set(entry.id, entry);
+
+    const obligationIdentity = JSON.stringify([entry.obligation ?? entry.id, identity]);
+    const existing = byObligation.get(obligationIdentity);
+    if (existing) {
+      existing.selectedIds.push(entry.id);
+      existing.reason = `${existing.reason}; also selected as ${entry.id}: ${entry.reason}`;
+      continue;
+    }
+    const retained = { ...entry, selectedIds: [entry.id] };
+    unique.push(retained);
+    byObligation.set(obligationIdentity, retained);
+  }
+  return unique;
 }
 
 function heavyRustCommand(id, reason, executable, args, options = {}) {
@@ -641,7 +683,7 @@ export function buildPlan(selection, context = {}) {
         "oxlint",
         "lint changed repository JavaScript with the complete Oxc contract",
         ["pnpm", "run", "lint:oxlint"],
-        { cwd: desktopRoot },
+        { cwd: desktopRoot, obligation: "repository-oxlint" },
       ),
     );
   }
@@ -701,14 +743,8 @@ export function buildPlan(selection, context = {}) {
   if (selection.workspaceRust) {
     commands.push(
       heavyRustCommand(
-        "rust-workspace-check",
-        "root dependency or toolchain change compiles every workspace target",
-        "cargo",
-        ["check", "--locked", "--workspace", "--all-targets"],
-      ),
-      heavyRustCommand(
         "rust-workspace-clippy",
-        "root dependency or toolchain change lints every workspace target",
+        "root dependency or toolchain change compiles and lints every workspace target",
         "cargo",
         ["clippy", "--locked", "--workspace", "--all-targets", "--", "-D", "warnings"],
       ),
@@ -746,14 +782,8 @@ export function buildPlan(selection, context = {}) {
       if (rustTestImpactLoadError) impact.reason = `${impact.reason}; ${rustTestImpactLoadError}`;
       commands.push(
         heavyRustCommand(
-          `rust-check:${packageName}`,
-          `compile every target in affected package ${packageName}`,
-          "cargo",
-          ["check", "--locked", "-p", packageName, "--all-targets"],
-        ),
-        heavyRustCommand(
           `rust-clippy:${packageName}`,
-          `lint every target in affected package ${packageName}`,
+          `compile and lint every target in affected package ${packageName}`,
           "cargo",
           ["clippy", "--locked", "-p", packageName, "--all-targets", "--", "-D", "warnings"],
         ),
@@ -801,7 +831,7 @@ export function buildPlan(selection, context = {}) {
         "ui-oxlint",
         "run the repository's typed frontend lint contract",
         ["pnpm", "run", "lint:oxlint"],
-        { cwd: desktopRoot },
+        { cwd: desktopRoot, obligation: "repository-oxlint" },
       ),
     );
     if (selection.stylelint)
@@ -824,21 +854,22 @@ export function buildPlan(selection, context = {}) {
       );
     else if (selection.uiRelatedFiles.size)
       commands.push(uiRelatedCommand(sorted(selection.uiRelatedFiles)), uiRelatedDurationCommand());
-    commands.push(
-      corepackCommand(
-        "ui-theme-copy",
-        "retain theme and player-facing copy validation",
-        ["pnpm", "run", "test:theme"],
-        { cwd: desktopRoot },
-      ),
-      command(
-        "ui-copy",
-        "retain player-facing copy validation",
-        process.execPath,
-        ["scripts/check-copy.mjs"],
-        { cwd: desktopRoot },
-      ),
-    );
+    if (!selection.uiFullTests)
+      commands.push(
+        corepackCommand(
+          "ui-theme-copy",
+          "retain theme and player-facing copy validation",
+          ["pnpm", "run", "test:theme"],
+          { cwd: desktopRoot },
+        ),
+        command(
+          "ui-copy",
+          "retain player-facing copy validation",
+          process.execPath,
+          ["scripts/check-copy.mjs"],
+          { cwd: desktopRoot },
+        ),
+      );
   }
 
   if (selection.fallow)
@@ -878,15 +909,7 @@ export function buildPlan(selection, context = {}) {
       ),
     );
 
-  const unique = [];
-  const ids = new Set();
-  for (const entry of commands) {
-    if (!ids.has(entry.id)) {
-      ids.add(entry.id);
-      unique.push(entry);
-    }
-  }
-  return unique;
+  return deduplicateCommands(commands);
 }
 
 function git(args, options = {}) {
