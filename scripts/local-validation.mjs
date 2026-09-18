@@ -802,6 +802,20 @@ export function buildPlan(selection, context = {}) {
             packageName,
           ]),
         );
+      else if (impact.groups.length > 1)
+        commands.push(
+          command(
+            `rust-tests:${packageName}:union`,
+            impact.groups.map((group) => `${group.id}: ${group.reason}`).join("; "),
+            process.execPath,
+            [
+              "scripts/run-rust-tests.mjs",
+              "--impact-union",
+              packageName,
+              ...impact.groups.map((group) => group.id),
+            ],
+          ),
+        );
       else
         for (const group of impact.groups)
           commands.push(

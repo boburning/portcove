@@ -6,10 +6,109 @@ import {
   readRustTestImpactMap,
   selectRustTestImpact,
   validateRustTestImpactMap,
+  runnableImpactTests,
+  runRustImpactUnion,
 } from "./rust-test-impact.mjs";
 
 const map = readRustTestImpactMap();
 const modified = (path) => ({ status: "M", path });
+
+function inventory(names) {
+  return {
+    "test-count": names.length,
+    "rust-suites": {
+      "portcove-core": {
+        "package-name": "portcove-core",
+        "binary-id": "portcove-core",
+        status: "listed",
+        testcases: Object.fromEntries(
+          names.map((name) => [
+            name,
+            {
+              ignored: false,
+              "filter-match": { status: "matches" },
+            },
+          ]),
+        ),
+      },
+    },
+  };
+}
+
+test("impact union proves all groups before executing each distinct test once", () => {
+  const calls = [];
+  const reports = [];
+  const inventories = [
+    inventory(["a", "shared"]),
+    inventory(["b", "shared"]),
+    inventory(["a", "b", "shared"]),
+  ];
+  const status = runRustImpactUnion("portcove-core", ["catalog-contract", "definition-delivery"], {
+    map,
+    report: (message) => reports.push(message),
+    spawnSync(command, args) {
+      calls.push([command, ...args]);
+      return args[1] === "list"
+        ? { status: 0, stdout: JSON.stringify(inventories.shift()) }
+        : { status: 7 };
+    },
+  });
+  assert.equal(status, 7);
+  assert.deepEqual(
+    calls.map((call) => call[2]),
+    ["list", "list", "list", "run"],
+  );
+  assert.equal(calls[2].at(-3), calls[3].at(-1));
+  assert.match(reports.join("\n"), /union: 3 distinct runnable tests/u);
+});
+
+test("empty groups, incomplete inventories and union drift stop before test execution", () => {
+  for (const inventories of [
+    [inventory(["a"]), inventory([])],
+    [inventory(["a"]), inventory(["b"]), inventory(["a"])],
+    [inventory(["a"]), inventory(["b"]), inventory(["a", "unexpected"])],
+    [{ ...inventory(["a"]), "test-count": 2 }],
+    [{ ...inventory(["a"]), "rust-suites": {} }],
+  ]) {
+    assert.throws(() =>
+      runRustImpactUnion("portcove-core", ["catalog-contract", "definition-delivery"], {
+        map,
+        report() {},
+        spawnSync(_command, args) {
+          assert.equal(args[1], "list");
+          return { status: 0, stdout: JSON.stringify(inventories.shift()) };
+        },
+      }),
+    );
+  }
+  const ignored = inventory(["ignored"]);
+  ignored["rust-suites"]["portcove-core"].testcases.ignored.ignored = true;
+  assert.equal(runnableImpactTests(ignored, "portcove-core").size, 0);
+  assert.throws(() => runnableImpactTests(inventory(["a"]), "wrong-package"));
+});
+
+test("impact union rejects unknown or repeated group IDs and preserves inventory errors", () => {
+  for (const ids of [["unknown", "catalog-contract"], ["catalog-contract", "catalog-contract"], []])
+    assert.throws(() =>
+      runRustImpactUnion("portcove-core", ids, {
+        map,
+        spawnSync() {
+          assert.fail();
+        },
+      }),
+    );
+  for (const result of [
+    { status: 1, stderr: "inventory failure" },
+    { error: new Error("spawn failed") },
+    { status: 0, stdout: "invalid json" },
+  ])
+    assert.throws(() =>
+      runRustImpactUnion("portcove-core", ["catalog-contract", "definition-delivery"], {
+        map,
+        spawnSync: () => result,
+      }),
+    );
+});
 
 test("the versioned map owns unique tracked paths and nonempty filters", () => {
   const tracked = new Set(

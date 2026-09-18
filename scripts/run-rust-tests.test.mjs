@@ -21,6 +21,32 @@ function childProcess(pid, exitCode) {
 }
 
 test("runner distinguishes nextest, hosted preparation, and exact guarded commands", () => {
+  const union = parseRustRunMode([
+    "--impact-union",
+    "portcove-core",
+    "catalog-contract",
+    "definition-delivery",
+  ]);
+  assert.equal(union.kind, "nextest");
+  assert.deepEqual(
+    parseRustRunMode([
+      "--locked",
+      "--impact-union",
+      "portcove-core",
+      "catalog-contract",
+      "definition-delivery",
+    ]),
+    union,
+  );
+  assert.equal(union.executable, process.execPath);
+  assert.deepEqual(union.args.slice(1), [
+    "--run",
+    "portcove-core",
+    "catalog-contract",
+    "definition-delivery",
+  ]);
+  assert.throws(() => parseRustRunMode(["--impact-union", "portcove-core", "--workspace", "all"]));
+  assert.throws(() => parseRustRunMode(["--impact-union", "portcove-core", "catalog-contract"]));
   assert.deepEqual(parseRustRunMode(["--locked", "--workspace"]), {
     kind: "nextest",
     executable: "cargo-nextest",

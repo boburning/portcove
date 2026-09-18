@@ -90,8 +90,12 @@ invocation-count observations, not an arbitrary wall-clock speed gate. Existing
 stage durations and guard evidence remain the timing record; there is no new
 dashboard.
 
-Compatible Rust impact-filter unions remain planned until every selected group can
-be proven nonvacuous before one run. Deletions, renames, new or unknown paths
+Compatible Rust impact groups now run through one guarded union. Nextest lists
+each selected group under the same locked package, profile and environment and
+must report runnable tests for each. A separate union inventory must equal the
+set of test identities from those groups before the union executes once. Every
+group reason and count is reported. Single-group plans retain their direct run.
+Deletions, renames, new or unknown paths
 continue to fail safely. A protected selector change qualifies under the pre-change
 policy, adversarial tests, a fresh audit, exhaustive hosted checks, and separate
 review.
