@@ -14,6 +14,8 @@ use portcove_desktop::application_update_preferences::{
 use portcove_desktop::application_update_status::{
     ApplicationUpdateRecoveryArea, ApplicationUpdateStatus,
 };
+use portcove_desktop::steam_entries::SteamEntryApplyResult;
+use portcove_desktop::steam_entry_commands::{SteamEntryReview, SteamEntrySelection};
 use schemars::{JsonSchema, generate::SchemaSettings};
 use serde_json::{Value, json};
 use transport::{
@@ -52,6 +54,8 @@ fn main() {
                 "application_update_notice": output::<ApplicationUpdateNoticeSnapshot>(),
                 "workspace_snapshot": output::<DesktopWorkspaceSnapshot>(),
                 "preparation_cleanup_preview": output::<portcove_core::PreparationCleanupPreview>(),
+                "steam_entry_review": output::<SteamEntryReview>(),
+                "steam_entry_apply_result": output::<SteamEntryApplyResult>(),
             },
             "input": {
                 "install_input": schemars::schema_for!(InstallInput),
@@ -59,6 +63,7 @@ fn main() {
                 "application_update_production_decision": schemars::schema_for!(ApplicationUpdateProductionDecision),
                 "application_update_recovery_area": schemars::schema_for!(ApplicationUpdateRecoveryArea),
                 "application_update_download_request": schemars::schema_for!(ApplicationUpdateDownloadRequest),
+                "steam_entry_selection": schemars::schema_for!(SteamEntrySelection),
             },
         })
     );

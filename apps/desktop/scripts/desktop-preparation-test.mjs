@@ -14,6 +14,7 @@ import { sourceRemovalScenario } from "./desktop-source-removal-test.mjs";
 import { interruptedPreparationScenario } from "./desktop-preparation-recovery-test.mjs";
 import { captureAccessibilityReport, clickVisible } from "./desktop-review-controls.mjs";
 import { readinessScenario } from "./desktop-readiness-test.mjs";
+import { steamEntryScenario } from "./desktop-steam-entry-test.mjs";
 
 export async function preparationScenarios({
   browser,
@@ -479,6 +480,16 @@ export async function preparationScenarios({
     artifacts,
     command,
     seed,
+    open,
+    confirmNative,
+  });
+  await steamEntryScenario({
+    browser,
+    invoke,
+    scenario,
+    output,
+    artifacts,
+    command,
     open,
     confirmNative,
   });

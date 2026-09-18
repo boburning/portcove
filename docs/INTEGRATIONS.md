@@ -404,10 +404,33 @@ overwriting data or calling the outcome a rollback.
 
 Current evidence is fixture-controlled binary parsing and durable local publication,
 including stale-state, parser-limit, AppID-collision, concurrent-edit,
-malformed-data and interrupted-journal cases. The module is not yet wired to
-renderer commands. It does **not** prove Steam consumed the entry, Steam was
-actually closed, client restart behavior, live profile discovery, Steam-facing
-launch/Stop/return, artwork placement, Desktop UI, or Steam Deck behavior. Those
+malformed-data and interrupted-journal cases. Desktop exposes a bounded
+single-installed-game consumer in the game's technical maintenance actions. The
+user chooses a Steam installation folder and enters the exact numeric profile
+directory, then reviews the resolved shortcut file, library, standalone CLI and
+Add/Repair/Remove result before a separate confirmation. The host derives the
+installed port and durable library identities itself, observes the main Steam
+process, never closes it, and reconstructs the complete host context and plan
+after consent; an unknown or running process and any changed installed game,
+profile, library, runtime or selection fail closed. Remove remains available
+without a CLI only when the selected profile contains an exact owned entry.
+Add/Repair accepts only a standalone CLI whose passive embedded marker advertises
+this Portcove version's Steam `exec` contract, shows its SHA-256 in the review,
+binds that identity into the plan, and rehashes the same no-follow regular file
+before writing. Desktop carries only the expected marker length and digest, not
+the plaintext capability marker, so its own executable cannot satisfy that
+inspection merely by containing the scanner. Desktop does not execute or shell
+out to a discovered candidate, and this compatibility marker is not a
+publisher-signature claim.
+
+This consumer is not profile discovery, batch selection, artwork delivery, or an
+actual Steam-client qualification. Controlled host and renderer tests prove the
+review/apply contract and isolated shortcut-file behavior. Native positive-path
+qualification may use the compile-time fixture that reports the client closed;
+that proves UI, consent, stale-plan and writer integration against an output-owned
+Steam tree, not an actual closed Steam process. It does **not** prove Steam
+consumed the entry, client restart behavior, Steam-facing launch/Stop/return,
+Desktop presentation in a packaged candidate, or Steam Deck behavior. Those
 remain separate implementation and actual-platform gates for #292, #527 and #217.
 
 ### Optional Decky client

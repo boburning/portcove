@@ -2,6 +2,8 @@ use std::env;
 use std::fs;
 use std::path::PathBuf;
 
+use sha2::{Digest, Sha256};
+
 const ROOT_FILE_ENV: &str = "PORTCOVE_APPLICATION_UPDATE_BUNDLED_ROOT_FILE";
 const METADATA_URL_ENV: &str = "PORTCOVE_APPLICATION_UPDATE_METADATA_URL";
 const TARGETS_URL_ENV: &str = "PORTCOVE_APPLICATION_UPDATE_TARGETS_URL";
@@ -12,6 +14,7 @@ fn main() {
         println!("cargo:rerun-if-env-changed={name}");
     }
     write_application_update_configuration();
+    write_cli_steam_exec_identity();
     tauri_build::build()
 }
 
@@ -68,5 +71,21 @@ fn write_application_update_configuration() {
             "{ROOT_FILE_ENV}, {METADATA_URL_ENV}, and {TARGETS_URL_ENV} must be set together"
         ),
     };
+    write_if_changed(&generated, source.as_bytes());
+}
+
+fn write_cli_steam_exec_identity() {
+    let output = PathBuf::from(env::var_os("OUT_DIR").expect("Cargo must provide OUT_DIR"));
+    let generated = output.join("cli-steam-exec-identity.rs");
+    let marker = format!(
+        "PORTCOVE_CLI_STEAM_EXEC_IDENTITY_V1|product={}|capability=exec",
+        env::var("CARGO_PKG_VERSION").expect("Cargo must provide CARGO_PKG_VERSION")
+    );
+    let digest: [u8; 32] = Sha256::digest(marker.as_bytes()).into();
+    let source = format!(
+        "pub const LEN: usize = {};\npub const SHA256: [u8; 32] = {:?};\n",
+        marker.len(),
+        digest
+    );
     write_if_changed(&generated, source.as_bytes());
 }

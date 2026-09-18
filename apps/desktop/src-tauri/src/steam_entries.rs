@@ -59,6 +59,13 @@ pub struct SteamGameEntryTarget {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct SteamCliIdentity {
+    pub path: PathBuf,
+    pub sha256: String,
+    pub product_version: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "operation", rename_all = "snake_case")]
 pub enum SteamEntryPlanRequest {
     AddOrRepair {
@@ -66,7 +73,7 @@ pub enum SteamEntryPlanRequest {
         steam_user_id: String,
         library_id: String,
         library_root: PathBuf,
-        cli_path: PathBuf,
+        cli: SteamCliIdentity,
         games: Vec<SteamGameEntryTarget>,
     },
     Remove {
@@ -78,13 +85,13 @@ pub enum SteamEntryPlanRequest {
 }
 
 impl SteamEntryPlanRequest {
-    fn steam_root(&self) -> &Path {
+    pub(crate) fn steam_root(&self) -> &Path {
         match self {
             Self::AddOrRepair { steam_root, .. } | Self::Remove { steam_root, .. } => steam_root,
         }
     }
 
-    fn steam_user_id(&self) -> &str {
+    pub(crate) fn steam_user_id(&self) -> &str {
         match self {
             Self::AddOrRepair { steam_user_id, .. } | Self::Remove { steam_user_id, .. } => {
                 steam_user_id
@@ -128,7 +135,8 @@ impl SteamEntryPlan {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
 pub enum SteamClientState {
     Closed,
     Running,
@@ -717,7 +725,7 @@ fn plan_document(
         SteamEntryPlanRequest::AddOrRepair {
             library_id,
             library_root,
-            cli_path,
+            cli,
             games,
             ..
         } => {
@@ -728,10 +736,22 @@ fn plan_document(
                 ));
             }
             require_directory(library_root, "Portcove library")?;
-            require_regular_file(cli_path, "standalone Portcove CLI")?;
-            let executable = quote_path(cli_path, "standalone Portcove CLI")?;
+            require_regular_file(&cli.path, "standalone Portcove CLI")?;
+            let observed_cli = crate::cli_context::inspect_cli(&cli.path).map_err(|source| {
+                SteamEntryError::InvalidInput(format!(
+                    "standalone Portcove CLI identity could not be verified: {source}"
+                ))
+            })?;
+            if observed_cli.sha256 != cli.sha256
+                || observed_cli.product_version != cli.product_version
+            {
+                return Err(SteamEntryError::Conflict(
+                    "the standalone Portcove CLI changed after review".into(),
+                ));
+            }
+            let executable = quote_path(&cli.path, "standalone Portcove CLI")?;
             let start_directory = quote_path(
-                cli_path.parent().ok_or_else(|| {
+                cli.path.parent().ok_or_else(|| {
                     SteamEntryError::InvalidInput(
                         "standalone Portcove CLI has no parent directory".into(),
                     )
@@ -1484,7 +1504,7 @@ mod tests {
             fs::create_dir_all(&config).unwrap();
             fs::create_dir_all(&library_root).unwrap();
             fs::create_dir_all(cli_path.parent().unwrap()).unwrap();
-            fs::write(&cli_path, b"fixture cli").unwrap();
+            write_cli(&cli_path, b"fixture cli");
             Self {
                 _root: root,
                 steam_root,
@@ -1500,7 +1520,7 @@ mod tests {
                 steam_user_id: "12345".into(),
                 library_id: "library-123".into(),
                 library_root: self.library_root.clone(),
-                cli_path: self.cli_path.clone(),
+                cli: cli_identity(&self.cli_path),
                 games,
             }
         }
@@ -1516,6 +1536,26 @@ mod tests {
 
         fn shortcuts(&self) -> PathBuf {
             self.config.join(SHORTCUTS_FILE)
+        }
+    }
+
+    fn write_cli(path: &Path, prefix: &[u8]) {
+        let mut bytes = prefix.to_vec();
+        bytes.extend_from_slice(&crate::cli_context::test_cli_steam_exec_identity());
+        fs::write(path, bytes).unwrap();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            fs::set_permissions(path, fs::Permissions::from_mode(0o700)).unwrap();
+        }
+    }
+
+    fn cli_identity(path: &Path) -> SteamCliIdentity {
+        let identity = crate::cli_context::inspect_cli(path).unwrap();
+        SteamCliIdentity {
+            path: identity.path,
+            sha256: identity.sha256,
+            product_version: identity.product_version,
         }
     }
 
@@ -1630,7 +1670,7 @@ mod tests {
             .parent()
             .unwrap()
             .join("moved portcove.exe");
-        fs::write(&moved_cli, b"moved fixture cli").unwrap();
+        write_cli(&moved_cli, b"moved fixture cli");
         let moved_request = match request {
             SteamEntryPlanRequest::AddOrRepair {
                 steam_root,
@@ -1644,7 +1684,7 @@ mod tests {
                 steam_user_id,
                 library_id,
                 library_root,
-                cli_path: moved_cli.clone(),
+                cli: cli_identity(&moved_cli),
                 games,
             },
             _ => unreachable!(),
@@ -1731,6 +1771,20 @@ mod tests {
     }
 
     #[test]
+    fn reviewed_cli_bytes_must_still_match_before_writing() {
+        let fixture = Fixture::new();
+        let plan =
+            plan_steam_entries(fixture.add_request(vec![game("starship", "Starship")])).unwrap();
+        write_cli(&fixture.cli_path, b"replacement cli bytes");
+        assert!(matches!(
+            apply_steam_entry_plan(&plan, SteamClientState::Closed),
+            Err(SteamEntryError::Conflict(message))
+                if message.contains("standalone Portcove CLI changed")
+        ));
+        assert!(!fixture.shortcuts().exists());
+    }
+
+    #[test]
     fn recovery_classifies_precommit_and_committed_identity() {
         let fixture = Fixture::new();
         let plan =
@@ -1789,13 +1843,13 @@ mod tests {
         let original = fs::read(fixture.shortcuts()).unwrap();
 
         let moved_cli = fixture.cli_path.parent().unwrap().join("moved.exe");
-        fs::write(&moved_cli, b"moved fixture cli").unwrap();
+        write_cli(&moved_cli, b"moved fixture cli");
         let request = SteamEntryPlanRequest::AddOrRepair {
             steam_root: fixture.steam_root.clone(),
             steam_user_id: "12345".into(),
             library_id: "library-123".into(),
             library_root: fixture.library_root.clone(),
-            cli_path: moved_cli,
+            cli: cli_identity(&moved_cli),
             games: vec![game("starship", "Starship")],
         };
         let plan = plan_steam_entries(request).unwrap();
@@ -1866,7 +1920,7 @@ mod tests {
             plan_steam_entries(fixture.add_request(vec![game("starship", "Starship")])).unwrap();
         apply_steam_entry_plan(&add, SteamClientState::Closed).unwrap();
         let moved_cli = fixture.cli_path.parent().unwrap().join("moved.exe");
-        fs::write(&moved_cli, b"moved fixture cli").unwrap();
+        write_cli(&moved_cli, b"moved fixture cli");
         let repair_request = match add.request {
             SteamEntryPlanRequest::AddOrRepair {
                 steam_root,
@@ -1880,7 +1934,7 @@ mod tests {
                 steam_user_id,
                 library_id,
                 library_root,
-                cli_path: moved_cli,
+                cli: cli_identity(&moved_cli),
                 games,
             },
             _ => unreachable!(),
@@ -1959,13 +2013,13 @@ mod tests {
         apply_steam_entry_plan(&add, SteamClientState::Closed).unwrap();
 
         let moved_cli = fixture.cli_path.parent().unwrap().join("moved.exe");
-        fs::write(&moved_cli, b"moved fixture cli").unwrap();
+        write_cli(&moved_cli, b"moved fixture cli");
         let repair_request = SteamEntryPlanRequest::AddOrRepair {
             steam_root: fixture.steam_root.clone(),
             steam_user_id: "12345".into(),
             library_id: "library-123".into(),
             library_root: fixture.library_root.clone(),
-            cli_path: moved_cli,
+            cli: cli_identity(&moved_cli),
             games: vec![game("starship", "Starship")],
         };
         let repair = plan_steam_entries(repair_request).unwrap();
@@ -1997,13 +2051,13 @@ mod tests {
         apply_steam_entry_plan(&add, SteamClientState::Closed).unwrap();
         let original = fs::read(fixture.shortcuts()).unwrap();
         let moved_cli = fixture.cli_path.parent().unwrap().join("moved.exe");
-        fs::write(&moved_cli, b"moved fixture cli").unwrap();
+        write_cli(&moved_cli, b"moved fixture cli");
         let repair = plan_steam_entries(SteamEntryPlanRequest::AddOrRepair {
             steam_root: fixture.steam_root.clone(),
             steam_user_id: "12345".into(),
             library_id: "library-123".into(),
             library_root: fixture.library_root.clone(),
-            cli_path: moved_cli,
+            cli: cli_identity(&moved_cli),
             games: vec![game("starship", "Starship")],
         })
         .unwrap();
