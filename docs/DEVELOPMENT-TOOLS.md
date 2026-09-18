@@ -456,6 +456,17 @@ repository's scheduling configuration; doctests run in Cargo separately. Do not
 duplicate this orchestration in a skill or a competing recipe. Record cold
 compilation separately from warm test execution when comparing performance.
 
+The wrapper reuses only its unchanged compiled host-tool probe and containment
+supervisor. It keeps those products below the current worktree's Cargo target,
+keyed by exact source, compiler/sysroot/resolved-tool bytes, target, arguments,
+and relevant compiler environment. Cache entries and fresh copies are verified
+by bytes and mode; candidates publish atomically, corrupt or interrupted entries
+are rejected, and only eight identities per product are retained. Every run
+still allocates a new temporary fixture root and executes fresh nextest,
+containment, mutation, process, and cleanup evidence. `[rust-support]` lines name
+the product, `built` or `hit` outcome, short fingerprint, and preparation time.
+They are preparation provenance, never a test pass or authorization record.
+
 The wrapper owns one shared-host heavyweight Rust-validation slot across Portcove
 worktrees. Supported local-check and aggregate recipes acquire it before each
 expensive Cargo check, Clippy, nextest, or doctest process, so compiler work from

@@ -110,6 +110,13 @@ editor or concurrency experiments follow only after repeated waste is removed an
 measurements justify them. This remaining contract does not yet establish a
 support-product speedup.
 
+The exhaustive Rust runner retains two test slots and the thirty-second hang
+deadline. Cohesive filesystem, database, diagnostics, cancellation, catalog and
+native-process lifecycle families reserve both slots instead of competing with an
+unrelated case. Diagnostics are deferred until the initial process-start burst has
+cleared, and the real-process CLI contracts run last. These are ordering and
+isolation boundaries only: failures are not retried and no timeout is enlarged.
+
 ## Local feedback and hosted authority
 
 Portcove uses three validation tiers. The inner loop runs only the test or test
@@ -751,9 +758,17 @@ Windows and its exhaustive CI partitions. This bounds filesystem contention
 without serializing unrelated fixtures; explicit nextest thread settings remain
 available for diagnosis. CLI free-space
 snapshot contracts share a scheduling group because their existing in-process
-mutex cannot synchronize nextest's separate processes. Full signed-catalog tests
-and CLI process contracts
-reserve both default CPU slots while verifying complete snapshots. Intel macOS
+mutex cannot synchronize nextest's separate processes. Output-relocation lifecycle
+tests reserve both slots so their managed-tree copies do not contend with each
+other or an unrelated filesystem lifecycle case. Full signed-catalog
+tests, bounded diagnostics capture, database migrations, cancellation lifecycle
+cases, and CLI process contracts reserve both default CPU slots while verifying complete snapshots. The native
+conversion failure cleanup race does the same while it reaps owned process trees.
+CLI contracts also use nextest's lowest priority so an exhaustive workspace run
+drains default-priority in-process tests before beginning repeated executable
+launches. This ordering introduces no test dependency and changes neither the
+two-thread budget nor the thirty-second hang deadline.
+Intel macOS
 uses two exhaustive hash partitions to keep this work off the critical path.
 This changes scheduling
 only; every Rust test retains the same deadline. CI caches compiled dependencies
@@ -798,6 +813,21 @@ the configured polling interval.
 for an explicitly coordinated run. Cancellation stops only the queued command.
 Do not delete the lock record or terminate another worker's process.
 
+After admission, the runner prepares its small Rust support executables through
+the per-worktree Cargo target under `target/portcove-rust-support`. Reuse binds
+the complete source bytes, rustc verbose identity and sysroot, resolved compiler
+and linker bytes, exact target/architecture and arguments, and hashed relevant
+compiler environment. Each immutable entry records and revalidates its output
+bytes and mode. Missing, corrupt, interrupted, or identity-mismatched entries are
+never executed: a candidate is compiled in a unique directory and atomically
+published only after validation, stale interrupted candidates are rejected, and
+retention is bounded to eight identities per support product. Every invocation
+copies the verified product into its new temporary fixture directory and still
+creates a fresh containment gate, process tree, assertions, and exit evidence.
+The runner reports each support-product build or hit with its fingerprint and
+preparation duration. No Cargo/nextest result, mutable fixture, containment
+result, authorization, or test success is cached.
+
 This machine guard covers `just test-rust`, selected Rust stages in
 `just local-check`, `just rust-check`, `just clippy`, `just rust-test`, and the
 aggregate commands that reach the same wrapper. It does not cover direct
@@ -816,9 +846,10 @@ CLI tests resolve nextest's remapped executable path at runtime so archives do
 not depend on the build machine's checkout or target-directory location.
 The required Rust aggregate fails if either the build or any Intel test job fails.
 
-Timed Rust lanes compile the native host-tool probe fixture once during setup.
+Timed Rust lanes prepare the native host-tool probe fixture once during setup.
 Each test copies it into its own temporary directory before mutation or probing.
-`just rust-test` uses the same preparation through `scripts/run-rust-tests.mjs`;
+`just rust-test` uses the same identity-bound preparation through
+`scripts/run-rust-tests.mjs`;
 plain Cargo tests retain their standalone fixture compiler. Fixture compilation
 is build setup, while every test's assertions and process probes keep the same
 hang guard.

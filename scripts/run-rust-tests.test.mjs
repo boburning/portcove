@@ -9,6 +9,34 @@ import test from "node:test";
 
 import { parseRustRunMode, runRustTests } from "./run-rust-tests.mjs";
 
+const testCompilerIdentity = Object.freeze({
+  verbose_version: "rustc test",
+  sysroot: "test-sysroot",
+  environment: [],
+});
+
+function supportCacheDoubles() {
+  return {
+    rustSupportCompilerIdentity: () => testCompilerIdentity,
+    prepareSupportArtifact: ({ product, runSync }) => {
+      const compiled = runSync("rustc", [product]);
+      if (compiled.error) throw compiled.error;
+      if (compiled.status !== 0)
+        throw new Error(
+          product === "host-tool-probe"
+            ? "Host-tool fixture compilation failed"
+            : "Windows process-tree supervisor compilation failed",
+        );
+      return {
+        outcome: "built",
+        fingerprint: "a".repeat(64),
+        elapsed_ms: 1,
+        output: { bytes: 1, sha256: "b".repeat(64) },
+      };
+    },
+  };
+}
+
 function childProcess(pid, exitCode) {
   const child = new EventEmitter();
   child.pid = pid;
@@ -74,6 +102,7 @@ test("guarded command acquires admission before compilation and preserves exact 
     const status = await runRustTests(
       ["--guard-command", "cargo", "check", "--locked", "--workspace", "--all-targets"],
       {
+        ...supportCacheDoubles(),
         tempRoot,
         platform: "win32",
         environment: { PATH: "fixture-path" },
@@ -129,6 +158,7 @@ test("runner holds the lock through nextest and preserves its exit status", asyn
   let registeredContainment;
   try {
     const status = await runRustTests(["--package", "portcove-core"], {
+      ...supportCacheDoubles(),
       tempRoot,
       platform: "win32",
       environment: { PATH: "fixture-path" },
@@ -182,6 +212,7 @@ test("Unix runner launches nextest in a detached process group", async () => {
   let registeredCleanupReceipt;
   try {
     const status = await runRustTests(["--package", "portcove-core"], {
+      ...supportCacheDoubles(),
       tempRoot,
       platform: "linux",
       spawnSync: (command) => {
@@ -233,6 +264,7 @@ test("inherited runner stays inside the recorded outer containment", async () =>
   let spawned;
   try {
     const status = await runRustTests(["--package", "portcove-core"], {
+      ...supportCacheDoubles(),
       tempRoot,
       platform: "linux",
       spawnSync: () => ({ status: 0 }),
@@ -268,6 +300,7 @@ for (const [signal, expectedStatus] of [
     let managed;
     try {
       const status = await runRustTests([], {
+        ...supportCacheDoubles(),
         tempRoot,
         platform: "linux",
         signalTarget,
@@ -307,6 +340,7 @@ test("cancellation during registration never opens the supervisor gate", async (
   let managed;
   try {
     const status = await runRustTests([], {
+      ...supportCacheDoubles(),
       tempRoot,
       platform: "linux",
       signalTarget,
@@ -345,6 +379,7 @@ test("runner preserves a fast nextest exit when registration observes no live ch
   let released = false;
   try {
     const status = await runRustTests(["--invalid-fast-option"], {
+      ...supportCacheDoubles(),
       tempRoot,
       spawnSync: () => ({ status: 0 }),
       spawn: () => childProcess(703, 42),
@@ -373,6 +408,7 @@ test("compile failure releases the lock and never starts nextest", async () => {
   try {
     await assert.rejects(
       runRustTests([], {
+        ...supportCacheDoubles(),
         tempRoot,
         spawnSync: () => ({ status: 1 }),
         spawn: () => assert.fail("nextest must not start after fixture compilation fails"),
@@ -400,6 +436,7 @@ test("child registration failure terminates unguarded nextest and releases owner
   try {
     await assert.rejects(
       runRustTests([], {
+        ...supportCacheDoubles(),
         tempRoot,
         platform: "win32",
         spawnSync: (command) => {
@@ -440,6 +477,7 @@ test("Windows supervisor completion is the positive quiescence boundary", async 
   const events = [];
   try {
     const status = await runRustTests([], {
+      ...supportCacheDoubles(),
       tempRoot,
       platform: "win32",
       spawnSync: () => ({ status: 0, stdout: "", stderr: "" }),
@@ -464,6 +502,7 @@ test("runner retains ownership when a Windows supervisor cannot be terminated", 
   try {
     await assert.rejects(
       runRustTests([], {
+        ...supportCacheDoubles(),
         tempRoot,
         platform: "win32",
         spawnSync: (command) =>
@@ -497,6 +536,7 @@ test("runner retains ownership when a published child cannot be stopped after ga
   try {
     await assert.rejects(
       runRustTests([], {
+        ...supportCacheDoubles(),
         tempRoot,
         platform: "win32",
         spawnSync: (command) =>
@@ -530,6 +570,7 @@ test("runner retains ownership when an exited Unix supervisor has no cleanup rec
   try {
     await assert.rejects(
       runRustTests([], {
+        ...supportCacheDoubles(),
         tempRoot,
         platform: "linux",
         spawnSync: () => ({ status: 0 }),
@@ -558,6 +599,7 @@ test("runner retains ownership when Unix cleanup reports failure", async () => {
   try {
     await assert.rejects(
       runRustTests([], {
+        ...supportCacheDoubles(),
         tempRoot,
         platform: "linux",
         spawnSync: () => ({ status: 0 }),
@@ -645,6 +687,7 @@ test("prepare-only keeps the hosted fixture behavior without taking the heavy lo
   const environmentFile = path.join(tempRoot, "github-env.txt");
   try {
     const status = await runRustTests(["--prepare-only"], {
+      ...supportCacheDoubles(),
       tempRoot,
       environment: { GITHUB_ENV: environmentFile },
       spawnSync: () => ({ status: 0 }),

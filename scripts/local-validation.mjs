@@ -335,6 +335,11 @@ function classifyOnePath(selection, input, fileExists, options = {}) {
     if (file === "scripts/fixtures/windows-process-tree-supervisor.rs.txt") {
       addNodeTest(selection, "scripts/heavy-rust-test-lock.test.mjs");
       addNodeTest(selection, "scripts/run-rust-tests.test.mjs");
+      addNodeTest(selection, "scripts/rust-support-cache.test.mjs");
+    }
+    if (["scripts/run-rust-tests.mjs", "scripts/rust-support-cache.mjs"].includes(file)) {
+      addNodeTest(selection, "scripts/run-rust-tests.test.mjs");
+      addNodeTest(selection, "scripts/rust-support-cache.test.mjs");
     }
     if (
       /(?:release|updater|package|installer|qualification|checksum|channel)/iu.test(
@@ -345,6 +350,13 @@ function classifyOnePath(selection, input, fileExists, options = {}) {
       for (const testFile of releaseContractTests) addNodeTest(selection, testFile);
       addNodeTest(selection, "scripts/ci-workflow.test.mjs");
     }
+  }
+
+  if (file === "crates/portcove-core/src/testdata/host_tool_probe.rs.txt") {
+    selection.scopes.add("tooling");
+    recognized = true;
+    addNodeTest(selection, "scripts/run-rust-tests.test.mjs");
+    addNodeTest(selection, "scripts/rust-support-cache.test.mjs");
   }
 
   if (file.startsWith(".github/workflows/")) {

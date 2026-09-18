@@ -18,11 +18,21 @@ capacity-sensitive = { max-threads = 1 }
 filter = 'package(portcove-cli) & (test(/^output_/) | test(cancellation_from_another_cli_stops_discovery_with_a_durable_cancelled_result))'
 test-group = 'capacity-sensitive'
 
+# Output-relocation lifecycle cases copy and verify multiple managed trees. Keep
+# those cases mutually exclusive and prevent an unrelated lifecycle case from
+# consuming the second slot under the unchanged thirty-second hang deadline.
+[[profile.default.overrides]]
+filter = 'package(portcove-core) & test(output_relocation::tests::)'
+threads-required = 2
+
 # CLI contracts launch real processes which initialize complete catalogs.
-# Avoid overlapping their startup work on the default two-core test budget.
+# Avoid overlapping their startup work on the default two-core test budget, and
+# run them after default-priority tests so post-build host work does not compound
+# their repeated process launches at the start of an exhaustive workspace run.
 [[profile.default.overrides]]
 filter = 'package(portcove-cli)'
 threads-required = 2
+priority = -100
 
 # Full signed-catalog lifecycle cases repeatedly verify complete snapshots.
 # Reserve both default CPU slots while one runs; the deadline is unchanged.
@@ -30,9 +40,37 @@ threads-required = 2
 filter = 'package(portcove-core) & test(catalog_update::tests::)'
 threads-required = 2
 
+# Diagnostics capture cases repeatedly redact, serialize, publish and retain
+# bounded stream snapshots. Give the cohesive family both slots so those large
+# snapshots do not contend with another filesystem lifecycle case, and defer it
+# until ordinary core tests have cleared the initial process-start burst.
+[[profile.default.overrides]]
+filter = 'package(portcove-core) & test(activity_diagnostics::tests::)'
+threads-required = 2
+priority = -50
+
+# Database migration cases create, reopen and validate complete SQLite schemas.
+# Keep that cohesive disk-heavy family off the unrelated second test slot.
+[[profile.default.overrides]]
+filter = 'package(portcove-core) & test(database::tests::)'
+threads-required = 2
+
 # This filesystem lifecycle contract can approach the hang deadline when another
 # process-heavy case owns the second slot on Windows. Give it the full fixed
 # two-slot budget while preserving the global thirty-second timeout.
 [[profile.default.overrides]]
 filter = 'package(portcove-core) & test(import_execution::tests::import_round_trip_preserves_versions_pointers_payloads_and_history_in_an_empty_library)'
+threads-required = 2
+
+# Cancellation lifecycle cases repeatedly create and reconcile activity,
+# network-wait and publication state. Reserve the fixed two-slot budget so
+# another filesystem-heavy case cannot consume their unchanged deadline.
+[[profile.default.overrides]]
+filter = 'package(portcove-core) & test(cancellation::tests::)'
+threads-required = 2
+
+# This conversion failure path spawns and reaps multiple owned native process
+# trees. Keep the exact cleanup race isolated from another filesystem-heavy test.
+[[profile.default.overrides]]
+filter = 'package(portcove-core) & test(adapter::source_conversion_tests::failed_and_cancelled_conversion_retains_logs_and_reaps_owned_processes)'
 threads-required = 2

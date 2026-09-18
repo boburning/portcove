@@ -625,6 +625,7 @@
   "backup_review": {
     "$defs": {
       "BackupAction": {
+        "description": "Public reviewed backup actions; persisted manifests remain an implementation detail.\n\n```\nuse portcove_core::{BackupAction, PortcoveService};\nlet action = BackupAction::Restore;\nlet _ = action;\n```\n\n```compile_fail,E0432\nuse portcove_core::BackupManifest;\n```",
         "enum": [
           "restore",
           "delete"
