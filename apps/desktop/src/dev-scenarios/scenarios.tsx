@@ -51,7 +51,7 @@ export const scenarios = [
   },
 ] as const;
 
-export type ScenarioId = (typeof scenarios)[number]["id"];
+type ScenarioId = (typeof scenarios)[number]["id"];
 
 export function blockedScenarioAction(): never {
   throw new Error("Development scenario actions are disabled");
