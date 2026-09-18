@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Portcove development scenarios</title>
+  </head>
+  <body>
+    <header class="scenario-controls">
+      <h1>Development scenarios</h1>
+      <p>
+        Static component previews. Controls inside previews are inert; no application actions run.
+      </p>
+      <label for="scenario">Scenario</label>
+      <select id="scenario"></select>
+      <p id="scenario-limitation"></p>
+    </header>
+    <main id="scenario-preview" class="scenario-preview" inert></main>
+    <script type="module" src="/src/dev-scenarios/entry.ts"></script>
+  </body>
+</html>
