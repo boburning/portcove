@@ -27,11 +27,22 @@ pub(crate) async fn get_cli_command_context(
 }
 
 const MAX_CLI_BYTES: u64 = 256 * 1024 * 1024;
-pub(crate) const CLI_STEAM_EXEC_IDENTITY: &str = concat!(
-    "PORTCOVE_CLI_STEAM_EXEC_IDENTITY_V1|product=",
-    env!("CARGO_PKG_VERSION"),
-    "|capability=exec"
-);
+
+/// Assemble the CLI capability marker at runtime so the Desktop scanner does
+/// not itself advertise the capability it is trying to verify.
+pub(crate) fn cli_steam_exec_identity() -> Vec<u8> {
+    let mut marker = Vec::new();
+    for part in [
+        "PORTCOVE_CLI_STEAM_EXEC_IDENTITY_V1",
+        "|product=",
+        env!("CARGO_PKG_VERSION"),
+        "|capability=",
+        "exec",
+    ] {
+        marker.extend_from_slice(std::hint::black_box(part).as_bytes());
+    }
+    marker
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct CliExecutableIdentity {
@@ -92,7 +103,7 @@ pub(crate) fn inspect_cli(path: &Path) -> std::io::Result<CliExecutableIdentity>
             ));
         }
     }
-    let expected_marker = CLI_STEAM_EXEC_IDENTITY.as_bytes();
+    let expected_marker = cli_steam_exec_identity();
     let mut reader = file.take(MAX_CLI_BYTES + 1);
     let mut hasher = Sha256::new();
     let mut chunk = [0_u8; 64 * 1024];
@@ -115,7 +126,7 @@ pub(crate) fn inspect_cli(path: &Path) -> std::io::Result<CliExecutableIdentity>
         overlap.extend_from_slice(&chunk[..count]);
         if overlap
             .windows(expected_marker.len())
-            .any(|window| window == expected_marker)
+            .any(|window| window == expected_marker.as_slice())
         {
             marker_found = true;
         }
@@ -167,6 +178,13 @@ fn open_read_nofollow(path: &Path) -> std::io::Result<File> {
 mod tests {
     use super::*;
 
+    fn compatible_cli_fixture() -> Vec<u8> {
+        let mut bytes = b"prefix".to_vec();
+        bytes.extend_from_slice(&cli_steam_exec_identity());
+        bytes.extend_from_slice(b"suffix");
+        bytes
+    }
+
     #[test]
     fn discovers_separate_cli_without_executing_it_or_searching_relative_directories() {
         let temp = tempfile::tempdir().unwrap();
@@ -181,7 +199,7 @@ mod tests {
             "portcove"
         };
         let cli = search.join(name);
-        std::fs::write(&cli, format!("prefix{CLI_STEAM_EXEC_IDENTITY}suffix")).unwrap();
+        std::fs::write(&cli, compatible_cli_fixture()).unwrap();
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
@@ -225,5 +243,24 @@ mod tests {
         )
         .unwrap();
         assert!(discover_cli(None, [temp.path().to_path_buf()].into_iter()).is_none());
+    }
+
+    #[test]
+    fn rejects_the_desktop_scanner_binary_as_a_cli_capability_provider() {
+        let temp = tempfile::tempdir().unwrap();
+        let renamed_desktop = temp.path().join(if cfg!(windows) {
+            "portcove.exe"
+        } else {
+            "portcove"
+        });
+        std::fs::copy(std::env::current_exe().unwrap(), &renamed_desktop).unwrap();
+
+        assert!(discover_cli(None, [temp.path().to_path_buf()].into_iter()).is_none());
+        let error = inspect_cli(&renamed_desktop).unwrap_err();
+        assert_eq!(error.kind(), std::io::ErrorKind::InvalidData);
+        assert_eq!(
+            error.to_string(),
+            "standalone CLI does not advertise the compatible Steam exec contract"
+        );
     }
 }
