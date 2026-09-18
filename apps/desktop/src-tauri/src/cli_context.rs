@@ -27,20 +27,20 @@ pub(crate) async fn get_cli_command_context(
 }
 
 const MAX_CLI_BYTES: u64 = 256 * 1024 * 1024;
+const CLI_STEAM_EXEC_IDENTITY_PREFIX: &[u8] = b"PORTCOVE_CLI_STEAM_EXEC_IDENTITY_V1|";
 
-/// Assemble the CLI capability marker at runtime so the Desktop scanner does
-/// not itself advertise the capability it is trying to verify.
-pub(crate) fn cli_steam_exec_identity() -> Vec<u8> {
-    let mut marker = Vec::new();
-    for part in [
-        "PORTCOVE_CLI_STEAM_EXEC_IDENTITY_V1",
-        "|product=",
-        env!("CARGO_PKG_VERSION"),
-        "|capability=",
-        "exec",
-    ] {
-        marker.extend_from_slice(std::hint::black_box(part).as_bytes());
-    }
+mod cli_steam_exec_identity {
+    include!(concat!(env!("OUT_DIR"), "/cli-steam-exec-identity.rs"));
+}
+
+#[cfg(test)]
+pub(crate) fn test_cli_steam_exec_identity() -> Vec<u8> {
+    let mut marker = hex::decode(
+        "504f5254434f56455f434c495f535445414d5f455845435f4944454e544954595f56317c70726f647563743d",
+    )
+    .unwrap();
+    marker.extend_from_slice(env!("CARGO_PKG_VERSION").as_bytes());
+    marker.extend_from_slice(&hex::decode("7c6361706162696c6974793d65786563").unwrap());
     marker
 }
 
@@ -103,7 +103,7 @@ pub(crate) fn inspect_cli(path: &Path) -> std::io::Result<CliExecutableIdentity>
             ));
         }
     }
-    let expected_marker = cli_steam_exec_identity();
+    let marker_len = cli_steam_exec_identity::LEN;
     let mut reader = file.take(MAX_CLI_BYTES + 1);
     let mut hasher = Sha256::new();
     let mut chunk = [0_u8; 64 * 1024];
@@ -124,13 +124,13 @@ pub(crate) fn inspect_cli(path: &Path) -> std::io::Result<CliExecutableIdentity>
         }
         hasher.update(&chunk[..count]);
         overlap.extend_from_slice(&chunk[..count]);
-        if overlap
-            .windows(expected_marker.len())
-            .any(|window| window == expected_marker.as_slice())
-        {
+        if overlap.windows(marker_len).any(|window| {
+            window.starts_with(CLI_STEAM_EXEC_IDENTITY_PREFIX)
+                && <[u8; 32]>::from(Sha256::digest(window)) == cli_steam_exec_identity::SHA256
+        }) {
             marker_found = true;
         }
-        let retain = expected_marker.len().saturating_sub(1);
+        let retain = marker_len.saturating_sub(1);
         if overlap.len() > retain {
             overlap.drain(..overlap.len() - retain);
         }
@@ -180,7 +180,7 @@ mod tests {
 
     fn compatible_cli_fixture() -> Vec<u8> {
         let mut bytes = b"prefix".to_vec();
-        bytes.extend_from_slice(&cli_steam_exec_identity());
+        bytes.extend_from_slice(&test_cli_steam_exec_identity());
         bytes.extend_from_slice(b"suffix");
         bytes
     }

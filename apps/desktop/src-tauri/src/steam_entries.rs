@@ -1541,7 +1541,7 @@ mod tests {
 
     fn write_cli(path: &Path, prefix: &[u8]) {
         let mut bytes = prefix.to_vec();
-        bytes.extend_from_slice(&crate::cli_context::cli_steam_exec_identity());
+        bytes.extend_from_slice(&crate::cli_context::test_cli_steam_exec_identity());
         fs::write(path, bytes).unwrap();
         #[cfg(unix)]
         {

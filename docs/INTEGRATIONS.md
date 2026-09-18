@@ -417,8 +417,11 @@ without a CLI only when the selected profile contains an exact owned entry.
 Add/Repair accepts only a standalone CLI whose passive embedded marker advertises
 this Portcove version's Steam `exec` contract, shows its SHA-256 in the review,
 binds that identity into the plan, and rehashes the same no-follow regular file
-before writing. Desktop does not execute or shell out to a discovered candidate,
-and this compatibility marker is not a publisher-signature claim.
+before writing. Desktop carries only the expected marker length and digest, not
+the plaintext capability marker, so its own executable cannot satisfy that
+inspection merely by containing the scanner. Desktop does not execute or shell
+out to a discovered candidate, and this compatibility marker is not a
+publisher-signature claim.
 
 This consumer is not profile discovery, batch selection, artwork delivery, or an
 actual Steam-client qualification. Controlled host and renderer tests prove the

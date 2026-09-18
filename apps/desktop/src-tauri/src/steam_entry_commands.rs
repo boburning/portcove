@@ -383,7 +383,7 @@ mod tests {
         std::fs::create_dir_all(&library_root).unwrap();
         std::fs::create_dir_all(cli_path.parent().unwrap()).unwrap();
         let mut cli_bytes = b"controlled CLI fixture".to_vec();
-        cli_bytes.extend_from_slice(&cli_context::cli_steam_exec_identity());
+        cli_bytes.extend_from_slice(&cli_context::test_cli_steam_exec_identity());
         std::fs::write(&cli_path, cli_bytes).unwrap();
         #[cfg(unix)]
         {
