@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, StrictMode } from "react";
+import { act, StrictMode, useMemo } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { listen } from "@tauri-apps/api/event";
@@ -8,6 +8,7 @@ import { useOperationState, usePortcoveData, useUpdateCenter, type Perform } fro
 import { failureReport, portDefinition, portStatus } from "./test-fixtures";
 import type { DoctorReport, OperationEvent, WorkspaceSnapshot } from "./types";
 import { WorkspaceRefreshNotice } from "./components/WorkspaceRefreshNotice";
+import { indexStatuses } from "./view-model";
 
 vi.mock("@tauri-apps/api/event", () => ({ listen: vi.fn() }));
 
@@ -55,24 +56,32 @@ let data: ReturnType<typeof usePortcoveData>;
 let operations: ReturnType<typeof useOperationState>;
 let eventHandlers: Map<string, (event: { payload: unknown }) => void>;
 let renderCount: number;
+let statusIndexCount: number;
 let checkAll: () => Promise<void>;
 
 function Fixture({ generation = 7 }: { generation?: number }) {
   renderCount += 1;
   data = usePortcoveData(generation);
+  const { statuses } = data;
+  const statusIndex = useMemo(() => {
+    statusIndexCount += 1;
+    return indexStatuses(statuses);
+  }, [statuses]);
   operations = useOperationState({
     refresh: data.retryRefresh,
     refreshActivities: data.refreshActivities,
     invalidateDiagnostics: data.invalidateDiagnostics,
   });
   return (
-    <WorkspaceRefreshNotice
-      failure={data.refreshFailure}
-      hasSnapshot={Boolean(data.catalog)}
-      refreshing={data.refreshing}
-      retry={data.retryRefresh}
-      subscriptionFailure={data.subscriptionFailure?.error ?? operations.subscriptionFailure}
-    />
+    <div data-status-count={statusIndex.size}>
+      <WorkspaceRefreshNotice
+        failure={data.refreshFailure}
+        hasSnapshot={Boolean(data.catalog)}
+        refreshing={data.refreshing}
+        retry={data.retryRefresh}
+        subscriptionFailure={data.subscriptionFailure?.error ?? operations.subscriptionFailure}
+      />
+    </div>
   );
 }
 
@@ -109,6 +118,7 @@ beforeEach(() => {
   root = createRoot(host);
   eventHandlers = new Map();
   renderCount = 0;
+  statusIndexCount = 0;
   vi.mocked(listen).mockImplementation(async (event, handler) => {
     eventHandlers.set(event, handler as (event: { payload: unknown }) => void);
     return () => eventHandlers.delete(event);
@@ -130,6 +140,77 @@ afterEach(async () => {
 });
 
 describe("workspace refresh recovery", () => {
+  it("preserves unchanged IPC snapshot references and avoids redundant status indexing", async () => {
+    await render();
+    const before = { catalog: data.catalog, statuses: data.statuses, sources: data.sources };
+    const indexesBefore = statusIndexCount;
+    vi.mocked(desktopApi.workspaceSnapshot).mockClear();
+    vi.mocked(desktopApi.workspaceSnapshot).mockImplementation(async () =>
+      structuredClone(snapshot),
+    );
+
+    for (let index = 0; index < 5; index += 1) await act(async () => data.refresh());
+
+    expect(desktopApi.workspaceSnapshot).toHaveBeenCalledTimes(5);
+    expect(statusIndexCount - indexesBefore).toBe(0);
+    expect(data.catalog).toBe(before.catalog);
+    expect(data.statuses).toBe(before.statuses);
+    expect(data.sources).toBe(before.sources);
+    expect(data.diagnosticsStale).toBe(false);
+  });
+
+  it("publishes a changed coherent snapshot and invalidates diagnostics", async () => {
+    await render();
+    const before = data.statuses;
+    const indexesBefore = statusIndexCount;
+    const changed = structuredClone(snapshot);
+    changed.catalog.ports[0].name = "Changed by an external client";
+    changed.statuses = [];
+    vi.mocked(desktopApi.workspaceSnapshot).mockResolvedValueOnce(changed);
+
+    await act(async () => data.refresh());
+
+    expect(data.catalog).toBe(changed.catalog);
+    expect(data.statuses).toBe(changed.statuses);
+    expect(data.sources).toBe(changed.sources);
+    expect(data.statuses).not.toBe(before);
+    expect(statusIndexCount - indexesBefore).toBe(1);
+    expect(data.diagnosticsStale).toBe(true);
+  });
+
+  it("clears refresh failure on unchanged readback while accepting newer activities", async () => {
+    await render();
+    const before = { catalog: data.catalog, statuses: data.statuses, sources: data.sources };
+    vi.mocked(desktopApi.workspaceSnapshot).mockRejectedValueOnce(failureReport());
+    await act(async () => data.retryRefresh());
+    expect(data.refreshFailure).toBeDefined();
+    const recovered = structuredClone(snapshot);
+    recovered.activities = [
+      {
+        id: "external-install",
+        operation: "install",
+        target_kind: "port",
+        target_id: "fixture",
+        status: "succeeded",
+        message: null,
+        failure: null,
+        started_at: 1,
+        finished_at: 2,
+        cancellation: null,
+      },
+    ];
+    vi.mocked(desktopApi.workspaceSnapshot).mockResolvedValueOnce(recovered);
+
+    await act(async () => data.retryRefresh());
+
+    expect(data.refreshFailure).toBeUndefined();
+    expect(data.refreshing).toBe(false);
+    expect(data.catalog).toBe(before.catalog);
+    expect(data.statuses).toBe(before.statuses);
+    expect(data.sources).toBe(before.sources);
+    expect(data.activities).toEqual(recovered.activities);
+  });
+
   it("keeps workspace, diagnostics, and activity refreshes live after Strict Mode replay", async () => {
     await renderStrict();
 

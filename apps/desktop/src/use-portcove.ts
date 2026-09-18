@@ -250,13 +250,14 @@ export function usePortcoveData(libraryGeneration = 0) {
       const snapshot: WorkspaceSnapshot = await desktopApi.workspaceSnapshot(libraryGeneration);
       if (!refreshGeneration.current.isCurrent(generation)) return;
       const identity = essentialSnapshotIdentity(snapshot);
-      if (essentialIdentity.current !== undefined && essentialIdentity.current !== identity)
-        invalidateDiagnostics();
-      essentialIdentity.current = identity;
+      if (essentialIdentity.current !== identity) {
+        if (essentialIdentity.current !== undefined) invalidateDiagnostics();
+        essentialIdentity.current = identity;
+        setCatalog(snapshot.catalog);
+        setStatuses(snapshot.statuses);
+        setSources(snapshot.sources);
+      }
       lastFullReconciliationAt.current = Date.now();
-      setCatalog(snapshot.catalog);
-      setStatuses(snapshot.statuses);
-      setSources(snapshot.sources);
       if (activityGeneration.current.isCurrent(activityRequest))
         acceptActivities(snapshot.activities);
       setRefreshFailure(undefined);
