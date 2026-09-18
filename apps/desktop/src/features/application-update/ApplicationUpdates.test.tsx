@@ -2,14 +2,14 @@
 import { act, useEffect } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { desktopApi } from "../api";
+import { desktopApi } from "../../api";
 import type {
   ApplicationUpdateNoticeSnapshot,
   ApplicationUpdatePreferences,
   ApplicationUpdateStatus,
-} from "../types";
+} from "../../types";
 import { ApplicationUpdateSettings } from "./ApplicationUpdates";
-import { useApplicationUpdateChoice } from "../use-portcove";
+import { useApplicationUpdateChoice } from "./use-application-update";
 
 const missingChoice: ApplicationUpdatePreferences = {
   schema_version: 1,

@@ -4,7 +4,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { desktopApi } from "../../api";
 import type { ApplicationUpdatePreferences } from "../../types";
-import { useApplicationUpdateChoice } from "../../use-portcove";
+import { useApplicationUpdateChoice } from "./use-application-update";
 
 const saved: ApplicationUpdatePreferences = {
   schema_version: 1,

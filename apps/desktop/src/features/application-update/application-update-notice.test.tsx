@@ -3,18 +3,18 @@ import { act, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { listen } from "@tauri-apps/api/event";
-import { desktopApi } from "./api";
-import { StatusLayer } from "./components/Chrome";
+import { desktopApi } from "../../api";
+import { StatusLayer } from "../../components/Chrome";
 import type {
   ApplicationUpdateNoticeSnapshot,
   ApplicationUpdatePreferences,
   ApplicationUpdateProductionTransition,
-} from "./types";
+} from "../../types";
 import {
   useApplicationUpdateChoice,
   useApplicationUpdateNotice,
   useApplicationUpdateProductionTransition,
-} from "./use-portcove";
+} from "./use-application-update";
 
 vi.mock("@tauri-apps/api/event", () => ({
   listen: vi.fn().mockResolvedValue(() => {}),
