@@ -1299,6 +1299,28 @@ coordinators. Strict Mode setup replay and library changes dispose the old gener
 waiters as disposed, and cannot reuse or reopen a coordinator whose callbacks belong to the prior
 lifetime.
 
+For workspace data, `usePortcoveData` remains the single explicit frontend cache
+owner: it owns read coalescing, generations, subscriptions, invalidation and
+visible refresh failure. Adding TanStack Query alongside it would introduce a
+competing owner; replacing it would require migrating those established contracts.
+The current workspace slice therefore retains the smaller existing owner without
+adding a query dependency. Other frontend read owners and feature boundaries must
+still be evaluated separately; this is not a claim that all frontend state has
+already been consolidated.
+
+The existing complete essential-snapshot identity comparison also controls state
+publication. An unchanged catalog/status/source snapshot retains all three React
+references; a changed snapshot publishes the three collections together and
+invalidates diagnostics. Every accepted read still updates reconciliation time,
+accepts independently current activity data and clears a previous refresh failure.
+It does not skip IPC or cache operation authorization. The comparison still
+serializes the essential snapshot once per accepted read, without an additional
+per-collection comparison. A controlled hook test supplies five independently
+cloned unchanged IPC results: requests remain five while recomputations of the
+same memoized status-index function used by application composition fall from five
+to zero. A changed-snapshot control recomputes once. These are reference and
+computation-count measurements, not native render-time or wall-clock benchmarks.
+
 Each ready Desktop library generation also owns one persistent, connection-scoped SQLite
 `data_version` observer. Commits from a CLI or another process are checked with that same observing
 connection every second while work is running, every ten seconds while visible and idle, and every
