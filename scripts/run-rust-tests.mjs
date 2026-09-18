@@ -5,6 +5,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { acquireHeavyRustTestLock } from "./heavy-rust-test-lock.mjs";
+import { prepareRustSupportArtifact, rustSupportCompilerIdentity } from "./rust-support-cache.mjs";
 
 const scriptPath = fileURLToPath(import.meta.url);
 const root = fileURLToPath(new URL("../", import.meta.url));
@@ -227,6 +228,9 @@ export async function runRustTests(args, dependencies = {}) {
   const runSync = dependencies.spawnSync ?? spawnSync;
   const start = dependencies.spawn ?? spawn;
   const acquireLock = dependencies.acquireLock ?? acquireHeavyRustTestLock;
+  const prepareSupport = dependencies.prepareSupportArtifact ?? prepareRustSupportArtifact;
+  const readCompilerIdentity =
+    dependencies.rustSupportCompilerIdentity ?? rustSupportCompilerIdentity;
   const base = path.resolve(
     dependencies.tempRoot ?? environment.RUNNER_TEMP ?? environment.PORTCOVE_TEMP_DIR ?? tmpdir(),
   );
@@ -246,6 +250,24 @@ export async function runRustTests(args, dependencies = {}) {
   let lock = null;
   let releaseLock = true;
   let cancellation = null;
+  let compiler = null;
+  const prepareSupportProduct = (definition) => {
+    compiler ??= readCompilerIdentity({ runSync, environment, platform });
+    const result = prepareSupport({
+      root,
+      output: definition.output,
+      environment,
+      platform,
+      architecture: dependencies.architecture ?? process.arch,
+      runSync,
+      compiler,
+      ...definition,
+    });
+    console.error(
+      `[rust-support] ${definition.product} ${result.outcome} ` +
+        `${result.fingerprint.slice(0, 12)} in ${result.elapsed_ms}ms`,
+    );
+  };
   try {
     if (!prepareOnly) {
       lock = await acquireLock({
@@ -254,19 +276,12 @@ export async function runRustTests(args, dependencies = {}) {
       });
     }
     if (mode.kind !== "guarded-command") {
-      const compiled = runSync(
-        "rustc",
-        [
-          "--crate-name",
-          "portcove_host_tool_fixture",
-          path.join(root, "crates/portcove-core/src/testdata/host_tool_probe.rs.txt"),
-          "-o",
-          fixtureExecutable,
-        ],
-        { stdio: "inherit", windowsHide: true },
-      );
-      if (compiled.error) throw compiled.error;
-      if (compiled.status !== 0) throw new Error("Host-tool fixture compilation failed");
+      prepareSupportProduct({
+        product: "host-tool-probe",
+        source: "crates/portcove-core/src/testdata/host_tool_probe.rs.txt",
+        output: fixtureExecutable,
+        rustcArgs: ["--crate-name", "portcove_host_tool_fixture"],
+      });
     }
     if (prepareOnly) {
       if (!environment.GITHUB_ENV) throw new Error("--prepare-only requires GITHUB_ENV");
@@ -275,21 +290,12 @@ export async function runRustTests(args, dependencies = {}) {
       return 0;
     }
     if (platform === "win32") {
-      const supervisorCompiled = runSync(
-        "rustc",
-        [
-          "--edition=2024",
-          "--crate-name",
-          "portcove_process_tree_supervisor",
-          path.join(root, "scripts/fixtures/windows-process-tree-supervisor.rs.txt"),
-          "-o",
-          supervisor,
-        ],
-        { stdio: "inherit", windowsHide: true },
-      );
-      if (supervisorCompiled.error) throw supervisorCompiled.error;
-      if (supervisorCompiled.status !== 0)
-        throw new Error("Windows process-tree supervisor compilation failed");
+      prepareSupportProduct({
+        product: "windows-process-tree-supervisor",
+        source: "scripts/fixtures/windows-process-tree-supervisor.rs.txt",
+        output: supervisor,
+        rustcArgs: ["--edition=2024", "--crate-name", "portcove_process_tree_supervisor"],
+      });
     }
     if (lock.inherited) {
       const nested = start(mode.executable, mode.args, {

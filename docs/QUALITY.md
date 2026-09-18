@@ -798,6 +798,21 @@ the configured polling interval.
 for an explicitly coordinated run. Cancellation stops only the queued command.
 Do not delete the lock record or terminate another worker's process.
 
+After admission, the runner prepares its small Rust support executables through
+the per-worktree Cargo target under `target/portcove-rust-support`. Reuse binds
+the complete source bytes, rustc verbose identity and sysroot, resolved compiler
+and linker bytes, exact target/architecture and arguments, and hashed relevant
+compiler environment. Each immutable entry records and revalidates its output
+bytes and mode. Missing, corrupt, interrupted, or identity-mismatched entries are
+never executed: a candidate is compiled in a unique directory and atomically
+published only after validation, stale interrupted candidates are rejected, and
+retention is bounded to eight identities per support product. Every invocation
+copies the verified product into its new temporary fixture directory and still
+creates a fresh containment gate, process tree, assertions, and exit evidence.
+The runner reports each support-product build or hit with its fingerprint and
+preparation duration. No Cargo/nextest result, mutable fixture, containment
+result, authorization, or test success is cached.
+
 This machine guard covers `just test-rust`, selected Rust stages in
 `just local-check`, `just rust-check`, `just clippy`, `just rust-test`, and the
 aggregate commands that reach the same wrapper. It does not cover direct
@@ -816,9 +831,10 @@ CLI tests resolve nextest's remapped executable path at runtime so archives do
 not depend on the build machine's checkout or target-directory location.
 The required Rust aggregate fails if either the build or any Intel test job fails.
 
-Timed Rust lanes compile the native host-tool probe fixture once during setup.
+Timed Rust lanes prepare the native host-tool probe fixture once during setup.
 Each test copies it into its own temporary directory before mutation or probing.
-`just rust-test` uses the same preparation through `scripts/run-rust-tests.mjs`;
+`just rust-test` uses the same identity-bound preparation through
+`scripts/run-rust-tests.mjs`;
 plain Cargo tests retain their standalone fixture compiler. Fixture compilation
 is build setup, while every test's assertions and process probes keep the same
 hang guard.
