@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { usePortcoveData } from "./features/workspace/use-workspace-data";
 import { AdoptionModal } from "./components/AdoptionModal";
 import {
   LibraryMoveRecovery,
@@ -20,7 +21,7 @@ import { ArtworkProvider } from "./artwork";
 import { SourceIntakeDialog, type SourceIntakeRequest } from "./components/SourceIntake";
 import { UpdateCenter } from "./components/UpdateCenter";
 import { FailureDetails } from "./components/FailureDetails";
-import { WorkspaceRefreshNotice } from "./components/WorkspaceRefreshNotice";
+import { WorkspaceRefreshNotice } from "./features/workspace/WorkspaceRefreshNotice";
 import {
   pickHostToolExecutable,
   pickInstallFolder,
@@ -49,7 +50,6 @@ import {
   useInstallPlanning,
   useOperationState,
   usePortBackups,
-  usePortcoveData,
   usePortcoveUi,
   useSourceHealth,
   useUpdateCenter,

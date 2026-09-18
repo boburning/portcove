@@ -3,12 +3,13 @@ import { act, StrictMode, useMemo } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { listen } from "@tauri-apps/api/event";
-import { desktopApi } from "./api";
-import { useOperationState, usePortcoveData, useUpdateCenter, type Perform } from "./use-portcove";
-import { failureReport, portDefinition, portStatus } from "./test-fixtures";
-import type { DoctorReport, OperationEvent, WorkspaceSnapshot } from "./types";
-import { WorkspaceRefreshNotice } from "./components/WorkspaceRefreshNotice";
-import { indexStatuses } from "./view-model";
+import { desktopApi } from "../../api";
+import { useOperationState, useUpdateCenter, type Perform } from "../../use-portcove";
+import { usePortcoveData } from "./use-workspace-data";
+import { failureReport, portDefinition, portStatus } from "../../test-fixtures";
+import type { DoctorReport, OperationEvent, WorkspaceSnapshot } from "../../types";
+import { WorkspaceRefreshNotice } from "./WorkspaceRefreshNotice";
+import { indexStatuses } from "../../view-model";
 
 vi.mock("@tauri-apps/api/event", () => ({ listen: vi.fn() }));
 

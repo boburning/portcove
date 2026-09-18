@@ -270,6 +270,18 @@ test("frontend configuration changes use the complete small UI suite", () => {
   assert.ok(aggregateCommands.includes("node scripts/check-copy.mjs"));
 });
 
+test("the exact Fallow boundary configuration selects the complete UI suite", () => {
+  for (const status of ["M", "A", "D"]) {
+    const { selection, plan } = planFor([{ status, path: "apps/desktop/.fallowrc.json" }]);
+    assert.equal(selection.uiFullTests, true);
+    assert.equal(selection.fallow, true);
+    assert.ok(ids(plan).includes("ui-tests"));
+    assert.ok(ids(plan).includes("fallow"));
+    assert.ok(!ids(plan).includes("ui-related-tests"));
+    assert.deepEqual([...selection.unknown], []);
+  }
+});
+
 test("command-identical obligations execute once while retaining every selection reason", () => {
   const duplicate = {
     id: "second-lint",

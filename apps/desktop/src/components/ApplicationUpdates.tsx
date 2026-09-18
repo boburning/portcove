@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { desktopApi } from "../api";
-import { LatestRequestGeneration } from "../concurrency-state";
+import { LatestRequestGeneration } from "../shared/concurrency-state";
 import type {
   ApplicationUpdateChoice,
   ApplicationUpdateCheckPhase,
