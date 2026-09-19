@@ -2,9 +2,9 @@
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { desktopApi } from "./api";
-import type { SourceInspectionReport, SourceRecord } from "./types";
-import { useSourceHealth, type Perform } from "./use-portcove";
+import { desktopApi } from "../../api";
+import type { SourceInspectionReport, SourceRecord, SourceVerificationOutcome } from "../../types";
+import { useSourceHealth } from "./use-source-health";
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -14,7 +14,7 @@ function deferred<T>() {
   return { promise, resolve };
 }
 
-const perform: Perform = async (_name, task) => task();
+const perform: Parameters<typeof useSourceHealth>[0] = async (_name, task) => task();
 const source = (path: string): SourceRecord => ({
   profile_id: "game",
   path,
@@ -109,4 +109,36 @@ describe("source inspection intent", () => {
       expect(state.inspections.get("game")?.summary).toBe(currentPath);
     },
   );
+
+  it("keeps the newest verification outcome when an older request finishes last", async () => {
+    vi.spyOn(desktopApi, "inspectSource").mockResolvedValue(report("D:/Game.z64"));
+    const old = deferred<SourceVerificationOutcome[]>();
+    const current = deferred<SourceVerificationOutcome[]>();
+    const oldOutcome: SourceVerificationOutcome[] = [
+      { error: null, ok: false, profile_id: "game", result: null },
+    ];
+    const currentOutcome: SourceVerificationOutcome[] = [
+      { error: null, ok: true, profile_id: "game", result: null },
+    ];
+    vi.spyOn(desktopApi, "verifySources")
+      .mockReturnValueOnce(old.promise)
+      .mockReturnValueOnce(current.promise);
+    await render("D:/Game.z64", "catalog");
+
+    let oldRequest!: Promise<void>;
+    let currentRequest!: Promise<void>;
+    await act(async () => {
+      oldRequest = state.verifyAll();
+      currentRequest = state.verifyAll();
+      current.resolve(currentOutcome);
+      await currentRequest;
+    });
+    expect(state.outcomes).toBe(currentOutcome);
+
+    await act(async () => {
+      old.resolve(oldOutcome);
+      await oldRequest;
+    });
+    expect(state.outcomes).toBe(currentOutcome);
+  });
 });

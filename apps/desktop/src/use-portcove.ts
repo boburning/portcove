@@ -13,9 +13,6 @@ import type {
   OperationEvent,
   PortDefinition,
   PortStatus,
-  SourceInspectionReport,
-  SourceRecord,
-  SourceVerificationOutcome,
   UpdateCheckOutcome,
 } from "./types";
 import type { DetailActions } from "./components/DetailPanel";
@@ -267,67 +264,6 @@ export function useAdoptionPlanning(
     applying,
     copyFailed: failedIdentity === identity,
   };
-}
-
-export function useSourceHealth(
-  perform: Perform,
-  sources: SourceRecord[],
-  requestedProfileIds: readonly string[] = [],
-  catalogIdentity = "",
-) {
-  const [verified, setVerified] = useState<{
-    baseline: string;
-    outcomes: SourceVerificationOutcome[];
-  }>();
-  const [inspected, setInspected] = useState<{
-    baseline: string;
-    inspections: ReadonlyMap<string, SourceInspectionReport>;
-  }>();
-  const generation = useRef(new LatestRequestGeneration());
-  const requested = new Set(requestedProfileIds);
-  const inspectionSources = sources.filter((source) => requested.has(source.profile_id));
-  const baseline = `${catalogIdentity}|${JSON.stringify(inspectionSources)}`;
-  const inspectionInput = useRef({ baseline, sources: inspectionSources });
-  useLayoutEffect(() => {
-    inspectionInput.current = { baseline, sources: inspectionSources };
-  });
-  const inspectAll = useCallback(async () => {
-    const { baseline: currentBaseline, sources: currentSources } = inspectionInput.current;
-    const request = generation.current.begin();
-    const results = await Promise.allSettled(
-      currentSources.map((source) => desktopApi.inspectSource(source.profile_id)),
-    );
-    if (!generation.current.isCurrent(request)) return;
-    setInspected({
-      baseline: currentBaseline,
-      inspections: new Map(
-        results.flatMap((result, index) =>
-          result.status === "fulfilled"
-            ? [[currentSources[index].profile_id, result.value] as const]
-            : [],
-        ),
-      ),
-    });
-  }, []);
-  useEffect(() => {
-    const requests = generation.current;
-    requests.begin();
-    void inspectAll();
-    return () => {
-      requests.begin();
-    };
-  }, [baseline, inspectAll]);
-  const verifyAll = useCallback(async () => {
-    const result = await perform("verify sources", desktopApi.verifySources);
-    if (result) setVerified({ baseline, outcomes: result });
-    await inspectAll();
-  }, [baseline, inspectAll, perform]);
-  const outcomes = verified?.baseline === baseline ? verified.outcomes : [];
-  const inspections =
-    inspected?.baseline === baseline
-      ? inspected.inspections
-      : new Map<string, SourceInspectionReport>();
-  return { outcomes, inspections, inspectAll, verifyAll };
 }
 
 export function usePortBackups(portId: string | undefined, setError: (error?: string) => void) {
