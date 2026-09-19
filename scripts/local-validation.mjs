@@ -1096,9 +1096,14 @@ function localStageDomains(entry) {
     return ["rust"];
   if (entry.id.startsWith("ui-")) return ["ui"];
   if (
-    ["actionlint", "powershell-lint", "shell-lint", "python-lint", "oxc-fixtures"].includes(
-      entry.id,
-    )
+    [
+      "actionlint",
+      "oxc-fixtures",
+      "oxlint",
+      "powershell-lint",
+      "python-lint",
+      "shell-lint",
+    ].includes(entry.id)
   )
     return ["lint"];
   if (["transport-export", "transport-policy"].includes(entry.id))

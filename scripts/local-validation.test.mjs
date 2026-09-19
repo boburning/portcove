@@ -688,6 +688,14 @@ test("local receipts reuse proven independent stages and invalidate only affecte
       cwd: process.cwd(),
       obligation: "repository",
     },
+    {
+      id: "oxlint",
+      reason: "lint",
+      executable: "corepack",
+      args: ["pnpm", "run", "lint:oxlint"],
+      cwd: process.cwd(),
+      obligation: "repository-oxlint",
+    },
   ];
   const first = [];
   executePlanWithReceipts(plan, {
@@ -699,7 +707,7 @@ test("local receipts reuse proven independent stages and invalidate only affecte
       return { status: 0 };
     },
   });
-  assert.deepEqual(first, ["cargo", "node"]);
+  assert.deepEqual(first, ["cargo", "node", "corepack"]);
 
   const second = [];
   const result = executePlanWithReceipts(plan, {
