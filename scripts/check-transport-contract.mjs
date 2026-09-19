@@ -150,14 +150,34 @@ function isDirectInvokeImport(tokens, index) {
   return false;
 }
 
+function validateTauriCoreImports(tokens) {
+  for (let index = 0; index < tokens.length; index += 1) {
+    if (tokens[index]?.kind !== "string" || tokens[index]?.value !== "@tauri-apps/api/core")
+      continue;
+    let statementStart = index - 1;
+    while (statementStart > 0 && tokens[statementStart - 1]?.value !== ";") statementStart -= 1;
+    if (
+      tokens[index - 1]?.value !== "from" ||
+      tokens[index - 2]?.value !== "}" ||
+      tokens[statementStart]?.kind !== "identifier" ||
+      tokens[statementStart]?.value !== "import" ||
+      tokens[statementStart + 1]?.value !== "{"
+    )
+      throw new Error(
+        "Tauri core APIs must use direct named imports; namespace, default, dynamic, and indirect access are unsupported",
+      );
+  }
+}
+
 export function extractFrontendDesktopCommands(sourceTexts) {
   const sources = typeof sourceTexts === "string" ? [sourceTexts] : sourceTexts;
   if (!Array.isArray(sources) || sources.length === 0)
     throw new Error("the shipped frontend source inventory is empty");
   const commands = [];
   for (const sourceText of sources) {
-    if (!/\binvoke\b/u.test(sourceText)) continue;
+    if (!/\binvoke\b/u.test(sourceText) && !sourceText.includes("@tauri-apps/api/core")) continue;
     const tokens = sourceTokens(sourceText);
+    validateTauriCoreImports(tokens);
     let directImport = false;
     let directCalls = 0;
     for (let index = 0; index < tokens.length; index += 1) {

@@ -183,6 +183,18 @@ test("aliased, indirect, and out-of-facade invokes fail alongside a complete inv
     }).join("\n"),
     /invoke calls must use a direct invoke import/,
   );
+  assert.match(
+    checkDesktopCommandContract({
+      registrationSource,
+      declarationSources,
+      frontendSources: [
+        frontendSource,
+        `import * as core from "@tauri-apps/api/core";
+         core["invoke"](selectedCommand);`,
+      ],
+    }).join("\n"),
+    /Tauri core APIs must use direct named imports/,
+  );
   assert.throws(
     () =>
       extractFrontendDesktopCommands(
