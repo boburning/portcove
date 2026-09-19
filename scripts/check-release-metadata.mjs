@@ -452,9 +452,9 @@ function validateVersions(metadata, options) {
 
 const metadataRules = [
   (metadata) =>
-    /^pnpm@\d+\.\d+\.\d+$/u.test(metadata.desktopPackage.packageManager ?? "")
+    /^pnpm@\d+\.\d+\.\d+$/u.test(metadata.repositoryPackage.packageManager ?? "")
       ? undefined
-      : "desktop package manager must use an exact pnpm version",
+      : "repository package manager must use an exact pnpm version",
   (metadata) =>
     metadata.cargo.license === "MIT OR Apache-2.0"
       ? undefined
@@ -550,6 +550,7 @@ export function validateReleaseMetadata(metadata, options = {}) {
 
 async function collectReleaseMetadata(root = projectRoot) {
   const cargoPath = path.join(root, "Cargo.toml");
+  const repositoryPackagePath = path.join(root, "package.json");
   const desktopPackagePath = path.join(root, "apps", "desktop", "package.json");
   const desktopCargoPath = path.join(root, "apps", "desktop", "src-tauri", "Cargo.toml");
   const tauriPath = path.join(root, "apps", "desktop", "src-tauri", "tauri.conf.json");
@@ -563,6 +564,7 @@ async function collectReleaseMetadata(root = projectRoot) {
   );
   const [
     cargoToml,
+    repositoryPackageText,
     desktopPackageText,
     desktopCargoFeatures,
     tauriText,
@@ -571,6 +573,7 @@ async function collectReleaseMetadata(root = projectRoot) {
     modelManifest,
   ] = await Promise.all([
     readFile(cargoPath, "utf8"),
+    readFile(repositoryPackagePath, "utf8"),
     readFile(desktopPackagePath, "utf8"),
     loadDesktopCargoFeatures(desktopCargoPath),
     readFile(tauriPath, "utf8"),
@@ -590,6 +593,7 @@ async function collectReleaseMetadata(root = projectRoot) {
   );
   return {
     cargo: parseWorkspacePackage(cargoToml),
+    repositoryPackage: JSON.parse(repositoryPackageText),
     desktopPackage: JSON.parse(desktopPackageText),
     desktopCargoFeatures,
     tauri: JSON.parse(tauriText),

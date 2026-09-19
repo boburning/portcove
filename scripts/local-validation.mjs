@@ -130,11 +130,12 @@ const explicitNodeTests = new Map([
   [".node-version", ["scripts/dependency-automation.test.mjs"]],
   ["Cargo.toml", ["scripts/dependency-automation.test.mjs"]],
   ["rust-toolchain.toml", ["scripts/dependency-automation.test.mjs"]],
-  [
-    "apps/desktop/package.json",
-    ["scripts/dependency-automation.test.mjs", "scripts/local-validation.test.mjs"],
-  ],
+  ["package.json", ["scripts/dependency-automation.test.mjs", "scripts/local-validation.test.mjs"]],
+  ["pnpm-lock.yaml", ["scripts/dependency-automation.test.mjs"]],
+  ["pnpm-workspace.yaml", ["scripts/dependency-automation.test.mjs"]],
+  ["apps/desktop/pnpm-lock.yaml", ["scripts/dependency-automation.test.mjs"]],
   ["apps/desktop/pnpm-workspace.yaml", ["scripts/dependency-automation.test.mjs"]],
+  ["apps/desktop/package.json", ["scripts/local-validation.test.mjs"]],
   [".github/dependabot.yml", ["scripts/dependency-automation.test.mjs"]],
   [
     ".config/tool-bootstrap.json",
@@ -330,7 +331,14 @@ function classifyOnePath(selection, input, fileExists, options = {}) {
     }
   }
 
-  if (file === "apps/desktop/pnpm-workspace.yaml") {
+  if (
+    [
+      "package.json",
+      "pnpm-lock.yaml",
+      "pnpm-workspace.yaml",
+      "apps/desktop/pnpm-workspace.yaml",
+    ].includes(file)
+  ) {
     selection.ui = true;
     selection.uiFullTests = true;
     selection.scopes.add("ui");

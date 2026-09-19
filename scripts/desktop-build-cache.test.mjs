@@ -12,10 +12,11 @@ import {
 
 const inputFiles = [
   ".node-version",
+  "package.json",
+  "pnpm-lock.yaml",
+  "pnpm-workspace.yaml",
   "apps/desktop/index.html",
   "apps/desktop/package.json",
-  "apps/desktop/pnpm-lock.yaml",
-  "apps/desktop/pnpm-workspace.yaml",
   "apps/desktop/tsconfig.json",
   "apps/desktop/tsconfig.node.json",
   "apps/desktop/vite.config.ts",

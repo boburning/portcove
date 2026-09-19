@@ -18,10 +18,20 @@ compiler selection matters. Keep each worktree's Cargo target separate and use
 the existing development-storage wrapper for heavy commands.
 
 The active toolchain authorities are Rust 1.98.1 in `rust-toolchain.toml`, Node
-24.21.0 in `.node-version`, and pnpm 12.4.1 in the desktop package's
+24.21.0 in `.node-version`, and pnpm 12.4.1 in the repository root package's
 `packageManager` field. GitHub workflows derive pnpm from that package manifest
 instead of copying its version. `scripts/dependency-automation.test.mjs` checks
 those relationships together with Renovate coverage for nonstandard pins.
+
+The root `package.json`, `pnpm-workspace.yaml`, and `pnpm-lock.yaml` are the sole
+JavaScript workspace and dependency-resolution authorities. Repository-wide
+format, lint, and analysis tools are root development dependencies;
+`apps/desktop/package.json` remains the product package and owns its runtime
+dependencies, package-specific build/test tools, and scripts. The manifests have
+disjoint dependency ownership. Install from the repository root with
+`corepack pnpm install --frozen-lockfile`. Root commands such as `corepack pnpm
+format:check`, `corepack pnpm lint`, `corepack pnpm build`, and `corepack pnpm
+test` forward to the desktop package without creating another lockfile.
 
 On Windows, run `./scripts/bootstrap-quality-tools.ps1`. It downloads the exact
 Aqua release named by `.aqua-version` from Aqua's official release origin, verifies

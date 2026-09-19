@@ -1,5 +1,8 @@
+packages:
+  - apps/desktop
+
 allowBuilds:
   esbuild: true
 onlyBuiltDependencies:
   - esbuild
-storeDir: ../../work/pnpm-store
+storeDir: work/pnpm-store

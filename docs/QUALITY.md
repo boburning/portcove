@@ -417,7 +417,7 @@ proof of all rendered wording or of translation quality.
 Structural heuristics advise: dependency duplication, unmaintained transitive dependencies, complexity, responsibility splits, god objects, duplicate logic, dead public APIs, semantic duplication, and mutation survivors. Do not refactor simply to make an advisory number green.
 
 pnpm 12's default one-day minimum release age remains active without dependency
-exceptions. Portcove pins pnpm exactly in the desktop `packageManager` field,
+exceptions. Portcove pins pnpm exactly in the root `packageManager` field,
 derives workflow setup from that authority, and requires frozen installation.
 Do not replace the release-age policy with package-wide exceptions or disable
 lockfile verification.

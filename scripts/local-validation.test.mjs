@@ -260,7 +260,7 @@ test("UI sources build, lint, and run import-related tests", () => {
 });
 
 test("frontend configuration changes use the complete small UI suite", () => {
-  const { selection, plan } = planFor(["apps/desktop/package.json"]);
+  const { selection, plan } = planFor(["package.json"]);
   assert.equal(selection.uiFullTests, true);
   assert.ok(ids(plan).includes("ui-tests"));
   assert.ok(!ids(plan).includes("ui-related-tests"));
@@ -272,6 +272,23 @@ test("frontend configuration changes use the complete small UI suite", () => {
   const aggregateCommands = scripts.test.split(/\s*&&\s*/u);
   assert.ok(aggregateCommands.includes("node scripts/check-theme.mjs"));
   assert.ok(aggregateCommands.includes("node scripts/check-copy.mjs"));
+});
+
+test("retired desktop-local pnpm authorities remain owned on deletion", () => {
+  for (const path of ["apps/desktop/pnpm-lock.yaml", "apps/desktop/pnpm-workspace.yaml"]) {
+    const { selection, plan } = planFor([{ status: "D", path }]);
+    assert.equal(selection.uiFullTests, true, path);
+    assert.deepEqual([...selection.unknown], [], path);
+    assert.ok(ids(plan).includes("ui-tests"), path);
+    assert.ok(
+      plan.some(
+        (entry) =>
+          entry.id === "node-tests" &&
+          entry.args.includes("scripts/dependency-automation.test.mjs"),
+      ),
+      path,
+    );
+  }
 });
 
 test("the exact Fallow boundary configuration selects the complete UI suite", () => {

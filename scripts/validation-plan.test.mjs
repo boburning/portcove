@@ -127,8 +127,9 @@ test("routine dependency manifests stay ecosystem-focused while shared toolchain
     ["Cargo.toml", ["dependency-review", "rust", "rust-quality"]],
     ["crates/portcove-core/Cargo.toml", ["dependency-review", "rust", "rust-quality"]],
     ["Cargo.lock", ["dependency-review", "rust", "rust-quality"]],
+    ["package.json", ["dependency-review", "frontend", "rust-quality"]],
+    ["pnpm-lock.yaml", ["dependency-review", "frontend", "rust-quality"]],
     ["apps/desktop/package.json", ["dependency-review", "frontend", "rust-quality"]],
-    ["apps/desktop/pnpm-lock.yaml", ["dependency-review", "frontend", "rust-quality"]],
   ]) {
     const result = plan([change(path)]);
     assert.equal(result.mode, "fast", path);

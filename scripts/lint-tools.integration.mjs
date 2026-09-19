@@ -244,7 +244,7 @@ async function oxfmtFixture() {
 
 async function stylelintFixture() {
   const fixture = path.join(desktop, "src", `.lint-style-${nonce}.css`);
-  const stylelint = path.join(desktop, "node_modules", "stylelint", "bin", "stylelint.mjs");
+  const stylelint = path.join(root, "node_modules", "stylelint", "bin", "stylelint.mjs");
   const args = [
     stylelint,
     "--config",

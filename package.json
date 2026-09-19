@@ -1,0 +1,23 @@
+{
+  "name": "portcove-repository",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "pnpm --dir apps/desktop build",
+    "format": "pnpm --dir apps/desktop format",
+    "format:check": "pnpm --dir apps/desktop format:check",
+    "lint": "pnpm --dir apps/desktop lint",
+    "lint:oxlint": "pnpm --dir apps/desktop lint:oxlint",
+    "lint:style": "pnpm --dir apps/desktop lint:style",
+    "test": "pnpm --dir apps/desktop test",
+    "transport:check": "pnpm --dir apps/desktop transport:check"
+  },
+  "devDependencies": {
+    "@taplo/cli": "0.7.0",
+    "fallow": "^3.25.0",
+    "oxfmt": "0.67.0",
+    "oxlint": "1.82.0",
+    "oxlint-tsgolint": "7.0.2001"
+  },
+  "packageManager": "pnpm@12.4.1"
+}

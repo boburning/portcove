@@ -5,12 +5,13 @@ import path from "node:path";
 const FORMAT_VERSION = 1;
 const FRONTEND_INPUTS = [
   ".node-version",
+  "package.json",
+  "pnpm-lock.yaml",
+  "pnpm-workspace.yaml",
   "apps/desktop/public",
   "apps/desktop/src",
   "apps/desktop/index.html",
   "apps/desktop/package.json",
-  "apps/desktop/pnpm-lock.yaml",
-  "apps/desktop/pnpm-workspace.yaml",
   "apps/desktop/tsconfig.json",
   "apps/desktop/tsconfig.node.json",
   "apps/desktop/vite.config.ts",

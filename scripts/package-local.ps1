@@ -60,7 +60,7 @@ try {
     if ([System.IO.File]::Exists($temporaryArchive)) {
         [System.IO.File]::Delete($temporaryArchive)
     }
-    $excludedDirectories = @("target", "work", "outputs", "apps/desktop/node_modules", "apps/desktop/dist", "apps/desktop/src-tauri/gen", ".git", ".fallow", ".rscheck", ".semdup", "semdup.sqlite", "scripts/.fallow", "apps/desktop/.fallow", ".codex-remote-attachments")
+    $excludedDirectories = @("target", "work", "outputs", "node_modules", "apps/desktop/node_modules", "apps/desktop/dist", "apps/desktop/src-tauri/gen", ".git", ".fallow", ".rscheck", ".semdup", "semdup.sqlite", "scripts/.fallow", "apps/desktop/.fallow", ".codex-remote-attachments")
     foreach ($storagePath in @($targetRoot, $outputRoot, $storage.temporary_directory, $storage.pnpm_store)) {
         $relative = [System.IO.Path]::GetRelativePath($projectRoot, $storagePath).Replace('\', '/')
         if ($relative -eq ".") { throw "Packaging storage cannot be the workspace root" }

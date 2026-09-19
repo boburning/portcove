@@ -643,16 +643,19 @@ test("frontend keeps deterministic product gates and delegates vulnerability cha
 });
 
 test("frontend tooling uses the pinned Oxc contracts without legacy quality layers", async () => {
-  const packageJson = JSON.parse(
+  const desktopPackage = JSON.parse(
     await readFile(new URL("../apps/desktop/package.json", import.meta.url), "utf8"),
   );
-  assert.equal(packageJson.scripts["format:oxfmt"], "node ../../scripts/run-oxfmt.mjs --write");
-  assert.equal(packageJson.scripts["lint:oxlint"], "node ../../scripts/run-oxlint.mjs");
-  assert.equal(packageJson.devDependencies.oxfmt, "0.67.0");
-  assert.equal(packageJson.devDependencies.oxlint, "1.82.0");
-  assert.equal(packageJson.devDependencies["oxlint-tsgolint"], "7.0.2001");
-  assert.equal(packageJson.devDependencies["oxc-parser"], "0.149.0");
-  assert.equal(packageJson.devDependencies.typescript, "7.0.2");
+  const repositoryPackage = JSON.parse(
+    await readFile(new URL("../package.json", import.meta.url), "utf8"),
+  );
+  assert.equal(desktopPackage.scripts["format:oxfmt"], "node ../../scripts/run-oxfmt.mjs --write");
+  assert.equal(desktopPackage.scripts["lint:oxlint"], "node ../../scripts/run-oxlint.mjs");
+  assert.equal(repositoryPackage.devDependencies.oxfmt, "0.67.0");
+  assert.equal(repositoryPackage.devDependencies.oxlint, "1.82.0");
+  assert.equal(repositoryPackage.devDependencies["oxlint-tsgolint"], "7.0.2001");
+  assert.equal(desktopPackage.devDependencies["oxc-parser"], "0.149.0");
+  assert.equal(desktopPackage.devDependencies.typescript, "7.0.2");
   for (const retired of [
     "@babel/parser",
     "@eslint/js",
@@ -664,7 +667,8 @@ test("frontend tooling uses the pinned Oxc contracts without legacy quality laye
     "prettier",
     "typescript-eslint",
   ]) {
-    assert.equal(packageJson.devDependencies[retired], undefined);
+    assert.equal(repositoryPackage.devDependencies[retired], undefined);
+    assert.equal(desktopPackage.devDependencies[retired], undefined);
   }
 
   const oxlint = JSON.parse(await readFile(new URL("../.oxlintrc.json", import.meta.url), "utf8"));
@@ -796,7 +800,7 @@ test("frontend tooling uses the pinned Oxc contracts without legacy quality laye
     await readFile(new URL("../apps/desktop/.fallowrc.json", import.meta.url), "utf8"),
   );
   assert.deepEqual(fallow, {
-    $schema: "./node_modules/fallow/schema.json",
+    $schema: "../../node_modules/fallow/schema.json",
     boundaries: {
       zones: [
         { name: "shared", patterns: ["src/shared/**"] },

@@ -3,8 +3,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const projectRoot = fileURLToPath(new URL("..", import.meta.url));
-const oxlint = path.join(projectRoot, "apps", "desktop", "node_modules", "oxlint", "bin", "oxlint");
-const desktopBin = path.join(projectRoot, "apps", "desktop", "node_modules", ".bin");
+const oxlint = path.join(projectRoot, "node_modules", "oxlint", "bin", "oxlint");
+const workspaceBin = path.join(projectRoot, "node_modules", ".bin");
 const targets =
   process.argv.length > 2
     ? process.argv.slice(2)
@@ -36,7 +36,7 @@ function run(args, stdio = "inherit") {
     cwd: projectRoot,
     env: {
       ...process.env,
-      PATH: `${desktopBin}${path.delimiter}${process.env.PATH ?? ""}`,
+      PATH: `${workspaceBin}${path.delimiter}${process.env.PATH ?? ""}`,
     },
     stdio,
     encoding: stdio === "pipe" ? "utf8" : undefined,

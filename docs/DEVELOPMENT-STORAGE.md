@@ -46,7 +46,7 @@ problem; it does not erase evidence from a failed HDD run.
 
 ## Bootstrap and preflight
 
-Clone or copy the repository to a deliberately selected development path on the spacious volume, such as `E:\Portcove-Development`. Do not copy an old `target`, `node_modules`, `dist`, or `src-tauri/gen` directory; they are reconstructed from `Cargo.lock` and `apps/desktop/pnpm-lock.yaml`. Preserve ignored source inputs, qualification evidence, and final outputs unless each item has separately been proved disposable.
+Clone or copy the repository to a deliberately selected development path on the spacious volume, such as `E:\Portcove-Development`. Do not copy an old `target`, `node_modules`, `dist`, or `src-tauri/gen` directory; they are reconstructed from `Cargo.lock` and the root `pnpm-lock.yaml`. Preserve ignored source inputs, qualification evidence, and final outputs unless each item has separately been proved disposable.
 
 From the new workspace, inspect the resolved layout and prerequisites before a
 heavy command:
@@ -57,14 +57,14 @@ just doctor
 ```
 
 Only when frontend dependencies are missing or incompatible with the lockfile,
-run `node scripts/dev-storage.mjs run -- corepack pnpm --dir apps/desktop install --frozen-lockfile`.
+run `node scripts/dev-storage.mjs run -- corepack pnpm install --frozen-lockfile` from the repository root.
 Use the owning task's narrow test command and `just local-check`; exhaustive
 validation remains required only for its documented acceptance or investigation.
 
 The read-only preflight resolves the workspace and Cargo target through `cargo metadata`, follows existing symlinks and junctions (including ancestors of directories not yet created), and prints the physical storage paths. It stops on Windows if the workspace, Cargo target, project temporary directory, packaging output, pnpm store, frontend dependencies/output, or Tauri generated directory resolves to the system drive. It also stops when any relevant filesystem has less than 20 GiB free. `PORTCOVE_MIN_FREE_GIB` or `--minimum-free-gib` can raise that margin for release or mutation work; lowering it should be an explicit, temporary decision based on a measured build. `preflight --json` returns the same checked layout for scripts.
 
 Before installing dependencies, compare `pnpm --version` with `packageManager`
-in `apps/desktop/package.json`. A host-provided fallback that ignores the project
+in the root `package.json`. A host-provided fallback that ignores the project
 pin can create a different installation layout and later trigger an unexpected
 reinstall. Use the repository's pinned package manager. If a worktree is renamed,
 recreate its generated `node_modules` from the lockfile at the final location;
@@ -73,18 +73,18 @@ the old generated directory until the replacement passes validation.
 
 The default layout is entirely relative to the checkout:
 
-| Purpose                                                       | Path                                             |
-| ------------------------------------------------------------- | ------------------------------------------------ |
-| Cargo, rust-analyzer, Tauri, tests, and mutation builds       | `target`                                         |
-| Process temporary data and test scratch space                 | `work/temp`                                      |
-| pnpm content-addressed store                                  | `work/pnpm-store`                                |
-| Local installers, executables, source archives, and checksums | `outputs`                                        |
-| Frontend dependencies and production output                   | `apps/desktop/node_modules`, `apps/desktop/dist` |
-| Tauri generated schemas                                       | `apps/desktop/src-tauri/gen`                     |
+| Purpose                                                       | Path                                                             |
+| ------------------------------------------------------------- | ---------------------------------------------------------------- |
+| Cargo, rust-analyzer, Tauri, tests, and mutation builds       | `target`                                                         |
+| Process temporary data and test scratch space                 | `work/temp`                                                      |
+| pnpm content-addressed store                                  | `work/pnpm-store`                                                |
+| Local installers, executables, source archives, and checksums | `outputs`                                                        |
+| JavaScript dependencies and frontend production output        | `node_modules`, `apps/desktop/node_modules`, `apps/desktop/dist` |
+| Tauri generated schemas                                       | `apps/desktop/src-tauri/gen`                                     |
 
 The launcher creates the temporary, packaging, and pnpm directories after a successful check. It exports `CARGO_TARGET_DIR`, `TEMP`, `TMP`, `TMPDIR`, `pnpm_config_store_dir`, and the Portcove path variables to its child process. Every `just` quality recipe runs through this launcher, so `just check` and `just audit` also work directly in a fresh checkout.
 
-`PORTCOVE_TEMP_DIR`, `PORTCOVE_OUTPUT_DIR`, and `PORTCOVE_PNPM_STORE_DIR` override their defaults; relative values are resolved from the repository root. Cargo owns target selection through its configuration or `CARGO_TARGET_DIR`. `apps/desktop/pnpm-workspace.yaml` supplies the default store for direct pnpm commands; the launcher applies its checked override to pnpm itself. The PowerShell packaging/release scripts use the same checked layout and restore the caller's environment afterward. Local packaging requires its output below the workspace and excludes configured build/scratch/store/output directories from the source ZIP. Installer qualification uses a private run directory below project temporary storage and retains failed-run evidence; an explicit `-TestBase` selects a different qualification root.
+`PORTCOVE_TEMP_DIR`, `PORTCOVE_OUTPUT_DIR`, and `PORTCOVE_PNPM_STORE_DIR` override their defaults; relative values are resolved from the repository root. Cargo owns target selection through its configuration or `CARGO_TARGET_DIR`. The root `pnpm-workspace.yaml` supplies the default store for direct pnpm commands; the launcher applies its checked override to pnpm itself. The PowerShell packaging/release scripts use the same checked layout and restore the caller's environment afterward. Local packaging requires its output below the workspace and excludes configured build/scratch/store/output directories from the source ZIP. Installer qualification uses a private run directory below project temporary storage and retains failed-run evidence; an explicit `-TestBase` selects a different qualification root.
 
 On a host where the workspace volume is rotational, sustained fixture-heavy
 validation can saturate that volume even after cross-worktree Rust admission is
