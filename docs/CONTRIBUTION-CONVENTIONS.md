@@ -62,8 +62,8 @@ Keep the five template sections in order:
    qualification, or the narrow prose contract. `Not run — full local suite delegated to required exact-head CI` is valid when no task-specific acceptance requires
    an aggregate local run; it does not excuse pending or failed hosted checks.
 4. **Review and risk** — identify the actual separate non-writing reviewer
-   subagent and record its final-diff review against the exact head commit,
-   baseline, findings, limitations, repairs and applicable re-review result,
+   subagent and record its coherent baseline review against the exact head commit,
+   findings, limitations, repairs, incremental re-review delta and final reviewed head,
    important invariants, and documentation impact. Implementer self-review may
    supplement this evidence but is not independent review.
 5. **Readiness and follow-ups** — state the live Roadmap status, merge authority,
@@ -75,6 +75,14 @@ later target revision was tested. An unrelated target advance does not by itself
 require a rebase, a full rerun, or a replacement review. A relevant dependency,
 schema, generated contract, patch, or policy interaction does require focused
 reconciliation.
+Review may begin on an exact local commit and complete before expensive final
+qualification. Blocking findings identify a concrete correctness, security,
+data-loss, compatibility, or acceptance defect; a promised safety hole remains
+substantive even when current configuration does not exercise it. Cosmetic
+preferences, speculative generalization, and unrelated cleanup are nonblocking
+unless acceptance says otherwise. Repairs return to the same reviewer for the
+delta and affected interactions where practical. A new substantive finding still
+blocks; there is no cycle count that creates approval.
 Before merging, refetch the pull request, confirm its current head still equals
 the reviewed head, confirm required checks and conflict-free mergeability, and
 use the guarded command below. A changed source head requires applicable

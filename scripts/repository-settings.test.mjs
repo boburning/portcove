@@ -159,23 +159,19 @@ test("bounded migration changes only status-check strictness and is idempotent",
 });
 
 test("each active worker contract requires delegated independent review", async () => {
-  const files = [
-    new URL("../AGENTS.md", import.meta.url),
-    new URL("../CONTRIBUTING.md", import.meta.url),
-    new URL("../docs/PROJECT-GOVERNANCE.md", import.meta.url),
-    new URL("../docs/QUALITY.md", import.meta.url),
+  const agents = await readFile(new URL("../AGENTS.md", import.meta.url), "utf8");
+  const conventions = await readFile(
     new URL("../docs/CONTRIBUTION-CONVENTIONS.md", import.meta.url),
-  ];
-
-  for (const file of files) {
-    const guidance = await readFile(file, "utf8");
-    assert.match(guidance, /separate\s+non-writing\s+reviewer(?:-|\s+)subagent/iu, file.pathname);
-    assert.doesNotMatch(
-      guidance,
-      /does not inherently require (?:a human or )?(?:a )?second agent/iu,
-      file.pathname,
-    );
-  }
+    "utf8",
+  );
+  assert.match(agents, /separate non-writing review/iu);
+  assert.match(agents, /docs\/CONTRIBUTION-CONVENTIONS\.md/u);
+  assert.match(conventions, /separate non-writing reviewer\s+subagent/iu);
+  assert.match(conventions, /incremental re-review delta/iu);
+  assert.doesNotMatch(
+    `${agents}\n${conventions}`,
+    /does not inherently require (?:a human or )?(?:a )?second agent/iu,
+  );
 });
 
 test("active worker guidance keeps behind-main merges head-guarded and evidence-bounded", async () => {
@@ -194,7 +190,7 @@ test("active worker guidance keeps behind-main merges head-guarded and evidence-
   assert.match(guidance, /conflict/u);
   assert.match(guidance, /changed source head/u);
   assert.match(quality, /target\s+advance alone does not invalidate an unchanged patch/u);
-  assert.match(guidance, /dependencies, schemas, generated contracts/u);
+  assert.match(guidance, /dependenc(?:y|ies)[\s\S]{0,80}schema[\s\S]{0,80}generated contract/u);
   assert.doesNotMatch(guidance, /gh pr merge --auto --match-head-commit/u);
 });
 

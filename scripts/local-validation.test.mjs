@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import test from "node:test";
 
 import {
@@ -8,6 +10,8 @@ import {
   classifyChanges,
   deduplicateCommands,
   executePlan,
+  executePlanWithReceipts,
+  fingerprintLocalStage,
   formatCommand,
   localChangesFromRaw,
   packagesWithDoctests,
@@ -620,4 +624,197 @@ test("execution stops on the first failing stage", () => {
     /two failed with exit code 7/,
   );
   assert.deepEqual(seen, ["one", "two"]);
+});
+
+const receiptRuntime = Object.freeze({
+  platform: "win32",
+  architecture: "x64",
+  osRelease: "test",
+  node: "v24.21.0",
+  git: "git test",
+  just: "just test",
+  rustc: "rustc test",
+  cargo: "cargo test",
+  cargoNextest: "nextest test",
+  cargoShear: "shear test",
+  rscheck: "rscheck test",
+  aqua: "aqua test",
+  powershell: "pwsh test",
+  packageManager: "pnpm@12.4.1",
+  packageManagerVersion: "12.4.1",
+  environment: {},
+});
+
+function receiptInventory(repositoryIdentity = "repo-a") {
+  const file = (filePath, domain, identity) => ({
+    path: filePath,
+    kind: "file",
+    headBlob: identity,
+    headMode: "100644",
+    indexBlob: identity,
+    indexMode: "100644",
+    worktreeMode: "100644",
+    gitBlob: identity,
+    sha256: identity,
+    domains: [domain],
+    ambiguous: false,
+  });
+  return {
+    head: "a".repeat(40),
+    objectFormat: "sha1",
+    files: [
+      file("crates/portcove-core/src/lib.rs", "rust", "rust-a"),
+      file("scripts/repository-settings.mjs", "repository", repositoryIdentity),
+    ],
+  };
+}
+
+test("Node receipt fingerprints include the domain of each selected test", () => {
+  const stage = {
+    id: "node-tests",
+    reason: "selector contract",
+    executable: process.execPath,
+    args: ["--test", "scripts/rust-test-impact.test.mjs"],
+    cwd: process.cwd(),
+    obligation: "repository",
+  };
+  const first = receiptInventory();
+  first.files.push({
+    path: "scripts/rust-test-impact.mjs",
+    kind: "file",
+    headBlob: "impact-a",
+    headMode: "100644",
+    indexBlob: "impact-a",
+    indexMode: "100644",
+    worktreeMode: "100644",
+    gitBlob: "impact-a",
+    sha256: "impact-a",
+    domains: ["development", "format"],
+    ambiguous: false,
+  });
+  const second = structuredClone(first);
+  second.files.at(-1).headBlob = "impact-b";
+  second.files.at(-1).indexBlob = "impact-b";
+  second.files.at(-1).gitBlob = "impact-b";
+  second.files.at(-1).sha256 = "impact-b";
+
+  assert.notEqual(
+    fingerprintLocalStage(stage, first, receiptRuntime),
+    fingerprintLocalStage(stage, second, receiptRuntime),
+  );
+
+  const syntaxStage = {
+    ...stage,
+    id: "node-syntax:scripts/rust-test-impact.mjs",
+    args: ["--check", "scripts/rust-test-impact.mjs"],
+  };
+  assert.notEqual(
+    fingerprintLocalStage(syntaxStage, first, receiptRuntime),
+    fingerprintLocalStage(syntaxStage, second, receiptRuntime),
+  );
+});
+
+test("local receipts reuse proven independent stages and invalidate only affected domains", (t) => {
+  const receiptRoot = mkdtempSync(path.join(tmpdir(), "portcove-local-receipts-"));
+  t.after(() => rmSync(receiptRoot, { recursive: true, force: true }));
+  const plan = [
+    {
+      id: "rust-clippy:portcove-core",
+      reason: "rust",
+      executable: "cargo",
+      args: ["clippy"],
+      cwd: process.cwd(),
+      obligation: "rust",
+    },
+    {
+      id: "node-tests",
+      reason: "tooling",
+      executable: "node",
+      args: ["--test", "scripts/repository-settings.test.mjs"],
+      cwd: process.cwd(),
+      obligation: "repository",
+    },
+    {
+      id: "oxlint",
+      reason: "lint",
+      executable: "corepack",
+      args: ["pnpm", "run", "lint:oxlint"],
+      cwd: process.cwd(),
+      obligation: "repository-oxlint",
+    },
+  ];
+  const first = [];
+  executePlanWithReceipts(plan, {
+    receiptRoot,
+    inventory: receiptInventory(),
+    runtime: receiptRuntime,
+    spawn(executable) {
+      first.push(executable);
+      return { status: 0 };
+    },
+  });
+  assert.deepEqual(first, ["cargo", "node", "corepack"]);
+
+  const second = [];
+  const result = executePlanWithReceipts(plan, {
+    receiptRoot,
+    inventory: receiptInventory("repo-b"),
+    runtime: receiptRuntime,
+    spawn(executable) {
+      second.push(executable);
+      return { status: 0 };
+    },
+  });
+  assert.deepEqual(second, ["node"]);
+  assert.equal(result.timings[0].status, "reused");
+  assert.equal(result.timings[1].status, "executed");
+});
+
+test("failed, interrupted, invalid, missing, and fresh local stages cannot claim reuse", (t) => {
+  const receiptRoot = mkdtempSync(path.join(tmpdir(), "portcove-local-failure-"));
+  t.after(() => rmSync(receiptRoot, { recursive: true, force: true }));
+  const stage = {
+    id: "node-tests",
+    reason: "tooling",
+    executable: "node",
+    args: ["--test", "scripts/repository-settings.test.mjs"],
+    cwd: process.cwd(),
+    obligation: "repository",
+  };
+  assert.throws(
+    () =>
+      executePlanWithReceipts([stage], {
+        receiptRoot,
+        inventory: receiptInventory(),
+        runtime: receiptRuntime,
+        spawn: () => ({ status: 9 }),
+      }),
+    /failed with exit code 9/u,
+  );
+  let executions = 0;
+  const run = (options = {}) =>
+    executePlanWithReceipts([stage], {
+      receiptRoot,
+      inventory: receiptInventory(),
+      runtime: receiptRuntime,
+      spawn: () => {
+        executions += 1;
+        return { status: 0 };
+      },
+      ...options,
+    });
+  run();
+  assert.equal(executions, 1);
+  run();
+  assert.equal(executions, 1);
+
+  const receiptFile = readdirSync(receiptRoot, { recursive: true })
+    .map(String)
+    .find((file) => file.endsWith(".json"));
+  assert.ok(receiptFile);
+  writeFileSync(path.join(receiptRoot, receiptFile), "{}\n");
+  run();
+  assert.equal(executions, 2);
+  run({ fresh: true });
+  assert.equal(executions, 3);
 });

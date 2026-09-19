@@ -132,23 +132,27 @@ an unsafe preserved checkout, or a measured isolation requirement; follow
    evidence instead of copying the initiative or creating a local status ledger.
 4. Run the smallest relevant `just test-rust`, `just test-ui-related` or
    `just test-node` loop, then `just local-check` before the coherent push and
-   after substantive repair. `just local-check --plan` explains selection without
-   running it. Use `just doctor` when prerequisite health is unknown or changed;
+   after substantive repair. Integrity-matched deterministic stages may be reused;
+   `just local-check --plan` explains selection and `just local-check --fresh`
+   disables reuse only when acceptance requires it. Use `just doctor` when prerequisite health is unknown or changed;
    install/bootstrap only the reported missing or mismatched prerequisite.
    [Quality](QUALITY.md) still governs protected changes and exhaustive acceptance.
-5. Freeze one cohesive PR and dispatch its actual separate non-writing reviewer.
-   Follow [Contribution conventions](CONTRIBUTION-CONVENTIONS.md) for review,
+5. Review one coherent candidate before expensive final qualification. An exact
+   local commit/diff may be reviewed before a PR exists; use a draft PR when a
+   transition contract requires one. Follow [Contribution conventions](CONTRIBUTION-CONVENTIONS.md) for review,
    required exact-head CI, target interaction checks and guarded merge. The
    helper may inspect retained evidence and run discriminating tests; it must not
    bootstrap a second full environment or duplicate a complete suite without an
    identified need. Keep one heavyweight workflow active at a time.
 
-The reviewer brief supplies **PR and owning issue; source head, target tip and
+The reviewer brief supplies **PR when available and owning issue; source head, target tip and
 merge-base; complete changed-file list and relevant surrounding code; acceptance
 and boundaries; exact commands/results and retained evidence paths; unrun coverage
 and target interactions**. Record the actual task identifier, reviewed revisions,
-findings and limitations. The implementer repairs findings and obtains applicable
-re-review; implementer self-review is not independent review. A completed PR is a
+findings and limitations. The implementer batches coherent repairs and returns the
+delta plus affected interactions to the same reviewer where practical. Widen review
+only when a repair changes architecture, assumptions, or risk. Implementer
+self-review is not independent review. A completed PR is a
 checkpoint, not permission to close broader unmet acceptance.
 
 #### Resume and diagnosis decisions

@@ -67,7 +67,7 @@ test("qualification plans require qualification and reject fast execution", () =
 });
 
 test("affected-platform fast plans require their exact native producer", () => {
-  const platformPlan = plan("apps/desktop/src-tauri/src/application_update_windows.rs");
+  const platformPlan = plan("apps/desktop/src-tauri/src/window_windows.rs");
   assert.match(
     evaluate({
       plan: platformPlan,
