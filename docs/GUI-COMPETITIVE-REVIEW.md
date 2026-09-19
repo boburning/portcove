@@ -57,7 +57,7 @@ Portcove's GUI should be the clearest view of a stronger underlying contract:
 - Shared focus trapping, Escape behavior, focus restoration, reduced motion, semantic status labels, and responsive desktop breakpoints make the Tauri interface resilient without turning it into a mobile layout.
 - The long-term design, component, and product-vocabulary contract is recorded in [DESIGN-SYSTEM.md](DESIGN-SYSTEM.md).
 
-## Approved Public beta visual-polish direction — 2026-09-17
+## Superseded Public beta implementation choice — 2026-09-17
 
 This is a planning decision, not an implemented-polish claim. Reinspection at
 main `ad7ed2f2bc1a3f6c86eb6f74c87b02a4c008e159` found a strong semantic theme
@@ -74,14 +74,23 @@ Settings gains scalable logical groups; motion stays tactile and reduced-motion
 safe; typography becomes deterministic and offline; and static loading geometry
 prevents layout jumps without shimmer.
 
-The implementation direction is modern native CSS, existing semantic tokens,
-incremental CSS Modules, native nesting where useful, Stylelint, and expanded
-theme checking. It deliberately excludes CSS frameworks, preprocessors,
-CSS-in-JS, gradients, glow, blur-heavy surfaces, ornamental retro effects, Steam
-imitation, and brand redesign. True global foundations remain global while major
-component presentation moves beside its JSX/tests without an all-at-once rewrite.
+The 2026-09-17 choice of native CSS plus incremental CSS Modules and no CSS
+framework is historical. The owner superseded it on 2026-09-19 with the finite
+[#917](https://github.com/boburning/portcove/issues/917) official shadcn/ui Base
+UI, Tailwind, semantic-variable, and custom Portcove theme direction. The visual
+findings and restrained artwork-first direction remain useful; the former stack
+comparison is not an active instruction and should not be reopened absent a
+concrete compatibility blocker.
 
-#917 is a nonblocking sub-issue of #200. #206 continues to own information
+The approved migration checks in only the needed official component source,
+starts from the compact Nova style, retains Lucide and React/Vite/Tauri, and uses
+a small hierarchy of shared controls, reusable interface patterns, and
+feature-owned product components. It still excludes Sass, CSS-in-JS, gradients,
+glow, blur-heavy surfaces, ornamental retro effects, Steam imitation, brand
+redesign, a second cache/policy backend, and a custom component registry.
+
+#917 is the Required Public beta child; its organizational parent relationship
+does not make #200 closure a beta prerequisite. #206 continues to own information
 architecture and interaction behavior; #203 owns wording/formatting/safe unknowns;
 #208/#527 own artwork/provider facts; semantic domain owners own readiness,
 updates, storage, source, recovery, and support state; #29/#44/#47 retain their
