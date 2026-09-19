@@ -4,6 +4,8 @@ import {
   PullRequestDeliveryClient,
   parseArguments,
   parsePullRequestReference,
+  renovateCheckEnvelope,
+  requiredCheckContexts,
   requiredContextsFromConfigs,
   watchRequiredChecks,
 } from "./pr-delivery.mjs";
@@ -26,6 +28,8 @@ function included(body, headers = {}) {
 function pull(overrides = {}) {
   return {
     number: 7,
+    commits: 1,
+    changed_files: 2,
     head: { sha: head },
     base: { sha: base },
     draft: false,
@@ -81,7 +85,29 @@ test("delivery arguments accept opt-in JSON without changing required values", (
       options: { "--pr": "7", "--json": true, "--head": head, "--timeout-seconds": "30" },
     },
   );
+  assert.deepEqual(parseArguments(["renovate-check", "--pr", "7", "--head", head]), {
+    command: "renovate-check",
+    options: { "--pr": "7", "--head": head },
+  });
   assert.throws(() => parseArguments(["merge", "--pr", "7", "--head"]), /invalid argument/);
+});
+
+test("Renovate verdicts have matching human and JSON output", () => {
+  const result = {
+    verdict: "waiting",
+    reason: "minimum release age is still pending",
+    evidence: { release_age: { state: "pending" } },
+  };
+  const output = renovateCheckEnvelope({
+    number: 7,
+    head,
+    result,
+    snapshot: { commits: [{ sha: head }], files: [{ filename: "Cargo.lock" }] },
+  });
+  assert.match(output.summary, /waiting: minimum release age is still pending/);
+  assert.equal(output.evidence.verdict, "waiting");
+  assert.equal(output.evidence.release_age.state, "pending");
+  assert.equal(JSON.parse(JSON.stringify(output)).evidence.head, head);
 });
 
 test("check-run pagination requires complete unique totals", () => {
@@ -100,6 +126,75 @@ test("check-run pagination requires complete unique totals", () => {
     [1, 2],
   );
   assert.equal(calls.length, 2);
+});
+
+test("Renovate snapshot inventories every commit and file page exactly once", () => {
+  const calls = [];
+  const client = new PullRequestDeliveryClient((args) => {
+    const endpoint = args[2];
+    calls.push(endpoint);
+    if (endpoint === "repos/boburning/portcove/pulls/7")
+      return included(pull({ commits: 2, changed_files: 2, base: { sha: base, ref: "main" } }));
+    if (endpoint.includes("check-runs"))
+      return included({ total_count: required.length, check_runs: successfulRuns() });
+    if (endpoint.includes("/status?")) return included({ total_count: 0, statuses: [] });
+    if (endpoint.includes("/commits?") && endpoint.includes("page=2"))
+      return included([{ sha: "d".repeat(40) }]);
+    if (endpoint.includes("/commits?"))
+      return included([{ sha: head }], {
+        link: '<https://api.github.test/commits?page=2>; rel="next"',
+      });
+    if (endpoint.includes("/files?") && endpoint.includes("page=2"))
+      return included([{ filename: "Cargo.lock" }]);
+    if (endpoint.includes("/files?"))
+      return included([{ filename: "Cargo.toml" }], {
+        link: '<https://api.github.test/files?page=2>; rel="next"',
+      });
+    if (endpoint.endsWith("/branches/main")) return included({ commit: { sha: base } });
+    throw new Error(`unexpected endpoint ${endpoint}`);
+  });
+  const result = client.renovateSnapshot(7, head, required);
+  assert.deepEqual(
+    result.commits.map((commit) => commit.sha),
+    [head, "d".repeat(40)],
+  );
+  assert.deepEqual(
+    result.files.map((file) => file.filename),
+    ["Cargo.toml", "Cargo.lock"],
+  );
+  assert.equal(
+    calls.filter((endpoint) => endpoint === "repos/boburning/portcove/pulls/7").length,
+    1,
+  );
+});
+
+test("Renovate snapshot rejects incomplete commit and file inventories", () => {
+  for (const mismatch of [
+    { commits: 2, changed_files: 2 },
+    { commits: 1, changed_files: 3 },
+  ]) {
+    const client = new PullRequestDeliveryClient();
+    client.pull = () => pull({ ...mismatch, base: { sha: base, ref: "main" } });
+    client.checkRuns = () => successfulRuns();
+    client.commitStatuses = () => [];
+    client.pullCommits = () => [{ sha: head }];
+    client.pullFiles = () => [{ filename: "Cargo.toml" }, { filename: "Cargo.lock" }];
+    client.branch = () => ({ commit: { sha: base } });
+    assert.throws(() => client.renovateSnapshot(7, head, required), /inventory is incomplete/);
+  }
+});
+
+test("required context reduction fails closed on missing and duplicate producers", () => {
+  const successful = requiredCheckContexts(successfulRuns(), [], required);
+  assert.ok(successful.every((context) => context.outcome === "success"));
+  const missing = requiredCheckContexts(successfulRuns().slice(1), [], required);
+  assert.equal(missing[0].conclusion, "missing");
+  const duplicate = requiredCheckContexts(
+    successfulRuns(),
+    [{ id: 99, context: "rust", state: "success", target_url: "https://github.test/status" }],
+    required,
+  );
+  assert.equal(duplicate.find((context) => context.context === "rust").conclusion, "ambiguous");
 });
 
 test("required check observation is exact-head and fails closed on ambiguity", () => {

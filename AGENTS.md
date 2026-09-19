@@ -63,6 +63,20 @@ owns selection, escalation, receipt reuse and failure handling. Do not run a bro
 local aggregate merely to duplicate hosted evidence. A protected policy change
 still satisfies the pre-change transition policy and cannot exempt itself.
 
+A Renovate pull request may use the manual dependency fast lane only when
+`just renovate-check --pr <number-or-url> --head <sha>` returns `merge-ready`.
+That verdict is fail-closed to one stable registry-backed Cargo or npm patch or
+minor update, bot-only commits, the expected manifest/lock pair, successful
+release age and exact-head required checks, conflict-free mergeability, and no
+relevant intervening target change. For this exact class, locked metadata and
+dependency-policy validation replace `just local-check`, hosted exact-head CI
+owns compilation/lint/test coverage, and one concise final dependency diff plus
+upstream review by the delivering agent satisfies the review requirement. A
+repair, unexpected path or author, group, security update, pre-1.0 dependency,
+major, Git source, framework/toolchain/workflow/custom manager, failed gate, or
+target interaction exits the fast lane and follows the ordinary validation and
+review workflow. Administrator bypass remains prohibited.
+
 On failure, preserve evidence, identify the smallest discriminating reproduction,
 repair the cause and repeat invalidated obligations. Never hide a failure, relax a
 safety boundary, delete a shared lock, kill another worker, or bypass a guarded

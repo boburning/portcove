@@ -101,6 +101,7 @@ test("Renovate is the sole conservative routine update authority", async () => {
   const renovate = JSON.parse(await read("renovate.json"));
   assert.equal(renovate.automerge, false);
   assert.equal(renovate.minimumReleaseAge, "3 days");
+  assert.equal(renovate.minimumReleaseAgeBehaviour, "timestamp-required");
   assert.equal(renovate.internalChecksFilter, "strict");
   assert.equal(renovate.prConcurrentLimit, 2);
   assert.equal(renovate.branchConcurrentLimit, 2);
