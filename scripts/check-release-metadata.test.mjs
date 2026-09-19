@@ -169,7 +169,7 @@ test("Cargo metadata preserves comments and always-on dependency features", asyn
   await writeFile(path.join(coreRoot, "src", "lib.rs"), "");
   await writeFile(
     path.join(coreRoot, "Cargo.toml"),
-    '[package]\nname = "portcove-core"\nversion = "0.0.0"\nedition = "2024"\n\n[features]\nqualification-fixtures = []\n',
+    '[package]\nname = "portcove-core"\nversion = "0.0.0"\nedition = "2024"\n\n[features]\nqualification-fixtures = []\nproduction-alias = ["qualification-fixtures"]\n',
   );
   try {
     await writeFile(
@@ -181,10 +181,13 @@ test("Cargo metadata preserves comments and always-on dependency features", asyn
 
     await writeFile(
       desktopCargoPath,
-      '[package]\nname = "portcove-desktop"\nversion = "0.0.0"\nedition = "2024"\n\n[features]\napplication-update-qualification = []\nqualification-fixtures = ["portcove-core/qualification-fixtures"]\n\n[dependencies]\nportcove-core = { path = "../core", features = ["qualification-fixtures"] }\n',
+      '[package]\nname = "portcove-desktop"\nversion = "0.0.0"\nedition = "2024"\n\n[features]\napplication-update-qualification = []\nqualification-fixtures = ["portcove-core/qualification-fixtures"]\n\n[dependencies]\nportcove-core = { path = "../core", features = ["production-alias"] }\n',
     );
     const dependencyEnabled = await loadDesktopCargoFeatures(desktopCargoPath, { locked: false });
-    assert.deepEqual(dependencyEnabled.alwaysEnabledCoreFeatures, ["qualification-fixtures"]);
+    assert.deepEqual(
+      dependencyEnabled.alwaysEnabledCoreFeatures.toSorted(),
+      ["production-alias", "qualification-fixtures"].toSorted(),
+    );
   } finally {
     await rm(root, { recursive: true, force: true });
   }

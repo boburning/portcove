@@ -126,7 +126,9 @@ export function parseDesktopCargoFeatures(cargoMetadata, desktopCargoPath) {
     const dependencyName = dependency.rename ?? dependency.name;
     coreQualificationReferences.add(`${dependencyName}/qualification-fixtures`);
     coreQualificationReferences.add(`${dependencyName}?/qualification-fixtures`);
-    for (const feature of dependency.features ?? []) alwaysEnabledCoreFeatures.add(feature);
+    for (const feature of featureReferences(coreDefinitions, dependency.features ?? [])) {
+      alwaysEnabledCoreFeatures.add(feature);
+    }
     if (dependency.uses_default_features !== false) {
       for (const feature of featureReferences(coreDefinitions, coreDefinitions.default ?? [])) {
         alwaysEnabledCoreFeatures.add(feature);
