@@ -14,6 +14,8 @@ use tauri::Emitter;
 use tokio::sync::Notify;
 use tokio_util::sync::CancellationToken;
 
+use crate::transport::DESKTOP_EVENT_APPLICATION_UPDATE_NOTICE;
+
 use crate::application_update::ApplicationUpdateCandidateSummary;
 use crate::application_update_connectivity::observe_application_update_connectivity;
 use crate::application_update_coordinator::{
@@ -228,7 +230,7 @@ pub(crate) fn start_automatic_checks(state: ApplicationUpdateCommandState, app: 
                 Ok(outcome) => {
                     log_automatic_outcome(&outcome);
                     if let Some(snapshot) = state.record_automatic_outcome(&outcome) {
-                        let _ = app.emit("portcove://application-update-notice", snapshot);
+                        let _ = app.emit(DESKTOP_EVENT_APPLICATION_UPDATE_NOTICE, snapshot);
                     }
                     automatic_reevaluation_delay(&outcome, current_unix_seconds())
                 }
@@ -252,7 +254,7 @@ impl ApplicationUpdateCommandState {
 
     pub(crate) fn clear_notice(&self, app: &tauri::AppHandle) {
         let snapshot = self.update_notice(None);
-        let _ = app.emit("portcove://application-update-notice", snapshot);
+        let _ = app.emit(DESKTOP_EVENT_APPLICATION_UPDATE_NOTICE, snapshot);
     }
 
     fn record_automatic_outcome(

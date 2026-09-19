@@ -54,7 +54,7 @@ test("one batched frontend compiler invocation rejects every maintained transpor
         files: [fixture],
       }),
     );
-    const prelude = `import type { InstallRecord, PortStatus, SourceDiscoveryRequest, SourceInspectionReport, OperationEvent, BootstrapStatus, InstallInput, LaunchResult } from ${JSON.stringify(types)};
+    const prelude = `import type { InstallRecord, PortStatus, SourceDiscoveryRequest, SourceInspectionReport, OperationEvent, BootstrapStatus, InstallInput, LaunchResult, DesktopEventPayloads } from ${JSON.stringify(types)};
 declare const install: InstallRecord;
 declare const status: PortStatus;
 declare const bootstrap: BootstrapStatus;
@@ -63,6 +63,7 @@ const installRequest: InstallInput = { portId: "port", stage: false };
 const request: SourceDiscoveryRequest = { roots: ["owned/source"], profile_ids: [] };
 const nullable: PortStatus = { ...status, active: null };
 const valid: InstallRecord = { ...install, artifact: { ...install.artifact, size: 2 } };
+const libraryChanged: DesktopEventPayloads["portcove://library-changed"] = null;
 `;
     const packagePath = require.resolve("typescript/package.json");
     const packageJson = JSON.parse(fs.readFileSync(packagePath, "utf8"));
@@ -125,6 +126,16 @@ const valid: InstallRecord = { ...install, artifact: { ...install.artifact, size
         name: "wrong union branch",
         source:
           'const badUnion: OperationEvent = { schema_version: 2, operation_id: "test", parent_operation_id: null, target: null, sequence: 1, timestamp_ms: 1, operation: "test", type: "progress", result: "succeeded" };',
+      },
+      {
+        name: "invented unit-event content",
+        source:
+          'const badLibraryEvent: DesktopEventPayloads["portcove://library-changed"] = "changed";',
+      },
+      {
+        name: "wrong event payload",
+        source:
+          'const badNotice: DesktopEventPayloads["portcove://application-update-notice"] = { revision: "1", notice: null };',
       },
     ];
 

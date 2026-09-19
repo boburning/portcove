@@ -19,8 +19,10 @@ use portcove_desktop::steam_entry_commands::{SteamEntryReview, SteamEntrySelecti
 use schemars::{JsonSchema, generate::SchemaSettings};
 use serde_json::{Value, json};
 use transport::{
-    BackupReview, BatchOutcome, BootstrapStatus, CliCommandContext, DesktopError,
-    DesktopWorkspaceSnapshot, InstallInput, LaunchResult, SourceBatchOutcome,
+    BackupReview, BatchOutcome, BootstrapStatus, CliCommandContext,
+    DESKTOP_EVENT_APPLICATION_UPDATE_NOTICE, DESKTOP_EVENT_LIBRARY_CHANGED,
+    DESKTOP_EVENT_OPERATION, DesktopError, DesktopWorkspaceSnapshot, InstallInput, LaunchResult,
+    SourceBatchOutcome,
 };
 
 fn output<T: JsonSchema>() -> Value {
@@ -33,6 +35,17 @@ fn output<T: JsonSchema>() -> Value {
 }
 
 fn main() {
+    let events = serde_json::Map::from_iter([
+        (
+            DESKTOP_EVENT_APPLICATION_UPDATE_NOTICE.to_owned(),
+            output::<ApplicationUpdateNoticeSnapshot>(),
+        ),
+        (DESKTOP_EVENT_LIBRARY_CHANGED.to_owned(), output::<()>()),
+        (
+            DESKTOP_EVENT_OPERATION.to_owned(),
+            output::<portcove_core::OperationEvent>(),
+        ),
+    ]);
     println!(
         "{}",
         json!({
@@ -65,6 +78,7 @@ fn main() {
                 "application_update_download_request": schemars::schema_for!(ApplicationUpdateDownloadRequest),
                 "steam_entry_selection": schemars::schema_for!(SteamEntrySelection),
             },
+            "events": events,
         })
     );
 }

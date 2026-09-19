@@ -4,6 +4,11 @@ use portcove_core::{LibrarySelection, ReleaseChannel, SourceVerification};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
+pub(crate) const DESKTOP_EVENT_APPLICATION_UPDATE_NOTICE: &str =
+    "portcove://application-update-notice";
+pub(crate) const DESKTOP_EVENT_LIBRARY_CHANGED: &str = "portcove://library-changed";
+pub(crate) const DESKTOP_EVENT_OPERATION: &str = "portcove://operation";
+
 #[derive(Debug, Serialize, JsonSchema)]
 pub(crate) struct DesktopWorkspaceSnapshot {
     pub(crate) catalog: portcove_core::CatalogDocument,

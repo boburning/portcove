@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { listen } from "@tauri-apps/api/event";
 import { desktopApi } from "../../api";
+import { listenDesktopEvent } from "../../desktop-events";
 import type {
   ActivityRecord,
   CatalogDocument,
   DoctorReport,
   PortStatus,
   SourceRecord,
+  DesktopEventPayloads,
   WorkspaceSnapshot,
 } from "../../types";
 import {
@@ -211,9 +212,10 @@ export function usePortcoveData(libraryGeneration = 0) {
     const diagnosticRequests = diagnosticGeneration.current;
     const externalRequests = externalGeneration.current;
     let closed = false;
-    const subscription = startManagedSubscription<string>({
-      register: (accept) =>
-        listen<string>("portcove://library-changed", (event) => accept(event.payload)),
+    const subscription = startManagedSubscription<
+      DesktopEventPayloads["portcove://library-changed"]
+    >({
+      register: (accept) => listenDesktopEvent("portcove://library-changed", accept),
       onEvent: () => {
         invalidateDiagnostics();
         void reconcileWorkspace(true);

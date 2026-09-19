@@ -69,6 +69,7 @@ use portcove_core::{
 use serde::{Deserialize, Serialize};
 use tauri::{Emitter, Manager};
 use tauri_plugin_dialog::{DialogExt, MessageDialogButtons, MessageDialogKind};
+use transport::{DESKTOP_EVENT_LIBRARY_CHANGED, DESKTOP_EVENT_OPERATION};
 
 type LaunchObservation = (Library, String);
 type LaunchObserver =
@@ -373,7 +374,7 @@ fn emit_operation(app: &tauri::AppHandle, event: OperationEvent) {
         event = ?event.event,
         "operation event"
     );
-    let _ = app.emit("portcove://operation", event);
+    let _ = app.emit(DESKTOP_EVENT_OPERATION, event);
 }
 
 #[tauri::command]
@@ -1160,7 +1161,7 @@ fn observe_launch_completion(
                         Err(_) => LaunchObservationState::Retry,
                     });
                 if completed {
-                    let _ = app.emit("portcove://library-changed", ());
+                    let _ = app.emit(DESKTOP_EVENT_LIBRARY_CHANGED, ());
                 }
             }
         });

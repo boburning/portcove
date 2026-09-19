@@ -890,8 +890,8 @@ identical root/nested schema bodies. There are no new quality exclusions or
 dependency exceptions. The frontend facade exposes the types its callers use;
 the complete exported Rust inventory remains in the generated declarations.
 The same command also runs the desktop package's `export_transport` example,
-which uses the exact private host transport declarations. Its input and output
-snapshots remain separate from core's export. Strict compiler fixtures cover
+which uses the exact private host transport declarations. Its input, output and
+named-event payload snapshots remain separate from core's export. Strict compiler fixtures cover
 the desktop's required nullable envelope fields, camelCase launch identity and
 typed install request; Rust fixtures check actual Serde output/input behavior.
 
@@ -907,6 +907,17 @@ rename that the independent declaration inventory rejects; the integration test
 compiles the live Rust exporters and requires the complete repository contract to
 pass. This association gate does not replace backend validation, native consent,
 Tauri capability/window scope, CSP/origin controls, or release-bundle checks.
+
+The same Rust host declaration module owns every shipped `portcove://` event name
+and payload schema. Tauri producers must emit those named constants, and shipped
+React consumers subscribe through the generated `DesktopEventPayloads` map and
+one typed `listenDesktopEvent` adapter. The checker rejects missing, extra,
+renamed, duplicate, dynamic or direct untyped event subscriptions. Its independent
+compatibility fixture freezes the three released event identities so a coherent
+generator/producer/consumer rename still fails. The generated unit payload for
+`portcove://library-changed` is `null`; consumers do not invent content for that
+invalidation hint. Durable SQLite state and explicit readback remain authoritative
+after every event.
 
 ## Routine merge freshness
 
