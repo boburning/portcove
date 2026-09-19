@@ -89,33 +89,12 @@ acceptance evidence, distinct review, required CI, or merge-authority checks.
 
 Before submitting a change:
 
-Run `just fmt` to format Rust, JavaScript, TypeScript, CSS, active documentation,
-hand-maintained JSON and YAML, and TOML. Use `just fmt-check` when you need the
-same verification without changing files.
-
-```powershell
-.\scripts\bootstrap-quality-tools.ps1
-node scripts/dev-storage.mjs preflight
-node scripts/dev-storage.mjs run -- corepack pnpm --dir apps/desktop install --frozen-lockfile
-just local-check
-```
-
-Use focused test recipes while editing. `just check` is an exhaustive local
-source/repository investigation, `just release-check` covers deterministic
-release-unit contracts, and `just windows-qualification-check` runs the packaged
-Windows session suite. Reserve `just audit` for explicit acceptance and validation
-contract work; release preflight uses `just audit --fresh`. Required GitHub CI on
-the exact reviewed head is the ordinary exhaustive merge gate.
-
-The Windows bootstrap installs pinned Aqua itself, reuses verified payloads under
-`%LOCALAPPDATA%\Portcove\tool-cache`, and creates ignored checkout-local shims. It
-does not alter persistent `PATH` or user environment variables. Add `-Desktop` for
-the pinned Tauri driver and a verified EdgeDriver matching WebView2, then check the
-result with `just doctor --profile desktop`. On Linux or macOS, use
-`./scripts/bootstrap-quality-tools.sh`. Pass `-IncludeDeep` or `--include-deep`
-when you also want the optional semantic-duplication, dead-public-API, and mutation
-tools. The non-system-volume workflow, cleanup command, and recovery procedure are
-documented in [docs/DEVELOPMENT-STORAGE.md](docs/DEVELOPMENT-STORAGE.md).
+Use the focused edit loop and complete diff-selected `just local-check` described
+in [Quality](docs/QUALITY.md). Bootstrap only missing prerequisites reported by
+[Development tools](docs/DEVELOPMENT-TOOLS.md); storage and cleanup remain in
+[Development storage](docs/DEVELOPMENT-STORAGE.md). Required GitHub CI validates
+the exact frozen head, and release or packaged qualification runs only when its
+own acceptance contract requires it.
 
 Do not suppress deterministic findings without a narrow, reviewable reason. Treat structural findings as evidence rather than instructions for speculative refactors. Follow [AGENTS.md](AGENTS.md) and [docs/QUALITY.md](docs/QUALITY.md). Catalog changes must pass the live repository audit and must not add archived repositories.
 
@@ -128,10 +107,12 @@ no additional Roslyn analyzer package is required.
 Keep commits free of source game data, signing secrets, generated build output, local libraries, and Fallow caches.
 
 Codex and deterministic automation own feasible acceptance execution, failure
-investigation, bounded repair, separate review, and exact evidence. Do not ask
-the owner to rerun adequate automated checks. Keep packaged execution,
-physical-device automation, and intrinsically human observations distinct; a
-synthetic fixture or process start cannot establish gameplay or comprehension.
+investigation, bounded repair, and exact evidence. Follow the independent and
+incremental review contract in
+[Contribution conventions](docs/CONTRIBUTION-CONVENTIONS.md). Keep packaged
+execution, physical-device automation, and intrinsically human observations
+distinct; a synthetic fixture or process start cannot establish gameplay or
+comprehension.
 
 After a successful Windows Tauri build, `scripts/package-local.ps1` refreshes the local installer, versioned standalone CLI archive, source archive, and prints their SHA-256 hashes. It smoke-tests the CLI from the final ZIP, refuses an output path outside the workspace, and excludes build, dependency, test-library, and generated-schema directories from the source archive.
 
@@ -142,20 +123,8 @@ Deferred with its exact resume condition. Automated evidence must not close an
 item that explicitly requires human observation. Do not create a second backlog
 in repository documentation; see [PROJECT-GOVERNANCE.md](docs/PROJECT-GOVERNANCE.md).
 
-Routine authorized work follows mandatory CI, an explicit separate review
-result, repair of substantive findings, and the normal merge or auto-merge path.
-Do not use administrator bypass routinely. Protected acceptance, merge,
-signing/publication, and credential boundaries require separate explicit owner
-authorization; neither a candidate nor its automation can authorize itself.
-
-An unrelated advance of `main` does not require rebasing an unchanged pull
-request, rerunning its complete suite, or discarding its review. A behind-main
-pull request remains eligible only when its current source head has passing
-required checks, a real separate reviewer subagent has reviewed those changes,
-substantive findings are resolved, GitHub reports no conflict, and all other
-trusted requirements pass. Record both the reviewed source head and its actual
-baseline without claiming the later target state was tested. Reconcile a target
-advance that really affects dependencies, schemas, generated contracts, the
-patch, or validation policy. Refetch before merging and use
-`gh pr merge --auto --match-head-commit <reviewed-head>` so a new source head
-fails closed; never use administrator bypass.
+Routine authorized work follows the review, exact-head CI, target-interaction and
+guarded merge contract in
+[Contribution conventions](docs/CONTRIBUTION-CONVENTIONS.md). Protected
+acceptance, merge, signing/publication and credential boundaries require explicit
+authority; neither a candidate nor its automation can authorize itself.

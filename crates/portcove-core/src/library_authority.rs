@@ -23,6 +23,8 @@ pub(crate) struct LibraryAuthority {
     pub schema_version: u32,
     pub transfer_id: String,
     pub state: AuthorityState,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_root: Option<PathBuf>,
     pub destination: PathBuf,
 }
 
@@ -36,12 +38,7 @@ struct TransferReceipt {
 pub(crate) fn authority(root: &Path) -> Result<Option<LibraryAuthority>> {
     let marker: Option<LibraryAuthority> = read_marker(&root.join(AUTHORITY_FILE))?;
     if let Some(marker) = &marker {
-        validate_marker(marker.schema_version, &marker.transfer_id)?;
-        if !marker.destination.is_absolute() {
-            return Err(PortcoveError::state(
-                "library authority has a relative destination",
-            ));
-        }
+        validate_authority(marker)?;
     }
     Ok(marker)
 }
@@ -52,12 +49,25 @@ pub(crate) fn open_target(root: &Path) -> Result<Option<PathBuf>> {
         return Ok(None);
     };
     if marker.state == AuthorityState::Pending {
-        return Err(PortcoveError::conflict(
-            "library transfer needs recovery before this library can open",
-        )
-        .detail("transfer_id", marker.transfer_id)
-        .detail("retained_source", root.display().to_string())
-        .detail("recovery_action", "resume_library_move"));
+        let retained_source = marker.source_root.as_deref().or_else(|| {
+            // Schema 1 markers predate an explicit source identity. A marker
+            // read from somewhere other than its destination can only be the
+            // retained source. A destination-only legacy marker fails closed.
+            (root != marker.destination).then_some(root)
+        });
+        let abort_available = marker.source_root.as_deref().map_or_else(
+            || root != marker.destination,
+            |source| fs::canonicalize(root).is_ok_and(|current| current == source),
+        );
+        let mut error =
+            PortcoveError::conflict("library transfer needs recovery before this library can open")
+                .detail("transfer_id", marker.transfer_id)
+                .detail("recovery_action", "resume_library_move")
+                .detail("move_abort_available", abort_available.to_string());
+        if let Some(source) = retained_source {
+            error = error.detail("retained_source", source.display().to_string());
+        }
+        return Err(error);
     }
     verify_receipt(&marker.destination, &marker.transfer_id)?;
     Ok(Some(marker.destination))
@@ -84,7 +94,11 @@ pub(crate) fn verify_receipt(root: &Path, transfer_id: &str) -> Result<()> {
             "the moved library has not finished publication; resume its transfer",
         )
     })?;
-    validate_marker(receipt.schema_version, &receipt.transfer_id)?;
+    if receipt.schema_version != 1 || uuid::Uuid::parse_str(&receipt.transfer_id).is_err() {
+        return Err(PortcoveError::state(
+            "library authority marker is invalid or unsupported",
+        ));
+    }
     if receipt.transfer_id != transfer_id {
         return Err(PortcoveError::verification(
             "destination library receipt does not match this transfer",
@@ -120,8 +134,21 @@ pub(crate) fn abort_source(root: &Path, transfer_id: &str) -> Result<()> {
     Ok(())
 }
 
-fn validate_marker(version: u32, transfer_id: &str) -> Result<()> {
-    if version != 1 || uuid::Uuid::parse_str(transfer_id).is_err() {
+fn validate_authority(marker: &LibraryAuthority) -> Result<()> {
+    let version_valid = match marker.schema_version {
+        1 => marker.source_root.is_none(),
+        2 => marker.source_root.as_ref().is_some_and(|source| {
+            source.is_absolute()
+                && source != &marker.destination
+                && !source.starts_with(&marker.destination)
+                && !marker.destination.starts_with(source)
+        }),
+        _ => false,
+    };
+    if !version_valid
+        || uuid::Uuid::parse_str(&marker.transfer_id).is_err()
+        || !marker.destination.is_absolute()
+    {
         return Err(PortcoveError::state(
             "library authority marker is invalid or unsupported",
         ));

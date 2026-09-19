@@ -19,7 +19,10 @@ internal static class ContractTests
         if (args.Length > 0 && args[0] == "--library") return FakeCli(args);
         try
         {
-            Run(args).GetAwaiter().GetResult();
+            if (args.Length > 0 && args[0].StartsWith("qualification-", StringComparison.Ordinal))
+                RunQualification(args).GetAwaiter().GetResult();
+            else
+                Run(args).GetAwaiter().GetResult();
             Console.WriteLine("PASS " + passed + " reference-client contract checks");
             return 0;
         }
@@ -40,15 +43,22 @@ internal static class ContractTests
         schema_version = 42, type = "result", command, ok, data,
         error = ok ? null : new { code = "conflict", message = "Owned fixture port is busy" }
     });
-    private static string Event(int sequence) => Json.Print(new
-    {
-        schema_version = 2, operation_id = "request", parent_operation_id = (string)null,
-        sequence, timestamp_ms = 1, operation = "install", type = sequence == 0 ? "started" : "progress"
-    });
+    private static string Event(int sequence) => sequence == 0
+        ? Json.Print(new
+        {
+            schema_version = 2, operation_id = "request", parent_operation_id = (string)null,
+            sequence, timestamp_ms = 1, operation = "install", target = (object)null, type = "started"
+        })
+        : Json.Print(new
+        {
+            schema_version = 2, operation_id = "request", parent_operation_id = (string)null,
+            sequence, timestamp_ms = 1, operation = "install", target = (object)null, type = "progress",
+            phase = "download", completed = sequence, total = (long?)null
+        });
     private static object Capabilities() => new
     {
         schema_version = 42, product = "Portcove",
-        commands = new[] { "catalog", "source", "status", "activity", "cancel", "library.identity", "launch.show", "exec", "ensure", "update", "preparation", "preparation.cleanup" },
+        commands = new[] { "capabilities", "catalog", "source", "status", "activity", "cancel", "doctor", "library.identity", "launch.show", "launch.recover", "exec", "ensure", "update", "preparation", "preparation.cleanup" },
         machine_formats = new[] { "json", "jsonl" }, raw_stream_commands = new[] { "exec" }
     };
     private static async Task Run(string[] args)
@@ -74,6 +84,41 @@ internal static class ContractTests
         Reject(() => PublicCli.RequireAbsolute(@"\root-relative"), "root-relative path rejected");
         ProtocolStream.Negotiate(Json.Parse(Json.Print(Capabilities())));
         Check(true, "supported capabilities negotiated");
+        var contradictoryLegacyEvent = Json.Object(Json.Parse(Json.Print(Capabilities())));
+        contradictoryLegacyEvent["operation_event_schema_version"] = 3;
+        Reject(() => ProtocolStream.Negotiate(contradictoryLegacyEvent),
+            "contradictory legacy event schema rejected");
+        var launchOnly = Json.Object(Json.Parse(Json.Print(Capabilities())));
+        launchOnly["commands"] = new[] { "capabilities", "status", "library.identity", "launch.show", "exec" };
+        launchOnly["machine_formats"] = new[] { "json" };
+        ProtocolStream.Negotiate(launchOnly, ConsumerCapability.LaunchOnly);
+        Check(true, "launch-only negotiation does not require unused library or lifecycle commands");
+        var libraryOnly = Json.Object(Json.Parse(Json.Print(Capabilities())));
+        libraryOnly["commands"] = new[] { "capabilities", "catalog", "status", "library.identity" };
+        libraryOnly["machine_formats"] = new[] { "json" };
+        libraryOnly["raw_stream_commands"] = new object[0];
+        ProtocolStream.Negotiate(libraryOnly, ConsumerCapability.Library);
+        Check(true, "library negotiation does not require launch or lifecycle contracts");
+        var lifecycleOnly = Json.Object(Json.Parse(Json.Print(Capabilities())));
+        lifecycleOnly["schema_version"] = 50;
+        lifecycleOnly["operation_event_schema_version"] = 2;
+        lifecycleOnly["commands"] = new[] { "capabilities", "source", "status", "activity", "cancel", "doctor", "library.identity", "ensure", "update", "preparation", "preparation.cleanup" };
+        lifecycleOnly["raw_stream_commands"] = new object[0];
+        Check(ProtocolStream.Negotiate(lifecycleOnly, ConsumerCapability.Lifecycle) == 2,
+            "lifecycle negotiation consumes the advertised operation-event schema");
+        var badEvent = Json.Object(Json.Parse(Json.Print(lifecycleOnly)));
+        badEvent["operation_event_schema_version"] = 3;
+        Reject(() => ProtocolStream.Negotiate(badEvent, ConsumerCapability.Lifecycle),
+            "unknown lifecycle event schema rejected");
+        var missingEvent = Json.Object(Json.Parse(Json.Print(lifecycleOnly)));
+        missingEvent.Remove("operation_event_schema_version");
+        Reject(() => ProtocolStream.Negotiate(missingEvent, ConsumerCapability.Lifecycle),
+            "schema 50 lifecycle without its event-schema authority rejected");
+        var launchWithoutEvent = Json.Object(Json.Parse(Json.Print(launchOnly)));
+        launchWithoutEvent["schema_version"] = 50;
+        launchWithoutEvent["commands"] = new[] { "capabilities", "status", "library.identity", "launch.show", "exec" };
+        ProtocolStream.Negotiate(launchWithoutEvent, ConsumerCapability.LaunchOnly);
+        Check(true, "launch-only negotiation ignores an unused lifecycle event channel");
         var bad = Json.Object(Json.Parse(Json.Print(Capabilities()))); bad["schema_version"] = 43;
         ProtocolStream.Negotiate(bad);
         Check(true, "retained-contract API schema negotiated");
@@ -99,12 +144,26 @@ internal static class ContractTests
         Reject(() => ProtocolStream.Negotiate(incomplete48),
             "schema 48 without its cleanup capability rejected");
         bad["schema_version"] = 49;
+        ProtocolStream.Negotiate(bad);
+        Check(true, "explicit launch recovery API schema negotiated");
+        var launch49WithoutRecovery = Json.Object(Json.Parse(Json.Print(launchOnly)));
+        launch49WithoutRecovery["schema_version"] = 49;
+        ProtocolStream.Negotiate(launch49WithoutRecovery, ConsumerCapability.LaunchOnly);
+        Check(true, "schema 49 launch-only negotiation ignores unused launch recovery");
+        bad["schema_version"] = 50;
+        bad["operation_event_schema_version"] = 2;
+        ProtocolStream.Negotiate(bad);
+        Check(true, "operation-event negotiation API schema accepted");
+        bad["schema_version"] = 51;
         Reject(() => ProtocolStream.Negotiate(bad), "future schema rejected with migration guidance");
         bad["schema_version"] = 42; bad["commands"] = new object[0];
         Reject(() => ProtocolStream.Negotiate(bad), "missing command capability rejected");
         bad = Json.Object(Json.Parse(Json.Print(Capabilities())));
         bad["commands"] = Json.Array(Json.Field(bad, "commands")).Where(command => !Equals(command, "cancel")).ToArray();
         Reject(() => ProtocolStream.Negotiate(bad), "missing cancellation capability rejected before management");
+        bad = Json.Object(Json.Parse(Json.Print(Capabilities())));
+        bad["commands"] = Json.Array(Json.Field(bad, "commands")).Where(command => !Equals(command, "doctor")).ToArray();
+        Reject(() => ProtocolStream.Negotiate(bad), "missing doctor capability rejected before management");
         var absent = new ProtocolStream("launch.show"); absent.Line(Result("launch.show", null));
         Check(absent.Finish(0) == null, "absent launch remains unknown/null");
         var stream = new ProtocolStream("ensure"); stream.Line(Event(0)); stream.Line(Event(1)); stream.Line(Result("ensure", new { id = "owned" }));
@@ -116,6 +175,14 @@ internal static class ContractTests
         Reject(() => lost.Finish(0), "lost final stream never succeeds from exit code");
         var gap = new ProtocolStream("ensure"); gap.Line(Event(0)); gap.Line(Event(3)); gap.Line(Result("ensure", null)); gap.Finish(0);
         Check(gap.EventGap, "sequence gap requires durable readback");
+        var unknownEvent = Json.Object(Json.Parse(Event(0))); unknownEvent["type"] = "future_consequential_event";
+        Reject(() => new ProtocolStream("ensure").Line(Json.Print(unknownEvent)), "unknown event type rejected");
+        var incompleteProgress = Json.Object(Json.Parse(Event(1))); incompleteProgress.Remove("phase");
+        Reject(() => new ProtocolStream("ensure").Line(Json.Print(incompleteProgress)), "malformed progress event rejected");
+        var invalidProgress = Json.Object(Json.Parse(Event(1))); invalidProgress["completed"] = -1;
+        Reject(() => new ProtocolStream("ensure").Line(Json.Print(invalidProgress)), "negative progress event rejected");
+        var unknownFinished = Json.Object(Json.Parse(Event(0))); unknownFinished["type"] = "finished"; unknownFinished["result"] = "future_result";
+        Reject(() => new ProtocolStream("ensure").Line(Json.Print(unknownFinished)), "unknown finished result rejected");
         var disagreement = new ProtocolStream("ensure"); disagreement.Line(Result("ensure", null));
         Reject(() => disagreement.Finish(1), "exit/result disagreement rejected");
         var failure = new ProtocolStream("ensure"); failure.Line(Result("ensure", null, false));
@@ -154,6 +221,169 @@ internal static class ContractTests
             Check(catalog.Length > 1 && statuses.Length == catalog.Length, "real standalone CLI discovery through reference consumer");
             Check(await real.Read("launch.show", "launch", "show", Guid.NewGuid().ToString("D")) == null, "real standalone CLI absent launch readback");
         }
+    }
+
+    private static async Task RunQualification(string[] args)
+    {
+        if (args.Length < 4) throw new ArgumentException("Qualification mode requires a CLI, library, and fixture port.");
+        var mode = args[0];
+        var client = new PublicCli(args[1], args[2]);
+        await client.Connect();
+        var port = args[3];
+
+        if (mode == "qualification-concurrency")
+        {
+            var operation = new OperationCapture();
+            var install = client.Manage("ensure", new[] { "ensure", port }, operation.Observe);
+            if (await Task.WhenAny(operation.Root, Task.Delay(TimeSpan.FromSeconds(15))) != operation.Root)
+                throw new Exception("The real install emitted no root operation identity before the qualification timeout.");
+
+            var competing = new PublicCli(args[1], args[2]);
+            await competing.Connect();
+            var conflict = new OperationCapture();
+            await ExpectFailure(
+                competing.Manage("ensure", new[] { "ensure", port }, conflict.Observe),
+                "conflict:",
+                "a real busy port is reported as conflict without fabricated success");
+            await CheckActivity(competing, conflict.RequireId(), port, "install", "failed");
+            await competing.Manage("cancel", new[] { "cancel", await operation.Root }, null);
+            await ExpectFailure(
+                install,
+                "cancelled:",
+                "a real cancellation remains a failed operation until durable readback");
+            Check(ActiveVersion(await Status(client, port)) == null, "cancelled install leaves no active version");
+            await CheckActivity(client, operation.RequireId(), port, "install", "cancelled");
+            return;
+        }
+
+        if (args.Length < 5) throw new ArgumentException("Qualification phase requires an expected library identity.");
+        var expectedLibrary = args[4];
+        Check(client.LibraryId == expectedLibrary, "library identity is stable across compiled-client reconnects");
+
+        if (mode == "qualification-install" || mode == "qualification-update")
+        {
+            var expectedVersion = args.Length > 5 ? args[5] : null;
+            var before = Identity.Game(client.LibraryId, port);
+            var operation = new OperationCapture();
+            var command = mode == "qualification-install" ? "ensure" : "update";
+            await client.Manage(command, new[] { command, port }, operation.Observe);
+            Check(operation.Events.Contains("started") && operation.Events.Contains("progress") && operation.Events.Contains("finished"),
+                "real " + command + " exposes started, progress, and finished events through the compiled client");
+            var status = await Status(client, port);
+            Check(ActiveVersion(status) == expectedVersion, "real " + command + " reaches the expected active version");
+            Check(Json.Boolean(Json.Field(status, "readiness"), "launchable"), "real " + command + " reaches core-owned launch readiness");
+            Check(Identity.Game(client.LibraryId, port) == before, "version activation preserves Playnite launch routing identity");
+            await CheckActivity(client, operation.RequireId(), port, command == "ensure" ? "install" : "update", "succeeded");
+            return;
+        }
+
+        if (mode == "qualification-failure")
+        {
+            if (args.Length != 7) throw new ArgumentException("Failure qualification requires active version and error code.");
+            var operation = new OperationCapture();
+            await ExpectFailure(
+                client.Manage("update", new[] { "update", port }, operation.Observe),
+                args[6] + ":",
+                "real " + args[6] + " update failure remains actionable and cannot fabricate success");
+            Check(ActiveVersion(await Status(client, port)) == args[5], "failed update preserves the verified active version");
+            await CheckActivity(client, operation.RequireId(), port, "update", "failed");
+            return;
+        }
+
+        if (mode == "qualification-definition")
+        {
+            var status = await Status(client, port);
+            Check(ActiveVersion(status) != null, "source-managed definition fixture exposes an active installation");
+            var decisions = DefinitionOperations.Read(status);
+            Check(decisions.Any(value => value.Operation == "install" && value.Outcome == "eligible" && !value.Retained),
+                "compiled client consumes selected-definition install eligibility from core");
+            Check(decisions.Any(value => value.Operation == "prepare" && value.Outcome == "eligible" && value.Retained) &&
+                  decisions.Any(value => value.Operation == "launch" && value.Outcome == "eligible" && value.Retained),
+                "compiled client consumes retained preparation and launch eligibility for the source-managed definition fixture");
+            return;
+        }
+
+        if (mode == "qualification-definition-revoked")
+        {
+            var status = await Status(client, port);
+            var decisions = DefinitionOperations.Read(status);
+            Check(!decisions.Any(value => value.Operation == "install"),
+                "revoked selected definition is no longer exposed as the current install contract");
+            Check(decisions.Any(value => value.Operation == "launch" && value.Outcome == "hold" &&
+                  value.Reason == "publisher_revoked" && value.Retained),
+                "compiled client preserves the revoked retained launch hold without overriding core");
+            Check(!Json.Boolean(Json.Field(status, "readiness"), "launchable"),
+                "revoked selected-definition state removes launch readiness");
+            try
+            {
+                DefinitionOperations.RequireEligible(status, "launch");
+                throw new Exception("The client accepted launch through a revoked retained definition.");
+            }
+            catch (InvalidOperationException error)
+            {
+                Check(error.Message.Contains("publisher_revoked"),
+                    "compiled client refuses launch for the real revoked retained definition");
+            }
+            return;
+        }
+
+        throw new ArgumentException("Unknown qualification mode: " + mode);
+    }
+
+    private static async Task<object> Status(PublicCli client, string port) =>
+        await client.Read("status", "status", port);
+
+    private static string ActiveVersion(object status)
+    {
+        var active = Json.Field(status, "active");
+        return active == null ? null : Json.Text(active, "version");
+    }
+
+    private static async Task ExpectFailure(Task<object> operation, string expected, string description)
+    {
+        try { await operation; }
+        catch (InvalidOperationException error)
+        {
+            Check(error.Message.StartsWith(expected, StringComparison.OrdinalIgnoreCase), description);
+            return;
+        }
+        throw new Exception("Operation unexpectedly succeeded: " + description);
+    }
+
+    private sealed class OperationCapture
+    {
+        private readonly TaskCompletionSource<string> root = new TaskCompletionSource<string>();
+        private string id;
+        internal readonly List<string> Events = new List<string>();
+        internal Task<string> Root { get { return root.Task; } }
+
+        internal void Observe(Dictionary<string, object> record)
+        {
+            Events.Add(Json.Text(record, "type"));
+            if (Json.Field(record, "parent_operation_id") != null) return;
+            var current = Json.Text(record, "operation_id");
+            if (id != null && id != current)
+                throw new InvalidOperationException("The CLI emitted multiple root operation identities.");
+            id = current;
+            root.TrySetResult(current);
+        }
+
+        internal string RequireId()
+        {
+            if (id == null) throw new Exception("The CLI emitted no root operation identity.");
+            return id;
+        }
+    }
+
+    private static async Task CheckActivity(PublicCli client, string id, string port, string operation, string status)
+    {
+        var activities = Json.Array(await client.Read("activity", "activity", "--limit", "200"));
+        Check(activities.Any(value =>
+            (Json.Field(value, "id") as string) == id &&
+            (Json.Field(value, "target_id") as string) == port &&
+            Json.Text(value, "operation") == operation &&
+            Json.Text(value, "status") == status),
+            "durable activity readback records exact operation " + id + " as " + operation + "/" + status);
     }
     private static void DefinitionOperationRecords()
     {

@@ -25,6 +25,17 @@ mod human;
 mod schema;
 use schema::SchemaContract;
 
+// Read-only consumers can identify a compatible standalone CLI without
+// executing an arbitrary PATH candidate. Keep this marker versioned whenever
+// the Steam `exec` handoff contract changes.
+#[used]
+static PORTCOVE_CLI_STEAM_EXEC_IDENTITY: &[u8] = concat!(
+    "PORTCOVE_CLI_STEAM_EXEC_IDENTITY_V1|product=",
+    env!("CARGO_PKG_VERSION"),
+    "|capability=exec"
+)
+.as_bytes();
+
 #[derive(Debug, Parser)]
 #[command(
     name = "portcove",
@@ -226,6 +237,8 @@ impl ArtworkCommand {
 enum LaunchCommand {
     /// Return the retained request, or null when absent; absence is not a successful outcome.
     Show { request_id: Uuid },
+    /// Recover an unfinished request after its recorded supervisor has exited.
+    Recover { request_id: Uuid },
 }
 
 #[derive(Debug, Subcommand)]
@@ -741,6 +754,7 @@ struct SourceBatchOutcome {
 const CLI_RUNTIME_STACK_BYTES: usize = 8 * 1024 * 1024;
 
 fn main() -> ExitCode {
+    std::hint::black_box(PORTCOVE_CLI_STEAM_EXEC_IDENTITY);
     let runtime = std::thread::Builder::new()
         .name("portcove-main".into())
         .stack_size(CLI_RUNTIME_STACK_BYTES)
@@ -1301,9 +1315,19 @@ async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
                 |captures| human::activity_diagnostic(captures),
             )?;
         }
-        Commands::Launch { .. } => {
-            unreachable!("launch observation is handled before service initialization")
+        Commands::Launch {
+            command: LaunchCommand::Recover { request_id },
+        } => {
+            service.recover_launch_session(&request_id.to_string())?;
+            render_success(
+                mode,
+                "launch.recover",
+                service.library().launch_request(&request_id.to_string())?,
+            )?;
         }
+        Commands::Launch {
+            command: LaunchCommand::Show { .. },
+        } => unreachable!("launch observation is handled before service initialization"),
         Commands::Storage => {
             render_read_success(
                 mode,
@@ -2398,7 +2422,10 @@ fn command_name(command: &Commands) -> &'static str {
         } => "activity.log",
         Commands::Activity { .. } => "activity",
         Commands::Cancel { .. } => "cancel",
-        Commands::Launch { .. } => "launch.show",
+        Commands::Launch { command } => match command {
+            LaunchCommand::Show { .. } => "launch.show",
+            LaunchCommand::Recover { .. } => "launch.recover",
+        },
         Commands::Storage => "storage",
         Commands::Library { command } => library_command_name(command),
         Commands::Doctor => "doctor",
@@ -2811,7 +2838,11 @@ mod tests {
     #[test]
     fn capabilities_advertise_failure_isolated_batches() {
         let capabilities = CapabilityDocument::current();
-        assert_eq!(capabilities.schema_version, 48);
+        assert_eq!(capabilities.schema_version, 50);
+        assert_eq!(
+            capabilities.operation_event_schema_version,
+            portcove_core::OPERATION_EVENT_SCHEMA_VERSION
+        );
         assert_eq!(
             capabilities.failure_isolated_batches,
             ["check", "reconcile", "update", "source.verify"]

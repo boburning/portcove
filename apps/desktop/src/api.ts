@@ -46,7 +46,10 @@ import type {
   BackupInventory,
   BackupRecord,
   BootstrapStatus,
+  CapabilityDocument,
   CatalogDocument,
+  DefinitionCapabilityReport,
+  DefinitionCapabilityRequest,
   DoctorReport,
   GithubAuthStatus,
   GithubDeviceLogin,
@@ -55,6 +58,7 @@ import type {
   HostToolStatus,
   InstallPlan,
   InstallRecord,
+  LibraryIdentity,
   LibraryMetadataFile,
   OutputDestinationPreview,
   OutputRelocationPlan,
@@ -70,6 +74,10 @@ import type {
   SourceRelinkPlan,
   SourceRemovalPreview,
   SourceVerificationOutcome,
+  SteamEntryApplyResult,
+  SteamEntryOperation,
+  SteamEntryReview,
+  SteamEntrySelection,
   UpdateCheck,
   UpdateCheckOutcome,
   UpdatePolicy,
@@ -163,7 +171,36 @@ export const desktopApi = {
     }),
   cliCommandContext: (generation: number) =>
     invoke<CliCommandContext>("get_cli_command_context", { generation }),
+  libraryIdentity: (generation: number) =>
+    invoke<LibraryIdentity>("get_library_identity", { generation }),
+  previewSteamEntry: (
+    portId: string,
+    steamRoot: string,
+    steamUserId: string,
+    operation: SteamEntryOperation,
+    generation: number,
+  ) =>
+    invoke<SteamEntryReview>("preview_steam_entry", {
+      request: { portId, steamRoot, steamUserId, operation } satisfies SteamEntrySelection,
+      generation,
+    }),
+  applySteamEntry: (
+    portId: string,
+    steamRoot: string,
+    steamUserId: string,
+    operation: SteamEntryOperation,
+    expectedPlanSha256: string,
+    generation: number,
+  ) =>
+    invoke<SteamEntryApplyResult | null>("apply_steam_entry", {
+      request: { portId, steamRoot, steamUserId, operation } satisfies SteamEntrySelection,
+      expectedPlanSha256,
+      generation,
+    }),
   catalogStatus: () => invoke<CatalogStatus>("get_catalog_status"),
+  engineCapabilities: () => invoke<CapabilityDocument>("get_engine_capabilities"),
+  checkDefinitionCapabilities: (request: DefinitionCapabilityRequest) =>
+    invoke<DefinitionCapabilityReport>("check_definition_capabilities", { request }),
   trustCatalogKey: (publicKey: string) =>
     invoke<CatalogStatus | null>("trust_catalog_key", { publicKey }),
   revokeCatalogKey: (keyId: string, expectedState: string) =>

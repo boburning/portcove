@@ -1,4 +1,5 @@
 import { RemovalControl, type ApplyRemoval } from "./RemovalReview";
+import { SteamEntryControl } from "./SteamEntry";
 import { ArtworkControls, ArtworkImage, DetailArtwork } from "./Artwork";
 import type { ApplyBackupAction } from "./BackupReview";
 import { ReleaseChannelControl } from "./ReleaseChannel";
@@ -45,6 +46,7 @@ import { PreparationControl, type RunPreparation } from "./Preparation";
 import {
   currentUpdateSnapshot,
   formatBytes,
+  installationMethodLabel,
   platformLabel,
   releaseChannelPresentation,
 } from "../view-model";
@@ -154,6 +156,8 @@ function DetailDialog({
     bios,
     biosPath,
   );
+  const selectedRequirement = selectedSourceRequirement(source, sourcePath, bios, biosPath);
+  const runtimeUpdateAvailable = currentUpdateSnapshot(status)?.check.update_available === true;
   const state =
     installed && typeof status?.readiness?.launchable !== "boolean"
       ? {
@@ -168,9 +172,10 @@ function DetailDialog({
           Boolean(status?.staged),
           pendingSetup,
           Boolean(status?.readiness?.blockers.includes("missing_runtime")),
+          runtimeUpdateAvailable,
           status?.readiness?.source,
           status?.readiness?.bios,
-          Boolean(sourcePath.trim() || biosPath?.trim()),
+          selectedRequirement,
           Boolean(status?.readiness?.blockers.includes("invalid_installation")),
         );
   const sources: SourceControls = {
@@ -233,8 +238,11 @@ function DetailDialog({
           state={state}
           sources={sources}
           installed={installed}
+          sourceReady={sourceReady}
+          biosReady={biosReady}
           launchReady={launchReady}
           pendingSetup={pendingSetup}
+          runtimeUpdateAvailable={runtimeUpdateAvailable}
           installPlan={installPlan}
           selectedChannel={selectedChannel}
           policy={policy}
@@ -278,8 +286,11 @@ function DetailBody({
   state,
   sources,
   installed,
+  sourceReady,
+  biosReady,
   launchReady,
   pendingSetup,
+  runtimeUpdateAvailable,
   installPlan,
   selectedChannel,
   policy,
@@ -300,8 +311,11 @@ function DetailBody({
   state: DetailState;
   sources: SourceControls;
   installed: boolean;
+  sourceReady: boolean;
+  biosReady: boolean;
   launchReady: boolean;
   pendingSetup: boolean;
+  runtimeUpdateAvailable: boolean;
   installPlan?: InstallPlan;
   selectedChannel: ReleaseChannel;
   policy: UpdatePolicy;
@@ -327,8 +341,11 @@ function DetailBody({
         status={status}
         state={state}
         installed={installed}
+        sourceReady={sourceReady}
+        biosReady={biosReady}
         launchReady={launchReady}
         pendingSetup={pendingSetup}
+        runtimeUpdateAvailable={runtimeUpdateAvailable}
         managedPreparation={managedPreparation}
         installPlan={installPlan}
         busy={busy}
@@ -398,8 +415,11 @@ function StatusActionsGroup({
   status,
   state,
   installed,
+  sourceReady,
+  biosReady,
   launchReady,
   pendingSetup,
+  runtimeUpdateAvailable,
   managedPreparation,
   installPlan,
   busy,
@@ -409,8 +429,11 @@ function StatusActionsGroup({
   status?: PortStatus;
   state: DetailState;
   installed: boolean;
+  sourceReady: boolean;
+  biosReady: boolean;
   launchReady: boolean;
   pendingSetup: boolean;
+  runtimeUpdateAvailable: boolean;
   managedPreparation: boolean;
   installPlan?: InstallPlan;
   busy?: string;
@@ -424,7 +447,10 @@ function StatusActionsGroup({
         invalidInstallation={Boolean(status?.readiness?.blockers.includes("invalid_installation"))}
         preparationRequired={managedPreparation && pendingSetup}
         runtimeNeeded={Boolean(status?.readiness?.blockers.includes("missing_runtime"))}
+        runtimeUpdateAvailable={runtimeUpdateAvailable}
         installed={installed}
+        sourceReady={sourceReady}
+        biosReady={biosReady}
         launchReady={launchReady}
         pendingSetup={pendingSetup}
         plan={installPlan}
@@ -770,13 +796,6 @@ function SavesAndSettingsSummary({ port }: { port: PortDefinition }) {
   );
 }
 
-function installationMethodLabel(port: PortDefinition) {
-  const method = port.presentation?.installation_method;
-  return method && Object.hasOwn(installationMethodPresentation, method)
-    ? installationMethodPresentation[method]
-    : "Unavailable in this catalog";
-}
-
 function ReadinessCard({ state }: { state: DetailState }) {
   return (
     <div className={`readiness-card ${state.tone}`}>
@@ -926,7 +945,7 @@ function originalSourceField(mode: "missing" | "registered", controls: SourceCon
   if (!profileId || controls.sourceReady !== (mode === "registered")) return null;
   return (
     <SourceField
-      heading="Original source"
+      heading="Game files"
       profileId={profileId}
       profile={controls.sourceProfile}
       source={controls.source}
@@ -1044,19 +1063,6 @@ function TechnicalDetails({
   );
 }
 
-const installationMethodPresentation: Record<
-  NonNullable<PortDefinition["presentation"]>["installation_method"],
-  string
-> = {
-  "portable-package": "Portable upstream package",
-  "portable-recompilation": "Portable native recompilation",
-  "staged-game-files": "Prepared game files beside the port",
-  "referenced-disc": "Original disc referenced at launch",
-  "generated-game-data": "Generated game data",
-  "upstream-setup": "Managed upstream setup",
-  "managed-recompilation": "Managed native recompilation",
-};
-
 const sourceVerificationPresentation: Record<
   NonNullable<PortDefinition["presentation"]>["source_requirements"][number]["verification"],
   string
@@ -1104,12 +1110,15 @@ function SourceField({
   pickArchive?: () => void;
   openEvidence?: (evidenceId: string) => void;
 }) {
-  const copy = sourceFieldCopy(profile);
+  const bios = heading === "Required BIOS";
+  const copy = sourceFieldCopy(profile, bios);
   const selectedOverride = Boolean(path.trim()) && (!source || path !== source.path);
   const sourceNote = selectedOverride
-    ? "Selected path has not been checked. Portcove validates these files when you continue."
+    ? bios
+      ? "Selected BIOS file has not been checked. Portcove validates it when you continue."
+      : "Selected path has not been checked. Portcove validates these files when you continue."
     : source
-      ? sourceHealthNote(inspection?.health ?? health, source)
+      ? sourceHealthNote(inspection?.health ?? health, source, bios)
       : copy.note;
   const inputId = `source-${profileId}`;
   return (
@@ -1128,19 +1137,19 @@ function SourceField({
         {pick && (
           <button data-focusable className="button-with-icon" type="button" onClick={pick}>
             <Icon glyph={FolderOpen} />
-            Browse
+            {bios ? "Choose BIOS file" : "Choose game files"}
           </button>
         )}
         {pickArchive && (
           <button data-focusable className="button-with-icon" type="button" onClick={pickArchive}>
             <Icon glyph={FileArchive} />
-            ZIP
+            Choose ZIP file
           </button>
         )}
       </div>
       <small>{sourceNote}</small>
       {selectedOverride && source && health && health !== "current" && (
-        <small>{sourceHealthNote(health, source)}</small>
+        <small>{sourceHealthNote(health, source, bios)}</small>
       )}
       {!selectedOverride && inspection && (
         <SourceIdentityPanel report={inspection} openEvidence={openEvidence} />
@@ -1149,31 +1158,40 @@ function SourceField({
   );
 }
 
-function sourceHealthNote(health: SourceHealth | null | undefined, source: SourceRecord) {
+function sourceHealthNote(
+  health: SourceHealth | null | undefined,
+  source: SourceRecord,
+  bios: boolean,
+) {
   const hash = `${source.sha256.slice(0, 12)}…`;
-  if (health === "current") return `Current registered bytes checked · ${hash}`;
-  if (health === "changed") return "Registered source changed since it was added.";
-  if (health === "missing") return "Registered source file is missing.";
-  if (health === "unreadable") return "Registered source cannot be read.";
-  if (health === "not_checked") return `Registered · current bytes not checked · ${hash}`;
-  if (health === "not_baselined") return "Selected game files have no saved identity baseline.";
-  return `Registered · ${hash}`;
+  const label = bios ? "BIOS file" : "game files";
+  if (health === "current") return `Current registered ${label} checked · ${hash}`;
+  if (health === "changed")
+    return `Registered ${label} changed since ${bios ? "it was" : "they were"} added.`;
+  if (health === "missing") return `Registered ${label} ${bios ? "is" : "are"} missing.`;
+  if (health === "unreadable") return `Registered ${label} cannot be read.`;
+  if (health === "not_checked") return `Registered ${label} · current bytes not checked · ${hash}`;
+  if (health === "not_baselined")
+    return `Selected ${label} ${bios ? "has" : "have"} no saved identity baseline.`;
+  return `Registered ${label} · ${hash}`;
 }
 
-function sourceFieldCopy(profile?: SourceProfile) {
+function sourceFieldCopy(profile: SourceProfile | undefined, bios: boolean) {
   if (profile?.kind === "file-set")
     return {
-      placeholder: "Choose or paste the folder or ZIP containing the required sources",
-      note: "Select one exact source folder or ZIP; never uploaded.",
+      placeholder: "Choose the folder or ZIP file that contains the required game files",
+      note: "Portcove checks this location without uploading or changing it.",
     };
   if (profile?.kind === "psx-disc" && (profile.disc?.discs?.length ?? 0) > 1)
     return {
-      placeholder: "Choose or paste the folder containing the required sources",
-      note: "Select one folder containing exactly the required source set; never uploaded.",
+      placeholder: "Choose the folder that contains all required game discs",
+      note: "Portcove checks this folder without uploading or changing it.",
     };
   return {
-    placeholder: "Choose or paste the full source file path",
-    note: "Referenced in place; never uploaded.",
+    placeholder: bios ? "Choose the required BIOS file" : "Choose the required game file",
+    note: bios
+      ? "Portcove uses this BIOS file in place and never uploads or changes it."
+      : "Portcove uses this game file in place and never uploads or changes it.",
   };
 }
 
@@ -1181,7 +1199,10 @@ function PrimaryActions({
   invalidInstallation,
   preparationRequired,
   runtimeNeeded,
+  runtimeUpdateAvailable,
   installed,
+  sourceReady,
+  biosReady,
   launchReady,
   pendingSetup,
   plan,
@@ -1191,7 +1212,10 @@ function PrimaryActions({
   invalidInstallation: boolean;
   preparationRequired: boolean;
   runtimeNeeded: boolean;
+  runtimeUpdateAvailable: boolean;
   installed: boolean;
+  sourceReady: boolean;
+  biosReady: boolean;
   launchReady: boolean;
   pendingSetup: boolean;
   plan?: InstallPlan;
@@ -1200,11 +1224,20 @@ function PrimaryActions({
 }) {
   if (invalidInstallation)
     return <p>Verify the game files below and review repair before playing.</p>;
-  if (runtimeNeeded) return <p>Review the game update below to install the required runtime.</p>;
+  if (runtimeNeeded)
+    return runtimeUpdateAvailable ? (
+      <p>Review the game update below to install the required component.</p>
+    ) : (
+      <p>
+        Check for updates. If none is available, verify the installation for diagnostic details.
+      </p>
+    );
   if (!installed)
     return (
       <InstallAction
         ready={launchReady}
+        sourceReady={sourceReady}
+        biosReady={biosReady}
         plan={plan}
         busy={busy}
         install={actions.install}
@@ -1243,31 +1276,43 @@ function PrimaryActions({
 
 function InstallAction({
   ready,
+  sourceReady,
+  biosReady,
   plan,
   busy,
   install,
   review,
 }: {
   ready: boolean;
+  sourceReady: boolean;
+  biosReady: boolean;
   plan?: InstallPlan;
   busy?: string;
   install: AsyncAction;
   review: AsyncAction;
 }) {
-  if (!ready)
+  if (!ready) {
+    const buttonLabel =
+      !sourceReady && !biosReady
+        ? "Choose game files and BIOS"
+        : !biosReady
+          ? "Choose BIOS file"
+          : "Choose game files";
+    const title =
+      !sourceReady && !biosReady
+        ? "Add all required game files and the BIOS file before installing"
+        : !biosReady
+          ? "Add the required BIOS file before installing"
+          : "Add all required game files before installing";
     return (
       <div className="actions primary-actions">
-        <button
-          data-focusable
-          className="primary wide button-with-icon"
-          title="Choose every required source before installing"
-          disabled
-        >
+        <button data-focusable className="primary wide button-with-icon" title={title} disabled>
           <Icon glyph={AlertTriangle} />
-          Choose required source
+          {buttonLabel}
         </button>
       </div>
     );
+  }
   if (!plan)
     return (
       <div className="actions primary-actions">
@@ -1314,8 +1359,8 @@ function InstallPlanSummary({ plan }: { plan: InstallPlan }) {
   const download = plan.action === "download";
   const localState =
     plan.action === "blocked_unverified"
-      ? "Local copy needs verification"
-      : "Verified local release";
+      ? "Local copy needs checking"
+      : "Local release already checked";
   return (
     <div className="install-plan">
       <div>
@@ -1325,7 +1370,7 @@ function InstallPlanSummary({ plan }: { plan: InstallPlan }) {
           {plan.channel} · {installPlanActionLabel(plan.action)}
         </span>
         {plan.bundled_runtime && (
-          <span>Includes verified runtime · {formatBytes(plan.bundled_runtime.asset.size)}</span>
+          <span>Required component included · {formatBytes(plan.bundled_runtime.asset.size)}</span>
         )}
       </div>
       <div>
@@ -1353,8 +1398,12 @@ function PlannedInstallButton({
   let label =
     plan.action === "download"
       ? `Install · ${formatBytes(plan.download_bytes)}`
-      : "Use verified release";
-  if (blocked) label = "Unverified copy blocks install";
+      : plan.action === "reuse_retained"
+        ? "Use previous release"
+        : plan.action === "already_active"
+          ? "Use installed release"
+          : "Use ready release";
+  if (blocked) label = "Verify or replace the local copy before installing";
   else if (insufficientSpace) label = "Free space required";
   else if (busy === "install") label = "Installing…";
   return (
@@ -1418,6 +1467,12 @@ function MaintenanceActions({
         busy={Boolean(busy)}
         apply={actions.remove}
       />
+      <SteamEntryControl
+        key={`steam:${port.id}:${libraryGeneration}`}
+        port={port}
+        generation={libraryGeneration}
+        busy={Boolean(busy)}
+      />
     </div>
   );
 }
@@ -1476,9 +1531,10 @@ function detailState(
   staged: boolean,
   pendingSetup: boolean,
   runtimeNeeded: boolean,
+  runtimeUpdateAvailable: boolean,
   sourceHealth?: SourceHealth | null,
   biosHealth?: SourceHealth | null,
-  selectedPath = false,
+  selectedRequirement?: "game" | "bios" | "both",
   invalidInstallation = false,
 ) {
   if (invalidInstallation)
@@ -1489,26 +1545,11 @@ function detailState(
       tone: "setup",
       icon: AlertTriangle,
     };
-  if (!installed)
-    return {
-      title: "Available to install",
-      description: selectedPath
-        ? "Selected game files have not been checked. Portcove validates them when you continue installation."
-        : "Portcove will check required game files and verify the release before it becomes active.",
-      tone: "available",
-      icon: Download,
-    };
-  if (runtimeNeeded)
-    return {
-      title: "Verified runtime required",
-      description:
-        "Review the update to install this port with its required runtime. Existing saves stay in your library.",
-      tone: "setup",
-      icon: Wrench,
-    };
-  const sourceIssue = sourceHealthState("Original source", sourceHealth);
+  if (!installed) return availableInstallState(selectedRequirement);
+  if (runtimeNeeded) return runtimeRequirementState(runtimeUpdateAvailable);
+  const sourceIssue = sourceHealthState("game", sourceHealth);
   if (sourceIssue) return sourceIssue;
-  const biosIssue = sourceHealthState("Required BIOS", biosHealth);
+  const biosIssue = sourceHealthState("bios", biosHealth);
   if (biosIssue) return biosIssue;
   if (
     pendingSetup &&
@@ -1517,9 +1558,8 @@ function detailState(
     biosHealth !== "unregistered"
   )
     return {
-      title: "Prepare game data",
-      description:
-        "Review the default setup below. Play becomes available after preparation succeeds.",
+      title: "Game files required",
+      description: "Run the port's setup before playing for the first time.",
       tone: "setup",
       icon: Wrench,
     };
@@ -1531,56 +1571,133 @@ function detailState(
       tone: "setup",
       icon: Wrench,
     };
-  if (selectedPath)
-    return {
-      title: "Game files need checking",
-      description:
-        "The selected path has not been checked. Portcove validates it before starting the game.",
-      tone: "setup",
-      icon: Wrench,
-    };
+  if (selectedRequirement) return selectedRequirementState(selectedRequirement);
   if (pendingSetup)
     return {
-      title: "First launch setup",
-      description:
-        "The source is registered. Portcove will run and verify the upstream setup before play.",
+      title: "Game files required",
+      description: "Run the port's setup before playing for the first time.",
       tone: "setup",
       icon: Wrench,
     };
   if (staged)
     return {
-      title: "Ready · update staged",
-      description: "Play the current version or activate the verified staged release.",
+      title: "Ready to play · update downloaded",
+      description: "Play the installed version or review the downloaded update.",
       tone: "staged",
       icon: RefreshCw,
     };
   return {
-    title: "Ready to launch",
-    description: "The active version and every required local source are available.",
+    title: "Ready to play",
+    description: "The installed version and all required game files are available.",
     tone: "ready",
     icon: CheckCircle2,
   };
 }
 
-function sourceHealthState(label: string, health?: SourceHealth | null) {
+type SelectedRequirement = "game" | "bios" | "both";
+
+function selectedSourceRequirement(
+  source: SourceRecord | undefined,
+  sourcePath: string,
+  bios: SourceRecord | undefined,
+  biosPath: string | undefined,
+): SelectedRequirement | undefined {
+  const gameSelected = Boolean(sourcePath.trim()) && sourcePath !== source?.path;
+  const biosSelection = biosPath?.trim();
+  const biosSelected = Boolean(biosSelection) && biosSelection !== bios?.path;
+  if (gameSelected && biosSelected) return "both";
+  if (gameSelected) return "game";
+  if (biosSelected) return "bios";
+  return undefined;
+}
+
+function availableInstallState(selectedRequirement?: SelectedRequirement) {
+  let description =
+    "Portcove will check required game files and verify the release before it becomes active.";
+  if (selectedRequirement === "bios")
+    description =
+      "The selected BIOS file has not been checked. Portcove validates it when you continue installation.";
+  if (selectedRequirement === "both")
+    description =
+      "The selected game files and BIOS file have not been checked. Portcove validates them when you continue installation.";
+  if (selectedRequirement === "game")
+    description =
+      "Selected game files have not been checked. Portcove validates them when you continue installation.";
+  return { title: "Available to install", description, tone: "available", icon: Download };
+}
+
+function runtimeRequirementState(updateAvailable: boolean) {
+  return updateAvailable
+    ? {
+        title: "Update required before playing",
+        description:
+          "Install the available update that includes the required component. Existing saves stay in your library.",
+        tone: "setup",
+        icon: Wrench,
+      }
+    : {
+        title: "Required component unavailable",
+        description:
+          "Check for updates. If none is available, verify the installation for diagnostic details.",
+        tone: "setup",
+        icon: Wrench,
+      };
+}
+
+function selectedRequirementState(requirement: SelectedRequirement) {
+  if (requirement === "bios")
+    return {
+      title: "BIOS file needs checking",
+      description:
+        "The selected BIOS file has not been checked. Portcove validates it before starting the game.",
+      tone: "setup",
+      icon: Wrench,
+    };
+  if (requirement === "both")
+    return {
+      title: "Game files and BIOS need checking",
+      description:
+        "The selected game files and BIOS file have not been checked. Portcove validates them before starting the game.",
+      tone: "setup",
+      icon: Wrench,
+    };
+  return {
+    title: "Game files need checking",
+    description:
+      "The selected game-file path has not been checked. Portcove validates it before starting the game.",
+    tone: "setup",
+    icon: Wrench,
+  };
+}
+
+function sourceHealthState(kind: "game" | "bios", health?: SourceHealth | null) {
+  const label = kind === "bios" ? "Required BIOS file" : "Game files";
+  const chooseAgain =
+    kind === "bios"
+      ? "Choose and add the required BIOS file again before playing."
+      : "Choose and add the game files again before playing.";
+  const restoreAccess =
+    kind === "bios"
+      ? "Restore access to the required BIOS file or add it again before playing."
+      : "Restore access to the game files or add them again before playing.";
   if (health === "changed")
     return {
       title: `${label} changed`,
-      description: `Choose and register ${label.toLowerCase()} again before play.`,
+      description: chooseAgain,
       tone: "setup",
       icon: AlertTriangle,
     };
   if (health === "missing")
     return {
       title: `${label} missing`,
-      description: `Choose and register ${label.toLowerCase()} again before play.`,
+      description: chooseAgain,
       tone: "setup",
       icon: AlertTriangle,
     };
   if (health === "unreadable")
     return {
       title: `${label} unreadable`,
-      description: `Restore access to ${label.toLowerCase()} or register it again before play.`,
+      description: restoreAccess,
       tone: "setup",
       icon: AlertTriangle,
     };

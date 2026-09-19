@@ -12,7 +12,7 @@ test("Rust Node and pnpm authorities are exact and workflow consumers do not cop
   const toolchain = await read("rust-toolchain.toml");
   const cargo = await read("Cargo.toml");
   const node = (await read(".node-version")).trim();
-  const desktop = JSON.parse(await read("apps/desktop/package.json"));
+  const repositoryPackage = JSON.parse(await read("package.json"));
   const justfile = await read("justfile");
   assert.equal(toolchain.match(/^channel\s*=\s*"([^"]+)"/mu)?.[1], quality.rust.channel);
   assert.equal(
@@ -20,7 +20,7 @@ test("Rust Node and pnpm authorities are exact and workflow consumers do not cop
     quality.rust.channel.split(".").slice(0, 2).join("."),
   );
   assert.match(node, /^\d+\.\d+\.\d+$/u);
-  assert.match(desktop.packageManager, /^pnpm@\d+\.\d+\.\d+$/u);
+  assert.match(repositoryPackage.packageManager, /^pnpm@\d+\.\d+\.\d+$/u);
   assert.doesNotMatch(justfile, /\{\{storage\}\}\s+pnpm\b/u);
   assert.match(justfile, /\{\{storage\}\}\s+corepack pnpm\b/u);
 
@@ -31,11 +31,53 @@ test("Rust Node and pnpm authorities are exact and workflow consumers do not cop
   );
   for (const workflow of workflows) {
     const setupCount = (workflow.match(/uses: pnpm\/action-setup@/g) ?? []).length;
-    assert.equal(
-      (workflow.match(/package_json_file: apps\/desktop\/package\.json/g) ?? []).length,
-      setupCount,
-    );
+    assert.equal((workflow.match(/package_json_file: package\.json/g) ?? []).length, setupCount);
     assert.doesNotMatch(workflow, /uses: pnpm\/action-setup@[\s\S]{0,160}\n\s+version:/u);
+  }
+});
+
+test("the root owns the only pnpm workspace lock and repository tool dependencies", async () => {
+  const repositoryPackage = JSON.parse(await read("package.json"));
+  const desktopPackage = JSON.parse(await read("apps/desktop/package.json"));
+  const workspace = await read("pnpm-workspace.yaml");
+  const lockfile = await read("pnpm-lock.yaml");
+
+  assert.equal(repositoryPackage.private, true);
+  assert.equal(repositoryPackage.type, "module");
+  assert.ok(Object.keys(repositoryPackage.devDependencies).length > 0);
+  assert.ok(Object.keys(desktopPackage.devDependencies).length > 0);
+  assert.deepEqual(Object.keys(repositoryPackage.devDependencies).sort(), [
+    "@taplo/cli",
+    "fallow",
+    "oxfmt",
+    "oxlint",
+    "oxlint-tsgolint",
+  ]);
+  assert.deepEqual(
+    Object.keys(repositoryPackage.devDependencies).filter((name) =>
+      Object.hasOwn(desktopPackage.devDependencies, name),
+    ),
+    [],
+  );
+  assert.equal(Object.hasOwn(desktopPackage, "packageManager"), false);
+  assert.match(workspace, /^packages:\r?\n  - apps\/desktop$/mu);
+  assert.match(workspace, /^storeDir: work\/pnpm-store$/mu);
+  assert.match(lockfile, /^  apps\/desktop:$/mu);
+  assert.match(lockfile, /^    devDependencies:$/mu);
+  await assert.rejects(read("apps/desktop/pnpm-lock.yaml"), (error) => error.code === "ENOENT");
+  await assert.rejects(
+    read("apps/desktop/pnpm-workspace.yaml"),
+    (error) => error.code === "ENOENT",
+  );
+
+  const workflowDirectory = path.join(root, ".github", "workflows");
+  for (const name of (await readdir(workflowDirectory)).filter((entry) => entry.endsWith(".yml"))) {
+    const workflow = await read(`.github/workflows/${name}`);
+    assert.doesNotMatch(workflow, /cache-dependency-path: apps\/desktop\/pnpm-lock\.yaml/u);
+    assert.doesNotMatch(
+      workflow,
+      /pnpm install --frozen-lockfile\r?\n\s+working-directory: apps\/desktop/u,
+    );
   }
 });
 

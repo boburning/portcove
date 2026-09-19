@@ -38,6 +38,112 @@ export const qualificationPlatforms = Object.freeze([
   "windows-x86_64",
 ]);
 
+function withNodeTestCompanions(files) {
+  return new Set(
+    files.flatMap((file) =>
+      file.endsWith(".mjs") && !file.endsWith(".test.mjs")
+        ? [file, file.replace(/\.mjs$/u, ".test.mjs")]
+        : [file],
+    ),
+  );
+}
+
+const protectedPolicyDocuments = new Set([
+  "AGENTS.md",
+  "SECURITY.md",
+  "docs/CONTRIBUTION-CONVENTIONS.md",
+  "docs/DEVELOPMENT-TOOLS.md",
+  "docs/PROJECT-GOVERNANCE.md",
+  "docs/QUALITY.md",
+  "docs/REPOSITORY-SETTINGS.md",
+  "docs/RELEASING.md",
+  "docs/DELIVERY.md",
+  "docs/UPDATER-TRUST.md",
+]);
+
+const protectedPolicyFiles = withNodeTestCompanions([
+  ".config/nextest.toml",
+  ".github/fast-host-policy.json",
+  ".github/qualification-coverage.json",
+  ".github/repository-ruleset.json",
+  ".github/repository-security.json",
+  "scripts/audit.mjs",
+  "scripts/check-child-process-policy.mjs",
+  "scripts/check-ci-prose.mjs",
+  "scripts/ci-result-gate.mjs",
+  "scripts/local-validation.mjs",
+  "scripts/qualification-coverage.mjs",
+  "scripts/repository-settings.mjs",
+  "scripts/run-rust-tests.mjs",
+  "scripts/select-ci-plan.mjs",
+  "scripts/select-fast-host.mjs",
+  "scripts/validation-plan.mjs",
+  "scripts/workflow-provenance.mjs",
+]);
+
+// This is the maintained inventory of executable release, packaging, signing,
+// qualification, and updater authorities. Node contract tests are protected
+// with their implementations so a gate cannot weaken its own required proof.
+const releaseSecurityFiles = withNodeTestCompanions([
+  ".github/release.yml",
+  ".agents/skills/portcove-port-qualification/SKILL.md",
+  ".agents/skills/portcove-release-validation/SKILL.md",
+  "apps/desktop/scripts/prepare-release-version.mjs",
+  "apps/desktop/scripts/release-version-policy.mjs",
+  "crates/portcove-core/src/catalog_store.rs",
+  "crates/portcove-core/src/catalog_update.rs",
+  "crates/portcove-core/src/signed_catalog.rs",
+  "crates/portcove-core/src/signed_catalog_tests.rs",
+  "docs/DEFINITION-DELIVERY.md",
+  "docs/SIGNED-CATALOG.md",
+  "docs/UPGRADING.md",
+  "scripts/check-release-metadata.mjs",
+  "scripts/finalize-release-assets.mjs",
+  "scripts/generate-release-downloads.mjs",
+  "scripts/package-cli.ps1",
+  "scripts/package-local.ps1",
+  "scripts/qualification-report.mjs",
+  "scripts/reconcile-release-assets.mjs",
+  "scripts/reconstruct-application-update-records.mjs",
+  "scripts/rehearse-updater-artifacts.ps1",
+  "scripts/release-package-policy.mjs",
+  "scripts/release-path-safety.mjs",
+  "scripts/release-result-gate.mjs",
+  "scripts/release-coordinator.mjs",
+  "scripts/release-preflight.ps1",
+  "scripts/release-workflow.test.mjs",
+  "scripts/run-windows-qualification.ps1",
+  "scripts/select-release-channel.mjs",
+  "scripts/sign-catalog.mjs",
+  "scripts/smoke-test-cli-archive.ps1",
+  "scripts/source-provenance-audit.mjs",
+  "scripts/test-linux-package-ownership.sh",
+  "scripts/test-windows-installer.ps1",
+  "scripts/updater-artifact-inventory.mjs",
+  "scripts/verify-macos-release.ps1",
+  "scripts/windows-qualification-session.ps1",
+  "scripts/windows-qualification-session.integration.test.mjs",
+  "scripts/windows-qualification-session.test.mjs",
+  "scripts/write-release-checksums.mjs",
+  "scripts/write-windows-qualification-build.mjs",
+]);
+
+const ordinaryGithubFiles = new Set([
+  ".github/dependabot.yml",
+  ".github/pr-conventions.json",
+  ".github/roadmap.json",
+]);
+
+function explicitPlatformOwnership(file) {
+  const platforms = [];
+  if (/(?:^|[/_.-])windows(?:[/_.-]|$)|\.msi$/u.test(file)) platforms.push("windows-x86_64");
+  if (/(?:^|[/_.-])(?:linux|appimage|steam-deck)(?:[/_.-]|$)/u.test(file))
+    platforms.push("linux-x86_64");
+  if (/(?:^|[/_.-])macos(?:[/_.-]|$)|\.dmg$/u.test(file))
+    platforms.push("macos-aarch64", "macos-x86_64");
+  return platforms;
+}
+
 function normalizedPath(value) {
   if (
     typeof value !== "string" ||
@@ -63,18 +169,29 @@ function classifyPath(file) {
   const reasons = [];
   let qualificationRequired = false;
 
-  const platformMatches = [];
-  if (/(?:windows|\.msi\b)/iu.test(file)) platformMatches.push("windows-x86_64");
-  if (/(?:linux|appimage|steam-deck)/iu.test(file)) platformMatches.push("linux-x86_64");
-  if (/(?:macos|\.dmg\b)/iu.test(file)) platformMatches.push("macos-aarch64", "macos-x86_64");
-  const hasPlatformSignal =
-    platformMatches.length > 0 || /(?:^|[/_-])platform(?:[/_-]|\.|$)/iu.test(file);
+  const platformMatches = explicitPlatformOwnership(file);
+  const hasPlatformSignal = platformMatches.length > 0;
   const affectedPlatforms = platformMatches.length > 0 ? platformMatches : qualificationPlatforms;
-  const trustedPolicyScript =
-    file.startsWith("scripts/") &&
-    /^scripts\/(?:audit|bootstrap-quality-tools|check-child-process-policy|check-ci-prose|check-rust-architecture|ci|dependency-automation|desktop-build-cache|local-validation|pr-conventions|repository-settings|run-(?:actionlint|fallow|hawk|oxfmt|oxlint|powershell-lint|rscheck|rust-tests|semdup)|select-ci-plan|select-fast-host|test-duration-reporter|tool-cache|validation-plan|workflow-provenance)(?:\.|-)/u.test(
-      file,
-    );
+  const inertGithubFile =
+    file.startsWith(".github/ISSUE_TEMPLATE/") ||
+    file === ".github/PULL_REQUEST_TEMPLATE.md" ||
+    file === ".github/CODEOWNERS";
+  const protectedGithubAutomation =
+    file.startsWith(".github/workflows/") || file.startsWith(".github/actions/");
+  const protectedPolicy =
+    protectedPolicyDocuments.has(file) ||
+    protectedPolicyFiles.has(file) ||
+    protectedGithubAutomation ||
+    (file.startsWith(".github/") &&
+      !inertGithubFile &&
+      !ordinaryGithubFiles.has(file) &&
+      !releaseSecurityFiles.has(file));
+  const releaseSecurity =
+    file.startsWith("release/") ||
+    file.startsWith("release-metadata/") ||
+    releaseSecurityFiles.has(file) ||
+    file.startsWith("crates/portcove-release-tools/") ||
+    file.startsWith("apps/desktop/src-tauri/src/application_update_");
 
   const match = (condition, area, selectedGroups, reason, selectedPlatforms = []) => {
     if (!condition) return;
@@ -91,9 +208,23 @@ function classifyPath(file) {
     "documentation-contract",
   );
   match(
+    inertGithubFile,
+    "documentation",
+    ["catalog", "rust-quality"],
+    "inert-github-document-or-template",
+  );
+  match(
+    ordinaryGithubFiles.has(file),
+    file === ".github/dependabot.yml" ? "dependency" : "documentation",
+    file === ".github/dependabot.yml"
+      ? ["dependency-review", "rust-quality"]
+      : ["catalog", "rust-quality"],
+    "ordinary-github-maintenance-contract",
+  );
+  match(
     file.startsWith("apps/desktop/src/") ||
       file.startsWith("apps/desktop/public/") ||
-      /^apps\/desktop\/(?:index\.html|package\.json|pnpm-lock\.yaml|tsconfig.*\.json|vite\.config\.[cm]?ts|stylelint\.config\.mjs)$/u.test(
+      /^apps\/desktop\/(?:index\.html|package\.json|tsconfig.*\.json|vite\.config\.[cm]?ts|stylelint\.config\.mjs)$/u.test(
         file,
       ),
     "frontend",
@@ -143,7 +274,7 @@ function classifyPath(file) {
     "rust-dependency-input",
   );
   match(
-    /(?:^|\/)(?:pnpm-workspace\.yaml|rust-toolchain\.toml|dependabot\.yml|renovate\.json|aqua\.yaml|aqua-checksums\.json|quality-tools\.json|tool-bootstrap\.json)$/u.test(
+    /(?:^|\/)(?:pnpm-workspace\.yaml|rust-toolchain\.toml|renovate\.json|aqua\.yaml|aqua-checksums\.json|quality-tools\.json|tool-bootstrap\.json)$/u.test(
       file,
     ) || [".node-version", ".aqua-version", ".config/powershell-resources.psd1"].includes(file),
     "dependency",
@@ -159,18 +290,14 @@ function classifyPath(file) {
     affectedPlatforms,
   );
   match(
-    file.startsWith("release/") ||
-      /(?:release|updater|package(?!\.json)|installer|qualification|checksum|channel|provenance|attest|sbom|security|sign(?:ing)?)/iu.test(
-        file,
-      ),
+    releaseSecurity,
     "release-security",
     fastGroups,
     "release-or-security-boundary",
     qualificationPlatforms,
   );
   match(
-    file.startsWith(".github/") ||
-      trustedPolicyScript ||
+    protectedPolicy ||
       [
         ".editorconfig",
         ".gitattributes",
@@ -187,10 +314,8 @@ function classifyPath(file) {
         "apps/desktop/.fallowrc.json",
         "apps/desktop/eslint.config.mjs",
         "apps/desktop/stylelint.config.mjs",
-        ".config/nextest.toml",
       ].includes(file) ||
-      file === "justfile" ||
-      file === "AGENTS.md",
+      file === "justfile",
     "policy",
     fastGroups,
     "protected-policy-or-automation",
@@ -221,6 +346,10 @@ function classifyPath(file) {
     reasons: [...new Set(reasons)].sort(),
     unknown: areas.size === 0,
   };
+}
+
+export function validationOwnershipForPath(input) {
+  return classifyPath(normalizedPath(input));
 }
 
 function stableJson(value) {

@@ -1227,6 +1227,8 @@ pub enum OperationEventKind {
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct CapabilityDocument {
     pub schema_version: u32,
+    /// Schema used by JSONL operation events, independently from result envelopes.
+    pub operation_event_schema_version: u32,
     pub product: String,
     pub product_version: String,
     pub commands: Vec<String>,
@@ -1244,6 +1246,7 @@ impl CapabilityDocument {
     pub fn current() -> Self {
         Self {
             schema_version: crate::API_SCHEMA_VERSION,
+            operation_event_schema_version: crate::OPERATION_EVENT_SCHEMA_VERSION,
             product: "Portcove".into(),
             product_version: env!("CARGO_PKG_VERSION").into(),
             commands: vec![
@@ -1281,6 +1284,7 @@ impl CapabilityDocument {
                 "exec".into(),
                 "launch".into(),
                 "launch.show".into(),
+                "launch.recover".into(),
                 "capabilities".into(),
                 "schema".into(),
             ],

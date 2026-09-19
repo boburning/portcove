@@ -88,6 +88,34 @@ export type ArtworkImageFormat = "png" | "jpeg";
 export type OutputArtworkAssets = LocalArtworkAsset[];
 export type ArtworkAvailability = "fallback" | "available" | "unavailable";
 export type ArtworkSlot = "cover" | "detail";
+/**
+ * The source core resolves for one slot before a client attempts to transport
+ * or render it. A client can still display the generated fallback if a
+ * resolved local import cannot be decoded or presented safely.
+ */
+export type ArtworkResolvedSource =
+  | {
+      asset_sha256: string;
+      kind: "local_import";
+      [k: string]: unknown;
+    }
+  | {
+      kind: "generated_fallback";
+      [k: string]: unknown;
+    };
+/**
+ * Public reviewed backup actions; persisted manifests remain an implementation detail.
+ *
+ * ```
+ * use portcove_core::{BackupAction, PortcoveService};
+ * let action = BackupAction::Restore;
+ * let _ = action;
+ * ```
+ *
+ * ```compile_fail,E0432
+ * use portcove_core::BackupManifest;
+ * ```
+ */
 export type BackupAction = "restore" | "delete";
 export type BackupProblemKind =
   | "missing_manifest"
@@ -405,6 +433,9 @@ export type ApplicationUpdateRequestedAction = "safe-exit" | "restart-to-apply";
 export type ApplicationUpdateObservedTermination =
   "normal-exit" | "restart-to-apply" | "crash" | "os-shutdown" | "steam-stop";
 export type ApplicationUpdateRecoveryArea = "schedule" | "staging" | "apply";
+export type SteamEntryChangeKind = "add" | "repair" | "remove" | "unchanged";
+export type SteamEntryOperation = "add_or_repair" | "remove";
+export type SteamClientState = "closed" | "running" | "unknown";
 
 export interface TransportOutputs {
   about: OutputAbout;
@@ -504,6 +535,8 @@ export interface TransportOutputs {
   desktop_preparation_cleanup_preview: OutputPreparationCleanupPreview;
   desktop_reconcile_outcome: OutputReconcileBatchOutcome;
   desktop_source_verification_outcome: OutputSourceBatchOutcome;
+  desktop_steam_entry_apply_result: OutputDesktopSteamEntryApplyResult;
+  desktop_steam_entry_review: OutputDesktopSteamEntryReview;
   desktop_update_check_outcome: OutputCheckBatchOutcome;
   desktop_workspace_snapshot: OutputDesktopWorkspaceSnapshot;
 }
@@ -757,7 +790,9 @@ export interface OutputArtworkCacheClear {
 export interface OutputArtworkState {
   availability: ArtworkAvailability;
   choice: ArtworkChoice;
+  generated_fallback: GeneratedArtworkFallback;
   reason: string | null;
+  resolved_source: ArtworkResolvedSource;
   selection: LocalArtworkAsset | null;
   [k: string]: unknown;
 }
@@ -766,6 +801,12 @@ export interface ArtworkChoice {
   port_id: string;
   revision: number;
   slot: ArtworkSlot;
+}
+export interface GeneratedArtworkFallback {
+  identity: string;
+  initials: string;
+  palette_index: number;
+  style_version: number;
 }
 export interface OutputArtworkThumbnail {
   asset_sha256: string;
@@ -816,6 +857,10 @@ export interface OutputCapabilities {
   engine_templates: EngineTemplateCapability[];
   failure_isolated_batches: string[];
   machine_formats: string[];
+  /**
+   * Schema used by JSONL operation events, independently from result envelopes.
+   */
+  operation_event_schema_version: number;
   platforms: Platform[];
   port_operation_locking: string;
   product: string;
@@ -2116,6 +2161,40 @@ export interface OutputDesktopCliCommandContext {
 export interface OutputDesktopLaunchResult {
   processId: number | null;
   sessionId: string;
+  [k: string]: unknown;
+}
+export interface OutputDesktopSteamEntryApplyResult {
+  backup_path: string | null;
+  changes: SteamEntryChange[];
+  plan_sha256: string;
+  shortcuts_path: string;
+  wrote: boolean;
+  [k: string]: unknown;
+}
+export interface SteamEntryChange {
+  display_name: string | null;
+  kind: SteamEntryChangeKind;
+  port_id: string;
+  [k: string]: unknown;
+}
+export interface OutputDesktopSteamEntryReview {
+  changes: SteamEntryChange[];
+  cli_path: string | null;
+  cli_product_version: string | null;
+  cli_sha256: string | null;
+  display_name: string;
+  library_root: string;
+  operation: SteamEntryOperation;
+  plan_sha256: string;
+  port_id: string;
+  proposed_sha256: string;
+  schema_version: number;
+  shortcuts_path: string;
+  snapshot_sha256: string | null;
+  steam_client_state: SteamClientState;
+  steam_root: string;
+  steam_user_id: string;
+  writes_required: boolean;
   [k: string]: unknown;
 }
 export interface OutputDesktopWorkspaceSnapshot {

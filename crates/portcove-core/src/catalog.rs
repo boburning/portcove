@@ -829,7 +829,7 @@ impl Catalog {
                                 | AdapterKind::LibultrashipPortable
                                 | AdapterKind::GeneratedCache
                         ) && filename.ends_with(".z64")
-                            && source_is_persistent
+                            && (source_is_persistent || crate::preparation::managed(port))
                     }
                     RuntimeSourceMaterialization::Copy => {
                         (port.adapter == AdapterKind::StagedSourcePortable && source_is_persistent)
@@ -1052,7 +1052,9 @@ impl Catalog {
                 || !port.setup_arguments.is_empty()
                 || !port.setup_output_paths.is_empty()
                 || port.setup_marker.is_some();
-            if port.adapter == AdapterKind::UpstreamManagedSetup {
+            if port.adapter == AdapterKind::UpstreamManagedSetup
+                || (port.adapter == AdapterKind::LibultrashipPortable && has_setup_contract)
+            {
                 let valid_marker = port.setup_marker.as_ref().is_some_and(|marker| {
                     !marker.is_empty()
                         && Path::new(marker)
@@ -1069,18 +1071,28 @@ impl Catalog {
                                     .all(|hint| is_safe_executable_hint(hint, *platform))
                         })
                 });
-                let upstream_validated_source = port.source_profile.as_ref().is_some_and(|id| {
-                    self.document.source_profiles.iter().any(|profile| {
-                        profile.id == *id && profile.kind == SourceKind::UpstreamValidatedDisc
-                    })
+                let source_kind = port.source_profile.as_ref().and_then(|id| {
+                    self.document
+                        .source_profiles
+                        .iter()
+                        .find(|profile| profile.id == *id)
+                        .map(|profile| profile.kind)
                 });
-                if !valid_marker
-                    || !valid_hints
-                    || port.setup_arguments.is_empty()
-                    || !upstream_validated_source
-                    || port.runtime_source_materialization
-                        != Some(RuntimeSourceMaterialization::Ps2Iso)
-                {
+                let adapter_contract = match port.adapter {
+                    AdapterKind::UpstreamManagedSetup => {
+                        !port.setup_arguments.is_empty()
+                            && source_kind == Some(SourceKind::UpstreamValidatedDisc)
+                            && port.runtime_source_materialization
+                                == Some(RuntimeSourceMaterialization::Ps2Iso)
+                    }
+                    AdapterKind::LibultrashipPortable => {
+                        source_kind == Some(SourceKind::File)
+                            && port.runtime_source_materialization
+                                == Some(RuntimeSourceMaterialization::N64BigEndian)
+                    }
+                    _ => false,
+                };
+                if !valid_marker || !valid_hints || !adapter_contract {
                     return Err(PortcoveError::usage(format!(
                         "{} has an incomplete upstream-managed setup contract",
                         port.id
@@ -1291,7 +1303,7 @@ mod tests {
         let source_catalog = migrated.source_catalog().expect("schema-2 authority");
         assert_eq!(
             source_catalog.identities.len(),
-            legacy.document().source_profiles.len() + 7
+            legacy.document().source_profiles.len() + 8
         );
         let projected_legacy_profiles = migrated
             .document()
@@ -1306,6 +1318,7 @@ mod tests {
                     "duke-nukem-zero-hour",
                     "ape-escape-psx",
                     "mega-man-x5-psx",
+                    "paperboat-paper-mario-us",
                 ]
                 .contains(&profile.id.as_str())
             })
@@ -1454,6 +1467,7 @@ mod tests {
                     "duke-nukem-zero-hour-recompiled",
                     "ape-escape-recompiled",
                     "mega-man-x5-recompiled",
+                    "paperboat",
                 ]
                 .contains(&port.id.as_str())
             })
@@ -1630,7 +1644,7 @@ mod tests {
 
         assert!(document.get("source_catalog").is_some());
         assert!(document.get("source_profiles").is_none());
-        assert_eq!(document["ports"].as_array().unwrap().len(), 74);
+        assert_eq!(document["ports"].as_array().unwrap().len(), 75);
     }
 
     #[test]
@@ -1877,6 +1891,7 @@ mod tests {
                     "duke-nukem-zero-hour",
                     "ape-escape-psx",
                     "mega-man-x5-psx",
+                    "paperboat-paper-mario-us",
                 ]
                 .contains(&profile.id.as_str())
             })
@@ -4323,5 +4338,36 @@ mod tests {
             Some(RuntimeSourceMaterialization::N64BigEndian)
         );
         assert_eq!(port.persistent_paths, ["Paper Mario ReCut/user"]);
+    }
+
+    #[test]
+    fn paperboat_keeps_generated_game_data_separate_from_player_state() {
+        let catalog = Catalog::embedded().expect("catalog should load");
+        let profile = catalog.source_profile("paperboat-paper-mario-us").unwrap();
+        assert_eq!(
+            profile.accepted_extensions,
+            ["n64".to_owned(), "v64".to_owned(), "z64".to_owned()]
+        );
+        assert_eq!(
+            profile.accepted_sha1,
+            ["3837f44cda784b466c9a2d99df70d77c322b97a0"]
+        );
+
+        let port = catalog.port("paperboat").unwrap();
+        assert_eq!(
+            port.runtime_source_materialization,
+            Some(RuntimeSourceMaterialization::N64BigEndian)
+        );
+        assert_eq!(port.setup_marker.as_deref(), Some("pm64.o2r"));
+        assert_eq!(port.setup_output_paths, ["pm64.o2r", "torch.hash.yml"]);
+        assert!(crate::preparation::managed(port));
+        assert!(!port.persistent_paths.contains(&"pm64.o2r".into()));
+        assert!(port.persistent_paths.contains(&"saves".into()));
+        crate::preparation::validate_output_contract(port).unwrap();
+
+        let mut overlapping = port.clone();
+        overlapping.setup_output_paths = vec![overlapping.persistent_paths[0].clone()];
+        overlapping.setup_marker = Some(overlapping.persistent_paths[0].clone());
+        assert!(crate::preparation::validate_output_contract(&overlapping).is_err());
     }
 }

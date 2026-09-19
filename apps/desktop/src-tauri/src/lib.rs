@@ -36,6 +36,8 @@ mod output_location;
 mod preparation;
 mod removal;
 mod source_removal;
+pub mod steam_entries;
+pub mod steam_entry_commands;
 mod transport;
 
 use transport::{
@@ -59,15 +61,15 @@ use portcove_core::{
     HostPreferenceStore, HostToolProbeResult, HostToolStatus, IdentifiedLaunchRequest, InstallPlan,
     InstallRecord, LaunchStdio, Library, LibraryChangeObserver, LibraryMetadataFile,
     LibrarySelection, LibrarySelectionSource, OperationCoordinator, OperationEvent,
-    OperationResult, PortStatus, PortcoveError, PortcoveService, ReconcileResult, ReleaseChannel,
-    ReleaseProvider, SourceDiscoveryLimits, SourceImportMode, SourceImportPlan, SourceImportResult,
+    OperationResult, PortStatus, PortcoveError, PortcoveService, ReleaseChannel, ReleaseProvider,
+    SourceDiscoveryLimits, SourceImportMode, SourceImportPlan, SourceImportResult,
     SourceInboxPaths, SourceInboxResolution, SourceInspectionReport, SourceIntakeInspection,
-    SourceRecord, SourceRelinkPlan, SourceVerification, UpdateCheck, UpdatePolicy,
-    VerificationReport,
+    SourceRecord, SourceRelinkPlan, UpdateCheck, UpdatePolicy, VerificationReport,
 };
 use serde::{Deserialize, Serialize};
-use tauri::{Emitter, Manager};
+use tauri::Manager;
 use tauri_plugin_dialog::{DialogExt, MessageDialogButtons, MessageDialogKind};
+use transport::{DESKTOP_EVENT_LIBRARY_CHANGED, DESKTOP_EVENT_OPERATION, emit_desktop_event};
 
 type LaunchObservation = (Library, String);
 type LaunchObserver =
@@ -372,7 +374,8 @@ fn emit_operation(app: &tauri::AppHandle, event: OperationEvent) {
         event = ?event.event,
         "operation event"
     );
-    let _ = app.emit("portcove://operation", event);
+    let _ =
+        emit_desktop_event::<portcove_core::OperationEvent>(app, DESKTOP_EVENT_OPERATION, event);
 }
 
 #[tauri::command]
@@ -572,18 +575,6 @@ async fn create_backup(
 }
 
 #[tauri::command]
-async fn verify_source(
-    state: tauri::State<'_, DesktopState>,
-    profile_id: String,
-) -> DesktopResult<SourceVerification> {
-    let state = state.inner().clone();
-    blocking_service(state, move |service| {
-        service.verify_source(&profile_id).map_err(Into::into)
-    })
-    .await
-}
-
-#[tauri::command]
 async fn inspect_source(
     state: tauri::State<'_, DesktopState>,
     profile_id: String,
@@ -768,61 +759,6 @@ async fn check_installed(
         emit_operation(
             &app,
             operation.finished(if success {
-                OperationResult::Succeeded
-            } else {
-                OperationResult::Failed
-            }),
-        );
-        Ok(outcomes)
-    })
-    .await
-}
-
-#[tauri::command]
-async fn reconcile_installed(
-    app: tauri::AppHandle,
-    state: tauri::State<'_, DesktopState>,
-) -> DesktopResult<Vec<BatchOutcome<ReconcileResult>>> {
-    let state = state.inner().clone();
-    blocking_async_service(state, move |service| async move {
-        let installed = service
-            .statuses()?
-            .into_iter()
-            .filter(|status| status.active.is_some())
-            .collect::<Vec<_>>();
-        let total = installed.len() as u64;
-        let operation = OperationCoordinator::new("reconcile_installed", None);
-        emit_operation(&app, operation.started());
-        let mut outcomes = Vec::with_capacity(installed.len());
-        for (index, status) in installed.into_iter().enumerate() {
-            let port_id = status.port_id;
-            let result = service
-                .reconcile(&port_id, |event| {
-                    emit_operation(&app, event);
-                })
-                .await;
-            outcomes.push(match result {
-                Ok(result) => BatchOutcome {
-                    port_id,
-                    ok: true,
-                    result: Some(result),
-                    error: None,
-                },
-                Err(error) => BatchOutcome {
-                    port_id,
-                    ok: false,
-                    result: None,
-                    error: Some(error.into()),
-                },
-            });
-            emit_operation(
-                &app,
-                operation.progress("Applying update policies", index as u64 + 1, Some(total)),
-            );
-        }
-        emit_operation(
-            &app,
-            operation.finished(if outcomes.iter().all(|outcome| outcome.ok) {
                 OperationResult::Succeeded
             } else {
                 OperationResult::Failed
@@ -1099,33 +1035,6 @@ async fn install_port(
 }
 
 #[tauri::command]
-async fn update_port(
-    app: tauri::AppHandle,
-    state: tauri::State<'_, DesktopState>,
-    port_id: String,
-    source: Option<PathBuf>,
-    bios: Option<PathBuf>,
-    stage: bool,
-) -> DesktopResult<InstallRecord> {
-    let state = state.inner().clone();
-    blocking_async_service(state, move |service| async move {
-        service
-            .update(
-                &port_id,
-                source.as_deref(),
-                bios.as_deref(),
-                !stage,
-                |event: OperationEvent| {
-                    emit_operation(&app, event);
-                },
-            )
-            .await
-            .map_err(Into::into)
-    })
-    .await
-}
-
-#[tauri::command]
 async fn verify_port(
     state: tauri::State<'_, DesktopState>,
     port_id: String,
@@ -1253,7 +1162,7 @@ fn observe_launch_completion(
                         Err(_) => LaunchObservationState::Retry,
                     });
                 if completed {
-                    let _ = app.emit("portcove://library-changed", ());
+                    let _ = emit_desktop_event::<()>(&app, DESKTOP_EVENT_LIBRARY_CHANGED, ());
                 }
             }
         });
@@ -1986,6 +1895,37 @@ fn reconcile_application_update_after_healthy_startup() {
     }
 }
 
+const MAIN_WINDOW_INVOKE_REJECTION: &str =
+    "Portcove commands are available only to the main window";
+
+fn dispatch_main_window<T, F>(label: &str, invocation: T, dispatch: F) -> Result<bool, T>
+where
+    F: FnOnce(T) -> bool,
+{
+    if label == "main" {
+        Ok(dispatch(invocation))
+    } else {
+        Err(invocation)
+    }
+}
+
+fn main_window_invoke_handler<R, F>(handler: F) -> impl Fn(tauri::ipc::Invoke<R>) -> bool
+where
+    R: tauri::Runtime,
+    F: Fn(tauri::ipc::Invoke<R>) -> bool,
+{
+    move |invoke| {
+        let label = invoke.message.webview_ref().label().to_owned();
+        match dispatch_main_window(&label, invoke, &handler) {
+            Ok(handled) => handled,
+            Err(invoke) => {
+                invoke.resolver.reject(MAIN_WINDOW_INVOKE_REJECTION);
+                true
+            }
+        }
+    }
+}
+
 pub fn run() {
     #[cfg(any(windows, target_os = "linux"))]
     report_application_update_qualification_stage("process entry");
@@ -2040,7 +1980,7 @@ pub fn run() {
             generation: std::sync::Arc::new(std::sync::atomic::AtomicU64::new(1)),
             launch_observer: std::sync::Arc::new(std::sync::Mutex::new(None)),
         })
-        .invoke_handler(tauri::generate_handler![
+        .invoke_handler(main_window_invoke_handler(tauri::generate_handler![
             get_bootstrap_status,
             application_update_commands::check_application_update,
             application_update_commands::download_application_update,
@@ -2057,6 +1997,8 @@ pub fn run() {
             application_update_status::get_application_update_status,
             application_update_status::recover_application_update_state,
             cli_context::get_cli_command_context,
+            steam_entry_commands::preview_steam_entry,
+            steam_entry_commands::apply_steam_entry,
             library_selection::get_library_identity,
             library_selection::set_default_library,
             library_selection::reset_default_library,
@@ -2104,7 +2046,6 @@ pub fn run() {
             artwork::reset_artwork,
             backup_review::restore_backup,
             backup_review::delete_backup,
-            verify_source,
             inspect_source,
             inspect_source_intake,
             plan_source_relink,
@@ -2112,7 +2053,6 @@ pub fn run() {
             verify_sources,
             check_port,
             check_installed,
-            reconcile_installed,
             add_source,
             discover_sources,
             get_source_inbox_paths,
@@ -2125,7 +2065,6 @@ pub fn run() {
             set_channel,
             set_policy,
             install_port,
-            update_port,
             verify_port,
             activate_port,
             rollback_port,
@@ -2154,7 +2093,7 @@ pub fn run() {
             library_transfer::move_library,
             library_transfer::recover_library_move,
             report_frontend_error,
-        ])
+        ]))
         .setup(|app| {
             #[cfg(any(windows, target_os = "linux"))]
             report_application_update_qualification_stage("Tauri setup");
@@ -2206,6 +2145,24 @@ pub fn run() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn invoke_context_gate_rejects_non_main_windows_before_dispatch() {
+        let mut dispatches = 0;
+        let secondary = dispatch_main_window("secondary", "invocation", |_| {
+            dispatches += 1;
+            true
+        });
+        assert_eq!(secondary, Err("invocation"));
+        assert_eq!(dispatches, 0);
+
+        let main = dispatch_main_window("main", "invocation", |_| {
+            dispatches += 1;
+            true
+        });
+        assert_eq!(main, Ok(true));
+        assert_eq!(dispatches, 1);
+    }
 
     #[test]
     fn storage_commands_reject_a_stale_library_generation() {

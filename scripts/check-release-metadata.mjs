@@ -1,10 +1,13 @@
 import { createHash } from "node:crypto";
+import { execFile } from "node:child_process";
 import { access, readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { promisify } from "node:util";
 
 const scriptPath = fileURLToPath(import.meta.url);
 const projectRoot = path.resolve(path.dirname(scriptPath), "..");
+const execFileAsync = promisify(execFile);
 const brandManifestRelativePath = "apps/desktop/assets/brand/manifest.json";
 const modelManifestRelativePath = "apps/desktop/assets/brand/models/v2/model-manifest.json";
 const semverPattern =
@@ -56,6 +59,11 @@ const requiredBundleIcons = [
   "icons/icon.ico",
 ];
 
+const qualificationOnlyDesktopFeatures = [
+  "application-update-qualification",
+  "qualification-fixtures",
+];
+
 export function parseWorkspacePackage(toml) {
   const table = toml.match(/(?:^|\r?\n)\[workspace\.package\]\r?\n([\s\S]*?)(?=\r?\n\[|$)/)?.[1];
   if (!table) throw new Error("Cargo.toml has no [workspace.package] table");
@@ -65,6 +73,97 @@ export function parseWorkspacePackage(toml) {
     repository: stringValue("repository"),
     license: stringValue("license"),
   };
+}
+
+function featureReferences(definitions, roots) {
+  const pending = [...roots];
+  const references = new Set();
+  while (pending.length > 0) {
+    const reference = pending.pop();
+    if (references.has(reference)) continue;
+    references.add(reference);
+    if (Object.hasOwn(definitions, reference)) pending.push(...definitions[reference]);
+  }
+  return references;
+}
+
+export function parseDesktopCargoFeatures(cargoMetadata, desktopCargoPath) {
+  if (!Array.isArray(cargoMetadata?.packages)) {
+    throw new Error("Cargo metadata has no package inventory");
+  }
+  const resolvedDesktopCargoPath = path.resolve(desktopCargoPath);
+  const desktopPackages = cargoMetadata.packages.filter(
+    (candidate) => path.resolve(candidate.manifest_path ?? "") === resolvedDesktopCargoPath,
+  );
+  if (desktopPackages.length !== 1) {
+    throw new Error("Cargo metadata must contain exactly one Desktop package");
+  }
+  const desktopPackage = desktopPackages[0];
+  const corePackages = cargoMetadata.packages.filter(
+    (candidate) => candidate.name === "portcove-core",
+  );
+  if (corePackages.length !== 1) {
+    throw new Error("Cargo metadata must contain exactly one portcove-core package");
+  }
+  const corePackage = corePackages[0];
+  const corePackageRoot = path.dirname(path.resolve(corePackage.manifest_path));
+  const coreDependencies = (desktopPackage.dependencies ?? []).filter(
+    (dependency) =>
+      dependency.name === "portcove-core" &&
+      dependency.kind === null &&
+      dependency.path !== undefined &&
+      path.resolve(dependency.path) === corePackageRoot,
+  );
+  if (coreDependencies.length === 0 || coreDependencies.some((dependency) => dependency.optional)) {
+    throw new Error("Desktop must retain a non-optional production dependency on portcove-core");
+  }
+
+  const definitions = desktopPackage.features ?? {};
+  const coreDefinitions = corePackage.features ?? {};
+  const coreQualificationReferences = new Set();
+  const alwaysEnabledCoreFeatures = new Set();
+  for (const dependency of coreDependencies) {
+    const dependencyName = dependency.rename ?? dependency.name;
+    coreQualificationReferences.add(`${dependencyName}/qualification-fixtures`);
+    coreQualificationReferences.add(`${dependencyName}?/qualification-fixtures`);
+    for (const feature of featureReferences(coreDefinitions, dependency.features ?? [])) {
+      alwaysEnabledCoreFeatures.add(feature);
+    }
+    if (dependency.uses_default_features !== false) {
+      for (const feature of featureReferences(coreDefinitions, coreDefinitions.default ?? [])) {
+        alwaysEnabledCoreFeatures.add(feature);
+      }
+    }
+  }
+  return {
+    names: Object.keys(definitions),
+    default: definitions.default ?? [],
+    definitions,
+    coreQualificationReferences: [...coreQualificationReferences],
+    alwaysEnabledCoreFeatures: [...alwaysEnabledCoreFeatures],
+  };
+}
+
+export async function loadDesktopCargoFeatures(desktopCargoPath, { locked = true } = {}) {
+  const arguments_ = ["metadata"];
+  if (locked) arguments_.push("--locked");
+  arguments_.push("--no-deps", "--format-version", "1", "--manifest-path", desktopCargoPath);
+  const { stdout } = await execFileAsync("cargo", arguments_, {
+    cwd: path.dirname(desktopCargoPath),
+    windowsHide: true,
+    maxBuffer: 8 * 1024 * 1024,
+  });
+  let cargoMetadata;
+  try {
+    cargoMetadata = JSON.parse(stdout);
+  } catch {
+    throw new Error("cargo metadata did not return valid JSON");
+  }
+  return parseDesktopCargoFeatures(cargoMetadata, desktopCargoPath);
+}
+
+function defaultDesktopFeatureReferences(features) {
+  return featureReferences(features?.definitions ?? {}, features?.default ?? []);
 }
 
 function present(values) {
@@ -353,9 +452,9 @@ function validateVersions(metadata, options) {
 
 const metadataRules = [
   (metadata) =>
-    /^pnpm@\d+\.\d+\.\d+$/u.test(metadata.desktopPackage.packageManager ?? "")
+    /^pnpm@\d+\.\d+\.\d+$/u.test(metadata.repositoryPackage.packageManager ?? "")
       ? undefined
-      : "desktop package manager must use an exact pnpm version",
+      : "repository package manager must use an exact pnpm version",
   (metadata) =>
     metadata.cargo.license === "MIT OR Apache-2.0"
       ? undefined
@@ -370,6 +469,51 @@ const metadataRules = [
     metadata.tauri.app?.windows?.[0]?.title === "Portcove"
       ? undefined
       : "Tauri product and primary window names must both be Portcove",
+  (metadata) => {
+    const windows = metadata.tauri.app?.windows;
+    return windows?.length === 1 &&
+      (windows[0].label ?? "main") === "main" &&
+      windows[0].create !== false &&
+      windows[0].url === undefined
+      ? undefined
+      : "Tauri release configuration must define exactly one local main window";
+  },
+  (metadata) => {
+    const capability = metadata.desktopCapability;
+    return capability?.identifier === "default" &&
+      capability.local !== false &&
+      capability.remote === undefined &&
+      JSON.stringify(capability.windows) === JSON.stringify(["main"]) &&
+      (capability.webviews === undefined || capability.webviews.length === 0)
+      ? undefined
+      : "desktop release capability must apply only to the local main window and no independent webviews";
+  },
+  (metadata) =>
+    qualificationOnlyDesktopFeatures.every((feature) =>
+      metadata.desktopCargoFeatures?.names?.includes(feature),
+    )
+      ? undefined
+      : "desktop Cargo features must retain the qualification-only feature declarations",
+  (metadata) => {
+    const defaultReferences = defaultDesktopFeatureReferences(metadata.desktopCargoFeatures);
+    const forbiddenReferences = [
+      ...qualificationOnlyDesktopFeatures,
+      ...(metadata.desktopCargoFeatures?.coreQualificationReferences ?? [
+        "portcove-core/qualification-fixtures",
+      ]),
+    ];
+    const enabledByDefault = forbiddenReferences.filter((feature) =>
+      defaultReferences.has(feature),
+    );
+    if (
+      metadata.desktopCargoFeatures?.alwaysEnabledCoreFeatures?.includes("qualification-fixtures")
+    ) {
+      enabledByDefault.push("portcove-core/qualification-fixtures (dependency declaration)");
+    }
+    return enabledByDefault.length === 0
+      ? undefined
+      : `desktop default features must exclude qualification-only features: ${enabledByDefault.join(", ")}`;
+  },
   (metadata) =>
     metadata.tauri.identifier?.match(/^[a-zA-Z][a-zA-Z0-9.-]+$/)
       ? undefined
@@ -406,16 +550,37 @@ export function validateReleaseMetadata(metadata, options = {}) {
 
 async function collectReleaseMetadata(root = projectRoot) {
   const cargoPath = path.join(root, "Cargo.toml");
+  const repositoryPackagePath = path.join(root, "package.json");
   const desktopPackagePath = path.join(root, "apps", "desktop", "package.json");
+  const desktopCargoPath = path.join(root, "apps", "desktop", "src-tauri", "Cargo.toml");
   const tauriPath = path.join(root, "apps", "desktop", "src-tauri", "tauri.conf.json");
-  const [cargoToml, desktopPackageText, tauriText, brandManifest, modelManifest] =
-    await Promise.all([
-      readFile(cargoPath, "utf8"),
-      readFile(desktopPackagePath, "utf8"),
-      readFile(tauriPath, "utf8"),
-      collectBrandManifest(root),
-      collectModelManifest(root),
-    ]);
+  const capabilityPath = path.join(
+    root,
+    "apps",
+    "desktop",
+    "src-tauri",
+    "capabilities",
+    "default.json",
+  );
+  const [
+    cargoToml,
+    repositoryPackageText,
+    desktopPackageText,
+    desktopCargoFeatures,
+    tauriText,
+    capabilityText,
+    brandManifest,
+    modelManifest,
+  ] = await Promise.all([
+    readFile(cargoPath, "utf8"),
+    readFile(repositoryPackagePath, "utf8"),
+    readFile(desktopPackagePath, "utf8"),
+    loadDesktopCargoFeatures(desktopCargoPath),
+    readFile(tauriPath, "utf8"),
+    readFile(capabilityPath, "utf8"),
+    collectBrandManifest(root),
+    collectModelManifest(root),
+  ]);
   const missingFiles = [];
   await Promise.all(
     requiredProjectFiles.map(async (relativePath) => {
@@ -428,8 +593,11 @@ async function collectReleaseMetadata(root = projectRoot) {
   );
   return {
     cargo: parseWorkspacePackage(cargoToml),
+    repositoryPackage: JSON.parse(repositoryPackageText),
     desktopPackage: JSON.parse(desktopPackageText),
+    desktopCargoFeatures,
     tauri: JSON.parse(tauriText),
+    desktopCapability: JSON.parse(capabilityText),
     missingFiles: missingFiles.sort(),
     brandAssetCount: brandManifest.assetCount,
     brandManifestErrors: brandManifest.errors,

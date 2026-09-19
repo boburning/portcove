@@ -46,6 +46,10 @@ describe("gamepad focus movement", () => {
     expect(navigationDirection(gamepad)).toBe(expected);
   });
 
+  it("treats absent optional controller axes as neutral", () => {
+    expect(navigationDirection(pad([]))).toBeUndefined();
+  });
+
   it("moves spatially through a two-dimensional card grid", () => {
     const rects = [
       { left: 0, top: 0, width: 100, height: 100 },
@@ -59,6 +63,7 @@ describe("gamepad focus movement", () => {
     expect(spatialTargetIndex(rects, 3, "up")).toBe(1);
     expect(spatialTargetIndex(rects, 0, "up")).toBe(-1);
     expect(spatialTargetIndex([], 0, "up")).toBe(-1);
+    expect(spatialTargetIndex(rects, 99, "down")).toBe(0);
   });
 
   it("visits short filter rows before large cards and enters each group at its first control", () => {

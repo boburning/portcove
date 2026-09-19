@@ -1,10 +1,30 @@
-import { existsSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
-import { lstatSync } from "node:fs";
+import {
+  existsSync,
+  lstatSync,
+  mkdirSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { buildValidationPlan, validateValidationPlan } from "./validation-plan.mjs";
+import {
+  buildValidationPlan,
+  validateValidationPlan,
+  validationOwnershipForPath,
+} from "./validation-plan.mjs";
+import {
+  auditRuntime,
+  domainsForPath,
+  fingerprintStage,
+  receiptEnvelope,
+  repositoryInventory,
+  validateReceipt,
+} from "./audit.mjs";
 import { spawnCommand } from "./dev-storage.mjs";
 import { parseRawDiff } from "./select-ci-plan.mjs";
 import { readRustTestImpactMap, selectRustTestImpact } from "./rust-test-impact.mjs";
@@ -63,11 +83,37 @@ const oxfmtExtensions = new Set([
 ]);
 
 const explicitNodeTests = new Map([
+  ["AGENTS.md", ["scripts/repository-settings.test.mjs", "scripts/repository-skills.test.mjs"]],
+  [
+    "CONTRIBUTING.md",
+    ["scripts/repository-settings.test.mjs", "scripts/repository-skills.test.mjs"],
+  ],
+  ["docs/README.md", ["scripts/repository-skills.test.mjs"]],
+  [
+    "docs/CONTRIBUTION-CONVENTIONS.md",
+    ["scripts/repository-settings.test.mjs", "scripts/repository-skills.test.mjs"],
+  ],
+  [
+    "docs/DEVELOPMENT-TOOLS.md",
+    ["scripts/repository-settings.test.mjs", "scripts/repository-skills.test.mjs"],
+  ],
+  ["docs/PROJECT-GOVERNANCE.md", ["scripts/repository-settings.test.mjs"]],
+  ["docs/QUALITY.md", ["scripts/repository-settings.test.mjs"]],
+  ["docs/REPOSITORY-SETTINGS.md", ["scripts/repository-settings.test.mjs"]],
+  ["scripts/local-validation.mjs", ["scripts/repository-settings.test.mjs"]],
   [
     ".config/rust-test-impact.json",
     ["scripts/rust-test-impact.test.mjs", "scripts/local-validation.test.mjs"],
   ],
   ["scripts/check-vitest-durations.mjs", ["scripts/test-duration-reporter.test.mjs"]],
+  ["scripts/pr-delivery.mjs", ["scripts/repository-skills.test.mjs"]],
+  ["scripts/package-local.ps1", ["scripts/repository-skills.test.mjs"]],
+  ["scripts/release-preflight.ps1", ["scripts/repository-skills.test.mjs"]],
+  ["scripts/roadmap.mjs", ["scripts/repository-skills.test.mjs"]],
+  ["scripts/test-windows-installer.ps1", ["scripts/repository-skills.test.mjs"]],
+  ["scripts/windows-qualification-session.ps1", ["scripts/repository-skills.test.mjs"]],
+  ["crates/portcove-core/catalog/catalog.json", ["scripts/repository-skills.test.mjs"]],
+  ["crates/portcove-core/src/catalog.rs", ["scripts/repository-skills.test.mjs"]],
   [
     "apps/desktop/scripts/desktop-test.mjs",
     [
@@ -84,8 +130,12 @@ const explicitNodeTests = new Map([
   [".node-version", ["scripts/dependency-automation.test.mjs"]],
   ["Cargo.toml", ["scripts/dependency-automation.test.mjs"]],
   ["rust-toolchain.toml", ["scripts/dependency-automation.test.mjs"]],
-  ["apps/desktop/package.json", ["scripts/dependency-automation.test.mjs"]],
+  ["package.json", ["scripts/dependency-automation.test.mjs", "scripts/local-validation.test.mjs"]],
+  ["pnpm-lock.yaml", ["scripts/dependency-automation.test.mjs"]],
+  ["pnpm-workspace.yaml", ["scripts/dependency-automation.test.mjs"]],
+  ["apps/desktop/pnpm-lock.yaml", ["scripts/dependency-automation.test.mjs"]],
   ["apps/desktop/pnpm-workspace.yaml", ["scripts/dependency-automation.test.mjs"]],
+  ["apps/desktop/package.json", ["scripts/local-validation.test.mjs"]],
   [".github/dependabot.yml", ["scripts/dependency-automation.test.mjs"]],
   [
     ".config/tool-bootstrap.json",
@@ -112,6 +162,7 @@ const explicitNodeTests = new Map([
       "scripts/dev-storage.test.mjs",
       "scripts/ci-workflow.test.mjs",
       "scripts/dependency-automation.test.mjs",
+      "scripts/repository-settings.test.mjs",
     ],
   ],
   [".oxfmtrc.json", ["scripts/local-validation.test.mjs", "scripts/ci-workflow.test.mjs"]],
@@ -150,7 +201,61 @@ function normalizePath(value) {
 }
 
 function command(id, reason, executable, args, options = {}) {
-  return { id, reason, executable, args, cwd: options.cwd ?? projectRoot };
+  return {
+    id,
+    reason,
+    executable,
+    args,
+    cwd: options.cwd ?? projectRoot,
+    obligation: options.obligation ?? id,
+  };
+}
+
+function commandIdentity(entry) {
+  return JSON.stringify([entry.cwd, entry.executable, entry.args]);
+}
+
+export function deduplicateCommands(commands) {
+  const unique = [];
+  const byId = new Map();
+  const byObligation = new Map();
+  for (const entry of commands) {
+    const identity = commandIdentity(entry);
+    const obligation = entry.obligation ?? entry.id;
+    const existingId = byId.get(entry.id);
+    if (existingId) {
+      if (existingId.identity !== identity || existingId.obligation !== obligation)
+        throw new Error(
+          `validation stage ${entry.id} selected conflicting commands or obligations`,
+        );
+      existingId.retained.reason = `${existingId.retained.reason}; also selected as ${entry.id}: ${entry.reason}`;
+      continue;
+    }
+
+    const obligationIdentity = JSON.stringify([obligation, identity]);
+    const existing = byObligation.get(obligationIdentity);
+    if (existing) {
+      existing.selectedIds.push(entry.id);
+      existing.reason = `${existing.reason}; also selected as ${entry.id}: ${entry.reason}`;
+      byId.set(entry.id, { identity, obligation, retained: existing });
+      continue;
+    }
+    const retained = { ...entry, selectedIds: [entry.id] };
+    unique.push(retained);
+    byObligation.set(obligationIdentity, retained);
+    byId.set(entry.id, { identity, obligation, retained });
+  }
+  return unique;
+}
+
+function heavyRustCommand(id, reason, executable, args, options = {}) {
+  return command(
+    id,
+    reason,
+    process.execPath,
+    ["scripts/run-rust-tests.mjs", "--guard-command", executable, ...args],
+    options,
+  );
 }
 
 function corepackCommand(id, reason, args, options = {}) {
@@ -207,7 +312,7 @@ function classifyOnePath(selection, input, fileExists, options = {}) {
     file.startsWith("apps/desktop/assets/") ||
     file.startsWith("apps/desktop/public/") ||
     file === "apps/desktop/.fallowrc.json" ||
-    /^apps\/desktop\/(?:index\.html|package\.json|pnpm-lock\.yaml|tsconfig.*\.json|vite\.config\.[cm]?ts|eslint\.config\.mjs|stylelint\.config\.mjs)$/.test(
+    /^apps\/desktop\/(?:(?:index|scenarios)\.html|package\.json|pnpm-lock\.yaml|tsconfig.*\.json|vite\.config\.[cm]?ts|eslint\.config\.mjs|stylelint\.config\.mjs)$/.test(
       file,
     )
   ) {
@@ -226,7 +331,14 @@ function classifyOnePath(selection, input, fileExists, options = {}) {
     }
   }
 
-  if (file === "apps/desktop/pnpm-workspace.yaml") {
+  if (
+    [
+      "package.json",
+      "pnpm-lock.yaml",
+      "pnpm-workspace.yaml",
+      "apps/desktop/pnpm-workspace.yaml",
+    ].includes(file)
+  ) {
     selection.ui = true;
     selection.uiFullTests = true;
     selection.scopes.add("ui");
@@ -251,16 +363,36 @@ function classifyOnePath(selection, input, fileExists, options = {}) {
     if (file === "scripts/fixtures/windows-process-tree-supervisor.rs.txt") {
       addNodeTest(selection, "scripts/heavy-rust-test-lock.test.mjs");
       addNodeTest(selection, "scripts/run-rust-tests.test.mjs");
+      addNodeTest(selection, "scripts/rust-support-cache.test.mjs");
     }
-    if (
-      /(?:release|updater|package|installer|qualification|checksum|channel)/iu.test(
-        path.posix.basename(file),
-      )
-    ) {
+    if (file === "scripts/lint-tools.integration.mjs") {
+      for (const fixture of [
+        "actionlint",
+        "oxfmt",
+        "oxlint",
+        "psscriptanalyzer",
+        "ruff",
+        "shellcheck",
+        "stylelint",
+      ])
+        selection.lintToolFixtures.add(fixture);
+    }
+    if (["scripts/run-rust-tests.mjs", "scripts/rust-support-cache.mjs"].includes(file)) {
+      addNodeTest(selection, "scripts/run-rust-tests.test.mjs");
+      addNodeTest(selection, "scripts/rust-support-cache.test.mjs");
+    }
+    if (validationOwnershipForPath(file).areas.includes("release-security")) {
       selection.scopes.add("release-tooling");
       for (const testFile of releaseContractTests) addNodeTest(selection, testFile);
       addNodeTest(selection, "scripts/ci-workflow.test.mjs");
     }
+  }
+
+  if (file === "crates/portcove-core/src/testdata/host_tool_probe.rs.txt") {
+    selection.scopes.add("tooling");
+    recognized = true;
+    addNodeTest(selection, "scripts/run-rust-tests.test.mjs");
+    addNodeTest(selection, "scripts/rust-support-cache.test.mjs");
   }
 
   if (file.startsWith(".github/workflows/")) {
@@ -355,7 +487,7 @@ function classifyOnePath(selection, input, fileExists, options = {}) {
   if (file === ".oxlintrc.json") {
     selection.ui = true;
     selection.uiFullTests = true;
-    selection.oxcFixtures.add("oxlint");
+    selection.lintToolFixtures.add("oxlint");
     selection.scopes.add("ui");
     addNodeTest(selection, "scripts/ci-workflow.test.mjs");
     recognized = true;
@@ -364,7 +496,7 @@ function classifyOnePath(selection, input, fileExists, options = {}) {
   if (file === ".oxfmtrc.json") {
     selection.ui = true;
     selection.uiFullTests = true;
-    selection.oxcFixtures.add("oxfmt");
+    selection.lintToolFixtures.add("oxfmt");
     selection.scopes.add("ui");
     recognized = true;
   }
@@ -390,6 +522,16 @@ function classifyOnePath(selection, input, fileExists, options = {}) {
     file === "AGENTS.md"
   ) {
     selection.scopes.add("documentation");
+    if (file.startsWith("docs/") || extension === ".md") {
+      selection.scopes.add("tooling");
+      addNodeTest(selection, "scripts/repository-skills.test.mjs");
+    }
+    recognized = true;
+  }
+
+  if (file.startsWith(".agents/skills/") && file.endsWith("/SKILL.md")) {
+    selection.scopes.add("tooling");
+    addNodeTest(selection, "scripts/repository-skills.test.mjs");
     recognized = true;
   }
 
@@ -437,7 +579,7 @@ export function classifyChanges(changes, options = {}) {
     nodeSyntax: new Set(),
     oxfmtFiles: new Set(),
     uiRelatedFiles: new Set(),
-    oxcFixtures: new Set(),
+    lintToolFixtures: new Set(),
     unknown: new Set(),
     rustfmt: false,
     workspaceRust: false,
@@ -529,7 +671,7 @@ export function buildPlan(selection, context = {}) {
         .map((file) => `- ${file}`)
         .join(
           "\n",
-        )}\nAdd and test a focused rule; exhaustive CI must not be replaced by silent local success.`,
+        )}\nAdd and test a focused rule; the required hosted plan must not be replaced by silent local success.`,
     );
   }
   const mergeBase = context.mergeBase ?? "<merge-base>";
@@ -594,19 +736,19 @@ export function buildPlan(selection, context = {}) {
         "oxlint",
         "lint changed repository JavaScript with the complete Oxc contract",
         ["pnpm", "run", "lint:oxlint"],
-        { cwd: desktopRoot },
+        { cwd: desktopRoot, obligation: "repository-oxlint" },
       ),
     );
   }
   if (selection.nodeTests.size) commands.push(nodeTestCommand(sorted(selection.nodeTests)));
 
-  if (selection.oxcFixtures.size)
+  if (selection.lintToolFixtures.size)
     commands.push(
       command(
-        "oxc-fixtures",
-        "prove changed Oxc configuration accepts and rejects the maintained fixtures",
+        "lint-tool-fixtures",
+        "prove changed lint tooling accepts and rejects the maintained fixtures",
         process.execPath,
-        ["scripts/lint-tools.integration.mjs", ...sorted(selection.oxcFixtures)],
+        ["scripts/lint-tools.integration.mjs", ...sorted(selection.lintToolFixtures)],
       ),
     );
 
@@ -653,15 +795,9 @@ export function buildPlan(selection, context = {}) {
 
   if (selection.workspaceRust) {
     commands.push(
-      command(
-        "rust-workspace-check",
-        "root dependency or toolchain change compiles every workspace target",
-        "cargo",
-        ["check", "--locked", "--workspace", "--all-targets"],
-      ),
-      command(
+      heavyRustCommand(
         "rust-workspace-clippy",
-        "root dependency or toolchain change lints every workspace target",
+        "root dependency or toolchain change compiles and lints every workspace target",
         "cargo",
         ["clippy", "--locked", "--workspace", "--all-targets", "--", "-D", "warnings"],
       ),
@@ -698,15 +834,9 @@ export function buildPlan(selection, context = {}) {
       );
       if (rustTestImpactLoadError) impact.reason = `${impact.reason}; ${rustTestImpactLoadError}`;
       commands.push(
-        command(
-          `rust-check:${packageName}`,
-          `compile every target in affected package ${packageName}`,
-          "cargo",
-          ["check", "--locked", "-p", packageName, "--all-targets"],
-        ),
-        command(
+        heavyRustCommand(
           `rust-clippy:${packageName}`,
-          `lint every target in affected package ${packageName}`,
+          `compile and lint every target in affected package ${packageName}`,
           "cargo",
           ["clippy", "--locked", "-p", packageName, "--all-targets", "--", "-D", "warnings"],
         ),
@@ -720,6 +850,20 @@ export function buildPlan(selection, context = {}) {
             packageName,
           ]),
         );
+      else if (impact.groups.length > 1)
+        commands.push(
+          command(
+            `rust-tests:${packageName}:union`,
+            impact.groups.map((group) => `${group.id}: ${group.reason}`).join("; "),
+            process.execPath,
+            [
+              "scripts/run-rust-tests.mjs",
+              "--impact-union",
+              packageName,
+              ...impact.groups.map((group) => group.id),
+            ],
+          ),
+        );
       else
         for (const group of impact.groups)
           commands.push(
@@ -732,7 +876,7 @@ export function buildPlan(selection, context = {}) {
           );
       if (doctestPackages.has(packageName))
         commands.push(
-          command(
+          heavyRustCommand(
             `rust-docs:${packageName}`,
             `run documentation tests for affected package ${packageName}`,
             "cargo",
@@ -754,7 +898,7 @@ export function buildPlan(selection, context = {}) {
         "ui-oxlint",
         "run the repository's typed frontend lint contract",
         ["pnpm", "run", "lint:oxlint"],
-        { cwd: desktopRoot },
+        { cwd: desktopRoot, obligation: "repository-oxlint" },
       ),
     );
     if (selection.stylelint)
@@ -777,21 +921,22 @@ export function buildPlan(selection, context = {}) {
       );
     else if (selection.uiRelatedFiles.size)
       commands.push(uiRelatedCommand(sorted(selection.uiRelatedFiles)), uiRelatedDurationCommand());
-    commands.push(
-      corepackCommand(
-        "ui-theme-copy",
-        "retain theme and player-facing copy validation",
-        ["pnpm", "run", "test:theme"],
-        { cwd: desktopRoot },
-      ),
-      command(
-        "ui-copy",
-        "retain player-facing copy validation",
-        process.execPath,
-        ["scripts/check-copy.mjs"],
-        { cwd: desktopRoot },
-      ),
-    );
+    if (!selection.uiFullTests)
+      commands.push(
+        corepackCommand(
+          "ui-theme-copy",
+          "retain theme and player-facing copy validation",
+          ["pnpm", "run", "test:theme"],
+          { cwd: desktopRoot },
+        ),
+        command(
+          "ui-copy",
+          "retain player-facing copy validation",
+          process.execPath,
+          ["scripts/check-copy.mjs"],
+          { cwd: desktopRoot },
+        ),
+      );
   }
 
   if (selection.fallow)
@@ -831,15 +976,7 @@ export function buildPlan(selection, context = {}) {
       ),
     );
 
-  const unique = [];
-  const ids = new Set();
-  for (const entry of commands) {
-    if (!ids.has(entry.id)) {
-      ids.add(entry.id);
-      unique.push(entry);
-    }
-  }
-  return unique;
+  return deduplicateCommands(commands);
 }
 
 function git(args, options = {}) {
@@ -973,6 +1110,144 @@ export function executePlan(plan, options = {}) {
   return { elapsedMs: Date.now() - started, timings };
 }
 
+function localStageDomains(entry) {
+  if (entry.id === "diff-check") return [];
+  if (["oxfmt", "toml-format"].includes(entry.id)) return ["format"];
+  if (entry.id === "rustfmt" || entry.id === "dependency-policy" || entry.id.startsWith("rust-"))
+    return ["rust"];
+  if (entry.id.startsWith("ui-")) return ["ui"];
+  if (
+    [
+      "actionlint",
+      "lint-tool-fixtures",
+      "oxlint",
+      "powershell-lint",
+      "python-lint",
+      "shell-lint",
+    ].includes(entry.id)
+  )
+    return ["lint"];
+  if (["transport-export", "transport-policy"].includes(entry.id))
+    return ["repository", "rust", "ui"];
+  if (entry.id === "playnite-contract") return ["repository"];
+  if (entry.id === "fallow") return ["ui"];
+  if (entry.id === "node-tests") {
+    const domains = new Set();
+    for (const file of entry.args.filter((argument) => argument.endsWith(".test.mjs"))) {
+      for (const domain of domainsForPath(file).domains) domains.add(domain);
+    }
+    return [...domains].sort();
+  }
+  if (entry.id.startsWith("node-syntax:")) {
+    const file = entry.args.at(-1);
+    return file ? [...domainsForPath(file).domains].sort() : [];
+  }
+  return [];
+}
+
+function localStageReusable(entry) {
+  return (
+    localStageDomains(entry).length > 0 &&
+    entry.id !== "dependency-policy" &&
+    entry.id !== "oxlint" &&
+    entry.id !== "ui-related-durations"
+  );
+}
+
+export function fingerprintLocalStage(entry, inventory, runtime) {
+  const recipe = JSON.stringify({
+    obligation: entry.obligation,
+    executable: entry.executable === process.execPath ? "<active-node-runtime>" : entry.executable,
+    args: entry.args,
+    cwd: path.relative(projectRoot, entry.cwd).replaceAll("\\", "/") || ".",
+  });
+  const domainFingerprints = localStageDomains(entry).map((domain) =>
+    fingerprintStage({ id: entry.id, recipe, domain }, inventory, runtime),
+  );
+  return createHash("sha256").update(JSON.stringify(domainFingerprints)).digest("hex");
+}
+
+function localReceiptPath(receiptRoot, entry, fingerprint) {
+  const safeId = entry.id.replace(/[^a-zA-Z0-9._-]/gu, "_");
+  return path.join(receiptRoot, "local", safeId, `${fingerprint}.json`);
+}
+
+function readLocalReceipt(file) {
+  try {
+    return JSON.parse(readFileSync(file, "utf8"));
+  } catch {
+    return null;
+  }
+}
+
+function writeLocalReceipt(file, value) {
+  mkdirSync(path.dirname(file), { recursive: true });
+  const temporary = `${file}.${process.pid}.${Date.now()}.tmp`;
+  writeFileSync(temporary, `${JSON.stringify(value, null, 2)}\n`, { flag: "wx" });
+  rmSync(file, { force: true });
+  renameSync(temporary, file);
+}
+
+export function executePlanWithReceipts(plan, options = {}) {
+  const spawn = options.spawn ?? spawnCommand;
+  const root = options.root ?? projectRoot;
+  const inventory = options.inventory ?? repositoryInventory(root);
+  const runtime = options.runtime ?? auditRuntime(root);
+  const receiptRoot = options.receiptRoot ?? path.join(root, "work", "validation-receipts");
+  const fresh = options.fresh ?? false;
+  const started = Date.now();
+  const timings = [];
+  for (const entry of plan) {
+    const reusable = localStageReusable(entry);
+    const fingerprint = reusable ? fingerprintLocalStage(entry, inventory, runtime) : null;
+    const receiptPath = reusable ? localReceiptPath(receiptRoot, entry, fingerprint) : null;
+    const validation =
+      reusable && !fresh
+        ? validateReceipt(readLocalReceipt(receiptPath), {
+            stageId: `local:${entry.id}`,
+            fingerprint,
+          })
+        : { valid: false, reason: fresh ? "fresh execution required" : "stage is not reusable" };
+    if (validation.valid) {
+      console.log(
+        `\n[local-check] ${entry.id}: reused matching successful receipt from ${validation.payload.originatingHead}`,
+      );
+      timings.push({ id: entry.id, elapsedMs: 0, status: "reused" });
+      continue;
+    }
+
+    if (receiptPath) rmSync(receiptPath, { force: true });
+    console.log(`\n[local-check] ${entry.id}: ${entry.reason}`);
+    const stageStarted = Date.now();
+    const result = spawn(entry.executable, entry.args, {
+      cwd: entry.cwd,
+      stdio: "inherit",
+      windowsHide: true,
+      env: process.env,
+    });
+    const elapsedMs = Date.now() - stageStarted;
+    timings.push({ id: entry.id, elapsedMs, status: "executed" });
+    if (result.error) throw result.error;
+    if (result.status !== 0)
+      throw new Error(`${entry.id} failed with exit code ${result.status ?? "unknown"}`);
+    if (receiptPath)
+      writeLocalReceipt(
+        receiptPath,
+        receiptEnvelope({
+          format: 1,
+          kind: "successful-stage",
+          success: true,
+          stageId: `local:${entry.id}`,
+          fingerprint,
+          originatingHead: inventory.head,
+          completedAt: new Date().toISOString(),
+        }),
+      );
+    console.log(`[local-check] ${entry.id} passed in ${(elapsedMs / 1000).toFixed(1)}s`);
+  }
+  return { elapsedMs: Date.now() - started, timings };
+}
+
 export function requireFocusedArguments(kind, args) {
   const hasSelection =
     kind === "test-node"
@@ -1008,21 +1283,23 @@ function runFocusedCommand(kind, args) {
 function parseCheckArgs(args) {
   let base = "origin/main";
   let planOnly = false;
+  let fresh = false;
   for (let index = 0; index < args.length; index += 1) {
     const value = args[index];
     if (value === "--plan") planOnly = true;
+    else if (value === "--fresh") fresh = true;
     else if (value === "--base") {
       base = args[++index];
       if (!base) throw new Error("--base requires a Git revision");
     } else throw new Error(`unknown local-check option: ${value}`);
   }
-  return { base, planOnly };
+  return { base, planOnly, fresh };
 }
 
 export function main(argv = process.argv.slice(2)) {
   if (argv.includes("--help")) {
     console.log(
-      "usage: local-validation.mjs [check [--base REV] [--plan]|test-rust ARGS|test-ui-related FILES|test-node TESTS]",
+      "usage: local-validation.mjs [check [--base REV] [--plan] [--fresh]|test-rust ARGS|test-ui-related FILES|test-node TESTS]",
     );
     return;
   }
@@ -1032,7 +1309,7 @@ export function main(argv = process.argv.slice(2)) {
     return;
   }
   if (kind !== "check") throw new Error(`unknown local validation command: ${kind}`);
-  const { base, planOnly } = parseCheckArgs(args);
+  const { base, planOnly, fresh } = parseCheckArgs(args);
   const context = readChangeContext(base);
   const validationPlan = validateValidationPlan(
     buildValidationPlan({
@@ -1058,7 +1335,7 @@ export function main(argv = process.argv.slice(2)) {
   const plan = buildPlan(selection, planContext);
   printPlan(context, selection, plan, validationPlan);
   if (planOnly) return;
-  const result = executePlan(plan);
+  const result = executePlanWithReceipts(plan, { fresh });
   console.log(`\nFocused local validation passed in ${(result.elapsedMs / 1000).toFixed(1)}s.`);
   if (result.elapsedMs > 120_000)
     console.warn(

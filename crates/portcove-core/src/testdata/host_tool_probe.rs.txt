@@ -116,7 +116,7 @@ fn owned_preparation(args: &[String]) {
         "failure" => std::process::exit(23),
         "wait" => {
             fs::write("data/out/setup-ready", b"ready").unwrap();
-            std::thread::sleep(Duration::from_secs(8));
+            std::thread::sleep(Duration::from_secs(30));
         }
         _ => panic!("unknown owned fixture mode"),
     }

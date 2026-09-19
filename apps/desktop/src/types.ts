@@ -1,4 +1,5 @@
 import type * as Requests from "./transport-input-types.generated";
+import type * as Events from "./transport-event-types.generated";
 import type { PortStatus } from "./transport-types.generated";
 import type * as Generated from "./transport-types.generated";
 
@@ -15,6 +16,10 @@ export type { SourceRepresentation } from "./transport-types.generated";
 export type { PortDefinition } from "./transport-types.generated";
 
 export type CatalogDocument = Generated.TransportOutputs["catalog"];
+export type CapabilityDocument = Generated.TransportOutputs["capabilities"];
+export type DefinitionCapabilityReport = Generated.TransportOutputs["definition_capability_report"];
+export type DefinitionCapabilityRequest = Requests.TransportInputs["definition_capability_request"];
+export type LibraryIdentity = Generated.TransportOutputs["library_identity"];
 export type ArtworkState = Generated.TransportOutputs["artwork_state"];
 export type ArtworkThumbnail = Generated.TransportOutputs["artwork_thumbnail"];
 export type ArtworkSlot = ArtworkState["choice"]["slot"];
@@ -95,6 +100,8 @@ export type { UpdateSnapshot } from "./transport-types.generated";
 export type UpdateCheckOutcome = Generated.TransportOutputs["desktop_update_check_outcome"];
 
 export type OperationEvent = Generated.TransportOutputs["operation_event"];
+
+export type DesktopEventPayloads = Events.DesktopEventPayloads;
 
 export type DesktopError = Generated.TransportOutputs["desktop_desktop_error"];
 
@@ -183,3 +190,8 @@ export type BackupAction = BackupReview["preview"]["action"];
 export type PortRemovalPreview = Generated.TransportOutputs["port_removal_preview"];
 
 export type CliCommandContext = Generated.TransportOutputs["desktop_cli_command_context"];
+
+export type SteamEntryReview = Generated.TransportOutputs["desktop_steam_entry_review"];
+export type SteamEntryApplyResult = Generated.TransportOutputs["desktop_steam_entry_apply_result"];
+export type SteamEntryOperation = SteamEntryReview["operation"];
+export type SteamEntrySelection = Requests.TransportInputs["desktop_steam_entry_selection"];

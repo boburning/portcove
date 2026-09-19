@@ -25,7 +25,6 @@ import type {
   ActivityRecord,
   PortDefinition,
   ApplicationUpdateNoticeSnapshot,
-  ApplicationUpdatePreferences,
   DoctorReport,
   GithubAuthStatus,
   GithubDeviceLogin,
@@ -57,7 +56,8 @@ import { ExternalLink } from "./ExternalLink";
 import { LibraryMoveButton } from "./LibraryMove";
 import { LibraryImportButton } from "./LibraryImport";
 import { CatalogSettings } from "./CatalogUpdates";
-import { ApplicationUpdateSettings } from "./ApplicationUpdates";
+import { ApplicationUpdateSettings } from "../features/application-update/ApplicationUpdates";
+import type { ApplicationUpdatePreferencesState } from "../features/application-update/use-application-update-preferences";
 import { SourceDiscoveryButton } from "./SourceDiscovery";
 import { SourceIdentityPanel } from "./SourceIdentity";
 import { Icon, NavigationHints, Shortcut } from "./ui";
@@ -125,7 +125,7 @@ export function Sidebar({
       <div className="sidebar-footer">
         <button data-focusable className="secondary full button-with-icon" onClick={onAdopt}>
           <Icon glyph={FolderInput} />
-          Adopt an install
+          Copy existing installation
         </button>
         <NavigationHints controller={controller} workspace />
       </div>
@@ -231,18 +231,18 @@ function pageCopy(view: View, portCount: number) {
     catalog: {
       eyebrow: "PORT CATALOG",
       title: "Find a native port",
-      description: `Explore ${portCount} curated decomps and recompilations with explicit release provenance.`,
+      description: `Explore ${portCount} native game ports and recompilations available through Portcove. Keep original game files local, review updates, and restore previous versions.`,
     },
     updates: {
       eyebrow: "UPDATES",
       title: "Keep every port current",
-      description: "See every version decision, staged release, and failure in one place.",
+      description: "Review available updates, downloaded releases, and failed checks in one place.",
     },
     settings: {
       eyebrow: "SETTINGS",
       title: "Portcove settings",
       description:
-        "Control appearance, authentication, source integrity, and local storage boundaries.",
+        "Manage appearance, GitHub sign-in, game-file verification, and library storage.",
     },
   };
   return copy[view];
@@ -545,16 +545,19 @@ function GithubConnection({ status }: { status?: GithubAuthStatus }) {
         </span>
       </div>
       <p>
-        {githubQuota(status)}. Authentication raises GitHub's allowance and makes unchanged
-        conditional checks free of the primary limit.
+        {!connected && "Sign in to GitHub for a higher release-check limit. "}
+        {githubQuota(status)}.
       </p>
+      <small>
+        Repeated checks for an unchanged GitHub release may not use the primary request limit.
+      </small>
     </>
   );
 }
 
 function githubQuota(status?: GithubAuthStatus) {
-  if (!status?.rate_limit) return "Rate allowance unavailable";
-  return `${status.rate_limit.remaining.toLocaleString()} of ${status.rate_limit.limit.toLocaleString()} requests remaining`;
+  if (!status?.rate_limit) return "GitHub request limit unavailable";
+  return `${status.rate_limit.remaining.toLocaleString()} of ${status.rate_limit.limit.toLocaleString()} GitHub requests remaining`;
 }
 
 function DeviceLogin({ login }: { login?: GithubDeviceLogin }) {
@@ -601,17 +604,19 @@ function GithubActions({ github, busy }: { github?: GithubSettingsActions; busy:
   const status = github?.status;
   return (
     <div className="actions compact">
-      {!status?.authenticated && status?.source !== "environment" && (
-        <button
-          data-focusable
-          disabled={busy || !status?.device_login_available}
-          onClick={() => {
-            void github?.beginDeviceLogin();
-          }}
-        >
-          Sign in with GitHub
-        </button>
-      )}
+      {!status?.authenticated &&
+        status?.source !== "environment" &&
+        status?.device_login_available && (
+          <button
+            data-focusable
+            disabled={busy}
+            onClick={() => {
+              void github?.beginDeviceLogin();
+            }}
+          >
+            Sign in with GitHub
+          </button>
+        )}
       {status?.source === "credential_store" && (
         <button
           data-focusable
@@ -652,11 +657,11 @@ function GithubNotes({ status }: { status?: GithubAuthStatus }) {
         anonymously.
       </small>
     );
-  if (!status?.device_login_available && !status?.authenticated)
+  if (status && !status.device_login_available && !status.authenticated)
     return (
       <small>
-        Device login needs a Portcove GitHub App client ID in this build. Token and anonymous modes
-        remain available.
+        This version of Portcove does not support GitHub device sign-in. Continue anonymously or use
+        a personal access token.
       </small>
     );
   return null;
@@ -667,7 +672,7 @@ function GithubSettings({ github, busy }: { github?: GithubSettingsActions; busy
     <article className="settings-card github-auth" data-focus-group>
       <p className="eyebrow">GITHUB</p>
       <GithubConnection status={github?.status} />
-      <DeviceLogin login={github?.deviceLogin} />
+      {github?.status?.device_login_available && <DeviceLogin login={github.deviceLogin} />}
       <TokenEntry github={github} busy={!!busy} />
       <GithubActions github={github} busy={!!busy} />
       <GithubNotes status={github?.status} />
@@ -675,27 +680,45 @@ function GithubSettings({ github, busy }: { github?: GithubSettingsActions; busy
   );
 }
 
+type SourceRequirementsState = "loading" | "available" | "unavailable";
+
 function SourceRequirements({
   requirements,
+  state,
   busy,
   add,
 }: {
   requirements: SourceRequirement[];
+  state: SourceRequirementsState;
   busy?: string;
   add?: (profile: SourceProfile, archive: boolean) => void;
 }) {
+  if (state === "loading")
+    return (
+      <div className="source-requirements">
+        <strong>Checking required game files…</strong>
+      </div>
+    );
+  if (state === "unavailable")
+    return (
+      <div className="source-requirements">
+        <strong>Required game files could not be checked.</strong>
+        <small>Retry loading the library before changing saved locations.</small>
+      </div>
+    );
   if (requirements.length === 0)
     return (
       <div className="source-requirements complete">
-        <strong>Installed ports have every required source reference.</strong>
+        <strong>All required game files have been added for your installed ports.</strong>
       </div>
     );
   return (
     <div className="source-requirements">
       <div className="source-requirements-heading">
         <strong>
-          {requirements.length} source{" "}
-          {requirements.length === 1 ? "requirement needs" : "requirements need"} attention
+          {requirements.length} game-file{" "}
+          {requirements.length === 1 ? "requirement" : "requirements"}{" "}
+          {requirements.length === 1 ? "needs" : "need"} attention
         </strong>
         <small>Required by installed ports</small>
       </div>
@@ -738,6 +761,7 @@ function SourceHealth({
   ports,
   sources,
   requirements,
+  requirementsState,
   outcomes,
   inspections,
   busy,
@@ -756,6 +780,7 @@ function SourceHealth({
   verify?: () => void;
   replace?: (source: SourceRecord) => void;
   requirements: SourceRequirement[];
+  requirementsState: SourceRequirementsState;
   add?: (profile: SourceProfile, archive: boolean) => void;
   profiles: SourceProfile[];
   inspections: ReadonlyMap<string, SourceInspectionReport>;
@@ -763,11 +788,12 @@ function SourceHealth({
   openEvidence?: (evidenceId: string) => void;
 }) {
   const byProfile = new Map(outcomes.map((outcome) => [outcome.profile_id, outcome]));
+  const profilesById = new Map(profiles.map((profile) => [profile.id, profile]));
   return (
     <article className="settings-card source-health" data-focus-group>
       <p className="eyebrow">SOURCES</p>
       <div className="settings-title">
-        <h2>Integrity</h2>
+        <h2>Game-file verification</h2>
         <button
           data-focusable
           className="small-control"
@@ -777,32 +803,44 @@ function SourceHealth({
           Verify sources
         </button>
       </div>
-      <SourceRequirements requirements={requirements} busy={busy} add={add} />
-      <SourceDiscoveryButton profiles={profiles} disabled={Boolean(busy)} onAdded={onAdded} />
-      {sources.length === 0 ? (
-        <p>No source files are registered yet.</p>
-      ) : (
-        <div className="source-health-list">
-          {sources.map((source) => (
-            <SourceHealthRow
-              key={`${source.profile_id}:${generation}`}
-              source={source}
-              generation={generation}
-              ports={ports}
-              onRemoved={onAdded}
-              report={inspections.get(source.profile_id)}
-              outcome={byProfile.get(source.profile_id)}
-              busy={busy}
-              replace={replace}
-              openEvidence={openEvidence}
-            />
-          ))}
-        </div>
-      )}
+      <SourceRequirements
+        requirements={requirements}
+        state={requirementsState}
+        busy={busy}
+        add={add}
+      />
+      <SourceDiscoveryButton
+        profiles={profiles}
+        disabled={Boolean(busy) || requirementsState !== "available"}
+        onAdded={onAdded}
+      />
+      {requirementsState === "available" &&
+        (sources.length === 0 ? (
+          <p>No source files are registered yet.</p>
+        ) : (
+          <div className="source-health-list">
+            {sources.map((source, index) => (
+              <SourceHealthRow
+                key={`${source.profile_id}:${generation}`}
+                source={source}
+                sourcePosition={index + 1}
+                sourceCount={sources.length}
+                profile={profilesById.get(source.profile_id)}
+                generation={generation}
+                ports={ports}
+                onRemoved={onAdded}
+                report={inspections.get(source.profile_id)}
+                outcome={byProfile.get(source.profile_id)}
+                busy={busy}
+                replace={replace}
+                openEvidence={openEvidence}
+              />
+            ))}
+          </div>
+        ))}
       <p>
-        Verification is local and read-only. Relink source checks the current source requirements
-        and confirms identical content at the new location before updating Portcove's reference.
-        Your source files stay untouched.
+        Portcove checks files locally and never uploads or changes them. When you choose a new
+        location, Portcove confirms that the file is an exact match before saving the new path.
       </p>
     </article>
   );
@@ -810,6 +848,9 @@ function SourceHealth({
 
 function SourceHealthRow({
   source,
+  sourcePosition,
+  sourceCount,
+  profile,
   generation,
   ports,
   onRemoved,
@@ -823,6 +864,9 @@ function SourceHealthRow({
   ports: PortDefinition[];
   onRemoved?: () => Promise<unknown>;
   source: SourceRecord;
+  sourcePosition: number;
+  sourceCount: number;
+  profile?: SourceProfile;
   report?: SourceInspectionReport;
   outcome?: SourceVerificationOutcome;
   busy?: string;
@@ -832,19 +876,25 @@ function SourceHealthRow({
   return (
     <div className="source-health-row" data-source-profile={source.profile_id}>
       <div>
-        <strong>{report?.expected_identity?.label ?? source.profile_id}</strong>
+        <strong>
+          {report?.expected_identity?.label ??
+            profile?.label ??
+            "Saved game-file requirement unavailable"}
+        </strong>
         <code>{source.path}</code>
       </div>
       <div className="source-health-actions">
-        <SourceState report={report} outcome={outcome} />
-        <button
-          data-focusable
-          className="small-control"
-          disabled={Boolean(busy)}
-          onClick={() => replace?.(source)}
-        >
-          Relink source
-        </button>
+        <SourceState report={report} outcome={outcome} profileAvailable={Boolean(profile)} />
+        {profile && (
+          <button
+            data-focusable
+            className="small-control"
+            disabled={Boolean(busy)}
+            onClick={() => replace?.(source)}
+          >
+            Relink source
+          </button>
+        )}
         <SourceRemovalControl
           source={source}
           generation={generation}
@@ -853,6 +903,25 @@ function SourceHealthRow({
           onRemoved={onRemoved}
         />
       </div>
+      {!profile && (
+        <div>
+          <p>
+            This saved game-file requirement is no longer present in the current catalog. Update the
+            catalog or remove the saved location.
+          </p>
+          <details>
+            <summary
+              data-focusable
+              aria-label={`Technical details for saved game-file location ${source.path}, saved reference ${sourcePosition} of ${sourceCount}`}
+            >
+              Technical details
+            </summary>
+            <small>
+              Catalog profile ID: <code className="source-profile-id">{source.profile_id}</code>
+            </small>
+          </details>
+        </div>
+      )}
       {outcome?.error && (
         <div>
           <p>{errorText(outcome.error)}</p>
@@ -861,11 +930,11 @@ function SourceHealthRow({
       )}
       {report ? (
         <SourceIdentityPanel report={report} openEvidence={openEvidence} />
-      ) : (
+      ) : profile ? (
         <p className="source-inspection-loading" role="status">
           Checking identity…
         </p>
-      )}
+      ) : null}
     </div>
   );
 }
@@ -873,10 +942,19 @@ function SourceHealthRow({
 function SourceState({
   report,
   outcome,
+  profileAvailable = true,
 }: {
   report?: SourceInspectionReport;
   outcome?: SourceVerificationOutcome;
+  profileAvailable?: boolean;
 }) {
+  if (!profileAvailable)
+    return (
+      <span className="source-state failed">
+        <Icon glyph={AlertTriangle} size="sm" />
+        Needs attention
+      </span>
+    );
   if (report) {
     if (report.state_code === "recognized_exact")
       return (
@@ -961,8 +1039,8 @@ function AboutCard() {
         <p className="eyebrow">ABOUT &amp; CREDITS</p>
         <h2>One harbor for native ports</h2>
         <p>
-          Portcove keeps the desktop and CLI on the same reviewed catalog, local sources, managed
-          versions, and recovery-safe history.
+          Portcove keeps the desktop and CLI in sync across the catalog, game files, installed
+          versions, and recovery history.
         </p>
         <dl className="about-facts">
           <div>
@@ -1016,12 +1094,19 @@ function DiagnosticsCard({
       <p className="eyebrow">DIAGNOSTICS</p>
       <h2>
         <Icon glyph={ShieldCheck} />
-        Redacted support bundle
+        Create support bundle
       </h2>
       <p>
-        Collect rotated desktop logs, recent operation records, and host readiness without game
-        sources or stored credentials.
+        Collect recent logs, operation history, and system details without game-file contents or
+        saved credentials.
       </p>
+      <details>
+        <summary>Review what can remain before sharing</summary>
+        <p>
+          Paths, file names, port and tool identifiers, timestamps, and other system metadata can
+          remain after sensitive values are redacted. Review the bundle before sharing it.
+        </p>
+      </details>
       <p role="status">
         {refreshing
           ? "Checking current host and library diagnostics…"
@@ -1096,6 +1181,7 @@ export function SettingsView({
   busy,
   sources = [],
   sourceNeeds = [],
+  sourceRequirementsState = "loading",
   sourceOutcomes = [],
   sourceInspections = new Map(),
   verifySources,
@@ -1110,7 +1196,7 @@ export function SettingsView({
   hostToolActions,
   openSourceEvidence,
   applicationUpdateNotice,
-  onApplicationUpdatePreferencesChanged,
+  applicationUpdatePreferences,
   diagnosticsRefreshing,
   diagnosticsStale,
   diagnosticFailure,
@@ -1129,6 +1215,7 @@ export function SettingsView({
   switchLibrary?: (path: string) => Promise<void>;
   resetLibrary?: () => Promise<void>;
   sourceNeeds?: SourceRequirement[];
+  sourceRequirementsState?: SourceRequirementsState;
   sourceOutcomes?: SourceVerificationOutcome[];
   verifySources?: () => void;
   replaceSource?: (source: SourceRecord) => void;
@@ -1143,7 +1230,7 @@ export function SettingsView({
   onCatalogChanged?: () => Promise<unknown>;
   hostToolActions?: HostToolActions;
   applicationUpdateNotice?: ApplicationUpdateNoticeSnapshot["notice"];
-  onApplicationUpdatePreferencesChanged?: (preferences: ApplicationUpdatePreferences) => void;
+  applicationUpdatePreferences?: ApplicationUpdatePreferencesState;
   diagnosticsRefreshing?: boolean;
   diagnosticsStale?: boolean;
   diagnosticFailure?: unknown;
@@ -1178,6 +1265,7 @@ export function SettingsView({
         ports={ports}
         sources={sources}
         requirements={sourceNeeds}
+        requirementsState={sourceRequirementsState}
         outcomes={sourceOutcomes}
         inspections={sourceInspections}
         busy={busy}
@@ -1216,7 +1304,7 @@ export function SettingsView({
         generation={generation}
         disabled={Boolean(busy)}
         automaticNotice={applicationUpdateNotice}
-        onPreferencesChanged={onApplicationUpdatePreferencesChanged}
+        preferencesState={applicationUpdatePreferences}
       />
       <article className="settings-card">
         <p className="eyebrow">PRIVACY</p>
@@ -1408,10 +1496,11 @@ function HostReadiness({
       ) : failure ? (
         <p>Host readiness is unavailable until diagnostics succeed.</p>
       ) : (
-        <p>Checking disc-tool readiness…</p>
+        <p>Checking disc-tool availability…</p>
       )}
       <p>
-        For some compressed disc formats, Portcove needs a disc tool to check or convert the image.
+        These optional tools are used only when Portcove must check, extract, or convert supported
+        compressed disc formats.
       </p>
     </article>
   );
@@ -1568,12 +1657,12 @@ function StorageCard({
         <div className="storage-capacity">
           <div>
             <strong>{formatBytes(available)} available</strong>
-            <span>{formatBytes(total)} volume</span>
+            <span>{formatBytes(total)} total storage capacity</span>
           </div>
           <div
             className="storage-meter"
             role="meter"
-            aria-label="Available library storage"
+            aria-label="Available capacity on the library volume"
             aria-valuemin={0}
             aria-valuemax={total}
             aria-valuenow={available}
@@ -1585,8 +1674,8 @@ function StorageCard({
         <p>Storage capacity is unavailable for this location.</p>
       )}
       <p>
-        <Icon glyph={ShieldCheck} size="sm" /> Application versions are isolated from saves,
-        configuration, mods, and original sources.
+        <Icon glyph={ShieldCheck} size="sm" /> Installed application files are kept separate from
+        saves and settings.
       </p>
       <button
         data-focusable
@@ -1599,8 +1688,8 @@ function StorageCard({
         Export metadata
       </button>
       <p>
-        Export source references and version settings. Game files, saves, backups, toolchains, and
-        credentials are not included.
+        Export saved game-file locations and installed-version settings. Game files, saves, backups,
+        toolchains, and credentials are not included.
       </p>
       {exported && (
         <p role="status">

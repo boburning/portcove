@@ -1,0 +1,300 @@
+{
+  "portcove://application-update-notice": {
+    "$defs": {
+      "ApplicationChannel": {
+        "enum": [
+          "preview",
+          "stable"
+        ],
+        "type": "string"
+      },
+      "ApplicationUpdateCandidateSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "bytes": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "channel": {
+            "$ref": "#/$defs/ApplicationChannel"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "version",
+          "channel",
+          "bytes"
+        ],
+        "type": "object"
+      },
+      "ApplicationUpdateCheckResult": {
+        "properties": {
+          "candidate": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ApplicationUpdateCandidateSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "kind": {
+            "$ref": "#/$defs/ApplicationUpdateCheckResultKind"
+          },
+          "reasons": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "staged": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "kind",
+          "candidate",
+          "reasons",
+          "staged"
+        ],
+        "type": "object"
+      },
+      "ApplicationUpdateCheckResultKind": {
+        "enum": [
+          "consent-required",
+          "paused",
+          "manual-mode",
+          "offline",
+          "metered",
+          "metered-state-unknown",
+          "startup-delay",
+          "cadence",
+          "superseded",
+          "current",
+          "update-available",
+          "held",
+          "incompatible",
+          "no-candidate"
+        ],
+        "type": "string"
+      },
+      "ApplicationUpdateNotice": {
+        "properties": {
+          "preference_revision": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "result": {
+            "$ref": "#/$defs/ApplicationUpdateCheckResult"
+          }
+        },
+        "required": [
+          "preference_revision",
+          "result"
+        ],
+        "type": "object"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "notice": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/ApplicationUpdateNotice"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "revision": {
+        "format": "uint64",
+        "minimum": 0,
+        "type": "integer"
+      }
+    },
+    "required": [
+      "revision",
+      "notice"
+    ],
+    "title": "ApplicationUpdateNoticeSnapshot",
+    "type": "object"
+  },
+  "portcove://library-changed": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "null",
+    "type": "null"
+  },
+  "portcove://operation": {
+    "$defs": {
+      "ActivityTargetKind": {
+        "enum": [
+          "port",
+          "source",
+          "library"
+        ],
+        "type": "string"
+      },
+      "OperationResult": {
+        "enum": [
+          "succeeded",
+          "failed",
+          "cancelled"
+        ],
+        "type": "string"
+      },
+      "OperationTarget": {
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/$defs/ActivityTargetKind"
+          }
+        },
+        "required": [
+          "kind",
+          "id"
+        ],
+        "type": "object"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "description": "Versioned best-effort progress envelope. Durable activity history remains\nauthoritative after reconnect or restart.",
+    "oneOf": [
+      {
+        "properties": {
+          "type": {
+            "const": "started",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "type": "object"
+      },
+      {
+        "properties": {
+          "completed": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "phase": {
+            "type": "string"
+          },
+          "total": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "type": {
+            "const": "progress",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "phase",
+          "completed",
+          "total"
+        ],
+        "type": "object"
+      },
+      {
+        "properties": {
+          "level": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "type": {
+            "const": "message",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "level",
+          "message"
+        ],
+        "type": "object"
+      },
+      {
+        "properties": {
+          "result": {
+            "$ref": "#/$defs/OperationResult"
+          },
+          "type": {
+            "const": "finished",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "result"
+        ],
+        "type": "object"
+      }
+    ],
+    "properties": {
+      "operation": {
+        "type": "string"
+      },
+      "operation_id": {
+        "type": "string"
+      },
+      "parent_operation_id": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "schema_version": {
+        "format": "uint32",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "sequence": {
+        "format": "uint64",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "target": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/OperationTarget"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "timestamp_ms": {
+        "format": "int64",
+        "type": "integer"
+      }
+    },
+    "required": [
+      "schema_version",
+      "operation_id",
+      "parent_operation_id",
+      "sequence",
+      "timestamp_ms",
+      "operation",
+      "target"
+    ],
+    "title": "OperationEvent",
+    "type": "object"
+  }
+}

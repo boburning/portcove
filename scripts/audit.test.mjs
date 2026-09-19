@@ -101,15 +101,15 @@ test("domain inventories retain unrelated documentation rebases and invalidate R
   const stage = smallStages[0];
   const original = inventory("head-a", [
     file("crates/portcove-core/src/lib.rs", "rust-a"),
-    file("docs/QUALITY.md", "docs-a"),
+    file("docs/README.md", "docs-a"),
   ]);
   const unrelatedRebase = inventory("head-b", [
     file("crates/portcove-core/src/lib.rs", "rust-a"),
-    file("docs/QUALITY.md", "docs-b"),
+    file("docs/README.md", "docs-b"),
   ]);
   const relevantRebase = inventory("head-c", [
     file("crates/portcove-core/src/lib.rs", "rust-b"),
-    file("docs/QUALITY.md", "docs-b"),
+    file("docs/README.md", "docs-b"),
   ]);
   assert.equal(
     fingerprintStage(stage, original, runtime),
@@ -122,18 +122,22 @@ test("domain inventories retain unrelated documentation rebases and invalidate R
 });
 
 test("formatting and transport inputs invalidate every stage that actually reads them", () => {
-  const documentation = file("docs/QUALITY.md", "docs");
+  const documentation = file("docs/README.md", "docs");
   assert.ok(documentation.domains.includes("format"));
   assert.ok(documentation.domains.includes("repository"));
   assert.ok(!documentation.domains.includes("ui"));
   assert.ok(!documentation.domains.includes("rust"));
+
+  const policy = file("docs/QUALITY.md", "policy");
+  for (const stage of AUDIT_STAGES.filter((entry) => entry.reusable))
+    assert.ok(policy.domains.includes(stage.domain), stage.id);
 
   const transport = file("apps/desktop/src/transport-schemas.generated.json", "schema");
   assert.ok(transport.domains.includes("format") === false);
   assert.ok(transport.domains.includes("ui"));
   assert.ok(transport.domains.includes("rust"));
 
-  const frontendLock = file("apps/desktop/pnpm-lock.yaml", "lockfile");
+  const frontendLock = file("pnpm-lock.yaml", "lockfile");
   assert.ok(frontendLock.domains.includes("format"));
   assert.ok(frontendLock.domains.includes("ui"));
   assert.ok(frontendLock.domains.includes("release"));
@@ -147,7 +151,7 @@ test("formatting and transport inputs invalidate every stage that actually reads
   const formatStage = AUDIT_STAGES.find((stage) => stage.id === "format");
   const uiStage = AUDIT_STAGES.find((stage) => stage.id === "ui");
   const before = inventory("before", [documentation]);
-  const after = inventory("after", [file("docs/QUALITY.md", "changed docs")]);
+  const after = inventory("after", [file("docs/README.md", "changed docs")]);
   assert.notEqual(
     fingerprintStage(formatStage, before, runtime),
     fingerprintStage(formatStage, after, runtime),

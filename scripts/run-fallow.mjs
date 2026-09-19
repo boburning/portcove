@@ -4,9 +4,7 @@ import { fileURLToPath } from "node:url";
 import { evaluateFallowReport } from "./check-fallow-report.mjs";
 
 const desktopRoot = fileURLToPath(new URL("../apps/desktop/", import.meta.url));
-const fallowBin = fileURLToPath(
-  new URL("../apps/desktop/node_modules/fallow/bin/fallow", import.meta.url),
-);
+const fallowBin = fileURLToPath(new URL("../node_modules/fallow/bin/fallow", import.meta.url));
 const result = spawnSync(
   process.execPath,
   [fallowBin, "--format", "json", "--quiet", "--explain"],

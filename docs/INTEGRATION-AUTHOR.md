@@ -12,6 +12,14 @@ consumer. Its protocol and process files are examples, not a general SDK or
 permission to copy core lifecycle rules. See [integration ownership](INTEGRATIONS.md)
 and the complete [CLI contract](CLI.md).
 
+Choose only the capability level the client needs. A launch-only client binds
+identity, readiness and supervised launch; library integration adds stable entry
+discovery/refresh; lifecycle integration adds explicit management, progress and
+recovery. A basic launcher is not required to implement every management command.
+Negotiate the operations and schemas actually used, and keep unsupported higher
+levels unavailable rather than accepting consequential data the client cannot
+interpret.
+
 ## Discover and bind
 
 Use the runtime's argument-array API with shell execution disabled. These are
@@ -25,12 +33,26 @@ program/argument objects, not shell command strings:
 ```
 
 Check the envelope's schema, command, `ok`, data/error and exit status. Negotiate
-required command names, JSON/JSONL formats and raw `exec`. The reference's current
-window is API 42–48/event 2; tolerate additive object fields within it and reject
-unknown consequential enum values or a different schema with a migration message.
-Future client revisions should extend that window only after matching fixtures
-and package tests. The product version is descriptive, never a substitute for
-these checks. Export authoritative schemas with `schema export`.
+only the required command names and formats: launch-only needs JSON plus raw
+`exec`, read-only library integration needs JSON, and lifecycle operations add
+JSONL. The reference's current window is API 42–50/event 2; schema 50 advertises
+the event authority as `operation_event_schema_version`, while the historical
+42–49 window retains its documented event-2 contract. A client that does not use
+lifecycle events does not reject a runtime solely because it cannot interpret an
+unused event channel. Tolerate additive object fields within the supported window
+and reject unknown consequential enum values or a different used schema with a
+migration message. Future client revisions should extend that window only after
+matching fixtures and package tests. The product version is descriptive, never a
+substitute for these checks. Export authoritative schemas with `schema export`.
+
+Runtime discovery is a trust boundary, not permission to execute the first file
+with a matching name. Ask the user to select or approve a verified compatible
+package, validate its documented identity/checksum before negotiation, and show
+the effective library before any mutation. Reuse an intentionally selected
+library; never silently create or fall back to another one. Separate libraries
+remain separate identities. Desktop, CLI and plugins may be at different versions,
+so each consumer must reject an incompatible shared-library protocol or required
+operation without weakening core locking or migration authority.
 
 `library identity` may initialize an empty library. Its opaque ID plus catalog
 port ID forms the game key. Encode both components without delimiter collisions.
@@ -47,6 +69,7 @@ the process. Invoke the same program with these argument arrays:
 ```json
 ["--library","H:/fixtures/library","--non-interactive","exec","shipwright","--request-id","19c66cf0-656f-4a02-9c0b-dba89767ab4e"]
 ["--library","H:/fixtures/library","--non-interactive","--json","launch","show","19c66cf0-656f-4a02-9c0b-dba89767ab4e"]
+["--library","H:/fixtures/library","--non-interactive","--json","launch","recover","19c66cf0-656f-4a02-9c0b-dba89767ab4e"]
 ```
 
 The UUID above is illustrative; never reuse it for separate real attempts. Read
@@ -63,6 +86,14 @@ acceptance time, not a precise child-start clock. Returned PIDs are observations
 not authority to terminate a process. A lost wrapper or reader cannot establish
 successful gameplay or saved data. Core's retained request and activity are the
 reconnect authority; the client need only retain a reference pointer.
+
+Do not call `launch recover` while the recorded supervisor is live. After a
+lost supervisor leaves an unfinished request, the explicit command delegates to
+core's exact-identity recovery and returns the retained failed terminal record.
+It may wait for the exact recorded child to exit. A spawning-phase ambiguity,
+missing process-start identity, changed install, or live supervisor remains a
+conflict requiring review. Recovery does not prove that a hard-killed game flushed
+its own saves; it only performs the collection that core can verify afterward.
 
 ## Optional management
 
@@ -81,7 +112,7 @@ failure does not imply earlier registration was undone.
 
 Event records have **event schema 2 at the root**; they are not nested in API
 envelopes. A final root record has `type: "result"` and a negotiated API
-schema within the client's 42–48 window. Some
+schema within the client's 42–50 window. Some
 commands emit only the result. Track sequences per operation ID and parent IDs;
 do not fabricate progress when a phase or event is missing. A valid terminal
 result and matching exit status establish the command response; refresh core
@@ -114,6 +145,54 @@ outside the action. Submit `preparation cleanup` only with the exact reviewed
 `preview_sha256` and explicit confirmation. Changed, missing, duplicated,
 unknown or cross-port repair values require a fresh read and review; never reuse
 an earlier fingerprint or infer cleanup from an interrupted preparation.
+
+Schema 49 adds `launch.recover`. Negotiate the capability before offering an
+explicit recovery action, bind it to the retained request ID already observed
+through `launch.show`, and read the returned terminal record. Never substitute
+client-side PID checks, direct SQLite changes, automatic relaunch, or a success
+claim for the core result.
+
+## Planned destination-artwork handoff
+
+Public beta planning requires a small additive/versioned artwork handoff for an
+operating-system destination adapter such as #292. This is a future contract, not
+a shipped command or schema. Audit the existing public surface before adding any
+field. Reuse #208's core-owned asset identity, selection revision, provenance,
+accepted bytes and availability rather than exposing provider internals or teaching
+the adapter to search SteamGridDB.
+
+The initial semantic roles are static portrait cover, landscape cover and
+hero/banner. They are not provider dimensions or destination filenames, and a role
+may be unavailable. A consumer negotiates only the handoff it uses, treats unknown
+roles or consequential availability/provenance values according to the declared
+compatibility window, and never stretches or destructively crops one role into
+another. Existing cover/detail clients remain compatible and do not need to render
+every destination role.
+
+The adapter binds a preview to the exact library/port, choice revision, selected
+asset identity, destination installation/profile/entry, existing destination
+identity and write preconditions. It rereads destination state before mutation;
+changed or ambiguous state requires a fresh preview. Per-game/per-role results
+distinguish written, preserved, skipped, unavailable and failed. Missing provider
+credentials, offline access, no match or one unavailable role cannot turn a safe
+entry or prepared launch into failure.
+
+Provider credentials never cross this handoff. Provider configuration and enabled
+automatic fetching are separate from permission to reuse a suitable local asset.
+Destination writes use validated durable local copies, not disposable thumbnails
+or remote URLs. Repair preserves customization, artwork refresh fills missing roles
+by default, replacement requires deliberate consent, and cleanup is limited to
+demonstrably integration-owned unchanged bytes. No public contract field grants
+filesystem ownership, provider permission or mutation consent by itself.
+
+## Responsiveness
+
+Measure responsiveness against representative library sizes before setting a
+budget. Record process invocation counts, refresh and launch latency, bounded
+polling/concurrency, cancellation and prepared offline behavior. Prefer existing
+batch reads over one CLI process per game, and refresh incrementally where the
+public contract supports it. These measurements may expose a contract gap; they
+do not by themselves justify a daemon, hidden cache authority or invented command.
 
 ## Troubleshooting and conformance
 

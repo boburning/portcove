@@ -19,6 +19,13 @@ import { RecoveryReview } from "./RecoveryReview";
 import { AdoptionModal } from "./AdoptionModal";
 import { applyOperationEvent, mostRecentOperation } from "../operation-state";
 import { OperationCancellation } from "./OperationCancellation";
+import embeddedCatalog from "../../../../crates/portcove-core/catalog/catalog.json";
+
+function currentCatalogPort(id: string): PortDefinition {
+  const serialized = embeddedCatalog.ports.find((candidate) => candidate.id === id);
+  if (!serialized) throw new Error(`Missing embedded catalog port ${id}`);
+  return { ...portDefinition(), ...serialized } as unknown as PortDefinition;
+}
 
 const port: PortDefinition = {
   ...portDefinition(),
@@ -49,6 +56,34 @@ const port: PortDefinition = {
   },
   release: portDefinition().release,
   executable_hints: {},
+};
+const biosPort = currentCatalogPort("mortal-kombat-4-recompiled");
+const psxBiosProfile = {
+  ...sourceProfile(),
+  id: "psx-scph-1001-bios",
+  label: "PlayStation SCPH-1001 BIOS",
+  accepted_extensions: ["bin", "rom"],
+  accepted_sha1: ["10155d8d6e6e832d6ea66db9bc098321fb5e8ebf"],
+  accepted_sha256: ["71af94d1e47a68c11e8fdb9f8368040601514a42a5a399cda48c7d3bff1e99d3"],
+};
+const mortalKombat4Profile = {
+  ...sourceProfile(),
+  id: "mortal-kombat-4-psx",
+  label: "Mortal Kombat 4 (USA) disc",
+  kind: "psx-disc" as const,
+  accepted_extensions: ["chd"],
+  accepted_sha1: ["21515cdd9829521a2db76a83300b77e83855fa88"],
+  accepted_sha256: ["c43311155c03f7f9c23e7228bbf8874a5fdaa0984dbbefa356e5899eb40038a3"],
+  disc: { track_counts: [23], discs: [] },
+};
+const mortalKombat4Source = {
+  profile_id: mortalKombat4Profile.id,
+  path: "game.chd",
+  sha256: mortalKombat4Profile.accepted_sha256[0],
+  size: 1,
+  storage_sha256: mortalKombat4Profile.accepted_sha256[0],
+  storage_size: 1,
+  updated_at: 1,
 };
 const actions: DetailActions = {
   activate: vi.fn(),
@@ -108,6 +143,91 @@ const installRecord = (overrides: Partial<InstallRecord> = {}): InstallRecord =>
   runtime: null,
   ...overrides,
 });
+
+const bundledRuntime = {
+  archive_root: "runtime",
+  asset: {
+    name: "runtime.zip",
+    url: "https://example.com/runtime.zip",
+    size: 1024,
+    sha256: "d".repeat(64),
+  },
+  executable: "runtime.exe",
+  target_directory: "runtime",
+} satisfies NonNullable<PortDefinition["bundled_runtime"]["windows-x86-64"]>;
+
+const runtimeIdentity = {
+  archive_root: bundledRuntime.archive_root,
+  artifact: {
+    asset_name: bundledRuntime.asset.name,
+    sha256: bundledRuntime.asset.sha256,
+    size: bundledRuntime.asset.size,
+  },
+  executable: bundledRuntime.executable,
+  origin: "verified_download",
+  target_directory: bundledRuntime.target_directory,
+} satisfies NonNullable<InstallRecord["runtime"]>;
+
+const missingRuntimeFixture = (updateAvailable: boolean) => {
+  const active = installRecord({ runtime: runtimeIdentity });
+  const requiredBundledRuntime = updateAvailable
+    ? {
+        ...bundledRuntime,
+        asset: {
+          ...bundledRuntime.asset,
+          name: "runtime-2.zip",
+          sha256: "e".repeat(64),
+        },
+        executable: "runtime-2.exe",
+      }
+    : bundledRuntime;
+  const requiredRuntime = {
+    archive_root: requiredBundledRuntime.archive_root,
+    artifact: {
+      asset_name: requiredBundledRuntime.asset.name,
+      sha256: requiredBundledRuntime.asset.sha256,
+      size: requiredBundledRuntime.asset.size,
+    },
+    executable: requiredBundledRuntime.executable,
+    origin: "verified_download" as const,
+    target_directory: requiredBundledRuntime.target_directory,
+  };
+  return {
+    bundledRuntime: requiredBundledRuntime,
+    status: {
+      ...portStatus(),
+      active,
+      readiness: {
+        launchable: false,
+        blockers: ["missing_runtime"],
+        pending_setup: false,
+      },
+      last_update_check: {
+        checked_at: 2,
+        check: {
+          port_id: port.id,
+          channel: active.channel,
+          installed_version: active.version,
+          installed_artifact: active.artifact,
+          installed_runtime: active.runtime,
+          required_runtime: requiredRuntime,
+          update_available: updateAvailable,
+          release: {
+            published_at: null,
+            version: active.version,
+            channel: active.channel,
+            asset: {
+              name: active.artifact.asset_name,
+              url: "https://example.com/sample.zip",
+              size: active.artifact.size,
+              sha256: active.artifact.sha256,
+            },
+          },
+        },
+      },
+    } satisfies PortStatus,
+  };
+};
 
 const reviewedInstallPlan = (action: InstallPlan["action"] = "download"): InstallPlan => ({
   bundled_runtime: null,
@@ -243,8 +363,8 @@ describe("desktop components", () => {
       const html = renderToStaticMarkup(
         <StatusLayer clearError={vi.fn()} operation={operation} busy="backup" />,
       );
-      expect(html).toContain("Backup");
-      expect(html).toContain("Working");
+      expect(html).toContain("Backup in progress");
+      expect(html).toContain("Progress total not yet known.");
       expect(html).not.toContain("Old update");
       expect(html).not.toContain("width:100%");
     }
@@ -289,31 +409,148 @@ describe("desktop components", () => {
     expect(html).toContain("Saved data handling</small>Unavailable in this catalog");
   });
 
-  it("routes a missing verified runtime to reviewed installation instead of Play", () => {
+  it("routes a missing required component to the available update instead of Play", () => {
+    const fixture = missingRuntimeFixture(true);
     const html = renderToStaticMarkup(
+      <DetailPanel
+        port={{
+          ...port,
+          bundled_runtime: { "windows-x86-64": fixture.bundledRuntime },
+          source_profile: null,
+        }}
+        sourcePath=""
+        setSourcePath={vi.fn()}
+        actions={actions}
+        status={fixture.status}
+      />,
+    );
+    expect(html).toContain("Update required before playing");
+    expect(html).toContain("Install the available update that includes the required component");
+    expect(html).toContain("Review game update");
+    expect(html).not.toContain("Verified runtime required");
+    expect(html).not.toContain("Play now");
+    expect(html).not.toContain("Choose required source");
+  });
+
+  it("does not promise an update when a recorded required component needs repair", () => {
+    const fixture = missingRuntimeFixture(false);
+    const html = renderToStaticMarkup(
+      <DetailPanel
+        port={{
+          ...port,
+          bundled_runtime: { "windows-x86-64": fixture.bundledRuntime },
+          source_profile: null,
+        }}
+        sourcePath=""
+        setSourcePath={vi.fn()}
+        actions={actions}
+        status={fixture.status}
+      />,
+    );
+    expect(html).toContain("Required component unavailable");
+    expect(html).toContain(
+      "Check for updates. If none is available, verify the installation for diagnostic details.",
+    );
+    expect(html).not.toContain("Update required before playing");
+    expect(html).not.toContain("Install the available update");
+    expect(html).not.toContain("Play now");
+  });
+
+  it("names managed first-run preparation as required game files", () => {
+    const profileId = "opengoal-jak1-disc";
+    const html = renderToStaticMarkup(
+      <DetailPanel
+        port={{
+          ...port,
+          adapter: "upstream-managed-setup",
+          executable_hints: { "windows-x86-64": ["gk.exe"] },
+          launch_arguments: ["--game", "jak1", "--portable"],
+          presentation: {
+            installation_method: "upstream-setup",
+            source_requirements: [
+              {
+                role: "game",
+                profile_id: profileId,
+                label: "Jak and Daxter retail disc",
+                verification: "upstream-validator",
+              },
+            ],
+            saves_and_settings: "portcove-managed",
+          },
+          runtime_source_filename: "source.iso",
+          runtime_source_materialization: "ps2-iso",
+          setup_arguments: ["--game", "jak1", "--extract", "--validate"],
+          setup_executable_hints: { "windows-x86-64": ["extractor.exe"] },
+          setup_marker: "data/out/jak1/iso/0COMMON.TXT",
+          setup_output_paths: ["data/iso_data", "data/decompiler_out", "data/out"],
+          source_profile: profileId,
+        }}
+        source={{
+          profile_id: profileId,
+          path: "source.iso",
+          sha256: "a".repeat(64),
+          size: 1024,
+          storage_sha256: "a".repeat(64),
+          storage_size: 1024,
+          updated_at: 1,
+        }}
+        sourcePath="source.iso"
+        setSourcePath={vi.fn()}
+        actions={actions}
+        status={{
+          ...portStatus(),
+          active: installRecord(),
+          readiness: {
+            launchable: false,
+            blockers: ["preparation_required"],
+            pending_setup: true,
+            source: "current",
+          },
+        }}
+      />,
+    );
+    expect(html).toContain("Game files required");
+    expect(html).toContain("Run the port&#x27;s setup before playing for the first time.");
+    expect(html).not.toContain("Prepare game data</strong>");
+    expect(html).not.toContain("Portcove will run and verify the upstream setup before play.");
+  });
+
+  it("uses player-facing ready and downloaded-update labels", () => {
+    const status: PortStatus = {
+      ...portStatus(),
+      active: installRecord(),
+      readiness: {
+        launchable: true,
+        blockers: [],
+        pending_setup: false,
+      },
+    };
+    const ready = renderToStaticMarkup(
       <DetailPanel
         port={{ ...port, source_profile: null }}
         sourcePath=""
         setSourcePath={vi.fn()}
         actions={actions}
-        status={{
-          ...portStatus(),
-          port_id: port.id,
-          channel: "stable",
-          update_policy: "notify",
-          active: installRecord(),
-          readiness: {
-            launchable: false,
-            blockers: ["missing_runtime"],
-            pending_setup: false,
-          },
-        }}
+        status={status}
       />,
     );
-    expect(html).toContain("Verified runtime required");
-    expect(html).toContain("Review game update");
-    expect(html).not.toContain("Play now");
-    expect(html).not.toContain("Choose required source");
+    const downloaded = renderToStaticMarkup(
+      <DetailPanel
+        port={{ ...port, source_profile: null }}
+        sourcePath=""
+        setSourcePath={vi.fn()}
+        actions={actions}
+        status={{ ...status, staged: { ...installRecord(), id: "2", staged: true } }}
+      />,
+    );
+
+    expect(ready).toContain("Ready to play");
+    expect(ready).toContain("The installed version and all required game files are available.");
+    expect(downloaded).toContain("Ready to play · update downloaded");
+    expect(downloaded).toContain("Play the installed version or review the downloaded update.");
+    expect(`${ready}${downloaded}`).not.toContain("Ready to launch");
+    expect(`${ready}${downloaded}`).not.toContain("update staged");
+    expect(`${ready}${downloaded}`).not.toContain("active version");
   });
 
   it("shows installation repair without asking for a different source", () => {
@@ -372,11 +609,58 @@ describe("desktop components", () => {
         }}
       />,
     );
-    expect(html).toContain("Original source changed");
-    expect(html).toContain("Registered source changed since it was added");
+    expect(html).toContain("Game files changed");
+    expect(html).toContain("Choose and add the game files again before playing.");
+    expect(html).toContain("Registered game files changed since they were added");
     expect(html).toContain("Play unavailable");
     expect(html).not.toContain("Play now");
   });
+
+  it("uses player-facing BIOS recovery copy before playing", () => {
+    const bios = {
+      profile_id: "psx-scph-1001-bios",
+      path: "scph1001.bin",
+      sha256: "a".repeat(64),
+      size: 524_288,
+      storage_sha256: "a".repeat(64),
+      storage_size: 524_288,
+      updated_at: 1,
+    };
+    const html = renderToStaticMarkup(
+      <DetailPanel
+        port={biosPort}
+        source={mortalKombat4Source}
+        sourceProfile={mortalKombat4Profile}
+        sourcePath="game.chd"
+        setSourcePath={vi.fn()}
+        bios={bios}
+        biosPath="scph1001.bin"
+        setBiosPath={vi.fn()}
+        pickBios={vi.fn()}
+        biosProfile={psxBiosProfile}
+        actions={actions}
+        status={{
+          ...portStatus(),
+          port_id: biosPort.id,
+          channel: "stable",
+          update_policy: "notify",
+          active: installRecord(),
+          readiness: {
+            launchable: false,
+            blockers: ["changed_bios"],
+            pending_setup: false,
+            bios: "changed",
+          },
+        }}
+      />,
+    );
+    expect(html).toContain("Required BIOS file changed");
+    expect(html).toContain("Choose and add the required BIOS file again before playing.");
+    expect(html).toContain("Registered BIOS file changed since it was added.");
+    expect(html).toContain("Play unavailable");
+    expect(html).not.toContain("Play now");
+  });
+
   it("shows the reviewed adoption copy plan and skipped entries before copying", () => {
     const html = renderToStaticMarkup(
       <AdoptionModal
@@ -385,6 +669,7 @@ describe("desktop components", () => {
         close={vi.fn()}
         review={vi.fn()}
         adopt={vi.fn()}
+        ports={[port]}
         preview={{
           source: "D:/Existing",
           detected_port_ids: ["sample"],
@@ -428,14 +713,53 @@ describe("desktop components", () => {
       />,
     );
     expect(html).toContain("1 file · 2.0 KiB");
-    expect(html).toContain("1 skipped entry");
+    expect(html).toContain("Sample Port");
+    expect(html).toContain("Catalog ID: <code>sample</code>");
+    expect(html).toContain("1 unsupported item will remain only in the original folder");
     expect(html).toContain("linked-save");
     expect(html).toContain("Continue to copy confirmation");
     expect(html).toContain("E:/Games");
     expect(html).toContain("D:/Library/user/sample");
     expect(html).toContain("Matching saved files are replaced");
+    expect(html).not.toContain("SAFE ADOPTION");
+    expect(html).not.toContain("Bring an existing install into Portcove");
     expect(html).toContain("No automatic safety backup");
     expect(html).toContain("cannot cancel");
+  });
+
+  it("lists every detected port without presenting an ambiguous match as selected", () => {
+    const other = { ...port, id: "other", name: "Other Port" };
+    const html = renderToStaticMarkup(
+      <AdoptionModal
+        path="D:/Ambiguous"
+        setPath={vi.fn()}
+        close={vi.fn()}
+        review={vi.fn()}
+        adopt={vi.fn()}
+        ports={[port, other]}
+        preview={{
+          source: "D:/Ambiguous",
+          detected_port_ids: [port.id, other.id],
+          selected_port_id: null,
+          application_files_will_be_copied: true,
+          original_will_be_modified: false,
+          copy_plan: {
+            directories: [],
+            files: [],
+            skipped_entries: [],
+            total_bytes: 0,
+          },
+          destination: null,
+          plan_sha256: "d".repeat(64),
+        }}
+      />,
+    );
+    expect(html).toContain("Multiple supported ports detected");
+    expect(html).toContain("Sample Port — Catalog ID: <code>sample</code>");
+    expect(html).toContain("Other Port — Catalog ID: <code>other</code>");
+    expect(html).toContain("Choose the matching port in Portcove");
+    expect(html).toContain('disabled=""');
+    expect(html).not.toContain("Sample Port</strong>");
   });
 
   it("keeps older backups reachable without expanding the detail panel by default", () => {
@@ -444,16 +768,49 @@ describe("desktop components", () => {
       port_id: port.id,
       path: `backups/sample/${index}`,
       created_at: index + 1,
-      file_count: 2,
+      file_count: 1,
       size: 1024,
       sha256: `${index}`.repeat(64),
     }));
     const html = renderToStaticMarkup(
       <BackupHistory backups={backups} restore={vi.fn()} remove={vi.fn()} />,
     );
-    expect(html).toContain("4 verified snapshots");
+    expect(html).toContain("Backups");
+    expect(html).toContain("Backups include saves and settings managed by Portcove.");
+    expect(html).toContain("4 verified backups");
     expect(html).toContain("Show 1 older");
+    for (const backup of backups.slice(0, 3))
+      expect(html).toContain(
+        `aria-label="Technical details for backup from ${new Date(backup.created_at * 1000).toLocaleString()}"`,
+      );
     expect(html).not.toContain("3333333333");
+  });
+
+  it("uses count-aware backup wording and keeps checksum identity in technical details", () => {
+    const backup = {
+      id: "backup-1",
+      port_id: port.id,
+      path: "backups/sample/backup-1",
+      created_at: 1,
+      file_count: 1,
+      size: 1024,
+      sha256: "a".repeat(64),
+    };
+    const empty = renderToStaticMarkup(
+      <BackupHistory backups={[]} restore={vi.fn()} remove={vi.fn()} />,
+    );
+    const populated = renderToStaticMarkup(
+      <BackupHistory backups={[backup]} restore={vi.fn()} remove={vi.fn()} />,
+    );
+    expect(empty).toContain("No backups yet");
+    expect(empty).not.toContain("snapshot");
+    expect(populated).toContain("1 verified backup");
+    expect(populated).toContain("1 file · 1.0 KiB");
+    expect(populated).toContain("Technical details");
+    expect(populated).toContain('aria-label="Technical details for backup from ');
+    expect(populated).toContain('class="backup-checksum"');
+    expect(populated.indexOf(backup.sha256)).toBeGreaterThan(populated.indexOf("<details"));
+    expect(populated).not.toContain(`${backup.sha256.slice(0, 10)}…`);
   });
 
   it("keeps verified backups usable while exposing degraded and recovery details", () => {
@@ -487,7 +844,7 @@ describe("desktop components", () => {
       />,
     );
     expect(html).toContain("Backup recovery required");
-    expect(html).toContain("1 verified snapshot");
+    expect(html).toContain("1 verified backup");
     expect(html).toContain("Technical details");
     expect(html).toContain("Deletion was interrupted");
     expect(html).toContain("Restore");
@@ -528,14 +885,38 @@ describe("desktop components", () => {
       ),
       renderToStaticMarkup(<SettingsView libraryRoot="C:/Portcove" />),
     ].join(" ");
-    expect(html).toContain("Adopt an install");
+    expect(html).toContain("Copy existing installation");
     expect(html).toContain("Find a native port");
     expect(html).toContain("Problem");
     expect(html).toContain("C:/Portcove");
     expect(html).toContain("width:50%");
     expect(html).toContain("/brand/icons/portcove-mascot-head-256.png");
     expect(html).toContain("ABOUT &amp; CREDITS");
+    expect(html).toContain(
+      "Portcove keeps the desktop and CLI in sync across the catalog, game files, installed versions, and recovery history.",
+    );
     expect(html).toContain("/brand/logo/portcove-logo-v2-transparent.png");
+  });
+
+  it("uses player-facing catalog, update, and settings descriptions", () => {
+    const catalog = renderToStaticMarkup(
+      <PageHeader view="catalog" query="" setQuery={vi.fn()} portCount={61} />,
+    );
+    const updates = renderToStaticMarkup(<PageHeader view="updates" query="" setQuery={vi.fn()} />);
+    const settings = renderToStaticMarkup(
+      <PageHeader view="settings" query="" setQuery={vi.fn()} />,
+    );
+
+    expect(catalog).toContain(
+      "Explore 61 native game ports and recompilations available through Portcove.",
+    );
+    expect(catalog).toContain("Keep original game files local");
+    expect(catalog).not.toContain("release provenance");
+    expect(updates).toContain("Review available updates, downloaded releases, and failed checks");
+    expect(settings).toContain(
+      "Manage appearance, GitHub sign-in, game-file verification, and library storage.",
+    );
+    expect(settings).not.toContain("local storage boundaries");
   });
 
   it("keeps current and abandoned activity discoverable from primary navigation", () => {
@@ -684,9 +1065,12 @@ describe("desktop components", () => {
     );
     expect(html).toContain("E:/Portcove");
     expect(html).toContain("512 GiB available");
-    expect(html).toContain("1.0 TiB volume");
-    expect(html).toContain('aria-label="Available library storage"');
+    expect(html).toContain("1.0 TiB total storage capacity");
+    expect(html).toContain('aria-label="Available capacity on the library volume"');
     expect(html).toContain("width:50%");
+    expect(html).toContain("Installed application files are kept separate from saves and settings");
+    expect(html).toContain("Export saved game-file locations and installed-version settings");
+    expect(html).not.toContain("recovery-safe");
   });
 
   it("shows the core host-readiness report with explicit tool states", () => {
@@ -774,6 +1158,25 @@ describe("desktop components", () => {
     expect(html).not.toContain("Diagnostics are current");
   });
 
+  it("explains support-bundle and optional disc-tool boundaries", () => {
+    const html = renderToStaticMarkup(
+      <SettingsView createSupportBundle={vi.fn()} refreshDiagnostics={vi.fn()} />,
+    );
+
+    expect(html).toContain("Create support bundle");
+    expect(html).toContain(
+      "Collect recent logs, operation history, and system details without game-file contents or saved credentials.",
+    );
+    expect(html).toContain("Review what can remain before sharing");
+    expect(html).toContain("Paths, file names, port and tool identifiers, timestamps");
+    expect(html).toContain("Review the bundle before sharing it");
+    expect(html).toContain("Checking disc-tool availability");
+    expect(html).toContain(
+      "These optional tools are used only when Portcove must check, extract, or convert supported compressed disc formats.",
+    );
+    expect(html).not.toContain("privacy-safe");
+  });
+
   it("renders an accessible system, dark, and light appearance choice", () => {
     const html = renderToStaticMarkup(
       <SettingsView
@@ -849,9 +1252,47 @@ describe("desktop components", () => {
       />,
     );
     expect(html).toContain("Connected as port-user");
-    expect(html).toContain("4,998 of 5,000");
+    expect(html).toContain("4,998 of 5,000 GitHub requests remaining");
     expect(html).toContain("Operating-system credential store");
     expect(html).not.toContain("Personal access token");
+  });
+
+  it("hides unavailable device sign-in without exposing build configuration", () => {
+    const html = renderToStaticMarkup(
+      <SettingsView
+        github={{
+          status: {
+            source: "anonymous",
+            authenticated: false,
+            login: null,
+            rate_limit: null,
+            device_login_available: false,
+          },
+          token: "",
+          deviceLogin: {
+            expires_at: 10,
+            interval_seconds: 5,
+            session_id: "stale-device-session",
+            user_code: "STALE-CODE",
+            verification_uri: "https://github.example/device",
+          },
+          setToken: vi.fn(),
+          saveToken: vi.fn(),
+          logout: vi.fn(),
+          beginDeviceLogin: vi.fn(),
+          refresh: vi.fn(),
+        }}
+      />,
+    );
+
+    expect(html).toContain("Sign in to GitHub for a higher release-check limit");
+    expect(html).toContain("GitHub request limit unavailable");
+    expect(html).toContain("Continue anonymously or use a personal access token");
+    expect(html).toContain('aria-label="GitHub personal access token"');
+    expect(html).not.toContain("Sign in with GitHub");
+    expect(html).not.toContain("STALE-CODE");
+    expect(html).not.toContain("https://github.example/device");
+    expect(html).not.toContain("client ID");
   });
 
   it("shows read-only source integrity outcomes", () => {
@@ -882,7 +1323,9 @@ describe("desktop components", () => {
     const verified = renderToStaticMarkup(
       <SettingsView
         libraryRoot="C:/Portcove"
+        sourceRequirementsState="available"
         sources={[source]}
+        sourceProfiles={[{ ...sourceProfile(), id: source.profile_id, label: "Sample cartridge" }]}
         sourceOutcomes={[
           {
             profile_id: source.profile_id,
@@ -899,6 +1342,7 @@ describe("desktop components", () => {
     const failed = renderToStaticMarkup(
       <SettingsView
         libraryRoot="C:/Portcove"
+        sourceRequirementsState="available"
         sources={[source]}
         sourceOutcomes={[
           {
@@ -912,11 +1356,58 @@ describe("desktop components", () => {
       />,
     );
     expect(verified).toContain("Exact match");
+    expect(verified).toContain("Sample cartridge");
+    expect(verified).not.toContain("Saved game-file requirement unavailable");
     expect(verified).toContain("Full identity and evidence");
     expect(verified).toContain("D:/ROMs/sample.z64");
     expect(verified).toContain("Relink source");
     expect(failed).toContain("Needs attention");
     expect(failed).toContain("source changed since registration");
+  });
+
+  it("keeps a removed source-profile identity in technical details with removal available", () => {
+    const source = {
+      profile_id: `removed-${"profile".repeat(12)}`,
+      path: "D:/ROMs/retained-source.bin",
+      sha256: "a".repeat(64),
+      size: 1024,
+      storage_sha256: "a".repeat(64),
+      storage_size: 1024,
+      updated_at: 1,
+    };
+    const otherSource = {
+      ...source,
+      profile_id: "other-removed-profile",
+    };
+    const html = renderToStaticMarkup(
+      <SettingsView
+        libraryRoot="C:/Portcove"
+        sourceRequirementsState="available"
+        sources={[source, otherSource]}
+        sourceProfiles={[]}
+        replaceSource={vi.fn()}
+      />,
+    );
+
+    expect(html).toContain("Saved game-file requirement unavailable");
+    expect(html).toContain(
+      "This saved game-file requirement is no longer present in the current catalog.",
+    );
+    expect(html).toContain("Update the catalog or remove the saved location.");
+    expect(html).toContain(
+      `Catalog profile ID: <code class="source-profile-id">${source.profile_id}</code>`,
+    );
+    expect(html).toContain(
+      `aria-label="Technical details for saved game-file location ${source.path}, saved reference 1 of 2"`,
+    );
+    expect(html).toContain(
+      `aria-label="Technical details for saved game-file location ${otherSource.path}, saved reference 2 of 2"`,
+    );
+    expect(html).not.toContain(`<strong>${source.profile_id}</strong>`);
+    expect(html).not.toContain(">Relink source</button>");
+    expect(html).toContain("Remove reference");
+    expect(html).toContain("Needs attention");
+    expect(html).not.toContain("Checking identity");
   });
 
   it("shows the saved registered path as inspected and keeps a replacement path unchecked", () => {
@@ -967,34 +1458,96 @@ describe("desktop components", () => {
     expect(saved).toContain("Exact match");
     expect(saved).toContain("Exact registered identity.");
     expect(saved).not.toContain("Selected path has not been checked");
+    expect(saved).not.toContain("Selected game files have not been checked");
     expect(replacement).toContain("Selected path has not been checked");
+    expect(replacement).toContain("Selected game files have not been checked");
     expect(replacement).not.toContain("Exact registered identity.");
   });
 
   it("surfaces missing installed-library source requirements in settings", () => {
-    const html = renderToStaticMarkup(
+    const requirement = {
+      profile: {
+        ...sourceProfile(),
+        id: "sample-set",
+        label: "Sample source set",
+        kind: "file-set" as const,
+        accepted_extensions: [],
+      },
+      requiredBy: [{ portId: port.id, portName: port.name, role: "Game source" as const }],
+    };
+    const registeredSource = {
+      profile_id: requirement.profile.id,
+      path: "D:/ROMs/loading-source.bin",
+      sha256: "a".repeat(64),
+      size: 1024,
+      storage_sha256: "a".repeat(64),
+      storage_size: 1024,
+      updated_at: 1,
+    };
+    const unavailableInputs = {
+      libraryRoot: "C:/Portcove",
+      sources: [registeredSource],
+      sourceProfiles: [requirement.profile],
+    };
+    const loading = renderToStaticMarkup(<SettingsView {...unavailableInputs} />);
+    const unavailable = renderToStaticMarkup(
+      <SettingsView {...unavailableInputs} sourceRequirementsState="unavailable" />,
+    );
+    const complete = renderToStaticMarkup(
+      <SettingsView libraryRoot="C:/Portcove" sourceRequirementsState="available" />,
+    );
+    const singular = renderToStaticMarkup(
       <SettingsView
         libraryRoot="C:/Portcove"
-        sourceNeeds={[
-          {
-            profile: {
-              ...sourceProfile(),
-              id: "sample-set",
-              label: "Sample source set",
-              kind: "file-set",
-              accepted_extensions: [],
-            },
-            requiredBy: [{ portId: port.id, portName: port.name, role: "Game source" }],
-          },
-        ]}
+        sourceNeeds={[requirement]}
+        sourceRequirementsState="available"
         addSource={vi.fn()}
       />,
     );
-    expect(html).toContain("1 source requirement needs attention");
-    expect(html).toContain("Sample source set");
-    expect(html).toContain("Sample Port · Game source");
-    expect(html).toContain("Add source");
-    expect(html).toContain("Add ZIP");
+    const plural = renderToStaticMarkup(
+      <SettingsView
+        libraryRoot="C:/Portcove"
+        sourceNeeds={[
+          requirement,
+          {
+            ...requirement,
+            profile: { ...requirement.profile, id: "second-set", label: "Second source set" },
+          },
+        ]}
+        sourceRequirementsState="available"
+        addSource={vi.fn()}
+      />,
+    );
+
+    expect(loading).toContain("Checking required game files");
+    expect(loading).not.toContain("All required game files have been added");
+    expect(loading).not.toContain("No source files are registered yet");
+    expect(loading.match(/<button\b([^>]*)>Choose game files<\/button>/)?.[1]).toContain(
+      "disabled",
+    );
+    expect(loading).not.toContain(requirement.profile.label);
+    expect(loading).not.toContain(registeredSource.path);
+    expect(unavailable).toContain("Required game files could not be checked");
+    expect(unavailable).toContain("Retry loading the library before changing saved locations");
+    expect(unavailable).not.toContain("All required game files have been added");
+    expect(unavailable).not.toContain("No source files are registered yet");
+    expect(unavailable.match(/<button\b([^>]*)>Choose game files<\/button>/)?.[1]).toContain(
+      "disabled",
+    );
+    expect(unavailable).not.toContain(requirement.profile.label);
+    expect(unavailable).not.toContain(registeredSource.path);
+    expect(complete).toContain("All required game files have been added for your installed ports");
+    expect(complete).toContain("No source files are registered yet");
+    expect(singular).toContain("1 game-file requirement needs attention");
+    expect(plural).toContain("2 game-file requirements need attention");
+    expect(singular).toContain("Game-file verification");
+    expect(singular).toContain("Portcove checks files locally and never uploads or changes them");
+    expect(singular).toContain("confirms that the file is an exact match");
+    expect(singular).toContain("Sample source set");
+    expect(singular).toContain("Sample Port · Game source");
+    expect(singular).toContain("Add source");
+    expect(singular).toContain("Add ZIP");
+    expect(singular).not.toContain("source requirement needs attention");
   });
 
   it.each([null, installRecord(), installRecord({ verified: false })])(
@@ -1186,11 +1739,14 @@ describe("desktop components", () => {
     const buttonLabels = [...installed.matchAll(/<button\b[^>]*>(.*?)<\/button>/gs)].map(
       ([, content]) => content.replaceAll(/<[^>]+>/g, "").trim(),
     );
-    expect(uninstalled).toContain("Choose required source");
-    expect(uninstalled).toContain("Choose every required source before installing");
+    expect(uninstalled).toContain("Choose game files");
+    expect(uninstalled).toContain("Add all required game files before installing");
+    expect(uninstalled).toContain("Choose the required game file");
+    expect(uninstalled).toContain(
+      "Portcove uses this game file in place and never uploads or changes it.",
+    );
     expect(sourceFree).toContain("Review install");
-    expect(sourceFree).not.toContain("Choose required source");
-    expect(uninstalled).toContain("Browse");
+    expect(sourceFree).not.toContain("Choose game files");
     expect(installed).toContain("Play");
     expect(buttonLabels).toContain("Check for updates");
     expect(installed).toContain("Open data folder");
@@ -1202,7 +1758,7 @@ describe("desktop components", () => {
     expect(buttonLabels).not.toContain("Verify");
     expect(buttonLabels).not.toContain("Rollback");
     expect(installed).not.toContain("Create a versioned backup of saves and settings");
-    expect(installed).toContain("1 verified snapshot");
+    expect(installed).toContain("1 verified backup");
     expect(installed).toContain("Restore");
     expect(installed).toContain("Delete");
     expect(installed).toContain("Remove managed files");
@@ -1234,6 +1790,36 @@ describe("desktop components", () => {
     expect(html).toContain("512 GiB available");
     expect(html).toContain("Install · 64.0 MiB");
   });
+
+  it.each([
+    ["use_staged", "Use ready release", "Use ready release"],
+    ["reuse_retained", "Use previous release", "Use previous release"],
+  ] as const)(
+    "names the %s local install plan by its player outcome",
+    (action, planLabel, button) => {
+      const html = renderToStaticMarkup(
+        <DetailPanel
+          port={{ ...port, source_profile: null }}
+          sourcePath=""
+          setSourcePath={vi.fn()}
+          actions={actions}
+          installPlan={{
+            ...reviewedInstallPlan(action),
+            bundled_runtime: bundledRuntime,
+          }}
+        />,
+      );
+      expect(html).toContain(planLabel);
+      expect(html).toContain(button);
+      expect(html).toContain("Local release already checked");
+      expect(html).toContain("Required component included · 1.0 KiB");
+      expect(html).not.toContain("verified runtime");
+      expect(html).not.toContain("Verified local release");
+      expect(html).not.toContain("Use verified release");
+      expect(html).not.toContain("staged release");
+      expect(html).not.toContain("retained release");
+    },
+  );
 
   it("keeps an untested port in the default catalog with its eligible install enabled", () => {
     const untestedPort = {
@@ -1309,14 +1895,14 @@ describe("desktop components", () => {
     const blocked = renderDetails("blocked_unverified");
     expect(blocked).toContain("Windows · Linux · Not recorded: Apple silicon");
     expect(blocked).toContain("Windows · Not recorded: Linux · Apple silicon");
-    const blockedLabel = blocked.indexOf("Unverified copy blocks install");
+    const blockedLabel = blocked.indexOf("Verify or replace the local copy before installing");
     expect(blockedLabel).toBeGreaterThanOrEqual(0);
     const blockedButton = blocked.lastIndexOf("<button", blockedLabel);
     expect(blockedButton).toBeGreaterThanOrEqual(0);
     expect(blocked.slice(blockedButton, blocked.indexOf(">", blockedButton))).toContain("disabled");
   });
 
-  it("does not describe a blocked local copy as verified", () => {
+  it("describes a local copy that needs checking and keeps installation blocked", () => {
     const html = renderToStaticMarkup(
       <DetailPanel
         port={{ ...port, source_profile: null }}
@@ -1326,8 +1912,13 @@ describe("desktop components", () => {
         installPlan={reviewedInstallPlan("blocked_unverified")}
       />,
     );
-    expect(html).toContain("Local copy needs verification");
-    expect(html).toContain("Unverified copy blocks install");
+    expect(html).toContain("Local copy needs checking");
+    expect(html).toContain("Verify or replace the local copy before installing");
+    const label = html.indexOf("Verify or replace the local copy before installing");
+    const button = html.lastIndexOf("<button", label);
+    expect(button).toBeGreaterThanOrEqual(0);
+    expect(html.slice(button, html.indexOf(">", button))).toContain("disabled");
+    expect(html).not.toContain("Unverified copy");
     expect(html).not.toContain("Verified local release");
     expect(html).not.toContain("Use verified release");
   });
@@ -1347,8 +1938,12 @@ describe("desktop components", () => {
       expect(html).toContain("Review install again");
       expect(html).toContain("cannot display the installation plan");
       for (const label of [
-        "Use verified release",
-        "Verified local release",
+        "Use installed release",
+        "Use ready release",
+        "Use previous release",
+        "Local release already checked",
+        "Required component included",
+        "Verify or replace the local copy before installing",
         "No download",
         "Install ·",
       ])
@@ -1359,33 +1954,39 @@ describe("desktop components", () => {
   it("explains the folder contract for a multi-disc source", () => {
     const html = renderToStaticMarkup(
       <DetailPanel
-        port={port}
+        port={currentCatalogPort("final-fantasy-vii-recompiled")}
         sourceProfile={{
           ...sourceProfile(),
-          id: "sample-rom",
-          label: "Three-disc set",
+          id: "final-fantasy-vii-psx",
+          label: "Final Fantasy VII (USA) three-disc set",
           kind: "psx-disc",
           accepted_extensions: ["chd"],
           disc: {
             track_counts: [1],
             discs: [
               {
-                accepted_sha1: [],
-                accepted_sha256: [],
+                accepted_sha1: ["1f890164ac4daeba07def64bb5b636bfaa1d3ab9"],
+                accepted_sha256: [
+                  "385d416b651f8ab2a9dee78718e6dd7ae5d83af37507395b990c4d7923d9e5bd",
+                ],
                 accepted_volume_ids: [],
                 label: "Disc 1",
                 track_counts: [1],
               },
               {
-                accepted_sha1: [],
-                accepted_sha256: [],
+                accepted_sha1: ["9b8456c661722b032e24f2596840b06ea5cbdd46"],
+                accepted_sha256: [
+                  "1b9c745af8f68bf58dcbb464c3bb0c16bfa87b72d99bfa6b39615fa052ce681a",
+                ],
                 accepted_volume_ids: [],
                 label: "Disc 2",
                 track_counts: [1],
               },
               {
-                accepted_sha1: [],
-                accepted_sha256: [],
+                accepted_sha1: ["0d9614fcd1288bbff2c53e690c6f626d3ac28fd0"],
+                accepted_sha256: [
+                  "9afd82845c2b0388335c4bee04d78e946ae683c473a5f5c567cd944e11190414",
+                ],
                 accepted_volume_ids: [],
                 label: "Disc 3",
                 track_counts: [1],
@@ -1399,32 +2000,142 @@ describe("desktop components", () => {
         actions={actions}
       />,
     );
-    expect(html).toContain("Three-disc set");
-    expect(html).toContain("folder containing the required sources");
-    expect(html).toContain("exactly the required source set");
+    const buttonLabels = [...html.matchAll(/<button\b[^>]*>(.*?)<\/button>/gs)].map(([, content]) =>
+      content.replaceAll(/<[^>]+>/g, "").trim(),
+    );
+    expect(html).toContain("Final Fantasy VII (USA) three-disc set");
+    expect(html).toContain("Choose the folder that contains all required game discs");
+    expect(html).toContain("Portcove checks this folder without uploading or changing it.");
+    expect(buttonLabels.filter((label) => label === "Choose game files")).toHaveLength(2);
+  });
+
+  it("explains folder and ZIP choices for an exact game-file set", () => {
+    const html = renderToStaticMarkup(
+      <DetailPanel
+        port={currentCatalogPort("g-diffuser")}
+        sourceProfile={{
+          ...sourceProfile(),
+          id: "g-diffuser-source-set",
+          label: "F-Zero X G-Diffuser cartridge, Expansion Kit, and 64DD IPL set",
+          kind: "file-set",
+          accepted_extensions: [],
+          members: [
+            {
+              id: "cartridge",
+              label: "F-Zero X (USA Rev 0) cartridge",
+              accepted_filenames: ["baserom.us.rev0.z64"],
+              accepted_sha1: ["5f658e88ffa9de23cba6986a8fd3d3a90d7b4340"],
+              accepted_sha256: ["2be0f861c30752bbdfa727753a454108bc973c27ad814744f191b1278c1f482d"],
+              accepted_crc32: [],
+            },
+            {
+              id: "expansion-kit",
+              label: "English translated F-Zero X Expansion Kit disk",
+              accepted_filenames: ["baserom.translated.ek.ndd"],
+              accepted_sha1: ["fde9fa6f29a52be0144bda74caf8583c036c20ce"],
+              accepted_sha256: [],
+              accepted_crc32: [],
+            },
+            {
+              id: "ipl",
+              label: "Nintendo 64DD IPL",
+              accepted_filenames: ["N64DDIPLROM.n64", "64DD_IPL_US_MJR.n64"],
+              accepted_sha1: [
+                "bf861922dcb78c316360e3e742f4f70ff63c9bc3",
+                "3c5b93ca231550c68693a14f03cea8d5dbd1be9e",
+              ],
+              accepted_sha256: [],
+              accepted_crc32: [],
+            },
+          ],
+        }}
+        sourcePath=""
+        setSourcePath={vi.fn()}
+        pickSource={vi.fn()}
+        pickSourceArchive={vi.fn()}
+        actions={actions}
+      />,
+    );
+    const buttonLabels = [...html.matchAll(/<button\b[^>]*>(.*?)<\/button>/gs)].map(([, content]) =>
+      content.replaceAll(/<[^>]+>/g, "").trim(),
+    );
+    expect(html).toContain("Choose the folder or ZIP file that contains the required game files");
+    expect(html).toContain("Portcove checks this location without uploading or changing it.");
+    expect(buttonLabels.filter((label) => label === "Choose game files")).toHaveLength(2);
+    expect(buttonLabels).toContain("Choose ZIP file");
   });
 
   it("renders an independently selectable required BIOS", () => {
-    const html = renderToStaticMarkup(
+    const unselected = renderToStaticMarkup(
       <DetailPanel
-        port={{ ...port, bios_source_profile: "psx-bios" }}
+        port={biosPort}
+        source={mortalKombat4Source}
+        sourceProfile={mortalKombat4Profile}
+        sourcePath="game.chd"
+        setSourcePath={vi.fn()}
+        biosPath=""
+        setBiosPath={vi.fn()}
+        pickBios={vi.fn()}
+        biosProfile={psxBiosProfile}
+        actions={actions}
+      />,
+    );
+    expect(unselected).toContain("Required BIOS");
+    expect(unselected).toContain("PlayStation SCPH-1001 BIOS");
+    expect(unselected).toContain("Choose the required BIOS file");
+    expect(unselected).toContain(
+      "Portcove uses this BIOS file in place and never uploads or changes it.",
+    );
+    expect(unselected).toContain("Choose BIOS file");
+    const unselectedButtons = [...unselected.matchAll(/<button\b[^>]*>(.*?)<\/button>/gs)].map(
+      ([, content]) => content.replaceAll(/<[^>]+>/g, "").trim(),
+    );
+    expect(unselectedButtons.filter((label) => label === "Choose BIOS file")).toHaveLength(2);
+    expect(unselected).toContain("Add the required BIOS file before installing");
+
+    const selected = renderToStaticMarkup(
+      <DetailPanel
+        port={biosPort}
+        source={mortalKombat4Source}
+        sourceProfile={mortalKombat4Profile}
         sourcePath="game.chd"
         setSourcePath={vi.fn()}
         biosPath="scph1001.bin"
         setBiosPath={vi.fn()}
         pickBios={vi.fn()}
-        biosProfile={{
-          ...sourceProfile(),
-          id: "psx-bios",
-          label: "PlayStation SCPH-1001 BIOS",
-          accepted_extensions: ["bin"],
-        }}
+        biosProfile={psxBiosProfile}
         actions={actions}
       />,
     );
-    expect(html).toContain("Required BIOS");
-    expect(html).toContain("PlayStation SCPH-1001 BIOS");
-    expect(html).toContain("scph1001.bin");
+    expect(selected).toContain("scph1001.bin");
+    expect(selected).toContain(
+      "Selected BIOS file has not been checked. Portcove validates it when you continue.",
+    );
+    expect(selected).toContain("The selected BIOS file has not been checked");
+    expect(selected).not.toContain("Selected game files have not been checked");
+    expect(selected).not.toContain(
+      "Portcove uses this BIOS file in place and never uploads or changes it.",
+    );
+  });
+
+  it("names both missing game files and BIOS before install", () => {
+    const html = renderToStaticMarkup(
+      <DetailPanel
+        port={biosPort}
+        sourceProfile={mortalKombat4Profile}
+        sourcePath=""
+        setSourcePath={vi.fn()}
+        pickSource={vi.fn()}
+        biosProfile={psxBiosProfile}
+        biosPath=""
+        setBiosPath={vi.fn()}
+        pickBios={vi.fn()}
+        actions={actions}
+      />,
+    );
+    const primary = html.match(/<div class="actions primary-actions">(.*?)<\/div>/s)?.[1];
+    expect(primary).toContain("Choose game files and BIOS");
+    expect(primary).toContain("Add all required game files and the BIOS file before installing");
   });
 
   it("offers activation when an update is staged", () => {
@@ -1521,12 +2232,18 @@ describe("desktop components", () => {
     expect(emptyLibrary).toContain("/brand/mascot/portcove-mascot-v2-front.png");
     expect(emptyLibrary).toContain('aria-hidden="true"');
     expect(emptyLibrary).toContain("No installed ports yet");
+    expect(emptyLibrary).toContain("copy an existing supported installation");
+    expect(emptyLibrary.toLowerCase()).not.toContain("adopt");
     expect(emptyLibrary).not.toContain("Clear search and filters");
     expect(filteredEmptyLibrary).toContain("No installed ports match your search and filters");
     expect(filteredEmptyLibrary).toContain("Clear search and filters");
     expect(filteredEmptyLibrary).not.toContain("No installed ports yet");
     expect(loading).toContain("/brand/logo/portcove-logo-v2-transparent.png");
     expect(loading).toContain('alt="Portcove"');
+    expect(loading).toContain(
+      "Loading the catalog, added game files, and installed ports from this device.",
+    );
+    expect(loading).not.toContain("shared local catalog");
   });
 
   it("keeps adapter internals out of the primary detail view", () => {
@@ -1795,6 +2512,12 @@ describe("desktop components", () => {
       channel: "stable",
       update_policy: "notify",
       active: install,
+      readiness: {
+        launchable: true,
+        blockers: [],
+        pending_setup: false,
+        source: "current",
+      },
       last_update_check: {
         checked_at: 2,
         check: {
@@ -1831,10 +2554,51 @@ describe("desktop components", () => {
         loading={false}
       />,
     );
-    expect(html).toContain("Launch ready");
+    expect(html).toContain("Ready to play");
+    expect(html).toContain("View details");
+    expect(html).toContain("Updates downloaded");
     expect(html).toContain("Update available");
     expect(html).toContain("setup and recovery options");
+    expect(html).not.toContain("Launch ready");
+    expect(html).not.toContain("Play options");
+    expect(html).not.toContain("Staged updates");
     expect(html).not.toContain("rollback-safe");
+  });
+
+  it("labels a downloaded update without exposing staging terminology", () => {
+    const install = installRecord();
+    const status: PortStatus = {
+      ...portStatus(),
+      port_id: port.id,
+      channel: "stable",
+      update_policy: "stage",
+      active: install,
+      staged: { ...install, id: "2", version: "2.0", staged: true },
+      readiness: {
+        launchable: true,
+        blockers: [],
+        pending_setup: false,
+        source: "current",
+      },
+    };
+    const html = renderToStaticMarkup(
+      <PortBrowser
+        view="library"
+        ports={[port]}
+        statuses={new Map([[port.id, status]])}
+        overview={{ installed: 1, ready: 1, needsSetup: 0, staged: 1 }}
+        filter="ready"
+        setFilter={vi.fn()}
+        onSelect={vi.fn()}
+        loading={false}
+      />,
+    );
+
+    expect(html).toContain("Update downloaded");
+    expect(html).toContain("Updates downloaded");
+    expect(html).toContain("Review update");
+    expect(html).not.toContain("Update staged");
+    expect(html).not.toContain("Staged updates");
   });
 
   it("offers Continue only from a recorded successful launch", () => {
@@ -1870,7 +2634,8 @@ describe("desktop components", () => {
     );
     expect(html).toContain("CONTINUE");
     expect(html).toContain("Play again");
-    expect(html).toContain("Last successful session");
+    expect(html).toContain("Last played");
+    expect(html).not.toContain("Last successful session");
   });
 
   it("routes Continue to setup when previously launched source bytes changed", () => {
@@ -1921,6 +2686,7 @@ describe("desktop components", () => {
       <UpdateCenter
         generation={1}
         ports={[port]}
+        sourceProfiles={[{ ...sourceProfile(), id: "sample-rom", label: "Sample cartridge" }]}
         statuses={new Map([[port.id, status]])}
         activities={[
           {
@@ -1934,6 +2700,18 @@ describe("desktop components", () => {
             status: "succeeded",
             started_at: 1,
             finished_at: 2,
+          },
+          {
+            id: "activity-copy",
+            failure: null,
+            cancellation: null,
+            message: null,
+            operation: "adopt",
+            target_kind: "port",
+            target_id: port.id,
+            status: "succeeded",
+            started_at: 2,
+            finished_at: 3,
           },
           {
             id: "activity-2",
@@ -1958,6 +2736,18 @@ describe("desktop components", () => {
             target_id: port.id,
             status: "running",
             started_at: 1,
+          },
+          {
+            id: "activity-missing-source",
+            failure: null,
+            cancellation: null,
+            message: null,
+            operation: "verify_source",
+            target_kind: "source",
+            target_id: "removed-profile",
+            status: "succeeded",
+            started_at: 4,
+            finished_at: 5,
           },
           {
             id: "activity-4",
@@ -2039,6 +2829,8 @@ describe("desktop components", () => {
     expect(html).toContain("Recent activity");
     expect(html).toContain("Updated port");
     expect(html).toContain("Verified source");
+    expect(html).toContain("Copied existing installation");
+    expect(html).not.toContain("Adopted installation");
     expect(html).toContain("Older activity details are available in a redacted support bundle");
     expect(html).not.toContain("source changed");
     for (const label of [
@@ -2046,14 +2838,118 @@ describe("desktop components", () => {
       "Failed",
       "Cancelled",
       "Status unavailable",
-      "Needs review",
+      "May have been interrupted",
       "In progress",
     ])
       expect(html).toContain(`<span class="activity-status">${label}</span>`);
     expect(html).not.toMatch(/activity-status">(?:succeeded|failed|cancelled|unfinished|running)</);
-    expect(html).toContain("No completion recorded");
-    expect(html).toContain('<button data-focusable="true">sample-rom</button>');
+    expect(html).toContain("No completion reported");
+    expect(html).toContain(
+      "This task has not reported completion. Review its details before retrying.",
+    );
+    expect(html).not.toContain("Needs review");
+    expect(html).toContain('<button data-focusable="true">Sample cartridge</button>');
+    expect(html).not.toContain('<button data-focusable="true">sample-rom</button>');
+    expect(html).toContain('<button data-focusable="true">removed-profile</button>');
     expect(html).toContain("Activity from the CLI and desktop appears here.");
+  });
+
+  it("describes activity mutations with outcomes shared producers can support", () => {
+    const activities: ActivityRecord[] = [
+      {
+        id: "activity-backup",
+        failure: null,
+        cancellation: null,
+        message: null,
+        operation: "backup",
+        target_kind: "port",
+        target_id: port.id,
+        status: "succeeded",
+        started_at: 10,
+        finished_at: 11,
+      },
+      {
+        id: "activity-remove",
+        failure: null,
+        cancellation: null,
+        message: null,
+        operation: "remove",
+        target_kind: "port",
+        target_id: port.id,
+        status: "succeeded",
+        started_at: 11,
+        finished_at: 12,
+      },
+      {
+        id: "activity-remove-source",
+        failure: null,
+        cancellation: null,
+        message: null,
+        operation: "remove_source",
+        target_kind: "source",
+        target_id: "sample-rom",
+        status: "succeeded",
+        started_at: 12,
+        finished_at: 13,
+      },
+      {
+        id: "activity-register-source",
+        failure: null,
+        cancellation: null,
+        message: null,
+        operation: "register_source",
+        target_kind: "source",
+        target_id: "sample-rom",
+        status: "succeeded",
+        started_at: 13,
+        finished_at: 14,
+      },
+      {
+        id: "activity-discover-sources",
+        failure: null,
+        cancellation: null,
+        message: null,
+        operation: "discover_sources",
+        target_kind: "library",
+        target_id: null,
+        status: "succeeded",
+        started_at: 14,
+        finished_at: 15,
+      },
+    ];
+    const html = renderToStaticMarkup(
+      <UpdateCenter
+        generation={1}
+        ports={[port]}
+        statuses={new Map()}
+        activities={activities}
+        outcomes={[]}
+        diagnosticsRefreshing={false}
+        diagnosticsStale={false}
+        refreshDiagnostics={vi.fn()}
+        checkAll={vi.fn()}
+        onSelect={vi.fn()}
+        onOpenSources={vi.fn()}
+      />,
+    );
+
+    for (const label of [
+      "Created backup",
+      "Removed installed versions",
+      "Removed saved game-file location",
+      "Saved game-file location",
+      "Searched for game files",
+    ])
+      expect(html).toContain(label);
+    for (const internalLabel of [
+      "Backed up data",
+      "Removed managed files",
+      "Removed source reference",
+      "Registered source",
+      "Added game file",
+      "Searched for sources",
+    ])
+      expect(html).not.toContain(internalLabel);
   });
 
   it("explains empty update and activity states without internal lifecycle jargon", () => {

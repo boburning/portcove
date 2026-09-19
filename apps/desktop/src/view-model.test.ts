@@ -9,6 +9,7 @@ import {
   indexStatuses,
   mostRecentPort,
   portReadiness,
+  progressPresentation,
   requiredSourceNeeds,
   summarizeLibrary,
 } from "./view-model";
@@ -57,6 +58,14 @@ describe("catalog view model", () => {
     readiness: { launchable: true, blockers: [], pending_setup: false },
   };
 
+  it("uses a stable fallback for an unknown operation identity", () => {
+    for (const operation of ["future-operation", "constructor", "__proto__"])
+      expect(progressPresentation(undefined, operation)).toEqual({
+        label: "Working",
+        detail: "Progress total not yet known.",
+      });
+  });
+
   it("indexes statuses and restricts the library to installed ports", () => {
     const statuses = indexStatuses([status]);
     expect(statuses.get("alpha")).toEqual(status);
@@ -69,6 +78,26 @@ describe("catalog view model", () => {
     expect(
       filterPorts(ports, new Map(), "catalog", "rolling", "BETA").map((value) => value.id),
     ).toEqual(["beta"]);
+  });
+
+  it("searches the visible installation method without indexing the internal adapter id", () => {
+    const searchable = {
+      ...ports[0],
+      presentation: {
+        installation_method: "staged-game-files" as const,
+        source_requirements: [],
+        saves_and_settings: "portcove-managed" as const,
+      },
+    };
+
+    expect(
+      filterPorts([searchable], new Map(), "catalog", "all", "prepared game files").map(
+        (value) => value.id,
+      ),
+    ).toEqual(["alpha"]);
+    expect(
+      filterPorts([searchable], new Map(), "catalog", "all", "staged-source-portable"),
+    ).toEqual([]);
   });
 
   it("distinguishes playable installs from missing-source setup", () => {

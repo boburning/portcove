@@ -77,6 +77,28 @@ Portcove keeps the installation unchanged and shows the general supported-packag
 or manual-recovery guidance. Installations copied or unpacked by hand remain under
 their existing manual owner.
 
+### Rootless AppImage lifecycle
+
+For a rootless Portcove installation, keep the maintained AppImage as one direct
+file at a stable absolute path owned by the current user. Do not place that file
+behind a `current` symlink, a version-directory pointer, or a package-manager
+path: the built-in updater deliberately refuses linked paths and installations
+owned by another authority. The containing directory must remain writable for
+the atomic replacement and its immediately previous verified backup.
+
+A manually created desktop entry should use that exact stable AppImage path for
+both `Exec` and `TryExec`. Routine AppImage replacement keeps the path unchanged,
+so the entry does not need to be rewritten for each version. Moving the AppImage
+later is a manual ownership change: update the desktop entry and recheck
+eligibility from the new direct path before accepting another update.
+
+To uninstall this rootless form, first close Portcove and every game it started,
+then remove only the stable AppImage and the desktop entry created for it. Keep
+the Portcove library and its game files, saves, backups and logs unless you are
+making a separate explicit data-removal decision. Removing a DEB or RPM continues
+to use its package manager instead; these instructions never convert or uninstall
+a package-manager-owned installation.
+
 ## Application updater recovery without the GUI
 
 If Portcove cannot open far enough to show **Settings > Application updates**,

@@ -55,7 +55,7 @@ export async function adoptionReviewScenario({
     const { button, click } = reviewControls(browser);
     const dialog = By.css('[aria-labelledby="adopt-title"]');
     const open = async () => {
-      await click(button("Adopt an install"));
+      await click(button("Copy existing installation"));
       const input = await browser.findElement(By.id("adopt-path"));
       await input.clear();
       await input.sendKeys(original);
@@ -69,6 +69,9 @@ export async function adoptionReviewScenario({
     await open();
     let text = await browser.findElement(dialog).getText();
     for (const expected of [
+      "Add an existing installation to Portcove",
+      port.name,
+      `Catalog ID: ${port.id}`,
       original,
       paths.user_data_root,
       previous.path,
@@ -82,15 +85,15 @@ export async function adoptionReviewScenario({
     await open();
     await click(button("Continue to copy confirmation"));
     await confirmNative(
-      "Confirm adoption",
+      "Confirm existing installation copy",
       "__observe__",
-      paths.user_data_root,
+      "No unsupported items were found in the reviewed copy plan.",
       "adoption-native-before-consent",
     );
     assert.equal(await readFile(current, "utf8"), "current settings");
     assert.equal(command(["status", port.id]).active.id, previous.id);
     await confirmNative(
-      "Confirm adoption",
+      "Confirm existing installation copy",
       "Cancel",
       paths.user_data_root,
       "adoption-native-cancelled",
@@ -144,7 +147,7 @@ export async function adoptionReviewScenario({
     artifacts.push(screenshot);
     await click(button("Continue to copy confirmation"));
     await confirmNative(
-      "Confirm adoption",
+      "Confirm existing installation copy",
       "Copy into Portcove",
       paths.user_data_root,
       "adoption-native-confirmed",

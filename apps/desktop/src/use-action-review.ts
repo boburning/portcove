@@ -1,5 +1,5 @@
 import { useCallback, useLayoutEffect, useRef, useState } from "react";
-import { LatestRequestGeneration } from "./concurrency-state";
+import { LatestRequestGeneration } from "./shared/concurrency-state";
 import { errorText } from "./view-model";
 
 export type ReviewOutcome = boolean | "cancelled";

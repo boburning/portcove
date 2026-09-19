@@ -74,6 +74,12 @@ healthy-startup journal reconciliation, staging and backup cleanup, and preserva
 of a library sentinel throughout the sequence.
 It deletes the disposable TUF private keys before starting either AppImage and does
 not upload private keys or mutable updater state.
+The same packaged Linux run uses a direct current-user stable AppImage path and an
+absolute desktop entry, retains exact library, game-file, save, backup and log
+markers through replacement, then performs the documented bounded rootless
+uninstall. The uninstall removes only the AppImage and that entry and proves every
+data marker remains exact. This is Ubuntu-hosted packaged lifecycle evidence, not
+SteamOS/Game Mode, removable-storage, physical-device or human setup evidence.
 These are fixture versions, never publication or release-readiness declarations.
 The script requires a clean tracked checkout, records the exact source commit and
 version-only source patch, restores metadata, and deletes its disposable private
@@ -228,7 +234,7 @@ The release version must match in exactly three places:
 
 After changing them, run Cargo once so the workspace package entries in `Cargo.lock` are refreshed (including the unpublished release verification tool). A release tag is always the exact version with a `v` prefix, such as `v0.1.0` or `v0.2.0-beta.1`.
 
-`scripts/check-release-metadata.mjs` verifies those versions, the tag, package manager pin, repository/license metadata, Tauri identity, and the required master/runtime/platform brand assets. Local packaging derives its default version from that check and rejects an explicit mismatch.
+`scripts/check-release-metadata.mjs` verifies those versions, the tag, package manager pin, repository/license metadata, Tauri identity, and the required master/runtime/platform brand assets. It also requires one created local `main` Tauri window, scopes the default capability to that window, and uses Cargo's metadata graph to keep the declared qualification-only features out of both the transitive default Desktop feature set and always-enabled dependency features. The production Vite build independently rejects development scenarios and test fixtures from emitted assets. Local packaging derives its default version from that check and rejects an explicit mismatch.
 
 The offline `corepack pnpm --dir apps/desktop release:policy` utility accepts `classify`,
 `select` or `propose` followed by one JSON input file. It shares the existing Node

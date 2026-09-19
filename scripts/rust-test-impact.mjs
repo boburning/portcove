@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -115,4 +116,101 @@ export function selectRustTestImpact(map, packageName, changes) {
     reason: "every modified Rust path has explicit test-impact ownership",
     groups: [...selected.values()].sort((left, right) => left.id.localeCompare(right.id)),
   };
+}
+
+export function runnableImpactTests(inventory, packageName) {
+  if (
+    !inventory ||
+    !Number.isSafeInteger(inventory["test-count"]) ||
+    inventory["test-count"] < 0 ||
+    !inventory["rust-suites"] ||
+    typeof inventory["rust-suites"] !== "object" ||
+    Array.isArray(inventory["rust-suites"])
+  )
+    throw new Error("Incomplete nextest impact inventory");
+  const matched = new Set();
+  let total = 0;
+  for (const [binaryId, suite] of Object.entries(inventory["rust-suites"])) {
+    if (
+      suite?.["package-name"] !== packageName ||
+      suite["binary-id"] !== binaryId ||
+      suite.status !== "listed" ||
+      !suite.testcases ||
+      typeof suite.testcases !== "object" ||
+      Array.isArray(suite.testcases)
+    )
+      throw new Error("Unexpected nextest impact suite identity or coverage");
+    for (const [name, detail] of Object.entries(suite.testcases)) {
+      total++;
+      const status = detail?.["filter-match"]?.status;
+      if (
+        !name ||
+        typeof detail?.ignored !== "boolean" ||
+        !["matches", "mismatch"].includes(status)
+      )
+        throw new Error("Invalid nextest impact test record");
+      if (status === "matches" && !detail.ignored) matched.add(JSON.stringify([binaryId, name]));
+    }
+  }
+  if (total !== inventory["test-count"]) throw new Error("Truncated nextest impact inventory");
+  return matched;
+}
+
+export function runRustImpactUnion(packageName, groupIds, dependencies = {}) {
+  const map = dependencies.map ?? readRustTestImpactMap();
+  const config = map.packages[packageName];
+  if (!config || groupIds.length < 2 || new Set(groupIds).size !== groupIds.length)
+    throw new Error("Impact union requires distinct owned groups in one package");
+  const groups = groupIds.map((id) => {
+    const group = config.groups.find((candidate) => candidate.id === id);
+    if (!group) throw new Error(`Unknown Rust impact group: ${packageName}:${id}`);
+    return group;
+  });
+  const run = dependencies.spawnSync ?? spawnSync;
+  const report = dependencies.report ?? console.log;
+  const inventory = (filter) => {
+    const result = run(
+      "cargo-nextest",
+      ["nextest", "list", "--locked", "-p", packageName, "-E", filter, "--message-format", "json"],
+      {
+        cwd: projectRoot,
+        encoding: "utf8",
+        maxBuffer: 16 * 1024 * 1024,
+        windowsHide: true,
+      },
+    );
+    if (result.error) throw result.error;
+    if (result.status !== 0) throw new Error(`Nextest impact inventory failed: ${result.stderr}`);
+    return runnableImpactTests(JSON.parse(result.stdout), packageName);
+  };
+  const expected = new Set();
+  for (const group of groups) {
+    const matches = inventory(group.filter);
+    if (!matches.size) throw new Error(`Rust impact group ${group.id} has no runnable tests`);
+    for (const identity of matches) expected.add(identity);
+    report(`[rust-impact] ${group.id}: ${matches.size} runnable tests; ${group.reason}`);
+  }
+  const filter = groups.map((group) => `(${group.filter})`).join(" | ");
+  const union = inventory(filter);
+  if (union.size !== expected.size || [...expected].some((identity) => !union.has(identity)))
+    throw new Error("Nextest impact union differs from the complete selected group inventories");
+  report(`[rust-impact] union: ${union.size} distinct runnable tests`);
+  const result = run(
+    "cargo-nextest",
+    ["nextest", "run", "--locked", "-p", packageName, "-E", filter],
+    { cwd: projectRoot, stdio: "inherit", windowsHide: true },
+  );
+  if (result.error) throw result.error;
+  return result.status ?? 1;
+}
+
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  try {
+    if (process.argv[2] !== "--run")
+      throw new Error("Use the guarded Rust runner for impact unions");
+    process.exitCode = runRustImpactUnion(process.argv[3], process.argv.slice(4));
+  } catch (error) {
+    console.error(error.message);
+    process.exitCode = 1;
+  }
 }

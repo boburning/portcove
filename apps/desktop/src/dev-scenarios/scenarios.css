@@ -1,0 +1,22 @@
+.scenario-controls,
+.scenario-preview {
+  margin: 1rem;
+}
+
+.scenario-controls {
+  display: block;
+}
+
+.scenario-preview .scrim {
+  position: static;
+  display: block;
+  background: none;
+  backdrop-filter: none;
+}
+
+.scenario-preview .detail-panel {
+  position: relative;
+  height: auto;
+  max-height: none;
+  animation: none;
+}

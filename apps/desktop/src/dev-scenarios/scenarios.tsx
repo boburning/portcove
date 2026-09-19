@@ -1,0 +1,202 @@
+import { renderToStaticMarkup } from "react-dom/server";
+import { DetailPanel, type DetailActions } from "../components/DetailPanel";
+import { PortBrowser } from "../components/PortBrowser";
+import { BackupHistory } from "../components/BackupHistory";
+import { HostToolRow, StatusLayer } from "../components/Chrome";
+import { WorkspaceRefreshNotice } from "../features/workspace/WorkspaceRefreshNotice";
+import { failureReport, portDefinition, portStatus, sourceProfile } from "../test-fixtures";
+import type { InstallRecord, PortStatus } from "../types";
+
+export const scenarios = [
+  {
+    id: "empty-library",
+    label: "Empty library",
+    limitation: "No catalog discovery or library IPC is executed.",
+  },
+  {
+    id: "ready-game",
+    label: "Ready game",
+    limitation: "Readiness is a supplied typed fixture, not a launch or eligibility check.",
+  },
+  {
+    id: "missing-source",
+    label: "Missing source",
+    limitation: "No file picker, source inspection or source acquisition runs.",
+  },
+  {
+    id: "missing-tool",
+    label: "Missing tool",
+    limitation: "The supplied missing-tool status does not probe or install a host tool.",
+  },
+  {
+    id: "staged-update",
+    label: "Staged update",
+    limitation: "No update, activation, download or signature verification runs.",
+  },
+  {
+    id: "interrupted-operation",
+    label: "Interrupted operation",
+    limitation:
+      "This previews backup recovery text; it does not reproduce a crash or recover data.",
+  },
+  {
+    id: "refresh-failure",
+    label: "Refresh failure",
+    limitation: "The retained-snapshot error is synthetic; retry and subscriptions do not run.",
+  },
+  {
+    id: "unavailable-provider",
+    label: "Unavailable artwork/provider",
+    limitation: "Only failure presentation is shown; no provider request or image decoding runs.",
+  },
+] as const;
+
+type ScenarioId = (typeof scenarios)[number]["id"];
+
+export function blockedScenarioAction(): never {
+  throw new Error("Development scenario actions are disabled");
+}
+
+const actions: DetailActions = {
+  activate: blockedScenarioAction,
+  backup: blockedScenarioAction,
+  check: blockedScenarioAction,
+  close: blockedScenarioAction,
+  deleteBackup: blockedScenarioAction,
+  install: blockedScenarioAction,
+  launch: blockedScenarioAction,
+  openUserData: blockedScenarioAction,
+  reviewInstall: blockedScenarioAction,
+  restoreBackup: blockedScenarioAction,
+  rollback: blockedScenarioAction,
+  remove: blockedScenarioAction,
+  setChannel: blockedScenarioAction,
+  setPolicy: blockedScenarioAction,
+  verify: blockedScenarioAction,
+};
+
+function installed(): InstallRecord {
+  return {
+    id: "scenario-install-1",
+    port_id: "sample",
+    version: "1.0",
+    path: "sample/1.0",
+    channel: "stable",
+    installed_at: 1,
+    verified: true,
+    staged: false,
+    artifact: { asset_name: "sample.zip", sha256: "b".repeat(64), size: 1 },
+    manifest_sha256: "c".repeat(64),
+    selected_executable: "sample.exe",
+    runtime: null,
+  };
+}
+
+function Scenario({ id }: { id: ScenarioId }) {
+  const port = { ...portDefinition(), name: "Scenario game" };
+  if (id === "empty-library")
+    return (
+      <PortBrowser
+        view="library"
+        ports={[]}
+        statuses={new Map()}
+        overview={{ installed: 0, ready: 0, needsSetup: 0, staged: 0 }}
+        filter="all"
+        setFilter={blockedScenarioAction}
+        onSelect={blockedScenarioAction}
+        loading={false}
+      />
+    );
+  if (id === "missing-tool")
+    return (
+      <HostToolRow
+        busy={false}
+        tool={{
+          id: "chdman",
+          display_name: "chdman",
+          state: "missing",
+          path: null,
+          source: null,
+          configuration_variable: "PORTCOVE_CHDMAN",
+          purpose: "CHD validation and disc-image materialization",
+          official_url: "https://docs.mamedev.org/tools/chdman.html",
+        }}
+      />
+    );
+  if (id === "interrupted-operation")
+    return (
+      <BackupHistory
+        backups={[]}
+        state="recovery_required"
+        problems={[
+          {
+            kind: "recovery_required",
+            backup_id: null,
+            operation_id: "scenario-operation",
+            path: "backups/sample/.deleting-scenario",
+            message: "Deletion was interrupted.",
+            proposed_action: "Restart Portcove, then review doctor output.",
+          },
+        ]}
+        restore={blockedScenarioAction}
+        remove={blockedScenarioAction}
+      />
+    );
+  if (id === "refresh-failure")
+    return (
+      <WorkspaceRefreshNotice
+        hasSnapshot
+        refreshing={false}
+        failure={{ error: { ...failureReport(), message: "Scenario refresh is unavailable." } }}
+        retry={blockedScenarioAction}
+      />
+    );
+  if (id === "unavailable-provider")
+    return (
+      <StatusLayer
+        clearError={blockedScenarioAction}
+        error={{
+          ...failureReport(),
+          code: "artwork_unavailable",
+          message: "Scenario artwork provider is unavailable.",
+          presentation: {
+            ...failureReport().presentation,
+            summary: "Artwork is unavailable. Your existing choice is retained.",
+          },
+        }}
+      />
+    );
+  const status: PortStatus = {
+    ...portStatus(),
+    active: installed(),
+    readiness: { launchable: true, blockers: [], pending_setup: false },
+  };
+  if (id === "missing-source") {
+    port.source_profile = "sample";
+    status.active = null;
+    status.readiness = { launchable: false, blockers: ["missing_source"], pending_setup: true };
+  }
+  if (id === "staged-update")
+    status.staged = { ...installed(), id: "scenario-install-2", version: "2.0", staged: true };
+  return (
+    <DetailPanel
+      port={port}
+      status={status}
+      sourcePath=""
+      setSourcePath={blockedScenarioAction}
+      sourceProfile={id === "missing-source" ? sourceProfile() : undefined}
+      actions={actions}
+    />
+  );
+}
+
+export function renderScenario(id: string): string {
+  const scenario = scenarios.find((candidate) => candidate.id === id);
+  if (!scenario) throw new Error(`Unknown development scenario: ${id}`);
+  // Static rendering intentionally does not mount effects or retain event handlers.
+  return renderToStaticMarkup(
+    <section data-development-scenario={scenario.id} inert>
+      <Scenario id={scenario.id} />
+    </section>,
+  );
+}

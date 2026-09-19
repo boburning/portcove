@@ -1,11 +1,17 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
+import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import test from "node:test";
 
 import {
   buildPlan,
   classifyChanges,
+  deduplicateCommands,
   executePlan,
+  executePlanWithReceipts,
+  fingerprintLocalStage,
   formatCommand,
   localChangesFromRaw,
   packagesWithDoctests,
@@ -86,10 +92,27 @@ test("shared local planning retains raw file modes and both rename paths", () =>
   ]);
 });
 
-test("documentation-only changes stay on formatting and whitespace checks", () => {
+test("active instruction changes run their semantic contracts", () => {
   const { selection, plan } = planFor(["docs/QUALITY.md", "AGENTS.md"]);
-  assert.deepEqual([...selection.scopes].sort(), ["documentation"]);
-  assert.deepEqual(ids(plan), ["diff-check", "oxfmt"]);
+  assert.deepEqual([...selection.scopes].sort(), ["documentation", "tooling"]);
+  assert.deepEqual([...selection.nodeTests].sort(), [
+    "scripts/repository-settings.test.mjs",
+    "scripts/repository-skills.test.mjs",
+  ]);
+  assert.deepEqual(ids(plan), ["diff-check", "oxfmt", "node-tests"]);
+});
+
+test("documentation targets run the dynamic link contract", () => {
+  const { selection, plan } = planFor(["docs/ARCHITECTURE.md"]);
+  assert.deepEqual([...selection.scopes].sort(), ["documentation", "tooling"]);
+  assert.deepEqual([...selection.nodeTests], ["scripts/repository-skills.test.mjs"]);
+  assert.deepEqual(ids(plan), ["diff-check", "oxfmt", "node-tests"]);
+});
+
+test("repository skill changes run the dynamic skill contract", () => {
+  const { selection, plan } = planFor([".agents/skills/portcove-release-validation/SKILL.md"]);
+  assert.deepEqual([...selection.nodeTests], ["scripts/repository-skills.test.mjs"]);
+  assert.deepEqual(ids(plan), ["diff-check", "oxfmt", "node-tests"]);
 });
 
 test("a Rust source change checks and tests only its affected package", () => {
@@ -98,7 +121,6 @@ test("a Rust source change checks and tests only its affected package", () => {
   assert.deepEqual(ids(plan), [
     "diff-check",
     "rustfmt",
-    "rust-check:portcove-core",
     "rust-clippy:portcove-core",
     "rust-tests:portcove-core",
     "rust-docs:portcove-core",
@@ -110,7 +132,6 @@ test("mapped module-local Rust changes run the owned focused group", () => {
   assert.deepEqual(ids(plan), [
     "diff-check",
     "rustfmt",
-    "rust-check:portcove-core",
     "rust-clippy:portcove-core",
     "rust-tests:portcove-core:source-inspection",
     "rust-docs:portcove-core",
@@ -121,13 +142,21 @@ test("mapped module-local Rust changes run the owned focused group", () => {
   assert.match(tests.reason, /explicit test-impact ownership/u);
 });
 
-test("mapped Rust responsibilities union as separate attributable groups", () => {
+test("mapped Rust responsibilities run one attributable guarded union", () => {
   const { plan } = planFor([
     "crates/portcove-core/src/source_report.rs",
     "crates/portcove-core/src/release/observation.rs",
   ]);
-  assert.ok(ids(plan).includes("rust-tests:portcove-core:source-inspection"));
-  assert.ok(ids(plan).includes("rust-tests:portcove-core:release-discovery"));
+  const union = plan.find((entry) => entry.id === "rust-tests:portcove-core:union");
+  assert.deepEqual(union.args, [
+    "scripts/run-rust-tests.mjs",
+    "--impact-union",
+    "portcove-core",
+    "release-discovery",
+    "source-inspection",
+  ]);
+  assert.match(union.reason, /release-discovery/u);
+  assert.match(union.reason, /source-inspection/u);
   assert.ok(!ids(plan).includes("rust-tests:portcove-core"));
 });
 
@@ -171,16 +200,43 @@ test("doctest capability comes from Cargo target metadata", () => {
   assert.deepEqual([...packages], ["library"]);
 });
 
-test("root Rust dependency changes compile, lint, and use the broad workspace test fallback", () => {
+test("Clippy owns equivalent Rust compilation before the broad workspace test fallback", () => {
   const { plan } = planFor(["Cargo.lock"]);
   assert.deepEqual(ids(plan), [
     "diff-check",
     "rustfmt",
-    "rust-workspace-check",
     "rust-workspace-clippy",
     "dependency-policy",
     "rust-workspace-tests",
   ]);
+});
+
+test("supported local Rust compilation and tests acquire admission before starting work", () => {
+  const focused = planFor(["crates/portcove-core/src/database.rs"]).plan;
+  assert.ok(!ids(focused).includes("rust-check:portcove-core"));
+  for (const id of ["rust-clippy:portcove-core", "rust-docs:portcove-core"]) {
+    const entry = focused.find((candidate) => candidate.id === id);
+    assert.ok(entry, `missing ${id}`);
+    assert.equal(entry.executable, process.execPath);
+    assert.deepEqual(entry.args.slice(0, 2), ["scripts/run-rust-tests.mjs", "--guard-command"]);
+  }
+  const focusedTests = focused.find((candidate) => candidate.id === "rust-tests:portcove-core");
+  assert.ok(focusedTests);
+  assert.equal(focusedTests.executable, process.execPath);
+  assert.deepEqual(focusedTests.args.slice(0, 2), ["scripts/run-rust-tests.mjs", "--locked"]);
+
+  const workspace = planFor(["Cargo.lock"]).plan;
+  assert.ok(!ids(workspace).includes("rust-workspace-check"));
+  for (const id of ["rust-workspace-clippy"]) {
+    const entry = workspace.find((candidate) => candidate.id === id);
+    assert.ok(entry, `missing ${id}`);
+    assert.equal(entry.executable, process.execPath);
+    assert.deepEqual(entry.args.slice(0, 2), ["scripts/run-rust-tests.mjs", "--guard-command"]);
+  }
+  const workspaceTests = workspace.find((candidate) => candidate.id === "rust-workspace-tests");
+  assert.ok(workspaceTests);
+  assert.equal(workspaceTests.executable, process.execPath);
+  assert.deepEqual(workspaceTests.args.slice(0, 2), ["scripts/run-rust-tests.mjs", "--locked"]);
 });
 
 test("UI sources build, lint, and run import-related tests", () => {
@@ -204,10 +260,140 @@ test("UI sources build, lint, and run import-related tests", () => {
 });
 
 test("frontend configuration changes use the complete small UI suite", () => {
-  const { selection, plan } = planFor(["apps/desktop/package.json"]);
+  const { selection, plan } = planFor(["package.json"]);
   assert.equal(selection.uiFullTests, true);
   assert.ok(ids(plan).includes("ui-tests"));
   assert.ok(!ids(plan).includes("ui-related-tests"));
+  assert.ok(!ids(plan).includes("ui-theme-copy"));
+  assert.ok(!ids(plan).includes("ui-copy"));
+  const scripts = JSON.parse(
+    readFileSync(new URL("../apps/desktop/package.json", import.meta.url), "utf8"),
+  ).scripts;
+  const aggregateCommands = scripts.test.split(/\s*&&\s*/u);
+  assert.ok(aggregateCommands.includes("node scripts/check-theme.mjs"));
+  assert.ok(aggregateCommands.includes("node scripts/check-copy.mjs"));
+});
+
+test("retired desktop-local pnpm authorities remain owned on deletion", () => {
+  for (const path of ["apps/desktop/pnpm-lock.yaml", "apps/desktop/pnpm-workspace.yaml"]) {
+    const { selection, plan } = planFor([{ status: "D", path }]);
+    assert.equal(selection.uiFullTests, true, path);
+    assert.deepEqual([...selection.unknown], [], path);
+    assert.ok(ids(plan).includes("ui-tests"), path);
+    assert.ok(
+      plan.some(
+        (entry) =>
+          entry.id === "node-tests" &&
+          entry.args.includes("scripts/dependency-automation.test.mjs"),
+      ),
+      path,
+    );
+  }
+});
+
+test("the exact Fallow boundary configuration selects the complete UI suite", () => {
+  for (const status of ["M", "A", "D"]) {
+    const { selection, plan } = planFor([{ status, path: "apps/desktop/.fallowrc.json" }]);
+    assert.equal(selection.uiFullTests, true);
+    assert.equal(selection.fallow, true);
+    assert.ok(ids(plan).includes("ui-tests"));
+    assert.ok(ids(plan).includes("fallow"));
+    assert.ok(!ids(plan).includes("ui-related-tests"));
+    assert.deepEqual([...selection.unknown], []);
+  }
+});
+
+test("command-identical obligations execute once while retaining every selection reason", () => {
+  const duplicate = {
+    id: "second-lint",
+    reason: "second owner",
+    executable: "lint",
+    args: ["--all"],
+    cwd: ".",
+    obligation: "complete-lint",
+  };
+  const plan = deduplicateCommands([
+    { ...duplicate, id: "first-lint", reason: "first owner" },
+    duplicate,
+    { id: "tests", reason: "tests", executable: "test", args: [], cwd: "." },
+  ]);
+  assert.deepEqual(ids(plan), ["first-lint", "tests"]);
+  assert.deepEqual(plan[0].selectedIds, ["first-lint", "second-lint"]);
+  assert.match(plan[0].reason, /first owner; also selected as second-lint: second owner/u);
+
+  const seen = [];
+  executePlan(plan, {
+    spawn(executable) {
+      seen.push(executable);
+      return { status: 0 };
+    },
+  });
+  assert.deepEqual(seen, ["lint", "test"]);
+});
+
+test("command-identical stages with different evidence roles remain distinct", () => {
+  const plan = deduplicateCommands([
+    {
+      id: "first",
+      reason: "first role",
+      executable: "same",
+      args: [],
+      cwd: ".",
+      obligation: "first-evidence",
+    },
+    {
+      id: "second",
+      reason: "second role",
+      executable: "same",
+      args: [],
+      cwd: ".",
+      obligation: "second-evidence",
+    },
+  ]);
+  assert.deepEqual(ids(plan), ["first", "second"]);
+});
+
+test("a reused stage id cannot hide conflicting commands or obligations", () => {
+  assert.throws(
+    () =>
+      deduplicateCommands([
+        { id: "same", reason: "one", executable: "one", args: [], cwd: "." },
+        { id: "same", reason: "two", executable: "two", args: [], cwd: "." },
+      ]),
+    /selected conflicting commands or obligations/u,
+  );
+  assert.throws(
+    () =>
+      deduplicateCommands([
+        {
+          id: "same",
+          reason: "compile",
+          executable: "same",
+          args: [],
+          cwd: ".",
+          obligation: "compile",
+        },
+        {
+          id: "same",
+          reason: "security",
+          executable: "same",
+          args: [],
+          cwd: ".",
+          obligation: "security",
+        },
+      ]),
+    /selected conflicting commands or obligations/u,
+  );
+});
+
+test("an exactly repeated stage id retains every selection reason", () => {
+  const plan = deduplicateCommands([
+    { id: "same", reason: "first", executable: "same", args: [], cwd: "." },
+    { id: "same", reason: "second", executable: "same", args: [], cwd: "." },
+  ]);
+  assert.deepEqual(ids(plan), ["same"]);
+  assert.deepEqual(plan[0].selectedIds, ["same"]);
+  assert.match(plan[0].reason, /first; also selected as same: second/u);
 });
 
 test("Oxc configuration changes retain formatting, lint, UI, fixture, and workflow contracts", () => {
@@ -219,11 +405,27 @@ test("Oxc configuration changes retain formatting, lint, UI, fixture, and workfl
     assert.ok(selected.includes("ui-build"));
     assert.ok(selected.includes("ui-oxlint"));
     assert.ok(selected.includes("ui-tests"));
-    assert.ok(selected.includes("oxc-fixtures"));
+    assert.ok(selected.includes("lint-tool-fixtures"));
     assert.ok(selection.nodeTests.has("scripts/ci-workflow.test.mjs"));
-    const fixtures = plan.find((entry) => entry.id === "oxc-fixtures");
+    const fixtures = plan.find((entry) => entry.id === "lint-tool-fixtures");
     assert.ok(fixtures.args.includes(config === ".oxfmtrc.json" ? "oxfmt" : "oxlint"));
   }
+});
+
+test("lint fixture harness changes execute every maintained behavioral fixture", () => {
+  const { plan } = planFor(["scripts/lint-tools.integration.mjs"]);
+  const fixtures = plan.find((entry) => entry.id === "lint-tool-fixtures");
+  assert.ok(fixtures);
+  assert.deepEqual(fixtures.args, [
+    "scripts/lint-tools.integration.mjs",
+    "actionlint",
+    "oxfmt",
+    "oxlint",
+    "psscriptanalyzer",
+    "ruff",
+    "shellcheck",
+    "stylelint",
+  ]);
 });
 
 test("transport changes select both language scopes and contract comparators", () => {
@@ -261,17 +463,25 @@ test("heavy Rust runner and lock changes select both guarded execution contracts
   const { selection, plan } = planFor([
     "scripts/heavy-rust-test-lock.mjs",
     "scripts/run-rust-tests.mjs",
+    "scripts/rust-support-cache.mjs",
     "scripts/fixtures/windows-process-tree-supervisor.rs.txt",
   ]);
   assert.ok(selection.nodeTests.has("scripts/heavy-rust-test-lock.test.mjs"));
   assert.ok(selection.nodeTests.has("scripts/run-rust-tests.test.mjs"));
+  assert.ok(selection.nodeTests.has("scripts/rust-support-cache.test.mjs"));
   assert.ok(ids(plan).includes("node-syntax:scripts/heavy-rust-test-lock.mjs"));
   assert.ok(ids(plan).includes("node-syntax:scripts/run-rust-tests.mjs"));
+  assert.ok(ids(plan).includes("node-syntax:scripts/rust-support-cache.mjs"));
   assert.ok(ids(plan).includes("node-tests"));
 
   const fixtureOnly = planFor(["scripts/fixtures/windows-process-tree-supervisor.rs.txt"]);
   assert.ok(fixtureOnly.selection.nodeTests.has("scripts/heavy-rust-test-lock.test.mjs"));
   assert.ok(fixtureOnly.selection.nodeTests.has("scripts/run-rust-tests.test.mjs"));
+  assert.ok(fixtureOnly.selection.nodeTests.has("scripts/rust-support-cache.test.mjs"));
+
+  const hostFixtureOnly = planFor(["crates/portcove-core/src/testdata/host_tool_probe.rs.txt"]);
+  assert.ok(hostFixtureOnly.selection.nodeTests.has("scripts/run-rust-tests.test.mjs"));
+  assert.ok(hostFixtureOnly.selection.nodeTests.has("scripts/rust-support-cache.test.mjs"));
 });
 
 test("changed shell scripts run shellcheck across the maintained shell set", () => {
@@ -366,6 +576,27 @@ test("every tracked repository path has an explicit local selection owner", () =
   assert.deepEqual([...selection.unknown].sort(), []);
 });
 
+test("the exact development scenario entry selects full UI coverage without admitting other HTML", () => {
+  for (const status of ["M", "A", "D"]) {
+    const { selection } = planFor([{ status, path: "apps/desktop/scenarios.html" }]);
+    assert.equal(selection.ui, true);
+    assert.equal(selection.uiFullTests, true);
+    assert.equal(selection.unknown.size, 0);
+  }
+  const renamed = classifyChanges(
+    [
+      {
+        status: "R100",
+        previousPath: "apps/desktop/scenarios.html",
+        path: "apps/desktop/unknown.html",
+      },
+    ],
+    { fileExists: allFilesExist },
+  );
+  assert.equal(renamed.uiFullTests, true);
+  assert.ok(renamed.unknown.has("apps/desktop/unknown.html"));
+});
+
 test("unknown paths refuse local execution until a focused rule owns them", () => {
   const selection = classifyChanges([change("new-subsystem/input.bin")], {
     fileExists: allFilesExist,
@@ -426,4 +657,198 @@ test("execution stops on the first failing stage", () => {
     /two failed with exit code 7/,
   );
   assert.deepEqual(seen, ["one", "two"]);
+});
+
+const receiptRuntime = Object.freeze({
+  platform: "win32",
+  architecture: "x64",
+  osRelease: "test",
+  node: "v24.21.0",
+  git: "git test",
+  just: "just test",
+  rustc: "rustc test",
+  cargo: "cargo test",
+  cargoNextest: "nextest test",
+  cargoShear: "shear test",
+  rscheck: "rscheck test",
+  aqua: "aqua test",
+  powershell: "pwsh test",
+  packageManager: "pnpm@12.4.1",
+  packageManagerVersion: "12.4.1",
+  environment: {},
+});
+
+function receiptInventory(repositoryIdentity = "repo-a") {
+  const file = (filePath, domain, identity) => ({
+    path: filePath,
+    kind: "file",
+    headBlob: identity,
+    headMode: "100644",
+    indexBlob: identity,
+    indexMode: "100644",
+    worktreeMode: "100644",
+    gitBlob: identity,
+    sha256: identity,
+    domains: [domain],
+    ambiguous: false,
+  });
+  return {
+    head: "a".repeat(40),
+    objectFormat: "sha1",
+    files: [
+      file("crates/portcove-core/src/lib.rs", "rust", "rust-a"),
+      file("scripts/repository-settings.mjs", "repository", repositoryIdentity),
+    ],
+  };
+}
+
+test("Node receipt fingerprints include the domain of each selected test", () => {
+  const stage = {
+    id: "node-tests",
+    reason: "selector contract",
+    executable: process.execPath,
+    args: ["--test", "scripts/rust-test-impact.test.mjs"],
+    cwd: process.cwd(),
+    obligation: "repository",
+  };
+  const first = receiptInventory();
+  first.files.push({
+    path: "scripts/rust-test-impact.mjs",
+    kind: "file",
+    headBlob: "impact-a",
+    headMode: "100644",
+    indexBlob: "impact-a",
+    indexMode: "100644",
+    worktreeMode: "100644",
+    gitBlob: "impact-a",
+    sha256: "impact-a",
+    domains: ["development", "format"],
+    ambiguous: false,
+  });
+  const second = structuredClone(first);
+  second.files.at(-1).headBlob = "impact-b";
+  second.files.at(-1).indexBlob = "impact-b";
+  second.files.at(-1).gitBlob = "impact-b";
+  second.files.at(-1).sha256 = "impact-b";
+
+  assert.notEqual(
+    fingerprintLocalStage(stage, first, receiptRuntime),
+    fingerprintLocalStage(stage, second, receiptRuntime),
+  );
+
+  const syntaxStage = {
+    ...stage,
+    id: "node-syntax:scripts/rust-test-impact.mjs",
+    args: ["--check", "scripts/rust-test-impact.mjs"],
+  };
+  assert.notEqual(
+    fingerprintLocalStage(syntaxStage, first, receiptRuntime),
+    fingerprintLocalStage(syntaxStage, second, receiptRuntime),
+  );
+});
+
+test("local receipts reuse proven independent stages while repository-wide Oxlint reruns", (t) => {
+  const receiptRoot = mkdtempSync(path.join(tmpdir(), "portcove-local-receipts-"));
+  t.after(() => rmSync(receiptRoot, { recursive: true, force: true }));
+  const plan = [
+    {
+      id: "rust-clippy:portcove-core",
+      reason: "rust",
+      executable: "cargo",
+      args: ["clippy"],
+      cwd: process.cwd(),
+      obligation: "rust",
+    },
+    {
+      id: "node-tests",
+      reason: "tooling",
+      executable: "node",
+      args: ["--test", "scripts/repository-settings.test.mjs"],
+      cwd: process.cwd(),
+      obligation: "repository",
+    },
+    {
+      id: "oxlint",
+      reason: "lint",
+      executable: "corepack",
+      args: ["pnpm", "run", "lint:oxlint"],
+      cwd: process.cwd(),
+      obligation: "repository-oxlint",
+    },
+  ];
+  const first = [];
+  executePlanWithReceipts(plan, {
+    receiptRoot,
+    inventory: receiptInventory(),
+    runtime: receiptRuntime,
+    spawn(executable) {
+      first.push(executable);
+      return { status: 0 };
+    },
+  });
+  assert.deepEqual(first, ["cargo", "node", "corepack"]);
+
+  const second = [];
+  const result = executePlanWithReceipts(plan, {
+    receiptRoot,
+    inventory: receiptInventory("repo-b"),
+    runtime: receiptRuntime,
+    spawn(executable) {
+      second.push(executable);
+      return { status: 0 };
+    },
+  });
+  assert.deepEqual(second, ["node", "corepack"]);
+  assert.equal(result.timings[0].status, "reused");
+  assert.equal(result.timings[1].status, "executed");
+  assert.equal(result.timings[2].status, "executed");
+});
+
+test("failed, interrupted, invalid, missing, and fresh local stages cannot claim reuse", (t) => {
+  const receiptRoot = mkdtempSync(path.join(tmpdir(), "portcove-local-failure-"));
+  t.after(() => rmSync(receiptRoot, { recursive: true, force: true }));
+  const stage = {
+    id: "node-tests",
+    reason: "tooling",
+    executable: "node",
+    args: ["--test", "scripts/repository-settings.test.mjs"],
+    cwd: process.cwd(),
+    obligation: "repository",
+  };
+  assert.throws(
+    () =>
+      executePlanWithReceipts([stage], {
+        receiptRoot,
+        inventory: receiptInventory(),
+        runtime: receiptRuntime,
+        spawn: () => ({ status: 9 }),
+      }),
+    /failed with exit code 9/u,
+  );
+  let executions = 0;
+  const run = (options = {}) =>
+    executePlanWithReceipts([stage], {
+      receiptRoot,
+      inventory: receiptInventory(),
+      runtime: receiptRuntime,
+      spawn: () => {
+        executions += 1;
+        return { status: 0 };
+      },
+      ...options,
+    });
+  run();
+  assert.equal(executions, 1);
+  run();
+  assert.equal(executions, 1);
+
+  const receiptFile = readdirSync(receiptRoot, { recursive: true })
+    .map(String)
+    .find((file) => file.endsWith(".json"));
+  assert.ok(receiptFile);
+  writeFileSync(path.join(receiptRoot, receiptFile), "{}\n");
+  run();
+  assert.equal(executions, 2);
+  run({ fresh: true });
+  assert.equal(executions, 3);
 });

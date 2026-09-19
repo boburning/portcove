@@ -10,7 +10,7 @@ not dumped. The command does not install tools, create output directories, or
 modify host configuration. Every missing cached prerequisite includes a safe
 bootstrap command in the human-readable or JSON report.
 
-The doctor reads `.node-version`, the desktop package-manager declaration, the
+The doctor reads `.node-version`, the repository package-manager declaration, the
 Rust quality manifest, `.aqua-version`, `aqua.yaml`, and the PowerShell resource
 pin. On Windows it reports MSVC installations and PATH candidates; this is not
 proof of Cargo's auto-selected linker. Inspect a verbose native build when
@@ -18,10 +18,20 @@ compiler selection matters. Keep each worktree's Cargo target separate and use
 the existing development-storage wrapper for heavy commands.
 
 The active toolchain authorities are Rust 1.98.1 in `rust-toolchain.toml`, Node
-24.21.0 in `.node-version`, and pnpm 12.4.1 in the desktop package's
+24.21.0 in `.node-version`, and pnpm 12.4.1 in the repository root package's
 `packageManager` field. GitHub workflows derive pnpm from that package manifest
 instead of copying its version. `scripts/dependency-automation.test.mjs` checks
 those relationships together with Renovate coverage for nonstandard pins.
+
+The root `package.json`, `pnpm-workspace.yaml`, and `pnpm-lock.yaml` are the sole
+JavaScript workspace and dependency-resolution authorities. Repository-wide
+format, lint, and analysis tools are root development dependencies;
+`apps/desktop/package.json` remains the product package and owns its runtime
+dependencies, package-specific build/test tools, and scripts. The manifests have
+disjoint dependency ownership. Install from the repository root with
+`corepack pnpm install --frozen-lockfile`. Root commands such as `corepack pnpm
+format:check`, `corepack pnpm lint`, `corepack pnpm build`, and `corepack pnpm
+test` forward to the desktop package without creating another lockfile.
 
 On Windows, run `./scripts/bootstrap-quality-tools.ps1`. It downloads the exact
 Aqua release named by `.aqua-version` from Aqua's official release origin, verifies
@@ -58,23 +68,40 @@ or environment mutation is performed for already verified versions.
 
 Run `just fmt-check` for the complete formatting contract, `just check-ui`
 for UI build/tests, Oxlint, Fallow, and Stylelint, or `just script-lint` for
-Python, shell, workflow, and PowerShell lint as a group.
+Python, shell, workflow, and PowerShell lint as a group. Individual formatter
+and linter recipes scan maintained source without rerunning their tool-fixture
+self-tests. The exhaustive `check-ui` and `script-lint` aggregates retain those
+self-tests through one batched fixture invocation per group.
 
 ## Validation tiers and resumable audits
 
 Use focused `just test-*` commands while editing and `just local-check` before a
-coherent push. The local selector reads the complete branch and working-tree diff;
+coherent push. Bare `just` invokes that same focused selector; exhaustive
+investigation remains explicit through `just check` or its narrower aggregate
+recipes. The local selector reads the complete branch and working-tree diff;
 unknown paths fail until a tested routing rule exists. Tooling-only edits do not
 pull in native desktop or packaged Windows qualification. Oxc configuration edits
 retain formatting, typed lint, UI build/tests, rejection fixtures, and hosted
 workflow contracts.
 
-`just check` is exhaustive for Rust, UI, script lint, generic repository tooling,
-Roadmap, and development-tool contracts, but deliberately excludes release and
-packaged qualification. Use `just release-check` for deterministic release units
-and `just windows-qualification-check` for the stateful packaged Windows session.
-Required CI executes those contracts independently on every exact pull-request
-head.
+The local planner executes one warnings-denied Clippy command, rather than an
+equivalent Cargo check immediately followed by Clippy, for each selected package
+or workspace target set. It coalesces the same Oxlint invocation selected by both
+tooling and UI only because both declare the same semantic obligation; command
+text alone cannot merge distinct evidence roles. Complete UI tests own their
+included theme and copy checks, while related-test plans retain the standalone
+checks. The printed reason lists every coalesced selector so reduced process count
+does not hide why an obligation ran.
+
+`just check` is exhaustive for Rust, UI, script lint and their tool-fixture
+contracts, generic repository tooling, Roadmap, and development-tool contracts,
+but deliberately excludes release and packaged qualification. Use
+`just release-check` for deterministic release units and
+`just windows-qualification-check` for the stateful packaged Windows session.
+Required CI executes the complete selected hosted plan on every exact pull-request
+head. Focused and prose plans do not imply that the aggregate, release, or
+packaged Windows contracts ran; qualification executes its documented hosted
+coverage, while packaged acceptance remains a separate obligation when required.
 
 `just audit --plan` explains which named formatting, Rust, UI, script-lint,
 repository-tooling, Roadmap, development-tool, dependency-policy, rscheck,
@@ -87,14 +114,135 @@ Windows qualification stages always execute. Use `just audit --fresh` for releas
 preflight, validation-contract changes, and acceptance that explicitly requires a
 single no-reuse run.
 
+### Warm single-session workflow
+
+Start or resume one cohesive outcome in the existing healthy, owned checkout.
+A new task context does not require a new worktree, reinstall, Cargo cleanup,
+bootstrap or exhaustive validation. Keep installed dependencies and incremental
+artifacts. A new isolated checkout is justified by actual concurrent ownership,
+an unsafe preserved checkout, or a measured isolation requirement; follow
+[Development storage](DEVELOPMENT-STORAGE.md) only for that case.
+
+1. Read the canonical issue's unmet acceptance, current PR and latest relevant
+   #793 reservation. Resolve `git rev-parse --show-toplevel`, then inspect
+   `git status --short --branch --untracked-files=all`, `git rev-parse HEAD` and
+   `git worktree list --porcelain`. Reconcile them with the recorded owner,
+   branch and evidence; process absence alone is not an ownership transfer.
+2. Resume the current branch and failed obligation before selecting another
+   task. Before any branch transition, require a clean checkout, known ownership,
+   terminal owned build/native operations, and preserved relevant ignored evidence.
+   If any condition is unknown or false, refuse the transition. Do not stash,
+   reset, delete or overwrite work to make it possible. After a confirmed merge,
+   fetch the target, inspect relevant drift and create the next branch in this
+   same checkout only when those conditions hold.
+3. Keep a compact task contract in the issue/PR or #793 note: **outcome and
+   acceptance; checkout, branch and head; reserved files and owning references;
+   boundaries/non-goals; narrow edit-test command; coherent pre-push plan;
+   resources; completed/failed evidence; exact next action**. Link existing
+   evidence instead of copying the initiative or creating a local status ledger.
+4. Run the smallest relevant `just test-rust`, `just test-ui-related` or
+   `just test-node` loop, then `just local-check` before the coherent push and
+   after substantive repair. Integrity-matched deterministic stages may be reused;
+   `just local-check --plan` explains selection and `just local-check --fresh`
+   disables reuse only when acceptance requires it. Use `just doctor` when prerequisite health is unknown or changed;
+   install/bootstrap only the reported missing or mismatched prerequisite.
+   [Quality](QUALITY.md) still governs protected changes and exhaustive acceptance.
+5. Review one coherent candidate before expensive final qualification. An exact
+   local commit/diff may be reviewed before a PR exists; use a draft PR when a
+   transition contract requires one. Follow [Contribution conventions](CONTRIBUTION-CONVENTIONS.md) for review,
+   required exact-head CI, target interaction checks and guarded merge. The
+   helper may inspect retained evidence and run discriminating tests; it must not
+   bootstrap a second full environment or duplicate a complete suite without an
+   identified need. Keep one heavyweight workflow active at a time.
+
+The reviewer brief supplies **PR when available and owning issue; source head, target tip and
+merge-base; complete changed-file list and relevant surrounding code; acceptance
+and boundaries; exact commands/results and retained evidence paths; unrun coverage
+and target interactions**. Record the actual task identifier, reviewed revisions,
+findings and limitations. The implementer batches coherent repairs and returns the
+delta plus affected interactions to the same reviewer where practical. Widen review
+only when a repair changes architecture, assumptions, or risk. Implementer
+self-review is not independent review. A completed PR is a
+checkpoint, not permission to close broader unmet acceptance.
+
+#### Resume and diagnosis decisions
+
+| Observed case             | Next safe action                                                                                                                                                                                                        |
+| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| New task                  | Verify issue, checkout and ownership; reuse healthy dependencies and run the narrow loop.                                                                                                                               |
+| Resumed task              | Read the compact contract, preserve failed evidence, and resume the exact next action before picking new work.                                                                                                          |
+| Dirty or unowned checkout | Refuse branch transition; preserve all changes and resolve ownership without stash, reset or overwrite.                                                                                                                 |
+| Active editor/compiler    | Inspect the reported PID, creation time, parent chain and command; an editor check is not the guarded test runner. Wait, or stop only your proven-owned operation through its originating editor/terminal if safe.      |
+| Duplicate owned server    | Identify each Vite/native server's workspace, parent and listening port; reuse the correct healthy server or stop only a proven-owned duplicate through its originating terminal. Unknown ownership blocks that action. |
+| Shared guard queue        | Retain owner and elapsed diagnostics; wait or cancel only your queued command. Never delete a lock or bypass admission with direct Cargo/nextest.                                                                       |
+| Repeated bootstrap        | Compare the doctor result and pinned tool/dependency identity; repair the reported mismatch instead of reinstalling healthy dependencies.                                                                               |
+| Changed source head       | Freeze the new candidate and obtain applicable current-head checks and independent re-review.                                                                                                                           |
+| Target-only advance       | Fetch and inspect target-only changes for relevant interactions; an unchanged source does not automatically require rebase or full rerun.                                                                               |
+| Reviewer finding          | Preserve the finding, repair it, and return the changed candidate to that reviewer for applicable re-review.                                                                                                            |
+| Unavailable delegation    | Record REVIEW READY with PR/head and the concrete limitation; pause that merge and continue authorized nonconflicting work.                                                                                             |
+
+For a named Windows PID, `Get-CimInstance Win32_Process -Filter "ProcessId = 1234"`
+reports `ProcessId`, `ParentProcessId`, `CreationDate`, `ExecutablePath` and
+`CommandLine`; replace 1234 with the observed PID and inspect its parent identities.
+For a suspected server, `Get-NetTCPConnection -State Listen -OwningProcess 1234`
+can identify its ports. These are read-only clues, not ownership proof by name or
+PID alone. Missing paths, stale identities or unreadable ancestry mean unknown.
+Retain only relevant sanitized diagnostics, not full environment or command dumps.
+Never kill unrelated processes or change global editor, antivirus or storage settings
+automatically. Existing [Rust admission](#rust-test-runner) and native-session guards
+remain authoritative; separate worktrees keep separate mutable Cargo targets.
+
+At a handoff, record current head and dirty state, active owned process/session
+identities or confirmed terminal state, evidence locations, unresolved findings or
+external boundaries, and the exact resume command/condition. Put it on the current
+issue/PR and link a short #793 checkpoint. No second ledger, scheduler or daemon is
+needed. Choose a cohesive independently verifiable outcome, not setup-heavy trivial
+fragments or an unrelated mega-refactor.
+
+#### Static component scenarios
+
+From the checkout root, run
+`node scripts/dev-storage.mjs run -- corepack pnpm --dir apps/desktop dev`, then open
+`http://127.0.0.1:1420/scenarios.html` in an ordinary browser. The development-only
+page offers typed deterministic empty-library, ready-game, missing-source,
+missing-tool, staged-update, interrupted-operation, refresh-failure and unavailable
+artwork/provider previews. It uses actual components and generated transport types,
+with the existing test-fixture builders; it is not another policy backend.
+
+Previews use React static rendering, not mounting or hydration. Their controls are
+inert, callbacks refuse execution, and effects, subscriptions and native operations
+do not run. The entry refuses production mode and a Tauri bridge before importing
+the scenarios. Vite's production bundle gate rejects scenario modules, shared test
+fixtures or the scenario HTML entrypoint. Every scenario names what is simulated.
+The unavailable-provider case previews a failure notice, not image decoding; the
+interrupted case previews supplied backup recovery state, not a crash. The preview
+contains the detail-dialog scrim inline and disables its entrance animation; it
+does not reproduce modal focus or overlay behavior.
+
+Edit components/styles through normal Vite reloads and rerun focused tests. This
+loop provides static layout/copy feedback without native compilation. It does not
+qualify interactions, focus, controllers, IPC, platform or packages; use the native
+harness for those obligations. #924's cache and feature-boundary migrations remain
+separate work, not implied by these previews.
+
 ## Skills
 
-Repository-local skills under `.agents/skills` describe port qualification,
-release validation, roadmap reconciliation and desktop verification. They resolve
-contracts from the active checkout. General architecture and quality obligations
-remain in `AGENTS.md`; skills do not become a parallel implementation or planning
-authority. The reusable Windows diagnostics skill is installed in the user's
-Codex skill directory and can be used outside Portcove.
+Repository-local skills under `.agents/skills` progressively load task-specific
+execution detail. Each skill resolves the active checkout root before using
+paths. General architecture, authority, review, and safety obligations remain in
+`AGENTS.md`; skills do not become a parallel implementation or planning authority.
+
+| Skill                           | Load for                                                                   | Do not load merely for                                                                          |
+| ------------------------------- | -------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `portcove-desktop-verification` | Native Desktop interaction or presentation qualification                   | A routine noninteractive UI unit-test edit                                                      |
+| `portcove-port-qualification`   | New-port investigation, catalog admission, or lifecycle requalification    | Ordinary product UI work; add `portcove-roadmap` when intake or live Project fields also change |
+| `portcove-release-validation`   | Release, package, updater, signing, or protected release-policy validation | Permission to publish, sign, change keys, or widen authority                                    |
+| `portcove-roadmap`              | Issue intake, dependency, live Project, or readiness reconciliation        | Product implementation without planning mutations                                               |
+
+The reusable Windows diagnostics skill is installed in the user's Codex skill
+directory and can be used outside Portcove. Keep a repository skill focused:
+update its trigger and owning references when behavior changes instead of copying
+the same detailed contract into the root instructions.
 
 ## Native desktop smoke tests
 
@@ -160,6 +308,12 @@ user input. Announce the foreground run and establish an uncontended window.
 Malformed or live lock ownership is never removed; a valid lock is reclaimed only
 when its recorded PID is positively absent.
 
+When the native runner reports a live owner, treat that as resource contention,
+not a harness timeout: preserve the report, continue noninteractive work, wait for
+the named runner to finish, and rerun the same exact scenario or profile. There is
+no lock override. A watchdog timeout after acquisition is a separate failed run
+and follows the retained-evidence diagnosis in the desktop-verification skill.
+
 Focused and small-profile runs retain the three-minute whole-harness watchdog.
 Owned-lifecycle and full sequences use a bounded ten-minute watchdog because they
 compose more than eight independently bounded scenarios; this does not change any
@@ -213,11 +367,17 @@ Play without setup, and cancel an active native setup through the UI. They do no
 acquire upstream artifacts or establish game compatibility. CLI/tool hashes and
 the additional harness source are retained in the evidence inputs.
 
-The cancellation scenario also verifies the retained setup log through CLI and
-Tauri after reconnect, rejects stale-library log reads, opens both output streams
-in the activity view, and exports a redacted support bundle. Incomplete capture
-and quota behavior are separate core fixtures. These logs contain owned synthetic
-output, not evidence of actual game compatibility.
+The cancellation scenario navigates away while owned preparation is running,
+reconnects to the durable activity and requests cancellation there, then navigates
+away and returns after the terminal outcome. It restarts the renderer before
+verifying the retained setup log through CLI and Tauri, rejects stale-library log
+reads, opens both output streams in the activity view, and exports a redacted
+support bundle. Its dependent interruption scenario uses real core startup recovery
+to produce the distinct failed/attention state, then verifies the actionable failed
+row and incomplete phase capture after navigation and again after renderer restart.
+Incomplete capture and quota behavior are separate core fixtures. These logs
+contain owned synthetic output, not evidence of actual game compatibility, a
+physical process crash or resumable preparation.
 
 The owned readiness scenario temporarily omits one prepared fixture's assessment
 from the renderer's actual status responses. It verifies disabled Play and Continue
@@ -310,25 +470,41 @@ repository's scheduling configuration; doctests run in Cargo separately. Do not
 duplicate this orchestration in a skill or a competing recipe. Record cold
 compilation separately from warm test execution when comparing performance.
 
-The wrapper owns one shared-host heavyweight Rust-test slot across Portcove
-worktrees. It publishes complete lock metadata atomically, records an owned
+The wrapper reuses only its unchanged compiled host-tool probe and containment
+supervisor. It keeps those products below the current worktree's Cargo target,
+keyed by exact source, compiler/sysroot/resolved-tool bytes, target, arguments,
+and relevant compiler environment. Cache entries and fresh copies are verified
+by bytes and mode; candidates publish atomically, corrupt or interrupted entries
+are rejected, and only eight identities per product are retained. Every run
+still allocates a new temporary fixture root and executes fresh nextest,
+containment, mutation, process, and cleanup evidence. `[rust-support]` lines name
+the product, `built` or `hit` outcome, short fingerprint, and preparation time.
+They are preparation provenance, never a test pass or authorization record.
+
+The wrapper owns one shared-host heavyweight Rust-validation slot across Portcove
+worktrees. Supported local-check and aggregate recipes acquire it before each
+expensive Cargo check, Clippy, nextest, or doctest process, so compiler work from
+one worktree cannot starve another worktree's timed tests. The lock is released
+between those stages; formatting, JavaScript/UI tests, research, editing, and
+review remain concurrent. The wrapper publishes complete lock metadata atomically, records an owned
 containment supervisor, and only then opens the supervisor's launch gate for the
-pinned `cargo-nextest` command. Unix anchors a detached process group and starts
+pinned exact command. Unix anchors a detached process group and starts
 an out-of-group cleanup watchdog before nextest; Windows uses a kill-on-close
 Job Object. The Unix watchdog publishes success only after the anchored process
 group is absent, and a new acquirer validates that receipt before reclaiming a
 dead wrapper and supervisor. Nested inherited commands stay inside that existing containment.
 Ctrl-C and termination requests close the owned outer containment and return the
 conventional 130 or 143 status; signal listeners are removed after the command.
-It refuses to overlap a matching live owner and
-polls for five seconds by default,
-then prints that owner's PID, workspace, command and start time. Each Windows or
+It refuses to overlap a matching live owner and waits up to 60 minutes by default,
+separately from every test or command execution deadline. It reports the owner's
+PID, workspace, command, start time, and monotonic queued time immediately and
+every 30 seconds, then reports acquisition. Live-owner identity is polled every
+five seconds rather than launching four probes per second. Each Windows or
 Darwin identity probe uses repository-required PowerShell 7 and separately fails closed after five seconds, so it cannot
 hang indefinitely but can add one bounded probe interval to the polling limit.
-Wait for the named command to finish and rerun the same supported command. For a
-deliberately coordinated short polling interval, set
-`PORTCOVE_HEAVY_RUST_WAIT_MS` to an integer from `0` through `60000`; this changes
-only lock acquisition, not any test deadline. A wrapper failure does not make a
+`PORTCOVE_HEAVY_RUST_WAIT_MS` may select a shorter explicit admission limit from
+`0` through `3600000` milliseconds; this changes only queue waiting, not any
+nextest, Node, product, cancellation, or cleanup deadline. A wrapper failure does not make a
 still-running recorded supervisor stale, registration failure cannot launch the
 guarded command, and cleanup evidence proves the detached Unix process group or
 Windows Job Object has closed. Any survivors are
@@ -341,11 +517,22 @@ nextest supervisor rather than its second-resolution displayed start time. The
 previous timestamp identity remains readable only to classify and migrate a
 legacy lock record during this transition.
 
-Do not remove the shared lock record, kill another worker's process, or use a direct
-`cargo nextest` invocation to evade it. Direct Cargo commands are outside this
-guard, as are native desktop sessions, which retain their separate focus-taking
-lock and evidence rules. `--prepare-only` compiles the hosted fixture without
-taking the local heavyweight slot because it does not execute nextest.
+For a local timeout or apparent stall, run the supported recipe once and keep its
+owner/elapsed diagnostics. Queue waiting is not test execution: leave a live
+owner in place, or cancel only the queued command with Ctrl-C if other work is
+more useful. If the finite admission limit expires, ownership is unreadable, or
+cleanup cannot prove quiescence, preserve the exact message and inspect the named
+PID/workspace before retrying. When the recorded containment is not proven
+quiescent, the exact resume condition is a supported owner/containment exit plus
+the wrapper's valid cleanup evidence. Preserve the lock and report that condition;
+do not invent a manual recovery path or keep rerunning expensive checks while it
+remains false. Do not remove the lock, kill another worker, or use direct
+Cargo/nextest to evade it. After admission, diagnose any nextest timeout as a
+separate per-test failure and retain its run ID and last completed phase.
+Direct Cargo commands are outside this guard, as are native desktop sessions,
+which retain their separate focus-taking lock and evidence rules. `--prepare-only`
+compiles the hosted fixture without taking the local heavyweight slot because it
+does not execute nextest.
 
 ## Targeted safety experiments
 

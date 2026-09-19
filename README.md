@@ -108,7 +108,7 @@ Run the desktop app from the repository root:
 
 ```powershell
 node scripts/dev-storage.mjs preflight
-node scripts/dev-storage.mjs run -- corepack pnpm --dir apps/desktop install --frozen-lockfile
+node scripts/dev-storage.mjs run -- corepack pnpm install --frozen-lockfile
 node scripts/dev-storage.mjs run -- corepack pnpm --dir apps/desktop desktop:dev
 ```
 

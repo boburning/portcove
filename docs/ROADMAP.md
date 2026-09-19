@@ -132,12 +132,16 @@ contracts must preserve them explicitly, excluding credentials and any remote
 files without redistribution permission. Defaults need actual permission;
 attribution, public availability and local hashes are not rights evidence.
 
-[#527](https://github.com/boburning/portcove/issues/527) owns optional SteamGridDB
-access using a user-supplied credential, subject to verified application-use and
-retention conditions. Provider failure or unresolved access affects only that
-scope, never foundational artwork, compatible catalog delivery or 1.0. Steam
-entry management remains separate under #292. These are future requirements,
-not implemented artwork support or an activated provider.
+[#527](https://github.com/boburning/portcove/issues/527) owns the bounded
+SteamGridDB capability for Portcove's picker and the Public beta Steam artwork
+handoff, using one user-supplied credential subject to verified application-use,
+same-user Steam installation, cache/retention, withdrawal and attribution
+conditions. Delivering that provider capability is Required; configuring or using
+it remains optional for each user. Provider failure or unresolved access never
+blocks foundational artwork, catalog delivery, game lifecycle, or #292 Add/Repair
+without remote art. #292 alone owns Steam destination writes through #208's shared
+selection/provenance handoff. These are future requirements, not implemented
+provider or Steam-artwork support.
 
 ## Finite 1.0 outcome contract
 
@@ -161,11 +165,15 @@ status checklist.
 5. **Production-ready distribution:** #46 and #52 own qualified packages and
    understandable application upgrade/recovery for every claimed platform,
    without conflating application updates with game updates.
-6. **One independently consumable integration contract:** #14, #30, and #243
-   provide a documented, tested public CLI plus one bounded real lifecycle
-   reference and fresh-workspace consumer exercise without private knowledge or
-   copied per-port rules. Multiple frontends, organic adoption, marketplace
-   acceptance, automatic Steam entries, and Decky are not gates.
+6. **Useful independently consumable integrations:** #14, #30, and #243 provide
+   a documented, tested public CLI, bounded real lifecycle reference, and
+   fresh-workspace consumer exercise without private knowledge or copied per-port
+   rules. #910 turns that reference into a normally installable, user-ready
+   Playnite lifecycle integration, while #292 provides selected-game Steam
+   Add/Repair/Update-artwork/Remove over the same public launch authority with
+   #527's bounded provider capability. Provider use remains optional at runtime.
+   Additional frontends, continuous synchronization, organic adoption,
+   marketplace acceptance, and Decky are not gates.
 7. **A proven autonomous catalog path:** #245 and #246 prove one accepted scope
    delivering a new compatible definition, its next routine artifact, and a safe
    correction to an unchanged client through protected acceptance and exact
@@ -270,19 +278,88 @@ bounded release/feed pipeline. Manual reinstall or compiled packages alone do
 not satisfy the gate. Missing platform evidence keeps the milestone open.
 
 The expanded commitment includes the complete finite preparation-boundary proof
-in #31, structured presentation and local-first artwork in #208/#206, the real
-Playnite reference and independent-consumer proof in #243, and the protected
-unchanged-client catalog path in #245/#397/#398/#246. Preserve their full scoped
-acceptance, existing owners and completed contributions. Optional artwork
-providers, full adapter migration, broad discovery, additional frontends and
-general autonomous engineering are not implied. Application updater and catalog
-delivery are independent Required outcomes, with no reciprocal parent blocker.
+in #31, structured presentation and local-first artwork in #208/#206, the bounded
+SteamGridDB capability in #527, the public CLI and independent-consumer proof in
+#30/#243, the user-ready Playnite lifecycle integration in #910, selected-game
+Steam Add/Repair/Update-artwork/Remove in #292, and the protected unchanged-client
+catalog path in #245/#397/#398/#246. This explicitly
+supersedes the earlier beta wording that limited Playnite to its developer-loaded
+reference or deferred all Steam entry management until after 1.0. Preserve the
+existing owners, completed reference evidence, and each new owner's full scoped
+acceptance. Additional artwork providers, provider-mandatory runtime behavior,
+full adapter migration, broad discovery, additional frontends and general
+autonomous engineering are not implied.
+Application updater and catalog delivery are independent Required outcomes, with
+no reciprocal parent blocker.
 
-#51/#213–#217 retain the package/controller/Gamescope/storage/device baseline and
-#290 retains plugin-free application and individual-game Steam launch routes.
-No automatic entries, Decky, root modification or separate Deck binary/channel
-is required. Qualification starts during implementation, including actual
-Gaming Mode, normal Exit versus Steam Stop, suspend and removable storage.
+The finite [#921](https://github.com/boburning/portcove/issues/921) architecture
+and development-agility initiative is also Required for Public beta. It adds five
+independently closable residual owners without reopening completed foundations:
+[#922](https://github.com/boburning/portcove/issues/922) owns the measured
+single-session baseline, equivalent-work validation deduplication, safe compiled
+support-program reuse, and only then measured bottleneck experiments;
+[#923](https://github.com/boburning/portcove/issues/923) owns the warm-checkout
+task, resume, diagnosis, and compact independent-review handoff contract;
+[#924](https://github.com/boburning/portcove/issues/924) owns development-only
+typed frontend scenarios, one backend-state cache authority, and feature-owned UI
+structure; [#925](https://github.com/boburning/portcove/issues/925) owns residual
+core domain, lifecycle, persistence, and justified host-integration seams; and
+[#926](https://github.com/boburning/portcove/issues/926) owns mechanical IPC/Tauri
+exposure alignment and repository-tooling ownership. The umbrella owns only their
+finite integrated compatibility and migration-cleanup proof.
+
+Execute this work serially for one persistent Codex implementation session:
+measure and remove repeated validation/build work first, preserve the warm workflow
+and concise handoffs, then take cohesive core/contract and frontend-scenario slices,
+the remaining persistence/updater/styling/tooling consolidation, and final integrated
+acceptance. This is priority order, not a blanket dependency chain. It requires no
+frontend/backend worker split, worktree farm, parallel compiler load, new scheduler,
+paid service, hardware, or assumed host tuning. Existing heavy-Rust and native-session
+guards remain in force.
+
+#921 reuses #917 for styling and visual architecture, #206 for interaction/focus/
+navigation, #202/#204 for failure/mutation/review/confirmation presentation, and
+#245/#397/#398/#246 for independent definition delivery. #30 retains the public CLI
+contract and #243 the independent-consumer proof; #52 retains application-update and
+platform acceptance. Completed #31/#32/#741/#753/#777/#839/#869/#882 evidence remains
+valid scoped foundation. #284 and optional cache, linker, host/editor, storage, or
+antivirus experiments stay outside the Required outcome unless separate measured work
+and authority make a bounded change necessary. Planning these outcomes implements no
+refactor, speedup, qualification, signing, publication, or release readiness.
+
+The finite [#917](https://github.com/boburning/portcove/issues/917) desktop redesign
+and agent-friendly design-system outcome is also Required for Public beta. It
+adopts official checked-in shadcn/ui controls using Base UI, Tailwind, semantic
+CSS variables, the compact Nova starting style, and a custom Portcove theme;
+establishes a small vocabulary of reusable patterns and product components; and
+closes the cross-surface card/sidebar/header/detail/Settings/activity/overlay and
+visual evidence. This decision supersedes the earlier CSS-Modules-only,
+no-Tailwind, no-shadcn direction. It is an organizational child of #200; the
+parent relationship does not make closure of the broader
+1.0 workstream a beta prerequisite; #917 itself remains Required for Public beta.
+#206 retains information architecture and interaction behavior; #203 retains
+labels, formatting, localization and safe unknowns; #208/#527 retain artwork and
+provider authority; #29/#44/#47 retain their controller, minimum-width, physical
+and intrinsic human qualification. No broad owner closure blocks the finite
+visual outcome.
+
+[#924](https://github.com/boburning/portcove/issues/924) retains the existing
+development-only scenario renderer, feature/shared boundaries, and read-state
+ownership. Its accepted scenario, reference-stability, workspace-boundary,
+application-update preference, feature-colocation, and selected native-agreement
+evidence is foundation, not work to rebuild. It extends only the missing reference
+composition and render-inspect-review workflow needed by #917; Storybook, a second
+policy backend, a second cache, and another native harness are not required.
+
+#51/#213–#217 retain the package/controller/Gamescope/storage/device baseline,
+#290 retains plugin-free application and individual-game manual Steam launch
+routes, and #292 owns bounded user-initiated Add/Repair/Update-artwork/Remove,
+consuming #527 only through #208's shared artwork authority. The manual route
+remains a supported fallback and useful interim path, but it does not complete
+#292. Continuous synchronization, Decky, root modification and a separate Deck
+binary/channel are not required. Qualification starts during implementation,
+including actual Gaming Mode, normal Exit versus Steam Stop, suspend and removable
+storage.
 
 Safety-critical UX, clear game-channel controls and existing early safety
 commitments stay visible. Public beta does not freeze every 1.0 capability or
@@ -293,7 +370,7 @@ supported. [Delivery](DELIVERY.md) defines acceptance and platform limits.
 
 ## 1.0 and exact production candidates
 
-Complete the finite seven outcomes above and every Required Project outcome and
+Complete the finite outcomes above and every Required Project outcome and
 genuine transitive blocker. #46 owns later exact-artifact distribution, upgrade,
 recovery and production rehearsal across declared platforms, preserving earlier
 #52 beta evidence without making #52 depend on a post-beta closure. Broader
@@ -308,10 +385,11 @@ catalog updates may continue; unsupported capabilities cannot enter a client
 silently. Production declaration requires cumulative readiness and existing
 authority, not a tag suffix alone.
 
-The public CLI and #243 bounded real reference remain independently consumable
+The public CLI, #243 bounded real reference, #910 user-ready Playnite integration,
+and #292 selected-game Steam entry management remain independently consumable
 without private repository knowledge or per-port rules. Marketplace acceptance,
-community adoption, a universal frontend list, catalog counts, automatic Steam
-entries, Decky and standalone CLI self-updating are not gates.
+community adoption, a universal frontend list, catalog counts, continuous Steam
+synchronization, Decky and standalone CLI self-updating are not gates.
 
 ## Post-1.0 principles
 
@@ -327,9 +405,11 @@ Initial value order is:
    connect explicitly selected-file matches to readiness while keeping source
    match, platform artifact, prerequisites, and observed gameplay distinct.
 3. **Bring existing libraries and preferred frontends along** — first #291's
-   reusable ES-DE export profile, then #292's safe Steam-entry evaluation and
-   demand-led Windows/environment profiles; #249 remains the bounded existing-
-   library importer. #293 is a separate optional/community Decky opportunity.
+   reusable ES-DE export profile, then demand-led Windows/environment profiles;
+   #249 remains the bounded existing-library importer. #292's selected-game Steam
+   entry management is already a cumulative beta commitment, while continuous
+   synchronization remains later scope. #293 is a separate optional/community
+   Decky opportunity.
    Use inspect/preview, consent, stable ownership, duplicate prevention,
    preservation, scoped cleanup, and recovery; stop before broad promises,
    partnerships, a plugin per launcher, or copied lifecycle logic.

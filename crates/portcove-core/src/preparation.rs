@@ -12,9 +12,9 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    AdapterKind, AdoptionCopyPlan, ChildProcessClass, ChildProcessPolicy, InstallQualification,
-    InstallRecord, Installer, Platform, PortcoveError, PortcoveService, Result,
-    SourceInspectionReport, SourceRecord,
+    AdoptionCopyPlan, ChildProcessClass, ChildProcessPolicy, InstallQualification, InstallRecord,
+    Installer, Platform, PortcoveError, PortcoveService, Result, SourceInspectionReport,
+    SourceRecord,
 };
 
 /// This family currently exposes the catalog's reviewed defaults only.
@@ -105,7 +105,7 @@ impl PortcoveService {
         let catalog = retained_catalog.as_ref().unwrap_or(self.catalog());
         let port = catalog.port(port_id)?;
         let host = Platform::current()?;
-        if port.adapter != AdapterKind::UpstreamManagedSetup {
+        if !managed(port) {
             return Err(PortcoveError::unsupported(
                 "this port has no managed preparation operation",
             )
@@ -167,10 +167,12 @@ impl PortcoveService {
         let setup =
             crate::install::resolve_executable_hints(&working, host, hints, "setup executable")?;
         let setup_tool = tool_identity(setup, ChildProcessClass::UpstreamSetup)?;
-        let conversion_tool = if source
-            .path
-            .extension()
-            .is_some_and(|extension| extension.eq_ignore_ascii_case("chd"))
+        let conversion_tool = if port.runtime_source_materialization
+            == Some(crate::RuntimeSourceMaterialization::Ps2Iso)
+            && source
+                .path
+                .extension()
+                .is_some_and(|extension| extension.eq_ignore_ascii_case("chd"))
         {
             Some(tool_identity(
                 crate::adapter::resolve_chdman()?,

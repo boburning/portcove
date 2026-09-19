@@ -17,7 +17,8 @@
     "release:prepare": "node scripts/prepare-release-version.mjs",
     "test:desktop": "node scripts/desktop-test.mjs",
     "dev": "vite --host 127.0.0.1 --port 1420",
-    "typecheck": "tsc",
+    "typecheck": "tsc && pnpm typecheck:orchestration",
+    "typecheck:orchestration": "tsc --project tsconfig.orchestration.json",
     "build": "pnpm typecheck && vite build",
     "lint:oxlint": "node ../../scripts/run-oxlint.mjs",
     "lint:style": "stylelint --config stylelint.config.mjs --max-warnings 0 src/styles.css",
@@ -40,20 +41,15 @@
     "react-dom": "^19.3.0"
   },
   "devDependencies": {
-    "@taplo/cli": "0.7.0",
     "@tauri-apps/cli": "2.11.4",
     "@types/jsdom": "^30.0.0",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.1",
     "axe-core": "4.13.0",
-    "fallow": "^3.25.0",
     "jsdom": "^30.0.1",
     "json-schema-to-typescript": "16.0.0",
     "oxc-parser": "0.149.0",
-    "oxfmt": "0.67.0",
-    "oxlint": "1.82.0",
-    "oxlint-tsgolint": "7.0.2001",
     "selenium-webdriver": "4.49.0",
     "semver": "7.8.5",
     "stylelint": "17.15.0",
@@ -61,6 +57,5 @@
     "typescript": "7.0.2",
     "vite": "^8.3.0",
     "vitest": "^5.0.0"
-  },
-  "packageManager": "pnpm@12.4.1"
+  }
 }

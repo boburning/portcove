@@ -22,6 +22,27 @@ file documents current implemented behavior. Future completeness and
 compatibility gaps remain owned by #30 and are not shipped merely because they
 are described in the roadmap.
 
+The Public beta contract keeps launch-only, library, and lifecycle consumers
+independently useful: a basic launcher negotiates only the operations, formats,
+schemas, and consequential semantics it uses rather than implementing every
+management command. #30 audits the implemented surface before adding anything
+and owns only demonstrated shared gaps needed by consumers such as #910 Playnite
+and #292 Steam entry management. Required answers include stable identity,
+metadata/artwork references, installation and readiness, requirements, allowed
+next actions, stable blocked reasons, update eligibility, operation results, and
+launcher-ready program, argument-array, working-directory, and explicit-library
+information. This acceptance direction neither invents command names or DTOs nor
+claims a missing answer exists in the current CLI.
+
+That audit also covers verified runtime/library binding, operation-specific and
+mixed-version compatibility, batch-read reuse, bounded polling/concurrency,
+cancellation, prepared offline behavior, and measured refresh/launch
+responsiveness. Budgets follow representative measurements rather than planning
+claims. Runtime discovery must not blindly execute an untrusted candidate, and
+no gap by itself authorizes a daemon, hidden cache authority, private API, or
+standalone CLI self-updater. The implemented behavior below remains authoritative
+until an exact reviewed change closes a demonstrated gap.
+
 Future eligibility/evidence and independent-definition work must use one core
 assessment across CLI, Tauri and integrations. Operation availability and reasons,
 publisher origin/trust, digest provenance, source compatibility and scoped test
@@ -40,6 +61,17 @@ or changed publisher identity remains a hold.
 Schema 42 adds `exec --request-id <uuid>` and `launch show <uuid>` for exact durable
 launch observation, plus the nullable `launch_request` output schema. `exec`
 continues to own raw game streams and supervise through game exit/save collection.
+Schema 49 adds explicit `launch recover <uuid>` for an unfinished request after
+its recorded supervisor exits. Recovery retains core's exact child/start/install
+checks and reports a failed terminal launch; it never converts interruption into
+success.
+
+Schema 50 adds `operation_event_schema_version` to `capabilities`. API result
+envelopes and JSONL operation events are independently versioned, so a lifecycle
+consumer must negotiate both instead of assuming the event version from the API
+version. Launch-only and read-only library consumers do not need JSONL or the
+event schema and may negotiate only their used commands, `json`, and—for
+launch—raw supervised `exec`.
 
 Schema 46 adds the `definition_selected` catalog provenance origin. Core reports
 that origin only while the exact selected definition is fresh, still authorized,
@@ -72,7 +104,7 @@ The CLI API schema version is independent of the Portcove release version. Every
 
 ```json
 {
-  "schema_version": 47,
+  "schema_version": 50,
   "ok": true,
   "command": "status",
   "data": {},
@@ -204,7 +236,9 @@ other games remain readable. New installations retain their execution and
 persistence definitions in manifest schema 6, introduced with writer protocol 23.
 Protocol 25 now protects exact successor definition retention; older clients refuse
 to modify an upgraded library. The Playnite
-reference accepts API schemas 42 through 48 with event schema 2.
+reference accepts API schemas 42 through 50 with event schema 2. Schema 50
+advertises that event version explicitly; the historical 42–49 window retains
+its documented event-2 contract.
 
 API schema 22 adds the core-resolved per-game output location to install plans
 and path results. It distinguishes a one-request override, the saved port
@@ -489,12 +523,20 @@ unused asset and explicit confirmation; external source images are never removed
 
 Core copies static PNG/JPEG images into library-owned storage, preserves the first
 filename/import time for deduplicated content and reports `available`, `unavailable`
-or `fallback`. Missing/changed images retain the explicit choice. Local hashes
-describe integrity, not rights or authenticity; copyright permission remains
-unknown. Artwork errors do not block normal catalog or game lifecycle operations.
+or `fallback`. The additive schema-49 `resolved_source` field identifies the source
+core resolved before a client transports or renders it, while `generated_fallback`
+supplies a deterministic identity, style version, initials and palette for every slot.
+Available local imports resolve first. A missing/changed import retains the explicit
+choice and local provenance while core resolves the generated fallback; restoration
+resolves the same local asset again. A client that cannot safely transport or decode a
+resolved local preview displays the generated fallback and must disclose that actual
+rendered source without changing the durable choice. The generated fallback uses no external image asset. Local hashes
+describe integrity, not rights or authenticity; copyright permission for imports
+remains unknown. Artwork errors do not block normal catalog or game lifecycle operations.
 The [architecture limits](ARCHITECTURE.md#local-artwork-ownership) apply to both
 encoded input and decoding. Clear-cache affects only disposable thumbnails, which
-are rebuilt when requested by a client. These commands activate no online provider.
+are rebuilt when requested by a client. These commands activate no catalog artwork
+default or online provider.
 
 ## Library metadata
 
@@ -721,7 +763,7 @@ portcove --library <path> --json backup delete <port-id> <backup-id> --yes
 
 `backup delete` also requires confirmation or `--yes`. Declining an interactive backup restore or deletion is a successful neutral result that says no changes were made; unattended use still requires `--yes`. Deletion validates the selected snapshot and records a core-owned lifecycle operation with the exact original and private quarantine paths before moving that directory out of the visible backup set. The journal advances after quarantine, filesystem removal, and commit. On restart, Portcove completes an unambiguous authorized deletion, including a partially removed quarantine; it never treats both paths, neither pre-publication path, a reappeared visible backup, or out-of-root paths as successful deletion. Such state remains recovery-required in backup inventory and `doctor`. This is process-interruption recovery and visibility isolation, not a cross-platform sudden-power-loss claim. Current persistent data, application versions, original sources, and every other backup remain outside the deletion target.
 
-Mutating commands, verification, and `exec` use a cross-process lock for the selected port. A second frontend targeting that same port fails immediately with `error.code: "conflict"`, exit code 14, and `details.port_id`; it should retry later rather than run a competing operation. The launch lock remains held through game exit and post-exit mutable-data collection. An unfinished durable launch request continues to block the port even if its supervisor crashes; desktop startup recovers only the exact recorded child/start identity/install before committing a failed terminal outcome. A PID or install mismatch fails closed for manual review. Completed request rows remain reconnectable evidence without blocking a later launch. Commands for other ports continue independently. `capabilities.port_operation_locking` is `per_port_fail_fast` when this contract is available.
+Mutating commands, verification, and `exec` use a cross-process lock for the selected port. A second frontend targeting that same port fails immediately with `error.code: "conflict"`, exit code 14, and `details.port_id`; it should retry later rather than run a competing operation. The launch lock remains held through game exit and post-exit mutable-data collection. An unfinished durable launch request continues to block the port even if its supervisor crashes. Desktop startup or `launch recover <request-id>` recovers only the exact recorded child/start identity/install before committing a failed terminal outcome. A live supervisor, PID/start mismatch, ambiguous spawning phase, legacy missing identity, or changed install fails closed for manual review. Recovery can wait for an exact still-running child and then collect from the recorded install; it cannot claim that hard termination allowed a game to flush data. Completed request rows remain reconnectable evidence without blocking a later launch. Commands for other ports continue independently. `capabilities.port_operation_locking` is `per_port_fail_fast` when this contract is available.
 
 An update also reuses a matching artifact already retained as a rollback or inactive installation. Before reuse, activation, rollback, or launch, Portcove checks the registered manifest identity and current critical executable/library/bootstrap bytes. `--stage` marks the checked local artifact for activation, while a normal update promotes it without another download. An install migrated from an older schema without immutable identity must be replaced or re-adopted; Portcove never fabricates its provenance.
 

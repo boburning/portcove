@@ -2,7 +2,8 @@ set windows-shell := ["pwsh.exe", "-NoLogo", "-NoProfile", "-Command"]
 
 storage := "node scripts/dev-storage.mjs run --"
 
-default: check
+# The no-argument developer loop is the complete diff-selected local plan.
+default: local-check
 
 preflight:
     node scripts/dev-storage.mjs preflight
@@ -18,7 +19,7 @@ pr-check *args:
 renovate-check *args:
     {{storage}} node scripts/pr-delivery.mjs renovate-check {{args}}
 
-# REST-only exact-head fallback for observing or merging a qualified pull request.
+# Exact-head REST observation and guarded normal merge for a qualified pull request.
 pr-watch *args:
     node scripts/pr-delivery.mjs watch {{args}}
 
@@ -26,9 +27,9 @@ pr-merge-rest *args:
     node scripts/pr-delivery.mjs merge {{args}}
 
 development-tools:
-    {{storage}} node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/audit.test.mjs scripts/desktop-build-cache.test.mjs scripts/desktop-scenarios.test.mjs scripts/desktop-verify.test.mjs scripts/dev-doctor.test.mjs scripts/development-cli-help.test.mjs scripts/development-evidence.test.mjs scripts/heavy-rust-test-lock.test.mjs scripts/local-validation.test.mjs scripts/native-session-lock.test.mjs scripts/native-session.test.mjs scripts/process-lock.test.mjs scripts/run-rust-tests.test.mjs scripts/rust-test-impact.test.mjs scripts/rust-test-tree-supervisor.test.mjs scripts/tool-cache.test.mjs
+    {{storage}} node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/audit.test.mjs scripts/desktop-build-cache.test.mjs scripts/desktop-scenarios.test.mjs scripts/desktop-verify.test.mjs scripts/dev-doctor.test.mjs scripts/development-cli-help.test.mjs scripts/development-evidence.test.mjs scripts/heavy-rust-test-lock.test.mjs scripts/local-validation.test.mjs scripts/native-session-lock.test.mjs scripts/native-session.test.mjs scripts/process-lock.test.mjs scripts/renovate-fast-lane.test.mjs scripts/repository-skills.test.mjs scripts/run-rust-tests.test.mjs scripts/rust-support-cache.test.mjs scripts/rust-test-impact.test.mjs scripts/rust-test-tree-supervisor.test.mjs scripts/tool-cache.test.mjs
 
-# Fast local loop. Required GitHub CI remains the exhaustive merge gate.
+# Complete selected local loop; required hosted CI runs its separately selected plan.
 local-check *args:
     {{storage}} node scripts/local-validation.mjs check {{args}}
 
@@ -55,31 +56,32 @@ playnite-check *args:
 clean-build:
     node scripts/dev-storage.mjs clean
 
+# Explicit storage recovery; ordinary validation preserves incremental reuse.
 prune-incremental:
     node scripts/dev-storage.mjs prune-incremental
 
 # Repository formatting
 fmt:
     {{storage}} cargo fmt --all
-    {{storage}} corepack pnpm --dir apps/desktop format
+    {{storage}} corepack pnpm format
 
 fmt-check:
     {{storage}} cargo fmt --all -- --check
-    {{storage}} corepack pnpm --dir apps/desktop format:check
+    {{storage}} corepack pnpm format:check
 
 # Rust fast loop
 rustfmt-check:
     {{storage}} cargo fmt --all -- --check
 
 rust-check:
-    {{storage}} cargo check --workspace --all-targets
+    {{storage}} node scripts/run-rust-tests.mjs --guard-command cargo check --workspace --all-targets
 
 clippy:
-    {{storage}} cargo clippy --workspace --all-targets -- -D warnings
+    {{storage}} node scripts/run-rust-tests.mjs --guard-command cargo clippy --workspace --all-targets -- -D warnings
 
 rust-test:
     {{storage}} node scripts/run-rust-tests.mjs --locked --workspace
-    {{storage}} cargo test --locked --workspace --doc
+    {{storage}} node scripts/run-rust-tests.mjs --guard-command cargo test --locked --workspace --doc
 
 shear:
     {{storage}} cargo shear --deny-warnings
@@ -97,7 +99,7 @@ transport-contract:
     {{storage}} node scripts/check-transport-contract.mjs
     {{storage}} node --test scripts/check-transport-contract.integration.test.mjs
 
-check-rust: prune-incremental rustfmt-check rust-check clippy rust-test shear architecture process-policy transport-contract
+check-rust: rustfmt-check clippy rust-test shear architecture process-policy transport-contract
 
 # Frontend fast loop
 ui-transport:
@@ -105,49 +107,48 @@ ui-transport:
     {{storage}} node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/transport-types.test.mjs
 
 ui-build:
-    {{storage}} corepack pnpm --dir apps/desktop build
+    {{storage}} corepack pnpm build
 
 ui-test:
-    {{storage}} corepack pnpm --dir apps/desktop test
+    {{storage}} corepack pnpm test
 
 fallow:
     {{storage}} node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/check-fallow-report.test.mjs
     {{storage}} node scripts/run-fallow.mjs
 
 oxlint:
-    {{storage}} corepack pnpm --dir apps/desktop lint:oxlint
-    {{storage}} node scripts/lint-tools.integration.mjs oxlint
+    {{storage}} corepack pnpm lint:oxlint
 
 stylelint:
-    {{storage}} corepack pnpm --dir apps/desktop lint:style
-    {{storage}} node scripts/lint-tools.integration.mjs stylelint
+    {{storage}} corepack pnpm lint:style
+
+ui-lint-contracts:
+    {{storage}} node scripts/lint-tools.integration.mjs oxfmt oxlint stylelint
 
 ui-check: ui-transport ui-build ui-test fallow oxlint stylelint
 
-check-ui: fmt-frontend-check ui-check
+check-ui: fmt-frontend-check ui-check ui-lint-contracts
 
 fmt-frontend-check:
-    {{storage}} corepack pnpm --dir apps/desktop format:check
-    {{storage}} node scripts/lint-tools.integration.mjs oxfmt
+    {{storage}} corepack pnpm format:check
 
 # Cross-language scripts and hosted automation.
 python-lint:
     {{storage}} aqua exec -- ruff check apps/desktop/assets/brand/models/v2
-    {{storage}} node scripts/lint-tools.integration.mjs ruff
 
 shell-lint:
     {{storage}} aqua exec -- shellcheck --severity=warning scripts/bootstrap-quality-tools.sh scripts/install-linux-desktop-prerequisites.sh scripts/test-linux-package-ownership.sh
-    {{storage}} node scripts/lint-tools.integration.mjs shellcheck
 
 actions-lint:
     {{storage}} node scripts/run-actionlint.mjs
-    {{storage}} node scripts/lint-tools.integration.mjs actionlint
 
 powershell-lint:
     {{storage}} node scripts/run-powershell-lint.mjs
-    {{storage}} node scripts/lint-tools.integration.mjs psscriptanalyzer
 
-script-lint: python-lint shell-lint actions-lint powershell-lint
+script-lint-contracts:
+    {{storage}} node scripts/lint-tools.integration.mjs ruff shellcheck actionlint psscriptanalyzer
+
+script-lint: python-lint shell-lint actions-lint powershell-lint script-lint-contracts
 
 # Offline drift check and publisher-verified repair for Aqua package checksums.
 aqua-integrity-check:
@@ -159,7 +160,7 @@ aqua-integrity-update:
 # Generic repository automation and governance contracts.
 repository-tools:
     {{storage}} node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/upstream-observer.test.mjs
-    {{storage}} node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/ci-workflow.test.mjs scripts/ci-health.test.mjs scripts/workflow-provenance.test.mjs scripts/validation-plan.test.mjs scripts/select-ci-plan.test.mjs scripts/ci-result-gate.test.mjs scripts/qualification-coverage.test.mjs scripts/select-fast-host.test.mjs scripts/release-result-gate.test.mjs scripts/test-duration-reporter.test.mjs scripts/quality-tools.test.mjs scripts/dependency-automation.test.mjs scripts/repository-settings.test.mjs scripts/pr-conventions.test.mjs scripts/pr-delivery.test.mjs scripts/renovate-fast-lane.test.mjs scripts/github-api.test.mjs scripts/dev-storage.test.mjs scripts/migrate-catalog-schema2.test.mjs
+    {{storage}} node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/ci-workflow.test.mjs scripts/ci-health.test.mjs scripts/workflow-provenance.test.mjs scripts/validation-plan.test.mjs scripts/select-ci-plan.test.mjs scripts/ci-result-gate.test.mjs scripts/qualification-coverage.test.mjs scripts/select-fast-host.test.mjs scripts/release-result-gate.test.mjs scripts/test-duration-reporter.test.mjs scripts/quality-tools.test.mjs scripts/dependency-automation.test.mjs scripts/repository-settings.test.mjs scripts/pr-conventions.test.mjs scripts/pr-delivery.test.mjs scripts/github-api.test.mjs scripts/dev-storage.test.mjs scripts/migrate-catalog-schema2.test.mjs
     {{storage}} node scripts/qualification-coverage.mjs
     {{storage}} node scripts/select-fast-host.mjs
     {{storage}} node scripts/check-retcomm-upstreams.mjs --offline

@@ -137,10 +137,12 @@ specifies request bounds, version semantics, and independent trust checks.
 
 ## Local artwork ownership
 
-Core owns independent cover/detail choices, copied local originals, bounded raster
-decoding and disposable thumbnails. SQLite schema 24 records assets and monotonic
-choice revisions; older writers refuse the upgraded library. API schema 44 exposes
-selection and integrity metadata through the CLI and Desktop. Catalog and signed-envelope
+Core owns independent cover/detail choices, copied local originals, deterministic
+generated fallbacks, bounded raster decoding and disposable thumbnails. SQLite
+schema 24 records assets and monotonic choice revisions; older writers refuse the
+upgraded library. API schema 44 exposes selection and integrity metadata through
+the CLI and Desktop. The schema-49 `artwork_state` object now includes an additive
+core-resolved source and generated-fallback provenance. Catalog and signed-envelope
 formats are unchanged. Local filenames, hashes and import times record provenance;
 they establish neither copyright permission nor upstream authenticity.
 
@@ -191,9 +193,23 @@ detail images are optional. Reset preserves imported originals. Source informati
 reports the original filename, dimensions and import time, with author/license
 explicitly unavailable for local imports.
 
-There is no provider, network fetch or catalog artwork default. Deterministic
-fallback remains available when there is no local choice. Provider access and
-redistribution permissions remain separate from this account-free storage contract.
+Generated fallback style 1 binds a SHA-256 identity, initials and one of six theme
+palettes to the exact catalog port ID, display name and slot. It uses no external
+image bytes or network access. An available local import resolves ahead of that
+fallback. A missing or changed selected import remains the durable choice while core
+resolves the fallback; restoring the same bytes resolves the local import again without
+substituting another asset. Reset clears only the local choice and resolves the same
+deterministic fallback. `resolved_source` describes that core decision, not a promise
+that a client decoder rendered the bytes. If thumbnail transport or browser decoding
+fails, Desktop publishes the failure through its disposable cache, renders the same
+core-provided fallback and discloses that actual rendered source without changing the
+durable choice. React consumes the core identity, initials and palette rather than
+deriving its own per-card fallback.
+
+There is still no provider, network fetch or catalog artwork default. Catalog and
+provider precedence, sparse mappings and permission-bearing external assets remain
+separate work. Provider access and redistribution permissions remain separate from
+this account-free generated-display and storage contract.
 
 The [independent definition delivery contract](DEFINITION-DELIVERY.md) keeps
 successor definition admission, retained source/execution/persistence contracts
@@ -298,6 +314,78 @@ React UI ── Tauri IPC ───┤
                  SQLite + library tree
 ```
 
+## Backup service ownership
+
+`PortcoveService` remains the public facade for create/list/review/authorize/
+restore/delete backup operations. Its stable `BackupAction` and
+`BackupActionPreview` DTOs remain at the existing public paths. The private
+`service::backups` module owns their implementation, manifest decoding, inventory
+classification, payload copying and fingerprint helpers. These helpers and the
+persisted manifest representation are not exported. There is no new manager,
+crate, public schema or adapter authority.
+
+| Responsibility                                    | Owner and dependency direction                                                                               |
+| ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| Public backup methods and review DTOs             | Existing service facade; CLI and Tauri call the same API                                                     |
+| Backup orchestration and private representation   | `service/backups.rs`, using library authorization/locking, durability and the existing adoption copy planner |
+| Startup recovery and cross-lifecycle coordination | Existing service/recovery machinery; calls the same crate-private backup-directory identity check            |
+
+The existing Cargo-metadata architecture gate retains the core/adapter dependency
+rules. Rust module privacy keeps backup implementation helpers inside their owner;
+the public API doctest pairs an available action type with a rejected internal
+manifest import. Other service responsibilities remain incremental #925 work.
+
+Durable ordering is unchanged. Creation locks the port, reconciles launched user
+data, writes and syncs a private payload/manifest, then publishes through the
+existing backup-directory durability helpers. Restore records lifecycle intent,
+uses the existing port lock and one-use state-bound authorization, validates and
+stages the selected payload, and creates the safety backup before replacing live
+data. It records payload publication and metadata commit before retiring retained
+recovery data. Deletion rechecks its content-bound review under the port lock,
+records the prepared intent, quarantines with no replacement, records publication,
+removes only that quarantine, then records metadata commit and retires the journal.
+The existing fault points and recovery rules still distinguish those phases;
+activity finalization remains separate from payload publication. Manifest bytes,
+journal fields, paths, lock order and legacy interpretation are unchanged.
+
+## Steam shortcut compatibility boundary
+
+Desktop owns the operating-system-facing adapter for a deliberately selected
+Steam installation and user profile. The adapter does not become a game-lifecycle
+authority: it receives stable port, library and standalone-CLI identities and
+creates only the Steam-facing route back to the public CLI. Core continues to own
+the installed game, update, rollback, persistence and launch behavior.
+
+Valve documents adding a non-Steam shortcut through the client, but does not
+document a supported shortcut-writing API. The initial backend foundation
+therefore labels per-profile `shortcuts.vdf` access as a reverse-engineered
+compatibility boundary. Its bounded binary-VDF reader preserves field order,
+casing, unknown fields and raw 32-bit values for the supported object/string/int
+encoding and fails closed on other encodings or ambiguous keys. It does not depend
+on a general VDF package or make unqualified promises about future Steam formats.
+
+Plans bind the exact selected installation/profile, complete file identity,
+Portcove library identity, standalone CLI path, selected ports and proposed bytes.
+Apply requires a closed-client observation from the future host adapter, reacquires
+a per-profile lock, recomputes the plan, rejects candidates beyond its own parser
+limits, and preserves a content-addressed regular-file backup. Publication
+evacuates and rechecks the reviewed source before a no-clobber same-directory
+handoff; a concurrent destination or changed source is preserved instead of being
+overwritten. A durable journal distinguishes an abandoned pre-commit operation
+from a completed replacement; an unrecognized identity preserves the journal,
+staged bytes, evacuated original and backup for inspection. The owned entry marker
+is narrow reconciliation metadata, not another lifecycle database.
+Repair changes only target, working-directory and launch-option routing (or restores
+a missing name), preserving Steam/user names, artwork references, tags and unknown
+customization. Remove requires the exact marker and never touches the Portcove
+installation or library.
+
+This foundation is not yet a renderer command or a Steam compatibility claim.
+Actual profile discovery, backend-owned process observation, native consent, UI
+presentation and real Desktop Steam qualification remain required before product
+mutation is enabled. Steam Deck and artwork/provider evidence retain their separate
+owners and acceptance environments.
+
 ## Public launch observation
 
 The external Playnite example in `integrations/playnite` consumes only the public
@@ -314,7 +402,19 @@ syntax; core remains the authority for request reuse, port exclusion, acceptance
 exact process identity, cancellation and terminal save collection. The read uses
 `Library::launch_request` before service recovery initialization, so observation
 cannot advance a retained operation. API schema 42 exports the nullable core record.
+API schema 49 adds explicit `launch recover` for an unfinished request whose
+recorded supervisor has exited. The CLI delegates to the same core recovery used
+by Desktop startup: live supervisors, spawning ambiguity, missing process-start
+identity and changed installs still fail closed, while a recoverable request waits
+only its exact child identity, collects from its exact install and finishes failed.
 No daemon, adapter job store or machine output inside raw game streams is added.
+
+API schema 50 exposes core's independent operation-event schema version in the
+shared capability document. CLI and Tauri continue to serialize the same
+core-owned value; external lifecycle clients negotiate it before consuming JSONL,
+while launch-only and read-only library clients need not adopt an unused event
+channel. This adds no event authority to either adapter and does not couple API
+envelope evolution to operation-event evolution.
 
 ## Public library identity
 
@@ -527,7 +627,23 @@ and combines their declarations with core types for the frontend. Matching
 nested definitions must agree before reuse. Both adapters still call core
 directly; neither adapter depends on or executes the other. The module split
 changes no domain owner, crate boundary, or architecture metadata rule and does
-not by itself prove complete command/readiness parity.
+not by itself prove readiness parity.
+
+The same transport gate now treats the single production `tauri::generate_handler!`
+list as the Desktop command exposure inventory. It compares that exact set with
+every bare `#[tauri::command]` declaration under the host source tree and every
+`invoke` use in shipped non-test frontend TypeScript. Frontend calls must use the
+direct import and a literal command name; aliases, indirect calls, missing, extra,
+renamed, duplicate, dynamically named, or unsupported command declarations fail closed.
+Intentional capability and library-identity reads have typed facade bindings;
+obsolete unconsumed single-source verification, bulk reconciliation, and direct
+update commands are not registered. Core and CLI operations remain unchanged.
+This proves name/declaration/registration/frontend association. The host then
+admits that inventory only from the `main` webview and rejects every other
+webview before command dispatch; the release metadata gate keeps the Tauri
+window and capability definitions aligned with that single context. This does
+not replace plugin permission checks, native consent, domain validation, or
+readiness evidence.
 
 The core preparation module owns exact input planning for the existing
 upstream-managed setup family. It reuses port locks, source assessment, installed
@@ -538,8 +654,9 @@ dependency. Existing lifecycle execution remains unchanged by planning.
 
 Explicit core preparation copies a fully verified installation to a unique
 private directory, materializes its reviewed source, and runs only the admitted
-native setup executable with catalog arguments. It checks the declared generated
-output ownership and preserves executable, source and save identities before
+native setup executable with catalog arguments and the narrowly reviewed setup
+environment. Generated outputs may be exact files or directories. It checks the
+declared generated output ownership and preserves executable, source and save identities before
 creating a derivative manifest and receipt. The existing lifecycle journal owns
 publication and recovery; no second job database or state owner is introduced.
 Publication preserves a separately staged update and retains the original
@@ -561,8 +678,11 @@ host and default options. Changed identities require a new preparation review.
 Already completed legacy installations retain the existing manifest/setup/source
 binding without synthesizing historical definition evidence. Missing new receipts
 cannot be treated as legacy installs. Tools recorded as generation provenance need
-not remain installed to play immutable output. Other adapter families retain their
-existing behavior. No crate or durable state ownership boundary changes.
+not remain installed to play immutable output. Libultraship definitions may opt
+into this same transaction for source-derived, version-owned game data; their
+setup process receives the private directory as `SHIP_HOME`, while ordinary
+launch still receives canonical per-port user data. Other adapter families retain
+their existing behavior. No crate or durable state ownership boundary changes.
 
 Game-update settings and execution are separate. Saving a policy only persists
 that setting through core. The desktop uses explicit reviewed updates rather
@@ -577,6 +697,40 @@ generation checks prevent a desktop review or settings save from crossing into
 another selected library. No new durable job or installation authority is added.
 
 ## Monorepo and deliverable decision
+
+### Planned Public beta consolidation
+
+[#921](https://github.com/boburning/portcove/issues/921) owns a finite planned
+consolidation before Public beta. It preserves this monorepo and the established
+dependency direction: CLI to core, Tauri backend to core, and React to Tauri IPC.
+`PortcoveService` remains a stable facade where useful. The planned work narrows
+private domain seams, public exports, operation-specific lifecycle states, typed
+identities/requests/outcomes, durable ordering, and lock/recovery contracts without
+introducing universal managers, repositories, dependency injection, one state
+machine for unlike workflows, or one crate per feature.
+
+The residual component owners are explicit. [#925](https://github.com/boburning/portcove/issues/925)
+owns core domain/lifecycle/persistence and measured host-integration boundaries.
+[#926](https://github.com/boburning/portcove/issues/926) extends the existing
+Rust-owned transport gate to command names, registrations and Tauri exposure while
+#30 retains public CLI wire behavior and #243 retains independent-consumer proof.
+[#924](https://github.com/boburning/portcove/issues/924) extends the coherent
+snapshot/coalescing and bounded operation-event foundations from #741/#32 into one
+frontend backend-state cache and feature-owned structure, with deterministic
+development-only scenarios excluded from release builds. #917 remains the styling
+and visual-architecture owner; #206 interaction/focus/navigation; #202/#204 failure,
+mutation, review and confirmation presentation; and #245/#397/#398/#246 independent
+definition delivery.
+
+Any internal crate split is an evidenced ownership/dependency decision, not a proxy
+for moving files. In particular, a private host updater crate or pure Steam boundary
+may be selected only after measurement and must leave application-update trust,
+staging, replacement, quiescence and recovery with the Desktop host. SQLite,
+released library/install/save/manifest formats, public identifiers and supported
+consumer contracts remain compatible through incremental migrations. Temporary
+adapters must be removed after their consumers migrate or retained only with an
+explicit compatibility reason. These are approved future outcomes, not descriptions
+of current implementation completion.
 
 `portcove-release-tools` is an unpublished, offline repository tool for checking
 application artifact signatures and constructing signed application-update TUF
@@ -1195,6 +1349,60 @@ coordinators. Strict Mode setup replay and library changes dispose the old gener
 waiters as disposed, and cannot reuse or reopen a coordinator whose callbacks belong to the prior
 lifetime.
 
+The `features/workspace` unit owns the workspace cache hook, refresh-failure
+presentation and their colocated integration tests. Application composition and
+development scenarios import it directly; the former root hook module does not
+re-export or retain a competing workspace implementation. `shared` owns the
+generic request-coalescing/generation and subscription-lifecycle utilities and
+their tests. The existing Fallow gate loads `apps/desktop/.fallowrc.json` and
+rejects imports from shared code into feature code, including type-only imports,
+re-exports and literal dynamic imports. Isolated tests execute that same policy
+with allowed shared/shared and feature/shared controls. Other root modules and
+legacy components are not yet classified as shared or feature-owned; this first
+boundary does not claim complete frontend coverage. Existing common styles and
+failure-detail UI remain in place without a new barrel or compatibility adapter.
+
+For workspace data, `usePortcoveData` remains the single explicit frontend cache
+owner: it owns read coalescing, generations, subscriptions, invalidation and
+visible refresh failure. Adding TanStack Query alongside it would introduce a
+competing owner; replacing it would require migrating those established contracts.
+The current workspace slice therefore retains the smaller existing owner without
+adding a query dependency. Other frontend read owners and feature boundaries must
+still be evaluated separately; this is not a claim that all frontend state has
+already been consolidated.
+
+Application-update preferences use one app-session read owner in
+`features/application-update`. The global choice prompt, transition readback and
+Settings consume that owner; Settings keeps only its unsaved draft and operation
+presentation. Concurrent reads coalesce, Settings entry still refreshes external
+changes, and unchanged snapshots retain identity. Reads racing accepted mutations
+cannot replace them. Fresh host reads and explicit recovery can establish a new
+identity at a lower or equal revision after malformed-state repair; recovery
+invalidates old in-flight reads. Drafts and prompts bind to snapshot identity,
+not just the reusable revision number. Read failures disable preference-dependent controls until
+retry or a successful host mutation supplies current state. This small explicit
+owner does not need a second query cache. Host-side revision checks, trust and
+update eligibility remain authoritative; cached preferences never authorize an
+update. Status and notice streams retain their existing separate owners.
+The application-update Settings component, choice/transition/notice hooks and
+their tests are colocated with that read owner in `features/application-update`.
+App and the remaining legacy Settings composition import the feature directly;
+`use-portcove.ts` no longer owns or re-exports these hooks. The existing shared-to-
+feature import rule applies without adding a second boundary checker.
+
+The existing complete essential-snapshot identity comparison also controls state
+publication. An unchanged catalog/status/source snapshot retains all three React
+references; a changed snapshot publishes the three collections together and
+invalidates diagnostics. Every accepted read still updates reconciliation time,
+accepts independently current activity data and clears a previous refresh failure.
+It does not skip IPC or cache operation authorization. The comparison still
+serializes the essential snapshot once per accepted read, without an additional
+per-collection comparison. A controlled hook test supplies five independently
+cloned unchanged IPC results: requests remain five while recomputations of the
+same memoized status-index function used by application composition fall from five
+to zero. A changed-snapshot control recomputes once. These are reference and
+computation-count measurements, not native render-time or wall-clock benchmarks.
+
 Each ready Desktop library generation also owns one persistent, connection-scoped SQLite
 `data_version` observer. Commits from a CLI or another process are checked with that same observing
 connection every second while work is running, every ten seconds while visible and idle, and every
@@ -1212,7 +1420,7 @@ last completed report together with its never-loaded, loading, stale, failed, or
 Every invalidation advances a revision, so an older in-flight report cannot mark later library state
 fresh, and Updates can discover recovery work without requiring a prior visit to Settings.
 
-Every filesystem-mutating operation takes an operating-system advisory lock keyed by library and port. The lock is shared across CLI and desktop processes, fails immediately with a structured conflict instead of waiting indefinitely, and is released automatically if a process exits. A launch retains its lock until the game exits and the exact launched version's mutable data has been collected, so another frontend cannot update, roll back, remove, verify, or launch that port during the save-critical interval. The desktop starts a detached instance of its own native binary in a hidden supervisor mode; Tauri only forwards an identified request and observes that exact durable row. Core commits the request, exact install, supervisor PID/start identity, cancellable preparation phase, and generic activity before the adapter reports acceptance. Immediately before process creation, one conditional SQLite transition closes cancellation; a request wins that transition or child creation proceeds, never both. Core records `spawning` before process creation and then records the child PID/start identity before reporting it, writes the per-version launched marker only after child creation, waits for the child, records successful-exit history separately from in-flight state, and commits the terminal request outcome only after exact-install collection. Terminal rows remain reconnectable evidence but do not block another launch. If a supervisor disappears, the active row continues to block mutation; startup recovery waits only a child with the exact recorded start identity, repeats exact-install collection, and records failure rather than success. A crash in the irreducibly ambiguous spawning window remains blocked for manual review, as do PID mismatch, missing legacy identity, and changed install identity. Different ports remain independently operable.
+Every filesystem-mutating operation takes an operating-system advisory lock keyed by library and port. The lock is shared across CLI and desktop processes, fails immediately with a structured conflict instead of waiting indefinitely, and is released automatically if a process exits. A launch retains its lock until the game exits and the exact launched version's mutable data has been collected, so another frontend cannot update, roll back, remove, verify, or launch that port during the save-critical interval. The desktop starts a detached instance of its own native binary in a hidden supervisor mode; Tauri only forwards an identified request and observes that exact durable row. Core commits the request, exact install, supervisor PID/start identity, cancellable preparation phase, and generic activity before the adapter reports acceptance. Immediately before process creation, one conditional SQLite transition closes cancellation; a request wins that transition or child creation proceeds, never both. Core records `spawning` before process creation and then records the child PID/start identity before reporting it, writes the per-version launched marker only after child creation, waits for the child, records successful-exit history separately from in-flight state, and commits the terminal request outcome only after exact-install collection. Terminal rows remain reconnectable evidence but do not block another launch. If a supervisor disappears, the active row continues to block mutation; Desktop startup or explicit CLI recovery waits only a child with the exact recorded start identity, repeats exact-install collection, and records failure rather than success. A crash in the irreducibly ambiguous spawning window remains blocked for manual review, as do PID mismatch, missing legacy identity, and changed install identity. Different ports remain independently operable.
 
 Each registered source keeps its original path, content identity, storage identity, and registration time. A normal file has the same content and storage identity. A ZIP-backed cartridge records the selected inner member separately from the outer ZIP, a GameCube compressed image records its normalized ISO identity separately from its container, and a PS1 CHD records the normalized Track 01 identity separately from the CHD container. A file-set profile registers one folder or ZIP and derives a stable identity from every exact, top-level member; folder symlinks, nested ZIP members, and ambiguous alternative names are rejected. ZIP-backed file sets also retain the outer container identity. A declared multi-disc profile similarly derives a stable identity from its exact filename-sorted CHD set. Verification reruns the catalog profile checks and compares both fresh identities with the stored baseline without updating SQLite, activity history, or source bytes. It runs on demand and before a registered source is reused for install, update, or launch. Status reports each installed requirement as `current`, `missing`, `unreadable`, or `changed`; `unregistered` and the deliberately deferred `not_checked` state remain distinct. `current` proves only that storage bytes still match the registration baseline and never promotes an informational or extension-only catalog profile into an exact-revision claim. After adapter preparation, core performs a final identity check immediately before process creation; managed PS1 preparation rechecks storage identity after disc materialization and after BIOS use. A persistent source swap therefore fails before launch markers or child creation. Single-profile checks return normal structured failures; bulk checks isolate each profile so one missing or replaced file does not hide the others. Removing a source is a two-step core operation whose preview fingerprint binds the source identity, catalog dependents, and installed-dependent set; a short-lived one-use core authorization is consumed only after locking those ports and recomputing that state. Removal deletes only the SQLite reference.
 
@@ -1354,7 +1562,7 @@ Desktop install and adoption reviews are ephemeral, generation-bound presentatio
 
 The CLI is the integration boundary. Consumers should probe `capabilities`, including `product_version`, `failure_isolated_batches`, and `port_operation_locking`, use `--json` for request/response automation or `--jsonl` for progress streams, select an explicit library, and launch through `exec`. `catalog export` supplies the complete versioned port and source-profile document, `activity` supplies a bounded, newest-first durable ledger for frontends that need recent results without replaying progress streams, and `storage` reports the resolved root and containing-volume capacity. `plan` combines release resolution, retained/staged version discovery, registered requirements, and capacity into a typed preflight without changing installed state. `paths` exposes canonical persistent-data and managed-version roots so backup tools do not depend on private layout conventions; `backup create`, `list`, and confirmed `restore` provide a first-party snapshot lifecycle. Bulk check, reconcile, and update operations isolate every installed port; bulk source verification isolates every registered profile. Frontends must inspect each nested outcome rather than treating a completed batch as proof that every item succeeded. `catalog export`, `source verify --all`, `activity`, `storage`, `paths`, `backup list`, and `exec` are network-free; backup create/restore are also network-free but copy local data, `plan` may make a conditional release request, and launch inherits the child's standard streams and exit code.
 
-The CLI's `schema export` is library-free and is also the transport authority for the desktop. The deterministic transport-contract gate compares the Rust schema with TypeScript DTO field names, catalog adapter values, common enums, and event variants before either adapter can ship. Filesystem paths are deliberately narrower than native Unix paths in V1: any path crossing durable serialization or a child-process string boundary must be Unicode, and an unrepresentable path is rejected as unsupported rather than lossily rewritten.
+The CLI's `schema export` is library-free and is also the transport authority for the desktop. The deterministic transport-contract gate compares the Rust schema with TypeScript DTO field names, catalog adapter values, common enums, and event variants before either adapter can ship. Desktop's existing Rust host transport declarations additionally own the exact `portcove://operation`, `portcove://library-changed`, and `portcove://application-update-notice` event names and payload schemas. Tauri producers use one Rust adapter that compiler-checks an explicit payload type; repository tooling binds that type and event constant to the schema exporter, while React subscribes through one generated payload map and typed adapter. An independent compatibility fixture prevents a coherent shared-generator rename or payload substitution from silently changing the released contract. Events remain hints: durable activity, library and updater reads are authoritative after loss, reordering or restart. Filesystem paths are deliberately narrower than native Unix paths in V1: any path crossing durable serialization or a child-process string boundary must be Unicode, and an unrepresentable path is rejected as unsupported rather than lossily rewritten.
 
 ## Signed catalog authority
 

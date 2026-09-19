@@ -71,10 +71,15 @@ const intake = (path: string): SourceIntakeInspection => ({
   next_action: "Choose how to add it.",
   report: report(path),
 });
-const request = (paths: string[]): SourceIntakeRequest => ({
+const request = (
+  paths: string[],
+  purpose: SourceIntakeRequest["purpose"] = "game",
+  selectedProfile: SourceProfile = profile,
+): SourceIntakeRequest => ({
   portId: "port",
   portName: "Example Port",
-  profile,
+  profile: selectedProfile,
+  purpose,
   paths,
 });
 
@@ -293,6 +298,30 @@ describe("source intake dialog", () => {
     expect(host.querySelector('[role="alert"]')).toBeNull();
     await act(async () => button("Choose game files to check")!.click());
     expect(inspect).toHaveBeenCalledWith(profile.id, ["D:/Keyboard.z64"]);
+  });
+
+  it("keeps BIOS identity through the intake chooser and visible check copy", async () => {
+    const biosProfile: SourceProfile = {
+      ...profile,
+      id: "psx-scph-1001-bios",
+      label: "PlayStation SCPH-1001 BIOS",
+      accepted_extensions: ["bin", "rom"],
+      accepted_sha1: ["10155d8d6e6e832d6ea66db9bc098321fb5e8ebf"],
+      accepted_sha256: ["71af94d1e47a68c11e8fdb9f8368040601514a42a5a399cda48c7d3bff1e99d3"],
+    };
+    const choose = vi.spyOn(picker, "pickSourcePath").mockResolvedValue(null);
+    await act(async () =>
+      root.render(
+        <SourceIntakeDialog request={request([], "bios", biosProfile)} close={vi.fn()} />,
+      ),
+    );
+
+    expect(host.textContent).toContain("BIOS FILE CHECK");
+    expect(host.textContent).toContain("Check BIOS for Example Port");
+    expect(button("Choose BIOS file to check")).toBeDefined();
+    await act(async () => button("Choose BIOS file to check")!.click());
+    expect(choose).toHaveBeenCalledWith(biosProfile, "", "bios");
+    expect(host.textContent).toContain("File selection cancelled. Nothing was changed.");
   });
 
   it("restores focus to the details action after the intake dialog closes", async () => {

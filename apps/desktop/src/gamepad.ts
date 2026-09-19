@@ -23,10 +23,12 @@ export function pressedButtons(buttons: readonly GamepadButton[]) {
 }
 
 export function navigationDirection(pad: Gamepad): NavigationDirection | undefined {
-  if (pad.buttons[12]?.pressed || pad.axes[1] < -0.65) return "up";
-  if (pad.buttons[13]?.pressed || pad.axes[1] > 0.65) return "down";
-  if (pad.buttons[14]?.pressed || pad.axes[0] < -0.65) return "left";
-  if (pad.buttons[15]?.pressed || pad.axes[0] > 0.65) return "right";
+  const horizontal = pad.axes[0] ?? 0;
+  const vertical = pad.axes[1] ?? 0;
+  if (pad.buttons[12]?.pressed || vertical < -0.65) return "up";
+  if (pad.buttons[13]?.pressed || vertical > 0.65) return "down";
+  if (pad.buttons[14]?.pressed || horizontal < -0.65) return "left";
+  if (pad.buttons[15]?.pressed || horizontal > 0.65) return "right";
   return undefined;
 }
 
@@ -50,6 +52,7 @@ export function spatialTargetIndex(
   if (rects.length === 0) return -1;
   if (current < 0 || current >= rects.length) return 0;
   const origin = rects[current];
+  if (!origin) return 0;
   const vertical = direction === "up" || direction === "down";
   const candidates = rects
     .map((rect, index) => ({
@@ -77,7 +80,7 @@ export function spatialTargetIndex(
   band.sort((a, b) =>
     enteringGroup ? a.rect.left - b.rect.left : crossDistance(a.rect) - crossDistance(b.rect),
   );
-  return band[0].index;
+  return band[0]?.index ?? -1;
 }
 
 function overlapsRow(origin: FocusRect, candidate: FocusRect) {

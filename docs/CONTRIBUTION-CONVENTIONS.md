@@ -61,34 +61,52 @@ Keep the five template sections in order:
    separately. The selected plan may be focused fast validation, exhaustive
    qualification, or the narrow prose contract. `Not run — full local suite delegated to required exact-head CI` is valid when no task-specific acceptance requires
    an aggregate local run; it does not excuse pending or failed hosted checks.
-4. **Review and risk** — record the distinct final-diff review against the
-   exact head commit, repairs and re-review result, important invariants, and
-   documentation impact.
+4. **Review and risk** — identify the actual separate non-writing reviewer
+   subagent and record its coherent baseline review against the exact head commit,
+   findings, limitations, repairs, incremental re-review delta and final reviewed head,
+   important invariants, and documentation impact. Implementer self-review may
+   supplement this evidence but is not independent review.
 5. **Readiness and follow-ups** — state the live Roadmap status, merge authority,
    remaining blockers or linked follow-up issues, or `None`.
 
-Record the reviewed source head and its actual baseline. If `main` advances
-without changing the source head, do not imply the later target revision was
-tested. An unrelated target advance does not by itself require a rebase, a full
-rerun, or a replacement review. A relevant dependency, schema, generated
-contract, patch, or policy interaction does require focused reconciliation.
+Record the reviewed source head, target tip used for the comparison, and actual
+merge-base. If `main` advances without changing the source head, do not imply the
+later target revision was tested. An unrelated target advance does not by itself
+require a rebase, a full rerun, or a replacement review. A relevant dependency,
+schema, generated contract, patch, or policy interaction does require focused
+reconciliation.
+Review may begin on an exact local commit and complete before expensive final
+qualification. Blocking findings identify a concrete correctness, security,
+data-loss, compatibility, or acceptance defect; a promised safety hole remains
+substantive even when current configuration does not exercise it. Cosmetic
+preferences, speculative generalization, and unrelated cleanup are nonblocking
+unless acceptance says otherwise. Repairs return to the same reviewer for the
+delta and affected interactions where practical. A new substantive finding still
+blocks; there is no cycle count that creates approval.
 Before merging, refetch the pull request, confirm its current head still equals
 the reviewed head, confirm required checks and conflict-free mergeability, and
-use `gh pr merge --auto --match-head-commit <reviewed-head>`. A changed source
-head requires current-head validation and review; administrator bypass remains
-outside the routine path.
+use the guarded command below. A changed source head requires applicable
+current-head validation and review; administrator bypass remains outside the
+routine path.
 
-If the shared GraphQL quota prevents `gh pr checks` or the normal CLI merge
-after the pull request is otherwise qualified, keep the reviewed source head
-frozen. Use `just pr-watch --pr <number-or-url> --head <reviewed-head>` to watch
-the five checked-in required contexts through REST. Ready-for-review remains a
-GraphQL or signed-in GitHub UI transition; the REST fallback never simulates it.
-Once the pull request is ready, conflict-free and all exact-head contexts are
-successful, `just pr-merge-rest --pr <number-or-url> --head <reviewed-head>` may
-perform the normal squash merge with the exact SHA guard. It reads the pull
-request back and verifies the merge commit before any retry or local cleanup.
-Server-enforced review threads, permissions and repository rules remain in
-force; this path is not an administrator bypass.
+Keep the reviewed source head frozen while checks complete. Use
+`just pr-watch --pr <number-or-url> --head <reviewed-head>` when a bounded wait
+for the five checked-in required contexts is useful. It defaults to one hour;
+pass `--timeout-seconds <positive-integer>` for a different explicit bound. Once
+the pull request is ready, conflict-free, independently reviewed, authorized,
+and all exact-head contexts are successful, use
+`just pr-merge-rest --pr <number-or-url> --head <reviewed-head>` for the routine
+immediate squash merge. It freezes and rechecks the source SHA and required
+contexts, submits that exact SHA, and reads the remote state back before any
+retry or local cleanup. Server-enforced review threads, permissions and
+repository rules remain in force; the helper is a mechanism, not review or
+merge authority, and is not an administrator bypass.
+
+Repository auto-merge capability remains enabled for an explicitly justified
+deferred merge, but enrollment is not the routine path. Do not describe it as
+preserving an external review across a later source-head change unless that
+enforcement has been demonstrated; changed code still requires applicable fresh
+review and validation.
 
 Draft pull requests may say that verification or review is pending. Before a
 pull request becomes ready, update its single description with final evidence

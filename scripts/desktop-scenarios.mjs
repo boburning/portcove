@@ -76,17 +76,21 @@ export const DESKTOP_SCENARIOS = Object.freeze([
   }),
   scenario(
     "native-preparation-cancellation",
-    "Preparation cancellation retains recovery evidence.",
+    "Preparation stays discoverable across navigation, cancellation and renderer restart.",
     {
       prerequisites: ["desktop", "owned-fixture"],
       source: "desktop-preparation-test.mjs",
     },
   ),
-  scenario("native-interrupted-preparation-recovery", "Interrupted preparation recovers durably.", {
-    prerequisites: ["desktop", "owned-fixture"],
-    dependencies: ["native-preparation-cancellation"],
-    source: "desktop-preparation-recovery-test.mjs",
-  }),
+  scenario(
+    "native-interrupted-preparation-recovery",
+    "Interrupted preparation stays actionable across navigation and renderer restart.",
+    {
+      prerequisites: ["desktop", "owned-fixture"],
+      dependencies: ["native-preparation-cancellation"],
+      source: "desktop-preparation-recovery-test.mjs",
+    },
+  ),
   scenario(
     "native-update-settings-save-without-execution",
     "Saving update settings does not execute an update.",
@@ -112,6 +116,16 @@ export const DESKTOP_SCENARIOS = Object.freeze([
       prerequisites: ["desktop", "owned-fixture", "native-dialog"],
       host_resources: [...nativeResources, "native-dialog"],
       source: "desktop-backup-review-test.mjs",
+    },
+  ),
+  scenario(
+    "native-reviewed-steam-entry-add-and-remove",
+    "Steam entry Add and Remove use the reviewed isolated profile and native consent.",
+    {
+      prerequisites: ["desktop", "owned-fixture", "native-dialog", "steam-fixture"],
+      dependencies: ["native-preparation-review-and-play"],
+      host_resources: [...nativeResources, "native-dialog"],
+      source: "desktop-steam-entry-test.mjs",
     },
   ),
   scenario(
@@ -141,10 +155,11 @@ export const DESKTOP_SCENARIOS = Object.freeze([
   }),
   scenario(
     "native-library-move-invalidates-prior-reviews",
-    "Library handoff invalidates stale reviews.",
+    "Library move, restore, and recovery invalidate stale reviews.",
     {
-      prerequisites: ["desktop", "owned-fixture"],
+      prerequisites: ["desktop", "owned-fixture", "native-dialog"],
       dependencies: ["native-preparation-review-and-play", "native-reviewed-existing-install-copy"],
+      host_resources: [...nativeResources, "native-dialog"],
       source: "desktop-library-handoff-test.mjs",
     },
   ),
@@ -191,6 +206,7 @@ const ownedLifecycle = [
   "native-update-settings-save-without-execution",
   "native-release-channel-selection-and-restart",
   "native-reviewed-backup-restore-and-delete",
+  "native-reviewed-steam-entry-add-and-remove",
   "native-reviewed-installed-game-removal",
   "native-reviewed-source-reference-removal",
   "native-reviewed-existing-install-copy",

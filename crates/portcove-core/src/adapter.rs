@@ -754,7 +754,7 @@ pub(crate) fn generated_metadata(port: &PortDefinition) -> Result<Vec<String>> {
     if port.adapter == crate::AdapterKind::ReferencedDisc {
         paths.push("data_location.json".into());
     }
-    if port.adapter == crate::AdapterKind::UpstreamManagedSetup {
+    if crate::preparation::managed(port) {
         paths.push(UPSTREAM_SETUP_METADATA.into());
     }
     if port.adapter == AdapterKind::PsxRecompManaged {

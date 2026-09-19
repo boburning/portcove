@@ -68,12 +68,33 @@ pub enum ArtworkAvailability {
     Unavailable,
 }
 
+/// The source core resolves for one slot before a client attempts to transport
+/// or render it. A client can still display the generated fallback if a
+/// resolved local import cannot be decoded or presented safely.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum ArtworkResolvedSource {
+    LocalImport { asset_sha256: String },
+    GeneratedFallback,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct GeneratedArtworkFallback {
+    pub identity: String,
+    pub style_version: u32,
+    pub initials: String,
+    pub palette_index: u8,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ArtworkState {
     pub choice: ArtworkChoice,
     pub selection: Option<LocalArtworkAsset>,
     pub availability: ArtworkAvailability,
     pub reason: Option<String>,
+    pub resolved_source: ArtworkResolvedSource,
+    pub generated_fallback: GeneratedArtworkFallback,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -91,7 +112,7 @@ pub struct ArtworkCacheClear {
 
 impl PortcoveService {
     pub fn artwork(&self, port_id: &str, slot: ArtworkSlot) -> Result<ArtworkState> {
-        self.catalog().port(port_id)?;
+        let port = self.catalog().port(port_id)?;
         let mut connection = self.library().connection()?;
         let transaction = connection.transaction()?;
         let choice = crate::artwork_store::choice(&transaction, port_id, slot)?;
@@ -101,11 +122,26 @@ impl PortcoveService {
             .map(|id| crate::artwork_store::asset(&transaction, id))
             .transpose()?;
         transaction.commit()?;
-        let (availability, reason) = match &selection {
-            None => (ArtworkAvailability::Fallback, None),
+        let generated_fallback = generated_fallback(port_id, &port.name, slot)?;
+        let (availability, reason, resolved_source) = match &selection {
+            None => (
+                ArtworkAvailability::Fallback,
+                None,
+                ArtworkResolvedSource::GeneratedFallback,
+            ),
             Some(asset) => match original_bytes(self.library(), asset) {
-                Ok(_) => (ArtworkAvailability::Available, None),
-                Err(_) => (ArtworkAvailability::Unavailable, Some("The selected local image is missing, changed, or unavailable. Its choice has been retained.".into())),
+                Ok(_) => (
+                    ArtworkAvailability::Available,
+                    None,
+                    ArtworkResolvedSource::LocalImport {
+                        asset_sha256: asset.sha256.clone(),
+                    },
+                ),
+                Err(_) => (
+                    ArtworkAvailability::Unavailable,
+                    Some("The selected local image is missing, changed, or unavailable. Its choice has been retained.".into()),
+                    ArtworkResolvedSource::GeneratedFallback,
+                ),
             },
         };
         Ok(ArtworkState {
@@ -113,6 +149,8 @@ impl PortcoveService {
             selection,
             availability,
             reason,
+            resolved_source,
+            generated_fallback,
         })
     }
 
@@ -312,6 +350,51 @@ impl PortcoveService {
         transaction.commit()?;
         Ok(())
     }
+}
+
+fn generated_fallback(
+    port_id: &str,
+    port_name: &str,
+    slot: ArtworkSlot,
+) -> Result<GeneratedArtworkFallback> {
+    const STYLE_VERSION: u32 = 1;
+    let identity = crate::signed_catalog::digest(&serde_json::to_vec(&(
+        "portcove-generated-artwork",
+        STYLE_VERSION,
+        port_id,
+        port_name,
+        slot.key(),
+    ))?);
+    let palette_index = u8::from_str_radix(&identity[..2], 16)
+        .map_err(|_| PortcoveError::verification("generated artwork identity is invalid"))?
+        % 6;
+    Ok(GeneratedArtworkFallback {
+        identity,
+        style_version: STYLE_VERSION,
+        initials: fallback_initials(port_name),
+        palette_index,
+    })
+}
+
+fn fallback_initials(name: &str) -> String {
+    let words = name
+        .split_whitespace()
+        .filter_map(|word| word.chars().find(|character| character.is_alphanumeric()))
+        .take(2)
+        .collect::<Vec<_>>();
+    let initials = if words.len() == 1 {
+        name.chars()
+            .filter(|character| character.is_alphanumeric())
+            .take(2)
+            .collect::<Vec<_>>()
+    } else {
+        words
+    };
+    let value = initials
+        .into_iter()
+        .filter_map(|character| character.to_uppercase().next())
+        .collect::<String>();
+    if value.is_empty() { "PC".into() } else { value }
 }
 
 fn publish_thumbnail(

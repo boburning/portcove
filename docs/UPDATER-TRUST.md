@@ -649,6 +649,11 @@ generation, rejects an older signed timestamp as stale without lowering the acce
 role floors, then recovers after the current signed timestamp is restored. It also
 rejects a correctly signed newer generation whose timestamp is expired, preserves
 those same accepted floors, and recovers when the exact fresh generation is restored.
+Through that actual host provider and durable state, it also rejects a sequential root
+bridge with no signature and a later bridge carrying cryptographically valid signatures
+from foreign keys. Each refusal preserves the accepted root and online-role floors; the
+same consumer then accepts the corrected higher signed root and returns the unchanged
+authenticated Stable candidate.
 Host-state fixtures additionally prove version and signed-body floors after the TUF
 cache is removed, same-process serialization, clock-regression refusal, source
 refusal before state mutation, and recovery from a failed initial bridge plus a

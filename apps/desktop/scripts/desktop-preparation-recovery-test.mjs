@@ -31,6 +31,21 @@ function insertOwnedRow(database, table, source, overrides = {}) {
   return clone;
 }
 
+function setPreparationProcessQuiescence(library, operationId, value) {
+  const database = new DatabaseSync(path.join(library, "portcove.sqlite3"));
+  try {
+    database.exec("PRAGMA busy_timeout=1000");
+    const changed = database
+      .prepare(
+        "UPDATE lifecycle_operations SET preparation_process_quiesced=? WHERE id=? AND kind='prepare' AND phase='preparing'",
+      )
+      .run(value, operationId);
+    assert.equal(changed.changes, 1);
+  } finally {
+    database.close();
+  }
+}
+
 export async function interruptedPreparationScenario({
   browser,
   invoke,
@@ -164,6 +179,39 @@ export async function interruptedPreparationScenario({
     assert.equal(repair.path, privatePath);
     assert.deepEqual(command(["status", before.port_id]).active, before.active);
     assert.deepEqual(command(["activity", "log", activity.id]), retained);
+    // Qualification-only negative state: the retained process outcome is
+    // unknown, so the actual cleanup consumer must refuse before inventory or
+    // consent. This does not claim that a real external process is still live.
+    const unprovenQuiescenceError =
+      "retained preparation process quiescence is not proven; cleanup is refused";
+    const unprovenQuiescenceSummary =
+      "The selection changed or another operation is using it. Review its current state.";
+    setPreparationProcessQuiescence(library, activity.id, null);
+    const cleanupGeneration = (await invoke("get_bootstrap_status")).value.generation;
+    const refusedPreview = await invoke("preview_preparation_cleanup", {
+      operationId: activity.id,
+      generation: cleanupGeneration,
+    });
+    assert.equal(refusedPreview.ok, false);
+    assert.equal(refusedPreview.error.code, "conflict");
+    assert.equal(refusedPreview.error.message, unprovenQuiescenceError);
+    assert.equal(refusedPreview.error.details.recovery_action, "manual_review");
+    assert.equal(refusedPreview.error.presentation.summary, unprovenQuiescenceSummary);
+    const interruptedRows = By.css(".activity-row.failed");
+    const findInterruptedRow = async () => {
+      const candidates = await browser.findElements(interruptedRows);
+      for (const candidate of candidates) {
+        const text = await candidate.getText();
+        if (
+          text.includes("Game preparation stopped before its outcome could be recorded") &&
+          text.toLowerCase().includes("failed") &&
+          text.includes("Review game preparation")
+        ) {
+          return candidate;
+        }
+      }
+      return false;
+    };
     await browser.navigate().refresh();
     await browser.wait(
       until.elementLocated(By.css('nav[aria-label="Primary navigation"]')),
@@ -181,15 +229,64 @@ export async function interruptedPreparationScenario({
     );
     assert.equal(await navigationStatus.getAttribute("aria-label"), "Activity needs attention");
     await updatesNavigation.click();
-    const interruptedRows = By.xpath(
-      '//div[contains(@class,"activity-row")][.//p[contains(.,"Game preparation stopped before its outcome could be recorded")]]',
+    await browser.wait(
+      findInterruptedRow,
+      15_000,
+      "Recovered failed preparation must appear after renderer bootstrap",
     );
+    await browser.findElement(By.xpath('//nav//button[contains(., "Settings")]')).click();
+    await browser.wait(
+      until.elementLocated(By.xpath('//h1[normalize-space(.)="Portcove settings"]')),
+      15_000,
+    );
+    await browser.findElement(By.xpath('//nav//button[contains(., "Updates")]')).click();
+    const beforeRestart = await browser.wait(
+      findInterruptedRow,
+      15_000,
+      "Failed preparation must remain discoverable after navigating away and returning",
+    );
+    const beforeRestartLog = await beforeRestart.findElement(
+      By.xpath('.//summary[normalize-space(.)="View preparation log"]'),
+    );
+    await beforeRestartLog.click();
+    const beforeRestartText = await browser.wait(async () => {
+      const text = await beforeRestart.getText();
+      return text.includes("Capture is incomplete") ? text : false;
+    }, 15_000);
+    assert.match(beforeRestartText, /Running game setup/);
+    assert.doesNotMatch(beforeRestartText, /No files were changed|The operation was cancelled/);
+    await beforeRestartLog.click();
+    await browser.navigate().refresh();
+    await browser.wait(
+      until.elementLocated(By.css('nav[aria-label="Primary navigation"]')),
+      15_000,
+    );
+    await dismissApplicationUpdateChoice();
+    const restartedNavigationStatus = await browser.wait(
+      until.elementLocated(
+        By.xpath('//nav//button[contains(., "Updates")]//*[contains(@class,"nav-status")]'),
+      ),
+      10_000,
+    );
+    assert.equal(
+      await restartedNavigationStatus.getAttribute("aria-label"),
+      "Activity needs attention",
+    );
+    await browser.findElement(By.xpath('//nav//button[contains(., "Updates")]')).click();
     const rows = await browser.wait(async () => {
       const candidates = await browser.findElements(interruptedRows);
-      if (candidates.length !== 1) return false;
-      return (await candidates[0].getText()).includes("Review game preparation")
-        ? candidates
-        : false;
+      const matches = [];
+      for (const candidate of candidates) {
+        const text = await candidate.getText();
+        if (
+          text.includes("Game preparation stopped before its outcome could be recorded") &&
+          text.toLowerCase().includes("failed") &&
+          text.includes("Review game preparation")
+        ) {
+          matches.push(candidate);
+        }
+      }
+      return matches.length === 1 ? matches : false;
     }, 15_000);
     let row;
     for (const candidate of rows) {
@@ -217,6 +314,7 @@ export async function interruptedPreparationScenario({
       await log.click();
     }
     assert.ok(row, "original retained preparation row with incomplete diagnostic capture");
+    assert.match(await row.getText(), /Running game setup/);
     assert.deepEqual(
       (await invoke("get_activities")).value.find((item) => item.id === activity.id),
       recovered,
@@ -274,6 +372,72 @@ export async function interruptedPreparationScenario({
     await clickVisible(browser, cleanupReview);
     const cleanupDialog = By.css('[aria-labelledby="preparation-cleanup-title"]');
     await browser.wait(until.elementLocated(cleanupDialog), 15_000);
+    await browser.wait(
+      async () =>
+        (await browser.findElement(cleanupDialog).getText()).includes(unprovenQuiescenceSummary),
+      15_000,
+      "Cleanup review must refuse when process-tree quiescence is unproven",
+    );
+    const refusedCleanupText = await browser.findElement(cleanupDialog).getText();
+    assert.ok(refusedCleanupText.includes(unprovenQuiescenceSummary));
+    assert.deepEqual(
+      await Promise.all(
+        (await browser.findElement(cleanupDialog).findElements(By.css("button"))).map((button) =>
+          button.getText(),
+        ),
+      ),
+      ["Keep retained files", "Review again"],
+    );
+    await access(privatePath);
+    assert.ok(command(["doctor"]).repair.items.some((item) => item.operation_id === activity.id));
+    assert.deepEqual(command(["status", before.port_id]).active, before.active);
+    assert.deepEqual(command(["activity", "log", activity.id]), retained);
+    const refusedCleanupAccessibility = path.join(
+      output,
+      "preparation-cleanup-unproven-quiescence-accessibility.json",
+    );
+    await captureAccessibilityReport(browser, refusedCleanupAccessibility, artifacts);
+    const refusedCleanupImage = path.join(
+      output,
+      "native-preparation-cleanup-unproven-quiescence.png",
+    );
+    await writeFile(refusedCleanupImage, await browser.takeScreenshot(), {
+      encoding: "base64",
+      flag: "wx",
+    });
+    artifacts.push(refusedCleanupImage);
+    const refusedCleanupEvidence = path.join(
+      output,
+      "preparation-cleanup-unproven-quiescence.json",
+    );
+    await writeFile(
+      refusedCleanupEvidence,
+      JSON.stringify(
+        {
+          method:
+            "controlled unknown process-quiescence state through actual native cleanup review",
+          operation_id: activity.id,
+          technical_refusal: unprovenQuiescenceError,
+          player_summary: unprovenQuiescenceSummary,
+          retained_private_path_preserved: true,
+          recovery_journal_preserved: true,
+          activity_and_diagnostics_preserved: true,
+          active_install_preserved: true,
+          actual_live_process_observed: false,
+        },
+        null,
+        2,
+      ),
+      { flag: "wx" },
+    );
+    artifacts.push(refusedCleanupEvidence);
+
+    // Controlled positive state for the same operation: once durable
+    // quiescence is explicitly present, the same consumer may load the exact
+    // review. Later stale-review, cancellation, restart, and accepted-cleanup
+    // checks remain unchanged.
+    setPreparationProcessQuiescence(library, activity.id, 1);
+    await controls.click(controls.button("Review again"));
     await browser.wait(
       async () => (await browser.findElement(cleanupDialog).getText()).includes(privatePath),
       15_000,

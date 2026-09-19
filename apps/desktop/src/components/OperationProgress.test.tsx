@@ -19,9 +19,9 @@ const event = (completed: number, total: number | null, phase = "download"): Ope
   completed,
   total,
 });
-async function render(operation: OperationEvent) {
+async function render(operation: OperationEvent | undefined, busy = "install") {
   await act(async () =>
-    root.render(<StatusLayer clearError={() => {}} busy="install" operation={operation} />),
+    root.render(<StatusLayer clearError={() => {}} busy={busy} operation={operation} />),
   );
 }
 beforeEach(() => {
@@ -50,12 +50,12 @@ describe("accessible operation progress", () => {
     try {
       for (const completed of [1, 20, 99, 100]) await render(event(completed, 100));
       expect(changes).toHaveLength(0);
-      expect(container.textContent).toContain("100 of 100");
-      expect(status.textContent).toBe("Downloading files");
+      expect(container.textContent).toContain("100 B of 100 B");
+      expect(status.textContent).toBe("Downloading release");
       expect(container.querySelector('[role="progressbar"]')?.closest("[aria-live]")).toBeNull();
       await render(event(0, 10, "copy"));
       expect(container.querySelector('[role="status"]')).toBe(status);
-      expect(status.textContent).toBe("Copying files");
+      expect(status.textContent).toBe("Copying game files");
       expect(changes.length).toBeGreaterThan(0);
     } finally {
       observer.disconnect();
@@ -63,35 +63,35 @@ describe("accessible operation progress", () => {
   });
 
   it.each([
-    { completed: 0, total: 0, now: null, text: "No work reported yet." },
-    { completed: 0, total: 1, now: "0", text: "0 of 1" },
-    { completed: 1, total: 1, now: "1", text: "1 of 1" },
-    { completed: 99, total: 10, now: "10", text: "99 of 10" },
+    { completed: 0, total: 0, now: null, text: "No bytes reported yet." },
+    { completed: 0, total: 1, now: "0", text: "0 B of 1 B" },
+    { completed: 1, total: 1, now: "1", text: "1 B of 1 B" },
+    { completed: 99, total: 10, now: "10", text: "99 B of 10 B" },
     {
       completed: 1_000_000,
       total: 2_000_000,
       now: "1000000",
-      text: `${(1_000_000).toLocaleString()} of ${(2_000_000).toLocaleString()}`,
+      text: "977 KiB of 1.9 MiB",
     },
-    { completed: 3, total: null, now: null, text: "Total not yet known" },
-    { completed: -1, total: 10, now: null, text: "Total not yet known" },
+    { completed: 3, total: null, now: null, text: "Total size not yet known" },
+    { completed: -1, total: 10, now: null, text: "Total size not yet known" },
     {
       completed: Number.NaN,
       total: 10,
       now: null,
-      text: "Total not yet known",
+      text: "Total size not yet known",
     },
     {
       completed: 1,
       total: Number.POSITIVE_INFINITY,
       now: null,
-      text: "Total not yet known",
+      text: "Total size not yet known",
     },
     {
       completed: Number.MAX_SAFE_INTEGER + 1,
       total: 10,
       now: null,
-      text: "Total not yet known",
+      text: "Total size not yet known",
     },
   ])(
     "keeps accessible counts bounded for $completed of $total",
@@ -104,6 +104,89 @@ describe("accessible operation progress", () => {
       expect(progress.hasAttribute("aria-valuemax")).toBe(now !== null);
     },
   );
+
+  it.each([
+    {
+      phase: "download",
+      completed: 25 * 1024 * 1024,
+      total: 80 * 1024 * 1024,
+      label: "Downloading release",
+      detail: "25.0 MiB of 80.0 MiB",
+    },
+    {
+      phase: "psx-toolchain-download",
+      completed: 1024,
+      total: 2048,
+      label: "Downloading preparation tools",
+      detail: "1.0 KiB of 2.0 KiB",
+    },
+    {
+      phase: "copy",
+      completed: 1024,
+      total: 2048,
+      label: "Copying game files",
+      detail: "1.0 KiB of 2.0 KiB",
+    },
+    {
+      phase: "Checking installed ports",
+      completed: 3,
+      total: 12,
+      label: "Checking installed ports",
+      detail: "3 of 12 ports",
+    },
+    {
+      phase: "Applying update policies",
+      completed: 1,
+      total: 1,
+      label: "Applying update settings",
+      detail: "1 of 1 port",
+    },
+  ])(
+    "labels $phase progress with truthful units",
+    async ({ phase, completed, total, label, detail }) => {
+      await render(event(completed, total, phase));
+      expect(container.querySelector('[role="status"]')?.textContent).toBe(label);
+      expect(container.querySelector('[role="progressbar"]')?.getAttribute("aria-valuetext")).toBe(
+        detail,
+      );
+      expect(container.textContent).toContain(detail);
+    },
+  );
+
+  it.each([
+    { phase: "download", detail: "Total size not yet known." },
+    { phase: "Checking installed ports", detail: "Port total not yet known." },
+  ])("uses a task-specific indeterminate detail for $phase", async ({ phase, detail }) => {
+    await render(event(3, null, phase));
+    expect(container.textContent).toContain(detail);
+    expect(container.querySelector('[role="progressbar"]')?.hasAttribute("aria-valuenow")).toBe(
+      false,
+    );
+  });
+
+  it.each([
+    { operation: "check_installed", label: "Checking for updates" },
+    { operation: "reconcile_installed", label: "Applying update settings" },
+  ])("uses port-count copy before $operation emits progress", async ({ operation, label }) => {
+    await render({
+      schema_version: 2,
+      operation_id: operation,
+      parent_operation_id: null,
+      target: null,
+      sequence: 1,
+      timestamp_ms: 1,
+      operation,
+      type: "started",
+    });
+    expect(container.querySelector('[role="status"]')?.textContent).toBe(label);
+    expect(container.textContent).toContain("Port total not yet known.");
+  });
+
+  it("uses port-count copy before the busy-only update check starts", async () => {
+    await render(undefined, "check installed");
+    expect(container.querySelector('[role="status"]')?.textContent).toBe("Checking for updates");
+    expect(container.textContent).toContain("Port total not yet known.");
+  });
 
   it.each(["future_internal_operation_code", "constructor", "__proto__", "toString"])(
     "safely handles unknown phase %s",

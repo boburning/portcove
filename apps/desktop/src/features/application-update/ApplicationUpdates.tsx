@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from "react";
-import { desktopApi } from "../api";
-import { LatestRequestGeneration } from "../concurrency-state";
+import { useEffect, useRef, useState, type SetStateAction } from "react";
+import { desktopApi } from "../../api";
+import { LatestRequestGeneration } from "../../shared/concurrency-state";
+import type { ApplicationUpdatePreferencesState } from "./use-application-update-preferences";
 import type {
   ApplicationUpdateChoice,
   ApplicationUpdateCheckPhase,
@@ -9,8 +10,8 @@ import type {
   ApplicationUpdatePreferences,
   ApplicationUpdateRecoveryArea,
   ApplicationUpdateStatus,
-} from "../types";
-import { errorText } from "../view-model";
+} from "../../types";
+import { errorText } from "../../view-model";
 
 const recommendedChoice: ApplicationUpdateChoice = {
   channel: "preview",
@@ -520,47 +521,57 @@ export function ApplicationUpdateSettings({
   generation = 0,
   disabled = false,
   automaticNotice,
-  onPreferencesChanged,
+  preferencesState,
 }: {
   currentVersion: string;
   generation?: number;
   disabled?: boolean;
   automaticNotice?: ApplicationUpdateNoticeSnapshot["notice"];
-  onPreferencesChanged?: (preferences: ApplicationUpdatePreferences) => void;
+  preferencesState?: ApplicationUpdatePreferencesState;
 }) {
   const requests = useRef(new LatestRequestGeneration());
   const statusRequests = useRef(new LatestRequestGeneration());
-  const [preferences, setPreferences] = useState<ApplicationUpdatePreferences>();
+  const preferences = preferencesState?.preferences;
+  const refreshPreferences = preferencesState?.refresh;
   const [status, setStatus] = useState<ApplicationUpdateStatus>();
-  const [draft, setDraft] = useState<ApplicationUpdateChoice>(recommendedChoice);
-  const [busy, setBusy] = useState("Loading application update settings…");
+  const [draftState, setDraftState] = useState<{
+    source: ApplicationUpdatePreferences | undefined;
+    choice: ApplicationUpdateChoice;
+  }>({ source: undefined, choice: recommendedChoice });
+  const draft =
+    draftState.source === preferences
+      ? draftState.choice
+      : (preferences?.choice ?? recommendedChoice);
+  const setDraft = (next: SetStateAction<ApplicationUpdateChoice>) =>
+    setDraftState({
+      source: preferences,
+      choice: typeof next === "function" ? next(draft) : next,
+    });
+  const [actionBusy, setBusy] = useState("");
+  const busy = preferencesState?.loading ? "Loading application update settings…" : actionBusy;
   const [statusBusy, setStatusBusy] = useState("Loading application update status…");
   const [error, setError] = useState<string>();
-  const [canRecoverPreferences, setCanRecoverPreferences] = useState(false);
+  const canRecoverPreferences = isRecoverableStateError(preferencesState?.failure);
   const [statusError, setStatusError] = useState<string>();
   const [notice, setNotice] = useState<string>();
   const changed = Boolean(preferences && !choicesMatch(preferences.choice, draft));
 
   const applyPreferences = (value: ApplicationUpdatePreferences) => {
-    setPreferences(value);
-    setDraft(value.choice ?? recommendedChoice);
-    setCanRecoverPreferences(false);
-    onPreferencesChanged?.(value);
+    const accepted = preferencesState?.accept(value);
+    if (accepted) setDraft(accepted.choice ?? recommendedChoice);
   };
 
   const load = async () => {
     const request = requests.current.begin();
     setBusy("Loading application update settings…");
     setError(undefined);
-    setCanRecoverPreferences(false);
     setNotice(undefined);
     try {
-      const value = await desktopApi.applicationUpdatePreferences();
-      if (requests.current.isCurrent(request)) applyPreferences(value);
+      const value = await preferencesState?.refresh();
+      if (value && requests.current.isCurrent(request)) setDraft(value.choice ?? recommendedChoice);
     } catch (value) {
       if (requests.current.isCurrent(request)) {
         setError(errorText(value));
-        setCanRecoverPreferences(isRecoverableStateError(value));
       }
     } finally {
       if (requests.current.isCurrent(request)) setBusy("");
@@ -591,25 +602,8 @@ export function ApplicationUpdateSettings({
 
   useEffect(() => {
     const requestTracker = requests.current;
-    const request = requestTracker.begin();
-    void desktopApi
-      .applicationUpdatePreferences()
-      .then((value) => {
-        if (requestTracker.isCurrent(request)) {
-          setPreferences(value);
-          setDraft(value.choice ?? recommendedChoice);
-          onPreferencesChanged?.(value);
-        }
-      })
-      .catch((value: unknown) => {
-        if (requestTracker.isCurrent(request)) {
-          setError(errorText(value));
-          setCanRecoverPreferences(isRecoverableStateError(value));
-        }
-      })
-      .finally(() => {
-        if (requestTracker.isCurrent(request)) setBusy("");
-      });
+    // Re-entry refreshes external changes; a concurrent startup read is coalesced.
+    void refreshPreferences?.().catch(() => {});
     const statusTracker = statusRequests.current;
     const statusRequest = statusTracker.begin();
     void desktopApi
@@ -627,7 +621,7 @@ export function ApplicationUpdateSettings({
       requestTracker.begin();
       statusTracker.begin();
     };
-  }, [onPreferencesChanged]);
+  }, [refreshPreferences]);
 
   const save = async () => {
     if (!preferences || choicesMatch(preferences.choice, draft)) return;
@@ -646,9 +640,9 @@ export function ApplicationUpdateSettings({
       if (!requests.current.isCurrent(request)) return;
       const message = errorText(value);
       try {
-        const current = await desktopApi.applicationUpdatePreferences();
-        if (requests.current.isCurrent(request)) {
-          applyPreferences(current);
+        const current = await preferencesState?.refresh();
+        if (current && requests.current.isCurrent(request)) {
+          setDraft(current.choice ?? recommendedChoice);
           setError(`${message} Current settings were refreshed; review them before saving again.`);
         }
       } catch {
@@ -675,7 +669,8 @@ export function ApplicationUpdateSettings({
         ? await desktopApi.resetApplicationUpdatePreferences()
         : await desktopApi.recoverApplicationUpdatePreferences();
       if (!requests.current.isCurrent(request)) return;
-      applyPreferences(value);
+      if (recovering) preferencesState?.acceptRecovered(value);
+      else applyPreferences(value);
       setNotice(
         recovering
           ? "Damaged update settings reset. No choice is saved, and automatic application update checks remain off."
@@ -745,7 +740,7 @@ export function ApplicationUpdateSettings({
           <button
             data-focusable
             className="small-control"
-            disabled={disabled}
+            disabled={disabled || !preferencesState}
             onClick={() => void load()}
           >
             Retry loading settings
@@ -899,7 +894,9 @@ export function ApplicationUpdateSettings({
 
       {busy && <p role="status">{busy}</p>}
       {notice && <p role="status">{notice}</p>}
-      {error && <p role="alert">{error}</p>}
+      {(error || preferencesState?.failure !== undefined) && (
+        <p role="alert">{error ?? errorText(preferencesState?.failure)}</p>
+      )}
     </article>
   );
 }

@@ -9,6 +9,12 @@ assembly reference.
 This is a developer-loaded reference, not a marketplace release or a claim of
 completed Public beta qualification. [#243](https://github.com/boburning/portcove/issues/243)
 retains the exact frontend, lifecycle, independent-consumer and human evidence.
+[Issue #910](https://github.com/boburning/portcove/issues/910) separately owns the
+planned normally installable `.pext` product, guided runtime/library onboarding,
+personal-library import, state-driven setup, ordinary lifecycle operations,
+fullscreen/controller use, and user-facing support boundaries. Those capabilities
+are a Required Public beta commitment, but they are not shipped by this developer
+loading procedure or established by the reference evidence below.
 
 ## Build and load
 
@@ -44,12 +50,18 @@ user's ordinary Playnite library.
 
 ## Compatibility and use
 
-This revision supports **Portcove API schemas 42–48 and event schema 2**. Additional
-object fields are tolerated; incompatible schema versions and missing required
-capabilities produce an upgrade message before management. A product version
-string is not used as a compatibility guess. Use an exactly identified schema-42, schema-43, schema-44, schema-45, schema-46, schema-47 or schema-48
-candidate until a matching public standalone release exists; the older published
-technical previews must not be described as supporting these new commands.
+This revision supports **Portcove API schemas 42–50 and event schema 2**. Schema
+50 advertises the independently versioned operation-event contract through
+`operation_event_schema_version`; the client consumes and rejects an unsupported
+value before lifecycle management. Launch-only and read-only library negotiation
+prove their narrower command/format sets without requiring unused management or
+raw-stream contracts. Additional object fields are tolerated; incompatible schema
+versions and missing required capabilities produce an upgrade message before
+management. A product version string is not used as a compatibility guess. Use an
+exactly identified schema-42, schema-43, schema-44, schema-45, schema-46,
+schema-47, schema-48, schema-49 or schema-50 candidate until a matching public
+standalone release exists; the older published technical previews must not be
+described as supporting these new commands.
 See the [author guide](../../docs/INTEGRATION-AUTHOR.md).
 
 Schema 47 status can include core-owned definition decisions for install,
@@ -110,9 +122,22 @@ playability and the full management failure matrix are not qualified by it.
 a retail source, game artifact or port-admission bypass. It checks literal argv,
 opaque identities, schema/capability drift, structured errors, stream termination,
 gaps, reconnect reads and two synthetic port identities through the same generic
-transport. Optional real CLI checks exercise discovery and nullable launch
-readback. These do not substitute for two real adapter lifecycle scenarios,
-frontend interaction, packaged execution, gameplay or a fresh independent author.
+transport. The normal `just playnite-check` also builds the qualification-enabled
+standalone CLI and runs the compiled client against the existing isolated,
+checksum-pinned install fixture. That real-core check correlates each durable
+activity row to its exact streamed operation identity and drives install, update,
+progress, readiness and failures through both `n64-recomp-portable` and
+`libultraship-portable` fixture shapes without a client branch. It also covers a
+busy port, cancellation, bad checksum and missing-artifact preservation, positive
+recovery, and a real selected-definition publisher revocation that the client
+consumes as a core-owned retained launch hold and launch refusal. Owned command
+timeouts terminate the descendant process tree within a second bound before
+fixture cleanup. Qualification-only catalog and definition inputs cannot be used
+by a production build. Optional `-Cli` and
+`-Library` arguments additionally exercise discovery and nullable launch readback
+for exactly identified external candidate bytes. None of these headless checks
+substitutes for Playnite frontend interaction, packaged execution, gameplay,
+intrinsic human observation or a fresh independent author.
 
 The client deliberately omits artwork acquisition, shortcuts, uninstall,
 destructive backup actions, catalog trust changes, application updates, automatic

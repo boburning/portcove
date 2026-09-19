@@ -128,12 +128,15 @@ impl PortcoveService {
                     .during("preparation.review")
             })?;
         let port = self.installed_port(&plan.inputs.install)?;
-        if port.runtime_source_materialization != Some(RuntimeSourceMaterialization::Ps2Iso)
-            || !port.runtime_source_set.is_empty()
+        if !matches!(
+            port.runtime_source_materialization,
+            Some(RuntimeSourceMaterialization::Ps2Iso)
+                | Some(RuntimeSourceMaterialization::N64BigEndian)
+        ) || !port.runtime_source_set.is_empty()
             || !port.persistent_file_patterns.is_empty()
         {
             return Err(PortcoveError::unsupported(
-                "this preparation operation requires the reviewed single-disc setup layout",
+                "this preparation operation requires a reviewed single-source setup layout",
             ));
         }
         self.library().consume_authorization(
@@ -318,8 +321,10 @@ impl PortcoveService {
         for relative in &port.setup_output_paths {
             let target = payload.join(relative);
             crate::path::refuse_symlink_ancestors(&target)?;
-            if target.exists() {
+            if target.is_dir() {
                 fs::remove_dir_all(&target)?;
+            } else if target.exists() {
+                fs::remove_file(&target)?;
             }
         }
         for name in [RECEIPT_FILE, crate::adapter::UPSTREAM_SETUP_METADATA] {
@@ -352,7 +357,9 @@ impl PortcoveService {
         crate::adapter::prepare_runtime_source_with_tool(
             &plan.inputs.source.path,
             &source,
-            RuntimeSourceMaterialization::Ps2Iso,
+            port.runtime_source_materialization.ok_or_else(|| {
+                PortcoveError::state("managed preparation has no source materialization contract")
+            })?,
             &port.runtime_source_hashes,
             plan.inputs
                 .conversion_tool
@@ -405,11 +412,31 @@ impl PortcoveService {
         record_preparation_process_quiescence(self, operation.operation_id(), false)?;
         let mut setup_quiesced =
             || record_preparation_process_quiescence(self, operation.operation_id(), true);
+        let isolated_setup = port.adapter == crate::AdapterKind::LibultrashipPortable;
+        let setup_directory = if isolated_setup {
+            let directory = payload
+                .parent()
+                .ok_or_else(|| PortcoveError::state("private preparation has no operation root"))?
+                .join("setup-runtime");
+            fs::create_dir(&directory)?;
+            directory
+        } else {
+            payload.to_path_buf()
+        };
+        let setup_environment = if isolated_setup {
+            std::collections::BTreeMap::from([(
+                "SHIP_HOME".to_owned(),
+                crate::path::unicode(&setup_directory, "private setup directory")?,
+            )])
+        } else {
+            std::collections::BTreeMap::new()
+        };
         let output = crate::tool_process::run_setup(
             &setup,
             &port.setup_arguments,
             &source,
-            payload,
+            &setup_directory,
+            &setup_environment,
             &|| operation.checkpoint(),
             crate::tool_process::ToolProcessObserver {
                 diagnostics: Some(crate::tool_process::ToolDiagnosticSink {
@@ -436,6 +463,9 @@ impl PortcoveService {
             .detail("exit_code", output.status.code().unwrap_or(-1).to_string()));
         }
         self.check_lifecycle_fault(LifecycleFaultPoint::PreparationToolCompleted)?;
+        if isolated_setup {
+            copy_setup_outputs(&port, &setup_directory, payload)?;
+        }
         validate_outputs(&port, payload, &before, &permissions)
             .map_err(|error| error.during("preparation.verify"))?;
         let marker = port
@@ -449,8 +479,55 @@ impl PortcoveService {
             .during("preparation.verify"));
         }
         crate::adapter::record_prepared_setup(payload, &source)?;
+        if isolated_setup {
+            fs::remove_dir_all(&setup_directory)?;
+        }
         operation.checkpoint()
     }
+}
+
+pub(super) fn copy_setup_outputs(
+    port: &PortDefinition,
+    source_root: &Path,
+    payload: &Path,
+) -> Result<()> {
+    for (index, relative) in port.setup_output_paths.iter().enumerate() {
+        let source = source_root.join(relative);
+        crate::path::refuse_symlink_ancestors(&source)?;
+        let metadata = match fs::symlink_metadata(&source) {
+            Ok(metadata) => metadata,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,
+            Err(error) => return Err(error.into()),
+        };
+        if metadata.file_type().is_symlink() || (!metadata.is_file() && !metadata.is_dir()) {
+            return Err(PortcoveError::verification(
+                "setup output contains an unsupported filesystem entry",
+            )
+            .detail("path", relative));
+        }
+        let destination = payload.join(relative);
+        crate::path::refuse_symlink_ancestors(&destination)?;
+        if metadata.is_file() {
+            if let Some(parent) = destination.parent() {
+                fs::create_dir_all(parent)?;
+            }
+            fs::copy(&source, &destination)?;
+            crate::permissions::normalize_archive_entry(&destination, false, false)?;
+            continue;
+        }
+        let plan = crate::library_transfer::reviewed_tree(&source)?;
+        crate::transfer_copy::copy_reviewed_tree(
+            &source,
+            &destination,
+            &plan,
+            &payload
+                .parent()
+                .ok_or_else(|| PortcoveError::state("private payload has no operation root"))?
+                .join(format!("setup-output-copy-work-{index}")),
+        )?;
+        crate::transfer_copy::verify_reviewed_tree(&destination, &plan)?;
+    }
+    Ok(())
 }
 
 fn validate_outputs(

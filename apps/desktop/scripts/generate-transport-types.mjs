@@ -4,8 +4,27 @@ import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { compile } from "json-schema-to-typescript";
 
+const transportContractMetadata = {
+  event: { prefix: "Event", title: "DesktopEventPayloads" },
+  input: { prefix: "Input", title: "TransportInputs" },
+  output: { prefix: "Output", title: "TransportOutputs" },
+};
+
+function metadataForContract(contract) {
+  return transportContractMetadata[contract] ?? transportContractMetadata.output;
+}
+
+function generatedSchemaName(key, prefix) {
+  const suffix = key
+    .split(/[^A-Za-z0-9]+/u)
+    .filter(Boolean)
+    .map((part) => part[0].toUpperCase() + part.slice(1))
+    .join("");
+  return `${prefix}${suffix}`;
+}
+
 export function combineTransportSchemas(schemas, contract = "output") {
-  const prefix = contract === "input" ? "Input" : "Output";
+  const { prefix, title } = metadataForContract(contract);
   const definitions = {};
   function body(schema) {
     const value = { ...schema };
@@ -34,18 +53,13 @@ export function combineTransportSchemas(schemas, contract = "output") {
     const matching = Object.entries(definitions).find(
       ([, definition]) => JSON.stringify(definition) === JSON.stringify(body(schema)),
     );
-    const name =
-      matching?.[0] ??
-      `${prefix}${key
-        .split("_")
-        .map((part) => part[0].toUpperCase() + part.slice(1))
-        .join("")}`;
+    const name = matching?.[0] ?? generatedSchemaName(key, prefix);
     add(name, schema);
     properties[key] = { $ref: `#/$defs/${name}` };
   }
   return {
     type: "object",
-    title: `Transport${prefix}s`,
+    title,
     properties,
     required: Object.keys(properties),
     additionalProperties: false,
@@ -90,6 +104,9 @@ async function main() {
   const hostOutput = JSON.parse(
     fs.readFileSync(path.join(source, "transport-host-output.generated.json"), "utf8"),
   );
+  const hostEvents = JSON.parse(
+    fs.readFileSync(path.join(source, "transport-host-events.generated.json"), "utf8"),
+  );
   for (const [name, expected] of [
     [
       "transport-types.generated.d.ts",
@@ -99,6 +116,7 @@ async function main() {
       "transport-input-types.generated.d.ts",
       await renderTransportTypes(withHostSchemas(inputs, hostInput), "input"),
     ],
+    ["transport-event-types.generated.d.ts", await renderTransportTypes(hostEvents, "event")],
   ]) {
     const target = path.join(source, name);
     if (values.write) fs.writeFileSync(target, expected);

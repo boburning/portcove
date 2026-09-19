@@ -1,9 +1,9 @@
 import { useEffect, useRef } from "react";
 import { AlertTriangle } from "lucide-react";
-import { focusAndReveal, focusRegion } from "../focus";
-import { errorText, failurePresentation } from "../view-model";
-import { FailureDetails } from "./FailureDetails";
-import { Icon } from "./ui";
+import { focusAndReveal, focusRegion } from "../../focus";
+import { errorText, failurePresentation } from "../../view-model";
+import { FailureDetails } from "../../components/FailureDetails";
+import { Icon } from "../../components/ui";
 
 export function WorkspaceRefreshNotice({
   failure,

@@ -134,6 +134,9 @@ if (selection.prerequisites.includes("owned-fixture")) {
     ),
   );
   inputs.push(
+    await fileIdentity(fileURLToPath(new URL("./desktop-steam-entry-test.mjs", import.meta.url))),
+  );
+  inputs.push(
     await fileIdentity(
       fileURLToPath(new URL("./desktop-source-removal-test.mjs", import.meta.url)),
     ),
@@ -419,6 +422,9 @@ async function startDriver() {
       env: {
         ...process.env,
         ...(installFixture ? { PORTCOVE_QUALIFICATION_CATALOG: installFixture.catalogPath } : {}),
+        ...(selection.prerequisites.includes("steam-fixture")
+          ? { PORTCOVE_QUALIFICATION_STEAM_CLIENT_STATE: "closed" }
+          : {}),
         PORTCOVE_LIBRARY: library,
         PORTCOVE_PREFERENCES: path.join(output, "preferences.json"),
         PORTCOVE_APPLICATION_UPDATE_PREFERENCES: path.join(output, "application-updates.json"),
@@ -649,7 +655,7 @@ try {
       () =>
         browser.executeScript(() => {
           const control = [...document.querySelectorAll("button")].find(
-            (element) => element.textContent?.trim() === "Import library",
+            (element) => element.textContent?.trim() === "Restore library",
           );
           return (
             control instanceof HTMLButtonElement &&

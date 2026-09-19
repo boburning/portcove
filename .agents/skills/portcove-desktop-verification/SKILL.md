@@ -1,9 +1,10 @@
 ---
 name: portcove-desktop-verification
-description: Reproduce and verify Portcove desktop behavior with isolated native UI runs, logs and screenshots. Use after desktop interactions or presentation changes and for UI qualification.
+description: Reproduce and verify Portcove desktop behavior with isolated native UI runs, logs, and screenshots. Use when acceptance for an interaction or presentation change requires the actual Tauri application; not for a routine noninteractive unit-test-only UI edit.
 ---
 
-Read [development tooling](../../../docs/DEVELOPMENT-TOOLS.md) and the issue's actual acceptance criteria. Use `just desktop-verify --plan` to inspect the resolved run, then choose the smallest matching `--profile` or repeat `--scenario` for an exact series. The one-command runner checks the desktop doctor and workspace packages, builds only required binaries, allocates isolated ports and output, and invokes the existing native harness. It never installs prerequisites. Keep `just desktop-test` for low-level runs with explicitly selected executables and a new output directory.
+Resolve the current checkout root with `git rev-parse --show-toplevel` before using
+paths below. Read [development tooling](../../../docs/DEVELOPMENT-TOOLS.md) and the issue's actual acceptance criteria. Use `just desktop-verify --plan` to inspect the resolved run, then choose the smallest matching `--profile` or repeat `--scenario` for an exact series. The one-command runner checks the desktop doctor and workspace packages, builds only required binaries, allocates isolated ports and output, and invokes the existing native harness. It never installs prerequisites. Keep `just desktop-test` for low-level runs with explicitly selected executables and a new output directory.
 
 Use a fresh library/configuration scope. Never point fixture tests at the user's normal library. Keep real lifecycle behavior in core and distinguish mocked renderer cases from actual Tauri IPC/native runs.
 
@@ -13,7 +14,7 @@ Choose scenarios matching the change: onboarding, unavailable sources, operation
 
 For one known behavior, use one exact scenario. Repeat `--scenario` for a tightly related series; use `presentation`, `restart`, `artwork`, or `owned-lifecycle` for those boundaries and `full` only for cross-cutting completion evidence. Setup scenarios needed to create isolated fixture state are not selected-test passes. Size any aggregate watchdog from the selected scenario inventory while retaining bounded per-interaction limits, and record the selection and outer deadline. Use `--require-clean` for final evidence. Do not add native verification to routine local checks, CI, schedules, or background work.
 
-If a validation command is interrupted or its handle is lost, preserve completed prior-stage results and identify the interrupted stage. Inspect retained logs, owned processes, and partial artifacts before restarting or synchronizing a validation checkout. Require terminal completion evidence for the exact resumed revision; file existence alone is insufficient. Preserve incomplete outputs and do not terminate unrelated processes.
+If a validation command is interrupted or its handle is lost, preserve completed prior-stage results and identify the interrupted stage. Inspect retained logs, owned processes, and partial artifacts before restarting or synchronizing a validation checkout. Require terminal completion evidence for the exact resumed revision; file existence alone is insufficient. Do not combine incomplete runs into final acceptance unless the acceptance contract explicitly composes independently identity-bound outcomes. Preserve incomplete outputs and do not terminate unrelated processes.
 
 Capture the separately launched driver root, application, WebView, and other descendant identities before native interaction or restart, including exact executable, PID, creation time, and task/session ownership. When ancestry establishes ownership, validate chronology at every edge and reject missing timestamps, cycles, stale identities, or ambiguity. `browser.quit()` deletes the session but does not prove the driver or descendants exited. If the isolated task-owned driver retains the application tree, revalidate its exact identity before ending only that driver tree, then independently verify every captured application/WebView identity within the unchanged shared bound. Never kill by name, ambiguous PID, or ancestry alone.
 
@@ -29,4 +30,4 @@ Classify UI-runner evidence before choosing a framework. Browser-mode automation
 
 Use existing browser/computer-use tools for visual inspection where available, following their skills. Automated accessibility checks supplement keyboard and visual inspection; they cannot establish novice comprehension, physical controller ergonomics or human gameplay.
 
-Run `just check-ui` or `just check` according to the changed layers, and the mandated completion checks. Report scenario coverage and gaps explicitly; do not close intrinsic human requirements with screenshots or synthetic input alone.
+Use focused UI tests and `just local-check` for an ordinary change. Run `just check-ui` or `just check` only when the acceptance scope, a broad investigation, or the aggregate-command rules in [quality](../../../docs/QUALITY.md) require them. Report scenario coverage and gaps explicitly; do not close intrinsic human requirements with screenshots or synthetic input alone.

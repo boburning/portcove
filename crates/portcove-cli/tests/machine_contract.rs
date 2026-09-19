@@ -93,8 +93,8 @@ fn json_and_jsonl_preserve_machine_error_fields_and_share_core_presentation() {
             .unwrap(),
     )
     .unwrap();
-    assert_eq!(plain["schema_version"], 48);
-    assert_eq!(stream["schema_version"], 48);
+    assert_eq!(plain["schema_version"], 50);
+    assert_eq!(stream["schema_version"], 50);
     assert_eq!(plain["error"], stream["error"]);
     assert_eq!(plain["error"]["code"], "unsupported");
     assert!(
@@ -134,7 +134,7 @@ fn human_failures_keep_paths_and_credentials_out_of_primary_copy() {
 }
 
 #[test]
-fn activity_history_keeps_human_details_opt_in_and_machine_records_unchanged() {
+fn activity_history_plain_output_keeps_failure_details_private() {
     let temporary = tempfile::tempdir().unwrap();
     let library = temporary.path().join("library");
     let private_id = "fixture-token=owned-private";
@@ -158,11 +158,31 @@ fn activity_history_keeps_human_details_opt_in_and_machine_records_unchanged() {
     );
     assert!(!plain.contains("owned-private"));
     assert!(!plain.contains("No files were changed"));
+}
+
+#[test]
+fn activity_history_technical_output_keeps_failure_details_redacted() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = temporary.path().join("library");
+    let private_id = "fixture-token=owned-private";
+    let failed = portcove(&library, &["--json", "verify", private_id]);
+    assert!(!failed.status.success());
     let technical = portcove(&library, &["--technical-details", "activity"]);
     let technical = human_stdout(&technical);
     assert!(technical.contains("Technical details (redacted):"));
     assert!(technical.contains("[REDACTED]"));
     assert!(!technical.contains("owned-private"));
+}
+
+#[test]
+fn activity_history_keeps_machine_records_unchanged_across_formats() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = temporary.path().join("library");
+    let private_id = "fixture-token=owned-private";
+    let failed = portcove(&library, &["--json", "verify", private_id]);
+    assert!(!failed.status.success());
+    let before = json_stdout(&portcove(&library, &["--json", "activity"]));
+    let id = before["data"][0]["id"].as_str().unwrap();
     let after = json_stdout(&portcove(
         &library,
         &["--technical-details", "--json", "activity"],
@@ -328,7 +348,7 @@ fn exported_source_assessment_separates_facts_without_opening_library() {
     let output = portcove(&library, &["--json", "schema", "export"]);
     assert!(output.status.success());
     let response = json_stdout(&output);
-    assert_eq!(response["schema_version"], 48);
+    assert_eq!(response["schema_version"], 50);
     let schema = &response["data"]["source_assessment"];
     for field in [
         "health",
@@ -1182,7 +1202,7 @@ fn source_inspect_is_read_only_complete_and_equivalent_across_output_modes() {
         &library,
         &["--json", "source", "inspect", "star-fox-64"],
     ));
-    assert_eq!(json["schema_version"], 48);
+    assert_eq!(json["schema_version"], 50);
     assert_eq!(json["command"], "source.inspect");
     assert_eq!(json["data"]["schema_version"], 1);
     assert_eq!(json["data"]["health"], "current");
@@ -1339,7 +1359,7 @@ fn source_inbox_controls_share_stable_scan_and_import_activity_ids() {
         &library,
         &["--json", "source", "inbox", "scan", profile],
     ));
-    assert_eq!(scan["schema_version"], 48);
+    assert_eq!(scan["schema_version"], 50);
     assert_eq!(scan["command"], "source.inbox.scan");
     assert_eq!(scan["data"]["state"], "unresolved");
     let scan_id = scan["data"]["operation_id"].as_str().unwrap();
@@ -1552,7 +1572,8 @@ fn capabilities_has_human_output_snapshot() {
     let root = tempfile::tempdir().unwrap();
     let capabilities = human_stdout(&portcove(root.path(), &["capabilities"])).to_owned();
     assert!(capabilities.starts_with("Portcove "));
-    assert!(capabilities.contains(" capabilities\nSchema: 48"));
+    assert!(capabilities.contains(" capabilities\nSchema: 50"));
+    assert!(capabilities.contains("\nOperation event schema: 2"));
 }
 
 struct OutputFixture {
@@ -1853,11 +1874,12 @@ fn capabilities_are_one_clean_versioned_json_document() {
     assert!(output.status.success());
     assert!(output.stderr.is_empty());
     let response = json_stdout(&output);
-    assert_eq!(response["schema_version"], 48);
+    assert_eq!(response["schema_version"], 50);
     assert_eq!(response["ok"], true);
     assert_eq!(response["command"], "capabilities");
     assert!(response["error"].is_null());
-    assert_eq!(response["data"]["schema_version"], 48);
+    assert_eq!(response["data"]["schema_version"], 50);
+    assert_eq!(response["data"]["operation_event_schema_version"], 2);
     assert!(
         response["data"]["commands"]
             .as_array()
@@ -1885,7 +1907,7 @@ fn command_errors_keep_the_machine_envelope_and_stable_exit_code() {
     assert_eq!(output.status.code(), Some(4));
     assert!(output.stderr.is_empty());
     let response = json_stdout(&output);
-    assert_eq!(response["schema_version"], 48);
+    assert_eq!(response["schema_version"], 50);
     assert_eq!(response["ok"], false);
     assert_eq!(response["command"], "catalog.show");
     assert!(response["data"].is_null());
@@ -1902,7 +1924,7 @@ fn parser_errors_are_structured_for_machine_callers() {
     assert!(output.stderr.is_empty());
     assert!(!library.exists());
     let response = json_stdout(&output);
-    assert_eq!(response["schema_version"], 48);
+    assert_eq!(response["schema_version"], 50);
     assert_eq!(response["ok"], false);
     assert_eq!(response["command"], "cli");
     assert_eq!(response["error"]["code"], "usage");
@@ -1922,7 +1944,7 @@ fn jsonl_read_commands_end_with_one_result_event() {
     assert!(output.status.success());
     assert!(output.stderr.is_empty());
     let response = json_stdout(&output);
-    assert_eq!(response["schema_version"], 48);
+    assert_eq!(response["schema_version"], 50);
     assert_eq!(response["type"], "result");
     assert_eq!(response["ok"], true);
     assert_eq!(response["command"], "capabilities");

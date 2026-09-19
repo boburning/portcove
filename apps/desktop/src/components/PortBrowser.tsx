@@ -162,7 +162,7 @@ function LoadingState() {
       </div>
       <div>
         <strong>Loading your port library</strong>
-        <p>Reading the shared local catalog, sources, and install state.</p>
+        <p>Loading the catalog, added game files, and installed ports from this device.</p>
       </div>
     </section>
   );
@@ -189,7 +189,7 @@ function BrowserEmptyState({
         }
         eyebrow="EMPTY LIBRARY"
         title="No installed ports yet"
-        description="Browse the catalog to install a supported port, or adopt an existing native installation without changing the original folder."
+        description="Browse the catalog to install a supported port, or copy an existing supported installation without changing the original folder."
         action={
           <>
             <button data-focusable className="primary button-with-icon" onClick={onBrowseCatalog}>
@@ -244,11 +244,11 @@ function ContinueCard({
   const launchable = status.readiness?.launchable === true;
   return (
     <section className="continue-card" data-focus-group aria-label={`Continue ${port.name}`}>
-      <ArtworkImage port={port} className={`continue-art art-${port.support_tier}`} />
+      <ArtworkImage port={port} className="continue-art" />
       <div>
         <p className="eyebrow">CONTINUE</p>
         <h2>{port.name}</h2>
-        <p className="continue-meta">Last successful session · {status.active?.version}</p>
+        <p className="continue-meta">Last played · {status.active?.version}</p>
       </div>
       <div className="continue-actions">
         <button data-focusable onClick={() => details(port.id)}>
@@ -276,7 +276,7 @@ function LibrarySummary({ overview }: { overview: LibraryOverview }) {
         </span>
         <p>
           <strong className="summary-value">{overview.ready}</strong>
-          <small>Launch ready</small>
+          <small>Ready to play</small>
         </p>
       </div>
       <div>
@@ -294,7 +294,7 @@ function LibrarySummary({ overview }: { overview: LibraryOverview }) {
         </span>
         <p>
           <strong className="summary-value">{overview.staged}</strong>
-          <small>Staged updates</small>
+          <small>Updates downloaded</small>
         </p>
       </div>
       <p className="summary-note">
@@ -321,8 +321,6 @@ function PortCard({
   const state = readinessPresentation(readiness);
   const channel = releaseChannelPresentation(status?.channel ?? port.support_tier);
   const updateAvailable = currentUpdateSnapshot(status)?.check.update_available;
-  const color =
-    port.id.split("").reduce((total, character) => total + character.charCodeAt(0), 0) % 6;
   const dropEligible = nativeSourceDrag.active && Boolean(port.source_profile);
   const dropTarget = dropEligible && nativeSourceDrag.targetPortId === port.id;
   return (
@@ -339,7 +337,7 @@ function PortCard({
           {dropTarget ? "Release to check" : "Drop to check for this game"}
         </span>
       )}
-      <ArtworkImage port={port} className={`card-art palette-${color}`} />
+      <ArtworkImage port={port} className="card-art" />
       <div className="card-content">
         <div className="card-kicker">
           <span className={`readiness ${state.tone}`}>
@@ -389,7 +387,7 @@ function readinessPresentation(readiness: PortReadiness) {
       action: "View details",
       tone: "available",
     },
-    ready: { label: "Launch ready", action: "Play options", tone: "ready" },
+    ready: { label: "Ready to play", action: "View details", tone: "ready" },
     source: { label: "Source required", action: "Finish setup", tone: "setup" },
     repair: {
       label: "Installation needs repair",
@@ -403,7 +401,7 @@ function readinessPresentation(readiness: PortReadiness) {
     },
     bios: { label: "BIOS required", action: "Finish setup", tone: "setup" },
     setup: { label: "Setup required", action: "Finish setup", tone: "setup" },
-    staged: { label: "Update staged", action: "Review update", tone: "staged" },
+    staged: { label: "Update downloaded", action: "Review update", tone: "staged" },
     unknown: {
       label: "Readiness unavailable",
       action: "Review game",

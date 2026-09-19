@@ -17,6 +17,7 @@ export type ApplicationUpdateMode = "automatic" | "notify-only" | "manual";
 export type InputDesktopApplicationUpdateProductionDecision = "use-stable" | "keep-preview";
 export type InputDesktopApplicationUpdateRecoveryArea = "schedule" | "staging" | "apply";
 export type ReleaseChannel = "stable" | "beta" | "rolling";
+export type SteamEntryOperation = "add_or_repair" | "remove";
 
 export interface TransportInputs {
   catalog_update_source: InputCatalogUpdateSource;
@@ -28,6 +29,7 @@ export interface TransportInputs {
   desktop_application_update_production_decision: InputDesktopApplicationUpdateProductionDecision;
   desktop_application_update_recovery_area: InputDesktopApplicationUpdateRecoveryArea;
   desktop_install_input: InputDesktopInstallInput;
+  desktop_steam_entry_selection: InputDesktopSteamEntrySelection;
 }
 export interface InputDefinitionCapabilityRequest {
   capability_contract_schema: number;
@@ -80,5 +82,12 @@ export interface InputDesktopInstallInput {
   portId: string;
   source?: string | null;
   stage: boolean;
+  [k: string]: unknown;
+}
+export interface InputDesktopSteamEntrySelection {
+  operation: SteamEntryOperation;
+  portId: string;
+  steamRoot: string;
+  steamUserId: string;
   [k: string]: unknown;
 }

@@ -2,9 +2,13 @@
 
 Portcove should feel like development software from an alternate 1997 console studio, rebuilt with current desktop UX and accessibility standards. Nostalgia never outranks clarity. The working interface stays compact, neutral, and technical; personality appears through tactile geometry, restrained color, direct copy, and quick interaction feedback.
 
+The existing React/Vite/Tauri desktop and its custom controls remain shipped behavior until the planned [#917](https://github.com/boburning/portcove/issues/917) migration replaces them. The approved Public beta destination is official shadcn/ui component source using Base UI, Tailwind, semantic CSS variables, and a Portcove theme. This is a decided architecture, not another framework comparison or a claim that the migration has shipped.
+
 ## Foundations
 
-- Components consume semantic tokens from `apps/desktop/src/styles.css`, never raw N64 palette primitives. Primitive color, type, spacing, radius, motion, control, icon, shadow, and layout values are implementation details of the theme.
+- Components consume one semantic token authority, never raw palette primitives or arbitrary utility colors. During migration, `apps/desktop/src/styles.css` remains the current authority until the reviewed Tailwind/theme entry owns the same roles without a competing legacy mapping.
+- The migration checks official shadcn/ui component source into Portcove; it then becomes Portcove-owned control code. Initialization explicitly selects Base UI and the compact Nova style, records React/Vite rather than Next.js assumptions, keeps React Server Components disabled, retains Lucide, and uses semantic CSS variables. Nova is initial density and composition scaffolding, not the visual acceptance target: the reference compositions must deliberately establish Portcove typography, spacing, radii, surfaces, and artwork hierarchy. Exact compatible stable versions and generated configuration are verified at implementation time instead of relying on CLI defaults.
+- Tailwind utilities and variants are the primary component styling approach. Limited custom CSS remains appropriate for specialized artwork, layout, input, or native-integration behavior where it is clearer than utilities. CSS Modules may survive only for justified specialized ownership; they are no longer the default migration destination.
 - Graphite and warm controller-gray surfaces carry most of the interface. Blue means selected or interactive, yellow means keyboard/controller focus or rare emphasis, green means healthy or complete, and red is reserved for Portcove's signature and dangerous or critical action.
 - Selected state and focus are deliberately different: blue communicates state; a gold outline communicates the current keyboard or controller target.
 - Depth comes from borders, tonal steps, restrained inset treatment, and small shadows. Portcove does not use gradients, glass, blur, neon glow, scanlines, or pixel-interface typography.
@@ -12,13 +16,38 @@ Portcove should feel like development software from an alternate 1997 console st
 
 ## Component rules
 
-- Controls use the shared 30, 36, and 42-pixel-equivalent height tokens and 3, 6, or 8-pixel-equivalent radii. Pills are reserved for compact status badges.
+- Import only controls demonstrated by current product needs. Checked-in controls should stay close to official composition, refs, events, and accessibility behavior; do not put a near-identical Portcove wrapper around every shadcn control.
+- A specific Base UI control may be replaced when a reproducible Tauri, controller, accessibility, or supported-platform failure remains after bounded repair. Preserve the shared API, semantics, and theme where practical, record the evidence, and review the replacement independently; one incompatible control does not reopen the selected system.
+- Controls use the shared 30, 36, and 42-pixel-equivalent height tokens and modest radius scale. Pills are reserved for compact status badges.
 - Buttons name the result: `Review install`, `Play now`, `Verify sources`, and `Remove managed files`. Avoid `Submit`, `Proceed`, `Execute`, `Yes`, and `No` when the action can be named.
 - Every control needs deliberate default, hover, focus, pressed, selected, disabled, and loading treatment where those states apply.
 - Icons come from Lucide through the shared `Icon` wrapper. An icon-only control must have an accessible name. Status never relies on icon or color alone.
 - Dialogs trap focus, close with Escape, restore the initiating focus target, use a named heading, and reserve confirmations for destructive or difficult-to-reverse actions.
 - Empty states explain what the area is, why it is empty, and the best next action. Loading copy names real work and does not invent percentages.
 - Logs use monospace type, severity text plus icon and color, concise primary explanations, expandable technical details, and copy affordances.
+
+## Implementation levels
+
+Build three deliberately different layers:
+
+1. **Shared controls:** the needed shadcn/Base UI buttons, fields, selects or comboboxes, menus, dialogs, tabs, tooltips, and status elements checked into the shared UI directory recorded by `components.json`.
+2. **Reusable interface patterns:** settings rows and sections, primary action with supporting status, review-and-confirm tasks, recoverable errors with diagnostics, operation progress and retained activity, and empty/loading/unavailable presentation. Extract these from the reference screens rather than prebuilding a catalogue. Promote a composition to an approved pattern only after a second real surface reuses it without feature-specific policy or parallel ordinary styling.
+3. **Product components:** game cards, detail headers, source requirements, readiness summaries, update rows, and other feature-owned Portcove compositions. Domain readiness, authorization, lifecycle, and durable state remain outside generic controls and patterns.
+
+Shared UI cannot import feature implementations. Features normally select an approved control or pattern variant and supply authoritative data and actions instead of independently choosing ordinary borders, spacing, headings, and control arrangements.
+
+## Agent implementation workflow
+
+For each cohesive slice:
+
+1. Read the relevant checked-in control, pattern, reference composition, and owning feature contract. Use official shadcn documentation and the project-aware shadcn skill only after its provenance, permissions, and current project configuration are reviewed.
+2. Inspect registry or CLI output before writing, import only the needed components, review every supporting dependency and license, record its demonstrated need and measured bundle effect, and preserve local behavior fixes. Treat copied-component updates separately from dependency upgrades. Never blanket-overwrite customized controls during an upstream update.
+3. Run focused tests and render the affected real-component scenarios at relevant themes, sizes, and states. Inspect the output for clipping, hierarchy, spacing, inconsistent controls, hidden actions, unreadable text, and missing states; screenshot generation alone is not inspection.
+4. Repair identifiable defects or violated contracts. Repeated defects in an approved control or pattern are fixed at the shared owner rather than hidden by another feature override.
+5. For an intentional reference change, record the reason, affected semantic or interaction contract, and inspected before/after evidence. Unexplained screenshot churn does not replace an accepted reference.
+6. Hand the exact candidate head, acceptance criteria, scenario IDs, screenshots, checks, and limitations to the separate non-writing reviewer. Complete the normal exact-head validation and merge path.
+
+The first foundation slice records the actual `components.json` paths, aliases, Base UI selection, Nova preset, Tailwind entry, semantic token mapping, icon choice, and component-update procedure, then imports only the controls needed to prove the complex installation-review dialog's nested selector, controller, portal, focus, and dismissal behavior in Tauri. Library and broad screen migration start only after that foundation is reviewed. Until the configuration lands, later sessions must not guess it. The existing development-only renderer remains the ordinary presentation loop, while the native harness remains required for Tauri, WebView, IPC, portal, focus, controller, native-dialog, restart, platform, and packaged obligations.
 
 ## Product vocabulary
 
@@ -74,7 +103,7 @@ Vertical navigation visits the nearest visual row before considering horizontal 
 
 Portcove targets dense desktop use and a minimum 960-pixel-wide Tauri window. At narrower supported widths, the shell reduces nonessential labels and column count before hiding technical data. Reduced-motion preference removes nonessential transitions and progress animation.
 
-## Planned game artwork
+## Game artwork
 
 [#208](https://github.com/boburning/portcove/issues/208) owns the shared artwork
 contract; [#206](https://github.com/boburning/portcove/issues/206) owns its desktop
@@ -85,6 +114,16 @@ optional; titles, status and actions remain readable outside images, including
 generated fallback states. Logos, icons, animation and a crop editor are not
 required for this slice.
 
+The current account-free fallback is a core-owned style with a stable identity,
+initials and palette per port and slot. Desktop renders that exact result before an
+explicit local image is chosen and whenever retained local bytes are unavailable;
+it does not infer another title-based fallback. The source disclosure identifies
+the Portcove generator and exact fallback identity without claiming third-party
+artwork rights. If thumbnail transport or browser decoding fails after core resolves
+a local import, the shared display cache switches every visible consumer and its source
+disclosure to this generated fallback without changing the durable local choice.
+Catalog-selected and provider assets remain separate planned sources.
+
 Provide **Change artwork**, **Choose local image**, **Browse SteamGridDB** when
 configured, **Reset to default**, and source/author information. Reset affects
 only the selected slot's explicit choice; unavailable preferred art retains its
@@ -92,6 +131,16 @@ selection with a fallback or actionable explanation. Keep provider configuration
 in Appearance or Integrations with contextual picker guidance, never first-play
 API-key onboarding. Keyboard/controller navigation, focus restoration, long
 titles, scaled layouts and text status must remain usable.
+
+The selected-game Steam flow also presents **Include artwork**, any existing
+destination customization, per-role planned source and a truthful partial result.
+Its destination roles are static portrait cover, landscape cover and hero/banner;
+they do not force every role to become a new first-class Desktop display slot.
+Preserve existing Steam art by default. **Repair Steam entry** does not write art;
+**Update Steam artwork** fills missing roles by default and requires a deliberate
+choice before replacing existing art. Never stretch or destructively crop one role
+to impersonate another. Missing provider setup, network access or a match stays an
+actionable artwork limitation, not a failed shortcut or launch.
 
 Render cached display-sized thumbnails immediately and fetch asynchronously.
 Reject stale picker/library results and reconnect to shared selections after a
@@ -108,6 +157,82 @@ future evidence remain in the issues.
 
 The crab mascot and dimensional display wordmark follow the provenance, placement, accessibility, and derivative rules in [BRAND-ASSETS.md](BRAND-ASSETS.md). Brand art is deliberately rarer and more expressive than the working interface: use it to establish identity at startup, in an empty library, in About, or at a meaningful milestone—not as wallpaper for operational controls.
 
+## Approved Public beta redesign contract
+
+[#917](https://github.com/boburning/portcove/issues/917) is the finite desktop
+redesign, shared-control, visual-system, style-enforcement, and visual-acceptance
+owner. It is an organizational child of #200; that parentage does not retarget
+the broader workstream or make #200 closure a Public beta prerequisite. #917 itself remains a Required
+Public beta outcome. #206 retains information
+architecture, navigation, interaction, focus, content ordering, and domain-driven
+presentation. #203 retains labels, localization, formatting, and safe unknowns.
+#208 retains shared artwork selection/provenance/fallback/ingestion/cache, and
+#527 retains SteamGridDB provider behavior. #29/#44 retain controller performance,
+physical-Xbox, controller-navigation, and minimum-width qualification; #47
+retains intrinsically packaged human comprehension/controller observations.
+
+Use three levels when reviewing every surface:
+
+1. **Primary:** what game or surface is this, and what should the player do?
+2. **Secondary:** what relevant state is it currently in?
+3. **Tertiary:** how does Portcove technically manage it?
+
+Technical detail remains available, but it does not routinely compete with the
+game and primary action. Catalog and library cards lead with artwork, title,
+readiness, and the next action; secondary facts are quiet metadata rather than
+equal-weight chips. Consistent 2:3 artwork may gain modest weight where responsive
+space permits, while cards stay compact desktop controls rather than storefront
+tiles. Important attention such as an available update remains visible.
+
+Keep the sidebar stable and quiet: identity plus Library, Port Catalog, Updates,
+and Settings are primary. Contextual Library actions such as copying an existing
+installation need not occupy permanent navigation chrome. Shortcut hints remain
+discoverable without dominating every visit. Repeated page headers should be
+compact application chrome; explanatory prose and the red eyebrow are used when
+they add meaning rather than consuming every workspace.
+
+Ordinary geometry follows the spacing, radius, control, and layout scales;
+one-off measurements need an actual layout reason. Tonal differences or subtle
+borders group ordinary content, cards use restrained borders, hover strengthens
+the affordance, blue marks selection, gold marks focus, and dialogs/floating
+surfaces receive the strongest depth. Do not give every nested surface equal
+weight. No glass, blur, glow, gradients, neon, scanlines, CRT effects, pixel-font
+UI, giant SaaS radii, ornamental motion, Steam imitation, or generic Material
+restyling belongs in this contract.
+
+Preserve the existing detail order while strengthening its cover/title/readiness
+hero and one dominant Play, Install, or Review action. Evidence may justify a
+roughly 36–40rem surface on large displays or a restrained sticky primary action,
+but focus, controller navigation, compact layouts, and safety information must
+remain intact. Infrequent maintenance and technical controls use progressive
+disclosure without becoming hidden safety state. Settings grows through clear
+Appearance, Library & Storage, Game Files, Updates, Integrations, and Advanced
+grouping using the smallest scalable structure, not an automatic second sidebar.
+
+Motion remains short, tactile, and functional for press, selection, panel,
+palette, notice, disclosure, and artwork transitions. Reduced motion removes
+nonessential motion. Typography must become deterministic and offline across
+supported desktop platforms: package reviewed fonts only after license and
+package-impact acceptance, otherwise use an intentional supported fallback.
+Loading placeholders must preserve expected geometry without shimmer or
+gradients; accessible loading text remains authoritative.
+
+Implementation establishes official shadcn/Base UI controls, Tailwind, semantic
+CSS variables, reusable interface patterns, and the custom Portcove theme. Each
+converted surface removes the controls, traps, and style ownership it replaces or
+records the retained exception and removal condition; migration cannot leave two
+permanent design systems. It must preserve mouse,
+keyboard and controller use, focus restoration, dialog trapping, accessible
+names, semantic HTML, status text, long titles, compact/scaled layouts, minimum
+width, and the distinction between blue selection and gold focus. Native evidence
+covers dark/light, standard/minimum/large widths, 1280×800 where applicable,
+scaling, long titles, fallback and local artwork, ready/setup/staged/error/update
+states, and Catalog, Library, Detail, Settings, and Update Center. Deterministic
+screenshots supplement rather than replace accessibility and input checks; no
+broad fragile pixel-perfect suite is required.
+
 ## Review gates
 
-Run the frontend tests and theme contract, the production build, and Fallow before accepting a design-system change. The theme contract rejects raw component colors, direct primitive consumption, gradients, missing semantic roles, and reviewed contrast regressions. Fallow should remain free of dead files, unused dependencies, duplication, circular dependencies, unused theme tokens, and above-threshold functions.
+Run the focused frontend tests, applicable theme/style contracts, production build, and Fallow before accepting a design-system change. The style gates must cover the actual Tailwind CSS and JSX utility sources, reject raw status colors and direct primitive consumption, preserve dark/light, focus/selection, contrast, reduced-motion, and production-variant coverage, and handle third-party directives narrowly rather than with blanket exemptions. Fallow should remain free of dead files, unused dependencies, duplication, circular dependencies, unused theme tokens, and above-threshold functions. Acceptance records intentional reference changes and verifies that each migrated surface has one remaining control/style owner.
+
+The three early finished reference compositions are Library, the game-details workspace, and a complex installation-review dialog with nested selection and errors. Their real-component scenarios cover empty, loading, long-title, missing-artwork, disabled, error, interrupted, and narrow-layout states. Completion requires both themes, current minimum/default/large sizes, 1280×800 where relevant, supported scaling, long text, keyboard/mouse/controller behavior, nested overlays, focus return, async changes, navigation during work, reduced motion, and capability parity. Browser fixtures and screenshots do not replace native or intrinsically human evidence.

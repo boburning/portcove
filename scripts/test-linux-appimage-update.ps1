@@ -22,7 +22,7 @@ param(
 )
 
 $evidenceContract = [ordered]@{
-    schema_version = 12
+    schema_version = 13
     predecessor_version = $PredecessorVersion
     candidate_version = $CandidateVersion
 }
@@ -47,6 +47,24 @@ function Resolve-ExistingDirectory([string]$Path, [string]$Label) {
     $item = Get-Item -LiteralPath $resolved -Force
     if ($item.PSIsContainer -and -not ($item.Attributes -band [IO.FileAttributes]::ReparsePoint)) { return $resolved }
     throw "$Label must be a direct directory"
+}
+
+function Assert-PreservedUserData(
+    [System.Collections.IDictionary]$Paths,
+    [System.Collections.IDictionary]$Hashes,
+    [string]$Label
+) {
+    foreach ($name in $Paths.Keys) {
+        $path = [string]$Paths[$name]
+        if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
+            throw "$Label removed the $name marker"
+        }
+        $actual = (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash
+        if ($actual -ne $Hashes[$name]) {
+            throw "$Label changed the $name marker"
+        }
+    }
+    return $true
 }
 
 $predecessor = Resolve-ExistingFile $PredecessorPath "Predecessor AppImage"
@@ -78,24 +96,58 @@ if (Test-Path -LiteralPath $state) { throw "StateRoot must be new" }
 if (Test-Path -LiteralPath $evidenceFile) { throw "EvidencePath must be new" }
 New-Item -ItemType Directory -Path $state | Out-Null
 
-$installedRoot = Join-Path $state "installed"
+$rootlessHome = Join-Path $state "rootless-home"
+$installedRoot = Join-Path $rootlessHome "Applications/Portcove"
+$applicationsRoot = Join-Path $rootlessHome ".local/share/applications"
 $libraryRoot = Join-Path $state "library"
 $updateRoot = Join-Path $state "update-state"
 $hostPreferences = Join-Path $state "host-preferences.json"
 $updatePreferences = Join-Path $state "application-update-preferences.json"
 $stable = Join-Path $installedRoot "Portcove.AppImage"
-New-Item -ItemType Directory -Path $installedRoot, $libraryRoot | Out-Null
+$desktopEntry = Join-Path $applicationsRoot "com.boburning.portcove.desktop"
+New-Item -ItemType Directory -Path $installedRoot, $applicationsRoot, $libraryRoot | Out-Null
 & /usr/bin/cp --preserve=mode,timestamps -- $predecessor $stable
 if ($LASTEXITCODE -ne 0) { throw "Could not create the stable AppImage fixture" }
 & chmod u+rwx,go+rx -- $stable
 if ($LASTEXITCODE -ne 0) { throw "Could not make the stable AppImage executable" }
+$stableItem = Get-Item -LiteralPath $stable -Force
+if (-not [IO.Path]::IsPathFullyQualified($stable) -or ($stableItem.Attributes -band [IO.FileAttributes]::ReparsePoint)) {
+    throw "The rootless stable AppImage must be a direct absolute file"
+}
+$currentUserId = (& /usr/bin/id -u | Out-String).Trim()
+$stableUserId = (& /usr/bin/stat -c '%u' -- $stable | Out-String).Trim()
+if ($LASTEXITCODE -ne 0 -or $stableUserId -ne $currentUserId) {
+    throw "The rootless stable AppImage must be owned by the current user"
+}
+$desktopEntryContent = @"
+[Desktop Entry]
+Type=Application
+Name=Portcove
+Exec="$stable"
+TryExec=$stable
+Terminal=false
+Categories=Game;
+"@
+[IO.File]::WriteAllText($desktopEntry, $desktopEntryContent, [Text.UTF8Encoding]::new($false))
+$desktopEntryHash = (Get-FileHash -LiteralPath $desktopEntry -Algorithm SHA256).Hash
 
 $predecessorHash = (Get-FileHash -LiteralPath $stable -Algorithm SHA256).Hash.ToLowerInvariant()
 $candidateHash = (Get-FileHash -LiteralPath $candidate -Algorithm SHA256).Hash.ToLowerInvariant()
-$sentinelRoot = Join-Path $libraryRoot "user/application-update-qualification"
-New-Item -ItemType Directory -Path $sentinelRoot | Out-Null
-$sentinel = Join-Path $sentinelRoot "preserve.txt"
-[IO.File]::WriteAllText($sentinel, [Guid]::NewGuid().ToString("N"))
+$preservedDataPaths = [ordered]@{
+    library = Join-Path $libraryRoot "user/application-update-qualification/preserve.txt"
+    game_files = Join-Path $libraryRoot "games/rootless-qualification/game.bin"
+    saves = Join-Path $libraryRoot "saves/rootless-qualification/save.bin"
+    backups = Join-Path $libraryRoot "backups/rootless-qualification/backup.bin"
+    logs = Join-Path $libraryRoot "logs/rootless-qualification.log"
+}
+$preservedDataHashes = [ordered]@{}
+foreach ($name in $preservedDataPaths.Keys) {
+    $path = [string]$preservedDataPaths[$name]
+    New-Item -ItemType Directory -Path ([IO.Path]::GetDirectoryName($path)) -Force | Out-Null
+    [IO.File]::WriteAllText($path, "$name-$([Guid]::NewGuid().ToString('N'))")
+    $preservedDataHashes[$name] = (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash
+}
+$sentinel = [string]$preservedDataPaths.library
 $sentinelHash = (Get-FileHash -LiteralPath $sentinel -Algorithm SHA256).Hash
 
 $evidence = [ordered]@{
@@ -107,6 +159,20 @@ $evidence = [ordered]@{
     candidate = [ordered]@{ version = $evidenceContract.candidate_version; path = $candidate; sha256 = $candidateHash }
     stable_path = $stable
     apply_revision = $null
+    rootless_lifecycle = [ordered]@{
+        package_format = "appimage"
+        install_scope = "current-user-direct-file"
+        stable_path = $stable
+        current_user_owned = $true
+        desktop_entry = $desktopEntry
+        desktop_entry_sha256 = $desktopEntryHash
+        preserved_user_paths = $preservedDataPaths
+        update_desktop_entry_preserved = $false
+        update_user_paths_preserved = $false
+        uninstall_stable_removed = $false
+        uninstall_desktop_entry_removed = $false
+        uninstall_user_paths_preserved = $false
+    }
     private_signing_inputs_absent = [ordered]@{
         payload_private_key = $true
         tuf_private_root = $true
@@ -941,6 +1007,23 @@ sleep "$3"
     $evidence.stable_sha256 = $stableHash
     $evidence.executable_mode = $mode
     $evidence.persistent_data_preserved = $true
+    if ((Get-FileHash -LiteralPath $desktopEntry -Algorithm SHA256).Hash -ne $desktopEntryHash) {
+        throw "The packaged update changed the rootless desktop entry"
+    }
+    $evidence.rootless_lifecycle.update_desktop_entry_preserved = $true
+    $evidence.rootless_lifecycle.update_user_paths_preserved =
+        Assert-PreservedUserData $preservedDataPaths $preservedDataHashes "The packaged update"
+    Write-Evidence "rootless-update-preserved"
+
+    Remove-Item -LiteralPath $desktopEntry -Force
+    Remove-Item -LiteralPath $stable -Force
+    if (Test-Path -LiteralPath $stable) { throw "Rootless uninstall retained the stable AppImage" }
+    if (Test-Path -LiteralPath $desktopEntry) { throw "Rootless uninstall retained the desktop entry" }
+    $evidence.rootless_lifecycle.uninstall_stable_removed = $true
+    $evidence.rootless_lifecycle.uninstall_desktop_entry_removed = $true
+    $evidence.rootless_lifecycle.uninstall_user_paths_preserved =
+        Assert-PreservedUserData $preservedDataPaths $preservedDataHashes "Rootless uninstall"
+    Write-Evidence "rootless-uninstall-complete"
     Write-Evidence "complete"
     $evidence | ConvertTo-Json -Depth 8 -Compress
 } catch {

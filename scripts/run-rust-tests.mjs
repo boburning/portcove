@@ -5,9 +5,47 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { acquireHeavyRustTestLock } from "./heavy-rust-test-lock.mjs";
+import { prepareRustSupportArtifact, rustSupportCompilerIdentity } from "./rust-support-cache.mjs";
 
 const scriptPath = fileURLToPath(import.meta.url);
 const root = fileURLToPath(new URL("../", import.meta.url));
+const guardedCommandMarker = "--guard-command";
+
+export function parseRustRunMode(args) {
+  if (args[0] === "--locked" && args[1] === "--impact-union") args = args.slice(1);
+  if (args.length === 1 && args[0] === "--prepare-only") return { kind: "prepare" };
+  if (args[0] === "--impact-union") {
+    if (
+      args.length < 4 ||
+      args.slice(1).some((value) => !/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(value))
+    )
+      throw new Error("--impact-union requires one package and at least two group IDs");
+    return {
+      kind: "nextest",
+      executable: process.execPath,
+      args: [path.join(root, "scripts/rust-test-impact.mjs"), "--run", ...args.slice(1)],
+      description: `Rust impact union ${args.slice(1).join(" ")}`,
+    };
+  }
+  if (args[0] === guardedCommandMarker) {
+    const executable = args[1];
+    if (!executable)
+      throw new Error(`${guardedCommandMarker} requires an executable and optional arguments`);
+    const commandArgs = args.slice(2);
+    return {
+      kind: "guarded-command",
+      executable,
+      args: commandArgs,
+      description: [executable, ...commandArgs].join(" "),
+    };
+  }
+  return {
+    kind: "nextest",
+    executable: "cargo-nextest",
+    args: ["nextest", "run", ...args],
+    description: `cargo-nextest nextest run ${args.join(" ")}`.trim(),
+  };
+}
 
 function waitForChild(child) {
   let outcome = null;
@@ -190,69 +228,77 @@ export async function runRustTests(args, dependencies = {}) {
   const runSync = dependencies.spawnSync ?? spawnSync;
   const start = dependencies.spawn ?? spawn;
   const acquireLock = dependencies.acquireLock ?? acquireHeavyRustTestLock;
+  const prepareSupport = dependencies.prepareSupportArtifact ?? prepareRustSupportArtifact;
+  const readCompilerIdentity =
+    dependencies.rustSupportCompilerIdentity ?? rustSupportCompilerIdentity;
   const base = path.resolve(
     dependencies.tempRoot ?? environment.RUNNER_TEMP ?? environment.PORTCOVE_TEMP_DIR ?? tmpdir(),
   );
+  const platform = dependencies.platform ?? process.platform;
+  const mode = parseRustRunMode(args);
   const directory = mkdtempSync(path.join(base, "portcove-host-tool-fixture-"));
   const relative = path.relative(base, directory);
   if (relative.startsWith("..") || path.isAbsolute(relative))
     throw new Error("Fixture escaped its temporary root");
-  const platform = dependencies.platform ?? process.platform;
-  const executable = path.join(directory, platform === "win32" ? "probe.exe" : "probe");
+  const fixtureExecutable = path.join(directory, platform === "win32" ? "probe.exe" : "probe");
   const supervisor = path.join(directory, "portcove-process-tree-supervisor.exe");
   const gatePath = path.join(directory, "registered.gate");
   const statusPath = path.join(directory, "nextest-status.json");
   const cleanupReceiptPath = path.join(directory, "containment-cleanup.json");
-  const prepareOnly = args.length === 1 && args[0] === "--prepare-only";
+  const prepareOnly = mode.kind === "prepare";
   let retained = false;
   let lock = null;
   let releaseLock = true;
   let cancellation = null;
+  let compiler = null;
+  const prepareSupportProduct = (definition) => {
+    compiler ??= readCompilerIdentity({ runSync, environment, platform });
+    const result = prepareSupport({
+      root,
+      output: definition.output,
+      environment,
+      platform,
+      architecture: dependencies.architecture ?? process.arch,
+      runSync,
+      compiler,
+      ...definition,
+    });
+    console.error(
+      `[rust-support] ${definition.product} ${result.outcome} ` +
+        `${result.fingerprint.slice(0, 12)} in ${result.elapsed_ms}ms`,
+    );
+  };
   try {
     if (!prepareOnly) {
       lock = await acquireLock({
         workspace: root,
-        command: `cargo-nextest nextest run ${args.join(" ")}`,
+        command: mode.description,
       });
     }
-    const compiled = runSync(
-      "rustc",
-      [
-        "--crate-name",
-        "portcove_host_tool_fixture",
-        path.join(root, "crates/portcove-core/src/testdata/host_tool_probe.rs.txt"),
-        "-o",
-        executable,
-      ],
-      { stdio: "inherit", windowsHide: true },
-    );
-    if (compiled.error) throw compiled.error;
-    if (compiled.status !== 0) throw new Error("Host-tool fixture compilation failed");
+    if (mode.kind !== "guarded-command") {
+      prepareSupportProduct({
+        product: "host-tool-probe",
+        source: "crates/portcove-core/src/testdata/host_tool_probe.rs.txt",
+        output: fixtureExecutable,
+        rustcArgs: ["--crate-name", "portcove_host_tool_fixture"],
+      });
+    }
     if (prepareOnly) {
       if (!environment.GITHUB_ENV) throw new Error("--prepare-only requires GITHUB_ENV");
-      appendFileSync(environment.GITHUB_ENV, `PORTCOVE_HOST_TOOL_FIXTURE=${executable}\n`);
+      appendFileSync(environment.GITHUB_ENV, `PORTCOVE_HOST_TOOL_FIXTURE=${fixtureExecutable}\n`);
       retained = true; // The runner owns cleanup after all test steps finish.
       return 0;
     }
     if (platform === "win32") {
-      const supervisorCompiled = runSync(
-        "rustc",
-        [
-          "--edition=2024",
-          "--crate-name",
-          "portcove_process_tree_supervisor",
-          path.join(root, "scripts/fixtures/windows-process-tree-supervisor.rs.txt"),
-          "-o",
-          supervisor,
-        ],
-        { stdio: "inherit", windowsHide: true },
-      );
-      if (supervisorCompiled.error) throw supervisorCompiled.error;
-      if (supervisorCompiled.status !== 0)
-        throw new Error("Windows process-tree supervisor compilation failed");
+      prepareSupportProduct({
+        product: "windows-process-tree-supervisor",
+        source: "scripts/fixtures/windows-process-tree-supervisor.rs.txt",
+        output: supervisor,
+        rustcArgs: ["--edition=2024", "--crate-name", "portcove_process_tree_supervisor"],
+      });
     }
     if (lock.inherited) {
-      const nested = start("cargo-nextest", ["nextest", "run", ...args], {
+      const nested = start(mode.executable, mode.args, {
         cwd: root,
         detached: false,
         stdio: "inherit",
@@ -260,7 +306,7 @@ export async function runRustTests(args, dependencies = {}) {
         env: {
           ...environment,
           ...lock.childEnvironment,
-          PORTCOVE_HOST_TOOL_FIXTURE: executable,
+          ...(mode.kind === "nextest" ? { PORTCOVE_HOST_TOOL_FIXTURE: fixtureExecutable } : {}),
         },
       });
       return await waitForChild(nested).completed;
@@ -269,16 +315,14 @@ export async function runRustTests(args, dependencies = {}) {
     const command = platform === "win32" ? supervisor : process.execPath;
     const commandArgs =
       platform === "win32"
-        ? [gatePath, "cargo-nextest", "nextest", "run", ...args]
+        ? [gatePath, mode.executable, ...mode.args]
         : [
             path.join(root, "scripts/rust-test-tree-supervisor.mjs"),
             gatePath,
             statusPath,
             cleanupReceiptPath,
-            "cargo-nextest",
-            "nextest",
-            "run",
-            ...args,
+            mode.executable,
+            ...mode.args,
           ];
     const tested = start(command, commandArgs, {
       cwd: root,
@@ -288,7 +332,7 @@ export async function runRustTests(args, dependencies = {}) {
       env: {
         ...environment,
         ...lock.childEnvironment,
-        PORTCOVE_HOST_TOOL_FIXTURE: executable,
+        ...(mode.kind === "nextest" ? { PORTCOVE_HOST_TOOL_FIXTURE: fixtureExecutable } : {}),
       },
     });
     const observation = waitForChild(tested);

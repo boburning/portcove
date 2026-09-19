@@ -118,6 +118,8 @@ test("required CI keeps its cancellation and least-privilege contracts", () => {
   assert.match(rustQualityGate, /PORTCOVE_ALWAYS_RESULTS: '\{"provenance"/);
   assert.match(proseChecks, /^ {4}if: needs\.classify\.outputs\.mode == 'prose'$/m);
   assert.match(proseChecks, /pnpm install --frozen-lockfile/);
+  assert.match(proseChecks, /scripts\/repository-settings\.test\.mjs/);
+  assert.match(proseChecks, /scripts\/repository-skills\.test\.mjs/);
   assert.match(proseChecks, /node scripts\/check-ci-prose\.mjs/);
   for (const gate of [rust, rustQualityGate, frontendGate, catalogGate, dependencyReviewGate]) {
     assert.match(gate, /node scripts\/ci-result-gate\.mjs/);
@@ -641,16 +643,19 @@ test("frontend keeps deterministic product gates and delegates vulnerability cha
 });
 
 test("frontend tooling uses the pinned Oxc contracts without legacy quality layers", async () => {
-  const packageJson = JSON.parse(
+  const desktopPackage = JSON.parse(
     await readFile(new URL("../apps/desktop/package.json", import.meta.url), "utf8"),
   );
-  assert.equal(packageJson.scripts["format:oxfmt"], "node ../../scripts/run-oxfmt.mjs --write");
-  assert.equal(packageJson.scripts["lint:oxlint"], "node ../../scripts/run-oxlint.mjs");
-  assert.equal(packageJson.devDependencies.oxfmt, "0.67.0");
-  assert.equal(packageJson.devDependencies.oxlint, "1.82.0");
-  assert.equal(packageJson.devDependencies["oxlint-tsgolint"], "7.0.2001");
-  assert.equal(packageJson.devDependencies["oxc-parser"], "0.149.0");
-  assert.equal(packageJson.devDependencies.typescript, "7.0.2");
+  const repositoryPackage = JSON.parse(
+    await readFile(new URL("../package.json", import.meta.url), "utf8"),
+  );
+  assert.equal(desktopPackage.scripts["format:oxfmt"], "node ../../scripts/run-oxfmt.mjs --write");
+  assert.equal(desktopPackage.scripts["lint:oxlint"], "node ../../scripts/run-oxlint.mjs");
+  assert.equal(repositoryPackage.devDependencies.oxfmt, "0.67.0");
+  assert.equal(repositoryPackage.devDependencies.oxlint, "1.82.0");
+  assert.equal(repositoryPackage.devDependencies["oxlint-tsgolint"], "7.0.2001");
+  assert.equal(desktopPackage.devDependencies["oxc-parser"], "0.149.0");
+  assert.equal(desktopPackage.devDependencies.typescript, "7.0.2");
   for (const retired of [
     "@babel/parser",
     "@eslint/js",
@@ -662,7 +667,8 @@ test("frontend tooling uses the pinned Oxc contracts without legacy quality laye
     "prettier",
     "typescript-eslint",
   ]) {
-    assert.equal(packageJson.devDependencies[retired], undefined);
+    assert.equal(repositoryPackage.devDependencies[retired], undefined);
+    assert.equal(desktopPackage.devDependencies[retired], undefined);
   }
 
   const oxlint = JSON.parse(await readFile(new URL("../.oxlintrc.json", import.meta.url), "utf8"));
@@ -774,6 +780,8 @@ test("frontend tooling uses the pinned Oxc contracts without legacy quality laye
   assert.match(oxlintRunner, /sourceRoot/);
   assert.match(oxlintRunner, /viteConfig/);
   assert.match(oxlintRunner, /"--type-aware"/);
+  assert.match(oxlintRunner, /report\.number_of_files < 1/);
+  assert.match(oxlintRunner, /report\.number_of_rules < 1/);
 
   const copyChecker = await readFile(
     new URL("../apps/desktop/scripts/check-copy.mjs", import.meta.url),
@@ -788,12 +796,25 @@ test("frontend tooling uses the pinned Oxc contracts without legacy quality laye
   assert.equal(oxfmt.sortPackageJson, true);
   assert.ok(oxfmt.ignorePatterns.includes("**/*.toml"));
 
+  const fallow = JSON.parse(
+    await readFile(new URL("../apps/desktop/.fallowrc.json", import.meta.url), "utf8"),
+  );
+  assert.deepEqual(fallow, {
+    $schema: "../../node_modules/fallow/schema.json",
+    boundaries: {
+      zones: [
+        { name: "shared", patterns: ["src/shared/**"] },
+        { name: "features", patterns: ["src/features/**"] },
+      ],
+      rules: [{ from: "shared", allow: ["shared"], allowTypeOnly: [] }],
+    },
+  });
+
   for (const retired of [
     "../.prettierignore",
     "../prettier.config.mjs",
     "../eslint.config.mjs",
     "../apps/desktop/eslint.config.mjs",
-    "../apps/desktop/.fallowrc.json",
     "./run-eslint.mjs",
   ]) {
     await assert.rejects(readFile(new URL(retired, import.meta.url)), { code: "ENOENT" });
@@ -802,6 +823,8 @@ test("frontend tooling uses the pinned Oxc contracts without legacy quality laye
 
 test("catalog executes the CI workflow contract", () => {
   assert.match(catalog, /scripts\/ci-workflow\.test\.mjs/);
+  assert.match(fastCatalog, /scripts\/repository-settings\.test\.mjs/);
+  assert.match(fastCatalog, /scripts\/repository-skills\.test\.mjs/);
 });
 
 test("routine checks retain architecture enforcement but make cycles optional", async () => {
@@ -847,9 +870,33 @@ test("validation recipes separate routine, release, and packaged Windows contrac
   assert.match(catalog, /release-package-policy\.test\.mjs/);
   assert.match(windowsStorage, /run-windows-qualification\.ps1/);
   const ui = recipes.match(/^check-ui: (.+)$/m)?.[1] ?? "";
-  assert.match(ui, /fmt-frontend-check ui-check/);
+  assert.match(ui, /fmt-frontend-check ui-check ui-lint-contracts/);
   const auditUi = recipes.match(/^ui-check: (.+)$/m)?.[1] ?? "";
   assert.doesNotMatch(auditUi, /fmt-frontend-check/);
+  const recipeBody = (name) =>
+    recipes.match(new RegExp(`^${name}:\\r?\\n([\\s\\S]*?)(?=^\\S)`, "m"))?.[1] ?? "";
+  for (const scan of [
+    "fmt-frontend-check",
+    "oxlint",
+    "stylelint",
+    "python-lint",
+    "shell-lint",
+    "actions-lint",
+    "powershell-lint",
+  ])
+    assert.doesNotMatch(recipeBody(scan), /lint-tools\.integration\.mjs/);
+  assert.match(
+    recipeBody("ui-lint-contracts"),
+    /lint-tools\.integration\.mjs oxfmt oxlint stylelint/,
+  );
+  assert.match(
+    recipeBody("script-lint-contracts"),
+    /lint-tools\.integration\.mjs ruff shellcheck actionlint psscriptanalyzer/,
+  );
+  assert.match(
+    recipes.match(/^script-lint: (.+)$/m)?.[1] ?? "",
+    /python-lint shell-lint actions-lint powershell-lint script-lint-contracts/,
+  );
 });
 
 test("release and deep preflights require a fresh audit", async () => {
@@ -983,6 +1030,30 @@ test("Rust reports slow tests, terminates hangs and retains documentation covera
   );
   assert.match(config, /^retries = 0$/m);
   assert.doesNotMatch(config, /on-timeout|default-filter/);
+  assert.match(
+    config,
+    /filter = 'package\(portcove-cli\)'\r?\nthreads-required = 2\r?\npriority = -100/,
+  );
+  assert.match(
+    config,
+    /filter = 'package\(portcove-core\) & test\(output_relocation::tests::\)'\r?\nthreads-required = 2/,
+  );
+  assert.match(
+    config,
+    /filter = 'package\(portcove-core\) & test\(cancellation::tests::\)'\r?\nthreads-required = 2/,
+  );
+  assert.match(
+    config,
+    /filter = 'package\(portcove-core\) & test\(activity_diagnostics::tests::\)'\r?\nthreads-required = 2\r?\npriority = -50/,
+  );
+  assert.match(
+    config,
+    /filter = 'package\(portcove-core\) & test\(database::tests::\)'\r?\nthreads-required = 2/,
+  );
+  assert.match(
+    config,
+    /filter = 'package\(portcove-core\) & test\(adapter::source_conversion_tests::failed_and_cancelled_conversion_retains_logs_and_reaps_owned_processes\)'\r?\nthreads-required = 2/,
+  );
   for (const override of config.split("[[profile.default.overrides]]").slice(1)) {
     assert.doesNotMatch(override, /slow-timeout|retries/);
   }

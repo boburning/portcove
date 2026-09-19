@@ -13,7 +13,7 @@ const pinFiles = [
   "aqua-checksums.json",
   ".github/quality-tools.json",
   ".config/tool-bootstrap.json",
-  "apps/desktop/package.json",
+  "package.json",
 ];
 
 function sha256(value) {
@@ -45,18 +45,16 @@ export function readToolPins(root = projectRoot) {
   const aquaVersion = readFileSync(path.join(root, ".aqua-version"), "utf8").trim();
   if (!/^v\d+\.\d+\.\d+$/u.test(aquaVersion))
     throw new Error(".aqua-version must contain an exact v-prefixed semantic version");
-  const desktop = JSON.parse(
-    readFileSync(path.join(root, "apps", "desktop", "package.json"), "utf8"),
-  );
-  if (!/^pnpm@\d+\.\d+\.\d+$/u.test(desktop.packageManager ?? ""))
-    throw new Error("desktop packageManager must pin an exact pnpm version");
+  const repositoryPackage = JSON.parse(readFileSync(path.join(root, "package.json"), "utf8"));
+  if (!/^pnpm@\d+\.\d+\.\d+$/u.test(repositoryPackage.packageManager ?? ""))
+    throw new Error("repository packageManager must pin an exact pnpm version");
   const fingerprint = sha256(
     pinFiles.map((name) => `${name}\0${readFileSync(path.join(root, name))}`).join("\0"),
   );
   return {
     aquaVersion,
     aquaSemver: aquaVersion.slice(1),
-    packageManager: desktop.packageManager,
+    packageManager: repositoryPackage.packageManager,
     bootstrap,
     fingerprint,
   };

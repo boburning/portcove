@@ -14,11 +14,15 @@ use portcove_desktop::application_update_preferences::{
 use portcove_desktop::application_update_status::{
     ApplicationUpdateRecoveryArea, ApplicationUpdateStatus,
 };
+use portcove_desktop::steam_entries::SteamEntryApplyResult;
+use portcove_desktop::steam_entry_commands::{SteamEntryReview, SteamEntrySelection};
 use schemars::{JsonSchema, generate::SchemaSettings};
 use serde_json::{Value, json};
 use transport::{
-    BackupReview, BatchOutcome, BootstrapStatus, CliCommandContext, DesktopError,
-    DesktopWorkspaceSnapshot, InstallInput, LaunchResult, SourceBatchOutcome,
+    BackupReview, BatchOutcome, BootstrapStatus, CliCommandContext,
+    DESKTOP_EVENT_APPLICATION_UPDATE_NOTICE, DESKTOP_EVENT_LIBRARY_CHANGED,
+    DESKTOP_EVENT_OPERATION, DesktopError, DesktopWorkspaceSnapshot, InstallInput, LaunchResult,
+    SourceBatchOutcome,
 };
 
 fn output<T: JsonSchema>() -> Value {
@@ -31,6 +35,18 @@ fn output<T: JsonSchema>() -> Value {
 }
 
 fn main() {
+    let _emit_adapter = transport::emit_desktop_event::<()>;
+    let events = serde_json::Map::from_iter([
+        (
+            DESKTOP_EVENT_APPLICATION_UPDATE_NOTICE.to_owned(),
+            output::<ApplicationUpdateNoticeSnapshot>(),
+        ),
+        (DESKTOP_EVENT_LIBRARY_CHANGED.to_owned(), output::<()>()),
+        (
+            DESKTOP_EVENT_OPERATION.to_owned(),
+            output::<portcove_core::OperationEvent>(),
+        ),
+    ]);
     println!(
         "{}",
         json!({
@@ -52,6 +68,8 @@ fn main() {
                 "application_update_notice": output::<ApplicationUpdateNoticeSnapshot>(),
                 "workspace_snapshot": output::<DesktopWorkspaceSnapshot>(),
                 "preparation_cleanup_preview": output::<portcove_core::PreparationCleanupPreview>(),
+                "steam_entry_review": output::<SteamEntryReview>(),
+                "steam_entry_apply_result": output::<SteamEntryApplyResult>(),
             },
             "input": {
                 "install_input": schemars::schema_for!(InstallInput),
@@ -59,7 +77,9 @@ fn main() {
                 "application_update_production_decision": schemars::schema_for!(ApplicationUpdateProductionDecision),
                 "application_update_recovery_area": schemars::schema_for!(ApplicationUpdateRecoveryArea),
                 "application_update_download_request": schemars::schema_for!(ApplicationUpdateDownloadRequest),
+                "steam_entry_selection": schemars::schema_for!(SteamEntrySelection),
             },
+            "events": events,
         })
     );
 }

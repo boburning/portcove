@@ -1,6 +1,16 @@
+import {
+  useApplicationUpdateChoice,
+  useApplicationUpdateNotice,
+  useApplicationUpdateProductionTransition,
+} from "./features/application-update/use-application-update";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { usePortcoveData } from "./features/workspace/use-workspace-data";
 import { AdoptionModal } from "./components/AdoptionModal";
-import { LibraryMoveRecovery, transferRecoveryRoot } from "./components/LibraryMove";
+import {
+  LibraryMoveRecovery,
+  transferRecoveryCanKeepOriginal,
+  transferRecoveryRoot,
+} from "./components/LibraryMove";
 import { LibraryImportRecovery } from "./components/LibraryImport";
 import {
   PageHeader,
@@ -16,7 +26,7 @@ import { ArtworkProvider } from "./artwork";
 import { SourceIntakeDialog, type SourceIntakeRequest } from "./components/SourceIntake";
 import { UpdateCenter } from "./components/UpdateCenter";
 import { FailureDetails } from "./components/FailureDetails";
-import { WorkspaceRefreshNotice } from "./components/WorkspaceRefreshNotice";
+import { WorkspaceRefreshNotice } from "./features/workspace/WorkspaceRefreshNotice";
 import {
   pickHostToolExecutable,
   pickInstallFolder,
@@ -24,6 +34,7 @@ import {
   pickMetadataExportPath,
   pickSourceArchivePath,
   pickSourcePath,
+  type SourcePickerPurpose,
 } from "./file-picker";
 import { desktopApi } from "./api";
 import { useWorkspaceScroll } from "./keyboard-shortcuts";
@@ -35,16 +46,12 @@ import { useNativeSourceDrop } from "./native-source-drop";
 import { useCommandSurface } from "./use-command-surface";
 import {
   useAdoptionPlanning,
-  useApplicationUpdateChoice,
-  useApplicationUpdateNotice,
-  useApplicationUpdateProductionTransition,
   detailActions,
   type Perform,
   useGithubAuth,
   useInstallPlanning,
   useOperationState,
   usePortBackups,
-  usePortcoveData,
   usePortcoveUi,
   useSourceHealth,
   useUpdateCenter,
@@ -54,6 +61,7 @@ import type {
   BootstrapStatus,
   DesktopError,
   HostToolStatus,
+  PortDefinition,
   SourceProfile,
   SourceRecord,
 } from "./types";
@@ -67,6 +75,12 @@ import {
   requiredSourceNeeds,
   summarizeLibrary,
 } from "./view-model";
+
+export const missingBootstrapError = {
+  code: "state",
+  message: "Portcove could not start, and no error details were provided.",
+  details: {},
+} as const;
 
 export default function App() {
   const [bootstrap, setBootstrap] = useState<BootstrapStatus>();
@@ -109,13 +123,7 @@ export default function App() {
   if (!bootstrap.ready)
     return (
       <BootstrapRecovery
-        error={
-          bootstrap.error ?? {
-            code: "state",
-            message: "Portcove initialization failed without an error report.",
-            details: {},
-          }
-        }
+        error={bootstrap.error ?? missingBootstrapError}
         chooseLibrary={chooseLibrary}
         resetLibrary={resetLibrary}
       />
@@ -134,8 +142,8 @@ function BootstrapLoading() {
   return (
     <main className="bootstrap-state" aria-live="polite">
       <p className="eyebrow">Portcove</p>
-      <h1>Opening your native library</h1>
-      <p>Loading the catalog, recovery journal, and release providers.</p>
+      <h1>Opening your Portcove library</h1>
+      <p>Loading the catalog, recovery history, and release information.</p>
     </main>
   );
 }
@@ -155,31 +163,25 @@ export function BootstrapRecovery({
   const [actionError, setActionError] = useState<string>();
   useGamepadNavigation(() => {});
   const recoveryRoot = transferRecoveryRoot(error);
+  const canKeepOriginal = transferRecoveryCanKeepOriginal(error);
   const importRoot = transferRecoveryRoot(error, "import_destination");
   return (
     <main className="bootstrap-state bootstrap-error" role="alert">
       <p className="eyebrow">Portcove could not start</p>
-      <h1>Your library needs attention</h1>
+      <h1>Portcove couldn’t start</h1>
       <p>{errorText(error)}</p>
       {error.presentation ? (
-        <FailureDetails presentation={error.presentation} code={error.code} />
+        <FailureDetails
+          presentation={error.presentation}
+          code={error.code}
+          contextLabel={startupDetailLabel}
+        />
       ) : (
-        <dl>
-          <div>
-            <dt>Error code</dt>
-            <dd>{error.code}</dd>
-          </div>
-          {Object.entries(error.details).map(([key, value]) => (
-            <div key={key}>
-              <dt>{key}</dt>
-              <dd>{value}</dd>
-            </div>
-          ))}
-        </dl>
+        <StartupTechnicalDetails error={error} />
       )}
       <p>
-        Check the configured library path, access permissions, and available space, then retry.
-        Portcove will run recovery checks again before enabling library actions.
+        Review the error details, then retry startup. If the current library is the cause, you can
+        choose another library or return to the platform default.
       </p>
       <div className="button-row">
         <button type="button" onClick={() => window.location.reload()}>
@@ -203,10 +205,55 @@ export function BootstrapRecovery({
         </button>
       </div>
       {actionError && <p role="alert">{actionError}</p>}
-      {recoveryRoot && <LibraryMoveRecovery source={recoveryRoot} />}
+      {recoveryRoot && (
+        <LibraryMoveRecovery source={recoveryRoot} canKeepOriginal={canKeepOriginal} />
+      )}
       {importRoot && <LibraryImportRecovery destination={importRoot} />}
     </main>
   );
+}
+
+function StartupTechnicalDetails({ error }: { error: StartupFailure }) {
+  return (
+    <details>
+      <summary data-focusable>Technical details</summary>
+      <dl>
+        <div>
+          <dt>Error code</dt>
+          <dd>{error.code}</dd>
+        </div>
+        {Object.entries(error.details).map(([key, value]) => {
+          const label = startupDetailLabel(key);
+          return (
+            <div key={key}>
+              <dt>{label ?? <code>{key}</code>}</dt>
+              <dd>{value}</dd>
+            </div>
+          );
+        })}
+      </dl>
+    </details>
+  );
+}
+
+function startupDetailLabel(key: string) {
+  const labels: Record<string, string> = {
+    path: "Path",
+    library_root: "Library folder",
+    lock_path: "Library lock file",
+    cause: "Cause",
+    expected_version: "Expected version",
+    actual_version: "Actual version",
+    library_schema_version: "Library format version",
+    supported_schema_version: "Supported library format version",
+    migration_version: "Migration version",
+    migration_name: "Migration",
+    recovery_action: "Recovery action",
+    transfer_id: "Transfer ID",
+    import_destination: "Import destination",
+    retained_source: "Original library folder",
+  };
+  return Object.hasOwn(labels, key) ? labels[key] : undefined;
 }
 
 function Workspace({
@@ -241,6 +288,7 @@ function Workspace({
   const applicationUpdateProductionTransition = useApplicationUpdateProductionTransition({
     preferences: applicationUpdateChoice.preferences,
     acceptPreferences: applicationUpdateChoice.accept,
+    refreshPreferences: applicationUpdateChoice.refresh,
     reportError: operations.setError,
   });
   const [sourceIntake, setSourceIntake] = useState<SourceIntakeRequest>();
@@ -250,7 +298,14 @@ function Workspace({
       const profile = data.catalog?.source_profiles?.find(
         (candidate) => candidate.id === profileId,
       );
-      if (port && profile) setSourceIntake({ portId, portName: port.name, profile, paths });
+      if (port && profile)
+        setSourceIntake({
+          portId,
+          portName: port.name,
+          profile,
+          purpose: port.bios_source_profile === profileId ? "bios" : "game",
+          paths,
+        });
     },
     [data.catalog],
   );
@@ -405,7 +460,7 @@ function Workspace({
             nativeSourceDrag={nativeSourceDrag}
             hostToolActions={hostToolActions}
             applicationUpdateNotice={applicationUpdate.notice}
-            onApplicationUpdatePreferencesChanged={applicationUpdateChoice.accept}
+            applicationUpdatePreferences={applicationUpdateChoice}
           />
         </main>
         <SelectedPortPanel
@@ -419,7 +474,12 @@ function Workspace({
           libraryGeneration={bootstrap.generation}
           openSourceIntake={openSourceIntake}
         />
-        <AdoptionOverlay ui={ui} operations={operations} libraryGeneration={bootstrap.generation} />
+        <AdoptionOverlay
+          ui={ui}
+          operations={operations}
+          libraryGeneration={bootstrap.generation}
+          ports={data.catalog?.ports ?? []}
+        />
         <CommandPalette
           open={commandSurface.open}
           commands={commandSurface.commands}
@@ -538,7 +598,7 @@ function CurrentView({
   nativeSourceDrag,
   hostToolActions,
   applicationUpdateNotice,
-  onApplicationUpdatePreferencesChanged,
+  applicationUpdatePreferences,
 }: {
   data: DataState;
   ui: UiState;
@@ -554,13 +614,14 @@ function CurrentView({
   nativeSourceDrag: ReturnType<typeof useNativeSourceDrop>;
   hostToolActions: HostToolActions;
   applicationUpdateNotice: ReturnType<typeof useApplicationUpdateNotice>["notice"];
-  onApplicationUpdatePreferencesChanged: ReturnType<typeof useApplicationUpdateChoice>["accept"];
+  applicationUpdatePreferences: ReturnType<typeof useApplicationUpdateChoice>;
 }) {
   if (ui.view === "updates")
     return (
       <UpdateCenter
         generation={bootstrap.generation}
         ports={data.catalog?.ports ?? []}
+        sourceProfiles={data.catalog?.source_profiles ?? []}
         statuses={model.statusMap}
         activities={data.activities}
         outcomes={updates.outcomes}
@@ -600,7 +661,7 @@ function CurrentView({
         onCatalogChanged={data.refreshAfterMutation}
         hostToolActions={hostToolActions}
         applicationUpdateNotice={applicationUpdateNotice}
-        onApplicationUpdatePreferencesChanged={onApplicationUpdatePreferencesChanged}
+        applicationUpdatePreferences={applicationUpdatePreferences}
         diagnosticsRefreshing={data.diagnosticRefreshing}
         diagnosticsStale={data.diagnosticsStale}
         diagnosticFailure={data.diagnosticFailure?.error}
@@ -637,11 +698,26 @@ function CurrentView({
           const profile = data.catalog?.source_profiles?.find(
             (candidate) => candidate.id === source.profile_id,
           );
-          void replaceRegisteredSource(profile, source, operations.perform, operations.setError);
+          void replaceRegisteredSource(
+            profile,
+            source,
+            sourcePickerPurpose(source.profile_id, data.catalog?.ports ?? []),
+            operations.perform,
+            operations.setError,
+          );
         }}
         sourceNeeds={model.sourceNeeds}
+        sourceRequirementsState={
+          data.catalog ? "available" : data.refreshFailure ? "unavailable" : "loading"
+        }
         addSource={(profile, archive) => {
-          void addRequiredSource(profile, archive, operations.perform, operations.setError);
+          void addRequiredSource(
+            profile,
+            archive,
+            sourcePickerPurpose(profile.id, data.catalog?.ports ?? []),
+            operations.perform,
+            operations.setError,
+          );
         }}
       />
     );
@@ -714,7 +790,7 @@ function SelectedPortPanel({
   const pickBios = model.biosProfile
     ? () => {
         void applyPathChoice(
-          pickSourcePath(model.biosProfile!, ui.biosPath),
+          pickSourcePath(model.biosProfile!, ui.biosPath, "bios"),
           ui.setBiosPath,
           operations.setError,
         );
@@ -788,10 +864,12 @@ function AdoptionOverlay({
   ui,
   operations,
   libraryGeneration,
+  ports,
 }: {
   ui: UiState;
   operations: OperationState;
   libraryGeneration: number;
+  ports: readonly PortDefinition[];
 }) {
   const finish = () => {
     ui.setAdoptOpen(false);
@@ -814,6 +892,7 @@ function AdoptionOverlay({
     <AdoptionModal
       path={ui.adoptPath}
       setPath={setPath}
+      ports={ports}
       preview={planning.preview}
       copyFailed={planning.copyFailed}
       applying={planning.applying}
@@ -851,6 +930,7 @@ async function applyPathChoice(
 async function replaceRegisteredSource(
   profile: SourceProfile | undefined,
   source: SourceRecord,
+  purpose: SourcePickerPurpose,
   perform: Perform,
   setError: (error?: string) => void,
 ) {
@@ -859,7 +939,7 @@ async function replaceRegisteredSource(
     return;
   }
   try {
-    const path = await pickSourcePath(profile, source.path);
+    const path = await pickSourcePath(profile, source.path, purpose);
     if (path)
       await perform("relink source", async () => {
         const plan = await desktopApi.planSourceRelink(profile.id, path);
@@ -873,13 +953,23 @@ async function replaceRegisteredSource(
 async function addRequiredSource(
   profile: SourceProfile,
   archive: boolean,
+  purpose: SourcePickerPurpose,
   perform: Perform,
   setError: (error?: string) => void,
 ) {
   try {
-    const path = await (archive ? pickSourceArchivePath("") : pickSourcePath(profile, ""));
+    const path = await (archive
+      ? pickSourceArchivePath("", purpose)
+      : pickSourcePath(profile, "", purpose));
     if (path) await perform("add source", () => desktopApi.addSource(profile.id, path));
   } catch (value) {
     setError(errorText(value));
   }
+}
+
+function sourcePickerPurpose(
+  profileId: string,
+  ports: readonly PortDefinition[],
+): SourcePickerPurpose {
+  return ports.some((port) => port.bios_source_profile === profileId) ? "bios" : "game";
 }

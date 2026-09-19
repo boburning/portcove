@@ -246,18 +246,18 @@ with quiet success and deduplicated exceptions identifying affected operations,
 failed rules, evidence and resume conditions. Discovery has no admission
 authority. Engineering/policy/authority changes still require scoped review;
 neither an agent nor a candidate may change its own protected acceptance rules.
-Routine authorized work follows mandatory CI, an explicit separate review
-result, substantive finding repair, current-revision and authority confirmation,
-then normal merge or auto-merge. An implementation or continuation request
-authorizes that routine workflow within its scope without repeated owner
-approval. Codex may perform the separate review as a distinct pass over the
-final diff, acceptance, and safety invariants, recording the commit, findings,
-repairs, and re-review result. It does not inherently require a human or second
-agent; additional trusted repository reviewer requirements still apply. Ask
-the owner only for an unresolved blocker, intrinsically required manual
-participation, or authority not already granted, and continue unrelated
-authorized work. A timeout, cancellation, or absence of comments is not a
-successful review. Administrator bypass is emergency-only. Protected
+Routine authorized work follows mandatory CI, an actual separate non-writing
+reviewer result, substantive finding repair, current-revision and authority
+confirmation, then the guarded normal merge path. The exact incremental review
+and evidence contract is owned by
+[Contribution conventions](CONTRIBUTION-CONVENTIONS.md), not repeated here. An
+implementation or continuation request authorizes that routine workflow within
+its scope without repeated owner approval. Ask the owner only for an unresolved
+blocker, intrinsically required manual participation, or authority not already
+granted, and continue unrelated authorized work. Unavailable delegation holds
+the affected merge, not every other lane. A timeout, cancellation, empty
+response, or absence of comments is not a successful review. Administrator
+bypass is emergency-only. Protected
 acceptance, merge authority, signing/publication permission, credentials, and
 other meaningful boundaries require separate owner authorization; candidates
 cannot alter or self-authorize their own gate. Privileged handling treats
@@ -322,10 +322,17 @@ Public beta requires the complete #52 Windows/Linux/Steam Deck/macOS updater,
 including actual beta platform safety evidence. #46 owns later production
 requalification for 1.0; it is not a reverse dependency of #52. Independent
 catalog delivery, the finite preparation/artwork outcomes and the real Playnite
-reference proof are also Required for Public beta. Their existing owners and
-one-way component dependencies remain intact; #52 and #246 are independent
-outcomes without reciprocal blockers. Paid signing and
-optional package integrations do not become blockers. See [Delivery](DELIVERY.md).
+reference proof are also Required for Public beta. The user-ready Playnite
+lifecycle product (#910), bounded SteamGridDB capability (#527), selected-game
+Steam Add/Repair/Update-artwork/Remove (#292), and the reusable public-CLI gaps
+they consume (#30) are likewise Required. Provider delivery does not make provider
+configuration, credentials, network access or a match mandatory at runtime. Their
+finite owners and one-way component dependencies remain intact; component owners
+close on independently testable evidence rather than waiting for downstream
+publication, and #52 and #246 remain independent outcomes without reciprocal
+blockers. Paid signing, marketplace approval, continuous Steam synchronization,
+Decky and optional package integrations do not become blockers. See
+[Delivery](DELIVERY.md).
 
 Migrations are additive: retain historical options and completed targets, capture
 a dated before-state, map affected active identities explicitly, read back each

@@ -17,6 +17,7 @@ const workflow = await readFile(
   "utf8",
 );
 const cliPackager = await readFile(new URL("./package-cli.ps1", import.meta.url), "utf8");
+const cliSmoke = await readFile(new URL("./smoke-test-cli-archive.ps1", import.meta.url), "utf8");
 const macosVerifier = await readFile(
   new URL("./verify-macos-release.ps1", import.meta.url),
   "utf8",
@@ -166,6 +167,20 @@ test("cross-built Intel artifacts receive native Intel package and launch verifi
 test("CLI packaging uses the BSD-compatible chmod form required by macOS", () => {
   assert.match(cliPackager, /& chmod \+x \$temporaryExecutable/);
   assert.doesNotMatch(cliPackager, /& chmod \+x --/);
+});
+
+test("packaged CLI smoke covers the plugin-free launcher path and library contract", () => {
+  assert.match(cliSmoke, /\$unicodeMarker = \[char\]0x03A9/);
+  assert.match(cliSmoke, /steam launch \$unicodeMarker/);
+  assert.match(cliSmoke, /standalone CLI/);
+  assert.match(cliSmoke, /Library \$unicodeMarker space/);
+  assert.match(cliSmoke, /--library \$library --json library show/);
+  assert.match(cliSmoke, /data\.source -cne "invocation"/);
+  assert.match(cliSmoke, /Resolve-Path -LiteralPath \(\[string\]\$selectionOutput\.data\.root\)/);
+  assert.match(cliSmoke, /data\.raw_stream_commands\) -cnotcontains "exec"/);
+  assert.match(cliSmoke, /data\.commands\) -cnotcontains "launch\.show"/);
+  assert.match(cliSmoke, /data\.commands\) -cnotcontains "launch\.recover"/);
+  assert.doesNotMatch(cliSmoke, /Start-Process|cmd(?:\.exe)?|\/bin\/sh/iu);
 });
 
 test("assembler reconciles the full matrix then generates and checksums the release SBOM", () => {

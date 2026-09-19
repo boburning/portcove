@@ -143,20 +143,21 @@ jobs:
           fetch-depth: 0
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
         with:
-          package_json_file: apps/desktop/package.json
+          package_json_file: package.json
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .node-version
           cache: pnpm
-          cache-dependency-path: apps/desktop/pnpm-lock.yaml
+          cache-dependency-path: pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
-        working-directory: apps/desktop
       - name: Check allowlisted prose and repository documentation contracts
         env:
           PORTCOVE_PROSE_FILES: ${{ needs.classify.outputs.files_json }}
           PORTCOVE_MERGE_BASE: ${{ needs.classify.outputs.merge_base }}
           PORTCOVE_HEAD_SHA: ${{ needs.classify.outputs.head }}
-        run: node scripts/check-ci-prose.mjs
+        run: |
+          node --test --test-timeout=30000 scripts/repository-settings.test.mjs scripts/repository-skills.test.mjs
+          node scripts/check-ci-prose.mjs
 
   fast_rust:
     name: fast-rust (linux-x86_64)
@@ -238,14 +239,13 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
         with:
-          package_json_file: apps/desktop/package.json
+          package_json_file: package.json
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .node-version
           cache: pnpm
-          cache-dependency-path: apps/desktop/pnpm-lock.yaml
+          cache-dependency-path: pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
-        working-directory: apps/desktop
       - uses: ./.github/actions/setup-rust
         if: contains(fromJSON(needs.classify.outputs.groups_json), 'rust')
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
@@ -284,13 +284,14 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
         with:
-          package_json_file: apps/desktop/package.json
+          package_json_file: package.json
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .node-version
           cache: pnpm
-          cache-dependency-path: apps/desktop/pnpm-lock.yaml
+          cache-dependency-path: pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
+        working-directory: .
       - run: pnpm format:check
       - run: pnpm lint
       - run: pnpm build
@@ -308,7 +309,7 @@ jobs:
           node-version-file: .node-version
       - name: Check catalog and repository contracts
         run: |
-          node --test --test-timeout=30000 scripts/roadmap.test.mjs scripts/github-api.test.mjs scripts/pr-delivery.test.mjs scripts/renovate-fast-lane.test.mjs scripts/process-lock.test.mjs scripts/source-provenance-audit.test.mjs scripts/check-release-metadata.test.mjs scripts/release-package-policy.test.mjs scripts/ci-workflow.test.mjs scripts/validation-plan.test.mjs scripts/qualification-coverage.test.mjs
+          node --test --test-timeout=30000 scripts/roadmap.test.mjs scripts/github-api.test.mjs scripts/pr-delivery.test.mjs scripts/renovate-fast-lane.test.mjs scripts/process-lock.test.mjs scripts/source-provenance-audit.test.mjs scripts/check-release-metadata.test.mjs scripts/release-package-policy.test.mjs scripts/ci-workflow.test.mjs scripts/validation-plan.test.mjs scripts/qualification-coverage.test.mjs scripts/repository-settings.test.mjs scripts/repository-skills.test.mjs
           node scripts/check-release-metadata.mjs
           node scripts/check-retcomm-upstreams.mjs --offline
           node scripts/qualification-coverage.mjs
@@ -449,7 +450,7 @@ jobs:
         shell: pwsh
         run: ./scripts/run-windows-qualification.ps1
       - name: Test development diagnostics and evidence
-        run: node scripts/dev-storage.mjs run -- node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/desktop-scenarios.test.mjs scripts/desktop-verify.test.mjs scripts/dev-doctor.test.mjs scripts/development-cli-help.test.mjs scripts/development-evidence.test.mjs scripts/heavy-rust-test-lock.test.mjs scripts/local-validation.test.mjs scripts/native-session-lock.test.mjs scripts/native-session.test.mjs scripts/run-rust-tests.test.mjs scripts/rust-test-impact.test.mjs scripts/rust-test-tree-supervisor.test.mjs scripts/tool-cache.test.mjs
+        run: node scripts/dev-storage.mjs run -- node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/desktop-scenarios.test.mjs scripts/desktop-verify.test.mjs scripts/dev-doctor.test.mjs scripts/development-cli-help.test.mjs scripts/development-evidence.test.mjs scripts/heavy-rust-test-lock.test.mjs scripts/local-validation.test.mjs scripts/native-session-lock.test.mjs scripts/native-session.test.mjs scripts/run-rust-tests.test.mjs scripts/rust-support-cache.test.mjs scripts/rust-test-impact.test.mjs scripts/rust-test-tree-supervisor.test.mjs scripts/tool-cache.test.mjs
       - name: Lint PowerShell scripts
         shell: pwsh
         run: |
@@ -750,12 +751,12 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
         with:
-          package_json_file: apps/desktop/package.json
+          package_json_file: package.json
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .node-version
           cache: pnpm
-          cache-dependency-path: apps/desktop/pnpm-lock.yaml
+          cache-dependency-path: pnpm-lock.yaml
       - name: Read pinned recipe runner
         id: quality-pins
         working-directory: .
@@ -765,6 +766,7 @@ jobs:
         with:
           tool: ${{ steps.quality-pins.outputs.just }}
       - run: pnpm install --frozen-lockfile
+        working-directory: .
       - name: Check repository formatting
         working-directory: .
         run: pnpm --dir apps/desktop format:check
@@ -819,7 +821,7 @@ jobs:
       - name: Verify repository and release contracts
         run: |
           node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/upstream-observer.test.mjs
-          node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/audit.test.mjs scripts/check-release-metadata.test.mjs scripts/desktop-build-cache.test.mjs scripts/heavy-rust-test-lock.test.mjs scripts/release-package-policy.test.mjs scripts/write-release-checksums.test.mjs scripts/updater-artifact-inventory.test.mjs scripts/reconcile-release-assets.test.mjs scripts/finalize-release-assets.test.mjs scripts/generate-release-downloads.test.mjs scripts/release-workflow.test.mjs scripts/release-result-gate.test.mjs scripts/run-rust-tests.test.mjs scripts/rust-test-tree-supervisor.test.mjs scripts/ci-workflow.test.mjs scripts/ci-health.test.mjs scripts/workflow-provenance.test.mjs scripts/validation-plan.test.mjs scripts/select-ci-plan.test.mjs scripts/ci-result-gate.test.mjs scripts/qualification-coverage.test.mjs scripts/select-fast-host.test.mjs scripts/test-duration-reporter.test.mjs scripts/quality-tools.test.mjs scripts/dependency-automation.test.mjs scripts/repository-settings.test.mjs scripts/pr-conventions.test.mjs scripts/pr-delivery.test.mjs scripts/renovate-fast-lane.test.mjs scripts/github-api.test.mjs scripts/process-lock.test.mjs scripts/source-provenance-audit.test.mjs scripts/check-child-process-policy.test.mjs scripts/check-transport-contract.test.mjs scripts/check-fallow-report.test.mjs scripts/migrate-catalog-schema2.test.mjs scripts/roadmap.test.mjs
+          node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/audit.test.mjs scripts/check-release-metadata.test.mjs scripts/desktop-build-cache.test.mjs scripts/heavy-rust-test-lock.test.mjs scripts/release-package-policy.test.mjs scripts/write-release-checksums.test.mjs scripts/updater-artifact-inventory.test.mjs scripts/reconcile-release-assets.test.mjs scripts/finalize-release-assets.test.mjs scripts/generate-release-downloads.test.mjs scripts/release-workflow.test.mjs scripts/release-result-gate.test.mjs scripts/run-rust-tests.test.mjs scripts/rust-support-cache.test.mjs scripts/rust-test-tree-supervisor.test.mjs scripts/ci-workflow.test.mjs scripts/ci-health.test.mjs scripts/workflow-provenance.test.mjs scripts/validation-plan.test.mjs scripts/select-ci-plan.test.mjs scripts/ci-result-gate.test.mjs scripts/qualification-coverage.test.mjs scripts/select-fast-host.test.mjs scripts/test-duration-reporter.test.mjs scripts/quality-tools.test.mjs scripts/dependency-automation.test.mjs scripts/repository-settings.test.mjs scripts/repository-skills.test.mjs scripts/pr-conventions.test.mjs scripts/pr-delivery.test.mjs scripts/renovate-fast-lane.test.mjs scripts/github-api.test.mjs scripts/process-lock.test.mjs scripts/source-provenance-audit.test.mjs scripts/check-child-process-policy.test.mjs scripts/check-transport-contract.test.mjs scripts/check-fallow-report.test.mjs scripts/migrate-catalog-schema2.test.mjs scripts/roadmap.test.mjs
           node scripts/check-release-metadata.mjs
           node scripts/quality-tools.mjs --validate
           node scripts/qualification-coverage.mjs

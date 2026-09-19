@@ -158,26 +158,64 @@ test("bounded migration changes only status-check strictness and is idempotent",
   assert.throws(() => rulesetMigration(null, ruleset), /refusing to create/);
 });
 
+test("each active worker contract requires delegated independent review", async () => {
+  const agents = await readFile(new URL("../AGENTS.md", import.meta.url), "utf8");
+  const conventions = await readFile(
+    new URL("../docs/CONTRIBUTION-CONVENTIONS.md", import.meta.url),
+    "utf8",
+  );
+  assert.match(agents, /separate non-writing review/iu);
+  assert.match(agents, /docs\/CONTRIBUTION-CONVENTIONS\.md/u);
+  assert.match(conventions, /separate non-writing reviewer\s+subagent/iu);
+  assert.match(conventions, /incremental re-review delta/iu);
+  assert.doesNotMatch(
+    `${agents}\n${conventions}`,
+    /does not inherently require (?:a human or )?(?:a )?second agent/iu,
+  );
+});
+
 test("active worker guidance keeps behind-main merges head-guarded and evidence-bounded", async () => {
+  const agents = await readFile(new URL("../AGENTS.md", import.meta.url), "utf8");
+  const contributing = await readFile(new URL("../CONTRIBUTING.md", import.meta.url), "utf8");
+  const quality = await readFile(new URL("../docs/QUALITY.md", import.meta.url), "utf8");
+  const conventions = await readFile(
+    new URL("../docs/CONTRIBUTION-CONVENTIONS.md", import.meta.url),
+    "utf8",
+  );
+  const guidance = [agents, contributing, quality, conventions].join("\n");
+
+  assert.match(guidance, /behind-main (?:merge|pull request)/u);
+  assert.match(conventions, /just pr-merge-rest --pr <number-or-url> --head <reviewed-head>/u);
+  assert.match(guidance, /failed or missing check/u);
+  assert.match(guidance, /conflict/u);
+  assert.match(guidance, /changed source head/u);
+  assert.match(quality, /target\s+advance alone does not invalidate an unchanged patch/u);
+  assert.match(guidance, /dependenc(?:y|ies)[\s\S]{0,80}schema[\s\S]{0,80}generated contract/u);
+  assert.doesNotMatch(guidance, /gh pr merge --auto --match-head-commit/u);
+});
+
+test("active validation guidance describes the selected hosted plan accurately", async () => {
   const guidance = (
     await Promise.all(
       [
         new URL("../AGENTS.md", import.meta.url),
         new URL("../CONTRIBUTING.md", import.meta.url),
+        new URL("../docs/DEVELOPMENT-TOOLS.md", import.meta.url),
         new URL("../docs/QUALITY.md", import.meta.url),
-        new URL("../docs/CONTRIBUTION-CONVENTIONS.md", import.meta.url),
+        new URL("../docs/REPOSITORY-SETTINGS.md", import.meta.url),
+        new URL("../justfile", import.meta.url),
+        new URL("./local-validation.mjs", import.meta.url),
       ].map((file) => readFile(file, "utf8")),
     )
   ).join("\n");
 
-  assert.match(guidance, /real separate reviewer subagent/);
-  assert.match(guidance, /behind-main pull request/);
-  assert.match(guidance, /--match-head-commit <reviewed-head>/);
-  assert.match(guidance, /failed or missing required checks/);
-  assert.match(guidance, /merge conflict/);
-  assert.match(guidance, /changed source head/);
-  assert.match(guidance, /target\s+advance alone does not invalidate an unchanged patch/);
-  assert.match(guidance, /dependencies, schemas, generated contracts/);
+  assert.match(guidance, /complete selected hosted plan/u);
+  assert.doesNotMatch(guidance, /(?:ordinary )?exhaustive merge gate/iu);
+  assert.doesNotMatch(guidance, /runs its exhaustive cross-platform plan/iu);
+  assert.doesNotMatch(
+    guidance,
+    /Required CI executes those contracts independently on every exact pull-request head/iu,
+  );
 });
 
 test("application plan preserves stable identity and scopes repository changes", () => {

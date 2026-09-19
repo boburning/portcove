@@ -1,0 +1,10 @@
+{
+  "$schema": "../../node_modules/fallow/schema.json",
+  "boundaries": {
+    "zones": [
+      { "name": "shared", "patterns": ["src/shared/**"] },
+      { "name": "features", "patterns": ["src/features/**"] }
+    ],
+    "rules": [{ "from": "shared", "allow": ["shared"], "allowTypeOnly": [] }]
+  }
+}
