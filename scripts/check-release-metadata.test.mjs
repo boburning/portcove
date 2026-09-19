@@ -1,10 +1,13 @@
 import assert from "node:assert/strict";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import test from "node:test";
 
 import {
   inspectPng,
+  loadDesktopCargoFeatures,
   parseArguments,
-  parseDesktopCargoFeatures,
   parseWorkspacePackage,
   validateBrandManifestDefinition,
   validateModelManifestDefinition,
@@ -26,6 +29,11 @@ function validMetadata() {
         "application-update-qualification": [],
         "qualification-fixtures": ["portcove-core/qualification-fixtures"],
       },
+      coreQualificationReferences: [
+        "portcove-core/qualification-fixtures",
+        "portcove-core?/qualification-fixtures",
+      ],
+      alwaysEnabledCoreFeatures: [],
     },
     desktopCapability: {
       identifier: "default",
@@ -146,30 +154,40 @@ serde = "1"
   });
 });
 
-test("parses desktop feature declarations and their default membership", () => {
-  assert.deepEqual(
-    parseDesktopCargoFeatures(`
-[features]
-default = ['portable', "qualification-fixtures"]
-application-update-qualification = []
-qualification-fixtures = ["portcove-core/qualification-fixtures"]
-portable = []
-
-[dependencies]
-serde = "1"
-`),
-    {
-      names: ["default", "application-update-qualification", "qualification-fixtures", "portable"],
-      default: ["portable", "qualification-fixtures"],
-      definitions: {
-        default: ["portable", "qualification-fixtures"],
-        "application-update-qualification": [],
-        "qualification-fixtures": ["portcove-core/qualification-fixtures"],
-        portable: [],
-      },
-    },
+test("Cargo metadata preserves comments and always-on dependency features", async () => {
+  const root = await mkdtemp(path.join(tmpdir(), "portcove-release-metadata-"));
+  const desktopRoot = path.join(root, "desktop");
+  const coreRoot = path.join(root, "core");
+  const desktopCargoPath = path.join(desktopRoot, "Cargo.toml");
+  await mkdir(path.join(desktopRoot, "src"), { recursive: true });
+  await mkdir(path.join(coreRoot, "src"), { recursive: true });
+  await writeFile(
+    path.join(root, "Cargo.toml"),
+    '[workspace]\nmembers = ["desktop", "core"]\nresolver = "2"\n',
   );
-  assert.throws(() => parseDesktopCargoFeatures('[package]\nname = "desktop"'), /no \[features\]/);
+  await writeFile(path.join(desktopRoot, "src", "lib.rs"), "");
+  await writeFile(path.join(coreRoot, "src", "lib.rs"), "");
+  await writeFile(
+    path.join(coreRoot, "Cargo.toml"),
+    '[package]\nname = "portcove-core"\nversion = "0.0.0"\nedition = "2024"\n\n[features]\nqualification-fixtures = []\n',
+  );
+  try {
+    await writeFile(
+      desktopCargoPath,
+      '[package]\nname = "portcove-desktop"\nversion = "0.0.0"\nedition = "2024"\n\n[features]\ndefault = [\n  # ] explanatory comment\n  "application-update-qualification",\n]\napplication-update-qualification = []\nqualification-fixtures = ["portcove-core/qualification-fixtures"]\n\n[dependencies]\nportcove-core = { path = "../core" }\n',
+    );
+    const commented = await loadDesktopCargoFeatures(desktopCargoPath, { locked: false });
+    assert.deepEqual(commented.default, ["application-update-qualification"]);
+
+    await writeFile(
+      desktopCargoPath,
+      '[package]\nname = "portcove-desktop"\nversion = "0.0.0"\nedition = "2024"\n\n[features]\napplication-update-qualification = []\nqualification-fixtures = ["portcove-core/qualification-fixtures"]\n\n[dependencies]\nportcove-core = { path = "../core", features = ["qualification-fixtures"] }\n',
+    );
+    const dependencyEnabled = await loadDesktopCargoFeatures(desktopCargoPath, { locked: false });
+    assert.deepEqual(dependencyEnabled.alwaysEnabledCoreFeatures, ["qualification-fixtures"]);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
 });
 
 test("accepts one matching semantic version and tag across every surface", () => {
@@ -205,6 +223,12 @@ test("rejects external main windows and independent capability webviews", () => 
   );
 });
 
+test("rejects a configured main window that is not created", () => {
+  const metadata = validMetadata();
+  metadata.tauri.app.windows[0].create = false;
+  assert.match(validateReleaseMetadata(metadata).join("\n"), /exactly one local main window/);
+});
+
 test("rejects capabilities that disable the local application context", () => {
   const metadata = validMetadata();
   metadata.desktopCapability.local = false;
@@ -233,19 +257,26 @@ test("rejects qualification-only features from default desktop builds", () => {
   );
 });
 
-test("rejects transitive aliases for qualification-only desktop features", () => {
+test("rejects transitive aliases and dependency activation for qualification-only features", () => {
   const metadata = validMetadata();
-  metadata.desktopCargoFeatures = parseDesktopCargoFeatures(`
-[features]
-default = ['shipping']
-application-update-qualification = []
-qualification-fixtures = ["portcove-core/qualification-fixtures"]
-'shipping' = ["application-update-qualification", 'fixture-alias']
-fixture-alias = ["portcove-core/qualification-fixtures"]
-`);
+  metadata.desktopCargoFeatures.default = ["shipping"];
+  metadata.desktopCargoFeatures.definitions.shipping = [
+    "application-update-qualification",
+    "fixture-alias",
+  ];
+  metadata.desktopCargoFeatures.definitions["fixture-alias"] = [
+    "portcove-core/qualification-fixtures",
+  ];
   assert.match(
     validateReleaseMetadata(metadata).join("\n"),
     /default features must exclude qualification-only features: application-update-qualification, portcove-core\/qualification-fixtures/,
+  );
+
+  metadata.desktopCargoFeatures.default = [];
+  metadata.desktopCargoFeatures.alwaysEnabledCoreFeatures = ["qualification-fixtures"];
+  assert.match(
+    validateReleaseMetadata(metadata).join("\n"),
+    /portcove-core\/qualification-fixtures \(dependency declaration\)/,
   );
 });
 

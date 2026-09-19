@@ -63,8 +63,9 @@ boundary and retained evidence.
 | Critical core test review            | `just mutants`                        | optional mutation analysis for `portcove-core`                                                                                                |
 
 The release-unit metadata gate also binds Desktop command context to one local
-`main` window and rejects qualification-only Cargo features in the default
-Desktop feature set. The production Vite build separately rejects development
+`main` window and uses Cargo's own metadata graph to reject qualification-only
+features in both the transitive default feature set and always-enabled dependency
+features. The production Vite build separately rejects development
 scenario and fixture modules from emitted assets; these independent checks keep
 test and rehearsal surfaces out of ordinary release builds.
 
