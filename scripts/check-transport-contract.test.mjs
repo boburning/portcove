@@ -96,7 +96,11 @@ test("desktop command declarations, registrations, and literal frontend bindings
   ]);
   assert.deepEqual(extractFrontendDesktopCommands(frontendSource), ["get_catalog", "set_policy"]);
   assert.deepEqual(
-    checkDesktopCommandContract({ registrationSource, declarationSources, frontendSource }),
+    checkDesktopCommandContract({
+      registrationSource,
+      declarationSources,
+      frontendSources: [frontendSource],
+    }),
     [],
   );
 });
@@ -110,7 +114,7 @@ test("missing, extra, duplicate, and dynamic desktop exposure fails closed", () 
     checkDesktopCommandContract({
       registrationSource,
       declarationSources,
-      frontendSource: missingFrontend,
+      frontendSources: [missingFrontend],
     }).join("\n"),
     /frontend invocations omit registered commands: set_policy/,
   );
@@ -122,7 +126,7 @@ test("missing, extra, duplicate, and dynamic desktop exposure fails closed", () 
         ...declarationSources,
         `#[tauri::command]\nfn unregistered_admin_command() {}`,
       ],
-      frontendSource,
+      frontendSources: [frontendSource],
     }).join("\n"),
     /Rust declarations expose unregistered commands: unregistered_admin_command/,
   );
@@ -131,7 +135,7 @@ test("missing, extra, duplicate, and dynamic desktop exposure fails closed", () 
     checkDesktopCommandContract({
       registrationSource: registrationSource.replace("set_policy,", "set_policy, set_policy,"),
       declarationSources,
-      frontendSource,
+      frontendSources: [frontendSource],
     }).join("\n"),
     /duplicate commands: set_policy/,
   );
@@ -140,9 +144,51 @@ test("missing, extra, duplicate, and dynamic desktop exposure fails closed", () 
     checkDesktopCommandContract({
       registrationSource,
       declarationSources,
-      frontendSource: frontendSource.replace('"set_policy"', "selectedCommand"),
+      frontendSources: [frontendSource.replace('"set_policy"', "selectedCommand")],
     }).join("\n"),
     /direct string literal/,
+  );
+});
+
+test("aliased, indirect, and out-of-facade invokes fail alongside a complete inventory", () => {
+  for (const hiddenInvoke of [
+    "const call = invoke; call(selectedCommand);",
+    "invoke.call(null, selectedCommand);",
+  ])
+    assert.match(
+      checkDesktopCommandContract({
+        registrationSource,
+        declarationSources,
+        frontendSources: [frontendSource + hiddenInvoke],
+      }).join("\n"),
+      /invoke must only be imported and called directly/,
+    );
+
+  assert.match(
+    checkDesktopCommandContract({
+      registrationSource,
+      declarationSources,
+      frontendSources: [
+        frontendSource,
+        'import { invoke } from "@tauri-apps/api/core"; invoke("unregistered_window_command");',
+      ],
+    }).join("\n"),
+    /frontend invocations expose unregistered commands: unregistered_window_command/,
+  );
+  assert.match(
+    checkDesktopCommandContract({
+      registrationSource,
+      declarationSources,
+      frontendSources: [frontendSource, 'invoke("get_catalog");'],
+    }).join("\n"),
+    /invoke calls must use a direct invoke import/,
+  );
+  assert.throws(
+    () =>
+      extractFrontendDesktopCommands(
+        frontendSource.replace("{ invoke }", "{ invoke as call }").replaceAll("invoke<", "call<"),
+      ),
+    /invoke imports must not be aliased/,
   );
 });
 
@@ -153,7 +199,7 @@ test("a coherent registration and frontend rename cannot hide declaration drift"
     checkDesktopCommandContract({
       registrationSource: renamedRegistration,
       declarationSources,
-      frontendSource: renamedFrontend,
+      frontendSources: [renamedFrontend],
     }).join("\n"),
     /Rust declarations omit registered commands: renamed_catalog/,
   );

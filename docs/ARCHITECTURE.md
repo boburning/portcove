@@ -632,8 +632,9 @@ not by itself prove readiness parity.
 The same transport gate now treats the single production `tauri::generate_handler!`
 list as the Desktop command exposure inventory. It compares that exact set with
 every bare `#[tauri::command]` declaration under the host source tree and every
-literal `invoke` binding in the shipped frontend facade. Missing, extra, renamed,
-duplicate, dynamically named, or unsupported command declarations fail closed.
+`invoke` use in shipped non-test frontend TypeScript. Frontend calls must use the
+direct import and a literal command name; aliases, indirect calls, missing, extra,
+renamed, duplicate, dynamically named, or unsupported command declarations fail closed.
 Intentional capability and library-identity reads have typed facade bindings;
 obsolete unconsumed single-source verification, bulk reconciliation, and direct
 update commands are not registered. Core and CLI operations remain unchanged.

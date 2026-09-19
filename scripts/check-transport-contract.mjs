@@ -86,6 +86,7 @@ function sourceTokens(sourceText) {
       const quote = character;
       let value = "";
       let closed = false;
+      let escaped = false;
       index += 1;
       while (index < sourceText.length) {
         const next = sourceText[index];
@@ -94,13 +95,16 @@ function sourceTokens(sourceText) {
           index += 1;
           break;
         }
-        if (next === "\\")
-          throw new Error("desktop command names must not use escaped string literals");
+        if (next === "\\") {
+          escaped = true;
+          index += 2;
+          continue;
+        }
         value += next;
         index += 1;
       }
       if (!closed) throw new Error("unterminated frontend string literal");
-      tokens.push({ kind: "string", value });
+      tokens.push({ kind: escaped ? "escaped-string" : "string", value });
       continue;
     }
     if (character === "`") {
@@ -135,29 +139,56 @@ function sourceTokens(sourceText) {
   return tokens;
 }
 
-export function extractFrontendDesktopCommands(sourceText) {
-  const tokens = sourceTokens(sourceText);
+function isDirectInvokeImport(tokens, index) {
+  if (tokens[index + 1]?.value === "as")
+    throw new Error("frontend invoke imports must not be aliased");
+  for (let cursor = index - 1; cursor >= 0; cursor -= 1) {
+    if (tokens[cursor]?.value === ";" || tokens[cursor]?.value === "}") return false;
+    if (tokens[cursor]?.value === "{")
+      return tokens[cursor - 1]?.kind === "identifier" && tokens[cursor - 1]?.value === "import";
+  }
+  return false;
+}
+
+export function extractFrontendDesktopCommands(sourceTexts) {
+  const sources = typeof sourceTexts === "string" ? [sourceTexts] : sourceTexts;
+  if (!Array.isArray(sources) || sources.length === 0)
+    throw new Error("the shipped frontend source inventory is empty");
   const commands = [];
-  for (let index = 0; index < tokens.length; index += 1) {
-    if (tokens[index].kind !== "identifier" || tokens[index].value !== "invoke") continue;
-    let cursor = index + 1;
-    if (tokens[cursor]?.value === "<") {
-      let depth = 0;
-      do {
-        if (tokens[cursor]?.value === "<") depth += 1;
-        else if (tokens[cursor]?.value === ">") depth -= 1;
-        cursor += 1;
-        if (cursor >= tokens.length && depth > 0)
-          throw new Error("unterminated invoke type arguments");
-      } while (depth > 0);
+  for (const sourceText of sources) {
+    if (!/\binvoke\b/u.test(sourceText)) continue;
+    const tokens = sourceTokens(sourceText);
+    let directImport = false;
+    let directCalls = 0;
+    for (let index = 0; index < tokens.length; index += 1) {
+      if (tokens[index].kind !== "identifier" || tokens[index].value !== "invoke") continue;
+      if (isDirectInvokeImport(tokens, index)) {
+        directImport = true;
+        continue;
+      }
+      let cursor = index + 1;
+      if (tokens[cursor]?.value === "<") {
+        let depth = 0;
+        do {
+          if (tokens[cursor]?.value === "<") depth += 1;
+          else if (tokens[cursor]?.value === ">") depth -= 1;
+          cursor += 1;
+          if (cursor >= tokens.length && depth > 0)
+            throw new Error("unterminated invoke type arguments");
+        } while (depth > 0);
+      }
+      if (tokens[cursor]?.value !== "(")
+        throw new Error("frontend invoke must only be imported and called directly");
+      const command = tokens[cursor + 1];
+      if (command?.kind !== "string")
+        throw new Error("frontend invoke commands must use a direct string literal");
+      if (!/^[a-z][a-z0-9_]*$/u.test(command.value))
+        throw new Error(`invalid frontend command name: ${command.value}`);
+      commands.push(command.value);
+      directCalls += 1;
     }
-    if (tokens[cursor]?.value !== "(") continue;
-    const command = tokens[cursor + 1];
-    if (command?.kind !== "string")
-      throw new Error("frontend invoke commands must use a direct string literal");
-    if (!/^[a-z][a-z0-9_]*$/u.test(command.value))
-      throw new Error(`invalid frontend command name: ${command.value}`);
-    commands.push(command.value);
+    if (directCalls > 0 && !directImport)
+      throw new Error("frontend invoke calls must use a direct invoke import");
   }
   if (commands.length === 0) throw new Error("the frontend command invocation inventory is empty");
   return sortedUnique(commands, "frontend command invocations");
@@ -171,12 +202,12 @@ function inventoryDifference(expected, actual) {
 export function checkDesktopCommandContract({
   registrationSource,
   declarationSources,
-  frontendSource,
+  frontendSources,
 }) {
   try {
     const registered = extractRegisteredDesktopCommands(registrationSource);
     const declared = extractDeclaredDesktopCommands(declarationSources);
-    const frontend = extractFrontendDesktopCommands(frontendSource);
+    const frontend = extractFrontendDesktopCommands(frontendSources);
     const failures = [];
     for (const [label, actual] of [
       ["Rust declarations", declared],
@@ -201,6 +232,22 @@ function rustSources(directory) {
     const target = path.join(directory, entry.name);
     if (entry.isDirectory()) sources.push(...rustSources(target));
     else if (entry.isFile() && entry.name.endsWith(".rs"))
+      sources.push(fs.readFileSync(target, "utf8"));
+  }
+  return sources;
+}
+
+function shippedFrontendSources(directory) {
+  const sources = [];
+  for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+    const target = path.join(directory, entry.name);
+    if (entry.isDirectory()) sources.push(...shippedFrontendSources(target));
+    else if (
+      entry.isFile() &&
+      /\.(?:ts|tsx)$/u.test(entry.name) &&
+      !/\.d\.ts$/u.test(entry.name) &&
+      !/\.(?:test|spec)\.(?:ts|tsx)$/u.test(entry.name)
+    )
       sources.push(fs.readFileSync(target, "utf8"));
   }
   return sources;
@@ -314,7 +361,7 @@ function main() {
     ...checkDesktopCommandContract({
       registrationSource: fs.readFileSync(path.join(desktopRustRoot, "lib.rs"), "utf8"),
       declarationSources: rustSources(desktopRustRoot),
-      frontendSource: fs.readFileSync(path.join(root, "apps", "desktop", "src", "api.ts"), "utf8"),
+      frontendSources: shippedFrontendSources(path.join(root, "apps", "desktop", "src")),
     }).map((message) => `Desktop commands: ${message}`),
   );
   if (failures.length > 0) {

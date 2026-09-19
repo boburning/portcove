@@ -889,10 +889,11 @@ typed install request; Rust fixtures check actual Serde output/input behavior.
 The transport check also inventories Desktop IPC exposure without generating a
 second RPC description. The one production `tauri::generate_handler!` list is the
 registration authority. `node scripts/check-transport-contract.mjs` requires its
-command names to match every bare `#[tauri::command]` declaration and every direct
-literal `invoke` in `apps/desktop/src/api.ts`. It rejects missing, extra, renamed,
-duplicate, dynamic, macro-composed, or attributed command forms until the checker
-explicitly supports them. Unit fixtures include a coherent registration/frontend
+command names to match every bare `#[tauri::command]` declaration and every `invoke`
+use in shipped non-test TypeScript under `apps/desktop/src`. It requires the direct
+import and a literal command name, rejecting aliases, indirect calls, missing, extra,
+renamed, duplicate, dynamic, macro-composed, or attributed command forms until the
+checker explicitly supports them. Unit fixtures include a coherent registration/frontend
 rename that the independent declaration inventory rejects; the integration test
 compiles the live Rust exporters and requires the complete repository contract to
 pass. This association gate does not replace backend validation, native consent,
