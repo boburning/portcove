@@ -1,8 +1,12 @@
 import assert from "node:assert/strict";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import test from "node:test";
 
 import {
   inspectPng,
+  loadDesktopCargoFeatures,
   parseArguments,
   parseWorkspacePackage,
   validateBrandManifestDefinition,
@@ -18,6 +22,24 @@ function validMetadata() {
       license: "MIT OR Apache-2.0",
     },
     desktopPackage: { version: "1.2.3-beta.1", packageManager: "pnpm@12.4.1" },
+    desktopCargoFeatures: {
+      names: ["application-update-qualification", "qualification-fixtures"],
+      default: [],
+      definitions: {
+        "application-update-qualification": [],
+        "qualification-fixtures": ["portcove-core/qualification-fixtures"],
+      },
+      coreQualificationReferences: [
+        "portcove-core/qualification-fixtures",
+        "portcove-core?/qualification-fixtures",
+      ],
+      alwaysEnabledCoreFeatures: [],
+    },
+    desktopCapability: {
+      identifier: "default",
+      windows: ["main"],
+      permissions: ["core:default"],
+    },
     tauri: {
       productName: "Portcove",
       version: "1.2.3-beta.1",
@@ -132,6 +154,45 @@ serde = "1"
   });
 });
 
+test("Cargo metadata preserves comments and always-on dependency features", async () => {
+  const root = await mkdtemp(path.join(tmpdir(), "portcove-release-metadata-"));
+  const desktopRoot = path.join(root, "desktop");
+  const coreRoot = path.join(root, "core");
+  const desktopCargoPath = path.join(desktopRoot, "Cargo.toml");
+  await mkdir(path.join(desktopRoot, "src"), { recursive: true });
+  await mkdir(path.join(coreRoot, "src"), { recursive: true });
+  await writeFile(
+    path.join(root, "Cargo.toml"),
+    '[workspace]\nmembers = ["desktop", "core"]\nresolver = "2"\n',
+  );
+  await writeFile(path.join(desktopRoot, "src", "lib.rs"), "");
+  await writeFile(path.join(coreRoot, "src", "lib.rs"), "");
+  await writeFile(
+    path.join(coreRoot, "Cargo.toml"),
+    '[package]\nname = "portcove-core"\nversion = "0.0.0"\nedition = "2024"\n\n[features]\nqualification-fixtures = []\nproduction-alias = ["qualification-fixtures"]\n',
+  );
+  try {
+    await writeFile(
+      desktopCargoPath,
+      '[package]\nname = "portcove-desktop"\nversion = "0.0.0"\nedition = "2024"\n\n[features]\ndefault = [\n  # ] explanatory comment\n  "application-update-qualification",\n]\napplication-update-qualification = []\nqualification-fixtures = ["portcove-core/qualification-fixtures"]\n\n[dependencies]\nportcove-core = { path = "../core" }\n',
+    );
+    const commented = await loadDesktopCargoFeatures(desktopCargoPath, { locked: false });
+    assert.deepEqual(commented.default, ["application-update-qualification"]);
+
+    await writeFile(
+      desktopCargoPath,
+      '[package]\nname = "portcove-desktop"\nversion = "0.0.0"\nedition = "2024"\n\n[features]\napplication-update-qualification = []\nqualification-fixtures = ["portcove-core/qualification-fixtures"]\n\n[dependencies]\nportcove-core = { path = "../core", features = ["production-alias"] }\n',
+    );
+    const dependencyEnabled = await loadDesktopCargoFeatures(desktopCargoPath, { locked: false });
+    assert.deepEqual(
+      dependencyEnabled.alwaysEnabledCoreFeatures.toSorted(),
+      ["production-alias", "qualification-fixtures"].toSorted(),
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("accepts one matching semantic version and tag across every surface", () => {
   assert.deepEqual(
     validateReleaseMetadata(validMetadata(), {
@@ -139,6 +200,86 @@ test("accepts one matching semantic version and tag across every surface", () =>
       expectedVersion: "1.2.3-beta.1",
     }),
     [],
+  );
+});
+
+test("rejects additional release windows and remote capability contexts", () => {
+  const metadata = validMetadata();
+  metadata.tauri.app.windows.push({ label: "secondary", title: "Secondary" });
+  metadata.desktopCapability.windows.push("secondary");
+  metadata.desktopCapability.remote = { urls: ["https://example.invalid"] };
+  const errors = validateReleaseMetadata(metadata);
+  assert.match(errors.join("\n"), /exactly one local main window/);
+  assert.match(errors.join("\n"), /only to the local main window/);
+});
+
+test("rejects external main windows and independent capability webviews", () => {
+  const externalWindow = validMetadata();
+  externalWindow.tauri.app.windows[0].url = "https://example.invalid";
+  assert.match(validateReleaseMetadata(externalWindow).join("\n"), /exactly one local main window/);
+
+  const independentWebview = validMetadata();
+  independentWebview.desktopCapability.webviews = ["secondary"];
+  assert.match(
+    validateReleaseMetadata(independentWebview).join("\n"),
+    /only to the local main window and no independent webviews/,
+  );
+});
+
+test("rejects a configured main window that is not created", () => {
+  const metadata = validMetadata();
+  metadata.tauri.app.windows[0].create = false;
+  assert.match(validateReleaseMetadata(metadata).join("\n"), /exactly one local main window/);
+});
+
+test("rejects capabilities that disable the local application context", () => {
+  const metadata = validMetadata();
+  metadata.desktopCapability.local = false;
+  assert.match(
+    validateReleaseMetadata(metadata).join("\n"),
+    /only to the local main window and no independent webviews/,
+  );
+});
+
+test("rejects qualification-only features from default desktop builds", () => {
+  const metadata = validMetadata();
+  metadata.desktopCargoFeatures.default = [
+    "application-update-qualification",
+    "qualification-fixtures",
+  ];
+  assert.match(
+    validateReleaseMetadata(metadata).join("\n"),
+    /default features must exclude qualification-only features: application-update-qualification, qualification-fixtures/,
+  );
+
+  metadata.desktopCargoFeatures.default = [];
+  metadata.desktopCargoFeatures.names = ["application-update-qualification"];
+  assert.match(
+    validateReleaseMetadata(metadata).join("\n"),
+    /retain the qualification-only feature declarations/,
+  );
+});
+
+test("rejects transitive aliases and dependency activation for qualification-only features", () => {
+  const metadata = validMetadata();
+  metadata.desktopCargoFeatures.default = ["shipping"];
+  metadata.desktopCargoFeatures.definitions.shipping = [
+    "application-update-qualification",
+    "fixture-alias",
+  ];
+  metadata.desktopCargoFeatures.definitions["fixture-alias"] = [
+    "portcove-core/qualification-fixtures",
+  ];
+  assert.match(
+    validateReleaseMetadata(metadata).join("\n"),
+    /default features must exclude qualification-only features: application-update-qualification, portcove-core\/qualification-fixtures/,
+  );
+
+  metadata.desktopCargoFeatures.default = [];
+  metadata.desktopCargoFeatures.alwaysEnabledCoreFeatures = ["qualification-fixtures"];
+  assert.match(
+    validateReleaseMetadata(metadata).join("\n"),
+    /portcove-core\/qualification-fixtures \(dependency declaration\)/,
   );
 });
 
