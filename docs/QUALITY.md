@@ -272,6 +272,9 @@ It may preserve a proven Rust or UI obligation after an unrelated tooling repair
 while rerunning the changed tooling obligation. It cannot compose incomplete,
 failed, interrupted, policy-stale, or stateful evidence into a pass, and it never
 replaces current-head required CI.
+Repository-wide Oxlint always executes when selected: its scan crosses several
+receipt domains, and a content-identical extension or path change can alter the
+applicable lint environment even when file bytes are unchanged.
 
 Representative hosted selection after explicit ownership routing:
 
