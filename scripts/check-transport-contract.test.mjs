@@ -2,9 +2,14 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   checkDesktopCommandContract,
+  checkDesktopEventContract,
   checkTransportContract,
   extractDeclaredDesktopCommands,
+  extractDeclaredDesktopEvents,
+  extractExportedDesktopEvents,
   extractFrontendDesktopCommands,
+  extractFrontendDesktopEvents,
+  extractProducedDesktopEvents,
   extractRegisteredDesktopCommands,
 } from "./check-transport-contract.mjs";
 import { renderTransportSchemas } from "./transport-schemas.mjs";
@@ -137,7 +142,7 @@ test("missing, extra, duplicate, and dynamic desktop exposure fails closed", () 
       declarationSources,
       frontendSources: [frontendSource],
     }).join("\n"),
-    /duplicate commands: set_policy/,
+    /contains duplicates: set_policy/,
   );
 
   assert.match(
@@ -231,5 +236,198 @@ test("unsupported command attributes and unparsed registration syntax fail close
         `.invoke_handler(tauri::generate_handler![catalog::get_catalog, conditional!()])`,
       ),
     /unsupported Tauri command registration/,
+  );
+});
+
+const eventDeclarationSource = `
+pub(crate) const DESKTOP_EVENT_APPLICATION_UPDATE_NOTICE: &str = "portcove://application-update-notice";
+pub(crate) const DESKTOP_EVENT_LIBRARY_CHANGED: &str = "portcove://library-changed";
+pub(crate) const DESKTOP_EVENT_OPERATION: &str = "portcove://operation";
+`;
+const eventProducerSources = [
+  `use crate::transport::emit_desktop_event;
+   emit_desktop_event::<ApplicationUpdateNoticeSnapshot>(&app, DESKTOP_EVENT_APPLICATION_UPDATE_NOTICE, notice);
+   emit_desktop_event::<ApplicationUpdateNoticeSnapshot>(app, DESKTOP_EVENT_APPLICATION_UPDATE_NOTICE, cleared);`,
+  `use crate::transport::emit_desktop_event;
+   emit_desktop_event::<()>(&app, DESKTOP_EVENT_LIBRARY_CHANGED, ());
+   emit_desktop_event::<portcove_core::OperationEvent>(app, DESKTOP_EVENT_OPERATION, event);`,
+  `use tauri::Emitter;
+   fn emit_desktop_event<T>(app: &tauri::AppHandle, event: &'static str, payload: T) {
+     app.emit(event, payload);
+   }`,
+];
+const eventExporterSource = `
+let events = serde_json::Map::from_iter([
+  (DESKTOP_EVENT_APPLICATION_UPDATE_NOTICE.to_owned(), output::<ApplicationUpdateNoticeSnapshot>()),
+  (DESKTOP_EVENT_LIBRARY_CHANGED.to_owned(), output::<()>()),
+  (DESKTOP_EVENT_OPERATION.to_owned(), output::<portcove_core::OperationEvent>()),
+]);
+`;
+const eventFrontendSources = [
+  `import { listenDesktopEvent } from "./desktop-events";
+   listenDesktopEvent("portcove://application-update-notice", accept);`,
+  `import { listenDesktopEvent } from "./desktop-events";
+   listenDesktopEvent("portcove://library-changed", accept);`,
+  `import { listenDesktopEvent } from "./desktop-events";
+   listenDesktopEvent("portcove://operation", accept);`,
+  `import { listen } from "@tauri-apps/api/event";
+   export function listenDesktopEvent(name, accept) { return listen(name, (event) => accept(event.payload)); }`,
+];
+
+test("Rust event declarations, Tauri producers, and typed frontend consumers agree", () => {
+  const declarations = extractDeclaredDesktopEvents(eventDeclarationSource);
+  assert.deepEqual([...declarations.values()].sort(), [
+    "portcove://application-update-notice",
+    "portcove://library-changed",
+    "portcove://operation",
+  ]);
+  assert.deepEqual(extractProducedDesktopEvents(eventProducerSources, declarations), [
+    "portcove://application-update-notice",
+    "portcove://library-changed",
+    "portcove://operation",
+  ]);
+  assert.deepEqual(extractExportedDesktopEvents(eventExporterSource, declarations), [
+    "portcove://application-update-notice",
+    "portcove://library-changed",
+    "portcove://operation",
+  ]);
+  assert.deepEqual(extractFrontendDesktopEvents(eventFrontendSources), [
+    "portcove://application-update-notice",
+    "portcove://library-changed",
+    "portcove://operation",
+  ]);
+  assert.deepEqual(
+    checkDesktopEventContract({
+      declarationSource: eventDeclarationSource,
+      producerSources: eventProducerSources,
+      exporterSource: eventExporterSource,
+      frontendSources: eventFrontendSources,
+    }),
+    [],
+  );
+});
+
+test("missing, extra, duplicate, dynamic, and direct desktop event consumers fail closed", () => {
+  const withoutLibrary = eventFrontendSources.filter(
+    (source) => !source.includes('listenDesktopEvent("portcove://library-changed"'),
+  );
+  assert.match(
+    checkDesktopEventContract({
+      declarationSource: eventDeclarationSource,
+      producerSources: eventProducerSources,
+      exporterSource: eventExporterSource,
+      frontendSources: withoutLibrary,
+    }).join("\n"),
+    /frontend consumers omit declared events: portcove:\/\/library-changed/,
+  );
+  assert.match(
+    checkDesktopEventContract({
+      declarationSource: eventDeclarationSource,
+      producerSources: eventProducerSources,
+      exporterSource: eventExporterSource,
+      frontendSources: [
+        ...eventFrontendSources,
+        `import { listenDesktopEvent } from "./desktop-events";
+         listenDesktopEvent("portcove://unknown", accept);`,
+      ],
+    }).join("\n"),
+    /frontend consumers expose undeclared events: portcove:\/\/unknown/,
+  );
+  assert.throws(
+    () =>
+      extractFrontendDesktopEvents([
+        ...eventFrontendSources,
+        `import { listenDesktopEvent } from "./desktop-events";
+         listenDesktopEvent(selectedEvent, accept);`,
+      ]),
+    /direct string literal/,
+  );
+  assert.throws(
+    () =>
+      extractFrontendDesktopEvents([
+        ...eventFrontendSources,
+        `import { listen } from "@tauri-apps/api/event"; listen("portcove://unknown", accept);`,
+      ]),
+    /exactly one shipped Tauri event adapter/,
+  );
+  assert.throws(
+    () =>
+      extractFrontendDesktopEvents(
+        eventFrontendSources.map((source) =>
+          source.includes("@tauri-apps/api/event")
+            ? source.replace("{ listen }", "{ listen as hiddenListen }")
+            : source,
+        ),
+      ),
+    /must directly import and export listen/,
+  );
+  assert.throws(
+    () => extractFrontendDesktopEvents([...eventFrontendSources, eventFrontendSources[0]]),
+    /contains duplicates/,
+  );
+});
+
+test("the independent event fixture rejects a coherent generated rename", () => {
+  const renamedDeclaration = eventDeclarationSource.replaceAll(
+    "portcove://operation",
+    "portcove://renamed-operation",
+  );
+  const renamedFrontend = eventFrontendSources.map((source) =>
+    source.replaceAll("portcove://operation", "portcove://renamed-operation"),
+  );
+  assert.match(
+    checkDesktopEventContract({
+      declarationSource: renamedDeclaration,
+      producerSources: eventProducerSources,
+      exporterSource: eventExporterSource,
+      frontendSources: renamedFrontend,
+    }).join("\n"),
+    /independent compatibility fixture omit declared events: portcove:\/\/renamed-operation/,
+  );
+});
+
+test("unparsed event constants and Tauri producers fail closed", () => {
+  assert.throws(
+    () =>
+      extractDeclaredDesktopEvents(
+        eventDeclarationSource.replace(
+          'pub(crate) const DESKTOP_EVENT_OPERATION: &str = "portcove://operation";',
+          "const DESKTOP_EVENT_OPERATION: &str = selected_event();",
+        ),
+      ),
+    /parsed 2 of 3/,
+  );
+  const declarations = extractDeclaredDesktopEvents(eventDeclarationSource);
+  assert.throws(
+    () =>
+      extractProducedDesktopEvents(
+        [...eventProducerSources, `use tauri::*; app.emit::<()>("portcove://rogue", ());`],
+        declarations,
+      ),
+    /must route through emit_desktop_event/,
+  );
+  assert.throws(
+    () =>
+      extractProducedDesktopEvents(
+        [...eventProducerSources, `tauri::Emitter::emit::<()>(&app, "portcove://rogue", ());`],
+        declarations,
+      ),
+    /must route through emit_desktop_event/,
+  );
+  assert.throws(
+    () =>
+      extractProducedDesktopEvents(
+        [...eventProducerSources, `emit_desktop_event::<()>(&app, DESKTOP_EVENT_OPERATION, ());`],
+        declarations,
+      ),
+    /DESKTOP_EVENT_OPERATION producers must emit portcove_core::OperationEvent, found \(\)/,
+  );
+  assert.throws(
+    () =>
+      extractExportedDesktopEvents(
+        eventExporterSource.replace("output::<portcove_core::OperationEvent>()", "output::<()>()"),
+        declarations,
+      ),
+    /DESKTOP_EVENT_OPERATION schema must export portcove_core::OperationEvent, found \(\)/,
   );
 });

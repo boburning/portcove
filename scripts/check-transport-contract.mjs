@@ -16,8 +16,121 @@ function sortedUnique(values, label) {
   const sorted = [...values].sort();
   const duplicates = sorted.filter((value, index) => value === sorted[index - 1]);
   if (duplicates.length > 0)
-    throw new Error(`${label} contains duplicate commands: ${[...new Set(duplicates)].join(", ")}`);
+    throw new Error(`${label} contains duplicates: ${[...new Set(duplicates)].join(", ")}`);
   return sorted;
+}
+
+export const DESKTOP_EVENT_COMPATIBILITY = Object.freeze([
+  "portcove://application-update-notice",
+  "portcove://library-changed",
+  "portcove://operation",
+]);
+
+export const DESKTOP_EVENT_PAYLOAD_COMPATIBILITY = Object.freeze({
+  DESKTOP_EVENT_APPLICATION_UPDATE_NOTICE: "ApplicationUpdateNoticeSnapshot",
+  DESKTOP_EVENT_LIBRARY_CHANGED: "()",
+  DESKTOP_EVENT_OPERATION: "portcove_core::OperationEvent",
+});
+
+export function extractDeclaredDesktopEvents(sourceText) {
+  const declarationCount = [...sourceText.matchAll(/\bconst\s+DESKTOP_EVENT_[A-Z0-9_]+\b/gu)]
+    .length;
+  const declarations = new Map();
+  for (const match of sourceText.matchAll(
+    /pub\(crate\)\s+const\s+(DESKTOP_EVENT_[A-Z0-9_]+)\s*:\s*&str\s*=\s*"(portcove:\/\/[a-z0-9-]+)"\s*;/gu,
+  )) {
+    if (declarations.has(match[1]))
+      throw new Error(`Rust desktop event constants contain duplicates: ${match[1]}`);
+    declarations.set(match[1], match[2]);
+  }
+  if (declarations.size !== declarationCount)
+    throw new Error(
+      `parsed ${declarations.size} of ${declarationCount} Rust desktop event constants; declarations must remain pub(crate) &str literals`,
+    );
+  if (declarations.size === 0) throw new Error("the Rust desktop event inventory is empty");
+  sortedUnique([...declarations.values()], "Rust desktop event names");
+  return declarations;
+}
+
+export function extractProducedDesktopEvents(sources, declarations) {
+  const producedConstants = [];
+  let directEmitCalls = 0;
+  let emitterAdapters = 0;
+  for (const sourceText of sources) {
+    if (/::\s*emit\s*(?=::|\()/u.test(sourceText))
+      throw new Error("Tauri desktop event producers must route through emit_desktop_event");
+    const rawCalls = [...sourceText.matchAll(/\.emit\s*(?=::|\()/gu)].length;
+    directEmitCalls += rawCalls;
+    const isAdapter = /fn\s+emit_desktop_event\s*</u.test(sourceText);
+    if (isAdapter) emitterAdapters += 1;
+    if (!isAdapter && rawCalls > 0)
+      throw new Error("Tauri desktop event producers must route through emit_desktop_event");
+    if (
+      isAdapter &&
+      (rawCalls !== 1 || !/app\.emit\s*\(\s*event\s*,\s*payload\s*\)/u.test(sourceText))
+    )
+      throw new Error("emit_desktop_event must contain the only direct Tauri emit call");
+
+    const calls = [...sourceText.matchAll(/\bemit_desktop_event\s*::\s*</gu)].length;
+    const parsed = [
+      ...sourceText.matchAll(
+        /\bemit_desktop_event\s*::\s*<\s*((?:(?:[A-Za-z_][A-Za-z0-9_]*)::)*[A-Za-z_][A-Za-z0-9_]*|\(\))\s*>\s*\(\s*[^,\r\n]+,\s*(DESKTOP_EVENT_[A-Z0-9_]+)\s*,/gu,
+      ),
+    ];
+    if (parsed.length !== calls)
+      throw new Error(
+        `parsed ${parsed.length} of ${calls} typed desktop event producers; producers must bind one explicit payload type and declared event constant`,
+      );
+    for (const match of parsed) {
+      const payloadType = match[1];
+      const eventConstant = match[2];
+      const expectedType = DESKTOP_EVENT_PAYLOAD_COMPATIBILITY[eventConstant];
+      if (payloadType !== expectedType)
+        throw new Error(
+          `${eventConstant} producers must emit ${expectedType ?? "a known payload type"}, found ${payloadType}`,
+        );
+      producedConstants.push(eventConstant);
+    }
+  }
+  if (emitterAdapters !== 1 || directEmitCalls !== 1)
+    throw new Error(
+      `expected exactly one typed Tauri event adapter and direct emit call, found ${emitterAdapters} adapters and ${directEmitCalls} calls`,
+    );
+  if (producedConstants.length === 0)
+    throw new Error("the Rust desktop event producer inventory is empty");
+  for (const name of producedConstants)
+    if (!declarations.has(name))
+      throw new Error(`Rust emits undeclared desktop event constant: ${name}`);
+  return [...new Set(producedConstants.map((name) => declarations.get(name)))].sort();
+}
+
+export function extractExportedDesktopEvents(sourceText, declarations) {
+  const references = [...sourceText.matchAll(/\bDESKTOP_EVENT_[A-Z0-9_]+\s*\.to_owned\s*\(\s*\)/gu)]
+    .length;
+  const parsed = [
+    ...sourceText.matchAll(
+      /\b(DESKTOP_EVENT_[A-Z0-9_]+)\s*\.to_owned\s*\(\s*\)\s*,\s*output\s*::\s*<\s*((?:(?:[A-Za-z_][A-Za-z0-9_]*)::)*[A-Za-z_][A-Za-z0-9_]*|\(\))\s*>\s*\(\s*\)/gu,
+    ),
+  ];
+  if (parsed.length !== references)
+    throw new Error(
+      `parsed ${parsed.length} of ${references} desktop event schema exports; exports must bind a declared event constant to one explicit payload type`,
+    );
+  const exported = [];
+  for (const match of parsed) {
+    const eventConstant = match[1];
+    const payloadType = match[2];
+    if (!declarations.has(eventConstant))
+      throw new Error(`desktop event schemas export undeclared constant: ${eventConstant}`);
+    const expectedType = DESKTOP_EVENT_PAYLOAD_COMPATIBILITY[eventConstant];
+    if (payloadType !== expectedType)
+      throw new Error(
+        `${eventConstant} schema must export ${expectedType ?? "a known payload type"}, found ${payloadType}`,
+      );
+    exported.push(declarations.get(eventConstant));
+  }
+  if (exported.length === 0) throw new Error("the desktop event schema export inventory is empty");
+  return sortedUnique(exported, "desktop event schema exports");
 }
 
 function commandName(pathname) {
@@ -150,6 +263,17 @@ function isDirectInvokeImport(tokens, index) {
   return false;
 }
 
+function isDirectNamedImport(tokens, index, name) {
+  if (tokens[index + 1]?.value === "as")
+    throw new Error(`frontend ${name} imports must not be aliased`);
+  for (let cursor = index - 1; cursor >= 0; cursor -= 1) {
+    if (tokens[cursor]?.value === ";" || tokens[cursor]?.value === "}") return false;
+    if (tokens[cursor]?.value === "{")
+      return tokens[cursor - 1]?.kind === "identifier" && tokens[cursor - 1]?.value === "import";
+  }
+  return false;
+}
+
 function validateTauriCoreImports(tokens) {
   for (let index = 0; index < tokens.length; index += 1) {
     if (tokens[index]?.kind !== "string" || tokens[index]?.value !== "@tauri-apps/api/core")
@@ -214,6 +338,60 @@ export function extractFrontendDesktopCommands(sourceTexts) {
   return sortedUnique(commands, "frontend command invocations");
 }
 
+export function extractFrontendDesktopEvents(sourceTexts) {
+  const sources = typeof sourceTexts === "string" ? [sourceTexts] : sourceTexts;
+  if (!Array.isArray(sources) || sources.length === 0)
+    throw new Error("the shipped frontend source inventory is empty");
+  const adapterSources = sources.filter((sourceText) =>
+    sourceText.includes("@tauri-apps/api/event"),
+  );
+  if (adapterSources.length !== 1)
+    throw new Error(
+      `expected exactly one shipped Tauri event adapter, found ${adapterSources.length}`,
+    );
+  const adapter = adapterSources[0];
+  if (
+    !/import\s*\{\s*listen\s*\}\s*from\s*["']@tauri-apps\/api\/event["']\s*;/u.test(adapter) ||
+    !/export\s+function\s+listenDesktopEvent\b/u.test(adapter)
+  )
+    throw new Error("the shipped Tauri event adapter must directly import and export listen");
+  if ([...adapter.matchAll(/\blisten\s*(?:<[^;()]*>)?\s*\(/gu)].length !== 1)
+    throw new Error("the shipped Tauri event adapter must contain exactly one direct listen call");
+  if (/portcove:\/\//u.test(adapter))
+    throw new Error("the shipped Tauri event adapter must not embed event names");
+  const events = [];
+  for (const sourceText of sources) {
+    if (sourceText.includes("@tauri-apps/api/event") && sourceText !== adapter)
+      throw new Error("shipped frontend event consumers must use listenDesktopEvent");
+    if (!/\blistenDesktopEvent\b/u.test(sourceText)) continue;
+    const tokens = sourceTokens(sourceText);
+    let directImport = false;
+    let directCalls = 0;
+    for (let index = 0; index < tokens.length; index += 1) {
+      if (tokens[index]?.kind !== "identifier" || tokens[index]?.value !== "listenDesktopEvent")
+        continue;
+      if (tokens[index - 1]?.value === "function") continue;
+      if (isDirectNamedImport(tokens, index, "listenDesktopEvent")) {
+        directImport = true;
+        continue;
+      }
+      if (tokens[index + 1]?.value !== "(")
+        throw new Error("frontend listenDesktopEvent must only be imported and called directly");
+      const event = tokens[index + 2];
+      if (event?.kind !== "string")
+        throw new Error("frontend desktop events must use a direct string literal");
+      if (!/^portcove:\/\/[a-z0-9-]+$/u.test(event.value))
+        throw new Error(`invalid frontend desktop event name: ${event.value}`);
+      events.push(event.value);
+      directCalls += 1;
+    }
+    if (directCalls > 0 && !directImport)
+      throw new Error("frontend listenDesktopEvent calls must use a direct named import");
+  }
+  if (events.length === 0) throw new Error("the frontend desktop event inventory is empty");
+  return sortedUnique(events, "frontend desktop event consumers");
+}
+
 function inventoryDifference(expected, actual) {
   const actualSet = new Set(actual);
   return expected.filter((value) => !actualSet.has(value));
@@ -239,6 +417,36 @@ export function checkDesktopCommandContract({
         failures.push(`${label} omit registered commands: ${missing.join(", ")}`);
       if (extra.length > 0)
         failures.push(`${label} expose unregistered commands: ${extra.join(", ")}`);
+    }
+    return failures;
+  } catch (error) {
+    return [error instanceof Error ? error.message : String(error)];
+  }
+}
+
+export function checkDesktopEventContract({
+  declarationSource,
+  producerSources,
+  exporterSource,
+  frontendSources,
+}) {
+  try {
+    const declarations = extractDeclaredDesktopEvents(declarationSource);
+    const declared = [...declarations.values()].sort();
+    const produced = extractProducedDesktopEvents(producerSources, declarations);
+    const exported = extractExportedDesktopEvents(exporterSource, declarations);
+    const frontend = extractFrontendDesktopEvents(frontendSources);
+    const failures = [];
+    for (const [label, actual] of [
+      ["Rust producers", produced],
+      ["Rust schema exports", exported],
+      ["frontend consumers", frontend],
+      ["independent compatibility fixture", DESKTOP_EVENT_COMPATIBILITY],
+    ]) {
+      const missing = inventoryDifference(declared, actual);
+      const extra = inventoryDifference(actual, declared);
+      if (missing.length > 0) failures.push(`${label} omit declared events: ${missing.join(", ")}`);
+      if (extra.length > 0) failures.push(`${label} expose undeclared events: ${extra.join(", ")}`);
     }
     return failures;
   } catch (error) {
@@ -332,9 +540,10 @@ function main() {
       write: { type: "boolean", default: false },
       types: { type: "string" },
       "host-types": { type: "string" },
+      "host-events": { type: "string" },
     },
   });
-  if (values.write && (values.types || values["host-types"]))
+  if (values.write && (values.types || values["host-types"] || values["host-events"]))
     throw new Error("--write only updates the repository generated contract");
   const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
   const schemas = exportSchemas(root, "output");
@@ -376,13 +585,41 @@ function main() {
       ),
     );
   }
+  const eventsPath = values["host-events"]
+    ? path.resolve(values["host-events"])
+    : path.join(root, "apps", "desktop", "src", "transport-host-events.generated.json");
+  if (values.write) fs.writeFileSync(eventsPath, renderTransportSchemas(desktop.events));
+  failures.push(
+    ...checkTransportContract(desktop.events, fs.readFileSync(eventsPath, "utf8")).map(
+      (message) => `Desktop events: ${message}`,
+    ),
+  );
   const desktopRustRoot = path.join(root, "apps", "desktop", "src-tauri", "src");
+  const desktopExporterPath = path.join(
+    root,
+    "apps",
+    "desktop",
+    "src-tauri",
+    "examples",
+    "export_transport.rs",
+  );
+  const declarationSource = fs.readFileSync(path.join(desktopRustRoot, "transport.rs"), "utf8");
+  const declarationSources = rustSources(desktopRustRoot);
+  const frontendSources = shippedFrontendSources(path.join(root, "apps", "desktop", "src"));
   failures.push(
     ...checkDesktopCommandContract({
       registrationSource: fs.readFileSync(path.join(desktopRustRoot, "lib.rs"), "utf8"),
-      declarationSources: rustSources(desktopRustRoot),
-      frontendSources: shippedFrontendSources(path.join(root, "apps", "desktop", "src")),
+      declarationSources,
+      frontendSources,
     }).map((message) => `Desktop commands: ${message}`),
+  );
+  failures.push(
+    ...checkDesktopEventContract({
+      declarationSource,
+      producerSources: declarationSources,
+      exporterSource: fs.readFileSync(desktopExporterPath, "utf8"),
+      frontendSources,
+    }).map((message) => `Desktop events: ${message}`),
   );
   if (failures.length > 0) {
     process.stderr.write(`Transport contract drift:\n- ${failures.join("\n- ")}\n`);
@@ -390,7 +627,7 @@ function main() {
   }
 
   process.stdout.write(
-    "Generated serialization schemas and desktop command exposure match Rust; the frontend compiler checks derived types.\n",
+    "Generated serialization schemas and desktop command/event exposure match Rust; the frontend compiler checks derived types.\n",
   );
 }
 

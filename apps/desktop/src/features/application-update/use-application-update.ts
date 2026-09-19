@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { listen } from "@tauri-apps/api/event";
 import { desktopApi } from "../../api";
+import { listenDesktopEvent } from "../../desktop-events";
 import type {
   ApplicationUpdateNoticeSnapshot,
   ApplicationUpdatePreferences,
@@ -137,9 +137,7 @@ export function useApplicationUpdateNotice(reportError?: (error: unknown) => voi
     let disposed = false;
     const subscription = startManagedSubscription<ApplicationUpdateNoticeSnapshot>({
       register: (acceptEvent) =>
-        listen<ApplicationUpdateNoticeSnapshot>("portcove://application-update-notice", (event) =>
-          acceptEvent(event.payload),
-        ),
+        listenDesktopEvent("portcove://application-update-notice", acceptEvent),
       onEvent: accept,
     });
     void (async () => {

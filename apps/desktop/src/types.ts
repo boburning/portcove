@@ -1,4 +1,5 @@
 import type * as Requests from "./transport-input-types.generated";
+import type * as Events from "./transport-event-types.generated";
 import type { PortStatus } from "./transport-types.generated";
 import type * as Generated from "./transport-types.generated";
 
@@ -99,6 +100,8 @@ export type { UpdateSnapshot } from "./transport-types.generated";
 export type UpdateCheckOutcome = Generated.TransportOutputs["desktop_update_check_outcome"];
 
 export type OperationEvent = Generated.TransportOutputs["operation_event"];
+
+export type DesktopEventPayloads = Events.DesktopEventPayloads;
 
 export type DesktopError = Generated.TransportOutputs["desktop_desktop_error"];
 

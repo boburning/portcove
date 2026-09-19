@@ -55,14 +55,14 @@ pub enum ApplicationUpdateOperationPhase {
 }
 
 pub trait ApplicationUpdateProgressSink: Send + Sync {
-    fn emit(&self, phase: ApplicationUpdateOperationPhase);
+    fn report_phase(&self, phase: ApplicationUpdateOperationPhase);
 }
 
 #[derive(Debug, Default)]
 pub struct NoopApplicationUpdateProgressSink;
 
 impl ApplicationUpdateProgressSink for NoopApplicationUpdateProgressSink {
-    fn emit(&self, _phase: ApplicationUpdateOperationPhase) {}
+    fn report_phase(&self, _phase: ApplicationUpdateOperationPhase) {}
 }
 
 #[async_trait]
@@ -190,15 +190,17 @@ impl ApplicationUpdateCheckCompletion for StageCheckCompletion<'_> {
             .await?
             .is_some_and(|staged| staged.candidate == *candidate)
         {
-            self.progress.emit(ApplicationUpdateOperationPhase::Staged);
+            self.progress
+                .report_phase(ApplicationUpdateOperationPhase::Staged);
             self.staged.store(true, Ordering::SeqCst);
             return Ok(());
         }
         self.progress
-            .emit(ApplicationUpdateOperationPhase::AcquiringAndVerifying);
+            .report_phase(ApplicationUpdateOperationPhase::AcquiringAndVerifying);
         let mut payload = self.payload_source.open(candidate).await?;
         self.staging.stage(&mut payload, candidate, key).await?;
-        self.progress.emit(ApplicationUpdateOperationPhase::Staged);
+        self.progress
+            .report_phase(ApplicationUpdateOperationPhase::Staged);
         self.staged.store(true, Ordering::SeqCst);
         Ok(())
     }
@@ -285,7 +287,7 @@ impl ApplicationUpdateOperation {
         request: ApplicationUpdateStageRequest<'_>,
     ) -> Result<ApplicationUpdateOperationOutcome, ApplicationUpdateOperationError> {
         require_active(cancellation)?;
-        progress.emit(ApplicationUpdateOperationPhase::Checking);
+        progress.report_phase(ApplicationUpdateOperationPhase::Checking);
         let completion = StageCheckCompletion {
             staging: &self.staging,
             payload_source,
@@ -331,7 +333,7 @@ impl ApplicationUpdateOperation {
                 staged: completion.staged.load(Ordering::SeqCst),
             },
         };
-        progress.emit(ApplicationUpdateOperationPhase::Complete);
+        progress.report_phase(ApplicationUpdateOperationPhase::Complete);
         Ok(outcome)
     }
 }
@@ -485,7 +487,7 @@ mod tests {
     struct RecordingProgress(Mutex<Vec<ApplicationUpdateOperationPhase>>);
 
     impl ApplicationUpdateProgressSink for RecordingProgress {
-        fn emit(&self, phase: ApplicationUpdateOperationPhase) {
+        fn report_phase(&self, phase: ApplicationUpdateOperationPhase) {
             self.0.lock().unwrap().push(phase);
         }
     }

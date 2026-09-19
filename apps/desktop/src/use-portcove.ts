@@ -6,8 +6,8 @@ import {
   useState,
   type SetStateAction,
 } from "react";
-import { listen } from "@tauri-apps/api/event";
 import { desktopApi } from "./api";
+import { listenDesktopEvent } from "./desktop-events";
 import type {
   BackupInventory,
   GithubAuthStatus,
@@ -63,8 +63,7 @@ export function useOperationState(
   const operation = mostRecentOperation(operationEvents);
   useEffect(() => {
     const subscription = startManagedSubscription<OperationEvent>({
-      register: (accept) =>
-        listen<OperationEvent>("portcove://operation", (event) => accept(event.payload)),
+      register: (accept) => listenDesktopEvent("portcove://operation", accept),
       onEvent: (payload) => {
         setOperationEvents((current) => applyOperationEvent(current, payload));
         void refreshActivities(
