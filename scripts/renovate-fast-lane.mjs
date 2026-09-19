@@ -518,7 +518,15 @@ function manifestWithoutClaimedVersion(manager, manifest, packageName) {
     );
     if (owners.length !== 1)
       throw new Error(`${packageName} does not have one replaceable manifest declaration`);
-    document[owners[0]][packageName] = "<PORTCOVE_RENOVATE_VERSION>";
+    const requirement = document[owners[0]][packageName];
+    const version = exactVersion(requirement);
+    if (!version) throw new Error(`${packageName} manifest version is not supported semver`);
+    const offset = requirement.lastIndexOf(version);
+    if (offset < 0) throw new Error(`${packageName} manifest version could not be isolated`);
+    document[owners[0]][packageName] = `${requirement.slice(
+      0,
+      offset,
+    )}<PORTCOVE_RENOVATE_VERSION>${requirement.slice(offset + version.length)}`;
     const normalize = (value) => {
       if (Array.isArray(value)) return value.map(normalize);
       if (value && typeof value === "object")
@@ -540,7 +548,9 @@ function manifestWithoutClaimedVersion(manager, manifest, packageName) {
   if (matches.length !== 1)
     throw new Error(`${packageName} does not have one replaceable manifest declaration`);
   const match = matches[0];
-  const version = match[1] ?? match[2];
+  const requirement = match[1] ?? match[2];
+  const version = exactVersion(requirement);
+  if (!version) throw new Error(`${packageName} manifest version is not supported semver`);
   const offset = match[0].lastIndexOf(version);
   if (offset < 0) throw new Error(`${packageName} manifest version could not be isolated`);
   const start = match.index + offset;

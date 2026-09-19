@@ -297,6 +297,15 @@ test("dependency delta binds the claimed package and versions to manifest and lo
       }),
     /not the only manifest change/,
   );
+  assert.throws(
+    () =>
+      validateDependencyDelta({
+        ...cargo,
+        baseManifest: '[workspace.dependencies]\ncrc32fast = "^1.5.1"\nother = "2.0.0"\n',
+        headManifest: '[workspace.dependencies]\ncrc32fast = "~1.5.2"\nother = "2.0.0"\n',
+      }),
+    /not the only manifest change/,
+  );
 
   const npm = {
     manager: "npm",
@@ -319,6 +328,15 @@ test("dependency delta binds the claimed package and versions to manifest and lo
         headManifest: JSON.stringify({
           dependencies: { "lucide-react": "^1.46.0", other: "2.0.1" },
         }),
+      }),
+    /not the only manifest change/,
+  );
+  assert.throws(
+    () =>
+      validateDependencyDelta({
+        ...npm,
+        baseManifest: JSON.stringify({ dependencies: { "lucide-react": "^1.45.0" } }),
+        headManifest: JSON.stringify({ dependencies: { "lucide-react": "~1.46.0" } }),
       }),
     /not the only manifest change/,
   );
