@@ -10,8 +10,6 @@ import { desktopApi } from "./api";
 import { listenDesktopEvent } from "./desktop-events";
 import type {
   BackupInventory,
-  GithubAuthStatus,
-  GithubDeviceLogin,
   OperationEvent,
   PortDefinition,
   PortStatus,
@@ -372,99 +370,6 @@ export function usePortBackups(portId: string | undefined, setError: (error?: st
   }, [portId, setError]);
   const currentInventory = inventory.port_id === (portId ?? "") ? inventory : emptyInventory();
   return { backups: currentInventory.backups, inventory: currentInventory, refresh };
-}
-
-export function useGithubAuth(perform: Perform, setError: (error?: string) => void) {
-  const [status, setStatus] = useState<GithubAuthStatus>();
-  const [token, setToken] = useState("");
-  const [deviceLogin, setDeviceLogin] = useState<GithubDeviceLogin>();
-  const refresh = useCallback(async () => {
-    try {
-      setStatus(await desktopApi.githubAuthStatus());
-    } catch (value) {
-      setError(errorText(value));
-    }
-  }, [setError]);
-  useEffect(() => {
-    let current = true;
-    void desktopApi
-      .githubAuthStatus()
-      .then((result) => {
-        if (current) setStatus(result);
-      })
-      .catch((value) => {
-        if (current) setError(errorText(value));
-      });
-    return () => {
-      current = false;
-    };
-  }, [setError]);
-  useEffect(() => {
-    if (!deviceLogin) return;
-    let cancelled = false;
-    const delay = Math.max(1, deviceLogin.interval_seconds) * 1000;
-    let timer = 0;
-    const poll = async () => {
-      try {
-        const result = await desktopApi.pollGithubDeviceLogin(deviceLogin.session_id);
-        if (cancelled) return;
-        if (result.state === "complete") {
-          setStatus(result.status ?? undefined);
-          setDeviceLogin(undefined);
-        } else {
-          timer = window.setTimeout(() => {
-            void poll();
-          }, delay);
-        }
-      } catch (value) {
-        if (!cancelled) {
-          setError(errorText(value));
-          setDeviceLogin(undefined);
-        }
-      }
-    };
-    timer = window.setTimeout(() => {
-      void poll();
-    }, delay);
-    return () => {
-      cancelled = true;
-      window.clearTimeout(timer);
-    };
-  }, [deviceLogin, setError]);
-  const saveToken = useCallback(async () => {
-    const result = await perform("GitHub authentication", () => desktopApi.setGithubToken(token), {
-      refresh: "none",
-      invalidateDiagnostics: false,
-    });
-    if (result) {
-      setStatus(result);
-      setToken("");
-    }
-  }, [perform, token]);
-  const logout = useCallback(async () => {
-    const result = await perform("GitHub logout", desktopApi.logoutGithub, {
-      refresh: "none",
-      invalidateDiagnostics: false,
-    });
-    if (result) setStatus(result);
-  }, [perform]);
-  const beginDeviceLogin = useCallback(async () => {
-    const result = await perform("GitHub login", desktopApi.beginGithubDeviceLogin, {
-      refresh: "none",
-      invalidateDiagnostics: false,
-    });
-    if (result) setDeviceLogin(result);
-  }, [perform]);
-  return {
-    status,
-    token,
-    setToken,
-    deviceLogin,
-    saveToken,
-    logout,
-    beginDeviceLogin,
-    refresh,
-  };
 }
 
 export function usePortcoveUi() {
