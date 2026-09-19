@@ -143,12 +143,9 @@ function operationPresentation(value: string): OperationPresentation {
     check_installed: { label: "Checking for updates", unit: "ports" },
     reconcile_installed: { label: "Applying update settings", unit: "ports" },
   };
-  const presentation: Omit<OperationPresentation, "indeterminate"> = Object.hasOwn(
-    presentations,
-    value,
-  )
-    ? presentations[value]
-    : { label: "Working" };
+  const selected = presentations[value];
+  const presentation: Omit<OperationPresentation, "indeterminate"> =
+    Object.hasOwn(presentations, value) && selected ? selected : { label: "Working" };
   return {
     ...presentation,
     indeterminate:

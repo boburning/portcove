@@ -879,6 +879,23 @@ arrays, enums and discriminated event variants. No TypeScript suppression is
 used for negative fixtures. Request schemas retain accepted defaults separately
 from required serialized response fields.
 
+The ordinary frontend compiler project remains the complete UI authority. Its
+required `typecheck` also runs `tsconfig.orchestration.json`, a bounded stricter
+project for production interaction and state orchestration. That project enables
+`noUncheckedIndexedAccess` and `exactOptionalPropertyTypes` for gamepad navigation,
+global keyboard shortcuts, native source drag-and-drop, operation state,
+concurrency state, subscription lifecycle, and view-model presentation. Keep its
+file inventory explicit and extend it only with real fixes and compatibility
+review; do not add assertions or suppressions to make a broader experiment pass.
+
+The 2026-09-19 baseline experiment reported 180 diagnostics when both options
+were applied to the complete frontend: 95 `TS2375`, 40 `TS2532`, 17 `TS2379`,
+and 28 across five other codes. The selected production project reported 12
+diagnostics across `TS2322`, `TS2345`, `TS2379`, and `TS2532`. Those selected
+ambiguities were resolved with neutral absent-axis values, explicit index guards,
+fallback presentation, and omission of absent optional fields. The unselected
+full-frontend result remains compatibility evidence, not a passing gate.
+
 After changing a Rust transport type, run
 `node scripts/check-transport-contract.mjs --write`, followed by
 `node apps/desktop/scripts/generate-transport-types.mjs --write`. Commit the

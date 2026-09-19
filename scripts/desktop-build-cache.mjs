@@ -14,6 +14,7 @@ const FRONTEND_INPUTS = [
   "apps/desktop/package.json",
   "apps/desktop/tsconfig.json",
   "apps/desktop/tsconfig.node.json",
+  "apps/desktop/tsconfig.orchestration.json",
   "apps/desktop/vite.config.ts",
 ];
 const FRONTEND_OPTIONAL_INPUTS = [
