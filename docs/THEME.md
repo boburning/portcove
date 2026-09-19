@@ -23,31 +23,35 @@ corepack pnpm --dir apps/desktop test:theme
 
 It also runs as part of the desktop test suite.
 
-## Styling architecture direction
+## Approved styling architecture
 
 [#917](https://github.com/boburning/portcove/issues/917) owns the finite Public
-beta migration from the current single global stylesheet toward modern native
-CSS with semantic custom properties and incrementally component-scoped CSS
-Modules. The exact file split is an implementation decision, but semantic
-colors, dark/light mappings, typography foundations, spacing, radii, controls,
-icons, focus, resets, shared motion, and genuinely cross-component layout remain
-global. Component geometry and presentation should increasingly live beside the
-component. Newly modified component presentation should prefer a module, and no
-component should retain undocumented competing global and module rules.
+beta migration from the current global stylesheet and bespoke controls to
+official checked-in shadcn/ui controls using Base UI, Tailwind, semantic CSS
+variables, and a custom Portcove theme. The implementation explicitly selects
+Base UI and the compact Nova style instead of relying on CLI defaults, retains
+React/Vite/Tauri and Lucide, and records the actual aliases, paths, versions, and
+configuration when the foundation lands. The current stylesheet remains shipped
+behavior until that migration is reviewed; this contract does not claim Tailwind
+or shadcn is already installed.
 
-Use custom properties instead of Sass variables, native nesting where it makes
-local rules clearer, CSS Modules/imports instead of Sass partials, and modern
-layout plus `calc()`/`clamp()` instead of preprocess-time math where practical.
-Portcove does not need Sass/SCSS, Less, a CSS framework, CSS-in-JS, or another
-runtime styling system for Public beta. Do not reopen framework selection absent
-a demonstrated problem that these foundations cannot solve.
+Semantic colors, dark/light mappings, typography foundations, spacing, radii,
+controls, icons, focus, resets, shared motion, and cross-component layout have
+one authority. Tailwind utilities and approved component variants are the normal
+feature-facing styling mechanism. Limited custom CSS remains valid for specialized
+layout, artwork, interaction, and native boundaries where it materially improves
+clarity. Do not translate official components into CSS Modules, keep competing
+global/module/utility versions of the same rule, or add Sass, CSS-in-JS, another
+framework, or a custom component registry.
 
-The current `check-theme.mjs` reads `styles.css`. Before CSS Modules can complete
-this outcome, the theme/style gates must cover every relevant global and module
-stylesheet without losing raw-color, primitive-token, dark/light, focus,
-gradient, declared-token, contrast, or reduced-motion protection. Advisory
-checks for unused tokens, duplicated ownership, or arbitrary geometry must allow
-documented exceptions rather than turning taste into a brittle parser.
+The current `check-theme.mjs` reads `styles.css`. The migration must extend or
+replace that gate so applicable Tailwind CSS, checked-in control source, and JSX
+utility usage retain raw-color, primitive-token, dark/light, focus-versus-selection,
+declared-token, contrast, reduced-motion, and production-variant protection.
+Third-party directives and variables receive narrow documented handling, not a
+blanket exemption. Advisory checks for unused tokens, duplicated ownership, or
+arbitrary geometry must allow justified exceptions rather than turning taste into
+a brittle parser.
 
 ## Semantic hierarchy
 

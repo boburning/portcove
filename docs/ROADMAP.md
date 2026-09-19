@@ -327,19 +327,29 @@ antivirus experiments stay outside the Required outcome unless separate measured
 and authority make a bounded change necessary. Planning these outcomes implements no
 refactor, speedup, qualification, signing, publication, or release readiness.
 
-The finite [#917](https://github.com/boburning/portcove/issues/917) visual-polish
-and styling-architecture outcome is also Required for Public beta. It keeps
-modern native CSS and the existing semantic design-token authority, migrates
-major component presentation incrementally to CSS Modules, aligns channel and
-status color semantics, and closes the cross-surface card/sidebar/header/detail/
-Settings/motion/type/loading evidence without introducing a framework or
-preprocessor. It is a nonblocking sub-issue of #200: the parent relationship is
-organizational and does not make the broader 1.0 workstream a beta prerequisite.
+The finite [#917](https://github.com/boburning/portcove/issues/917) desktop redesign
+and agent-friendly design-system outcome is also Required for Public beta. It
+adopts official checked-in shadcn/ui controls using Base UI, Tailwind, semantic
+CSS variables, the compact Nova starting style, and a custom Portcove theme;
+establishes a small vocabulary of reusable patterns and product components; and
+closes the cross-surface card/sidebar/header/detail/Settings/activity/overlay and
+visual evidence. This decision supersedes the earlier CSS-Modules-only,
+no-Tailwind, no-shadcn direction. It is an organizational child of #200; the
+parent relationship does not make closure of the broader
+1.0 workstream a beta prerequisite; #917 itself remains Required for Public beta.
 #206 retains information architecture and interaction behavior; #203 retains
 labels, formatting, localization and safe unknowns; #208/#527 retain artwork and
 provider authority; #29/#44/#47 retain their controller, minimum-width, physical
 and intrinsic human qualification. No broad owner closure blocks the finite
 visual outcome.
+
+[#924](https://github.com/boburning/portcove/issues/924) retains the existing
+development-only scenario renderer, feature/shared boundaries, and read-state
+ownership. Its accepted scenario, reference-stability, workspace-boundary,
+application-update preference, feature-colocation, and selected native-agreement
+evidence is foundation, not work to rebuild. It extends only the missing reference
+composition and render-inspect-review workflow needed by #917; Storybook, a second
+policy backend, a second cache, and another native harness are not required.
 
 #51/#213–#217 retain the package/controller/Gamescope/storage/device baseline,
 #290 retains plugin-free application and individual-game manual Steam launch
