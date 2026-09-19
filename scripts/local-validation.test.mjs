@@ -405,11 +405,27 @@ test("Oxc configuration changes retain formatting, lint, UI, fixture, and workfl
     assert.ok(selected.includes("ui-build"));
     assert.ok(selected.includes("ui-oxlint"));
     assert.ok(selected.includes("ui-tests"));
-    assert.ok(selected.includes("oxc-fixtures"));
+    assert.ok(selected.includes("lint-tool-fixtures"));
     assert.ok(selection.nodeTests.has("scripts/ci-workflow.test.mjs"));
-    const fixtures = plan.find((entry) => entry.id === "oxc-fixtures");
+    const fixtures = plan.find((entry) => entry.id === "lint-tool-fixtures");
     assert.ok(fixtures.args.includes(config === ".oxfmtrc.json" ? "oxfmt" : "oxlint"));
   }
+});
+
+test("lint fixture harness changes execute every maintained behavioral fixture", () => {
+  const { plan } = planFor(["scripts/lint-tools.integration.mjs"]);
+  const fixtures = plan.find((entry) => entry.id === "lint-tool-fixtures");
+  assert.ok(fixtures);
+  assert.deepEqual(fixtures.args, [
+    "scripts/lint-tools.integration.mjs",
+    "actionlint",
+    "oxfmt",
+    "oxlint",
+    "psscriptanalyzer",
+    "ruff",
+    "shellcheck",
+    "stylelint",
+  ]);
 });
 
 test("transport changes select both language scopes and contract comparators", () => {

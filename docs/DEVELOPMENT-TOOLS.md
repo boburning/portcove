@@ -10,7 +10,7 @@ not dumped. The command does not install tools, create output directories, or
 modify host configuration. Every missing cached prerequisite includes a safe
 bootstrap command in the human-readable or JSON report.
 
-The doctor reads `.node-version`, the desktop package-manager declaration, the
+The doctor reads `.node-version`, the repository package-manager declaration, the
 Rust quality manifest, `.aqua-version`, `aqua.yaml`, and the PowerShell resource
 pin. On Windows it reports MSVC installations and PATH candidates; this is not
 proof of Cargo's auto-selected linker. Inspect a verbose native build when

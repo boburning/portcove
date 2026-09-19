@@ -365,6 +365,18 @@ function classifyOnePath(selection, input, fileExists, options = {}) {
       addNodeTest(selection, "scripts/run-rust-tests.test.mjs");
       addNodeTest(selection, "scripts/rust-support-cache.test.mjs");
     }
+    if (file === "scripts/lint-tools.integration.mjs") {
+      for (const fixture of [
+        "actionlint",
+        "oxfmt",
+        "oxlint",
+        "psscriptanalyzer",
+        "ruff",
+        "shellcheck",
+        "stylelint",
+      ])
+        selection.lintToolFixtures.add(fixture);
+    }
     if (["scripts/run-rust-tests.mjs", "scripts/rust-support-cache.mjs"].includes(file)) {
       addNodeTest(selection, "scripts/run-rust-tests.test.mjs");
       addNodeTest(selection, "scripts/rust-support-cache.test.mjs");
@@ -475,7 +487,7 @@ function classifyOnePath(selection, input, fileExists, options = {}) {
   if (file === ".oxlintrc.json") {
     selection.ui = true;
     selection.uiFullTests = true;
-    selection.oxcFixtures.add("oxlint");
+    selection.lintToolFixtures.add("oxlint");
     selection.scopes.add("ui");
     addNodeTest(selection, "scripts/ci-workflow.test.mjs");
     recognized = true;
@@ -484,7 +496,7 @@ function classifyOnePath(selection, input, fileExists, options = {}) {
   if (file === ".oxfmtrc.json") {
     selection.ui = true;
     selection.uiFullTests = true;
-    selection.oxcFixtures.add("oxfmt");
+    selection.lintToolFixtures.add("oxfmt");
     selection.scopes.add("ui");
     recognized = true;
   }
@@ -567,7 +579,7 @@ export function classifyChanges(changes, options = {}) {
     nodeSyntax: new Set(),
     oxfmtFiles: new Set(),
     uiRelatedFiles: new Set(),
-    oxcFixtures: new Set(),
+    lintToolFixtures: new Set(),
     unknown: new Set(),
     rustfmt: false,
     workspaceRust: false,
@@ -730,13 +742,13 @@ export function buildPlan(selection, context = {}) {
   }
   if (selection.nodeTests.size) commands.push(nodeTestCommand(sorted(selection.nodeTests)));
 
-  if (selection.oxcFixtures.size)
+  if (selection.lintToolFixtures.size)
     commands.push(
       command(
-        "oxc-fixtures",
-        "prove changed Oxc configuration accepts and rejects the maintained fixtures",
+        "lint-tool-fixtures",
+        "prove changed lint tooling accepts and rejects the maintained fixtures",
         process.execPath,
-        ["scripts/lint-tools.integration.mjs", ...sorted(selection.oxcFixtures)],
+        ["scripts/lint-tools.integration.mjs", ...sorted(selection.lintToolFixtures)],
       ),
     );
 
@@ -1107,7 +1119,7 @@ function localStageDomains(entry) {
   if (
     [
       "actionlint",
-      "oxc-fixtures",
+      "lint-tool-fixtures",
       "oxlint",
       "powershell-lint",
       "python-lint",
