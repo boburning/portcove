@@ -53,7 +53,7 @@ export function useGlobalShortcuts({
         ctrlKey: event.ctrlKey,
         metaKey: event.metaKey,
         altKey: event.altKey,
-        targetIsField: target?.matches("input, textarea, select, [contenteditable=true]"),
+        targetIsField: target?.matches("input, textarea, select, [contenteditable=true]") ?? false,
         paletteOpen,
         modalOpen: navigationScope() !== document,
       });

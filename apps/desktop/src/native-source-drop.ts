@@ -52,7 +52,7 @@ export function createNativeSourceDropCoordinator(
       return;
     }
     if (event.type === "enter") pathCount = event.paths.length;
-    update({ active: true, pathCount, targetPortId: target?.portId });
+    update({ active: true, pathCount, ...(target ? { targetPortId: target.portId } : {}) });
   };
 }
 

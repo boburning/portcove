@@ -747,7 +747,7 @@ test("Node receipt fingerprints include the domain of each selected test", () =>
   );
 });
 
-test("local receipts reuse proven independent stages and invalidate only affected domains", (t) => {
+test("local receipts reuse proven independent stages while repository-wide Oxlint reruns", (t) => {
   const receiptRoot = mkdtempSync(path.join(tmpdir(), "portcove-local-receipts-"));
   t.after(() => rmSync(receiptRoot, { recursive: true, force: true }));
   const plan = [
@@ -798,9 +798,10 @@ test("local receipts reuse proven independent stages and invalidate only affecte
       return { status: 0 };
     },
   });
-  assert.deepEqual(second, ["node"]);
+  assert.deepEqual(second, ["node", "corepack"]);
   assert.equal(result.timings[0].status, "reused");
   assert.equal(result.timings[1].status, "executed");
+  assert.equal(result.timings[2].status, "executed");
 });
 
 test("failed, interrupted, invalid, missing, and fresh local stages cannot claim reuse", (t) => {

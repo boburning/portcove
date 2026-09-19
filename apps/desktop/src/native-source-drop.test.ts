@@ -57,6 +57,19 @@ describe("native source drag coordination", () => {
     });
   });
 
+  it("omits target identity while a native drag is outside eligible cards", () => {
+    const states: object[] = [];
+    const handle = createNativeSourceDropCoordinator(
+      (state) => states.push(state),
+      vi.fn(),
+      () => undefined,
+    );
+
+    handle(native({ type: "enter", paths: ["D:/Game.z64"], position }));
+
+    expect(states).toEqual([{ active: true, pathCount: 1 }]);
+  });
+
   it("maps physical native coordinates to the card data contract", () => {
     const card = document.createElement("button");
     card.dataset.sourceDropPortId = "port";

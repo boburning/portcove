@@ -1,0 +1,18 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "exactOptionalPropertyTypes": true,
+    "noUncheckedIndexedAccess": true
+  },
+  "files": [
+    "src/gamepad.ts",
+    "src/keyboard-shortcuts.ts",
+    "src/native-source-drop.ts",
+    "src/operation-state.ts",
+    "src/shared/concurrency-state.ts",
+    "src/shared/subscription-lifecycle.ts",
+    "src/view-model.ts"
+  ],
+  "include": [],
+  "references": []
+}

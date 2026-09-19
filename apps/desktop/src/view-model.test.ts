@@ -9,6 +9,7 @@ import {
   indexStatuses,
   mostRecentPort,
   portReadiness,
+  progressPresentation,
   requiredSourceNeeds,
   summarizeLibrary,
 } from "./view-model";
@@ -56,6 +57,14 @@ describe("catalog view model", () => {
     active: installRecord(),
     readiness: { launchable: true, blockers: [], pending_setup: false },
   };
+
+  it("uses a stable fallback for an unknown operation identity", () => {
+    for (const operation of ["future-operation", "constructor", "__proto__"])
+      expect(progressPresentation(undefined, operation)).toEqual({
+        label: "Working",
+        detail: "Progress total not yet known.",
+      });
+  });
 
   it("indexes statuses and restricts the library to installed ports", () => {
     const statuses = indexStatuses([status]);

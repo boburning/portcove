@@ -1149,6 +1149,7 @@ function localStageReusable(entry) {
   return (
     localStageDomains(entry).length > 0 &&
     entry.id !== "dependency-policy" &&
+    entry.id !== "oxlint" &&
     entry.id !== "ui-related-durations"
   );
 }
