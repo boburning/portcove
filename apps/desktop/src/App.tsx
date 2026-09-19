@@ -5,6 +5,7 @@ import {
 } from "./features/application-update/use-application-update";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { usePortcoveData } from "./features/workspace/use-workspace-data";
+import { useGithubAuth } from "./features/github-auth/use-github-auth";
 import { AdoptionModal } from "./components/AdoptionModal";
 import {
   LibraryMoveRecovery,
@@ -48,7 +49,6 @@ import {
   useAdoptionPlanning,
   detailActions,
   type Perform,
-  useGithubAuth,
   useInstallPlanning,
   useOperationState,
   usePortBackups,
