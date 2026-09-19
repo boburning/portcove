@@ -1120,7 +1120,7 @@ function localStageReusable(entry) {
 export function fingerprintLocalStage(entry, inventory, runtime) {
   const recipe = JSON.stringify({
     obligation: entry.obligation,
-    executable: entry.executable,
+    executable: entry.executable === process.execPath ? "<active-node-runtime>" : entry.executable,
     args: entry.args,
     cwd: path.relative(projectRoot, entry.cwd).replaceAll("\\", "/") || ".",
   });
