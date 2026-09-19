@@ -271,7 +271,7 @@ test("dependency delta binds the claimed package and versions to manifest and lo
     currentVersion: "1.5.1",
     newVersion: "1.5.2",
     baseManifest: '[workspace.dependencies]\ncrc32fast = "1.5.1"\nother = "2.0.0"\n',
-    headManifest: '[workspace.dependencies]\ncrc32fast = "1.5.2"\nother = "2.0.1"\n',
+    headManifest: '[workspace.dependencies]\ncrc32fast = "1.5.2"\nother = "2.0.0"\n',
     baseLock: '[[package]]\nname = "crc32fast"\nversion = "1.5.1"\n',
     headLock: '[[package]]\nname = "crc32fast"\nversion = "1.5.2"\n',
   };
@@ -289,6 +289,14 @@ test("dependency delta binds the claimed package and versions to manifest and lo
     () => validateDependencyDelta({ ...cargo, headLock: cargo.baseLock }),
     /lock delta/,
   );
+  assert.throws(
+    () =>
+      validateDependencyDelta({
+        ...cargo,
+        headManifest: '[workspace.dependencies]\ncrc32fast = "1.5.2"\nother = "2.0.1"\n',
+      }),
+    /not the only manifest change/,
+  );
 
   const npm = {
     manager: "npm",
@@ -301,6 +309,19 @@ test("dependency delta binds the claimed package and versions to manifest and lo
     headLock: "packages:\n\n  lucide-react@1.46.0:\n",
   };
   assert.doesNotThrow(() => validateDependencyDelta(npm));
+  assert.throws(
+    () =>
+      validateDependencyDelta({
+        ...npm,
+        baseManifest: JSON.stringify({
+          dependencies: { "lucide-react": "^1.45.0", other: "2.0.0" },
+        }),
+        headManifest: JSON.stringify({
+          dependencies: { "lucide-react": "^1.46.0", other: "2.0.1" },
+        }),
+      }),
+    /not the only manifest change/,
+  );
 });
 
 test("current-base manifest workflow and policy interactions stay manual", () => {

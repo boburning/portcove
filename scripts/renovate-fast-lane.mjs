@@ -505,6 +505,48 @@ function npmManifestVersion(manifestText, packageName) {
   return exactVersion(values[0]);
 }
 
+function manifestWithoutClaimedVersion(manager, manifest, packageName) {
+  if (manager === "npm") {
+    let document;
+    try {
+      document = JSON.parse(manifest);
+    } catch {
+      throw new Error("npm manifest is not valid JSON");
+    }
+    const owners = ["dependencies", "devDependencies"].filter(
+      (section) => typeof document[section]?.[packageName] === "string",
+    );
+    if (owners.length !== 1)
+      throw new Error(`${packageName} does not have one replaceable manifest declaration`);
+    document[owners[0]][packageName] = "<PORTCOVE_RENOVATE_VERSION>";
+    const normalize = (value) => {
+      if (Array.isArray(value)) return value.map(normalize);
+      if (value && typeof value === "object")
+        return Object.fromEntries(
+          Object.entries(value)
+            .sort(([left], [right]) => left.localeCompare(right))
+            .map(([key, nested]) => [key, normalize(nested)]),
+        );
+      return value;
+    };
+    return JSON.stringify(normalize(document));
+  }
+  const escaped = gitRegex(packageName);
+  const pattern = new RegExp(
+    `^\\s*(?:"${escaped}"|${escaped})\\s*=\\s*(?:"([^"]+)"|\\{[^}\\r\\n]*\\bversion\\s*=\\s*"([^"]+)")`,
+    "gmu",
+  );
+  const matches = [...manifest.matchAll(pattern)];
+  if (matches.length !== 1)
+    throw new Error(`${packageName} does not have one replaceable manifest declaration`);
+  const match = matches[0];
+  const version = match[1] ?? match[2];
+  const offset = match[0].lastIndexOf(version);
+  if (offset < 0) throw new Error(`${packageName} manifest version could not be isolated`);
+  const start = match.index + offset;
+  return `${manifest.slice(0, start)}<PORTCOVE_RENOVATE_VERSION>${manifest.slice(start + version.length)}`;
+}
+
 function pnpmLockVersions(lockfile, packageName) {
   const escaped = gitRegex(packageName);
   const pattern = new RegExp(`^  ['"]?${escaped}@([^:'"()\\s]+)`, "gmu");
@@ -529,6 +571,12 @@ function assertVersionTransition({
     throw new Error(
       `${packageName} manifest delta is ${observedBase} -> ${observedHead}, not ${currentVersion} -> ${newVersion}`,
     );
+  if (
+    manifestWithoutClaimedVersion(manager, baseManifest, packageName) !==
+    manifestWithoutClaimedVersion(manager, headManifest, packageName)
+  ) {
+    throw new Error(`${packageName} is not the only manifest change`);
+  }
   const before = lockVersions(baseLock, packageName);
   const after = lockVersions(headLock, packageName);
   const removed = [...before].filter((version) => !after.has(version));
