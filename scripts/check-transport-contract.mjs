@@ -26,6 +26,12 @@ export const DESKTOP_EVENT_COMPATIBILITY = Object.freeze([
   "portcove://operation",
 ]);
 
+export const DESKTOP_EVENT_PAYLOAD_COMPATIBILITY = Object.freeze({
+  DESKTOP_EVENT_APPLICATION_UPDATE_NOTICE: "ApplicationUpdateNoticeSnapshot",
+  DESKTOP_EVENT_LIBRARY_CHANGED: "()",
+  DESKTOP_EVENT_OPERATION: "portcove_core::OperationEvent",
+});
+
 export function extractDeclaredDesktopEvents(sourceText) {
   const declarationCount = [...sourceText.matchAll(/\bconst\s+DESKTOP_EVENT_[A-Z0-9_]+\b/gu)]
     .length;
@@ -48,24 +54,83 @@ export function extractDeclaredDesktopEvents(sourceText) {
 
 export function extractProducedDesktopEvents(sources, declarations) {
   const producedConstants = [];
+  let directEmitCalls = 0;
+  let emitterAdapters = 0;
   for (const sourceText of sources) {
-    if (!/use\s+tauri[^;]*\bEmitter\b[^;]*;/su.test(sourceText)) continue;
-    const calls = [...sourceText.matchAll(/\.emit\s*\(/gu)].length;
-    const parsed = [...sourceText.matchAll(/\.emit\s*\(\s*(DESKTOP_EVENT_[A-Z0-9_]+)\s*,/gu)].map(
-      (match) => match[1],
-    );
+    if (/::\s*emit\s*(?=::|\()/u.test(sourceText))
+      throw new Error("Tauri desktop event producers must route through emit_desktop_event");
+    const rawCalls = [...sourceText.matchAll(/\.emit\s*(?=::|\()/gu)].length;
+    directEmitCalls += rawCalls;
+    const isAdapter = /fn\s+emit_desktop_event\s*</u.test(sourceText);
+    if (isAdapter) emitterAdapters += 1;
+    if (!isAdapter && rawCalls > 0)
+      throw new Error("Tauri desktop event producers must route through emit_desktop_event");
+    if (
+      isAdapter &&
+      (rawCalls !== 1 || !/app\.emit\s*\(\s*event\s*,\s*payload\s*\)/u.test(sourceText))
+    )
+      throw new Error("emit_desktop_event must contain the only direct Tauri emit call");
+
+    const calls = [...sourceText.matchAll(/\bemit_desktop_event\s*::\s*</gu)].length;
+    const parsed = [
+      ...sourceText.matchAll(
+        /\bemit_desktop_event\s*::\s*<\s*((?:(?:[A-Za-z_][A-Za-z0-9_]*)::)*[A-Za-z_][A-Za-z0-9_]*|\(\))\s*>\s*\(\s*[^,\r\n]+,\s*(DESKTOP_EVENT_[A-Z0-9_]+)\s*,/gu,
+      ),
+    ];
     if (parsed.length !== calls)
       throw new Error(
-        `parsed ${parsed.length} of ${calls} Tauri desktop event producers; emit calls must use a declared event constant`,
+        `parsed ${parsed.length} of ${calls} typed desktop event producers; producers must bind one explicit payload type and declared event constant`,
       );
-    producedConstants.push(...parsed);
+    for (const match of parsed) {
+      const payloadType = match[1];
+      const eventConstant = match[2];
+      const expectedType = DESKTOP_EVENT_PAYLOAD_COMPATIBILITY[eventConstant];
+      if (payloadType !== expectedType)
+        throw new Error(
+          `${eventConstant} producers must emit ${expectedType ?? "a known payload type"}, found ${payloadType}`,
+        );
+      producedConstants.push(eventConstant);
+    }
   }
+  if (emitterAdapters !== 1 || directEmitCalls !== 1)
+    throw new Error(
+      `expected exactly one typed Tauri event adapter and direct emit call, found ${emitterAdapters} adapters and ${directEmitCalls} calls`,
+    );
   if (producedConstants.length === 0)
     throw new Error("the Rust desktop event producer inventory is empty");
   for (const name of producedConstants)
     if (!declarations.has(name))
       throw new Error(`Rust emits undeclared desktop event constant: ${name}`);
   return [...new Set(producedConstants.map((name) => declarations.get(name)))].sort();
+}
+
+export function extractExportedDesktopEvents(sourceText, declarations) {
+  const references = [...sourceText.matchAll(/\bDESKTOP_EVENT_[A-Z0-9_]+\s*\.to_owned\s*\(\s*\)/gu)]
+    .length;
+  const parsed = [
+    ...sourceText.matchAll(
+      /\b(DESKTOP_EVENT_[A-Z0-9_]+)\s*\.to_owned\s*\(\s*\)\s*,\s*output\s*::\s*<\s*((?:(?:[A-Za-z_][A-Za-z0-9_]*)::)*[A-Za-z_][A-Za-z0-9_]*|\(\))\s*>\s*\(\s*\)/gu,
+    ),
+  ];
+  if (parsed.length !== references)
+    throw new Error(
+      `parsed ${parsed.length} of ${references} desktop event schema exports; exports must bind a declared event constant to one explicit payload type`,
+    );
+  const exported = [];
+  for (const match of parsed) {
+    const eventConstant = match[1];
+    const payloadType = match[2];
+    if (!declarations.has(eventConstant))
+      throw new Error(`desktop event schemas export undeclared constant: ${eventConstant}`);
+    const expectedType = DESKTOP_EVENT_PAYLOAD_COMPATIBILITY[eventConstant];
+    if (payloadType !== expectedType)
+      throw new Error(
+        `${eventConstant} schema must export ${expectedType ?? "a known payload type"}, found ${payloadType}`,
+      );
+    exported.push(declarations.get(eventConstant));
+  }
+  if (exported.length === 0) throw new Error("the desktop event schema export inventory is empty");
+  return sortedUnique(exported, "desktop event schema exports");
 }
 
 function commandName(pathname) {
@@ -359,15 +424,22 @@ export function checkDesktopCommandContract({
   }
 }
 
-export function checkDesktopEventContract({ declarationSource, producerSources, frontendSources }) {
+export function checkDesktopEventContract({
+  declarationSource,
+  producerSources,
+  exporterSource,
+  frontendSources,
+}) {
   try {
     const declarations = extractDeclaredDesktopEvents(declarationSource);
     const declared = [...declarations.values()].sort();
     const produced = extractProducedDesktopEvents(producerSources, declarations);
+    const exported = extractExportedDesktopEvents(exporterSource, declarations);
     const frontend = extractFrontendDesktopEvents(frontendSources);
     const failures = [];
     for (const [label, actual] of [
       ["Rust producers", produced],
+      ["Rust schema exports", exported],
       ["frontend consumers", frontend],
       ["independent compatibility fixture", DESKTOP_EVENT_COMPATIBILITY],
     ]) {
@@ -523,6 +595,14 @@ function main() {
     ),
   );
   const desktopRustRoot = path.join(root, "apps", "desktop", "src-tauri", "src");
+  const desktopExporterPath = path.join(
+    root,
+    "apps",
+    "desktop",
+    "src-tauri",
+    "examples",
+    "export_transport.rs",
+  );
   const declarationSource = fs.readFileSync(path.join(desktopRustRoot, "transport.rs"), "utf8");
   const declarationSources = rustSources(desktopRustRoot);
   const frontendSources = shippedFrontendSources(path.join(root, "apps", "desktop", "src"));
@@ -537,6 +617,7 @@ function main() {
     ...checkDesktopEventContract({
       declarationSource,
       producerSources: declarationSources,
+      exporterSource: fs.readFileSync(desktopExporterPath, "utf8"),
       frontendSources,
     }).map((message) => `Desktop events: ${message}`),
   );

@@ -3,11 +3,20 @@ use std::path::PathBuf;
 use portcove_core::{LibrarySelection, ReleaseChannel, SourceVerification};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use tauri::Emitter;
 
 pub(crate) const DESKTOP_EVENT_APPLICATION_UPDATE_NOTICE: &str =
     "portcove://application-update-notice";
 pub(crate) const DESKTOP_EVENT_LIBRARY_CHANGED: &str = "portcove://library-changed";
 pub(crate) const DESKTOP_EVENT_OPERATION: &str = "portcove://operation";
+
+pub(crate) fn emit_desktop_event<T: Serialize + Clone>(
+    app: &tauri::AppHandle,
+    event: &'static str,
+    payload: T,
+) -> tauri::Result<()> {
+    app.emit(event, payload)
+}
 
 #[derive(Debug, Serialize, JsonSchema)]
 pub(crate) struct DesktopWorkspaceSnapshot {

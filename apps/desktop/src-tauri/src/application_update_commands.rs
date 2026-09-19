@@ -10,11 +10,10 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use async_trait::async_trait;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use tauri::Emitter;
 use tokio::sync::Notify;
 use tokio_util::sync::CancellationToken;
 
-use crate::transport::DESKTOP_EVENT_APPLICATION_UPDATE_NOTICE;
+use crate::transport::{DESKTOP_EVENT_APPLICATION_UPDATE_NOTICE, emit_desktop_event};
 
 use crate::application_update::ApplicationUpdateCandidateSummary;
 use crate::application_update_connectivity::observe_application_update_connectivity;
@@ -230,7 +229,11 @@ pub(crate) fn start_automatic_checks(state: ApplicationUpdateCommandState, app: 
                 Ok(outcome) => {
                     log_automatic_outcome(&outcome);
                     if let Some(snapshot) = state.record_automatic_outcome(&outcome) {
-                        let _ = app.emit(DESKTOP_EVENT_APPLICATION_UPDATE_NOTICE, snapshot);
+                        let _ = emit_desktop_event::<ApplicationUpdateNoticeSnapshot>(
+                            &app,
+                            DESKTOP_EVENT_APPLICATION_UPDATE_NOTICE,
+                            snapshot,
+                        );
                     }
                     automatic_reevaluation_delay(&outcome, current_unix_seconds())
                 }
@@ -254,7 +257,11 @@ impl ApplicationUpdateCommandState {
 
     pub(crate) fn clear_notice(&self, app: &tauri::AppHandle) {
         let snapshot = self.update_notice(None);
-        let _ = app.emit(DESKTOP_EVENT_APPLICATION_UPDATE_NOTICE, snapshot);
+        let _ = emit_desktop_event::<ApplicationUpdateNoticeSnapshot>(
+            app,
+            DESKTOP_EVENT_APPLICATION_UPDATE_NOTICE,
+            snapshot,
+        );
     }
 
     fn record_automatic_outcome(
@@ -527,7 +534,7 @@ impl ApplicationUpdateCommandState {
 struct ChannelProgress(tauri::ipc::Channel<ApplicationUpdateCheckPhase>);
 
 impl ApplicationUpdateProgressSink for ChannelProgress {
-    fn emit(&self, phase: ApplicationUpdateOperationPhase) {
+    fn report_phase(&self, phase: ApplicationUpdateOperationPhase) {
         let phase = match phase {
             ApplicationUpdateOperationPhase::Checking => ApplicationUpdateCheckPhase::Checking,
             ApplicationUpdateOperationPhase::AcquiringAndVerifying => {

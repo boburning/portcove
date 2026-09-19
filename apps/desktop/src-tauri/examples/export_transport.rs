@@ -35,6 +35,7 @@ fn output<T: JsonSchema>() -> Value {
 }
 
 fn main() {
+    let _emit_adapter = transport::emit_desktop_event::<()>;
     let events = serde_json::Map::from_iter([
         (
             DESKTOP_EVENT_APPLICATION_UPDATE_NOTICE.to_owned(),

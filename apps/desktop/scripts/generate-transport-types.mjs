@@ -4,8 +4,27 @@ import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { compile } from "json-schema-to-typescript";
 
+const transportContractMetadata = {
+  event: { prefix: "Event", title: "DesktopEventPayloads" },
+  input: { prefix: "Input", title: "TransportInputs" },
+  output: { prefix: "Output", title: "TransportOutputs" },
+};
+
+function metadataForContract(contract) {
+  return transportContractMetadata[contract] ?? transportContractMetadata.output;
+}
+
+function generatedSchemaName(key, prefix) {
+  const suffix = key
+    .split(/[^A-Za-z0-9]+/u)
+    .filter(Boolean)
+    .map((part) => part[0].toUpperCase() + part.slice(1))
+    .join("");
+  return `${prefix}${suffix}`;
+}
+
 export function combineTransportSchemas(schemas, contract = "output") {
-  const prefix = contract === "input" ? "Input" : contract === "event" ? "Event" : "Output";
+  const { prefix, title } = metadataForContract(contract);
   const definitions = {};
   function body(schema) {
     const value = { ...schema };
@@ -34,19 +53,13 @@ export function combineTransportSchemas(schemas, contract = "output") {
     const matching = Object.entries(definitions).find(
       ([, definition]) => JSON.stringify(definition) === JSON.stringify(body(schema)),
     );
-    const name =
-      matching?.[0] ??
-      `${prefix}${key
-        .split(/[^A-Za-z0-9]+/u)
-        .filter(Boolean)
-        .map((part) => part[0].toUpperCase() + part.slice(1))
-        .join("")}`;
+    const name = matching?.[0] ?? generatedSchemaName(key, prefix);
     add(name, schema);
     properties[key] = { $ref: `#/$defs/${name}` };
   }
   return {
     type: "object",
-    title: contract === "event" ? "DesktopEventPayloads" : `Transport${prefix}s`,
+    title,
     properties,
     required: Object.keys(properties),
     additionalProperties: false,

@@ -909,15 +909,18 @@ pass. This association gate does not replace backend validation, native consent,
 Tauri capability/window scope, CSP/origin controls, or release-bundle checks.
 
 The same Rust host declaration module owns every shipped `portcove://` event name
-and payload schema. Tauri producers must emit those named constants, and shipped
-React consumers subscribe through the generated `DesktopEventPayloads` map and
-one typed `listenDesktopEvent` adapter. The checker rejects missing, extra,
-renamed, duplicate, dynamic or direct untyped event subscriptions. Its independent
-compatibility fixture freezes the three released event identities so a coherent
-generator/producer/consumer rename still fails. The generated unit payload for
-`portcove://library-changed` is `null`; consumers do not invent content for that
-invalidation hint. Durable SQLite state and explicit readback remain authoritative
-after every event.
+and the only direct Tauri emit adapter. Each producer supplies an explicit Rust
+payload type to that adapter; the compiler checks the value, while the transport
+gate independently binds the type and named constant to the schema export.
+Shipped React consumers subscribe through the generated `DesktopEventPayloads`
+map and one typed `listenDesktopEvent` adapter. The checker rejects missing,
+extra, renamed, duplicate, dynamic or direct untyped producers and subscriptions,
+including wildcard, aliased and qualified Tauri emit access. Its independent
+compatibility fixture freezes the three released event identities and payload
+types so a coherent generator/producer/consumer rename or type substitution still
+fails. The generated unit payload for `portcove://library-changed` is `null`;
+consumers do not invent content for that invalidation hint. Durable SQLite state
+and explicit readback remain authoritative after every event.
 
 ## Routine merge freshness
 
