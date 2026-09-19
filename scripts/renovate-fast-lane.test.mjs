@@ -7,6 +7,7 @@ import {
   fastLaneSummary,
   metadataPlan,
   parseRenovateUpdates,
+  validateDependencyDelta,
   validateCargoAuthority,
   validateNpmAuthority,
 } from "./renovate-fast-lane.mjs";
@@ -140,7 +141,7 @@ test("ordinary stable Cargo and npm patch or minor updates reach metadata valida
     },
     files: [
       { filename: "apps/desktop/package.json", status: "modified" },
-      { filename: "apps/desktop/pnpm-lock.yaml", status: "modified" },
+      { filename: "pnpm-lock.yaml", status: "modified" },
     ],
   });
   assert.equal(npm.verdict, "metadata-required");
@@ -195,7 +196,7 @@ test("unexpected file forms and npm dependency types stay manual", () => {
     ],
     [
       { filename: "apps/desktop/package.json", status: "modified" },
-      { filename: "apps/desktop/pnpm-lock.yaml", status: "added" },
+      { filename: "pnpm-lock.yaml", status: "added" },
     ],
     [
       { filename: "rust-toolchain.toml", status: "modified" },
@@ -217,7 +218,7 @@ test("unexpected file forms and npm dependency types stay manual", () => {
       pull: { body: body({ packageName: "react", dependencyType: "peerDependencies" }) },
       files: [
         { filename: "apps/desktop/package.json", status: "modified" },
-        { filename: "apps/desktop/pnpm-lock.yaml", status: "modified" },
+        { filename: "pnpm-lock.yaml", status: "modified" },
       ],
       config: { ...config, packageRules: [] },
     }).verdict,
@@ -263,6 +264,45 @@ test("metadata authority accepts registries and rejects Git or custom sources", 
   );
 });
 
+test("dependency delta binds the claimed package and versions to manifest and lock changes", () => {
+  const cargo = {
+    manager: "cargo",
+    packageName: "crc32fast",
+    currentVersion: "1.5.1",
+    newVersion: "1.5.2",
+    baseManifest: '[workspace.dependencies]\ncrc32fast = "1.5.1"\nother = "2.0.0"\n',
+    headManifest: '[workspace.dependencies]\ncrc32fast = "1.5.2"\nother = "2.0.1"\n',
+    baseLock: '[[package]]\nname = "crc32fast"\nversion = "1.5.1"\n',
+    headLock: '[[package]]\nname = "crc32fast"\nversion = "1.5.2"\n',
+  };
+  assert.doesNotThrow(() => validateDependencyDelta(cargo));
+  assert.throws(
+    () => validateDependencyDelta({ ...cargo, packageName: "other" }),
+    /manifest delta/,
+  );
+  assert.throws(
+    () => validateDependencyDelta({ ...cargo, currentVersion: "1.5.0" }),
+    /manifest delta/,
+  );
+  assert.throws(() => validateDependencyDelta({ ...cargo, newVersion: "1.5.3" }), /manifest delta/);
+  assert.throws(
+    () => validateDependencyDelta({ ...cargo, headLock: cargo.baseLock }),
+    /lock delta/,
+  );
+
+  const npm = {
+    manager: "npm",
+    packageName: "lucide-react",
+    currentVersion: "1.45.0",
+    newVersion: "1.46.0",
+    baseManifest: JSON.stringify({ dependencies: { "lucide-react": "^1.45.0" } }),
+    headManifest: JSON.stringify({ dependencies: { "lucide-react": "^1.46.0" } }),
+    baseLock: "packages:\n\n  lucide-react@1.45.0:\n",
+    headLock: "packages:\n\n  lucide-react@1.46.0:\n",
+  };
+  assert.doesNotThrow(() => validateDependencyDelta(npm));
+});
+
 test("current-base manifest workflow and policy interactions stay manual", () => {
   for (const targetPath of [
     "Cargo.toml",
@@ -270,8 +310,24 @@ test("current-base manifest workflow and policy interactions stay manual", () =>
     ".github/workflows/ci.yml",
     "renovate.json",
     ".github/repository-ruleset.json",
+    "scripts/renovate-fast-lane.mjs",
+    "scripts/pr-delivery.mjs",
   ]) {
     const result = classify({
+      baseEvidence: { currentTarget: target, currentMergeBase: base, targetPaths: [targetPath] },
+    });
+    assert.equal(result.verdict, "manual-review-required", targetPath);
+    assert.deepEqual(result.evidence.target_paths, [targetPath]);
+  }
+  for (const targetPath of ["pnpm-lock.yaml", "pnpm-workspace.yaml", "package.json"]) {
+    const result = classify({
+      pull: {
+        body: body({ packageName: "lucide-react", updateType: "minor", newVersion: "1.46.0" }),
+      },
+      files: [
+        { filename: "apps/desktop/package.json", status: "modified" },
+        { filename: "pnpm-lock.yaml", status: "modified" },
+      ],
       baseEvidence: { currentTarget: target, currentMergeBase: base, targetPaths: [targetPath] },
     });
     assert.equal(result.verdict, "manual-review-required", targetPath);

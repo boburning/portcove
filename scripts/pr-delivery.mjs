@@ -431,9 +431,13 @@ async function main(argv) {
       try {
         const metadata = await runMetadataValidation({
           projectRoot,
+          base: result.evidence.original_base,
           head,
           manager: result.evidence.manager,
           packageName: result.evidence.package,
+          currentVersion: result.evidence.current_version,
+          newVersion: result.evidence.new_version,
+          paths: result.evidence.paths,
         });
         result = {
           ...result,

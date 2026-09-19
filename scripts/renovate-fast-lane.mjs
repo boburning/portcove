@@ -17,9 +17,10 @@ const cargoPolicyPaths = [
   /^rust-toolchain\.toml$/u,
 ];
 const npmPolicyPaths = [
+  /^package\.json$/u,
+  /^pnpm-lock\.yaml$/u,
+  /^pnpm-workspace\.yaml$/u,
   /^apps\/desktop\/package\.json$/u,
-  /^apps\/desktop\/pnpm-lock\.yaml$/u,
-  /^apps\/desktop\/pnpm-workspace\.yaml$/u,
   /^\.node-version$/u,
 ];
 const sharedPolicyPaths = [
@@ -27,6 +28,7 @@ const sharedPolicyPaths = [
   /^\.github\/(?:actions|workflows)\//u,
   /^\.github\/(?:qualification-coverage|repository-ruleset)\.json$/u,
   /^scripts\/(?:ci-result-gate|select-ci-plan|validation-plan)\.mjs$/u,
+  /^scripts\/(?:pr-delivery|renovate-fast-lane)\.mjs$/u,
 ];
 
 function unique(values, label) {
@@ -139,7 +141,7 @@ function changedFileKind(files) {
   ) {
     return { manager: "cargo", paths };
   }
-  const npmPaths = ["apps/desktop/package.json", "apps/desktop/pnpm-lock.yaml"];
+  const npmPaths = ["apps/desktop/package.json", "pnpm-lock.yaml"];
   if (paths.length === npmPaths.length && npmPaths.every((file) => paths.includes(file)))
     return { manager: "npm", paths };
   return { manager: null, paths };
@@ -458,6 +460,115 @@ export function validateNpmAuthority(manifest, packageName) {
     throw new Error(`${packageName} is not one ordinary registry-backed npm dependency`);
 }
 
+function exactVersion(value) {
+  const match = /^(?:[~^=])?(\d+\.\d+\.\d+(?:\+[0-9A-Za-z.-]+)?)$/u.exec(value.trim());
+  return match?.[1] ?? null;
+}
+
+function cargoManifestVersion(manifest, packageName) {
+  const escaped = gitRegex(packageName);
+  const pattern = new RegExp(
+    `^\\s*(?:"${escaped}"|${escaped})\\s*=\\s*(?:"([^"]+)"|\\{[^}\\r\\n]*\\bversion\\s*=\\s*"([^"]+)")`,
+    "gmu",
+  );
+  const matches = [...manifest.matchAll(pattern)].map((match) =>
+    exactVersion(match[1] ?? match[2]),
+  );
+  if (matches.length !== 1 || !matches[0])
+    throw new Error(`${packageName} does not have one supported Cargo manifest version`);
+  return matches[0];
+}
+
+function cargoLockVersions(lockfile, packageName) {
+  const versions = new Set();
+  for (const block of lockfile.split(/^\[\[package\]\]\s*$/mu).slice(1)) {
+    const name = /^name\s*=\s*"([^"]+)"\s*$/mu.exec(block)?.[1];
+    const version = /^version\s*=\s*"([^"]+)"\s*$/mu.exec(block)?.[1];
+    if (name === packageName && version) versions.add(version);
+  }
+  return versions;
+}
+
+function npmManifestVersion(manifestText, packageName) {
+  let manifest;
+  try {
+    manifest = JSON.parse(manifestText);
+  } catch {
+    throw new Error("npm manifest is not valid JSON");
+  }
+  const values = [
+    manifest.dependencies?.[packageName],
+    manifest.devDependencies?.[packageName],
+  ].filter((value) => typeof value === "string");
+  if (values.length !== 1 || !exactVersion(values[0]))
+    throw new Error(`${packageName} does not have one supported npm manifest version`);
+  return exactVersion(values[0]);
+}
+
+function pnpmLockVersions(lockfile, packageName) {
+  const escaped = gitRegex(packageName);
+  const pattern = new RegExp(`^  ['"]?${escaped}@([^:'"()\\s]+)`, "gmu");
+  return new Set([...lockfile.matchAll(pattern)].map((match) => match[1]));
+}
+
+function assertVersionTransition({
+  manager,
+  packageName,
+  currentVersion,
+  newVersion,
+  baseManifest,
+  headManifest,
+  baseLock,
+  headLock,
+}) {
+  const manifestVersion = manager === "cargo" ? cargoManifestVersion : npmManifestVersion;
+  const lockVersions = manager === "cargo" ? cargoLockVersions : pnpmLockVersions;
+  const observedBase = manifestVersion(baseManifest, packageName);
+  const observedHead = manifestVersion(headManifest, packageName);
+  if (observedBase !== currentVersion || observedHead !== newVersion)
+    throw new Error(
+      `${packageName} manifest delta is ${observedBase} -> ${observedHead}, not ${currentVersion} -> ${newVersion}`,
+    );
+  const before = lockVersions(baseLock, packageName);
+  const after = lockVersions(headLock, packageName);
+  const removed = [...before].filter((version) => !after.has(version));
+  const added = [...after].filter((version) => !before.has(version));
+  if (
+    removed.length !== 1 ||
+    removed[0] !== currentVersion ||
+    added.length !== 1 ||
+    added[0] !== newVersion
+  ) {
+    throw new Error(
+      `${packageName} lock delta does not exclusively replace ${currentVersion} with ${newVersion}`,
+    );
+  }
+}
+
+export function validateDependencyDelta({
+  manager,
+  packageName,
+  currentVersion,
+  newVersion,
+  baseManifest,
+  headManifest,
+  baseLock,
+  headLock,
+}) {
+  if (!new Set(["cargo", "npm"]).has(manager))
+    throw new Error(`unsupported fast-lane manager: ${manager}`);
+  assertVersionTransition({
+    manager,
+    packageName,
+    currentVersion,
+    newVersion,
+    baseManifest,
+    headManifest,
+    baseLock,
+    headLock,
+  });
+}
+
 async function validateNpmCheckoutAuthority(checkout, packageName) {
   const manifest = JSON.parse(
     await readFile(path.join(checkout, "apps", "desktop", "package.json"), "utf8"),
@@ -467,15 +578,35 @@ async function validateNpmCheckoutAuthority(checkout, packageName) {
 
 export async function runMetadataValidation({
   projectRoot,
+  base,
   head,
   manager,
   packageName,
+  currentVersion,
+  newVersion,
+  paths,
   commandRunner = runCommand,
 }) {
   const temporaryRoot = await mkdtemp(path.join(os.tmpdir(), "portcove-renovate-check-"));
   const checkout = path.join(temporaryRoot, "checkout");
   let registered = false;
   try {
+    const manifestPath = paths.find(
+      (file) => file.endsWith("package.json") || file.endsWith("Cargo.toml"),
+    );
+    const lockPath = manager === "cargo" ? "Cargo.lock" : "pnpm-lock.yaml";
+    if (!manifestPath || !paths.includes(lockPath))
+      throw new Error("dependency delta paths do not match the selected manager");
+    validateDependencyDelta({
+      manager,
+      packageName,
+      currentVersion,
+      newVersion,
+      baseManifest: git(projectRoot, ["show", `${base}:${manifestPath}`]),
+      headManifest: git(projectRoot, ["show", `${head}:${manifestPath}`]),
+      baseLock: git(projectRoot, ["show", `${base}:${lockPath}`]),
+      headLock: git(projectRoot, ["show", `${head}:${lockPath}`]),
+    });
     git(projectRoot, ["worktree", "add", "--detach", checkout, head]);
     registered = true;
     const before = git(checkout, ["status", "--porcelain", "--untracked-files=no"]);
