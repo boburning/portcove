@@ -886,6 +886,19 @@ snapshots remain separate from core's export. Strict compiler fixtures cover
 the desktop's required nullable envelope fields, camelCase launch identity and
 typed install request; Rust fixtures check actual Serde output/input behavior.
 
+The transport check also inventories Desktop IPC exposure without generating a
+second RPC description. The one production `tauri::generate_handler!` list is the
+registration authority. `node scripts/check-transport-contract.mjs` requires its
+command names to match every bare `#[tauri::command]` declaration and every `invoke`
+use in shipped non-test TypeScript under `apps/desktop/src`. It requires the direct
+import and a literal command name, rejecting aliases, indirect calls, missing, extra,
+renamed, duplicate, dynamic, macro-composed, or attributed command forms until the
+checker explicitly supports them. Unit fixtures include a coherent registration/frontend
+rename that the independent declaration inventory rejects; the integration test
+compiles the live Rust exporters and requires the complete repository contract to
+pass. This association gate does not replace backend validation, native consent,
+Tauri capability/window scope, CSP/origin controls, or release-bundle checks.
+
 ## Routine merge freshness
 
 The Protect main ruleset keeps `catalog`, `dependency-review`, `frontend`,

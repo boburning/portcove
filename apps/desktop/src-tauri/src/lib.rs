@@ -61,11 +61,10 @@ use portcove_core::{
     HostPreferenceStore, HostToolProbeResult, HostToolStatus, IdentifiedLaunchRequest, InstallPlan,
     InstallRecord, LaunchStdio, Library, LibraryChangeObserver, LibraryMetadataFile,
     LibrarySelection, LibrarySelectionSource, OperationCoordinator, OperationEvent,
-    OperationResult, PortStatus, PortcoveError, PortcoveService, ReconcileResult, ReleaseChannel,
-    ReleaseProvider, SourceDiscoveryLimits, SourceImportMode, SourceImportPlan, SourceImportResult,
+    OperationResult, PortStatus, PortcoveError, PortcoveService, ReleaseChannel, ReleaseProvider,
+    SourceDiscoveryLimits, SourceImportMode, SourceImportPlan, SourceImportResult,
     SourceInboxPaths, SourceInboxResolution, SourceInspectionReport, SourceIntakeInspection,
-    SourceRecord, SourceRelinkPlan, SourceVerification, UpdateCheck, UpdatePolicy,
-    VerificationReport,
+    SourceRecord, SourceRelinkPlan, UpdateCheck, UpdatePolicy, VerificationReport,
 };
 use serde::{Deserialize, Serialize};
 use tauri::{Emitter, Manager};
@@ -574,18 +573,6 @@ async fn create_backup(
 }
 
 #[tauri::command]
-async fn verify_source(
-    state: tauri::State<'_, DesktopState>,
-    profile_id: String,
-) -> DesktopResult<SourceVerification> {
-    let state = state.inner().clone();
-    blocking_service(state, move |service| {
-        service.verify_source(&profile_id).map_err(Into::into)
-    })
-    .await
-}
-
-#[tauri::command]
 async fn inspect_source(
     state: tauri::State<'_, DesktopState>,
     profile_id: String,
@@ -770,61 +757,6 @@ async fn check_installed(
         emit_operation(
             &app,
             operation.finished(if success {
-                OperationResult::Succeeded
-            } else {
-                OperationResult::Failed
-            }),
-        );
-        Ok(outcomes)
-    })
-    .await
-}
-
-#[tauri::command]
-async fn reconcile_installed(
-    app: tauri::AppHandle,
-    state: tauri::State<'_, DesktopState>,
-) -> DesktopResult<Vec<BatchOutcome<ReconcileResult>>> {
-    let state = state.inner().clone();
-    blocking_async_service(state, move |service| async move {
-        let installed = service
-            .statuses()?
-            .into_iter()
-            .filter(|status| status.active.is_some())
-            .collect::<Vec<_>>();
-        let total = installed.len() as u64;
-        let operation = OperationCoordinator::new("reconcile_installed", None);
-        emit_operation(&app, operation.started());
-        let mut outcomes = Vec::with_capacity(installed.len());
-        for (index, status) in installed.into_iter().enumerate() {
-            let port_id = status.port_id;
-            let result = service
-                .reconcile(&port_id, |event| {
-                    emit_operation(&app, event);
-                })
-                .await;
-            outcomes.push(match result {
-                Ok(result) => BatchOutcome {
-                    port_id,
-                    ok: true,
-                    result: Some(result),
-                    error: None,
-                },
-                Err(error) => BatchOutcome {
-                    port_id,
-                    ok: false,
-                    result: None,
-                    error: Some(error.into()),
-                },
-            });
-            emit_operation(
-                &app,
-                operation.progress("Applying update policies", index as u64 + 1, Some(total)),
-            );
-        }
-        emit_operation(
-            &app,
-            operation.finished(if outcomes.iter().all(|outcome| outcome.ok) {
                 OperationResult::Succeeded
             } else {
                 OperationResult::Failed
@@ -1090,33 +1022,6 @@ async fn install_port(
                 input.source.as_deref(),
                 input.bios.as_deref(),
                 !input.stage,
-                |event: OperationEvent| {
-                    emit_operation(&app, event);
-                },
-            )
-            .await
-            .map_err(Into::into)
-    })
-    .await
-}
-
-#[tauri::command]
-async fn update_port(
-    app: tauri::AppHandle,
-    state: tauri::State<'_, DesktopState>,
-    port_id: String,
-    source: Option<PathBuf>,
-    bios: Option<PathBuf>,
-    stage: bool,
-) -> DesktopResult<InstallRecord> {
-    let state = state.inner().clone();
-    blocking_async_service(state, move |service| async move {
-        service
-            .update(
-                &port_id,
-                source.as_deref(),
-                bios.as_deref(),
-                !stage,
                 |event: OperationEvent| {
                     emit_operation(&app, event);
                 },
@@ -2108,7 +2013,6 @@ pub fn run() {
             artwork::reset_artwork,
             backup_review::restore_backup,
             backup_review::delete_backup,
-            verify_source,
             inspect_source,
             inspect_source_intake,
             plan_source_relink,
@@ -2116,7 +2020,6 @@ pub fn run() {
             verify_sources,
             check_port,
             check_installed,
-            reconcile_installed,
             add_source,
             discover_sources,
             get_source_inbox_paths,
@@ -2129,7 +2032,6 @@ pub fn run() {
             set_channel,
             set_policy,
             install_port,
-            update_port,
             verify_port,
             activate_port,
             rollback_port,
