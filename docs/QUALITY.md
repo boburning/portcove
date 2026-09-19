@@ -62,6 +62,12 @@ boundary and retained evidence.
 | Explicit cycle investigation         | `just cycles`                         | optional advisory module-cycle report                                                                                                         |
 | Critical core test review            | `just mutants`                        | optional mutation analysis for `portcove-core`                                                                                                |
 
+The release-unit metadata gate also binds Desktop command context to one local
+`main` window and rejects qualification-only Cargo features in the default
+Desktop feature set. The production Vite build separately rejects development
+scenario and fixture modules from emitted assets; these independent checks keep
+test and rehearsal surfaces out of ordinary release builds.
+
 The exhaustive Rust aggregate does not run standalone `cargo check` immediately
 before Clippy. Its warnings-denied `cargo clippy --workspace --all-targets -- -D
 warnings` invocation compiles and type-checks the same workspace target set, then

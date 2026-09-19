@@ -638,8 +638,12 @@ renamed, duplicate, dynamically named, or unsupported command declarations fail 
 Intentional capability and library-identity reads have typed facade bindings;
 obsolete unconsumed single-source verification, bulk reconciliation, and direct
 update commands are not registered. Core and CLI operations remain unchanged.
-This proves name/declaration/registration/frontend association, not runtime
-authorization, window scope, native consent, domain validation, or readiness.
+This proves name/declaration/registration/frontend association. The host then
+admits that inventory only from the `main` webview and rejects every other
+webview before command dispatch; the release metadata gate keeps the Tauri
+window and capability definitions aligned with that single context. This does
+not replace plugin permission checks, native consent, domain validation, or
+readiness evidence.
 
 The core preparation module owns exact input planning for the existing
 upstream-managed setup family. It reuses port locks, source assessment, installed

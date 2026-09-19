@@ -1893,6 +1893,37 @@ fn reconcile_application_update_after_healthy_startup() {
     }
 }
 
+const MAIN_WINDOW_INVOKE_REJECTION: &str =
+    "Portcove commands are available only to the main window";
+
+fn dispatch_main_window<T, F>(label: &str, invocation: T, dispatch: F) -> Result<bool, T>
+where
+    F: FnOnce(T) -> bool,
+{
+    if label == "main" {
+        Ok(dispatch(invocation))
+    } else {
+        Err(invocation)
+    }
+}
+
+fn main_window_invoke_handler<R, F>(handler: F) -> impl Fn(tauri::ipc::Invoke<R>) -> bool
+where
+    R: tauri::Runtime,
+    F: Fn(tauri::ipc::Invoke<R>) -> bool,
+{
+    move |invoke| {
+        let label = invoke.message.webview_ref().label().to_owned();
+        match dispatch_main_window(&label, invoke, &handler) {
+            Ok(handled) => handled,
+            Err(invoke) => {
+                invoke.resolver.reject(MAIN_WINDOW_INVOKE_REJECTION);
+                true
+            }
+        }
+    }
+}
+
 pub fn run() {
     #[cfg(any(windows, target_os = "linux"))]
     report_application_update_qualification_stage("process entry");
@@ -1947,7 +1978,7 @@ pub fn run() {
             generation: std::sync::Arc::new(std::sync::atomic::AtomicU64::new(1)),
             launch_observer: std::sync::Arc::new(std::sync::Mutex::new(None)),
         })
-        .invoke_handler(tauri::generate_handler![
+        .invoke_handler(main_window_invoke_handler(tauri::generate_handler![
             get_bootstrap_status,
             application_update_commands::check_application_update,
             application_update_commands::download_application_update,
@@ -2060,7 +2091,7 @@ pub fn run() {
             library_transfer::move_library,
             library_transfer::recover_library_move,
             report_frontend_error,
-        ])
+        ]))
         .setup(|app| {
             #[cfg(any(windows, target_os = "linux"))]
             report_application_update_qualification_stage("Tauri setup");
@@ -2112,6 +2143,24 @@ pub fn run() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn invoke_context_gate_rejects_non_main_windows_before_dispatch() {
+        let mut dispatches = 0;
+        let secondary = dispatch_main_window("secondary", "invocation", |_| {
+            dispatches += 1;
+            true
+        });
+        assert_eq!(secondary, Err("invocation"));
+        assert_eq!(dispatches, 0);
+
+        let main = dispatch_main_window("main", "invocation", |_| {
+            dispatches += 1;
+            true
+        });
+        assert_eq!(main, Ok(true));
+        assert_eq!(dispatches, 1);
+    }
 
     #[test]
     fn storage_commands_reject_a_stale_library_generation() {

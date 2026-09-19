@@ -56,6 +56,11 @@ const requiredBundleIcons = [
   "icons/icon.ico",
 ];
 
+const qualificationOnlyDesktopFeatures = [
+  "application-update-qualification",
+  "qualification-fixtures",
+];
+
 export function parseWorkspacePackage(toml) {
   const table = toml.match(/(?:^|\r?\n)\[workspace\.package\]\r?\n([\s\S]*?)(?=\r?\n\[|$)/)?.[1];
   if (!table) throw new Error("Cargo.toml has no [workspace.package] table");
@@ -64,6 +69,19 @@ export function parseWorkspacePackage(toml) {
     version: stringValue("version"),
     repository: stringValue("repository"),
     license: stringValue("license"),
+  };
+}
+
+export function parseDesktopCargoFeatures(toml) {
+  const table = toml.match(/(?:^|\r?\n)\[features\]\r?\n([\s\S]*?)(?=\r?\n\[|$)/)?.[1];
+  if (!table) throw new Error("desktop Cargo.toml has no [features] table");
+  const names = [...table.matchAll(/^([A-Za-z0-9_-]+)\s*=/gmu)].map((match) => match[1]);
+  const defaultDefinition = table.match(/^default\s*=\s*\[([\s\S]*?)\]/mu)?.[1];
+  return {
+    names,
+    default: defaultDefinition
+      ? [...defaultDefinition.matchAll(/"([^"]+)"/gu)].map((match) => match[1])
+      : [],
   };
 }
 
@@ -370,6 +388,34 @@ const metadataRules = [
     metadata.tauri.app?.windows?.[0]?.title === "Portcove"
       ? undefined
       : "Tauri product and primary window names must both be Portcove",
+  (metadata) => {
+    const windows = metadata.tauri.app?.windows;
+    return windows?.length === 1 && (windows[0].label ?? "main") === "main"
+      ? undefined
+      : "Tauri release configuration must define exactly one main window";
+  },
+  (metadata) => {
+    const capability = metadata.desktopCapability;
+    return capability?.identifier === "default" &&
+      capability.remote === undefined &&
+      JSON.stringify(capability.windows) === JSON.stringify(["main"])
+      ? undefined
+      : "desktop release capability must apply only to the local main window";
+  },
+  (metadata) =>
+    qualificationOnlyDesktopFeatures.every((feature) =>
+      metadata.desktopCargoFeatures?.names?.includes(feature),
+    )
+      ? undefined
+      : "desktop Cargo features must retain the qualification-only feature declarations",
+  (metadata) => {
+    const enabledByDefault = qualificationOnlyDesktopFeatures.filter((feature) =>
+      metadata.desktopCargoFeatures?.default?.includes(feature),
+    );
+    return enabledByDefault.length === 0
+      ? undefined
+      : `desktop default features must exclude qualification-only features: ${enabledByDefault.join(", ")}`;
+  },
   (metadata) =>
     metadata.tauri.identifier?.match(/^[a-zA-Z][a-zA-Z0-9.-]+$/)
       ? undefined
@@ -407,15 +453,33 @@ export function validateReleaseMetadata(metadata, options = {}) {
 async function collectReleaseMetadata(root = projectRoot) {
   const cargoPath = path.join(root, "Cargo.toml");
   const desktopPackagePath = path.join(root, "apps", "desktop", "package.json");
+  const desktopCargoPath = path.join(root, "apps", "desktop", "src-tauri", "Cargo.toml");
   const tauriPath = path.join(root, "apps", "desktop", "src-tauri", "tauri.conf.json");
-  const [cargoToml, desktopPackageText, tauriText, brandManifest, modelManifest] =
-    await Promise.all([
-      readFile(cargoPath, "utf8"),
-      readFile(desktopPackagePath, "utf8"),
-      readFile(tauriPath, "utf8"),
-      collectBrandManifest(root),
-      collectModelManifest(root),
-    ]);
+  const capabilityPath = path.join(
+    root,
+    "apps",
+    "desktop",
+    "src-tauri",
+    "capabilities",
+    "default.json",
+  );
+  const [
+    cargoToml,
+    desktopPackageText,
+    desktopCargoToml,
+    tauriText,
+    capabilityText,
+    brandManifest,
+    modelManifest,
+  ] = await Promise.all([
+    readFile(cargoPath, "utf8"),
+    readFile(desktopPackagePath, "utf8"),
+    readFile(desktopCargoPath, "utf8"),
+    readFile(tauriPath, "utf8"),
+    readFile(capabilityPath, "utf8"),
+    collectBrandManifest(root),
+    collectModelManifest(root),
+  ]);
   const missingFiles = [];
   await Promise.all(
     requiredProjectFiles.map(async (relativePath) => {
@@ -429,7 +493,9 @@ async function collectReleaseMetadata(root = projectRoot) {
   return {
     cargo: parseWorkspacePackage(cargoToml),
     desktopPackage: JSON.parse(desktopPackageText),
+    desktopCargoFeatures: parseDesktopCargoFeatures(desktopCargoToml),
     tauri: JSON.parse(tauriText),
+    desktopCapability: JSON.parse(capabilityText),
     missingFiles: missingFiles.sort(),
     brandAssetCount: brandManifest.assetCount,
     brandManifestErrors: brandManifest.errors,

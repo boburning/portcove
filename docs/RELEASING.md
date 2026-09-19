@@ -234,7 +234,7 @@ The release version must match in exactly three places:
 
 After changing them, run Cargo once so the workspace package entries in `Cargo.lock` are refreshed (including the unpublished release verification tool). A release tag is always the exact version with a `v` prefix, such as `v0.1.0` or `v0.2.0-beta.1`.
 
-`scripts/check-release-metadata.mjs` verifies those versions, the tag, package manager pin, repository/license metadata, Tauri identity, and the required master/runtime/platform brand assets. Local packaging derives its default version from that check and rejects an explicit mismatch.
+`scripts/check-release-metadata.mjs` verifies those versions, the tag, package manager pin, repository/license metadata, Tauri identity, and the required master/runtime/platform brand assets. It also requires one local `main` Tauri window, scopes the default capability to that window, and keeps the declared qualification-only Cargo features out of default Desktop builds. The production Vite build independently rejects development scenarios and test fixtures from emitted assets. Local packaging derives its default version from that check and rejects an explicit mismatch.
 
 The offline `corepack pnpm --dir apps/desktop release:policy` utility accepts `classify`,
 `select` or `propose` followed by one JSON input file. It shares the existing Node

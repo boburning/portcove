@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   inspectPng,
   parseArguments,
+  parseDesktopCargoFeatures,
   parseWorkspacePackage,
   validateBrandManifestDefinition,
   validateModelManifestDefinition,
@@ -18,6 +19,15 @@ function validMetadata() {
       license: "MIT OR Apache-2.0",
     },
     desktopPackage: { version: "1.2.3-beta.1", packageManager: "pnpm@12.4.1" },
+    desktopCargoFeatures: {
+      names: ["application-update-qualification", "qualification-fixtures"],
+      default: [],
+    },
+    desktopCapability: {
+      identifier: "default",
+      windows: ["main"],
+      permissions: ["core:default"],
+    },
     tauri: {
       productName: "Portcove",
       version: "1.2.3-beta.1",
@@ -132,6 +142,26 @@ serde = "1"
   });
 });
 
+test("parses desktop feature declarations and their default membership", () => {
+  assert.deepEqual(
+    parseDesktopCargoFeatures(`
+[features]
+default = ["portable", "qualification-fixtures"]
+application-update-qualification = []
+qualification-fixtures = ["portcove-core/qualification-fixtures"]
+portable = []
+
+[dependencies]
+serde = "1"
+`),
+    {
+      names: ["default", "application-update-qualification", "qualification-fixtures", "portable"],
+      default: ["portable", "qualification-fixtures"],
+    },
+  );
+  assert.throws(() => parseDesktopCargoFeatures('[package]\nname = "desktop"'), /no \[features\]/);
+});
+
 test("accepts one matching semantic version and tag across every surface", () => {
   assert.deepEqual(
     validateReleaseMetadata(validMetadata(), {
@@ -139,6 +169,35 @@ test("accepts one matching semantic version and tag across every surface", () =>
       expectedVersion: "1.2.3-beta.1",
     }),
     [],
+  );
+});
+
+test("rejects additional release windows and capability contexts", () => {
+  const metadata = validMetadata();
+  metadata.tauri.app.windows.push({ label: "secondary", title: "Secondary" });
+  metadata.desktopCapability.windows.push("secondary");
+  metadata.desktopCapability.remote = { urls: ["https://example.invalid"] };
+  const errors = validateReleaseMetadata(metadata);
+  assert.match(errors.join("\n"), /exactly one main window/);
+  assert.match(errors.join("\n"), /only to the local main window/);
+});
+
+test("rejects qualification-only features from default desktop builds", () => {
+  const metadata = validMetadata();
+  metadata.desktopCargoFeatures.default = [
+    "application-update-qualification",
+    "qualification-fixtures",
+  ];
+  assert.match(
+    validateReleaseMetadata(metadata).join("\n"),
+    /default features must exclude qualification-only features: application-update-qualification, qualification-fixtures/,
+  );
+
+  metadata.desktopCargoFeatures.default = [];
+  metadata.desktopCargoFeatures.names = ["application-update-qualification"];
+  assert.match(
+    validateReleaseMetadata(metadata).join("\n"),
+    /retain the qualification-only feature declarations/,
   );
 });
 
