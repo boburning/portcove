@@ -247,14 +247,12 @@ failed rules, evidence and resume conditions. Discovery has no admission
 authority. Engineering/policy/authority changes still require scoped review;
 neither an agent nor a candidate may change its own protected acceptance rules.
 Routine authorized work follows mandatory CI, an actual separate non-writing
-reviewer-subagent result, substantive finding repair, current-revision and
-authority confirmation, then the guarded normal merge path. An implementation
-or continuation request authorizes that routine workflow within its scope
-without repeated owner approval. The implementation owner dispatches the
-reviewer with the exact source head, baseline, complete change, acceptance, and
-evidence; records its real findings and limitations; repairs substantive
-findings; and obtains applicable re-review for changed code. Implementer
-self-review is not independent review. Ask the owner only for an unresolved
+reviewer result, substantive finding repair, current-revision and authority
+confirmation, then the guarded normal merge path. The exact incremental review
+and evidence contract is owned by
+[Contribution conventions](CONTRIBUTION-CONVENTIONS.md), not repeated here. An
+implementation or continuation request authorizes that routine workflow within
+its scope without repeated owner approval. Ask the owner only for an unresolved
 blocker, intrinsically required manual participation, or authority not already
 granted, and continue unrelated authorized work. Unavailable delegation holds
 the affected merge, not every other lane. A timeout, cancellation, empty

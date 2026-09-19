@@ -14,6 +14,8 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { validationOwnershipForPath } from "./validation-plan.mjs";
+
 const projectRoot = fileURLToPath(new URL("../", import.meta.url));
 const receiptFormat = 1;
 const allReusableDomains = [
@@ -127,6 +129,15 @@ export function domainsForPath(input) {
   const file = normalizeRepositoryPath(input);
   const domains = new Set();
   let recognized = false;
+  const validationOwnership = validationOwnershipForPath(file);
+  if (validationOwnership.areas.includes("policy")) {
+    add(domains, ...allReusableDomains);
+    recognized = true;
+  }
+  if (validationOwnership.areas.includes("release-security")) {
+    add(domains, "release");
+    recognized = true;
+  }
 
   // Keep repository-wide formatting independent from UI behavior so a
   // documentation-only rebase cannot invalidate otherwise-identical code evidence.
@@ -136,6 +147,10 @@ export function domainsForPath(input) {
     file === "justfile" ||
     file === "scripts/audit.mjs" ||
     file === "scripts/audit.test.mjs" ||
+    file === "scripts/local-validation.mjs" ||
+    file === "scripts/local-validation.test.mjs" ||
+    file === "scripts/validation-plan.mjs" ||
+    file === "scripts/validation-plan.test.mjs" ||
     file === "scripts/dev-storage.mjs" ||
     file === "scripts/tool-cache.mjs" ||
     file === "scripts/test-duration-reporter.mjs" ||
@@ -194,7 +209,6 @@ export function domainsForPath(input) {
 
   if (file.startsWith(".github/workflows/") || file.startsWith(".github/actions/")) {
     add(domains, "lint", "repository");
-    if (/release|updater|qualification/u.test(file)) add(domains, "release");
     recognized = true;
   }
 
@@ -208,8 +222,6 @@ export function domainsForPath(input) {
 
   if (file.startsWith("scripts/")) {
     const name = path.posix.basename(file);
-    if (/release|updater|checksum|qualification|installer|package-cli|smoke-test-cli/u.test(name))
-      add(domains, "release");
     if (/roadmap|source-provenance|catalog-schema/u.test(name)) add(domains, "roadmap");
     if (
       /dev-|development-|local-validation|rust-test-impact|native-session|desktop-test|tool-cache|bootstrap-quality/u.test(
@@ -237,7 +249,6 @@ export function domainsForPath(input) {
 
   if (file.startsWith("docs/") || file.endsWith(".md")) {
     add(domains, "repository");
-    if (/release|delivery|updater/iu.test(file)) add(domains, "release");
     if (/development|quality|contributing/iu.test(file) || file === "AGENTS.md")
       add(domains, "development");
     if (/project-governance|roadmap/iu.test(file)) add(domains, "roadmap");

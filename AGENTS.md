@@ -42,79 +42,40 @@ or approve their own trusted gates.
 
 ## Execution loop
 
-1. Read the linked issue, dependencies, live Roadmap fields, current branch/head,
-   and active #793 file or resource reservations. Create or promote a durable
-   issue only when authorized work has no owner.
-2. Confirm the exact write scope. Separate worktrees share the host and do not
-   automatically own a file, process, library, native session, or remote PR.
-   Coordinate before overlapping writes and preserve other workers' changes,
-   evidence, processes, and reservations.
-3. Implement the smallest coherent change through the existing authority. Run
-   the narrow edit-test loop, then `just local-check` before the first coherent
-   push and after a substantive repair.
-4. Open or update one draft PR with the five sections in
-   `docs/CONTRIBUTION-CONVENTIONS.md`. Keep its evidence current and run
-   `just pr-check <number-or-url>`; that advisory check is not acceptance,
-   review, CI, or merge authority.
-5. Freeze the candidate and dispatch an actual separate non-writing reviewer
-   subagent with the PR, source head, base and merge-base, changed files, issue,
-   acceptance criteria, and available evidence. Record its real findings and
-   limitations. The implementer repairs substantive findings; changed code gets
-   applicable re-review. Self-review is useful but is not independent review.
-6. Require the complete selected hosted plan on the exact reviewed head, plus any
-   separately required package, recovery, security, native, physical-platform,
-   or human evidence. Update the PR before marking it ready.
-7. Reconfirm the source head, conflicts, target interactions, authority, required
-   contexts, and resolved findings. Use the maintained exact-head merge path in
-   `docs/CONTRIBUTION-CONVENTIONS.md`, then read back the remote merge before
-   cleanup or issue completion.
+Follow one loop: understand the owned outcome and active reservations; implement
+one coherent change with focused tests; review that candidate and repair
+substantive findings; finish applicable local validation; push and freeze the
+candidate; complete required exact-head CI and distinct acceptance; guarded merge;
+concise handoff. Use the task map below for details instead of loading every
+specialist contract.
 
-If delegation is unavailable, the affected merge waits; continue other authorized
-nonconflicting work. A timeout, empty response, cancellation, or absence of
-comments is not review evidence.
+Preserve other workers' changes, processes, evidence and reservations. A worktree
+does not confer ownership of shared host resources. If no durable issue owns
+authorized work, create one through the Roadmap workflow. Keep a clean candidate
+unchanged while final checks run; PR-body evidence updates do not change its source
+head.
 
 ## Validation and failures
 
-Use three tiers: the smallest relevant `just test-rust`, `just test-ui-related`,
-or `just test-node` loop; the complete diff-selected `just local-check`; and the
-required hosted plan selected from the full merge-base diff. The hosted plan may
-be focused fast validation, exhaustive qualification, or the narrow prose path.
-Unknown safe hosted paths use the tested all-fast fallback; unknown local paths
-fail until a focused selection rule is added and tested.
+Use focused edit-time tests, the complete diff-selected `just local-check`, and
+the required hosted plan selected from the full merge-base diff. `docs/QUALITY.md`
+owns selection, escalation, receipt reuse and failure handling. Do not run a broad
+local aggregate merely to duplicate hosted evidence. A protected policy change
+still satisfies the pre-change transition policy and cannot exempt itself.
 
-Do not run `just check` or `just audit` merely to duplicate an ordinary selected
-hosted plan. Use aggregate commands for their documented purposes in
-`docs/QUALITY.md`. A protected routing, qualification, merge, release, or
-controller-policy change cannot exempt itself: apply the pre-change policy,
-adversarial contract tests, `just audit --fresh`, exhaustive hosted qualification,
-and independent review.
-
-On failure, preserve evidence and identify the smallest discriminating
-reproduction. Separate product, harness, and demonstrated environment causes;
-repair the cause and repeat the affected obligation. Do not retry until green,
-assume host load, raise safety deadlines, fabricate a pass, or wait indefinitely.
-Use the shared heavy-Rust and native-session guards documented in
-`docs/DEVELOPMENT-TOOLS.md`; never delete their locks, kill another worker, or
-bypass a guarded recipe. Continue nonconflicting work when one case is blocked.
+On failure, preserve evidence, identify the smallest discriminating reproduction,
+repair the cause and repeat invalidated obligations. Never hide a failure, relax a
+safety boundary, delete a shared lock, kill another worker, or bypass a guarded
+recipe.
 
 ## Review and merge boundaries
 
-Every changed candidate uses the separate reviewer standard above whether it is
-current with or behind `main`. A later target advance alone does not invalidate an
-unchanged source head. Fetch it for observation and reconcile only interactions
-that affect the patch, dependencies, schemas, generated contracts, or trusted
-policy. Failed or missing checks, conflicts, relevant drift, unresolved findings,
-or a changed source head still block; a new source head requires applicable fresh
-review and validation.
-
-`just pr-watch --pr <number-or-url> --head <reviewed-head>` observes the five
-checked-in required contexts. After all actual gates pass, use
-`just pr-merge-rest --pr <number-or-url> --head <reviewed-head>` for the routine
-immediate guarded merge and remote readback. The helper is a mechanism, not review
-or merge authority; live permissions, rules, and resolved-thread requirements
-remain effective. Never use administrator bypass for the routine path. Treat
-deferred auto-merge as an exception whose later source revision still needs the
-same current review and validation evidence.
+Every candidate receives actual separate non-writing review. Review may start on
+an exact local commit before expensive final qualification; repairs return to the
+same reviewer for the changed delta and affected interactions. A new source head,
+substantive finding, failed or missing check, conflict, or relevant target/policy
+drift still blocks. `docs/CONTRIBUTION-CONVENTIONS.md` owns the full review,
+exact-head wait and guarded merge contract; administrator bypass is never routine.
 
 ## Task map
 

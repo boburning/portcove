@@ -70,25 +70,11 @@ check is the intended diagnostic.
 
 ### Single-session validation consolidation
 
-[#922](https://github.com/boburning/portcove/issues/922) owns the remaining
-single-session validation/build cost work. The active local planner uses
-warnings-denied Clippy as the one compile-and-lint owner for the same package or
-workspace target set; the standalone `just rust-check` diagnostic remains
-available. Commands selected under different stage IDs coalesce only when both
-their complete invocation and explicit semantic obligation match, and every
-selection ID and reason remains reported. A complete UI test run owns its included
-theme and copy checks; import-related UI plans still run those checks separately.
-Different packages, targets, features, profiles, environments, generated contracts,
-isolation or evidence roles remain distinct.
-
-The activating planner comparison retained the ordinary frontend/style plan at
-nine stages, reduced focused and broad Rust plans from six stages to five, reduced
-a mixed frontend/tooling plan from eleven stages to ten by executing the identical
-Oxlint obligation once, and reduced the complete frontend-configuration plan from
-eight stages to six by using the aggregate's theme/copy ownership. These are
-invocation-count observations, not an arbitrary wall-clock speed gate. Existing
-stage durations and guard evidence remain the timing record; there is no new
-dashboard.
+The active local planner uses warnings-denied Clippy as the one compile-and-lint
+owner for the same package or workspace target set. Commands coalesce only when
+their complete invocation and semantic obligation match, and every selection
+reason remains visible. Different packages, targets, features, profiles,
+environments, generated contracts, isolation, or evidence roles remain distinct.
 
 Compatible Rust impact groups now run through one guarded union. Nextest lists
 each selected group under the same locked package, profile and environment and
@@ -105,10 +91,10 @@ compiled product after complete input/toolchain/target/flag/environment identity
 trusted atomic publication, corruption/interruption rejection, provenance and
 bounded retention are proven. Every invocation still creates fresh mutable fixture
 data, gates, receipts, temporary paths, process supervision, cleanup and test
-evidence. Optional compiler cache, debug-information, crate-boundary, storage/I/O,
-editor or concurrency experiments follow only after repeated waste is removed and
-measurements justify them. This remaining contract does not yet establish a
-support-product speedup.
+evidence. Optional compiler cache, storage, editor, or concurrency experiments
+still require measured justification. Completed measurements and transition
+evidence remain on [#922](https://github.com/boburning/portcove/issues/922); they
+are evidence, not ordinary startup instructions.
 
 The exhaustive Rust runner retains two test slots and the thirty-second hang
 deadline. Cohesive filesystem, database, diagnostics, cancellation, catalog and
@@ -126,7 +112,18 @@ execution. A coherent pre-push check uses `just local-check`,
 which compares the merge base with `origin/main` by default and includes
 committed branch changes, staged and unstaged changes, renames, deletions, and
 non-ignored untracked files. Pass `--base <revision>` when another reviewed base
-is intentional, or `--plan` to inspect the exact selection without executing it.
+is intentional, `--plan` to inspect the exact selection, or `--fresh` when an
+acceptance contract explicitly requires execution without reusable local receipts.
+
+Eligible deterministic local stages use the audit's integrity-checked receipt
+model. Each fingerprint binds the exact command and obligation, complete
+conservative domain inputs, recipes and pins, relevant toolchain and host identity,
+and behavior-affecting environment. Selection is still recomputed from the complete
+candidate diff every time. Changed policy, dependency, input, command, tool or
+environment state; an invalid or missing receipt; a failed or interrupted stage;
+or `--fresh` reruns the affected work. Diff inspection, dependency/advisory state,
+duration-output checks, packaged qualification, live/platform observations and
+hosted statuses are never inferred from these receipts.
 
 The selector always checks whitespace and changed supported-file formatting.
 It runs affected Rust packages rather than the workspace, uses Vitest's import
@@ -159,21 +156,6 @@ hosted plan on the exact reviewed head; shared or uncertain changes select
 exhaustive qualification. To roll back local selection,
 revert the map and selector change; the previous complete-package command remains
 the broad fallback and the aggregate commands are unchanged.
-
-The activating Windows measurement on 2026-09-14 used base and head
-`9cb0b07c3409eeafea37e23f37638a6ec08fdf46` with one working-tree modification,
-`crates/portcove-core/src/source_report.rs`. The complete warm `just local-check`
-selected 74 of 734 core tests, spent 63.0 seconds in that test stage, and passed
-in 67.8 seconds overall. The first temporary-worktree run took 210.5 seconds
-while Cargo rebuilt path-specific artifacts and is not counted as a warm result.
-The other filters also passed independently: catalog contract selected 98 tests
-in 25.4 seconds, definition delivery selected 67 in 13.7 seconds, and release
-discovery selected 44 in 2.9 seconds. A second fixture added the intentionally
-unmapped shared `types.rs`; its plan
-replaced the source group with the complete-package command. Before activation,
-the issue baseline at merge `39b41017407407f0316ac0cb158eca3c5ac45c3c`
-selected all 729 tests for a `types.rs` comment and spent 1,394.1 seconds in the
-test stage and 1,408.7 seconds overall.
 
 Local frontend stages resolve Corepack from the bootstrapped checkout tool path.
 They use the shared Windows command wrapper for `.cmd` shims instead of assuming
@@ -277,6 +259,26 @@ rerun. Unresolved or partially staged paths are refused because one execution
 cannot validate two different candidate contents. Failed, interrupted, or incomplete stages never create a reusable receipt.
 Dependency/advisory policy and packaged Windows qualification always rerun because
 their external or machine state can change.
+
+`just local-check` stores compatible command-stage receipts below the same root.
+It may preserve a proven Rust or UI obligation after an unrelated tooling repair
+while rerunning the changed tooling obligation. It cannot compose incomplete,
+failed, interrupted, policy-stale, or stateful evidence into a pass, and it never
+replaces current-head required CI.
+
+Representative hosted selection after explicit ownership routing:
+
+| Candidate                                                          | Selected hosted behavior                                               |
+| ------------------------------------------------------------------ | ---------------------------------------------------------------------- |
+| Informational docs or issue template                               | prose where allowlisted, otherwise focused repository groups           |
+| Frontend presentation                                              | frontend and Rust-quality fast groups                                  |
+| Focused core Rust                                                  | Rust and Rust-quality fast groups                                      |
+| Ordinary tooling repair                                            | explicit groups, or all-fast primary-host fallback when safely unknown |
+| Selector, workflow, updater-trust, signing or authorization policy | exhaustive protected qualification on all maintained platforms         |
+
+Renames and deletions classify both identities, mixed changes union their owners,
+and incomplete discovery authorizes no plan. Words such as `design`, `channel`, or
+`release` in an otherwise inert filename do not assign trust authority.
 
 Every completed audit writes a current-head run receipt listing the fingerprint,
 originating head, duration, rationale, and fresh/reused/failed result for every

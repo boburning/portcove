@@ -88,7 +88,6 @@ test("validation authorities and GitHub policy always require qualification", ()
     "scripts/local-validation.mjs",
     "scripts/check-ci-prose.mjs",
     "scripts/workflow-provenance.mjs",
-    "scripts/pr-conventions.mjs",
     "scripts/run-rust-tests.mjs",
     ".oxlintrc.json",
   ]) {
@@ -157,11 +156,14 @@ test("catalog changes stay focused and platform-specific native changes add only
   assert.deepEqual(catalog.groups, ["catalog", "rust", "rust-quality"]);
   assert.deepEqual(catalog.platforms, ["primary-host"]);
 
-  const windows = plan([change("apps/desktop/src-tauri/src/application_update_windows.rs")]);
+  const windows = plan([change("apps/desktop/src-tauri/src/window_windows.rs")]);
   assert.equal(windows.mode, "fast");
   assert.deepEqual(windows.groups, ["frontend", "rust", "rust-quality"]);
   assert.deepEqual(windows.platforms, ["windows-x86_64"]);
   assert.equal(windows.qualification_required, false);
+
+  const updaterTrust = plan([change("apps/desktop/src-tauri/src/application_update_windows.rs")]);
+  assert.equal(updaterTrust.mode, "qualification");
 
   const macos = plan([change("crates/portcove-core/src/macos_launch.rs")]);
   assert.equal(macos.mode, "fast");
@@ -172,10 +174,42 @@ test("catalog changes stay focused and platform-specific native changes add only
   assert.deepEqual(sharedNative.platforms, qualificationPlatforms);
 });
 
-test("normative documentation retains repository governance checks", () => {
+test("normative workflow policy qualifies while inert documentation and templates stay cheap", () => {
   const result = plan([change("docs/QUALITY.md")]);
-  assert.equal(result.mode, "fast");
-  assert.deepEqual(result.groups, ["catalog", "rust-quality"]);
+  assert.equal(result.mode, "qualification");
+  assert.ok(result.areas.includes("policy"));
+
+  for (const path of [
+    "docs/GUI-COMPETITIVE-REVIEW.md",
+    ".github/ISSUE_TEMPLATE/engineering-work.yml",
+    ".github/PULL_REQUEST_TEMPLATE.md",
+  ]) {
+    const inert = plan([change(path)]);
+    assert.notEqual(inert.mode, "qualification", path);
+    assert.deepEqual(inert.platforms, ["primary-host"], path);
+  }
+});
+
+test("explicit ownership ignores misleading words and protects real trust boundaries", () => {
+  const misleading = plan([change("docs/design-channel-release-notes.md")]);
+  assert.equal(misleading.mode, "fast");
+  assert.equal(misleading.areas.includes("release-security"), false);
+
+  const ordinaryGithub = plan([change(".github/pr-conventions.json")]);
+  assert.equal(ordinaryGithub.mode, "fast");
+
+  for (const path of [
+    "scripts/validation-plan.mjs",
+    "scripts/check-release-metadata.mjs",
+    "docs/UPDATER-TRUST.md",
+    ".github/workflows/ci.yml",
+    ".github/unrecognized-authority.yml",
+  ]) {
+    const protectedPlan = plan([change(path), change("docs/README.md")]);
+    assert.equal(protectedPlan.mode, "qualification", path);
+    assert.deepEqual(protectedPlan.groups, fastGroups, path);
+    assert.deepEqual(protectedPlan.platforms, qualificationPlatforms, path);
+  }
 });
 
 test("recognized unknown paths use the explicit all-fast primary-host fallback", () => {

@@ -1,10 +1,29 @@
-import { existsSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
-import { lstatSync } from "node:fs";
+import {
+  existsSync,
+  lstatSync,
+  mkdirSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { buildValidationPlan, validateValidationPlan } from "./validation-plan.mjs";
+import {
+  buildValidationPlan,
+  validateValidationPlan,
+  validationOwnershipForPath,
+} from "./validation-plan.mjs";
+import {
+  auditRuntime,
+  fingerprintStage,
+  receiptEnvelope,
+  repositoryInventory,
+  validateReceipt,
+} from "./audit.mjs";
 import { spawnCommand } from "./dev-storage.mjs";
 import { parseRawDiff } from "./select-ci-plan.mjs";
 import { readRustTestImpactMap, selectRustTestImpact } from "./rust-test-impact.mjs";
@@ -341,11 +360,7 @@ function classifyOnePath(selection, input, fileExists, options = {}) {
       addNodeTest(selection, "scripts/run-rust-tests.test.mjs");
       addNodeTest(selection, "scripts/rust-support-cache.test.mjs");
     }
-    if (
-      /(?:release|updater|package|installer|qualification|checksum|channel)/iu.test(
-        path.posix.basename(file),
-      )
-    ) {
+    if (validationOwnershipForPath(file).areas.includes("release-security")) {
       selection.scopes.add("release-tooling");
       for (const testFile of releaseContractTests) addNodeTest(selection, testFile);
       addNodeTest(selection, "scripts/ci-workflow.test.mjs");
@@ -1074,6 +1089,128 @@ export function executePlan(plan, options = {}) {
   return { elapsedMs: Date.now() - started, timings };
 }
 
+function localStageDomains(entry) {
+  if (entry.id === "diff-check") return [];
+  if (["oxfmt", "toml-format"].includes(entry.id)) return ["format"];
+  if (entry.id === "rustfmt" || entry.id === "dependency-policy" || entry.id.startsWith("rust-"))
+    return ["rust"];
+  if (entry.id.startsWith("ui-")) return ["ui"];
+  if (
+    ["actionlint", "powershell-lint", "shell-lint", "python-lint", "oxc-fixtures"].includes(
+      entry.id,
+    )
+  )
+    return ["lint"];
+  if (["transport-export", "transport-policy"].includes(entry.id))
+    return ["repository", "rust", "ui"];
+  if (entry.id === "playnite-contract") return ["repository"];
+  if (entry.id === "fallow") return ["ui"];
+  if (entry.id === "node-tests" || entry.id.startsWith("node-syntax:")) return ["repository"];
+  return [];
+}
+
+function localStageReusable(entry) {
+  return (
+    localStageDomains(entry).length > 0 &&
+    entry.id !== "dependency-policy" &&
+    entry.id !== "ui-related-durations"
+  );
+}
+
+export function fingerprintLocalStage(entry, inventory, runtime) {
+  const recipe = JSON.stringify({
+    obligation: entry.obligation,
+    executable: entry.executable,
+    args: entry.args,
+    cwd: path.relative(projectRoot, entry.cwd).replaceAll("\\", "/") || ".",
+  });
+  const domainFingerprints = localStageDomains(entry).map((domain) =>
+    fingerprintStage({ id: entry.id, recipe, domain }, inventory, runtime),
+  );
+  return createHash("sha256").update(JSON.stringify(domainFingerprints)).digest("hex");
+}
+
+function localReceiptPath(receiptRoot, entry, fingerprint) {
+  const safeId = entry.id.replace(/[^a-zA-Z0-9._-]/gu, "_");
+  return path.join(receiptRoot, "local", safeId, `${fingerprint}.json`);
+}
+
+function readLocalReceipt(file) {
+  try {
+    return JSON.parse(readFileSync(file, "utf8"));
+  } catch {
+    return null;
+  }
+}
+
+function writeLocalReceipt(file, value) {
+  mkdirSync(path.dirname(file), { recursive: true });
+  const temporary = `${file}.${process.pid}.${Date.now()}.tmp`;
+  writeFileSync(temporary, `${JSON.stringify(value, null, 2)}\n`, { flag: "wx" });
+  rmSync(file, { force: true });
+  renameSync(temporary, file);
+}
+
+export function executePlanWithReceipts(plan, options = {}) {
+  const spawn = options.spawn ?? spawnCommand;
+  const root = options.root ?? projectRoot;
+  const inventory = options.inventory ?? repositoryInventory(root);
+  const runtime = options.runtime ?? auditRuntime(root);
+  const receiptRoot = options.receiptRoot ?? path.join(root, "work", "validation-receipts");
+  const fresh = options.fresh ?? false;
+  const started = Date.now();
+  const timings = [];
+  for (const entry of plan) {
+    const reusable = localStageReusable(entry);
+    const fingerprint = reusable ? fingerprintLocalStage(entry, inventory, runtime) : null;
+    const receiptPath = reusable ? localReceiptPath(receiptRoot, entry, fingerprint) : null;
+    const validation =
+      reusable && !fresh
+        ? validateReceipt(readLocalReceipt(receiptPath), {
+            stageId: `local:${entry.id}`,
+            fingerprint,
+          })
+        : { valid: false, reason: fresh ? "fresh execution required" : "stage is not reusable" };
+    if (validation.valid) {
+      console.log(
+        `\n[local-check] ${entry.id}: reused matching successful receipt from ${validation.payload.originatingHead}`,
+      );
+      timings.push({ id: entry.id, elapsedMs: 0, status: "reused" });
+      continue;
+    }
+
+    if (receiptPath) rmSync(receiptPath, { force: true });
+    console.log(`\n[local-check] ${entry.id}: ${entry.reason}`);
+    const stageStarted = Date.now();
+    const result = spawn(entry.executable, entry.args, {
+      cwd: entry.cwd,
+      stdio: "inherit",
+      windowsHide: true,
+      env: process.env,
+    });
+    const elapsedMs = Date.now() - stageStarted;
+    timings.push({ id: entry.id, elapsedMs, status: "executed" });
+    if (result.error) throw result.error;
+    if (result.status !== 0)
+      throw new Error(`${entry.id} failed with exit code ${result.status ?? "unknown"}`);
+    if (receiptPath)
+      writeLocalReceipt(
+        receiptPath,
+        receiptEnvelope({
+          format: 1,
+          kind: "successful-stage",
+          success: true,
+          stageId: `local:${entry.id}`,
+          fingerprint,
+          originatingHead: inventory.head,
+          completedAt: new Date().toISOString(),
+        }),
+      );
+    console.log(`[local-check] ${entry.id} passed in ${(elapsedMs / 1000).toFixed(1)}s`);
+  }
+  return { elapsedMs: Date.now() - started, timings };
+}
+
 export function requireFocusedArguments(kind, args) {
   const hasSelection =
     kind === "test-node"
@@ -1109,21 +1246,23 @@ function runFocusedCommand(kind, args) {
 function parseCheckArgs(args) {
   let base = "origin/main";
   let planOnly = false;
+  let fresh = false;
   for (let index = 0; index < args.length; index += 1) {
     const value = args[index];
     if (value === "--plan") planOnly = true;
+    else if (value === "--fresh") fresh = true;
     else if (value === "--base") {
       base = args[++index];
       if (!base) throw new Error("--base requires a Git revision");
     } else throw new Error(`unknown local-check option: ${value}`);
   }
-  return { base, planOnly };
+  return { base, planOnly, fresh };
 }
 
 export function main(argv = process.argv.slice(2)) {
   if (argv.includes("--help")) {
     console.log(
-      "usage: local-validation.mjs [check [--base REV] [--plan]|test-rust ARGS|test-ui-related FILES|test-node TESTS]",
+      "usage: local-validation.mjs [check [--base REV] [--plan] [--fresh]|test-rust ARGS|test-ui-related FILES|test-node TESTS]",
     );
     return;
   }
@@ -1133,7 +1272,7 @@ export function main(argv = process.argv.slice(2)) {
     return;
   }
   if (kind !== "check") throw new Error(`unknown local validation command: ${kind}`);
-  const { base, planOnly } = parseCheckArgs(args);
+  const { base, planOnly, fresh } = parseCheckArgs(args);
   const context = readChangeContext(base);
   const validationPlan = validateValidationPlan(
     buildValidationPlan({
@@ -1159,7 +1298,7 @@ export function main(argv = process.argv.slice(2)) {
   const plan = buildPlan(selection, planContext);
   printPlan(context, selection, plan, validationPlan);
   if (planOnly) return;
-  const result = executePlan(plan);
+  const result = executePlanWithReceipts(plan, { fresh });
   console.log(`\nFocused local validation passed in ${(result.elapsedMs / 1000).toFixed(1)}s.`);
   if (result.elapsedMs > 120_000)
     console.warn(
