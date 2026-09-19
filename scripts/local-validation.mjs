@@ -19,6 +19,7 @@ import {
 } from "./validation-plan.mjs";
 import {
   auditRuntime,
+  domainsForPath,
   fingerprintStage,
   receiptEnvelope,
   repositoryInventory,
@@ -1110,7 +1111,17 @@ function localStageDomains(entry) {
     return ["repository", "rust", "ui"];
   if (entry.id === "playnite-contract") return ["repository"];
   if (entry.id === "fallow") return ["ui"];
-  if (entry.id === "node-tests" || entry.id.startsWith("node-syntax:")) return ["repository"];
+  if (entry.id === "node-tests") {
+    const domains = new Set();
+    for (const file of entry.args.filter((argument) => argument.endsWith(".test.mjs"))) {
+      for (const domain of domainsForPath(file).domains) domains.add(domain);
+    }
+    return [...domains].sort();
+  }
+  if (entry.id.startsWith("node-syntax:")) {
+    const file = entry.args.at(-1);
+    return file ? [...domainsForPath(file).domains].sort() : [];
+  }
   return [];
 }
 

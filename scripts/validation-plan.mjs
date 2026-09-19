@@ -38,6 +38,16 @@ export const qualificationPlatforms = Object.freeze([
   "windows-x86_64",
 ]);
 
+function withNodeTestCompanions(files) {
+  return new Set(
+    files.flatMap((file) =>
+      file.endsWith(".mjs") && !file.endsWith(".test.mjs")
+        ? [file, file.replace(/\.mjs$/u, ".test.mjs")]
+        : [file],
+    ),
+  );
+}
+
 const protectedPolicyDocuments = new Set([
   "AGENTS.md",
   "SECURITY.md",
@@ -51,7 +61,7 @@ const protectedPolicyDocuments = new Set([
   "docs/UPDATER-TRUST.md",
 ]);
 
-const protectedPolicyFiles = new Set([
+const protectedPolicyFiles = withNodeTestCompanions([
   ".config/nextest.toml",
   ".github/fast-host-policy.json",
   ".github/qualification-coverage.json",
@@ -71,23 +81,48 @@ const protectedPolicyFiles = new Set([
   "scripts/workflow-provenance.mjs",
 ]);
 
-const releaseSecurityFiles = new Set([
+// This is the maintained inventory of executable release, packaging, signing,
+// qualification, and updater authorities. Node contract tests are protected
+// with their implementations so a gate cannot weaken its own required proof.
+const releaseSecurityFiles = withNodeTestCompanions([
   ".github/release.yml",
+  "apps/desktop/scripts/prepare-release-version.mjs",
+  "apps/desktop/scripts/release-version-policy.mjs",
+  "crates/portcove-core/src/catalog_store.rs",
+  "crates/portcove-core/src/catalog_update.rs",
+  "crates/portcove-core/src/signed_catalog.rs",
+  "crates/portcove-core/src/signed_catalog_tests.rs",
+  "docs/DEFINITION-DELIVERY.md",
+  "docs/SIGNED-CATALOG.md",
   "scripts/check-release-metadata.mjs",
   "scripts/finalize-release-assets.mjs",
   "scripts/generate-release-downloads.mjs",
+  "scripts/package-cli.ps1",
   "scripts/package-local.ps1",
+  "scripts/qualification-report.mjs",
   "scripts/reconcile-release-assets.mjs",
   "scripts/reconstruct-application-update-records.mjs",
+  "scripts/rehearse-updater-artifacts.ps1",
+  "scripts/release-package-policy.mjs",
+  "scripts/release-path-safety.mjs",
   "scripts/release-result-gate.mjs",
   "scripts/release-coordinator.mjs",
   "scripts/release-preflight.ps1",
+  "scripts/release-workflow.test.mjs",
+  "scripts/run-windows-qualification.ps1",
   "scripts/select-release-channel.mjs",
+  "scripts/sign-catalog.mjs",
+  "scripts/smoke-test-cli-archive.ps1",
+  "scripts/source-provenance-audit.mjs",
   "scripts/test-linux-package-ownership.sh",
   "scripts/test-windows-installer.ps1",
   "scripts/updater-artifact-inventory.mjs",
+  "scripts/verify-macos-release.ps1",
   "scripts/windows-qualification-session.ps1",
+  "scripts/windows-qualification-session.integration.test.mjs",
+  "scripts/windows-qualification-session.test.mjs",
   "scripts/write-release-checksums.mjs",
+  "scripts/write-windows-qualification-build.mjs",
 ]);
 
 const ordinaryGithubFiles = new Set([

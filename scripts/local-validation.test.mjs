@@ -11,6 +11,7 @@ import {
   deduplicateCommands,
   executePlan,
   executePlanWithReceipts,
+  fingerprintLocalStage,
   formatCommand,
   localChangesFromRaw,
   packagesWithDoctests,
@@ -667,6 +668,51 @@ function receiptInventory(repositoryIdentity = "repo-a") {
     ],
   };
 }
+
+test("Node receipt fingerprints include the domain of each selected test", () => {
+  const stage = {
+    id: "node-tests",
+    reason: "selector contract",
+    executable: process.execPath,
+    args: ["--test", "scripts/rust-test-impact.test.mjs"],
+    cwd: process.cwd(),
+    obligation: "repository",
+  };
+  const first = receiptInventory();
+  first.files.push({
+    path: "scripts/rust-test-impact.mjs",
+    kind: "file",
+    headBlob: "impact-a",
+    headMode: "100644",
+    indexBlob: "impact-a",
+    indexMode: "100644",
+    worktreeMode: "100644",
+    gitBlob: "impact-a",
+    sha256: "impact-a",
+    domains: ["development", "format"],
+    ambiguous: false,
+  });
+  const second = structuredClone(first);
+  second.files.at(-1).headBlob = "impact-b";
+  second.files.at(-1).indexBlob = "impact-b";
+  second.files.at(-1).gitBlob = "impact-b";
+  second.files.at(-1).sha256 = "impact-b";
+
+  assert.notEqual(
+    fingerprintLocalStage(stage, first, receiptRuntime),
+    fingerprintLocalStage(stage, second, receiptRuntime),
+  );
+
+  const syntaxStage = {
+    ...stage,
+    id: "node-syntax:scripts/rust-test-impact.mjs",
+    args: ["--check", "scripts/rust-test-impact.mjs"],
+  };
+  assert.notEqual(
+    fingerprintLocalStage(syntaxStage, first, receiptRuntime),
+    fingerprintLocalStage(syntaxStage, second, receiptRuntime),
+  );
+});
 
 test("local receipts reuse proven independent stages and invalidate only affected domains", (t) => {
   const receiptRoot = mkdtempSync(path.join(tmpdir(), "portcove-local-receipts-"));
