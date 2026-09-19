@@ -1,5 +1,5 @@
 {
-  "$schema": "./node_modules/fallow/schema.json",
+  "$schema": "../../node_modules/fallow/schema.json",
   "boundaries": {
     "zones": [
       { "name": "shared", "patterns": ["src/shared/**"] },

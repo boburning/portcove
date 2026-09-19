@@ -109,7 +109,7 @@ function workspacePackageStatus() {
     return {
       ready: false,
       selenium: null,
-      remediation: `node scripts/dev-storage.mjs run -- corepack ${readToolPins().packageManager} --dir apps/desktop install --frozen-lockfile`,
+      remediation: `node scripts/dev-storage.mjs run -- corepack ${readToolPins().packageManager} install --frozen-lockfile`,
     };
   }
 }

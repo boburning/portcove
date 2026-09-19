@@ -101,7 +101,7 @@ const environmentWhitelist = Object.freeze([
 const oxfmtSupportedExtension =
   /\.(?:astro|cjs|css|html|js|json|json5|jsonc|jsx|less|md|mdx|mjs|mts|scss|svelte|ts|tsx|vue|ya?ml)$/iu;
 const oxfmtExcludedPath =
-  /^(?:apps\/desktop\/(?:dist|node_modules|src-tauri\/gen)\/|target\/|work\/|outputs\/|release-assets\/|\.codex-remote-attachments\/|\.fallow(?:-review)?\/|\.rscheck\/|\.semdup\/|\.tmp\/|mutants\.out(?:\.old)?\/|Portcove-CI-FiveMinutes\/|integrations\/playnite\/(?:bin|obj|tests\/(?:bin|obj))\/|crates\/portcove-core\/catalog\/|crates\/[^/]+\/tests\/fixtures\/|docs\/archive\/|docs\/releases\/\d+\.md$)/u;
+  /^(?:node_modules\/|apps\/desktop\/(?:dist|node_modules|src-tauri\/gen)\/|target\/|work\/|outputs\/|release-assets\/|\.codex-remote-attachments\/|\.fallow(?:-review)?\/|\.rscheck\/|\.semdup\/|\.tmp\/|mutants\.out(?:\.old)?\/|Portcove-CI-FiveMinutes\/|integrations\/playnite\/(?:bin|obj|tests\/(?:bin|obj))\/|crates\/portcove-core\/catalog\/|crates\/[^/]+\/tests\/fixtures\/|docs\/archive\/|docs\/releases\/\d+\.md$)/u;
 const oxfmtExcludedFile =
   /(?:\.generated\.[^/]+$|(?:^|\/)pnpm-lock\.yaml$|integrations\/playnite\/(?:tests\/)?packages\.lock\.json$)/u;
 
@@ -193,12 +193,21 @@ export function domainsForPath(input) {
     file === ".oxlintrc.json"
   ) {
     add(domains, "ui");
-    if (file === "apps/desktop/package.json" || file === "apps/desktop/pnpm-lock.yaml")
+    if (
+      [
+        "apps/desktop/package.json",
+        "apps/desktop/pnpm-lock.yaml",
+        "apps/desktop/pnpm-workspace.yaml",
+      ].includes(file)
+    )
       add(domains, "release");
-    // Oxfmt is resolved through the frontend lockfile even though the lockfile
-    // itself is intentionally excluded from formatting.
     if (file === "apps/desktop/pnpm-lock.yaml") add(domains, "format");
     if (file.startsWith("apps/desktop/assets/brand/models/v2/")) add(domains, "lint");
+    recognized = true;
+  }
+
+  if (["package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml"].includes(file)) {
+    for (const domain of ["format", "ui", "release"]) add(domains, domain);
     recognized = true;
   }
 
@@ -429,7 +438,7 @@ function commandVersion(command, args, root) {
 
 export function auditRuntime(root = projectRoot) {
   const packageManager = JSON.parse(
-    readFileSync(path.join(root, "apps", "desktop", "package.json"), "utf8"),
+    readFileSync(path.join(root, "package.json"), "utf8"),
   ).packageManager;
   return {
     platform: process.platform,

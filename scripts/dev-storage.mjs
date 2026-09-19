@@ -68,7 +68,8 @@ export function getPaths() {
     temporary_directory: resolveConfiguredPath(process.env.PORTCOVE_TEMP_DIR, "work/temp"),
     output_root: resolveConfiguredPath(process.env.PORTCOVE_OUTPUT_DIR, "outputs"),
     pnpm_store: resolveConfiguredPath(process.env.PORTCOVE_PNPM_STORE_DIR, "work/pnpm-store"),
-    frontend_dependencies: path.join(projectRoot, "apps/desktop/node_modules"),
+    frontend_dependencies: path.join(projectRoot, "node_modules"),
+    desktop_dependencies: path.join(projectRoot, "apps/desktop/node_modules"),
     frontend_output: path.join(projectRoot, "apps/desktop/dist"),
     tauri_generated: path.join(projectRoot, "apps/desktop/src-tauri/gen"),
   };
@@ -175,7 +176,8 @@ function printPaths(paths, volumes, requiredFreeGiB, asJson) {
   console.log(`Temporary data:     ${report.temporary_directory}`);
   console.log(`Packaging output:   ${report.output_root}`);
   console.log(`pnpm store:         ${report.pnpm_store}`);
-  console.log(`Frontend packages:  ${report.frontend_dependencies}`);
+  console.log(`Repository packages: ${report.frontend_dependencies}`);
+  console.log(`Desktop packages:   ${report.desktop_dependencies}`);
   console.log(`Frontend output:    ${report.frontend_output}`);
   console.log(`Tauri generated:    ${report.tauri_generated}`);
   for (const volume of report.volumes) {

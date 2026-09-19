@@ -10,7 +10,7 @@ not dumped. The command does not install tools, create output directories, or
 modify host configuration. Every missing cached prerequisite includes a safe
 bootstrap command in the human-readable or JSON report.
 
-The doctor reads `.node-version`, the desktop package-manager declaration, the
+The doctor reads `.node-version`, the repository package-manager declaration, the
 Rust quality manifest, `.aqua-version`, `aqua.yaml`, and the PowerShell resource
 pin. On Windows it reports MSVC installations and PATH candidates; this is not
 proof of Cargo's auto-selected linker. Inspect a verbose native build when
@@ -18,10 +18,20 @@ compiler selection matters. Keep each worktree's Cargo target separate and use
 the existing development-storage wrapper for heavy commands.
 
 The active toolchain authorities are Rust 1.98.1 in `rust-toolchain.toml`, Node
-24.21.0 in `.node-version`, and pnpm 12.4.1 in the desktop package's
+24.21.0 in `.node-version`, and pnpm 12.4.1 in the repository root package's
 `packageManager` field. GitHub workflows derive pnpm from that package manifest
 instead of copying its version. `scripts/dependency-automation.test.mjs` checks
 those relationships together with Renovate coverage for nonstandard pins.
+
+The root `package.json`, `pnpm-workspace.yaml`, and `pnpm-lock.yaml` are the sole
+JavaScript workspace and dependency-resolution authorities. Repository-wide
+format, lint, and analysis tools are root development dependencies;
+`apps/desktop/package.json` remains the product package and owns its runtime
+dependencies, package-specific build/test tools, and scripts. The manifests have
+disjoint dependency ownership. Install from the repository root with
+`corepack pnpm install --frozen-lockfile`. Root commands such as `corepack pnpm
+format:check`, `corepack pnpm lint`, `corepack pnpm build`, and `corepack pnpm
+test` forward to the desktop package without creating another lockfile.
 
 On Windows, run `./scripts/bootstrap-quality-tools.ps1`. It downloads the exact
 Aqua release named by `.aqua-version` from Aqua's official release origin, verifies

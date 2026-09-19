@@ -25,8 +25,8 @@ $predecessorVersion = $transition.predecessor_version
 $candidateVersion = $transition.candidate_version
 $candidateProductionEligible = $transition.candidate_production_eligible
 $fixtureVersions = @($predecessorVersion, $candidateVersion)
-$pnpmSpec = (Get-Content (Join-Path $root "apps/desktop/package.json") -Raw | ConvertFrom-Json).packageManager
-if ($pnpmSpec -notmatch '^pnpm@\d+\.\d+\.\d+$') { throw "Desktop packageManager must pin an exact pnpm version" }
+$pnpmSpec = (Get-Content (Join-Path $root "package.json") -Raw | ConvertFrom-Json).packageManager
+if ($pnpmSpec -notmatch '^pnpm@\d+\.\d+\.\d+$') { throw "Repository packageManager must pin an exact pnpm version" }
 function Invoke-Checked([string]$Program, [string[]]$Arguments) {
     & $Program @Arguments
     if ($LASTEXITCODE -ne 0) { throw "$Program failed with exit code $LASTEXITCODE" }

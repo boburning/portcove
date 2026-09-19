@@ -90,6 +90,7 @@ function workspace(t) {
     "aqua-checksums.json",
     ".github/quality-tools.json",
     ".config/tool-bootstrap.json",
+    "package.json",
     "apps/desktop/package.json",
   ]) {
     const destination = path.join(root, name);
@@ -233,6 +234,8 @@ test("preflight is read-only and machine-readable, and low space prevents child 
   const report = JSON.parse(result.stdout);
   assert.equal(report.workspace, root);
   assert.equal(report.target_directory, path.join(root, "target"));
+  assert.equal(report.frontend_dependencies, path.join(root, "node_modules"));
+  assert.equal(report.desktop_dependencies, path.join(root, "apps/desktop/node_modules"));
   assert.equal(existsSync(path.join(root, "work")), false);
   assert.equal(existsSync(path.join(root, "outputs")), false);
   const blocked = cli(root, [
@@ -273,20 +276,12 @@ test("run creates configured scratch directories, exports matching paths, and pr
 
 test("pnpm uses the configured store instead of the workspace YAML default", (t) => {
   const root = workspace(t);
-  mkdirSync(path.join(root, "apps/desktop"), { recursive: true });
-  writeFileSync(
-    path.join(root, "apps/desktop/pnpm-workspace.yaml"),
-    "storeDir: ../../work/pnpm-store\n",
-  );
+  writeFileSync(path.join(root, "pnpm-workspace.yaml"), "storeDir: work/pnpm-store\n");
   const store = path.join(root, "custom store");
-  const result = cli(
-    root,
-    ["run", "--", "corepack", "pnpm", "--dir", "apps/desktop", "store", "path"],
-    {
-      PORTCOVE_PNPM_STORE_DIR: store,
-      PNPM_CONFIG_STORE_DIR: path.join(root, "wrong-store"),
-    },
-  );
+  const result = cli(root, ["run", "--", "corepack", "pnpm", "store", "path"], {
+    PORTCOVE_PNPM_STORE_DIR: store,
+    PNPM_CONFIG_STORE_DIR: path.join(root, "wrong-store"),
+  });
   assert.equal(result.status, 0, result.stderr);
   assert.equal(result.stdout.trim().split(/\r?\n/).at(-1), path.join(store, "v11"));
 });
@@ -296,16 +291,24 @@ test("direct just recipes initialize a fresh checkout and preserve storage overr
   copyFileSync(new URL("../justfile", import.meta.url), path.join(root, "justfile"));
   mkdirSync(path.join(root, "apps/desktop"), { recursive: true });
   writeFileSync(
+    path.join(root, "package.json"),
+    JSON.stringify({
+      name: "storage-repository",
+      private: true,
+      packageManager: "pnpm@12.4.1",
+      scripts: { build: "node probe.mjs" },
+    }),
+  );
+  writeFileSync(path.join(root, "pnpm-workspace.yaml"), "packages:\n  - apps/desktop\n");
+  writeFileSync(
     path.join(root, "apps/desktop/package.json"),
     JSON.stringify({
       name: "storage-probe",
-      packageManager: "pnpm@12.4.1",
-      scripts: { build: "node ../../probe.mjs" },
     }),
   );
   writeFileSync(
     path.join(root, "probe.mjs"),
-    "import fs from 'node:fs'; import os from 'node:os'; if (!fs.existsSync(os.tmpdir())) process.exit(3); fs.writeFileSync('../../result.json', JSON.stringify({temp: os.tmpdir(), store: process.env.pnpm_config_store_dir}));",
+    "import fs from 'node:fs'; import os from 'node:os'; if (!fs.existsSync(os.tmpdir())) process.exit(3); fs.writeFileSync('result.json', JSON.stringify({temp: os.tmpdir(), store: process.env.pnpm_config_store_dir}));",
   );
   const result = spawnCommand("just", ["ui-build"], {
     cwd: root,

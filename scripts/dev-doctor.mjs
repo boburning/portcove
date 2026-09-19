@@ -175,7 +175,7 @@ export async function collectDoctor(options = {}) {
   const bootstrapManifest = JSON.parse(
     readFileSync(path.join(root, ".config", "tool-bootstrap.json"), "utf8"),
   );
-  const desktop = JSON.parse(readFileSync(path.join(root, "apps/desktop/package.json"), "utf8"));
+  const repositoryPackage = JSON.parse(readFileSync(path.join(root, "package.json"), "utf8"));
   const requiredRustDefinitions = manifest.tools.filter((tool) => tool.tier === "required");
   const aquaVersion = readFileSync(path.join(root, ".aqua-version"), "utf8")
     .trim()
@@ -192,8 +192,8 @@ export async function collectDoctor(options = {}) {
     },
     {
       id: "pnpm",
-      command: ["corepack", desktop.packageManager, "--version"],
-      version: desktop.packageManager.split("@")[1],
+      command: ["corepack", repositoryPackage.packageManager, "--version"],
+      version: repositoryPackage.packageManager.split("@")[1],
       remediation: "./scripts/bootstrap-quality-tools.ps1",
     },
     {

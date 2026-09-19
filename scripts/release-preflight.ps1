@@ -41,7 +41,7 @@ try {
     }
     if ($LASTEXITCODE -ne 0) { throw "Release metadata check failed with exit code $LASTEXITCODE" }
 
-    Push-Location $desktopRoot
+    Push-Location $projectRoot
     try {
         corepack pnpm install --frozen-lockfile
         if ($LASTEXITCODE -ne 0) { throw "Frontend dependency check failed with exit code $LASTEXITCODE" }

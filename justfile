@@ -59,11 +59,11 @@ prune-incremental:
 # Repository formatting
 fmt:
     {{storage}} cargo fmt --all
-    {{storage}} corepack pnpm --dir apps/desktop format
+    {{storage}} corepack pnpm format
 
 fmt-check:
     {{storage}} cargo fmt --all -- --check
-    {{storage}} corepack pnpm --dir apps/desktop format:check
+    {{storage}} corepack pnpm format:check
 
 # Rust fast loop
 rustfmt-check:
@@ -103,20 +103,20 @@ ui-transport:
     {{storage}} node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/transport-types.test.mjs
 
 ui-build:
-    {{storage}} corepack pnpm --dir apps/desktop build
+    {{storage}} corepack pnpm build
 
 ui-test:
-    {{storage}} corepack pnpm --dir apps/desktop test
+    {{storage}} corepack pnpm test
 
 fallow:
     {{storage}} node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/check-fallow-report.test.mjs
     {{storage}} node scripts/run-fallow.mjs
 
 oxlint:
-    {{storage}} corepack pnpm --dir apps/desktop lint:oxlint
+    {{storage}} corepack pnpm lint:oxlint
 
 stylelint:
-    {{storage}} corepack pnpm --dir apps/desktop lint:style
+    {{storage}} corepack pnpm lint:style
 
 ui-lint-contracts:
     {{storage}} node scripts/lint-tools.integration.mjs oxfmt oxlint stylelint
@@ -126,7 +126,7 @@ ui-check: ui-transport ui-build ui-test fallow oxlint stylelint
 check-ui: fmt-frontend-check ui-check ui-lint-contracts
 
 fmt-frontend-check:
-    {{storage}} corepack pnpm --dir apps/desktop format:check
+    {{storage}} corepack pnpm format:check
 
 # Cross-language scripts and hosted automation.
 python-lint:

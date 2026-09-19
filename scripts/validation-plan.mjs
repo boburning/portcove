@@ -224,7 +224,7 @@ function classifyPath(file) {
   match(
     file.startsWith("apps/desktop/src/") ||
       file.startsWith("apps/desktop/public/") ||
-      /^apps\/desktop\/(?:index\.html|package\.json|pnpm-lock\.yaml|tsconfig.*\.json|vite\.config\.[cm]?ts|stylelint\.config\.mjs)$/u.test(
+      /^apps\/desktop\/(?:index\.html|package\.json|tsconfig.*\.json|vite\.config\.[cm]?ts|stylelint\.config\.mjs)$/u.test(
         file,
       ),
     "frontend",

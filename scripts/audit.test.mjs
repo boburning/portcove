@@ -137,7 +137,7 @@ test("formatting and transport inputs invalidate every stage that actually reads
   assert.ok(transport.domains.includes("ui"));
   assert.ok(transport.domains.includes("rust"));
 
-  const frontendLock = file("apps/desktop/pnpm-lock.yaml", "lockfile");
+  const frontendLock = file("pnpm-lock.yaml", "lockfile");
   assert.ok(frontendLock.domains.includes("format"));
   assert.ok(frontendLock.domains.includes("ui"));
   assert.ok(frontendLock.domains.includes("release"));

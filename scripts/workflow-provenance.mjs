@@ -278,9 +278,7 @@ async function main(args = process.argv.slice(2)) {
       "Usage: workflow-provenance --workflow FILE --mode ci|release --runner LABEL --output FILE",
     );
   const node = (await readFile(path.join(root, ".node-version"), "utf8")).trim();
-  const desktopPackage = JSON.parse(
-    await readFile(path.join(root, "apps/desktop/package.json"), "utf8"),
-  );
+  const repositoryPackage = JSON.parse(await readFile(path.join(root, "package.json"), "utf8"));
   const rustToolchain = (await readFile(path.join(root, "rust-toolchain.toml"), "utf8")).match(
     /^channel = "([^"]+)"$/mu,
   )?.[1];
@@ -293,9 +291,7 @@ async function main(args = process.argv.slice(2)) {
   if (!["all", "node"].includes(values["observed-toolchains"]))
     throw new Error("observed toolchains must be all or node");
   const observeAll = values["observed-toolchains"] === "all";
-  const packageManagerVersion = observeAll
-    ? command("pnpm", ["--version"], path.join(root, "apps/desktop"))
-    : null;
+  const packageManagerVersion = observeAll ? command("pnpm", ["--version"], root) : null;
   const record = buildWorkflowProvenance({
     workflow: values.workflow,
     callerWorkflow: values["caller-workflow"] ?? values.workflow,
@@ -304,7 +300,7 @@ async function main(args = process.argv.slice(2)) {
     workflowContents: await readFile(path.join(root, ".github/workflows", values.workflow)),
     desired: {
       node,
-      package_manager: desktopPackage.packageManager.replace(/^pnpm@/u, ""),
+      package_manager: repositoryPackage.packageManager.replace(/^pnpm@/u, ""),
       rust: rustToolchain,
       build_configuration: expectedBuildConfiguration,
     },

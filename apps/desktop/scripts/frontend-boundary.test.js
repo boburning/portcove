@@ -8,8 +8,9 @@ import { fileURLToPath, URL } from "node:url";
 import { expect, it } from "vitest";
 
 const desktop = fileURLToPath(new URL("../", import.meta.url));
+const workspace = fileURLToPath(new URL("../../../", import.meta.url));
 const policy = readFileSync(path.join(desktop, ".fallowrc.json"), "utf8");
-const binary = path.join(desktop, "node_modules/fallow/bin/fallow");
+const binary = path.join(workspace, "node_modules/fallow/bin/fallow");
 
 function inspect(
   sharedSource,

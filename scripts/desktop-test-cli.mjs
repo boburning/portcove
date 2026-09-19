@@ -19,7 +19,7 @@ if (args.includes("--help")) {
     createRequire(path.join(root, "apps", "desktop", "package.json")).resolve("selenium-webdriver");
   } catch {
     throw new Error(
-      `selenium-webdriver is unavailable; run node scripts/dev-storage.mjs run -- corepack ${readToolPins().packageManager} --dir apps/desktop install --frozen-lockfile`,
+      `selenium-webdriver is unavailable; run node scripts/dev-storage.mjs run -- corepack ${readToolPins().packageManager} install --frozen-lockfile`,
     );
   }
   await import("../apps/desktop/scripts/desktop-test.mjs");
