@@ -86,6 +86,8 @@ const protectedPolicyFiles = withNodeTestCompanions([
 // with their implementations so a gate cannot weaken its own required proof.
 const releaseSecurityFiles = withNodeTestCompanions([
   ".github/release.yml",
+  ".agents/skills/portcove-port-qualification/SKILL.md",
+  ".agents/skills/portcove-release-validation/SKILL.md",
   "apps/desktop/scripts/prepare-release-version.mjs",
   "apps/desktop/scripts/release-version-policy.mjs",
   "crates/portcove-core/src/catalog_store.rs",
@@ -94,6 +96,7 @@ const releaseSecurityFiles = withNodeTestCompanions([
   "crates/portcove-core/src/signed_catalog_tests.rs",
   "docs/DEFINITION-DELIVERY.md",
   "docs/SIGNED-CATALOG.md",
+  "docs/UPGRADING.md",
   "scripts/check-release-metadata.mjs",
   "scripts/finalize-release-assets.mjs",
   "scripts/generate-release-downloads.mjs",
