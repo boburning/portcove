@@ -22,6 +22,10 @@ function validMetadata() {
     desktopCargoFeatures: {
       names: ["application-update-qualification", "qualification-fixtures"],
       default: [],
+      definitions: {
+        "application-update-qualification": [],
+        "qualification-fixtures": ["portcove-core/qualification-fixtures"],
+      },
     },
     desktopCapability: {
       identifier: "default",
@@ -146,7 +150,7 @@ test("parses desktop feature declarations and their default membership", () => {
   assert.deepEqual(
     parseDesktopCargoFeatures(`
 [features]
-default = ["portable", "qualification-fixtures"]
+default = ['portable', "qualification-fixtures"]
 application-update-qualification = []
 qualification-fixtures = ["portcove-core/qualification-fixtures"]
 portable = []
@@ -157,6 +161,12 @@ serde = "1"
     {
       names: ["default", "application-update-qualification", "qualification-fixtures", "portable"],
       default: ["portable", "qualification-fixtures"],
+      definitions: {
+        default: ["portable", "qualification-fixtures"],
+        "application-update-qualification": [],
+        "qualification-fixtures": ["portcove-core/qualification-fixtures"],
+        portable: [],
+      },
     },
   );
   assert.throws(() => parseDesktopCargoFeatures('[package]\nname = "desktop"'), /no \[features\]/);
@@ -172,14 +182,36 @@ test("accepts one matching semantic version and tag across every surface", () =>
   );
 });
 
-test("rejects additional release windows and capability contexts", () => {
+test("rejects additional release windows and remote capability contexts", () => {
   const metadata = validMetadata();
   metadata.tauri.app.windows.push({ label: "secondary", title: "Secondary" });
   metadata.desktopCapability.windows.push("secondary");
   metadata.desktopCapability.remote = { urls: ["https://example.invalid"] };
   const errors = validateReleaseMetadata(metadata);
-  assert.match(errors.join("\n"), /exactly one main window/);
+  assert.match(errors.join("\n"), /exactly one local main window/);
   assert.match(errors.join("\n"), /only to the local main window/);
+});
+
+test("rejects external main windows and independent capability webviews", () => {
+  const externalWindow = validMetadata();
+  externalWindow.tauri.app.windows[0].url = "https://example.invalid";
+  assert.match(validateReleaseMetadata(externalWindow).join("\n"), /exactly one local main window/);
+
+  const independentWebview = validMetadata();
+  independentWebview.desktopCapability.webviews = ["secondary"];
+  assert.match(
+    validateReleaseMetadata(independentWebview).join("\n"),
+    /only to the local main window and no independent webviews/,
+  );
+});
+
+test("rejects capabilities that disable the local application context", () => {
+  const metadata = validMetadata();
+  metadata.desktopCapability.local = false;
+  assert.match(
+    validateReleaseMetadata(metadata).join("\n"),
+    /only to the local main window and no independent webviews/,
+  );
 });
 
 test("rejects qualification-only features from default desktop builds", () => {
@@ -198,6 +230,22 @@ test("rejects qualification-only features from default desktop builds", () => {
   assert.match(
     validateReleaseMetadata(metadata).join("\n"),
     /retain the qualification-only feature declarations/,
+  );
+});
+
+test("rejects transitive aliases for qualification-only desktop features", () => {
+  const metadata = validMetadata();
+  metadata.desktopCargoFeatures = parseDesktopCargoFeatures(`
+[features]
+default = ['shipping']
+application-update-qualification = []
+qualification-fixtures = ["portcove-core/qualification-fixtures"]
+'shipping' = ["application-update-qualification", 'fixture-alias']
+fixture-alias = ["portcove-core/qualification-fixtures"]
+`);
+  assert.match(
+    validateReleaseMetadata(metadata).join("\n"),
+    /default features must exclude qualification-only features: application-update-qualification, portcove-core\/qualification-fixtures/,
   );
 });
 

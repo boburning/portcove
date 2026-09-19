@@ -60,6 +60,10 @@ const qualificationOnlyDesktopFeatures = [
   "application-update-qualification",
   "qualification-fixtures",
 ];
+const qualificationOnlyDesktopFeatureReferences = [
+  ...qualificationOnlyDesktopFeatures,
+  "portcove-core/qualification-fixtures",
+];
 
 export function parseWorkspacePackage(toml) {
   const table = toml.match(/(?:^|\r?\n)\[workspace\.package\]\r?\n([\s\S]*?)(?=\r?\n\[|$)/)?.[1];
@@ -75,14 +79,32 @@ export function parseWorkspacePackage(toml) {
 export function parseDesktopCargoFeatures(toml) {
   const table = toml.match(/(?:^|\r?\n)\[features\]\r?\n([\s\S]*?)(?=\r?\n\[|$)/)?.[1];
   if (!table) throw new Error("desktop Cargo.toml has no [features] table");
-  const names = [...table.matchAll(/^([A-Za-z0-9_-]+)\s*=/gmu)].map((match) => match[1]);
-  const defaultDefinition = table.match(/^default\s*=\s*\[([\s\S]*?)\]/mu)?.[1];
+  const definitions = Object.fromEntries(
+    [...table.matchAll(/^(?:"([^"]+)"|'([^']+)'|([A-Za-z0-9_-]+))\s*=\s*\[([\s\S]*?)\]/gmu)].map(
+      (match) => [
+        match[1] ?? match[2] ?? match[3],
+        [...match[4].matchAll(/(["'])([^"']+)\1/gu)].map((entry) => entry[2]),
+      ],
+    ),
+  );
   return {
-    names,
-    default: defaultDefinition
-      ? [...defaultDefinition.matchAll(/"([^"]+)"/gu)].map((match) => match[1])
-      : [],
+    names: Object.keys(definitions),
+    default: definitions.default ?? [],
+    definitions,
   };
+}
+
+function defaultDesktopFeatureReferences(features) {
+  const definitions = features?.definitions ?? {};
+  const pending = [...(features?.default ?? [])];
+  const references = new Set();
+  while (pending.length > 0) {
+    const reference = pending.pop();
+    if (references.has(reference)) continue;
+    references.add(reference);
+    if (Object.hasOwn(definitions, reference)) pending.push(...definitions[reference]);
+  }
+  return references;
 }
 
 function present(values) {
@@ -390,17 +412,21 @@ const metadataRules = [
       : "Tauri product and primary window names must both be Portcove",
   (metadata) => {
     const windows = metadata.tauri.app?.windows;
-    return windows?.length === 1 && (windows[0].label ?? "main") === "main"
+    return windows?.length === 1 &&
+      (windows[0].label ?? "main") === "main" &&
+      windows[0].url === undefined
       ? undefined
-      : "Tauri release configuration must define exactly one main window";
+      : "Tauri release configuration must define exactly one local main window";
   },
   (metadata) => {
     const capability = metadata.desktopCapability;
     return capability?.identifier === "default" &&
+      capability.local !== false &&
       capability.remote === undefined &&
-      JSON.stringify(capability.windows) === JSON.stringify(["main"])
+      JSON.stringify(capability.windows) === JSON.stringify(["main"]) &&
+      (capability.webviews === undefined || capability.webviews.length === 0)
       ? undefined
-      : "desktop release capability must apply only to the local main window";
+      : "desktop release capability must apply only to the local main window and no independent webviews";
   },
   (metadata) =>
     qualificationOnlyDesktopFeatures.every((feature) =>
@@ -409,8 +435,9 @@ const metadataRules = [
       ? undefined
       : "desktop Cargo features must retain the qualification-only feature declarations",
   (metadata) => {
-    const enabledByDefault = qualificationOnlyDesktopFeatures.filter((feature) =>
-      metadata.desktopCargoFeatures?.default?.includes(feature),
+    const defaultReferences = defaultDesktopFeatureReferences(metadata.desktopCargoFeatures);
+    const enabledByDefault = qualificationOnlyDesktopFeatureReferences.filter((feature) =>
+      defaultReferences.has(feature),
     );
     return enabledByDefault.length === 0
       ? undefined
