@@ -7,7 +7,7 @@ The existing React/Vite/Tauri desktop and its custom controls remain shipped beh
 ## Foundations
 
 - Components consume one semantic token authority, never raw palette primitives or arbitrary utility colors. During migration, `apps/desktop/src/styles.css` remains the current authority until the reviewed Tailwind/theme entry owns the same roles without a competing legacy mapping.
-- The migration checks official shadcn/ui component source into Portcove; it then becomes Portcove-owned control code. Initialization explicitly selects Base UI and the compact Nova style, records React/Vite rather than Next.js assumptions, keeps React Server Components disabled, retains Lucide, and uses semantic CSS variables. Exact compatible stable versions and generated configuration are verified at implementation time instead of relying on CLI defaults.
+- The migration checks official shadcn/ui component source into Portcove; it then becomes Portcove-owned control code. Initialization explicitly selects Base UI and the compact Nova style, records React/Vite rather than Next.js assumptions, keeps React Server Components disabled, retains Lucide, and uses semantic CSS variables. Nova is initial density and composition scaffolding, not the visual acceptance target: the reference compositions must deliberately establish Portcove typography, spacing, radii, surfaces, and artwork hierarchy. Exact compatible stable versions and generated configuration are verified at implementation time instead of relying on CLI defaults.
 - Tailwind utilities and variants are the primary component styling approach. Limited custom CSS remains appropriate for specialized artwork, layout, input, or native-integration behavior where it is clearer than utilities. CSS Modules may survive only for justified specialized ownership; they are no longer the default migration destination.
 - Graphite and warm controller-gray surfaces carry most of the interface. Blue means selected or interactive, yellow means keyboard/controller focus or rare emphasis, green means healthy or complete, and red is reserved for Portcove's signature and dangerous or critical action.
 - Selected state and focus are deliberately different: blue communicates state; a gold outline communicates the current keyboard or controller target.
@@ -17,6 +17,7 @@ The existing React/Vite/Tauri desktop and its custom controls remain shipped beh
 ## Component rules
 
 - Import only controls demonstrated by current product needs. Checked-in controls should stay close to official composition, refs, events, and accessibility behavior; do not put a near-identical Portcove wrapper around every shadcn control.
+- A specific Base UI control may be replaced when a reproducible Tauri, controller, accessibility, or supported-platform failure remains after bounded repair. Preserve the shared API, semantics, and theme where practical, record the evidence, and review the replacement independently; one incompatible control does not reopen the selected system.
 - Controls use the shared 30, 36, and 42-pixel-equivalent height tokens and modest radius scale. Pills are reserved for compact status badges.
 - Buttons name the result: `Review install`, `Play now`, `Verify sources`, and `Remove managed files`. Avoid `Submit`, `Proceed`, `Execute`, `Yes`, and `No` when the action can be named.
 - Every control needs deliberate default, hover, focus, pressed, selected, disabled, and loading treatment where those states apply.
@@ -30,7 +31,7 @@ The existing React/Vite/Tauri desktop and its custom controls remain shipped beh
 Build three deliberately different layers:
 
 1. **Shared controls:** the needed shadcn/Base UI buttons, fields, selects or comboboxes, menus, dialogs, tabs, tooltips, and status elements checked into the shared UI directory recorded by `components.json`.
-2. **Reusable interface patterns:** settings rows and sections, primary action with supporting status, review-and-confirm tasks, recoverable errors with diagnostics, operation progress and retained activity, and empty/loading/unavailable presentation. Extract these from the reference screens rather than prebuilding a catalogue.
+2. **Reusable interface patterns:** settings rows and sections, primary action with supporting status, review-and-confirm tasks, recoverable errors with diagnostics, operation progress and retained activity, and empty/loading/unavailable presentation. Extract these from the reference screens rather than prebuilding a catalogue. Promote a composition to an approved pattern only after a second real surface reuses it without feature-specific policy or parallel ordinary styling.
 3. **Product components:** game cards, detail headers, source requirements, readiness summaries, update rows, and other feature-owned Portcove compositions. Domain readiness, authorization, lifecycle, and durable state remain outside generic controls and patterns.
 
 Shared UI cannot import feature implementations. Features normally select an approved control or pattern variant and supply authoritative data and actions instead of independently choosing ordinary borders, spacing, headings, and control arrangements.
@@ -40,12 +41,13 @@ Shared UI cannot import feature implementations. Features normally select an app
 For each cohesive slice:
 
 1. Read the relevant checked-in control, pattern, reference composition, and owning feature contract. Use official shadcn documentation and the project-aware shadcn skill only after its provenance, permissions, and current project configuration are reviewed.
-2. Inspect registry or CLI output before writing, import only the needed components, review every supporting dependency and license, and preserve local behavior fixes. Never blanket-overwrite customized controls during an upstream update.
+2. Inspect registry or CLI output before writing, import only the needed components, review every supporting dependency and license, record its demonstrated need and measured bundle effect, and preserve local behavior fixes. Treat copied-component updates separately from dependency upgrades. Never blanket-overwrite customized controls during an upstream update.
 3. Run focused tests and render the affected real-component scenarios at relevant themes, sizes, and states. Inspect the output for clipping, hierarchy, spacing, inconsistent controls, hidden actions, unreadable text, and missing states; screenshot generation alone is not inspection.
 4. Repair identifiable defects or violated contracts. Repeated defects in an approved control or pattern are fixed at the shared owner rather than hidden by another feature override.
-5. Hand the exact candidate head, acceptance criteria, scenario IDs, screenshots, checks, and limitations to the separate non-writing reviewer. Complete the normal exact-head validation and merge path.
+5. For an intentional reference change, record the reason, affected semantic or interaction contract, and inspected before/after evidence. Unexplained screenshot churn does not replace an accepted reference.
+6. Hand the exact candidate head, acceptance criteria, scenario IDs, screenshots, checks, and limitations to the separate non-writing reviewer. Complete the normal exact-head validation and merge path.
 
-The first foundation slice records the actual `components.json` paths, aliases, Base UI selection, Nova preset, Tailwind entry, semantic token mapping, icon choice, and component-update procedure. Until that reviewed configuration lands, later sessions must not guess it. The existing development-only renderer remains the ordinary presentation loop, while the native harness remains required for Tauri, WebView, IPC, portal, focus, controller, native-dialog, restart, platform, and packaged obligations.
+The first foundation slice records the actual `components.json` paths, aliases, Base UI selection, Nova preset, Tailwind entry, semantic token mapping, icon choice, and component-update procedure, then imports only the controls needed to prove the complex installation-review dialog's nested selector, controller, portal, focus, and dismissal behavior in Tauri. Library and broad screen migration start only after that foundation is reviewed. Until the configuration lands, later sessions must not guess it. The existing development-only renderer remains the ordinary presentation loop, while the native harness remains required for Tauri, WebView, IPC, portal, focus, controller, native-dialog, restart, platform, and packaged obligations.
 
 ## Product vocabulary
 
@@ -216,8 +218,10 @@ Loading placeholders must preserve expected geometry without shimmer or
 gradients; accessible loading text remains authoritative.
 
 Implementation establishes official shadcn/Base UI controls, Tailwind, semantic
-CSS variables, reusable interface patterns, and the custom Portcove theme while
-retiring superseded controls and competing global/module/utility ownership. It must preserve mouse,
+CSS variables, reusable interface patterns, and the custom Portcove theme. Each
+converted surface removes the controls, traps, and style ownership it replaces or
+records the retained exception and removal condition; migration cannot leave two
+permanent design systems. It must preserve mouse,
 keyboard and controller use, focus restoration, dialog trapping, accessible
 names, semantic HTML, status text, long titles, compact/scaled layouts, minimum
 width, and the distinction between blue selection and gold focus. Native evidence
@@ -229,6 +233,6 @@ broad fragile pixel-perfect suite is required.
 
 ## Review gates
 
-Run the focused frontend tests, applicable theme/style contracts, production build, and Fallow before accepting a design-system change. The style gates must cover the actual Tailwind CSS and JSX utility sources, reject raw status colors and direct primitive consumption, preserve dark/light, focus/selection, contrast, reduced-motion, and production-variant coverage, and handle third-party directives narrowly rather than with blanket exemptions. Fallow should remain free of dead files, unused dependencies, duplication, circular dependencies, unused theme tokens, and above-threshold functions.
+Run the focused frontend tests, applicable theme/style contracts, production build, and Fallow before accepting a design-system change. The style gates must cover the actual Tailwind CSS and JSX utility sources, reject raw status colors and direct primitive consumption, preserve dark/light, focus/selection, contrast, reduced-motion, and production-variant coverage, and handle third-party directives narrowly rather than with blanket exemptions. Fallow should remain free of dead files, unused dependencies, duplication, circular dependencies, unused theme tokens, and above-threshold functions. Acceptance records intentional reference changes and verifies that each migrated surface has one remaining control/style owner.
 
 The three early finished reference compositions are Library, the game-details workspace, and a complex installation-review dialog with nested selection and errors. Their real-component scenarios cover empty, loading, long-title, missing-artwork, disabled, error, interrupted, and narrow-layout states. Completion requires both themes, current minimum/default/large sizes, 1280×800 where relevant, supported scaling, long text, keyboard/mouse/controller behavior, nested overlays, focus return, async changes, navigation during work, reduced motion, and capability parity. Browser fixtures and screenshots do not replace native or intrinsically human evidence.

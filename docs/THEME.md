@@ -33,7 +33,9 @@ Base UI and the compact Nova style instead of relying on CLI defaults, retains
 React/Vite/Tauri and Lucide, and records the actual aliases, paths, versions, and
 configuration when the foundation lands. The current stylesheet remains shipped
 behavior until that migration is reviewed; this contract does not claim Tailwind
-or shadcn is already installed.
+or shadcn is already installed. Nova is a compact starting scaffold rather than
+the finished Portcove look; reference compositions must deliberately establish
+Portcove typography, spacing, radii, depth, surface, and artwork decisions.
 
 Semantic colors, dark/light mappings, typography foundations, spacing, radii,
 controls, icons, focus, resets, shared motion, and cross-component layout have
@@ -43,6 +45,12 @@ layout, artwork, interaction, and native boundaries where it materially improves
 clarity. Do not translate official components into CSS Modules, keep competing
 global/module/utility versions of the same rule, or add Sass, CSS-in-JS, another
 framework, or a custom component registry.
+
+The foundation starts with the smallest useful semantic vocabulary: surfaces,
+text, borders, selection, focus, labeled statuses, typography, spacing, radii,
+and motion. Add a role only when a real screen demonstrates that the existing
+vocabulary cannot express it without bypassing semantics. Do not mechanically
+translate every legacy value into a permanent token.
 
 The current `check-theme.mjs` reads `styles.css`. The migration must extend or
 replace that gate so applicable Tailwind CSS, checked-in control source, and JSX
