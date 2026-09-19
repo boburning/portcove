@@ -130,7 +130,14 @@ const explicitNodeTests = new Map([
   [".node-version", ["scripts/dependency-automation.test.mjs"]],
   ["Cargo.toml", ["scripts/dependency-automation.test.mjs"]],
   ["rust-toolchain.toml", ["scripts/dependency-automation.test.mjs"]],
-  ["package.json", ["scripts/dependency-automation.test.mjs", "scripts/local-validation.test.mjs"]],
+  [
+    "package.json",
+    [
+      "scripts/dependency-automation.test.mjs",
+      "scripts/dev-storage.test.mjs",
+      "scripts/local-validation.test.mjs",
+    ],
+  ],
   ["pnpm-lock.yaml", ["scripts/dependency-automation.test.mjs"]],
   ["pnpm-workspace.yaml", ["scripts/dependency-automation.test.mjs"]],
   ["apps/desktop/pnpm-lock.yaml", ["scripts/dependency-automation.test.mjs"]],

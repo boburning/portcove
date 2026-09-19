@@ -262,6 +262,7 @@ test("UI sources build, lint, and run import-related tests", () => {
 test("frontend configuration changes use the complete small UI suite", () => {
   const { selection, plan } = planFor(["package.json"]);
   assert.equal(selection.uiFullTests, true);
+  assert.ok(selection.nodeTests.has("scripts/dev-storage.test.mjs"));
   assert.ok(ids(plan).includes("ui-tests"));
   assert.ok(!ids(plan).includes("ui-related-tests"));
   assert.ok(!ids(plan).includes("ui-theme-copy"));

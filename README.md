@@ -99,7 +99,7 @@ Requirements:
 
 - Rust 1.98.1
 - Node.js 24.21.0
-- pnpm 12.4.1
+- pnpm 12.4.2
 - the [Tauri 2 platform prerequisites](https://v2.tauri.app/start/prerequisites/)
 
 On Windows, keep the checkout on a non-system drive. The repository preflight blocks heavy work when the workspace, build output, temporary data, or package store resolves to the system drive. See [docs/DEVELOPMENT-STORAGE.md](docs/DEVELOPMENT-STORAGE.md) for details.

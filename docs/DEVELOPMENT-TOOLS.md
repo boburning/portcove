@@ -18,7 +18,7 @@ compiler selection matters. Keep each worktree's Cargo target separate and use
 the existing development-storage wrapper for heavy commands.
 
 The active toolchain authorities are Rust 1.98.1 in `rust-toolchain.toml`, Node
-24.21.0 in `.node-version`, and pnpm 12.4.1 in the repository root package's
+24.21.0 in `.node-version`, and pnpm 12.4.2 in the repository root package's
 `packageManager` field. GitHub workflows derive pnpm from that package manifest
 instead of copying its version. `scripts/dependency-automation.test.mjs` checks
 those relationships together with Renovate coverage for nonstandard pins.

@@ -46,7 +46,7 @@ test("only maintained read-only CLI help bypasses storage preparation", () => {
 test("storage wrapper resolves canonical pnpm commands from the package authority", () => {
   assert.deepEqual(canonicalCheckoutCommand("corepack", ["pnpm", "--version"], null), [
     "corepack",
-    ["pnpm@12.4.1", "--version"],
+    ["pnpm@12.4.2", "--version"],
   ]);
   assert.deepEqual(canonicalCheckoutCommand("cargo", ["check"], null), ["cargo", ["check"]]);
 });
