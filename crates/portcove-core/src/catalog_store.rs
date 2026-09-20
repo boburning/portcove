@@ -29,6 +29,13 @@ pub(crate) struct CatalogState {
     pub keys: Vec<CatalogTrustKey>,
 }
 
+struct CatalogStatusEvaluation {
+    baseline: Catalog,
+    provenance: CatalogProvenance,
+    can_rollback: bool,
+    can_use_cached: bool,
+}
+
 impl CatalogState {
     pub fn read(connection: &Connection) -> Result<Self> {
         if connection.is_autocommit() {
@@ -104,22 +111,77 @@ impl CatalogState {
     }
 
     pub fn status(&self, now: i64) -> Result<CatalogStatus> {
+        let evaluation = self.evaluate_status(now)?;
+        self.status_from_evaluation(&evaluation)
+    }
+
+    fn evaluate_status(&self, now: i64) -> Result<CatalogStatusEvaluation> {
+        let active = self
+            .active
+            .as_ref()
+            .map(|bytes| signed_catalog::verify(bytes, &self.keys, now));
+        let previous = self
+            .previous
+            .as_ref()
+            .map(|bytes| signed_catalog::verify(bytes, &self.keys, now));
+        let is_usable = |candidate: &Option<Result<signed_catalog::VerifiedCatalog>>| {
+            candidate.as_ref().is_some_and(|result| {
+                result
+                    .as_ref()
+                    .is_ok_and(|value| value.payload.sequence <= self.highest_sequence)
+            })
+        };
+        let active_usable = is_usable(&active);
+        let previous_usable = is_usable(&previous);
+        let mut reasons = Vec::new();
+        let mut selected = None;
+        if self.enabled {
+            for (candidate, origin) in [
+                (&active, CatalogOrigin::SignedActive),
+                (&previous, CatalogOrigin::SignedPrevious),
+            ] {
+                match candidate {
+                    None => {}
+                    Some(Ok(value)) if value.payload.sequence <= self.highest_sequence => {
+                        selected = Some((value, origin));
+                        break;
+                    }
+                    Some(Ok(_)) => {
+                        reasons.push("cached catalog exceeds the recorded replay floor".into())
+                    }
+                    Some(Err(error)) => reasons.push(error.message.clone()),
+                }
+            }
+        }
+        let (baseline, provenance) = if let Some((value, origin)) = selected {
+            let provenance =
+                signed_catalog::provenance(&value.catalog, origin, Some(value), reasons)?;
+            (value.catalog.clone(), provenance)
+        } else {
+            let catalog = Catalog::embedded()?;
+            let provenance =
+                signed_catalog::provenance(&catalog, CatalogOrigin::Embedded, None, reasons)?;
+            (catalog, provenance)
+        };
+        Ok(CatalogStatusEvaluation {
+            baseline,
+            provenance,
+            can_rollback: previous_usable,
+            can_use_cached: active_usable || previous_usable,
+        })
+    }
+
+    fn status_from_evaluation(
+        &self,
+        evaluation: &CatalogStatusEvaluation,
+    ) -> Result<CatalogStatus> {
         Ok(CatalogStatus {
-            provenance: self.resolve(now)?.1,
+            provenance: evaluation.provenance.clone(),
             trusted_keys: self.keys.clone(),
             highest_sequence: self.highest_sequence,
             updates_enabled: self.enabled,
-            can_rollback: self.previous.as_ref().is_some_and(|bytes| {
-                signed_catalog::verify(bytes, &self.keys, now)
-                    .is_ok_and(|value| value.payload.sequence <= self.highest_sequence)
-            }),
-            can_use_cached: [&self.active, &self.previous]
-                .into_iter()
-                .flatten()
-                .any(|bytes| {
-                    signed_catalog::verify(bytes, &self.keys, now)
-                        .is_ok_and(|value| value.payload.sequence <= self.highest_sequence)
-                }),
+            can_rollback: evaluation.can_rollback,
+            can_use_cached: evaluation.can_use_cached,
             state_sha256: self.fingerprint()?,
         })
     }
@@ -150,7 +212,16 @@ fn resolve_effective_catalog(
     state: &CatalogState,
     now: i64,
 ) -> Result<(Catalog, CatalogProvenance)> {
-    let (baseline, mut provenance) = state.resolve(now)?;
+    let (baseline, provenance) = state.resolve(now)?;
+    resolve_effective_catalog_from_baseline(connection, baseline, provenance, now)
+}
+
+fn resolve_effective_catalog_from_baseline(
+    connection: &Connection,
+    baseline: Catalog,
+    mut provenance: CatalogProvenance,
+    now: i64,
+) -> Result<(Catalog, CatalogProvenance)> {
     let selected = crate::definition_candidate::selection::load_selected_definition_catalog(
         connection, &baseline, now,
     );
@@ -172,8 +243,15 @@ pub(crate) fn effective_catalog_status(
     state: &CatalogState,
     now: i64,
 ) -> Result<CatalogStatus> {
-    let mut status = state.status(now)?;
-    status.provenance = resolve_effective_catalog(connection, state, now)?.1;
+    let evaluation = state.evaluate_status(now)?;
+    let (_, provenance) = resolve_effective_catalog_from_baseline(
+        connection,
+        evaluation.baseline.clone(),
+        evaluation.provenance.clone(),
+        now,
+    )?;
+    let mut status = state.status_from_evaluation(&evaluation)?;
+    status.provenance = provenance;
     Ok(status)
 }
 
