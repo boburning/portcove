@@ -1612,6 +1612,12 @@ library untouched. Recovery presentation remains application composition. Tauri
 and core still own library opening, lease exclusion, persistence and generation
 assignment.
 
+The `features/source-intake` unit owns only the catalog-bound request used to
+open the source-intake dialog. Unknown port or profile identities do not open a
+request; known BIOS profiles retain their BIOS purpose, and native-drop paths are
+passed through unchanged. The dialog still owns inspection and import behavior,
+while core and Tauri remain authoritative for source validation and mutation.
+
 ## External frontend contract
 
 The CLI is the integration boundary. Consumers should probe `capabilities`, including `product_version`, `failure_isolated_batches`, and `port_operation_locking`, use `--json` for request/response automation or `--jsonl` for progress streams, select an explicit library, and launch through `exec`. `catalog export` supplies the complete versioned port and source-profile document, `activity` supplies a bounded, newest-first durable ledger for frontends that need recent results without replaying progress streams, and `storage` reports the resolved root and containing-volume capacity. `plan` combines release resolution, retained/staged version discovery, registered requirements, and capacity into a typed preflight without changing installed state. `paths` exposes canonical persistent-data and managed-version roots so backup tools do not depend on private layout conventions; `backup create`, `list`, and confirmed `restore` provide a first-party snapshot lifecycle. Bulk check, reconcile, and update operations isolate every installed port; bulk source verification isolates every registered profile. Frontends must inspect each nested outcome rather than treating a completed batch as proof that every item succeeded. `catalog export`, `source verify --all`, `activity`, `storage`, `paths`, `backup list`, and `exec` are network-free; backup create/restore are also network-free but copy local data, `plan` may make a conditional release request, and launch inherits the child's standard streams and exit code.
