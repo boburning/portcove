@@ -7,6 +7,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { usePortcoveData } from "./features/workspace/use-workspace-data";
 import { useGithubAuth } from "./features/github-auth/use-github-auth";
 import { useSourceHealth } from "./features/source-health/use-source-health";
+import { usePortBackups } from "./features/backups/use-port-backups";
 import { AdoptionModal } from "./components/AdoptionModal";
 import {
   LibraryMoveRecovery,
@@ -52,7 +53,6 @@ import {
   type Perform,
   useInstallPlanning,
   useOperationState,
-  usePortBackups,
   usePortcoveUi,
   useUpdateCenter,
 } from "./use-portcove";

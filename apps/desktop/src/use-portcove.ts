@@ -8,15 +8,9 @@ import {
 } from "react";
 import { desktopApi } from "./api";
 import { listenDesktopEvent } from "./desktop-events";
-import type {
-  BackupInventory,
-  OperationEvent,
-  PortDefinition,
-  PortStatus,
-  UpdateCheckOutcome,
-} from "./types";
+import type { OperationEvent, PortDefinition, PortStatus, UpdateCheckOutcome } from "./types";
 import type { DetailActions } from "./components/DetailPanel";
-import { errorText, isCancellation, type Filter, type View } from "./view-model";
+import { isCancellation, type Filter, type View } from "./view-model";
 import { currentUpdateSnapshot } from "./view-model";
 import { applyOperationEvent, mostRecentOperation } from "./operation-state";
 import {
@@ -264,48 +258,6 @@ export function useAdoptionPlanning(
     applying,
     copyFailed: failedIdentity === identity,
   };
-}
-
-export function usePortBackups(portId: string | undefined, setError: (error?: string) => void) {
-  const emptyInventory = useCallback(
-    (): BackupInventory => ({
-      port_id: portId ?? "",
-      state: "healthy",
-      backups: [],
-      problems: [],
-    }),
-    [portId],
-  );
-  const [inventory, setInventory] = useState<BackupInventory>(() => emptyInventory());
-  const requestId = useRef(0);
-  const refresh = useCallback(async () => {
-    const request = ++requestId.current;
-    if (!portId) return;
-    try {
-      const result = await desktopApi.backups(portId);
-      if (request === requestId.current) setInventory(result);
-    } catch (value) {
-      if (request === requestId.current) setError(errorText(value));
-    }
-  }, [portId, setError]);
-  useEffect(() => {
-    if (portId) {
-      const request = ++requestId.current;
-      void desktopApi
-        .backups(portId)
-        .then((result) => {
-          if (request === requestId.current) setInventory(result);
-        })
-        .catch((value) => {
-          if (request === requestId.current) setError(errorText(value));
-        });
-    }
-    return () => {
-      requestId.current += 1;
-    };
-  }, [portId, setError]);
-  const currentInventory = inventory.port_id === (portId ?? "") ? inventory : emptyInventory();
-  return { backups: currentInventory.backups, inventory: currentInventory, refresh };
 }
 
 export function usePortcoveUi() {
