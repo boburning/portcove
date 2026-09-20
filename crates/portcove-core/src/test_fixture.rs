@@ -104,6 +104,39 @@ pub(crate) fn indexed_catalog(catalog: &crate::Catalog, port_id: &str) -> crate:
         .clone()
 }
 
+pub(crate) fn admitted_indexed_catalog(catalog: &crate::Catalog, port_id: &str) -> crate::Catalog {
+    use std::sync::Arc;
+
+    let mut catalog = indexed_catalog(catalog, port_id);
+    let snapshot = catalog.definition_snapshot(port_id).unwrap();
+    let selection = crate::DefinitionSelectionIdentity {
+        namespace: snapshot.namespace().into(),
+        stable_id: snapshot.port_id().into(),
+        definition_revision: snapshot.projection().unwrap().entry().revision(),
+        repository_root_sha256: "a".repeat(64),
+        grant_id: "test-portability-grant".into(),
+        policy_revision: 7,
+        provenance: crate::AuthenticatedDefinitionProvenance {
+            root_version: 1,
+            root_sha256: "a".repeat(64),
+            timestamp_version: 2,
+            timestamp_sha256: "b".repeat(64),
+            snapshot_version: 3,
+            snapshot_sha256: "c".repeat(64),
+            targets_version: 4,
+            targets_sha256: "d".repeat(64),
+            definitions_version: 5,
+            definitions_sha256: "e".repeat(64),
+            earliest_expiration: "2099-01-01T00:00:00Z".into(),
+            index_sha256: snapshot.index_sha256(),
+        },
+    };
+    catalog
+        .retain_definition_selection(Arc::new(selection))
+        .unwrap();
+    catalog
+}
+
 /// Create a valid catalog with one source-backed port that did not exist when
 /// the embedded client catalog was built.
 pub(crate) fn post_client_catalog() -> (crate::Catalog, String) {
@@ -169,7 +202,6 @@ pub(crate) fn post_client_catalog() -> (crate::Catalog, String) {
 /// Register a verified synthetic install against an already authenticated
 /// successor catalog. This exercises retained definition admission without
 /// requiring proprietary source material or running a title-specific setup tool.
-#[cfg(feature = "qualification-fixtures")]
 pub(crate) fn register_qualification_install(
     library: &crate::Library,
     catalog: &crate::Catalog,
@@ -179,6 +211,11 @@ pub(crate) fn register_qualification_install(
     use std::collections::BTreeSet;
 
     let port = catalog.port(port_id).unwrap();
+    if catalog.definition_selection(port_id).is_some() {
+        crate::definition_candidate::selection::trust_catalog_selection_for_test(
+            library, catalog, port_id,
+        );
+    }
     let platform = crate::Platform::current().unwrap();
     let version = "qualification-definition-1";
     let artifact_bytes = format!("{port_id}:{version}");

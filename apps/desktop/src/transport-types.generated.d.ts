@@ -1438,6 +1438,7 @@ export interface LibraryMetadata {
   launch_history: LibraryLaunchHistory[];
   original_root: string;
   port_settings: LibraryPortSettings[];
+  portability_authority?: PortabilityAuthority | null;
   schema_version: number;
   source_references: SourceRecord[];
   [k: string]: unknown;
@@ -1465,6 +1466,18 @@ export interface LibraryPortSettings {
   previous_install_id: string | null;
   update_policy: UpdatePolicy;
   [k: string]: unknown;
+}
+export interface PortabilityAuthority {
+  entries: PortabilityAdmission[];
+  format: number;
+  mac_sha256: string;
+}
+export interface PortabilityAdmission {
+  install_id: string;
+  manifest_sha256: string;
+  port_id: string;
+  role: string;
+  selection_sha256: string;
 }
 export interface SourceRecord {
   /**

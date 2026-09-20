@@ -331,7 +331,13 @@ fn legacy_metadata_cannot_smuggle_new_artwork_and_new_payloads_are_decoded_befor
     metadata
         .content_roots
         .retain(|root| root.kind != LibraryContentKind::LocalArtwork);
-    assert!(crate::library_import::validate_metadata(&metadata, service.catalog()).is_err());
+    assert!(
+        crate::library_import::validate_metadata(
+            &metadata,
+            &crate::library_import::PortabilityCatalogs::from_catalog(service.catalog().clone())
+        )
+        .is_err()
+    );
     metadata.schema_version = 3;
     metadata.content_roots.push(crate::LibraryContentRoot {
         kind: LibraryContentKind::LocalArtwork,

@@ -1,6 +1,86 @@
 use super::*;
 use crate::test_fixture::phase as test_phase;
-use crate::{ArtifactIdentity, BackupAction, InstallRecord, ReleaseChannel};
+use crate::{ArtifactIdentity, ArtworkSlot, BackupAction, Catalog, InstallRecord, ReleaseChannel};
+
+fn successor_fixture(root: &Path, export: &Path) -> (LibraryMetadata, String) {
+    let library = Library::open(root).unwrap();
+    let (post_client, port_id) = crate::test_fixture::post_client_catalog();
+    let catalog = crate::test_fixture::admitted_indexed_catalog(&post_client, &port_id);
+    crate::definition_candidate::selection::trust_catalog_selection_for_test(
+        &library, &catalog, &port_id,
+    );
+    assert!(Catalog::embedded().unwrap().port(&port_id).is_err());
+    let port = catalog.port(&port_id).unwrap();
+    let platform = Platform::current().unwrap();
+    let path = root.join("versions").join(&port_id).join("successor");
+    fs::create_dir_all(&path).unwrap();
+    let relative = &port.executable_hints[&platform][0];
+    let executable = path.join(relative);
+    fs::create_dir_all(executable.parent().unwrap()).unwrap();
+    fs::write(&executable, b"admitted successor executable").unwrap();
+    crate::permissions::normalize_archive_entry(&executable, false, true).unwrap();
+    let artifact = ArtifactIdentity {
+        asset_name: "successor.zip".into(),
+        sha256: "7".repeat(64),
+        size: 29,
+    };
+    let qualification = InstallQualification::from_catalog(&catalog, &port_id, platform).unwrap();
+    let (manifest_sha256, selected_executable, runtime) = Installer::new(library.clone())
+        .unwrap()
+        .create_manifest(
+            "successor",
+            &port_id,
+            "successor-1",
+            &artifact,
+            &qualification,
+            &path,
+        )
+        .unwrap();
+    library
+        .register_install(
+            &InstallRecord {
+                id: "successor".into(),
+                port_id: port_id.clone(),
+                version: "successor-1".into(),
+                path,
+                channel: ReleaseChannel::Stable,
+                installed_at: 1,
+                verified: true,
+                staged: false,
+                artifact,
+                manifest_sha256,
+                selected_executable,
+                runtime,
+            },
+            true,
+        )
+        .unwrap();
+    let profile_id = port.source_profile.clone().unwrap();
+    library
+        .register_source(&crate::SourceRecord {
+            profile_id,
+            path: root.with_extension("successor-source"),
+            sha256: "8".repeat(64),
+            size: 1,
+            storage_sha256: "9".repeat(64),
+            storage_size: 1,
+            updated_at: 1,
+            observed_identity: None,
+        })
+        .unwrap();
+    library.record_successful_launch(&port_id).unwrap();
+    let mut service = PortcoveService::new(library).unwrap();
+    service.replace_catalog_for_test(catalog);
+    let artwork = root.with_extension("successor-cover.png");
+    image::RgbImage::from_pixel(2, 2, image::Rgb([12, 34, 56]))
+        .save(&artwork)
+        .unwrap();
+    service
+        .import_artwork(&port_id, ArtworkSlot::Cover, &artwork, 0)
+        .unwrap();
+    service.write_library_metadata(export).unwrap();
+    (service.export_library_metadata().unwrap(), port_id)
+}
 
 fn fixture_library(root: &Path, installs: &[(&str, bool)]) -> Library {
     let library = test_phase("import fixture: open library", || {
@@ -139,10 +219,9 @@ fn import_round_trip_preserves_versions_pointers_payloads_and_history_in_an_empt
             .observed_identity,
         expected.source_references[0].observed_identity
     );
-    assert_eq!(
-        restored.activities(1).unwrap()[0].status,
-        ActivityStatus::Succeeded
-    );
+    let activity = restored.activities(1).unwrap().remove(0);
+    assert_eq!(activity.status, ActivityStatus::Succeeded);
+    assert!(activity.target_id.is_none());
     assert!(ImportJournal::read(&destination).unwrap().is_none());
     assert!(destination.join("recovery/library-import.json").is_file());
     for tree in ["user", "toolchains"] {
@@ -186,6 +265,207 @@ fn import_round_trip_preserves_versions_pointers_payloads_and_history_in_an_empt
         .unwrap()
         .completed
     );
+}
+
+#[test]
+fn admitted_post_client_definition_survives_offline_import_with_its_full_graph() {
+    let temp = tempfile::tempdir().unwrap();
+    let source = temp.path().join("source");
+    let export = temp.path().join("successor.json");
+    let destination = temp.path().join("destination");
+    let (expected, port_id) = successor_fixture(&source, &export);
+
+    let plan = PortcoveService::plan_library_import(&export, &source, &destination).unwrap();
+    PortcoveService::import_library(&export, &source, &destination, &plan.plan_sha256).unwrap();
+
+    let restored = Library::open(&destination).unwrap();
+    crate::transfer_copy::verify_metadata(&restored, &expected).unwrap();
+    let status = restored.status(&port_id, ReleaseChannel::Stable).unwrap();
+    let install = status.active.unwrap();
+    let retained = Installer::new(restored.clone())
+        .unwrap()
+        .retained_catalog(&install)
+        .unwrap()
+        .unwrap();
+    assert!(retained.definition_selection(&port_id).is_some());
+    assert_eq!(
+        restored.sources().unwrap()[0].profile_id,
+        retained
+            .port(&port_id)
+            .unwrap()
+            .source_profile
+            .clone()
+            .unwrap()
+    );
+    assert_eq!(
+        restored
+            .status(&port_id, ReleaseChannel::Stable)
+            .unwrap()
+            .successful_launches,
+        1
+    );
+}
+
+#[test]
+fn copied_successor_snapshot_without_admission_cannot_grant_unknown_port_authority() {
+    use sha2::{Digest, Sha256};
+
+    let temp = tempfile::tempdir().unwrap();
+    let source = temp.path().join("source");
+    let export = temp.path().join("successor.json");
+    let destination = temp.path().join("destination");
+    let (mut metadata, _) = successor_fixture(&source, &export);
+    let install = &mut metadata.application_versions[0];
+    let manifest_path = source.join(&install.path).join(".portcove-manifest.json");
+    let mut manifest: serde_json::Value =
+        serde_json::from_slice(&fs::read(&manifest_path).unwrap()).unwrap();
+    manifest["retained_contract"]["format"] = serde_json::json!(2);
+    manifest["retained_contract"]
+        .as_object_mut()
+        .unwrap()
+        .remove("admission");
+    let bytes = serde_json::to_vec_pretty(&manifest).unwrap();
+    fs::write(&manifest_path, &bytes).unwrap();
+    install.manifest_sha256 = hex::encode(Sha256::digest(&bytes));
+    fs::write(&export, serde_json::to_vec_pretty(&metadata).unwrap()).unwrap();
+
+    let error = PortcoveService::plan_library_import(&export, &source, &destination).unwrap_err();
+    assert!(error.message.contains("no admitted authority"), "{error}");
+    assert!(!destination.exists());
+}
+
+#[test]
+fn forged_but_self_consistent_successor_admission_cannot_reuse_portability_authority() {
+    use sha2::{Digest, Sha256};
+
+    let temp = tempfile::tempdir().unwrap();
+    let source = temp.path().join("source");
+    let export = temp.path().join("successor.json");
+    let destination = temp.path().join("destination");
+    let (mut metadata, _) = successor_fixture(&source, &export);
+    let install = &mut metadata.application_versions[0];
+    let manifest_path = source.join(&install.path).join(".portcove-manifest.json");
+    let mut manifest: serde_json::Value =
+        serde_json::from_slice(&fs::read(&manifest_path).unwrap()).unwrap();
+    manifest["retained_contract"]["admission"]["grant_id"] =
+        serde_json::json!("forged-portability-grant");
+    let bytes = serde_json::to_vec_pretty(&manifest).unwrap();
+    fs::write(&manifest_path, &bytes).unwrap();
+    install.manifest_sha256 = hex::encode(Sha256::digest(&bytes));
+    fs::write(&export, serde_json::to_vec_pretty(&metadata).unwrap()).unwrap();
+
+    let error = PortcoveService::plan_library_import(&export, &source, &destination).unwrap_err();
+    assert!(error.message.contains("portability authority"), "{error}");
+    assert!(!destination.exists());
+}
+
+#[test]
+fn successor_manifest_cannot_be_exported_after_source_admission_is_removed() {
+    let temp = tempfile::tempdir().unwrap();
+    let source = temp.path().join("source");
+    let original = temp.path().join("successor.json");
+    let forged = temp.path().join("forged.json");
+    successor_fixture(&source, &original);
+    let library = Library::open(&source).unwrap();
+    library
+        .connection()
+        .unwrap()
+        .execute(
+            "UPDATE definition_selection_state
+             SET revision=0,replay_floor_json=NULL,active_json=NULL,previous_json=NULL
+             WHERE singleton=1",
+            [],
+        )
+        .unwrap();
+
+    let error = PortcoveService::new(library)
+        .unwrap()
+        .write_library_metadata(&forged)
+        .unwrap_err();
+    assert!(error.message.contains("source library"), "{error}");
+    assert!(!forged.exists());
+}
+
+#[test]
+fn admitted_post_client_definition_survives_interrupted_import_resume() {
+    let temp = tempfile::tempdir().unwrap();
+    let source = temp.path().join("source");
+    let export = temp.path().join("successor.json");
+    let destination = temp.path().join("destination");
+    let (_, port_id) = successor_fixture(&source, &export);
+    let plan = PortcoveService::plan_library_import(&export, &source, &destination).unwrap();
+
+    start_import(
+        &export,
+        &source,
+        &destination,
+        &plan.plan_sha256,
+        &|phase| {
+            if phase == TransferPhase::Verified {
+                Err(PortcoveError::state("synthetic successor interruption"))
+            } else {
+                Ok(())
+            }
+        },
+    )
+    .unwrap_err();
+    assert!(
+        PortcoveService::resume_library_import(&destination)
+            .unwrap()
+            .completed
+    );
+    assert!(
+        Library::open(&destination)
+            .unwrap()
+            .status(&port_id, ReleaseChannel::Stable)
+            .unwrap()
+            .active
+            .is_some()
+    );
+}
+
+#[test]
+fn journal_phase_cannot_manufacture_import_publication() {
+    let temp = tempfile::tempdir().unwrap();
+    let source = temp.path().join("source");
+    let export = temp.path().join("export.json");
+    let destination = temp.path().join("destination");
+    fixture(&source, &export);
+    let plan = PortcoveService::plan_library_import(&export, &source, &destination).unwrap();
+    start_import(
+        &export,
+        &source,
+        &destination,
+        &plan.plan_sha256,
+        &|phase| {
+            if phase == TransferPhase::Copying {
+                Err(PortcoveError::state("synthetic pre-copy interruption"))
+            } else {
+                Ok(())
+            }
+        },
+    )
+    .unwrap_err();
+    let historical_id = uuid::Uuid::new_v4().to_string();
+    rusqlite::Connection::open(destination.join("portcove.sqlite3"))
+        .unwrap()
+        .execute(
+            "INSERT INTO activity_history(
+               id, operation, target_kind, status, started_at, finished_at,
+               import_receipt_sha256
+             ) VALUES (?1, 'import_library', 'library', 'succeeded', 1, 2, ?2)",
+            rusqlite::params![historical_id, "0".repeat(64)],
+        )
+        .unwrap();
+    let path = destination.join(".portcove-import.json");
+    let mut journal: serde_json::Value = serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+    journal["transfer_id"] = serde_json::json!(historical_id);
+    journal["phase"] = serde_json::json!("published");
+    fs::write(&path, serde_json::to_vec_pretty(&journal).unwrap()).unwrap();
+
+    let error = PortcoveService::resume_library_import(&destination).unwrap_err();
+    assert!(error.message.contains("publication record"), "{error}");
+    assert!(Library::open(&destination).is_err());
 }
 
 fn assert_interrupted_import_recovery(phase: TransferPhase) {
@@ -425,16 +705,12 @@ fn imported_retained_arguments_cannot_grant_themselves_execution_authority() {
     install.selected_executable = executable;
     install.runtime = runtime;
     fs::write(&export, serde_json::to_vec_pretty(&metadata).unwrap()).unwrap();
-    let plan = test_phase("import recovery: plan", || {
+    let error = test_phase("import recovery: plan", || {
         PortcoveService::plan_library_import(&export, &source, &destination)
-    })
-    .unwrap();
-    let error = test_phase("import recovery: execute", || {
-        PortcoveService::import_library(&export, &source, &destination, &plan.plan_sha256)
     })
     .unwrap_err();
     assert!(error.message.contains("execution"), "{error}");
-    assert!(Library::open(&destination).is_err());
+    assert!(!destination.exists());
 }
 
 #[test]
@@ -478,14 +754,10 @@ fn a_self_consistent_manifest_cannot_select_an_undeclared_executable_on_import()
     install.selected_executable = executable;
     install.runtime = runtime;
     fs::write(&export, serde_json::to_vec_pretty(&metadata).unwrap()).unwrap();
-    let plan = test_phase("import recovery: plan", || {
+    let error = test_phase("import recovery: plan", || {
         PortcoveService::plan_library_import(&export, &source, &destination)
     })
-    .unwrap();
-    let error = test_phase("import recovery: execute", || {
-        PortcoveService::import_library(&export, &source, &destination, &plan.plan_sha256)
-    })
     .unwrap_err();
-    assert!(error.message.contains("current platform"), "{error}");
-    assert!(Library::open(&destination).is_err());
+    assert!(error.message.contains("execution"), "{error}");
+    assert!(!destination.exists());
 }

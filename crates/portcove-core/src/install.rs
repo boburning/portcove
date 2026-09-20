@@ -1053,10 +1053,7 @@ impl Installer {
         &self,
         install: &InstallRecord,
     ) -> Result<Option<crate::Catalog>> {
-        verified_manifest(install)?
-            .retained_contract
-            .map(|contract| contract.catalog(&install.port_id))
-            .transpose()
+        retained_catalog_for_install(install)
     }
 
     pub(crate) fn qualification_for_install(
@@ -1142,6 +1139,33 @@ impl Installer {
             ..original.clone()
         })
     }
+}
+
+pub(crate) fn retained_catalog_for_install(
+    install: &InstallRecord,
+) -> Result<Option<crate::Catalog>> {
+    verified_manifest(install)?
+        .retained_contract
+        .map(|contract| contract.catalog(&install.port_id))
+        .transpose()
+}
+
+pub(crate) fn portability_catalog_for_install(
+    install: &InstallRecord,
+    embedded: &crate::Catalog,
+) -> Result<Option<crate::Catalog>> {
+    let manifest = install.path.join(".portcove-manifest.json");
+    if embedded.port(&install.port_id).is_ok()
+        && matches!(
+            fs::symlink_metadata(&manifest),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound
+        )
+    {
+        // Legacy metadata can name an embedded install without carrying the newer retained
+        // manifest. It receives only the embedded contract and cannot claim successor admission.
+        return Ok(None);
+    }
+    retained_catalog_for_install(install)
 }
 
 fn write_manifest(

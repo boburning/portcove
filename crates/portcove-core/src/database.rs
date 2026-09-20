@@ -14,7 +14,7 @@ use crate::{PortcoveError, Result};
 #[path = "database_concurrency_tests.rs"]
 mod concurrency_tests;
 
-pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 28;
+pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 29;
 
 struct Migration {
     version: i64,
@@ -191,6 +191,12 @@ const MIGRATIONS: &[Migration] = &[
         name: "durable preparation process quiescence",
         apply: migration_28,
         verify: verify_migration_28,
+    },
+    Migration {
+        version: 29,
+        name: "private import publication receipts",
+        apply: migration_29,
+        verify: verify_migration_29,
     },
 ];
 
@@ -923,6 +929,16 @@ fn verify_migration_28(connection: &Connection) -> Result<()> {
     )
 }
 
+fn migration_29(transaction: &Transaction<'_>) -> Result<()> {
+    transaction
+        .execute_batch("ALTER TABLE activity_history ADD COLUMN import_receipt_sha256 TEXT;")?;
+    verify_migration_29(transaction)
+}
+
+fn verify_migration_29(connection: &Connection) -> Result<()> {
+    require_columns(connection, "activity_history", &["import_receipt_sha256"])
+}
+
 fn verify_migration_26(connection: &Connection) -> Result<()> {
     require_columns(
         connection,
@@ -1360,6 +1376,7 @@ mod tests {
         schema_25: 25,
         schema_26: 26,
         schema_27: 27,
+        schema_28: 28,
     }
 
     #[test]

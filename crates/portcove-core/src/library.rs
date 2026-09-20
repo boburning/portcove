@@ -811,6 +811,31 @@ impl Library {
         target_kind: ActivityTargetKind,
         target_id: Option<&str>,
     ) -> Result<ActivityRecord> {
+        self.begin_identified_activity_with_receipt(id, operation, target_kind, target_id, None)
+    }
+
+    pub(crate) fn begin_identified_import_activity(
+        &self,
+        id: uuid::Uuid,
+        receipt_sha256: &str,
+    ) -> Result<ActivityRecord> {
+        self.begin_identified_activity_with_receipt(
+            id,
+            ActivityOperation::ImportLibrary,
+            ActivityTargetKind::Library,
+            None,
+            Some(receipt_sha256),
+        )
+    }
+
+    fn begin_identified_activity_with_receipt(
+        &self,
+        id: uuid::Uuid,
+        operation: ActivityOperation,
+        target_kind: ActivityTargetKind,
+        target_id: Option<&str>,
+        import_receipt_sha256: Option<&str>,
+    ) -> Result<ActivityRecord> {
         let activity = ActivityRecord {
             id: id.to_string(),
             operation,
@@ -825,8 +850,9 @@ impl Library {
         };
         self.connection()?.execute(
             "INSERT INTO activity_history(
-               id, operation, target_kind, target_id, status, message, started_at, finished_at
-             ) VALUES (?1, ?2, ?3, ?4, ?5, NULL, ?6, NULL)",
+               id, operation, target_kind, target_id, status, message, started_at, finished_at,
+               import_receipt_sha256
+             ) VALUES (?1, ?2, ?3, ?4, ?5, NULL, ?6, NULL, ?7)",
             params![
                 activity.id,
                 activity.operation.to_string(),
@@ -834,6 +860,7 @@ impl Library {
                 activity.target_id,
                 activity.status.to_string(),
                 activity.started_at,
+                import_receipt_sha256,
             ],
         )?;
         Ok(activity)

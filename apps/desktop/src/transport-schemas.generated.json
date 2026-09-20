@@ -6463,6 +6463,16 @@
             },
             "type": "array"
           },
+          "portability_authority": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/PortabilityAuthority"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "schema_version": {
             "format": "uint32",
             "minimum": 0,
@@ -6749,6 +6759,59 @@
           "tool_id",
           "protocol_version",
           "result"
+        ],
+        "type": "object"
+      },
+      "PortabilityAdmission": {
+        "additionalProperties": false,
+        "properties": {
+          "install_id": {
+            "type": "string"
+          },
+          "manifest_sha256": {
+            "type": "string"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "selection_sha256": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "install_id",
+          "port_id",
+          "manifest_sha256",
+          "selection_sha256",
+          "role"
+        ],
+        "type": "object"
+      },
+      "PortabilityAuthority": {
+        "additionalProperties": false,
+        "properties": {
+          "entries": {
+            "items": {
+              "$ref": "#/$defs/PortabilityAdmission"
+            },
+            "type": "array"
+          },
+          "format": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "mac_sha256": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "format",
+          "entries",
+          "mac_sha256"
         ],
         "type": "object"
       },
@@ -7401,6 +7464,59 @@
         ],
         "type": "object"
       },
+      "PortabilityAdmission": {
+        "additionalProperties": false,
+        "properties": {
+          "install_id": {
+            "type": "string"
+          },
+          "manifest_sha256": {
+            "type": "string"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "selection_sha256": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "install_id",
+          "port_id",
+          "manifest_sha256",
+          "selection_sha256",
+          "role"
+        ],
+        "type": "object"
+      },
+      "PortabilityAuthority": {
+        "additionalProperties": false,
+        "properties": {
+          "entries": {
+            "items": {
+              "$ref": "#/$defs/PortabilityAdmission"
+            },
+            "type": "array"
+          },
+          "format": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "mac_sha256": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "format",
+          "entries",
+          "mac_sha256"
+        ],
+        "type": "object"
+      },
       "ReleaseChannel": {
         "enum": [
           "stable",
@@ -7570,6 +7686,16 @@
           "$ref": "#/$defs/LibraryPortSettings"
         },
         "type": "array"
+      },
+      "portability_authority": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/PortabilityAuthority"
+          },
+          {
+            "type": "null"
+          }
+        ]
       },
       "schema_version": {
         "format": "uint32",
@@ -7954,6 +8080,16 @@
             },
             "type": "array"
           },
+          "portability_authority": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/PortabilityAuthority"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "schema_version": {
             "format": "uint32",
             "minimum": 0,
@@ -8219,6 +8355,59 @@
           "tool_id",
           "protocol_version",
           "result"
+        ],
+        "type": "object"
+      },
+      "PortabilityAdmission": {
+        "additionalProperties": false,
+        "properties": {
+          "install_id": {
+            "type": "string"
+          },
+          "manifest_sha256": {
+            "type": "string"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "selection_sha256": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "install_id",
+          "port_id",
+          "manifest_sha256",
+          "selection_sha256",
+          "role"
+        ],
+        "type": "object"
+      },
+      "PortabilityAuthority": {
+        "additionalProperties": false,
+        "properties": {
+          "entries": {
+            "items": {
+              "$ref": "#/$defs/PortabilityAdmission"
+            },
+            "type": "array"
+          },
+          "format": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "mac_sha256": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "format",
+          "entries",
+          "mac_sha256"
         ],
         "type": "object"
       },

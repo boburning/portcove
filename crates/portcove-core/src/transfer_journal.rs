@@ -65,10 +65,11 @@ impl TransferJournal {
                 "library move journal identity or destination is invalid",
             ));
         }
-        crate::library_import::validate_metadata(
+        let catalogs = crate::library_import::PortabilityCatalogs::from_root(
             &self.plan.metadata,
-            &crate::Catalog::embedded()?,
+            &self.plan.source_root,
         )?;
+        crate::library_import::validate_metadata(&self.plan.metadata, &catalogs)?;
         if self.plan.content.len() != self.plan.metadata.content_roots.len()
             || self
                 .plan
