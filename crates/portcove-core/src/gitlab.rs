@@ -14,7 +14,9 @@ use crate::{
     Library, Platform, PortDefinition, PortcoveError, ReleaseAsset, ReleaseChannel,
     ReleaseProvider, ReleaseSource, ResolvedRelease, Result,
     library::HttpCacheEntry,
-    release::{PROVIDER_JSON_MAX_BYTES, bounded_response_bytes, paginated_url},
+    release::{
+        PROVIDER_JSON_MAX_BYTES, ReleaseSelectionCacheKey, bounded_response_bytes, paginated_url,
+    },
 };
 
 #[derive(Clone)]
@@ -22,14 +24,7 @@ pub struct GitlabReleaseProvider {
     client: reqwest::Client,
     api_root: String,
     library: Option<Library>,
-    cache: Arc<RwLock<HashMap<CacheKey, CachedRelease>>>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-struct CacheKey {
-    repository: String,
-    channel: ReleaseChannel,
-    platform: Platform,
+    cache: Arc<RwLock<HashMap<ReleaseSelectionCacheKey, CachedRelease>>>,
 }
 
 #[derive(Debug, Clone)]
@@ -277,7 +272,7 @@ impl GitlabReleaseProvider {
         )))
     }
 
-    async fn cached_release(&self, key: &CacheKey) -> Option<ResolvedRelease> {
+    async fn cached_release(&self, key: &ReleaseSelectionCacheKey) -> Option<ResolvedRelease> {
         self.cache
             .read()
             .await
@@ -286,7 +281,7 @@ impl GitlabReleaseProvider {
             .map(|entry| entry.release.clone())
     }
 
-    async fn store_release(&self, key: CacheKey, release: ResolvedRelease) {
+    async fn store_release(&self, key: ReleaseSelectionCacheKey, release: ResolvedRelease) {
         self.cache.write().await.insert(
             key,
             CachedRelease {
@@ -325,11 +320,7 @@ impl ReleaseProvider for GitlabReleaseProvider {
                 port.name
             )));
         }
-        let key = CacheKey {
-            repository: port.release.repository.clone(),
-            channel,
-            platform,
-        };
+        let key = ReleaseSelectionCacheKey::new(port, channel, platform);
         if let Some(release) = self.cached_release(&key).await {
             return Ok(release);
         }
@@ -586,6 +577,38 @@ mod tests {
         (format!("http://{address}"), requests_rx, server)
     }
 
+    fn serve_routed_http(
+        request_limit: usize,
+        response: impl Fn(&str) -> String + Send + 'static,
+    ) -> (String, Receiver<String>, JoinHandle<()>) {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        listener.set_nonblocking(true).unwrap();
+        let address = listener.local_addr().unwrap();
+        let (requests_tx, requests_rx) = mpsc::channel();
+        let server = thread::spawn(move || {
+            let deadline = Instant::now() + Duration::from_secs(3);
+            let mut handled = 0;
+            while handled < request_limit && Instant::now() < deadline {
+                let (mut stream, _) = match listener.accept() {
+                    Ok(connection) => connection,
+                    Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
+                        thread::sleep(Duration::from_millis(5));
+                        continue;
+                    }
+                    Err(error) => panic!("test server could not accept a request: {error}"),
+                };
+                stream.set_nonblocking(false).unwrap();
+                let mut request = vec![0_u8; 16 * 1024];
+                let size = stream.read(&mut request).unwrap();
+                let request = String::from_utf8_lossy(&request[..size]).to_string();
+                stream.write_all(response(&request).as_bytes()).unwrap();
+                requests_tx.send(request).unwrap();
+                handled += 1;
+            }
+        });
+        (format!("http://{address}"), requests_rx, server)
+    }
+
     fn ok_json(body: &str, extra_headers: &str) -> String {
         format!(
             "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n{extra_headers}Content-Length: {}\r\nConnection: close\r\n\r\n{body}",
@@ -607,6 +630,40 @@ mod tests {
                 "link_type": "package"
             }]}
         })
+    }
+
+    fn gitlab_selector_releases() -> String {
+        serde_json::to_string(
+            &["nightly-a", "nightly-b", "v2.0.0"].map(|tag| {
+                let first = "game-first-windows.zip";
+                let second = "game-second-windows.zip";
+                serde_json::json!({
+                    "tag_name": tag,
+                    "description": format!(
+                        "{first} SHA-256: {}\n{second} SHA-256: {}",
+                        "a".repeat(64),
+                        "b".repeat(64)
+                    ),
+                    "released_at": null,
+                    "upcoming_release": false,
+                    "assets": {"links": [
+                        {
+                            "name": first,
+                            "url": format!("https://downloads.example.invalid/{tag}-first.zip"),
+                            "direct_asset_url": format!("https://downloads.example.invalid/{tag}-first.zip"),
+                            "link_type": "package"
+                        },
+                        {
+                            "name": second,
+                            "url": format!("https://downloads.example.invalid/{tag}-second.zip"),
+                            "direct_asset_url": format!("https://downloads.example.invalid/{tag}-second.zip"),
+                            "link_type": "package"
+                        }
+                    ]}
+                })
+            }),
+        )
+        .unwrap()
     }
 
     #[test]
@@ -903,6 +960,132 @@ mod tests {
         assert_eq!(
             measured.load(Ordering::SeqCst),
             GITLAB_PACKAGE_LOOKUP_CONCURRENCY
+        );
+    }
+
+    #[tokio::test]
+    async fn gitlab_release_cache_is_scoped_to_the_complete_current_selector() {
+        let releases = gitlab_selector_releases();
+        let (server_root, requests, server) = serve_routed_http(9, move |request| {
+            if request.contains("/releases?") {
+                ok_json(&releases, "")
+            } else {
+                ok_json(r#"{"id":9,"archived":false}"#, "")
+            }
+        });
+        let provider =
+            GitlabReleaseProvider::with_api_root(format!("{server_root}/api/v4")).unwrap();
+        let catalog = crate::Catalog::embedded().unwrap();
+        let mut first = catalog.port("extreme-g-recompiled").unwrap().clone();
+        first.release.repository = "shared/project".into();
+        first.channels = vec![ReleaseChannel::Stable, ReleaseChannel::Rolling];
+        first.release.asset_hints.insert(
+            Platform::WindowsX86_64,
+            vec!["first".into(), "windows".into()],
+        );
+
+        let initial = provider
+            .resolve(&first, ReleaseChannel::Stable, Platform::WindowsX86_64)
+            .await
+            .unwrap();
+        let unchanged = provider
+            .resolve(&first, ReleaseChannel::Stable, Platform::WindowsX86_64)
+            .await
+            .unwrap();
+        assert_eq!(initial.asset.name, "game-first-windows.zip");
+        assert_eq!(unchanged.version, initial.version);
+        assert_eq!(unchanged.asset.name, initial.asset.name);
+        assert_eq!(unchanged.asset.sha256, initial.asset.sha256);
+
+        let mut second = first.clone();
+        second.id = "same-repository-second-definition".into();
+        second.release.asset_hints.insert(
+            Platform::WindowsX86_64,
+            vec!["second".into(), "windows".into()],
+        );
+        let changed_hints = provider
+            .resolve(&second, ReleaseChannel::Stable, Platform::WindowsX86_64)
+            .await
+            .unwrap();
+        assert_eq!(changed_hints.asset.name, "game-second-windows.zip");
+
+        first.release.rolling_tag = Some("nightly-a".into());
+        let first_rolling = provider
+            .resolve(&first, ReleaseChannel::Rolling, Platform::WindowsX86_64)
+            .await
+            .unwrap();
+        first.release.rolling_tag = Some("nightly-b".into());
+        let changed_rolling = provider
+            .resolve(&first, ReleaseChannel::Rolling, Platform::WindowsX86_64)
+            .await
+            .unwrap();
+        server.join().unwrap();
+
+        assert_eq!(first_rolling.version, "nightly-a");
+        assert_eq!(changed_rolling.version, "nightly-b");
+        let requests = requests.try_iter().collect::<Vec<_>>();
+        assert_eq!(requests.len(), 9);
+        assert_eq!(
+            requests
+                .iter()
+                .filter(|request| request.contains("/releases?"))
+                .count(),
+            4
+        );
+    }
+
+    #[tokio::test]
+    async fn concurrent_gitlab_selectors_do_not_share_a_selected_result() {
+        let releases = gitlab_selector_releases();
+        let (server_root, requests, server) = serve_routed_http(6, move |request| {
+            if request.contains("/releases?") {
+                ok_json(&releases, "")
+            } else {
+                ok_json(r#"{"id":9,"archived":false}"#, "")
+            }
+        });
+        let provider =
+            GitlabReleaseProvider::with_api_root(format!("{server_root}/api/v4")).unwrap();
+        let catalog = crate::Catalog::embedded().unwrap();
+        let mut first = catalog.port("extreme-g-recompiled").unwrap().clone();
+        first.release.repository = "shared/concurrent".into();
+        first
+            .release
+            .asset_hints
+            .insert(Platform::WindowsX86_64, vec!["first".into()]);
+        let mut second = first.clone();
+        second.id = "same-repository-concurrent-definition".into();
+        second
+            .release
+            .asset_hints
+            .insert(Platform::WindowsX86_64, vec!["second".into()]);
+
+        let (first_result, second_result) = tokio::join!(
+            provider.resolve(&first, ReleaseChannel::Stable, Platform::WindowsX86_64),
+            provider.resolve(&second, ReleaseChannel::Stable, Platform::WindowsX86_64)
+        );
+        let first_cached = provider
+            .resolve(&first, ReleaseChannel::Stable, Platform::WindowsX86_64)
+            .await
+            .unwrap();
+        let second_cached = provider
+            .resolve(&second, ReleaseChannel::Stable, Platform::WindowsX86_64)
+            .await
+            .unwrap();
+        server.join().unwrap();
+
+        assert_eq!(first_result.unwrap().asset.name, "game-first-windows.zip");
+        assert_eq!(second_result.unwrap().asset.name, "game-second-windows.zip");
+        assert_eq!(first_cached.asset.name, "game-first-windows.zip");
+        assert_eq!(second_cached.asset.name, "game-second-windows.zip");
+        let requests = requests.try_iter().collect::<Vec<_>>();
+        assert_eq!(requests.len(), 6);
+        assert_eq!(
+            requests
+                .iter()
+                .filter(|request| request.contains("/releases?"))
+                .count(),
+            2
         );
     }
 
