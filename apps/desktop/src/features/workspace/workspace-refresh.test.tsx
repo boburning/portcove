@@ -4,7 +4,8 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { listen } from "@tauri-apps/api/event";
 import { desktopApi } from "../../api";
-import { useOperationState, useUpdateCenter, type Perform } from "../../use-portcove";
+import { useUpdateCenter } from "../port-updates/use-update-center";
+import { useOperationState, type Perform } from "../../use-portcove";
 import { usePortcoveData } from "./use-workspace-data";
 import { failureReport, portDefinition, portStatus } from "../../test-fixtures";
 import type { DoctorReport, OperationEvent, WorkspaceSnapshot } from "../../types";
@@ -601,7 +602,7 @@ describe("workspace refresh recovery", () => {
   });
 
   it("refreshes persisted workspace state after checking all installed ports", async () => {
-    vi.spyOn(desktopApi, "checkInstalled").mockResolvedValue([]);
+    const checkInstalled = vi.spyOn(desktopApi, "checkInstalled").mockResolvedValue([]);
     const calls = vi.fn();
     const perform: Perform = async (name, task, options) => {
       calls(name, task, options);
@@ -611,9 +612,10 @@ describe("workspace refresh recovery", () => {
 
     await act(async () => checkAll());
 
-    expect(calls).toHaveBeenCalledWith("check installed", desktopApi.checkInstalled, {
+    expect(calls).toHaveBeenCalledWith("check installed", expect.any(Function), {
       refresh: "workspace",
       invalidateDiagnostics: false,
     });
+    expect(checkInstalled).toHaveBeenCalledTimes(1);
   });
 });

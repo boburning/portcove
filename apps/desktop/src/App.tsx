@@ -8,6 +8,7 @@ import { usePortcoveData } from "./features/workspace/use-workspace-data";
 import { useGithubAuth } from "./features/github-auth/use-github-auth";
 import { useSourceHealth } from "./features/source-health/use-source-health";
 import { usePortBackups } from "./features/backups/use-port-backups";
+import { useUpdateCenter } from "./features/port-updates/use-update-center";
 import { AdoptionModal } from "./components/AdoptionModal";
 import {
   LibraryMoveRecovery,
@@ -54,7 +55,6 @@ import {
   useInstallPlanning,
   useOperationState,
   usePortcoveUi,
-  useUpdateCenter,
 } from "./use-portcove";
 import type {
   ActivityRecord,

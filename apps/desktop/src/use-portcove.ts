@@ -8,10 +8,9 @@ import {
 } from "react";
 import { desktopApi } from "./api";
 import { listenDesktopEvent } from "./desktop-events";
-import type { OperationEvent, PortDefinition, PortStatus, UpdateCheckOutcome } from "./types";
+import type { OperationEvent, PortDefinition, PortStatus } from "./types";
 import type { DetailActions } from "./components/DetailPanel";
 import { isCancellation, type Filter, type View } from "./view-model";
-import { currentUpdateSnapshot } from "./view-model";
 import { applyOperationEvent, mostRecentOperation } from "./operation-state";
 import {
   addPendingOperation,
@@ -92,43 +91,6 @@ export function useOperationState(
     [invalidateDiagnostics, refresh, refreshActivities],
   );
   return { busy, error, operation, pendingOperations, perform, setError, subscriptionFailure };
-}
-
-export function useUpdateCenter(perform: Perform, statuses: PortStatus[]) {
-  const snapshots = statuses.flatMap((status) => {
-    const snapshot = currentUpdateSnapshot(status);
-    return snapshot
-      ? [
-          {
-            port_id: status.port_id,
-            ok: true,
-            error: null,
-            result: snapshot.check,
-          } satisfies UpdateCheckOutcome,
-        ]
-      : [];
-  });
-  const snapshotBaseline = snapshots
-    .map(
-      (outcome) =>
-        `${outcome.port_id}:${outcome.result?.release.asset.sha256}:${outcome.result?.installed_artifact?.sha256}:${JSON.stringify(outcome.result?.required_runtime)}:${JSON.stringify(outcome.result?.installed_runtime)}`,
-    )
-    .join("|");
-  const [checked, setChecked] = useState<{
-    baseline: string;
-    outcomes: UpdateCheckOutcome[];
-  }>();
-  const outcomes = checked?.baseline === snapshotBaseline ? checked.outcomes : snapshots;
-  const checkAll = useCallback(async () => {
-    const result = await perform("check installed", desktopApi.checkInstalled, {
-      refresh: "workspace",
-      invalidateDiagnostics: false,
-    });
-    if (result) {
-      setChecked({ baseline: snapshotBaseline, outcomes: result });
-    }
-  }, [perform, snapshotBaseline]);
-  return { outcomes, checkAll };
 }
 
 // Review data is ephemeral UI intent; core still authorizes every mutation.
