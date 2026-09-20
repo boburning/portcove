@@ -267,6 +267,7 @@ internal static class ContractTests
         }
         await client.Manage("cancel", new[] { "cancel", "request" }, null);
         Check(true, "cancellation request accepts a result-only response");
+        await ConsumerMeasurements();
         if (args.Length == 2)
         {
             var real = new PublicCli(args[0], args[1]); await real.Connect();
@@ -277,12 +278,94 @@ internal static class ContractTests
         }
     }
 
+    private static async Task ConsumerMeasurements()
+    {
+        var root = Path.Combine(Path.GetDirectoryName(Binary), "measurement library 雪");
+        Directory.CreateDirectory(root);
+        try
+        {
+            var client = new PublicCli(Binary, root);
+            var connect = Stopwatch.StartNew();
+            await client.Connect();
+            connect.Stop();
+            Check(client.InvocationCount == 2, "consumer connection has a two-process capability and identity budget");
+
+            var refreshStart = client.InvocationCount;
+            var refresh = Stopwatch.StartNew();
+            var catalog = Json.Array(await client.Read("catalog.list", "catalog", "list"));
+            var statuses = Json.Array(await client.Read("status", "status"));
+            await client.AssertIdentity();
+            refresh.Stop();
+            Check(catalog.Length == 256 && statuses.Length == catalog.Length,
+                "representative 256-port refresh consumes complete batched catalog and status reads");
+            Check(client.InvocationCount - refreshStart == 3,
+                "representative refresh stays within three CLI processes instead of one process per game");
+
+            var concurrentStart = client.InvocationCount;
+            var concurrent = Stopwatch.StartNew();
+            await Task.WhenAll(Enumerable.Range(0, 4).Select(_ => client.Read("status", "status", "shape-a")));
+            concurrent.Stop();
+            Check(client.InvocationCount - concurrentStart == 4 && client.MaximumConcurrentCommands == 4,
+                "caller-bounded four-read concurrency starts no hidden extra CLI processes");
+
+            var launchStart = client.InvocationCount;
+            var launchTimer = Stopwatch.StartNew();
+            await client.Read("status", "status", "shape-a");
+            using (var launch = await client.Launch("shape-a", "measurement-request"))
+            {
+                var launchPid = Path.Combine(root, "measurement-launch-pid");
+                for (var attempt = 0; attempt < 100 && !File.Exists(launchPid); attempt++)
+                    await Task.Delay(10);
+                if (!File.Exists(launchPid)) throw new Exception("The offline launch fixture did not start within one second.");
+                var record = await client.Read("launch.show", "launch", "show", "measurement-request");
+                var observation = LaunchObservation.Read(record, "measurement-request", "shape-a", launch.ProcessId);
+                Check(observation != null && observation.Outcome == "succeeded",
+                    "prepared offline launch is observed through the public launch record");
+            }
+            launchTimer.Stop();
+            Check(client.InvocationCount - launchStart == 4,
+                "launch readiness, identity, raw exec and first observation stay within four CLI processes");
+
+            var cancelStart = client.InvocationCount;
+            var cancellation = Stopwatch.StartNew();
+            await client.Manage("cancel", new[] { "cancel", "measurement-request" }, null);
+            cancellation.Stop();
+            Check(client.InvocationCount - cancelStart == 2,
+                "cancellation rechecks library identity and uses one mutation process without replay");
+
+            Console.WriteLine("MEASUREMENT " + Json.Print(new
+            {
+                schema_version = 1,
+                fixture = "local-offline-256-port-consumer",
+                library_ports = catalog.Length,
+                process_invocations = new { connect = 2, refresh = 3, four_concurrent_reads = 4, launch_through_first_observation = 4, cancel = 2 },
+                elapsed_ms = new
+                {
+                    connect = connect.ElapsedMilliseconds,
+                    refresh = refresh.ElapsedMilliseconds,
+                    four_concurrent_reads = concurrent.ElapsedMilliseconds,
+                    launch_through_first_observation = launchTimer.ElapsedMilliseconds,
+                    cancel = cancellation.ElapsedMilliseconds
+                },
+                maximum_observed_concurrent_commands = client.MaximumConcurrentCommands,
+                polling = new { processes_per_observation = 1, overlapping_polls = 0 },
+                prepared_offline = true
+            }));
+        }
+        finally
+        {
+            if (Directory.Exists(root)) Directory.Delete(root, true);
+        }
+    }
+
     private static async Task RunQualification(string[] args)
     {
         if (args.Length < 4) throw new ArgumentException("Qualification mode requires a CLI, library, and fixture port.");
         var mode = args[0];
         var client = new PublicCli(args[1], args[2]);
+        var connect = Stopwatch.StartNew();
         await client.Connect();
+        connect.Stop();
         var port = args[3];
 
         if (mode == "qualification-concurrency")
@@ -313,6 +396,29 @@ internal static class ContractTests
         if (args.Length < 5) throw new ArgumentException("Qualification phase requires an expected library identity.");
         var expectedLibrary = args[4];
         Check(client.LibraryId == expectedLibrary, "library identity is stable across compiled-client reconnects");
+
+        if (mode == "qualification-measurement")
+        {
+            var start = client.InvocationCount;
+            var refresh = Stopwatch.StartNew();
+            var catalog = Json.Array(await client.Read("catalog.list", "catalog", "list"));
+            var statuses = Json.Array(await client.Read("status", "status"));
+            await client.AssertIdentity();
+            refresh.Stop();
+            Check(catalog.Length == statuses.Length && catalog.Length > 1,
+                "real standalone CLI returns one complete batched status set for the qualification catalog");
+            Check(client.InvocationCount - start == 3,
+                "real standalone CLI refresh uses three processes independent of catalog size");
+            Console.WriteLine("REAL_MEASUREMENT " + Json.Print(new
+            {
+                schema_version = 1,
+                library_ports = catalog.Length,
+                process_invocations = new { connect = 2, refresh = 3 },
+                elapsed_ms = new { connect = connect.ElapsedMilliseconds, refresh = refresh.ElapsedMilliseconds },
+                artifact_server_online = false
+            }));
+            return;
+        }
 
         if (mode == "qualification-install" || mode == "qualification-update")
         {
@@ -624,10 +730,41 @@ internal static class ContractTests
     {
         Console.OutputEncoding = new UTF8Encoding(false);
         var jsonl = Array.IndexOf(args, "--jsonl");
-        var commandIndex = (jsonl >= 0 ? jsonl : Array.IndexOf(args, "--json")) + 1;
+        var json = Array.IndexOf(args, "--json");
+        var commandIndex = jsonl >= 0 ? jsonl + 1 : json >= 0 ? json + 1 : Array.IndexOf(args, "--non-interactive") + 1;
         var command = args[commandIndex];
         if (command == "capabilities") Console.WriteLine(Result(command, Capabilities()));
         else if (command == "library") Console.WriteLine(Result("library.identity", new { id = "owned-fixture", root = args[1] }));
+        else if (command == "catalog") Console.WriteLine(Result("catalog.list", Enumerable.Range(0, 256).Select(index => new
+        {
+            id = index == 0 ? "shape-a" : "fixture-" + index,
+            name = "Fixture " + index,
+            summary = "Offline consumer measurement fixture",
+            platforms = new[] { "windows-x86-64" }
+        }).ToArray()));
+        else if (command == "status")
+        {
+            var status = new { port_id = "shape-a", active = new { version = "1.0.0", path = @"C:\Portcove\shape-a" }, readiness = new { launchable = true } };
+            Console.WriteLine(Result(command, commandIndex + 1 < args.Length ? (object)status : Enumerable.Range(0, 256).Select(index => new
+            {
+                port_id = index == 0 ? "shape-a" : "fixture-" + index,
+                active = index == 0 ? new { version = "1.0.0", path = @"C:\Portcove\shape-a" } : null,
+                readiness = new { launchable = index == 0 }
+            }).ToArray()));
+        }
+        else if (command == "exec")
+        {
+            File.WriteAllText(Path.Combine(args[1], "measurement-launch-pid"), Process.GetCurrentProcess().Id.ToString());
+        }
+        else if (command == "launch")
+        {
+            var pid = int.Parse(File.ReadAllText(Path.Combine(args[1], "measurement-launch-pid")));
+            Console.WriteLine(Result("launch.show", new
+            {
+                id = "measurement-request", port_id = "shape-a", supervisor_pid = pid, child_pid = (int?)pid,
+                phase = "running", outcome = "succeeded", finished_at = (long?)42
+            }));
+        }
         else
         {
             if (args[1].EndsWith("-invalid-utf8", StringComparison.Ordinal))

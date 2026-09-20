@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Portcove.ReferenceClient
@@ -12,8 +13,13 @@ namespace Portcove.ReferenceClient
         internal string Executable { get; }
         internal string LibraryRoot { get; }
         internal string LibraryId { get; private set; }
+        internal long InvocationCount => Interlocked.Read(ref invocationCount);
+        internal int MaximumConcurrentCommands => Volatile.Read(ref maximumConcurrentCommands);
         private long operationEventSchemaVersion = 2;
         private long apiSchemaVersion;
+        private long invocationCount;
+        private int activeCommands;
+        private int maximumConcurrentCommands;
 
         internal PublicCli(string executable, string libraryRoot)
         {
@@ -82,6 +88,7 @@ namespace Portcove.ReferenceClient
             try
             {
                 if (!process.Start()) throw new InvalidOperationException("Could not start the selected Portcove CLI.");
+                Interlocked.Increment(ref invocationCount);
                 process.StandardInput.Close();
                 return process;
             }
@@ -93,32 +100,40 @@ namespace Portcove.ReferenceClient
             var args = new List<string> { mutation ? "--jsonl" : "--json" };
             args.AddRange(arguments);
             var parser = new ProtocolStream(command, progress, operationEventSchemaVersion);
-            using (var process = Start(args))
+            var active = Interlocked.Increment(ref activeCommands);
+            int observed;
+            while (active > (observed = maximumConcurrentCommands) &&
+                Interlocked.CompareExchange(ref maximumConcurrentCommands, active, observed) != observed) { }
+            try
             {
-                var output = Pump(process.StandardOutput, parser.Line);
-                // Raw stderr may contain local paths or tool output. Drain without exporting it.
-                var errors = Drain(process.StandardError.BaseStream);
-                var exited = await Task.Run(() => process.WaitForExit(mutation ? -1 : 45000)).ConfigureAwait(false);
-                if (!exited)
+                using (var process = Start(args))
                 {
-                    // Only this owned read process is stopped. Mutations and game supervisors are never killed here.
-                    try { if (!process.HasExited) process.Kill(); } catch (InvalidOperationException) { }
-                    await Task.Run(() => process.WaitForExit(5000)).ConfigureAwait(false);
-                    ObserveDrainFailures(Task.WhenAll(output, errors));
-                    throw new InvalidOperationException("The CLI read timed out. No success is inferred; inspect Portcove activity before retrying.");
+                    var output = Pump(process.StandardOutput, parser.Line);
+                    // Raw stderr may contain local paths or tool output. Drain without exporting it.
+                    var errors = Drain(process.StandardError.BaseStream);
+                    var exited = await Task.Run(() => process.WaitForExit(mutation ? -1 : 45000)).ConfigureAwait(false);
+                    if (!exited)
+                    {
+                        // Only this owned read process is stopped. Mutations and game supervisors are never killed here.
+                        try { if (!process.HasExited) process.Kill(); } catch (InvalidOperationException) { }
+                        await Task.Run(() => process.WaitForExit(5000)).ConfigureAwait(false);
+                        ObserveDrainFailures(Task.WhenAll(output, errors));
+                        throw new InvalidOperationException("The CLI read timed out. No success is inferred; inspect Portcove activity before retrying.");
+                    }
+                    var drained = Task.WhenAll(output, errors);
+                    if (await Task.WhenAny(drained, Task.Delay(TimeSpan.FromSeconds(5))).ConfigureAwait(false) != drained)
+                    {
+                        ObserveDrainFailures(drained);
+                        throw new InvalidOperationException("The CLI exited but an output stream stayed open. Refresh durable state; the operation is unconfirmed.");
+                    }
+                    await drained.ConfigureAwait(false);
+                    var value = parser.Finish(process.ExitCode);
+                    if (parser.EventGap)
+                        throw new InvalidOperationException("The final CLI result arrived after missing or reordered events. Refresh activity and current state; do not replay the command automatically.");
+                    return value;
                 }
-                var drained = Task.WhenAll(output, errors);
-                if (await Task.WhenAny(drained, Task.Delay(TimeSpan.FromSeconds(5))).ConfigureAwait(false) != drained)
-                {
-                    ObserveDrainFailures(drained);
-                    throw new InvalidOperationException("The CLI exited but an output stream stayed open. Refresh durable state; the operation is unconfirmed.");
-                }
-                await drained.ConfigureAwait(false);
-                var value = parser.Finish(process.ExitCode);
-                if (parser.EventGap)
-                    throw new InvalidOperationException("The final CLI result arrived after missing or reordered events. Refresh activity and current state; do not replay the command automatically.");
-                return value;
             }
+            finally { Interlocked.Decrement(ref activeCommands); }
         }
 
         private static void ObserveDrainFailures(Task task) => task.ContinueWith(completed =>
