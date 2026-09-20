@@ -124,8 +124,16 @@ impl PortcoveService {
 
     pub fn list_backups(&self, port_id: &str) -> Result<BackupInventory> {
         self.catalog.port(port_id)?;
-        let parent = self.library.backups_dir().join(port_id);
         let operations = OperationStore::new(self.library.clone()).all()?;
+        self.list_backups_with_operations(port_id, &operations)
+    }
+
+    pub(super) fn list_backups_with_operations(
+        &self,
+        port_id: &str,
+        operations: &[LifecycleOperation],
+    ) -> Result<BackupInventory> {
+        let parent = self.library.backups_dir().join(port_id);
         let pending_deletions = operations
             .iter()
             .filter(|operation| {

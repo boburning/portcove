@@ -12,12 +12,27 @@ use std::{
 use rusqlite::params;
 use uuid::Uuid;
 
+#[cfg(test)]
+thread_local! {
+    static ALL_READ_COUNT: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+}
+
 use crate::{
     ActivityRecord, InstallRecord, Library, OperationEvent, OperationEventKind, OperationResult,
     OperationTarget, OutputRelocationPlan, PortcoveError, Result, SourceImportPlan, database,
 };
 
 pub const OPERATION_EVENT_SCHEMA_VERSION: u32 = 2;
+
+#[cfg(test)]
+pub(crate) fn reset_all_read_count() {
+    ALL_READ_COUNT.with(|count| count.set(0));
+}
+
+#[cfg(test)]
+pub(crate) fn all_read_count() -> usize {
+    ALL_READ_COUNT.with(std::cell::Cell::get)
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum LifecycleOperationKind {
@@ -262,6 +277,8 @@ impl OperationStore {
     }
 
     pub fn all(&self) -> Result<Vec<LifecycleOperation>> {
+        #[cfg(test)]
+        ALL_READ_COUNT.with(|count| count.set(count.get() + 1));
         let connection = database::connect(self.library.root())?;
         let mut statement = connection.prepare(
             "SELECT id, kind, port_id, phase, staging_path, final_path, quarantine_path,

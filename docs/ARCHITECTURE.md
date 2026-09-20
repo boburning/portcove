@@ -1,5 +1,17 @@
 # Architecture
 
+## Repair diagnostic snapshots
+
+One `repair_plan` pass reads the lifecycle-operation journal once and reuses that
+read-only operation snapshot while inspecting every catalog port's backup state.
+The public single-port backup inventory remains an independent fresh read. The
+diagnostic snapshot is not mutation authority and is not an atomic view of the
+filesystem: journal changes committed after the initial read appear on the next
+pass, while filesystem changes can still be observed as each backup directory is
+inspected. Consequently a concurrent change can make one report conservatively
+stale, but cannot bypass the normal ownership, symlink, manifest, pending-operation,
+or recovery checks used by backup inventory.
+
 ## Successor definition content inventory
 
 Core owns the immutable successor index parser and exact target-byte verification

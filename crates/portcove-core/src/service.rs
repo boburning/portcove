@@ -437,7 +437,10 @@ impl PortcoveService {
             }
         }
         for port in self.catalog.ports() {
-            for problem in self.list_backups(&port.id)?.problems {
+            for problem in self
+                .list_backups_with_operations(&port.id, &operations)?
+                .problems
+            {
                 if problem.operation_id.is_some() {
                     continue;
                 }
@@ -5632,6 +5635,24 @@ mod tests {
         );
     }
 
+    #[test]
+    fn repair_plan_reads_the_lifecycle_journal_once_independent_of_catalog_size() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let mut service = PortcoveService::new(library).unwrap();
+        let embedded_port_count = service.catalog.ports().len();
+        crate::operation::reset_all_read_count();
+        service.repair_plan().unwrap();
+        assert_eq!(crate::operation::all_read_count(), 1);
+
+        let (expanded_catalog, _) = crate::test_fixture::post_client_catalog();
+        assert_eq!(expanded_catalog.ports().len(), embedded_port_count + 1);
+        service.replace_catalog_for_test(expanded_catalog);
+        crate::operation::reset_all_read_count();
+        service.repair_plan().unwrap();
+        assert_eq!(crate::operation::all_read_count(), 1);
+    }
+
     #[cfg(windows)]
     #[test]
     fn repair_plan_matches_extended_registered_paths_without_hiding_real_orphans() {
@@ -6327,6 +6348,78 @@ fn main() {
         let activity = &library.activities(1).unwrap()[0];
         assert_eq!(activity.operation, ActivityOperation::Backup);
         assert_eq!(activity.status, ActivityStatus::Succeeded);
+    }
+
+    #[test]
+    fn reused_backup_snapshot_matches_fresh_inventory_across_diagnostic_states() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let service = service_with_release(library.clone(), "v1");
+        let port_id = "zelda64-recomp";
+        let store = OperationStore::new(library.clone());
+
+        let operations = store.all().unwrap();
+        assert_eq!(
+            service
+                .list_backups_with_operations(port_id, &operations)
+                .unwrap(),
+            service.list_backups(port_id).unwrap()
+        );
+
+        let user_root = library.user_dir(port_id);
+        fs::create_dir_all(&user_root).unwrap();
+        fs::write(user_root.join("save.dat"), b"healthy").unwrap();
+        let healthy = service.create_backup(port_id).unwrap();
+        let operations = store.all().unwrap();
+        assert_eq!(
+            service
+                .list_backups_with_operations(port_id, &operations)
+                .unwrap(),
+            service.list_backups(port_id).unwrap()
+        );
+
+        let malformed = Uuid::new_v4().to_string();
+        let malformed_root = library.backups_dir().join(port_id).join(&malformed);
+        fs::create_dir(&malformed_root).unwrap();
+        fs::write(malformed_root.join("backup.json"), b"{").unwrap();
+        let operations = store.all().unwrap();
+        let degraded = service
+            .list_backups_with_operations(port_id, &operations)
+            .unwrap();
+        assert_eq!(degraded, service.list_backups(port_id).unwrap());
+        assert_eq!(degraded.state, BackupInventoryState::Degraded);
+        assert_eq!(
+            degraded.problems[0].kind,
+            BackupProblemKind::MalformedManifest
+        );
+
+        let mut pending = LifecycleOperation::new(
+            "pending-backup-deletion",
+            LifecycleOperationKind::DeleteBackup,
+            port_id,
+        );
+        pending.phase = LifecyclePhase::Prepared;
+        pending.paths.final_path = Some(healthy.path.clone());
+        pending.paths.quarantine = Some(
+            library
+                .backups_dir()
+                .join(port_id)
+                .join(".deleting-pending-backup-deletion"),
+        );
+        store.put(&mut pending).unwrap();
+        let operations = store.all().unwrap();
+        let recovery_required = service
+            .list_backups_with_operations(port_id, &operations)
+            .unwrap();
+        assert_eq!(recovery_required, service.list_backups(port_id).unwrap());
+        assert_eq!(
+            recovery_required.state,
+            BackupInventoryState::RecoveryRequired
+        );
+        assert!(recovery_required.problems.iter().any(|problem| {
+            problem.kind == BackupProblemKind::RecoveryRequired
+                && problem.operation_id.as_deref() == Some("pending-backup-deletion")
+        }));
     }
 
     #[test]
