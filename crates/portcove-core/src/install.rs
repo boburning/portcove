@@ -10,7 +10,9 @@ use crate::{
     OperationEvent, Platform, PortDefinition, PortcoveError, PsxManagedPreparation, ReleaseAsset,
     ResolvedRelease, Result, RuntimeIdentity, RuntimeOrigin,
     adapter::{hash_file, walk_files},
-    archive::{extract_archive, validate_download_progress, validate_download_size},
+    archive::{
+        extract_archive_with_checkpoint, validate_download_progress, validate_download_size,
+    },
     operation::{
         LifecycleFaultInjector, LifecycleFaultPoint, LifecycleOperation, LifecycleOperationKind,
         LifecyclePhase, NoLifecycleFaults, OperationStore,
@@ -307,6 +309,15 @@ pub struct Installer {
     library: Library,
     client: reqwest::Client,
     faults: Arc<dyn LifecycleFaultInjector>,
+    #[cfg(test)]
+    archive_worker_test_hook: Option<ArchiveWorkerTestHook>,
+}
+
+#[cfg(test)]
+#[derive(Clone)]
+pub(crate) struct ArchiveWorkerTestHook {
+    pub checkpoint: Arc<dyn Fn() -> Result<()> + Send + Sync>,
+    pub finished: Arc<std::sync::atomic::AtomicBool>,
 }
 
 struct InstallLifecycle {
@@ -340,6 +351,8 @@ impl Installer {
             library,
             client,
             faults: Arc::new(NoLifecycleFaults),
+            #[cfg(test)]
+            archive_worker_test_hook: None,
         })
     }
 
@@ -353,7 +366,14 @@ impl Installer {
             library,
             client: download_client(connect_timeout, read_idle_timeout)?,
             faults: Arc::new(NoLifecycleFaults),
+            archive_worker_test_hook: None,
         })
+    }
+
+    #[cfg(test)]
+    pub(crate) fn with_archive_worker_test_hook(mut self, hook: ArchiveWorkerTestHook) -> Self {
+        self.archive_worker_test_hook = Some(hook);
+        self
     }
 
     pub(crate) fn with_faults(
@@ -620,13 +640,29 @@ impl Installer {
         let extraction_path = download_path.to_path_buf();
         let extraction_root = payload_root.to_path_buf();
         let expected_size = asset.size;
+        let extraction_operation = operation.clone();
+        #[cfg(test)]
+        let archive_worker_test_hook = self.archive_worker_test_hook.clone();
         tokio::task::spawn_blocking(move || {
-            extract_asset(
+            let result = extract_asset(
                 &extraction_path,
                 &extraction_root,
                 &asset_name,
                 expected_size,
-            )
+                &|| {
+                    #[cfg(test)]
+                    if let Some(hook) = &archive_worker_test_hook {
+                        (hook.checkpoint)()?;
+                    }
+                    extraction_operation.checkpoint()
+                },
+            );
+            #[cfg(test)]
+            if let Some(hook) = &archive_worker_test_hook {
+                hook.finished
+                    .store(true, std::sync::atomic::Ordering::SeqCst);
+            }
+            result
         })
         .await
         .map_err(|error| PortcoveError::install(error.to_string()))??;
@@ -1807,10 +1843,11 @@ fn extract_asset(
     destination: &Path,
     asset_name: &str,
     expected_size: u64,
+    checkpoint: &dyn Fn() -> Result<()>,
 ) -> Result<()> {
     let lower = asset_name.to_ascii_lowercase();
     if lower.ends_with(".zip") || lower.ends_with(".tar.gz") || lower.ends_with(".tgz") {
-        extract_archive(source, destination, asset_name, expected_size)
+        extract_archive_with_checkpoint(source, destination, asset_name, expected_size, checkpoint)
     } else if lower.ends_with(".exe") || lower.ends_with(".appimage") {
         crate::archive::validate_relative_path(asset_name, false)?;
         let target = destination.join(asset_name);
@@ -1944,7 +1981,10 @@ mod tests {
                 sha256: hex::encode(Sha256::digest(version)),
                 size: version.len() as u64,
             };
-            extract_asset(&source, &root, &artifact.asset_name, artifact.size).unwrap();
+            extract_asset(&source, &root, &artifact.asset_name, artifact.size, &|| {
+                Ok(())
+            })
+            .unwrap();
             normalize_standalone_appimage(&root, &artifact, &qualification).unwrap();
             if Path::new(&artifact.asset_name) != declared {
                 assert!(!root.join(&artifact.asset_name).exists());
@@ -2013,7 +2053,8 @@ mod tests {
                 &root.join("game-v2.AppImage"),
                 root,
                 "../escape.AppImage",
-                7
+                7,
+                &|| Ok(()),
             )
             .is_err()
         );

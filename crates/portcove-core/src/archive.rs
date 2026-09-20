@@ -17,6 +17,13 @@ const MAX_PATH_DEPTH: usize = 32;
 const MAX_PATH_BYTES: usize = 1024;
 const MAX_COMPONENT_BYTES: usize = 255;
 const MAX_COMPRESSION_RATIO: u64 = 200;
+const TAR_BLOCK_BYTES: u64 = 512;
+const MAX_TAR_EXTENSION_BYTES: u64 = 64 * 1024;
+const MAX_TAR_METADATA_BYTES: u64 = 16 * 1024 * 1024;
+const MAX_TAR_RAW_HEADERS: usize = MAX_ENTRIES * 6;
+const MAX_TAR_FORMAT_OVERHEAD_BYTES: u64 =
+    (MAX_ENTRIES as u64) * 6 * TAR_BLOCK_BYTES + 2 * TAR_BLOCK_BYTES;
+const ARCHIVE_IO_CHUNK_BYTES: usize = 64 * 1024;
 
 #[derive(Debug, Clone)]
 struct EntryPlan {
@@ -74,12 +81,29 @@ pub(crate) fn extract_archive(
     asset_name: &str,
     expected_compressed_size: u64,
 ) -> Result<()> {
+    extract_archive_with_checkpoint(
+        source,
+        destination,
+        asset_name,
+        expected_compressed_size,
+        &|| Ok(()),
+    )
+}
+
+pub(crate) fn extract_archive_with_checkpoint(
+    source: &Path,
+    destination: &Path,
+    asset_name: &str,
+    expected_compressed_size: u64,
+    checkpoint: &dyn Fn() -> Result<()>,
+) -> Result<()> {
+    checkpoint()?;
     let compressed_size = validate_compressed_size(source, expected_compressed_size)?;
     let lower = asset_name.to_ascii_lowercase();
     if lower.ends_with(".zip") {
-        extract_zip(source, destination, compressed_size)
+        extract_zip(source, destination, compressed_size, checkpoint)
     } else if lower.ends_with(".tar.gz") || lower.ends_with(".tgz") {
-        extract_tar_gz(source, destination, compressed_size)
+        extract_tar_gz(source, destination, compressed_size, checkpoint)
     } else {
         Err(PortcoveError::unsupported(format!(
             "unsupported archive format: {asset_name}"
@@ -130,26 +154,9 @@ fn validate_plan(destination: &Path, plans: &[EntryPlan], compressed_size: u64) 
             "archive contains too many entries",
         ));
     }
-    let total = plans.iter().try_fold(0_u64, |total, plan| {
-        if plan.size > MAX_ENTRY_BYTES {
-            return Err(PortcoveError::verification(format!(
-                "archive entry exceeds its size limit: {}",
-                plan.relative.display()
-            )));
-        }
-        total
-            .checked_add(plan.size)
-            .ok_or_else(|| PortcoveError::verification("archive expanded size overflowed"))
-    })?;
-    if total > MAX_EXPANDED_BYTES {
-        return Err(PortcoveError::verification(
-            "archive exceeds the total expanded size limit",
-        ));
-    }
-    if compressed_size > 0 && total > compressed_size.saturating_mul(MAX_COMPRESSION_RATIO) {
-        return Err(PortcoveError::verification(
-            "archive exceeds the maximum compression ratio",
-        ));
+    let mut total = 0_u64;
+    for plan in plans {
+        validate_declared_entry(&plan.relative, plan.size, &mut total, compressed_size)?;
     }
     let available = fs2::available_space(destination)?;
     if total > available {
@@ -158,6 +165,35 @@ fn validate_plan(destination: &Path, plans: &[EntryPlan], compressed_size: u64) 
                 .detail("required", total.to_string())
                 .detail("available", available.to_string()),
         );
+    }
+    Ok(())
+}
+
+fn validate_declared_entry(
+    relative: &Path,
+    size: u64,
+    expanded_size: &mut u64,
+    compressed_size: u64,
+) -> Result<()> {
+    if size > MAX_ENTRY_BYTES {
+        return Err(PortcoveError::verification(format!(
+            "archive entry exceeds its size limit: {}",
+            relative.display()
+        )));
+    }
+    *expanded_size = expanded_size
+        .checked_add(size)
+        .ok_or_else(|| PortcoveError::verification("archive expanded size overflowed"))?;
+    if *expanded_size > MAX_EXPANDED_BYTES {
+        return Err(PortcoveError::verification(
+            "archive exceeds the total expanded size limit",
+        ));
+    }
+    if compressed_size > 0 && *expanded_size > compressed_size.saturating_mul(MAX_COMPRESSION_RATIO)
+    {
+        return Err(PortcoveError::verification(
+            "archive exceeds the maximum compression ratio",
+        ));
     }
     Ok(())
 }
@@ -230,7 +266,12 @@ fn validate_component(component: &str) -> Result<()> {
     Ok(())
 }
 
-fn extract_zip(source: &Path, destination: &Path, compressed_size: u64) -> Result<()> {
+fn extract_zip(
+    source: &Path,
+    destination: &Path,
+    compressed_size: u64,
+    checkpoint: &dyn Fn() -> Result<()>,
+) -> Result<()> {
     let mut archive = zip::ZipArchive::new(File::open(source)?)
         .map_err(|error| PortcoveError::verification(format!("invalid ZIP: {error}")))?;
     if archive.len() > MAX_ENTRIES {
@@ -241,6 +282,7 @@ fn extract_zip(source: &Path, destination: &Path, compressed_size: u64) -> Resul
     let mut collisions = CollisionSet::default();
     let mut plans = Vec::with_capacity(archive.len());
     for index in 0..archive.len() {
+        checkpoint()?;
         let entry = archive
             .by_index(index)
             .map_err(|error| PortcoveError::verification(format!("invalid ZIP entry: {error}")))?;
@@ -276,24 +318,47 @@ fn extract_zip(source: &Path, destination: &Path, compressed_size: u64) -> Resul
     let mut archive = zip::ZipArchive::new(File::open(source)?)
         .map_err(|error| PortcoveError::verification(format!("invalid ZIP: {error}")))?;
     for (index, plan) in plans.iter().enumerate() {
+        checkpoint()?;
         let mut entry = archive
             .by_index(index)
             .map_err(|error| PortcoveError::verification(format!("invalid ZIP entry: {error}")))?;
-        write_entry(destination, plan, &mut entry)?;
+        write_entry(destination, plan, &mut entry, checkpoint)?;
     }
     Ok(())
 }
 
-fn extract_tar_gz(source: &Path, destination: &Path, compressed_size: u64) -> Result<()> {
-    let mut archive = tar::Archive::new(GzDecoder::new(File::open(source)?));
+fn extract_tar_gz(
+    source: &Path,
+    destination: &Path,
+    compressed_size: u64,
+    checkpoint: &dyn Fn() -> Result<()>,
+) -> Result<()> {
+    let decoded_limit = MAX_EXPANDED_BYTES
+        .checked_add(MAX_TAR_FORMAT_OVERHEAD_BYTES)
+        .expect("archive limits fit in u64");
+    let reader = CheckpointReader::new(
+        GzDecoder::new(File::open(source)?),
+        decoded_limit,
+        checkpoint,
+    );
+    preflight_raw_tar(reader, compressed_size, checkpoint)?;
+
+    checkpoint()?;
+    let reader = CheckpointReader::new(
+        GzDecoder::new(File::open(source)?),
+        decoded_limit,
+        checkpoint,
+    );
+    let mut archive = tar::Archive::new(reader);
     let mut collisions = CollisionSet::default();
     let mut plans = Vec::new();
+    let mut expanded_size = 0_u64;
     for entry in archive
         .entries()
-        .map_err(|error| PortcoveError::verification(format!("invalid TAR: {error}")))?
+        .map_err(|error| map_tar_error("invalid TAR", error, checkpoint))?
     {
-        let entry = entry
-            .map_err(|error| PortcoveError::verification(format!("invalid TAR entry: {error}")))?;
+        checkpoint()?;
+        let entry = entry.map_err(|error| map_tar_error("invalid TAR entry", error, checkpoint))?;
         if plans.len() == MAX_ENTRIES {
             return Err(PortcoveError::verification(
                 "archive contains too many entries",
@@ -313,6 +378,8 @@ fn extract_tar_gz(source: &Path, destination: &Path, compressed_size: u64) -> Re
             .ok_or_else(|| PortcoveError::verification("TAR contains a non-Unicode path"))?;
         let (relative, key) = validate_relative_path(name, directory)?;
         collisions.insert(key, directory)?;
+        let size = entry.size();
+        validate_declared_entry(&relative, size, &mut expanded_size, compressed_size)?;
         plans.push(EntryPlan {
             relative,
             directory,
@@ -321,25 +388,160 @@ fn extract_tar_gz(source: &Path, destination: &Path, compressed_size: u64) -> Re
                     PortcoveError::verification(format!("invalid TAR mode: {error}"))
                 })?,
             )),
-            size: entry.size(),
+            size,
         });
     }
     validate_plan(destination, &plans, compressed_size)?;
 
-    let mut archive = tar::Archive::new(GzDecoder::new(File::open(source)?));
+    checkpoint()?;
+    let reader = CheckpointReader::new(
+        GzDecoder::new(File::open(source)?),
+        decoded_limit,
+        checkpoint,
+    );
+    let mut archive = tar::Archive::new(reader);
     for (entry, plan) in archive
         .entries()
-        .map_err(|error| PortcoveError::verification(format!("invalid TAR: {error}")))?
+        .map_err(|error| map_tar_error("invalid TAR", error, checkpoint))?
         .zip(plans.iter())
     {
-        let mut entry = entry
-            .map_err(|error| PortcoveError::verification(format!("invalid TAR entry: {error}")))?;
-        write_entry(destination, plan, &mut entry)?;
+        checkpoint()?;
+        let mut entry =
+            entry.map_err(|error| map_tar_error("invalid TAR entry", error, checkpoint))?;
+        write_entry(destination, plan, &mut entry, checkpoint)?;
     }
     Ok(())
 }
 
-fn write_entry(destination: &Path, plan: &EntryPlan, reader: &mut impl Read) -> Result<()> {
+fn preflight_raw_tar(
+    reader: impl Read,
+    compressed_size: u64,
+    checkpoint: &dyn Fn() -> Result<()>,
+) -> Result<()> {
+    let mut archive = tar::Archive::new(reader);
+    let mut raw_headers = 0_usize;
+    let mut metadata_bytes = 0_u64;
+    let mut expanded_size = 0_u64;
+    for entry in archive
+        .entries()
+        .map_err(|error| map_tar_error("invalid TAR", error, checkpoint))?
+        .raw(true)
+    {
+        checkpoint()?;
+        let entry = entry.map_err(|error| map_tar_error("invalid TAR entry", error, checkpoint))?;
+        raw_headers += 1;
+        if raw_headers > MAX_TAR_RAW_HEADERS {
+            return Err(PortcoveError::verification(
+                "TAR contains too many raw headers",
+            ));
+        }
+        let kind = entry.header().entry_type();
+        let size = entry.size();
+        if kind.is_gnu_longlink() {
+            return Err(PortcoveError::verification(
+                "TAR links and special files are not allowed",
+            ));
+        }
+        if kind.is_gnu_longname()
+            || kind.is_pax_local_extensions()
+            || kind.is_pax_global_extensions()
+        {
+            if size > MAX_TAR_EXTENSION_BYTES {
+                return Err(PortcoveError::verification(
+                    "TAR extension metadata exceeds its size limit",
+                ));
+            }
+            metadata_bytes = metadata_bytes.checked_add(size).ok_or_else(|| {
+                PortcoveError::verification("TAR extension metadata size overflowed")
+            })?;
+            if metadata_bytes > MAX_TAR_METADATA_BYTES {
+                return Err(PortcoveError::verification(
+                    "TAR extension metadata exceeds the total size limit",
+                ));
+            }
+            continue;
+        }
+        if kind.is_dir() {
+            if size != 0 {
+                return Err(PortcoveError::verification(
+                    "TAR directory entries must not contain data",
+                ));
+            }
+            continue;
+        }
+        if !kind.is_file() {
+            return Err(PortcoveError::verification(
+                "TAR links and special files are not allowed",
+            ));
+        }
+        validate_declared_entry(
+            Path::new("<raw TAR entry>"),
+            size,
+            &mut expanded_size,
+            compressed_size,
+        )?;
+    }
+    Ok(())
+}
+
+fn map_tar_error(
+    context: &str,
+    error: impl std::fmt::Display,
+    checkpoint: &dyn Fn() -> Result<()>,
+) -> PortcoveError {
+    checkpoint()
+        .err()
+        .unwrap_or_else(|| PortcoveError::verification(format!("{context}: {error}")))
+}
+
+struct CheckpointReader<'a, R> {
+    inner: R,
+    decoded: u64,
+    decoded_limit: u64,
+    checkpoint: &'a dyn Fn() -> Result<()>,
+}
+
+impl<'a, R> CheckpointReader<'a, R> {
+    fn new(inner: R, decoded_limit: u64, checkpoint: &'a dyn Fn() -> Result<()>) -> Self {
+        Self {
+            inner,
+            decoded: 0,
+            decoded_limit,
+            checkpoint,
+        }
+    }
+}
+
+impl<R: Read> Read for CheckpointReader<'_, R> {
+    fn read(&mut self, buffer: &mut [u8]) -> std::io::Result<usize> {
+        (self.checkpoint)().map_err(|error| std::io::Error::other(error.message))?;
+        let remaining = self.decoded_limit.saturating_sub(self.decoded);
+        if remaining == 0 {
+            let mut probe = [0_u8; 1];
+            return match self.inner.read(&mut probe)? {
+                0 => Ok(0),
+                _ => Err(std::io::Error::other(
+                    "decoded TAR data exceeds the metadata-aware work limit",
+                )),
+            };
+        }
+        let read_limit = buffer
+            .len()
+            .min(ARCHIVE_IO_CHUNK_BYTES)
+            .min(usize::try_from(remaining).unwrap_or(usize::MAX));
+        let read = self.inner.read(&mut buffer[..read_limit])?;
+        self.decoded = self.decoded.saturating_add(read as u64);
+        Ok(read)
+    }
+}
+
+fn write_entry(
+    destination: &Path,
+    plan: &EntryPlan,
+    reader: &mut impl Read,
+    checkpoint: &dyn Fn() -> Result<()>,
+) -> Result<()> {
+    checkpoint()?;
     let output = destination.join(&plan.relative);
     if !output.starts_with(destination) {
         return Err(PortcoveError::verification(
@@ -359,7 +561,25 @@ fn write_entry(destination: &Path, plan: &EntryPlan, reader: &mut impl Read) -> 
         .write(true)
         .create_new(true)
         .open(&output)?;
-    let copied = std::io::copy(&mut reader.take(plan.size.saturating_add(1)), &mut target)?;
+    let mut reader = reader.take(plan.size.saturating_add(1));
+    let mut buffer = [0_u8; ARCHIVE_IO_CHUNK_BYTES];
+    let mut copied = 0_u64;
+    loop {
+        checkpoint()?;
+        let read = match reader.read(&mut buffer) {
+            Ok(read) => read,
+            Err(error) => {
+                checkpoint()?;
+                return Err(error.into());
+            }
+        };
+        if read == 0 {
+            break;
+        }
+        target.write_all(&buffer[..read])?;
+        copied = copied.saturating_add(read as u64);
+        checkpoint()?;
+    }
     if copied != plan.size {
         return Err(PortcoveError::verification(format!(
             "archive entry size changed while extracting: {}",
@@ -391,7 +611,10 @@ fn normalize_archive_directories(destination: &Path, deepest: &Path) -> Result<(
 #[cfg(test)]
 mod tests {
     use proptest::prelude::*;
-    use std::io::{Cursor, Write};
+    use std::{
+        cell::Cell,
+        io::{Cursor, Write},
+    };
 
     use tempfile::tempdir;
 
@@ -461,6 +684,42 @@ mod tests {
             writer.write_all(bytes).unwrap();
         }
         writer.finish().unwrap();
+    }
+
+    fn write_declared_tar_gz(path: &Path, size: u64) {
+        let mut header = tar::Header::new_gnu();
+        header.set_entry_type(tar::EntryType::Regular);
+        header.set_path("declared.bin").unwrap();
+        header.set_size(size);
+        header.set_mode(0o644);
+        header.set_cksum();
+        let mut encoder = flate2::write::GzEncoder::new(
+            File::create(path).unwrap(),
+            flate2::Compression::default(),
+        );
+        encoder.write_all(header.as_bytes()).unwrap();
+        encoder.finish().unwrap();
+    }
+
+    fn write_declared_tar_extension_gz(
+        path: &Path,
+        kind: tar::EntryType,
+        declared_size: u64,
+        body: &[u8],
+    ) {
+        let mut header = tar::Header::new_gnu();
+        header.set_entry_type(kind);
+        header.set_path("extension").unwrap();
+        header.set_size(declared_size);
+        header.set_mode(0o644);
+        header.set_cksum();
+        let mut encoder = flate2::write::GzEncoder::new(
+            File::create(path).unwrap(),
+            flate2::Compression::default(),
+        );
+        encoder.write_all(header.as_bytes()).unwrap();
+        encoder.write_all(body).unwrap();
+        encoder.finish().unwrap();
     }
 
     fn mark_first_zip_entry_mode(path: &Path, mode: u32) {
@@ -794,6 +1053,294 @@ mod tests {
             executable: false,
             size: 2,
         };
-        assert!(write_entry(destination, &plan, &mut Cursor::new(vec![1])).is_err());
+        assert!(write_entry(destination, &plan, &mut Cursor::new(vec![1]), &|| Ok(())).is_err());
+    }
+
+    #[test]
+    fn tar_header_limits_reject_before_an_offending_body_is_drained() {
+        let temporary = tempdir().unwrap();
+        for (name, size, expected) in [
+            (
+                "entry",
+                MAX_ENTRY_BYTES + 1,
+                "archive entry exceeds its size limit",
+            ),
+            (
+                "ratio",
+                1024 * 1024,
+                "archive exceeds the maximum compression ratio",
+            ),
+        ] {
+            let source = temporary.path().join(format!("{name}.tar.gz"));
+            let destination = temporary.path().join(name);
+            fs::create_dir(&destination).unwrap();
+            write_declared_tar_gz(&source, size);
+            let error = extract_archive(
+                &source,
+                &destination,
+                "fixture.tar.gz",
+                fs::metadata(&source).unwrap().len(),
+            )
+            .unwrap_err();
+            assert!(error.message.contains(expected), "{}", error.message);
+            assert_eq!(fs::read_dir(destination).unwrap().count(), 0);
+        }
+
+        let mut expanded = 0;
+        validate_declared_entry(Path::new("first"), MAX_ENTRY_BYTES, &mut expanded, 0).unwrap();
+        validate_declared_entry(Path::new("second"), MAX_ENTRY_BYTES, &mut expanded, 0).unwrap();
+        let error = validate_declared_entry(Path::new("third"), 1, &mut expanded, 0).unwrap_err();
+        assert!(error.message.contains("total expanded size limit"));
+    }
+
+    #[test]
+    fn tar_extension_metadata_is_bounded_before_buffering_or_draining() {
+        let temporary = tempdir().unwrap();
+        let boundary_source = temporary.path().join("boundary-pax.tar.gz");
+        let boundary_destination = temporary.path().join("boundary-pax");
+        fs::create_dir(&boundary_destination).unwrap();
+        let mut pax_header = tar::Header::new_gnu();
+        pax_header.set_entry_type(tar::EntryType::XHeader);
+        pax_header.set_path("boundary-pax").unwrap();
+        pax_header.set_size(MAX_TAR_EXTENSION_BYTES);
+        pax_header.set_mode(0o644);
+        pax_header.set_cksum();
+        let mut file_header = tar::Header::new_gnu();
+        file_header.set_entry_type(tar::EntryType::Regular);
+        file_header.set_path("accepted.bin").unwrap();
+        file_header.set_size(0);
+        file_header.set_mode(0o644);
+        file_header.set_cksum();
+        let mut encoder = flate2::write::GzEncoder::new(
+            File::create(&boundary_source).unwrap(),
+            flate2::Compression::default(),
+        );
+        encoder.write_all(pax_header.as_bytes()).unwrap();
+        encoder.write_all(b"65536 comment=").unwrap();
+        encoder.write_all(&vec![b'a'; 65_521]).unwrap();
+        encoder.write_all(b"\n").unwrap();
+        encoder.write_all(file_header.as_bytes()).unwrap();
+        encoder.write_all(&[0_u8; 1024]).unwrap();
+        encoder.finish().unwrap();
+        extract_archive(
+            &boundary_source,
+            &boundary_destination,
+            "fixture.tar.gz",
+            fs::metadata(&boundary_source).unwrap().len(),
+        )
+        .unwrap();
+        assert!(boundary_destination.join("accepted.bin").is_file());
+
+        for (name, kind) in [
+            ("pax", tar::EntryType::XHeader),
+            ("pax-global", tar::EntryType::XGlobalHeader),
+            ("gnu-long-name", tar::EntryType::GNULongName),
+        ] {
+            let source = temporary.path().join(format!("{name}.tar.gz"));
+            let destination = temporary.path().join(name);
+            fs::create_dir(&destination).unwrap();
+            write_declared_tar_extension_gz(
+                &source,
+                kind,
+                MAX_TAR_EXTENSION_BYTES + 1,
+                b"sentinel",
+            );
+            let error = extract_archive(
+                &source,
+                &destination,
+                "fixture.tar.gz",
+                fs::metadata(&source).unwrap().len(),
+            )
+            .unwrap_err();
+            assert!(
+                error.message.contains("extension metadata exceeds"),
+                "{name}: {}",
+                error.message
+            );
+            assert!(fs::metadata(&source).unwrap().len() < 1024, "{name}");
+            assert_eq!(fs::read_dir(destination).unwrap().count(), 0, "{name}");
+        }
+
+        let truncated = temporary.path().join("truncated-pax.tar.gz");
+        let destination = temporary.path().join("truncated-pax");
+        fs::create_dir(&destination).unwrap();
+        write_declared_tar_extension_gz(&truncated, tar::EntryType::XHeader, 1024, b"x");
+        let error = extract_archive(
+            &truncated,
+            &destination,
+            "fixture.tar.gz",
+            fs::metadata(&truncated).unwrap().len(),
+        )
+        .unwrap_err();
+        assert!(
+            error.message.contains("invalid TAR entry"),
+            "{}",
+            error.message
+        );
+        assert_eq!(fs::read_dir(&destination).unwrap().count(), 0);
+
+        let long_link = temporary.path().join("gnu-long-link.tar.gz");
+        write_declared_tar_extension_gz(
+            &long_link,
+            tar::EntryType::GNULongLink,
+            MAX_TAR_EXTENSION_BYTES + 1,
+            b"sentinel",
+        );
+        let error = extract_archive(
+            &long_link,
+            &destination,
+            "fixture.tar.gz",
+            fs::metadata(&long_link).unwrap().len(),
+        )
+        .unwrap_err();
+        assert!(error.message.contains("links and special files"));
+    }
+
+    #[test]
+    fn decoded_tar_work_and_entry_writes_are_bounded_and_cancellable() {
+        let checkpoint_count = Cell::new(0_u64);
+        let checkpoint = || {
+            checkpoint_count.set(checkpoint_count.get() + 1);
+            Ok(())
+        };
+        let mut reader = CheckpointReader::new(Cursor::new(vec![0_u8; 1025]), 1024, &checkpoint);
+        let mut decoded = Vec::new();
+        let error = reader.read_to_end(&mut decoded).unwrap_err();
+        assert!(error.to_string().contains("metadata-aware work limit"));
+        assert_eq!(decoded.len(), 1024);
+        assert_eq!(reader.decoded, 1024);
+        assert!(checkpoint_count.get() >= 2);
+
+        let temporary = tempdir().unwrap();
+        let plan = EntryPlan {
+            relative: "large.bin".into(),
+            directory: false,
+            executable: false,
+            size: (ARCHIVE_IO_CHUNK_BYTES * 3) as u64,
+        };
+        let output = temporary.path().join(&plan.relative);
+        let cancel = || {
+            if fs::metadata(&output).is_ok_and(|metadata| metadata.len() > 0) {
+                Err(PortcoveError::new(
+                    crate::ErrorCode::Cancelled,
+                    "test cancellation",
+                ))
+            } else {
+                Ok(())
+            }
+        };
+        let error = write_entry(
+            temporary.path(),
+            &plan,
+            &mut Cursor::new(vec![7_u8; plan.size as usize]),
+            &cancel,
+        )
+        .unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Cancelled);
+        assert_eq!(
+            fs::metadata(output).unwrap().len(),
+            ARCHIVE_IO_CHUNK_BYTES as u64
+        );
+
+        let nested_output = temporary.path().join("nested.bin");
+        let nested_plan = EntryPlan {
+            relative: "nested.bin".into(),
+            directory: false,
+            executable: false,
+            size: 4,
+        };
+        let nested_calls = Cell::new(0);
+        let nested_checkpoint = || {
+            nested_calls.set(nested_calls.get() + 1);
+            if nested_calls.get() >= 3 {
+                Err(PortcoveError::new(
+                    crate::ErrorCode::Cancelled,
+                    "test cancellation",
+                ))
+            } else {
+                Ok(())
+            }
+        };
+        let mut nested_reader =
+            CheckpointReader::new(Cursor::new(b"data"), 1024, &nested_checkpoint);
+        let error = write_entry(
+            temporary.path(),
+            &nested_plan,
+            &mut nested_reader,
+            &nested_checkpoint,
+        )
+        .unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Cancelled);
+        assert_eq!(fs::metadata(nested_output).unwrap().len(), 0);
+    }
+
+    #[test]
+    fn cancellation_checkpoints_cover_preflight_and_entry_boundaries() {
+        let temporary = tempdir().unwrap();
+        let source = temporary.path().join("entries.zip");
+        write_zip(
+            &source,
+            &[
+                ("first.bin", b"first", None),
+                ("second.bin", b"second", None),
+            ],
+        );
+
+        let preflight_output = temporary.path().join("preflight");
+        fs::create_dir(&preflight_output).unwrap();
+        let calls = Cell::new(0);
+        let cancel_preflight = || {
+            calls.set(calls.get() + 1);
+            if calls.get() == 2 {
+                Err(PortcoveError::new(
+                    crate::ErrorCode::Cancelled,
+                    "test cancellation",
+                ))
+            } else {
+                Ok(())
+            }
+        };
+        let error = extract_archive_with_checkpoint(
+            &source,
+            &preflight_output,
+            "entries.zip",
+            fs::metadata(&source).unwrap().len(),
+            &cancel_preflight,
+        )
+        .unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Cancelled);
+        assert_eq!(fs::read_dir(preflight_output).unwrap().count(), 0);
+
+        let boundary_output = temporary.path().join("boundary");
+        fs::create_dir(&boundary_output).unwrap();
+        let full_observations = Cell::new(0);
+        let cancel_between = || {
+            if fs::metadata(boundary_output.join("first.bin"))
+                .is_ok_and(|metadata| metadata.len() == 5)
+            {
+                full_observations.set(full_observations.get() + 1);
+                if full_observations.get() >= 3 {
+                    return Err(PortcoveError::new(
+                        crate::ErrorCode::Cancelled,
+                        "test cancellation",
+                    ));
+                }
+            }
+            Ok(())
+        };
+        let error = extract_archive_with_checkpoint(
+            &source,
+            &boundary_output,
+            "entries.zip",
+            fs::metadata(&source).unwrap().len(),
+            &cancel_between,
+        )
+        .unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Cancelled);
+        assert_eq!(
+            fs::read(boundary_output.join("first.bin")).unwrap(),
+            b"first"
+        );
+        assert!(!boundary_output.join("second.bin").exists());
     }
 }
