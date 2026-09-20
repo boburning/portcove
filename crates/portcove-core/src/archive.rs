@@ -18,6 +18,9 @@ const MAX_PATH_BYTES: usize = 1024;
 const MAX_COMPONENT_BYTES: usize = 255;
 const MAX_COMPRESSION_RATIO: u64 = 200;
 const TAR_BLOCK_BYTES: u64 = 512;
+const MAX_TAR_EXTENSION_BYTES: u64 = 64 * 1024;
+const MAX_TAR_METADATA_BYTES: u64 = 16 * 1024 * 1024;
+const MAX_TAR_RAW_HEADERS: usize = MAX_ENTRIES * 6;
 const MAX_TAR_FORMAT_OVERHEAD_BYTES: u64 =
     (MAX_ENTRIES as u64) * 6 * TAR_BLOCK_BYTES + 2 * TAR_BLOCK_BYTES;
 const ARCHIVE_IO_CHUNK_BYTES: usize = 64 * 1024;
@@ -338,6 +341,14 @@ fn extract_tar_gz(
         decoded_limit,
         checkpoint,
     );
+    preflight_raw_tar(reader, compressed_size, checkpoint)?;
+
+    checkpoint()?;
+    let reader = CheckpointReader::new(
+        GzDecoder::new(File::open(source)?),
+        decoded_limit,
+        checkpoint,
+    );
     let mut archive = tar::Archive::new(reader);
     let mut collisions = CollisionSet::default();
     let mut plans = Vec::new();
@@ -398,6 +409,77 @@ fn extract_tar_gz(
         let mut entry =
             entry.map_err(|error| map_tar_error("invalid TAR entry", error, checkpoint))?;
         write_entry(destination, plan, &mut entry, checkpoint)?;
+    }
+    Ok(())
+}
+
+fn preflight_raw_tar(
+    reader: impl Read,
+    compressed_size: u64,
+    checkpoint: &dyn Fn() -> Result<()>,
+) -> Result<()> {
+    let mut archive = tar::Archive::new(reader);
+    let mut raw_headers = 0_usize;
+    let mut metadata_bytes = 0_u64;
+    let mut expanded_size = 0_u64;
+    for entry in archive
+        .entries()
+        .map_err(|error| map_tar_error("invalid TAR", error, checkpoint))?
+        .raw(true)
+    {
+        checkpoint()?;
+        let entry = entry.map_err(|error| map_tar_error("invalid TAR entry", error, checkpoint))?;
+        raw_headers += 1;
+        if raw_headers > MAX_TAR_RAW_HEADERS {
+            return Err(PortcoveError::verification(
+                "TAR contains too many raw headers",
+            ));
+        }
+        let kind = entry.header().entry_type();
+        let size = entry.size();
+        if kind.is_gnu_longlink() {
+            return Err(PortcoveError::verification(
+                "TAR links and special files are not allowed",
+            ));
+        }
+        if kind.is_gnu_longname()
+            || kind.is_pax_local_extensions()
+            || kind.is_pax_global_extensions()
+        {
+            if size > MAX_TAR_EXTENSION_BYTES {
+                return Err(PortcoveError::verification(
+                    "TAR extension metadata exceeds its size limit",
+                ));
+            }
+            metadata_bytes = metadata_bytes.checked_add(size).ok_or_else(|| {
+                PortcoveError::verification("TAR extension metadata size overflowed")
+            })?;
+            if metadata_bytes > MAX_TAR_METADATA_BYTES {
+                return Err(PortcoveError::verification(
+                    "TAR extension metadata exceeds the total size limit",
+                ));
+            }
+            continue;
+        }
+        if kind.is_dir() {
+            if size != 0 {
+                return Err(PortcoveError::verification(
+                    "TAR directory entries must not contain data",
+                ));
+            }
+            continue;
+        }
+        if !kind.is_file() {
+            return Err(PortcoveError::verification(
+                "TAR links and special files are not allowed",
+            ));
+        }
+        validate_declared_entry(
+            Path::new("<raw TAR entry>"),
+            size,
+            &mut expanded_size,
+            compressed_size,
+        )?;
     }
     Ok(())
 }
@@ -616,6 +698,27 @@ mod tests {
             flate2::Compression::default(),
         );
         encoder.write_all(header.as_bytes()).unwrap();
+        encoder.finish().unwrap();
+    }
+
+    fn write_declared_tar_extension_gz(
+        path: &Path,
+        kind: tar::EntryType,
+        declared_size: u64,
+        body: &[u8],
+    ) {
+        let mut header = tar::Header::new_gnu();
+        header.set_entry_type(kind);
+        header.set_path("extension").unwrap();
+        header.set_size(declared_size);
+        header.set_mode(0o644);
+        header.set_cksum();
+        let mut encoder = flate2::write::GzEncoder::new(
+            File::create(path).unwrap(),
+            flate2::Compression::default(),
+        );
+        encoder.write_all(header.as_bytes()).unwrap();
+        encoder.write_all(body).unwrap();
         encoder.finish().unwrap();
     }
 
@@ -988,6 +1091,109 @@ mod tests {
         validate_declared_entry(Path::new("second"), MAX_ENTRY_BYTES, &mut expanded, 0).unwrap();
         let error = validate_declared_entry(Path::new("third"), 1, &mut expanded, 0).unwrap_err();
         assert!(error.message.contains("total expanded size limit"));
+    }
+
+    #[test]
+    fn tar_extension_metadata_is_bounded_before_buffering_or_draining() {
+        let temporary = tempdir().unwrap();
+        let boundary_source = temporary.path().join("boundary-pax.tar.gz");
+        let boundary_destination = temporary.path().join("boundary-pax");
+        fs::create_dir(&boundary_destination).unwrap();
+        let mut pax_header = tar::Header::new_gnu();
+        pax_header.set_entry_type(tar::EntryType::XHeader);
+        pax_header.set_path("boundary-pax").unwrap();
+        pax_header.set_size(MAX_TAR_EXTENSION_BYTES);
+        pax_header.set_mode(0o644);
+        pax_header.set_cksum();
+        let mut file_header = tar::Header::new_gnu();
+        file_header.set_entry_type(tar::EntryType::Regular);
+        file_header.set_path("accepted.bin").unwrap();
+        file_header.set_size(0);
+        file_header.set_mode(0o644);
+        file_header.set_cksum();
+        let mut encoder = flate2::write::GzEncoder::new(
+            File::create(&boundary_source).unwrap(),
+            flate2::Compression::default(),
+        );
+        encoder.write_all(pax_header.as_bytes()).unwrap();
+        encoder.write_all(b"65536 comment=").unwrap();
+        encoder.write_all(&vec![b'a'; 65_521]).unwrap();
+        encoder.write_all(b"\n").unwrap();
+        encoder.write_all(file_header.as_bytes()).unwrap();
+        encoder.write_all(&[0_u8; 1024]).unwrap();
+        encoder.finish().unwrap();
+        extract_archive(
+            &boundary_source,
+            &boundary_destination,
+            "fixture.tar.gz",
+            fs::metadata(&boundary_source).unwrap().len(),
+        )
+        .unwrap();
+        assert!(boundary_destination.join("accepted.bin").is_file());
+
+        for (name, kind) in [
+            ("pax", tar::EntryType::XHeader),
+            ("pax-global", tar::EntryType::XGlobalHeader),
+            ("gnu-long-name", tar::EntryType::GNULongName),
+        ] {
+            let source = temporary.path().join(format!("{name}.tar.gz"));
+            let destination = temporary.path().join(name);
+            fs::create_dir(&destination).unwrap();
+            write_declared_tar_extension_gz(
+                &source,
+                kind,
+                MAX_TAR_EXTENSION_BYTES + 1,
+                b"sentinel",
+            );
+            let error = extract_archive(
+                &source,
+                &destination,
+                "fixture.tar.gz",
+                fs::metadata(&source).unwrap().len(),
+            )
+            .unwrap_err();
+            assert!(
+                error.message.contains("extension metadata exceeds"),
+                "{name}: {}",
+                error.message
+            );
+            assert!(fs::metadata(&source).unwrap().len() < 1024, "{name}");
+            assert_eq!(fs::read_dir(destination).unwrap().count(), 0, "{name}");
+        }
+
+        let truncated = temporary.path().join("truncated-pax.tar.gz");
+        let destination = temporary.path().join("truncated-pax");
+        fs::create_dir(&destination).unwrap();
+        write_declared_tar_extension_gz(&truncated, tar::EntryType::XHeader, 1024, b"x");
+        let error = extract_archive(
+            &truncated,
+            &destination,
+            "fixture.tar.gz",
+            fs::metadata(&truncated).unwrap().len(),
+        )
+        .unwrap_err();
+        assert!(
+            error.message.contains("invalid TAR entry"),
+            "{}",
+            error.message
+        );
+        assert_eq!(fs::read_dir(&destination).unwrap().count(), 0);
+
+        let long_link = temporary.path().join("gnu-long-link.tar.gz");
+        write_declared_tar_extension_gz(
+            &long_link,
+            tar::EntryType::GNULongLink,
+            MAX_TAR_EXTENSION_BYTES + 1,
+            b"sentinel",
+        );
+        let error = extract_archive(
+            &long_link,
+            &destination,
+            "fixture.tar.gz",
+            fs::metadata(&long_link).unwrap().len(),
+        )
+        .unwrap_err();
+        assert!(error.message.contains("links and special files"));
     }
 
     #[test]

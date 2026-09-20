@@ -2,6 +2,7 @@ use super::*;
 use crate::{
     InstallQualification, InstallRequest, Installer, OperationResult, ReleaseAsset, ReleaseChannel,
     ResolvedRelease,
+    install::ArchiveWorkerTestHook,
     operation::{LifecycleFaultInjector, LifecycleFaultPoint},
 };
 use sha2::{Digest, Sha256};
@@ -9,8 +10,12 @@ use std::{
     fs,
     io::{Read, Write},
     net::TcpListener,
-    sync::{Arc, Barrier},
+    sync::{
+        Arc, Barrier, Condvar, Mutex,
+        atomic::{AtomicBool, Ordering},
+    },
     thread,
+    time::Duration,
 };
 
 fn service() -> (tempfile::TempDir, Arc<PortcoveService>) {
@@ -300,4 +305,133 @@ async fn cancellation_after_prepared_finishes_publication() {
 #[tokio::test]
 async fn cancellation_after_published_finishes_publication() {
     assert_install_cancellation_boundary(LifecycleFaultPoint::InstallPublished, false).await;
+}
+
+#[tokio::test]
+async fn archive_cancellation_waits_for_worker_quiescence_before_private_cleanup() {
+    let (temporary, service) = service();
+    let archive = temporary.path().join("blocked.zip");
+    let mut writer = zip::ZipWriter::new(fs::File::create(&archive).unwrap());
+    writer
+        .start_file("sample.exe", zip::write::SimpleFileOptions::default())
+        .unwrap();
+    writer.write_all(b"synthetic executable").unwrap();
+    writer.finish().unwrap();
+    let bytes = fs::read(archive).unwrap();
+    let sha256 = hex::encode(Sha256::digest(&bytes));
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let address = listener.local_addr().unwrap();
+    let response_bytes = bytes.clone();
+    let server = thread::spawn(move || {
+        let (mut connection, _) = listener.accept().unwrap();
+        let _ = connection.read(&mut [0_u8; 4096]);
+        write!(
+            connection,
+            "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+            response_bytes.len()
+        )
+        .unwrap();
+        connection.write_all(&response_bytes).unwrap();
+    });
+
+    let latch = Arc::new((Mutex::new((false, false)), Condvar::new()));
+    let finished = Arc::new(AtomicBool::new(false));
+    let hook_latch = latch.clone();
+    let hook = ArchiveWorkerTestHook {
+        checkpoint: Arc::new(move || {
+            let (lock, condition) = &*hook_latch;
+            let mut state = lock.lock().unwrap();
+            if !state.0 {
+                state.0 = true;
+                condition.notify_all();
+                while !state.1 {
+                    state = condition.wait(state).unwrap();
+                }
+            }
+            Ok(())
+        }),
+        finished: finished.clone(),
+    };
+    let (activity, operation) = service
+        .begin_cancellable_activity(
+            ActivityOperation::Install,
+            ActivityTargetKind::Port,
+            Some("sample"),
+        )
+        .unwrap();
+    let operation_id = activity.id.clone();
+    let staging = service.library().staging_dir().join(&operation_id);
+    let destination_root = service.library().versions_dir().join("sample");
+    let installer = Installer::new(service.library().clone())
+        .unwrap()
+        .with_archive_worker_test_hook(hook);
+    let request = InstallRequest {
+        port_id: "sample".into(),
+        output_root: destination_root.clone(),
+        release: ResolvedRelease {
+            version: "v1".into(),
+            channel: ReleaseChannel::Stable,
+            published_at: None,
+            asset: ReleaseAsset {
+                name: "blocked.zip".into(),
+                url: format!("http://{address}/blocked.zip"),
+                size: bytes.len() as u64,
+                sha256: sha256.clone(),
+            },
+        },
+        activate: true,
+        managed: None,
+        qualification: InstallQualification::test("sample.exe"),
+    };
+    let install = tokio::spawn(async move {
+        let result = installer.install(request, &operation, |_| {}).await;
+        (activity, result)
+    });
+
+    tokio::time::timeout(Duration::from_secs(5), async {
+        loop {
+            if latch.0.lock().unwrap().0 {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(5)).await;
+        }
+    })
+    .await
+    .expect("archive worker reached the deterministic latch");
+    let cancellation = service.request_cancellation(&operation_id);
+    tokio::time::sleep(Duration::from_millis(75)).await;
+    let finished_while_blocked = finished.load(Ordering::SeqCst);
+    let install_finished_while_blocked = install.is_finished();
+    let staging_existed_while_blocked = staging.is_dir();
+    let journals_while_blocked = OperationStore::new(service.library().clone()).all();
+
+    {
+        let (lock, condition) = &*latch;
+        lock.lock().unwrap().1 = true;
+        condition.notify_all();
+    }
+    let (activity, result) = install.await.unwrap();
+    let result = service.finish_activity(activity, result);
+    server.join().unwrap();
+
+    cancellation.unwrap();
+    assert!(!finished_while_blocked);
+    assert!(!install_finished_while_blocked);
+    assert!(staging_existed_while_blocked);
+    assert_eq!(journals_while_blocked.unwrap().len(), 1);
+    assert!(finished.load(Ordering::SeqCst));
+    assert_eq!(result.unwrap_err().code, ErrorCode::Cancelled);
+    assert!(!staging.exists());
+    assert!(service.library().all_installs().unwrap().is_empty());
+    assert!(
+        OperationStore::new(service.library().clone())
+            .all()
+            .unwrap()
+            .is_empty()
+    );
+    assert!(!destination_root.join(&sha256).exists());
+    assert_eq!(
+        service.library().activities(1).unwrap()[0].status,
+        ActivityStatus::Cancelled
+    );
 }
