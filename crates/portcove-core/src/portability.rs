@@ -154,18 +154,8 @@ impl Library {
         for install in &metadata.application_versions {
             let mut absolute = install.clone();
             absolute.path = managed_root.join(&install.path);
-            let manifest = absolute.path.join(".portcove-manifest.json");
-            if embedded.port(&install.port_id).is_ok()
-                && matches!(
-                    std::fs::symlink_metadata(&manifest),
-                    Err(error) if error.kind() == std::io::ErrorKind::NotFound
-                )
-            {
-                // Schema-1 metadata and older test fixtures can contain catalog-known records
-                // without a retained manifest. They never claim successor admission.
-                continue;
-            }
-            if let Some(catalog) = crate::install::retained_catalog_for_install(&absolute)?
+            if let Some(catalog) =
+                crate::install::portability_catalog_for_install(&absolute, &embedded)?
                 && catalog.definition_selection(&install.port_id).is_some()
             {
                 let identity = catalog

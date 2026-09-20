@@ -4,6 +4,9 @@
 //! independently authoritative. This receipt binds those semantics to an operating-system secure
 //! secret. It deliberately does not invent cross-device trust.
 
+use std::{fs, path::Path};
+
+use fs2::FileExt;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -229,16 +232,63 @@ fn load_key() -> Result<Option<Vec<u8>>> {
 
 #[cfg(not(test))]
 fn load_or_create_key() -> Result<Vec<u8>> {
-    if let Some(key) = load_key()? {
-        return Ok(key);
+    let project = directories::ProjectDirs::from("io.github", "Portcove", "Portcove")
+        .ok_or_else(|| PortcoveError::state("could not determine the Portcove data directory"))?;
+    load_or_create_key_at(
+        &project.data_local_dir().join("portability-authority.lock"),
+        load_key,
+        |key| {
+            credential_entry()?
+                .set_password(&hex::encode(key))
+                .map_err(|error| credential_error("write", error))
+        },
+        || {
+            let mut key = Vec::with_capacity(32);
+            key.extend_from_slice(uuid::Uuid::new_v4().as_bytes());
+            key.extend_from_slice(uuid::Uuid::new_v4().as_bytes());
+            key
+        },
+    )
+}
+
+fn load_or_create_key_at(
+    lock_path: &Path,
+    mut load: impl FnMut() -> Result<Option<Vec<u8>>>,
+    mut store: impl FnMut(&[u8]) -> Result<()>,
+    generate: impl FnOnce() -> Vec<u8>,
+) -> Result<Vec<u8>> {
+    let parent = lock_path
+        .parent()
+        .ok_or_else(|| PortcoveError::state("portability authority lock has no parent"))?;
+    fs::create_dir_all(parent)?;
+    let file = fs::OpenOptions::new()
+        .create(true)
+        .truncate(false)
+        .read(true)
+        .write(true)
+        .open(lock_path)?;
+    FileExt::lock_exclusive(&file)?;
+    let result = (|| {
+        if let Some(key) = load()? {
+            return Ok(key);
+        }
+        let generated = generate();
+        store(&generated)?;
+        let stored = load()?.ok_or_else(|| {
+            PortcoveError::state("stored portability authority key disappeared after creation")
+        })?;
+        if stored != generated {
+            return Err(PortcoveError::state(
+                "stored portability authority key changed during creation",
+            ));
+        }
+        Ok(stored)
+    })();
+    let unlock = FileExt::unlock(&file).map_err(PortcoveError::from);
+    match (result, unlock) {
+        (Err(error), _) | (Ok(_), Err(error)) => Err(error),
+        (Ok(key), Ok(())) => Ok(key),
     }
-    let mut key = Vec::with_capacity(32);
-    key.extend_from_slice(uuid::Uuid::new_v4().as_bytes());
-    key.extend_from_slice(uuid::Uuid::new_v4().as_bytes());
-    credential_entry()?
-        .set_password(&hex::encode(&key))
-        .map_err(|error| credential_error("write", error))?;
-    Ok(key)
 }
 
 #[cfg(not(test))]
@@ -252,4 +302,51 @@ fn credential_error(action: &str, error: keyring::Error) -> PortcoveError {
     PortcoveError::state(format!(
         "could not {action} the portability authority in operating-system secure storage: {error}"
     ))
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::{
+        Arc, Mutex,
+        atomic::{AtomicUsize, Ordering},
+    };
+
+    use super::*;
+
+    #[test]
+    fn concurrent_first_use_creates_one_stable_host_key() {
+        let temporary = tempfile::tempdir().unwrap();
+        let lock_path = temporary.path().join("authority.lock");
+        let stored = Arc::new(Mutex::new(None::<Vec<u8>>));
+        let generations = Arc::new(AtomicUsize::new(0));
+        let mut workers = Vec::new();
+        for _ in 0..8 {
+            let lock_path = lock_path.clone();
+            let stored = Arc::clone(&stored);
+            let generations = Arc::clone(&generations);
+            workers.push(std::thread::spawn(move || {
+                load_or_create_key_at(
+                    &lock_path,
+                    || Ok(stored.lock().unwrap().clone()),
+                    |key| {
+                        std::thread::sleep(std::time::Duration::from_millis(20));
+                        *stored.lock().unwrap() = Some(key.to_vec());
+                        Ok(())
+                    },
+                    || {
+                        let generation = generations.fetch_add(1, Ordering::SeqCst) + 1;
+                        vec![u8::try_from(generation).unwrap(); 32]
+                    },
+                )
+                .unwrap()
+            }));
+        }
+        let keys = workers
+            .into_iter()
+            .map(|worker| worker.join().unwrap())
+            .collect::<Vec<_>>();
+        assert_eq!(generations.load(Ordering::SeqCst), 1);
+        assert!(keys.iter().all(|key| key == &keys[0]));
+        assert_eq!(stored.lock().unwrap().as_ref(), Some(&keys[0]));
+    }
 }

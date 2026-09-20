@@ -38,7 +38,7 @@ impl PortabilityCatalogs {
             let relative = validate_install_path(install)?;
             let mut absolute = install.clone();
             absolute.path = root.join(relative);
-            let retained = crate::install::retained_catalog_for_install(&absolute)?;
+            let retained = crate::install::portability_catalog_for_install(&absolute, &embedded)?;
             let catalog = match retained {
                 Some(catalog) if embedded.port(&install.port_id).is_ok() => {
                     if let Some(admission) =
@@ -590,6 +590,72 @@ mod tests {
             .unwrap_err();
         assert!(error.message.contains("registration baseline"));
         assert!(!destination.exists());
+    }
+
+    #[test]
+    fn embedded_legacy_install_plans_but_cannot_claim_successor_or_publish_without_a_manifest() {
+        let temporary = tempfile::tempdir().unwrap();
+        let source = temporary.path().join("source");
+        let metadata_path = temporary.path().join("legacy-library.json");
+        let import_destination = temporary.path().join("import-destination");
+        let move_destination = temporary.path().join("move-destination");
+        let library = Library::open(&source).unwrap();
+        let catalog = Catalog::embedded().unwrap();
+        let port = catalog.port("starship").unwrap();
+        let platform = crate::Platform::current().unwrap();
+        let selected_executable = PathBuf::from(&port.executable_hints[&platform][0]);
+        let install_root = source.join("versions/starship/legacy");
+        let executable = install_root.join(&selected_executable);
+        fs::create_dir_all(executable.parent().unwrap()).unwrap();
+        fs::write(&executable, b"legacy embedded install without manifest").unwrap();
+        crate::permissions::normalize_archive_entry(&executable, false, true).unwrap();
+        library
+            .register_install(
+                &crate::InstallRecord {
+                    id: "legacy".into(),
+                    port_id: "starship".into(),
+                    version: "legacy".into(),
+                    path: install_root,
+                    channel: crate::ReleaseChannel::Stable,
+                    installed_at: 1,
+                    verified: true,
+                    staged: false,
+                    artifact: crate::ArtifactIdentity {
+                        asset_name: "legacy.zip".into(),
+                        sha256: "a".repeat(64),
+                        size: 1,
+                    },
+                    manifest_sha256: "b".repeat(64),
+                    selected_executable,
+                    runtime: None,
+                },
+                true,
+            )
+            .unwrap();
+        let service = PortcoveService::new(library).unwrap();
+        service.write_library_metadata(&metadata_path).unwrap();
+
+        service.plan_library_move(&move_destination).unwrap();
+        let plan =
+            PortcoveService::plan_library_import(&metadata_path, &source, &import_destination)
+                .unwrap();
+        let error = PortcoveService::import_library(
+            &metadata_path,
+            &source,
+            &import_destination,
+            &plan.plan_sha256,
+        )
+        .unwrap_err();
+        assert!(error.message.contains("manifest is missing"), "{error}");
+        assert!(Library::open(&import_destination).is_err());
+
+        let mut unknown = plan.metadata;
+        unknown.application_versions[0].port_id = "unknown-successor".into();
+        unknown.application_versions[0].path = PathBuf::from("versions/unknown-successor/legacy");
+        let error = PortabilityCatalogs::from_root(&unknown, &source)
+            .err()
+            .unwrap();
+        assert!(error.message.contains("manifest is missing"), "{error}");
     }
 
     #[test]
