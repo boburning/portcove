@@ -7,6 +7,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { usePortcoveData } from "./features/workspace/use-workspace-data";
 import { useGithubAuth } from "./features/github-auth/use-github-auth";
 import { useSourceHealth } from "./features/source-health/use-source-health";
+import { useSourceIntakeState } from "./features/source-intake/use-source-intake-state";
 import { usePortBackups } from "./features/backups/use-port-backups";
 import { useUpdateCenter } from "./features/port-updates/use-update-center";
 import { useOperationState, type Perform } from "./features/operations/use-operation-state";
@@ -35,7 +36,7 @@ import { CommandPalette } from "./components/CommandPalette";
 import { DetailPanel } from "./components/DetailPanel";
 import { PortBrowser } from "./components/PortBrowser";
 import { ArtworkProvider } from "./artwork";
-import { SourceIntakeDialog, type SourceIntakeRequest } from "./components/SourceIntake";
+import { SourceIntakeDialog } from "./components/SourceIntake";
 import { UpdateCenter } from "./components/UpdateCenter";
 import { FailureDetails } from "./components/FailureDetails";
 import { WorkspaceRefreshNotice } from "./features/workspace/WorkspaceRefreshNotice";
@@ -260,24 +261,11 @@ function Workspace({
     refreshPreferences: applicationUpdateChoice.refresh,
     reportError: operations.setError,
   });
-  const [sourceIntake, setSourceIntake] = useState<SourceIntakeRequest>();
-  const openSourceIntake = useCallback(
-    (portId: string, profileId: string, paths: string[] = []) => {
-      const port = data.catalog?.ports.find((candidate) => candidate.id === portId);
-      const profile = data.catalog?.source_profiles?.find(
-        (candidate) => candidate.id === profileId,
-      );
-      if (port && profile)
-        setSourceIntake({
-          portId,
-          portName: port.name,
-          profile,
-          purpose: port.bios_source_profile === profileId ? "bios" : "game",
-          paths,
-        });
-    },
-    [data.catalog],
-  );
+  const {
+    request: sourceIntake,
+    open: openSourceIntake,
+    close: closeSourceIntake,
+  } = useSourceIntakeState(data.catalog);
   const nativeSourceDrag = useNativeSourceDrop((drop) =>
     openSourceIntake(drop.portId, drop.profileId, drop.paths),
   );
@@ -457,7 +445,7 @@ function Workspace({
         {sourceIntake && (
           <SourceIntakeDialog
             request={sourceIntake}
-            close={() => setSourceIntake(undefined)}
+            close={closeSourceIntake}
             onAdded={data.refreshAfterMutation}
             openEvidence={(evidenceId) => {
               void operations.perform(
