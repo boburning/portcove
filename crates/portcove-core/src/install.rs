@@ -392,10 +392,10 @@ impl Installer {
             store,
             record,
         };
-        let result = self
+        let mut result = self
             .install_inner(request, operation, &mut lifecycle, &mut emit)
             .await;
-        if let Err(error) = &result {
+        if let Err(error) = &mut result {
             if lifecycle.record.phase == LifecyclePhase::Preparing {
                 if error.code == crate::ErrorCode::Cancelled {
                     if let Err(cleanup) = crate::cancellation::discard_private_install(
@@ -408,8 +408,36 @@ impl Installer {
                     }
                     return result;
                 }
-                let _ = fs::remove_dir_all(&lifecycle.operation_root);
-                let _ = lifecycle.store.remove(&lifecycle.record.id);
+                if let Err(cleanup) = crate::cancellation::discard_private_install_with_faults(
+                    &self.library,
+                    &lifecycle.record,
+                    self.faults.as_ref(),
+                ) {
+                    lifecycle.record.phase = LifecyclePhase::CleanupPending;
+                    lifecycle.record.install = None;
+                    lifecycle.record.last_error = Some(format!(
+                        "{}; private preparation cleanup failed: {}",
+                        error.message, cleanup.message
+                    ));
+                    if let Err(persist) = lifecycle.store.put(&mut lifecycle.record) {
+                        return Err(PortcoveError::state(
+                            "install failed and private cleanup state could not be retained",
+                        )
+                        .detail("operation_id", &lifecycle.record.id)
+                        .detail("install_error", &error.message)
+                        .detail("cleanup_error", cleanup.message)
+                        .detail("persistence_error", persist.message));
+                    }
+                    error
+                        .details
+                        .insert("operation_id".into(), lifecycle.record.id.clone());
+                    error
+                        .details
+                        .insert("cleanup_state".into(), "recovery_required".into());
+                    error
+                        .details
+                        .insert("cleanup_error".into(), cleanup.message);
+                }
             } else {
                 lifecycle.record.last_error = Some(error.message.clone());
                 let _ = lifecycle.store.put(&mut lifecycle.record);
@@ -1808,7 +1836,10 @@ fn normalize_standalone_appimage(
 mod tests {
     use std::{
         fs::File,
-        sync::atomic::{AtomicBool, Ordering},
+        sync::{
+            Mutex,
+            atomic::{AtomicBool, Ordering},
+        },
     };
 
     use sha2::{Digest, Sha256};
@@ -1858,6 +1889,10 @@ mod tests {
     struct FailOnce {
         point: LifecycleFaultPoint,
         fired: AtomicBool,
+    }
+
+    struct FailSequence {
+        points: Mutex<Vec<LifecycleFaultPoint>>,
     }
 
     #[test]
@@ -1985,6 +2020,19 @@ mod tests {
     impl LifecycleFaultInjector for FailOnce {
         fn check(&self, point: LifecycleFaultPoint) -> Result<()> {
             if point == self.point && !self.fired.swap(true, Ordering::SeqCst) {
+                return Err(PortcoveError::state(format!(
+                    "injected lifecycle failure at {point:?}"
+                )));
+            }
+            Ok(())
+        }
+    }
+
+    impl LifecycleFaultInjector for FailSequence {
+        fn check(&self, point: LifecycleFaultPoint) -> Result<()> {
+            let mut points = self.points.lock().unwrap();
+            if points.first() == Some(&point) {
+                points.remove(0);
                 return Err(PortcoveError::state(format!(
                     "injected lifecycle failure at {point:?}"
                 )));
@@ -2983,6 +3031,135 @@ mod tests {
         assert_eq!(error.code, crate::ErrorCode::Network);
         server.join().unwrap();
         assert_eq!(fs::read_dir(library.staging_dir()).unwrap().count(), 0);
+    }
+
+    async fn assert_failed_install_cleanup_recovery(
+        cleanup_point: LifecycleFaultPoint,
+        staging_survives_failure: bool,
+    ) {
+        use std::{
+            io::{Read, Write},
+            net::TcpListener,
+            thread,
+        };
+
+        let temporary = tempfile::tempdir().unwrap();
+        let archive_path = temporary.path().join("test.zip");
+        let archive = File::create(&archive_path).unwrap();
+        let mut writer = zip::ZipWriter::new(archive);
+        writer
+            .start_file("sample-game.exe", zip::write::SimpleFileOptions::default())
+            .unwrap();
+        writer.write_all(b"verified executable").unwrap();
+        writer.finish().unwrap();
+        let archive_bytes = fs::read(&archive_path).unwrap();
+        let sha256 = hex::encode(Sha256::digest(&archive_bytes));
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        let response_bytes = archive_bytes.clone();
+        let server = thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            let mut request = [0_u8; 1024];
+            let _ = stream.read(&mut request);
+            write!(
+                stream,
+                "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+                response_bytes.len()
+            )
+            .unwrap();
+            stream.write_all(&response_bytes).unwrap();
+        });
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let installer = Installer::with_faults(
+            library.clone(),
+            Arc::new(FailSequence {
+                points: Mutex::new(vec![
+                    LifecycleFaultPoint::InstallReadyToPublish,
+                    cleanup_point,
+                ]),
+            }),
+        )
+        .unwrap();
+        let operation = OperationCoordinator::new("install", None);
+        let operation_id = operation.operation_id().to_owned();
+        let request = InstallRequest {
+            port_id: "sample".into(),
+            output_root: library.versions_dir().join("sample"),
+            release: ResolvedRelease {
+                version: "v1".into(),
+                channel: crate::ReleaseChannel::Stable,
+                published_at: None,
+                asset: crate::ReleaseAsset {
+                    name: "test.zip".into(),
+                    url: format!("http://{address}/test.zip"),
+                    size: archive_bytes.len() as u64,
+                    sha256,
+                },
+            },
+            activate: true,
+            managed: None,
+            qualification: InstallQualification::test("sample-game.exe"),
+        };
+
+        let error = installer
+            .install(request, &operation, |_| {})
+            .await
+            .unwrap_err();
+        server.join().unwrap();
+        assert_eq!(error.details.get("operation_id"), Some(&operation_id));
+        assert_eq!(
+            error.details.get("cleanup_state").map(String::as_str),
+            Some("recovery_required")
+        );
+        let retained = OperationStore::new(library.clone()).all().unwrap();
+        assert_eq!(retained.len(), 1);
+        assert_eq!(retained[0].id, operation_id);
+        assert_eq!(retained[0].phase, LifecyclePhase::CleanupPending);
+        assert!(retained[0].install.is_none());
+        assert!(
+            retained[0]
+                .last_error
+                .as_deref()
+                .unwrap()
+                .contains("InstallReadyToPublish")
+        );
+        let staging = retained[0].paths.staging.clone().unwrap();
+        assert_eq!(staging.exists(), staging_survives_failure);
+
+        let retry = crate::PortcoveService::with_faults(
+            library.clone(),
+            Arc::new(FailOnce {
+                point: cleanup_point,
+                fired: AtomicBool::new(false),
+            }),
+        )
+        .unwrap();
+        retry.recover_lifecycle_operations_for_test().unwrap();
+        let retained_after_retry = OperationStore::new(library.clone()).all().unwrap();
+        assert_eq!(retained_after_retry.len(), 1);
+        let retry_error = retained_after_retry[0].last_error.as_deref().unwrap();
+        assert!(retry_error.contains("InstallReadyToPublish"));
+        assert!(retry_error.contains("cleanup retry failed"));
+        assert_eq!(staging.exists(), staging_survives_failure);
+
+        crate::PortcoveService::new(library.clone()).unwrap();
+        assert!(!staging.exists());
+        assert!(OperationStore::new(library).all().unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn failed_private_install_cleanup_is_retained_and_retried_on_restart() {
+        assert_failed_install_cleanup_recovery(LifecycleFaultPoint::InstallPrivateCleanup, true)
+            .await;
+    }
+
+    #[tokio::test]
+    async fn failed_private_install_journal_retirement_is_retried_on_restart() {
+        assert_failed_install_cleanup_recovery(
+            LifecycleFaultPoint::InstallPrivateCleanupJournalRemoval,
+            false,
+        )
+        .await;
     }
 
     async fn assert_external_install_recovery(point: LifecycleFaultPoint) {

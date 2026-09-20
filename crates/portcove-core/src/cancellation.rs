@@ -15,7 +15,10 @@ use serde::{Deserialize, Serialize};
 use crate::{
     ActivityOperation, ActivityRecord, ActivityStatus, ActivityTargetKind, ErrorCode, Library,
     OperationCoordinator, PortOperationGuard, PortcoveError, PortcoveService, Result, database,
-    operation::{LifecycleOperation, LifecycleOperationKind, LifecyclePhase, OperationStore},
+    operation::{
+        LifecycleFaultInjector, LifecycleFaultPoint, LifecycleOperation, LifecycleOperationKind,
+        LifecyclePhase, NoLifecycleFaults, OperationStore,
+    },
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -297,8 +300,20 @@ pub(crate) fn discard_private_install(
     library: &Library,
     operation: &LifecycleOperation,
 ) -> Result<()> {
+    discard_private_install_with_faults(library, operation, &NoLifecycleFaults)
+}
+
+pub(crate) fn discard_private_install_with_faults(
+    library: &Library,
+    operation: &LifecycleOperation,
+    faults: &dyn LifecycleFaultInjector,
+) -> Result<()> {
     if operation.kind != LifecycleOperationKind::Install
-        || operation.phase != LifecyclePhase::Preparing
+        || !matches!(
+            operation.phase,
+            LifecyclePhase::Preparing | LifecyclePhase::CleanupPending
+        )
+        || (operation.phase == LifecyclePhase::CleanupPending && operation.install.is_some())
     {
         return Err(PortcoveError::conflict(
             "only unpublished install preparation may be discarded",
@@ -322,10 +337,12 @@ pub(crate) fn discard_private_install(
                     "private staging directory changed identity",
                 ));
             }
+            faults.check(LifecycleFaultPoint::InstallPrivateCleanup)?;
             std::fs::remove_dir_all(expected)?;
         }
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
         Err(error) => return Err(error.into()),
     }
+    faults.check(LifecycleFaultPoint::InstallPrivateCleanupJournalRemoval)?;
     OperationStore::new(library.clone()).remove(&operation.id)
 }

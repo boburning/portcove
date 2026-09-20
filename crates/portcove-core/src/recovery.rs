@@ -11,6 +11,13 @@ pub(crate) fn recover_published_install(
     store: &OperationStore,
     operation: &mut LifecycleOperation,
 ) -> Result<()> {
+    if operation.phase == LifecyclePhase::CleanupPending && operation.install.is_none() {
+        return crate::cancellation::discard_private_install_with_faults(
+            &service.library,
+            operation,
+            service.lifecycle_faults(),
+        );
+    }
     if operation.phase == LifecyclePhase::Preparing {
         return Err(PortcoveError::state(
             "private preparation was interrupted before validation",
