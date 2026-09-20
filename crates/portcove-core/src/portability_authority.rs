@@ -114,34 +114,6 @@ pub(crate) fn verify(metadata: &LibraryMetadata, entries: Vec<PortabilityAdmissi
     ))
 }
 
-pub(crate) fn seal_import_publication(transfer_id: &str, plan_sha256: &str) -> Result<String> {
-    let key = load_or_create_key()?;
-    Ok(hmac_sha256(
-        &key,
-        format!("import-publication-v1\0{transfer_id}\0{plan_sha256}").as_bytes(),
-    ))
-}
-
-pub(crate) fn verify_import_publication(
-    transfer_id: &str,
-    plan_sha256: &str,
-    proof: &str,
-) -> Result<()> {
-    let key = load_key()?.ok_or_else(|| {
-        PortcoveError::verification("this host did not verify the imported library")
-    })?;
-    let expected = hmac_sha256(
-        &key,
-        format!("import-publication-v1\0{transfer_id}\0{plan_sha256}").as_bytes(),
-    );
-    if !constant_time_eq(expected.as_bytes(), proof.as_bytes()) {
-        return Err(PortcoveError::verification(
-            "import publication proof is invalid",
-        ));
-    }
-    Ok(())
-}
-
 fn canonical_entries(mut entries: Vec<PortabilityAdmission>) -> Result<Vec<PortabilityAdmission>> {
     entries.sort_by(|left, right| left.install_id.cmp(&right.install_id));
     if entries

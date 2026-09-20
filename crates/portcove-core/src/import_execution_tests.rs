@@ -219,10 +219,9 @@ fn import_round_trip_preserves_versions_pointers_payloads_and_history_in_an_empt
             .observed_identity,
         expected.source_references[0].observed_identity
     );
-    assert_eq!(
-        restored.activities(1).unwrap()[0].status,
-        ActivityStatus::Succeeded
-    );
+    let activity = restored.activities(1).unwrap().remove(0);
+    assert_eq!(activity.status, ActivityStatus::Succeeded);
+    assert!(activity.target_id.is_none());
     assert!(ImportJournal::read(&destination).unwrap().is_none());
     assert!(destination.join("recovery/library-import.json").is_file());
     for tree in ["user", "toolchains"] {
@@ -447,13 +446,25 @@ fn journal_phase_cannot_manufacture_import_publication() {
         },
     )
     .unwrap_err();
+    let historical_id = uuid::Uuid::new_v4().to_string();
+    rusqlite::Connection::open(destination.join("portcove.sqlite3"))
+        .unwrap()
+        .execute(
+            "INSERT INTO activity_history(
+               id, operation, target_kind, status, started_at, finished_at,
+               import_receipt_sha256
+             ) VALUES (?1, 'import_library', 'library', 'succeeded', 1, 2, ?2)",
+            rusqlite::params![historical_id, "0".repeat(64)],
+        )
+        .unwrap();
     let path = destination.join(".portcove-import.json");
     let mut journal: serde_json::Value = serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+    journal["transfer_id"] = serde_json::json!(historical_id);
     journal["phase"] = serde_json::json!("published");
     fs::write(&path, serde_json::to_vec_pretty(&journal).unwrap()).unwrap();
 
     let error = PortcoveService::resume_library_import(&destination).unwrap_err();
-    assert!(error.message.contains("publication proof"), "{error}");
+    assert!(error.message.contains("publication record"), "{error}");
     assert!(Library::open(&destination).is_err());
 }
 

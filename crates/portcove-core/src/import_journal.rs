@@ -1,6 +1,7 @@
 //! The destination-owned journal is also its gate against opening an incomplete import.
 use std::{fs, path::Path};
 
+use rusqlite::OptionalExtension;
 use serde::{Deserialize, Serialize};
 
 use crate::{LibraryImportPlan, PortcoveError, Result, transfer_journal::TransferPhase};
@@ -15,8 +16,6 @@ pub(crate) struct ImportJournal {
     pub transfer_id: String,
     pub plan: LibraryImportPlan,
     pub phase: TransferPhase,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub publication_proof: Option<String>,
 }
 
 impl ImportJournal {
@@ -71,19 +70,9 @@ impl ImportJournal {
         }
         if matches!(
             self.phase,
-            TransferPhase::Verified | TransferPhase::Published | TransferPhase::Complete
+            TransferPhase::Published | TransferPhase::Complete
         ) {
-            crate::portability_authority::verify_import_publication(
-                &self.transfer_id,
-                &self.plan.plan_sha256,
-                self.publication_proof.as_deref().ok_or_else(|| {
-                    PortcoveError::verification("verified import lost its publication proof")
-                })?,
-            )?;
-        } else if self.publication_proof.is_some() {
-            return Err(PortcoveError::verification(
-                "unverified import has an unexpected publication proof",
-            ));
+            verify_publication_record(root, &self.transfer_id, &self.plan.plan_sha256)?;
         }
         let contract_root = if matches!(
             self.phase,
@@ -176,6 +165,53 @@ impl ImportJournal {
             )
             .detail("recovery_action", "resume_library_import")
     }
+}
+
+fn verify_publication_record(root: &Path, transfer_id: &str, plan_sha256: &str) -> Result<()> {
+    let connection = rusqlite::Connection::open_with_flags(
+        root.join("portcove.sqlite3"),
+        rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY,
+    )?;
+    let record = connection
+        .query_row(
+            "SELECT status, operation, target_kind, target_id, import_receipt_sha256
+             FROM activity_history WHERE id=?1",
+            [transfer_id],
+            |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, String>(2)?,
+                    row.get::<_, Option<String>>(3)?,
+                    row.get::<_, Option<String>>(4)?,
+                ))
+            },
+        )
+        .optional()?;
+    if record
+        .as_ref()
+        .map(|(status, operation, kind, target_id, receipt)| {
+            (
+                status.as_str(),
+                operation.as_str(),
+                kind.as_str(),
+                target_id.as_deref(),
+                receipt.as_deref(),
+            )
+        })
+        != Some((
+            "succeeded",
+            "import_library",
+            "library",
+            None,
+            Some(plan_sha256),
+        ))
+    {
+        return Err(PortcoveError::verification(
+            "published import has no matching verified publication record",
+        ));
+    }
+    Ok(())
 }
 
 pub(crate) fn check_open(root: &Path) -> Result<()> {

@@ -5,8 +5,8 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    ActivityOperation, ActivityStatus, ActivityTargetKind, InstallQualification, Installer,
-    Library, LibraryImportPlan, LibraryMetadata, Platform, PortcoveError, PortcoveService, Result,
+    ActivityStatus, InstallQualification, Installer, Library, LibraryImportPlan, LibraryMetadata,
+    Platform, PortcoveError, PortcoveService, Result,
     import_journal::ImportJournal,
     library_access::{LibraryAccess, LibraryLease},
     transfer_journal::TransferPhase,
@@ -80,7 +80,6 @@ fn start_import(
         transfer_id: uuid::Uuid::new_v4().to_string(),
         plan,
         phase: TransferPhase::Copying,
-        publication_proof: None,
     };
     verify_input(&journal.plan)?;
     // Intent and open gate are one durable file, written before database initialization or copying.
@@ -141,7 +140,6 @@ fn recover_import(destination: &Path, abort: bool) -> Result<LibraryImportResult
             ActivityStatus::Failed,
             "Library import aborted; original and copied data retained",
         )?;
-        journal.publication_proof = None;
         journal.phase = TransferPhase::Aborted;
         journal.write(true)?;
         Ok(result(&journal, false))
@@ -163,16 +161,19 @@ fn continue_import(
     }
     let status = ensure_activity(target, journal)?;
     if status != ActivityStatus::Running
-        && !(journal.phase == TransferPhase::Published && status == ActivityStatus::Succeeded)
+        && !(matches!(
+            journal.phase,
+            TransferPhase::Verified | TransferPhase::Published
+        ) && status == ActivityStatus::Succeeded)
     {
         return Err(PortcoveError::conflict(
             "import activity reached a different terminal outcome; finish aborting the import",
         ));
     }
     if journal.phase == TransferPhase::Published {
-        // The host-authenticated publication proof was checked while reading the journal. The
-        // restored library may already contain new saves, so never replay or compare old payloads.
-        return finish_import(target, journal);
+        // The matching successful activity was checked while reading the journal. The restored
+        // library may already contain new saves, so never replay or compare old payloads.
+        return finish_import(journal);
     }
     checkpoint(TransferPhase::Copying)?;
     verify_input(&journal.plan)?;
@@ -189,18 +190,19 @@ fn continue_import(
     restore_metadata(target, &journal.plan.metadata)?;
     verify_completed_destination(target, journal)?;
     verify_input(&journal.plan)?;
-    journal.publication_proof = Some(crate::portability_authority::seal_import_publication(
-        &journal.transfer_id,
-        &journal.plan.plan_sha256,
-    )?);
     journal.phase = TransferPhase::Verified;
     journal.write(true)?;
     checkpoint(TransferPhase::Verified)?;
+    target.finish_activity_once(
+        &journal.transfer_id,
+        ActivityStatus::Succeeded,
+        "Library import verified and ready to open; input backup retained",
+    )?;
     // This single write changes the open gate; no cancellation or fallible copying occurs inside publication.
     journal.phase = TransferPhase::Published;
     journal.write(true)?;
     checkpoint(TransferPhase::Published)?;
-    finish_import(target, journal)
+    finish_import(journal)
 }
 
 fn verify_completed_destination(target: &Library, journal: &ImportJournal) -> Result<()> {
@@ -223,12 +225,7 @@ fn verify_completed_destination(target: &Library, journal: &ImportJournal) -> Re
     Ok(())
 }
 
-fn finish_import(target: &Library, journal: &mut ImportJournal) -> Result<LibraryImportResult> {
-    target.finish_activity_once(
-        &journal.transfer_id,
-        ActivityStatus::Succeeded,
-        "Library import verified and opened; input backup retained",
-    )?;
+fn finish_import(journal: &mut ImportJournal) -> Result<LibraryImportResult> {
     journal.phase = TransferPhase::Complete;
     journal.write(true)?;
     journal.archive()?;
@@ -239,19 +236,26 @@ fn ensure_activity(target: &Library, journal: &ImportJournal) -> Result<Activity
     let activity = target
         .connection()?
         .query_row(
-            "SELECT status, operation, target_kind FROM activity_history WHERE id=?1",
+            "SELECT status, operation, target_kind, target_id, import_receipt_sha256
+             FROM activity_history WHERE id=?1",
             [&journal.transfer_id],
             |row| {
                 Ok((
                     row.get::<_, String>(0)?,
                     row.get::<_, String>(1)?,
                     row.get::<_, String>(2)?,
+                    row.get::<_, Option<String>>(3)?,
+                    row.get::<_, Option<String>>(4)?,
                 ))
             },
         )
         .optional()?;
-    if let Some((status, operation, kind)) = activity {
-        if operation != "import_library" || kind != "library" {
+    if let Some((status, operation, kind, target_id, receipt)) = activity {
+        if operation != "import_library"
+            || kind != "library"
+            || target_id.is_some()
+            || receipt.as_deref() != Some(journal.plan.plan_sha256.as_str())
+        {
             return Err(PortcoveError::verification(
                 "import activity identity belongs to another operation",
             ));
@@ -263,12 +267,10 @@ fn ensure_activity(target: &Library, journal: &ImportJournal) -> Result<Activity
                 "published import lost its activity identity",
             ));
         }
-        target.begin_identified_activity(
+        target.begin_identified_import_activity(
             uuid::Uuid::parse_str(&journal.transfer_id)
                 .map_err(|_| PortcoveError::state("invalid import ID"))?,
-            ActivityOperation::ImportLibrary,
-            ActivityTargetKind::Library,
-            None,
+            &journal.plan.plan_sha256,
         )?;
         Ok(ActivityStatus::Running)
     }
