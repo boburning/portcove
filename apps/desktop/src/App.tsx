@@ -16,6 +16,7 @@ import {
 } from "./features/installation/use-installation-planning";
 import { detailActions } from "./features/game-details/detail-actions";
 import { useAppShellState } from "./features/app-shell/use-app-shell-state";
+import { useBootstrapState, type StartupFailure } from "./features/bootstrap/use-bootstrap-state";
 import { AdoptionModal } from "./components/AdoptionModal";
 import {
   LibraryMoveRecovery,
@@ -58,7 +59,6 @@ import { useCommandSurface } from "./use-command-surface";
 import type {
   ActivityRecord,
   BootstrapStatus,
-  DesktopError,
   HostToolStatus,
   PortDefinition,
   SourceProfile,
@@ -67,7 +67,6 @@ import type {
 import {
   currentUpdateSnapshot,
   errorText,
-  failurePresentation,
   filterPorts,
   indexStatuses,
   mostRecentPort,
@@ -82,34 +81,8 @@ export const missingBootstrapError = {
 } as const;
 
 export default function App() {
-  const [bootstrap, setBootstrap] = useState<BootstrapStatus>();
-  const [bootstrapError, setBootstrapError] = useState<StartupFailure>();
-  useEffect(() => {
-    desktopApi
-      .bootstrapStatus()
-      .then(setBootstrap)
-      .catch((value) => {
-        setBootstrapError(
-          failurePresentation(value)
-            ? (value as DesktopError)
-            : { code: "state", message: errorText(value), details: {} },
-        );
-      });
-  }, []);
-  const switchLibrary = async (path: string) => {
-    const next = await desktopApi.setDefaultLibrary(path);
-    setBootstrap(next);
-    setBootstrapError(undefined);
-  };
-  const chooseLibrary = async (currentPath = "") => {
-    const path = await pickLibraryFolder(currentPath);
-    if (path) await switchLibrary(path);
-  };
-  const resetLibrary = async () => {
-    const next = await desktopApi.resetDefaultLibrary();
-    setBootstrap(next);
-    setBootstrapError(undefined);
-  };
+  const { bootstrap, bootstrapError, switchLibrary, chooseLibrary, resetLibrary } =
+    useBootstrapState();
   if (bootstrapError)
     return (
       <BootstrapRecovery
@@ -146,9 +119,6 @@ function BootstrapLoading() {
     </main>
   );
 }
-
-type StartupFailure = Pick<DesktopError, "code" | "message" | "details"> &
-  Partial<Pick<DesktopError, "presentation">>;
 
 export function BootstrapRecovery({
   error,
