@@ -10,6 +10,10 @@ import { useSourceHealth } from "./features/source-health/use-source-health";
 import { usePortBackups } from "./features/backups/use-port-backups";
 import { useUpdateCenter } from "./features/port-updates/use-update-center";
 import { useOperationState, type Perform } from "./features/operations/use-operation-state";
+import {
+  useAdoptionPlanning,
+  useInstallPlanning,
+} from "./features/installation/use-installation-planning";
 import { AdoptionModal } from "./components/AdoptionModal";
 import {
   LibraryMoveRecovery,
@@ -49,12 +53,7 @@ import { focusRegion } from "./focus";
 import { overlayBackAction } from "./overlay-stack";
 import { useNativeSourceDrop } from "./native-source-drop";
 import { useCommandSurface } from "./use-command-surface";
-import {
-  useAdoptionPlanning,
-  detailActions,
-  useInstallPlanning,
-  usePortcoveUi,
-} from "./use-portcove";
+import { detailActions, usePortcoveUi } from "./use-portcove";
 import type {
   ActivityRecord,
   BootstrapStatus,

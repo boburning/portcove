@@ -2,9 +2,9 @@
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { desktopApi } from "./api";
-import type { Perform } from "./features/operations/use-operation-state";
-import { useAdoptionPlanning, useInstallPlanning } from "./use-portcove";
+import { desktopApi } from "../../api";
+import type { Perform } from "../operations/use-operation-state";
+import { useAdoptionPlanning, useInstallPlanning } from "./use-installation-planning";
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
