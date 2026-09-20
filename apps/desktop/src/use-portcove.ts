@@ -22,22 +22,14 @@ import { startManagedSubscription } from "./shared/subscription-lifecycle";
 
 export type OperationRefresh = "workspace" | "activities" | "none";
 
-export function useOperationState(
-  configuration:
-    | (() => Promise<unknown>)
-    | {
-        refresh: () => Promise<unknown>;
-        refreshActivities?: (priority?: "progress" | "prompt") => Promise<unknown>;
-        invalidateDiagnostics?: () => void;
-      },
-) {
-  const refresh = typeof configuration === "function" ? configuration : configuration.refresh;
-  const refreshActivities =
-    typeof configuration === "function"
-      ? configuration
-      : (configuration.refreshActivities ?? configuration.refresh);
-  const invalidateDiagnostics =
-    typeof configuration === "function" ? undefined : configuration.invalidateDiagnostics;
+export function useOperationState(configuration: {
+  refresh: () => Promise<unknown>;
+  refreshActivities?: (priority?: "progress" | "prompt") => Promise<unknown>;
+  invalidateDiagnostics?: () => void;
+}) {
+  const refresh = configuration.refresh;
+  const refreshActivities = configuration.refreshActivities ?? configuration.refresh;
+  const invalidateDiagnostics = configuration.invalidateDiagnostics;
   const [pendingOperations, setPendingOperations] = useState<ReadonlyMap<number, string>>(
     new Map(),
   );

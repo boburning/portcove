@@ -6,7 +6,7 @@ import { listen } from "@tauri-apps/api/event";
 import { desktopApi } from "../../api";
 import { useUpdateCenter } from "../port-updates/use-update-center";
 import { useOperationState, type Perform } from "../../use-portcove";
-import { usePortcoveData } from "./use-workspace-data";
+import { essentialSnapshotIdentity, usePortcoveData } from "./use-workspace-data";
 import { failureReport, portDefinition, portStatus } from "../../test-fixtures";
 import type { DoctorReport, OperationEvent, WorkspaceSnapshot } from "../../types";
 import { WorkspaceRefreshNotice } from "./WorkspaceRefreshNotice";
@@ -58,24 +58,38 @@ let data: ReturnType<typeof usePortcoveData>;
 let operations: ReturnType<typeof useOperationState>;
 let eventHandlers: Map<string, (event: { payload: unknown }) => void>;
 let renderCount: number;
+let catalogProjectionCount: number;
 let statusIndexCount: number;
+let sourceProjectionCount: number;
 let checkAll: () => Promise<void>;
 
 function Fixture({ generation = 7 }: { generation?: number }) {
   renderCount += 1;
   data = usePortcoveData(generation);
-  const { statuses } = data;
+  const { catalog, sources, statuses } = data;
+  const catalogPortCount = useMemo(() => {
+    catalogProjectionCount += 1;
+    return catalog?.ports.length ?? 0;
+  }, [catalog]);
   const statusIndex = useMemo(() => {
     statusIndexCount += 1;
     return indexStatuses(statuses);
   }, [statuses]);
+  const sourceCount = useMemo(() => {
+    sourceProjectionCount += 1;
+    return sources.length;
+  }, [sources]);
   operations = useOperationState({
     refresh: data.retryRefresh,
     refreshActivities: data.refreshActivities,
     invalidateDiagnostics: data.invalidateDiagnostics,
   });
   return (
-    <div data-status-count={statusIndex.size}>
+    <div
+      data-catalog-count={catalogPortCount}
+      data-source-count={sourceCount}
+      data-status-count={statusIndex.size}
+    >
       <WorkspaceRefreshNotice
         failure={data.refreshFailure}
         hasSnapshot={Boolean(data.catalog)}
@@ -120,7 +134,9 @@ beforeEach(() => {
   root = createRoot(host);
   eventHandlers = new Map();
   renderCount = 0;
+  catalogProjectionCount = 0;
   statusIndexCount = 0;
+  sourceProjectionCount = 0;
   vi.mocked(listen).mockImplementation(async (event, handler) => {
     eventHandlers.set(event, handler as (event: { payload: unknown }) => void);
     return () => eventHandlers.delete(event);
@@ -142,6 +158,22 @@ afterEach(async () => {
 });
 
 describe("workspace refresh recovery", () => {
+  it("compares each essential collection once without increasing serialized identity bytes", () => {
+    const combinedIdentity = JSON.stringify([
+      snapshot.catalog,
+      snapshot.statuses,
+      snapshot.sources,
+    ]);
+    const stringify = vi.spyOn(JSON, "stringify");
+
+    const identities = essentialSnapshotIdentity(snapshot);
+
+    expect(stringify).toHaveBeenCalledTimes(3);
+    expect(identities.catalog.length + identities.statuses.length + identities.sources.length).toBe(
+      combinedIdentity.length - 4,
+    );
+  });
+
   it("preserves unchanged IPC snapshot references and avoids redundant status indexing", async () => {
     await render();
     const before = { catalog: data.catalog, statuses: data.statuses, sources: data.sources };
@@ -161,23 +193,95 @@ describe("workspace refresh recovery", () => {
     expect(data.diagnosticsStale).toBe(false);
   });
 
-  it("publishes a changed coherent snapshot and invalidates diagnostics", async () => {
+  it("preserves catalog, source, and unchanged record references for a status-only change", async () => {
+    const secondStatus = { ...portStatus(), port_id: "second-port" };
+    const initial = { ...snapshot, statuses: [snapshot.statuses[0], secondStatus] };
+    vi.mocked(desktopApi.workspaceSnapshot).mockResolvedValueOnce(initial);
     await render();
-    const before = data.statuses;
-    const indexesBefore = statusIndexCount;
+    const before = {
+      catalog: data.catalog,
+      firstStatus: data.statuses[0],
+      secondStatus: data.statuses[1],
+      sources: data.sources,
+    };
+    const projectionsBefore = {
+      catalog: catalogProjectionCount,
+      sources: sourceProjectionCount,
+      statuses: statusIndexCount,
+    };
+    const changed = structuredClone(initial);
+    changed.statuses[0].successful_launches += 1;
+    vi.mocked(desktopApi.workspaceSnapshot).mockResolvedValueOnce(changed);
+
+    await act(async () => data.refresh());
+
+    expect(data.catalog).toBe(before.catalog);
+    expect(data.sources).toBe(before.sources);
+    expect(data.statuses).not.toBe(initial.statuses);
+    expect(data.statuses[0]).not.toBe(before.firstStatus);
+    expect(data.statuses[1]).toBe(before.secondStatus);
+    expect(catalogProjectionCount - projectionsBefore.catalog).toBe(0);
+    expect(sourceProjectionCount - projectionsBefore.sources).toBe(0);
+    expect(statusIndexCount - projectionsBefore.statuses).toBe(1);
+    expect(data.diagnosticsStale).toBe(true);
+  });
+
+  it("updates only a changed catalog reference", async () => {
+    await render();
+    const before = { statuses: data.statuses, sources: data.sources };
     const changed = structuredClone(snapshot);
     changed.catalog.ports[0].name = "Changed by an external client";
-    changed.statuses = [];
     vi.mocked(desktopApi.workspaceSnapshot).mockResolvedValueOnce(changed);
 
     await act(async () => data.refresh());
 
     expect(data.catalog).toBe(changed.catalog);
-    expect(data.statuses).toBe(changed.statuses);
+    expect(data.statuses).toBe(before.statuses);
+    expect(data.sources).toBe(before.sources);
+  });
+
+  it("updates only a changed source reference", async () => {
+    await render();
+    const before = { catalog: data.catalog, statuses: data.statuses };
+    const changed = structuredClone(snapshot);
+    changed.sources = [
+      {
+        path: "fixture/game.bin",
+        profile_id: "fixture-source",
+        sha256: "a".repeat(64),
+        size: 1,
+        storage_sha256: "b".repeat(64),
+        storage_size: 1,
+        updated_at: 1,
+      },
+    ];
+    vi.mocked(desktopApi.workspaceSnapshot).mockResolvedValueOnce(changed);
+
+    await act(async () => data.refresh());
+
+    expect(data.catalog).toBe(before.catalog);
+    expect(data.statuses).toBe(before.statuses);
     expect(data.sources).toBe(changed.sources);
-    expect(data.statuses).not.toBe(before);
-    expect(statusIndexCount - indexesBefore).toBe(1);
-    expect(data.diagnosticsStale).toBe(true);
+  });
+
+  it("keeps retained status records correct across removal and reordering", async () => {
+    const secondStatus = { ...portStatus(), port_id: "second-port" };
+    const thirdStatus = { ...portStatus(), port_id: "third-port" };
+    const initial = { ...snapshot, statuses: [snapshot.statuses[0], secondStatus, thirdStatus] };
+    vi.mocked(desktopApi.workspaceSnapshot).mockResolvedValueOnce(initial);
+    await render();
+    const retained = data.statuses[2];
+    const changed = structuredClone(initial);
+    changed.statuses = [changed.statuses[2], changed.statuses[0]];
+    vi.mocked(desktopApi.workspaceSnapshot).mockResolvedValueOnce(changed);
+
+    await act(async () => data.refresh());
+
+    expect(data.statuses.map((status) => status.port_id)).toEqual([
+      "third-port",
+      initial.statuses[0].port_id,
+    ]);
+    expect(data.statuses[0]).toBe(retained);
   });
 
   it("clears refresh failure on unchanged readback while accepting newer activities", async () => {
@@ -285,6 +389,25 @@ describe("workspace refresh recovery", () => {
     window.dispatchEvent(new Event("focus"));
     await act(async () => Promise.resolve());
     expect(desktopApi.activities).toHaveBeenCalledOnce();
+  });
+
+  it("does not retain references across library generations with identical content", async () => {
+    await render();
+    const before = { catalog: data.catalog, statuses: data.statuses, sources: data.sources };
+    vi.mocked(desktopApi.workspaceSnapshot).mockResolvedValueOnce(structuredClone(snapshot));
+
+    await act(async () => {
+      root.render(<Fixture generation={8} />);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(data.catalog).not.toBe(before.catalog);
+    expect(data.statuses).not.toBe(before.statuses);
+    expect(data.sources).not.toBe(before.sources);
+    expect(data.catalog).toEqual(before.catalog);
+    expect(data.statuses).toEqual(before.statuses);
+    expect(data.sources).toEqual(before.sources);
   });
 
   it("discards diagnostics from a library generation that was replaced", async () => {

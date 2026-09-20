@@ -98,7 +98,7 @@ describe("core-owned failure presentation", () => {
     let state!: ReturnType<typeof useOperationState>;
     const refresh = vi.fn().mockRejectedValue(new Error("refresh also failed"));
     function Fixture() {
-      state = useOperationState(refresh);
+      state = useOperationState({ refresh });
       return null;
     }
     const root = createRoot(document.createElement("div"));
