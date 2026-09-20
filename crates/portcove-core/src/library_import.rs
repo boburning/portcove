@@ -16,6 +16,7 @@ use crate::{
 pub(crate) struct PortabilityCatalogs {
     embedded: Catalog,
     installs: BTreeMap<String, Catalog>,
+    admission_roles: BTreeMap<String, String>,
 }
 
 impl PortabilityCatalogs {
@@ -24,12 +25,15 @@ impl PortabilityCatalogs {
         Self {
             embedded,
             installs: BTreeMap::new(),
+            admission_roles: BTreeMap::new(),
         }
     }
 
     pub(crate) fn from_root(metadata: &LibraryMetadata, root: &Path) -> Result<Self> {
         let embedded = Catalog::embedded()?;
         let mut installs = BTreeMap::new();
+        let mut admissions = Vec::new();
+        let mut admission_roles = BTreeMap::new();
         for install in &metadata.application_versions {
             let relative = validate_install_path(install)?;
             let mut absolute = install.clone();
@@ -37,7 +41,28 @@ impl PortabilityCatalogs {
             let retained = crate::install::retained_catalog_for_install(&absolute)?;
             let catalog = match retained {
                 Some(catalog) if embedded.port(&install.port_id).is_ok() => {
-                    if catalog.definition_selection(&install.port_id).is_none() {
+                    if let Some(admission) =
+                        crate::portability_authority::PortabilityAdmission::from_catalog(
+                            install,
+                            &catalog,
+                            metadata
+                                .portability_authority
+                                .as_ref()
+                                .and_then(|authority| authority.claimed_role(&install.id))
+                                .unwrap_or("untrusted"),
+                        )?
+                    {
+                        admission_roles.insert(
+                            selection_key(&catalog, &install.port_id)?,
+                            metadata
+                                .portability_authority
+                                .as_ref()
+                                .and_then(|authority| authority.claimed_role(&install.id))
+                                .unwrap_or("untrusted")
+                                .into(),
+                        );
+                        admissions.push(admission);
+                    } else {
                         crate::signed_catalog::validate_installed_port_contract(
                             catalog.port(&install.port_id)?,
                             embedded.port(&install.port_id)?,
@@ -46,6 +71,31 @@ impl PortabilityCatalogs {
                     catalog
                 }
                 Some(catalog) if catalog.definition_selection(&install.port_id).is_some() => {
+                    admissions.push(
+                        crate::portability_authority::PortabilityAdmission::from_catalog(
+                            install,
+                            &catalog,
+                            metadata
+                                .portability_authority
+                                .as_ref()
+                                .and_then(|authority| authority.claimed_role(&install.id))
+                                .unwrap_or("untrusted"),
+                        )?
+                        .ok_or_else(|| {
+                            PortcoveError::verification(
+                                "retained definition lost its admission identity",
+                            )
+                        })?,
+                    );
+                    admission_roles.insert(
+                        selection_key(&catalog, &install.port_id)?,
+                        metadata
+                            .portability_authority
+                            .as_ref()
+                            .and_then(|authority| authority.claimed_role(&install.id))
+                            .unwrap_or("untrusted")
+                            .into(),
+                    );
                     catalog
                 }
                 Some(_) => {
@@ -64,7 +114,12 @@ impl PortabilityCatalogs {
             };
             installs.insert(install.id.clone(), catalog);
         }
-        Ok(Self { embedded, installs })
+        crate::portability_authority::verify(metadata, admissions)?;
+        Ok(Self {
+            embedded,
+            installs,
+            admission_roles,
+        })
     }
 
     pub(crate) fn catalog_for_install(&self, install: &crate::InstallRecord) -> Result<&Catalog> {
@@ -80,6 +135,39 @@ impl PortabilityCatalogs {
                 PortcoveError::verification("installation has no reviewed portability contract")
                     .detail("install_id", &install.id)
             })
+    }
+
+    pub(crate) fn restore_admissions(&self, library: &crate::Library) -> Result<()> {
+        let mut restored = BTreeSet::new();
+        let mut catalogs = self.installs.values().collect::<Vec<_>>();
+        catalogs.sort_by_key(|catalog| {
+            catalog
+                .ports()
+                .iter()
+                .find_map(|port| catalog.definition_selection(&port.id))
+                .and_then(|identity| selection_identity_key(identity).ok())
+                .and_then(|key| self.admission_roles.get(&key))
+                .map(|role| if role == "active" { 0 } else { 1 })
+                .unwrap_or(2)
+        });
+        for catalog in catalogs {
+            let Some((identity, snapshot)) = catalog.ports().iter().find_map(|port| {
+                Some((
+                    catalog.definition_selection(&port.id)?,
+                    catalog.definition_snapshot(&port.id)?,
+                ))
+            }) else {
+                continue;
+            };
+            let key = selection_identity_key(identity)?;
+            if restored.insert(key.clone()) {
+                let role = self.admission_roles.get(&key).ok_or_else(|| {
+                    PortcoveError::verification("portable definition lost its selection role")
+                })?;
+                library.restore_retained_definition_admission(identity, snapshot, role)?;
+            }
+        }
+        Ok(())
     }
 
     fn require_port(&self, port_id: &str) -> Result<()> {
@@ -125,6 +213,16 @@ impl PortabilityCatalogs {
             )))
         }
     }
+}
+
+fn selection_key(catalog: &Catalog, port_id: &str) -> Result<String> {
+    selection_identity_key(catalog.definition_selection(port_id).ok_or_else(|| {
+        PortcoveError::verification("portable definition lost its selection identity")
+    })?)
+}
+
+fn selection_identity_key(identity: &crate::DefinitionSelectionIdentity) -> Result<String> {
+    Ok(hex::encode(Sha256::digest(serde_json::to_vec(identity)?)))
 }
 
 /// The export carries metadata; all payload bytes remain in the explicitly chosen content root.
@@ -253,7 +351,7 @@ pub(crate) fn validate_metadata(
     metadata: &LibraryMetadata,
     catalogs: &PortabilityCatalogs,
 ) -> Result<()> {
-    if !matches!(metadata.schema_version, 1..=3) {
+    if !matches!(metadata.schema_version, 1..=4) {
         return Err(PortcoveError::unsupported(
             "unsupported library metadata schema",
         ));
@@ -285,9 +383,11 @@ pub(crate) fn validate_metadata(
         _ => artwork_expected.as_slice(),
     };
     match (&metadata.artwork, metadata.schema_version) {
-        (Some(artwork), 3) => crate::artwork_store::validate_metadata_with(artwork, |port_id| {
-            catalogs.require_port(port_id)
-        })?,
+        (Some(artwork), 3 | 4) => {
+            crate::artwork_store::validate_metadata_with(artwork, |port_id| {
+                catalogs.require_port(port_id)
+            })?
+        }
         (None, 1 | 2) => {}
         _ => {
             return Err(PortcoveError::verification(

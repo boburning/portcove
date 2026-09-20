@@ -80,6 +80,7 @@ fn start_import(
         transfer_id: uuid::Uuid::new_v4().to_string(),
         plan,
         phase: TransferPhase::Copying,
+        publication_proof: None,
     };
     verify_input(&journal.plan)?;
     // Intent and open gate are one durable file, written before database initialization or copying.
@@ -140,6 +141,7 @@ fn recover_import(destination: &Path, abort: bool) -> Result<LibraryImportResult
             ActivityStatus::Failed,
             "Library import aborted; original and copied data retained",
         )?;
+        journal.publication_proof = None;
         journal.phase = TransferPhase::Aborted;
         journal.write(true)?;
         Ok(result(&journal, false))
@@ -168,7 +170,8 @@ fn continue_import(
         ));
     }
     if journal.phase == TransferPhase::Published {
-        // The restored library may already contain new saves. Never copy or reimport its old snapshot.
+        // The host-authenticated publication proof was checked while reading the journal. The
+        // restored library may already contain new saves, so never replay or compare old payloads.
         return finish_import(target, journal);
     }
     checkpoint(TransferPhase::Copying)?;
@@ -178,7 +181,29 @@ fn continue_import(
         target.root(),
         &journal.plan.content,
     )?;
+    let portability = crate::library_import::PortabilityCatalogs::from_root(
+        &journal.plan.metadata,
+        target.root(),
+    )?;
+    portability.restore_admissions(target)?;
     restore_metadata(target, &journal.plan.metadata)?;
+    verify_completed_destination(target, journal)?;
+    verify_input(&journal.plan)?;
+    journal.publication_proof = Some(crate::portability_authority::seal_import_publication(
+        &journal.transfer_id,
+        &journal.plan.plan_sha256,
+    )?);
+    journal.phase = TransferPhase::Verified;
+    journal.write(true)?;
+    checkpoint(TransferPhase::Verified)?;
+    // This single write changes the open gate; no cancellation or fallible copying occurs inside publication.
+    journal.phase = TransferPhase::Published;
+    journal.write(true)?;
+    checkpoint(TransferPhase::Published)?;
+    finish_import(target, journal)
+}
+
+fn verify_completed_destination(target: &Library, journal: &ImportJournal) -> Result<()> {
     crate::transfer_copy::verify_destination(
         target,
         &journal.plan.metadata,
@@ -195,15 +220,7 @@ fn continue_import(
             InstallQualification::from_port(catalog.port(&install.port_id)?, Platform::current()?)?;
         installer.verify_import_contract(&install, &qualification)?;
     }
-    verify_input(&journal.plan)?;
-    journal.phase = TransferPhase::Verified;
-    journal.write(true)?;
-    checkpoint(TransferPhase::Verified)?;
-    // This single write changes the open gate; no cancellation or fallible copying occurs inside publication.
-    journal.phase = TransferPhase::Published;
-    journal.write(true)?;
-    checkpoint(TransferPhase::Published)?;
-    finish_import(target, journal)
+    Ok(())
 }
 
 fn finish_import(target: &Library, journal: &mut ImportJournal) -> Result<LibraryImportResult> {

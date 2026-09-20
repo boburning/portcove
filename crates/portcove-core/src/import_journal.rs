@@ -15,6 +15,8 @@ pub(crate) struct ImportJournal {
     pub transfer_id: String,
     pub plan: LibraryImportPlan,
     pub phase: TransferPhase,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub publication_proof: Option<String>,
 }
 
 impl ImportJournal {
@@ -65,6 +67,22 @@ impl ImportJournal {
         {
             return Err(PortcoveError::verification(
                 "import journal identity or location is invalid",
+            ));
+        }
+        if matches!(
+            self.phase,
+            TransferPhase::Verified | TransferPhase::Published | TransferPhase::Complete
+        ) {
+            crate::portability_authority::verify_import_publication(
+                &self.transfer_id,
+                &self.plan.plan_sha256,
+                self.publication_proof.as_deref().ok_or_else(|| {
+                    PortcoveError::verification("verified import lost its publication proof")
+                })?,
+            )?;
+        } else if self.publication_proof.is_some() {
+            return Err(PortcoveError::verification(
+                "unverified import has an unexpected publication proof",
             ));
         }
         let contract_root = if matches!(

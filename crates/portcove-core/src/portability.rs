@@ -25,6 +25,8 @@ pub struct LibraryMetadata {
     pub launch_history: Vec<LibraryLaunchHistory>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub artwork: Option<crate::ArtworkMetadata>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub portability_authority: Option<crate::PortabilityAuthority>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -122,7 +124,7 @@ impl Library {
         let launch_history = read_launch_history(&transaction)?;
         let artwork = crate::artwork_store::snapshot(&transaction)?;
         transaction.commit()?;
-        Ok(LibraryMetadata {
+        let mut metadata = LibraryMetadata {
             schema_version: 3,
             exported_at: Self::now(),
             original_root,
@@ -145,7 +147,52 @@ impl Library {
             port_settings,
             launch_history,
             artwork: Some(artwork),
-        })
+            portability_authority: None,
+        };
+        let mut admissions = Vec::new();
+        let embedded = crate::Catalog::embedded()?;
+        for install in &metadata.application_versions {
+            let mut absolute = install.clone();
+            absolute.path = managed_root.join(&install.path);
+            let manifest = absolute.path.join(".portcove-manifest.json");
+            if embedded.port(&install.port_id).is_ok()
+                && matches!(
+                    std::fs::symlink_metadata(&manifest),
+                    Err(error) if error.kind() == std::io::ErrorKind::NotFound
+                )
+            {
+                // Schema-1 metadata and older test fixtures can contain catalog-known records
+                // without a retained manifest. They never claim successor admission.
+                continue;
+            }
+            if let Some(catalog) = crate::install::retained_catalog_for_install(&absolute)?
+                && catalog.definition_selection(&install.port_id).is_some()
+            {
+                let identity = catalog
+                    .definition_selection(&install.port_id)
+                    .ok_or_else(|| {
+                        PortcoveError::verification(
+                            "retained portability admission lost its selection identity",
+                        )
+                    })?;
+                let role = self
+                    .retained_definition_admission_role(identity)?
+                    .ok_or_else(|| {
+                        PortcoveError::verification(
+                            "retained successor definition is not admitted by this source library",
+                        )
+                        .detail("port_id", &install.port_id)
+                    })?;
+                admissions.push(
+                    crate::portability_authority::PortabilityAdmission::from_catalog(
+                        install, &catalog, role,
+                    )?
+                    .ok_or_else(|| PortcoveError::state("retained admission disappeared"))?,
+                );
+            }
+        }
+        crate::portability_authority::seal(&mut metadata, admissions)?;
+        Ok(metadata)
     }
 }
 

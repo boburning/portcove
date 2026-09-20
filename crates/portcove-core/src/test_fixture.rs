@@ -211,6 +211,11 @@ pub(crate) fn register_qualification_install(
     use std::collections::BTreeSet;
 
     let port = catalog.port(port_id).unwrap();
+    if catalog.definition_selection(port_id).is_some() {
+        crate::definition_candidate::selection::trust_catalog_selection_for_test(
+            library, catalog, port_id,
+        );
+    }
     let platform = crate::Platform::current().unwrap();
     let version = "qualification-definition-1";
     let artifact_bytes = format!("{port_id}:{version}");

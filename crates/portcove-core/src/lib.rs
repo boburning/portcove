@@ -49,6 +49,7 @@ mod path;
 mod permissions;
 mod persistence;
 mod portability;
+mod portability_authority;
 mod preparation;
 mod process;
 mod providers;
@@ -148,6 +149,7 @@ pub use portability::{
     LibraryContentKind, LibraryContentRoot, LibraryLaunchHistory, LibraryMetadata,
     LibraryMetadataFile, LibraryPortSettings,
 };
+pub use portability_authority::PortabilityAuthority;
 pub use preparation::{
     PreparationCleanupPreview, PreparationInputs, PreparationMode, PreparationOptions,
     PreparationPlan, PreparationTool,

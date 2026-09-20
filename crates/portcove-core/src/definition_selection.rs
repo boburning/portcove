@@ -316,6 +316,114 @@ impl PublisherPolicyRecord {
 }
 
 impl Library {
+    pub(crate) fn retained_definition_admission_role(
+        &self,
+        identity: &DefinitionSelectionIdentity,
+    ) -> Result<Option<&'static str>> {
+        let connection = self.connection()?;
+        let state = DefinitionSelectionState::read(&connection)?;
+        let role = state
+            .active
+            .as_ref()
+            .filter(|selection| selection.identity() == *identity)
+            .map(|_| "active")
+            .or_else(|| {
+                state
+                    .previous
+                    .as_ref()
+                    .filter(|selection| selection.identity() == *identity)
+                    .map(|_| "previous")
+            });
+        Ok(role)
+    }
+
+    pub(crate) fn restore_retained_definition_admission(
+        &self,
+        identity: &DefinitionSelectionIdentity,
+        snapshot: &DefinitionSnapshot,
+        role: &str,
+    ) -> Result<()> {
+        identity.validate_snapshot(snapshot)?;
+        let stored = StoredDefinitionSelection {
+            namespace: identity.namespace.clone(),
+            stable_id: identity.stable_id.clone(),
+            definition_revision: identity.definition_revision,
+            repository_root_sha256: identity.repository_root_sha256.clone(),
+            grant_id: identity.grant_id.clone(),
+            policy_revision: identity.policy_revision,
+            provenance: identity.provenance.clone(),
+            snapshot: snapshot.clone(),
+        };
+        stored.validate()?;
+        let mut connection = self.connection()?;
+        let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+        let state = DefinitionSelectionState::read(&transaction)?;
+        let existing = match role {
+            "active" => state.active.as_ref(),
+            "previous" => state.previous.as_ref(),
+            _ => {
+                return Err(PortcoveError::verification(
+                    "portable definition has an invalid selection role",
+                ));
+            }
+        };
+        if existing.is_some_and(|selection| selection.identity() == *identity) {
+            return transaction.commit().map_err(Into::into);
+        }
+        if existing.is_some() || (role == "previous" && state.active.is_none()) {
+            return Err(PortcoveError::conflict(
+                "import destination has a different retained definition authority",
+            ));
+        }
+        if role == "active" {
+            if let Some(policy) =
+                PublisherPolicyRecord::read(&transaction, &identity.namespace, &identity.stable_id)?
+                && (!policy.matches_identity(identity)
+                    || policy.status != DefinitionPublisherStatus::Scoped)
+            {
+                return Err(PortcoveError::conflict(
+                    "import destination has a different publisher authority",
+                ));
+            }
+            transaction.execute(
+                "INSERT INTO definition_publisher_policy(
+                   namespace,stable_id,root_sha256,policy_revision,grant_id,status
+                 ) VALUES(?1,?2,?3,?4,?5,'scoped')
+                 ON CONFLICT(namespace,stable_id) DO NOTHING",
+                params![
+                    identity.namespace,
+                    identity.stable_id,
+                    identity.repository_root_sha256,
+                    identity.policy_revision,
+                    identity.grant_id,
+                ],
+            )?;
+        }
+        let stored_json = encode_bounded(&stored, "portable definition selection")?;
+        if role == "active" {
+            transaction.execute(
+                "UPDATE definition_selection_state
+                 SET revision=revision+1,replay_floor_json=?1,active_json=?2
+                 WHERE singleton=1",
+                params![
+                    encode_bounded(
+                        &DefinitionReplayFloor::from(&identity.provenance),
+                        "portable replay floor"
+                    )?,
+                    stored_json,
+                ],
+            )?;
+        } else {
+            transaction.execute(
+                "UPDATE definition_selection_state
+                 SET revision=revision+1,previous_json=?1 WHERE singleton=1",
+                [stored_json],
+            )?;
+        }
+        transaction.commit()?;
+        Ok(())
+    }
+
     pub fn assess_definition_candidate(
         &self,
         candidate: &AuthenticatedDefinitionCandidate,
@@ -516,6 +624,90 @@ impl Library {
         )?;
         Ok(())
     }
+}
+
+#[cfg(test)]
+pub(crate) fn trust_catalog_selection_for_test(
+    library: &Library,
+    catalog: &Catalog,
+    port_id: &str,
+) {
+    let identity = catalog.definition_selection(port_id).unwrap().clone();
+    let snapshot = catalog.definition_snapshot(port_id).unwrap().clone();
+    let stored = StoredDefinitionSelection {
+        namespace: identity.namespace.clone(),
+        stable_id: identity.stable_id.clone(),
+        definition_revision: identity.definition_revision,
+        repository_root_sha256: identity.repository_root_sha256.clone(),
+        grant_id: identity.grant_id.clone(),
+        policy_revision: identity.policy_revision,
+        provenance: identity.provenance.clone(),
+        snapshot,
+    };
+    stored.validate().unwrap();
+    let connection = library.connection().unwrap();
+    connection
+        .execute(
+            "INSERT INTO definition_publisher_policy(
+               namespace,stable_id,root_sha256,policy_revision,grant_id,status
+             ) VALUES(?1,?2,?3,?4,?5,'scoped')
+             ON CONFLICT(namespace,stable_id) DO UPDATE SET
+               root_sha256=excluded.root_sha256,policy_revision=excluded.policy_revision,
+               grant_id=excluded.grant_id,status='scoped'",
+            params![
+                identity.namespace,
+                identity.stable_id,
+                identity.repository_root_sha256,
+                identity.policy_revision,
+                identity.grant_id,
+            ],
+        )
+        .unwrap();
+    connection
+        .execute(
+            "UPDATE definition_selection_state
+             SET revision=revision+1,replay_floor_json=?1,active_json=?2,previous_json=NULL
+             WHERE singleton=1",
+            params![
+                serde_json::to_string(&DefinitionReplayFloor::from(&identity.provenance)).unwrap(),
+                serde_json::to_string(&stored).unwrap(),
+            ],
+        )
+        .unwrap();
+}
+
+#[cfg(test)]
+#[test]
+fn portable_restore_keeps_an_older_selection_for_the_same_publisher() {
+    let temp = tempfile::tempdir().unwrap();
+    let library = Library::open(temp.path()).unwrap();
+    let (post_client, port_id) = crate::test_fixture::post_client_catalog();
+    let catalog = crate::test_fixture::admitted_indexed_catalog(&post_client, &port_id);
+    let active = catalog.definition_selection(&port_id).unwrap().clone();
+    let snapshot = catalog.definition_snapshot(&port_id).unwrap().clone();
+    let mut previous = active.clone();
+    previous.repository_root_sha256 = "f".repeat(64);
+    previous.provenance.root_sha256 = previous.repository_root_sha256.clone();
+    previous.grant_id = "previous-portability-grant".into();
+    previous.policy_revision -= 1;
+
+    library
+        .restore_retained_definition_admission(&active, &snapshot, "active")
+        .unwrap();
+    library
+        .restore_retained_definition_admission(&previous, &snapshot, "previous")
+        .unwrap();
+
+    assert_eq!(
+        library.retained_definition_admission_role(&active).unwrap(),
+        Some("active")
+    );
+    assert_eq!(
+        library
+            .retained_definition_admission_role(&previous)
+            .unwrap(),
+        Some("previous")
+    );
 }
 
 pub(crate) fn load_selected_definition_catalog(
