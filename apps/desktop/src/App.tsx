@@ -15,6 +15,7 @@ import {
   useInstallPlanning,
 } from "./features/installation/use-installation-planning";
 import { detailActions } from "./features/game-details/detail-actions";
+import { useAppShellState } from "./features/app-shell/use-app-shell-state";
 import { AdoptionModal } from "./components/AdoptionModal";
 import {
   LibraryMoveRecovery,
@@ -54,7 +55,6 @@ import { focusRegion } from "./focus";
 import { overlayBackAction } from "./overlay-stack";
 import { useNativeSourceDrop } from "./native-source-drop";
 import { useCommandSurface } from "./use-command-surface";
-import { usePortcoveUi } from "./use-portcove";
 import type {
   ActivityRecord,
   BootstrapStatus,
@@ -272,7 +272,7 @@ function Workspace({
   });
   const github = useGithubAuth(operations.perform, operations.setError);
   const updates = useUpdateCenter(operations.perform, data.statuses);
-  const ui = usePortcoveUi();
+  const ui = useAppShellState();
   const { catalog, diagnosticRevision, diagnosticsStale, doctor, refreshDiagnostics } = data;
   useEffect(() => {
     if (
@@ -506,7 +506,7 @@ function Workspace({
 }
 
 type DataState = ReturnType<typeof usePortcoveData>;
-type UiState = ReturnType<typeof usePortcoveUi>;
+type UiState = ReturnType<typeof useAppShellState>;
 type OperationState = ReturnType<typeof useOperationState>;
 type GithubState = ReturnType<typeof useGithubAuth>;
 type UpdateState = ReturnType<typeof useUpdateCenter>;

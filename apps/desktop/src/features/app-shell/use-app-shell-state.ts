@@ -1,7 +1,7 @@
 import { useCallback, useState, type SetStateAction } from "react";
-import { type Filter, type View } from "./view-model";
+import { type Filter, type View } from "../../view-model";
 
-export function usePortcoveUi() {
+export function useAppShellState() {
   const [view, setViewState] = useState<View>("library");
   const [filter, setFilter] = useState<Filter>("all");
   const [query, setQuery] = useState("");
