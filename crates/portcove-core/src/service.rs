@@ -497,9 +497,23 @@ impl PortcoveService {
             let reviewed_private_cleanup = operation.kind == LifecycleOperationKind::Prepare
                 && operation.phase == LifecyclePhase::CleanupPending
                 && operation.install.is_none();
+            let failed_install_cleanup = operation.kind == LifecycleOperationKind::Install
+                && operation.phase == LifecyclePhase::CleanupPending
+                && operation.install.is_none();
             match self.recover_lifecycle_operation(&store, &mut operation) {
                 Err(error) => {
-                    operation.last_error = Some(error.message.clone());
+                    operation.last_error = Some(if failed_install_cleanup {
+                        format!(
+                            "{}; private preparation cleanup retry failed: {}",
+                            operation
+                                .last_error
+                                .as_deref()
+                                .unwrap_or("install cleanup failed"),
+                            error.message
+                        )
+                    } else {
+                        error.message.clone()
+                    });
                     store.put(&mut operation)?;
                     tracing::warn!(
                         operation_id = operation.id,
@@ -511,7 +525,7 @@ impl PortcoveService {
                     let message = recovery_message.as_deref().unwrap_or({
                         if unstarted_removal {
                             "removal ended before managed-file publication; no versions were removed"
-                        } else if reviewed_private_cleanup {
+                        } else if reviewed_private_cleanup || failed_install_cleanup {
                             "failed preparation remained failed; reviewed private cleanup completed"
                         } else {
                             "completed during startup recovery"
@@ -519,7 +533,7 @@ impl PortcoveService {
                     });
                     let _ = self.library.finish_activity(
                         &operation.id,
-                        if unstarted_removal || reviewed_private_cleanup {
+                        if unstarted_removal || reviewed_private_cleanup || failed_install_cleanup {
                             ActivityStatus::Failed
                         } else {
                             ActivityStatus::Succeeded
@@ -589,6 +603,15 @@ impl PortcoveService {
 
     pub(crate) fn check_lifecycle_fault(&self, point: LifecycleFaultPoint) -> Result<()> {
         self.faults.check(point)
+    }
+
+    pub(crate) fn lifecycle_faults(&self) -> &dyn LifecycleFaultInjector {
+        self.faults.as_ref()
+    }
+
+    #[cfg(test)]
+    pub(crate) fn recover_lifecycle_operations_for_test(&self) -> Result<()> {
+        self.recover_lifecycle_operations()
     }
 
     fn recover_published_install(

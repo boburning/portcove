@@ -382,6 +382,8 @@ pub(crate) enum LifecycleFaultPoint {
     LaunchCollecting,
     InstallPrepared,
     InstallReadyToPublish,
+    InstallPrivateCleanup,
+    InstallPrivateCleanupJournalRemoval,
     InstallPublished,
     InstallMetadataCommitted,
     AdoptionPrepared,
