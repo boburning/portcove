@@ -1589,6 +1589,13 @@ owns or re-exports the hooks. The feature stores only ephemeral review intent:
 core and the Tauri host still revalidate content-bound plans, authorize adoption
 and own every durable install or copy mutation.
 
+The `features/game-details` unit owns the adapter that binds the selected port,
+library generation and current inputs to `DetailPanel` actions. Its focused tests
+cover exact command arguments, refresh modes, cancellation results, close timing
+and backup-list refreshes. The root hook module no longer owns or re-exports that
+adapter. This is UI action composition only; core and Tauri remain authoritative
+for every lifecycle mutation, review and authorization.
+
 ## External frontend contract
 
 The CLI is the integration boundary. Consumers should probe `capabilities`, including `product_version`, `failure_isolated_batches`, and `port_operation_locking`, use `--json` for request/response automation or `--jsonl` for progress streams, select an explicit library, and launch through `exec`. `catalog export` supplies the complete versioned port and source-profile document, `activity` supplies a bounded, newest-first durable ledger for frontends that need recent results without replaying progress streams, and `storage` reports the resolved root and containing-volume capacity. `plan` combines release resolution, retained/staged version discovery, registered requirements, and capacity into a typed preflight without changing installed state. `paths` exposes canonical persistent-data and managed-version roots so backup tools do not depend on private layout conventions; `backup create`, `list`, and confirmed `restore` provide a first-party snapshot lifecycle. Bulk check, reconcile, and update operations isolate every installed port; bulk source verification isolates every registered profile. Frontends must inspect each nested outcome rather than treating a completed batch as proof that every item succeeded. `catalog export`, `source verify --all`, `activity`, `storage`, `paths`, `backup list`, and `exec` are network-free; backup create/restore are also network-free but copy local data, `plan` may make a conditional release request, and launch inherits the child's standard streams and exit code.

@@ -1,9 +1,9 @@
-import { portDefinition, portStatus } from "./test-fixtures";
+import { portDefinition, portStatus } from "../../test-fixtures";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { desktopApi } from "./api";
-import type { PortDefinition } from "./types";
-import type { Perform } from "./features/operations/use-operation-state";
-import { detailActions } from "./use-portcove";
+import { desktopApi } from "../../api";
+import type { PortDefinition } from "../../types";
+import type { Perform } from "../operations/use-operation-state";
+import { detailActions } from "./detail-actions";
 
 const port: PortDefinition = {
   ...portDefinition(),

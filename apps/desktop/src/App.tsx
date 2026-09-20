@@ -14,6 +14,7 @@ import {
   useAdoptionPlanning,
   useInstallPlanning,
 } from "./features/installation/use-installation-planning";
+import { detailActions } from "./features/game-details/detail-actions";
 import { AdoptionModal } from "./components/AdoptionModal";
 import {
   LibraryMoveRecovery,
@@ -53,7 +54,7 @@ import { focusRegion } from "./focus";
 import { overlayBackAction } from "./overlay-stack";
 import { useNativeSourceDrop } from "./native-source-drop";
 import { useCommandSurface } from "./use-command-surface";
-import { detailActions, usePortcoveUi } from "./use-portcove";
+import { usePortcoveUi } from "./use-portcove";
 import type {
   ActivityRecord,
   BootstrapStatus,
