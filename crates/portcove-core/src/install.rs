@@ -2,6 +2,7 @@ use std::{
     fs,
     path::{Path, PathBuf},
     sync::Arc,
+    time::Duration,
 };
 
 use crate::{
@@ -315,15 +316,42 @@ struct InstallLifecycle {
     record: LifecycleOperation,
 }
 
+// Artifact transfers can legitimately run for hours, so they have no total
+// request deadline. Connection and no-progress intervals remain bounded.
+const DOWNLOAD_CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
+const DOWNLOAD_READ_IDLE_TIMEOUT: Duration = Duration::from_secs(30);
+
+fn download_client(
+    connect_timeout: Duration,
+    read_idle_timeout: Duration,
+) -> Result<reqwest::Client> {
+    reqwest::Client::builder()
+        .user_agent(concat!("Portcove/", env!("CARGO_PKG_VERSION")))
+        .connect_timeout(connect_timeout)
+        .read_timeout(read_idle_timeout)
+        .build()
+        .map_err(|error| PortcoveError::network(error.to_string()))
+}
+
 impl Installer {
     pub fn new(library: Library) -> Result<Self> {
-        let client = reqwest::Client::builder()
-            .user_agent(concat!("Portcove/", env!("CARGO_PKG_VERSION")))
-            .build()
-            .map_err(|error| PortcoveError::network(error.to_string()))?;
+        let client = download_client(DOWNLOAD_CONNECT_TIMEOUT, DOWNLOAD_READ_IDLE_TIMEOUT)?;
         Ok(Self {
             library,
             client,
+            faults: Arc::new(NoLifecycleFaults),
+        })
+    }
+
+    #[cfg(test)]
+    fn with_network_bounds(
+        library: Library,
+        connect_timeout: Duration,
+        read_idle_timeout: Duration,
+    ) -> Result<Self> {
+        Ok(Self {
+            library,
+            client: download_client(connect_timeout, read_idle_timeout)?,
             faults: Arc::new(NoLifecycleFaults),
         })
     }
@@ -2980,6 +3008,109 @@ mod tests {
             .await
             .unwrap_err();
         assert_eq!(error.code, crate::ErrorCode::Conflict);
+    }
+
+    #[tokio::test]
+    async fn slow_streaming_download_has_idle_bounds_without_a_total_deadline() {
+        use std::{
+            io::{Read, Write},
+            net::TcpListener,
+            thread,
+        };
+
+        let chunk = vec![b'x'; 512 * 1024];
+        let total_size = chunk.len() * 4;
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        let server = thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            let mut request = [0_u8; 1024];
+            let _ = stream.read(&mut request).unwrap();
+            write!(
+                stream,
+                "HTTP/1.1 200 OK\r\nContent-Length: {total_size}\r\nConnection: close\r\n\r\n"
+            )
+            .unwrap();
+            for _ in 0..4 {
+                stream.write_all(&chunk).unwrap();
+                stream.flush().unwrap();
+                thread::sleep(Duration::from_millis(60));
+            }
+        });
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let installer = Installer::with_network_bounds(
+            library,
+            Duration::from_millis(50),
+            Duration::from_millis(100),
+        )
+        .unwrap();
+        let destination = temporary.path().join("slow.download");
+        let asset = ReleaseAsset {
+            name: "slow.zip".into(),
+            url: format!("http://{address}/slow.zip"),
+            size: total_size as u64,
+            sha256: "a".repeat(64),
+        };
+        let operation = OperationCoordinator::new("download", None);
+        let started = std::time::Instant::now();
+        let mut emit = |_| {};
+        installer
+            .download(&asset, &destination, &operation, &mut emit)
+            .await
+            .unwrap();
+        assert!(started.elapsed() > Duration::from_millis(180));
+        assert_eq!(fs::metadata(destination).unwrap().len(), total_size as u64);
+        server.join().unwrap();
+    }
+
+    #[tokio::test]
+    async fn streaming_download_fails_after_a_read_idle_stall() {
+        use std::{
+            io::{Read, Write},
+            net::TcpListener,
+            thread,
+        };
+
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        let server = thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            let mut request = [0_u8; 1024];
+            let _ = stream.read(&mut request).unwrap();
+            stream
+                .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nx")
+                .unwrap();
+            stream.flush().unwrap();
+            thread::sleep(Duration::from_millis(180));
+        });
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let installer = Installer::with_network_bounds(
+            library,
+            Duration::from_millis(50),
+            Duration::from_millis(50),
+        )
+        .unwrap();
+        let asset = ReleaseAsset {
+            name: "stalled.zip".into(),
+            url: format!("http://{address}/stalled.zip"),
+            size: 2,
+            sha256: "a".repeat(64),
+        };
+        let operation = OperationCoordinator::new("download", None);
+        let mut emit = |_| {};
+        let error = installer
+            .download(
+                &asset,
+                &temporary.path().join("stalled.download"),
+                &operation,
+                &mut emit,
+            )
+            .await
+            .unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Network);
+        server.join().unwrap();
     }
 
     #[tokio::test]

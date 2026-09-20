@@ -15,7 +15,8 @@ use crate::{
     ReleaseProvider, ReleaseSource, ResolvedRelease, Result,
     library::HttpCacheEntry,
     release::{
-        PROVIDER_JSON_MAX_BYTES, ReleaseSelectionCacheKey, bounded_response_bytes, paginated_url,
+        PROVIDER_JSON_MAX_BYTES, PROVIDER_NETWORK_BOUNDS, ProviderNetworkBounds,
+        ReleaseSelectionCacheKey, bounded_response_bytes, paginated_url,
     },
 };
 
@@ -34,6 +35,8 @@ struct CachedRelease {
 }
 
 const RELEASE_CACHE_TTL: Duration = Duration::from_secs(5 * 60);
+// Mirrors the GitHub cache: the current catalog has 200 selector slots.
+const RELEASE_CACHE_MAX_ENTRIES: usize = 256;
 const PROVIDER_PAGE_SIZE: usize = 100;
 const GITLAB_MAX_RELEASE_PAGES: usize = 10;
 const GITLAB_MAX_PACKAGE_PAGES: usize = 10;
@@ -47,9 +50,20 @@ impl GitlabReleaseProvider {
     }
 
     fn build(library: Option<Library>, api_root: &str) -> Result<Self> {
+        Self::build_with_bounds(library, api_root, PROVIDER_NETWORK_BOUNDS)
+    }
+
+    fn build_with_bounds(
+        library: Option<Library>,
+        api_root: &str,
+        bounds: ProviderNetworkBounds,
+    ) -> Result<Self> {
         let client = reqwest::Client::builder()
             .redirect(reqwest::redirect::Policy::none())
             .user_agent(concat!("Portcove/", env!("CARGO_PKG_VERSION")))
+            .connect_timeout(bounds.connect)
+            .read_timeout(bounds.read_idle)
+            .timeout(bounds.request)
             .build()
             .map_err(|error| PortcoveError::network(error.to_string()))?;
         Ok(Self {
@@ -68,6 +82,14 @@ impl GitlabReleaseProvider {
     #[cfg(test)]
     fn with_api_root_and_library(api_root: impl AsRef<str>, library: Library) -> Result<Self> {
         Self::build(Some(library), api_root.as_ref())
+    }
+
+    #[cfg(test)]
+    fn with_api_root_and_bounds(
+        api_root: impl AsRef<str>,
+        bounds: ProviderNetworkBounds,
+    ) -> Result<Self> {
+        Self::build_with_bounds(None, api_root.as_ref(), bounds)
     }
 
     fn project_url(&self, repository: &str) -> Result<String> {
@@ -111,17 +133,26 @@ impl GitlabReleaseProvider {
             .await
             .map_err(|error| PortcoveError::network(error.to_string()))?;
         if response.status() == StatusCode::NOT_MODIFIED {
-            let body = cached
-                .ok_or_else(|| PortcoveError::state("GitLab returned 304 without cached data"))?
-                .body;
-            if body.len() > PROVIDER_JSON_MAX_BYTES {
+            let cached = cached
+                .ok_or_else(|| PortcoveError::state("GitLab returned 304 without cached data"))?;
+            if cached.body.len() > PROVIDER_JSON_MAX_BYTES {
                 return Err(PortcoveError::verification(
                     "cached GitLab response exceeds the 4 MiB metadata limit",
                 ));
             }
-            return serde_json::from_str(&body)
-                .map(Some)
-                .map_err(|error| PortcoveError::network(error.to_string()));
+            let parsed = serde_json::from_str(&cached.body)
+                .map_err(|error| PortcoveError::network(error.to_string()))?;
+            if let Some(library) = &self.library
+                && let Err(error) = library.store_http_cache(
+                    url,
+                    cached.etag.as_deref(),
+                    cached.last_modified.as_deref(),
+                    &cached.body,
+                )
+            {
+                tracing::warn!(%error, %url, "could not refresh GitLab HTTP cache age");
+            }
+            return Ok(Some(parsed));
         }
         if response.status() == StatusCode::NOT_FOUND {
             return Ok(None);
@@ -273,16 +304,24 @@ impl GitlabReleaseProvider {
     }
 
     async fn cached_release(&self, key: &ReleaseSelectionCacheKey) -> Option<ResolvedRelease> {
-        self.cache
-            .read()
-            .await
-            .get(key)
-            .filter(|entry| entry.stored_at.elapsed() < RELEASE_CACHE_TTL)
-            .map(|entry| entry.release.clone())
+        let mut cache = self.cache.write().await;
+        cache.retain(|_, entry| entry.stored_at.elapsed() < RELEASE_CACHE_TTL);
+        cache.get(key).map(|entry| entry.release.clone())
     }
 
     async fn store_release(&self, key: ReleaseSelectionCacheKey, release: ResolvedRelease) {
-        self.cache.write().await.insert(
+        let mut cache = self.cache.write().await;
+        cache.retain(|_, entry| entry.stored_at.elapsed() < RELEASE_CACHE_TTL);
+        if !cache.contains_key(&key)
+            && cache.len() >= RELEASE_CACHE_MAX_ENTRIES
+            && let Some(oldest) = cache
+                .iter()
+                .min_by_key(|(_, entry)| entry.stored_at)
+                .map(|(key, _)| key.clone())
+        {
+            cache.remove(&oldest);
+        }
+        cache.insert(
             key,
             CachedRelease {
                 stored_at: Instant::now(),
@@ -575,6 +614,94 @@ mod tests {
             }
         });
         (format!("http://{address}"), requests_rx, server)
+    }
+
+    fn serve_stalled_response(prefix: &'static [u8], stall: Duration) -> (String, JoinHandle<()>) {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        let server = thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            let mut request = [0_u8; 4096];
+            let _ = stream.read(&mut request).unwrap();
+            stream.write_all(prefix).unwrap();
+            stream.flush().unwrap();
+            thread::sleep(stall);
+        });
+        (format!("http://{address}"), server)
+    }
+
+    #[tokio::test]
+    async fn gitlab_metadata_enforces_idle_and_overall_bounds() {
+        let headers =
+            b"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 2\r\n\r\n{";
+        let (root, server) = serve_stalled_response(headers, Duration::from_millis(600));
+        let provider = GitlabReleaseProvider::with_api_root_and_bounds(
+            &root,
+            ProviderNetworkBounds {
+                connect: Duration::from_millis(50),
+                read_idle: Duration::from_millis(50),
+                request: Duration::from_millis(180),
+            },
+        )
+        .unwrap();
+        let started = Instant::now();
+        let error = provider
+            .get_json::<serde_json::Value>(&format!("{root}/metadata"))
+            .await
+            .unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Network);
+        assert!(started.elapsed() < Duration::from_millis(500));
+        server.join().unwrap();
+    }
+
+    #[tokio::test]
+    async fn gitlab_selected_release_cache_evicts_the_oldest_entry() {
+        let provider = GitlabReleaseProvider::with_api_root("https://example.invalid").unwrap();
+        let mut port = crate::Catalog::embedded()
+            .unwrap()
+            .port("re-blue")
+            .unwrap()
+            .clone();
+        port.release.repository = "owner/repository-0".into();
+        let oldest_key =
+            ReleaseSelectionCacheKey::new(&port, ReleaseChannel::Stable, Platform::WindowsX86_64);
+        let release = ResolvedRelease {
+            version: "v1".into(),
+            channel: ReleaseChannel::Stable,
+            published_at: None,
+            asset: ReleaseAsset {
+                name: "port.zip".into(),
+                url: "https://example.invalid/port.zip".into(),
+                size: 1,
+                sha256: "a".repeat(64),
+            },
+        };
+        provider
+            .store_release(oldest_key.clone(), release.clone())
+            .await;
+        provider
+            .cache
+            .write()
+            .await
+            .get_mut(&oldest_key)
+            .unwrap()
+            .stored_at -= Duration::from_secs(1);
+        for index in 1..=RELEASE_CACHE_MAX_ENTRIES {
+            port.release.repository = format!("owner/repository-{index}");
+            provider
+                .store_release(
+                    ReleaseSelectionCacheKey::new(
+                        &port,
+                        ReleaseChannel::Stable,
+                        Platform::WindowsX86_64,
+                    ),
+                    release.clone(),
+                )
+                .await;
+        }
+        let cache = provider.cache.read().await;
+        assert_eq!(cache.len(), RELEASE_CACHE_MAX_ENTRIES);
+        assert!(!cache.contains_key(&oldest_key));
     }
 
     fn serve_routed_http(
