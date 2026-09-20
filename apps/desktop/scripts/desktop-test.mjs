@@ -667,6 +667,55 @@ try {
     );
     const report = path.join(output, "application-update-settings-accessibility.json");
     await captureAccessibilityReport(browser, report, artifacts);
+    const layout = await browser.executeScript(() => {
+      const rect = (selector) => {
+        const element = document.querySelector(selector);
+        if (!(element instanceof HTMLElement)) throw new Error(`Missing ${selector}`);
+        const bounds = element.getBoundingClientRect();
+        return {
+          left: bounds.left,
+          right: bounds.right,
+          top: bounds.top,
+          bottom: bounds.bottom,
+          width: bounds.width,
+        };
+      };
+      return {
+        updates: {
+          content: rect('[data-settings-group="updates"] .settings-section-content'),
+          application: rect('[data-settings-group="updates"] .application-update-settings'),
+          catalog: rect(
+            '[data-settings-group="updates"] .settings-card:not(.application-update-settings)',
+          ),
+        },
+        advanced: {
+          content: rect('[data-settings-group="advanced"] .settings-section-content'),
+          diagnostics: rect('[data-settings-group="advanced"] .diagnostics-card'),
+          privacy: rect('[data-settings-group="advanced"] .privacy-card'),
+          about: rect('[data-settings-group="advanced"] .about-card'),
+        },
+      };
+    });
+    assert.ok(Math.abs(layout.updates.application.width - layout.updates.content.width) < 2);
+    assert.ok(Math.abs(layout.updates.catalog.width - layout.updates.content.width) < 2);
+    assert.ok(Math.abs(layout.updates.application.left - layout.updates.catalog.left) < 2);
+    assert.ok(Math.abs(layout.advanced.diagnostics.top - layout.advanced.privacy.top) < 2);
+    assert.ok(layout.advanced.diagnostics.right < layout.advanced.privacy.left);
+    assert.ok(layout.advanced.about.top >= layout.advanced.diagnostics.bottom);
+    assert.ok(layout.advanced.about.top >= layout.advanced.privacy.bottom);
+    assert.ok(Math.abs(layout.advanced.about.width - layout.advanced.content.width) < 2);
+    const updates = await browser.findElement(By.css('[data-settings-group="updates"]'));
+    await browser.executeScript(
+      (element) => element.scrollIntoView({ block: "start", inline: "nearest" }),
+      updates,
+    );
+    await captureScenarioScreenshot("settings-updates-group");
+    const advanced = await browser.findElement(By.css('[data-settings-group="advanced"]'));
+    await browser.executeScript(
+      (element) => element.scrollIntoView({ block: "start", inline: "nearest" }),
+      advanced,
+    );
+    await captureScenarioScreenshot("settings-lower-groups");
   });
   await scenario("appearance-restart", async () => {
     await browser.findElement(By.xpath('//nav//button[contains(., "Settings")]')).click();

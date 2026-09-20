@@ -1,5 +1,5 @@
 import { SourceRemovalControl } from "./SourceRemoval";
-import { useRef, useState, type Dispatch, type SetStateAction } from "react";
+import { useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
 import {
   AlertTriangle,
   Boxes,
@@ -1011,7 +1011,7 @@ function AppearanceSettings({ appearance }: { appearance?: ThemeState }) {
       : `Always ${resolvedLabel}`;
   return (
     <article className="settings-card appearance-card" data-focus-group>
-      <p className="eyebrow">APPEARANCE</p>
+      <p className="eyebrow">THEME</p>
       <h2>Color theme</h2>
       <div className="segmented appearance-options" role="group" aria-label="Color theme">
         {options.map((option) => (
@@ -1238,82 +1238,149 @@ export function SettingsView({
 }) {
   return (
     <section className="settings-grid">
+      <SettingsSection
+        id="appearance"
+        eyebrow="DISPLAY"
+        title="Appearance"
+        description="Choose how Portcove looks on this device."
+      >
+        <AppearanceSettings appearance={appearance} />
+      </SettingsSection>
+      <SettingsSection
+        id="library-storage"
+        eyebrow="STORAGE LOCATIONS"
+        title="Library & Storage"
+        description="Choose which Portcove library opens at startup. Each game’s Export / install folder is reviewed separately from its game page."
+      >
+        <LibrarySelectionCard
+          selection={librarySelection}
+          busy={busy}
+          choose={chooseLibrary}
+          switchLibrary={switchLibrary}
+          reset={resetLibrary}
+        />
+        <StorageCard
+          libraryRoot={storage?.library_root ?? libraryRoot}
+          storage={storage}
+          busy={busy}
+          exportMetadata={exportMetadata}
+        />
+      </SettingsSection>
+      <SettingsSection
+        id="game-files"
+        eyebrow="GAME FILES"
+        title="Game Files"
+        description="Review local game-file sources and the optional disc tools used to verify or prepare them."
+      >
+        <SourceHealth
+          generation={generation}
+          ports={ports}
+          sources={sources}
+          requirements={sourceNeeds}
+          requirementsState={sourceRequirementsState}
+          outcomes={sourceOutcomes}
+          inspections={sourceInspections}
+          busy={busy}
+          verify={verifySources}
+          replace={replaceSource}
+          add={addSource}
+          profiles={sourceProfiles}
+          onAdded={onSourceAdded}
+          openEvidence={openSourceEvidence}
+        />
+        <HostReadiness
+          doctor={doctor}
+          busy={busy}
+          actions={hostToolActions}
+          stale={diagnosticsStale}
+          failure={diagnosticFailure}
+        />
+      </SettingsSection>
+      <SettingsSection
+        id="updates"
+        eyebrow="UPDATES"
+        title="Updates"
+        description="Manage verified Portcove application and catalog updates."
+        layout="stacked"
+      >
+        <ApplicationUpdateSettings
+          currentVersion={desktopPackage.version}
+          generation={generation}
+          disabled={Boolean(busy)}
+          automaticNotice={applicationUpdateNotice}
+          preferencesState={applicationUpdatePreferences}
+        />
+        <CatalogSettings
+          provenance={doctor?.catalog_provenance}
+          disabled={Boolean(busy)}
+          onChanged={onCatalogChanged}
+        />
+      </SettingsSection>
+      <SettingsSection
+        id="integrations"
+        eyebrow="INTEGRATIONS"
+        title="Integrations"
+        description="Connect optional services without changing ordinary local play."
+      >
+        <GithubSettings github={github} busy={busy} />
+      </SettingsSection>
+      <SettingsSection
+        id="advanced"
+        eyebrow="ADVANCED"
+        title="Advanced"
+        description="Inspect diagnostics, support information, privacy boundaries, and application details."
+      >
+        <DiagnosticsCard
+          busy={busy}
+          createSupportBundle={createSupportBundle}
+          refreshing={diagnosticsRefreshing}
+          stale={diagnosticsStale}
+          failure={diagnosticFailure}
+          refresh={refreshDiagnostics}
+          hasSnapshot={Boolean(doctor)}
+        />
+        <article className="settings-card privacy-card">
+          <p className="eyebrow">PRIVACY</p>
+          <h2>Local and source-safe</h2>
+          <p>
+            Portcove does not upload game sources or collect telemetry. Source files remain where
+            you keep them.
+          </p>
+        </article>
+        <AboutCard />
+      </SettingsSection>
+    </section>
+  );
+}
+
+function SettingsSection({
+  id,
+  eyebrow,
+  title,
+  description,
+  layout = "grid",
+  children,
+}: {
+  id: string;
+  eyebrow: string;
+  title: string;
+  description: string;
+  layout?: "grid" | "stacked";
+  children: ReactNode;
+}) {
+  const headingId = `settings-${id}-heading`;
+  return (
+    <section className="settings-section" data-settings-group={id} aria-labelledby={headingId}>
       <div className="settings-section-heading">
-        <p className="eyebrow">STORAGE LOCATIONS</p>
-        <h2>Whole-library storage</h2>
-        <p>
-          Choose which Portcove library opens at startup. Each game’s Export / install folder is
-          reviewed separately from its game page.
-        </p>
+        <p className="eyebrow">{eyebrow}</p>
+        <h2 id={headingId}>{title}</h2>
+        <p>{description}</p>
       </div>
-      <LibrarySelectionCard
-        selection={librarySelection}
-        busy={busy}
-        choose={chooseLibrary}
-        switchLibrary={switchLibrary}
-        reset={resetLibrary}
-      />
-      <StorageCard
-        libraryRoot={storage?.library_root ?? libraryRoot}
-        storage={storage}
-        busy={busy}
-        exportMetadata={exportMetadata}
-      />
-      <GithubSettings github={github} busy={busy} />
-      <SourceHealth
-        generation={generation}
-        ports={ports}
-        sources={sources}
-        requirements={sourceNeeds}
-        requirementsState={sourceRequirementsState}
-        outcomes={sourceOutcomes}
-        inspections={sourceInspections}
-        busy={busy}
-        verify={verifySources}
-        replace={replaceSource}
-        add={addSource}
-        profiles={sourceProfiles}
-        onAdded={onSourceAdded}
-        openEvidence={openSourceEvidence}
-      />
-      <AppearanceSettings appearance={appearance} />
-      <CatalogSettings
-        provenance={doctor?.catalog_provenance}
-        disabled={Boolean(busy)}
-        onChanged={onCatalogChanged}
-      />
-      <HostReadiness
-        doctor={doctor}
-        busy={busy}
-        actions={hostToolActions}
-        stale={diagnosticsStale}
-        failure={diagnosticFailure}
-      />
-      <DiagnosticsCard
-        busy={busy}
-        createSupportBundle={createSupportBundle}
-        refreshing={diagnosticsRefreshing}
-        stale={diagnosticsStale}
-        failure={diagnosticFailure}
-        refresh={refreshDiagnostics}
-        hasSnapshot={Boolean(doctor)}
-      />
-      <AboutCard />
-      <ApplicationUpdateSettings
-        currentVersion={desktopPackage.version}
-        generation={generation}
-        disabled={Boolean(busy)}
-        automaticNotice={applicationUpdateNotice}
-        preferencesState={applicationUpdatePreferences}
-      />
-      <article className="settings-card">
-        <p className="eyebrow">PRIVACY</p>
-        <h2>Local and source-safe</h2>
-        <p>
-          Portcove does not upload game sources or collect telemetry. Source files remain where you
-          keep them.
-        </p>
-      </article>
+      <div
+        className={`settings-section-content${layout === "stacked" ? " settings-section-content-stacked" : ""}`}
+      >
+        {children}
+      </div>
     </section>
   );
 }
