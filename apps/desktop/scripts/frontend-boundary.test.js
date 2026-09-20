@@ -27,6 +27,7 @@ function inspect(
     mkdirSync(path.join(root, "src/features/installation"), { recursive: true });
     mkdirSync(path.join(root, "src/features/game-details"), { recursive: true });
     mkdirSync(path.join(root, "src/features/app-shell"), { recursive: true });
+    mkdirSync(path.join(root, "src/features/bootstrap"), { recursive: true });
     writeFileSync(
       path.join(root, "package.json"),
       JSON.stringify({
@@ -46,6 +47,7 @@ function inspect(
     writeFileSync(path.join(root, "src/features/installation/model.ts"), featureSource);
     writeFileSync(path.join(root, "src/features/game-details/model.ts"), featureSource);
     writeFileSync(path.join(root, "src/features/app-shell/model.ts"), featureSource);
+    writeFileSync(path.join(root, "src/features/bootstrap/model.ts"), featureSource);
     writeFileSync(path.join(root, "src/shared/fixture.ts"), sharedSource);
     const result = spawnSync(
       process.execPath,
@@ -91,6 +93,7 @@ it.each([
   'export { value } from "../features/installation/model";',
   'export { value } from "../features/game-details/model";',
   'export { value } from "../features/app-shell/model";',
+  'export { value } from "../features/bootstrap/model";',
 ])("rejects shared-to-feature dependencies: %s", (source) => {
   const report = inspect(source);
   expect(report.boundary_violations).toHaveLength(1);
