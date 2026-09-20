@@ -1053,6 +1053,59 @@ describe("desktop components", () => {
     expect(html).toContain("Each game’s Export / install folder is reviewed separately");
   });
 
+  it("groups every settings capability by the six player-facing tasks", () => {
+    const html = renderToStaticMarkup(
+      <SettingsView
+        libraryRoot="C:/Portcove"
+        appearance={{
+          preference: "system",
+          resolvedTheme: "light",
+          setPreference: vi.fn(),
+        }}
+      />,
+    );
+    const groups = Array.from(html.matchAll(/data-settings-group="([^"]+)"/g), (match) => match[1]);
+    expect(groups).toEqual([
+      "appearance",
+      "library-storage",
+      "game-files",
+      "updates",
+      "integrations",
+      "advanced",
+    ]);
+    for (const group of groups) {
+      expect(html).toContain(
+        `data-settings-group="${group}" aria-labelledby="settings-${group}-heading"`,
+      );
+      expect(html).toContain(`id="settings-${group}-heading"`);
+    }
+    const groupMarkup = (group: string) => {
+      const start = html.indexOf(`data-settings-group="${group}"`);
+      const next = groups[groups.indexOf(group) + 1];
+      const end = next ? html.indexOf(`data-settings-group="${next}"`) : html.length;
+      return html.slice(start, end);
+    };
+    expect(groupMarkup("appearance")).toContain("Color theme");
+    expect(groupMarkup("library-storage")).toContain("Startup selection");
+    expect(groupMarkup("library-storage")).toContain("Files and capacity");
+    expect(groupMarkup("game-files")).toContain("Game-file verification");
+    expect(groupMarkup("game-files")).toContain("Disc tools");
+    expect(groupMarkup("updates")).toContain("Choose how Portcove updates");
+    expect(groupMarkup("updates")).toContain("Catalog updates");
+    expect(groupMarkup("updates")).toContain(
+      'class="settings-section-content settings-section-content-stacked"',
+    );
+    expect(groupMarkup("integrations")).toContain("Optional authentication");
+    const advanced = groupMarkup("advanced");
+    expect(advanced.indexOf("Create support bundle")).toBeLessThan(
+      advanced.indexOf("Local and source-safe"),
+    );
+    expect(advanced.indexOf("Local and source-safe")).toBeLessThan(
+      advanced.indexOf("One harbor for native ports"),
+    );
+    expect(html).not.toContain("<nav");
+  });
+
   it("shows the shared library path and volume capacity", () => {
     const html = renderToStaticMarkup(
       <SettingsView
@@ -1187,7 +1240,7 @@ describe("desktop components", () => {
         }}
       />,
     );
-    expect(html).toContain("APPEARANCE");
+    expect(html).toContain("THEME");
     expect(html).toContain('aria-label="Color theme"');
     expect(html).toContain('aria-pressed="true">System</button>');
     expect(html).toContain('aria-pressed="false">Dark</button>');

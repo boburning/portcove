@@ -2414,12 +2414,29 @@ select {
 
 .settings-grid {
   display: grid;
+  gap: var(--space-8);
+}
+
+.settings-section {
+  display: grid;
+  gap: 15px;
+}
+
+.settings-section-content {
+  display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 15px;
 }
 
-.settings-section-heading {
+.settings-section-content > :only-child {
   grid-column: 1 / -1;
+}
+
+.settings-section-content-stacked > * {
+  grid-column: 1 / -1;
+}
+
+.settings-section-heading {
   padding: var(--space-2) 0;
 }
 .settings-section-heading h2 {
