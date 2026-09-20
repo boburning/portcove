@@ -10,7 +10,9 @@ use crate::{
     OperationEvent, Platform, PortDefinition, PortcoveError, PsxManagedPreparation, ReleaseAsset,
     ResolvedRelease, Result, RuntimeIdentity, RuntimeOrigin,
     adapter::{hash_file, walk_files},
-    archive::{extract_archive, validate_download_progress, validate_download_size},
+    archive::{
+        extract_archive_with_checkpoint, validate_download_progress, validate_download_size,
+    },
     operation::{
         LifecycleFaultInjector, LifecycleFaultPoint, LifecycleOperation, LifecycleOperationKind,
         LifecyclePhase, NoLifecycleFaults, OperationStore,
@@ -620,12 +622,14 @@ impl Installer {
         let extraction_path = download_path.to_path_buf();
         let extraction_root = payload_root.to_path_buf();
         let expected_size = asset.size;
+        let extraction_operation = operation.clone();
         tokio::task::spawn_blocking(move || {
             extract_asset(
                 &extraction_path,
                 &extraction_root,
                 &asset_name,
                 expected_size,
+                &|| extraction_operation.checkpoint(),
             )
         })
         .await
@@ -1807,10 +1811,11 @@ fn extract_asset(
     destination: &Path,
     asset_name: &str,
     expected_size: u64,
+    checkpoint: &dyn Fn() -> Result<()>,
 ) -> Result<()> {
     let lower = asset_name.to_ascii_lowercase();
     if lower.ends_with(".zip") || lower.ends_with(".tar.gz") || lower.ends_with(".tgz") {
-        extract_archive(source, destination, asset_name, expected_size)
+        extract_archive_with_checkpoint(source, destination, asset_name, expected_size, checkpoint)
     } else if lower.ends_with(".exe") || lower.ends_with(".appimage") {
         crate::archive::validate_relative_path(asset_name, false)?;
         let target = destination.join(asset_name);
@@ -1944,7 +1949,10 @@ mod tests {
                 sha256: hex::encode(Sha256::digest(version)),
                 size: version.len() as u64,
             };
-            extract_asset(&source, &root, &artifact.asset_name, artifact.size).unwrap();
+            extract_asset(&source, &root, &artifact.asset_name, artifact.size, &|| {
+                Ok(())
+            })
+            .unwrap();
             normalize_standalone_appimage(&root, &artifact, &qualification).unwrap();
             if Path::new(&artifact.asset_name) != declared {
                 assert!(!root.join(&artifact.asset_name).exists());
@@ -2013,7 +2021,8 @@ mod tests {
                 &root.join("game-v2.AppImage"),
                 root,
                 "../escape.AppImage",
-                7
+                7,
+                &|| Ok(()),
             )
             .is_err()
         );
