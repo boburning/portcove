@@ -316,6 +316,69 @@ pub(crate) struct HttpCacheEntry {
     pub body: String,
 }
 
+// The current catalog has 200 selector slots. Two conditional metadata rows per
+// slot fit with headroom, while 64 MiB permits an average 128 KiB response.
+const HTTP_CACHE_MAX_ENTRIES: usize = 512;
+const HTTP_CACHE_MAX_BODY_BYTES: u64 = 64 * 1024 * 1024;
+const HTTP_CACHE_MAX_AGE_SECONDS: i64 = 7 * 24 * 60 * 60;
+
+fn prune_http_cache(connection: &Connection) -> Result<()> {
+    prune_http_cache_with_limits(
+        connection,
+        HTTP_CACHE_MAX_ENTRIES,
+        HTTP_CACHE_MAX_BODY_BYTES,
+        HTTP_CACHE_MAX_AGE_SECONDS,
+    )
+}
+
+fn prune_http_cache_with_limits(
+    connection: &Connection,
+    max_entries: usize,
+    max_body_bytes: u64,
+    max_age_seconds: i64,
+) -> Result<()> {
+    connection.execute(
+        "DELETE FROM github_http_cache WHERE updated_at < unixepoch() - ?1",
+        [max_age_seconds],
+    )?;
+    let entries: u64 =
+        connection.query_row("SELECT COUNT(*) FROM github_http_cache", [], |row| {
+            row.get(0)
+        })?;
+    let max_entries = u64::try_from(max_entries)
+        .map_err(|_| PortcoveError::state("HTTP cache entry limit overflow"))?;
+    if entries > max_entries {
+        let excess = entries - max_entries;
+        connection.execute(
+            "DELETE FROM github_http_cache
+             WHERE rowid IN (
+               SELECT rowid FROM github_http_cache
+               ORDER BY updated_at ASC, rowid ASC
+               LIMIT ?1
+             )",
+            [excess],
+        )?;
+    }
+    let mut body_bytes: u64 = connection.query_row(
+        "SELECT COALESCE(SUM(length(CAST(body AS BLOB))), 0) FROM github_http_cache",
+        [],
+        |row| row.get(0),
+    )?;
+    while body_bytes > max_body_bytes {
+        let (url, size): (String, u64) = connection.query_row(
+            "SELECT url, length(CAST(body AS BLOB))
+             FROM github_http_cache
+             ORDER BY updated_at ASC, rowid ASC
+             LIMIT 1",
+            [],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )?;
+        connection.execute("DELETE FROM github_http_cache WHERE url=?1", [url])?;
+        body_bytes -= size;
+    }
+    Ok(())
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct OutputRootRecord {
     pub path: PathBuf,
@@ -1126,7 +1189,10 @@ impl Library {
     }
 
     pub(crate) fn http_cache(&self, url: &str) -> Result<Option<HttpCacheEntry>> {
-        self.connection()?
+        let mut connection = self.connection()?;
+        let transaction = connection.transaction()?;
+        prune_http_cache(&transaction)?;
+        let cached = transaction
             .query_row(
                 "SELECT etag, last_modified, body FROM github_http_cache WHERE url=?1",
                 [url],
@@ -1139,7 +1205,9 @@ impl Library {
                 },
             )
             .optional()
-            .map_err(Into::into)
+            .map_err(PortcoveError::from)?;
+        transaction.commit()?;
+        Ok(cached)
     }
 
     pub(crate) fn store_http_cache(
@@ -1149,7 +1217,9 @@ impl Library {
         last_modified: Option<&str>,
         body: &str,
     ) -> Result<()> {
-        self.connection()?.execute(
+        let mut connection = self.connection()?;
+        let transaction = connection.transaction()?;
+        transaction.execute(
             "INSERT INTO github_http_cache(url, etag, last_modified, body, updated_at)
              VALUES (?1, ?2, ?3, ?4, unixepoch())
              ON CONFLICT(url) DO UPDATE SET
@@ -1159,6 +1229,8 @@ impl Library {
                updated_at=excluded.updated_at",
             params![url, etag, last_modified, body],
         )?;
+        prune_http_cache(&transaction)?;
+        transaction.commit()?;
         Ok(())
     }
 
@@ -1963,6 +2035,41 @@ fn parse_launch_session(row: StoredLaunchSession) -> Result<LaunchSessionRecord>
 mod tests {
     use super::*;
     use tempfile::tempdir;
+
+    #[test]
+    fn http_cache_pruning_enforces_age_entry_and_byte_limits() {
+        let temporary = tempdir().unwrap();
+        let library = Library::open(temporary.path()).unwrap();
+        let connection = library.connection().unwrap();
+        for (url, body, updated_at) in [
+            ("https://example.test/expired", "old", 1_i64),
+            ("https://example.test/a", "aaaa", 2_000_000_000_i64),
+            ("https://example.test/b", "bbbb", 2_000_000_001_i64),
+            ("https://example.test/c", "cccc", 2_000_000_002_i64),
+        ] {
+            connection
+                .execute(
+                    "INSERT INTO github_http_cache(url, body, updated_at) VALUES (?1, ?2, ?3)",
+                    params![url, body, updated_at],
+                )
+                .unwrap();
+        }
+        prune_http_cache_with_limits(&connection, 3, 8, 1_000_000_000).unwrap();
+        let urls = connection
+            .prepare("SELECT url FROM github_http_cache ORDER BY url")
+            .unwrap()
+            .query_map([], |row| row.get::<_, String>(0))
+            .unwrap()
+            .collect::<std::result::Result<Vec<_>, _>>()
+            .unwrap();
+        assert_eq!(
+            urls,
+            vec![
+                "https://example.test/b".to_owned(),
+                "https://example.test/c".to_owned(),
+            ]
+        );
+    }
 
     #[test]
     fn structured_failure_survives_restart_and_corrupt_details_do_not_hide_activity() {

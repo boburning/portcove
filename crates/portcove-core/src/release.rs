@@ -52,11 +52,14 @@ pub struct GithubReleaseProvider {
 struct GithubCredential {
     token: Option<String>,
     source: GithubAuthSource,
+    intent: u64,
 }
 
 struct DeviceSession {
     client_id: String,
     device_code: String,
+    intent: u64,
+    created_at: Instant,
     expires_at: Instant,
     next_poll_at: Instant,
     interval: Duration,
@@ -99,11 +102,35 @@ struct CachedRelease {
 }
 
 const RELEASE_CACHE_TTL: Duration = Duration::from_secs(5 * 60);
+// The embedded beta catalog currently has 200 platform/channel selector slots.
+// One complete inventory therefore fits with headroom for successor definitions.
+const RELEASE_CACHE_MAX_ENTRIES: usize = 256;
 pub(crate) const PROVIDER_JSON_MAX_BYTES: usize = 4 * 1024 * 1024;
 const CHECKSUM_MAX_BYTES: usize = 1024 * 1024;
 const CHECKSUM_MAX_SIDECARS: usize = 8;
 const PROVIDER_PAGE_SIZE: usize = 100;
 const GITHUB_MAX_RELEASE_PAGES: usize = 10;
+// Small provider metadata and authentication requests get an overall deadline;
+// streamed downloads intentionally use only connection and read-idle bounds.
+const PROVIDER_CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
+const PROVIDER_READ_IDLE_TIMEOUT: Duration = Duration::from_secs(15);
+const PROVIDER_REQUEST_TIMEOUT: Duration = Duration::from_secs(60);
+// A UI and CLI retry can coexist, but abandoned device flows cannot accumulate.
+const DEVICE_SESSION_MAX_ENTRIES: usize = 8;
+const DEVICE_SESSION_MAX_AGE: Duration = Duration::from_secs(15 * 60);
+
+#[derive(Clone, Copy)]
+pub(crate) struct ProviderNetworkBounds {
+    pub(crate) connect: Duration,
+    pub(crate) read_idle: Duration,
+    pub(crate) request: Duration,
+}
+
+pub(crate) const PROVIDER_NETWORK_BOUNDS: ProviderNetworkBounds = ProviderNetworkBounds {
+    connect: PROVIDER_CONNECT_TIMEOUT,
+    read_idle: PROVIDER_READ_IDLE_TIMEOUT,
+    request: PROVIDER_REQUEST_TIMEOUT,
+};
 
 impl GithubReleaseProvider {
     pub fn for_library(library: &Library) -> Result<Self> {
@@ -115,14 +142,28 @@ impl GithubReleaseProvider {
     }
 
     fn build(library: Option<Library>, api_root: &str, web_root: &str) -> Result<Self> {
+        Self::build_with_bounds(library, api_root, web_root, PROVIDER_NETWORK_BOUNDS)
+    }
+
+    fn build_with_bounds(
+        library: Option<Library>,
+        api_root: &str,
+        web_root: &str,
+        bounds: ProviderNetworkBounds,
+    ) -> Result<Self> {
         let client = reqwest::Client::builder()
             .redirect(reqwest::redirect::Policy::none())
             .user_agent(concat!("Portcove/", env!("CARGO_PKG_VERSION")))
+            .connect_timeout(bounds.connect)
+            .read_timeout(bounds.read_idle)
+            .timeout(bounds.request)
             .build()
             .map_err(|error| PortcoveError::network(error.to_string()))?;
         let download_client = reqwest::Client::builder()
             .redirect(reqwest::redirect::Policy::limited(5))
             .user_agent(concat!("Portcove/", env!("CARGO_PKG_VERSION")))
+            .connect_timeout(bounds.connect)
+            .read_timeout(bounds.read_idle)
             .build()
             .map_err(|error| PortcoveError::network(error.to_string()))?;
         Ok(Self {
@@ -153,6 +194,17 @@ impl GithubReleaseProvider {
         Ok(provider)
     }
 
+    #[cfg(test)]
+    fn with_api_root_and_bounds(
+        api_root: impl Into<String>,
+        bounds: ProviderNetworkBounds,
+    ) -> Result<Self> {
+        let api_root = api_root.into();
+        let provider = Self::build_with_bounds(None, &api_root, &api_root, bounds)?;
+        provider.set_credential(None, GithubAuthSource::Anonymous);
+        Ok(provider)
+    }
+
     fn request(&self, url: &str) -> reqwest::RequestBuilder {
         let request = self.client.get(url);
         if same_origin(url, &self.api_root)
@@ -179,6 +231,7 @@ impl GithubReleaseProvider {
             .source
     }
 
+    #[cfg(test)]
     fn set_credential(&self, token: Option<String>, source: GithubAuthSource) {
         let mut credential = self
             .credential
@@ -188,9 +241,52 @@ impl GithubReleaseProvider {
         credential.source = source;
     }
 
-    fn refresh_credential(&self) {
-        let credential = load_credential();
-        self.set_credential(credential.token, credential.source);
+    fn begin_auth_intent(&self) -> u64 {
+        let mut credential = self
+            .credential
+            .write()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        credential.intent = credential.intent.wrapping_add(1);
+        credential.intent
+    }
+
+    fn auth_intent_is_current(&self, intent: u64) -> bool {
+        self.credential
+            .read()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .intent
+            == intent
+    }
+
+    async fn clear_device_sessions_for_intent(&self, intent: u64) -> Result<()> {
+        let mut sessions = self.device_sessions.lock().await;
+        let credential = self
+            .credential
+            .read()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        if credential.intent != intent {
+            return Err(obsolete_auth_intent());
+        }
+        sessions.clear();
+        Ok(())
+    }
+
+    fn commit_credential_with(
+        &self,
+        intent: u64,
+        commit: impl FnOnce() -> Result<GithubCredential>,
+    ) -> Result<()> {
+        let mut credential = self
+            .credential
+            .write()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        if credential.intent != intent {
+            return Err(obsolete_auth_intent());
+        }
+        let replacement = commit()?;
+        credential.token = replacement.token;
+        credential.source = replacement.source;
+        Ok(())
     }
 
     fn cached_http_response(&self, url: &str) -> Option<HttpCacheEntry> {
@@ -227,16 +323,26 @@ impl GithubReleaseProvider {
             .await
             .map_err(|error| PortcoveError::network(error.to_string()))?;
         if response.status() == StatusCode::NOT_MODIFIED {
-            let body = cached
-                .ok_or_else(|| PortcoveError::state("GitHub returned 304 without cached data"))?
-                .body;
-            if body.len() > PROVIDER_JSON_MAX_BYTES {
+            let cached = cached
+                .ok_or_else(|| PortcoveError::state("GitHub returned 304 without cached data"))?;
+            if cached.body.len() > PROVIDER_JSON_MAX_BYTES {
                 return Err(PortcoveError::verification(
                     "cached GitHub response exceeds the 4 MiB metadata limit",
                 ));
             }
-            return serde_json::from_str(&body)
-                .map_err(|error| PortcoveError::network(error.to_string()));
+            let parsed = serde_json::from_str(&cached.body)
+                .map_err(|error| PortcoveError::network(error.to_string()))?;
+            if let Some(library) = &self.library
+                && let Err(error) = library.store_http_cache(
+                    url,
+                    cached.etag.as_deref(),
+                    cached.last_modified.as_deref(),
+                    &cached.body,
+                )
+            {
+                tracing::warn!(%error, %url, "could not refresh GitHub HTTP cache age");
+            }
+            return Ok(parsed);
         }
         let status = response.status();
         if !status.is_success() {
@@ -277,16 +383,24 @@ impl GithubReleaseProvider {
     }
 
     async fn cached_release(&self, key: &ReleaseSelectionCacheKey) -> Option<ResolvedRelease> {
-        self.cache
-            .read()
-            .await
-            .get(key)
-            .filter(|entry| entry.stored_at.elapsed() < RELEASE_CACHE_TTL)
-            .map(|entry| entry.release.clone())
+        let mut cache = self.cache.write().await;
+        cache.retain(|_, entry| entry.stored_at.elapsed() < RELEASE_CACHE_TTL);
+        cache.get(key).map(|entry| entry.release.clone())
     }
 
     async fn store_release(&self, key: ReleaseSelectionCacheKey, release: ResolvedRelease) {
-        self.cache.write().await.insert(
+        let mut cache = self.cache.write().await;
+        cache.retain(|_, entry| entry.stored_at.elapsed() < RELEASE_CACHE_TTL);
+        if !cache.contains_key(&key)
+            && cache.len() >= RELEASE_CACHE_MAX_ENTRIES
+            && let Some(oldest) = cache
+                .iter()
+                .min_by_key(|(_, entry)| entry.stored_at)
+                .map(|(key, _)| key.clone())
+        {
+            cache.remove(&oldest);
+        }
+        cache.insert(
             key,
             CachedRelease {
                 stored_at: Instant::now(),
@@ -345,19 +459,25 @@ impl GithubReleaseProvider {
         if token.is_empty() {
             return Err(PortcoveError::usage("GitHub token cannot be empty"));
         }
-        self.validate_token(token).await?;
-        store_token(token)?;
-        self.refresh_credential();
+        let intent = self.begin_auth_intent();
+        self.clear_device_sessions_for_intent(intent).await?;
+        self.store_personal_token_for_intent(intent, token).await?;
         self.auth_status().await
     }
 
     pub async fn logout(&self) -> Result<GithubAuthStatus> {
-        delete_stored_token()?;
-        self.refresh_credential();
+        let intent = self.begin_auth_intent();
+        self.clear_device_sessions_for_intent(intent).await?;
+        self.commit_credential_with(intent, || {
+            delete_stored_token()?;
+            Ok(load_credential())
+        })?;
         self.auth_status().await
     }
 
     pub async fn begin_device_login(&self) -> Result<GithubDeviceLogin> {
+        let intent = self.begin_auth_intent();
+        self.clear_device_sessions_for_intent(intent).await?;
         let client_id = github_client_id().ok_or_else(|| {
             PortcoveError::unsupported(
                 "GitHub device login is not configured in this build; use a token or set PORTCOVE_GITHUB_CLIENT_ID",
@@ -379,28 +499,52 @@ impl GithubReleaseProvider {
         let authorization: DeviceCodeResponse =
             parse_bounded_json(response, "GitHub device-code response").await?;
         let session_id = Uuid::new_v4().to_string();
+        let now = Instant::now();
         let interval = Duration::from_secs(authorization.interval.max(1));
-        self.device_sessions.lock().await.insert(
+        let lifetime =
+            Duration::from_secs(authorization.expires_in.max(1)).min(DEVICE_SESSION_MAX_AGE);
+        let mut sessions = self.device_sessions.lock().await;
+        let credential = self
+            .credential
+            .read()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        if credential.intent != intent {
+            return Err(obsolete_auth_intent());
+        }
+        sessions.retain(|_, session| session.expires_at > now && session.intent == intent);
+        if sessions.len() >= DEVICE_SESSION_MAX_ENTRIES
+            && let Some(oldest) = sessions
+                .iter()
+                .min_by_key(|(_, session)| session.created_at)
+                .map(|(session_id, _)| session_id.clone())
+        {
+            sessions.remove(&oldest);
+        }
+        sessions.insert(
             session_id.clone(),
             DeviceSession {
                 client_id,
                 device_code: authorization.device_code,
-                expires_at: Instant::now() + Duration::from_secs(authorization.expires_in),
-                next_poll_at: Instant::now() + interval,
+                intent,
+                created_at: now,
+                expires_at: now + lifetime,
+                next_poll_at: now + interval,
                 interval,
             },
         );
+        drop(credential);
+        drop(sessions);
         Ok(GithubDeviceLogin {
             session_id,
             user_code: authorization.user_code,
             verification_uri: authorization.verification_uri,
-            expires_at: unix_timestamp() + authorization.expires_in,
+            expires_at: unix_timestamp() + lifetime.as_secs(),
             interval_seconds: authorization.interval.max(1),
         })
     }
 
     pub async fn poll_device_login(&self, session_id: &str) -> Result<GithubDeviceLoginResult> {
-        let (client_id, device_code) = {
+        let (client_id, device_code, intent) = {
             let mut sessions = self.device_sessions.lock().await;
             let session = sessions.get_mut(session_id).ok_or_else(|| {
                 PortcoveError::not_found("GitHub device-login session was not found")
@@ -411,11 +555,19 @@ impl GithubReleaseProvider {
                     "GitHub device-login session expired",
                 ));
             }
+            if !self.auth_intent_is_current(session.intent) {
+                sessions.remove(session_id);
+                return Err(obsolete_auth_intent());
+            }
             if session.next_poll_at > Instant::now() {
                 return Ok(pending_device_login());
             }
             session.next_poll_at = Instant::now() + session.interval;
-            (session.client_id.clone(), session.device_code.clone())
+            (
+                session.client_id.clone(),
+                session.device_code.clone(),
+                session.intent,
+            )
         };
         let url = format!("{}/login/oauth/access_token", self.web_root);
         let response = self
@@ -438,7 +590,12 @@ impl GithubReleaseProvider {
             parse_bounded_json(response, "GitHub device-token response").await?;
         if let Some(access_token) = token.access_token {
             self.device_sessions.lock().await.remove(session_id);
-            let status = self.store_personal_token(&access_token).await?;
+            if !self.auth_intent_is_current(intent) {
+                return Err(obsolete_auth_intent());
+            }
+            self.store_personal_token_for_intent(intent, &access_token)
+                .await?;
+            let status = self.auth_status().await?;
             return Ok(GithubDeviceLoginResult {
                 state: GithubDeviceLoginState::Complete,
                 status: Some(status),
@@ -485,6 +642,15 @@ impl GithubReleaseProvider {
         }
     }
 
+    async fn store_personal_token_for_intent(&self, intent: u64, token: &str) -> Result<()> {
+        self.validate_token(token).await?;
+        let token = token.to_owned();
+        self.commit_credential_with(intent, || {
+            store_token(&token)?;
+            Ok(load_credential())
+        })
+    }
+
     async fn checksum_from_sidecar(
         &self,
         assets: &[GithubAsset],
@@ -518,7 +684,6 @@ impl GithubReleaseProvider {
             let response = self
                 .download_client
                 .get(&sidecar.browser_download_url)
-                .timeout(Duration::from_secs(30))
                 .send()
                 .await
                 .map_err(|error| PortcoveError::network(error.to_string()))?;
@@ -707,18 +872,27 @@ fn load_credential() -> GithubCredential {
         return GithubCredential {
             token: Some(token),
             source: GithubAuthSource::Environment,
+            intent: 0,
         };
     }
     match load_stored_token() {
         Ok(Some(token)) => GithubCredential {
             token: Some(token),
             source: GithubAuthSource::CredentialStore,
+            intent: 0,
         },
         Ok(None) | Err(_) => GithubCredential {
             token: None,
             source: GithubAuthSource::Anonymous,
+            intent: 0,
         },
     }
+}
+
+fn obsolete_auth_intent() -> PortcoveError {
+    PortcoveError::conflict(
+        "GitHub sign-in result is obsolete because a newer login or logout was started",
+    )
 }
 
 fn pending_device_login() -> GithubDeviceLoginResult {
@@ -1125,6 +1299,341 @@ mod tests {
         (format!("http://{address}"), requests_rx, server)
     }
 
+    fn short_network_bounds() -> ProviderNetworkBounds {
+        ProviderNetworkBounds {
+            connect: Duration::from_millis(50),
+            read_idle: Duration::from_millis(50),
+            request: Duration::from_millis(180),
+        }
+    }
+
+    fn serve_stalled_response(prefix: &'static [u8], stall: Duration) -> (String, JoinHandle<()>) {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        let server = thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            let mut request = [0_u8; 4096];
+            let _ = stream.read(&mut request).unwrap();
+            stream.write_all(prefix).unwrap();
+            stream.flush().unwrap();
+            thread::sleep(stall);
+        });
+        (format!("http://{address}"), server)
+    }
+
+    fn serve_trickling_response() -> (String, JoinHandle<()>) {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        let server = thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            let mut request = [0_u8; 4096];
+            let _ = stream.read(&mut request).unwrap();
+            stream
+                .write_all(
+                    b"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 100\r\n\r\n",
+                )
+                .unwrap();
+            for _ in 0..30 {
+                if stream.write_all(b" ").is_err() {
+                    break;
+                }
+                let _ = stream.flush();
+                thread::sleep(Duration::from_millis(30));
+            }
+        });
+        (format!("http://{address}"), server)
+    }
+
+    #[test]
+    fn obsolete_auth_intents_cannot_mutate_credentials() {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+
+        let provider = GithubReleaseProvider::with_api_root("https://example.invalid").unwrap();
+        let token_a = provider.begin_auth_intent();
+        let logout = provider.begin_auth_intent();
+        let obsolete_commit_calls = AtomicUsize::new(0);
+        let error = provider
+            .commit_credential_with(token_a, || {
+                obsolete_commit_calls.fetch_add(1, Ordering::SeqCst);
+                Ok(GithubCredential {
+                    token: Some("token-a".into()),
+                    source: GithubAuthSource::CredentialStore,
+                    intent: 0,
+                })
+            })
+            .unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Conflict);
+        assert_eq!(obsolete_commit_calls.load(Ordering::SeqCst), 0);
+
+        provider
+            .commit_credential_with(logout, || {
+                Ok(GithubCredential {
+                    token: None,
+                    source: GithubAuthSource::Anonymous,
+                    intent: 0,
+                })
+            })
+            .unwrap();
+        assert!(provider.active_token().is_none());
+
+        let token_b = provider.begin_auth_intent();
+        provider
+            .commit_credential_with(token_b, || {
+                Ok(GithubCredential {
+                    token: Some("token-b".into()),
+                    source: GithubAuthSource::CredentialStore,
+                    intent: 0,
+                })
+            })
+            .unwrap();
+        assert_eq!(provider.active_token().as_deref(), Some("token-b"));
+    }
+
+    #[tokio::test]
+    async fn obsolete_public_auth_flow_cannot_clear_the_current_device_session() {
+        let provider = GithubReleaseProvider::with_api_root("https://example.invalid").unwrap();
+        let mut sessions = provider.device_sessions.lock().await;
+        let obsolete = {
+            let provider = provider.clone();
+            tokio::spawn(async move { provider.store_personal_token("token-a").await })
+        };
+        tokio::time::timeout(Duration::from_secs(1), async {
+            loop {
+                if provider
+                    .credential
+                    .read()
+                    .unwrap_or_else(|poisoned| poisoned.into_inner())
+                    .intent
+                    != 0
+                {
+                    break;
+                }
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .unwrap();
+        let current_intent = provider.begin_auth_intent();
+        let session_id = Uuid::new_v4().to_string();
+        sessions.insert(
+            session_id.clone(),
+            DeviceSession {
+                client_id: "client".into(),
+                device_code: "device".into(),
+                intent: current_intent,
+                created_at: Instant::now(),
+                expires_at: Instant::now() + Duration::from_secs(60),
+                next_poll_at: Instant::now(),
+                interval: Duration::from_secs(1),
+            },
+        );
+        drop(sessions);
+
+        let error = obsolete.await.unwrap().unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Conflict);
+        assert!(
+            provider
+                .device_sessions
+                .lock()
+                .await
+                .contains_key(&session_id)
+        );
+    }
+
+    #[tokio::test]
+    async fn delayed_token_validation_cannot_overwrite_a_newer_login() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        let (started_tx, started_rx) = tokio::sync::oneshot::channel();
+        let (release_tx, release_rx) = tokio::sync::oneshot::channel();
+        let server = thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            let mut request = [0_u8; 4096];
+            let _ = stream.read(&mut request).unwrap();
+            started_tx.send(()).unwrap();
+            release_rx.blocking_recv().unwrap();
+            stream
+                .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 0\r\nConnection: close\r\n\r\n")
+                .unwrap();
+        });
+        let provider = GithubReleaseProvider::with_api_root(format!("http://{address}")).unwrap();
+        let token_a_intent = provider.begin_auth_intent();
+        let delayed = {
+            let provider = provider.clone();
+            tokio::spawn(async move {
+                provider.validate_token("token-a").await?;
+                provider.commit_credential_with(token_a_intent, || {
+                    Ok(GithubCredential {
+                        token: Some("token-a".into()),
+                        source: GithubAuthSource::CredentialStore,
+                        intent: 0,
+                    })
+                })
+            })
+        };
+        started_rx.await.unwrap();
+        let token_b_intent = provider.begin_auth_intent();
+        provider
+            .commit_credential_with(token_b_intent, || {
+                Ok(GithubCredential {
+                    token: Some("token-b".into()),
+                    source: GithubAuthSource::CredentialStore,
+                    intent: 0,
+                })
+            })
+            .unwrap();
+        release_tx.send(()).unwrap();
+        let error = delayed.await.unwrap().unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Conflict);
+        assert_eq!(provider.active_token().as_deref(), Some("token-b"));
+        server.join().unwrap();
+    }
+
+    #[tokio::test]
+    async fn delayed_device_completion_cannot_overwrite_logout() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        let (started_tx, started_rx) = tokio::sync::oneshot::channel();
+        let (release_tx, release_rx) = tokio::sync::oneshot::channel();
+        let server = thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            let mut request = [0_u8; 4096];
+            let _ = stream.read(&mut request).unwrap();
+            started_tx.send(()).unwrap();
+            release_rx.blocking_recv().unwrap();
+            let body = r#"{"access_token":"obsolete-device-token"}"#;
+            write!(
+                stream,
+                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                body.len(),
+                body
+            )
+            .unwrap();
+        });
+        let provider = GithubReleaseProvider::with_api_root(format!("http://{address}")).unwrap();
+        let session_id = Uuid::new_v4().to_string();
+        provider.device_sessions.lock().await.insert(
+            session_id.clone(),
+            DeviceSession {
+                client_id: "client".into(),
+                device_code: "device".into(),
+                intent: 0,
+                created_at: Instant::now(),
+                expires_at: Instant::now() + Duration::from_secs(60),
+                next_poll_at: Instant::now(),
+                interval: Duration::from_secs(1),
+            },
+        );
+        let delayed = {
+            let provider = provider.clone();
+            tokio::spawn(async move { provider.poll_device_login(&session_id).await })
+        };
+        started_rx.await.unwrap();
+        let logout_intent = provider.begin_auth_intent();
+        provider
+            .commit_credential_with(logout_intent, || {
+                Ok(GithubCredential {
+                    token: None,
+                    source: GithubAuthSource::Anonymous,
+                    intent: 0,
+                })
+            })
+            .unwrap();
+        release_tx.send(()).unwrap();
+        let error = delayed.await.unwrap().unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Conflict);
+        assert!(provider.active_token().is_none());
+        server.join().unwrap();
+    }
+
+    #[tokio::test]
+    async fn metadata_and_auth_requests_enforce_idle_and_overall_bounds() {
+        let (metadata_root, metadata_server) = serve_trickling_response();
+        let provider = GithubReleaseProvider::with_api_root_and_bounds(
+            metadata_root.clone(),
+            short_network_bounds(),
+        )
+        .unwrap();
+        let started = Instant::now();
+        let error = provider
+            .get_json::<serde_json::Value>(&format!("{metadata_root}/metadata"))
+            .await
+            .unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Network);
+        assert!(started.elapsed() < Duration::from_millis(500));
+        metadata_server.join().unwrap();
+
+        let (auth_root, auth_server) = serve_stalled_response(b"", Duration::from_millis(600));
+        let provider =
+            GithubReleaseProvider::with_api_root_and_bounds(auth_root, short_network_bounds())
+                .unwrap();
+        let started = Instant::now();
+        let error = provider.auth_status().await.unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Network);
+        assert!(started.elapsed() < Duration::from_millis(500));
+        auth_server.join().unwrap();
+    }
+
+    #[tokio::test]
+    async fn selected_release_cache_prunes_expired_and_oldest_entries() {
+        let provider = GithubReleaseProvider::with_api_root("https://example.invalid").unwrap();
+        let release = ResolvedRelease {
+            version: "v1".into(),
+            channel: ReleaseChannel::Stable,
+            published_at: None,
+            asset: ReleaseAsset {
+                name: "port.zip".into(),
+                url: "https://example.invalid/port.zip".into(),
+                size: 1,
+                sha256: "a".repeat(64),
+            },
+        };
+        let oldest_key = ReleaseSelectionCacheKey {
+            repository: "owner/repository-0".into(),
+            channel: ReleaseChannel::Stable,
+            platform: Platform::WindowsX86_64,
+            rolling_tag: None,
+            asset_hints: Vec::new(),
+        };
+        provider
+            .store_release(oldest_key.clone(), release.clone())
+            .await;
+        provider
+            .cache
+            .write()
+            .await
+            .get_mut(&oldest_key)
+            .unwrap()
+            .stored_at -= Duration::from_secs(1);
+        for index in 1..=RELEASE_CACHE_MAX_ENTRIES {
+            provider
+                .store_release(
+                    ReleaseSelectionCacheKey {
+                        repository: format!("owner/repository-{index}"),
+                        channel: ReleaseChannel::Stable,
+                        platform: Platform::WindowsX86_64,
+                        rolling_tag: None,
+                        asset_hints: Vec::new(),
+                    },
+                    release.clone(),
+                )
+                .await;
+        }
+        let cache = provider.cache.read().await;
+        assert_eq!(cache.len(), RELEASE_CACHE_MAX_ENTRIES);
+        assert!(
+            !cache
+                .keys()
+                .any(|key| key.repository == "owner/repository-0")
+        );
+        assert!(
+            cache
+                .keys()
+                .any(|key| key.repository
+                    == format!("owner/repository-{}", RELEASE_CACHE_MAX_ENTRIES))
+        );
+    }
+
     fn serve_routed_http(
         request_limit: usize,
         response: impl Fn(&str) -> String + Send + 'static,
@@ -1307,6 +1816,8 @@ mod tests {
                 DeviceSession {
                     client_id: "client".into(),
                     device_code: "device".into(),
+                    intent: 0,
+                    created_at: Instant::now(),
                     expires_at: Instant::now() + Duration::from_secs(60),
                     next_poll_at: Instant::now() - Duration::from_secs(1),
                     interval: Duration::from_secs(1),
@@ -1364,6 +1875,8 @@ mod tests {
             DeviceSession {
                 client_id: "client".into(),
                 device_code: "device".into(),
+                intent: 0,
+                created_at: Instant::now(),
                 expires_at: Instant::now() - Duration::from_secs(1),
                 next_poll_at: Instant::now(),
                 interval: Duration::from_secs(1),
@@ -1377,6 +1890,33 @@ mod tests {
                 .lock()
                 .await
                 .contains_key(&session_id)
+        );
+
+        let obsolete_session = Uuid::new_v4().to_string();
+        provider.device_sessions.lock().await.insert(
+            obsolete_session.clone(),
+            DeviceSession {
+                client_id: "client".into(),
+                device_code: "device".into(),
+                intent: 0,
+                created_at: Instant::now(),
+                expires_at: Instant::now() + Duration::from_secs(60),
+                next_poll_at: Instant::now(),
+                interval: Duration::from_secs(1),
+            },
+        );
+        provider.begin_auth_intent();
+        let obsolete = provider
+            .poll_device_login(&obsolete_session)
+            .await
+            .unwrap_err();
+        assert_eq!(obsolete.code, crate::ErrorCode::Conflict);
+        assert!(
+            !provider
+                .device_sessions
+                .lock()
+                .await
+                .contains_key(&obsolete_session)
         );
     }
 
