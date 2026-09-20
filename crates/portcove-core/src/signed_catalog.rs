@@ -1,6 +1,9 @@
 //! Versioned signed metadata. Trust never comes from the downloaded document.
 use std::collections::BTreeMap;
 
+#[cfg(test)]
+use std::cell::Cell;
+
 use ed25519_dalek::{Signature, VerifyingKey};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -11,6 +14,21 @@ use crate::{Catalog, CatalogDocument, PortcoveError, Result, SourceCatalog};
 pub(crate) const MAX_CATALOG_BYTES: usize = 4 * 1024 * 1024;
 pub(crate) const MAX_SEQUENCE: i64 = 9_007_199_254_740_991;
 const SIGNING_DOMAIN: &[u8] = b"Portcove signed catalog v1\n";
+
+#[cfg(test)]
+thread_local! {
+    static VERIFY_INVOCATIONS: Cell<usize> = const { Cell::new(0) };
+}
+
+#[cfg(test)]
+pub(crate) fn reset_verify_invocations() {
+    VERIFY_INVOCATIONS.set(0);
+}
+
+#[cfg(test)]
+pub(crate) fn verify_invocations() -> usize {
+    VERIFY_INVOCATIONS.get()
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -94,6 +112,9 @@ pub(crate) fn signing_message(key_id: &str, payload: &str) -> Vec<u8> {
 }
 
 pub(crate) fn verify(bytes: &[u8], keys: &[CatalogTrustKey], now: i64) -> Result<VerifiedCatalog> {
+    #[cfg(test)]
+    VERIFY_INVOCATIONS.set(VERIFY_INVOCATIONS.get() + 1);
+
     if bytes.len() > MAX_CATALOG_BYTES {
         return Err(PortcoveError::verification(
             "signed catalog exceeds the 4 MiB limit",

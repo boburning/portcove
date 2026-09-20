@@ -504,16 +504,76 @@ async fn corruption_and_expiry_fall_back_without_trusting_bad_metadata() {
             [b"bad signature".as_slice()],
         )
         .unwrap();
+    signed_catalog::reset_verify_invocations();
     let fallback = library.catalog_status().unwrap();
+    assert_eq!(signed_catalog::verify_invocations(), 2);
     assert_eq!(fallback.provenance.origin, CatalogOrigin::SignedPrevious);
     assert_eq!(fallback.provenance.sequence, Some(1));
     assert!(!fallback.provenance.fallback_reasons.is_empty());
+    let repeated = library.catalog_status().unwrap();
+    assert_eq!(signed_catalog::verify_invocations(), 4);
+    assert_eq!(repeated, fallback);
     let now = Library::now();
     let state = CatalogState::read(&library.connection().unwrap()).unwrap();
+    signed_catalog::reset_verify_invocations();
+    let expired = state.status(now + 7200).unwrap();
+    assert_eq!(signed_catalog::verify_invocations(), 2);
+    assert_eq!(expired.provenance.origin, CatalogOrigin::Embedded);
+    assert!(!expired.can_use_cached);
+    assert!(!expired.can_rollback);
+}
+
+#[tokio::test]
+async fn catalog_status_verifies_each_cached_candidate_once_per_snapshot() {
+    let root = tempfile::tempdir().unwrap();
+    let library = Library::open(root.path().join("library")).unwrap();
+    trusted(&library);
+    let service = PortcoveService::new(library.clone()).unwrap();
+    publish(&service, &write_candidate(root.path(), 1)).await;
+    publish(&service, &write_candidate(root.path(), 2)).await;
+
+    signed_catalog::reset_verify_invocations();
+    let current = library.catalog_status().unwrap();
+    assert_eq!(signed_catalog::verify_invocations(), 2);
+    assert_eq!(current.provenance.origin, CatalogOrigin::SignedActive);
+    assert_eq!(current.provenance.sequence, Some(2));
+    assert!(current.can_use_cached);
+    assert!(current.can_rollback);
+
+    library
+        .connection()
+        .unwrap()
+        .execute(
+            "UPDATE catalog_state SET highest_sequence=1 WHERE singleton=1",
+            [],
+        )
+        .unwrap();
+    signed_catalog::reset_verify_invocations();
+    let replay_bounded = library.catalog_status().unwrap();
+    assert_eq!(signed_catalog::verify_invocations(), 2);
     assert_eq!(
-        state.resolve(now + 7200).unwrap().1.origin,
-        CatalogOrigin::Embedded
+        replay_bounded.provenance.origin,
+        CatalogOrigin::SignedPrevious
     );
+    assert_eq!(replay_bounded.provenance.sequence, Some(1));
+    assert_eq!(
+        replay_bounded.provenance.fallback_reasons,
+        vec!["cached catalog exceeds the recorded replay floor"]
+    );
+}
+
+#[test]
+fn catalog_status_does_not_verify_absent_cached_candidates() {
+    let root = tempfile::tempdir().unwrap();
+    let library = Library::open(root.path().join("library")).unwrap();
+
+    signed_catalog::reset_verify_invocations();
+    let status = library.catalog_status().unwrap();
+
+    assert_eq!(signed_catalog::verify_invocations(), 0);
+    assert_eq!(status.provenance.origin, CatalogOrigin::Embedded);
+    assert!(!status.can_use_cached);
+    assert!(!status.can_rollback);
 }
 
 #[tokio::test]
