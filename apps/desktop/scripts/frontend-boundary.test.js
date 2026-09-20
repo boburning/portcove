@@ -23,6 +23,7 @@ function inspect(
     mkdirSync(path.join(root, "src/features/github-auth"), { recursive: true });
     mkdirSync(path.join(root, "src/features/source-health"), { recursive: true });
     mkdirSync(path.join(root, "src/features/backups"), { recursive: true });
+    mkdirSync(path.join(root, "src/features/port-updates"), { recursive: true });
     writeFileSync(
       path.join(root, "package.json"),
       JSON.stringify({
@@ -38,6 +39,7 @@ function inspect(
     writeFileSync(path.join(root, "src/features/github-auth/model.ts"), featureSource);
     writeFileSync(path.join(root, "src/features/source-health/model.ts"), featureSource);
     writeFileSync(path.join(root, "src/features/backups/model.ts"), featureSource);
+    writeFileSync(path.join(root, "src/features/port-updates/model.ts"), featureSource);
     writeFileSync(path.join(root, "src/shared/fixture.ts"), sharedSource);
     const result = spawnSync(
       process.execPath,
@@ -79,6 +81,7 @@ it.each([
   'export { value } from "../features/github-auth/model";',
   'export { value } from "../features/source-health/model";',
   'export { value } from "../features/backups/model";',
+  'export { value } from "../features/port-updates/model";',
 ])("rejects shared-to-feature dependencies: %s", (source) => {
   const report = inspect(source);
   expect(report.boundary_violations).toHaveLength(1);
