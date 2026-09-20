@@ -127,16 +127,23 @@ playability and the full management failure matrix are not qualified by it.
 a retail source, game artifact or port-admission bypass. It checks literal argv,
 opaque identities, schema/capability drift, structured errors, stream termination,
 gaps, reconnect reads and two synthetic port identities through the same generic
-transport. The normal `just playnite-check` also builds the qualification-enabled
-standalone CLI and runs the compiled client against the existing isolated,
-checksum-pinned install fixture. That real-core check correlates each durable
+transport. It also emits a representative 256-port offline measurement with exact
+connection, refresh, bounded-concurrency, launch-observation and cancellation process
+counts and elapsed times. The
+[dated audit](../../docs/archive/2026-09-20-public-cli-consumer-audit.md) records the
+measured budgets and their limits. The normal `just playnite-check` also builds the
+qualification-enabled standalone CLI and runs the compiled client against the
+existing isolated, checksum-pinned install fixture. That real-core check correlates each durable
 activity row to its exact streamed operation identity and drives install, update,
 progress, readiness and failures through both `n64-recomp-portable` and
 `libultraship-portable` fixture shapes without a client branch. It also covers a
 busy port, cancellation, bad checksum and missing-artifact preservation, positive
 recovery, and a real selected-definition publisher revocation that the client
-consumes as a core-owned retained launch hold and launch refusal. Owned command
-timeouts terminate the descendant process tree within a second bound before
+consumes as a core-owned retained launch hold and launch refusal. After lifecycle
+qualification it stops the fixture artifact server and records a
+real-CLI batched catalog/status refresh, proving that prepared discovery and installed
+state do not acquire a hidden online dependency. Owned command timeouts terminate
+the descendant process tree within a second bound before
 fixture cleanup. Qualification-only catalog and definition inputs cannot be used
 by a production build. Optional `-Cli` and
 `-Library` arguments additionally exercise discovery and nullable launch readback

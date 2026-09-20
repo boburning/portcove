@@ -213,6 +213,16 @@ async function main() {
     await setDefinitionState("revoke");
     await phase("qualification-definition-revoked", DEFINITION_FIXTURE_PORT_ID);
 
+    // Prove discovery and installed-state refresh do not depend on the artifact server.
+    await fixture.close();
+    fixture = null;
+    const measurementOutput = await phase("qualification-measurement", INSTALL_FIXTURE_PORT_ID);
+    const measurementLine = measurementOutput
+      .split(/\r?\n/u)
+      .find((line) => line.startsWith("REAL_MEASUREMENT "));
+    assert.ok(measurementLine, "compiled client must emit the real-CLI measurement record");
+    const measurement = JSON.parse(measurementLine.slice("REAL_MEASUREMENT ".length));
+
     const report = {
       schema_version: 1,
       assertions: {
@@ -227,6 +237,7 @@ async function main() {
       },
       fixture_ports: [INSTALL_FIXTURE_PORT_ID, INSTALL_REFRESH_FIXTURE_PORT_ID],
       definition_fixture_port: DEFINITION_FIXTURE_PORT_ID,
+      consumer_measurement: measurement,
     };
     process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
   } catch (error) {
