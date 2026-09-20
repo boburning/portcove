@@ -27,13 +27,21 @@ The intended experience is: “I choose a game, understand what files I need, us
 what I already have, get it running, and keep my setup usable when things
 change.”
 
-Discovery can also begin with “I have these files”: identify explicitly selected
-inputs, explain which independent ports can use them, and reuse existing sources
-through the same inspection and deliberate import contract. This optional
-file-first journey complements game-first onboarding without becoming another
-Alpha 2 or 1.0 gate. Recognizable reviewed or local artwork, clear version and
-setup choices, visible ongoing work and actionable failures should make those
-journeys easier; broad customization and historical selection remain separate.
+Discovery can also begin with “I have these files.” The planned file-first
+journey lets a player connect explicitly selected game-file folders once, keeps
+indexing and scanning read-only, and identifies compatible catalog ports through
+the same core inspection and setup contracts. Selected use-current, copy, or
+separately authorized Move remains a deliberate later action. Portcove should
+remember those local folders and the player's choices, reconcile relevant file,
+catalog, and prerequisite changes, and—only with scoped consent—notify or
+complete eligible setup without reorganizing the collection. One-off selection
+and drop remain available. This direction complements game-first onboarding;
+it is planned in
+[#244](https://github.com/boburning/portcove/issues/244), not shipped behavior or
+a blanket Public beta or 1.0 gate. Recognizable reviewed or local artwork, clear
+version and setup choices, visible ongoing work and actionable failures should
+make both journeys easier; broad customization and historical selection remain
+separate.
 
 Portcove makes heterogeneous native ports feel like one coherent platform.
 Portcove Desktop is the flagship experience for discovery, setup, updates,
@@ -227,10 +235,11 @@ checkout with disposable or fully backed-up libraries. Its reviewed integrated
 implementation, trust checkpoint, and packaged first-play qualification are
 recorded in [#242](https://github.com/boburning/portcove/issues/242), which
 supplied the evidence for the required outcomes and final Alpha 2 closure.
-Alpha 2 did not require universal coverage. Finding additional games
-compatible with already-selected files is an optional follow-on: discovery is
-opt-in and bounded, registration is explicit, and source compatibility alone
-does not establish full installation/platform readiness.
+Alpha 2 did not require universal coverage. The planned #244 successor extends
+explicit one-off selection to persistent, explicitly connected folders and
+catalog-wide compatible-port discovery. Discovery remains opt-in and bounded;
+adding a folder is not installation or notification consent, and source
+compatibility alone does not establish full installation/platform readiness.
 
 With Alpha 2 qualification complete, start #245 design and continue compatible
 catalog work. Independent delivery, freshness and preparation-boundary
