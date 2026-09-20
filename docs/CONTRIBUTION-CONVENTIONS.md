@@ -90,9 +90,9 @@ current-head validation and review; administrator bypass remains outside the
 routine path.
 
 Keep the reviewed source head frozen while checks complete. Use
-`just pr-watch --pr <number-or-url> --head <reviewed-head>` when a bounded wait
-for the five checked-in required contexts is useful. It defaults to one hour;
-pass `--timeout-seconds <positive-integer>` for a different explicit bound. Once
+`just pr-watch --pr <number-or-url> --head <reviewed-head> [--timeout-seconds <positive-integer>]`
+when a bounded wait for the five checked-in required contexts is useful. It defaults to one hour;
+pass a different positive timeout for another explicit bound. Once
 the pull request is ready, conflict-free, independently reviewed, authorized,
 and all exact-head contexts are successful, use
 `just pr-merge-rest --pr <number-or-url> --head <reviewed-head>` for the routine

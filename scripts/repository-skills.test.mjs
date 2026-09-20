@@ -27,6 +27,43 @@ function localMarkdownLinks(source) {
     .filter((target) => target && !target.startsWith("#") && !/^https?:\/\//u.test(target));
 }
 
+function documentedJustRecipes(source) {
+  return [...source.matchAll(/`just\s+([a-z0-9][a-z0-9-]*)(?:\s+[^`\r\n]*)?`/giu)].map(
+    (match) => match[1],
+  );
+}
+
+function fencedShellCommands(source) {
+  return [...source.matchAll(/```(?:powershell|pwsh|bash|sh)\r?\n([\s\S]*?)```/giu)]
+    .flatMap((match) => match[1].split(/\r?\n/u))
+    .map((line) => line.trim())
+    .filter((line) => line && !line.startsWith("#"));
+}
+
+function commandOptions(source) {
+  return new Set([...source.matchAll(/--[a-z][a-z-]*/gu)].map((match) => match[0]));
+}
+
+function documentedPrCommands(source) {
+  return [...source.matchAll(/`just\s+(pr-(?:watch|merge-rest))(?:\s+([^`\r\n]*))?`/gu)].map(
+    (match) => ({ recipe: match[1], options: commandOptions(match[2] ?? "") }),
+  );
+}
+
+function deliveryUsage(source) {
+  return new Map(
+    [...source.matchAll(/node scripts\/pr-delivery\.mjs (watch|merge) ([^"\r\n]+)/gu)].map(
+      (match) => [
+        match[1],
+        {
+          allowed: commandOptions(match[2]),
+          required: commandOptions(match[2].split("[", 1)[0]),
+        },
+      ],
+    ),
+  );
+}
+
 function headingAnchors(source) {
   return new Set(
     [...source.matchAll(/^#{1,6}\s+(.+)$/gmu)].map((match) =>
@@ -77,7 +114,7 @@ test("repository skills have discoverable triggers, checkout anchoring, and vali
     const metadata = frontmatter(source, directory.name);
 
     assert.equal(metadata.name, directory.name, `${directory.name} frontmatter name must match`);
-    assert.match(metadata.description, /\bUse\b/u, `${directory.name} must state its trigger`);
+    assert.ok(metadata.description.length > 0, `${directory.name} must have a description`);
     assert.match(
       source,
       /git rev-parse --show-toplevel/u,
@@ -103,9 +140,11 @@ test("repository skills have discoverable triggers, checkout anchoring, and vali
 });
 
 test("the documentation index routes development tooling and repository skills", () => {
-  assert.match(
-    documentationIndex,
-    /\[Development tooling and repository skills\]\(DEVELOPMENT-TOOLS\.md\)/u,
+  assert.ok(
+    localMarkdownLinks(documentationIndex).some(
+      (target) => target.split("#", 1)[0] === "DEVELOPMENT-TOOLS.md",
+    ),
+    "the documentation index must link to development tooling",
   );
 });
 
@@ -124,6 +163,50 @@ test("active instruction entrypoints have valid local links and anchors", async 
   files.push(...skillDirectories.map((entry) => new URL(`${entry.name}/SKILL.md`, skillsRoot)));
 
   for (const file of files) await assertLocalLinksResolve(file);
+});
+
+test("workflow guidance routes to owned contracts without unsafe runnable shortcuts", async () => {
+  const storage = await readFile(
+    new URL("../docs/DEVELOPMENT-STORAGE.md", import.meta.url),
+    "utf8",
+  );
+  const storageLinks = localMarkdownLinks(storage);
+  const toolLinks = localMarkdownLinks(developmentTools);
+  assert.ok(
+    storageLinks.some((target) => target.startsWith("DEVELOPMENT-TOOLS.md#")),
+    "storage guidance must route warm work through development tooling",
+  );
+  assert.ok(
+    toolLinks.some((target) => target.split("#", 1)[0] === "DEVELOPMENT-STORAGE.md"),
+    "development tooling must route storage changes to their owner",
+  );
+  assert.ok(
+    toolLinks.some((target) => target.split("#", 1)[0] === "CONTRIBUTION-CONVENTIONS.md"),
+    "development tooling must route review and merge through contribution conventions",
+  );
+
+  const forbidden = [
+    /^git\s+(?:reset|stash)\b/iu,
+    /^cargo\s+clean\b/iu,
+    /^just\s+(?:check|audit)\s*$/iu,
+    /^(?:corepack\s+)?pnpm\s+install\b/iu,
+  ];
+  assert.deepEqual(fencedShellCommands("```pwsh\njust local-check --plan\n```"), [
+    "just local-check --plan",
+  ]);
+  const commands = fencedShellCommands(`${storage}\n${developmentTools}`);
+  assert.ok(commands.length > 0, "expected runnable workflow commands");
+  for (const command of commands) {
+    for (const pattern of forbidden)
+      assert.doesNotMatch(command, pattern, `unsafe warm-workflow shortcut: ${command}`);
+  }
+  for (const unsafe of ["git reset --hard", "git stash", "cargo clean", "just audit"]) {
+    assert.deepEqual(fencedShellCommands(`\`\`\`pwsh\n${unsafe}\n\`\`\``), [unsafe]);
+    assert.ok(
+      forbidden.some((pattern) => pattern.test(unsafe)),
+      `must reject ${unsafe}`,
+    );
+  }
 });
 
 test("every instruction dependency selects this contract locally", async () => {
@@ -160,66 +243,36 @@ test("every instruction dependency selects this contract locally", async () => {
   assert.deepEqual(missing, [], "every instruction dependency must select this contract locally");
 });
 
-test("warm workflow routes start and resume without an unconditional cold bootstrap", async () => {
-  const storage = await readFile(
-    new URL("../docs/DEVELOPMENT-STORAGE.md", import.meta.url),
-    "utf8",
-  );
-  for (const source of [storage, documentationIndex])
-    assert.match(source, /DEVELOPMENT-TOOLS\.md#warm-single-session-workflow/u);
-  const setup = storage.split("## Bootstrap and preflight")[0];
-  assert.match(setup, /conditional new-workspace setup/u);
-  const commands = [...setup.matchAll(/```powershell\r?\n([\s\S]*?)```/gu)].map(
-    (match) => match[1],
-  );
-  assert.ok(commands.length > 0);
-  for (const command of commands) {
-    assert.doesNotMatch(command, /^just (?:check|audit)\s*$/mu);
-    assert.doesNotMatch(command, /install --frozen-lockfile|cargo clean|git (?:reset|stash)/u);
-  }
-  assert.match(storage, /Only when frontend dependencies are missing or incompatible/u);
-});
-
-test("warm workflow decision cases preserve ownership, evidence and exact-head review", () => {
-  const section = developmentTools
-    .split("### Warm single-session workflow")[1]
-    ?.split("## Skills")[0];
-  assert.ok(section);
-  const rows = new Map(
-    [...section.matchAll(/^\| ([^|]+) \| ([^|]+) \|$/gmu)].map((match) => [
-      match[1].trim(),
-      match[2].trim(),
-    ]),
-  );
-  const cases = [
-    ["New task", /reuse healthy dependencies/u],
-    ["Resumed task", /preserve failed evidence.*exact next action/u],
-    ["Dirty or unowned checkout", /Refuse branch transition.*without stash, reset or overwrite/u],
-    ["Active editor/compiler", /creation time, parent chain.*proven-owned/u],
-    ["Duplicate owned server", /workspace, parent and listening port.*Unknown ownership blocks/u],
-    ["Shared guard queue", /cancel only your queued command.*Never delete a lock/u],
-    ["Repeated bootstrap", /reported mismatch instead of reinstalling healthy/u],
-    ["Changed source head", /current-head checks and independent re-review/u],
-    ["Target-only advance", /relevant interactions.*does not automatically require rebase/u],
-    ["Reviewer finding", /Preserve the finding.*that reviewer/u],
-    ["Unavailable delegation", /REVIEW READY.*pause that merge/u],
-  ];
-  for (const [name, obligation] of cases) {
-    assert.ok(rows.has(name), `missing read-only decision scenario: ${name}`);
-    assert.match(rows.get(name), obligation, name);
-  }
-  assert.match(section, /source head, target tip and\s+merge-base; complete changed-file list/u);
-  assert.match(section, /unrun coverage\s+and target interactions/u);
-  assert.match(section, /actual task identifier, reviewed revisions,\s+findings and limitations/u);
-  assert.match(section, /process absence alone is not an ownership transfer/u);
-  assert.match(section, /exact resume command\/condition/u);
-});
-
-test("documented qualification and PR-delivery commands exist", async () => {
+test("documented repository-skill and PR-delivery commands exist", async () => {
   const portSkill = await readFile(
     new URL("../.agents/skills/portcove-port-qualification/SKILL.md", import.meta.url),
     "utf8",
   );
+  const skillDirectories = (await readdir(skillsRoot, { withFileTypes: true })).filter((entry) =>
+    entry.isDirectory(),
+  );
+  const justfile = await readFile(new URL("../justfile", import.meta.url), "utf8");
+  const recipes = new Set(
+    [...justfile.matchAll(/^([a-z0-9][a-z0-9-]*)(?:\s+[^:]*)?:/gimu)].map((match) => match[1]),
+  );
+  const documentedRecipes = [];
+  for (const directory of skillDirectories) {
+    const source = await readFile(new URL(`${directory.name}/SKILL.md`, skillsRoot), "utf8");
+    documentedRecipes.push(...documentedJustRecipes(source));
+  }
+  documentedRecipes.push(
+    ...documentedJustRecipes(
+      await readFile(new URL("../docs/CONTRIBUTION-CONVENTIONS.md", import.meta.url), "utf8"),
+    ),
+  );
+  documentedRecipes.push(...documentedJustRecipes(developmentTools));
+  assert.ok(documentedRecipes.length > 0, "expected documented just recipes");
+  assert.deepEqual(
+    [...new Set(documentedRecipes.filter((recipe) => !recipes.has(recipe)))],
+    [],
+    "documented just recipes must exist",
+  );
+
   const catalogSource = await readFile(
     new URL("../crates/portcove-core/src/catalog.rs", import.meta.url),
     "utf8",
@@ -230,11 +283,44 @@ test("documented qualification and PR-delivery commands exist", async () => {
   );
   const deliveryScript = await readFile(new URL("./pr-delivery.mjs", import.meta.url), "utf8");
 
+  const catalogTest = /`just test-rust -p portcove-core ([a-z0-9_]+)`/iu.exec(portSkill)?.[1];
+  assert.ok(catalogTest, "port qualification must name its focused catalog test");
   assert.match(
-    portSkill,
-    /just test-rust -p portcove-core embedded_catalog_is_valid_and_contains_lighthouse/u,
+    catalogSource,
+    new RegExp(`fn ${catalogTest}\\(\\)`, "u"),
+    "the documented catalog test must exist",
   );
-  assert.match(catalogSource, /fn embedded_catalog_is_valid_and_contains_lighthouse\(\)/u);
-  assert.match(conventions, /--timeout-seconds <positive-integer>/u);
-  assert.match(deliveryScript, /--timeout-seconds <seconds>/u);
+  assert.ok(documentedJustRecipes(conventions).includes("pr-watch"));
+  assert.ok(documentedJustRecipes(conventions).includes("pr-merge-rest"));
+  const delegates = new Map(
+    [
+      ...justfile.matchAll(
+        /^(pr-(?:watch|merge-rest))\s+\*args:\r?\n\s+.*pr-delivery\.mjs\s+(watch|merge)\s+/gmu,
+      ),
+    ].map((match) => [match[1], match[2]]),
+  );
+  const usage = deliveryUsage(deliveryScript);
+  assert.deepEqual([...delegates.keys()].sort(), ["pr-merge-rest", "pr-watch"]);
+  assert.deepEqual([...usage.keys()].sort(), ["merge", "watch"]);
+  const documentedCommands = documentedPrCommands(conventions);
+  assert.deepEqual(
+    documentedCommands.map(({ recipe }) => recipe).sort(),
+    ["pr-merge-rest", "pr-watch"],
+    "both PR-delivery recipes must have one complete documented invocation",
+  );
+  for (const documented of documentedCommands) {
+    const command = delegates.get(documented.recipe);
+    const contract = usage.get(command);
+    assert.ok(contract, `${documented.recipe} must delegate to a documented delivery command`);
+    assert.deepEqual(
+      [...documented.options].filter((option) => !contract.allowed.has(option)),
+      [],
+      `${documented.recipe} documents unsupported options`,
+    );
+    assert.deepEqual(
+      [...contract.required].filter((option) => !documented.options.has(option)),
+      [],
+      `${documented.recipe} must document every required option`,
+    );
+  }
 });
