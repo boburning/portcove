@@ -206,8 +206,21 @@ From the checkout root, run
 `http://127.0.0.1:1420/scenarios.html` in an ordinary browser. The development-only
 page offers typed deterministic empty-library, ready-game, missing-source,
 missing-tool, staged-update, interrupted-operation, refresh-failure and unavailable
-artwork/provider previews. It uses actual components and generated transport types,
-with the existing test-fixture builders; it is not another policy backend.
+artwork/provider previews. It also includes stable actual-component reference
+compositions for a long-title Library, a narrow game-details workspace and a narrow
+reviewed installation plan. Each reference records its light/dark theme and
+wide/narrow viewport in the rendered markup. Narrow references load the same page
+inside a 36-rem iframe so the product's real viewport media queries run in a
+genuinely narrow browsing context. It uses actual components and
+generated transport types, with the existing test-fixture builders; it is not
+another policy backend.
+
+Select a reference in the page or open an exact handoff such as
+`http://127.0.0.1:1420/scenarios.html?scenario=installation-review-reference`.
+Selection updates the `scenario` query parameter, so an implementer can hand the
+same stable ID, theme, size and typed state to a separate reviewer without
+recreating fixture setup. The scenario ID identifies the supplied composition; it
+does not identify native, packaged or human acceptance evidence.
 
 Previews use React static rendering, not mounting or hydration. Their controls are
 inert, callbacks refuse execution, and effects, subscriptions and native operations

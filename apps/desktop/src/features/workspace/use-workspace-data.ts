@@ -46,7 +46,7 @@ function retainUnchangedStatuses(previous: PortStatus[], next: PortStatus[]) {
   });
 }
 
-export function usePortcoveData(libraryGeneration = 0) {
+function useWorkspaceViewState() {
   const [catalog, setCatalog] = useState<CatalogDocument>();
   const [statuses, setStatuses] = useState<PortStatus[]>([]);
   const [sources, setSources] = useState<SourceRecord[]>([]);
@@ -59,6 +59,88 @@ export function usePortcoveData(libraryGeneration = 0) {
   const [diagnosticsStale, setDiagnosticsStale] = useState(true);
   const [diagnosticRevision, setDiagnosticRevision] = useState(0);
   const [subscriptionFailure, setSubscriptionFailure] = useState<{ error: unknown }>();
+  return {
+    catalog,
+    setCatalog,
+    statuses,
+    setStatuses,
+    sources,
+    setSources,
+    activities,
+    setActivities,
+    doctor,
+    setDoctor,
+    refreshFailure,
+    setRefreshFailure,
+    refreshing,
+    setRefreshing,
+    diagnosticFailure,
+    setDiagnosticFailure,
+    diagnosticRefreshing,
+    setDiagnosticRefreshing,
+    diagnosticsStale,
+    setDiagnosticsStale,
+    diagnosticRevision,
+    setDiagnosticRevision,
+    subscriptionFailure,
+    setSubscriptionFailure,
+  };
+}
+
+function essentialSnapshotUpdate(
+  snapshot: WorkspaceSnapshot,
+  libraryGeneration: number,
+  previousIdentity: EssentialSnapshotIdentity | undefined,
+  acceptedLibraryGeneration: number | undefined,
+  acceptedStatuses: PortStatus[],
+) {
+  const identity = essentialSnapshotIdentity(snapshot);
+  const sameLibrary = acceptedLibraryGeneration === libraryGeneration;
+  const catalogChanged = !sameLibrary || previousIdentity?.catalog !== identity.catalog;
+  const statusesChanged = !sameLibrary || previousIdentity?.statuses !== identity.statuses;
+  const sourcesChanged = !sameLibrary || previousIdentity?.sources !== identity.sources;
+  if (!catalogChanged && !statusesChanged && !sourcesChanged) return undefined;
+  return {
+    identity,
+    catalogChanged,
+    statusesChanged,
+    sourcesChanged,
+    nextStatuses: statusesChanged
+      ? sameLibrary
+        ? retainUnchangedStatuses(acceptedStatuses, snapshot.statuses)
+        : snapshot.statuses
+      : acceptedStatuses,
+  };
+}
+
+export function usePortcoveData(libraryGeneration = 0) {
+  const view = useWorkspaceViewState();
+  const {
+    catalog,
+    statuses,
+    sources,
+    activities,
+    doctor,
+    refreshFailure,
+    refreshing,
+    diagnosticFailure,
+    diagnosticRefreshing,
+    diagnosticsStale,
+    diagnosticRevision,
+    subscriptionFailure,
+    setActivities,
+    setCatalog,
+    setDiagnosticFailure,
+    setDiagnosticRefreshing,
+    setDiagnosticsStale,
+    setDiagnosticRevision,
+    setDoctor,
+    setRefreshFailure,
+    setRefreshing,
+    setSources,
+    setStatuses,
+    setSubscriptionFailure,
+  } = view;
   const refreshGeneration = useRef(new LatestRequestGeneration());
   const activityGeneration = useRef(new LatestRequestGeneration());
   const diagnosticGeneration = useRef(new LatestRequestGeneration());
@@ -70,19 +152,22 @@ export function usePortcoveData(libraryGeneration = 0) {
   const acceptedStatuses = useRef<PortStatus[]>([]);
   const lastFullReconciliationAt = useRef(0);
   const forceWorkspaceReconciliation = useRef(false);
-  const acceptActivities = useCallback((next: ActivityRecord[]) => {
-    const identity = activitySnapshotIdentity(next);
-    if (identity === activityIdentity.current) return;
-    activityIdentity.current = identity;
-    setActivities(next);
-  }, []);
+  const acceptActivities = useCallback(
+    (next: ActivityRecord[]) => {
+      const identity = activitySnapshotIdentity(next);
+      if (identity === activityIdentity.current) return;
+      activityIdentity.current = identity;
+      setActivities(next);
+    },
+    [setActivities],
+  );
   const invalidateDiagnostics = useCallback(() => {
     diagnosticInvalidationRevision.current += 1;
     diagnosticGeneration.current.begin();
     setDiagnosticRevision((revision) => revision + 1);
     setDiagnosticRefreshing(false);
     setDiagnosticsStale(true);
-  }, []);
+  }, [setDiagnosticRefreshing, setDiagnosticsStale, setDiagnosticRevision]);
   const runRefresh = useCallback(async () => {
     const generation = refreshGeneration.current.begin();
     const activityRequest = activityGeneration.current.begin();
@@ -90,25 +175,23 @@ export function usePortcoveData(libraryGeneration = 0) {
     try {
       const snapshot: WorkspaceSnapshot = await desktopApi.workspaceSnapshot(libraryGeneration);
       if (!refreshGeneration.current.isCurrent(generation)) return;
-      const identity = essentialSnapshotIdentity(snapshot);
-      const previousIdentity = essentialIdentity.current;
-      const sameLibrary = acceptedLibraryGeneration.current === libraryGeneration;
-      const catalogChanged = !sameLibrary || previousIdentity?.catalog !== identity.catalog;
-      const statusesChanged = !sameLibrary || previousIdentity?.statuses !== identity.statuses;
-      const sourcesChanged = !sameLibrary || previousIdentity?.sources !== identity.sources;
-      if (catalogChanged || statusesChanged || sourcesChanged) {
-        if (previousIdentity !== undefined) invalidateDiagnostics();
+      const update = essentialSnapshotUpdate(
+        snapshot,
+        libraryGeneration,
+        essentialIdentity.current,
+        acceptedLibraryGeneration.current,
+        acceptedStatuses.current,
+      );
+      if (update) {
+        if (essentialIdentity.current !== undefined) invalidateDiagnostics();
         acceptedLibraryGeneration.current = libraryGeneration;
-        essentialIdentity.current = identity;
-        if (catalogChanged) setCatalog(snapshot.catalog);
-        if (statusesChanged) {
-          const nextStatuses = sameLibrary
-            ? retainUnchangedStatuses(acceptedStatuses.current, snapshot.statuses)
-            : snapshot.statuses;
-          acceptedStatuses.current = nextStatuses;
-          setStatuses(nextStatuses);
+        essentialIdentity.current = update.identity;
+        if (update.catalogChanged) setCatalog(snapshot.catalog);
+        if (update.statusesChanged) {
+          acceptedStatuses.current = update.nextStatuses;
+          setStatuses(update.nextStatuses);
         }
-        if (sourcesChanged) setSources(snapshot.sources);
+        if (update.sourcesChanged) setSources(snapshot.sources);
       }
       lastFullReconciliationAt.current = Date.now();
       if (activityGeneration.current.isCurrent(activityRequest))
@@ -121,7 +204,16 @@ export function usePortcoveData(libraryGeneration = 0) {
     } finally {
       if (refreshGeneration.current.isCurrent(generation)) setRefreshing(false);
     }
-  }, [acceptActivities, invalidateDiagnostics, libraryGeneration]);
+  }, [
+    acceptActivities,
+    invalidateDiagnostics,
+    libraryGeneration,
+    setCatalog,
+    setRefreshFailure,
+    setRefreshing,
+    setSources,
+    setStatuses,
+  ]);
   const coordinators = useRef<
     | {
         refresh: CoalescedRequest;
@@ -169,7 +261,13 @@ export function usePortcoveData(libraryGeneration = 0) {
     } finally {
       if (diagnosticGeneration.current.isCurrent(generation)) setDiagnosticRefreshing(false);
     }
-  }, [libraryGeneration]);
+  }, [
+    libraryGeneration,
+    setDiagnosticFailure,
+    setDiagnosticRefreshing,
+    setDiagnosticsStale,
+    setDoctor,
+  ]);
   const refreshDiagnostics = useCallback(
     () =>
       coordinators.current?.diagnostics.request(runDiagnostics, libraryGeneration) ??
@@ -271,7 +369,13 @@ export function usePortcoveData(libraryGeneration = 0) {
       externalRequests.begin();
       subscription.stop();
     };
-  }, [invalidateDiagnostics, reconcileWorkspace, refreshDiagnostics, retryRefresh]);
+  }, [
+    invalidateDiagnostics,
+    reconcileWorkspace,
+    refreshDiagnostics,
+    retryRefresh,
+    setSubscriptionFailure,
+  ]);
 
   const hasRunningActivity = activities.some((activity) => activity.status === "running");
   useEffect(() => {
