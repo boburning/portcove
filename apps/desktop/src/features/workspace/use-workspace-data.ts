@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { desktopApi } from "../../api";
 import { listenDesktopEvent } from "../../desktop-events";
 import type {
-  ActivityRecord,
+  ActivityFeed,
   CatalogDocument,
   DoctorReport,
   PortStatus,
@@ -18,8 +18,21 @@ import {
 } from "../../shared/concurrency-state";
 import { startManagedSubscription } from "../../shared/subscription-lifecycle";
 
-function activitySnapshotIdentity(activities: ActivityRecord[]) {
-  return JSON.stringify(activities);
+export function emptyActivityFeed(terminalHistoryLimit = 50): ActivityFeed {
+  return {
+    records: [],
+    current_activity_ids: [],
+    attention_required_activity_ids: [],
+    recovery_required_activity_ids: [],
+    active_and_actionable_complete: true,
+    terminal_history_limit: terminalHistoryLimit,
+    terminal_history_count: 0,
+    terminal_history_complete: true,
+  };
+}
+
+function activitySnapshotIdentity(feed: ActivityFeed) {
+  return JSON.stringify(feed);
 }
 
 interface EssentialSnapshotIdentity {
@@ -50,7 +63,7 @@ function useWorkspaceViewState() {
   const [catalog, setCatalog] = useState<CatalogDocument>();
   const [statuses, setStatuses] = useState<PortStatus[]>([]);
   const [sources, setSources] = useState<SourceRecord[]>([]);
-  const [activities, setActivities] = useState<ActivityRecord[]>([]);
+  const [activityFeed, setActivityFeed] = useState<ActivityFeed>(() => emptyActivityFeed());
   const [doctor, setDoctor] = useState<DoctorReport>();
   const [refreshFailure, setRefreshFailure] = useState<{ error: unknown }>();
   const [refreshing, setRefreshing] = useState(false);
@@ -66,8 +79,8 @@ function useWorkspaceViewState() {
     setStatuses,
     sources,
     setSources,
-    activities,
-    setActivities,
+    activityFeed,
+    setActivityFeed,
     doctor,
     setDoctor,
     refreshFailure,
@@ -119,7 +132,7 @@ export function usePortcoveData(libraryGeneration = 0) {
     catalog,
     statuses,
     sources,
-    activities,
+    activityFeed,
     doctor,
     refreshFailure,
     refreshing,
@@ -128,7 +141,7 @@ export function usePortcoveData(libraryGeneration = 0) {
     diagnosticsStale,
     diagnosticRevision,
     subscriptionFailure,
-    setActivities,
+    setActivityFeed,
     setCatalog,
     setDiagnosticFailure,
     setDiagnosticRefreshing,
@@ -146,20 +159,20 @@ export function usePortcoveData(libraryGeneration = 0) {
   const diagnosticGeneration = useRef(new LatestRequestGeneration());
   const externalGeneration = useRef(new LatestRequestGeneration());
   const diagnosticInvalidationRevision = useRef(0);
-  const activityIdentity = useRef(activitySnapshotIdentity([]));
+  const activityIdentity = useRef(activitySnapshotIdentity(emptyActivityFeed()));
   const essentialIdentity = useRef<EssentialSnapshotIdentity | undefined>(undefined);
   const acceptedLibraryGeneration = useRef<number | undefined>(undefined);
   const acceptedStatuses = useRef<PortStatus[]>([]);
   const lastFullReconciliationAt = useRef(0);
   const forceWorkspaceReconciliation = useRef(false);
   const acceptActivities = useCallback(
-    (next: ActivityRecord[]) => {
+    (next: ActivityFeed) => {
       const identity = activitySnapshotIdentity(next);
       if (identity === activityIdentity.current) return;
       activityIdentity.current = identity;
-      setActivities(next);
+      setActivityFeed(next);
     },
-    [setActivities],
+    [setActivityFeed],
   );
   const invalidateDiagnostics = useCallback(() => {
     diagnosticInvalidationRevision.current += 1;
@@ -377,7 +390,8 @@ export function usePortcoveData(libraryGeneration = 0) {
     setSubscriptionFailure,
   ]);
 
-  const hasRunningActivity = activities.some((activity) => activity.status === "running");
+  const activities = activityFeed.records;
+  const hasRunningActivity = activityFeed.current_activity_ids.length > 0;
   useEffect(() => {
     let closed = false;
     let timer = 0;
@@ -409,6 +423,7 @@ export function usePortcoveData(libraryGeneration = 0) {
     statuses,
     sources,
     activities,
+    activityFeed,
     doctor,
     storage: doctor?.library,
     refresh,

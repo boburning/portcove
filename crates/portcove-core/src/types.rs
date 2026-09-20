@@ -821,6 +821,26 @@ pub struct ActivityRecord {
     pub cancellation: Option<crate::CancellationState>,
 }
 
+/// A complete view of current and actionable work plus a bounded terminal window.
+///
+/// `records` is deterministically ordered and contains each durable activity at
+/// most once even when it belongs to several protected sets. The three ID lists
+/// are complete for the same SQLite snapshot. Failed attention remains complete
+/// within the durable 1,000-terminal-record retention policy; older terminal
+/// records are retired. Only the ordinary terminal-history presentation is
+/// windowed further.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct ActivityFeed {
+    pub records: Vec<ActivityRecord>,
+    pub current_activity_ids: Vec<String>,
+    pub attention_required_activity_ids: Vec<String>,
+    pub recovery_required_activity_ids: Vec<String>,
+    pub active_and_actionable_complete: bool,
+    pub terminal_history_limit: usize,
+    pub terminal_history_count: usize,
+    pub terminal_history_complete: bool,
+}
+
 /// Essential read model used to hydrate one interactive workspace.
 ///
 /// Diagnostics are intentionally excluded because they may perform slower host
@@ -830,7 +850,7 @@ pub struct WorkspaceSnapshot {
     pub catalog: CatalogDocument,
     pub statuses: Vec<PortStatus>,
     pub sources: Vec<SourceRecord>,
-    pub activities: Vec<ActivityRecord>,
+    pub activities: ActivityFeed,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]

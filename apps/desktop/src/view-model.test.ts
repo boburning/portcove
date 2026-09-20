@@ -1,7 +1,8 @@
 import { portDefinition, portStatus, sourceProfile } from "./test-fixtures";
 import { describe, expect, it } from "vitest";
-import type { InstallRecord, PortDefinition, PortStatus } from "./types";
+import type { ActivityRecord, InstallRecord, PortDefinition, PortStatus } from "./types";
 import {
+  activityHistoryPreview,
   currentUpdateSnapshot,
   errorText,
   filterOptions,
@@ -64,6 +65,42 @@ describe("catalog view model", () => {
         label: "Working",
         detail: "Progress total not yet known.",
       });
+  });
+
+  it("does not re-truncate core-protected attention and recovery activities", () => {
+    const record = (id: string, status: ActivityRecord["status"]): ActivityRecord => ({
+      id,
+      operation: "install",
+      target_kind: "port",
+      target_id: "alpha",
+      status,
+      message: null,
+      failure: null,
+      started_at: Number(id.replace("activity-", "")),
+      finished_at: status === "running" ? null : 1,
+      cancellation: null,
+    });
+    const activities = Array.from({ length: 12 }, (_, index) =>
+      record(`activity-${12 - index}`, "succeeded"),
+    );
+
+    expect(activityHistoryPreview(activities).map(({ id }) => id)).not.toContain("activity-2");
+    expect(
+      activityHistoryPreview(activities, Date.now() / 1000, ["activity-2", "activity-1"]).map(
+        ({ id }) => id,
+      ),
+    ).toEqual([
+      "activity-12",
+      "activity-11",
+      "activity-10",
+      "activity-9",
+      "activity-8",
+      "activity-7",
+      "activity-6",
+      "activity-5",
+      "activity-2",
+      "activity-1",
+    ]);
   });
 
   it("indexes statuses and restricts the library to installed ports", () => {

@@ -428,6 +428,22 @@ while launch-only and read-only library clients need not adopt an unused event
 channel. This adds no event authority to either adapter and does not couple API
 envelope evolution to operation-event evolution.
 
+API schema 51 exposes one core-owned activity feed. Core reads every current,
+failed-needs-attention, and lifecycle-recovery-owned row from the same SQLite
+snapshot as a bounded newest-first terminal window, deduplicates by durable
+activity UUID, and returns deterministic start/row ordering. Its protected-set ID
+lists and completeness fields prevent CLI, Tauri, and React from interpreting a
+history limit as complete operation state. Workspace hydration performs the same
+read inside its coherent transaction. React may visually bound ordinary terminal
+history, but it must retain every core-classified current, attention, or recovery
+row. No adapter owns a second activity or recovery authority.
+Core retains at most 1,000 ordinary terminal rows across success, cancellation,
+and failure; retained failures remain classified as attention-required until the
+oldest terminal evidence is retired by that policy. Running rows and
+lifecycle-owned recovery rows are protected independently from the terminal
+retention bound, so repeated ordinary failures cannot grow the retained terminal
+ledger or activity response without limit.
+
 ## Public library identity
 
 Core exposes its existing database identity with the effective library root through

@@ -71,9 +71,13 @@ export function navigationActivityState(
 export function activityHistoryPreview(
   activities: ActivityRecord[],
   nowSeconds = Date.now() / 1000,
+  protectedActivityIds: Iterable<string> = [],
 ): ActivityRecord[] {
   const important = new Set(navigationActivities(activities, nowSeconds));
-  return activities.filter((activity, index) => index < 8 || important.has(activity));
+  const protectedIds = new Set(protectedActivityIds);
+  return activities.filter(
+    (activity, index) => index < 8 || important.has(activity) || protectedIds.has(activity.id),
+  );
 }
 
 /** Display bounds do not turn best-effort progress into a lifecycle outcome. */

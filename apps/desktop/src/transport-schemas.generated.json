@@ -58,6 +58,79 @@
         ],
         "type": "string"
       },
+      "ActivityRecord": {
+        "properties": {
+          "cancellation": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/CancellationState"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "failure": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/FailureReport"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "finished_at": {
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "message": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "operation": {
+            "$ref": "#/$defs/ActivityOperation"
+          },
+          "started_at": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "status": {
+            "$ref": "#/$defs/ActivityStatus"
+          },
+          "target_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "target_kind": {
+            "$ref": "#/$defs/ActivityTargetKind"
+          }
+        },
+        "required": [
+          "id",
+          "operation",
+          "target_kind",
+          "target_id",
+          "status",
+          "message",
+          "failure",
+          "started_at",
+          "finished_at",
+          "cancellation"
+        ],
+        "type": "object"
+      },
       "ActivityStatus": {
         "enum": [
           "running",
@@ -214,77 +287,60 @@
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "description": "A complete view of current and actionable work plus a bounded terminal window.\n\n`records` is deterministically ordered and contains each durable activity at\nmost once even when it belongs to several protected sets. The three ID lists\nare complete for the same SQLite snapshot. Failed attention remains complete\nwithin the durable 1,000-terminal-record retention policy; older terminal\nrecords are retired. Only the ordinary terminal-history presentation is\nwindowed further.",
     "properties": {
-      "cancellation": {
-        "anyOf": [
-          {
-            "$ref": "#/$defs/CancellationState"
-          },
-          {
-            "type": "null"
-          }
-        ]
+      "active_and_actionable_complete": {
+        "type": "boolean"
       },
-      "failure": {
-        "anyOf": [
-          {
-            "$ref": "#/$defs/FailureReport"
-          },
-          {
-            "type": "null"
-          }
-        ],
-        "default": null
+      "attention_required_activity_ids": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
       },
-      "finished_at": {
-        "format": "int64",
-        "type": [
-          "integer",
-          "null"
-        ]
+      "current_activity_ids": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
       },
-      "id": {
-        "type": "string"
+      "records": {
+        "items": {
+          "$ref": "#/$defs/ActivityRecord"
+        },
+        "type": "array"
       },
-      "message": {
-        "type": [
-          "string",
-          "null"
-        ]
+      "recovery_required_activity_ids": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
       },
-      "operation": {
-        "$ref": "#/$defs/ActivityOperation"
+      "terminal_history_complete": {
+        "type": "boolean"
       },
-      "started_at": {
-        "format": "int64",
+      "terminal_history_count": {
+        "format": "uint",
+        "minimum": 0,
         "type": "integer"
       },
-      "status": {
-        "$ref": "#/$defs/ActivityStatus"
-      },
-      "target_id": {
-        "type": [
-          "string",
-          "null"
-        ]
-      },
-      "target_kind": {
-        "$ref": "#/$defs/ActivityTargetKind"
+      "terminal_history_limit": {
+        "format": "uint",
+        "minimum": 0,
+        "type": "integer"
       }
     },
     "required": [
-      "id",
-      "operation",
-      "target_kind",
-      "target_id",
-      "status",
-      "message",
-      "failure",
-      "started_at",
-      "finished_at",
-      "cancellation"
+      "records",
+      "current_activity_ids",
+      "attention_required_activity_ids",
+      "recovery_required_activity_ids",
+      "active_and_actionable_complete",
+      "terminal_history_limit",
+      "terminal_history_count",
+      "terminal_history_complete"
     ],
-    "title": "ActivityRecord",
+    "title": "ActivityFeed",
     "type": "object"
   },
   "activity_diagnostic": {

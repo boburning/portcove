@@ -1,7 +1,7 @@
 use crate::{AboutDocument, ApiResponse, PortBatchOutcome, SourceBatchOutcome};
 use clap::ValueEnum;
 use portcove_core::{
-    ActivityRecord, AdoptionPreview, BackupActionPreview, BackupInventory, BackupRecord,
+    ActivityFeed, AdoptionPreview, BackupActionPreview, BackupInventory, BackupRecord,
     CapabilityDocument, CatalogDocument, DoctorReport, GithubAuthStatus, GithubDeviceLogin,
     GithubDeviceLoginResult, InstallPlan, InstallRecord, LibraryIdentity, LibraryMetadata,
     LibraryMetadataFile, OperationEvent, PortDefinition, PortPaths, PortRemovalPreview, PortStatus,
@@ -331,7 +331,7 @@ pub(crate) fn document(contract: SchemaContract) -> serde_json::Value {
             ),
             (
                 "activity",
-                serde_json::json!(schema_for_contract::<ActivityRecord>(contract)),
+                serde_json::json!(schema_for_contract::<ActivityFeed>(contract)),
             ),
             (
                 "activity_diagnostic",

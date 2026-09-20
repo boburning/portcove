@@ -21,6 +21,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import type {
+  ActivityFeed,
   ActivityOperation,
   ActivityRecord,
   DoctorReport,
@@ -31,12 +32,16 @@ import type {
   UpdateCheckOutcome,
 } from "../types";
 import { EmptyState, Icon } from "./ui";
+import { useEffect, useState } from "react";
+
+const initialActivityNowSeconds = Date.now() / 1000;
 
 export function UpdateCenter({
   ports,
   sourceProfiles = [],
   statuses,
   activities,
+  activityFeed,
   outcomes,
   busy,
   checkAll,
@@ -61,12 +66,20 @@ export function UpdateCenter({
   sourceProfiles?: SourceProfile[];
   statuses: Map<string, PortStatus>;
   activities: ActivityRecord[];
+  activityFeed?: ActivityFeed;
   outcomes: UpdateCheckOutcome[];
   busy?: string;
   checkAll: () => void;
   onSelect: (portId: string) => void;
   onOpenSources: () => void;
 }) {
+  const [nowSeconds, setNowSeconds] = useState(initialActivityNowSeconds);
+  useEffect(() => {
+    const refreshNow = () => setNowSeconds(Date.now() / 1000);
+    refreshNow();
+    const interval = window.setInterval(refreshNow, 60_000);
+    return () => window.clearInterval(interval);
+  }, []);
   const installed = ports.filter((port) => statuses.get(port.id)?.active);
   const byPort = new Map(outcomes.map((outcome) => [outcome.port_id, outcome]));
   const available = outcomes.filter(
@@ -161,9 +174,11 @@ export function UpdateCenter({
         ports={ports}
         sourceProfiles={sourceProfiles}
         activities={activities}
+        activityFeed={activityFeed}
         onSelect={onSelect}
         onOpenSources={onOpenSources}
         generation={generation}
+        nowSeconds={nowSeconds}
       />
     </section>
   );
@@ -183,20 +198,34 @@ function ActivityHistory({
   ports,
   sourceProfiles,
   activities,
+  activityFeed,
   onSelect,
   onOpenSources,
   generation,
+  nowSeconds,
 }: {
   generation: number;
+  nowSeconds: number;
   ports: PortDefinition[];
   sourceProfiles: SourceProfile[];
   activities: ActivityRecord[];
+  activityFeed?: ActivityFeed;
   onSelect: (portId: string) => void;
   onOpenSources: () => void;
 }) {
   const names = new Map(ports.map((port) => [port.id, port.name]));
   const sourceNames = new Map(sourceProfiles.map((profile) => [profile.id, profile.label]));
-  const visibleActivities = activityHistoryPreview(activities);
+  const protectedActivityIds = activityFeed
+    ? [
+        ...activityFeed.current_activity_ids,
+        ...activityFeed.attention_required_activity_ids,
+        ...activityFeed.recovery_required_activity_ids,
+      ]
+    : [];
+  const visibleActivities = activityHistoryPreview(activities, nowSeconds, protectedActivityIds);
+  const historyDescription = activityFeed?.terminal_history_complete
+    ? `All ${activityFeed.terminal_history_count} completed activities are included.`
+    : `Showing the latest ${activityFeed?.terminal_history_count ?? 0} completed activities; current work and items needing attention are always included.`;
   return (
     <section className="activity-history">
       <div className="activity-heading">
@@ -204,7 +233,9 @@ function ActivityHistory({
           <p className="eyebrow">ACTIVITY HISTORY</p>
           <h2>Recent activity</h2>
         </div>
-        <small>Activity from the CLI and desktop appears here.</small>
+        <small>
+          {activityFeed ? historyDescription : "Activity from the CLI and desktop appears here."}
+        </small>
       </div>
       {activities.length === 0 ? (
         <div className="activity-empty">
@@ -228,6 +259,7 @@ function ActivityHistory({
               onOpenSources={onOpenSources}
               key={activity.id}
               generation={generation}
+              nowSeconds={nowSeconds}
             />
           ))}
         </div>
@@ -243,8 +275,10 @@ function ActivityRow({
   onSelect,
   onOpenSources,
   generation,
+  nowSeconds,
 }: {
   generation: number;
+  nowSeconds: number;
   activity: ActivityRecord;
   names: ReadonlyMap<string, string>;
   sourceNames: ReadonlyMap<string, string>;
@@ -252,7 +286,7 @@ function ActivityRow({
   onOpenSources: () => void;
 }) {
   const target = activityTarget(activity, names, sourceNames);
-  const presentation = activityPresentation(activity);
+  const presentation = activityPresentation(activity, nowSeconds);
   const title =
     activity.failure?.presentation.summary ??
     (presentation.state === "unfinished"
@@ -405,8 +439,8 @@ const terminalActivityPresentations: ReadonlyMap<
   ["cancelled", { state: "cancelled", label: "Cancelled", icon: CircleMinus }],
 ]);
 
-function activityPresentation(activity: ActivityRecord) {
-  const state = activityPresentationState(activity);
+function activityPresentation(activity: ActivityRecord, nowSeconds: number) {
+  const state = activityPresentationState(activity, nowSeconds);
   if (state !== "running" && state !== "unfinished") {
     const presentation = terminalActivityPresentations.get(state) ?? {
       state: "unknown",

@@ -138,7 +138,8 @@ namespace Portcove.ReferenceClient
             CurrentStatus = null;
             retainedCleanupAvailable = false;
             var status = await cli.Read("status", "status", port);
-            var activity = Json.Array(await cli.Read("activity", "activity", "--limit", "200"));
+            var activityFeed = await cli.ReadActivity(200);
+            var activity = activityFeed.Records;
             var catalog = await cli.Read("catalog.show", "catalog", "show", port);
             var repairs = RetainedPreparationRepair.Read(await cli.Read("doctor", "doctor"), port);
             await cli.AssertIdentity();
@@ -155,8 +156,13 @@ namespace Portcove.ReferenceClient
                 "\nCatalog support: " + Json.Text(catalog, "support_tier") + ". Gameplay evidence is separate from launch readiness." +
                 "\nRetained private preparations: " + repairs.Length + "." +
                 (definitionOperations == null ? "" : "\n" + definitionOperations);
-            var entries = activity.Where(item => (Json.Field(item, "target_id") as string) == port).Take(8).ToArray();
-            progress.Text = entries.Length == 0 ? "No retained activity for this game in the latest 200 library entries." :
+            var entries = activityFeed.VisibleRecords(
+                item => (Json.Field(item, "target_id") as string) == port,
+                8);
+            progress.Text = entries.Length == 0 ?
+                (activityFeed.TerminalHistoryComplete ? "No retained activity for this game." :
+                    activityFeed.ActiveAndActionableComplete ? "No retained activity for this game in the bounded completed-history window; current and actionable work is complete." :
+                    "No retained activity for this game in the bounded legacy window; older current or actionable work may be absent.") :
                 string.Join("\n", entries.Select(item => Json.Text(item, "operation").Replace('_', ' ') + ": " + Json.Text(item, "status") +
                     (Json.Field(item, "message") == null ? "" : " — " + Json.Field(item, "message"))));
             technical.Text = Json.Print(new { status, activity = entries, catalog });

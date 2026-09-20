@@ -897,6 +897,7 @@ impl Library {
                AND id NOT IN (
                  SELECT id FROM activity_history
                  WHERE status != 'running'
+                   AND id NOT IN (SELECT id FROM lifecycle_operations)
                  ORDER BY started_at DESC, rowid DESC
                  LIMIT 1000
                )",
@@ -929,6 +930,128 @@ impl Library {
     pub fn activities(&self, limit: usize) -> Result<Vec<ActivityRecord>> {
         let connection = self.connection()?;
         Self::activities_from(&connection, limit)
+    }
+
+    pub fn activity_feed(&self, terminal_history_limit: usize) -> Result<crate::ActivityFeed> {
+        let mut connection = self.connection()?;
+        let transaction = connection.transaction()?;
+        let feed = Self::activity_feed_from(&transaction, terminal_history_limit)?;
+        transaction.commit()?;
+        Ok(feed)
+    }
+
+    pub(crate) fn activity_feed_from(
+        connection: &Connection,
+        terminal_history_limit: usize,
+    ) -> Result<crate::ActivityFeed> {
+        let terminal_history_limit = terminal_history_limit.clamp(1, 200);
+        let terminal_total = connection.query_row(
+            "SELECT count(*) FROM activity_history WHERE status != 'running'",
+            [],
+            |row| row.get::<_, usize>(0),
+        )?;
+        let terminal_history_count = terminal_total.min(terminal_history_limit);
+        let mut statement = connection.prepare(
+            "WITH terminal_history AS (
+               SELECT rowid
+               FROM activity_history
+               WHERE status != 'running'
+               ORDER BY started_at DESC, rowid DESC
+               LIMIT ?1
+             )
+             SELECT a.id, a.operation, a.target_kind, a.target_id, a.status, a.message,
+                    a.started_at, a.finished_at, a.cancellation_phase, a.cancel_requested,
+                    a.failure_json,
+                    a.status = 'running' AS is_current,
+                    a.status = 'failed' AS needs_attention,
+                    EXISTS(SELECT 1 FROM lifecycle_operations AS lifecycle WHERE lifecycle.id = a.id)
+                      AS recovery_required
+             FROM activity_history AS a
+             WHERE a.status = 'running'
+                OR a.status = 'failed'
+                OR EXISTS(SELECT 1 FROM lifecycle_operations AS lifecycle WHERE lifecycle.id = a.id)
+                OR a.rowid IN (SELECT rowid FROM terminal_history)
+             ORDER BY a.started_at DESC, a.rowid DESC",
+        )?;
+        let rows = statement.query_map([terminal_history_limit as i64], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, String>(2)?,
+                row.get::<_, Option<String>>(3)?,
+                row.get::<_, String>(4)?,
+                row.get::<_, Option<String>>(5)?,
+                row.get::<_, i64>(6)?,
+                row.get::<_, Option<i64>>(7)?,
+                row.get::<_, Option<String>>(8)?,
+                row.get::<_, bool>(9)?,
+                row.get::<_, Option<String>>(10)?,
+                row.get::<_, bool>(11)?,
+                row.get::<_, bool>(12)?,
+                row.get::<_, bool>(13)?,
+            ))
+        })?;
+        let mut records = Vec::new();
+        let mut current_activity_ids = Vec::new();
+        let mut attention_required_activity_ids = Vec::new();
+        let mut recovery_required_activity_ids = Vec::new();
+        for row in rows {
+            let (
+                id,
+                operation,
+                target_kind,
+                target_id,
+                status,
+                message,
+                started_at,
+                finished_at,
+                phase,
+                requested,
+                failure_json,
+                is_current,
+                needs_attention,
+                recovery_required,
+            ) = row?;
+            let failure = failure_json.map(|json| {
+                serde_json::from_str::<crate::FailureReport>(&json).unwrap_or_else(|_| {
+                    PortcoveError::state("Stored failure details could not be read")
+                        .detail("activity_id", &id)
+                        .detail("report_state", "unreadable")
+                        .report()
+                })
+            });
+            if is_current {
+                current_activity_ids.push(id.clone());
+            }
+            if needs_attention {
+                attention_required_activity_ids.push(id.clone());
+            }
+            if recovery_required {
+                recovery_required_activity_ids.push(id.clone());
+            }
+            records.push(ActivityRecord {
+                id,
+                operation: operation.parse()?,
+                target_kind: target_kind.parse()?,
+                target_id,
+                status: status.parse()?,
+                message,
+                failure,
+                started_at,
+                finished_at,
+                cancellation: crate::CancellationState::from_columns(phase, requested)?,
+            });
+        }
+        Ok(crate::ActivityFeed {
+            records,
+            current_activity_ids,
+            attention_required_activity_ids,
+            recovery_required_activity_ids,
+            active_and_actionable_complete: true,
+            terminal_history_limit,
+            terminal_history_count,
+            terminal_history_complete: terminal_total <= terminal_history_limit,
+        })
     }
 
     pub(crate) fn activities_from(
@@ -2035,6 +2158,216 @@ fn parse_launch_session(row: StoredLaunchSession) -> Result<LaunchSessionRecord>
 mod tests {
     use super::*;
     use tempfile::tempdir;
+
+    #[test]
+    fn activity_feed_keeps_old_current_attention_and_recovery_rows_beyond_history() {
+        let temporary = tempdir().unwrap();
+        let library = Library::open(temporary.path()).unwrap();
+        let running = library
+            .begin_activity(
+                ActivityOperation::Install,
+                ActivityTargetKind::Port,
+                Some("running-port"),
+            )
+            .unwrap();
+        let failed = library
+            .begin_activity(
+                ActivityOperation::Prepare,
+                ActivityTargetKind::Port,
+                Some("failed-port"),
+            )
+            .unwrap();
+        library
+            .finish_activity_report(
+                &failed.id,
+                ActivityStatus::Failed,
+                Some("retained failure"),
+                Some(&PortcoveError::state("retained failure").report()),
+            )
+            .unwrap();
+        library
+            .connection()
+            .unwrap()
+            .execute(
+                "UPDATE activity_history SET started_at=0, finished_at=0 WHERE id=?1",
+                [&failed.id],
+            )
+            .unwrap();
+        let recovery = library
+            .begin_activity(
+                ActivityOperation::Update,
+                ActivityTargetKind::Port,
+                Some("recovery-port"),
+            )
+            .unwrap();
+        library
+            .finish_activity(&recovery.id, ActivityStatus::Succeeded, None)
+            .unwrap();
+        library
+            .connection()
+            .unwrap()
+            .execute(
+                "INSERT INTO lifecycle_operations(
+                   id, kind, port_id, phase, created_at, updated_at
+                 ) VALUES (?1, 'update', 'recovery-port', 'prepared', 1, 1)",
+                [&recovery.id],
+            )
+            .unwrap();
+        let mut connection = library.connection().unwrap();
+        let transaction = connection.transaction().unwrap();
+        let terminal_started_at = Library::now() + 1;
+        for index in 0..55 {
+            transaction
+                .execute(
+                    "INSERT INTO activity_history(
+                       id, operation, target_kind, target_id, status, started_at, finished_at
+                     ) VALUES (?1, 'check_update', 'port', ?2, 'succeeded', ?3, ?3)",
+                    params![
+                        format!("terminal-{index:02}"),
+                        format!("terminal-port-{index:02}"),
+                        terminal_started_at + index,
+                    ],
+                )
+                .unwrap();
+        }
+        transaction.commit().unwrap();
+        library
+            .connection()
+            .unwrap()
+            .execute(
+                "UPDATE activity_history SET failure_json='not-json' WHERE id=?1",
+                [&failed.id],
+            )
+            .unwrap();
+
+        let reopened = Library::open(temporary.path()).unwrap();
+        let feed = reopened.activity_feed(50).unwrap();
+
+        assert_eq!(feed.terminal_history_limit, 50);
+        assert_eq!(feed.terminal_history_count, 50);
+        assert!(!feed.terminal_history_complete);
+        assert!(feed.active_and_actionable_complete);
+        assert_eq!(
+            feed.current_activity_ids.as_slice(),
+            std::slice::from_ref(&running.id)
+        );
+        assert_eq!(
+            feed.attention_required_activity_ids.as_slice(),
+            std::slice::from_ref(&failed.id)
+        );
+        assert_eq!(
+            feed.recovery_required_activity_ids.as_slice(),
+            std::slice::from_ref(&recovery.id)
+        );
+        assert_eq!(feed.records.len(), 53);
+        assert!(feed.records.iter().any(|record| record.id == running.id));
+        assert!(feed.records.iter().any(|record| record.id == failed.id));
+        assert!(feed.records.iter().any(|record| record.id == recovery.id));
+        assert_eq!(
+            feed.records
+                .iter()
+                .map(|record| record.id.as_str())
+                .collect::<std::collections::BTreeSet<_>>()
+                .len(),
+            feed.records.len()
+        );
+        let retained_failure = feed
+            .records
+            .iter()
+            .find(|record| record.id == failed.id)
+            .unwrap()
+            .failure
+            .as_ref()
+            .unwrap();
+        assert_eq!(
+            retained_failure
+                .details
+                .get("report_state")
+                .map(String::as_str),
+            Some("unreadable")
+        );
+    }
+
+    #[test]
+    fn activity_retention_bounds_failed_attention_and_ordinary_terminal_history() {
+        let temporary = tempdir().unwrap();
+        let library = Library::open(temporary.path()).unwrap();
+        let failed = library
+            .begin_activity(
+                ActivityOperation::Prepare,
+                ActivityTargetKind::Port,
+                Some("failed-port"),
+            )
+            .unwrap();
+        library
+            .finish_activity_report(
+                &failed.id,
+                ActivityStatus::Failed,
+                Some("needs attention"),
+                Some(&PortcoveError::state("needs attention").report()),
+            )
+            .unwrap();
+        library
+            .connection()
+            .unwrap()
+            .execute(
+                "UPDATE activity_history SET started_at=0, finished_at=0 WHERE id=?1",
+                [&failed.id],
+            )
+            .unwrap();
+        let mut connection = library.connection().unwrap();
+        let transaction = connection.transaction().unwrap();
+        for index in 0..1_001 {
+            transaction
+                .execute(
+                    "INSERT INTO activity_history(
+                       id, operation, target_kind, target_id, status, message, failure_json,
+                       started_at, finished_at
+                     ) VALUES (?1, 'check_update', 'port', ?2, 'failed', 'ordinary failure',
+                               ?3, ?4, ?4)",
+                    params![
+                        format!("failed-{index:04}"),
+                        format!("port-{index:04}"),
+                        serde_json::to_string(&PortcoveError::network("ordinary failure").report())
+                            .unwrap(),
+                        index + 1,
+                    ],
+                )
+                .unwrap();
+        }
+        transaction.commit().unwrap();
+        let pruning_trigger = library
+            .begin_activity(
+                ActivityOperation::CheckUpdate,
+                ActivityTargetKind::Library,
+                None,
+            )
+            .unwrap();
+        library
+            .finish_activity(&pruning_trigger.id, ActivityStatus::Succeeded, None)
+            .unwrap();
+
+        let feed = library.activity_feed(1).unwrap();
+        assert_eq!(feed.records.len(), 1_000);
+        assert_eq!(feed.attention_required_activity_ids.len(), 999);
+        assert!(!feed.records.iter().any(|record| record.id == failed.id));
+        assert_eq!(
+            feed.records.len(),
+            feed.attention_required_activity_ids.len() + 1
+        );
+        assert_eq!(
+            library
+                .connection()
+                .unwrap()
+                .query_row(
+                    "SELECT count(*) FROM activity_history WHERE status != 'running' AND id NOT IN (SELECT id FROM lifecycle_operations)",
+                    [],
+                    |row| row.get::<_, usize>(0),
+                )
+                .unwrap(),
+            1_000
+        );
+    }
 
     #[test]
     fn http_cache_pruning_enforces_age_entry_and_byte_limits() {

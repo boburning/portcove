@@ -23,7 +23,7 @@ pub(crate) struct DesktopWorkspaceSnapshot {
     pub(crate) catalog: portcove_core::CatalogDocument,
     pub(crate) statuses: Vec<portcove_core::PortStatus>,
     pub(crate) sources: Vec<portcove_core::SourceRecord>,
-    pub(crate) activities: Vec<portcove_core::ActivityRecord>,
+    pub(crate) activities: portcove_core::ActivityFeed,
 }
 
 impl From<portcove_core::WorkspaceSnapshot> for DesktopWorkspaceSnapshot {

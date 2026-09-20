@@ -155,6 +155,60 @@ internal static class ContractTests
         ProtocolStream.Negotiate(bad);
         Check(true, "operation-event negotiation API schema accepted");
         bad["schema_version"] = 51;
+        ProtocolStream.Negotiate(bad);
+        var activityRecord = new { id = "activity-1", operation = "install", target_kind = "port", target_id = "port", status = "running" };
+        var activityFeed = Json.Parse(Json.Print(new
+        {
+            records = new[] { activityRecord },
+            current_activity_ids = new[] { "activity-1" },
+            attention_required_activity_ids = new string[0],
+            recovery_required_activity_ids = new string[0],
+            active_and_actionable_complete = true,
+            terminal_history_limit = 50,
+            terminal_history_count = 0,
+            terminal_history_complete = true
+        }));
+        Check(ActivityFeedContract.Read(activityFeed, 51).Records.Length == 1,
+            "schema 51 activity feed consumes completeness and classification");
+        var activityRecords = Enumerable.Range(0, 9).Select(index => (object)new
+        {
+            id = "ordinary-" + index,
+            operation = "install",
+            target_kind = "port",
+            target_id = "port",
+            status = "succeeded"
+        }).Concat(new[] { (object)activityRecord }).ToArray();
+        var protectedActivityFeed = Json.Parse(Json.Print(new
+        {
+            records = activityRecords,
+            current_activity_ids = new[] { "activity-1" },
+            attention_required_activity_ids = new string[0],
+            recovery_required_activity_ids = new string[0],
+            active_and_actionable_complete = true,
+            terminal_history_limit = 50,
+            terminal_history_count = 9,
+            terminal_history_complete = true
+        }));
+        var protectedActivity = ActivityFeedContract.Read(protectedActivityFeed, 51);
+        Check(protectedActivity.VisibleRecords(record => Json.Text(record, "target_id") == "port", 8)
+                .Any(record => Json.Text(record, "id") == "activity-1"),
+            "schema 51 protected activity remains visible beyond the ordinary display window");
+        var contradictoryActivity = Json.Object(Json.Parse(Json.Print(activityFeed)));
+        contradictoryActivity["current_activity_ids"] = new[] { "missing" };
+        Reject(() => ActivityFeedContract.Read(contradictoryActivity, 51),
+            "schema 51 contradictory activity classification rejected");
+        var omittedActivity = Json.Object(Json.Parse(Json.Print(activityFeed)));
+        omittedActivity["current_activity_ids"] = new string[0];
+        Reject(() => ActivityFeedContract.Read(omittedActivity, 51),
+            "schema 51 incomplete activity classification rejected");
+        var incompleteActivity = Json.Object(Json.Parse(Json.Print(activityFeed)));
+        incompleteActivity.Remove("active_and_actionable_complete");
+        Reject(() => ActivityFeedContract.Read(incompleteActivity, 51),
+            "schema 51 missing completeness authority rejected");
+        var legacyActivity = ActivityFeedContract.Read(new object[] { activityRecord }, 50);
+        Check(legacyActivity.Records.Length == 1 && !legacyActivity.ActiveAndActionableComplete && !legacyActivity.TerminalHistoryComplete,
+            "legacy activity arrays remain supported without invented completeness");
+        bad["schema_version"] = 52;
         Reject(() => ProtocolStream.Negotiate(bad), "future schema rejected with migration guidance");
         bad["schema_version"] = 42; bad["commands"] = new object[0];
         Reject(() => ProtocolStream.Negotiate(bad), "missing command capability rejected");
@@ -377,7 +431,7 @@ internal static class ContractTests
 
     private static async Task CheckActivity(PublicCli client, string id, string port, string operation, string status)
     {
-        var activities = Json.Array(await client.Read("activity", "activity", "--limit", "200"));
+        var activities = (await client.ReadActivity(200)).Records;
         Check(activities.Any(value =>
             (Json.Field(value, "id") as string) == id &&
             (Json.Field(value, "target_id") as string) == port &&

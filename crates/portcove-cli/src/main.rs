@@ -1300,8 +1300,8 @@ async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
             render_read_success(
                 mode,
                 "activity",
-                service.library().activities(limit as usize)?,
-                |records| human::activities(records, service.catalog(), cli.technical_details),
+                service.library().activity_feed(limit as usize)?,
+                |feed| human::activities(feed, service.catalog(), cli.technical_details),
             )?;
         }
         Commands::Activity {
@@ -2838,7 +2838,7 @@ mod tests {
     #[test]
     fn capabilities_advertise_failure_isolated_batches() {
         let capabilities = CapabilityDocument::current();
-        assert_eq!(capabilities.schema_version, 50);
+        assert_eq!(capabilities.schema_version, 51);
         assert_eq!(
             capabilities.operation_event_schema_version,
             portcove_core::OPERATION_EVENT_SCHEMA_VERSION

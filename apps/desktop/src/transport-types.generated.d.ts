@@ -439,7 +439,7 @@ export type SteamClientState = "closed" | "running" | "unknown";
 
 export interface TransportOutputs {
   about: OutputAbout;
-  activity: ActivityRecord;
+  activity: ActivityFeed;
   activity_diagnostic: OutputActivityDiagnostic;
   adoption_preview: OutputAdoptionPreview;
   api_response_port_status: OutputApiResponsePortStatus;
@@ -546,6 +546,27 @@ export interface OutputAbout {
   product: string;
   repository: string;
   version: string;
+  [k: string]: unknown;
+}
+/**
+ * A complete view of current and actionable work plus a bounded terminal window.
+ *
+ * `records` is deterministically ordered and contains each durable activity at
+ * most once even when it belongs to several protected sets. The three ID lists
+ * are complete for the same SQLite snapshot. Failed attention remains complete
+ * within the durable 1,000-terminal-record retention policy; older terminal
+ * records are retired. Only the ordinary terminal-history presentation is
+ * windowed further.
+ */
+export interface ActivityFeed {
+  active_and_actionable_complete: boolean;
+  attention_required_activity_ids: string[];
+  current_activity_ids: string[];
+  records: ActivityRecord[];
+  recovery_required_activity_ids: string[];
+  terminal_history_complete: boolean;
+  terminal_history_count: number;
+  terminal_history_limit: number;
   [k: string]: unknown;
 }
 export interface ActivityRecord {
@@ -2198,7 +2219,7 @@ export interface OutputDesktopSteamEntryReview {
   [k: string]: unknown;
 }
 export interface OutputDesktopWorkspaceSnapshot {
-  activities: ActivityRecord[];
+  activities: ActivityFeed;
   catalog: CatalogDocument;
   sources: SourceRecord[];
   statuses: PortStatus[];
