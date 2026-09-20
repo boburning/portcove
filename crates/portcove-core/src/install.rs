@@ -3043,7 +3043,10 @@ mod tests {
         let installer = Installer::with_network_bounds(
             library,
             Duration::from_millis(50),
-            Duration::from_millis(100),
+            // This case proves that the connect bound does not become a total
+            // transfer deadline. The separate stalled-stream test exercises
+            // the read-idle bound with a deliberate gap.
+            Duration::from_secs(2),
         )
         .unwrap();
         let destination = temporary.path().join("slow.download");
