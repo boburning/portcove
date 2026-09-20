@@ -3,7 +3,7 @@ use std::collections::BTreeSet;
 use rusqlite::{Connection, OptionalExtension, Transaction, params};
 
 use crate::{
-    ArtworkChoice, ArtworkMetadata, ArtworkSlot, Catalog, LocalArtworkAsset, PortcoveError, Result,
+    ArtworkChoice, ArtworkMetadata, ArtworkSlot, LocalArtworkAsset, PortcoveError, Result,
 };
 
 const MAX_ASSETS: usize = 4096;
@@ -221,7 +221,10 @@ pub(crate) fn snapshot(connection: &Connection) -> Result<ArtworkMetadata> {
     Ok(ArtworkMetadata { assets, choices })
 }
 
-pub(crate) fn validate_metadata(metadata: &ArtworkMetadata, catalog: &Catalog) -> Result<()> {
+pub(crate) fn validate_metadata_with(
+    metadata: &ArtworkMetadata,
+    mut require_port: impl FnMut(&str) -> Result<()>,
+) -> Result<()> {
     if metadata.assets.len() > MAX_ASSETS || metadata.choices.len() > 8192 {
         return Err(PortcoveError::verification(
             "artwork metadata exceeds its record limit",
@@ -247,7 +250,7 @@ pub(crate) fn validate_metadata(metadata: &ArtworkMetadata, catalog: &Catalog) -
     }
     let mut choices = BTreeSet::new();
     for choice in &metadata.choices {
-        catalog.port(&choice.port_id)?;
+        require_port(&choice.port_id)?;
         if choice.revision == 0
             || choice.revision > i64::MAX as u64
             || !choices.insert((&choice.port_id, choice.slot.key()))

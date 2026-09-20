@@ -38,6 +38,9 @@ impl PortcoveService {
         let destination_root = transfer_destination(&source_root, destination)?;
         ensure_idle(self.library())?;
         let metadata = self.export_library_metadata()?;
+        let catalogs =
+            crate::library_import::PortabilityCatalogs::from_root(&metadata, &source_root)?;
+        crate::library_import::validate_metadata(&metadata, &catalogs)?;
         let content = metadata
             .content_roots
             .iter()
@@ -263,5 +266,34 @@ mod tests {
         );
         assert!(service.plan_library_move(&source.join("nested")).is_err());
         assert!(service.plan_library_move(&source).is_err());
+    }
+
+    #[test]
+    fn move_plan_accepts_an_admitted_post_client_definition() {
+        let temporary = tempfile::tempdir().unwrap();
+        let source = temporary.path().join("source");
+        let destination = temporary.path().join("destination");
+        let library = Library::open(&source).unwrap();
+        let (post_client, port_id) = crate::test_fixture::post_client_catalog();
+        let catalog = crate::test_fixture::admitted_indexed_catalog(&post_client, &port_id);
+        crate::test_fixture::register_qualification_install(&library, &catalog, &port_id);
+        let service = PortcoveService::new(library).unwrap();
+
+        let plan = service.plan_library_move(&destination).unwrap();
+        assert_eq!(plan.metadata.application_versions[0].port_id, port_id);
+        drop(service);
+        assert!(
+            PortcoveService::move_library(&source, &destination, &plan.plan_sha256)
+                .unwrap()
+                .completed
+        );
+        assert!(
+            Library::open(&destination)
+                .unwrap()
+                .status(&port_id, crate::ReleaseChannel::Stable)
+                .unwrap()
+                .active
+                .is_some()
+        );
     }
 }

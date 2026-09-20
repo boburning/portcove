@@ -3,7 +3,7 @@ use std::{fs, path::Path};
 
 use serde::{Deserialize, Serialize};
 
-use crate::{Catalog, LibraryImportPlan, PortcoveError, Result, transfer_journal::TransferPhase};
+use crate::{LibraryImportPlan, PortcoveError, Result, transfer_journal::TransferPhase};
 
 const JOURNAL: &str = ".portcove-import.json";
 const MAX_BYTES: usize = 64 * 1024 * 1024;
@@ -67,7 +67,19 @@ impl ImportJournal {
                 "import journal identity or location is invalid",
             ));
         }
-        crate::library_import::validate_metadata(&self.plan.metadata, &Catalog::embedded()?)?;
+        let contract_root = if matches!(
+            self.phase,
+            TransferPhase::Published | TransferPhase::Complete
+        ) {
+            &self.plan.destination_root
+        } else {
+            &self.plan.content_root
+        };
+        let catalogs = crate::library_import::PortabilityCatalogs::from_root(
+            &self.plan.metadata,
+            contract_root,
+        )?;
+        crate::library_import::validate_metadata(&self.plan.metadata, &catalogs)?;
         if self.plan.content.len() != self.plan.metadata.content_roots.len() {
             return Err(PortcoveError::verification(
                 "import journal content roots are invalid",

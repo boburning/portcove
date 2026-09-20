@@ -5,9 +5,8 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    ActivityOperation, ActivityStatus, ActivityTargetKind, Catalog, InstallQualification,
-    Installer, Library, LibraryImportPlan, LibraryMetadata, Platform, PortcoveError,
-    PortcoveService, Result,
+    ActivityOperation, ActivityStatus, ActivityTargetKind, InstallQualification, Installer,
+    Library, LibraryImportPlan, LibraryMetadata, Platform, PortcoveError, PortcoveService, Result,
     import_journal::ImportJournal,
     library_access::{LibraryAccess, LibraryLease},
     transfer_journal::TransferPhase,
@@ -185,21 +184,16 @@ fn continue_import(
         &journal.plan.metadata,
         &journal.plan.content,
     )?;
-    let catalog = Catalog::embedded()?;
     let installer = Installer::new(target.clone())?;
+    let catalogs = crate::library_import::PortabilityCatalogs::from_root(
+        &journal.plan.metadata,
+        target.root(),
+    )?;
     for install in target.all_installs()? {
+        let catalog = catalogs.catalog_for_install(&install)?;
         let qualification =
             InstallQualification::from_port(catalog.port(&install.port_id)?, Platform::current()?)?;
         installer.verify_import_contract(&install, &qualification)?;
-        if let Some(retained) = installer.retained_catalog(&install)? {
-            // Imported hashes establish content consistency, not definition
-            // authority. Keep the existing frozen execution boundary until
-            // successor admission can authenticate historical contracts.
-            crate::signed_catalog::validate_installed_port_contract(
-                retained.port(&install.port_id)?,
-                catalog.port(&install.port_id)?,
-            )?;
-        }
     }
     verify_input(&journal.plan)?;
     journal.phase = TransferPhase::Verified;

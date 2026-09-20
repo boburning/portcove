@@ -13,6 +13,120 @@ use crate::{
     PortcoveError, PortcoveService, Result,
 };
 
+pub(crate) struct PortabilityCatalogs {
+    embedded: Catalog,
+    installs: BTreeMap<String, Catalog>,
+}
+
+impl PortabilityCatalogs {
+    #[cfg(test)]
+    pub(crate) fn from_catalog(embedded: Catalog) -> Self {
+        Self {
+            embedded,
+            installs: BTreeMap::new(),
+        }
+    }
+
+    pub(crate) fn from_root(metadata: &LibraryMetadata, root: &Path) -> Result<Self> {
+        let embedded = Catalog::embedded()?;
+        let mut installs = BTreeMap::new();
+        for install in &metadata.application_versions {
+            let relative = validate_install_path(install)?;
+            let mut absolute = install.clone();
+            absolute.path = root.join(relative);
+            let retained = crate::install::retained_catalog_for_install(&absolute)?;
+            let catalog = match retained {
+                Some(catalog) if embedded.port(&install.port_id).is_ok() => {
+                    if catalog.definition_selection(&install.port_id).is_none() {
+                        crate::signed_catalog::validate_installed_port_contract(
+                            catalog.port(&install.port_id)?,
+                            embedded.port(&install.port_id)?,
+                        )?;
+                    }
+                    catalog
+                }
+                Some(catalog) if catalog.definition_selection(&install.port_id).is_some() => {
+                    catalog
+                }
+                Some(_) => {
+                    return Err(PortcoveError::verification(
+                        "retained definition for an unknown port has no admitted authority",
+                    )
+                    .detail("port_id", &install.port_id));
+                }
+                None if embedded.port(&install.port_id).is_ok() => embedded.clone(),
+                None => {
+                    return Err(PortcoveError::verification(
+                        "unknown port has no admitted retained definition",
+                    )
+                    .detail("port_id", &install.port_id));
+                }
+            };
+            installs.insert(install.id.clone(), catalog);
+        }
+        Ok(Self { embedded, installs })
+    }
+
+    pub(crate) fn catalog_for_install(&self, install: &crate::InstallRecord) -> Result<&Catalog> {
+        self.installs
+            .get(&install.id)
+            .or_else(|| {
+                self.embedded
+                    .port(&install.port_id)
+                    .ok()
+                    .map(|_| &self.embedded)
+            })
+            .ok_or_else(|| {
+                PortcoveError::verification("installation has no reviewed portability contract")
+                    .detail("install_id", &install.id)
+            })
+    }
+
+    fn require_port(&self, port_id: &str) -> Result<()> {
+        if self.embedded.port(port_id).is_ok()
+            || self
+                .installs
+                .values()
+                .any(|catalog| catalog.definition_selection(port_id).is_some())
+        {
+            Ok(())
+        } else {
+            Err(PortcoveError::not_found(format!(
+                "unknown port id: {port_id}"
+            )))
+        }
+    }
+
+    fn require_source_profile(&self, profile_id: &str) -> Result<()> {
+        if self.embedded.source_profile(profile_id).is_ok()
+            || self.installs.values().any(|catalog| {
+                let Some(selection) = catalog
+                    .ports()
+                    .iter()
+                    .find_map(|port| catalog.definition_selection(&port.id))
+                else {
+                    return false;
+                };
+                catalog.port(&selection.stable_id).is_ok_and(|port| {
+                    [
+                        port.source_profile.as_deref(),
+                        port.bios_source_profile.as_deref(),
+                    ]
+                    .into_iter()
+                    .flatten()
+                    .any(|required| required == profile_id)
+                }) && catalog.source_profile(profile_id).is_ok()
+            })
+        {
+            Ok(())
+        } else {
+            Err(PortcoveError::not_found(format!(
+                "unknown source profile: {profile_id}"
+            )))
+        }
+    }
+}
+
 /// The export carries metadata; all payload bytes remain in the explicitly chosen content root.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct LibraryImportPlan {
@@ -35,8 +149,9 @@ impl PortcoveService {
         destination: &Path,
     ) -> Result<LibraryImportPlan> {
         let (metadata_file, metadata) = read_metadata(metadata_path)?;
-        validate_metadata(&metadata, &Catalog::embedded()?)?;
         let content_root = fs::canonicalize(content_root)?;
+        let catalogs = PortabilityCatalogs::from_root(&metadata, &content_root)?;
+        validate_metadata(&metadata, &catalogs)?;
         let destination_root =
             crate::path::resolve_existing_ancestor(&std::path::absolute(destination)?)?;
         let destination_exists = destination_root.exists();
@@ -134,7 +249,10 @@ pub(crate) fn import_fingerprint(plan: &LibraryImportPlan) -> Result<String> {
     ))?)))
 }
 
-pub(crate) fn validate_metadata(metadata: &LibraryMetadata, catalog: &Catalog) -> Result<()> {
+pub(crate) fn validate_metadata(
+    metadata: &LibraryMetadata,
+    catalogs: &PortabilityCatalogs,
+) -> Result<()> {
     if !matches!(metadata.schema_version, 1..=3) {
         return Err(PortcoveError::unsupported(
             "unsupported library metadata schema",
@@ -167,7 +285,9 @@ pub(crate) fn validate_metadata(metadata: &LibraryMetadata, catalog: &Catalog) -
         _ => artwork_expected.as_slice(),
     };
     match (&metadata.artwork, metadata.schema_version) {
-        (Some(artwork), 3) => crate::artwork_store::validate_metadata(artwork, catalog)?,
+        (Some(artwork), 3) => crate::artwork_store::validate_metadata_with(artwork, |port_id| {
+            catalogs.require_port(port_id)
+        })?,
         (None, 1 | 2) => {}
         _ => {
             return Err(PortcoveError::verification(
@@ -188,7 +308,7 @@ pub(crate) fn validate_metadata(metadata: &LibraryMetadata, catalog: &Catalog) -
     }
     let mut sources = BTreeSet::new();
     for source in &metadata.source_references {
-        catalog.source_profile(&source.profile_id)?;
+        catalogs.require_source_profile(&source.profile_id)?;
         if let Some(identity) = &source.observed_identity {
             identity.validate_for_record(source)?;
         }
@@ -206,8 +326,7 @@ pub(crate) fn validate_metadata(metadata: &LibraryMetadata, catalog: &Catalog) -
     let mut paths = BTreeSet::new();
     let mut staged = BTreeSet::new();
     for install in &metadata.application_versions {
-        catalog.port(&install.port_id)?;
-        let relative = crate::portability::portable_relative(&install.path)?;
+        let relative = validate_install_path(install)?;
         let (_, key) = crate::archive::validate_relative_path(&relative, true)?;
         crate::archive::validate_relative_path(
             &crate::portability::portable_relative(&install.selected_executable)?,
@@ -228,7 +347,7 @@ pub(crate) fn validate_metadata(metadata: &LibraryMetadata, catalog: &Catalog) -
     }
     let mut settings = BTreeSet::new();
     for setting in &metadata.port_settings {
-        catalog.port(&setting.port_id)?;
+        catalogs.require_port(&setting.port_id)?;
         if let Some(path) = setting.output_directory.as_deref() {
             crate::path::unicode(path, "port output directory")?;
             if !path.is_absolute() {
@@ -270,7 +389,7 @@ pub(crate) fn validate_metadata(metadata: &LibraryMetadata, catalog: &Catalog) -
     }
     let mut history = BTreeSet::new();
     for launch in &metadata.launch_history {
-        catalog.port(&launch.port_id)?;
+        catalogs.require_port(&launch.port_id)?;
         if !history.insert(&launch.port_id) {
             return Err(PortcoveError::verification(
                 "metadata repeats launch history",
@@ -278,6 +397,21 @@ pub(crate) fn validate_metadata(metadata: &LibraryMetadata, catalog: &Catalog) -
         }
     }
     Ok(())
+}
+
+fn validate_install_path(install: &crate::InstallRecord) -> Result<String> {
+    let relative = crate::portability::portable_relative(&install.path)?;
+    crate::archive::validate_relative_path(
+        &format!("versions/{}/contract", install.port_id),
+        false,
+    )?;
+    crate::archive::validate_relative_path(&relative, true)?;
+    if !relative.starts_with(&format!("versions/{}/", install.port_id)) {
+        return Err(PortcoveError::verification(
+            "installation path is outside its portable port directory",
+        ));
+    }
+    Ok(relative)
 }
 
 fn sha256(value: &str) -> bool {
@@ -376,7 +510,11 @@ mod tests {
                 LibraryContentKind::SourceInbox | LibraryContentKind::LocalArtwork
             )
         });
-        validate_metadata(&metadata, &Catalog::embedded().unwrap()).unwrap();
+        validate_metadata(
+            &metadata,
+            &PortabilityCatalogs::from_catalog(Catalog::embedded().unwrap()),
+        )
+        .unwrap();
 
         for root in &metadata.content_roots {
             fs::create_dir_all(bundle.join(&root.relative_path)).unwrap();
@@ -397,6 +535,12 @@ mod tests {
         assert!(!destination.exists());
 
         metadata.schema_version = 2;
-        assert!(validate_metadata(&metadata, &Catalog::embedded().unwrap()).is_err());
+        assert!(
+            validate_metadata(
+                &metadata,
+                &PortabilityCatalogs::from_catalog(Catalog::embedded().unwrap())
+            )
+            .is_err()
+        );
     }
 }

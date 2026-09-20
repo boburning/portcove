@@ -158,6 +158,8 @@ pub(crate) fn verify_destination(
         }
     }
     verify_metadata(library, expected_metadata)?;
+    let catalogs =
+        crate::library_import::PortabilityCatalogs::from_root(expected_metadata, destination_root)?;
     if let Some(artwork) = &expected_metadata.artwork {
         for asset in &artwork.assets {
             let bytes = crate::artwork::original_bytes(library, asset)?;
@@ -184,13 +186,16 @@ pub(crate) fn verify_destination(
         ));
     }
     let installer = crate::install::Installer::new(library.clone())?;
-    let catalog = crate::Catalog::embedded()?;
     let platform = crate::Platform::current()?;
     for relative in &expected_metadata.application_versions {
         let mut install = relative.clone();
         install.path = destination_root.join(&install.path);
-        let qualification =
-            crate::InstallQualification::from_port(catalog.port(&install.port_id)?, platform)?;
+        let qualification = crate::InstallQualification::from_port(
+            catalogs
+                .catalog_for_install(relative)?
+                .port(&install.port_id)?,
+            platform,
+        )?;
         let report = installer.verify_managed(&install, &qualification)?;
         if !report.valid {
             return Err(PortcoveError::verification(

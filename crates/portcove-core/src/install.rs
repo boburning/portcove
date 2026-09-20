@@ -1053,10 +1053,7 @@ impl Installer {
         &self,
         install: &InstallRecord,
     ) -> Result<Option<crate::Catalog>> {
-        verified_manifest(install)?
-            .retained_contract
-            .map(|contract| contract.catalog(&install.port_id))
-            .transpose()
+        retained_catalog_for_install(install)
     }
 
     pub(crate) fn qualification_for_install(
@@ -1142,6 +1139,15 @@ impl Installer {
             ..original.clone()
         })
     }
+}
+
+pub(crate) fn retained_catalog_for_install(
+    install: &InstallRecord,
+) -> Result<Option<crate::Catalog>> {
+    verified_manifest(install)?
+        .retained_contract
+        .map(|contract| contract.catalog(&install.port_id))
+        .transpose()
 }
 
 fn write_manifest(

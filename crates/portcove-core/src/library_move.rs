@@ -375,26 +375,20 @@ mod tests {
         for (id, staged) in [("old", false), ("active", false), ("staged", true)] {
             let path = root.join("versions/starship").join(id);
             fs::create_dir_all(&path).unwrap();
-            fs::write(path.join("game.exe"), format!("synthetic application {id}")).unwrap();
-            crate::permissions::normalize_archive_entry(&path.join("game.exe"), false, true)
-                .unwrap();
+            let catalog = crate::Catalog::embedded().unwrap();
+            let port = catalog.port("starship").unwrap();
+            let platform = crate::Platform::current().unwrap();
+            let executable = path.join(&port.executable_hints[&platform][0]);
+            fs::create_dir_all(executable.parent().unwrap()).unwrap();
+            fs::write(&executable, format!("synthetic application {id}")).unwrap();
+            crate::permissions::normalize_archive_entry(&executable, false, true).unwrap();
             let artifact = ArtifactIdentity {
                 asset_name: format!("{id}.zip"),
                 sha256: "a".repeat(64),
                 size: 123,
             };
-            let mut port = crate::Catalog::embedded()
-                .unwrap()
-                .port("starship")
-                .unwrap()
-                .clone();
-            port.executable_hints
-                .insert(crate::Platform::current().unwrap(), vec!["game.exe".into()]);
-            let qualification = crate::test_fixture::retained_qualification(
-                &port,
-                crate::Platform::current().unwrap(),
-            )
-            .unwrap();
+            let qualification =
+                crate::InstallQualification::from_catalog(&catalog, "starship", platform).unwrap();
             let (manifest_sha256, selected_executable, runtime) = Installer::new(library.clone())
                 .unwrap()
                 .create_manifest(id, "starship", id, &artifact, &qualification, &path)
@@ -584,6 +578,44 @@ mod tests {
     #[test]
     fn completed_move_recovers_without_two_writable_libraries() {
         assert_move_boundary_recovery(TransferPhase::Complete);
+    }
+
+    #[test]
+    fn admitted_post_client_definition_survives_interrupted_move_resume() {
+        let temporary = tempfile::tempdir().unwrap();
+        let source = temporary.path().join("source");
+        let destination = temporary.path().join("destination");
+        let library = Library::open(&source).unwrap();
+        let (post_client, port_id) = crate::test_fixture::post_client_catalog();
+        let catalog = crate::test_fixture::admitted_indexed_catalog(&post_client, &port_id);
+        crate::test_fixture::register_qualification_install(&library, &catalog, &port_id);
+        let service = PortcoveService::new(library).unwrap();
+        let plan = service.plan_library_move(&destination).unwrap();
+        drop(service);
+
+        start_move(&source, &destination, &plan.plan_sha256, &|phase| {
+            if phase == TransferPhase::Verified {
+                Err(PortcoveError::state(
+                    "synthetic successor move interruption",
+                ))
+            } else {
+                Ok(())
+            }
+        })
+        .unwrap_err();
+        assert!(
+            PortcoveService::resume_library_move(&source)
+                .unwrap()
+                .completed
+        );
+        assert!(
+            Library::open(&destination)
+                .unwrap()
+                .status(&port_id, ReleaseChannel::Stable)
+                .unwrap()
+                .active
+                .is_some()
+        );
     }
 
     fn assert_changed_move_retained(change_source: bool) {
