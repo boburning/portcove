@@ -66,6 +66,16 @@ its recorded supervisor exits. Recovery retains core's exact child/start/install
 checks and reports a failed terminal launch; it never converts interruption into
 success.
 
+Schema 51 changes the `activity` result from an unqualified array to an activity
+feed. `records` contains a deterministic, deduplicated union of every current,
+failed-needs-attention, and lifecycle-recovery-owned activity plus the requested
+bounded terminal-history window. The three ID lists classify those protected
+sets. `active_and_actionable_complete` is explicit; `terminal_history_limit`,
+`terminal_history_count`, and `terminal_history_complete` describe the ordinary
+completed-history window. Retained failures are attention-required within core's
+1,000-terminal-record retention policy; older terminal evidence is retired. A
+truncated terminal window is not a complete ledger.
+
 Schema 50 adds `operation_event_schema_version` to `capabilities`. API result
 envelopes and JSONL operation events are independently versioned, so a lifecycle
 consumer must negotiate both instead of assuming the event version from the API
@@ -104,7 +114,7 @@ The CLI API schema version is independent of the Portcove release version. Every
 
 ```json
 {
-  "schema_version": 50,
+  "schema_version": 51,
   "ok": true,
   "command": "status",
   "data": {},
@@ -236,9 +246,10 @@ other games remain readable. New installations retain their execution and
 persistence definitions in manifest schema 6, introduced with writer protocol 23.
 Protocol 25 now protects exact successor definition retention; older clients refuse
 to modify an upgraded library. The Playnite
-reference accepts API schemas 42 through 50 with event schema 2. Schema 50
+reference accepts API schemas 42 through 51 with event schema 2. Schema 50
 advertises that event version explicitly; the historical 42–49 window retains
-its documented event-2 contract.
+its documented event-2 contract. Schema 51 consumes the activity-feed
+completeness and protected classifications for lifecycle management.
 
 API schema 22 adds the core-resolved per-game output location to install plans
 and path results. It distinguishes a one-request override, the saved port
@@ -454,7 +465,17 @@ portcove --json activity
 portcove --json cancel <activity-uuid>
 ```
 
-An active cancellable activity reports `cancellation.phase` (`preparing` or `finishing`) and `cancellation.requested`. `cancel` accepts only a running preparation and returns request acknowledgement. Wait for the operation or ledger to report its terminal outcome. A completed cancellation has status/error code `cancelled`, a schema-2 finished event with `result: cancelled`, and exit code 130 for the cancelled command. A late request returns `conflict`; it cannot interrupt publication. Existing failure-isolated batch commands still return per-port outcomes, which must be inspected individually.
+The activity feed always includes current and actionable rows independently of
+the requested terminal-history limit. Consumers must use its completeness fields
+instead of treating absence from bounded terminal history as proof that no work
+exists. An active cancellable activity reports `cancellation.phase` (`preparing`
+or `finishing`) and `cancellation.requested`. `cancel` accepts only a running
+preparation and returns request acknowledgement. Wait for the operation or ledger
+to report its terminal outcome. A completed cancellation has status/error code
+`cancelled`, a schema-2 finished event with `result: cancelled`, and exit code 130
+for the cancelled command. A late request returns `conflict`; it cannot interrupt
+publication. Existing failure-isolated batch commands still return per-port
+outcomes, which must be inspected individually.
 
 Ctrl-C requests cancellation of this CLI command's current and queued source discovery, release checks, install, update, ensure, or reconciliation work, then keeps waiting. Unix SIGTERM uses the same path. Another client's operations are unaffected. Downloads and hashing stop cooperatively; extraction, conversion, or compilation may need to finish their current preparation step. Repeated signals do not force an unsafe publication interruption. Restore, library transfer, migration, and game supervision retain their existing recovery/lifetime behavior. Desktop game details and activity history offer the same core cancellation request; source search also keeps its own Cancel search control inside its dialog.
 

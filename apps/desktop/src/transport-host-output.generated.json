@@ -4073,6 +4073,62 @@
   },
   "workspace_snapshot": {
     "$defs": {
+      "ActivityFeed": {
+        "description": "A complete view of current and actionable work plus a bounded terminal window.\n\n`records` is deterministically ordered and contains each durable activity at\nmost once even when it belongs to several protected sets. The three ID lists\nare complete for the same SQLite snapshot. Failed attention remains complete\nwithin the durable 1,000-terminal-record retention policy; older terminal\nrecords are retired. Only the ordinary terminal-history presentation is\nwindowed further.",
+        "properties": {
+          "active_and_actionable_complete": {
+            "type": "boolean"
+          },
+          "attention_required_activity_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "current_activity_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "records": {
+            "items": {
+              "$ref": "#/$defs/ActivityRecord"
+            },
+            "type": "array"
+          },
+          "recovery_required_activity_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "terminal_history_complete": {
+            "type": "boolean"
+          },
+          "terminal_history_count": {
+            "format": "uint",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "terminal_history_limit": {
+            "format": "uint",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "records",
+          "current_activity_ids",
+          "attention_required_activity_ids",
+          "recovery_required_activity_ids",
+          "active_and_actionable_complete",
+          "terminal_history_limit",
+          "terminal_history_count",
+          "terminal_history_complete"
+        ],
+        "type": "object"
+      },
       "ActivityOperation": {
         "enum": [
           "prepare",
@@ -6844,10 +6900,7 @@
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "properties": {
       "activities": {
-        "items": {
-          "$ref": "#/$defs/ActivityRecord"
-        },
-        "type": "array"
+        "$ref": "#/$defs/ActivityFeed"
       },
       "catalog": {
         "$ref": "#/$defs/CatalogDocument"

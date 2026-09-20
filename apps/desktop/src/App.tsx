@@ -581,6 +581,7 @@ function CurrentView({
         sourceProfiles={data.catalog?.source_profiles ?? []}
         statuses={model.statusMap}
         activities={data.activities}
+        activityFeed={data.activityFeed}
         outcomes={updates.outcomes}
         busy={operations.busy}
         repair={data.doctor?.repair}

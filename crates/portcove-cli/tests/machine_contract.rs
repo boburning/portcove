@@ -93,8 +93,8 @@ fn json_and_jsonl_preserve_machine_error_fields_and_share_core_presentation() {
             .unwrap(),
     )
     .unwrap();
-    assert_eq!(plain["schema_version"], 50);
-    assert_eq!(stream["schema_version"], 50);
+    assert_eq!(plain["schema_version"], 51);
+    assert_eq!(stream["schema_version"], 51);
     assert_eq!(plain["error"], stream["error"]);
     assert_eq!(plain["error"]["code"], "unsupported");
     assert!(
@@ -141,7 +141,7 @@ fn activity_history_plain_output_keeps_failure_details_private() {
     let failed = portcove(&library, &["--json", "verify", private_id]);
     assert!(!failed.status.success());
     let before = json_stdout(&portcove(&library, &["--json", "activity"]));
-    let record = &before["data"][0];
+    let record = &before["data"]["records"][0];
     assert_eq!(record["target_id"], private_id);
     assert_eq!(record["status"], "failed");
     assert!(record["failure"].is_object());
@@ -182,7 +182,7 @@ fn activity_history_keeps_machine_records_unchanged_across_formats() {
     let failed = portcove(&library, &["--json", "verify", private_id]);
     assert!(!failed.status.success());
     let before = json_stdout(&portcove(&library, &["--json", "activity"]));
-    let id = before["data"][0]["id"].as_str().unwrap();
+    let id = before["data"]["records"][0]["id"].as_str().unwrap();
     let after = json_stdout(&portcove(
         &library,
         &["--technical-details", "--json", "activity"],
@@ -220,7 +220,9 @@ fn preparation_plan_reports_missing_inputs_without_starting_work() {
         assert_eq!(response["error"]["code"], code);
     }
     let activities = json_stdout(&portcove(&library, &["--json", "activity"]));
-    assert!(activities["data"].as_array().unwrap().is_empty());
+    assert!(activities["data"]["records"].as_array().unwrap().is_empty());
+    assert_eq!(activities["data"]["active_and_actionable_complete"], true);
+    assert_eq!(activities["data"]["terminal_history_complete"], true);
     let schema = json_stdout(&portcove(
         &library,
         &["--json", "schema", "export", "--contract", "output"],
@@ -348,7 +350,7 @@ fn exported_source_assessment_separates_facts_without_opening_library() {
     let output = portcove(&library, &["--json", "schema", "export"]);
     assert!(output.status.success());
     let response = json_stdout(&output);
-    assert_eq!(response["schema_version"], 50);
+    assert_eq!(response["schema_version"], 51);
     let schema = &response["data"]["source_assessment"];
     for field in [
         "health",
@@ -577,8 +579,8 @@ fn cancellation_from_another_cli_stops_discovery_with_a_durable_cancelled_result
     assert_eq!(lines.last().unwrap()["error"]["code"], "cancelled");
     eprintln!("CLI cancellation: verify durable activity");
     let ledger = json_stdout(&portcove(&library, &["--json", "activity"]));
-    assert_eq!(ledger["data"][0]["id"], id);
-    assert_eq!(ledger["data"][0]["status"], "cancelled");
+    assert_eq!(ledger["data"]["records"][0]["id"], id);
+    assert_eq!(ledger["data"]["records"][0]["status"], "cancelled");
     eprintln!("CLI cancellation: verify empty source registry");
     assert_eq!(
         json_stdout(&portcove(&library, &["--json", "source", "list"]))["data"],
@@ -1202,7 +1204,7 @@ fn source_inspect_is_read_only_complete_and_equivalent_across_output_modes() {
         &library,
         &["--json", "source", "inspect", "star-fox-64"],
     ));
-    assert_eq!(json["schema_version"], 50);
+    assert_eq!(json["schema_version"], 51);
     assert_eq!(json["command"], "source.inspect");
     assert_eq!(json["data"]["schema_version"], 1);
     assert_eq!(json["data"]["health"], "current");
@@ -1359,13 +1361,16 @@ fn source_inbox_controls_share_stable_scan_and_import_activity_ids() {
         &library,
         &["--json", "source", "inbox", "scan", profile],
     ));
-    assert_eq!(scan["schema_version"], 50);
+    assert_eq!(scan["schema_version"], 51);
     assert_eq!(scan["command"], "source.inbox.scan");
     assert_eq!(scan["data"]["state"], "unresolved");
     let scan_id = scan["data"]["operation_id"].as_str().unwrap();
     let activity = json_stdout(&portcove(&library, &["--json", "activity"]));
-    assert_eq!(activity["data"][0]["id"], scan_id);
-    assert_eq!(activity["data"][0]["operation"], "discover_sources");
+    assert_eq!(activity["data"]["records"][0]["id"], scan_id);
+    assert_eq!(
+        activity["data"]["records"][0]["operation"],
+        "discover_sources"
+    );
 
     let original = temporary.path().join("original.iso");
     std::fs::write(&original, b"synthetic desktop and CLI parity source").unwrap();
@@ -1409,7 +1414,7 @@ fn source_inbox_controls_share_stable_scan_and_import_activity_ids() {
     let import_id = applied["data"]["import_id"].as_str().unwrap();
     let activity = json_stdout(&portcove(&library, &["--json", "activity"]));
     assert!(
-        activity["data"]
+        activity["data"]["records"]
             .as_array()
             .unwrap()
             .iter()
@@ -1572,7 +1577,7 @@ fn capabilities_has_human_output_snapshot() {
     let root = tempfile::tempdir().unwrap();
     let capabilities = human_stdout(&portcove(root.path(), &["capabilities"])).to_owned();
     assert!(capabilities.starts_with("Portcove "));
-    assert!(capabilities.contains(" capabilities\nSchema: 50"));
+    assert!(capabilities.contains(" capabilities\nSchema: 51"));
     assert!(capabilities.contains("\nOperation event schema: 2"));
 }
 
@@ -1874,11 +1879,11 @@ fn capabilities_are_one_clean_versioned_json_document() {
     assert!(output.status.success());
     assert!(output.stderr.is_empty());
     let response = json_stdout(&output);
-    assert_eq!(response["schema_version"], 50);
+    assert_eq!(response["schema_version"], 51);
     assert_eq!(response["ok"], true);
     assert_eq!(response["command"], "capabilities");
     assert!(response["error"].is_null());
-    assert_eq!(response["data"]["schema_version"], 50);
+    assert_eq!(response["data"]["schema_version"], 51);
     assert_eq!(response["data"]["operation_event_schema_version"], 2);
     assert!(
         response["data"]["commands"]
@@ -1907,7 +1912,7 @@ fn command_errors_keep_the_machine_envelope_and_stable_exit_code() {
     assert_eq!(output.status.code(), Some(4));
     assert!(output.stderr.is_empty());
     let response = json_stdout(&output);
-    assert_eq!(response["schema_version"], 50);
+    assert_eq!(response["schema_version"], 51);
     assert_eq!(response["ok"], false);
     assert_eq!(response["command"], "catalog.show");
     assert!(response["data"].is_null());
@@ -1924,7 +1929,7 @@ fn parser_errors_are_structured_for_machine_callers() {
     assert!(output.stderr.is_empty());
     assert!(!library.exists());
     let response = json_stdout(&output);
-    assert_eq!(response["schema_version"], 50);
+    assert_eq!(response["schema_version"], 51);
     assert_eq!(response["ok"], false);
     assert_eq!(response["command"], "cli");
     assert_eq!(response["error"]["code"], "usage");
@@ -1944,7 +1949,7 @@ fn jsonl_read_commands_end_with_one_result_event() {
     assert!(output.status.success());
     assert!(output.stderr.is_empty());
     let response = json_stdout(&output);
-    assert_eq!(response["schema_version"], 50);
+    assert_eq!(response["schema_version"], 51);
     assert_eq!(response["type"], "result");
     assert_eq!(response["ok"], true);
     assert_eq!(response["command"], "capabilities");

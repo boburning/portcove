@@ -13,6 +13,7 @@ namespace Portcove.ReferenceClient
         internal string LibraryRoot { get; }
         internal string LibraryId { get; private set; }
         private long operationEventSchemaVersion = 2;
+        private long apiSchemaVersion;
 
         internal PublicCli(string executable, string libraryRoot)
         {
@@ -35,8 +36,9 @@ namespace Portcove.ReferenceClient
 
         internal async Task Connect()
         {
-            operationEventSchemaVersion = ProtocolStream.Negotiate(
-                await Read("capabilities", "capabilities").ConfigureAwait(false));
+            var capabilities = await Read("capabilities", "capabilities").ConfigureAwait(false);
+            apiSchemaVersion = Json.Number(capabilities, "schema_version");
+            operationEventSchemaVersion = ProtocolStream.Negotiate(capabilities);
             var identity = await Read("library.identity", "library", "identity").ConfigureAwait(false);
             LibraryId = Json.Text(identity, "id");
             if (LibraryId.Length == 0) throw new InvalidOperationException("The CLI returned an empty library identity.");
@@ -50,6 +52,13 @@ namespace Portcove.ReferenceClient
         }
 
         internal Task<object> Read(string command, params string[] arguments) => Run(command, arguments, false, null);
+
+        internal async Task<ActivityFeedContract> ReadActivity(int limit)
+        {
+            if (limit < 1 || limit > 200) throw new ArgumentOutOfRangeException(nameof(limit));
+            var value = await Read("activity", "activity", "--limit", limit.ToString()).ConfigureAwait(false);
+            return ActivityFeedContract.Read(value, apiSchemaVersion);
+        }
 
         internal async Task<object> Manage(string command, string[] arguments, Action<Dictionary<string, object>> progress)
         {

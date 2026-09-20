@@ -6,7 +6,11 @@ import { listen } from "@tauri-apps/api/event";
 import { desktopApi } from "../../api";
 import { useUpdateCenter } from "../port-updates/use-update-center";
 import { useOperationState, type Perform } from "../operations/use-operation-state";
-import { essentialSnapshotIdentity, usePortcoveData } from "./use-workspace-data";
+import {
+  emptyActivityFeed,
+  essentialSnapshotIdentity,
+  usePortcoveData,
+} from "./use-workspace-data";
 import { failureReport, portDefinition, portStatus } from "../../test-fixtures";
 import type { DoctorReport, OperationEvent, WorkspaceSnapshot } from "../../types";
 import { WorkspaceRefreshNotice } from "./WorkspaceRefreshNotice";
@@ -18,7 +22,7 @@ const snapshot: WorkspaceSnapshot = {
   catalog: { schema_version: 1, ports: [portDefinition()], source_profiles: [] },
   statuses: [portStatus()],
   sources: [],
-  activities: [],
+  activities: emptyActivityFeed(),
 };
 const doctor: DoctorReport = {
   catalog_port_count: 1,
@@ -144,7 +148,7 @@ beforeEach(() => {
   vi.spyOn(desktopApi, "workspaceSnapshot").mockResolvedValue(snapshot);
   vi.spyOn(desktopApi, "workspaceChanged").mockResolvedValue(false);
   vi.spyOn(desktopApi, "workspaceChanged").mockResolvedValue(false);
-  vi.spyOn(desktopApi, "activities").mockResolvedValue([]);
+  vi.spyOn(desktopApi, "activities").mockResolvedValue(emptyActivityFeed());
   vi.spyOn(desktopApi, "doctor").mockResolvedValue(doctor);
 });
 
@@ -291,20 +295,24 @@ describe("workspace refresh recovery", () => {
     await act(async () => data.retryRefresh());
     expect(data.refreshFailure).toBeDefined();
     const recovered = structuredClone(snapshot);
-    recovered.activities = [
-      {
-        id: "external-install",
-        operation: "install",
-        target_kind: "port",
-        target_id: "fixture",
-        status: "succeeded",
-        message: null,
-        failure: null,
-        started_at: 1,
-        finished_at: 2,
-        cancellation: null,
-      },
-    ];
+    recovered.activities = {
+      ...emptyActivityFeed(),
+      terminal_history_count: 1,
+      records: [
+        {
+          id: "external-install",
+          operation: "install",
+          target_kind: "port",
+          target_id: "fixture",
+          status: "succeeded",
+          message: null,
+          failure: null,
+          started_at: 1,
+          finished_at: 2,
+          cancellation: null,
+        },
+      ],
+    };
     vi.mocked(desktopApi.workspaceSnapshot).mockResolvedValueOnce(recovered);
 
     await act(async () => data.retryRefresh());
@@ -314,7 +322,8 @@ describe("workspace refresh recovery", () => {
     expect(data.catalog).toBe(before.catalog);
     expect(data.statuses).toBe(before.statuses);
     expect(data.sources).toBe(before.sources);
-    expect(data.activities).toEqual(recovered.activities);
+    expect(data.activities).toEqual(recovered.activities.records);
+    expect(data.activityFeed).toEqual(recovered.activities);
   });
 
   it("keeps workspace, diagnostics, and activity refreshes live after Strict Mode replay", async () => {
@@ -604,20 +613,24 @@ describe("workspace refresh recovery", () => {
     vi.spyOn(document, "hidden", "get").mockReturnValue(true);
     vi.mocked(desktopApi.workspaceSnapshot).mockResolvedValueOnce({
       ...snapshot,
-      activities: [
-        {
-          id: "active",
-          operation: "install",
-          target_kind: "port",
-          target_id: "fixture",
-          status: "running",
-          message: null,
-          failure: null,
-          started_at: 1,
-          finished_at: null,
-          cancellation: null,
-        },
-      ],
+      activities: {
+        ...emptyActivityFeed(),
+        current_activity_ids: ["active"],
+        records: [
+          {
+            id: "active",
+            operation: "install",
+            target_kind: "port",
+            target_id: "fixture",
+            status: "running",
+            message: null,
+            failure: null,
+            started_at: 1,
+            finished_at: null,
+            cancellation: null,
+          },
+        ],
+      },
     });
     await render();
     vi.mocked(desktopApi.activities).mockClear();
@@ -626,7 +639,7 @@ describe("workspace refresh recovery", () => {
     await act(async () => vi.advanceTimersByTimeAsync(3_000));
     expect(desktopApi.activities).toHaveBeenCalledOnce();
     const activeRenderCount = renderCount;
-    pending.resolve([]);
+    pending.resolve(emptyActivityFeed());
     await act(async () => pending.promise);
     expect(data.activities).toEqual([]);
     expect(renderCount).toBeGreaterThan(activeRenderCount);

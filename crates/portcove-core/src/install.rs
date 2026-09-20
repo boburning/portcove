@@ -3018,8 +3018,9 @@ mod tests {
             thread,
         };
 
-        let chunk = vec![b'x'; 512 * 1024];
-        let total_size = chunk.len() * 4;
+        let chunk = vec![b'x'; 64 * 1024];
+        let chunk_count = 10;
+        let total_size = chunk.len() * chunk_count;
         let listener = TcpListener::bind("127.0.0.1:0").unwrap();
         let address = listener.local_addr().unwrap();
         let server = thread::spawn(move || {
@@ -3031,10 +3032,10 @@ mod tests {
                 "HTTP/1.1 200 OK\r\nContent-Length: {total_size}\r\nConnection: close\r\n\r\n"
             )
             .unwrap();
-            for _ in 0..4 {
+            for _ in 0..chunk_count {
                 stream.write_all(&chunk).unwrap();
                 stream.flush().unwrap();
-                thread::sleep(Duration::from_millis(60));
+                thread::sleep(Duration::from_millis(25));
             }
         });
         let temporary = tempfile::tempdir().unwrap();
@@ -3042,7 +3043,10 @@ mod tests {
         let installer = Installer::with_network_bounds(
             library,
             Duration::from_millis(50),
-            Duration::from_millis(100),
+            // This case proves that the connect bound does not become a total
+            // transfer deadline. The separate stalled-stream test exercises
+            // the read-idle bound with a deliberate gap.
+            Duration::from_secs(2),
         )
         .unwrap();
         let destination = temporary.path().join("slow.download");

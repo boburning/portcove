@@ -531,10 +531,11 @@ pub(crate) fn statuses(statuses: &[PortStatus]) -> String {
 }
 
 pub(crate) fn activities(
-    records: &[ActivityRecord],
+    feed: &portcove_core::ActivityFeed,
     catalog: &portcove_core::Catalog,
     technical: bool,
 ) -> String {
+    let records = &feed.records;
     if records.is_empty() {
         return "No activity records.".into();
     }
@@ -542,8 +543,16 @@ pub(crate) fn activities(
         .iter()
         .map(|record| activity(record, catalog, technical))
         .collect::<Vec<_>>();
+    let terminal_history = if feed.terminal_history_complete {
+        format!("all {} terminal records", feed.terminal_history_count)
+    } else {
+        format!(
+            "latest {} terminal records (history is truncated)",
+            feed.terminal_history_count
+        )
+    };
     format!(
-        "Recent activity ({})\n\n{}",
+        "Recent activity ({})\nCurrent and actionable coverage: complete. Terminal history: {terminal_history}.\n\n{}",
         records.len(),
         entries.join("\n\n")
     )
@@ -1352,6 +1361,27 @@ mod tests {
         }
     }
 
+    fn activity_feed(record: portcove_core::ActivityRecord) -> portcove_core::ActivityFeed {
+        let id = record.id.clone();
+        let current_activity_ids = (record.status == portcove_core::ActivityStatus::Running)
+            .then_some(vec![id.clone()])
+            .unwrap_or_default();
+        let attention_required_activity_ids = (record.status
+            == portcove_core::ActivityStatus::Failed)
+            .then_some(vec![id])
+            .unwrap_or_default();
+        portcove_core::ActivityFeed {
+            records: vec![record],
+            current_activity_ids,
+            attention_required_activity_ids,
+            recovery_required_activity_ids: Vec::new(),
+            active_and_actionable_complete: true,
+            terminal_history_limit: 50,
+            terminal_history_count: 1,
+            terminal_history_complete: true,
+        }
+    }
+
     #[test]
     fn activity_reports_use_core_outcomes_and_opt_in_redacted_details() {
         use portcove_core::{ActivityStatus, Catalog, ErrorCode, MutationState, PortcoveError};
@@ -1374,14 +1404,14 @@ mod tests {
         ] {
             record.failure = Some(error.report());
             record.status = status;
-            let plain = super::activities(&[record.clone()], &catalog, false);
+            let plain = super::activities(&activity_feed(record.clone()), &catalog, false);
             assert!(plain.contains(expected));
             assert!(plain.contains("Target: opengoal-jak1"));
             assert!(plain.contains("activity log owned-activity-id"));
             assert!(!plain.contains(&temporary.path().display().to_string()));
             assert!(!plain.contains("owned-secret"));
             assert!(!plain.contains("Technical details (redacted):"));
-            let technical = super::activities(&[record.clone()], &catalog, true);
+            let technical = super::activities(&activity_feed(record.clone()), &catalog, true);
             assert!(technical.contains("Technical details (redacted):"));
             assert!(technical.contains("[REDACTED]"));
             assert!(!technical.contains("owned-secret"));
@@ -1420,7 +1450,7 @@ mod tests {
                 ActivityStatus::Succeeded,
             ] {
                 record.status = status;
-                let plain = super::activities(&[record.clone()], &catalog, false);
+                let plain = super::activities(&activity_feed(record.clone()), &catalog, false);
                 assert!(!plain.contains(&temporary.path().display().to_string()));
                 assert!(!plain.contains("owned-secret"));
                 assert!(!plain.contains("owned-target"));
@@ -1428,7 +1458,7 @@ mod tests {
                 if matches!(status, ActivityStatus::Failed | ActivityStatus::Cancelled) {
                     assert!(plain.contains("No structured failure outcome was recorded"));
                 }
-                let technical = super::activities(&[record.clone()], &catalog, true);
+                let technical = super::activities(&activity_feed(record.clone()), &catalog, true);
                 assert!(technical.contains(&private_path.display().to_string()));
                 assert!(technical.contains("[REDACTED]"));
                 assert!(!technical.contains("owned-secret"));

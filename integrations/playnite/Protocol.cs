@@ -355,6 +355,93 @@ namespace Portcove.ReferenceClient
         internal static string Join(IEnumerable<string> values) => string.Join(" ", values.Select(Quote));
     }
 
+    internal sealed class ActivityFeedContract
+    {
+        internal object[] Records { get; private set; }
+        internal ISet<string> ProtectedActivityIds { get; private set; }
+        internal bool ActiveAndActionableComplete { get; private set; }
+        internal bool TerminalHistoryComplete { get; private set; }
+
+        internal object[] VisibleRecords(Func<object, bool> matches, int ordinaryLimit)
+        {
+            var ordinary = 0;
+            return Records.Where(record =>
+            {
+                if (!matches(record)) return false;
+                if (ProtectedActivityIds.Contains(Json.Text(record, "id"))) return true;
+                return ordinary++ < ordinaryLimit;
+            }).ToArray();
+        }
+
+        internal static ActivityFeedContract Read(object value, long schemaVersion)
+        {
+            if (schemaVersion <= 50)
+                return new ActivityFeedContract
+                {
+                    Records = Json.Array(value),
+                    ProtectedActivityIds = new HashSet<string>(StringComparer.Ordinal),
+                    ActiveAndActionableComplete = false,
+                    TerminalHistoryComplete = false
+                };
+            var records = Json.Array(Json.Field(value, "records"));
+            if (!Json.Boolean(value, "active_and_actionable_complete"))
+                throw new InvalidOperationException("Portcove activity omitted current or actionable work. Refresh with a compatible CLI before management.");
+            var limit = Json.Number(value, "terminal_history_limit");
+            var count = Json.Number(value, "terminal_history_count");
+            var complete = Json.Boolean(value, "terminal_history_complete");
+            if (limit < 1 || limit > 200 || count < 0 || count > limit || (!complete && count != limit))
+                throw new InvalidOperationException("Portcove activity history bounds are inconsistent. Refresh with a compatible CLI.");
+            var byId = new Dictionary<string, object>(StringComparer.Ordinal);
+            foreach (var record in records)
+            {
+                var id = Json.Text(record, "id");
+                if (id.Length == 0 || byId.ContainsKey(id))
+                    throw new InvalidOperationException("Portcove activity identities are empty or duplicated. Refresh durable state.");
+                byId.Add(id, record);
+            }
+            var current = ValidateIds(value, "current_activity_ids", byId, record => Json.Text(record, "status") == "running");
+            var attention = ValidateIds(value, "attention_required_activity_ids", byId, record => Json.Text(record, "status") == "failed");
+            var recovery = ValidateIds(value, "recovery_required_activity_ids", byId, record => true);
+            ValidateCompleteClassification(byId, current, "running");
+            ValidateCompleteClassification(byId, attention, "failed");
+            current.UnionWith(attention);
+            current.UnionWith(recovery);
+            return new ActivityFeedContract
+            {
+                Records = records,
+                ProtectedActivityIds = current,
+                ActiveAndActionableComplete = true,
+                TerminalHistoryComplete = complete
+            };
+        }
+
+        private static HashSet<string> ValidateIds(
+            object feed,
+            string field,
+            IDictionary<string, object> records,
+            Func<object, bool> matches)
+        {
+            var seen = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var raw in Json.Array(Json.Field(feed, field)))
+            {
+                var id = raw as string;
+                object record;
+                if (string.IsNullOrEmpty(id) || !seen.Add(id) || !records.TryGetValue(id, out record) || !matches(record))
+                    throw new InvalidOperationException("Portcove activity classification is inconsistent. Refresh durable state.");
+            }
+            return seen;
+        }
+
+        private static void ValidateCompleteClassification(
+            IDictionary<string, object> records,
+            ISet<string> classified,
+            string status)
+        {
+            if (records.Any(pair => Json.Text(pair.Value, "status") == status && !classified.Contains(pair.Key)))
+                throw new InvalidOperationException("Portcove activity classification is incomplete. Refresh durable state.");
+        }
+    }
+
     internal enum ConsumerCapability
     {
         LaunchOnly,
@@ -364,7 +451,7 @@ namespace Portcove.ReferenceClient
 
     internal sealed class ProtocolStream
     {
-        internal const int Schema = 50;
+        internal const int Schema = 51;
         private static bool SupportedSchema(long version) => version >= 42 && version <= Schema;
         private readonly string command;
         private readonly Action<Dictionary<string, object>> progress;
@@ -391,7 +478,7 @@ namespace Portcove.ReferenceClient
             if (type == null || (type as string) == "result")
             {
                 if (!SupportedSchema(Json.Number(record, "schema_version")) || Json.Text(record, "command") != command)
-                    throw new InvalidOperationException("Unsupported Portcove response. This client requires API schema 42 through 50; install a matching CLI/client pair.");
+                    throw new InvalidOperationException("Unsupported Portcove response. This client requires API schema 42 through 51; install a matching CLI/client pair.");
                 Json.Boolean(record, "ok");
                 result = record;
                 return;
@@ -479,7 +566,7 @@ namespace Portcove.ReferenceClient
         {
             var schema = Json.Number(capabilities, "schema_version");
             if (!SupportedSchema(schema) || Json.Text(capabilities, "product") != "Portcove")
-                throw new InvalidOperationException("This reference client requires Portcove API schema 42 through 50. Select a compatible CLI or update the client.");
+                throw new InvalidOperationException("This reference client requires Portcove API schema 42 through 51. Select a compatible CLI or update the client.");
             if (requiredCapabilities == null || requiredCapabilities.Length == 0)
                 throw new InvalidOperationException("Select at least one Portcove consumer capability before negotiation.");
             var commands = Json.Array(Json.Field(capabilities, "commands")).OfType<string>().ToArray();

@@ -30,7 +30,7 @@ import type {
 } from "./types";
 import type {
   ActivityDiagnostic,
-  ActivityRecord,
+  ActivityFeed,
   AdoptionPreview,
   ApplicationUpdateChoice,
   ApplicationUpdateCheckPhase,
@@ -322,7 +322,7 @@ export const desktopApi = {
       generation,
     }),
   sources: () => invoke<SourceRecord[]>("get_sources"),
-  activities: () => invoke<ActivityRecord[]>("get_activities"),
+  activities: () => invoke<ActivityFeed>("get_activities"),
   activityDiagnostic: (activityId: string, generation: number) =>
     invoke<ActivityDiagnostic>("get_activity_diagnostic", {
       activityId,

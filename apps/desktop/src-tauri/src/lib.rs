@@ -55,16 +55,16 @@ use std::{
 };
 
 use portcove_core::{
-    ActivityRecord, ApplicationRuntimeGuard, BackupInventory, BackupRecord, CatalogDocument,
-    ChildProcessClass, ChildProcessPolicy, CompositeReleaseProvider, DoctorReport,
-    GithubAuthStatus, GithubDeviceLogin, GithubDeviceLoginResult, GithubReleaseProvider,
-    HostPreferenceStore, HostToolProbeResult, HostToolStatus, IdentifiedLaunchRequest, InstallPlan,
-    InstallRecord, LaunchStdio, Library, LibraryChangeObserver, LibraryMetadataFile,
-    LibrarySelection, LibrarySelectionSource, OperationCoordinator, OperationEvent,
-    OperationResult, PortStatus, PortcoveError, PortcoveService, ReleaseChannel, ReleaseProvider,
-    SourceDiscoveryLimits, SourceImportMode, SourceImportPlan, SourceImportResult,
-    SourceInboxPaths, SourceInboxResolution, SourceInspectionReport, SourceIntakeInspection,
-    SourceRecord, SourceRelinkPlan, UpdateCheck, UpdatePolicy, VerificationReport,
+    ApplicationRuntimeGuard, BackupInventory, BackupRecord, CatalogDocument, ChildProcessClass,
+    ChildProcessPolicy, CompositeReleaseProvider, DoctorReport, GithubAuthStatus,
+    GithubDeviceLogin, GithubDeviceLoginResult, GithubReleaseProvider, HostPreferenceStore,
+    HostToolProbeResult, HostToolStatus, IdentifiedLaunchRequest, InstallPlan, InstallRecord,
+    LaunchStdio, Library, LibraryChangeObserver, LibraryMetadataFile, LibrarySelection,
+    LibrarySelectionSource, OperationCoordinator, OperationEvent, OperationResult, PortStatus,
+    PortcoveError, PortcoveService, ReleaseChannel, ReleaseProvider, SourceDiscoveryLimits,
+    SourceImportMode, SourceImportPlan, SourceImportResult, SourceInboxPaths,
+    SourceInboxResolution, SourceInspectionReport, SourceIntakeInspection, SourceRecord,
+    SourceRelinkPlan, UpdateCheck, UpdatePolicy, VerificationReport,
 };
 use serde::{Deserialize, Serialize};
 use tauri::Manager;
@@ -470,9 +470,9 @@ async fn get_sources(state: tauri::State<'_, DesktopState>) -> DesktopResult<Vec
 #[tauri::command]
 async fn get_activities(
     state: tauri::State<'_, DesktopState>,
-) -> DesktopResult<Vec<ActivityRecord>> {
+) -> DesktopResult<portcove_core::ActivityFeed> {
     let state = state.inner().clone();
-    blocking_worker(move || ready(&state)?.library.activities(50).map_err(Into::into)).await
+    blocking_worker(move || ready(&state)?.library.activity_feed(50).map_err(Into::into)).await
 }
 
 #[tauri::command]

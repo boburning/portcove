@@ -40,7 +40,8 @@ export type { ActivityOperation } from "./transport-types.generated";
 
 export type { CancellationState } from "./transport-types.generated";
 
-export type ActivityRecord = Generated.TransportOutputs["activity"];
+export type ActivityFeed = Generated.TransportOutputs["activity"];
+export type ActivityRecord = ActivityFeed["records"][number];
 export type ActivityDiagnostic = Generated.TransportOutputs["activity_diagnostic"];
 
 export type { StorageSummary } from "./transport-types.generated";

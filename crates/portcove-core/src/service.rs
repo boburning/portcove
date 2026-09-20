@@ -830,7 +830,7 @@ impl PortcoveService {
                     }
                 },
             )?;
-            let activities = Library::activities_from(&transaction, activity_limit)?;
+            let activities = Library::activity_feed_from(&transaction, activity_limit)?;
             transaction.commit()?;
             tracing::debug!(
                 port_count = statuses.len(),
@@ -5841,7 +5841,87 @@ mod tests {
         );
         assert_eq!(snapshot.statuses.len(), snapshot.catalog.ports.len());
         assert!(snapshot.sources.is_empty());
-        assert!(snapshot.activities.is_empty());
+        assert!(snapshot.activities.records.is_empty());
+    }
+
+    #[test]
+    fn workspace_snapshot_does_not_mix_concurrent_activity_completion_and_start() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let old = library
+            .begin_activity(
+                ActivityOperation::Install,
+                ActivityTargetKind::Port,
+                Some("zelda64-recomp"),
+            )
+            .unwrap();
+        let service = PortcoveService::new(library.clone()).unwrap();
+        let (start_writer, writer_started) = mpsc::channel();
+        let (writer_finished, wait_for_writer) = mpsc::channel();
+        let (send_ids, receive_ids) = mpsc::channel();
+        let writer = thread::spawn(move || {
+            writer_started.recv().unwrap();
+            library
+                .finish_activity(&old.id, ActivityStatus::Succeeded, None)
+                .unwrap();
+            let next = library
+                .begin_activity(
+                    ActivityOperation::Update,
+                    ActivityTargetKind::Port,
+                    Some("zelda64-recomp"),
+                )
+                .unwrap();
+            send_ids.send((old.id, next.id)).unwrap();
+            writer_finished.send(()).unwrap();
+        });
+
+        let snapshot = service
+            .workspace_snapshot_with_read_barrier(50, || {
+                start_writer.send(()).unwrap();
+                wait_for_writer.recv().unwrap();
+            })
+            .unwrap();
+        let (old_id, next_id) = receive_ids.recv().unwrap();
+        writer.join().unwrap();
+
+        assert_eq!(
+            snapshot.activities.current_activity_ids.as_slice(),
+            std::slice::from_ref(&next_id)
+        );
+        assert_eq!(
+            snapshot
+                .activities
+                .records
+                .iter()
+                .filter(|record| record.id == next_id)
+                .count(),
+            1
+        );
+        assert!(
+            snapshot.activities.records.iter().any(|record| {
+                record.id == old_id && record.status == ActivityStatus::Succeeded
+            })
+        );
+
+        let refreshed = service.workspace_snapshot(50).unwrap();
+        assert_eq!(
+            refreshed.activities.current_activity_ids.as_slice(),
+            std::slice::from_ref(&next_id)
+        );
+        assert_eq!(
+            refreshed
+                .activities
+                .records
+                .iter()
+                .filter(|record| record.id == next_id)
+                .count(),
+            1
+        );
+        assert!(
+            refreshed.activities.records.iter().any(|record| {
+                record.id == old_id && record.status == ActivityStatus::Succeeded
+            })
+        );
     }
 
     #[test]
