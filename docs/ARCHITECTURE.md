@@ -1390,18 +1390,34 @@ App and the remaining legacy Settings composition import the feature directly;
 `use-portcove.ts` no longer owns or re-exports these hooks. The existing shared-to-
 feature import rule applies without adding a second boundary checker.
 
-The existing complete essential-snapshot identity comparison also controls state
-publication. An unchanged catalog/status/source snapshot retains all three React
-references; a changed snapshot publishes the three collections together and
-invalidates diagnostics. Every accepted read still updates reconciliation time,
-accepts independently current activity data and clears a previous refresh failure.
-It does not skip IPC or cache operation authorization. The comparison still
-serializes the essential snapshot once per accepted read, without an additional
-per-collection comparison. A controlled hook test supplies five independently
-cloned unchanged IPC results: requests remain five while recomputations of the
-same memoized status-index function used by application composition fall from five
-to zero. A changed-snapshot control recomputes once. These are reference and
-computation-count measurements, not native render-time or wall-clock benchmarks.
+The essential workspace owner compares catalog, status and source collection
+identities separately while accepting them from one coherent backend snapshot. An
+unchanged collection retains its React reference when another collection changes;
+any accepted change invalidates diagnostics once and React batches the applicable
+setters. A changed status collection also retains an unchanged record by exact
+serialized identity keyed by `port_id`, including across reordering, while removal
+does not leave a stale record. A new library generation replaces all three
+references even when its values equal the previous library. Every accepted read
+still updates reconciliation time, accepts independently current activity data and
+clears a previous refresh failure. It does not skip IPC or cache operation
+authorization.
+
+The comparison serializes each whole collection once per accepted read. For the
+controlled fixture, the three identity strings contain four fewer framing bytes
+than the former combined-array identity, so the traversed payload does not grow;
+record comparison occurs only after the whole status identity changes and then
+serializes at most the previous and next records once. Five independently cloned
+unchanged IPC results still issue five requests with zero memoized status-index
+recomputations. A status-only control recomputes that index once while catalog and
+source projections remain at zero; catalog-only and source-only controls retain the
+other references. These are reference, serialization-byte and computation-count
+measurements, not native render-time or wall-clock benchmarks.
+
+`useOperationState` accepts one configuration object used by application and
+workspace composition. Its earlier refresh-function shorthand had no production
+consumer; the one operation-error test now uses the production form, so the private
+normalization branch is removed without changing error precedence when refresh
+also fails.
 
 Each ready Desktop library generation also owns one persistent, connection-scoped SQLite
 `data_version` observer. Commits from a CLI or another process are checked with that same observing

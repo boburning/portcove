@@ -22,8 +22,28 @@ function activitySnapshotIdentity(activities: ActivityRecord[]) {
   return JSON.stringify(activities);
 }
 
-function essentialSnapshotIdentity(snapshot: WorkspaceSnapshot) {
-  return JSON.stringify([snapshot.catalog, snapshot.statuses, snapshot.sources]);
+interface EssentialSnapshotIdentity {
+  catalog: string;
+  statuses: string;
+  sources: string;
+}
+
+export function essentialSnapshotIdentity(snapshot: WorkspaceSnapshot): EssentialSnapshotIdentity {
+  return {
+    catalog: JSON.stringify(snapshot.catalog),
+    statuses: JSON.stringify(snapshot.statuses),
+    sources: JSON.stringify(snapshot.sources),
+  };
+}
+
+function retainUnchangedStatuses(previous: PortStatus[], next: PortStatus[]) {
+  const previousByPort = new Map(
+    previous.map((status) => [status.port_id, { identity: JSON.stringify(status), status }]),
+  );
+  return next.map((status) => {
+    const retained = previousByPort.get(status.port_id);
+    return retained?.identity === JSON.stringify(status) ? retained.status : status;
+  });
 }
 
 export function usePortcoveData(libraryGeneration = 0) {
@@ -45,7 +65,9 @@ export function usePortcoveData(libraryGeneration = 0) {
   const externalGeneration = useRef(new LatestRequestGeneration());
   const diagnosticInvalidationRevision = useRef(0);
   const activityIdentity = useRef(activitySnapshotIdentity([]));
-  const essentialIdentity = useRef<string | undefined>(undefined);
+  const essentialIdentity = useRef<EssentialSnapshotIdentity | undefined>(undefined);
+  const acceptedLibraryGeneration = useRef<number | undefined>(undefined);
+  const acceptedStatuses = useRef<PortStatus[]>([]);
   const lastFullReconciliationAt = useRef(0);
   const forceWorkspaceReconciliation = useRef(false);
   const acceptActivities = useCallback((next: ActivityRecord[]) => {
@@ -69,12 +91,24 @@ export function usePortcoveData(libraryGeneration = 0) {
       const snapshot: WorkspaceSnapshot = await desktopApi.workspaceSnapshot(libraryGeneration);
       if (!refreshGeneration.current.isCurrent(generation)) return;
       const identity = essentialSnapshotIdentity(snapshot);
-      if (essentialIdentity.current !== identity) {
-        if (essentialIdentity.current !== undefined) invalidateDiagnostics();
+      const previousIdentity = essentialIdentity.current;
+      const sameLibrary = acceptedLibraryGeneration.current === libraryGeneration;
+      const catalogChanged = !sameLibrary || previousIdentity?.catalog !== identity.catalog;
+      const statusesChanged = !sameLibrary || previousIdentity?.statuses !== identity.statuses;
+      const sourcesChanged = !sameLibrary || previousIdentity?.sources !== identity.sources;
+      if (catalogChanged || statusesChanged || sourcesChanged) {
+        if (previousIdentity !== undefined) invalidateDiagnostics();
+        acceptedLibraryGeneration.current = libraryGeneration;
         essentialIdentity.current = identity;
-        setCatalog(snapshot.catalog);
-        setStatuses(snapshot.statuses);
-        setSources(snapshot.sources);
+        if (catalogChanged) setCatalog(snapshot.catalog);
+        if (statusesChanged) {
+          const nextStatuses = sameLibrary
+            ? retainUnchangedStatuses(acceptedStatuses.current, snapshot.statuses)
+            : snapshot.statuses;
+          acceptedStatuses.current = nextStatuses;
+          setStatuses(nextStatuses);
+        }
+        if (sourcesChanged) setSources(snapshot.sources);
       }
       lastFullReconciliationAt.current = Date.now();
       if (activityGeneration.current.isCurrent(activityRequest))
