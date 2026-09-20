@@ -17,7 +17,7 @@ import { PortBrowser } from "./PortBrowser";
 import { UpdateCenter } from "./UpdateCenter";
 import { RecoveryReview } from "./RecoveryReview";
 import { AdoptionModal } from "./AdoptionModal";
-import { applyOperationEvent, mostRecentOperation } from "../operation-state";
+import { applyOperationEvent, mostRecentOperation } from "../features/operations/operation-state";
 import { OperationCancellation } from "./OperationCancellation";
 import embeddedCatalog from "../../../../crates/portcove-core/catalog/catalog.json";
 

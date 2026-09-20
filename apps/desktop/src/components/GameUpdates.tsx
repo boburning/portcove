@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type RefObject } from "react";
 import { desktopApi } from "../api";
 import type { GameUpdatePlan, PortStatus, UpdatePolicy } from "../types";
-import type { Perform } from "../use-portcove";
+import type { Perform } from "../features/operations/use-operation-state";
 import { errorText, formatBytes } from "../view-model";
 import { ChoiceMenu } from "./ChoiceMenu";
 import { OperationCancellation } from "./OperationCancellation";

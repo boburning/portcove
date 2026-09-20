@@ -1362,6 +1362,14 @@ legacy components are not yet classified as shared or feature-owned; this first
 boundary does not claim complete frontend coverage. Existing common styles and
 failure-detail UI remain in place without a new barrel or compatibility adapter.
 
+The `features/operations` unit owns renderer operation-event subscription,
+bounded ancestry-aware event reduction, pending-operation presentation and the
+shared `Perform` callback shape used by feature and component actions. Application
+composition and direct tests import that owner; the former root hook and reducer
+paths are removed rather than retained as compatibility re-exports. Core and the
+Tauri host still own durable activity records, cancellation and mutation safety;
+this frontend owner only reconciles ephemeral progress and error presentation.
+
 For workspace data, `usePortcoveData` remains the single explicit frontend cache
 owner: it owns read coalescing, generations, subscriptions, invalidation and
 visible refresh failure. Adding TanStack Query alongside it would introduce a

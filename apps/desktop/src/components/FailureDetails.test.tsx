@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { failureReport, portDefinition } from "../test-fixtures";
 import { StatusLayer } from "./Chrome";
 import { UpdateCenter } from "./UpdateCenter";
-import { useOperationState } from "../use-portcove";
+import { useOperationState } from "../features/operations/use-operation-state";
 import { BootstrapRecovery } from "../App";
 import { errorText, failurePresentation } from "../view-model";
 

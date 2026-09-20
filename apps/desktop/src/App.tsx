@@ -9,6 +9,7 @@ import { useGithubAuth } from "./features/github-auth/use-github-auth";
 import { useSourceHealth } from "./features/source-health/use-source-health";
 import { usePortBackups } from "./features/backups/use-port-backups";
 import { useUpdateCenter } from "./features/port-updates/use-update-center";
+import { useOperationState, type Perform } from "./features/operations/use-operation-state";
 import { AdoptionModal } from "./components/AdoptionModal";
 import {
   LibraryMoveRecovery,
@@ -51,9 +52,7 @@ import { useCommandSurface } from "./use-command-surface";
 import {
   useAdoptionPlanning,
   detailActions,
-  type Perform,
   useInstallPlanning,
-  useOperationState,
   usePortcoveUi,
 } from "./use-portcove";
 import type {

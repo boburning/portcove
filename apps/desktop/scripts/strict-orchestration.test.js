@@ -24,7 +24,7 @@ describe("selected strict orchestration", () => {
       "src/gamepad.ts",
       "src/keyboard-shortcuts.ts",
       "src/native-source-drop.ts",
-      "src/operation-state.ts",
+      "src/features/operations/operation-state.ts",
       "src/shared/concurrency-state.ts",
       "src/shared/subscription-lifecycle.ts",
       "src/view-model.ts",

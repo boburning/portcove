@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { applyOperationEvent, mostRecentOperation } from "./operation-state";
-import type { OperationEvent } from "./types";
+import type { OperationEvent } from "../../types";
 
 function event(
   operationId: string,
