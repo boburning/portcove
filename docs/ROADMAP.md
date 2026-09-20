@@ -29,12 +29,14 @@ change.”
 
 Discovery can also begin with “I have these files.” The planned file-first
 journey lets a player connect explicitly selected game-file folders once, keeps
-the originals read-only, and identifies compatible catalog ports through the
-same core inspection and setup contracts. Portcove should remember those local
-folders and the player's choices, reconcile relevant file, catalog, and
-prerequisite changes, and—only with scoped consent—notify or complete eligible
-setup without reorganizing the collection. One-off selection and drop remain
-available. This direction complements game-first onboarding; it is planned in
+indexing and scanning read-only, and identifies compatible catalog ports through
+the same core inspection and setup contracts. Selected use-current, copy, or
+separately authorized Move remains a deliberate later action. Portcove should
+remember those local folders and the player's choices, reconcile relevant file,
+catalog, and prerequisite changes, and—only with scoped consent—notify or
+complete eligible setup without reorganizing the collection. One-off selection
+and drop remain available. This direction complements game-first onboarding;
+it is planned in
 [#244](https://github.com/boburning/portcove/issues/244), not shipped behavior or
 a blanket Public beta or 1.0 gate. Recognizable reviewed or local artwork, clear
 version and setup choices, visible ongoing work and actionable failures should
