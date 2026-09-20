@@ -52,7 +52,7 @@ import {
 } from "../view-model";
 import { BackupHistory } from "./BackupHistory";
 import { GameUpdateControl, UpdatePolicyControl } from "./GameUpdates";
-import type { Perform } from "../use-portcove";
+import type { Perform } from "../features/operations/use-operation-state";
 import { ExternalLink as ProjectLink } from "./ExternalLink";
 import { Icon, NavigationHints } from "./ui";
 import { SourceIdentityPanel } from "./SourceIdentity";

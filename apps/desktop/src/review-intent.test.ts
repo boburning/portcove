@@ -3,7 +3,8 @@ import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { desktopApi } from "./api";
-import { useAdoptionPlanning, useInstallPlanning, type Perform } from "./use-portcove";
+import type { Perform } from "./features/operations/use-operation-state";
+import { useAdoptionPlanning, useInstallPlanning } from "./use-portcove";
 
 function deferred<T>() {
   let resolve!: (value: T) => void;

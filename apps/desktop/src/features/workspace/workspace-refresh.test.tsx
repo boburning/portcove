@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { listen } from "@tauri-apps/api/event";
 import { desktopApi } from "../../api";
 import { useUpdateCenter } from "../port-updates/use-update-center";
-import { useOperationState, type Perform } from "../../use-portcove";
+import { useOperationState, type Perform } from "../operations/use-operation-state";
 import { essentialSnapshotIdentity, usePortcoveData } from "./use-workspace-data";
 import { failureReport, portDefinition, portStatus } from "../../test-fixtures";
 import type { DoctorReport, OperationEvent, WorkspaceSnapshot } from "../../types";

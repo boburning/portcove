@@ -1,4 +1,4 @@
-import type { OperationEvent } from "./types";
+import type { OperationEvent } from "../../types";
 
 export type OperationEventState = ReadonlyMap<string, OperationEvent>;
 

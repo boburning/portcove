@@ -5,7 +5,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { desktopApi } from "../api";
 import { portStatus } from "../test-fixtures";
 import type { GameUpdatePlan } from "../types";
-import type { Perform } from "../use-portcove";
+import type { Perform } from "../features/operations/use-operation-state";
 import { GameUpdateControl, UpdatePolicyControl } from "./GameUpdates";
 
 const plan: GameUpdatePlan = {
