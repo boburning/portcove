@@ -45,7 +45,7 @@ pub struct GithubReleaseProvider {
     web_root: String,
     library: Option<Library>,
     credential: Arc<StdRwLock<GithubCredential>>,
-    cache: Arc<RwLock<HashMap<ReleaseCacheKey, CachedRelease>>>,
+    cache: Arc<RwLock<HashMap<ReleaseSelectionCacheKey, CachedRelease>>>,
     device_sessions: Arc<Mutex<HashMap<String, DeviceSession>>>,
 }
 
@@ -63,10 +63,33 @@ struct DeviceSession {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-struct ReleaseCacheKey {
+pub(crate) struct ReleaseSelectionCacheKey {
     repository: String,
     channel: ReleaseChannel,
     platform: Platform,
+    rolling_tag: Option<String>,
+    asset_hints: Vec<String>,
+}
+
+impl ReleaseSelectionCacheKey {
+    pub(crate) fn new(port: &PortDefinition, channel: ReleaseChannel, platform: Platform) -> Self {
+        Self {
+            repository: port.release.repository.clone(),
+            channel,
+            platform,
+            rolling_tag: port
+                .release
+                .rolling_tag
+                .as_ref()
+                .map(|tag| tag.to_ascii_lowercase()),
+            asset_hints: port
+                .release
+                .asset_hints
+                .get(&platform)
+                .map(|hints| hints.iter().map(|hint| hint.to_ascii_lowercase()).collect())
+                .unwrap_or_default(),
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -253,7 +276,7 @@ impl GithubReleaseProvider {
         )))
     }
 
-    async fn cached_release(&self, key: &ReleaseCacheKey) -> Option<ResolvedRelease> {
+    async fn cached_release(&self, key: &ReleaseSelectionCacheKey) -> Option<ResolvedRelease> {
         self.cache
             .read()
             .await
@@ -262,7 +285,7 @@ impl GithubReleaseProvider {
             .map(|entry| entry.release.clone())
     }
 
-    async fn store_release(&self, key: ReleaseCacheKey, release: ResolvedRelease) {
+    async fn store_release(&self, key: ReleaseSelectionCacheKey, release: ResolvedRelease) {
         self.cache.write().await.insert(
             key,
             CachedRelease {
@@ -585,11 +608,7 @@ impl ReleaseProvider for GithubReleaseProvider {
                 port.name
             )));
         }
-        let cache_key = ReleaseCacheKey {
-            repository: port.release.repository.clone(),
-            channel,
-            platform,
-        };
+        let cache_key = ReleaseSelectionCacheKey::new(port, channel, platform);
         if let Some(release) = self.cached_release(&cache_key).await {
             return Ok(release);
         }
@@ -621,7 +640,7 @@ impl ReleaseProvider for GithubReleaseProvider {
                     ))
                 })?,
         };
-        let version = release_version(&release.tag_name, channel, &sha256);
+        let version = release_version(&release.tag_name);
         let resolved = ResolvedRelease {
             version,
             channel,
@@ -667,7 +686,7 @@ pub(crate) fn select_channel_candidate<'a, T>(
         .find(|release| selectable(release) && !beta(release) && !is_rolling(release))
 }
 
-fn release_version(tag: &str, _channel: ReleaseChannel, _sha256: &str) -> String {
+fn release_version(tag: &str) -> String {
     tag.to_string()
 }
 
@@ -1106,6 +1125,38 @@ mod tests {
         (format!("http://{address}"), requests_rx, server)
     }
 
+    fn serve_routed_http(
+        request_limit: usize,
+        response: impl Fn(&str) -> String + Send + 'static,
+    ) -> (String, Receiver<String>, JoinHandle<()>) {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        listener.set_nonblocking(true).unwrap();
+        let address = listener.local_addr().unwrap();
+        let (requests_tx, requests_rx) = mpsc::channel();
+        let server = thread::spawn(move || {
+            let deadline = Instant::now() + Duration::from_secs(3);
+            let mut handled = 0;
+            while handled < request_limit && Instant::now() < deadline {
+                let (mut stream, _) = match listener.accept() {
+                    Ok(connection) => connection,
+                    Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
+                        thread::sleep(Duration::from_millis(5));
+                        continue;
+                    }
+                    Err(error) => panic!("test server could not accept a request: {error}"),
+                };
+                stream.set_nonblocking(false).unwrap();
+                let mut request = vec![0_u8; 16 * 1024];
+                let size = stream.read(&mut request).unwrap();
+                let request = String::from_utf8_lossy(&request[..size]).to_string();
+                stream.write_all(response(&request).as_bytes()).unwrap();
+                requests_tx.send(request).unwrap();
+                handled += 1;
+            }
+        });
+        (format!("http://{address}"), requests_rx, server)
+    }
+
     fn ok_json(body: &str, extra_headers: &str) -> String {
         format!(
             "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n{extra_headers}Content-Length: {}\r\nConnection: close\r\n\r\n{body}",
@@ -1126,6 +1177,39 @@ mod tests {
                 "digest": format!("sha256:{}", "a".repeat(64))
             }]
         })
+    }
+
+    fn github_selector_releases() -> String {
+        serde_json::to_string(
+            &[
+                ("nightly-a", true),
+                ("nightly-b", true),
+                ("v2.0.0", false),
+            ]
+            .map(|(tag, prerelease)| {
+                serde_json::json!({
+                    "tag_name": tag,
+                    "draft": false,
+                    "prerelease": prerelease,
+                    "published_at": null,
+                    "assets": [
+                        {
+                            "name": "game-first-windows.zip",
+                            "browser_download_url": format!("https://downloads.example.invalid/{tag}-first.zip"),
+                            "size": 1,
+                            "digest": format!("sha256:{}", "a".repeat(64))
+                        },
+                        {
+                            "name": "game-second-windows.zip",
+                            "browser_download_url": format!("https://downloads.example.invalid/{tag}-second.zip"),
+                            "size": 2,
+                            "digest": format!("sha256:{}", "b".repeat(64))
+                        }
+                    ]
+                })
+            }),
+        )
+        .unwrap()
     }
 
     #[tokio::test]
@@ -1305,21 +1389,8 @@ mod tests {
 
     #[test]
     fn display_versions_do_not_embed_artifact_identity() {
-        let first = format!("{}{}", "a".repeat(12), "0".repeat(52));
-        let second = format!("{}{}", "b".repeat(12), "0".repeat(52));
-
-        assert_eq!(
-            release_version("devbuild", ReleaseChannel::Rolling, &first),
-            "devbuild"
-        );
-        assert_eq!(
-            release_version("devbuild", ReleaseChannel::Rolling, &second),
-            "devbuild"
-        );
-        assert_eq!(
-            release_version("v1.2.3", ReleaseChannel::Stable, &first),
-            "v1.2.3"
-        );
+        assert_eq!(release_version("devbuild"), "devbuild");
+        assert_eq!(release_version("v1.2.3"), "v1.2.3");
     }
 
     #[test]
@@ -1833,11 +1904,12 @@ mod tests {
     #[tokio::test]
     async fn successful_release_resolutions_are_cached() {
         let provider = GithubReleaseProvider::with_api_root("https://example.invalid").unwrap();
-        let key = ReleaseCacheKey {
-            repository: "example/project".into(),
-            channel: ReleaseChannel::Stable,
-            platform: Platform::WindowsX86_64,
-        };
+        let catalog = crate::Catalog::embedded().unwrap();
+        let key = ReleaseSelectionCacheKey::new(
+            catalog.port("re-blue").unwrap(),
+            ReleaseChannel::Stable,
+            Platform::WindowsX86_64,
+        );
         let release = ResolvedRelease {
             version: "v1.0.0".into(),
             channel: ReleaseChannel::Stable,
@@ -1855,6 +1927,195 @@ mod tests {
         assert_eq!(
             provider.cached_release(&key).await.unwrap().version,
             "v1.0.0"
+        );
+    }
+
+    #[test]
+    fn release_selection_cache_key_preserves_exact_selector_identity() {
+        let catalog = crate::Catalog::embedded().unwrap();
+        let mut first = catalog.port("re-blue").unwrap().clone();
+        first.release.repository = "shared/project".into();
+        first.release.rolling_tag = Some("Nightly".into());
+        first.release.asset_hints.insert(
+            Platform::WindowsX86_64,
+            vec!["first".into(), "second".into()],
+        );
+        let baseline =
+            ReleaseSelectionCacheKey::new(&first, ReleaseChannel::Rolling, Platform::WindowsX86_64);
+
+        let mut different_id = first.clone();
+        different_id.id = "another-port-id".into();
+        assert_eq!(
+            ReleaseSelectionCacheKey::new(
+                &different_id,
+                ReleaseChannel::Rolling,
+                Platform::WindowsX86_64,
+            ),
+            baseline
+        );
+
+        let mut reordered = first.clone();
+        reordered.release.asset_hints.insert(
+            Platform::WindowsX86_64,
+            vec!["second".into(), "first".into()],
+        );
+        assert_ne!(
+            ReleaseSelectionCacheKey::new(
+                &reordered,
+                ReleaseChannel::Rolling,
+                Platform::WindowsX86_64,
+            ),
+            baseline
+        );
+
+        let mut equivalent_case = first.clone();
+        equivalent_case.release.rolling_tag = Some("nightly".into());
+        equivalent_case.release.asset_hints.insert(
+            Platform::WindowsX86_64,
+            vec!["FIRST".into(), "SECOND".into()],
+        );
+        assert_eq!(
+            ReleaseSelectionCacheKey::new(
+                &equivalent_case,
+                ReleaseChannel::Rolling,
+                Platform::WindowsX86_64,
+            ),
+            baseline
+        );
+
+        let mut changed_tag = first;
+        changed_tag.release.rolling_tag = Some("nightly-next".into());
+        assert_ne!(
+            ReleaseSelectionCacheKey::new(
+                &changed_tag,
+                ReleaseChannel::Rolling,
+                Platform::WindowsX86_64,
+            ),
+            baseline
+        );
+    }
+
+    #[tokio::test]
+    async fn github_release_cache_is_scoped_to_the_complete_current_selector() {
+        let releases = github_selector_releases();
+        let (api_root, requests, server) = serve_routed_http(9, move |request| {
+            if request.contains("/releases?") {
+                ok_json(&releases, "")
+            } else {
+                ok_json(r#"{"archived":false}"#, "")
+            }
+        });
+        let provider = GithubReleaseProvider::with_api_root(api_root).unwrap();
+        let catalog = crate::Catalog::embedded().unwrap();
+        let mut first = catalog.port("re-blue").unwrap().clone();
+        first.release.repository = "shared/project".into();
+        first.channels = vec![ReleaseChannel::Stable, ReleaseChannel::Rolling];
+        first.release.asset_hints.insert(
+            Platform::WindowsX86_64,
+            vec!["first".into(), "windows".into()],
+        );
+
+        let initial = provider
+            .resolve(&first, ReleaseChannel::Stable, Platform::WindowsX86_64)
+            .await
+            .unwrap();
+        let unchanged = provider
+            .resolve(&first, ReleaseChannel::Stable, Platform::WindowsX86_64)
+            .await
+            .unwrap();
+        assert_eq!(initial.asset.name, "game-first-windows.zip");
+        assert_eq!(unchanged.version, initial.version);
+        assert_eq!(unchanged.asset.name, initial.asset.name);
+        assert_eq!(unchanged.asset.sha256, initial.asset.sha256);
+
+        let mut second = first.clone();
+        second.id = "same-repository-second-definition".into();
+        second.release.asset_hints.insert(
+            Platform::WindowsX86_64,
+            vec!["second".into(), "windows".into()],
+        );
+        let changed_hints = provider
+            .resolve(&second, ReleaseChannel::Stable, Platform::WindowsX86_64)
+            .await
+            .unwrap();
+        assert_eq!(changed_hints.asset.name, "game-second-windows.zip");
+
+        first.release.rolling_tag = Some("nightly-a".into());
+        let first_rolling = provider
+            .resolve(&first, ReleaseChannel::Rolling, Platform::WindowsX86_64)
+            .await
+            .unwrap();
+        first.release.rolling_tag = Some("nightly-b".into());
+        let changed_rolling = provider
+            .resolve(&first, ReleaseChannel::Rolling, Platform::WindowsX86_64)
+            .await
+            .unwrap();
+        server.join().unwrap();
+
+        assert_eq!(first_rolling.version, "nightly-a");
+        assert_eq!(changed_rolling.version, "nightly-b");
+        let requests = requests.try_iter().collect::<Vec<_>>();
+        assert_eq!(requests.len(), 9);
+        assert_eq!(
+            requests
+                .iter()
+                .filter(|request| request.contains("/releases?"))
+                .count(),
+            4
+        );
+    }
+
+    #[tokio::test]
+    async fn concurrent_github_selectors_do_not_share_a_selected_result() {
+        let releases = github_selector_releases();
+        let (api_root, requests, server) = serve_routed_http(6, move |request| {
+            if request.contains("/releases?") {
+                ok_json(&releases, "")
+            } else {
+                ok_json(r#"{"archived":false}"#, "")
+            }
+        });
+        let provider = GithubReleaseProvider::with_api_root(api_root).unwrap();
+        let catalog = crate::Catalog::embedded().unwrap();
+        let mut first = catalog.port("re-blue").unwrap().clone();
+        first.release.repository = "shared/concurrent".into();
+        first
+            .release
+            .asset_hints
+            .insert(Platform::WindowsX86_64, vec!["first".into()]);
+        let mut second = first.clone();
+        second.id = "same-repository-concurrent-definition".into();
+        second
+            .release
+            .asset_hints
+            .insert(Platform::WindowsX86_64, vec!["second".into()]);
+
+        let (first_result, second_result) = tokio::join!(
+            provider.resolve(&first, ReleaseChannel::Stable, Platform::WindowsX86_64),
+            provider.resolve(&second, ReleaseChannel::Stable, Platform::WindowsX86_64)
+        );
+        let first_cached = provider
+            .resolve(&first, ReleaseChannel::Stable, Platform::WindowsX86_64)
+            .await
+            .unwrap();
+        let second_cached = provider
+            .resolve(&second, ReleaseChannel::Stable, Platform::WindowsX86_64)
+            .await
+            .unwrap();
+        server.join().unwrap();
+
+        assert_eq!(first_result.unwrap().asset.name, "game-first-windows.zip");
+        assert_eq!(second_result.unwrap().asset.name, "game-second-windows.zip");
+        assert_eq!(first_cached.asset.name, "game-first-windows.zip");
+        assert_eq!(second_cached.asset.name, "game-second-windows.zip");
+        let requests = requests.try_iter().collect::<Vec<_>>();
+        assert_eq!(requests.len(), 6);
+        assert_eq!(
+            requests
+                .iter()
+                .filter(|request| request.contains("/releases?"))
+                .count(),
+            2
         );
     }
 
