@@ -350,6 +350,10 @@ function classifyOnePath(selection, input, fileExists, options = {}) {
     selection.uiFullTests = true;
     selection.scopes.add("ui");
     recognized = true;
+    if (["package.json", "pnpm-lock.yaml"].includes(file)) {
+      selection.fallow = true;
+      addNodeTest(selection, "scripts/check-fallow-report.test.mjs");
+    }
   }
 
   if (file.startsWith("scripts/")) {
@@ -950,7 +954,7 @@ export function buildPlan(selection, context = {}) {
     commands.push(
       command(
         "fallow",
-        "run the quality report governed by the changed Fallow configuration",
+        "run the quality report governed by the changed Fallow configuration or runtime",
         process.execPath,
         ["scripts/run-fallow.mjs"],
       ),
