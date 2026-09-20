@@ -260,13 +260,19 @@ test("UI sources build, lint, and run import-related tests", () => {
 });
 
 test("frontend configuration changes use the complete small UI suite", () => {
-  const { selection, plan } = planFor(["package.json"]);
-  assert.equal(selection.uiFullTests, true);
+  for (const path of ["package.json", "pnpm-lock.yaml"]) {
+    const { selection, plan } = planFor([path]);
+    assert.equal(selection.uiFullTests, true, path);
+    assert.equal(selection.fallow, true, path);
+    assert.ok(selection.nodeTests.has("scripts/check-fallow-report.test.mjs"), path);
+    assert.ok(ids(plan).includes("ui-tests"), path);
+    assert.ok(ids(plan).includes("fallow"), path);
+    assert.ok(!ids(plan).includes("ui-related-tests"), path);
+    assert.ok(!ids(plan).includes("ui-theme-copy"), path);
+    assert.ok(!ids(plan).includes("ui-copy"), path);
+  }
+  const { selection } = planFor(["package.json"]);
   assert.ok(selection.nodeTests.has("scripts/dev-storage.test.mjs"));
-  assert.ok(ids(plan).includes("ui-tests"));
-  assert.ok(!ids(plan).includes("ui-related-tests"));
-  assert.ok(!ids(plan).includes("ui-theme-copy"));
-  assert.ok(!ids(plan).includes("ui-copy"));
   const scripts = JSON.parse(
     readFileSync(new URL("../apps/desktop/package.json", import.meta.url), "utf8"),
   ).scripts;
