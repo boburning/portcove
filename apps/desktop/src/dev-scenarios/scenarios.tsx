@@ -5,49 +5,89 @@ import { BackupHistory } from "../components/BackupHistory";
 import { HostToolRow, StatusLayer } from "../components/Chrome";
 import { WorkspaceRefreshNotice } from "../features/workspace/WorkspaceRefreshNotice";
 import { failureReport, portDefinition, portStatus, sourceProfile } from "../test-fixtures";
-import type { InstallRecord, PortStatus } from "../types";
+import type { InstallPlan, InstallRecord, PortDefinition, PortStatus } from "../types";
 
 export const scenarios = [
   {
     id: "empty-library",
     label: "Empty library",
+    theme: "dark",
+    viewport: "wide",
     limitation: "No catalog discovery or library IPC is executed.",
   },
   {
     id: "ready-game",
     label: "Ready game",
+    theme: "dark",
+    viewport: "wide",
     limitation: "Readiness is a supplied typed fixture, not a launch or eligibility check.",
   },
   {
     id: "missing-source",
     label: "Missing source",
+    theme: "dark",
+    viewport: "wide",
     limitation: "No file picker, source inspection or source acquisition runs.",
   },
   {
     id: "missing-tool",
     label: "Missing tool",
+    theme: "dark",
+    viewport: "wide",
     limitation: "The supplied missing-tool status does not probe or install a host tool.",
   },
   {
     id: "staged-update",
     label: "Staged update",
+    theme: "dark",
+    viewport: "wide",
     limitation: "No update, activation, download or signature verification runs.",
   },
   {
     id: "interrupted-operation",
     label: "Interrupted operation",
+    theme: "dark",
+    viewport: "wide",
     limitation:
       "This previews backup recovery text; it does not reproduce a crash or recover data.",
   },
   {
     id: "refresh-failure",
     label: "Refresh failure",
+    theme: "dark",
+    viewport: "wide",
     limitation: "The retained-snapshot error is synthetic; retry and subscriptions do not run.",
   },
   {
     id: "unavailable-provider",
     label: "Unavailable artwork/provider",
+    theme: "dark",
+    viewport: "wide",
     limitation: "Only failure presentation is shown; no provider request or image decoding runs.",
+  },
+  {
+    id: "library-reference-long-title",
+    label: "Library reference · long title",
+    theme: "light",
+    viewport: "wide",
+    limitation:
+      "The installed library and missing artwork are supplied fixtures; refresh and image decoding do not run.",
+  },
+  {
+    id: "game-details-reference-narrow",
+    label: "Game details reference · narrow",
+    theme: "dark",
+    viewport: "narrow",
+    limitation:
+      "The selected game and narrow viewport are supplied; dialog focus, navigation and native artwork do not run.",
+  },
+  {
+    id: "installation-review-reference",
+    label: "Installation review reference",
+    theme: "light",
+    viewport: "narrow",
+    limitation:
+      "The reviewed plan is a typed fixture; source validation, trust checks, download and installation do not run.",
   },
 ] as const;
 
@@ -75,10 +115,10 @@ const actions: DetailActions = {
   verify: blockedScenarioAction,
 };
 
-function installed(): InstallRecord {
+function installed(portId = "sample"): InstallRecord {
   return {
     id: "scenario-install-1",
-    port_id: "sample",
+    port_id: portId,
     version: "1.0",
     path: "sample/1.0",
     channel: "stable",
@@ -92,7 +132,115 @@ function installed(): InstallRecord {
   };
 }
 
+function reviewedInstallPlan(port: PortDefinition): InstallPlan {
+  return {
+    bundled_runtime: null,
+    port_id: port.id,
+    channel: "stable",
+    platform: "windows-x86-64",
+    action: "download",
+    source_requirements: [],
+    download_bytes: 64 * 1024 ** 2,
+    release: {
+      published_at: "2026-09-20T00:00:00Z",
+      version: "2.0",
+      channel: "stable",
+      asset: {
+        name: "scenario-game-windows.zip",
+        url: "https://example.com/scenario-game-windows.zip",
+        size: 64 * 1024 ** 2,
+        sha256: "d".repeat(64),
+      },
+    },
+    storage: {
+      library_root: "E:/Portcove",
+      volume_total_bytes: 1024 ** 4,
+      volume_available_bytes: 512 * 1024 ** 3,
+    },
+    output_location: {
+      configured_output_directory: null,
+      port_id: port.id,
+      library_root: "E:/Portcove",
+      default_output_directory: `E:/Portcove/versions/${port.id}`,
+      effective_output_directory: `E:/Portcove/versions/${port.id}`,
+      selection_source: "library_default",
+      user_data_root: `E:/Portcove/user/${port.id}`,
+    },
+  };
+}
+
+function ReferenceWorkspace({ mode }: { mode: "library" | "details" | "installation-review" }) {
+  const port = {
+    ...portDefinition(),
+    name: "The Unreasonably Long Scenario Game Title: Definitive Portable Edition",
+    summary:
+      "A deterministic long-title reference with generated artwork fallback and retained player-facing metadata.",
+  };
+  const secondPort = {
+    ...portDefinition(),
+    id: "second-scenario",
+    name: "Compact companion game",
+  };
+  const installedStatus: PortStatus = {
+    ...portStatus(),
+    port_id: port.id,
+    active: installed(port.id),
+    readiness: { launchable: true, blockers: [], pending_setup: false },
+  };
+  const secondStatus: PortStatus = {
+    ...portStatus(),
+    port_id: secondPort.id,
+    active: installed(secondPort.id),
+    readiness: { launchable: true, blockers: [], pending_setup: false },
+  };
+  const reviewing = mode === "installation-review";
+  const detailStatus: PortStatus = reviewing
+    ? {
+        ...portStatus(),
+        port_id: port.id,
+      }
+    : installedStatus;
+  return (
+    <div className="scenario-workspace-reference">
+      <PortBrowser
+        view={reviewing ? "catalog" : "library"}
+        ports={[port, secondPort]}
+        statuses={
+          new Map([
+            [port.id, detailStatus],
+            [secondPort.id, secondStatus],
+          ])
+        }
+        overview={{
+          installed: reviewing ? 1 : 2,
+          ready: reviewing ? 1 : 2,
+          needsSetup: 0,
+          staged: 0,
+        }}
+        filter="all"
+        setFilter={blockedScenarioAction}
+        onSelect={blockedScenarioAction}
+        loading={false}
+      />
+      {mode !== "library" && (
+        <DetailPanel
+          port={port}
+          status={detailStatus}
+          installPlan={reviewing ? reviewedInstallPlan(port) : undefined}
+          sourcePath=""
+          setSourcePath={blockedScenarioAction}
+          actions={actions}
+        />
+      )}
+    </div>
+  );
+}
+
 function Scenario({ id }: { id: ScenarioId }) {
+  if (id === "library-reference-long-title") return <ReferenceWorkspace mode="library" />;
+  if (id === "game-details-reference-narrow") return <ReferenceWorkspace mode="details" />;
+  if (id === "installation-review-reference")
+    return <ReferenceWorkspace mode="installation-review" />;
   const port = { ...portDefinition(), name: "Scenario game" };
   if (id === "empty-library")
     return (
@@ -195,7 +343,12 @@ export function renderScenario(id: string): string {
   if (!scenario) throw new Error(`Unknown development scenario: ${id}`);
   // Static rendering intentionally does not mount effects or retain event handlers.
   return renderToStaticMarkup(
-    <section data-development-scenario={scenario.id} inert>
+    <section
+      data-development-scenario={scenario.id}
+      data-scenario-viewport={scenario.viewport}
+      data-theme={scenario.theme}
+      inert
+    >
       <Scenario id={scenario.id} />
     </section>,
   );

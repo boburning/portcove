@@ -15,6 +15,8 @@ describe("static development scenarios", () => {
       const html = renderScenario(scenario.id);
       expect(html).toBe(renderScenario(scenario.id));
       expect(html).toContain(`data-development-scenario="${scenario.id}"`);
+      expect(html).toContain(`data-scenario-viewport="${scenario.viewport}"`);
+      expect(html).toContain(`data-theme="${scenario.theme}"`);
       expect(html).toContain("inert");
       expect(html).not.toMatch(/\son(?:click|change|submit)=/iu);
       expect(scenario.limitation.length).toBeGreaterThan(20);
@@ -32,6 +34,14 @@ describe("static development scenarios", () => {
     expect(renderScenario("interrupted-operation")).toContain("Backup recovery required");
     expect(renderScenario("refresh-failure")).toContain("Showing the last loaded information");
     expect(renderScenario("unavailable-provider")).toContain("Artwork is unavailable");
+    expect(renderScenario("library-reference-long-title")).toContain(
+      "The Unreasonably Long Scenario Game Title",
+    );
+    expect(renderScenario("game-details-reference-narrow")).toContain("Play now");
+    expect(renderScenario("installation-review-reference")).toContain("INSTALL PLAN");
+    expect(renderScenario("installation-review-reference")).toContain("Install · 64.0 MiB");
+    expect(renderScenario("installation-review-reference")).toContain("Not installed");
+    expect(renderScenario("installation-review-reference")).toContain("2 ports");
   });
 });
 
@@ -40,6 +50,8 @@ describe("development browser entry", () => {
     vi.unstubAllEnvs();
     Reflect.deleteProperty(window, "__TAURI_INTERNALS__");
     document.body.innerHTML = "";
+    document.body.classList.remove("scenario-embed");
+    window.history.replaceState(null, "", "/");
   });
 
   it("refuses production execution before loading scenarios", async () => {
@@ -74,5 +86,44 @@ describe("development browser entry", () => {
     expect(document.querySelector("#scenario-limitation")!.textContent).toContain(
       "Not interaction",
     );
+    expect(new URL(window.location.href).searchParams.get("scenario")).toBe("staged-update");
+  });
+
+  it("opens an exact stable scenario from the handoff URL", async () => {
+    vi.resetModules();
+    vi.stubEnv("DEV", true);
+    window.history.replaceState(null, "", "/scenarios.html?scenario=installation-review-reference");
+    document.body.innerHTML =
+      '<select id="scenario"></select><p id="scenario-limitation"></p><main id="scenario-preview"></main>';
+
+    await import("./entry");
+
+    expect(document.querySelector<HTMLSelectElement>("select")!.value).toBe(
+      "installation-review-reference",
+    );
+    const frame = document.querySelector<HTMLIFrameElement>("iframe")!;
+    const frameUrl = new URL(frame.src);
+    expect(frame.title).toContain("narrow reference viewport");
+    expect(frameUrl.searchParams.get("scenario")).toBe("installation-review-reference");
+    expect(frameUrl.searchParams.get("embed")).toBe("1");
+    expect(window.location.search).toBe("?scenario=installation-review-reference");
+  });
+
+  it("renders the component directly inside the narrow browsing context", async () => {
+    vi.resetModules();
+    vi.stubEnv("DEV", true);
+    window.history.replaceState(
+      null,
+      "",
+      "/scenarios.html?scenario=installation-review-reference&embed=1",
+    );
+    document.body.innerHTML =
+      '<header class="scenario-controls"><select id="scenario"></select><p id="scenario-limitation"></p></header><main id="scenario-preview"></main>';
+
+    await import("./entry");
+
+    expect(document.body.classList.contains("scenario-embed")).toBe(true);
+    expect(document.querySelector("iframe")).toBeNull();
+    expect(document.querySelector<HTMLElement>("main")!.innerHTML).toContain("INSTALL PLAN");
   });
 });
