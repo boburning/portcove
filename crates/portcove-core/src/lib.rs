@@ -123,7 +123,9 @@ pub use failure::{
     FailurePresentation, FailureReport, FailureTone, MutationState, RecoveryAction,
     redact_diagnostic_text, redact_diagnostic_value, sensitive_diagnostic_field,
 };
-pub use game_file_root::{GameFileRoot, GameFileRootAvailability};
+pub use game_file_root::{
+    GameFileRoot, GameFileRootAvailability, GameFileScanFreshness, GameFileScanSnapshot,
+};
 pub use gitlab::GitlabReleaseProvider;
 pub use host_preferences::{
     HostPreferenceStore, HostPreferences, HostToolPreference, LibrarySelection,

@@ -1504,6 +1504,17 @@ Only a verified import changes its journal to published and becomes openable. Th
 
 Core owns opt-in discovery requests, traversal and hashing budgets, candidate validation, and explicit acceptance. Search requires selected roots and profiles; it does not infer personal folders. It skips symlinks and entries outside the canonical selected roots, filters extensions and size before hashing, bounds traversal and hashing, and shares original-file/cartridge-ZIP identity validation with manual registration. Equal source contracts share a hashing pass. Only profiles with exact published hash identities are automatically matched; disc conversion, folder sets, and upstream-validator handoffs continue through manual selection. Results are candidates, never registrations. Acceptance runs current validation under the existing source/dependent-port locks and compares the reviewed normalized digest before writing the registry. CLI and Tauri expose this core operation; React holds only the selected search scope and transient result list.
 
+Explicit saved game-file roots are a separate core-owned input authority. A
+catalog-wide foreground scan considers only currently available saved roots and
+records unavailable roots as incomplete coverage rather than deletion. After a
+successful scan, core atomically replaces one bounded versioned snapshot containing
+the exact root identities and states, authoritative catalog digest, discovery report,
+limits and completion time. Cancellation or failure preserves the prior snapshot.
+Reads report whether catalog bytes, roots, availability and relink state still match
+the recorded inputs. That does not claim the collection stayed byte-identical after
+the scan; the snapshot is local evidence, not a watcher, source registration, setup
+intent, or permission to mutate or install anything.
+
 ## Install transaction
 
 SQLite schema 28 adds a durable preparation-process quiescence fact. Core clears

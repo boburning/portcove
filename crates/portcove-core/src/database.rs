@@ -14,7 +14,7 @@ use crate::{PortcoveError, Result};
 #[path = "database_concurrency_tests.rs"]
 mod concurrency_tests;
 
-pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 30;
+pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 31;
 
 struct Migration {
     version: i64,
@@ -203,6 +203,12 @@ const MIGRATIONS: &[Migration] = &[
         name: "saved game-file roots",
         apply: migration_30,
         verify: verify_migration_30,
+    },
+    Migration {
+        version: 31,
+        name: "durable game-file scan snapshot",
+        apply: migration_31,
+        verify: verify_migration_31,
     },
 ];
 
@@ -966,6 +972,24 @@ fn verify_migration_30(connection: &Connection) -> Result<()> {
     )
 }
 
+fn migration_31(transaction: &Transaction<'_>) -> Result<()> {
+    transaction.execute_batch(
+        "CREATE TABLE game_file_scan_state (
+            singleton INTEGER PRIMARY KEY CHECK(singleton=1),
+            snapshot_json TEXT NOT NULL CHECK(length(snapshot_json)<=8388608)
+        );",
+    )?;
+    verify_migration_31(transaction)
+}
+
+fn verify_migration_31(connection: &Connection) -> Result<()> {
+    require_columns(
+        connection,
+        "game_file_scan_state",
+        &["singleton", "snapshot_json"],
+    )
+}
+
 fn verify_migration_26(connection: &Connection) -> Result<()> {
     require_columns(
         connection,
@@ -1405,6 +1429,7 @@ mod tests {
         schema_27: 27,
         schema_28: 28,
         schema_29: 29,
+        schema_30: 30,
     }
 
     #[test]
