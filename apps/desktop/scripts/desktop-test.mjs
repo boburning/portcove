@@ -485,15 +485,70 @@ try {
     assert.equal((await invoke("get_bootstrap_status")).value.ready, true);
   });
   await scenario("keyboard-layout", async () => {
-    await browser.manage().window().setRect({ width: 960, height: 640 });
-    await browser.findElement(By.css("nav button")).click();
-    await browser.actions().sendKeys(Key.TAB).perform();
-    const focus = await browser.executeScript(() => ({
-      tag: document.activeElement.tagName,
-      overflow: document.documentElement.scrollWidth > window.innerWidth + 1,
+    await browser.manage().window().setRect({ width: 640, height: 640 });
+    await browser.findElement(By.xpath('//nav//button[contains(., "Settings")]')).click();
+    await browser.wait(until.elementLocated(By.css('[data-settings-group="appearance"]')), 15_000);
+    const layout = await browser.executeScript(() => ({
+      document_overflow: document.documentElement.scrollWidth > window.innerWidth + 1,
+      about_columns: (() => {
+        const about = document.querySelector(".about-card");
+        if (!(about instanceof HTMLElement)) throw new Error("About card is missing");
+        return getComputedStyle(about).gridTemplateColumns.split(" ").length;
+      })(),
+      groups: [...document.querySelectorAll("[data-settings-group]")].map((group) => {
+        const content = group.querySelector(".settings-section-content");
+        if (!(content instanceof HTMLElement)) throw new Error("Settings group content is missing");
+        return {
+          name: group.getAttribute("data-settings-group"),
+          columns: getComputedStyle(content).gridTemplateColumns.split(" ").length,
+        };
+      }),
+      overflowing_cards: [...document.querySelectorAll(".settings-card")]
+        .filter((card) => card.scrollWidth > card.clientWidth + 1)
+        .map((card) => card.getAttribute("aria-labelledby") ?? card.className),
     }));
+    assert.equal(layout.document_overflow, false);
+    assert.equal(layout.about_columns, 1);
+    assert.deepEqual(layout.groups, [
+      { name: "appearance", columns: 1 },
+      { name: "library-storage", columns: 1 },
+      { name: "game-files", columns: 1 },
+      { name: "updates", columns: 1 },
+      { name: "integrations", columns: 1 },
+      { name: "advanced", columns: 1 },
+    ]);
+    assert.deepEqual(layout.overflowing_cards, []);
+
+    let focusedSettingsControl = false;
+    for (let step = 0; step < 30 && !focusedSettingsControl; step++) {
+      await browser.actions().sendKeys(Key.TAB).perform();
+      focusedSettingsControl = await browser.executeScript(() =>
+        Boolean(document.activeElement?.closest("[data-settings-group]")),
+      );
+    }
+    assert.equal(focusedSettingsControl, true);
+    const focus = await browser.executeScript(() => {
+      const active = document.activeElement;
+      if (!(active instanceof HTMLElement)) return null;
+      const bounds = active.getBoundingClientRect();
+      return {
+        tag: active.tagName,
+        left: bounds.left,
+        right: bounds.right,
+        top: bounds.top,
+        bottom: bounds.bottom,
+      };
+    });
+    assert.ok(focus);
     assert.notEqual(focus.tag, "BODY");
-    assert.equal(focus.overflow, false);
+    assert.ok(focus.left >= 0 && focus.right <= 640);
+    assert.ok(focus.top >= 0 && focus.bottom <= 640);
+    const about = await browser.findElement(By.css(".about-card"));
+    await browser.executeScript(
+      (element) => element.scrollIntoView({ block: "start", inline: "nearest" }),
+      about,
+    );
+    await captureScenarioScreenshot("settings-compact-layout");
   });
   await scenario("native-application-update-preferences", async () => {
     const before = await invoke("get_application_update_preferences");
