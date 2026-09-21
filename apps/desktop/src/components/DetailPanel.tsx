@@ -6,6 +6,7 @@ import { ReleaseChannelControl } from "./ReleaseChannel";
 import { useState } from "react";
 import {
   AlertTriangle,
+  ArrowLeft,
   ArchiveX,
   CheckCircle2,
   ChevronDown,
@@ -21,10 +22,8 @@ import {
   Save,
   ShieldCheck,
   Wrench,
-  X,
 } from "lucide-react";
 import { CliContinuity } from "./CliContinuity";
-import { useDialogFocus } from "../dialog";
 import type {
   ActivityRecord,
   BackupInventory,
@@ -110,17 +109,6 @@ interface DetailPanelProps {
 }
 
 export function DetailPanel(props: DetailPanelProps) {
-  const dialog = useDialogFocus(props.actions.close);
-  return <DetailDialog props={props} dialog={dialog} />;
-}
-
-function DetailDialog({
-  props,
-  dialog,
-}: {
-  props: DetailPanelProps;
-  dialog: ReturnType<typeof useDialogFocus>;
-}) {
   const {
     port,
     status,
@@ -201,63 +189,52 @@ function DetailDialog({
     biosHealth: status?.readiness?.bios,
   };
   return (
-    <div
-      className="scrim"
-      role="presentation"
-      onMouseDown={(event) => closeFromScrim(event, actions.close)}
-    >
-      <section
-        ref={dialog}
-        className="detail-panel"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="port-detail-title"
+    <section className="detail-panel" aria-labelledby="port-detail-title" data-detail-workspace>
+      <button
+        data-focusable
+        className="detail-back button-with-icon"
+        aria-label="Back to previous workspace"
+        onClick={actions.close}
       >
-        <button
-          data-focusable
-          className="close icon-button"
-          aria-label="Close port details"
-          onClick={actions.close}
-        >
-          <Icon glyph={X} />
-        </button>
-        <DetailHero port={port} state={state} />
-        <ArtworkControls key={`${port.id}:${props.libraryGeneration}`} port={port} />
-        {props.cancellableActivities?.map((activity) => (
-          <OperationCancellation
-            key={activity.id}
-            operationId={activity.id}
-            state={activity.cancellation ?? undefined}
-          />
-        ))}
-        <DetailBody
-          perform={props.perform}
-          prepare={props.prepare}
-          port={port}
-          status={status}
-          state={state}
-          sources={sources}
-          installed={installed}
-          sourceReady={sourceReady}
-          biosReady={biosReady}
-          launchReady={launchReady}
-          pendingSetup={pendingSetup}
-          runtimeUpdateAvailable={runtimeUpdateAvailable}
-          installPlan={installPlan}
-          selectedChannel={selectedChannel}
-          policy={policy}
-          backups={backups}
-          backupProblems={backupProblems}
-          backupState={backupState}
-          busy={effectiveBusy}
-          outputExternalBusy={busy}
-          libraryGeneration={props.libraryGeneration ?? 0}
-          outputLocationChanged={props.outputLocationChanged}
-          outputApplying={setOutputApplying}
-          actions={actions}
+        <Icon glyph={ArrowLeft} />
+        Back
+      </button>
+      <DetailHero port={port} state={state} />
+      <ArtworkControls key={`${port.id}:${props.libraryGeneration}`} port={port} />
+      {props.cancellableActivities?.map((activity) => (
+        <OperationCancellation
+          key={activity.id}
+          operationId={activity.id}
+          state={activity.cancellation ?? undefined}
         />
-      </section>
-    </div>
+      ))}
+      <DetailBody
+        perform={props.perform}
+        prepare={props.prepare}
+        port={port}
+        status={status}
+        state={state}
+        sources={sources}
+        installed={installed}
+        sourceReady={sourceReady}
+        biosReady={biosReady}
+        launchReady={launchReady}
+        pendingSetup={pendingSetup}
+        runtimeUpdateAvailable={runtimeUpdateAvailable}
+        installPlan={installPlan}
+        selectedChannel={selectedChannel}
+        policy={policy}
+        backups={backups}
+        backupProblems={backupProblems}
+        backupState={backupState}
+        busy={effectiveBusy}
+        outputExternalBusy={busy}
+        libraryGeneration={props.libraryGeneration ?? 0}
+        outputLocationChanged={props.outputLocationChanged}
+        outputApplying={setOutputApplying}
+        actions={actions}
+      />
+    </section>
   );
 }
 
@@ -271,7 +248,9 @@ function DetailHero({ port, state }: { port: PortDefinition; state: DetailState 
         <p className="eyebrow">
           {port.platforms.map((platform) => platformLabel(platform)).join(" · ")}
         </p>
-        <h2 id="port-detail-title">{port.name}</h2>
+        <h1 className="detail-title" id="port-detail-title">
+          {port.name}
+        </h1>
         <span className={`hero-state ${state.tone}`}>{state.title}</span>
       </div>
     </div>
@@ -996,10 +975,6 @@ function RetiredNotice({ port }: { port: PortDefinition }) {
       </span>
     </p>
   );
-}
-
-function closeFromScrim(event: React.MouseEvent<HTMLDivElement>, close: () => void) {
-  if (event.currentTarget === event.target) close();
 }
 
 function TechnicalDetails({

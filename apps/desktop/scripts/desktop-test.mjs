@@ -549,6 +549,58 @@ try {
       about,
     );
     await captureScenarioScreenshot("settings-compact-layout");
+
+    await browser.findElement(By.xpath('//nav//button[contains(., "Port catalog")]')).click();
+    const search = await browser.wait(until.elementLocated(By.id("port-search")), 15_000);
+    await search.sendKeys("64");
+    await browser.wait(async () => (await browser.findElements(By.css(".port-card"))).length > 2);
+    const origin = await browser.executeScript(() => {
+      const cards = [...document.querySelectorAll(".port-card")];
+      const card = cards[Math.min(3, cards.length - 1)];
+      if (!(card instanceof HTMLElement)) throw new Error("Catalog detail origin is missing");
+      card.scrollIntoView({ block: "center", inline: "nearest" });
+      card.focus();
+      const originKey = card.getAttribute("data-detail-origin");
+      const workspace = document.querySelector("main");
+      if (!originKey || !(workspace instanceof HTMLElement))
+        throw new Error("Catalog detail origin is incomplete");
+      const scrollTop = workspace.scrollTop;
+      card.click();
+      return { originKey, scrollTop };
+    });
+    await browser.wait(until.elementLocated(By.css("[data-detail-workspace]")), 15_000);
+    assert.equal(
+      await browser.executeScript(() => document.querySelector('.detail-panel[role="dialog"]')),
+      null,
+    );
+    assert.equal(await browser.executeScript(() => document.querySelector("#port-search")), null);
+    assert.equal(
+      await browser.executeScript(() => document.querySelector("[data-detail-workspace] h1")?.id),
+      "port-detail-title",
+    );
+    assert.equal(
+      await browser.executeScript(() => document.activeElement?.classList.contains("detail-back")),
+      true,
+    );
+    await captureScenarioScreenshot("game-details-workspace");
+    await browser.findElement(By.css(".detail-back")).click();
+    await browser.wait(until.elementLocated(By.id("port-search")), 15_000);
+    await browser.wait(
+      async () =>
+        (await browser.executeScript(() =>
+          document.activeElement?.getAttribute("data-detail-origin"),
+        )) === origin.originKey,
+      15_000,
+    );
+    const restored = await browser.executeScript(() => ({
+      query: document.querySelector("#port-search")?.value,
+      focus: document.activeElement?.getAttribute("data-detail-origin"),
+      scrollTop: document.querySelector("main")?.scrollTop,
+    }));
+    assert.equal(restored.query, "64");
+    assert.equal(restored.focus, origin.originKey);
+    assert.ok(Math.abs(restored.scrollTop - origin.scrollTop) <= 1);
+    await captureScenarioScreenshot("game-details-workspace-return");
   });
   await scenario("native-application-update-preferences", async () => {
     const before = await invoke("get_application_update_preferences");

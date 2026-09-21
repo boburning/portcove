@@ -38,7 +38,10 @@ describe("app shell state", () => {
   });
 
   it("resets the library filter whenever the primary view changes", async () => {
-    await act(async () => state.setFilter("ready"));
+    await act(async () => {
+      state.setFilter("ready");
+      state.setSelectedId("lighthouse");
+    });
     expect(state.filter).toBe("ready");
 
     await act(async () =>
@@ -47,6 +50,7 @@ describe("app shell state", () => {
 
     expect(state.view).toBe("catalog");
     expect(state.filter).toBe("all");
+    expect(state.selectedId).toBeUndefined();
   });
 
   it("keeps independent shell inputs available to their owning surfaces", async () => {

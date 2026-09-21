@@ -136,7 +136,10 @@ it.each([undefined, null, { launchable: false, pending_setup: false, blockers: [
         host.querySelector<HTMLButtonElement>(".continue-actions button.primary")!.click(),
       );
       expect(launch).not.toHaveBeenCalled();
-      expect(details).toHaveBeenCalledExactlyOnceWith(port.id);
+      expect(details).toHaveBeenCalledExactlyOnceWith(
+        port.id,
+        `library:continue-review:${port.id}`,
+      );
       expect(host.querySelector(".continue-actions")?.textContent).not.toContain("Play again");
     } finally {
       await act(async () => root.unmount());
@@ -187,7 +190,7 @@ it("restores Continue only after a new positive core assessment without changing
       host.querySelector<HTMLButtonElement>(".continue-actions button.primary")!.click(),
     );
     expect(launch).toHaveBeenCalledExactlyOnceWith(port.id);
-    expect(details).toHaveBeenCalledExactlyOnceWith(port.id);
+    expect(details).toHaveBeenCalledExactlyOnceWith(port.id, `library:continue-review:${port.id}`);
     expect(JSON.stringify([unknown, ready])).toBe(original);
   } finally {
     await act(async () => root.unmount());
