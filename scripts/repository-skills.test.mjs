@@ -85,20 +85,29 @@ function repositoryPath(file) {
 
 async function assertLocalLinksResolve(file) {
   const source = await readFile(file, "utf8");
-  for (const target of localMarkdownLinks(source)) {
-    const [path, anchor] = target.split("#", 2);
-    const destination = new URL(path, file);
-    await assert.doesNotReject(
-      access(destination),
-      `${file.pathname} link must resolve: ${target}`,
+  for (const target of localMarkdownLinks(source)) await assertLocalLinkResolves(file, target);
+}
+
+async function assertLocalLinkResolves(file, target) {
+  const [targetPath, anchor] = target.split("#", 2);
+  const destination = new URL(targetPath, file);
+  const relative = repositoryPath(destination);
+  let current = projectRoot;
+  for (const segment of relative.split("/")) {
+    const entries = await readdir(current);
+    assert.ok(
+      entries.includes(segment),
+      `${file.pathname} link must use exact path spelling: ${target}`,
     );
-    if (anchor) {
-      const destinationSource = await readFile(destination, "utf8");
-      assert.ok(
-        headingAnchors(destinationSource).has(anchor),
-        `${file.pathname} anchor must resolve: ${target}`,
-      );
-    }
+    current = path.join(current, segment);
+  }
+  await assert.doesNotReject(access(destination), `${file.pathname} link must resolve: ${target}`);
+  if (anchor) {
+    const destinationSource = await readFile(destination, "utf8");
+    assert.ok(
+      headingAnchors(destinationSource).has(anchor),
+      `${file.pathname} anchor must resolve: ${target}`,
+    );
   }
 }
 
@@ -163,6 +172,16 @@ test("active instruction entrypoints have valid local links and anchors", async 
   files.push(...skillDirectories.map((entry) => new URL(`${entry.name}/SKILL.md`, skillsRoot)));
 
   for (const file of files) await assertLocalLinksResolve(file);
+});
+
+test("local links require exact path spelling on case-insensitive hosts", async () => {
+  await assert.rejects(
+    assertLocalLinkResolves(
+      new URL("../docs/CONTRIBUTION-CONVENTIONS.md", import.meta.url),
+      "../Justfile",
+    ),
+    /link must use exact path spelling: \.\.\/Justfile/u,
+  );
 });
 
 test("workflow guidance routes to owned contracts without unsafe runnable shortcuts", async () => {
