@@ -63,7 +63,6 @@ const protectedPolicyDocuments = new Set([
 
 const protectedPolicyFiles = withNodeTestCompanions([
   ".config/nextest.toml",
-  ".github/fast-host-policy.json",
   ".github/qualification-coverage.json",
   ".github/repository-ruleset.json",
   ".github/repository-security.json",
@@ -76,7 +75,6 @@ const protectedPolicyFiles = withNodeTestCompanions([
   "scripts/repository-settings.mjs",
   "scripts/run-rust-tests.mjs",
   "scripts/select-ci-plan.mjs",
-  "scripts/select-fast-host.mjs",
   "scripts/validation-plan.mjs",
   "scripts/workflow-provenance.mjs",
 ]);

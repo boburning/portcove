@@ -159,10 +159,6 @@ const explicitNodeTests = new Map([
     ["scripts/qualification-coverage.test.mjs", "scripts/ci-workflow.test.mjs"],
   ],
   [
-    ".github/fast-host-policy.json",
-    ["scripts/select-fast-host.test.mjs", "scripts/ci-workflow.test.mjs"],
-  ],
-  [
     "justfile",
     [
       "scripts/local-validation.test.mjs",
@@ -289,6 +285,14 @@ function classifyOnePath(selection, input, fileExists, options = {}) {
     selection.oxfmtFiles.add(file);
   }
   if (extension === ".toml") selection.toml = true;
+
+  if (options.isDeletion && file.startsWith(".github/") && extension === ".json") {
+    selection.scopes.add("tooling");
+    addNodeTest(selection, "scripts/ci-workflow.test.mjs");
+    addNodeTest(selection, "scripts/validation-plan.test.mjs");
+    addNodeTest(selection, "scripts/repository-settings.test.mjs");
+    recognized = true;
+  }
 
   for (const [prefix, packageName] of packagePrefixes) {
     if (file.startsWith(prefix)) {
@@ -610,10 +614,12 @@ export function classifyChanges(changes, options = {}) {
   for (const change of changes) {
     classifyOnePath(selection, change.path, fileExists, {
       includeFileChecks: change.status !== "D",
+      isDeletion: change.status === "D",
     });
     if (change.previousPath)
       classifyOnePath(selection, change.previousPath, fileExists, {
         includeFileChecks: false,
+        isDeletion: true,
       });
     const currentPackage = packageForPath(change.path);
     if (currentPackage) selection.rustChanges.push({ ...change, packageName: currentPackage });
