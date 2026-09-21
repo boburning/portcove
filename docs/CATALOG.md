@@ -324,18 +324,20 @@ The embedded catalog uses schema 2. It contains reusable identities, logical
 variants, tagged physical representations, explicitly scoped conjunctive digest
 records, per-port game and BIOS contracts, validators, exact qualification facts,
 and immutable evidence
-references. `scripts/migrate-catalog-schema2.mjs --check` regenerates it
-deterministically from the frozen schema-1 fixture. Core owns the temporary
+references. Maintainers edit the complete schema-2 authority in
+`catalog-current-authoring.json`; `scripts/generate-catalog.mjs` deterministically
+generates the embedded `catalog.json`, and `--check` refuses stale output. Core owns the temporary
 schema-1 compatibility projection required by the existing matcher and rejects
 any conflicting projection supplied by catalog input. The deterministic
-migration emits an empty exact-qualification collection while preserving the
-legacy arrays because their missing artifact and source dimensions cannot be
-guessed.
+historical migration is no longer a current authoring path. It reads the frozen
+`catalog-schema1-fixture.json` and checks only the frozen
+`catalog-schema2-migration-fixture.json`; current ports, evidence, and
+qualification records must not be added to that migration.
 
 Current embedded ports include an additive `presentation` object for installation
 method, required game/BIOS labels, verification method, and saves/settings
-behavior. The migration generates these facts from the same adapter, profile,
-and source-contract authority, and core rejects labels or verification methods
+behavior. The current schema-2 authoring document records these facts beside the
+same adapter and source-contract authority, and core rejects labels or verification methods
 that disagree with those bindings. Existing platform, channel, support,
 upstream-state, and qualification fields remain the structured authority for
 those facts. Older catalogs may omit presentation and remain readable; clients
@@ -345,7 +347,8 @@ source, persistence, or installed-code contracts.
 Summaries remain one outcome sentence and do not duplicate channel, platform,
 verification, setup, or storage claims.
 
-`catalog-schema1-fixture.json` preserves the full pre-migration document, while
+`catalog-schema1-fixture.json` preserves the full pre-migration document and
+`catalog-schema2-migration-fixture.json` preserves its reviewed historical output, while
 `catalog-schema1-admission-baseline.json` fingerprints every source profile and
 the complete port/profile/adapter binding set. Tests compare every projected
 profile and port definition to that frozen input. The reviewed

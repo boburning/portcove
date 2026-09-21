@@ -119,6 +119,11 @@ test("ordinary repository tools and new unlisted paths retain explicit fast fall
   assert.equal(catalogMigration.mode, "fast");
   assert.ok(catalogMigration.groups.includes("catalog"));
   assert.deepEqual(catalogMigration.platforms, ["primary-host"]);
+
+  const currentCatalog = plan([change("scripts/generate-catalog.mjs")]);
+  assert.equal(currentCatalog.mode, "fast");
+  assert.ok(currentCatalog.groups.includes("catalog"));
+  assert.deepEqual(currentCatalog.platforms, ["primary-host"]);
 });
 
 test("routine dependency manifests stay ecosystem-focused while shared toolchains qualify", () => {

@@ -3,7 +3,13 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
-const catalogPath = join(root, "crates", "portcove-core", "catalog", "catalog.json");
+const catalogPath = join(
+  root,
+  "crates",
+  "portcove-core",
+  "catalog",
+  "catalog-schema2-migration-fixture.json",
+);
 const fixturePath = join(
   root,
   "crates",
@@ -2588,7 +2594,7 @@ const output = `${JSON.stringify(migrated, null, 2)}\n`;
 if (process.argv.includes("--check")) {
   if (readFileSync(catalogPath, "utf8") !== output) {
     throw new Error(
-      "catalog schema-2 output is stale; run node scripts/migrate-catalog-schema2.mjs",
+      "frozen schema-2 migration fixture is stale; run node scripts/migrate-catalog-schema2.mjs",
     );
   }
 } else {

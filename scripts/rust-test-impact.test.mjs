@@ -138,7 +138,7 @@ test("module-local changes select their owned groups and union mixed impacts", (
   assert.match(selected.groups[1].reason, /source discovery/u);
 });
 
-test("cross-cutting, manifest, addition, rename, and deletion changes use the broad fallback", () => {
+test("cross-cutting, manifest, unmapped addition, rename, and deletion changes use the broad fallback", () => {
   for (const change of [
     modified("crates/portcove-core/src/types.rs"),
     modified("crates/portcove-core/Cargo.toml"),
@@ -154,6 +154,18 @@ test("cross-cutting, manifest, addition, rename, and deletion changes use the br
     assert.equal(selected.mode, "broad", JSON.stringify(change));
     assert.match(selected.reason, /complete portcove-core test inventory/u);
   }
+});
+
+test("an explicitly mapped addition uses its reviewed focused group", () => {
+  const selected = selectRustTestImpact(map, "portcove-core", [
+    { status: "A", path: "crates/portcove-core/catalog/catalog-current-authoring.json" },
+  ]);
+  assert.equal(selected.mode, "focused");
+  assert.deepEqual(
+    selected.groups.map((group) => group.id),
+    ["catalog-contract"],
+  );
+  assert.match(selected.reason, /added or modified Rust path/u);
 });
 
 test("one unmapped path makes an otherwise focused mixed change broad", () => {

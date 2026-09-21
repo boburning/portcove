@@ -112,7 +112,22 @@ const explicitNodeTests = new Map([
   ["scripts/roadmap.mjs", ["scripts/repository-skills.test.mjs"]],
   ["scripts/test-windows-installer.ps1", ["scripts/repository-skills.test.mjs"]],
   ["scripts/windows-qualification-session.ps1", ["scripts/repository-skills.test.mjs"]],
-  ["crates/portcove-core/catalog/catalog.json", ["scripts/repository-skills.test.mjs"]],
+  [
+    "crates/portcove-core/catalog/catalog-current-authoring.json",
+    ["scripts/generate-catalog.test.mjs"],
+  ],
+  [
+    "crates/portcove-core/catalog/catalog-schema1-fixture.json",
+    ["scripts/migrate-catalog-schema2.test.mjs"],
+  ],
+  [
+    "crates/portcove-core/catalog/catalog-schema2-migration-fixture.json",
+    ["scripts/migrate-catalog-schema2.test.mjs"],
+  ],
+  [
+    "crates/portcove-core/catalog/catalog.json",
+    ["scripts/generate-catalog.test.mjs", "scripts/repository-skills.test.mjs"],
+  ],
   ["crates/portcove-core/src/catalog.rs", ["scripts/repository-skills.test.mjs"]],
   [
     "apps/desktop/scripts/desktop-test.mjs",

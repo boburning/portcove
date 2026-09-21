@@ -97,11 +97,13 @@ export function selectRustTestImpact(map, packageName, changes) {
   for (const change of changes) {
     const file = normalizePath(change.path);
     const status = String(change.status ?? "");
-    if (change.previousPath || status !== "M") {
-      broadReasons.push(`${status || "unknown"} change ${file} is not a modified mapped file`);
+    const group = groupsByPath.get(file);
+    if (change.previousPath || !["A", "M"].includes(status)) {
+      broadReasons.push(
+        `${status || "unknown"} change ${file} is not an added or modified mapped file`,
+      );
       continue;
     }
-    const group = groupsByPath.get(file);
     if (!group) {
       broadReasons.push(`${file} is outside the explicit focused map`);
       continue;
@@ -113,7 +115,7 @@ export function selectRustTestImpact(map, packageName, changes) {
   if (selected.size === 0) return broad(config, ["no complete mapped Rust change was discovered"]);
   return {
     mode: "focused",
-    reason: "every modified Rust path has explicit test-impact ownership",
+    reason: "every added or modified Rust path has explicit test-impact ownership",
     groups: [...selected.values()].sort((left, right) => left.id.localeCompare(right.id)),
   };
 }
