@@ -7,6 +7,7 @@ fn scan(catalog: &Catalog, request: &SourceDiscoveryRequest) -> Result<SourceDis
         &crate::OperationCoordinator::new("test-source-discovery", None),
     )
 }
+use crate::ErrorCode;
 use sha2::{Digest, Sha256};
 use std::io::Write;
 
@@ -89,6 +90,237 @@ fn shared_raw_identity_keeps_profile_specific_rejection() {
     assert_eq!(report.candidates.len(), 1);
     assert_eq!(report.candidates[0].profile_id, "star-fox-64");
     assert!(report.limits_reached.is_empty());
+}
+
+#[test]
+fn saved_roots_scan_the_catalog_and_persist_one_current_snapshot() {
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path().join("selected");
+    fs::create_dir(&root).unwrap();
+    let payload = b"synthetic supported source";
+    fs::write(root.join("renamed.z64"), payload).unwrap();
+    let catalog = overlapping_catalog(payload, payload);
+    let library = crate::Library::open(temporary.path().join("library")).unwrap();
+    library.add_game_file_root(&root).unwrap();
+
+    let snapshot = super::build_game_file_scan(
+        &catalog,
+        &library,
+        &SourceDiscoveryLimits::default(),
+        &crate::OperationCoordinator::new("saved-root-scan", None),
+    )
+    .unwrap();
+    assert_eq!(snapshot.format_version, 1);
+    assert_eq!(snapshot.roots.len(), 1);
+    assert_eq!(snapshot.report.files_hashed, 1);
+    assert_eq!(snapshot.report.candidates.len(), 2);
+    assert!(
+        snapshot
+            .report
+            .searched_profiles
+            .contains(&"star-fox-64".into())
+    );
+    library.replace_game_file_scan_snapshot(&snapshot).unwrap();
+    drop(library);
+
+    let reopened = crate::Library::open(temporary.path().join("library")).unwrap();
+    let restored = super::current_game_file_scan(&catalog, &reopened)
+        .unwrap()
+        .unwrap();
+    assert_eq!(restored.freshness, GameFileScanFreshness::InputsMatch);
+    assert_eq!(restored.report.candidates.len(), 2);
+
+    let mut changed_document = catalog.document().clone();
+    changed_document.ports[0].summary.push_str(" changed");
+    let changed_catalog =
+        Catalog::from_json(&serde_json::to_string(&changed_document).unwrap()).unwrap();
+    assert_eq!(
+        super::current_game_file_scan(&changed_catalog, &reopened)
+            .unwrap()
+            .unwrap()
+            .freshness,
+        GameFileScanFreshness::InputsChanged
+    );
+}
+
+#[test]
+fn unavailable_and_relinked_roots_keep_coverage_explicit_and_stale() {
+    let temporary = tempfile::tempdir().unwrap();
+    let available = temporary.path().join("available");
+    let disconnected = temporary.path().join("disconnected");
+    fs::create_dir(&available).unwrap();
+    fs::create_dir(&disconnected).unwrap();
+    let payload = b"synthetic supported source";
+    fs::write(available.join("source.z64"), payload).unwrap();
+    let catalog = catalog(payload);
+    let library = crate::Library::open(temporary.path().join("library")).unwrap();
+    library.add_game_file_root(&available).unwrap();
+    let disconnected = library.add_game_file_root(&disconnected).unwrap();
+    fs::remove_dir(&disconnected.path).unwrap();
+
+    let snapshot = super::build_game_file_scan(
+        &catalog,
+        &library,
+        &SourceDiscoveryLimits::default(),
+        &crate::OperationCoordinator::new("saved-root-scan", None),
+    )
+    .unwrap();
+    assert_eq!(snapshot.roots.len(), 2);
+    assert!(snapshot.report.issues.iter().any(|issue| {
+        issue.path.as_deref() == Some(disconnected.path.as_path())
+            && issue.message.contains("not treated as deleted")
+    }));
+    library.replace_game_file_scan_snapshot(&snapshot).unwrap();
+
+    let replacement = temporary.path().join("replacement");
+    fs::create_dir(&replacement).unwrap();
+    library
+        .relink_game_file_root(&disconnected.id, &replacement)
+        .unwrap();
+    assert_eq!(
+        super::current_game_file_scan(&catalog, &library)
+            .unwrap()
+            .unwrap()
+            .freshness,
+        GameFileScanFreshness::InputsChanged
+    );
+}
+
+#[test]
+fn failed_saved_root_scan_preserves_the_previous_snapshot() {
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path().join("selected");
+    fs::create_dir(&root).unwrap();
+    let payload = b"synthetic supported source";
+    fs::write(root.join("source.z64"), payload).unwrap();
+    let catalog = catalog(payload);
+    let library = crate::Library::open(temporary.path().join("library")).unwrap();
+    library.add_game_file_root(&root).unwrap();
+    let snapshot = super::build_game_file_scan(
+        &catalog,
+        &library,
+        &SourceDiscoveryLimits::default(),
+        &crate::OperationCoordinator::new("saved-root-scan", None),
+    )
+    .unwrap();
+    library.replace_game_file_scan_snapshot(&snapshot).unwrap();
+
+    fs::remove_file(root.join("source.z64")).unwrap();
+    fs::remove_dir(&root).unwrap();
+    assert!(
+        super::build_game_file_scan(
+            &catalog,
+            &library,
+            &SourceDiscoveryLimits::default(),
+            &crate::OperationCoordinator::new("failed-saved-root-scan", None),
+        )
+        .is_err()
+    );
+    let preserved = library.stored_game_file_scan_snapshot().unwrap().unwrap();
+    assert_eq!(preserved.catalog_sha256, snapshot.catalog_sha256);
+    assert_eq!(preserved.report.candidates.len(), 2);
+}
+
+#[test]
+fn cancellation_before_snapshot_publication_preserves_the_previous_snapshot() {
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path().join("selected");
+    fs::create_dir(&root).unwrap();
+    let payload = b"synthetic supported source";
+    fs::write(root.join("source.z64"), payload).unwrap();
+    let catalog = catalog(payload);
+    let library = crate::Library::open(temporary.path().join("library")).unwrap();
+    library.add_game_file_root(&root).unwrap();
+    let previous = super::build_game_file_scan(
+        &catalog,
+        &library,
+        &SourceDiscoveryLimits::default(),
+        &crate::OperationCoordinator::new("previous-saved-root-scan", None),
+    )
+    .unwrap();
+    library.replace_game_file_scan_snapshot(&previous).unwrap();
+    let mut replacement = previous.clone();
+    replacement.catalog_sha256 = "replacement".into();
+
+    let service = PortcoveService::new(library).unwrap();
+    let (activity, operation) = service
+        .begin_cancellable_activity(
+            ActivityOperation::DiscoverSources,
+            ActivityTargetKind::Library,
+            None,
+        )
+        .unwrap();
+    service.request_cancellation(&activity.id).unwrap();
+    let result = super::publish_game_file_scan(service.library(), &operation, &replacement);
+    assert_eq!(result.as_ref().unwrap_err().code, ErrorCode::Cancelled);
+    assert_eq!(
+        service.finish_activity(activity, result).unwrap_err().code,
+        ErrorCode::Cancelled
+    );
+    let preserved = service
+        .library()
+        .stored_game_file_scan_snapshot()
+        .unwrap()
+        .unwrap();
+    assert_eq!(preserved.catalog_sha256, previous.catalog_sha256);
+}
+
+#[test]
+fn stored_scan_snapshot_rejects_corrupt_and_future_formats() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = crate::Library::open(temporary.path().join("library")).unwrap();
+    let connection = library.connection().unwrap();
+    connection
+        .execute(
+            "INSERT INTO game_file_scan_state(singleton, snapshot_json) VALUES (1, ?1)",
+            ["not json"],
+        )
+        .unwrap();
+    drop(connection);
+
+    assert!(library.stored_game_file_scan_snapshot().is_err());
+
+    let root = temporary.path().join("selected");
+    fs::create_dir(&root).unwrap();
+    let payload = b"synthetic supported source";
+    fs::write(root.join("source.z64"), payload).unwrap();
+    library.add_game_file_root(&root).unwrap();
+    let catalog = catalog(payload);
+    let mut snapshot = super::build_game_file_scan(
+        &catalog,
+        &library,
+        &SourceDiscoveryLimits::default(),
+        &crate::OperationCoordinator::new("saved-root-scan", None),
+    )
+    .unwrap();
+    snapshot.format_version = 2;
+    library.replace_game_file_scan_snapshot(&snapshot).unwrap();
+
+    let error = super::current_game_file_scan(&catalog, &library).unwrap_err();
+    assert!(error.to_string().contains("version is not supported"));
+}
+
+#[test]
+fn public_saved_root_scan_uses_the_embedded_catalog_and_survives_restart() {
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path().join("selected");
+    fs::create_dir(&root).unwrap();
+    let library_root = temporary.path().join("library");
+    let library = crate::Library::open(&library_root).unwrap();
+    library.add_game_file_root(&root).unwrap();
+    let service = PortcoveService::new(library).unwrap();
+
+    let scanned = service
+        .scan_game_file_roots(&SourceDiscoveryLimits::default())
+        .unwrap();
+    assert_eq!(scanned.freshness, GameFileScanFreshness::InputsMatch);
+    assert_eq!(scanned.roots.len(), 1);
+    drop(service);
+
+    let reopened = PortcoveService::new(crate::Library::open(&library_root).unwrap()).unwrap();
+    let restored = reopened.game_file_scan_snapshot().unwrap().unwrap();
+    assert_eq!(restored.freshness, GameFileScanFreshness::InputsMatch);
+    assert_eq!(restored.catalog_sha256, scanned.catalog_sha256);
 }
 
 #[test]

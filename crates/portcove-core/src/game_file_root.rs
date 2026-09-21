@@ -6,6 +6,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{Library, PortcoveError, Result};
 
+const MAX_SCAN_SNAPSHOT_BYTES: usize = 8 * 1024 * 1024;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum GameFileRootAvailability {
@@ -20,6 +22,23 @@ pub struct GameFileRoot {
     pub availability: GameFileRootAvailability,
     pub created_at: i64,
     pub updated_at: i64,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum GameFileScanFreshness {
+    InputsMatch,
+    InputsChanged,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct GameFileScanSnapshot {
+    pub format_version: u32,
+    pub catalog_sha256: String,
+    pub roots: Vec<GameFileRoot>,
+    pub report: crate::SourceDiscoveryReport,
+    pub completed_at: i64,
+    pub freshness: GameFileScanFreshness,
 }
 
 struct StoredGameFileRoot {
@@ -151,6 +170,45 @@ impl Library {
             .connection()?
             .execute("DELETE FROM game_file_roots WHERE id=?1", [id])?
             > 0)
+    }
+
+    pub(crate) fn replace_game_file_scan_snapshot(
+        &self,
+        snapshot: &GameFileScanSnapshot,
+    ) -> Result<()> {
+        let payload = serde_json::to_string(snapshot)?;
+        if payload.len() > MAX_SCAN_SNAPSHOT_BYTES {
+            return Err(
+                PortcoveError::state("game-file scan snapshot exceeds its storage limit")
+                    .detail("actual_bytes", payload.len().to_string())
+                    .detail("maximum_bytes", MAX_SCAN_SNAPSHOT_BYTES.to_string()),
+            );
+        }
+        self.connection()?.execute(
+            "INSERT INTO game_file_scan_state(singleton,snapshot_json) VALUES (1,?1)
+             ON CONFLICT(singleton) DO UPDATE SET snapshot_json=excluded.snapshot_json",
+            [payload],
+        )?;
+        Ok(())
+    }
+
+    pub(crate) fn stored_game_file_scan_snapshot(&self) -> Result<Option<GameFileScanSnapshot>> {
+        let payload = self
+            .connection()?
+            .query_row(
+                "SELECT snapshot_json FROM game_file_scan_state WHERE singleton=1",
+                [],
+                |row| row.get::<_, String>(0),
+            )
+            .optional()?;
+        payload
+            .map(|payload| {
+                serde_json::from_str(&payload).map_err(|error| {
+                    PortcoveError::state("stored game-file scan snapshot is invalid")
+                        .detail("cause", error.to_string())
+                })
+            })
+            .transpose()
     }
 }
 

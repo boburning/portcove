@@ -1,5 +1,6 @@
 use crate::{
-    ActivityOperation, ActivityTargetKind, Catalog, PortcoveError, PortcoveService, Result,
+    ActivityOperation, ActivityTargetKind, Catalog, GameFileRootAvailability,
+    GameFileScanFreshness, GameFileScanSnapshot, PortcoveError, PortcoveService, Result,
     SourceKind, SourceProfile, SourceRecord,
     source_file::{HashBudget, read_identity},
 };
@@ -9,6 +10,7 @@ use crate::{
 mod tests;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 use std::{
     collections::{BTreeMap, BTreeSet, VecDeque},
     fs,
@@ -102,6 +104,141 @@ impl PortcoveService {
         emit(operation.finished(crate::OperationResult::from_result(&result)));
         result
     }
+
+    pub fn scan_game_file_roots(
+        &self,
+        limits: &SourceDiscoveryLimits,
+    ) -> Result<GameFileScanSnapshot> {
+        self.scan_game_file_roots_with_progress(limits, |_| {})
+    }
+
+    pub fn scan_game_file_roots_with_progress(
+        &self,
+        limits: &SourceDiscoveryLimits,
+        mut emit: impl FnMut(crate::OperationEvent),
+    ) -> Result<GameFileScanSnapshot> {
+        validate_limits(limits)?;
+        let (activity, operation) = self.begin_cancellable_activity(
+            ActivityOperation::DiscoverSources,
+            ActivityTargetKind::Library,
+            None,
+        )?;
+        emit(operation.started());
+        let result = self.finish_activity(
+            activity,
+            build_game_file_scan(self.catalog(), self.library(), limits, &operation).and_then(
+                |snapshot| {
+                    publish_game_file_scan(self.library(), &operation, &snapshot)?;
+                    current_game_file_scan(self.catalog(), self.library())?.ok_or_else(|| {
+                        PortcoveError::state(
+                            "game-file scan snapshot disappeared after publication",
+                        )
+                    })
+                },
+            ),
+        );
+        emit(operation.finished(crate::OperationResult::from_result(&result)));
+        result
+    }
+
+    pub fn game_file_scan_snapshot(&self) -> Result<Option<GameFileScanSnapshot>> {
+        current_game_file_scan(self.catalog(), self.library())
+    }
+}
+
+fn publish_game_file_scan(
+    library: &crate::Library,
+    operation: &crate::OperationCoordinator,
+    snapshot: &GameFileScanSnapshot,
+) -> Result<()> {
+    operation.begin_publication()?;
+    library.replace_game_file_scan_snapshot(snapshot)
+}
+
+fn build_game_file_scan(
+    catalog: &Catalog,
+    library: &crate::Library,
+    limits: &SourceDiscoveryLimits,
+    operation: &crate::OperationCoordinator,
+) -> Result<GameFileScanSnapshot> {
+    let roots = library.game_file_roots()?;
+    if roots.len() > 8 {
+        return Err(PortcoveError::usage(
+            "game-file discovery currently supports at most eight saved roots per scan",
+        ));
+    }
+    let available = roots
+        .iter()
+        .filter(|root| root.availability == GameFileRootAvailability::Available)
+        .map(|root| root.path.clone())
+        .collect::<Vec<_>>();
+    if available.is_empty() {
+        return Err(PortcoveError::source(
+            "no saved game-file root is currently available",
+        ));
+    }
+    let request = SourceDiscoveryRequest {
+        roots: available,
+        profile_ids: catalog
+            .document()
+            .source_profiles
+            .iter()
+            .map(|profile| profile.id.clone())
+            .collect(),
+        limits: limits.clone(),
+    };
+    let mut report = scan(catalog, &request, operation)?;
+    for root in roots
+        .iter()
+        .filter(|root| root.availability == GameFileRootAvailability::Unavailable)
+    {
+        if report.issues.len() < 64 {
+            report.issues.push(SourceDiscoveryIssue {
+                path: Some(root.path.clone()),
+                profile_id: None,
+                message: "Saved game-file root is currently unavailable; prior scan evidence is not treated as deleted.".into(),
+            });
+        } else {
+            report.issues_omitted += 1;
+        }
+    }
+    Ok(GameFileScanSnapshot {
+        format_version: 1,
+        catalog_sha256: catalog_sha256(catalog)?,
+        roots,
+        report,
+        completed_at: crate::Library::now(),
+        freshness: GameFileScanFreshness::InputsMatch,
+    })
+}
+
+fn current_game_file_scan(
+    catalog: &Catalog,
+    library: &crate::Library,
+) -> Result<Option<GameFileScanSnapshot>> {
+    let Some(mut snapshot) = library.stored_game_file_scan_snapshot()? else {
+        return Ok(None);
+    };
+    if snapshot.format_version != 1 {
+        return Err(PortcoveError::state(
+            "stored game-file scan snapshot version is not supported",
+        )
+        .detail("format_version", snapshot.format_version.to_string()));
+    }
+    let current_roots = library.game_file_roots()?;
+    snapshot.freshness =
+        if snapshot.catalog_sha256 == catalog_sha256(catalog)? && snapshot.roots == current_roots {
+            GameFileScanFreshness::InputsMatch
+        } else {
+            GameFileScanFreshness::InputsChanged
+        };
+    Ok(Some(snapshot))
+}
+
+fn catalog_sha256(catalog: &Catalog) -> Result<String> {
+    Ok(hex::encode(Sha256::digest(serde_json::to_vec(
+        &catalog.authoritative_document(),
+    )?)))
 }
 
 fn validate_request(request: &SourceDiscoveryRequest) -> Result<()> {
