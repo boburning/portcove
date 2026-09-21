@@ -489,6 +489,17 @@ test("changed Node implementations select sibling tests and syntax checks", () =
   assert.ok(ids(plan).includes("node-tests"));
 });
 
+test("competing Windows package lifecycle fixtures run serially", () => {
+  const { plan } = planFor([
+    "scripts/updater-artifact-inventory.test.mjs",
+    "scripts/windows-qualification-session.integration.test.mjs",
+  ]);
+  const nodeTests = plan.find((entry) => entry.id === "node-tests");
+  assert.ok(nodeTests);
+  assert.ok(nodeTests.args.includes("--test-concurrency=1"));
+  assert.match(nodeTests.reason, /serialize competing Windows package lifecycle fixtures/u);
+});
+
 test("heavy Rust runner and lock changes select both guarded execution contracts", () => {
   const { selection, plan } = planFor([
     "scripts/heavy-rust-test-lock.mjs",

@@ -657,11 +657,23 @@ function sorted(set) {
 }
 
 function nodeTestCommand(files) {
+  const serialWindowsQualification = [
+    "scripts/updater-artifact-inventory.test.mjs",
+    "scripts/windows-qualification-session.integration.test.mjs",
+  ].every((file) => files.includes(file));
   return command(
     "node-tests",
-    "exact repository-tool contract tests selected from changed paths",
+    serialWindowsQualification
+      ? "exact repository-tool contract tests selected from changed paths; serialize competing Windows package lifecycle fixtures"
+      : "exact repository-tool contract tests selected from changed paths",
     process.execPath,
-    ["--test", "--test-timeout=30000", `--test-reporter=${durationReporter}`, ...files],
+    [
+      "--test",
+      "--test-timeout=30000",
+      `--test-reporter=${durationReporter}`,
+      ...(serialWindowsQualification ? ["--test-concurrency=1"] : []),
+      ...files,
+    ],
   );
 }
 

@@ -2443,11 +2443,15 @@ mod tests {
         let service = PortcoveService::new(library.clone()).unwrap();
         let paths = vec![selected.clone()];
 
+        let core_before = Library::now();
         let mut core = service
             .inspect_source_intake("star-fox-64", &paths)
             .unwrap();
+        let core_after = Library::now();
+        let desktop_before = Library::now();
         let mut desktop =
             inspect_source_intake_with_service(&service, "star-fox-64", &paths).unwrap();
+        let desktop_after = Library::now();
         let core_updated_at = core
             .report
             .as_mut()
@@ -2462,7 +2466,8 @@ mod tests {
             .and_then(|inspection| inspection.record.as_mut())
             .map(|record| std::mem::replace(&mut record.updated_at, 0))
             .unwrap();
-        assert!(desktop_updated_at.abs_diff(core_updated_at) <= 1);
+        assert!((core_before..=core_after).contains(&core_updated_at));
+        assert!((desktop_before..=desktop_after).contains(&desktop_updated_at));
         assert_eq!(
             serde_json::to_value(desktop).unwrap(),
             serde_json::to_value(core).unwrap()
