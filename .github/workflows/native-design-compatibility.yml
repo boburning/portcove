@@ -79,7 +79,7 @@ jobs:
           cargo build --locked -p portcove-desktop --features tauri/custom-protocol
           mkdir -p work/native-compatibility-evidence/linux
           xvfb-run -a dbus-run-session -- \
-            pnpm --dir apps/desktop test:desktop -- \
+            pnpm --dir apps/desktop test:desktop \
               --app "$(realpath target/debug/portcove-desktop)" \
               --driver "$(command -v tauri-driver)" \
               --native-driver "$(command -v WebKitWebDriver)" \
