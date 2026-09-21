@@ -66,6 +66,7 @@ export async function assertDesignCompatibility({ browser, By, Key, until }) {
   await browser.wait(
     async () => (await fixture.getAttribute("data-dialog-open")) === "true",
     15_000,
+    "opening the dialog publishes its controlled state",
   );
   assert.equal(
     await browser.executeScript(
@@ -73,10 +74,12 @@ export async function assertDesignCompatibility({ browser, By, Key, until }) {
     ),
     true,
   );
-  await browser.findElement(By.id("fixture-channel")).click();
+  const selectTrigger = await browser.findElement(By.id("fixture-channel"));
+  await selectTrigger.sendKeys(Key.ENTER);
   await browser.wait(
     async () => (await fixture.getAttribute("data-select-open")) === "true",
     15_000,
+    "keyboard activation opens the nested select",
   );
   assert.equal(
     (await browser.findElements(dialogLocator)).length,
@@ -90,10 +93,11 @@ export async function assertDesignCompatibility({ browser, By, Key, until }) {
     ),
     true,
   );
-  await browser.findElement(By.id("fixture-channel")).sendKeys(Key.ESCAPE);
+  await selectTrigger.sendKeys(Key.ESCAPE);
   await browser.wait(
     async () => (await fixture.getAttribute("data-select-open")) === "false",
     15_000,
+    "the first Escape closes the nested select",
   );
   assert.equal(
     (await browser.findElements(dialogLocator)).length,
@@ -110,6 +114,7 @@ export async function assertDesignCompatibility({ browser, By, Key, until }) {
   await browser.wait(
     async () => (await fixture.getAttribute("data-dialog-open")) === "false",
     15_000,
+    "the second Escape closes the dialog",
   );
   await browser.wait(
     async () =>
