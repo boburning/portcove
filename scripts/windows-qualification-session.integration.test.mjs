@@ -411,10 +411,10 @@ test(
       item,
       "hung",
       { PORTCOVE_FIXTURE_HANG_UNINSTALLER: "1" },
-      "1",
+      "3",
     );
     assert.notEqual(hung.status, 0);
-    assert.match(hung.stderr, /candidate_uninstaller did not exit within 1 seconds/);
+    assert.match(hung.stderr, /candidate_uninstaller did not exit within 3 seconds/);
     const hungEvidence = JSON.parse(
       readFileSync(path.join(item.root, "hung", "evidence.json"), "utf8"),
     );

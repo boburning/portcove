@@ -263,6 +263,7 @@ test("supported local Rust compilation and tests acquire admission before starti
 test("UI sources build, lint, and run import-related tests", () => {
   const { selection, plan } = planFor(["apps/desktop/src/view-model.ts"]);
   assert.equal(selection.uiFullTests, false);
+  assert.equal(selection.fallow, true);
   assert.deepEqual(ids(plan), [
     "diff-check",
     "oxfmt",
@@ -272,6 +273,7 @@ test("UI sources build, lint, and run import-related tests", () => {
     "ui-related-durations",
     "ui-theme-copy",
     "ui-copy",
+    "fallow",
   ]);
   const uiBuild = plan.find((entry) => entry.id === "ui-build");
   assert.equal(uiBuild.executable, "corepack");

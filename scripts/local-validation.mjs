@@ -353,6 +353,7 @@ function classifyOnePath(selection, input, fileExists, options = {}) {
     recognized = true;
     if (file.startsWith("apps/desktop/src/") || file.startsWith("apps/desktop/scripts/")) {
       selection.uiRelatedFiles.add(file);
+      if (file.startsWith("apps/desktop/src/")) selection.fallow = true;
     } else {
       selection.uiFullTests = true;
     }
@@ -976,7 +977,7 @@ export function buildPlan(selection, context = {}) {
     commands.push(
       command(
         "fallow",
-        "run the quality report governed by the changed Fallow configuration or runtime",
+        "run the quality report for changed frontend source or Fallow configuration",
         process.execPath,
         ["scripts/run-fallow.mjs"],
       ),
