@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { desktopApi } from "../api";
-import { useDialogFocus } from "../dialog";
 import type { DoctorReport, PortDefinition, PreparationCleanupPreview } from "../types";
 import { useActionReview } from "../use-action-review";
 import { errorText, formatBytes, formatCountMessage } from "../view-model";
+import { Button } from "./ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "./ui/dialog";
 
 type Repair = DoctorReport["repair"];
 type Item = Repair["items"][number];
@@ -173,40 +174,49 @@ function PreparationCleanupDialog({
     close,
     failureMessage: "Cleanup was not accepted. The retained recovery state remains unchanged.",
   });
-  const dialog = useDialogFocus(dismiss);
   const emptyReview = Boolean(preview && !hasRetainedEntries(preview));
   return (
-    <div className="scrim">
-      <section
-        ref={dialog}
-        className="modal"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="preparation-cleanup-title"
+    <Dialog
+      open
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen) dismiss();
+      }}
+    >
+      <DialogContent
+        showCloseButton={false}
+        className="max-h-[calc(100dvh-var(--space-8))] w-[min(760px,90vw)] max-w-none gap-0 overflow-y-auto overscroll-contain p-8 [scroll-padding-block:var(--space-4)] sm:max-w-none"
         aria-describedby="preparation-cleanup-description"
       >
-        <h2 id="preparation-cleanup-title">Review retained preparation cleanup</h2>
-        <p id="preparation-cleanup-description">
+        <DialogTitle id="preparation-cleanup-title" className="mb-2 text-xl">
+          Review retained preparation cleanup
+        </DialogTitle>
+        <DialogDescription id="preparation-cleanup-description" className="mb-4 leading-relaxed">
           {emptyReview
             ? "Remove empty private preparation state and its stale recovery journal."
             : "Permanently discard one failed attempt's private working files."}
-        </p>
+        </DialogDescription>
         {pending === "review" && <p role="status">Reading the retained private folder…</p>}
         {preview && <PreparationCleanupDetails preview={preview} />}
         {error && <p role="alert">{error}</p>}
-        <div className="actions">
-          <button data-autofocus data-focusable disabled={pending === "apply"} onClick={dismiss}>
+        <DialogFooter className="mt-4">
+          <Button
+            data-autofocus
+            data-focusable
+            variant="outline"
+            disabled={pending === "apply"}
+            onClick={dismiss}
+          >
             Keep retained files
-          </button>
+          </Button>
           {!preview && (
-            <button data-focusable disabled={Boolean(pending)} onClick={() => void review()}>
+            <Button data-focusable disabled={Boolean(pending)} onClick={() => void review()}>
               Review again
-            </button>
+            </Button>
           )}
           {preview && (
-            <button
+            <Button
               data-focusable
-              className="danger"
+              variant="destructive"
               disabled={Boolean(pending)}
               onClick={() => void execute()}
             >
@@ -217,11 +227,11 @@ function PreparationCleanupDialog({
                 : emptyReview
                   ? "Remove empty private state"
                   : "Remove reviewed private files permanently"}
-            </button>
+            </Button>
           )}
-        </div>
-      </section>
-    </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 

@@ -111,6 +111,12 @@ export async function preparationScenarios({
     assert.equal(result.ok, true);
     return result.value.find((item) => item.port_id === portId);
   }
+  async function activities() {
+    const result = await invoke("get_activities");
+    assert.equal(result.ok, true);
+    assert.ok(Array.isArray(result.value.records));
+    return result.value.records;
+  }
   await scenario("native-preparation-review-and-play", async () => {
     const { port, install } = await seed("opengoal-jak1", "success");
     await open(port);
@@ -232,8 +238,7 @@ export async function preparationScenarios({
     let activity;
     await browser.wait(
       async () => {
-        const result = await invoke("get_activities");
-        activity = result.value?.find(
+        activity = (await activities()).find(
           (item) =>
             item.operation === "prepare" && item.target_id === port.id && item.status === "running",
         );
@@ -266,15 +271,14 @@ export async function preparationScenarios({
     await runningRow.findElement(button("Cancel operation")).click();
     await browser.wait(
       async () => {
-        const result = await invoke("get_activities");
-        return result.value?.find((item) => item.id === activity.id)?.status === "cancelled";
+        return (await activities()).find((item) => item.id === activity.id)?.status === "cancelled";
       },
       15_000,
       "Preparation cancellation must become durable",
     );
     assert.equal((await status(port.id)).active.id, install.id);
     assert.equal((await status(port.id)).readiness.launchable, false);
-    const recorded = (await invoke("get_activities")).value.find((item) => item.id === activity.id);
+    const recorded = (await activities()).find((item) => item.id === activity.id);
     assert.equal(recorded.failure.code, "cancelled");
     assert.equal(recorded.failure.presentation.tone, "neutral");
     assert.equal(recorded.failure.presentation.mutation_state, "recovery_required");
@@ -296,7 +300,7 @@ export async function preparationScenarios({
       15_000,
     );
     assert.deepEqual(
-      (await invoke("get_activities")).value.find((item) => item.id === activity.id).failure,
+      (await activities()).find((item) => item.id === activity.id).failure,
       recorded.failure,
     );
     await browser.findElement(By.xpath('//nav//button[contains(., "Updates")]')).click();
@@ -370,6 +374,7 @@ export async function preparationScenarios({
     output,
     artifacts,
     command,
+    activities,
     confirmNative,
     restartApplication,
   });

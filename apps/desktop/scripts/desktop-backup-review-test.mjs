@@ -2,8 +2,10 @@
 import assert from "node:assert/strict";
 import path from "node:path";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { By, until } from "selenium-webdriver";
+import { By, Key, until } from "selenium-webdriver";
 import {
+  assertDestructiveReviewAction,
+  assertPrimaryReviewAction,
   captureAccessibilityReport,
   clickVisible as clickReviewControl,
 } from "./desktop-review-controls.mjs";
@@ -40,12 +42,9 @@ export async function backupReviewScenario({
     const row = (id) =>
       browser.wait(until.elementLocated(By.css(`[data-backup-id="${id}"]`)), 15_000);
     const list = () => command(["backup", "list", port.id]).backups;
-    const clickRestore = async () =>
-      clickVisible(
-        await (
-          await row(selected.id)
-        ).findElement(By.xpath('.//button[normalize-space(.)="Restore"]')),
-      );
+    const restoreTrigger = async () =>
+      (await row(selected.id)).findElement(By.xpath('.//button[normalize-space(.)="Restore"]'));
+    const clickRestore = async () => clickVisible(await restoreTrigger());
     const capture = async (name) => {
       const dialog = await browser.findElement(By.css('[aria-labelledby="backup-review-title"]'));
       await browser.executeScript('arguments[0].scrollIntoView({ block: "start" });', dialog);
@@ -60,6 +59,29 @@ export async function backupReviewScenario({
     };
     await clickRestore();
     await browser.wait(until.elementLocated(button("Restore this backup")), 15_000);
+    await browser.actions().sendKeys(Key.ESCAPE).perform();
+    await browser.wait(
+      async () =>
+        (await browser.findElements(By.css('[aria-labelledby="backup-review-title"]'))).length ===
+        0,
+      5_000,
+      "Backup review did not close after Escape",
+    );
+    await browser.wait(
+      async () => {
+        const trigger = await restoreTrigger();
+        return browser.executeScript("return document.activeElement === arguments[0];", trigger);
+      },
+      5_000,
+      "Backup restore trigger did not regain focus after Escape",
+    );
+    await clickRestore();
+    await browser.wait(until.elementLocated(button("Restore this backup")), 15_000);
+    const restoreActionStyles = await assertPrimaryReviewAction(
+      browser,
+      await browser.findElement(button("Restore this backup")),
+      await browser.findElement(button("Keep current state")),
+    );
     const text = await browser
       .findElement(By.css('[aria-labelledby="backup-review-title"]'))
       .getText();
@@ -151,6 +173,11 @@ export async function backupReviewScenario({
       await (await row(selected.id)).findElement(By.css('button[aria-label^="Delete backup"]')),
     );
     await browser.wait(until.elementLocated(button("Delete this backup permanently")), 15_000);
+    const deleteActionStyles = await assertDestructiveReviewAction(
+      browser,
+      await browser.findElement(button("Delete this backup permanently")),
+      await browser.findElement(button("Keep current state")),
+    );
     await capture("native-backup-delete-review");
     await browser.findElement(button("Delete this backup permanently")).click();
     await confirmNative(
@@ -200,6 +227,11 @@ export async function backupReviewScenario({
           unchanged_install_id: install.id,
           stale_generation_rejected: true,
           changed_data_rejected: true,
+          escape_dismissal_and_focus_restoration: true,
+          action_styles: {
+            restore: restoreActionStyles,
+            delete: deleteActionStyles,
+          },
           evidence:
             "owned fixture backup lifecycle through native review UI and actual core authorization",
         },

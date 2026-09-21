@@ -1,8 +1,9 @@
 import { useActionReview, type ReviewOutcome } from "../use-action-review";
 import { desktopApi } from "../api";
-import { useDialogFocus } from "../dialog";
 import type { BackupAction, BackupRecord, BackupReview } from "../types";
 import { formatBytes } from "../view-model";
+import { Button } from "./ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "./ui/dialog";
 
 export type ApplyBackupAction = (
   backup: BackupRecord,
@@ -37,35 +38,42 @@ export function BackupReviewDialog({
     failureMessage:
       "The operation did not complete. Review the current backup and data before trying again.",
   });
-  const dialog = useDialogFocus(dismiss);
   const restore = action === "restore";
   return (
-    <div className="scrim">
-      <section
-        ref={dialog}
-        className="modal"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="backup-review-title"
+    <Dialog
+      open
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen) dismiss();
+      }}
+    >
+      <DialogContent
+        showCloseButton={false}
+        className="max-h-[calc(100dvh-var(--space-8))] w-[min(680px,90vw)] max-w-none gap-0 overflow-y-auto overscroll-contain p-8 [scroll-padding-block:var(--space-4)] sm:max-w-none"
         aria-describedby="backup-review-description"
       >
-        <h2 id="backup-review-title">
+        <DialogTitle id="backup-review-title" className="mb-2 text-xl">
           {restore ? "Review backup restore" : "Review backup deletion"}
-        </h2>
-        <p id="backup-review-description">
+        </DialogTitle>
+        <DialogDescription id="backup-review-description" className="mb-4 leading-relaxed">
           {restore
             ? "Replace this game's saved data with the selected snapshot."
             : "Permanently remove only the selected saved-data snapshot."}
-        </p>
+        </DialogDescription>
         {pending === "review" && <p role="status">Checking the backup and current saved data…</p>}
         {review && <BackupReviewDetails review={review} />}
         {error && <p role="alert">{error}</p>}
-        <div className="actions">
-          <button data-autofocus data-focusable disabled={pending === "apply"} onClick={dismiss}>
+        <DialogFooter className="mt-4">
+          <Button
+            data-autofocus
+            data-focusable
+            variant="outline"
+            disabled={pending === "apply"}
+            onClick={dismiss}
+          >
             Keep current state
-          </button>
+          </Button>
           {!review && (
-            <button
+            <Button
               data-focusable
               disabled={Boolean(pending)}
               onClick={() => {
@@ -73,12 +81,12 @@ export function BackupReviewDialog({
               }}
             >
               Review again
-            </button>
+            </Button>
           )}
           {review && (
-            <button
+            <Button
               data-focusable
-              className={restore ? "primary" : "danger"}
+              variant={restore ? "default" : "destructive"}
               disabled={Boolean(pending)}
               onClick={() => {
                 void execute();
@@ -89,11 +97,11 @@ export function BackupReviewDialog({
                 : restore
                   ? "Restore this backup"
                   : "Delete this backup permanently"}
-            </button>
+            </Button>
           )}
-        </div>
-      </section>
-    </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 

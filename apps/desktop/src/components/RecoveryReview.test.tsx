@@ -176,21 +176,21 @@ it("reviews exact private files and preserved paths before cleanup", async () =>
     );
     await act(async () => review?.click());
     expect(load).toHaveBeenCalledWith("owned-operation", 7);
-    expect(host.textContent).toContain(preview.retained_path);
-    expect(host.textContent).toContain(preview.original_install_path);
-    expect(host.textContent).toContain(preview.source_path);
-    expect(host.textContent).toContain(preview.persistent_data_path);
-    expect(host.textContent).toContain("private.bin");
-    expect(host.textContent).toContain("Link or special entry");
-    expect(host.textContent).toContain("cannot be recovered");
+    expect(document.body.textContent).toContain(preview.retained_path);
+    expect(document.body.textContent).toContain(preview.original_install_path);
+    expect(document.body.textContent).toContain(preview.source_path);
+    expect(document.body.textContent).toContain(preview.persistent_data_path);
+    expect(document.body.textContent).toContain("private.bin");
+    expect(document.body.textContent).toContain("Link or special entry");
+    expect(document.body.textContent).toContain("cannot be recovered");
     expect(cleanup).not.toHaveBeenCalled();
-    const apply = [...host.querySelectorAll("button")].find((button) =>
+    const apply = [...document.body.querySelectorAll("button")].find((button) =>
       button.textContent?.includes("Remove reviewed private files permanently"),
     );
     await act(async () => apply?.click());
     expect(cleanup).toHaveBeenCalledWith("owned-operation", preview.preview_sha256, 7);
     expect(changed).toHaveBeenCalledOnce();
-    expect(host.querySelector('[role="dialog"]')).toBeNull();
+    expect(document.body.querySelector('[role="dialog"]')).toBeNull();
   } finally {
     await act(async () => root.unmount());
     host.remove();
@@ -249,23 +249,23 @@ it("explains that journal-only cleanup has no private entries to remove", async 
     );
     await act(async () => review?.click());
     expect(load).toHaveBeenCalledWith(preview.operation_id, 8);
-    expect(host.textContent).toContain("0 files");
-    expect(host.textContent).toContain("Affected entries (0)");
-    expect(host.querySelector("#preparation-cleanup-description")?.textContent).toBe(
+    expect(document.body.textContent).toContain("0 files");
+    expect(document.body.textContent).toContain("Affected entries (0)");
+    expect(document.body.querySelector("#preparation-cleanup-description")?.textContent).toBe(
       "Remove empty private preparation state and its stale recovery journal.",
     );
-    expect(host.textContent).toContain("Recorded private path cleared");
-    expect(host.textContent).toContain(
+    expect(document.body.textContent).toContain("Recorded private path cleared");
+    expect(document.body.textContent).toContain(
       "No retained private entries are present. Cleanup removes the recorded private path if it exists and its stale recovery journal.",
     );
     expect(
-      [...host.querySelectorAll("button")].some(
+      [...document.body.querySelectorAll("button")].some(
         (button) => button.textContent === "Remove empty private state",
       ),
     ).toBe(true);
-    expect(host.textContent).toContain(preview.retained_path);
-    expect(host.textContent).toContain(preview.original_install_path);
-    expect(host.textContent).toContain(preview.source_path);
+    expect(document.body.textContent).toContain(preview.retained_path);
+    expect(document.body.textContent).toContain(preview.original_install_path);
+    expect(document.body.textContent).toContain(preview.source_path);
   } finally {
     await act(async () => root.unmount());
     host.remove();
