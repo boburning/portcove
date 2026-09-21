@@ -4,7 +4,7 @@ import { portStatus } from "./test-fixtures";
 import { act, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { ChoiceMenu } from "./components/ChoiceMenu";
+import { ChoiceSelect } from "./components/ChoiceSelect";
 import { ExternalLink } from "./components/ExternalLink";
 import { desktopApi } from "./api";
 import { useDialogFocus } from "./dialog";
@@ -26,7 +26,7 @@ function TestDialog({ close }: { close: () => void }) {
       <input aria-label="Source path" />
       <details open>
         <summary>Advanced controls</summary>
-        <ChoiceMenu
+        <ChoiceSelect
           label="Update policy"
           value={choice}
           onChange={setChoice}
@@ -411,16 +411,18 @@ describe("controller and modal integration", () => {
       );
     });
     expect(document.activeElement?.tagName).toBe("SUMMARY");
-    const choice = document.querySelector<HTMLButtonElement>("[aria-haspopup=dialog]")!;
+    const choice = document.querySelector<HTMLButtonElement>('[data-slot="select-trigger"]')!;
     choice.focus();
     await frame([0]);
     await frame();
-    expect(document.querySelectorAll("[role=dialog]")).toHaveLength(2);
-    expect(document.activeElement).toBe(control("Notify me"));
+    expect(document.querySelectorAll('[data-slot="select-content"][data-open]')).toHaveLength(1);
+    expect(document.querySelectorAll("[role=dialog]")).toHaveLength(1);
+    expect(document.activeElement).toBe(option("Notify me"));
     await frame([5]);
     expect(control("Catalog").getAttribute("aria-current")).toBe("page");
     await frame([1]);
     await frame([1]);
+    expect(document.querySelectorAll('[data-slot="select-content"][data-open]')).toHaveLength(0);
     expect(document.querySelectorAll("[role=dialog]")).toHaveLength(1);
     expect(document.activeElement).toBe(choice);
     expect(choice.textContent).toContain("Notify me");

@@ -9,7 +9,7 @@ import type {
   CatalogUpdateSource,
 } from "../types";
 import { errorText, isCancellation } from "../view-model";
-import { ChoiceMenu } from "./ChoiceMenu";
+import { ChoiceSelect } from "./ChoiceSelect";
 import { OperationCancellation } from "./OperationCancellation";
 import { NavigationHints } from "./ui";
 
@@ -284,7 +284,7 @@ function CatalogReview({
   return (
     <>
       <h3>Review an update</h3>
-      <ChoiceMenu
+      <ChoiceSelect
         label="Update source"
         value={kind}
         options={[

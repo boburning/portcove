@@ -193,7 +193,7 @@ it("opens and scans the Inbox, then applies the exact reviewed import", async ()
   const control = (label: string) => {
     const result = [
       ...host.querySelectorAll<HTMLButtonElement>("button"),
-      ...document.querySelectorAll<HTMLButtonElement>(".choice-menu button"),
+      ...document.querySelectorAll<HTMLButtonElement>('[role="option"]'),
     ].find((button) => button.textContent?.includes(label));
     if (!result) throw new Error(`Missing ${label}`);
     return result;
@@ -314,7 +314,7 @@ it("keeps cancellation tied to the emitted durable operation", async () => {
   const control = (label: string) => {
     const result = [
       ...host.querySelectorAll<HTMLButtonElement>("button"),
-      ...document.querySelectorAll<HTMLButtonElement>(".choice-menu button"),
+      ...document.querySelectorAll<HTMLButtonElement>('[role="option"]'),
     ].find((button) => button.textContent?.includes(label));
     if (!result) throw new Error(`Missing ${label}`);
     return result;

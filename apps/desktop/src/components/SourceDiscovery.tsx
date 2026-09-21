@@ -14,7 +14,7 @@ import type {
 } from "../types";
 import { errorText, formatBytes, formatCountMessage, isCancellation } from "../view-model";
 import { OperationCancellation } from "./OperationCancellation";
-import { ChoiceMenu } from "./ChoiceMenu";
+import { ChoiceSelect } from "./ChoiceSelect";
 import { NavigationHints } from "./ui";
 
 const inboxLimits: SourceDiscoveryLimits = {
@@ -420,7 +420,7 @@ function SourceDiscoveryDialog({
           its current location.
         </p>
         <NavigationHints />
-        <ChoiceMenu
+        <ChoiceSelect
           label="Required game files"
           value={profile}
           options={choices}

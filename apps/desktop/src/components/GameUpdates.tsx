@@ -3,7 +3,7 @@ import { desktopApi } from "../api";
 import type { GameUpdatePlan, PortStatus, UpdatePolicy } from "../types";
 import type { Perform } from "../features/operations/use-operation-state";
 import { errorText, formatBytes } from "../view-model";
-import { ChoiceMenu } from "./ChoiceMenu";
+import { ChoiceSelect } from "./ChoiceSelect";
 import { OperationCancellation } from "./OperationCancellation";
 import { installPlanActionLabel } from "../install-plan-presentation";
 
@@ -38,7 +38,7 @@ export function UpdatePolicyControl({
   };
   return (
     <section aria-label="Game update settings">
-      <ChoiceMenu
+      <ChoiceSelect
         label="Saved update policy"
         value={draft}
         disabled={busy || pending}
@@ -149,7 +149,7 @@ export function GameUpdateControl({
   return (
     <section aria-label="Review game update">
       <h3>Game update</h3>
-      <ChoiceMenu
+      <ChoiceSelect
         label="This update"
         value={activate ? "activate" : "stage"}
         disabled={busy || pending}

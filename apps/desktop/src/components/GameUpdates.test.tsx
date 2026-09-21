@@ -62,11 +62,11 @@ afterEach(async () => {
   vi.unstubAllGlobals();
 });
 async function click(label: string, contains = false) {
-  const button = [...document.querySelectorAll("button")].find((button) =>
-    contains ? button.textContent?.includes(label) : button.textContent === label,
+  const control = [...document.querySelectorAll<HTMLElement>('button, [role="option"]')].find(
+    (item) => (contains ? item.textContent?.includes(label) : item.textContent === label),
   );
-  expect(button).toBeDefined();
-  await act(async () => button?.click());
+  expect(control).toBeDefined();
+  await act(async () => control?.click());
 }
 
 it("edits locally until Save and never reviews or runs an update when saving", async () => {
