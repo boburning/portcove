@@ -163,6 +163,9 @@ export function useGamepadNavigation(onBack: () => void) {
       if (event.defaultPrevented || event.isComposing) return;
       const action = keyboardNavigationAction(event.key);
       if (action === "back") {
+        // The top dialog or portaled selector owns its Escape before the
+        // workspace Back action. Its own handler will prevent the event.
+        if (navigationScope() !== document) return;
         back();
         event.preventDefault();
         return;

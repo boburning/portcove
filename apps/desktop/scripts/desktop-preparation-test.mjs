@@ -445,11 +445,15 @@ export async function preparationScenarios({
         Key.BACK_SPACE,
         port.name,
       );
-      await browser.wait(async () => (await search.getAttribute("value")) === port.name, 5_000);
+      await browser.wait(
+        async () => (await search.getAttribute("value")) === port.name,
+        5_000,
+        `catalog search did not settle on ${port.name}`,
+      );
       const card = By.xpath(
         `//button[contains(@class,"port-card") and starts-with(@aria-label,"${port.name}.")]`,
       );
-      await browser.wait(until.elementLocated(card), 15_000);
+      await browser.wait(until.elementLocated(card), 15_000, `${port.name} card did not appear`);
       await browser.findElement(card).click();
       await clickVisible(
         browser,
@@ -458,7 +462,11 @@ export async function preparationScenarios({
       const channel = await browser.findElement(
         By.css('section[aria-label="Game release channel"]'),
       );
-      await browser.wait(until.elementIsVisible(channel), 5_000);
+      await browser.wait(
+        until.elementIsVisible(channel),
+        5_000,
+        `${port.name} release-channel section did not become visible`,
+      );
       return channel;
     };
     const single = await openCatalogPort("ghostship");
@@ -483,11 +491,63 @@ export async function preparationScenarios({
     });
     assert.equal(staleCheck.ok, false);
     assert.equal(staleCheck.error.code, "conflict");
-    const trigger = await multi.findElement(By.css("button"));
-    await trigger.click();
-    await browser.findElement(button("Rolling")).click();
-    await browser.wait(async () => (await status("re-blue")).channel === "rolling", 15_000);
-    await browser.wait(until.elementIsEnabled(trigger), 90_000);
+    const trigger = await multi.findElement(By.css('button[data-slot="select-trigger"]'));
+    await trigger.sendKeys(Key.ENTER);
+    const popup = By.css('[data-slot="select-content"][data-open]');
+    await browser.wait(
+      until.elementLocated(popup),
+      5_000,
+      "release-channel popup did not open for the Escape probe",
+    );
+    assert.equal(
+      await browser.executeScript(
+        "return arguments[0].contains(document.querySelector('[data-slot=\"select-content\"][data-open]'));",
+        multi,
+      ),
+      false,
+      "the release-channel popup is portaled outside the details section",
+    );
+    await browser.actions().sendKeys(Key.ESCAPE).perform();
+    await browser.wait(
+      async () => (await browser.findElements(popup)).length === 0,
+      5_000,
+      "release-channel popup did not close after Escape",
+    );
+    const releaseChannelTrigger = By.css(
+      'section[aria-label="Game release channel"] button[data-slot="select-trigger"]',
+    );
+    const restoredTrigger = await browser.wait(
+      until.elementLocated(releaseChannelTrigger),
+      5_000,
+      "release-channel trigger did not return after Escape",
+    );
+    assert.equal(
+      await browser.executeScript(
+        "return document.activeElement === arguments[0];",
+        restoredTrigger,
+      ),
+      true,
+      "Escape restores focus to the release-channel trigger",
+    );
+    await restoredTrigger.sendKeys(Key.ENTER);
+    await browser.wait(
+      until.elementLocated(popup),
+      5_000,
+      "release-channel popup did not reopen for selection",
+    );
+    await browser
+      .findElement(By.xpath('//*[@role="option" and normalize-space(.)="Rolling"]'))
+      .click();
+    await browser.wait(
+      async () => (await status("re-blue")).channel === "rolling",
+      15_000,
+      "rolling channel was not persisted",
+    );
+    await browser.wait(
+      async () => (await browser.findElement(releaseChannelTrigger)).isEnabled(),
+      90_000,
+      "release-channel trigger did not re-enable after refresh",
+    );
     const after = command(["status", "re-blue"]);
     for (const key of ["active", "staged", "previous"]) assert.deepEqual(after[key], before[key]);
     assert.equal(after.channel, "rolling");

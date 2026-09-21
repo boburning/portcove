@@ -1,11 +1,11 @@
-/** One control inventory for keyboard, controller, and modal navigation. */
+/** One control inventory for keyboard, controller, and top-surface navigation. */
 const selector =
-  "button, a[href], input, select, textarea, summary, [tabindex], [contenteditable=true]";
+  "button, a[href], input, select, textarea, summary, [tabindex], [contenteditable=true], [role=option]";
 const regionFocus = new WeakMap<HTMLElement, HTMLElement>();
 
 export function visibleControl(item: HTMLElement) {
   return (
-    item.tabIndex >= 0 &&
+    (item.tabIndex >= 0 || item.matches("[role=option]")) &&
     !item.matches(":disabled, [aria-disabled=true]") &&
     !item.closest("[inert], [hidden], [aria-hidden=true]") &&
     item.getClientRects().length > 0 &&
@@ -14,10 +14,12 @@ export function visibleControl(item: HTMLElement) {
 }
 
 export function navigationScope(): HTMLElement | Document {
-  const dialogs = [
-    ...document.querySelectorAll<HTMLElement>("[role=dialog][aria-modal=true]"),
+  const surfaces = [
+    ...document.querySelectorAll<HTMLElement>(
+      "[role=dialog][aria-modal=true], [data-portcove-focus-scope]:not([data-closed])",
+    ),
   ].filter((item) => item.getClientRects().length > 0);
-  return dialogs.at(-1) ?? document;
+  return surfaces.at(-1) ?? document;
 }
 
 export function focusableControls(scope: HTMLElement | Document = navigationScope()) {
