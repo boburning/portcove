@@ -367,10 +367,7 @@ export const desktopApi = {
   relinkGameFileRoot: (rootId: string, path: string) =>
     invoke<GameFileRoot>("relink_game_file_root", { rootId, path }),
   removeGameFileRoot: (rootId: string) => invoke<boolean>("remove_game_file_root", { rootId }),
-  scanGameFileRoots: (
-    limits: SourceDiscoveryLimits,
-    onEvent?: (event: OperationEvent) => void,
-  ) => {
+  scanGameFileRoots: (limits: SourceDiscoveryLimits, onEvent?: (event: OperationEvent) => void) => {
     const channel = new Channel<OperationEvent>();
     channel.onmessage = (event) => onEvent?.(event);
     return invoke<GameFileScanSnapshot>("scan_game_file_roots", {
@@ -378,8 +375,7 @@ export const desktopApi = {
       onEvent: channel,
     });
   },
-  gameFileScanSnapshot: () =>
-    invoke<GameFileScanSnapshot | null>("get_game_file_scan_snapshot"),
+  gameFileScanSnapshot: () => invoke<GameFileScanSnapshot | null>("get_game_file_scan_snapshot"),
   discoverSources: (request: SourceDiscoveryRequest, onEvent?: (event: OperationEvent) => void) => {
     const channel = new Channel<OperationEvent>();
     channel.onmessage = (event) => onEvent?.(event);
