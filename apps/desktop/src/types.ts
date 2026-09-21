@@ -68,6 +68,10 @@ export type { SourceRecord } from "./transport-types.generated";
 
 export type GameFileRoot = Generated.TransportOutputs["game_file_roots"][number];
 
+export type GameFileScanSnapshot = NonNullable<
+  Generated.TransportOutputs["game_file_scan_snapshot"]
+>;
+
 export type { ObservedSourceDigest } from "./transport-types.generated";
 
 export type { ObservedSourceComponent } from "./transport-types.generated";

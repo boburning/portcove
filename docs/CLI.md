@@ -50,6 +50,13 @@ evidence must not collapse into one supported flag. Missing gameplay is not a
 source mismatch. Observable schema changes require explicit versioning and
 legacy/unknown-value handling; this planning contract adds no command or field.
 
+Schema 53 adds the `source.roots.scan` capability, the `source roots scan` and
+`source roots snapshot` commands, and the nullable `game_file_scan_snapshot`
+exported schema. Scan uses core's bounded limits and emits the existing
+`discover_sources` operation events under `--jsonl`; snapshot readback reports
+`inputs_match` or `inputs_changed` rather than treating older evidence as current.
+Candidates remain unregistered until separately accepted.
+
 Schema 52 adds the `source.roots` capability, the `source roots` add, list,
 relink and remove commands, and the `game_file_roots` exported schema. Saved
 roots retain stable identities and unavailable paths; consumers must negotiate
@@ -119,7 +126,7 @@ The CLI API schema version is independent of the Portcove release version. Every
 
 ```json
 {
-  "schema_version": 52,
+  "schema_version": 53,
   "ok": true,
   "command": "status",
   "data": {},

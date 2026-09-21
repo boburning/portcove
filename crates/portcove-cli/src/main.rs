@@ -389,12 +389,42 @@ enum SourceCommand {
 enum GameFileRootCommand {
     /// List saved folders, including currently unavailable locations.
     List,
+    /// Scan every available saved folder against the current catalog.
+    Scan(GameFileRootScanArgs),
+    /// Read the last completed scan and whether its inputs still match.
+    Snapshot,
     /// Save one available folder; adding the same folder again is idempotent.
     Add { path: PathBuf },
     /// Update one saved identity after a mount or folder path changes.
     Relink { root_id: String, path: PathBuf },
     /// Forget one saved folder without changing files, registrations or installs.
     Remove { root_id: String },
+}
+
+#[derive(Debug, Args)]
+struct GameFileRootScanArgs {
+    #[arg(long)]
+    max_entries: Option<u32>,
+    #[arg(long)]
+    max_depth: Option<u32>,
+    #[arg(long)]
+    max_file_bytes: Option<u64>,
+    #[arg(long)]
+    max_hash_bytes: Option<u64>,
+    #[arg(long)]
+    max_candidates: Option<u32>,
+}
+
+impl GameFileRootScanArgs {
+    fn limits(self) -> portcove_core::SourceDiscoveryLimits {
+        source_limits(
+            self.max_entries,
+            self.max_depth,
+            self.max_file_bytes,
+            self.max_hash_bytes,
+            self.max_candidates,
+        )
+    }
 }
 
 #[derive(Debug, Subcommand)]
@@ -1176,6 +1206,18 @@ async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
                 "source.roots.list",
                 service.library().game_file_roots()?,
                 |roots| human::game_file_roots(roots),
+            )?,
+            GameFileRootCommand::Scan(args) => render_success(
+                mode,
+                "source.roots.scan",
+                service
+                    .scan_game_file_roots_with_progress(&args.limits(), progress_renderer(mode))?,
+            )?,
+            GameFileRootCommand::Snapshot => render_read_success(
+                mode,
+                "source.roots.snapshot",
+                service.game_file_scan_snapshot()?,
+                human::game_file_scan_snapshot,
             )?,
             GameFileRootCommand::Add { path } => render_success(
                 mode,
@@ -2450,6 +2492,8 @@ fn command_name(command: &Commands) -> &'static str {
             },
             SourceCommand::Roots { command } => match command {
                 GameFileRootCommand::List => "source.roots.list",
+                GameFileRootCommand::Scan(_) => "source.roots.scan",
+                GameFileRootCommand::Snapshot => "source.roots.snapshot",
                 GameFileRootCommand::Add { .. } => "source.roots.add",
                 GameFileRootCommand::Relink { .. } => "source.roots.relink",
                 GameFileRootCommand::Remove { .. } => "source.roots.remove",
@@ -2526,8 +2570,8 @@ mod tests {
 
     use super::{
         AuthCommand, BackupCommand, CapabilityDocument, CatalogCommand, ChannelArg, Cli, Commands,
-        GameFileRootCommand, OutputCommand, PreparationCommand, SourceCommand,
-        normalize_process_exit,
+        GameFileRootCommand, GameFileRootScanArgs, OutputCommand, PreparationCommand,
+        SourceCommand, normalize_process_exit,
     };
     use clap::Parser;
 
@@ -2651,6 +2695,27 @@ mod tests {
                     command: GameFileRootCommand::Relink { root_id, path }
                 }
             } if root_id == "root-id" && path.as_os_str() == "replacement"
+        ));
+
+        let scan = Cli::try_parse_from([
+            "portcove",
+            "source",
+            "roots",
+            "scan",
+            "--max-candidates",
+            "12",
+        ])
+        .unwrap();
+        assert!(matches!(
+            scan.command,
+            Commands::Source {
+                command: SourceCommand::Roots {
+                    command: GameFileRootCommand::Scan(GameFileRootScanArgs {
+                        max_candidates: Some(12),
+                        ..
+                    })
+                }
+            }
         ));
     }
 
@@ -2911,7 +2976,7 @@ mod tests {
     #[test]
     fn capabilities_advertise_failure_isolated_batches() {
         let capabilities = CapabilityDocument::current();
-        assert_eq!(capabilities.schema_version, 52);
+        assert_eq!(capabilities.schema_version, 53);
         assert!(
             capabilities
                 .commands

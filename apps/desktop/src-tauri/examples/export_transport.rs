@@ -68,6 +68,7 @@ fn main() {
                 "application_update_notice": output::<ApplicationUpdateNoticeSnapshot>(),
                 "workspace_snapshot": output::<DesktopWorkspaceSnapshot>(),
                 "game_file_roots": output::<Vec<portcove_core::GameFileRoot>>(),
+                "game_file_scan_snapshot": output::<Option<portcove_core::GameFileScanSnapshot>>(),
                 "preparation_cleanup_preview": output::<portcove_core::PreparationCleanupPreview>(),
                 "steam_entry_review": output::<SteamEntryReview>(),
                 "steam_entry_apply_result": output::<SteamEntryApplyResult>(),

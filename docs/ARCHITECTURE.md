@@ -1515,6 +1515,12 @@ the recorded inputs. That does not claim the collection stayed byte-identical af
 the scan; the snapshot is local evidence, not a watcher, source registration, setup
 intent, or permission to mutate or install anything.
 
+CLI and Tauri expose that same foreground scan, its normal operation events, and
+nullable snapshot readback. They accept only core's typed limits and do not add a
+second candidate store or freshness decision. React may later present this state,
+but it cannot infer a current scan from saved roots or register candidates as a
+side effect of viewing them.
+
 ## Install transaction
 
 SQLite schema 28 adds a durable preparation-process quiescence fact. Core clears

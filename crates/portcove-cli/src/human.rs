@@ -2,12 +2,13 @@ use std::path::Path;
 
 use portcove_core::{
     ActivityRecord, BackupInventory, BackupInventoryState, BackupProblemKind, CapabilityDocument,
-    DoctorReport, GameFileRoot, GithubAuthSource, GithubAuthStatus, HostToolProbeResult,
-    HostToolSource, HostToolState, HostToolStatus, InstallPlan, InstallPlanAction, LaunchBlocker,
-    OutputDestinationAvailability, OutputDestinationOwnership, OutputDestinationPreview,
-    OutputLocationSource, OutputRelocationPlan, Platform, PortDefinition, PortOutputLocation,
-    PortPaths, PortStatus, RepairItemKind, SourceClassification, SourceContractResult,
-    SourceInspectionReport, SourceRecord, SourceRequirementRole, StorageSummary, SupportTier,
+    DoctorReport, GameFileRoot, GameFileScanSnapshot, GithubAuthSource, GithubAuthStatus,
+    HostToolProbeResult, HostToolSource, HostToolState, HostToolStatus, InstallPlan,
+    InstallPlanAction, LaunchBlocker, OutputDestinationAvailability, OutputDestinationOwnership,
+    OutputDestinationPreview, OutputLocationSource, OutputRelocationPlan, Platform, PortDefinition,
+    PortOutputLocation, PortPaths, PortStatus, RepairItemKind, SourceClassification,
+    SourceContractResult, SourceInspectionReport, SourceRecord, SourceRequirementRole,
+    StorageSummary, SupportTier,
 };
 use serde::Serialize;
 use serde_json::Value;
@@ -305,6 +306,24 @@ pub(crate) fn game_file_roots(roots: &[GameFileRoot]) -> String {
         "Game-file folders ({})\n{}",
         roots.len(),
         table(&["ID", "STATE", "PATH"], rows)
+    )
+}
+
+pub(crate) fn game_file_scan_snapshot(snapshot: &Option<GameFileScanSnapshot>) -> String {
+    let Some(snapshot) = snapshot else {
+        return "No completed game-file folder scan is available.".into();
+    };
+    format!(
+        "Game-file folder scan\nFreshness: {}\nCompleted (Unix): {}\nFolders: {}\nCandidates: {}\nEntries examined: {}\nFiles hashed: {}",
+        match snapshot.freshness {
+            portcove_core::GameFileScanFreshness::InputsMatch => "inputs_match",
+            portcove_core::GameFileScanFreshness::InputsChanged => "inputs_changed",
+        },
+        snapshot.completed_at,
+        snapshot.roots.len(),
+        snapshot.report.candidates.len(),
+        snapshot.report.entries_examined,
+        snapshot.report.files_hashed,
     )
 }
 

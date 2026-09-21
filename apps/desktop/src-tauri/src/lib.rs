@@ -845,6 +845,32 @@ async fn remove_game_file_root(
 }
 
 #[tauri::command]
+async fn scan_game_file_roots(
+    state: tauri::State<'_, DesktopState>,
+    limits: portcove_core::SourceDiscoveryLimits,
+    on_event: tauri::ipc::Channel<OperationEvent>,
+) -> DesktopResult<portcove_core::GameFileScanSnapshot> {
+    blocking_service(state.inner().clone(), move |service| {
+        service
+            .scan_game_file_roots_with_progress(&limits, |event| {
+                let _ = on_event.send(event);
+            })
+            .map_err(Into::into)
+    })
+    .await
+}
+
+#[tauri::command]
+async fn get_game_file_scan_snapshot(
+    state: tauri::State<'_, DesktopState>,
+) -> DesktopResult<Option<portcove_core::GameFileScanSnapshot>> {
+    blocking_service(state.inner().clone(), move |service| {
+        service.game_file_scan_snapshot().map_err(Into::into)
+    })
+    .await
+}
+
+#[tauri::command]
 async fn discover_sources(
     state: tauri::State<'_, DesktopState>,
     request: portcove_core::SourceDiscoveryRequest,
@@ -2111,6 +2137,8 @@ pub fn run() {
             add_game_file_root,
             relink_game_file_root,
             remove_game_file_root,
+            scan_game_file_roots,
+            get_game_file_scan_snapshot,
             discover_sources,
             get_source_inbox_paths,
             open_source_inbox,
