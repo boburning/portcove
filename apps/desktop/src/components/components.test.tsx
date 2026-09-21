@@ -395,6 +395,19 @@ describe("desktop components", () => {
     },
   );
 
+  it("renders game details as a workspace destination instead of a modal", () => {
+    const html = renderToStaticMarkup(
+      <DetailPanel port={port} sourcePath="" setSourcePath={vi.fn()} actions={actions} />,
+    );
+    expect(html).toContain("data-detail-workspace");
+    expect(html).toContain('aria-label="Back to previous workspace"');
+    expect(html).toContain(`<h1 class="detail-title" id="port-detail-title">${port.name}</h1>`);
+    expect(html).not.toContain('<h2 id="port-detail-title">');
+    expect(html).not.toContain('role="dialog"');
+    expect(html).not.toContain('aria-modal="true"');
+    expect(html).not.toContain('class="scrim"');
+  });
+
   it("labels presentation omitted by an older catalog", () => {
     const html = renderToStaticMarkup(
       <DetailPanel
@@ -2688,6 +2701,8 @@ describe("desktop components", () => {
     expect(html).toContain("CONTINUE");
     expect(html).toContain("Play again");
     expect(html).toContain("Last played");
+    expect(html).toContain(`data-detail-origin="library:continue-details:${port.id}"`);
+    expect(html).toContain(`data-detail-origin="library:card:${port.id}"`);
     expect(html).not.toContain("Last successful session");
   });
 
@@ -2880,6 +2895,8 @@ describe("desktop components", () => {
     expect(html).toContain("Latest eligible");
     expect(html).toContain("Checking only looks for updates");
     expect(html).toContain("Recent activity");
+    expect(html).toContain(`data-detail-origin="updates:installed:${port.id}"`);
+    expect(html).toContain(`data-detail-origin="updates:activity:activity-1:target"`);
     expect(html).toContain("Updated port");
     expect(html).toContain("Verified source");
     expect(html).toContain("Copied existing installation");

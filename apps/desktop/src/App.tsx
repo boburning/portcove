@@ -17,6 +17,7 @@ import {
 } from "./features/installation/use-installation-planning";
 import { detailActions } from "./features/game-details/detail-actions";
 import { useAppShellState } from "./features/app-shell/use-app-shell-state";
+import { useDetailWorkspaceNavigation } from "./features/app-shell/use-detail-workspace-navigation";
 import { useBootstrapState, type StartupFailure } from "./features/bootstrap/use-bootstrap-state";
 import { AdoptionModal } from "./components/AdoptionModal";
 import {
@@ -294,18 +295,30 @@ function Workspace({
   );
   const backups = usePortBackups(model.port?.id, operations.setError);
   const workspace = useWorkspaceScroll(ui.view);
+  const { adoptOpen, selectedId, setAdoptOpen, setSelectedId, setView } = ui;
+  const {
+    close: closePortDetails,
+    invalidate: invalidatePortDetails,
+    open: openPortDetails,
+  } = useDetailWorkspaceNavigation(workspace, setSelectedId);
+  const setPrimaryView = useCallback(
+    (...args: Parameters<typeof setView>) => {
+      invalidatePortDetails();
+      setView(...args);
+    },
+    [invalidatePortDetails, setView],
+  );
   const commandSurface = useCommandSurface({
     recent: model.recent,
     installedCount: model.overview.installed,
     busy: Boolean(operations.busy),
-    setView: ui.setView,
+    setView: setPrimaryView,
     setAdoptOpen: ui.setAdoptOpen,
-    setSelectedId: ui.setSelectedId,
+    setSelectedId: (portId) => openPortDetails(portId, `command-trigger:${ui.view}`),
     checkAll: updates.checkAll,
   });
   const adopting = [...operations.pendingOperations.values()].includes("adopt");
   const { open: commandOpen, setOpen: setCommandOpen } = commandSurface;
-  const { adoptOpen, selectedId, setAdoptOpen, setSelectedId } = ui;
   const handleBack = useCallback(() => {
     const action = overlayBackAction({
       paletteOpen: commandOpen,
@@ -315,9 +328,17 @@ function Workspace({
     if (action === "close-palette") setCommandOpen(false);
     else if (action === "close-adoption") {
       if (!adopting) setAdoptOpen(false);
-    } else if (action === "close-detail") setSelectedId(undefined);
+    } else if (action === "close-detail") closePortDetails();
     else focusRegion("sidebar");
-  }, [adoptOpen, adopting, commandOpen, selectedId, setAdoptOpen, setCommandOpen, setSelectedId]);
+  }, [
+    adoptOpen,
+    adopting,
+    closePortDetails,
+    commandOpen,
+    selectedId,
+    setAdoptOpen,
+    setCommandOpen,
+  ]);
   const controller = useGamepadNavigation(handleBack);
   const hostToolActions: HostToolActions = {
     locate: async (tool: HostToolStatus) => {
@@ -335,7 +356,7 @@ function Workspace({
     openOfficial: (toolId: string) => desktopApi.openHostToolOfficialSite(toolId),
   };
   const reviewApplicationUpdate = () => {
-    ui.setView("settings");
+    setPrimaryView("settings");
     window.requestAnimationFrame(() =>
       document.getElementById("application-update-settings-title")?.focus(),
     );
@@ -361,7 +382,7 @@ function Workspace({
       <div className="app-shell">
         <Sidebar
           view={ui.view}
-          setView={ui.setView}
+          setView={setPrimaryView}
           controller={controller}
           installedCount={data.statuses.filter((status) => status.active).length}
           updateCount={
@@ -372,13 +393,15 @@ function Workspace({
           onAdopt={() => ui.setAdoptOpen(true)}
         />
         <main ref={workspace} data-focus-region="workspace">
-          <PageHeader
-            view={ui.view}
-            query={ui.query}
-            setQuery={ui.setQuery}
-            portCount={data.catalog?.ports.length ?? 0}
-            onOpenCommands={() => commandSurface.setOpen(true)}
-          />
+          {!model.port && (
+            <PageHeader
+              view={ui.view}
+              query={ui.query}
+              setQuery={ui.setQuery}
+              portCount={data.catalog?.ports.length ?? 0}
+              onOpenCommands={() => commandSurface.setOpen(true)}
+            />
+          )}
           <StatusLayer
             error={operations.error}
             clearError={() => operations.setError(undefined)}
@@ -402,35 +425,40 @@ function Workspace({
             retry={data.retryRefresh}
             subscriptionFailure={data.subscriptionFailure?.error ?? operations.subscriptionFailure}
           />
-          <CurrentView
-            data={data}
-            ui={ui}
-            model={model}
-            operations={operations}
-            github={github}
-            updates={updates}
-            sourceHealth={sourceHealth}
-            appearance={appearance}
-            bootstrap={bootstrap}
-            switchLibrary={switchLibrary}
-            resetLibrary={resetLibrary}
-            nativeSourceDrag={nativeSourceDrag}
-            hostToolActions={hostToolActions}
-            applicationUpdateNotice={applicationUpdate.notice}
-            applicationUpdatePreferences={applicationUpdateChoice}
-          />
+          {model.port ? (
+            <SelectedPortPanel
+              model={model}
+              ui={ui}
+              operations={operations}
+              sourceHealth={sourceHealth}
+              installPlanning={installPlanning}
+              backups={backups}
+              activities={data.activities}
+              libraryGeneration={bootstrap.generation}
+              openSourceIntake={openSourceIntake}
+              close={closePortDetails}
+            />
+          ) : (
+            <CurrentView
+              data={data}
+              ui={{ ...ui, setView: setPrimaryView }}
+              model={model}
+              operations={operations}
+              github={github}
+              updates={updates}
+              sourceHealth={sourceHealth}
+              appearance={appearance}
+              bootstrap={bootstrap}
+              switchLibrary={switchLibrary}
+              resetLibrary={resetLibrary}
+              nativeSourceDrag={nativeSourceDrag}
+              hostToolActions={hostToolActions}
+              applicationUpdateNotice={applicationUpdate.notice}
+              applicationUpdatePreferences={applicationUpdateChoice}
+              openPortDetails={openPortDetails}
+            />
+          )}
         </main>
-        <SelectedPortPanel
-          model={model}
-          ui={ui}
-          operations={operations}
-          sourceHealth={sourceHealth}
-          installPlanning={installPlanning}
-          backups={backups}
-          activities={data.activities}
-          libraryGeneration={bootstrap.generation}
-          openSourceIntake={openSourceIntake}
-        />
         <AdoptionOverlay
           ui={ui}
           operations={operations}
@@ -556,6 +584,7 @@ function CurrentView({
   hostToolActions,
   applicationUpdateNotice,
   applicationUpdatePreferences,
+  openPortDetails,
 }: {
   data: DataState;
   ui: UiState;
@@ -572,6 +601,7 @@ function CurrentView({
   hostToolActions: HostToolActions;
   applicationUpdateNotice: ReturnType<typeof useApplicationUpdateNotice>["notice"];
   applicationUpdatePreferences: ReturnType<typeof useApplicationUpdateChoice>;
+  openPortDetails: (portId: string, originKey?: string) => void;
 }) {
   if (ui.view === "updates")
     return (
@@ -595,7 +625,7 @@ function CurrentView({
         checkAll={() => {
           void updates.checkAll();
         }}
-        onSelect={ui.setSelectedId}
+        onSelect={openPortDetails}
         onOpenSources={() => ui.setView("settings")}
       />
     );
@@ -689,7 +719,7 @@ function CurrentView({
       recent={model.recent}
       filter={ui.filter}
       setFilter={ui.setFilter}
-      onSelect={ui.setSelectedId}
+      onSelect={openPortDetails}
       onContinue={(portId) => {
         void operations.perform("launch", () => desktopApi.launch(portId, ""));
       }}
@@ -714,6 +744,7 @@ function SelectedPortPanel({
   activities,
   libraryGeneration,
   openSourceIntake,
+  close,
 }: {
   model: ReturnType<typeof useAppModel>;
   ui: UiState;
@@ -724,6 +755,7 @@ function SelectedPortPanel({
   activities: ActivityRecord[];
   libraryGeneration: number;
   openSourceIntake: (portId: string, profileId: string, paths?: string[]) => void;
+  close: () => void;
 }) {
   if (!model.port) return null;
   const pickSource = model.sourceProfile
@@ -809,7 +841,7 @@ function SelectedPortPanel({
         ui.sourcePath,
         ui.biosPath,
         operations.perform,
-        () => ui.setSelectedId(undefined),
+        close,
         installPlanning.review,
         backups.refresh,
         libraryGeneration,

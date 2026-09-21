@@ -208,6 +208,7 @@ export function PageHeader({
         )}
         <button
           data-focusable
+          data-detail-origin={`command-trigger:${view}`}
           className="command-trigger button-with-icon"
           onClick={onOpenCommands}
           aria-label="Open command palette"

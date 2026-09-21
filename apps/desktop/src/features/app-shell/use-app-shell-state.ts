@@ -13,6 +13,7 @@ export function useAppShellState() {
   const setView = useCallback((nextView: SetStateAction<View>) => {
     setViewState((current) => (typeof nextView === "function" ? nextView(current) : nextView));
     setFilter("all");
+    setSelectedId(undefined);
   }, []);
   return {
     view,

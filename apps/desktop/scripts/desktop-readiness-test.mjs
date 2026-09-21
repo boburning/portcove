@@ -87,7 +87,7 @@ export async function readinessScenario({ browser, scenario, output, artifacts, 
         flag: "wx",
       });
       artifacts.push(screenshot);
-      await controls.click(By.css('[aria-label="Close port details"]'));
+      await controls.click(By.css(".detail-back"));
       await controls.click(controls.button("Review launch"));
       await browser.wait(until.elementLocated(By.css(".detail-panel")), 10_000);
       await browser.wait(

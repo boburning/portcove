@@ -70,7 +70,7 @@ export function UpdateCenter({
   outcomes: UpdateCheckOutcome[];
   busy?: string;
   checkAll: () => void;
-  onSelect: (portId: string) => void;
+  onSelect: (portId: string, originKey?: string) => void;
   onOpenSources: () => void;
 }) {
   const [nowSeconds, setNowSeconds] = useState(initialActivityNowSeconds);
@@ -128,10 +128,11 @@ export function UpdateCenter({
             return (
               <button
                 data-focusable
+                data-detail-origin={`updates:installed:${port.id}`}
                 className="update-row"
                 key={port.id}
                 title={outcome?.error ? errorText(outcome.error) : undefined}
-                onClick={() => onSelect(port.id)}
+                onClick={() => onSelect(port.id, `updates:installed:${port.id}`)}
               >
                 <div className={`update-mark ${state.tone}`}>
                   {port.name.slice(0, 2).toUpperCase()}
@@ -210,7 +211,7 @@ function ActivityHistory({
   sourceProfiles: SourceProfile[];
   activities: ActivityRecord[];
   activityFeed?: ActivityFeed;
-  onSelect: (portId: string) => void;
+  onSelect: (portId: string, originKey?: string) => void;
   onOpenSources: () => void;
 }) {
   const names = new Map(ports.map((port) => [port.id, port.name]));
@@ -282,7 +283,7 @@ function ActivityRow({
   activity: ActivityRecord;
   names: ReadonlyMap<string, string>;
   sourceNames: ReadonlyMap<string, string>;
-  onSelect: (portId: string) => void;
+  onSelect: (portId: string, originKey?: string) => void;
   onOpenSources: () => void;
 }) {
   const target = activityTarget(activity, names, sourceNames);
@@ -323,7 +324,11 @@ function ActivityRow({
           <p>{activity.failure.presentation.summary}</p>
           {activity.failure.presentation.recovery_actions.includes("review_preparation") &&
             target.portId && (
-              <button data-focusable onClick={() => onSelect(target.portId!)}>
+              <button
+                data-focusable
+                data-detail-origin={`updates:activity:${activity.id}:review`}
+                onClick={() => onSelect(target.portId!, `updates:activity:${activity.id}:review`)}
+              >
                 Review game preparation
               </button>
             )}
@@ -358,12 +363,16 @@ function ActivityTargetLink({
 }: {
   activity: ActivityRecord;
   target: ReturnType<typeof activityTarget>;
-  onSelect: (portId: string) => void;
+  onSelect: (portId: string, originKey?: string) => void;
   onOpenSources: () => void;
 }) {
   if (target.portId)
     return (
-      <button data-focusable onClick={() => onSelect(target.portId!)}>
+      <button
+        data-focusable
+        data-detail-origin={`updates:activity:${activity.id}:target`}
+        onClick={() => onSelect(target.portId!, `updates:activity:${activity.id}:target`)}
+      >
         {target.label}
       </button>
     );

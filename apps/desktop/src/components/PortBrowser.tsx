@@ -49,7 +49,7 @@ export function PortBrowser({
   filter: Filter;
   recent?: RecentPort;
   setFilter: Dispatch<SetStateAction<Filter>>;
-  onSelect: (portId: string) => void;
+  onSelect: (portId: string, originKey?: string) => void;
   onContinue?: (portId: string) => void;
   onBrowseCatalog?: () => void;
   clearFilters?: () => void;
@@ -118,7 +118,7 @@ function BrowserResults({
   ports: PortDefinition[];
   installedCount: number;
   statuses: Map<string, PortStatus>;
-  onSelect: (portId: string) => void;
+  onSelect: (portId: string, originKey?: string) => void;
   onBrowseCatalog?: () => void;
   clearFilters?: () => void;
   loading: boolean;
@@ -144,6 +144,7 @@ function BrowserResults({
           readiness={portReadiness(statuses.get(port.id))}
           onSelect={onSelect}
           nativeSourceDrag={nativeSourceDrag}
+          view={view}
         />
       ))}
     </section>
@@ -238,7 +239,7 @@ function ContinueCard({
 }: {
   recent: RecentPort;
   launch: (portId: string) => void;
-  details: (portId: string) => void;
+  details: (portId: string, originKey?: string) => void;
 }) {
   const { port, status } = recent;
   const launchable = status.readiness?.launchable === true;
@@ -251,13 +252,20 @@ function ContinueCard({
         <p className="continue-meta">Last played · {status.active?.version}</p>
       </div>
       <div className="continue-actions">
-        <button data-focusable onClick={() => details(port.id)}>
+        <button
+          data-focusable
+          data-detail-origin={`library:continue-details:${port.id}`}
+          onClick={() => details(port.id, `library:continue-details:${port.id}`)}
+        >
           View details
         </button>
         <button
           data-focusable
           className="primary button-with-icon"
-          onClick={() => (launchable ? launch(port.id) : details(port.id))}
+          data-detail-origin={launchable ? undefined : `library:continue-review:${port.id}`}
+          onClick={() =>
+            launchable ? launch(port.id) : details(port.id, `library:continue-review:${port.id}`)
+          }
         >
           <Icon glyph={Gamepad2} />
           {launchable ? "Play again" : "Review launch"}
@@ -311,12 +319,14 @@ function PortCard({
   readiness,
   onSelect,
   nativeSourceDrag,
+  view,
 }: {
   port: PortDefinition;
   status?: PortStatus;
   readiness: PortReadiness;
-  onSelect: (portId: string) => void;
+  onSelect: (portId: string, originKey?: string) => void;
   nativeSourceDrag: NativeSourceDragState;
+  view: View;
 }) {
   const state = readinessPresentation(readiness);
   const channel = releaseChannelPresentation(status?.channel ?? port.support_tier);
@@ -326,9 +336,10 @@ function PortCard({
   return (
     <button
       data-focusable
+      data-detail-origin={`${view}:card:${port.id}`}
       className={`port-card${dropEligible ? " source-drop-eligible" : ""}${dropTarget ? " source-drop-targeted" : ""}`}
       aria-label={`${port.name}. ${state.label}. ${state.action}.`}
-      onClick={() => onSelect(port.id)}
+      onClick={() => onSelect(port.id, `${view}:card:${port.id}`)}
       data-source-drop-port-id={dropEligible ? port.id : undefined}
       data-source-drop-profile-id={dropEligible ? port.source_profile : undefined}
     >

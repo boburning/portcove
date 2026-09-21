@@ -167,7 +167,7 @@ describe("core-owned failure presentation", () => {
           (item) => item.textContent === "Review game preparation",
         )!;
         await act(async () => button.click());
-        expect(onSelect).toHaveBeenLastCalledWith(port.id);
+        expect(onSelect).toHaveBeenLastCalledWith(port.id, "updates:activity:recorded:review");
         expect(host.textContent).not.toMatch(
           /Resume preparation|Retry preparation|Delete retained/,
         );

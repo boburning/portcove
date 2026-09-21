@@ -211,7 +211,7 @@ export async function preparationScenarios({
       15_000,
       "Preparation must reach its owned cancellation checkpoint",
     );
-    await browser.findElement(By.css('button[aria-label="Close port details"]')).click();
+    await browser.findElement(By.css(".detail-back")).click();
     await browser.findElement(By.xpath('//nav//button[contains(., "Updates")]')).click();
     const runningRowSelector = By.xpath(
       '//div[contains(@class, "activity-row") and contains(@class, "running")][.//strong[normalize-space(.)="Prepared game data"]]',
@@ -396,7 +396,7 @@ export async function preparationScenarios({
     artifacts.push(screenshot);
   });
   await scenario("native-release-channel-selection-and-restart", async () => {
-    await browser.findElement(By.css('button[aria-label="Close port details"]')).click();
+    await browser.findElement(By.css(".detail-back")).click();
     await browser.findElement(By.xpath('//nav//button[contains(., "Port catalog")]')).click();
     const openCatalogPort = async (id) => {
       const port = command(["catalog", "show", id]);
@@ -425,7 +425,7 @@ export async function preparationScenarios({
     const single = await openCatalogPort("ghostship");
     assert.ok((await single.getText()).includes("Stable only"));
     assert.equal((await single.findElements(By.css("button"))).length, 0);
-    await browser.findElement(By.css('button[aria-label="Close port details"]')).click();
+    await browser.findElement(By.css(".detail-back")).click();
     command(["channel", "set", "re-blue", "stable"]);
     const multi = await openCatalogPort("re-blue");
     const before = await status("re-blue");
