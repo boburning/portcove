@@ -399,8 +399,52 @@ export async function preparationScenarios({
     );
     const before = await status(port.id);
     const activities = await invoke("get_activities");
-    await browser.findElement(By.xpath('//button[contains(., "Saved update policy")]')).click();
-    await browser.findElement(button("Install when running updates")).click();
+    const policyTrigger = By.xpath('//button[contains(., "Saved update policy")]');
+    await browser.findElement(policyTrigger).sendKeys(Key.ENTER);
+    const policyPopup = By.css('[data-slot="select-content"][data-open]');
+    await browser.wait(
+      until.elementLocated(policyPopup),
+      5_000,
+      "saved update policy options did not open",
+    );
+    assert.equal(
+      await browser.executeScript(
+        "return arguments[0].contains(arguments[1]);",
+        await browser.findElement(By.css('section[aria-label="Game update settings"]')),
+        await browser.findElement(policyPopup),
+      ),
+      false,
+      "saved update policy options must use the shared portal",
+    );
+    await browser.actions().sendKeys(Key.ESCAPE).perform();
+    await browser.wait(
+      async () => (await browser.findElements(policyPopup)).length === 0,
+      5_000,
+      "saved update policy options remained open after Escape",
+    );
+    const restoredPolicyTrigger = await browser.wait(
+      async () => {
+        const candidate = await browser.findElement(policyTrigger);
+        return (await browser.executeScript(
+          "return document.activeElement === arguments[0];",
+          candidate,
+        ))
+          ? candidate
+          : false;
+      },
+      5_000,
+      "saved update policy trigger must regain focus after Escape",
+    );
+    await restoredPolicyTrigger.sendKeys(Key.ENTER);
+    const automaticOption = By.xpath(
+      '//*[@role="option" and normalize-space(.)="Install when running updates"]',
+    );
+    await browser.wait(
+      until.elementLocated(automaticOption),
+      5_000,
+      "automatic update policy option did not open",
+    );
+    await browser.findElement(automaticOption).sendKeys(Key.ENTER);
     assert.equal(
       (await status(port.id)).update_policy,
       before.update_policy,
