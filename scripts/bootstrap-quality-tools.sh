@@ -93,17 +93,6 @@ if $include_deep; then
     fi
   done
 
-  hawk_version="$(node scripts/quality-tools.mjs --version cargo-hawk)"
-  hawk_rust="$(node scripts/quality-tools.mjs --rust-toolchain cargo-hawk)"
-  if ! rustup toolchain install "$hawk_rust" --component rustc-dev; then
-    optional_failures+=("cargo-hawk")
-  elif has_exact_version "$hawk_version" "cargo +$hawk_rust hawk --version"; then
-    printf 'cargo-hawk already pinned: %s\n' "$(reported_version "cargo +$hawk_rust hawk --version")"
-  elif ! RUSTC_BOOTSTRAP=1 cargo "+$hawk_rust" install --locked --version "$hawk_version" cargo-hawk; then
-    optional_failures+=("cargo-hawk")
-  elif ! cargo "+$hawk_rust" hawk --version; then
-    optional_failures+=("cargo-hawk")
-  fi
 fi
 
 printf 'Required pinned Portcove quality tools are ready.\n'

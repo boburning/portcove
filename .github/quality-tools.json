@@ -46,30 +46,12 @@
       "ci_install": "cached"
     },
     {
-      "id": "semdup",
-      "crate": "semdup",
-      "version": "0.2.0",
-      "command": ["semdup", "--version"],
-      "tier": "deep",
-      "ci_install": "cached"
-    },
-    {
       "id": "cargo-mutants",
       "crate": "cargo-mutants",
       "version": "27.1.0",
       "command": ["cargo", "mutants", "--version"],
       "tier": "deep",
       "ci_install": "local"
-    },
-    {
-      "id": "cargo-hawk",
-      "crate": "cargo-hawk",
-      "version": "0.1.13",
-      "command": ["cargo", "+{rust}", "hawk", "--version"],
-      "tier": "deep",
-      "ci_install": "source",
-      "uses_workspace_rust": true,
-      "unsupported_platforms": ["win32"]
     },
     {
       "id": "cargo-nextest",

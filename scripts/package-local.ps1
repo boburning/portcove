@@ -60,7 +60,7 @@ try {
     if ([System.IO.File]::Exists($temporaryArchive)) {
         [System.IO.File]::Delete($temporaryArchive)
     }
-    $excludedDirectories = @("target", "work", "outputs", "node_modules", "apps/desktop/node_modules", "apps/desktop/dist", "apps/desktop/src-tauri/gen", ".git", ".fallow", ".rscheck", ".semdup", "semdup.sqlite", "scripts/.fallow", "apps/desktop/.fallow", ".codex-remote-attachments")
+    $excludedDirectories = @("target", "work", "outputs", "node_modules", "apps/desktop/node_modules", "apps/desktop/dist", "apps/desktop/src-tauri/gen", ".git", ".fallow", ".rscheck", "scripts/.fallow", "apps/desktop/.fallow", ".codex-remote-attachments")
     foreach ($storagePath in @($targetRoot, $outputRoot, $storage.temporary_directory, $storage.pnpm_store)) {
         $relative = [System.IO.Path]::GetRelativePath($projectRoot, $storagePath).Replace('\', '/')
         if ($relative -eq ".") { throw "Packaging storage cannot be the workspace root" }
@@ -73,7 +73,7 @@ try {
     if ($LASTEXITCODE -ne 0) { throw "Source archive failed with exit code $LASTEXITCODE" }
     $forbiddenArchiveEntries = & tar -tf $temporaryArchive | Where-Object {
         $entry = $_ -replace '^\./', ''
-        $entry -match '(^|/)(\.git|\.fallow|\.rscheck|\.semdup|\.codex-remote-attachments)(/|$)' -or
+        $entry -match '(^|/)(\.git|\.fallow|\.rscheck|\.codex-remote-attachments)(/|$)' -or
         ($excludedDirectories | Where-Object { $entry -eq $_ -or $entry.StartsWith("$_/") })
     }
     if ($LASTEXITCODE -ne 0) { throw "Source archive inspection failed with exit code $LASTEXITCODE" }

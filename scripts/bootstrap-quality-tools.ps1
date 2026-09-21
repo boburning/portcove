@@ -436,11 +436,10 @@ try {
     }
 
     if ($IncludeDeep) {
-        foreach ($tool in @($qualityManifest.tools | Where-Object { $_.tier -eq "deep" -and $_.id -ne "cargo-hawk" })) {
+        foreach ($tool in @($qualityManifest.tools | Where-Object { $_.tier -eq "deep" })) {
             try { Install-CachedCargoTool $tool | Out-Null }
             catch { Write-Warning "$($tool.crate) remains unavailable: $($_.Exception.Message)" }
         }
-        if ($runningOnWindows) { Write-Warning "Hawk does not publish Windows binaries" }
     }
 
     $desktopState = if ($Desktop) {

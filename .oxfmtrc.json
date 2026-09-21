@@ -15,7 +15,6 @@
     ".fallow/**",
     ".fallow-review/**",
     ".rscheck/**",
-    ".semdup/**",
     ".tmp/**",
     "mutants.out/**",
     "mutants.out.old/**",

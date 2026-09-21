@@ -285,6 +285,12 @@ function classifyOnePath(selection, input, fileExists, options = {}) {
     selection.oxfmtFiles.add(file);
   }
   if (extension === ".toml") selection.toml = true;
+  if (options.isDeletion && extension === ".toml" && !file.includes("/")) {
+    selection.scopes.add("repository-config");
+    addNodeTest(selection, "scripts/local-validation.test.mjs");
+    addNodeTest(selection, "scripts/validation-plan.test.mjs");
+    recognized = true;
+  }
 
   if (options.isDeletion && file.startsWith(".github/") && extension === ".json") {
     selection.scopes.add("tooling");
@@ -513,11 +519,6 @@ function classifyOnePath(selection, input, fileExists, options = {}) {
     selection.uiFullTests = true;
     selection.lintToolFixtures.add("oxfmt");
     selection.scopes.add("ui");
-    recognized = true;
-  }
-
-  if (file === "hawk.toml" || file === "semdup.toml") {
-    selection.scopes.add("repository-config");
     recognized = true;
   }
 
