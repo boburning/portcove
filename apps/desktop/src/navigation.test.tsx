@@ -82,6 +82,14 @@ function control(text: string) {
   return result;
 }
 
+function option(text: string) {
+  const result = [...document.querySelectorAll<HTMLElement>('[role="option"]')].find(
+    (item) => item.textContent === text,
+  );
+  if (!result) throw new Error(`missing option: ${text}`);
+  return result;
+}
+
 async function frame(pressed: number[] = [], elapsed = 16) {
   buttons = Array.from({ length: 16 }, (_, index) => ({
     pressed: pressed.includes(index),
@@ -230,12 +238,13 @@ describe("controller and modal integration", () => {
   });
 
   it("selects a game channel with the controller and restores focus after saving", async () => {
+    const back = vi.fn();
     const save = vi.fn(async () => ({
       ...portStatus(),
       channel: "rolling" as const,
     }));
     function ChannelFixture() {
-      useGamepadNavigation(() => undefined);
+      useGamepadNavigation(back);
       return (
         <ReleaseChannelControl
           channels={["stable", "rolling"]}
@@ -247,21 +256,34 @@ describe("controller and modal integration", () => {
       );
     }
     await act(async () => root.render(<ChannelFixture />));
-    const trigger = control("Release channelStable");
+    const trigger = document.querySelector<HTMLButtonElement>('[data-slot="select-trigger"]');
+    expect(trigger).not.toBeNull();
+    if (!trigger) throw new Error("missing release-channel trigger");
     trigger.focus();
     await frame([0]);
     await frame();
-    expect(document.activeElement).toBe(control("Stable"));
+    const stable = option("Stable");
+    const rolling = option("Rolling");
+    stable.dataset.y = "0";
+    rolling.dataset.y = "50";
+    expect(document.activeElement).toBe(stable);
     await act(async () => {
-      control("Stable").dispatchEvent(
-        new KeyboardEvent("keydown", {
-          key: "Tab",
-          bubbles: true,
-          cancelable: true,
-        }),
-      );
+      stable.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
     });
-    expect(document.activeElement).toBe(control("Rolling"));
+    const closedPopup = document.querySelector<HTMLElement>('[data-slot="select-content"]');
+    expect(closedPopup?.hasAttribute("data-closed")).toBe(true);
+    expect(back).not.toHaveBeenCalled();
+    expect(document.activeElement).toBe(trigger);
+    await frame([0]);
+    await frame();
+    const reopenedStable = option("Stable");
+    const reopenedRolling = option("Rolling");
+    reopenedStable.dataset.y = "0";
+    reopenedRolling.dataset.y = "50";
+    expect(document.activeElement).toBe(reopenedStable);
+    await frame([13]);
+    await frame();
+    expect(document.activeElement).toBe(reopenedRolling);
     await frame([0]);
     await frame();
     expect(save).toHaveBeenCalledExactlyOnceWith("rolling");

@@ -25,10 +25,17 @@ afterEach(async () => {
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
-async function click(text: string) {
-  const button = [...document.querySelectorAll("button")].find((item) => item.textContent === text);
-  expect(button).toBeDefined();
-  await act(async () => button?.click());
+async function openChannelSelect() {
+  const trigger = container.querySelector<HTMLButtonElement>('[data-slot="select-trigger"]');
+  expect(trigger).not.toBeNull();
+  await act(async () => trigger?.click());
+}
+async function chooseChannel(text: string) {
+  const option = [...document.querySelectorAll<HTMLElement>('[role="option"]')].find(
+    (item) => item.textContent === text,
+  );
+  expect(option).toBeDefined();
+  await act(async () => option?.click());
 }
 const saved = { ...portStatus(), channel: "rolling" as const };
 
@@ -55,6 +62,54 @@ it.each(["stable", "beta", "rolling"] as ReleaseChannel[])(
   },
 );
 
+it("keeps a busy selector disabled", async () => {
+  await act(async () =>
+    root.render(
+      <ReleaseChannelControl
+        channels={["stable", "rolling"]}
+        selected="stable"
+        busy
+        change={vi.fn()}
+        refresh={vi.fn()}
+      />,
+    ),
+  );
+  expect(container.querySelector<HTMLButtonElement>('[data-slot="select-trigger"]')?.disabled).toBe(
+    true,
+  );
+  expect(container.querySelector('[data-slot="select-value"]')?.textContent).toBe("Stable");
+});
+
+it("portals choices and restores trigger focus after Escape", async () => {
+  const backgroundEscape = vi.fn();
+  window.addEventListener("keydown", backgroundEscape);
+  await act(async () =>
+    root.render(
+      <ReleaseChannelControl
+        channels={["stable", "rolling"]}
+        selected="stable"
+        busy={false}
+        change={vi.fn()}
+        refresh={vi.fn()}
+      />,
+    ),
+  );
+  const trigger = container.querySelector<HTMLButtonElement>('[data-slot="select-trigger"]');
+  await openChannelSelect();
+  const popup = document.querySelector<HTMLElement>('[data-slot="select-content"]');
+  expect(popup).not.toBeNull();
+  expect(container.contains(popup)).toBe(false);
+  await act(async () => {
+    popup?.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+  });
+  const closedPopup = document.querySelector<HTMLElement>('[data-slot="select-content"]');
+  expect(closedPopup === null || closedPopup.hasAttribute("data-closed")).toBe(true);
+  expect(document.querySelector('[data-slot="select-content"][data-open]')).toBeNull();
+  expect(document.activeElement).toBe(trigger);
+  expect(backgroundEscape).not.toHaveBeenCalled();
+  window.removeEventListener("keydown", backgroundEscape);
+});
+
 it.each(["rolling", "beta"] as const)(
   "saves a real %s choice before refreshing release data",
   async (next) => {
@@ -78,8 +133,8 @@ it.each(["rolling", "beta"] as const)(
         />,
       ),
     );
-    await click("Release channelStable");
-    await click(next === "rolling" ? "Rolling" : "Beta");
+    await openChannelSelect();
+    await chooseChannel(next === "rolling" ? "Rolling" : "Beta");
     expect(change).toHaveBeenCalledExactlyOnceWith(next);
     expect(calls).toEqual(["save", "check"]);
     expect(container.textContent).toContain("Release information refreshed");
@@ -100,8 +155,8 @@ it("keeps failed metadata refresh distinct from a saved channel", async () => {
       />,
     ),
   );
-  await click("Release channelStable");
-  await click("Rolling");
+  await openChannelSelect();
+  await chooseChannel("Rolling");
   expect(container.textContent).toContain(
     "Rolling saved. Release information could not be refreshed",
   );
@@ -121,11 +176,13 @@ it("does not refresh after an unsuccessful save and exposes retry state", async 
       />,
     ),
   );
-  await click("Release channelStable");
-  await click("Rolling");
+  await openChannelSelect();
+  await chooseChannel("Rolling");
   expect(refresh).not.toHaveBeenCalled();
   expect(container.textContent).toContain("Channel change was not confirmed");
-  expect(container.querySelector<HTMLButtonElement>(".choice-trigger")?.disabled).toBe(false);
+  expect(container.querySelector<HTMLButtonElement>('[data-slot="select-trigger"]')?.disabled).toBe(
+    false,
+  );
 });
 
 it("disables choices while saving and ignores completion from an old library", async () => {
@@ -149,9 +206,11 @@ it("disables choices while saving and ignores completion from an old library", a
       />,
     ),
   );
-  await click("Release channelStable");
-  await click("Rolling");
-  expect(container.querySelector<HTMLButtonElement>(".choice-trigger")?.disabled).toBe(true);
+  await openChannelSelect();
+  await chooseChannel("Rolling");
+  expect(container.querySelector<HTMLButtonElement>('[data-slot="select-trigger"]')?.disabled).toBe(
+    true,
+  );
   await act(async () =>
     root.render(
       <ReleaseChannelControl

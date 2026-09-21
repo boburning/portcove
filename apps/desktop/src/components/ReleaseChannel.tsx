@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import type { PortStatus, ReleaseChannel } from "../types";
 import { errorText, releaseChannelPresentation } from "../view-model";
-import { ChoiceMenu } from "./ChoiceMenu";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 
 export function ReleaseChannelControl({
   channels,
@@ -18,7 +18,9 @@ export function ReleaseChannelControl({
 }) {
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState<string>();
-  const root = useRef<HTMLElement>(null);
+  const [open, setOpen] = useState(false);
+  const labelId = useId();
+  const trigger = useRef<HTMLButtonElement>(null);
   const request = useRef(0);
   const recognized =
     channels.length > 0 &&
@@ -61,14 +63,13 @@ export function ReleaseChannelControl({
       if (current === request.current) {
         setPending(false);
         window.requestAnimationFrame(() => {
-          if (current === request.current)
-            root.current?.querySelector<HTMLButtonElement>(".choice-trigger")?.focus();
+          if (current === request.current) trigger.current?.focus();
         });
       }
     }
   };
   return (
-    <section ref={root} aria-label="Game release channel">
+    <section aria-label="Game release channel">
       {!recognized ? (
         <p role="status">Release channel information is unavailable in this version.</p>
       ) : channels.length === 1 ? (
@@ -76,18 +77,42 @@ export function ReleaseChannelControl({
           <strong>{releaseChannelPresentation(channels[0]).label} only</strong>
         </p>
       ) : (
-        <ChoiceMenu
-          label="Release channel"
-          value={selected}
-          options={channels.map((value) => ({
-            value,
-            label: releaseChannelPresentation(value).label,
-          }))}
-          disabled={busy || pending}
-          onChange={(value) => {
-            void choose(value);
-          }}
-        />
+        <div className="grid gap-2">
+          <span id={labelId} className="text-sm text-pc-muted-foreground">
+            Release channel
+          </span>
+          <Select
+            open={open}
+            onOpenChange={(nextOpen, eventDetails) => {
+              if (!nextOpen && eventDetails.reason === "escape-key") {
+                eventDetails.event.stopPropagation();
+                eventDetails.event.stopImmediatePropagation();
+              }
+              setOpen(nextOpen);
+            }}
+            value={selected}
+            disabled={busy || pending}
+            onValueChange={(value) => {
+              if (value) void choose(value);
+            }}
+          >
+            <SelectTrigger
+              ref={trigger}
+              data-focusable
+              aria-labelledby={labelId}
+              className="w-full"
+            >
+              <SelectValue>{releaseChannelPresentation(selected).label}</SelectValue>
+            </SelectTrigger>
+            <SelectContent align="start">
+              {channels.map((channel) => (
+                <SelectItem key={channel} value={channel}>
+                  {releaseChannelPresentation(channel).label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       )}
       {recognized && (
         <p>
