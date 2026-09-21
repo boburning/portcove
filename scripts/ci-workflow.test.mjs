@@ -39,6 +39,8 @@ test("native design compatibility remains explicit, isolated, and non-publishing
     /options:\r?\n {10}- ubuntu-22\.04\r?\n {10}- macos-15\r?\n {10}- macos-15-intel/,
   );
   assert.match(nativeDesignCompatibilityWorkflow, /--scenario native-design-system-compatibility/);
+  assert.match(nativeDesignCompatibilityWorkflow, /test:desktop \\\r?\n {14}--app/);
+  assert.doesNotMatch(nativeDesignCompatibilityWorkflow, /test:desktop -- \\/);
   assert.match(nativeDesignCompatibilityWorkflow, /--features native-compatibility-qualification/);
   assert.match(nativeDesignCompatibilityWorkflow, /tauri\.native-compatibility\.conf\.json/);
   assert.doesNotMatch(nativeDesignCompatibilityWorkflow, /release|publish|deploy|schedule:/i);
