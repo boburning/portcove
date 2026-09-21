@@ -272,6 +272,7 @@ then run the smallest useful selection:
 ```powershell
 just desktop-verify --plan
 just desktop-verify --scenario keyboard-layout
+just desktop-verify --scenario native-design-system-compatibility
 just desktop-verify --scenario keyboard-layout --scenario accessibility
 just desktop-verify --profile presentation
 ```
@@ -282,6 +283,32 @@ catalog order so fixture transitions stay deterministic. Use `--list-scenarios`
 to see stable IDs, descriptions, profile membership, prerequisites and host-impact
 metadata. `--plan --json` and `--list-scenarios --json` provide machine-readable
 output without building or launching.
+
+`native-design-system-compatibility` is deliberately exact-selection-only. It
+builds the isolated foundation fixture and exercises actual generated styles,
+both themes, bundled assets, nested Dialog/Select portals, topmost-first Escape,
+focus restoration, and reduced motion. It does not enter `smoke`, scheduled work,
+or routine pull-request checks. The ordinary production build rejects the fixture
+from emitted assets.
+
+The manual **Native design compatibility** workflow is the narrow exception for
+isolated hosted Linux and macOS observations. Linux continues to use the existing
+Tauri/WebKitWebDriver harness. macOS builds the app with the explicit
+`native-compatibility-qualification` Cargo feature and separate Tauri capability,
+then connects the existing Selenium client to WebdriverIO's official embedded
+driver. The feature, capability, and HTTP driver
+server are absent from ordinary builds. Each dispatch names one current hosted
+runner and retains its exact revision, host identity, WebView identity, screenshot,
+and result. It has no pull-request, push, schedule, publication, signing, or paid
+service trigger. A hosted current-runner pass does not establish a historical or
+claimed minimum.
+
+For an unavailable minimum-version host or Steam Deck, build the candidate at the
+exact revision with `VITE_PORTCOVE_DESIGN_COMPATIBILITY_FIXTURE=1`, retain the
+desktop executable/package and source revision, then run the same exact scenario
+through the platform route above. Record the artifact SHA-256, OS/architecture,
+WebView engine/version, result, and any unavailable negative/minimum proof under
+#993. Do not stop fixture development or turn missing evidence into a pass.
 
 The curated profiles are:
 

@@ -45,6 +45,13 @@ Options:
   --json                        Machine output for --plan or --list-scenarios
   --help`;
 
+export function desktopBuildEnvironment(environment, selection) {
+  const result = { ...environment };
+  if (selection.prerequisites.includes("design-compatibility-fixture"))
+    result.VITE_PORTCOVE_DESIGN_COMPATIBILITY_FIXTURE = "1";
+  return result;
+}
+
 export function parseDesktopVerifyArgs(args) {
   const { values } = parseArgs({
     args,
@@ -338,7 +345,7 @@ async function runVerification(options, selection) {
     if (!drivers)
       throw new Error(`Desktop drivers are unavailable; remedy ${plan.drivers.remediation}`);
 
-    const environment = childEnvironment(paths);
+    const environment = desktopBuildEnvironment(childEnvironment(paths), selection);
     const phase = (id, command, args) =>
       executePhase({ id, command, args, cwd: root, environment, log, timings });
     const pins = readToolPins();

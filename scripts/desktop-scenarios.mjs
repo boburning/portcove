@@ -15,6 +15,14 @@ function scenario(id, description, options = {}) {
 
 export const DESKTOP_SCENARIOS = Object.freeze([
   scenario("empty-library", "Native bootstrap uses the isolated empty library."),
+  scenario(
+    "native-design-system-compatibility",
+    "Generated styles, themes, nested portals, dismissal, focus, motion and offline assets work in Tauri.",
+    {
+      prerequisites: ["desktop", "design-compatibility-fixture"],
+      qualification_only: true,
+    },
+  ),
   scenario("native-error-recovery", "A rejected native operation leaves the application usable."),
   scenario("keyboard-layout", "Keyboard focus and compact layout remain usable."),
   scenario(

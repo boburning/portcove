@@ -1,0 +1,75 @@
+.design-compatibility-fixture {
+  min-height: 100vh;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: var(--space-6);
+  padding: var(--space-8);
+  color: var(--color-text);
+  background: var(--color-bg);
+  font-family: "Geist Variable", var(--font-ui);
+}
+
+.design-compatibility-heading {
+  width: min(38rem, 100%);
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--space-4);
+  align-items: center;
+}
+
+.design-compatibility-heading img {
+  display: block;
+}
+
+.design-compatibility-heading h1,
+.design-compatibility-heading p {
+  margin: 0;
+}
+
+.design-compatibility-controls {
+  width: min(38rem, 100%);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: center;
+  justify-content: space-between;
+}
+
+.design-compatibility-controls [role="group"] {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.design-compatibility-field {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.design-compatibility-field > span {
+  font-weight: var(--font-weight-medium);
+}
+
+.design-compatibility-field [data-slot="select-trigger"] {
+  width: 100%;
+}
+
+.design-compatibility-fixture[data-reduced-motion="true"] *,
+.design-compatibility-fixture[data-reduced-motion="true"] *::before,
+.design-compatibility-fixture[data-reduced-motion="true"] *::after {
+  scroll-behavior: auto !important;
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .design-compatibility-fixture *,
+  .design-compatibility-fixture *::before,
+  .design-compatibility-fixture *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}

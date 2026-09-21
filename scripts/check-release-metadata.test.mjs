@@ -24,10 +24,15 @@ function validMetadata() {
     repositoryPackage: { packageManager: "pnpm@12.4.1" },
     desktopPackage: { version: "1.2.3-beta.1" },
     desktopCargoFeatures: {
-      names: ["application-update-qualification", "qualification-fixtures"],
+      names: [
+        "application-update-qualification",
+        "native-compatibility-qualification",
+        "qualification-fixtures",
+      ],
       default: [],
       definitions: {
         "application-update-qualification": [],
+        "native-compatibility-qualification": ["dep:tauri-plugin-wdio-webdriver"],
         "qualification-fixtures": ["portcove-core/qualification-fixtures"],
       },
       coreQualificationReferences: [
@@ -246,11 +251,12 @@ test("rejects qualification-only features from default desktop builds", () => {
   const metadata = validMetadata();
   metadata.desktopCargoFeatures.default = [
     "application-update-qualification",
+    "native-compatibility-qualification",
     "qualification-fixtures",
   ];
   assert.match(
     validateReleaseMetadata(metadata).join("\n"),
-    /default features must exclude qualification-only features: application-update-qualification, qualification-fixtures/,
+    /default features must exclude qualification-only features: application-update-qualification, native-compatibility-qualification, qualification-fixtures/,
   );
 
   metadata.desktopCargoFeatures.default = [];

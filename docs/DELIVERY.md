@@ -84,6 +84,18 @@ pipeline needed to keep testers current. Compiling packages or manual reinstall
 instructions cannot complete this updater commitment. Incremental previews need
 their applicable candidate safety checks; they need not complete the milestone.
 
+The #917 design-system foundation follows the same separation between permission
+to implement and permission to publish. Its checked-in compatibility fixture and
+non-publishing qualification work may merge while #993 remains open. Broad screen
+migration begins only after the nested Dialog/Select portal, dismissal, and focus
+case passes in the actual Tauri application on an available native host. A Public
+beta package containing the redesign still requires #993's applicable native-family
+and claimed-minimum evidence for that target; a current hosted runner does not
+prove a historical minimum. Missing beta-critical evidence stays with #993 rather
+than moving to #45, while #45 retains broader 1.0 qualification. No automatic
+release path may convert foundation merge authority into publication authority for
+an unqualified platform.
+
 The expanded beta commitment also includes the complete finite preparation
 boundary (#31), structured presentation/artwork foundation (#208), public CLI
 and real Playnite reference proof (#30/#243), the normally installable user-ready

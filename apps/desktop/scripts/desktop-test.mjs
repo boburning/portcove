@@ -18,6 +18,7 @@ import { workspaceRefreshScenario } from "./desktop-workspace-refresh-test.mjs";
 import { captureAccessibilityReport } from "./desktop-review-controls.mjs";
 import { createInstallFixture } from "./desktop-install-fixture.mjs";
 import { installScenarios } from "./desktop-install-test.mjs";
+import { assertDesignCompatibility } from "./desktop-design-compatibility-assertions.mjs";
 import {
   desktopHarnessDeadlineMs,
   desktopScenarioById,
@@ -341,7 +342,10 @@ async function connect() {
     })
     .build();
   await browser.manage().setTimeouts({ script: 15_000 });
-  await browser.wait(until.elementLocated(By.css('nav[aria-label="Primary navigation"]')), 30_000);
+  const readyRoot = selection.prerequisites.includes("design-compatibility-fixture")
+    ? ".design-compatibility-fixture"
+    : 'nav[aria-label="Primary navigation"]';
+  await browser.wait(until.elementLocated(By.css(readyRoot)), 30_000);
   await browser.wait(
     async () => (await browser.findElements(By.css(".loading-state"))).length === 0,
     30_000,
@@ -475,6 +479,12 @@ try {
     const status = await invoke("get_statuses");
     assert.equal(status.ok, true);
     assert.equal(status.value.filter((item) => item.active).length, 0);
+  });
+  await scenario("native-design-system-compatibility", async () => {
+    const environment = await assertDesignCompatibility({ browser, By, Key, until });
+    const environmentArtifact = path.join(output, "design-compatibility-environment.json");
+    await writeFile(environmentArtifact, JSON.stringify(environment, null, 2), { flag: "wx" });
+    artifacts.push(environmentArtifact);
   });
   await scenario("native-error-recovery", async () => {
     const failed = await invoke("verify_port", {

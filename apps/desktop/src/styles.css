@@ -1,3 +1,57 @@
+@layer theme, base, components, utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+@import "tw-animate-css";
+@import "@fontsource-variable/geist";
+
+@custom-variant dark (&:is(.dark *));
+/* The foundation controls use only these variants from shadcn 4.21.0's
+   tailwind.css. Keeping the reviewed subset here avoids installing the CLI in
+   every production build while preserving its generated selectors exactly. */
+@custom-variant data-open {
+  &:where([data-state="open"]),
+  &:where([data-open]:not([data-open="false"])) {
+    @slot;
+  }
+}
+@custom-variant data-closed {
+  &:where([data-state="closed"]),
+  &:where([data-closed]:not([data-closed="false"])) {
+    @slot;
+  }
+}
+@custom-variant data-disabled {
+  &:where([data-disabled="true"]),
+  &:where([data-disabled]:not([data-disabled="false"])) {
+    @slot;
+  }
+}
+
+@theme inline {
+  --font-pc-heading: "Geist Variable", var(--font-ui);
+  --font-pc-sans: "Geist Variable", var(--font-ui);
+  --color-pc-background: var(--color-bg);
+  --color-pc-foreground: var(--color-text);
+  --color-pc-surface: var(--color-bg-elevated);
+  --color-pc-surface-muted: var(--color-bg-hover);
+  --color-pc-muted-foreground: var(--color-text-muted);
+  --color-pc-primary: var(--color-interactive);
+  --color-pc-primary-hover: var(--color-interactive-hover);
+  --color-pc-primary-foreground: var(--color-text-on-dark);
+  --color-pc-secondary: var(--color-bg-raised);
+  --color-pc-secondary-foreground: var(--color-text);
+  --color-pc-accent: var(--color-interactive-subtle);
+  --color-pc-accent-foreground: var(--color-interactive-text-strong);
+  --color-pc-danger: var(--color-danger);
+  --color-pc-danger-subtle: var(--color-danger-subtle);
+  --color-pc-border: var(--color-border);
+  --color-pc-input: var(--color-control-border);
+  --color-pc-ring: var(--color-focus);
+  --radius-pc-sm: var(--radius-sm);
+  --radius-pc-md: var(--radius-md);
+  --radius-pc-lg: var(--radius-lg);
+}
+
 :root {
   color-scheme: dark;
   font-synthesis: none;
