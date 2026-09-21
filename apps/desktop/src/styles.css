@@ -1311,6 +1311,7 @@ h2 {
 .card-actions button {
   min-height: 2rem;
   padding: var(--space-1) var(--space-2);
+  color: var(--color-interactive-text-strong);
   font-size: var(--text-xs);
 }
 

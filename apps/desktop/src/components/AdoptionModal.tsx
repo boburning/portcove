@@ -1,7 +1,8 @@
 import { FolderInput, FolderOpen, ShieldCheck, X } from "lucide-react";
 import { formatBytes } from "../view-model";
-import { useDialogFocus } from "../dialog";
 import { Icon, NavigationHints } from "./ui";
+import { Button } from "./ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "./ui/dialog";
 import type { AdoptionPreview, PortDefinition } from "../types";
 
 export function AdoptionModal({
@@ -32,36 +33,41 @@ export function AdoptionModal({
   const dismiss = () => {
     if (!applying) close();
   };
-  const dialog = useDialogFocus(dismiss);
   const portIdentity = preview ? adoptionPortIdentity(preview, ports) : undefined;
   return (
-    <div className="scrim">
-      <section
-        ref={dialog}
-        className="modal"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="adopt-title"
+    <Dialog
+      open
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen) dismiss();
+      }}
+    >
+      <DialogContent
+        showCloseButton={false}
+        className="max-h-[calc(100dvh-var(--space-8))] w-[min(500px,90vw)] max-w-none gap-0 overflow-y-auto overscroll-contain p-8 [scroll-padding-block:var(--space-4)] sm:max-w-none"
         aria-describedby="adopt-description"
       >
-        <button
+        <Button
           data-focusable
-          className="close icon-button"
+          variant="ghost"
+          size="icon-sm"
+          className="absolute top-2 right-2"
           aria-label="Close copy installation dialog"
           onClick={dismiss}
           disabled={applying}
         >
           <Icon glyph={X} />
-        </button>
-        <span className="modal-icon">
+        </Button>
+        <span className="mb-4 grid size-11 place-items-center rounded-lg border border-pc-primary bg-pc-accent text-pc-accent-foreground">
           <Icon glyph={FolderInput} size="lg" />
         </span>
         <p className="eyebrow">COPY EXISTING INSTALLATION</p>
-        <h2 id="adopt-title">Add an existing installation to Portcove</h2>
-        <p className="modal-description" id="adopt-description">
+        <DialogTitle id="adopt-title" className="mb-2 text-xl">
+          Add an existing installation to Portcove
+        </DialogTitle>
+        <DialogDescription id="adopt-description" className="mb-4 leading-relaxed">
           Portcove checks the folder, identifies the port, and copies supported application files
           into your library without changing the original.
-        </p>
+        </DialogDescription>
         <p className="inline-assurance">
           <Icon glyph={ShieldCheck} /> Review first, then confirm before copying.
         </p>
@@ -78,16 +84,16 @@ export function AdoptionModal({
             placeholder="Choose or paste the full folder path"
           />
           {pickFolder && (
-            <button
+            <Button
               data-focusable
-              className="button-with-icon"
+              variant="outline"
               type="button"
               disabled={Boolean(busy) || applying}
               onClick={pickFolder}
             >
               <Icon glyph={FolderOpen} />
               Browse
-            </button>
+            </Button>
           )}
         </div>
         {preview && (
@@ -170,14 +176,13 @@ export function AdoptionModal({
             then review the current copy plan.
           </p>
         )}
-        <div className="actions">
-          <button data-focusable onClick={dismiss} disabled={applying}>
+        <DialogFooter className="mt-4">
+          <Button data-focusable variant="outline" onClick={dismiss} disabled={applying}>
             Keep original setup
-          </button>
+          </Button>
           {preview ? (
-            <button
+            <Button
               data-focusable
-              className="primary button-with-icon"
               disabled={
                 Boolean(busy) || applying || !preview.selected_port_id || !preview.destination
               }
@@ -185,11 +190,10 @@ export function AdoptionModal({
             >
               <Icon glyph={FolderInput} />
               {applying ? "Copying…" : "Continue to copy confirmation"}
-            </button>
+            </Button>
           ) : (
-            <button
+            <Button
               data-focusable
-              className="primary button-with-icon"
               disabled={!path.trim() || Boolean(busy) || applying}
               onClick={review}
             >
@@ -199,11 +203,11 @@ export function AdoptionModal({
                 : busy === "preview adoption"
                   ? "Reviewing…"
                   : "Review copy plan"}
-            </button>
+            </Button>
           )}
-        </div>
-      </section>
-    </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 

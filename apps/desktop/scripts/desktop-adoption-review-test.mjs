@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import { copyFile, mkdir, readFile, realpath, writeFile } from "node:fs/promises";
 import { fileIdentity } from "../../../scripts/development-evidence.mjs";
-import { By, until } from "selenium-webdriver";
+import { By, Key, until } from "selenium-webdriver";
 import {
   reviewControls,
   assertCompactReview,
@@ -54,8 +54,28 @@ export async function adoptionReviewScenario({
     await browser.navigate().refresh();
     const { button, click } = reviewControls(browser);
     const dialog = By.css('[aria-labelledby="adopt-title"]');
+    const trigger = button("Copy existing installation");
+    await click(trigger);
+    await browser.wait(until.elementLocated(dialog), 15_000);
+    await browser.actions().sendKeys(Key.ESCAPE).perform();
+    await browser.wait(
+      async () => (await browser.findElements(dialog)).length === 0,
+      5_000,
+      "existing-install Dialog did not close after Escape",
+    );
+    await browser.wait(
+      async () => {
+        const candidate = await browser.findElement(trigger);
+        return await browser.executeScript(
+          "return document.activeElement === arguments[0];",
+          candidate,
+        );
+      },
+      5_000,
+      "existing-install trigger did not regain focus after Escape",
+    );
     const open = async () => {
-      await click(button("Copy existing installation"));
+      await click(trigger);
       const input = await browser.findElement(By.id("adopt-path"));
       await input.clear();
       await input.sendKeys(original);
