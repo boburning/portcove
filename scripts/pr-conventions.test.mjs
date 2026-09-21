@@ -121,6 +121,31 @@ test("body warnings cover placeholders, missing links and weak verification", ()
   assert.ok(codes(findings).includes("verification-detail"));
 });
 
+test("negated closing keywords warn before GitHub closes an issue", () => {
+  for (const phrase of [
+    "This does not close #917.",
+    "This did not close: #917.",
+    "We don't fix boburning/portcove#917 in this slice.",
+    "This should not fix #917.",
+    "This cannot resolve #917.",
+    "This won't resolve #917.",
+  ]) {
+    const findings = evaluatePullRequest(
+      pull({ body: body({ "Outcome and scope": phrase }) }),
+      config,
+    );
+    assert.ok(codes(findings).includes("negated-closing-keyword"), phrase);
+  }
+
+  assert.deepEqual(
+    evaluatePullRequest(
+      pull({ body: body({ "Outcome and scope": "This keeps #917 open." }) }),
+      config,
+    ),
+    [],
+  );
+});
+
 test("drafts may retain pending verification, review and fixup commits", () => {
   const findings = evaluatePullRequest(
     pull({
