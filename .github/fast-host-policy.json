@@ -1,9 +1,0 @@
-{
-  "format_version": 1,
-  "primary_host": "ubuntu-22.04",
-  "challenger_host": "windows-latest",
-  "minimum_comparable_heads": 3,
-  "minimum_median_improvement": 0.2,
-  "measurements": [],
-  "decision": "retain-primary-insufficient-comparable-heads"
-}

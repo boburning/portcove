@@ -231,12 +231,6 @@ executed plan digest and checkout into release validation. Provenance records
 separate their top-level caller, called workflow bytes, and artifact scope so a
 nested release qualification cannot collide with release provenance.
 
-Fast work initially runs on `ubuntu-22.04`. `.github/fast-host-policy.json`
-retains that host until at least three exact comparable heads execute the same
-inventory on Linux and Windows, coverage is equal, and the Windows median is at
-least 20 percent faster. A host switch must record those measurements and pass
-the policy test; one favorable run is not sufficient.
-
 Disable the optimization immediately by setting
 `PORTCOVE_PROSE_POLICY_ACTIVATED` back to `"false"`, removing both allowlist
 entries from `scripts/select-ci-plan.mjs`, or reverting the classifier/wrapper

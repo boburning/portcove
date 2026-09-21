@@ -565,6 +565,18 @@ test("retired frontend tool configuration remains owned after deletion", () => {
   assert.equal(selection.uiFullTests, true);
 });
 
+test("retired GitHub policy JSON remains owned without a file-specific tombstone", () => {
+  const selection = classifyChanges([{ status: "D", path: ".github/retired-policy.json" }], {
+    fileExists: () => false,
+  });
+  assert.deepEqual([...selection.unknown], []);
+  assert.deepEqual([...selection.nodeTests].sort(), [
+    "scripts/ci-workflow.test.mjs",
+    "scripts/repository-settings.test.mjs",
+    "scripts/validation-plan.test.mjs",
+  ]);
+});
+
 test("non-ignored untracked files use the same deterministic mapping", () => {
   const selection = classifyChanges([{ status: "?", path: "scripts/local-validation.test.mjs" }], {
     fileExists: allFilesExist,

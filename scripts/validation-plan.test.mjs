@@ -81,7 +81,6 @@ test("frontend and primary Rust paths receive focused fast plans", () => {
 
 test("validation authorities and GitHub policy always require qualification", () => {
   for (const path of [
-    ".github/fast-host-policy.json",
     "scripts/validation-plan.mjs",
     "scripts/select-ci-plan.mjs",
     "scripts/ci-result-gate.mjs",
