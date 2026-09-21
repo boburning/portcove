@@ -563,7 +563,18 @@ npm, GitHub Actions and Rust toolchains, plus regex-managed Node, repository
 quality crates, tauri-driver, Aqua and its registry/tools, PSScriptAnalyzer, and
 the release Syft version. It groups coupled ecosystems, pins action digests,
 waits three days before proposing new releases, disables automerge, and opens
-eligible pull requests immediately so pull-request-only CI can evaluate them.
+eligible product-dependency pull requests immediately so pull-request-only CI
+can evaluate them.
+Non-security development-tool proposals use the existing before-Monday weekly
+window. Aqua itself and the three Aqua-managed quality tools form one
+qualification group. The standard Aqua registry ref remains an extracted,
+visible authority but is disabled as an independent update: change it in the
+same reviewed change when a tool version, compatibility repair, integrity update,
+or security response requires a newer registry. Routine updates retain the
+three-day age policy. Renovate vulnerability-alert pull requests bypass the
+ordinary schedule, queue limits, and minimum release age so detected security
+repairs surface immediately; they still retain applicable checksums, protected
+CI, and human merge authority.
 It automatically recreates an existing branch when that branch conflicts with
 its base, not merely because `main` advanced; the main ruleset does not require
 strict behind-base freshness. A newly available dependency version, lock-file
