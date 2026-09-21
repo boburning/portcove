@@ -94,6 +94,7 @@ export function PortBrowser({
         installedCount={overview.installed}
         statuses={statuses}
         onSelect={onSelect}
+        onLaunch={onContinue}
         onBrowseCatalog={onBrowseCatalog}
         clearFilters={clearFilters}
         loading={loading}
@@ -109,6 +110,7 @@ function BrowserResults({
   installedCount,
   statuses,
   onSelect,
+  onLaunch,
   onBrowseCatalog,
   clearFilters,
   loading,
@@ -119,6 +121,7 @@ function BrowserResults({
   installedCount: number;
   statuses: Map<string, PortStatus>;
   onSelect: (portId: string, originKey?: string) => void;
+  onLaunch?: (portId: string) => void;
   onBrowseCatalog?: () => void;
   clearFilters?: () => void;
   loading: boolean;
@@ -143,6 +146,7 @@ function BrowserResults({
           status={statuses.get(port.id)}
           readiness={portReadiness(statuses.get(port.id))}
           onSelect={onSelect}
+          onLaunch={onLaunch}
           nativeSourceDrag={nativeSourceDrag}
           view={view}
         />
@@ -318,6 +322,7 @@ function PortCard({
   status,
   readiness,
   onSelect,
+  onLaunch,
   nativeSourceDrag,
   view,
 }: {
@@ -325,6 +330,7 @@ function PortCard({
   status?: PortStatus;
   readiness: PortReadiness;
   onSelect: (portId: string, originKey?: string) => void;
+  onLaunch?: (portId: string) => void;
   nativeSourceDrag: NativeSourceDragState;
   view: View;
 }) {
@@ -333,16 +339,10 @@ function PortCard({
   const updateAvailable = currentUpdateSnapshot(status)?.check.update_available;
   const dropEligible = nativeSourceDrag.active && Boolean(port.source_profile);
   const dropTarget = dropEligible && nativeSourceDrag.targetPortId === port.id;
-  return (
-    <button
-      data-focusable
-      data-detail-origin={`${view}:card:${port.id}`}
-      className={`port-card${dropEligible ? " source-drop-eligible" : ""}${dropTarget ? " source-drop-targeted" : ""}`}
-      aria-label={`${port.name}. ${state.label}. ${state.action}.`}
-      onClick={() => onSelect(port.id, `${view}:card:${port.id}`)}
-      data-source-drop-port-id={dropEligible ? port.id : undefined}
-      data-source-drop-profile-id={dropEligible ? port.source_profile : undefined}
-    >
+  const detailOrigin = `${view}:card:${port.id}`;
+  const className = `port-card${view === "catalog" ? " port-card-selectable" : ""}${dropEligible ? " source-drop-eligible" : ""}${dropTarget ? " source-drop-targeted" : ""}`;
+  const contents = (
+    <>
       {dropEligible && (
         <span className="source-drop-target" aria-hidden="true">
           {dropTarget ? "Release to check" : "Drop to check for this game"}
@@ -374,12 +374,58 @@ function PortCard({
         </div>
         <div className="card-status">
           <strong>{status?.active ? status.active.version : "Not installed"}</strong>
-          <span>
-            {state.action}
-            <Icon glyph={ArrowRight} size="sm" />
-          </span>
+          {view === "library" ? (
+            <span className="card-actions">
+              <button
+                data-focusable
+                data-detail-origin={detailOrigin}
+                onClick={() => onSelect(port.id, detailOrigin)}
+              >
+                View details
+              </button>
+              {status?.readiness?.launchable === true && onLaunch && (
+                <button
+                  data-focusable
+                  className="primary button-with-icon"
+                  onClick={() => onLaunch(port.id)}
+                >
+                  <Icon glyph={Gamepad2} size="sm" />
+                  Play
+                </button>
+              )}
+            </span>
+          ) : (
+            <span>
+              {state.action}
+              <Icon glyph={ArrowRight} size="sm" />
+            </span>
+          )}
         </div>
       </div>
+    </>
+  );
+  if (view === "library")
+    return (
+      <article
+        className={className}
+        aria-label={`${port.name}. ${state.label}. ${state.action}.`}
+        data-source-drop-port-id={dropEligible ? port.id : undefined}
+        data-source-drop-profile-id={dropEligible ? port.source_profile : undefined}
+      >
+        {contents}
+      </article>
+    );
+  return (
+    <button
+      data-focusable
+      data-detail-origin={detailOrigin}
+      className={className}
+      aria-label={`${port.name}. ${state.label}. ${state.action}.`}
+      onClick={() => onSelect(port.id, detailOrigin)}
+      data-source-drop-port-id={dropEligible ? port.id : undefined}
+      data-source-drop-profile-id={dropEligible ? port.source_profile : undefined}
+    >
+      {contents}
     </button>
   );
 }

@@ -39,11 +39,11 @@ export async function cliHandoffScenario({
       const port = command(["catalog", "show", portId]);
       await browser.navigate().refresh();
       await click(By.xpath(`//nav//button[contains(., "${view}")]`));
-      await click(
-        By.xpath(
-          `//button[contains(@class,"port-card") and starts-with(@aria-label,"${port.name}.")]`,
-        ),
-      );
+      const card =
+        view === "Library"
+          ? `//article[contains(@class,"port-card") and starts-with(@aria-label,"${port.name}.")]//button[@data-detail-origin]`
+          : `//button[contains(@class,"port-card") and starts-with(@aria-label,"${port.name}.")]`;
+      await click(By.xpath(card));
       const technical = By.css(".detail-body > .advanced-settings > .advanced-summary");
       const technicalControl = await browser.wait(until.elementLocated(technical), 10_000);
       assert.match(
@@ -55,7 +55,7 @@ export async function cliHandoffScenario({
     await open("zelda64-recomp", "Library");
     assert.deepEqual(
       await browser.executeScript(() =>
-        Array.from(document.querySelectorAll(".detail-body > .detail-group > h3"), (heading) =>
+        Array.from(document.querySelectorAll(".detail-body > .detail-group > h2"), (heading) =>
           heading.textContent?.trim(),
         ),
       ),

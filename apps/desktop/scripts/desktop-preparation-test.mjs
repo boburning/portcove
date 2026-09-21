@@ -99,7 +99,7 @@ export async function preparationScenarios({
     await dismissApplicationUpdateChoice();
     await browser.findElement(By.xpath('//nav//button[contains(., "Library")]')).click();
     const card = By.xpath(
-      `//button[contains(@class,"port-card") and starts-with(@aria-label,"${port.name}.")]`,
+      `//article[contains(@class,"port-card") and starts-with(@aria-label,"${port.name}.")]//button[@data-detail-origin]`,
     );
     await browser.wait(until.elementLocated(card), 15_000);
     await browser.findElement(card).click();
@@ -141,6 +141,45 @@ export async function preparationScenarios({
     await browser.findElement(button("Play now")).click();
     await browser.wait(async () => (await status(port.id)).successful_launches > 0, 15_000);
     assert.equal(await readFile(log, "utf8"), "setup must not run during desktop Play");
+    await browser.findElement(By.css(".detail-back")).click();
+    const card = await browser.wait(
+      until.elementLocated(
+        By.xpath(
+          `//article[contains(@class,"port-card") and starts-with(@aria-label,"${port.name}.")]`,
+        ),
+      ),
+      15_000,
+    );
+    const cardActions = await browser.executeScript((element) => {
+      const details = element.querySelector('[data-detail-origin^="library:card:"]');
+      const play = [...element.querySelectorAll("button")].find(
+        (button) => button.textContent?.trim() === "Play",
+      );
+      if (details instanceof HTMLElement) details.focus();
+      return {
+        tag: element.tagName,
+        details: details?.textContent?.trim(),
+        play: play?.textContent?.trim(),
+        play_disabled: play instanceof HTMLButtonElement ? play.disabled : null,
+        nested_interactive: element.querySelectorAll("button button, button a, a button, a a")
+          .length,
+        details_focused: document.activeElement === details,
+      };
+    }, card);
+    assert.deepEqual(cardActions, {
+      tag: "ARTICLE",
+      details: "View details",
+      play: "Play",
+      play_disabled: false,
+      nested_interactive: 0,
+      details_focused: true,
+    });
+    const actionsImage = path.join(output, "library-distinct-card-actions.png");
+    await writeFile(actionsImage, await browser.takeScreenshot(), {
+      encoding: "base64",
+      flag: "wx",
+    });
+    artifacts.push(actionsImage);
   });
   await readinessScenario({
     browser,
@@ -350,7 +389,7 @@ export async function preparationScenarios({
     );
     await browser.findElement(By.xpath('//nav//button[contains(., "Library")]')).click();
     const card = By.xpath(
-      `//button[contains(@class,"port-card") and starts-with(@aria-label,"${port.name}.")]`,
+      `//article[contains(@class,"port-card") and starts-with(@aria-label,"${port.name}.")]//button[@data-detail-origin]`,
     );
     await browser.wait(until.elementLocated(card), 15_000);
     await browser.findElement(card).click();

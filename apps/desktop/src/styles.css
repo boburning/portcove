@@ -984,13 +984,16 @@ h2 {
   background: var(--color-bg-elevated);
   box-shadow: var(--shadow-control);
   text-align: left;
-  cursor: pointer;
   position: relative;
   transition:
     transform var(--duration-slow) var(--ease-emphasized),
     border-color var(--duration-slow) var(--ease-emphasized),
     box-shadow var(--duration-slow) var(--ease-emphasized),
     background-color var(--duration-slow) var(--ease-emphasized);
+}
+
+.port-card-selectable {
+  cursor: pointer;
 }
 
 .port-card.source-drop-eligible {
@@ -1019,14 +1022,15 @@ h2 {
   pointer-events: none;
 }
 
-.port-card:hover {
+.port-card:hover,
+.port-card:focus-within {
   border-color: var(--color-interactive-border);
   background: var(--color-bg-raised);
   box-shadow: var(--shadow-raised);
   transform: translateY(-1px);
 }
 
-.port-card:active {
+.port-card-selectable:active {
   background: var(--color-bg-hover);
   box-shadow: var(--shadow-pressed);
   transform: translateY(1px);
@@ -1225,6 +1229,7 @@ h2 {
 
 .card-status {
   display: flex;
+  align-items: center;
   justify-content: space-between;
   gap: 10px;
   margin-top: auto;
@@ -1242,6 +1247,17 @@ h2 {
   align-items: center;
   gap: var(--space-1);
   color: var(--color-interactive-text);
+}
+
+.card-actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.card-actions button {
+  min-height: 2rem;
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--text-xs);
 }
 
 .empty-state,
@@ -1665,7 +1681,7 @@ h2 {
   border-top: 1px solid var(--color-border);
 }
 
-.detail-group > h3 {
+.detail-group > h2 {
   margin: 0;
   font-size: var(--text-md);
 }

@@ -2617,11 +2617,15 @@ describe("desktop components", () => {
         filter="ready"
         setFilter={vi.fn()}
         onSelect={vi.fn()}
+        onContinue={vi.fn()}
         loading={false}
       />,
     );
     expect(html).toContain("Ready to play");
     expect(html).toContain("View details");
+    expect(html).toContain('<article class="port-card"');
+    expect(html).toContain(">Play</button>");
+    expect(html).not.toMatch(/<button[^>]*class="port-card/u);
     expect(html).toContain("Updates downloaded");
     expect(html).toContain("Update available");
     expect(html).toContain("setup and recovery options");
