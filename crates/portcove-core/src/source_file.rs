@@ -365,7 +365,7 @@ impl N64CanonicalDigest {
                 let mut normalized = [0_u8; 4096];
                 for chunk in words.chunks(normalized.len()) {
                     normalized[..chunk.len()].copy_from_slice(chunk);
-                    for pair in normalized[..chunk.len()].chunks_exact_mut(2) {
+                    for pair in normalized[..chunk.len()].as_chunks_mut::<2>().0 {
                         pair.swap(0, 1);
                     }
                     self.sha256.update(&normalized[..chunk.len()]);
@@ -376,7 +376,7 @@ impl N64CanonicalDigest {
                 let mut normalized = [0_u8; 4096];
                 for chunk in words.chunks(normalized.len()) {
                     normalized[..chunk.len()].copy_from_slice(chunk);
-                    for word in normalized[..chunk.len()].chunks_exact_mut(4) {
+                    for word in normalized[..chunk.len()].as_chunks_mut::<4>().0 {
                         word.reverse();
                     }
                     self.sha256.update(&normalized[..chunk.len()]);
@@ -408,6 +408,63 @@ impl N64CanonicalDigest {
     }
 }
 
+pub(crate) fn validate_source_hashes(
+    profile: &SourceProfile,
+    sha1: &str,
+    sha256: &str,
+) -> Result<()> {
+    for (algorithm, actual, accepted) in [
+        ("sha1", sha1, &profile.accepted_sha1),
+        ("sha256", sha256, &profile.accepted_sha256),
+    ] {
+        if !accepted.is_empty()
+            && !accepted
+                .iter()
+                .any(|expected| expected.eq_ignore_ascii_case(actual))
+        {
+            return Err(PortcoveError::source(format!(
+                "source hash is not a supported {} variant",
+                profile.label
+            ))
+            .detail(algorithm, actual));
+        }
+    }
+    Ok(())
+}
+
+pub(crate) fn single_zip_source_index(
+    archive: &mut zip::ZipArchive<File>,
+    extensions: &[String],
+) -> Result<usize> {
+    let mut matches = Vec::new();
+    for index in 0..archive.len() {
+        let entry = archive
+            .by_index(index)
+            .map_err(|error| PortcoveError::source(format!("invalid source ZIP entry: {error}")))?;
+        if entry.is_dir() {
+            continue;
+        }
+        let extension = Path::new(entry.name())
+            .extension()
+            .and_then(|value| value.to_str())
+            .unwrap_or_default();
+        if extensions
+            .iter()
+            .any(|candidate| candidate.eq_ignore_ascii_case(extension))
+        {
+            matches.push(index);
+        }
+    }
+    if matches.len() != 1 {
+        return Err(PortcoveError::source(format!(
+            "source ZIP must contain exactly one matching file; found {}",
+            matches.len()
+        ))
+        .detail("zip_match_count", matches.len().to_string()));
+    }
+    Ok(matches[0])
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -422,14 +479,14 @@ mod tests {
             N64ByteOrder::Big => input_chunks.concat(),
             N64ByteOrder::ByteSwapped => {
                 let mut bytes = input_chunks.concat();
-                for pair in bytes.chunks_exact_mut(2) {
+                for pair in bytes.as_chunks_mut::<2>().0 {
                     pair.swap(0, 1);
                 }
                 bytes
             }
             N64ByteOrder::Little => {
                 let mut bytes = input_chunks.concat();
-                for word in bytes.chunks_exact_mut(4) {
+                for word in bytes.as_chunks_mut::<4>().0 {
                     word.reverse();
                 }
                 bytes
@@ -445,11 +502,11 @@ mod tests {
             0x80, 0x37, 0x12, 0x40, 0x11, 0x22, 0x33, 0x44, 0xaa, 0xbb, 0xcc, 0xdd,
         ];
         let mut byte_swapped = canonical;
-        for pair in byte_swapped.chunks_exact_mut(2) {
+        for pair in byte_swapped.as_chunks_mut::<2>().0 {
             pair.swap(0, 1);
         }
         let mut little = canonical;
-        for word in little.chunks_exact_mut(4) {
+        for word in little.as_chunks_mut::<4>().0 {
             word.reverse();
         }
 
@@ -539,61 +596,4 @@ mod tests {
         assert_eq!(identity.size, bytes.len() as u64);
         assert_eq!(budget.hashed, bytes.len() as u64);
     }
-}
-
-pub(crate) fn validate_source_hashes(
-    profile: &SourceProfile,
-    sha1: &str,
-    sha256: &str,
-) -> Result<()> {
-    for (algorithm, actual, accepted) in [
-        ("sha1", sha1, &profile.accepted_sha1),
-        ("sha256", sha256, &profile.accepted_sha256),
-    ] {
-        if !accepted.is_empty()
-            && !accepted
-                .iter()
-                .any(|expected| expected.eq_ignore_ascii_case(actual))
-        {
-            return Err(PortcoveError::source(format!(
-                "source hash is not a supported {} variant",
-                profile.label
-            ))
-            .detail(algorithm, actual));
-        }
-    }
-    Ok(())
-}
-
-pub(crate) fn single_zip_source_index(
-    archive: &mut zip::ZipArchive<File>,
-    extensions: &[String],
-) -> Result<usize> {
-    let mut matches = Vec::new();
-    for index in 0..archive.len() {
-        let entry = archive
-            .by_index(index)
-            .map_err(|error| PortcoveError::source(format!("invalid source ZIP entry: {error}")))?;
-        if entry.is_dir() {
-            continue;
-        }
-        let extension = Path::new(entry.name())
-            .extension()
-            .and_then(|value| value.to_str())
-            .unwrap_or_default();
-        if extensions
-            .iter()
-            .any(|candidate| candidate.eq_ignore_ascii_case(extension))
-        {
-            matches.push(index);
-        }
-    }
-    if matches.len() != 1 {
-        return Err(PortcoveError::source(format!(
-            "source ZIP must contain exactly one matching file; found {}",
-            matches.len()
-        ))
-        .detail("zip_match_count", matches.len().to_string()));
-    }
-    Ok(matches[0])
 }
