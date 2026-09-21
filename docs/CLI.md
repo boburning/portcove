@@ -430,6 +430,8 @@ portcove --library <path> --json source roots list
 portcove --library <path> --json source roots add "D:\Games"
 portcove --library <path> --json source roots relink <root-id> "E:\Games"
 portcove --library <path> --json source roots remove <root-id>
+portcove --library <path> --json source roots scan
+portcove --library <path> --json source roots snapshot
 ```
 
 Adding requires an available directory and returns the existing stable identity
@@ -437,6 +439,9 @@ when the same canonical folder is already saved. Listing retains unavailable
 folders so a disconnected drive does not erase user intent. Relinking preserves
 the root identity after a mount or path change. Removing forgets only the saved
 folder; it does not modify files, source registrations, or managed installs.
+Scan uses the shared bounded discovery limits described below, records their exact
+values with the resulting candidates, and replaces the prior snapshot only after
+success. Snapshot reads that evidence without scanning or registering candidates.
 
 PS1 managed recomp profiles accept CHD sources. Pass one `.chd` path for a single-disc title. For a declared multi-disc title such as Final Fantasy VII, pass one directory containing exactly the required `.chd` files with filenames that sort in disc order:
 
@@ -482,7 +487,7 @@ portcove --json source discover --root D:\Sources --profile minish-cap-gba --pro
 portcove --json source add <profile-id> <candidate-path> --expected-sha256 <candidate-sha256>
 ```
 
-Discovery requires explicit roots and source profiles. It never registers a match automatically. Defaults are 10,000 examined entries, six nested directory levels, 512 MiB per file, 8 GiB of cumulative hashing, and 64 matches. The corresponding `--max-entries`, `--max-depth`, `--max-file-bytes`, `--max-hash-bytes`, and `--max-candidates` flags can narrow these limits; core also enforces hard ceilings. The report identifies searched scope, validated candidates, hashed bytes, reached limits, and bounded per-path issues. A partial search is not evidence that every file was considered.
+Discovery requires explicit roots and source profiles. It never registers a match automatically. Defaults are 10,000 examined entries, six nested directory levels, 2 GiB per file, 16 GiB of cumulative hashing, and 64 matches. The corresponding `--max-entries`, `--max-depth`, `--max-file-bytes`, `--max-hash-bytes`, and `--max-candidates` flags can narrow these limits; core also enforces hard ceilings. The report identifies searched scope, validated candidates, hashed bytes, reached limits, and bounded per-path issues. A partial search is not evidence that every file was considered.
 
 Only exact-hash original-file and cartridge-ZIP profiles participate automatically. Other source contracts report that manual selection is required. Symlinks and entries outside the selected canonical roots are skipped. Equal profile contracts share hashing; both normalized ZIP payload and original container bytes count toward the budget. Accepting a candidate with `--expected-sha256` checks the current profile and reviewed content under the normal source locks before registration. Settings → Sources → Find source files exposes the same search, cancellation, and explicit acceptance.
 

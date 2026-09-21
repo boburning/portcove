@@ -221,12 +221,17 @@ fn current_game_file_scan(
         return Ok(None);
     };
     match snapshot.format_version {
-        1 => {}
-        2 if snapshot.limits.is_some() => {}
+        1 => snapshot.limits = None,
         2 => {
-            return Err(PortcoveError::state(
-                "stored game-file scan snapshot is missing its scan limits",
-            ));
+            let Some(limits) = snapshot.limits.as_ref() else {
+                return Err(PortcoveError::state(
+                    "stored game-file scan snapshot is missing its scan limits",
+                ));
+            };
+            validate_limits(limits).map_err(|error| {
+                PortcoveError::state("stored game-file scan snapshot has invalid scan limits")
+                    .detail("reason", error.to_string())
+            })?;
         }
         _ => {
             return Err(PortcoveError::state(
