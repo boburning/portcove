@@ -223,7 +223,7 @@ export async function workspaceRefreshScenario({
       await browser.findElement(By.xpath('//nav//button[contains(., "Library")]')).click();
       await browser.wait(until.elementLocated(By.css('b[aria-label="1 installed"]')), 15_000);
       const cardLocator = By.xpath(
-        `//button[contains(@class,"port-card") and starts-with(@aria-label,"${port.name}.")]`,
+        `//article[contains(@class,"port-card") and starts-with(@aria-label,"${port.name}.")]`,
       );
       const card = await browser.wait(until.elementLocated(cardLocator), 15_000);
       const beforeSource = await card.getAttribute("aria-label");
@@ -248,7 +248,7 @@ export async function workspaceRefreshScenario({
         card_after_source: await card.getAttribute("aria-label"),
       };
 
-      await card.click();
+      await card.findElement(By.css("button[data-detail-origin]")).click();
       const activityBefore = await invoke("get_activities");
       assert.equal(activityBefore.ok, true);
       const policyStarted = Date.now();
