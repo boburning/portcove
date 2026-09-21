@@ -842,6 +842,8 @@ test("catalog executes the CI workflow contract", () => {
   assert.match(catalog, /scripts\/ci-workflow\.test\.mjs/);
   assert.match(fastCatalog, /scripts\/repository-settings\.test\.mjs/);
   assert.match(fastCatalog, /scripts\/repository-skills\.test\.mjs/);
+  assert.match(fastCatalog, /scripts\/generate-catalog\.test\.mjs/);
+  assert.match(fastCatalog, /scripts\/migrate-catalog-schema2\.test\.mjs/);
 });
 
 test("routine checks retain architecture enforcement but make cycles optional", async () => {

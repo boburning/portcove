@@ -9,6 +9,8 @@
           "id": "catalog-contract",
           "reason": "catalog parsing, signed updates, source-contract validation, and definition projection share one catalog contract",
           "paths": [
+            "crates/portcove-core/catalog/catalog-current-authoring.json",
+            "crates/portcove-core/catalog/catalog-schema2-migration-fixture.json",
             "crates/portcove-core/catalog/catalog.json",
             "crates/portcove-core/src/catalog.rs",
             "crates/portcove-core/src/catalog_store.rs",

@@ -109,6 +109,27 @@ test("documentation targets run the dynamic link contract", () => {
   assert.deepEqual(ids(plan), ["diff-check", "oxfmt", "node-tests"]);
 });
 
+test("current and historical catalog authorities select their generator contracts", () => {
+  const current = planFor([
+    "crates/portcove-core/catalog/catalog-current-authoring.json",
+  ]).selection;
+  assert.deepEqual([...current.nodeTests], ["scripts/generate-catalog.test.mjs"]);
+
+  const embedded = planFor(["crates/portcove-core/catalog/catalog.json"]).selection;
+  assert.deepEqual([...embedded.nodeTests].sort(), [
+    "scripts/generate-catalog.test.mjs",
+    "scripts/repository-skills.test.mjs",
+  ]);
+
+  for (const path of [
+    "crates/portcove-core/catalog/catalog-schema1-fixture.json",
+    "crates/portcove-core/catalog/catalog-schema2-migration-fixture.json",
+  ]) {
+    const historical = planFor([path]).selection;
+    assert.equal(historical.nodeTests.has("scripts/migrate-catalog-schema2.test.mjs"), true, path);
+  }
+});
+
 test("repository skill changes run the dynamic skill contract", () => {
   const { selection, plan } = planFor([".agents/skills/portcove-release-validation/SKILL.md"]);
   assert.deepEqual([...selection.nodeTests], ["scripts/repository-skills.test.mjs"]);

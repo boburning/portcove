@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const catalogRoot = join(root, "crates", "portcove-core", "catalog");
 
-test("schema-2 migration is deterministic and preserves the frozen schema-1 projection", () => {
+test("historical schema-2 migration is deterministic and preserves the frozen schema-1 projection", () => {
   const result = spawnSync(process.execPath, ["scripts/migrate-catalog-schema2.mjs", "--check"], {
     cwd: root,
     encoding: "utf8",
@@ -18,7 +18,9 @@ test("schema-2 migration is deterministic and preserves the frozen schema-1 proj
   const legacy = JSON.parse(
     readFileSync(join(catalogRoot, "catalog-schema1-fixture.json"), "utf8"),
   );
-  const migrated = JSON.parse(readFileSync(join(catalogRoot, "catalog.json"), "utf8"));
+  const migrated = JSON.parse(
+    readFileSync(join(catalogRoot, "catalog-schema2-migration-fixture.json"), "utf8"),
+  );
   assert.equal(migrated.schema_version, 2);
   assert.equal("source_profiles" in migrated, false);
   assert.equal(migrated.source_catalog.identities.length, legacy.source_profiles.length + 8);
