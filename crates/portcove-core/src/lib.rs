@@ -28,6 +28,7 @@ mod definition_repository;
 mod durability;
 mod error;
 mod failure;
+mod game_file_root;
 mod gitlab;
 mod host_preferences;
 mod host_tools;
@@ -122,6 +123,7 @@ pub use failure::{
     FailurePresentation, FailureReport, FailureTone, MutationState, RecoveryAction,
     redact_diagnostic_text, redact_diagnostic_value, sensitive_diagnostic_field,
 };
+pub use game_file_root::{GameFileRoot, GameFileRootAvailability};
 pub use gitlab::GitlabReleaseProvider;
 pub use host_preferences::{
     HostPreferenceStore, HostPreferences, HostToolPreference, LibrarySelection,
@@ -196,7 +198,7 @@ pub use source_report::{
 };
 pub use types::*;
 
-pub const API_SCHEMA_VERSION: u32 = 51;
+pub const API_SCHEMA_VERSION: u32 = 52;
 /// Oldest library schema this build can read and migrate.
 pub const MIN_LIBRARY_SCHEMA_VERSION: u32 = 1;
 /// Library schema this build writes after opening a library.

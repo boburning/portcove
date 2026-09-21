@@ -258,6 +258,8 @@ export type RepairItemKind =
   | "missing_registered_path"
   | "degraded_backup"
   | "backup_recovery_required";
+export type GameFileRootAvailability = "available" | "unavailable";
+export type OutputGameFileRoots = GameFileRoot[];
 export type InstallPlanAction = "already_active" | "use_staged" | "reuse_retained" | "blocked_unverified" | "download";
 export type SourceRequirementRole = "game_source" | "bios";
 export type GithubAuthSource = "anonymous" | "environment" | "credential_store";
@@ -463,6 +465,7 @@ export interface TransportOutputs {
   definition_capability_report: OutputDefinitionCapabilityReport;
   definition_capability_request: OutputDefinitionCapabilityRequest;
   doctor: OutputDoctor;
+  game_file_roots: OutputGameFileRoots;
   game_update_plan: OutputGameUpdatePlan;
   github_auth_status: GithubAuthStatus;
   github_device_login: OutputGithubDeviceLogin;
@@ -531,6 +534,7 @@ export interface TransportOutputs {
   desktop_bootstrap_status: OutputDesktopBootstrapStatus;
   desktop_cli_command_context: OutputDesktopCliCommandContext;
   desktop_desktop_error: FailureReport;
+  desktop_game_file_roots: OutputGameFileRoots;
   desktop_launch_result: OutputDesktopLaunchResult;
   desktop_preparation_cleanup_preview: OutputPreparationCleanupPreview;
   desktop_reconcile_outcome: OutputReconcileBatchOutcome;
@@ -1305,6 +1309,14 @@ export interface RepairItem {
   path: string | null;
   port_id: string | null;
   proposed_action: string;
+  [k: string]: unknown;
+}
+export interface GameFileRoot {
+  availability: GameFileRootAvailability;
+  created_at: number;
+  id: string;
+  path: string;
+  updated_at: number;
   [k: string]: unknown;
 }
 /**

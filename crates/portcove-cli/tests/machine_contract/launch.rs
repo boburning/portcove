@@ -31,7 +31,7 @@ fn launch_observation_is_versioned_nullable_and_rejects_invalid_ids_before_openi
         assert!(!library.exists());
     }
     let absent = json_stdout(&portcove(&library, &["--json", "launch", "show", REQUEST]));
-    assert_eq!(absent["schema_version"], 51);
+    assert_eq!(absent["schema_version"], 52);
     assert_eq!(absent["command"], "launch.show");
     assert_eq!(absent["ok"], true);
     assert!(absent["data"].is_null());
@@ -125,7 +125,7 @@ pub(super) fn recover_interrupted_prepared_launch(
     );
     assert!(recovered.status.success(), "{recovered:?}");
     let recovered = json_stdout(&recovered);
-    assert_eq!(recovered["schema_version"], 51);
+    assert_eq!(recovered["schema_version"], 52);
     assert_eq!(recovered["command"], "launch.recover");
     assert_eq!(
         recovered["data"]["id"],

@@ -50,7 +50,7 @@ user's ordinary Playnite library.
 
 ## Compatibility and use
 
-This revision supports **Portcove API schemas 42–51 and event schema 2**. Schema
+This revision supports **Portcove API schemas 42–52 and event schema 2**. Schema
 50 advertises the independently versioned operation-event contract through
 `operation_event_schema_version`; the client consumes and rejects an unsupported
 value before lifecycle management. Launch-only and read-only library negotiation
@@ -62,9 +62,11 @@ Schema 51 consumes the activity feed's complete current/actionable sets and
 bounded terminal-history meaning; contradictory or incomplete classification is
 rejected before lifecycle management. The management view always includes
 protected current, attention, and recovery rows even when they fall beyond its
-ordinary eight-row preview. Use an exactly identified schema-42,
+ordinary eight-row preview. Schema 52 adds optional saved-root commands that this
+client does not use, so it accepts the additive schema while continuing to
+negotiate only its required capabilities. Use an exactly identified schema-42,
 schema-43, schema-44, schema-45, schema-46, schema-47, schema-48, schema-49,
-schema-50 or schema-51 candidate until a matching public
+schema-50, schema-51 or schema-52 candidate until a matching public
 standalone release exists; the older published technical previews must not be
 described as supporting these new commands.
 See the [author guide](../../docs/INTEGRATION-AUTHOR.md).

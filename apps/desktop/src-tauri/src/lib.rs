@@ -792,6 +792,59 @@ async fn add_source(
 }
 
 #[tauri::command]
+async fn get_game_file_roots(
+    state: tauri::State<'_, DesktopState>,
+) -> DesktopResult<Vec<portcove_core::GameFileRoot>> {
+    blocking_service(state.inner().clone(), move |service| {
+        service.library().game_file_roots().map_err(Into::into)
+    })
+    .await
+}
+
+#[tauri::command]
+async fn add_game_file_root(
+    state: tauri::State<'_, DesktopState>,
+    path: PathBuf,
+) -> DesktopResult<portcove_core::GameFileRoot> {
+    blocking_service(state.inner().clone(), move |service| {
+        service
+            .library()
+            .add_game_file_root(&path)
+            .map_err(Into::into)
+    })
+    .await
+}
+
+#[tauri::command]
+async fn relink_game_file_root(
+    state: tauri::State<'_, DesktopState>,
+    root_id: String,
+    path: PathBuf,
+) -> DesktopResult<portcove_core::GameFileRoot> {
+    blocking_service(state.inner().clone(), move |service| {
+        service
+            .library()
+            .relink_game_file_root(&root_id, &path)
+            .map_err(Into::into)
+    })
+    .await
+}
+
+#[tauri::command]
+async fn remove_game_file_root(
+    state: tauri::State<'_, DesktopState>,
+    root_id: String,
+) -> DesktopResult<bool> {
+    blocking_service(state.inner().clone(), move |service| {
+        service
+            .library()
+            .remove_game_file_root(&root_id)
+            .map_err(Into::into)
+    })
+    .await
+}
+
+#[tauri::command]
 async fn discover_sources(
     state: tauri::State<'_, DesktopState>,
     request: portcove_core::SourceDiscoveryRequest,
@@ -2054,6 +2107,10 @@ pub fn run() {
             check_port,
             check_installed,
             add_source,
+            get_game_file_roots,
+            add_game_file_root,
+            relink_game_file_root,
+            remove_game_file_root,
             discover_sources,
             get_source_inbox_paths,
             open_source_inbox,

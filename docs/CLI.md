@@ -50,6 +50,11 @@ evidence must not collapse into one supported flag. Missing gameplay is not a
 source mismatch. Observable schema changes require explicit versioning and
 legacy/unknown-value handling; this planning contract adds no command or field.
 
+Schema 52 adds the `source.roots` capability, the `source roots` add, list,
+relink and remove commands, and the `game_file_roots` exported schema. Saved
+roots retain stable identities and unavailable paths; consumers must negotiate
+this specific capability rather than infer it from the coarse `source` entry.
+
 Schema 47 adds `definition_operations` to port status results for authenticated
 successor definitions. Each entry identifies install, preparation or launch,
 reports the core `eligible`, `hold` or `escalate` result with its stable reason,
@@ -114,7 +119,7 @@ The CLI API schema version is independent of the Portcove release version. Every
 
 ```json
 {
-  "schema_version": 51,
+  "schema_version": 52,
   "ok": true,
   "command": "status",
   "data": {},
@@ -246,7 +251,7 @@ other games remain readable. New installations retain their execution and
 persistence definitions in manifest schema 6, introduced with writer protocol 23.
 Protocol 25 now protects exact successor definition retention; older clients refuse
 to modify an upgraded library. The Playnite
-reference accepts API schemas 42 through 51 with event schema 2. Schema 50
+reference accepts API schemas 42 through 52 with event schema 2. Schema 50
 advertises that event version explicitly; the historical 42–49 window retains
 its documented event-2 contract. Schema 51 consumes the activity-feed
 completeness and protected classifications for lifecycle management.
@@ -409,6 +414,22 @@ clients must negotiate rather than infer compatibility from a version string.
 Schema version 2 changed `update --all` from an array of bare successful install records to failure-isolated outcome objects. Schema version 3 adds immutable `artifact`, `manifest_sha256`, and `selected_executable` fields to install records, plus `installed_artifact` to update checks. Schema version 4 adds deterministic adoption, backup-action, and managed-removal previews and renames the source-removal consent fingerprint to `preview_sha256`. The human-facing `version` remains the upstream display tag; integrations must use the artifact SHA-256 when deciding whether two releases are identical. Consumers written for an earlier schema must branch on the envelope version before decoding these results.
 
 `source add` validates the configured extension plus any exact SHA-1 and SHA-256 allowlists before recording the source reference. A source that matches the game name but not the required revision fails with `source_invalid` and exit code 5. An `upstream-validated-disc` profile is deliberately two-stage: registration records and later rechecks the local ISO/CHD container, while exact retail-revision admission is delegated during setup to a checksum-verified upstream extractor with fixed catalog arguments. Extractor rejection is returned as the same structured `source_invalid` failure before the game can launch.
+
+Saved game-file folders are explicit catalog-wide discovery inputs, separate from
+profile registrations:
+
+```text
+portcove --library <path> --json source roots list
+portcove --library <path> --json source roots add "D:\Games"
+portcove --library <path> --json source roots relink <root-id> "E:\Games"
+portcove --library <path> --json source roots remove <root-id>
+```
+
+Adding requires an available directory and returns the existing stable identity
+when the same canonical folder is already saved. Listing retains unavailable
+folders so a disconnected drive does not erase user intent. Relinking preserves
+the root identity after a mount or path change. Removing forgets only the saved
+folder; it does not modify files, source registrations, or managed installs.
 
 PS1 managed recomp profiles accept CHD sources. Pass one `.chd` path for a single-disc title. For a declared multi-disc title such as Final Fantasy VII, pass one directory containing exactly the required `.chd` files with filenames that sort in disc order:
 
