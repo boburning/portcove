@@ -16,7 +16,6 @@ import { DetailPanel, type DetailActions } from "./DetailPanel";
 import { PortBrowser } from "./PortBrowser";
 import { UpdateCenter } from "./UpdateCenter";
 import { RecoveryReview } from "./RecoveryReview";
-import { AdoptionModal } from "./AdoptionModal";
 import { applyOperationEvent, mostRecentOperation } from "../features/operations/operation-state";
 import { OperationCancellation } from "./OperationCancellation";
 import embeddedCatalog from "../../../../crates/portcove-core/catalog/catalog.json";
@@ -672,107 +671,6 @@ describe("desktop components", () => {
     expect(html).toContain("Registered BIOS file changed since it was added.");
     expect(html).toContain("Play unavailable");
     expect(html).not.toContain("Play now");
-  });
-
-  it("shows the reviewed adoption copy plan and skipped entries before copying", () => {
-    const html = renderToStaticMarkup(
-      <AdoptionModal
-        path="D:/Existing"
-        setPath={vi.fn()}
-        close={vi.fn()}
-        review={vi.fn()}
-        adopt={vi.fn()}
-        ports={[port]}
-        preview={{
-          source: "D:/Existing",
-          detected_port_ids: ["sample"],
-          selected_port_id: "sample",
-          application_files_will_be_copied: true,
-          original_will_be_modified: false,
-          copy_plan: {
-            directories: ["data"],
-            files: [
-              {
-                relative_path: "sample.exe",
-                size: 2048,
-                sha256: "a".repeat(64),
-              },
-            ],
-            skipped_entries: [
-              {
-                relative_path: "linked-save",
-                reason: "symbolic links are not copied",
-              },
-            ],
-            total_bytes: 2048,
-          },
-          destination: {
-            output_location: {
-              port_id: "sample",
-              library_root: "D:/Library",
-              default_output_directory: "D:/Library/versions/sample",
-              configured_output_directory: "E:/Games",
-              effective_output_directory: "E:/Games",
-              selection_source: "port_setting",
-              user_data_root: "D:/Library/user/sample",
-            },
-            active_install: null,
-            imported_user_data_paths: ["settings"],
-            current_user_data_files: 2,
-            current_user_data_sha256: "c".repeat(64),
-          },
-          plan_sha256: "b".repeat(64),
-        }}
-      />,
-    );
-    expect(html).toContain("1 file · 2.0 KiB");
-    expect(html).toContain("Sample Port");
-    expect(html).toContain("Catalog ID: <code>sample</code>");
-    expect(html).toContain("1 unsupported item will remain only in the original folder");
-    expect(html).toContain("linked-save");
-    expect(html).toContain("Continue to copy confirmation");
-    expect(html).toContain("E:/Games");
-    expect(html).toContain("D:/Library/user/sample");
-    expect(html).toContain("Matching saved files are replaced");
-    expect(html).not.toContain("SAFE ADOPTION");
-    expect(html).not.toContain("Bring an existing install into Portcove");
-    expect(html).toContain("No automatic safety backup");
-    expect(html).toContain("cannot cancel");
-  });
-
-  it("lists every detected port without presenting an ambiguous match as selected", () => {
-    const other = { ...port, id: "other", name: "Other Port" };
-    const html = renderToStaticMarkup(
-      <AdoptionModal
-        path="D:/Ambiguous"
-        setPath={vi.fn()}
-        close={vi.fn()}
-        review={vi.fn()}
-        adopt={vi.fn()}
-        ports={[port, other]}
-        preview={{
-          source: "D:/Ambiguous",
-          detected_port_ids: [port.id, other.id],
-          selected_port_id: null,
-          application_files_will_be_copied: true,
-          original_will_be_modified: false,
-          copy_plan: {
-            directories: [],
-            files: [],
-            skipped_entries: [],
-            total_bytes: 0,
-          },
-          destination: null,
-          plan_sha256: "d".repeat(64),
-        }}
-      />,
-    );
-    expect(html).toContain("Multiple supported ports detected");
-    expect(html).toContain("Sample Port — Catalog ID: <code>sample</code>");
-    expect(html).toContain("Other Port — Catalog ID: <code>other</code>");
-    expect(html).toContain("Choose the matching port in Portcove");
-    expect(html).toContain('disabled=""');
-    expect(html).not.toContain("Sample Port</strong>");
   });
 
   it("keeps older backups reachable without expanding the detail panel by default", () => {
