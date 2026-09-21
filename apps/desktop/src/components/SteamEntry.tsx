@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { Gamepad2, FolderOpen } from "lucide-react";
 import { desktopApi } from "../api";
-import { useDialogFocus } from "../dialog";
 import { pickSteamFolder } from "../file-picker";
 import type {
   PortDefinition,
@@ -11,6 +10,8 @@ import type {
 } from "../types";
 import { errorText } from "../view-model";
 import { Icon } from "./ui";
+import { Button } from "./ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "./ui/dialog";
 
 export function SteamEntryControl({
   port,
@@ -24,15 +25,10 @@ export function SteamEntryControl({
   const [open, setOpen] = useState(false);
   return (
     <>
-      <button
-        data-focusable
-        className="button-with-icon"
-        disabled={busy}
-        onClick={() => setOpen(true)}
-      >
+      <Button data-focusable variant="outline" disabled={busy} onClick={() => setOpen(true)}>
         <Icon glyph={Gamepad2} />
         Steam entry
-      </button>
+      </Button>
       {open && (
         <SteamEntryDialog port={port} generation={generation} close={() => setOpen(false)} />
       )}
@@ -49,13 +45,15 @@ export function SteamEntryDialog({
   generation: number;
   close: () => void;
 }) {
-  const dialog = useDialogFocus(close);
   const [steamRoot, setSteamRoot] = useState("");
   const [steamUserId, setSteamUserId] = useState("");
   const [review, setReview] = useState<SteamEntryReview>();
   const [result, setResult] = useState<SteamEntryApplyResult>();
   const [pending, setPending] = useState<"review" | "apply">();
   const [error, setError] = useState<string>();
+  const dismiss = () => {
+    if (pending !== "apply") close();
+  };
 
   const resetReview = () => {
     setReview(undefined);
@@ -112,26 +110,36 @@ export function SteamEntryDialog({
   };
   const selected = steamRoot.trim() && steamUserId.trim();
   return (
-    <div className="scrim">
-      <section
-        ref={dialog}
-        className="modal"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="steam-entry-title"
+    <Dialog
+      open
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen) dismiss();
+      }}
+    >
+      <DialogContent
+        showCloseButton={false}
+        className="max-h-[calc(100dvh-var(--space-8))] w-[min(680px,90vw)] max-w-none gap-0 overflow-y-auto overscroll-contain p-8 [scroll-padding-block:var(--space-4)] sm:max-w-none"
         aria-describedby="steam-entry-description"
       >
-        <h2 id="steam-entry-title">Manage Steam entry</h2>
-        <p id="steam-entry-description">
+        <DialogTitle id="steam-entry-title" className="mb-2 text-xl">
+          Manage Steam entry
+        </DialogTitle>
+        <DialogDescription id="steam-entry-description" className="mb-4 leading-relaxed">
           Add, repair, or remove the selected Portcove game in one exact Steam profile.
-        </p>
+        </DialogDescription>
         {!result && (
           <>
-            <label htmlFor="steam-installation">Steam installation folder</label>
+            <label
+              className="mb-2 block text-xs font-bold text-pc-muted-foreground"
+              htmlFor="steam-installation"
+            >
+              Steam installation folder
+            </label>
             <div className="path-entry">
               <input
                 data-focusable
                 id="steam-installation"
+                className="w-full rounded-[var(--radius-md)] border border-pc-input bg-[var(--color-bg-inset)] p-[11px] text-pc-foreground shadow-[inset_0_1px_2px_var(--color-bg)] outline-none focus-visible:border-pc-ring focus-visible:ring-3 focus-visible:ring-pc-ring/50"
                 value={steamRoot}
                 onChange={(event) => {
                   setSteamRoot(event.target.value);
@@ -139,20 +147,26 @@ export function SteamEntryDialog({
                 }}
                 placeholder="C:\\Program Files (x86)\\Steam"
               />
-              <button
+              <Button
                 data-focusable
-                className="button-with-icon"
+                variant="outline"
                 disabled={Boolean(pending)}
                 onClick={() => void chooseSteam()}
               >
                 <Icon glyph={FolderOpen} />
                 Choose folder
-              </button>
+              </Button>
             </div>
-            <label htmlFor="steam-profile">Steam profile ID</label>
+            <label
+              className="mb-2 block text-xs font-bold text-pc-muted-foreground"
+              htmlFor="steam-profile"
+            >
+              Steam profile ID
+            </label>
             <input
               data-focusable
               id="steam-profile"
+              className="w-full rounded-[var(--radius-md)] border border-pc-input bg-[var(--color-bg-inset)] p-[11px] text-pc-foreground shadow-[inset_0_1px_2px_var(--color-bg)] outline-none focus-visible:border-pc-ring focus-visible:ring-3 focus-visible:ring-pc-ring/50"
               inputMode="numeric"
               pattern="[0-9]+"
               value={steamUserId}
@@ -190,42 +204,49 @@ export function SteamEntryDialog({
           </section>
         )}
         {error && <p role="alert">{error}</p>}
-        <div className="actions">
-          <button data-autofocus data-focusable disabled={pending === "apply"} onClick={close}>
+        <DialogFooter className="mt-4">
+          <Button
+            data-autofocus
+            data-focusable
+            variant="outline"
+            disabled={pending === "apply"}
+            onClick={dismiss}
+          >
             {result ? "Close" : "Cancel"}
-          </button>
+          </Button>
           {!review && !result && (
             <>
-              <button
+              <Button
                 data-focusable
                 disabled={!selected || Boolean(pending)}
                 onClick={() => void loadReview("add_or_repair")}
               >
                 Review Add / Repair
-              </button>
-              <button
+              </Button>
+              <Button
                 data-focusable
-                className="danger"
+                variant="destructive"
                 disabled={!selected || Boolean(pending)}
                 onClick={() => void loadReview("remove")}
               >
                 Review Remove
-              </button>
+              </Button>
             </>
           )}
           {review && (
             <>
-              <button
+              <Button
                 data-focusable
+                variant="outline"
                 disabled={Boolean(pending)}
                 onClick={() => void loadReview(review.operation)}
               >
                 Review current state again
-              </button>
+              </Button>
               {review.writes_required && (
-                <button
+                <Button
                   data-focusable
-                  className={review.operation === "remove" ? "danger" : "primary"}
+                  variant={review.operation === "remove" ? "destructive" : "default"}
                   disabled={Boolean(pending) || review.steam_client_state !== "closed"}
                   onClick={() => void apply()}
                 >
@@ -234,13 +255,13 @@ export function SteamEntryDialog({
                     : review.operation === "remove"
                       ? "Remove reviewed entry"
                       : "Apply reviewed Add / Repair"}
-                </button>
+                </Button>
               )}
             </>
           )}
-        </div>
-      </section>
-    </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 

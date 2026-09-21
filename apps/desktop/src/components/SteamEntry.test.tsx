@@ -45,7 +45,7 @@ afterEach(async () => {
 });
 
 async function input(label: string, value: string) {
-  const field = [...container.querySelectorAll("input")].find(
+  const field = [...document.body.querySelectorAll("input")].find(
     (candidate) => candidate.labels?.[0]?.textContent === label,
   );
   expect(field).toBeDefined();
@@ -57,7 +57,7 @@ async function input(label: string, value: string) {
 }
 
 async function click(label: string) {
-  const button = [...container.querySelectorAll("button")].find(
+  const button = [...document.body.querySelectorAll("button")].find(
     (candidate) => candidate.textContent === label,
   );
   expect(button).toBeDefined();
@@ -76,6 +76,13 @@ it("uses the selected installation and profile, shows exact consumer evidence, a
   await act(async () =>
     root.render(<SteamEntryDialog port={port} generation={7} close={vi.fn()} />),
   );
+  const installation = document.body.querySelector<HTMLInputElement>("#steam-installation");
+  const installationLabel = document.body.querySelector<HTMLLabelElement>(
+    'label[for="steam-installation"]',
+  );
+  expect(installation?.className).toContain("border-pc-input");
+  expect(installation?.className).toContain("bg-[var(--color-bg-inset)]");
+  expect(installationLabel?.className).toContain("text-pc-muted-foreground");
   await input("Steam installation folder", "C:\\Steam");
   await input("Steam profile ID", "12345");
   await click("Review Add / Repair");
@@ -94,7 +101,7 @@ it("uses the selected installation and profile, shows exact consumer evidence, a
     review.cli_product_version!,
     "add",
   ])
-    expect(container.textContent).toContain(value);
+    expect(document.body.textContent).toContain(value);
   await click("Apply reviewed Add / Repair");
   expect(apply).toHaveBeenCalledExactlyOnceWith(
     port.id,
@@ -104,8 +111,8 @@ it("uses the selected installation and profile, shows exact consumer evidence, a
     review.plan_sha256,
     7,
   );
-  expect(container.textContent).toContain("reviewed Steam entry change was written");
-  expect(container.textContent).toContain("shortcuts.vdf.portcove-backup");
+  expect(document.body.textContent).toContain("reviewed Steam entry change was written");
+  expect(document.body.textContent).toContain("shortcuts.vdf.portcove-backup");
 });
 
 it("blocks apply while Steam is running and clears a review when the target changes", async () => {
@@ -120,13 +127,13 @@ it("blocks apply while Steam is running and clears a review when the target chan
   await input("Steam installation folder", "C:\\Steam");
   await input("Steam profile ID", "12345");
   await click("Review Add / Repair");
-  expect(container.textContent).toContain("never force Steam to close");
-  const applyButton = [...container.querySelectorAll("button")].find(
+  expect(document.body.textContent).toContain("never force Steam to close");
+  const applyButton = [...document.body.querySelectorAll("button")].find(
     (candidate) => candidate.textContent === "Apply reviewed Add / Repair",
   );
   expect(applyButton?.disabled).toBe(true);
   await input("Steam profile ID", "54321");
-  expect(container.textContent).not.toContain(review.shortcuts_path);
+  expect(document.body.textContent).not.toContain(review.shortcuts_path);
   expect(apply).not.toHaveBeenCalled();
   expect(preview).toHaveBeenCalledOnce();
 });
@@ -141,6 +148,6 @@ it("keeps the reviewed plan visible when native consent is declined", async () =
   await input("Steam profile ID", "12345");
   await click("Review Add / Repair");
   await click("Apply reviewed Add / Repair");
-  expect(container.textContent).toContain(review.shortcuts_path);
-  expect(container.querySelector('[role="alert"]')).toBeNull();
+  expect(document.body.textContent).toContain(review.shortcuts_path);
+  expect(document.body.querySelector('[role="alert"]')).toBeNull();
 });

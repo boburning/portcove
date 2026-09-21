@@ -2,9 +2,14 @@
 import assert from "node:assert/strict";
 import path from "node:path";
 import { mkdir, stat, writeFile } from "node:fs/promises";
-import { By, until } from "selenium-webdriver";
+import { By, Key, until } from "selenium-webdriver";
 import { fileIdentity } from "../../../scripts/development-evidence.mjs";
-import { captureAccessibilityReport, reviewControls } from "./desktop-review-controls.mjs";
+import {
+  assertDestructiveReviewAction,
+  assertPrimaryReviewAction,
+  captureAccessibilityReport,
+  reviewControls,
+} from "./desktop-review-controls.mjs";
 
 export async function steamEntryScenario({
   browser,
@@ -30,6 +35,51 @@ export async function steamEntryScenario({
     await click(button("Steam entry"));
     const dialog = By.css('[aria-labelledby="steam-entry-title"]');
     await browser.wait(until.elementLocated(dialog), 15_000);
+    await browser.actions().sendKeys(Key.ESCAPE).perform();
+    await browser.wait(
+      async () => (await browser.findElements(dialog)).length === 0,
+      5_000,
+      "Steam entry dialog did not close after Escape",
+    );
+    const trigger = await browser.findElement(button("Steam entry"));
+    await browser.wait(
+      async () => browser.executeScript("return document.activeElement === arguments[0];", trigger),
+      5_000,
+      "Steam entry trigger did not regain focus after Escape",
+    );
+    await click(button("Steam entry"));
+    await browser.wait(until.elementLocated(dialog), 15_000);
+    const installationField = await browser.findElement(By.id("steam-installation"));
+    const installationLabel = await browser.findElement(By.css('label[for="steam-installation"]'));
+    const fieldPresentation = await browser.executeScript(
+      `const field = arguments[0];
+       const label = arguments[1];
+       const dialog = arguments[2];
+       const fieldStyle = getComputedStyle(field);
+       const labelStyle = getComputedStyle(label);
+       const dialogStyle = getComputedStyle(dialog);
+       return {
+         width: fieldStyle.width,
+         paddingLeft: fieldStyle.paddingLeft,
+         borderStyle: fieldStyle.borderStyle,
+         borderWidth: fieldStyle.borderWidth,
+         backgroundColor: fieldStyle.backgroundColor,
+         dialogBackgroundColor: dialogStyle.backgroundColor,
+         color: fieldStyle.color,
+         labelColor: labelStyle.color,
+         labelFontWeight: labelStyle.fontWeight,
+       };`,
+      installationField,
+      installationLabel,
+      await browser.findElement(dialog),
+    );
+    assert.ok(parseFloat(fieldPresentation.width) >= 200, JSON.stringify(fieldPresentation));
+    assert.ok(parseFloat(fieldPresentation.paddingLeft) >= 10, JSON.stringify(fieldPresentation));
+    assert.equal(fieldPresentation.borderStyle, "solid");
+    assert.ok(parseFloat(fieldPresentation.borderWidth) >= 1, JSON.stringify(fieldPresentation));
+    assert.notEqual(fieldPresentation.backgroundColor, "rgba(0, 0, 0, 0)");
+    assert.notEqual(fieldPresentation.backgroundColor, fieldPresentation.dialogBackgroundColor);
+    assert.ok(Number(fieldPresentation.labelFontWeight) >= 700, JSON.stringify(fieldPresentation));
     await browser.findElement(By.id("steam-installation")).sendKeys(steamRoot);
     await browser.findElement(By.id("steam-profile")).sendKeys(steamUserId);
     const preview = await invoke("preview_steam_entry", {
@@ -43,6 +93,11 @@ export async function steamEntryScenario({
     assert.equal(preview.value.writes_required, true);
     await click(button("Review Add / Repair"));
     await browser.wait(until.elementLocated(button("Apply reviewed Add / Repair")), 15_000);
+    const addActionStyles = await assertPrimaryReviewAction(
+      browser,
+      await browser.findElement(button("Apply reviewed Add / Repair")),
+      await browser.findElement(button("Review current state again")),
+    );
     const reviewed = await browser.findElement(dialog).getText();
     assert.ok(reviewed.includes(shortcuts));
     assert.ok(reviewed.includes("add"));
@@ -88,6 +143,11 @@ export async function steamEntryScenario({
     await browser.findElement(By.id("steam-profile")).sendKeys(steamUserId);
     await click(button("Review Remove"));
     await browser.wait(until.elementLocated(button("Remove reviewed entry")), 15_000);
+    const removeActionStyles = await assertDestructiveReviewAction(
+      browser,
+      await browser.findElement(button("Remove reviewed entry")),
+      await browser.findElement(button("Review current state again")),
+    );
     assert.ok((await browser.findElement(dialog).getText()).includes("remove"));
     const screenshot = path.join(output, "native-steam-entry-remove-review.png");
     await writeFile(screenshot, await browser.takeScreenshot(), {
@@ -129,6 +189,10 @@ export async function steamEntryScenario({
           native_add_cancelled_without_write: true,
           exact_add_became_idempotent: true,
           exact_owned_remove_became_idempotent: true,
+          escape_dismissed_and_restored_focus: true,
+          add_action_styles: addActionStyles,
+          remove_action_styles: removeActionStyles,
+          field_presentation: fieldPresentation,
           steam_process_observation: "qualification-fixture-closed",
           evidence:
             "isolated local Steam tree through actual Tauri renderer and native confirmation with the compile-time qualification closed-process fixture; no actual closed Steam client, production profile, gameplay, or physical-platform claim",
