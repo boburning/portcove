@@ -263,20 +263,22 @@ export async function workspaceRefreshScenario({
       );
       const activityAfter = await invoke("get_activities");
       assert.equal(activityAfter.ok, true);
+      assert.ok(Array.isArray(activityBefore.value.records));
+      assert.ok(Array.isArray(activityAfter.value.records));
       assert.equal(
-        activityAfter.value.length,
-        activityBefore.value.length,
+        activityAfter.value.records.length,
+        activityBefore.value.records.length,
         "policy mutation must exercise reconciliation without a new activity row",
       );
-      const adoptedActivity = activityAfter.value.find(
+      const adoptedActivity = activityAfter.value.records.find(
         (activity) => activity.operation === "adopt" && activity.target_id === port.id,
       );
       assert.equal(adoptedActivity?.status, "succeeded");
       observations.policy = {
         value: "automatic",
         converged_ms: Date.now() - policyStarted,
-        activity_rows_before: activityBefore.value.length,
-        activity_rows_after: activityAfter.value.length,
+        activity_rows_before: activityBefore.value.records.length,
+        activity_rows_after: activityAfter.value.records.length,
       };
       observations.commands = await browser.executeScript(
         () => window.__portcoveExternalReconciliationProbe.commands,

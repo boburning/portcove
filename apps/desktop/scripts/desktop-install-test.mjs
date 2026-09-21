@@ -56,7 +56,8 @@ export async function installScenarios({
   const installActivity = async (port, status) => {
     const result = await invoke("get_activities");
     assert.equal(result.ok, true);
-    return result.value.find(
+    assert.ok(Array.isArray(result.value.records));
+    return result.value.records.find(
       (item) =>
         item.operation === "install" && item.target_id === port.id && item.status === status,
     );

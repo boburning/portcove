@@ -39,7 +39,7 @@ afterEach(async () => {
   vi.unstubAllGlobals();
 });
 async function click(label: string) {
-  const button = [...container.querySelectorAll("button")].find(
+  const button = [...document.body.querySelectorAll("button")].find(
     (button) => button.textContent === label,
   );
   expect(button).toBeDefined();
@@ -63,12 +63,12 @@ it("reviews exact paths and safety-backup behavior before a bound restore", asyn
   );
   expect(preview).toHaveBeenCalledWith("sample", "snapshot", "restore", 7);
   expect(apply).not.toHaveBeenCalled();
-  expect(container.textContent).toContain("library/user/sample");
-  expect(container.textContent).toContain("library/backups/sample/snapshot");
-  expect(container.textContent).toContain("new safety backup");
-  expect(container.textContent).toContain("game must be stopped");
-  expect(container.textContent).toContain("retains recovery data");
-  expect(container.querySelector("[data-autofocus]")?.textContent).toBe("Keep current state");
+  expect(document.body.textContent).toContain("library/user/sample");
+  expect(document.body.textContent).toContain("library/backups/sample/snapshot");
+  expect(document.body.textContent).toContain("new safety backup");
+  expect(document.body.textContent).toContain("game must be stopped");
+  expect(document.body.textContent).toContain("retains recovery data");
+  expect(document.body.querySelector("[data-autofocus]")?.textContent).toBe("Keep current state");
   await click("Restore this backup");
   expect(apply).toHaveBeenCalledWith(review.preview.backup, "reviewed-data");
   expect(close).toHaveBeenCalledOnce();
@@ -96,11 +96,11 @@ it("explains permanent deletion and can dismiss without authorizing it", async (
       />,
     ),
   );
-  expect(container.textContent).toContain(
+  expect(document.body.textContent).toContain(
     "other backups and installed game versions are preserved",
   );
-  expect(container.textContent).toContain("cannot be recovered after deletion");
-  expect(container.textContent).toContain("not a reversible cancellation");
+  expect(document.body.textContent).toContain("cannot be recovered after deletion");
+  expect(document.body.textContent).toContain("not a reversible cancellation");
   await click("Keep current state");
   expect(close).toHaveBeenCalledOnce();
   expect(apply).not.toHaveBeenCalled();
@@ -123,7 +123,7 @@ it("closes without reporting failure when native consent is declined", async () 
   );
   await click("Restore this backup");
   expect(close).toHaveBeenCalledOnce();
-  expect(container.querySelector('[role="alert"]')).toBeNull();
+  expect(document.body.querySelector('[role="alert"]')).toBeNull();
 });
 
 it("requires a fresh review after a changed selection fails and rejects duplicate application", async () => {
@@ -153,8 +153,8 @@ it("requires a fresh review after a changed selection fails and rejects duplicat
   expect(apply).toHaveBeenCalledOnce();
   expect(close).not.toHaveBeenCalled();
   await act(async () => finish(false));
-  expect(container.querySelector('[role="alert"]')?.textContent).toContain("did not complete");
-  expect(container.textContent).not.toContain("Restore this backup");
+  expect(document.body.querySelector('[role="alert"]')?.textContent).toContain("did not complete");
+  expect(document.body.textContent).not.toContain("Restore this backup");
   await click("Review again");
   expect(preview).toHaveBeenCalledTimes(2);
 });
@@ -207,8 +207,8 @@ it("ignores an old review after the library or selected backup changes", async (
     ),
   );
   await act(async () => finish(review));
-  expect(container.textContent).toContain("current/snapshot");
-  expect(container.textContent).not.toContain("library/backups/sample/snapshot");
-  expect(container.textContent).toContain("safety backup will not be created");
+  expect(document.body.textContent).toContain("current/snapshot");
+  expect(document.body.textContent).not.toContain("library/backups/sample/snapshot");
+  expect(document.body.textContent).toContain("safety backup will not be created");
   expect(apply).not.toHaveBeenCalled();
 });

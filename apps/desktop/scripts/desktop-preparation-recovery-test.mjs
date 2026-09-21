@@ -4,8 +4,9 @@ import { createHash, randomUUID } from "node:crypto";
 import path from "node:path";
 import { access, writeFile } from "node:fs/promises";
 import { DatabaseSync } from "node:sqlite";
-import { By, until } from "selenium-webdriver";
+import { By, Key, until } from "selenium-webdriver";
 import {
+  assertDestructiveReviewAction,
   captureAccessibilityReport,
   clickVisible,
   reviewControls,
@@ -54,6 +55,7 @@ export async function interruptedPreparationScenario({
   output,
   artifacts,
   command,
+  activities,
   confirmNative,
   restartApplication,
 }) {
@@ -81,8 +83,13 @@ export async function interruptedPreparationScenario({
     };
     await dismissApplicationUpdateChoice();
     assert.equal(path.resolve(library), path.resolve(output, "library"));
+    const cliActivities = () => {
+      const feed = command(["activity"]);
+      assert.ok(Array.isArray(feed.records));
+      return feed.records;
+    };
     const before = command(["status", "opengoal-jak2"]);
-    const activity = command(["activity"]).find(
+    const activity = cliActivities().find(
       (item) =>
         item.operation === "prepare" &&
         item.target_id === before.port_id &&
@@ -167,7 +174,7 @@ export async function interruptedPreparationScenario({
     }
     await assert.rejects(access(journalOnlyPath));
     const doctor = command(["doctor"]); // A fresh CLI executes real core startup recovery.
-    const recovered = command(["activity"]).find((item) => item.id === activity.id);
+    const recovered = cliActivities().find((item) => item.id === activity.id);
     assert.equal(recovered.status, "failed");
     assert.equal(recovered.failure.presentation.presentation_key, "preparation_interrupted");
     assert.equal(recovered.failure.presentation.tone, "error");
@@ -316,7 +323,7 @@ export async function interruptedPreparationScenario({
     assert.ok(row, "original retained preparation row with incomplete diagnostic capture");
     assert.match(await row.getText(), /Running game setup/);
     assert.deepEqual(
-      (await invoke("get_activities")).value.find((item) => item.id === activity.id),
+      (await activities()).find((item) => item.id === activity.id),
       recovered,
     );
     const report = path.join(output, "interrupted-preparation-accessibility.json");
@@ -377,6 +384,24 @@ export async function interruptedPreparationScenario({
         (await browser.findElement(cleanupDialog).getText()).includes(unprovenQuiescenceSummary),
       15_000,
       "Cleanup review must refuse when process-tree quiescence is unproven",
+    );
+    await browser.actions().sendKeys(Key.ESCAPE).perform();
+    await browser.wait(
+      async () => (await browser.findElements(cleanupDialog)).length === 0,
+      5_000,
+      "Preparation cleanup review did not close after Escape",
+    );
+    await browser.wait(
+      () => browser.executeScript("return document.activeElement === arguments[0];", cleanupReview),
+      5_000,
+      "Preparation cleanup trigger did not regain focus after Escape",
+    );
+    await clickVisible(browser, cleanupReview);
+    await browser.wait(until.elementLocated(cleanupDialog), 15_000);
+    await browser.wait(
+      async () =>
+        (await browser.findElement(cleanupDialog).getText()).includes(unprovenQuiescenceSummary),
+      15_000,
     );
     const refusedCleanupText = await browser.findElement(cleanupDialog).getText();
     assert.ok(refusedCleanupText.includes(unprovenQuiescenceSummary));
@@ -441,6 +466,11 @@ export async function interruptedPreparationScenario({
     await browser.wait(
       async () => (await browser.findElement(cleanupDialog).getText()).includes(privatePath),
       15_000,
+    );
+    const cleanupActionStyles = await assertDestructiveReviewAction(
+      browser,
+      await browser.findElement(controls.button("Remove reviewed private files permanently")),
+      await browser.findElement(controls.button("Keep retained files")),
     );
     const cleanupText = await browser.findElement(cleanupDialog).getText();
     for (const expected of [
@@ -584,7 +614,7 @@ export async function interruptedPreparationScenario({
     }
     await assert.rejects(access(journalOnlyPath));
     const journalOnlyDoctor = command(["doctor"]);
-    const journalOnlyActivity = command(["activity"]).find((item) => item.id === journalOnlyId);
+    const journalOnlyActivity = cliActivities().find((item) => item.id === journalOnlyId);
     assert.equal(journalOnlyActivity.status, "failed");
     assert.equal(
       journalOnlyActivity.failure.presentation.presentation_key,
@@ -690,7 +720,7 @@ export async function interruptedPreparationScenario({
       false,
     );
     assert.deepEqual(command(["status", before.port_id]).active, before.active);
-    assert.equal(command(["activity"]).find((item) => item.id === journalOnlyId).status, "failed");
+    assert.equal(cliActivities().find((item) => item.id === journalOnlyId).status, "failed");
     const journalOnlyEvidence = path.join(output, "journal-only-preparation-cleanup.json");
     await writeFile(
       journalOnlyEvidence,
@@ -723,6 +753,8 @@ export async function interruptedPreparationScenario({
           accepted_cleanup_removed_private_path: true,
           active_install_preserved: true,
           activity_diagnostics_preserved: true,
+          escape_dismissal_and_focus_restoration: true,
+          cleanup_action_styles: cleanupActionStyles,
         },
         null,
         2,
