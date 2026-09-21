@@ -54,6 +54,7 @@ import type {
   GithubAuthStatus,
   GithubDeviceLogin,
   GithubDeviceLoginResult,
+  GameFileRoot,
   HostToolProbeResult,
   HostToolStatus,
   InstallPlan,
@@ -360,6 +361,11 @@ export const desktopApi = {
     }),
   addSource: (profileId: string, path: string, expectedSha256?: string) =>
     invoke<SourceRecord>("add_source", { profileId, path, expectedSha256 }),
+  gameFileRoots: () => invoke<GameFileRoot[]>("get_game_file_roots"),
+  addGameFileRoot: (path: string) => invoke<GameFileRoot>("add_game_file_root", { path }),
+  relinkGameFileRoot: (rootId: string, path: string) =>
+    invoke<GameFileRoot>("relink_game_file_root", { rootId, path }),
+  removeGameFileRoot: (rootId: string) => invoke<boolean>("remove_game_file_root", { rootId }),
   discoverSources: (request: SourceDiscoveryRequest, onEvent?: (event: OperationEvent) => void) => {
     const channel = new Channel<OperationEvent>();
     channel.onmessage = (event) => onEvent?.(event);

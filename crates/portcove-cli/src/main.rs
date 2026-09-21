@@ -352,6 +352,11 @@ enum SourceCommand {
         #[command(subcommand)]
         command: SourceInboxCommand,
     },
+    /// Manage explicitly selected folders used for catalog-wide game-file discovery.
+    Roots {
+        #[command(subcommand)]
+        command: GameFileRootCommand,
+    },
     Add {
         profile_id: String,
         path: PathBuf,
@@ -378,6 +383,18 @@ enum SourceCommand {
         #[arg(long)]
         yes: bool,
     },
+}
+
+#[derive(Debug, Subcommand)]
+enum GameFileRootCommand {
+    /// List saved folders, including currently unavailable locations.
+    List,
+    /// Save one available folder; adding the same folder again is idempotent.
+    Add { path: PathBuf },
+    /// Update one saved identity after a mount or folder path changes.
+    Relink { root_id: String, path: PathBuf },
+    /// Forget one saved folder without changing files, registrations or installs.
+    Remove { root_id: String },
 }
 
 #[derive(Debug, Subcommand)]
@@ -1150,6 +1167,34 @@ async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
                     )?;
                 }
             }
+        },
+        Commands::Source {
+            command: SourceCommand::Roots { command },
+        } => match command {
+            GameFileRootCommand::List => render_read_success(
+                mode,
+                "source.roots.list",
+                service.library().game_file_roots()?,
+                |roots| human::game_file_roots(roots),
+            )?,
+            GameFileRootCommand::Add { path } => render_success(
+                mode,
+                "source.roots.add",
+                service.library().add_game_file_root(&path)?,
+            )?,
+            GameFileRootCommand::Relink { root_id, path } => render_success(
+                mode,
+                "source.roots.relink",
+                service.library().relink_game_file_root(&root_id, &path)?,
+            )?,
+            GameFileRootCommand::Remove { root_id } => render_success(
+                mode,
+                "source.roots.remove",
+                serde_json::json!({
+                    "root_id": root_id,
+                    "removed": service.library().remove_game_file_root(&root_id)?,
+                }),
+            )?,
         },
         Commands::Source {
             command:
@@ -2403,6 +2448,12 @@ fn command_name(command: &Commands) -> &'static str {
                 SourceInboxCommand::Scan(_) => "source.inbox.scan",
                 SourceInboxCommand::Import { .. } => "source.inbox.import",
             },
+            SourceCommand::Roots { command } => match command {
+                GameFileRootCommand::List => "source.roots.list",
+                GameFileRootCommand::Add { .. } => "source.roots.add",
+                GameFileRootCommand::Relink { .. } => "source.roots.relink",
+                GameFileRootCommand::Remove { .. } => "source.roots.remove",
+            },
             SourceCommand::Relink { .. } => "source.relink",
             SourceCommand::List => "source.list",
             SourceCommand::Inspect { .. } => "source.inspect",
@@ -2475,7 +2526,8 @@ mod tests {
 
     use super::{
         AuthCommand, BackupCommand, CapabilityDocument, CatalogCommand, ChannelArg, Cli, Commands,
-        OutputCommand, PreparationCommand, SourceCommand, normalize_process_exit,
+        GameFileRootCommand, OutputCommand, PreparationCommand, SourceCommand,
+        normalize_process_exit,
     };
     use clap::Parser;
 
@@ -2579,6 +2631,27 @@ mod tests {
         assert!(
             Cli::try_parse_from(["portcove", "source", "verify", "star-fox-64", "--all"]).is_err()
         );
+    }
+
+    #[test]
+    fn game_file_root_commands_keep_the_stable_identity_explicit() {
+        let cli = Cli::try_parse_from([
+            "portcove",
+            "source",
+            "roots",
+            "relink",
+            "root-id",
+            "replacement",
+        ])
+        .unwrap();
+        assert!(matches!(
+            cli.command,
+            Commands::Source {
+                command: SourceCommand::Roots {
+                    command: GameFileRootCommand::Relink { root_id, path }
+                }
+            } if root_id == "root-id" && path.as_os_str() == "replacement"
+        ));
     }
 
     #[test]
@@ -2838,7 +2911,13 @@ mod tests {
     #[test]
     fn capabilities_advertise_failure_isolated_batches() {
         let capabilities = CapabilityDocument::current();
-        assert_eq!(capabilities.schema_version, 51);
+        assert_eq!(capabilities.schema_version, 52);
+        assert!(
+            capabilities
+                .commands
+                .iter()
+                .any(|command| command == "source.roots")
+        );
         assert_eq!(
             capabilities.operation_event_schema_version,
             portcove_core::OPERATION_EVENT_SCHEMA_VERSION

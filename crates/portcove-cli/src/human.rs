@@ -2,8 +2,8 @@ use std::path::Path;
 
 use portcove_core::{
     ActivityRecord, BackupInventory, BackupInventoryState, BackupProblemKind, CapabilityDocument,
-    DoctorReport, GithubAuthSource, GithubAuthStatus, HostToolProbeResult, HostToolSource,
-    HostToolState, HostToolStatus, InstallPlan, InstallPlanAction, LaunchBlocker,
+    DoctorReport, GameFileRoot, GithubAuthSource, GithubAuthStatus, HostToolProbeResult,
+    HostToolSource, HostToolState, HostToolStatus, InstallPlan, InstallPlanAction, LaunchBlocker,
     OutputDestinationAvailability, OutputDestinationOwnership, OutputDestinationPreview,
     OutputLocationSource, OutputRelocationPlan, Platform, PortDefinition, PortOutputLocation,
     PortPaths, PortStatus, RepairItemKind, SourceClassification, SourceContractResult,
@@ -284,6 +284,27 @@ pub(crate) fn source_list(sources: &[SourceRecord]) -> String {
         "Registered sources ({})\n{}",
         sources.len(),
         table(&["PROFILE", "SIZE", "UPDATED (UNIX)", "PATH"], rows)
+    )
+}
+
+pub(crate) fn game_file_roots(roots: &[GameFileRoot]) -> String {
+    if roots.is_empty() {
+        return "No game-file folders are connected.".into();
+    }
+    let rows = roots
+        .iter()
+        .map(|root| {
+            vec![
+                root.id.clone(),
+                format!("{:?}", root.availability).to_ascii_lowercase(),
+                root.path.display().to_string(),
+            ]
+        })
+        .collect();
+    format!(
+        "Game-file folders ({})\n{}",
+        roots.len(),
+        table(&["ID", "STATE", "PATH"], rows)
     )
 }
 

@@ -209,6 +209,9 @@ internal static class ContractTests
         Check(legacyActivity.Records.Length == 1 && !legacyActivity.ActiveAndActionableComplete && !legacyActivity.TerminalHistoryComplete,
             "legacy activity arrays remain supported without invented completeness");
         bad["schema_version"] = 52;
+        ProtocolStream.Negotiate(bad);
+        Check(true, "additive saved-root API schema negotiated without requiring unused commands");
+        bad["schema_version"] = 53;
         Reject(() => ProtocolStream.Negotiate(bad), "future schema rejected with migration guidance");
         bad["schema_version"] = 42; bad["commands"] = new object[0];
         Reject(() => ProtocolStream.Negotiate(bad), "missing command capability rejected");

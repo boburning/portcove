@@ -14,7 +14,7 @@ use crate::{PortcoveError, Result};
 #[path = "database_concurrency_tests.rs"]
 mod concurrency_tests;
 
-pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 29;
+pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 30;
 
 struct Migration {
     version: i64,
@@ -197,6 +197,12 @@ const MIGRATIONS: &[Migration] = &[
         name: "private import publication receipts",
         apply: migration_29,
         verify: verify_migration_29,
+    },
+    Migration {
+        version: 30,
+        name: "saved game-file roots",
+        apply: migration_30,
+        verify: verify_migration_30,
     },
 ];
 
@@ -939,6 +945,27 @@ fn verify_migration_29(connection: &Connection) -> Result<()> {
     require_columns(connection, "activity_history", &["import_receipt_sha256"])
 }
 
+fn migration_30(transaction: &Transaction<'_>) -> Result<()> {
+    transaction.execute_batch(
+        "CREATE TABLE game_file_roots (
+            id TEXT PRIMARY KEY,
+            path TEXT NOT NULL,
+            path_key TEXT NOT NULL UNIQUE,
+            created_at INTEGER NOT NULL,
+            updated_at INTEGER NOT NULL
+        );",
+    )?;
+    verify_migration_30(transaction)
+}
+
+fn verify_migration_30(connection: &Connection) -> Result<()> {
+    require_columns(
+        connection,
+        "game_file_roots",
+        &["id", "path", "path_key", "created_at", "updated_at"],
+    )
+}
+
 fn verify_migration_26(connection: &Connection) -> Result<()> {
     require_columns(
         connection,
@@ -1377,6 +1404,7 @@ mod tests {
         schema_26: 26,
         schema_27: 27,
         schema_28: 28,
+        schema_29: 29,
     }
 
     #[test]
