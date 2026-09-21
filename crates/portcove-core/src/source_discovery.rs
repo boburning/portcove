@@ -203,9 +203,10 @@ fn build_game_file_scan(
         }
     }
     Ok(GameFileScanSnapshot {
-        format_version: 1,
+        format_version: 2,
         catalog_sha256: catalog_sha256(catalog)?,
         roots,
+        limits: Some(limits.clone()),
         report,
         completed_at: crate::Library::now(),
         freshness: GameFileScanFreshness::InputsMatch,
@@ -219,11 +220,20 @@ fn current_game_file_scan(
     let Some(mut snapshot) = library.stored_game_file_scan_snapshot()? else {
         return Ok(None);
     };
-    if snapshot.format_version != 1 {
-        return Err(PortcoveError::state(
-            "stored game-file scan snapshot version is not supported",
-        )
-        .detail("format_version", snapshot.format_version.to_string()));
+    match snapshot.format_version {
+        1 => {}
+        2 if snapshot.limits.is_some() => {}
+        2 => {
+            return Err(PortcoveError::state(
+                "stored game-file scan snapshot is missing its scan limits",
+            ));
+        }
+        _ => {
+            return Err(PortcoveError::state(
+                "stored game-file scan snapshot version is not supported",
+            )
+            .detail("format_version", snapshot.format_version.to_string()));
+        }
     }
     let current_roots = library.game_file_roots()?;
     snapshot.freshness =

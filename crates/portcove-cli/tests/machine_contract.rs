@@ -1391,6 +1391,9 @@ fn saved_game_file_roots_survive_unavailability_and_relink_by_stable_identity() 
         &["--json", "source", "roots", "scan", "--max-entries", "4"],
     ));
     assert_eq!(scan["command"], "source.roots.scan");
+    assert_eq!(scan["data"]["format_version"], 2);
+    assert_eq!(scan["data"]["limits"]["max_entries"], 4);
+    assert_eq!(scan["data"]["limits"]["max_depth"], 6);
     assert_eq!(scan["data"]["freshness"], "inputs_match");
     assert_eq!(scan["data"]["roots"][0]["id"], first_id);
     assert_eq!(scan["data"]["report"]["candidates"], serde_json::json!([]));
@@ -1406,6 +1409,7 @@ fn saved_game_file_roots_survive_unavailability_and_relink_by_stable_identity() 
     ));
     assert_eq!(snapshot["command"], "source.roots.snapshot");
     assert_eq!(snapshot["data"]["freshness"], "inputs_match");
+    assert_eq!(snapshot["data"]["limits"], scan["data"]["limits"]);
     assert_eq!(
         snapshot["data"]["completed_at"],
         scan["data"]["completed_at"]
@@ -1431,6 +1435,10 @@ fn saved_game_file_roots_survive_unavailability_and_relink_by_stable_identity() 
     assert_eq!(events.last().unwrap()["type"], "result");
     assert_eq!(events.last().unwrap()["command"], "source.roots.scan");
     assert_eq!(events.last().unwrap()["data"]["freshness"], "inputs_match");
+    assert_eq!(
+        events.last().unwrap()["data"]["limits"]["max_entries"],
+        10_000
+    );
 
     std::fs::remove_dir(&second).unwrap();
     let stale = json_stdout(&portcove(

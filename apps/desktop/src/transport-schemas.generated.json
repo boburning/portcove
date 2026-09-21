@@ -5212,6 +5212,17 @@
           "freshness": {
             "$ref": "#/$defs/GameFileScanFreshness"
           },
+          "limits": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/SourceDiscoveryLimits"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
           "report": {
             "$ref": "#/$defs/SourceDiscoveryReport"
           },
@@ -5226,6 +5237,7 @@
           "format_version",
           "catalog_sha256",
           "roots",
+          "limits",
           "report",
           "completed_at",
           "freshness"
@@ -5423,6 +5435,43 @@
           "candidates"
         ],
         "type": "string"
+      },
+      "SourceDiscoveryLimits": {
+        "properties": {
+          "max_candidates": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "max_depth": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "max_entries": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "max_file_bytes": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "max_hash_bytes": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "max_entries",
+          "max_depth",
+          "max_file_bytes",
+          "max_hash_bytes",
+          "max_candidates"
+        ],
+        "type": "object"
       },
       "SourceDiscoveryReport": {
         "properties": {

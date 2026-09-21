@@ -1328,8 +1328,17 @@ export interface GameFileScanSnapshot {
   completed_at: number;
   format_version: number;
   freshness: GameFileScanFreshness;
+  limits: SourceDiscoveryLimits | null;
   report: SourceDiscoveryReport;
   roots: GameFileRoot[];
+  [k: string]: unknown;
+}
+export interface SourceDiscoveryLimits {
+  max_candidates: number;
+  max_depth: number;
+  max_entries: number;
+  max_file_bytes: number;
+  max_hash_bytes: number;
   [k: string]: unknown;
 }
 export interface SourceDiscoveryReport {
@@ -1956,14 +1965,6 @@ export interface SourceInspectionReport1 {
   schema_version: number;
   state_code: string;
   summary: string;
-  [k: string]: unknown;
-}
-export interface SourceDiscoveryLimits {
-  max_candidates: number;
-  max_depth: number;
-  max_entries: number;
-  max_file_bytes: number;
-  max_hash_bytes: number;
   [k: string]: unknown;
 }
 export interface OutputSourceDiscoveryRequest {

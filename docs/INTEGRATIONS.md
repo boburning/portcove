@@ -127,7 +127,7 @@ updates, catalog updates, and frontend/plugin updates are distinct.
 
 The [integration author guide](INTEGRATION-AUTHOR.md) and
 [local Playnite reference](../integrations/playnite/README.md) provide the concrete
-schema-42 through schema-52 development path. The
+schema-42 through schema-53 development path. The
 [dated command audit and measurements](archive/2026-09-20-public-cli-consumer-audit.md)
 record the proportional capability mapping, process budgets, representative
 refresh and launch observations, and offline boundary. Their protocol fixtures

@@ -1509,7 +1509,9 @@ catalog-wide foreground scan considers only currently available saved roots and
 records unavailable roots as incomplete coverage rather than deletion. After a
 successful scan, core atomically replaces one bounded versioned snapshot containing
 the exact root identities and states, authoritative catalog digest, discovery report,
-limits and completion time. Cancellation or failure preserves the prior snapshot.
+limits and completion time. Current format 2 records the exact validated limits;
+legacy format-1 snapshots remain readable with unknown limits rather than invented
+coverage. Cancellation or failure preserves the prior snapshot.
 Reads report whether catalog bytes, roots, availability and relink state still match
 the recorded inputs. That does not claim the collection stayed byte-identical after
 the scan; the snapshot is local evidence, not a watcher, source registration, setup
