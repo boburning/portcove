@@ -2,10 +2,11 @@
 import assert from "node:assert/strict";
 import path from "node:path";
 import { access, mkdir, readFile, realpath, writeFile } from "node:fs/promises";
-import { By, until } from "selenium-webdriver";
+import { By, Key, until } from "selenium-webdriver";
 import { fileIdentity } from "../../../scripts/development-evidence.mjs";
 import {
   assertCompactReview,
+  assertPrimaryReviewAction,
   captureAccessibilityReport,
   reviewControls,
 } from "./desktop-review-controls.mjs";
@@ -56,12 +57,41 @@ export async function libraryHandoffScenario({
     );
     const sources = ownedCommand(["source", "list"]);
     const { click, button } = reviewControls(browser);
+    const assertEscapeRestoresFocus = async (trigger, dialog, name) => {
+      await browser.actions().sendKeys(Key.ESCAPE).perform();
+      await browser.wait(
+        async () => (await browser.findElements(dialog)).length === 0,
+        5_000,
+        `${name} Dialog did not close after Escape`,
+      );
+      await browser.wait(
+        async () => {
+          const candidate = await browser.findElement(trigger);
+          return await browser.executeScript(
+            "return document.activeElement === arguments[0];",
+            candidate,
+          );
+        },
+        5_000,
+        `${name} trigger did not regain focus after Escape`,
+      );
+    };
     await browser.navigate().refresh();
     await click(By.xpath('//nav//button[contains(., "Settings")]'));
-    await click(button("Move library"));
+    const moveTrigger = button("Move library");
+    const moveDialog = By.css('[aria-labelledby="move-library-title"]');
+    await click(moveTrigger);
+    await browser.wait(until.elementLocated(moveDialog), 15_000);
+    await assertEscapeRestoresFocus(moveTrigger, moveDialog, "library move");
+    await click(moveTrigger);
     await browser.findElement(By.id("library-destination")).sendKeys(destination);
     await click(button("Review move"));
     await browser.wait(until.elementLocated(button("Move to this folder")), 15_000);
+    const moveActionStyles = await assertPrimaryReviewAction(
+      browser,
+      await browser.findElement(button("Move to this folder")),
+      await browser.findElement(button("Close")),
+    );
     const plan = await browser.findElement(By.css('[aria-label="Library move plan"]')).getText();
     assert.ok(plan.includes(destination) && plan.includes(source));
     assert.ok(plan.includes(portId) && plan.includes(active.version));
@@ -151,11 +181,21 @@ export async function libraryHandoffScenario({
     assert.equal(restoreSelection.ok, true);
     await browser.navigate().refresh();
     await click(By.xpath('//nav//button[contains(., "Settings")]'));
-    await click(button("Restore library"));
+    const restoreTrigger = button("Restore library");
+    const restoreDialog = By.css('[aria-labelledby="import-library-title"]');
+    await click(restoreTrigger);
+    await browser.wait(until.elementLocated(restoreDialog), 15_000);
+    await assertEscapeRestoresFocus(restoreTrigger, restoreDialog, "library restore");
+    await click(restoreTrigger);
     await browser.findElement(By.id("import-metadata")).sendKeys(metadata);
     await browser.findElement(By.id("import-content")).sendKeys(destination);
     await click(button("Review restore"));
     await browser.wait(until.elementLocated(button("Restore this library")), 15_000);
+    const restoreActionStyles = await assertPrimaryReviewAction(
+      browser,
+      await browser.findElement(button("Restore this library")),
+      await browser.findElement(button("Close")),
+    );
     const restoreReview = await browser
       .findElement(By.css('[aria-label="Library restore plan"]'))
       .getText();
@@ -269,6 +309,11 @@ export async function libraryHandoffScenario({
           },
           preserved_active_identity: active.id,
           stale_generation_rejected: true,
+          move_and_restore_escape_dismissal_and_focus_restoration: true,
+          primary_action_styles: {
+            move: moveActionStyles,
+            restore: restoreActionStyles,
+          },
           evidence:
             "native owned-library move, trusted-export restore confirmation, and controlled pre-activation recovery; no physical interruption or production-feed claim",
         },

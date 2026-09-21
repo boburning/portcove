@@ -1,24 +1,26 @@
 import { useState } from "react";
 import { join } from "@tauri-apps/api/path";
 import { desktopApi } from "../api";
-import { useDialogFocus } from "../dialog";
 import { pickInstallFolder } from "../file-picker";
 import type { LibraryMovePlan } from "../types";
 import { errorText, formatBytes, formatCountMessage } from "../view-model";
 import { NavigationHints } from "./ui";
+import { Button } from "./ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "./ui/dialog";
 
 export function LibraryMoveButton({ disabled }: { disabled: boolean }) {
   const [open, setOpen] = useState(false);
   return (
     <>
-      <button
+      <Button
         data-focusable
-        className="small-control"
+        variant="outline"
+        size="sm"
         disabled={disabled}
         onClick={() => setOpen(true)}
       >
         Move library
-      </button>
+      </Button>
       {open && <LibraryMoveDialog close={() => setOpen(false)} />}
     </>
   );
@@ -36,7 +38,6 @@ function LibraryMoveDialog({ close }: { close: () => void }) {
       else close();
     }
   };
-  const dialog = useDialogFocus(dismiss);
   const recoveryRoot = transferRecoveryRoot(error);
   const canKeepOriginal = transferRecoveryCanKeepOriginal(error);
   const run = async (label: string, operation: () => Promise<void>) => {
@@ -60,21 +61,26 @@ function LibraryMoveDialog({ close }: { close: () => void }) {
       }
     });
   return (
-    <div className="scrim">
-      <section
-        ref={dialog}
-        className="modal"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="move-library-title"
+    <Dialog
+      open
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen) dismiss();
+      }}
+    >
+      <DialogContent
+        showCloseButton={false}
+        className="max-h-[calc(100dvh-var(--space-8))] w-[min(760px,90vw)] max-w-none gap-0 overflow-y-auto overscroll-contain p-8 [scroll-padding-block:var(--space-4)] sm:max-w-none"
+        aria-describedby="move-library-description"
       >
         <p className="eyebrow">LIBRARY STORAGE</p>
-        <h2 id="move-library-title">Move your library</h2>
-        <p className="modal-description">
+        <DialogTitle id="move-library-title" className="mb-2 text-xl">
+          Move your library
+        </DialogTitle>
+        <DialogDescription id="move-library-description" className="mb-4 leading-relaxed">
           Copy and verify application versions, saves, backups, and toolchains before switching to
           the new folder. The original folder stays available for recovery. Original game sources
           and other saved game-file locations stay unchanged.
-        </p>
+        </DialogDescription>
         <NavigationHints />
         <label htmlFor="library-destination">New library folder</label>
         <div className="path-entry">
@@ -90,15 +96,16 @@ function LibraryMoveDialog({ close }: { close: () => void }) {
             }}
             placeholder="Full path to a new folder"
           />
-          <button
+          <Button
             data-focusable
+            variant="outline"
             disabled={Boolean(busy) || Boolean(recoveryRoot)}
             onClick={() => {
               void browse();
             }}
           >
             Choose parent folder
-          </button>
+          </Button>
         </div>
         {plan && (
           <LibraryCopySummary plan={plan} source={plan.source_root} label="Library move plan" />
@@ -115,15 +122,14 @@ function LibraryMoveDialog({ close }: { close: () => void }) {
             onBusyChange={(active) => setBusy(active ? "Recovering your library…" : "")}
           />
         )}
-        <div className="actions">
-          <button data-focusable disabled={Boolean(busy)} onClick={dismiss}>
+        <DialogFooter className="mt-4">
+          <Button data-focusable variant="outline" disabled={Boolean(busy)} onClick={dismiss}>
             Close
-          </button>
+          </Button>
           {!recoveryRoot &&
             (plan ? (
-              <button
+              <Button
                 data-focusable
-                className="primary"
                 disabled={Boolean(busy)}
                 onClick={() => {
                   void run("Copying and verifying your library…", async () => {
@@ -134,11 +140,10 @@ function LibraryMoveDialog({ close }: { close: () => void }) {
                 }}
               >
                 Move to this folder
-              </button>
+              </Button>
             ) : (
-              <button
+              <Button
                 data-focusable
-                className="primary"
                 disabled={Boolean(busy) || !destination.trim()}
                 onClick={() => {
                   void run("Reviewing your library…", async () =>
@@ -147,11 +152,11 @@ function LibraryMoveDialog({ close }: { close: () => void }) {
                 }}
               >
                 Review move
-              </button>
+              </Button>
             ))}
-        </div>
-      </section>
-    </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -190,7 +195,7 @@ export function LibraryMoveRecovery({
       )}
       <p>Neither option deletes the copied files.</p>
       <div className="actions">
-        <button
+        <Button
           data-focusable
           disabled={busy}
           onClick={() => {
@@ -198,17 +203,18 @@ export function LibraryMoveRecovery({
           }}
         >
           Resume move
-        </button>
+        </Button>
         {canKeepOriginal && (
-          <button
+          <Button
             data-focusable
+            variant="outline"
             disabled={busy}
             onClick={() => {
               void recover(true);
             }}
           >
             Keep using original library
-          </button>
+          </Button>
         )}
       </div>
       {busy && <p role="status">Recovering the library move…</p>}
