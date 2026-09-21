@@ -101,6 +101,35 @@ export async function assertCompactReview(browser, selector) {
   });
 }
 
+export async function assertDestructiveReviewAction(browser, destructive, neutral) {
+  const styles = await browser.executeScript(
+    (destructive, neutral) => {
+      const snapshot = (element) => {
+        const computed = getComputedStyle(element);
+        return {
+          background: computed.backgroundColor,
+          border: computed.borderColor,
+          color: computed.color,
+        };
+      };
+      return {
+        destructive: snapshot(destructive),
+        neutral: snapshot(neutral),
+        variant: destructive.dataset.variant,
+      };
+    },
+    destructive,
+    neutral,
+  );
+  assert.equal(styles.variant, "destructive");
+  assert.notDeepEqual(
+    styles.destructive,
+    styles.neutral,
+    "A destructive review action must remain visually distinct from its neutral dismissal",
+  );
+  return styles;
+}
+
 export async function captureAccessibilityReport(browser, report, artifacts) {
   await browser.executeScript(axe.source);
   const accessibility = await browser.executeAsyncScript((done) => window.axe.run().then(done));

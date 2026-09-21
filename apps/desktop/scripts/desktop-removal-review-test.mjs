@@ -3,8 +3,12 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import { readFile, readdir, stat, writeFile } from "node:fs/promises";
 import { fileIdentity } from "../../../scripts/development-evidence.mjs";
-import { By, until } from "selenium-webdriver";
-import { captureAccessibilityReport, reviewControls } from "./desktop-review-controls.mjs";
+import { By, Key, until } from "selenium-webdriver";
+import {
+  assertDestructiveReviewAction,
+  captureAccessibilityReport,
+  reviewControls,
+} from "./desktop-review-controls.mjs";
 
 export async function removalReviewScenario({
   browser,
@@ -38,8 +42,9 @@ export async function removalReviewScenario({
     const { button, click } = reviewControls(browser);
     const dialog = By.css('[aria-labelledby="removal-review-title"]');
     await click(By.css("summary.advanced-summary"));
+    const trigger = button("Remove managed files");
     const review = async () => {
-      await click(button("Remove managed files"));
+      await click(trigger);
       await browser.wait(until.elementLocated(button("Remove these managed folders")), 15_000);
     };
     const generation = (await invoke("get_bootstrap_status")).value.generation;
@@ -49,6 +54,29 @@ export async function removalReviewScenario({
     });
     assert.equal(initial.ok, true);
     await review();
+    await browser.actions().sendKeys(Key.ESCAPE).perform();
+    await browser.wait(
+      async () => (await browser.findElements(dialog)).length === 0,
+      5_000,
+      "installed-game removal Dialog did not close after Escape",
+    );
+    await browser.wait(
+      async () => {
+        const candidate = await browser.findElement(trigger);
+        return await browser.executeScript(
+          "return document.activeElement === arguments[0];",
+          candidate,
+        );
+      },
+      5_000,
+      "installed-game removal trigger did not regain focus after Escape",
+    );
+    await review();
+    const destructiveStyles = await assertDestructiveReviewAction(
+      browser,
+      await browser.findElement(button("Remove these managed folders")),
+      await browser.findElement(button("Keep installed files")),
+    );
     for (const affected of initial.value.managed_paths)
       assert.ok((await browser.findElement(dialog).getText()).includes(affected));
     await click(button("Keep installed files"));
@@ -159,6 +187,8 @@ export async function removalReviewScenario({
           dismissal_preserved_files: true,
           changed_inventory_rejected: true,
           stale_generation_rejected: true,
+          escape_dismissal_and_focus_restoration: true,
+          destructive_action_styles: destructiveStyles,
           evidence:
             "owned fixture removal through native UI and core authorization; no physical interruption or gameplay claim",
         },

@@ -40,7 +40,7 @@ afterEach(async () => {
   vi.unstubAllGlobals();
 });
 function button(label: string) {
-  const result = [...container.querySelectorAll("button")].find(
+  const result = [...document.body.querySelectorAll("button")].find(
     (item) => item.textContent === label,
   );
   expect(result).toBeDefined();
@@ -48,6 +48,11 @@ function button(label: string) {
 }
 async function click(label: string) {
   await act(async () => button(label).click());
+}
+function dialog() {
+  const result = document.body.querySelector<HTMLElement>('[data-slot="dialog-content"]');
+  expect(result).not.toBeNull();
+  return result!;
 }
 
 it("shows the original path, installed impact and all dependents without removing anything", async () => {
@@ -74,8 +79,8 @@ it("shows the original path, installed impact and all dependents without removin
     "never schedules deletion",
     "no one-click undo",
   ])
-    expect(container.textContent).toContain(text);
-  expect(container.querySelector("[data-autofocus]")?.textContent).toBe("Keep source reference");
+    expect(dialog().textContent).toContain(text);
+  expect(dialog().querySelector("[data-autofocus]")?.textContent).toBe("Keep source reference");
   await click("Keep source reference");
   expect(close).toHaveBeenCalledOnce();
   expect(remove).not.toHaveBeenCalled();
@@ -101,7 +106,7 @@ it("binds application to the review and does not treat native cancellation as re
   expect(remove).toHaveBeenCalledExactlyOnceWith("source", "reviewed-source-impact", 3);
   expect(close).toHaveBeenCalledOnce();
   expect(removed).not.toHaveBeenCalled();
-  expect(container.querySelector('[role="alert"]')).toBeNull();
+  expect(document.body.querySelector('[role="alert"]')).toBeNull();
 });
 
 it("blocks duplicate submissions within one event batch and requires fresh intent after rejection", async () => {
@@ -138,10 +143,10 @@ it("blocks duplicate submissions within one event batch and requires fresh inten
   expect(remove).toHaveBeenCalledOnce();
   expect(close).not.toHaveBeenCalled();
   await act(async () => reject(new Error("Source or dependents changed")));
-  expect(container.querySelector('[role="alert"]')?.textContent).toContain(
+  expect(dialog().querySelector('[role="alert"]')?.textContent).toContain(
     "Source or dependents changed",
   );
-  expect(container.textContent).not.toContain("Continue to removal confirmation");
+  expect(dialog().textContent).not.toContain("Continue to removal confirmation");
   await click("Review source removal again");
   expect(read).toHaveBeenCalledTimes(2);
   await click("Continue to removal confirmation");
@@ -192,9 +197,9 @@ it("ignores a late preview from a previous source or library", async () => {
     ),
   );
   await act(async () => finish(preview));
-  expect(container.textContent).toContain("new-original/game.bin");
-  expect(container.textContent).toContain("No installed game currently depends");
-  expect(container.textContent).not.toContain("Reference to remove: source");
+  expect(dialog().textContent).toContain("new-original/game.bin");
+  expect(dialog().textContent).toContain("No installed game currently depends");
+  expect(dialog().textContent).not.toContain("Reference to remove: source");
 });
 
 it("retries only the list refresh after a completed removal has a refresh failure", async () => {
@@ -220,7 +225,7 @@ it("retries only the list refresh after a completed removal has a refresh failur
   expect(container.querySelector('[role="status"]')?.textContent).toContain(
     "The reference was removed",
   );
-  expect(container.querySelector('[role="dialog"]')).toBeNull();
+  expect(document.body.querySelector('[role="dialog"]')).toBeNull();
   await click("Refresh source list");
   expect(remove).toHaveBeenCalledOnce();
   expect(refresh).toHaveBeenCalledTimes(2);
@@ -236,7 +241,7 @@ it("never commits an old source preview under a new identity", async () => {
   const removed = vi.fn();
   function Context({ profileId }: { profileId: string }) {
     useLayoutEffect(() => {
-      observations.push(container.textContent ?? "");
+      observations.push(document.body.textContent ?? "");
     }, [profileId]);
     return (
       <SourceRemovalDialog
@@ -249,8 +254,8 @@ it("never commits an old source preview under a new identity", async () => {
     );
   }
   await act(async () => root.render(<Context profileId="source" />));
-  expect(container.textContent).toContain("original/game.bin");
+  expect(dialog().textContent).toContain("original/game.bin");
   await act(async () => root.render(<Context profileId="new" />));
   expect(observations.at(-1)).not.toContain("original/game.bin");
-  expect(container.textContent).not.toContain("Continue to removal confirmation");
+  expect(dialog().textContent).not.toContain("Continue to removal confirmation");
 });

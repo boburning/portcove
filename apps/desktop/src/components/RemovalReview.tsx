@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { Trash2 } from "lucide-react";
 import { desktopApi } from "../api";
-import { useDialogFocus } from "../dialog";
 import type { PortDefinition } from "../types";
 import { useActionReview, type ReviewOutcome } from "../use-action-review";
 import { Icon } from "./ui";
+import { Button } from "./ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "./ui/dialog";
 
 export type ApplyRemoval = (expectedPreview: string) => Promise<ReviewOutcome>;
 
@@ -22,15 +23,10 @@ export function RemovalControl({
   const [open, setOpen] = useState(false);
   return (
     <>
-      <button
-        data-focusable
-        className="danger button-with-icon"
-        disabled={busy}
-        onClick={() => setOpen(true)}
-      >
+      <Button data-focusable variant="destructive" disabled={busy} onClick={() => setOpen(true)}>
         <Icon glyph={Trash2} />
         Remove managed files
-      </button>
+      </Button>
       {open && (
         <RemovalReviewDialog
           port={port}
@@ -69,21 +65,24 @@ export function RemovalReviewDialog({
     failureMessage:
       "Removal did not complete. Review the current installation and any recovery notice before trying again.",
   });
-  const dialog = useDialogFocus(dismiss);
   return (
-    <div className="scrim">
-      <section
-        ref={dialog}
-        className="modal"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="removal-review-title"
+    <Dialog
+      open
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen) dismiss();
+      }}
+    >
+      <DialogContent
+        showCloseButton={false}
+        className="max-h-[calc(100dvh-var(--space-8))] w-[min(680px,90vw)] max-w-none gap-0 overflow-y-auto overscroll-contain p-8 [scroll-padding-block:var(--space-4)] sm:max-w-none"
         aria-describedby="removal-review-description"
       >
-        <h2 id="removal-review-title">Review installed-game removal</h2>
-        <p id="removal-review-description">
+        <DialogTitle id="removal-review-title" className="mb-2 text-xl">
+          Review installed-game removal
+        </DialogTitle>
+        <DialogDescription id="removal-review-description" className="mb-4 leading-relaxed">
           Remove the managed versions of {port.name} listed below.
-        </p>
+        </DialogDescription>
         {pending === "review" && <p role="status">Checking installed versions…</p>}
         {preview && (
           <section className="removal-review-details" aria-label="Files removed and data preserved">
@@ -122,12 +121,18 @@ export function RemovalReviewDialog({
           </section>
         )}
         {error && <p role="alert">{error}</p>}
-        <div className="actions">
-          <button data-autofocus data-focusable disabled={pending === "apply"} onClick={dismiss}>
+        <DialogFooter className="mt-4">
+          <Button
+            data-autofocus
+            data-focusable
+            variant="outline"
+            disabled={pending === "apply"}
+            onClick={dismiss}
+          >
             Keep installed files
-          </button>
+          </Button>
           {!preview && (
-            <button
+            <Button
               data-focusable
               disabled={Boolean(pending)}
               onClick={() => {
@@ -135,22 +140,22 @@ export function RemovalReviewDialog({
               }}
             >
               Review removal again
-            </button>
+            </Button>
           )}
           {preview && (
-            <button
+            <Button
               data-focusable
-              className="danger"
+              variant="destructive"
               disabled={Boolean(pending) || !preview.persistent_data_will_be_preserved}
               onClick={() => {
                 void remove();
               }}
             >
               {pending === "apply" ? "Removing reviewed files…" : "Remove these managed folders"}
-            </button>
+            </Button>
           )}
-        </div>
-      </section>
-    </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

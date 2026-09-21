@@ -2154,13 +2154,15 @@ select {
   text-transform: capitalize;
 }
 
-.danger {
+.danger,
+[data-slot="button"][data-variant="destructive"] {
   border-color: var(--color-danger-border);
   color: var(--color-danger-text);
   background: var(--color-danger-subtle);
 }
 
-.danger:hover:not(:disabled) {
+.danger:hover:not(:disabled),
+[data-slot="button"][data-variant="destructive"]:hover:not(:disabled) {
   border-color: var(--color-danger-surface);
   color: var(--color-text-on-dark);
   background: var(--color-danger-surface);

@@ -30,11 +30,17 @@ afterEach(async () => {
   vi.unstubAllGlobals();
 });
 async function click(label: string) {
-  const button = [...container.querySelectorAll("button")].find(
+  const button = [...document.body.querySelectorAll("button")].find(
     (button) => button.textContent === label,
   );
   expect(button).toBeDefined();
   await act(async () => button?.click());
+}
+
+function dialog() {
+  const result = document.body.querySelector<HTMLElement>('[data-slot="dialog-content"]');
+  expect(result).not.toBeNull();
+  return result!;
 }
 
 it("lists every affected path, removed settings and preserved data before explicit consent", async () => {
@@ -47,7 +53,7 @@ it("lists every affected path, removed settings and preserved data before explic
   expect(preview).toHaveBeenCalledExactlyOnceWith(port.id, 7);
   expect(apply).not.toHaveBeenCalled();
   for (const path of [...review.managed_paths, review.persistent_data_path])
-    expect(container.textContent).toContain(path);
+    expect(dialog().textContent).toContain(path);
   for (const text of [
     "2 managed folders",
     "release-channel and update-policy settings",
@@ -55,10 +61,10 @@ it("lists every affected path, removed settings and preserved data before explic
     "retains a recovery journal",
     "not an undo",
   ])
-    expect(container.textContent).toContain(text);
-  expect(container.textContent).toContain("original folders used for copied installations");
-  expect(container.textContent?.toLowerCase()).not.toContain("adoption");
-  expect(container.querySelector("[data-autofocus]")?.textContent).toBe("Keep installed files");
+    expect(dialog().textContent).toContain(text);
+  expect(dialog().textContent).toContain("original folders used for copied installations");
+  expect(dialog().textContent?.toLowerCase()).not.toContain("adoption");
+  expect(dialog().querySelector("[data-autofocus]")?.textContent).toBe("Keep installed files");
   await click("Remove these managed folders");
   expect(apply).toHaveBeenCalledExactlyOnceWith("reviewed-installations");
   expect(close).toHaveBeenCalledOnce();
@@ -85,7 +91,7 @@ it("closes the review without an error when final native consent is declined", a
   );
   await click("Remove these managed folders");
   expect(close).toHaveBeenCalledOnce();
-  expect(container.querySelector('[role="alert"]')).toBeNull();
+  expect(dialog().querySelector('[role="alert"]')).toBeNull();
 });
 
 it("blocks duplicate removal and requires a new review after failure", async () => {
@@ -107,8 +113,8 @@ it("blocks duplicate removal and requires a new review after failure", async () 
   expect(apply).toHaveBeenCalledOnce();
   expect(close).not.toHaveBeenCalled();
   await act(async () => finish(false));
-  expect(container.querySelector('[role="alert"]')?.textContent).toContain("did not complete");
-  expect(container.textContent).not.toContain("Remove these managed folders");
+  expect(dialog().querySelector('[role="alert"]')?.textContent).toContain("did not complete");
+  expect(dialog().textContent).not.toContain("Remove these managed folders");
   await click("Review removal again");
   expect(preview).toHaveBeenCalledTimes(2);
 });
@@ -139,7 +145,7 @@ it("ignores a late review from the previous library", async () => {
     ),
   );
   await act(async () => finish(review));
-  expect(container.textContent).toContain("new-library/versions/current");
-  expect(container.textContent).not.toContain("external/versions/retained");
+  expect(dialog().textContent).toContain("new-library/versions/current");
+  expect(dialog().textContent).not.toContain("external/versions/retained");
   expect(apply).not.toHaveBeenCalled();
 });
