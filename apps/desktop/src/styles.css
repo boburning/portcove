@@ -883,19 +883,22 @@ h2 {
   border-radius: var(--radius-md);
 }
 
-.primary {
+.primary,
+[data-slot="button"][data-variant="default"] {
   border-color: var(--color-accent-surface);
   color: var(--color-text-on-dark);
   background: var(--color-accent-surface);
   font-weight: 800;
 }
 
-.primary:hover:not(:disabled) {
+.primary:hover:not(:disabled),
+[data-slot="button"][data-variant="default"]:hover:not(:disabled) {
   border-color: var(--color-accent-hover);
   background: var(--color-accent-hover);
 }
 
-.primary:active:not(:disabled) {
+.primary:active:not(:disabled),
+[data-slot="button"][data-variant="default"]:active:not(:disabled) {
   border-color: var(--color-accent-active);
   background: var(--color-accent-active);
 }

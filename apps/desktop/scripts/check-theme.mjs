@@ -127,6 +127,18 @@ if (!destructiveButtonBlock) {
   }
 }
 
+const primaryButtonBlock = componentCss.match(
+  /\[data-slot=(?:"button"|'button')\]\[data-variant=(?:"default"|'default')\][^{]*\{([^}]*)\}/i,
+);
+if (!primaryButtonBlock) {
+  failures.push("Base Button default variant is missing an unlayered semantic style mapping");
+} else {
+  for (const token of ["--color-accent-surface", "--color-text-on-dark"]) {
+    if (!primaryButtonBlock[1].includes(`var(${token})`))
+      failures.push(`Base Button default variant must map to ${token}`);
+  }
+}
+
 function tokenValue(tokens, token) {
   const value = tokens.get(token);
   if (!value) throw new Error(`Unknown theme token ${token}`);

@@ -101,9 +101,9 @@ export async function assertCompactReview(browser, selector) {
   });
 }
 
-export async function assertDestructiveReviewAction(browser, destructive, neutral) {
+async function assertSemanticReviewAction(browser, action, neutral, variant, description) {
   const styles = await browser.executeScript(
-    (destructive, neutral) => {
+    (action, neutral) => {
       const snapshot = (element) => {
         const computed = getComputedStyle(element);
         return {
@@ -113,21 +113,41 @@ export async function assertDestructiveReviewAction(browser, destructive, neutra
         };
       };
       return {
-        destructive: snapshot(destructive),
+        action: snapshot(action),
         neutral: snapshot(neutral),
-        variant: destructive.dataset.variant,
+        variant: action.dataset.variant,
       };
     },
-    destructive,
+    action,
     neutral,
   );
-  assert.equal(styles.variant, "destructive");
+  assert.equal(styles.variant, variant);
   assert.notDeepEqual(
-    styles.destructive,
+    styles.action,
     styles.neutral,
-    "A destructive review action must remain visually distinct from its neutral dismissal",
+    `${description} must remain visually distinct from its neutral dismissal`,
   );
   return styles;
+}
+
+export async function assertDestructiveReviewAction(browser, destructive, neutral) {
+  return assertSemanticReviewAction(
+    browser,
+    destructive,
+    neutral,
+    "destructive",
+    "A destructive review action",
+  );
+}
+
+export async function assertPrimaryReviewAction(browser, primary, neutral) {
+  return assertSemanticReviewAction(
+    browser,
+    primary,
+    neutral,
+    "default",
+    "A primary review action",
+  );
 }
 
 export async function captureAccessibilityReport(browser, report, artifacts) {

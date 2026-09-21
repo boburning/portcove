@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { desktopApi } from "../api";
-import { useDialogFocus } from "../dialog";
 import { pickInstallFolder, pickMetadataImportPath } from "../file-picker";
 import type { LibraryImportPlan } from "../types";
 import { errorText } from "../view-model";
 import { LibraryCopySummary, transferRecoveryRoot } from "./LibraryMove";
 import { NavigationHints } from "./ui";
+import { Button } from "./ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "./ui/dialog";
 
 export function LibraryImportButton({
   disabled,
@@ -17,14 +18,15 @@ export function LibraryImportButton({
   const [open, setOpen] = useState(false);
   return (
     <>
-      <button
+      <Button
         data-focusable
-        className="small-control"
+        variant="outline"
+        size="sm"
         disabled={disabled}
         onClick={() => setOpen(true)}
       >
         Restore library
-      </button>
+      </Button>
       {open && <LibraryImportDialog libraryRoot={libraryRoot} close={() => setOpen(false)} />}
     </>
   );
@@ -43,7 +45,6 @@ function LibraryImportDialog({ libraryRoot, close }: { libraryRoot: string; clos
       else close();
     }
   };
-  const dialog = useDialogFocus(dismiss);
   const recoveryRoot = transferRecoveryRoot(error, "import_destination");
   const run = async (label: string, operation: () => Promise<void>) => {
     setBusy(label);
@@ -68,20 +69,25 @@ function LibraryImportDialog({ libraryRoot, close }: { libraryRoot: string; clos
     });
   const locked = Boolean(busy) || Boolean(recoveryRoot);
   return (
-    <div className="scrim">
-      <section
-        ref={dialog}
-        className="modal wide-modal"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="import-library-title"
+    <Dialog
+      open
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen) dismiss();
+      }}
+    >
+      <DialogContent
+        showCloseButton={false}
+        className="max-h-[calc(100dvh-var(--space-8))] w-[min(860px,90vw)] max-w-none gap-0 overflow-y-auto overscroll-contain p-8 [scroll-padding-block:var(--space-4)] sm:max-w-none"
+        aria-describedby="import-library-description"
       >
         <p className="eyebrow">RESTORE PORTCOVE LIBRARY</p>
-        <h2 id="import-library-title">Restore your library</h2>
-        <p className="modal-description">
+        <DialogTitle id="import-library-title" className="mb-2 text-xl">
+          Restore your library
+        </DialogTitle>
+        <DialogDescription id="import-library-description" className="mb-4 leading-relaxed">
           Restore a Portcove export and its copied library data into this empty library. Portcove
           checks the copy before opening it and does not change the export.
-        </p>
+        </DialogDescription>
         <p>
           <strong>Use an export you trust.</strong> Review its source, destination, required space,
           installed versions, saved game-file locations, and copied files before restoring it.
@@ -104,15 +110,16 @@ function LibraryImportDialog({ libraryRoot, close }: { libraryRoot: string; clos
             }}
             placeholder="Choose a Portcove library export"
           />
-          <button
+          <Button
             data-focusable
+            variant="outline"
             disabled={locked}
             onClick={() => {
               void choose("metadata");
             }}
           >
             Choose file
-          </button>
+          </Button>
         </div>
         <label htmlFor="import-content">Exported library folder</label>
         <div className="path-entry">
@@ -127,15 +134,16 @@ function LibraryImportDialog({ libraryRoot, close }: { libraryRoot: string; clos
             }}
             placeholder="Folder containing the exported Portcove library"
           />
-          <button
+          <Button
             data-focusable
+            variant="outline"
             disabled={locked}
             onClick={() => {
               void choose("content");
             }}
           >
             Choose folder
-          </button>
+          </Button>
         </div>
         {plan && (
           <LibraryCopySummary plan={plan} source={plan.content_root} label="Library restore plan" />
@@ -151,15 +159,14 @@ function LibraryImportDialog({ libraryRoot, close }: { libraryRoot: string; clos
             onBusyChange={(active) => setBusy(active ? "Recovering your restore…" : "")}
           />
         )}
-        <div className="actions">
-          <button data-focusable disabled={Boolean(busy)} onClick={dismiss}>
+        <DialogFooter className="mt-4">
+          <Button data-focusable variant="outline" disabled={Boolean(busy)} onClick={dismiss}>
             Close
-          </button>
+          </Button>
           {!recoveryRoot &&
             (plan ? (
-              <button
+              <Button
                 data-focusable
-                className="primary"
                 disabled={Boolean(busy)}
                 onClick={() => {
                   void run("Copying and verifying the restored library…", async () => {
@@ -174,11 +181,10 @@ function LibraryImportDialog({ libraryRoot, close }: { libraryRoot: string; clos
                 }}
               >
                 Restore this library
-              </button>
+              </Button>
             ) : (
-              <button
+              <Button
                 data-focusable
-                className="primary"
                 disabled={Boolean(busy) || !metadata.trim() || !content.trim()}
                 onClick={() => {
                   void run("Reviewing your restore…", async () =>
@@ -187,11 +193,11 @@ function LibraryImportDialog({ libraryRoot, close }: { libraryRoot: string; clos
                 }}
               >
                 Review restore
-              </button>
+              </Button>
             ))}
-        </div>
-      </section>
-    </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -224,7 +230,7 @@ export function LibraryImportRecovery({
         Resume the restore to verify and finish opening the copied library. The Portcove export
         stays unchanged. Incomplete copies remain closed until recovery succeeds.
       </p>
-      <button
+      <Button
         data-focusable
         disabled={busy}
         onClick={() => {
@@ -232,7 +238,7 @@ export function LibraryImportRecovery({
         }}
       >
         Resume restore
-      </button>
+      </Button>
       {busy && <p role="status">Recovering the library restore…</p>}
       {error && <p role="alert">{error}</p>}
     </section>
