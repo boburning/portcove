@@ -1,0 +1,24 @@
+{
+  "app": {
+    "security": {
+      "capabilities": [
+        {
+          "identifier": "native-compatibility-qualification",
+          "description": "On-demand native design-system compatibility qualification only",
+          "windows": ["main"],
+          "permissions": [
+            "core:default",
+            "core:app:allow-set-app-theme",
+            "dialog:allow-open",
+            "dialog:allow-confirm",
+            "dialog:allow-save",
+            "wdio-webdriver:default"
+          ]
+        }
+      ]
+    }
+  },
+  "bundle": {
+    "active": false
+  }
+}

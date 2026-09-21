@@ -21,7 +21,7 @@ test("desktop scenario catalog is nonempty, unique, and fully profiled", () => {
       );
   }
   for (const item of catalogReport()) {
-    if (item.id === "native-repeated-library-reload") continue;
+    if (item.id === "native-repeated-library-reload" || item.qualification_only) continue;
     assert.ok(item.profiles.length > 0, item.id);
     for (const dependency of item.dependencies) {
       const dependencyIndex = DESKTOP_SCENARIOS.findIndex(
@@ -52,6 +52,17 @@ test("exact selections are deduplicated and returned in catalog order", () => {
   assert.equal(selection.profile, null);
   assert.deepEqual(selection.selected_scenarios, ["keyboard-layout", "accessibility"]);
   assert.deepEqual(selection.setup_scenarios, []);
+});
+
+test("design compatibility stays exact-selection-only and requests its isolated fixture", () => {
+  for (const ids of Object.values(DESKTOP_PROFILES))
+    assert.ok(!ids.includes("native-design-system-compatibility"));
+  const selection = resolveDesktopSelection({
+    scenarios: ["native-design-system-compatibility"],
+  });
+  assert.deepEqual(selection.selected_scenarios, ["native-design-system-compatibility"]);
+  assert.deepEqual(selection.setup_scenarios, []);
+  assert.ok(selection.prerequisites.includes("design-compatibility-fixture"));
 });
 
 test("focused lifecycle selection resolves setup without claiming it", () => {

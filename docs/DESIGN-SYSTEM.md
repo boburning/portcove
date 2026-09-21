@@ -2,7 +2,42 @@
 
 Portcove should feel like development software from an alternate 1997 console studio, rebuilt with current desktop UX and accessibility standards. Nostalgia never outranks clarity. The working interface stays compact, neutral, and technical; personality appears through tactile geometry, restrained color, direct copy, and quick interaction feedback.
 
-The existing React/Vite/Tauri desktop and its custom controls remain shipped behavior until the planned [#917](https://github.com/boburning/portcove/issues/917) migration replaces them. The approved Public beta destination is official shadcn/ui component source using Base UI, Tailwind, semantic CSS variables, and a Portcove theme. This is a decided architecture, not another framework comparison or a claim that the migration has shipped.
+The existing React/Vite/Tauri desktop and its custom controls remain shipped behavior until the planned [#917](https://github.com/boburning/portcove/issues/917) migration replaces them. Its first foundation is now checked in: official shadcn/ui component source using Base UI, Tailwind, semantic CSS variables, and a Portcove theme. This is a decided architecture and a migration foundation, not another framework comparison or a claim that the redesign or its platform qualification has shipped.
+
+## Checked-in foundation
+
+`apps/desktop/components.json` records Base UI, Base Nova (`style: base-nova`), React Server Components off, Lucide, the Tailwind entry, and the app-local aliases. The initial checked-in controls are Button, Dialog, and Select. They exist to prove the difficult installation-review nesting; they do not authorize broad screen migration by themselves. Portcove retained the generated internal implementations but removed the unused generated helper and unused public exports after static analysis; future regeneration must preserve that deliberately smaller maintained surface.
+
+The foundation was generated and reviewed with these exact direct inputs:
+
+| Input                             | Version | License    | Demonstrated purpose                                              |
+| --------------------------------- | ------- | ---------- | ----------------------------------------------------------------- |
+| shadcn CLI                        | 4.21.0  | MIT        | Base/Nova project configuration and checked-in control source     |
+| Tailwind CSS and Vite integration | 4.3.3   | MIT        | generated component utilities and production CSS compilation      |
+| Base UI React                     | 1.8.0   | MIT        | dialog, select, portal, dismissal, and focus primitives           |
+| class-variance-authority          | 0.7.1   | Apache-2.0 | generated Button variants                                         |
+| cn                                | 0.3.0   | MIT        | generated class composition utility                               |
+| tw-animate-css                    | 1.4.0   | MIT        | generated state animations with Portcove reduced-motion overrides |
+| Geist variable font               | 5.3.0   | OFL-1.1    | bundled, offline heading and interface typography                 |
+| Tauri WDIO WebDriver plugin       | 1.4.0   | MIT        | feature-gated driver server, absent from production builds        |
+
+The production build from base `52e81bd` emitted 560,643 bytes of JavaScript and 76,142 bytes of CSS. The same build after the foundation emitted 560,908 bytes of JavaScript, 111,551 bytes of CSS, and 76,416 bytes of local font files: a measured 112,094-byte raw asset increase excluding source maps (about 82,990 bytes using Vite's gzip figures for CSS/JavaScript and the already-compressed font files). This measurement is a bundle effect, not a performance claim.
+
+For an upstream component update, invoke the exact CLI on demand with `pnpm dlx shadcn@4.21.0`, inspect `shadcn view` and `shadcn add <component> --dry-run`, compare the generated source with the app-owned file, and apply only reviewed changes. The app vendors only the generated `data-open`, `data-closed`, and `data-disabled` variants it uses, so ordinary installs and production builds do not carry the CLI dependency graph. Never overwrite Portcove token mappings or behavior fixes wholesale. Dependency upgrades and copied-component updates remain separate review decisions.
+
+## Compatibility and qualification boundary
+
+The dependency requirement, Portcove support promise, and observed environment are different facts:
+
+| Platform            | Upstream dependency requirement                                                              | Portcove Public beta baseline                                  | Executable evidence owner                                                                                                                           |
+| ------------------- | -------------------------------------------------------------------------------------------- | -------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Windows x64         | Tailwind/Base UI need a Chromium-family engine at least Chrome/Edge 111                      | Unchanged while #993 establishes an explicit WebView2/OS floor | Run `native-design-system-compatibility` in the actual Tauri app and record the exact WebView2 runtime; a current runtime pass is not minimum proof |
+| Linux x64           | Wry 0.55.1 requires WebKitGTK 2.40+; Tailwind does not publish a WebKitGTK minimum guarantee | Unchanged while #993 proves an explicit Linux/WebKitGTK floor  | Use the existing Linux Tauri/WebKitWebDriver harness on the exact environment                                                                       |
+| Steam Deck          | Must satisfy the proven Linux engine requirement in the actual SteamOS runtime               | Unchanged and not inferred from Ubuntu                         | Run the same retained fixture artifact/procedure on a Deck and record SteamOS/WebKitGTK identity                                                    |
+| macOS Intel         | Tailwind/Base UI require Safari/WebKit 16.4-era features                                     | Unchanged; no macOS minimum is raised by this foundation       | Use the qualification-only embedded WebdriverIO route on an exact Intel WKWebView host                                                              |
+| macOS Apple silicon | Tailwind/Base UI require Safari/WebKit 16.4-era features                                     | Unchanged; architecture does not itself establish an OS floor  | Use the qualification-only embedded WebdriverIO route on an exact Apple-silicon WKWebView host                                                      |
+
+Vite's `es2021`, `chrome105`, and `safari13` transform targets remain unchanged and are not an operating-system support declaration. A support-policy reduction requires a separate reviewed change reconciling build targets, packages, updater behavior, and stable support documentation. Until #993 records the required native-family and claimed-minimum evidence, an affected platform remains unqualified for redesign publication even though this non-publishing foundation may be developed and merged. #45 retains broader 1.0 qualification.
 
 ## Foundations
 

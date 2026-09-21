@@ -1,3 +1,6 @@
+import { readFile } from "node:fs/promises";
+import { URL } from "node:url";
+
 import { expect, it } from "vitest";
 import config, { assertScenarioExclusion } from "../../vite.config";
 
@@ -12,6 +15,19 @@ it("rejects scenario modules and entrypoints from a production bundle", () => {
     "/repo/src/test-fixtures.ts?raw",
   ])
     expect(() => assertScenarioExclusion([id], ["index.html"])).toThrow("cannot ship");
+  expect(() =>
+    assertScenarioExclusion(
+      ["/repo/src/design-compatibility/DesignCompatibilityFixture.tsx"],
+      ["index.html"],
+    ),
+  ).toThrow("cannot ship");
+  expect(() =>
+    assertScenarioExclusion(
+      ["/repo/src/design-compatibility/DesignCompatibilityFixture.tsx"],
+      ["index.html"],
+      true,
+    ),
+  ).not.toThrow();
   expect(() => assertScenarioExclusion([], ["scenarios.html"])).toThrow("cannot ship");
 });
 
@@ -21,4 +37,12 @@ it("registers scenario exclusion on production builds", () => {
   );
   expect(plugin.apply).toBe("build");
   expect(typeof plugin.generateBundle).toBe("function");
+});
+
+it("keeps Tailwind Preflight out of ordinary legacy screens", async () => {
+  const css = await readFile(new URL("../styles.css", import.meta.url), "utf8");
+  expect(css).toContain('@import "tailwindcss/theme.css" layer(theme);');
+  expect(css).toContain('@import "tailwindcss/utilities.css" layer(utilities);');
+  expect(css).not.toMatch(/@import\s+["']tailwindcss["']/);
+  expect(css).not.toContain("tailwindcss/preflight.css");
 });

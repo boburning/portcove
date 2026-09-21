@@ -11,8 +11,9 @@ for option in "$@"; do
   case "$option" in
     --include-rpm) packages+=(rpm) ;;
     --include-appimage-runtime) packages+=(libfuse2 xvfb dbus-x11 at-spi2-core util-linux) ;;
+    --include-webdriver) packages+=(webkit2gtk-driver xvfb dbus-x11) ;;
     *)
-      echo "usage: $0 [--include-rpm] [--include-appimage-runtime]" >&2
+      echo "usage: $0 [--include-rpm] [--include-appimage-runtime] [--include-webdriver]" >&2
       exit 2
       ;;
   esac

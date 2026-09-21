@@ -7,6 +7,17 @@ const qualificationWorkflow = await readFile(
   new URL("../.github/workflows/qualification.yml", import.meta.url),
   "utf8",
 );
+const nativeDesignCompatibilityWorkflow = await readFile(
+  new URL("../.github/workflows/native-design-compatibility.yml", import.meta.url),
+  "utf8",
+);
+const nativeCompatibilityRunner = await readFile(
+  new URL("../apps/desktop/test/native-compatibility.mjs", import.meta.url),
+  "utf8",
+);
+const desktopPackage = JSON.parse(
+  await readFile(new URL("../apps/desktop/package.json", import.meta.url), "utf8"),
+);
 const qualityGuide = await readFile(new URL("../docs/QUALITY.md", import.meta.url), "utf8");
 const windowsQualificationRunner = await readFile(
   new URL("./run-windows-qualification.ps1", import.meta.url),
@@ -18,6 +29,30 @@ function jobSection(name, nextName) {
   const end = nextName ? `(?=^  ${nextName}:)` : "(?![\\s\\S])";
   return workflow.match(new RegExp(`^  ${name}:\\r?\\n([\\s\\S]*?)${end}`, "m"))?.[1] ?? "";
 }
+
+test("native design compatibility remains explicit, isolated, and non-publishing", () => {
+  assert.match(nativeDesignCompatibilityWorkflow, /^ {2}workflow_dispatch:$/m);
+  assert.doesNotMatch(nativeDesignCompatibilityWorkflow, /^ {2}(pull_request|push|schedule):/m);
+  assert.match(nativeDesignCompatibilityWorkflow, /^permissions:\r?\n {2}contents: read$/m);
+  assert.match(
+    nativeDesignCompatibilityWorkflow,
+    /options:\r?\n {10}- ubuntu-22\.04\r?\n {10}- macos-15\r?\n {10}- macos-15-intel/,
+  );
+  assert.match(nativeDesignCompatibilityWorkflow, /--scenario native-design-system-compatibility/);
+  assert.match(nativeDesignCompatibilityWorkflow, /--features native-compatibility-qualification/);
+  assert.match(nativeDesignCompatibilityWorkflow, /tauri\.native-compatibility\.conf\.json/);
+  assert.doesNotMatch(nativeDesignCompatibilityWorkflow, /release|publish|deploy|schedule:/i);
+  assert.match(nativeCompatibilityRunner, /createHash\("sha256"\)/);
+  assert.match(nativeCompatibilityRunner, /"result\.json"/);
+  assert.match(
+    nativeCompatibilityRunner,
+    /applicationProcess\.kill\("SIGKILL"\);[\s\S]*?await waitForApplicationExit\(5_000\)/,
+  );
+  assert.equal(
+    desktopPackage.scripts["lint:style"],
+    'stylelint --config stylelint.config.mjs --max-warnings 0 "src/**/*.css"',
+  );
+});
 
 const classify = jobSection("classify", "provenance");
 const provenance = jobSection("provenance", "prose_checks");

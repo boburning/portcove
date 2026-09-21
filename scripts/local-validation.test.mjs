@@ -662,6 +662,18 @@ test("the exact development scenario entry selects full UI coverage without admi
   assert.ok(renamed.unknown.has("apps/desktop/unknown.html"));
 });
 
+test("design-system configuration and native compatibility tests have UI owners", () => {
+  const configuration = planFor(["apps/desktop/components.json"]).selection;
+  assert.equal(configuration.ui, true);
+  assert.equal(configuration.uiFullTests, true);
+  assert.equal(configuration.unknown.size, 0);
+
+  const nativeTest = planFor(["apps/desktop/test/native-compatibility.mjs"]).selection;
+  assert.equal(nativeTest.ui, true);
+  assert.ok(nativeTest.uiRelatedFiles.has("apps/desktop/test/native-compatibility.mjs"));
+  assert.equal(nativeTest.unknown.size, 0);
+});
+
 test("unknown paths refuse local execution until a focused rule owns them", () => {
   const selection = classifyChanges([change("new-subsystem/input.bin")], {
     fileExists: allFilesExist,

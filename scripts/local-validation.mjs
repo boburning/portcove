@@ -341,17 +341,22 @@ function classifyOnePath(selection, input, fileExists, options = {}) {
   if (
     file.startsWith("apps/desktop/src/") ||
     file.startsWith("apps/desktop/scripts/") ||
+    file.startsWith("apps/desktop/test/") ||
     file.startsWith("apps/desktop/assets/") ||
     file.startsWith("apps/desktop/public/") ||
     file === "apps/desktop/.fallowrc.json" ||
-    /^apps\/desktop\/(?:(?:index|scenarios)\.html|package\.json|pnpm-lock\.yaml|tsconfig.*\.json|vite\.config\.[cm]?ts|eslint\.config\.mjs|stylelint\.config\.mjs)$/.test(
+    /^apps\/desktop\/(?:(?:index|scenarios)\.html|(?:components|package)\.json|pnpm-lock\.yaml|tsconfig.*\.json|vite\.config\.[cm]?ts|eslint\.config\.mjs|stylelint\.config\.mjs)$/.test(
       file,
     )
   ) {
     selection.ui = true;
     selection.scopes.add("ui");
     recognized = true;
-    if (file.startsWith("apps/desktop/src/") || file.startsWith("apps/desktop/scripts/")) {
+    if (
+      file.startsWith("apps/desktop/src/") ||
+      file.startsWith("apps/desktop/scripts/") ||
+      file.startsWith("apps/desktop/test/")
+    ) {
       selection.uiRelatedFiles.add(file);
       if (file.startsWith("apps/desktop/src/")) selection.fallow = true;
     } else {

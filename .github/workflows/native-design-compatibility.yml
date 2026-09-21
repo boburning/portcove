@@ -1,0 +1,111 @@
+name: Native design compatibility
+
+on:
+  workflow_dispatch:
+    inputs:
+      runner:
+        description: Current hosted environment to observe; this is not minimum-version proof.
+        required: true
+        type: choice
+        options:
+          - ubuntu-22.04
+          - macos-15
+          - macos-15-intel
+
+permissions:
+  contents: read
+
+concurrency:
+  group: native-design-compatibility-${{ inputs.runner }}-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  pnpm_config_store_dir: ${{ github.workspace }}/work/pnpm-store
+  VITE_PORTCOVE_DESIGN_COMPATIBILITY_FIXTURE: "1"
+
+jobs:
+  qualify:
+    name: native-design-compatibility (${{ inputs.runner }})
+    runs-on: ${{ inputs.runner }}
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        with:
+          package_json_file: package.json
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+      - uses: ./.github/actions/setup-rust
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          cache-on-failure: true
+          key: native-design-compatibility-${{ inputs.runner }}-${{ hashFiles('Cargo.lock') }}
+      - run: pnpm install --frozen-lockfile
+      - name: Record exact hosted environment and revision
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Force work/native-compatibility-evidence | Out-Null
+          $identity = [ordered]@{
+            revision = (git rev-parse HEAD).Trim()
+            runner = '${{ inputs.runner }}'
+            runner_os = '${{ runner.os }}'
+            runner_arch = '${{ runner.arch }}'
+            os = [System.Runtime.InteropServices.RuntimeInformation]::OSDescription
+            process_architecture = [System.Runtime.InteropServices.RuntimeInformation]::ProcessArchitecture.ToString()
+            rustc = ((rustc --version --verbose) -join "`n")
+            node = (node --version).Trim()
+            pnpm = (pnpm --version).Trim()
+          }
+          $identity | ConvertTo-Json -Depth 4 | Set-Content work/native-compatibility-evidence/host.json
+      - name: Install Linux native driver prerequisites
+        if: runner.os == 'Linux'
+        run: |
+          ./scripts/install-linux-desktop-prerequisites.sh --include-webdriver
+          version=$(node -p "require('./.config/tool-bootstrap.json').desktop.tauri_driver")
+          cargo install tauri-driver --locked --version "$version"
+      - name: Run the existing Linux native harness
+        if: runner.os == 'Linux'
+        env:
+          PORTCOVE_OUTPUT_DIR: ${{ github.workspace }}/work/native-compatibility-output
+          PORTCOVE_TEMP_DIR: ${{ runner.temp }}/portcove-native-compatibility
+        run: |
+          pnpm --dir apps/desktop build
+          cargo build --locked -p portcove-desktop --features tauri/custom-protocol
+          mkdir -p work/native-compatibility-evidence/linux
+          xvfb-run -a dbus-run-session -- \
+            pnpm --dir apps/desktop test:desktop -- \
+              --app "$(realpath target/debug/portcove-desktop)" \
+              --driver "$(command -v tauri-driver)" \
+              --native-driver "$(command -v WebKitWebDriver)" \
+              --output "$(realpath work/native-compatibility-evidence/linux)" \
+              --scenario native-design-system-compatibility
+      - name: Build the macOS-only embedded-driver candidate
+        if: runner.os == 'macOS'
+        env:
+          PORTCOVE_LIBRARY: ${{ runner.temp }}/portcove-native-compatibility-library
+        run: >-
+          pnpm --dir apps/desktop tauri build --debug --no-bundle
+          --features native-compatibility-qualification
+          --config src-tauri/tauri.native-compatibility.conf.json
+      - name: Run the macOS embedded-driver fixture
+        if: runner.os == 'macOS'
+        env:
+          PORTCOVE_LIBRARY: ${{ runner.temp }}/portcove-native-compatibility-library
+          PORTCOVE_NATIVE_COMPATIBILITY_APP: ${{ github.workspace }}/target/debug/portcove-desktop
+          PORTCOVE_NATIVE_COMPATIBILITY_EVIDENCE: ${{ github.workspace }}/work/native-compatibility-evidence/macos
+          PORTCOVE_NATIVE_COMPATIBILITY_REVISION: ${{ github.sha }}
+        run: pnpm --dir apps/desktop test:native-compatibility:embedded
+      - name: Upload exact native evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: native-design-compatibility-${{ inputs.runner }}-${{ github.sha }}-${{ github.run_attempt }}
+          path: work/native-compatibility-evidence
+          if-no-files-found: error
+          retention-days: 14

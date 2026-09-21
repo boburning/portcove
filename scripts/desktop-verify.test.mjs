@@ -2,7 +2,11 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
-import { buildDesktopVerifyPlan, parseDesktopVerifyArgs } from "./desktop-verify.mjs";
+import {
+  buildDesktopVerifyPlan,
+  desktopBuildEnvironment,
+  parseDesktopVerifyArgs,
+} from "./desktop-verify.mjs";
 import { resolveDesktopSelection } from "./desktop-scenarios.mjs";
 
 test("desktop verify parser defaults to a smoke-compatible cycle configuration", () => {
@@ -33,6 +37,21 @@ test("desktop verify parser rejects invalid cycles and JSON execution", () => {
   assert.throws(() => parseDesktopVerifyArgs(["--restart-cycles", "0"]), /1\.\.10/);
   assert.throws(() => parseDesktopVerifyArgs(["--reload-cycles", "26"]), /0\.\.25/);
   assert.throws(() => parseDesktopVerifyArgs(["--json"]), /only with/);
+});
+
+test("only the exact design compatibility scenario selects the fixture build", () => {
+  const base = { PORTCOVE_TEMP_DIR: "test" };
+  const ordinary = desktopBuildEnvironment(
+    base,
+    resolveDesktopSelection({ scenarios: ["keyboard-layout"] }),
+  );
+  assert.equal(ordinary.VITE_PORTCOVE_DESIGN_COMPATIBILITY_FIXTURE, undefined);
+  const compatibility = desktopBuildEnvironment(
+    base,
+    resolveDesktopSelection({ scenarios: ["native-design-system-compatibility"] }),
+  );
+  assert.equal(compatibility.VITE_PORTCOVE_DESIGN_COMPATIBILITY_FIXTURE, "1");
+  assert.equal(compatibility.PORTCOVE_TEMP_DIR, "test");
 });
 
 test("focused plans omit owned binaries while lifecycle plans include them", () => {

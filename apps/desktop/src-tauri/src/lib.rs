@@ -2048,8 +2048,10 @@ pub fn run() {
             Ok(state)
         }),
     ));
-    tauri::Builder::default()
-        .plugin(tauri_plugin_dialog::init())
+    let builder = tauri::Builder::default().plugin(tauri_plugin_dialog::init());
+    #[cfg(feature = "native-compatibility-qualification")]
+    let builder = builder.plugin(tauri_plugin_wdio_webdriver::init());
+    builder
         .manage(application_update_commands::configured_state())
         .manage(application_update_preferences::configured_state())
         .manage(application_update_status::configured_state())
