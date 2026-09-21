@@ -139,7 +139,8 @@ pub(crate) fn validate_limits(limits: &SourceDiscoveryLimits) -> Result<()> {
 struct Discovery<'a> {
     catalog: &'a Catalog,
     report: SourceDiscoveryReport,
-    profiles: Vec<&'a SourceProfile>,
+    raw_profiles_by_extension: BTreeMap<String, Vec<&'a SourceProfile>>,
+    zip_profile_groups: BTreeMap<Vec<String>, Vec<&'a SourceProfile>>,
     limits: &'a SourceDiscoveryLimits,
     reached: BTreeSet<SourceDiscoveryLimit>,
     budget: HashBudget,
@@ -185,7 +186,8 @@ fn scan(
             issues: Vec::new(),
             issues_omitted: 0,
         },
-        profiles: Vec::new(),
+        raw_profiles_by_extension: BTreeMap::new(),
+        zip_profile_groups: BTreeMap::new(),
         limits: &request.limits,
         reached: BTreeSet::new(),
         budget: HashBudget {
@@ -203,11 +205,29 @@ fn scan(
         {
             discovery.issue(None, Some(profile.id.clone()), "This profile needs manual source selection; discovery supports exact-hash original files and cartridge ZIPs.".into());
         } else {
-            discovery.profiles.push(profile);
+            let mut extensions = profile
+                .accepted_extensions
+                .iter()
+                .map(|value| value.to_ascii_lowercase())
+                .collect::<Vec<_>>();
+            extensions.sort();
+            extensions.dedup();
+            for extension in &extensions {
+                discovery
+                    .raw_profiles_by_extension
+                    .entry(extension.clone())
+                    .or_default()
+                    .push(profile);
+            }
+            discovery
+                .zip_profile_groups
+                .entry(extensions)
+                .or_default()
+                .push(profile);
             discovery.report.searched_profiles.push(profile.id.clone());
         }
     }
-    if !discovery.profiles.is_empty() {
+    if !discovery.zip_profile_groups.is_empty() {
         discovery.walk()?;
     }
     discovery.report.hash_bytes = discovery.budget.hashed;
@@ -321,25 +341,20 @@ impl Discovery<'_> {
             .extension()
             .and_then(|value| value.to_str())
             .unwrap_or_default();
-        // Group equal file/ZIP contracts so all matching profiles share one hashing pass.
-        let mut groups = BTreeMap::<Vec<String>, Vec<&SourceProfile>>::new();
-        for profile in &self.profiles {
-            if extension.eq_ignore_ascii_case("zip")
-                || profile
-                    .accepted_extensions
-                    .iter()
-                    .any(|allowed| allowed.eq_ignore_ascii_case(extension))
-            {
-                let mut extensions = profile
-                    .accepted_extensions
-                    .iter()
-                    .map(|value| value.to_ascii_lowercase())
-                    .collect::<Vec<_>>();
-                extensions.sort();
-                extensions.dedup();
-                groups.entry(extensions).or_default().push(profile);
-            }
-        }
+        // ZIP member selection remains contract-specific. Ordinary files share one immutable
+        // identity across every profile that accepts their extension, without sharing admission.
+        let groups = if extension.eq_ignore_ascii_case("zip") {
+            self.zip_profile_groups
+                .iter()
+                .map(|(extensions, profiles)| (extensions.clone(), profiles.clone()))
+                .collect::<Vec<_>>()
+        } else {
+            let extension = extension.to_ascii_lowercase();
+            self.raw_profiles_by_extension
+                .get(&extension)
+                .map(|profiles| vec![(Vec::new(), profiles.clone())])
+                .unwrap_or_default()
+        };
         if groups.is_empty() {
             return Ok(());
         }
