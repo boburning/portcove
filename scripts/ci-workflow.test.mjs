@@ -149,6 +149,23 @@ test("required CI keeps its cancellation and least-privilege contracts", () => {
   assert.match(fastDependencyReview, /head-ref:/);
 });
 
+test("fast plans give Oxfmt and Oxlint one job owner", () => {
+  const repositoryLintStep = fastRustQuality.match(
+    /- name: Check repository formatting and JavaScript lint\r?\n([\s\S]*?)(?=^ {6}- name:)/m,
+  )?.[1];
+  assert.ok(repositoryLintStep, "fast Rust quality must retain repository formatting and lint");
+  assert.match(
+    repositoryLintStep,
+    /if: \$\{\{ !contains\(fromJSON\(needs\.classify\.outputs\.groups_json\), 'frontend'\) \}\}/,
+  );
+  assert.match(repositoryLintStep, /run-oxfmt\.mjs --check/);
+  assert.match(repositoryLintStep, /pnpm --dir apps\/desktop lint:oxlint/);
+  assert.equal(fastRustQuality.match(/run-oxfmt\.mjs --check/gu)?.length, 1);
+  assert.equal(fastRustQuality.match(/lint:oxlint/gu)?.length, 1);
+  assert.equal(fastFrontend.match(/pnpm format:check/gu)?.length, 1);
+  assert.equal(fastFrontend.match(/pnpm lint/gu)?.length, 1);
+});
+
 test("reusable qualification is read-only, daily, and coalesces without cancelling", () => {
   assert.match(qualificationWorkflow, /^ {2}workflow_call:\r?$/m);
   assert.match(qualificationWorkflow, /^ {2}workflow_dispatch:\r?$/m);
