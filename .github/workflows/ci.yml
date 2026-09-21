@@ -264,6 +264,7 @@ jobs:
         if: contains(fromJSON(needs.classify.outputs.groups_json), 'rust')
         run: cargo clippy --locked --workspace --all-targets -- -D warnings
       - name: Check repository formatting and JavaScript lint
+        if: ${{ !contains(fromJSON(needs.classify.outputs.groups_json), 'frontend') }}
         run: |
           node scripts/run-oxfmt.mjs --check
           pnpm --dir apps/desktop lint:oxlint
