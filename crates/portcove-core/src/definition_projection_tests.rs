@@ -61,30 +61,49 @@ fn inspect(value: &Value, contract: &[u8]) -> Result<DefinitionCatalogProjection
 fn every_current_port_retains_exact_bytes_and_complete_validated_source_graph() {
     let document = projection();
     let contract = serde_json::to_vec_pretty(&document).unwrap();
-    for port_index in 0..document["catalog"]["ports"].as_array().unwrap().len() {
-        let value = entry(&document, &contract, port_index);
-        let bytes = serde_json::to_vec_pretty(&value).unwrap();
-        let inventory = index(&[(&value, &bytes)], &contract);
-        let result = inventory
-            .inspect_catalog_projection(
-                "official",
-                value["stable_id"].as_str().unwrap(),
-                &bytes,
-                &contract,
-            )
+    let entries: Vec<_> = (0..document["catalog"]["ports"].as_array().unwrap().len())
+        .map(|port_index| {
+            let value = entry(&document, &contract, port_index);
+            let bytes = serde_json::to_vec_pretty(&value).unwrap();
+            (value, bytes)
+        })
+        .collect();
+    let indexed: Vec<_> = entries
+        .iter()
+        .map(|(value, bytes)| (value, bytes.as_slice()))
+        .collect();
+    let inventory = index(&indexed, &contract);
+
+    for (value, bytes) in &entries {
+        let inspected = inventory
+            .inspect_entry("official", value["stable_id"].as_str().unwrap(), bytes)
             .unwrap();
-        assert_eq!(result.entry().bytes(), bytes);
-        assert_eq!(result.contract_bytes(), contract);
-        assert_eq!(result.contract_target(), target(&contract));
+        assert_eq!(inspected.bytes(), *bytes);
+        assert_eq!(inspected.execution_contract(), target(&contract));
         assert_eq!(
-            serde_json::to_value(result.catalog().authoritative_document()).unwrap(),
-            document["catalog"]
-        );
-        assert_eq!(
-            serde_json::to_value(result.entry().port()).unwrap(),
+            serde_json::to_value(inspected.port()).unwrap(),
             value["port"]
         );
     }
+
+    // Full catalog validation is independent of the selected port. Exercise it
+    // once while the loop above keeps exact entry coverage for every port.
+    let (value, bytes) = &entries[0];
+    let result = inventory
+        .inspect_catalog_projection(
+            "official",
+            value["stable_id"].as_str().unwrap(),
+            bytes,
+            &contract,
+        )
+        .unwrap();
+    assert_eq!(result.entry().bytes(), *bytes);
+    assert_eq!(result.contract_bytes(), contract);
+    assert_eq!(result.contract_target(), target(&contract));
+    assert_eq!(
+        serde_json::to_value(result.catalog().authoritative_document()).unwrap(),
+        document["catalog"]
+    );
 }
 
 #[test]

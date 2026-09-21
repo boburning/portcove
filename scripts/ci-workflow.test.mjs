@@ -41,6 +41,14 @@ test("native design compatibility remains explicit, isolated, and non-publishing
   assert.match(nativeDesignCompatibilityWorkflow, /--scenario native-design-system-compatibility/);
   assert.match(nativeDesignCompatibilityWorkflow, /test:desktop \\\r?\n {14}--app/);
   assert.doesNotMatch(nativeDesignCompatibilityWorkflow, /test:desktop -- \\/);
+  assert.match(
+    nativeDesignCompatibilityWorkflow,
+    /--output "\$PWD\/work\/native-compatibility-evidence\/linux"/,
+  );
+  assert.doesNotMatch(
+    nativeDesignCompatibilityWorkflow,
+    /mkdir -p work\/native-compatibility-evidence\/linux/,
+  );
   assert.match(nativeDesignCompatibilityWorkflow, /--features native-compatibility-qualification/);
   assert.match(nativeDesignCompatibilityWorkflow, /tauri\.native-compatibility\.conf\.json/);
   assert.doesNotMatch(nativeDesignCompatibilityWorkflow, /release|publish|deploy|schedule:/i);
