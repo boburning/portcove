@@ -208,7 +208,7 @@ test("Linux desktop prerequisite installation is shared, bounded, and retrying",
     /timeout-minutes: 15\r?\n\s+run: \.\/scripts\/install-linux-desktop-prerequisites\.sh/g;
 
   assert.equal((workflow.match(invocation) ?? []).length, 6);
-  assert.equal((deepQuality.match(invocation) ?? []).length, 2);
+  assert.equal((deepQuality.match(invocation) ?? []).length, 1);
   assert.equal((release.match(invocation) ?? []).length, 2);
   assert.match(
     updaterRehearsal,
@@ -942,16 +942,16 @@ test("release and deep preflights require a fresh audit", async () => {
   assert.match(localPreflight, /just audit --fresh/);
 });
 
-test("deep Hawk caching retains and verifies the compiler driver", async () => {
+test("manual deep workflow retains only the deterministic fresh audit", async () => {
   const deep = await readFile(
     new URL("../.github/workflows/deep-quality.yml", import.meta.url),
     "utf8",
   );
-  assert.match(deep, /~\/.cargo\/bin\/cargo-hawk\r?\n\s+~\/.cargo\/bin\/cargo-hawk-driver/);
-  assert.match(deep, /quality-hawk-binary-v2-/);
-  assert.match(deep, /command -v cargo-hawk-driver >\/dev\/null/);
-  assert.match(deep, /install --locked --force --version .* cargo-hawk/);
-  assert.match(deep, /test -x "\$\(command -v cargo-hawk-driver\)"/);
+  assert.match(deep, /^name: Deep audit$/m);
+  assert.match(deep, /^ {2}audit:\r?$/m);
+  assert.match(deep, /just audit --fresh/);
+  assert.doesNotMatch(deep, /^ {2}(?:hawk|duplicates):/m);
+  assert.doesNotMatch(deep, /semdup|cargo-hawk|run-hawk|run-semdup|dead-public/i);
 });
 
 test("live upstream health has bounded independent triggers while catalog stays offline", async () => {

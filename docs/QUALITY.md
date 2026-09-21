@@ -10,7 +10,7 @@ Portcove uses one local quality interface for humans, CI, and coding agents. The
 ./scripts/bootstrap-quality-tools.sh
 ```
 
-Pass `-IncludeDeep` or `--include-deep` to also install cargo-modules, semdup, cargo-mutants, and Hawk where supported. Both scripts are idempotent, verify and print exact installed versions, and never silently upgrade tools. Deep tools remain optional: Hawk shares the workspace Rust channel and adds its required `rustc-dev` component, but does not support Windows; semdup requires a current native C++ linker for its ONNX runtime.
+Pass `-IncludeDeep` or `--include-deep` to also install the optional cargo-modules and cargo-mutants tools. Both scripts are idempotent, verify and print exact installed versions, and never silently upgrade tools.
 
 ## Canonical commands
 
@@ -59,7 +59,6 @@ boundary and retained evidence.
 | Deterministic release-unit check     | `just release-check`                                  | release metadata, packaging, updater, channel, workflow, and Windows qualification unit contracts                                             |
 | Packaged Windows qualification       | `just windows-qualification-check`                    | stateful Windows packaged-session integration; always observed rather than reused                                                             |
 | Release or explicit transition audit | `just audit [--plan\|--fresh]`                        | staged exhaustive check, dependency policy, rscheck, release units, and applicable Windows qualification                                      |
-| Large structural investigation       | `just deep`                                           | audit plus advisory Hawk and semdup analysis                                                                                                  |
 | Explicit cycle investigation         | `just cycles`                                         | optional advisory module-cycle report                                                                                                         |
 | Critical core test review            | `just mutants`                                        | optional mutation analysis for `portcove-core`                                                                                                |
 
@@ -452,10 +451,9 @@ existing Aqua bootstrap behavior.
 
 `rust-toolchain.toml` pins normal development and CI to the workspace compiler
 floor recorded in `Cargo.toml`; the manifest validator requires those two
-declarations and the quality contract to agree. The Hawk entry names that same
-authority instead of carrying a second private Rust version. An increase
-therefore requires one reviewed update across the workspace metadata, pinned
-toolchain, and machine contract instead of an implicit move with latest stable.
+declarations and the quality contract to agree. An increase therefore requires
+one reviewed update across the workspace metadata, pinned toolchain, and machine
+contract instead of an implicit move with latest stable.
 
 The committed Cargo lockfile is part of that compiler contract across every
 supported host. Required Ubuntu CI compiles and tests the locked Linux graph
@@ -510,15 +508,13 @@ A lockfile or toolchain change is expected to pay each lane's cold-build cost on
 
 Frontend pull requests use the required GitHub dependency-review check to block newly introduced high-severity vulnerabilities. GitHub vulnerability alerts and automated Dependabot security fixes remain active independently of routine Renovate updates. The frontend build lane therefore does not make a second live request to npm's advisory endpoint on every commit, including pnpm's install-time audit; those duplicate requests added no change-specific coverage and could hold all otherwise-passing checks open for repeated network timeouts. Frozen lockfile installation, production build, tests, Fallow, and the pnpm/`just` development-storage integration cases remain required. The Windows and Linux Rust lanes retain every platform-relevant development-storage test while delegating only those two tool-integration cases to the prepared frontend lane.
 
-The manually triggered `.github/workflows/deep-quality.yml` workflow provides a reproducible Ubuntu 24.04 environment for the full advisory pass, including semdup and Hawk. Ubuntu 24.04 is intentional: semdup's bundled ONNX Runtime currently requires newer glibc C23 symbols than the Ubuntu 22.04 runner provides. It runs the same `just deep` constituents as independent audit, Hawk, and semantic-duplication jobs so they execute in parallel, but is deliberately not a required pull-request status check. Start it after broad refactors or when the Windows host cannot link semdup:
+The manually triggered `.github/workflows/deep-quality.yml` workflow provides a reproducible Ubuntu 24.04 environment for a fresh deterministic audit. It is deliberately not a required pull-request status check. Start it when a fresh hosted audit is useful:
 
 ```bash
 gh workflow run deep-quality.yml --ref main
 ```
 
-The workflow caches semdup's exact-version executable, versioned 149 MB model, and repository-local SQLite corpus. A source change restores the most recent compatible corpus and embeds only changed units; a configuration change starts a new corpus series. The first CPU-only index is allowed a longer cold-start budget, while later runs should be incremental. The deterministic audit and Hawk lanes reuse the former combined job's Rust cache so the split does not discard the established warm path.
-
-The workflow log is review evidence, not an instruction to rewrite code. Hawk and semdup findings remain advisory, but the hosted job requires both analyzers to execute successfully so a missing tool or broken runtime cannot masquerade as a clean report. Local `just deep` continues past unavailable optional tools, and deterministic checks inside `just audit` still block normally.
+The workflow log is review evidence, not an instruction to rewrite code. The same deterministic checks inside local `just audit --fresh` still block normally.
 
 Windows CI fixture jobs explicitly export `TEMP` and `TMP` from the existing
 runner-owned `RUNNER_TEMP` before fixture preparation and timed tests. Setup logs
@@ -598,11 +594,11 @@ The 2026-09-02 baseline is classified as follows:
 - **D — intentional or tool limitation:** reviewed DolphinTool/chdman discovery locations, the Linux updater's fixed root-owned package-query tools and clean command path, its installed-executable parser fixture, and Windows path-rewrite fixtures are exact rscheck path exceptions. The Linux updater values preserve a fixed host-integration trust boundary and do not permit path search or arbitrary absolute literals. cargo-modules 0.27 reports type-to-associated-item ownership edges as circular; the command remains available through `just cycles` for explicit investigations, outside routine CI and audits.
 - **E — investigate when touched:** rscheck reports similar source/BIOS registration, DolphinTool/chdman resolution, and hash-validation flows. Confirm domain equivalence before extracting any abstraction.
 
-The first complete hosted deep baseline is [run 33651741470](https://github.com/boburning/portcove/actions/runs/33651741470) at commit `b8486d4`. Hawk reported zero dead public APIs after the reviewed cleanup. semdup indexed 638 units, scanned the 236 functions meeting the eight-line floor with the exact index, and reported zero qualifying pairs in zero three-member clusters at 0.85; six smaller clusters were hidden by the intentional rule-of-three threshold. The cold semdup stage took 37 minutes, after which Actions saved a 141.4 MB model cache and 2.0 MB corpus cache. This is a clean advisory baseline, not proof that no smaller or conceptual duplication exists.
+The first complete hosted deep baseline is [run 33651741470](https://github.com/boburning/portcove/actions/runs/33651741470) at commit `b8486d4`. Hawk reported zero dead public APIs after the reviewed cleanup. semdup indexed 638 units, scanned the 236 functions meeting the eight-line floor with the exact index, and reported zero qualifying pairs in zero three-member clusters at 0.85. This is historical advisory evidence, not proof that no smaller or conceptual duplication exists.
 
-The incremental path is proven by [run 33657080917](https://github.com/boburning/portcove/actions/runs/33657080917) at commit `a856d22`. It restored the model by its primary key and the compatible `b8486d4` corpus by prefix, indexed 648 current units, embedded only 15 changed texts in 30 seconds, and reproduced the same zero-pair report. Hawk again reported zero findings. The complete warm job took about 10.5 minutes instead of the cold run's roughly 50 minutes.
+The incremental path was proven by [run 33657080917](https://github.com/boburning/portcove/actions/runs/33657080917) at commit `a856d22`; it reproduced the same zero-pair semdup report and Hawk again reported zero findings.
 
-The completed audit-remediation implementation was revalidated by [run 33705777418](https://github.com/boburning/portcove/actions/runs/33705777418) at commit `df9de02`. All three lanes passed: semantic duplication in 5m49s, Hawk in 7m01s, and the full deterministic audit in 9m37s. This run is the final-head structural evidence; its analyzer reports remain advisory under the policy above.
+The completed audit-remediation implementation was revalidated by [run 33705777418](https://github.com/boburning/portcove/actions/runs/33705777418) at commit `df9de02`. All three former lanes passed: semantic duplication in 5m49s, Hawk in 7m01s, and the full deterministic audit in 9m37s. These analyzers were retired in September 2026 after later runs supplied no recurring nonduplicative owner or unresolved finding; the deterministic audit and the dated evidence remain.
 
 Do not expand exceptions casually. Newly introduced absolute path literals still fail. Reconsider routine cargo-modules coverage only after its report represents actual module edges cleanly and demonstrates actionable value.
 
@@ -613,11 +609,9 @@ disable the corresponding `git diff --check` whitespace diagnostics. The
 exception preserves source fidelity and does not apply to other archives,
 documentation, or code.
 
-On the current Windows development host, semdup 0.2.0 reaches its ONNX Runtime link step but the installed Visual Studio 2019 linker cannot resolve symbols required by that dependency. Run `just deep` on Linux/macOS or install a current supported MSVC toolchain for semdup coverage; this does not weaken the required `just audit` path.
-
 ## Ratcheting
 
-Do not increase the current complexity limits or add new warnings in touched code without review. Lower `max_fn` from 25 only after the repository satisfies the lower value naturally. Treat semdup's 0.85, three-member threshold as an investigation threshold; do not weaken it to hide a finding or build abstractions solely to reduce its score.
+Do not increase the current complexity limits or add new warnings in touched code without review. Lower `max_fn` from 25 only after the repository satisfies the lower value naturally.
 
 ## Upstream health checks
 

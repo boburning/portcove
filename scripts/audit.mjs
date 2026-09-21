@@ -95,13 +95,12 @@ const environmentWhitelist = Object.freeze([
   "CARGO_PROFILE_TEST_DEBUG",
   "NODE_OPTIONS",
   "PORTCOVE_TEST_FIXTURES",
-  "PORTCOVE_REQUIRE_DEEP_TOOLS",
 ]);
 
 const oxfmtSupportedExtension =
   /\.(?:astro|cjs|css|html|js|json|json5|jsonc|jsx|less|md|mdx|mjs|mts|scss|svelte|ts|tsx|vue|ya?ml)$/iu;
 const oxfmtExcludedPath =
-  /^(?:node_modules\/|apps\/desktop\/(?:dist|node_modules|src-tauri\/gen)\/|target\/|work\/|outputs\/|release-assets\/|\.codex-remote-attachments\/|\.fallow(?:-review)?\/|\.rscheck\/|\.semdup\/|\.tmp\/|mutants\.out(?:\.old)?\/|Portcove-CI-FiveMinutes\/|integrations\/playnite\/(?:bin|obj|tests\/(?:bin|obj))\/|crates\/portcove-core\/catalog\/|crates\/[^/]+\/tests\/fixtures\/|docs\/archive\/|docs\/releases\/\d+\.md$)/u;
+  /^(?:node_modules\/|apps\/desktop\/(?:dist|node_modules|src-tauri\/gen)\/|target\/|work\/|outputs\/|release-assets\/|\.codex-remote-attachments\/|\.fallow(?:-review)?\/|\.rscheck\/|\.tmp\/|mutants\.out(?:\.old)?\/|Portcove-CI-FiveMinutes\/|integrations\/playnite\/(?:bin|obj|tests\/(?:bin|obj))\/|crates\/portcove-core\/catalog\/|crates\/[^/]+\/tests\/fixtures\/|docs\/archive\/|docs\/releases\/\d+\.md$)/u;
 const oxfmtExcludedFile =
   /(?:\.generated\.[^/]+$|(?:^|\/)pnpm-lock\.yaml$|integrations\/playnite\/(?:tests\/)?packages\.lock\.json$)/u;
 
@@ -284,8 +283,6 @@ export function domainsForPath(input) {
       ".git-blame-ignore-revs",
       "pyproject.toml",
       "taplo.toml",
-      "hawk.toml",
-      "semdup.toml",
       "LICENSE-APACHE",
       "LICENSE-MIT",
       "SECURITY.md",

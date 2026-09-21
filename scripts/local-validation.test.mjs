@@ -577,6 +577,18 @@ test("retired GitHub policy JSON remains owned without a file-specific tombstone
   ]);
 });
 
+test("retired root TOML policy remains owned without a file-specific tombstone", () => {
+  const selection = classifyChanges([{ status: "D", path: "retired-policy.toml" }], {
+    fileExists: () => false,
+  });
+  assert.deepEqual([...selection.unknown], []);
+  assert.equal(selection.toml, true);
+  assert.deepEqual([...selection.nodeTests].sort(), [
+    "scripts/local-validation.test.mjs",
+    "scripts/validation-plan.test.mjs",
+  ]);
+});
+
 test("non-ignored untracked files use the same deterministic mapping", () => {
   const selection = classifyChanges([{ status: "?", path: "scripts/local-validation.test.mjs" }], {
     fileExists: allFilesExist,

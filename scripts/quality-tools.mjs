@@ -12,7 +12,6 @@ const governedConsumers = [
   ".github/workflows/release.yml",
   "scripts/bootstrap-quality-tools.ps1",
   "scripts/bootstrap-quality-tools.sh",
-  "scripts/run-hawk.mjs",
 ];
 
 function semver(value, label) {
@@ -48,15 +47,6 @@ export function validateQualityManifest(manifest) {
     if (!["prebuilt", "cached", "local", "source"].includes(tool.ci_install)) {
       throw new Error(`${tool.id} has an invalid ci_install strategy`);
     }
-    if (tool.rust_toolchain) semver(tool.rust_toolchain, `${tool.id} Rust toolchain`);
-    if (tool.uses_workspace_rust) {
-      if (tool.rust_toolchain)
-        throw new Error(`${tool.id} cannot define both private and workspace Rust toolchains`);
-      if (!tool.command.includes("+{rust}"))
-        throw new Error(`${tool.id} workspace Rust command must contain +{rust}`);
-    } else if (tool.command.includes("+{rust}")) {
-      throw new Error(`${tool.id} cannot use +{rust} without uses_workspace_rust`);
-    }
   }
   for (const required of [
     "just",
@@ -64,9 +54,7 @@ export function validateQualityManifest(manifest) {
     "cargo-deny",
     "cargo-modules",
     "rscheck-cli",
-    "semdup",
     "cargo-mutants",
-    "cargo-hawk",
     "cargo-nextest",
   ]) {
     if (!ids.has(required)) throw new Error(`quality manifest is missing ${required}`);
@@ -110,11 +98,6 @@ export function githubOutputs(manifest) {
       .map(spec)
       .join(","),
     rscheck_spec: spec(byId["rscheck-cli"]),
-    semdup_spec: spec(byId.semdup),
-    hawk_version: byId["cargo-hawk"].version,
-    hawk_rust: byId["cargo-hawk"].uses_workspace_rust
-      ? manifest.rust.channel
-      : byId["cargo-hawk"].rust_toolchain,
   };
 }
 
@@ -152,12 +135,8 @@ function toolById(manifest, id) {
   return tool;
 }
 
-export function commandFor(manifest, tool) {
-  return tool.command.map((value) => (value === "+{rust}" ? `+${manifest.rust.channel}` : value));
-}
-
 function verifyTool(manifest, tool) {
-  const command = commandFor(manifest, tool);
+  const command = tool.command;
   const result = spawnSync(command[0], command.slice(1), {
     encoding: "utf8",
   });
@@ -188,9 +167,7 @@ async function main(argv) {
   if (mode === "--specs" && argv.length === 2) {
     const tier = argv[1];
     if (!["required", "deep"].includes(tier)) throw new Error("--specs expects required or deep");
-    for (const tool of manifest.tools.filter(
-      (candidate) => candidate.tier === tier && candidate.id !== "cargo-hawk",
-    )) {
+    for (const tool of manifest.tools.filter((candidate) => candidate.tier === tier)) {
       console.log(`${tool.crate}|${tool.version}|${tool.command.join(" ")}`);
     }
     return;
@@ -199,19 +176,12 @@ async function main(argv) {
     console.log(toolById(manifest, argv[1]).version);
     return;
   }
-  if (mode === "--rust-toolchain" && argv.length === 2) {
-    const tool = toolById(manifest, argv[1]);
-    const rustToolchain = tool.uses_workspace_rust ? manifest.rust.channel : tool.rust_toolchain;
-    if (!rustToolchain) throw new Error(`${tool.id} has no Rust toolchain requirement`);
-    console.log(rustToolchain);
-    return;
-  }
   if (mode === "--verify" && argv.length === 2) {
     console.log(verifyTool(manifest, toolById(manifest, argv[1])));
     return;
   }
   throw new Error(
-    "usage: quality-tools.mjs --validate|--github-output|--specs TIER|--version ID|--rust-toolchain ID|--verify ID",
+    "usage: quality-tools.mjs --validate|--github-output|--specs TIER|--version ID|--verify ID",
   );
 }
 

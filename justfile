@@ -208,15 +208,6 @@ rscheck:
 audit *args:
     {{storage}} node scripts/audit.mjs {{args}}
 
-# Expensive or experimental intelligence. Failures remain diagnostic.
-hawk:
-    {{storage}} node scripts/run-hawk.mjs
-
-duplicates:
-    {{storage}} node scripts/run-semdup.mjs
-
-deep: audit hawk duplicates
-
 mutants:
     {{storage}} cargo mutants --package portcove-core
 
