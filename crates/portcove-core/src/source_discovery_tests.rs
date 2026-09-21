@@ -28,6 +28,19 @@ fn catalog(bytes: &[u8]) -> Catalog {
     Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap()
 }
 
+fn overlapping_catalog(bytes: &[u8], ocarina_bytes: &[u8]) -> Catalog {
+    let mut document = catalog(bytes).document().clone();
+    let ocarina = document
+        .source_profiles
+        .iter_mut()
+        .find(|profile| profile.id == "ocarina-of-time")
+        .unwrap();
+    ocarina.accepted_extensions = vec!["z64".into(), "n64".into()];
+    ocarina.accepted_sha1 = vec![hex::encode(sha1::Sha1::digest(ocarina_bytes))];
+    ocarina.accepted_sha256.clear();
+    Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap()
+}
+
 fn request(root: &Path) -> SourceDiscoveryRequest {
     SourceDiscoveryRequest {
         roots: vec![root.into()],
@@ -37,22 +50,45 @@ fn request(root: &Path) -> SourceDiscoveryRequest {
 }
 
 #[test]
-fn only_selected_roots_are_read_and_matching_profiles_share_one_hash_pass() {
+fn overlapping_raw_extension_groups_share_one_hash_pass_and_keep_profile_admission() {
     let temporary = tempfile::tempdir().unwrap();
     let root = temporary.path().join("selected");
     fs::create_dir(&root).unwrap();
     let payload = b"synthetic supported source";
-    fs::write(root.join("renamed.z64"), payload).unwrap();
+    fs::write(root.join("renamed.Z64"), payload).unwrap();
     fs::write(root.join("unrelated.txt"), payload).unwrap();
     fs::write(temporary.path().join("outside.z64"), payload).unwrap();
-    let report = scan(&catalog(payload), &request(&root)).unwrap();
+    let mut selected = request(&root);
+    selected.limits.max_hash_bytes = payload.len() as u64;
+    let report = scan(&overlapping_catalog(payload, payload), &selected).unwrap();
     assert_eq!(report.candidates.len(), 2);
     assert_eq!(report.files_hashed, 1);
     assert_eq!(report.hash_bytes, payload.len() as u64);
     assert_eq!(report.entries_examined, 2);
     assert!(report.limits_reached.is_empty());
     assert!(!root.join("portcove.sqlite3").exists());
-    assert_eq!(fs::read(root.join("renamed.z64")).unwrap(), payload);
+    assert_eq!(fs::read(root.join("renamed.Z64")).unwrap(), payload);
+}
+
+#[test]
+fn shared_raw_identity_keeps_profile_specific_rejection() {
+    let temporary = tempfile::tempdir().unwrap();
+    let payload = b"synthetic supported source";
+    fs::write(temporary.path().join("source.z64"), payload).unwrap();
+    let mut selected = request(temporary.path());
+    selected.limits.max_hash_bytes = payload.len() as u64;
+
+    let report = scan(
+        &overlapping_catalog(payload, b"different accepted source"),
+        &selected,
+    )
+    .unwrap();
+
+    assert_eq!(report.files_hashed, 1);
+    assert_eq!(report.hash_bytes, payload.len() as u64);
+    assert_eq!(report.candidates.len(), 1);
+    assert_eq!(report.candidates[0].profile_id, "star-fox-64");
+    assert!(report.limits_reached.is_empty());
 }
 
 #[test]
