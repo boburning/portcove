@@ -22,7 +22,37 @@
       "description": "Keep immutable GitHub Action references and group their reviewed updates",
       "matchManagers": ["github-actions"],
       "groupName": "github-actions",
+      "schedule": ["before 6am on monday"],
       "pinDigests": true
+    },
+    {
+      "description": "Propose npm development-tool maintenance on the weekly tooling cadence",
+      "matchManagers": ["npm"],
+      "matchDepTypes": ["devDependencies"],
+      "schedule": ["before 6am on monday"]
+    },
+    {
+      "description": "Propose repository-managed development tools on the weekly tooling cadence",
+      "matchManagers": ["custom.regex"],
+      "matchPackageNames": [
+        "just",
+        "cargo-shear",
+        "cargo-deny",
+        "cargo-modules",
+        "rscheck-cli",
+        "cargo-mutants",
+        "cargo-nextest",
+        "rust",
+        "node",
+        "tauri-driver",
+        "aquaproj/aqua",
+        "astral-sh/ruff",
+        "rhysd/actionlint",
+        "koalaman/shellcheck",
+        "PSScriptAnalyzer",
+        "anchore/syft"
+      ],
+      "schedule": ["before 6am on monday"]
     },
     {
       "description": "Update the React runtime and declarations together",
@@ -48,12 +78,34 @@
         "stylelint",
         "stylelint-config-recommended"
       ],
-      "groupName": "frontend-toolchain"
+      "groupName": "frontend-toolchain",
+      "schedule": ["before 6am on monday"]
     },
     {
       "description": "Keep the Rust compiler authorities in one reviewed change",
       "matchPackageNames": ["rust"],
-      "groupName": "rust-toolchain"
+      "groupName": "rust-toolchain",
+      "schedule": ["before 6am on monday"]
+    },
+    {
+      "description": "Keep Aqua and its managed quality tools in one qualification unit",
+      "matchManagers": ["custom.regex"],
+      "matchPackageNames": [
+        "aquaproj/aqua",
+        "astral-sh/ruff",
+        "rhysd/actionlint",
+        "koalaman/shellcheck"
+      ],
+      "groupName": "aqua-toolchain",
+      "schedule": ["before 6am on monday"]
+    },
+    {
+      "description": "Change the Aqua registry authority only with a reviewed tool or integrity need",
+      "matchManagers": ["custom.regex"],
+      "matchDatasources": ["github-tags"],
+      "matchDepNames": ["aquaproj/aqua-registry"],
+      "matchPackageNames": ["aquaproj/aqua-registry"],
+      "enabled": false
     },
     {
       "description": "Do not replace the reviewed SQLite upstream revision automatically",

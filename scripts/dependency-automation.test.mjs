@@ -168,6 +168,76 @@ test("Renovate excludes the extracted rusqlite Git dependency identity", async (
   assert.equal(matchingRules[0].enabled, false);
 });
 
+test("Renovate batches development tools and suppresses only the Aqua registry authority", async () => {
+  const renovate = JSON.parse(await read("renovate.json"));
+  const aqua = await read("aqua.yaml");
+  const quality = await read("docs/QUALITY.md");
+  const weeklySchedule = ["before 6am on monday"];
+
+  const npmCadence = renovate.packageRules.find(
+    (rule) =>
+      rule.matchManagers?.includes("npm") && rule.matchDepTypes?.includes("devDependencies"),
+  );
+  assert.deepEqual(npmCadence?.schedule, weeklySchedule);
+
+  const repositoryToolCadence = renovate.packageRules.find(
+    (rule) =>
+      rule.matchManagers?.includes("custom.regex") &&
+      rule.matchPackageNames?.includes("cargo-nextest") &&
+      rule.matchPackageNames?.includes("PSScriptAnalyzer"),
+  );
+  assert.deepEqual(repositoryToolCadence?.schedule, weeklySchedule);
+
+  const aquaPackages = [
+    "aquaproj/aqua",
+    ...[...aqua.matchAll(/^\s*- name:\s*([^@\s]+)@/gmu)].map((match) => match[1]),
+  ];
+  assert.deepEqual(aquaPackages, [
+    "aquaproj/aqua",
+    "astral-sh/ruff",
+    "rhysd/actionlint",
+    "koalaman/shellcheck",
+  ]);
+  const aquaGroup = renovate.packageRules.find((rule) => rule.groupName === "aqua-toolchain");
+  assert.deepEqual(aquaGroup?.matchManagers, ["custom.regex"]);
+  assert.deepEqual(aquaGroup?.matchPackageNames, aquaPackages);
+  assert.deepEqual(aquaGroup?.schedule, weeklySchedule);
+  assert.notEqual(aquaGroup?.enabled, false);
+
+  const registryManager = renovate.customManagers.find(
+    (manager) => manager.depNameTemplate === "aquaproj/aqua-registry",
+  );
+  assert.equal(registryManager?.datasourceTemplate, "github-tags");
+  assert.match(aqua, /registries:\r?\n\s+- type: standard\r?\n\s+ref: v\d+\.\d+\.\d+/u);
+  const registryRules = renovate.packageRules.filter(
+    (rule) =>
+      rule.matchManagers?.includes("custom.regex") &&
+      rule.matchDatasources?.includes("github-tags") &&
+      rule.matchDepNames?.includes("aquaproj/aqua-registry") &&
+      rule.matchPackageNames?.includes("aquaproj/aqua-registry"),
+  );
+  assert.equal(registryRules.length, 1);
+  assert.equal(registryRules[0].enabled, false);
+
+  assert.equal(repositoryToolCadence.matchPackageNames.includes("node"), true);
+  assert.equal(
+    renovate.packageRules.some(
+      (rule) => rule.enabled === false && rule.matchPackageNames?.includes("node"),
+    ),
+    false,
+  );
+  assert.notEqual(renovate.vulnerabilityAlerts?.enabled, false);
+  assert.match(quality, /Routine updates retain the\s+three-day age policy\./u);
+  assert.match(
+    quality,
+    /vulnerability-alert pull requests bypass the\s+ordinary schedule, queue limits, and minimum release age/u,
+  );
+  assert.match(
+    quality,
+    /they still retain applicable checksums, protected\s+CI, and human merge authority/u,
+  );
+});
+
 test("every Renovate custom manager matches its committed authority", async () => {
   const renovate = JSON.parse(await read("renovate.json"));
   const authorities = [
