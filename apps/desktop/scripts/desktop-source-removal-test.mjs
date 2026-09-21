@@ -3,10 +3,11 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import { mkdir, writeFile } from "node:fs/promises";
 import { fileIdentity } from "../../../scripts/development-evidence.mjs";
-import { By, until } from "selenium-webdriver";
+import { By, Key, until } from "selenium-webdriver";
 import {
   reviewControls,
   assertCompactReview,
+  assertDestructiveReviewAction,
   captureAccessibilityReport,
 } from "./desktop-review-controls.mjs";
 
@@ -50,11 +51,35 @@ export async function sourceRemovalScenario({
     await click(By.xpath('//nav//button[contains(., "Settings")]'));
     const row = By.css(`[data-source-profile="${source.profile_id}"]`);
     const dialog = By.css('[aria-labelledby="source-removal-title"]');
+    const trigger = By.css(`[data-source-profile="${source.profile_id}"] [data-slot="button"]`);
     const openReview = async () => {
-      await click(By.css(`[data-source-profile="${source.profile_id}"] .danger`));
+      await click(trigger);
       await browser.wait(until.elementLocated(button("Continue to removal confirmation")), 15_000);
     };
     await openReview();
+    await browser.actions().sendKeys(Key.ESCAPE).perform();
+    await browser.wait(
+      async () => (await browser.findElements(dialog)).length === 0,
+      5_000,
+      "source removal Dialog did not close after Escape",
+    );
+    await browser.wait(
+      async () => {
+        const candidate = await browser.findElement(trigger);
+        return await browser.executeScript(
+          "return document.activeElement === arguments[0];",
+          candidate,
+        );
+      },
+      5_000,
+      "source removal trigger did not regain focus after Escape",
+    );
+    await openReview();
+    const destructiveStyles = await assertDestructiveReviewAction(
+      browser,
+      await browser.findElement(button("Continue to removal confirmation")),
+      await browser.findElement(button("Keep source reference")),
+    );
     let text = await browser.findElement(dialog).getText();
     assert.ok(
       text.includes(source.path) &&
@@ -154,6 +179,8 @@ export async function sourceRemovalScenario({
           dismissal_and_native_cancel_preserved_reference: true,
           changed_registration_rejected: true,
           stale_generation_rejected: true,
+          escape_dismissal_and_focus_restoration: true,
+          destructive_action_styles: destructiveStyles,
           evidence:
             "native owned-file reference removal; no game compatibility or human-comprehension claim",
         },

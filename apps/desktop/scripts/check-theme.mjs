@@ -115,6 +115,18 @@ if (/var\(\s*--n64-/i.test(componentCss))
 if (/(?:linear|radial|conic)-gradient\s*\(/i.test(css))
   failures.push("theme contains a gradient without an approved design reason");
 
+const destructiveButtonBlock = componentCss.match(
+  /\[data-slot=(?:"button"|'button')\]\[data-variant=(?:"destructive"|'destructive')\][^{]*\{([^}]*)\}/i,
+);
+if (!destructiveButtonBlock) {
+  failures.push("Base Button destructive variant is missing an unlayered semantic style mapping");
+} else {
+  for (const token of ["--color-danger-border", "--color-danger-text", "--color-danger-subtle"]) {
+    if (!destructiveButtonBlock[1].includes(`var(${token})`))
+      failures.push(`Base Button destructive variant must map to ${token}`);
+  }
+}
+
 function tokenValue(tokens, token) {
   const value = tokens.get(token);
   if (!value) throw new Error(`Unknown theme token ${token}`);

@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { desktopApi } from "../api";
-import { useDialogFocus } from "../dialog";
 import type { PortDefinition, SourceRecord, SourceRemovalPreview } from "../types";
 import { useActionReview } from "../use-action-review";
+import { Button } from "./ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "./ui/dialog";
 
 export function SourceRemovalControl({
   source,
@@ -29,28 +30,30 @@ export function SourceRemovalControl({
   };
   return (
     <>
-      <button
+      <Button
         data-focusable
-        className="small-control danger"
+        variant="destructive"
+        size="sm"
         disabled={disabled}
         onClick={() => setOpen(true)}
       >
         Remove reference
-      </button>
+      </Button>
       {refreshError && (
         <div>
           <p role="status">
             The reference was removed. Refresh the list to see the current sources.
           </p>
-          <button
+          <Button
             data-focusable
-            className="small-control"
+            variant="outline"
+            size="sm"
             onClick={() => {
               void completed();
             }}
           >
             Refresh source list
-          </button>
+          </Button>
         </div>
       )}
       {open && (
@@ -92,31 +95,40 @@ export function SourceRemovalDialog({
     failureMessage:
       "The reference was not removed. Review the current source and affected games before trying again.",
   });
-  const dialog = useDialogFocus(dismiss);
   return (
-    <div className="scrim">
-      <section
-        ref={dialog}
-        className="modal"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="source-removal-title"
+    <Dialog
+      open
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen) dismiss();
+      }}
+    >
+      <DialogContent
+        showCloseButton={false}
+        className="max-h-[calc(100dvh-var(--space-8))] w-[min(680px,90vw)] max-w-none gap-0 overflow-y-auto overscroll-contain p-8 [scroll-padding-block:var(--space-4)] sm:max-w-none"
         aria-describedby="source-removal-description"
       >
-        <h2 id="source-removal-title">Review source-reference removal</h2>
-        <p id="source-removal-description">
+        <DialogTitle id="source-removal-title" className="mb-2 text-xl">
+          Review source-reference removal
+        </DialogTitle>
+        <DialogDescription id="source-removal-description" className="mb-4 leading-relaxed">
           Remove Portcove's saved reference to these game files. The files themselves will stay
           where they are.
-        </p>
+        </DialogDescription>
         {pending === "review" && <p role="status">Checking the source and affected games…</p>}
         {preview && <SourceRemovalDetails preview={preview} ports={ports} />}
         {error && <p role="alert">{error}</p>}
-        <div className="actions">
-          <button data-autofocus data-focusable disabled={pending === "apply"} onClick={dismiss}>
+        <DialogFooter className="mt-4">
+          <Button
+            data-autofocus
+            data-focusable
+            variant="outline"
+            disabled={pending === "apply"}
+            onClick={dismiss}
+          >
             Keep source reference
-          </button>
+          </Button>
           {!preview && (
-            <button
+            <Button
               data-focusable
               disabled={Boolean(pending)}
               onClick={() => {
@@ -124,12 +136,12 @@ export function SourceRemovalDialog({
               }}
             >
               Review source removal again
-            </button>
+            </Button>
           )}
           {preview && (
-            <button
+            <Button
               data-focusable
-              className="danger"
+              variant="destructive"
               disabled={Boolean(pending)}
               onClick={() => {
                 void execute();
@@ -138,11 +150,11 @@ export function SourceRemovalDialog({
               {pending === "apply"
                 ? "Waiting for source removal…"
                 : "Continue to removal confirmation"}
-            </button>
+            </Button>
           )}
-        </div>
-      </section>
-    </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
