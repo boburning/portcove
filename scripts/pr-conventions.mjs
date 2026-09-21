@@ -165,6 +165,18 @@ function bodyFindings(pull, config) {
   const visibleBody = stripComments(body);
   const keywordPattern = config.body.issue_keywords.map(escapeRegex).join("|");
   if (
+    /\b(?:(?:do|does|did|will|would|should|can|could|may|might|must)\s+not|(?:do|does|did|would|should|could|must)n['’]t|won['’]t|can(?:not|['’]t))\s+(?:close|fix|resolve)(?:s|d|ing)?\s*:?\s*(?:[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+)?#\d+\b/i.test(
+      visibleBody,
+    )
+  ) {
+    findings.push(
+      finding(
+        "negated-closing-keyword",
+        "GitHub can still interpret a negated closing keyword; say 'keeps #123 open' instead.",
+      ),
+    );
+  }
+  if (
     !new RegExp(
       `(?:${keywordPattern})\\s+(?:[A-Za-z0-9_.-]+\\/[A-Za-z0-9_.-]+)?#\\d+\\b`,
       "i",
