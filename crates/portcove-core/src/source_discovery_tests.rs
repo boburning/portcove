@@ -110,7 +110,8 @@ fn saved_roots_scan_the_catalog_and_persist_one_current_snapshot() {
         &crate::OperationCoordinator::new("saved-root-scan", None),
     )
     .unwrap();
-    assert_eq!(snapshot.format_version, 1);
+    assert_eq!(snapshot.format_version, 2);
+    assert_eq!(snapshot.limits.as_ref().unwrap().max_entries, 10_000);
     assert_eq!(snapshot.roots.len(), 1);
     assert_eq!(snapshot.report.files_hashed, 1);
     assert_eq!(snapshot.report.candidates.len(), 2);
@@ -266,7 +267,7 @@ fn cancellation_before_snapshot_publication_preserves_the_previous_snapshot() {
 }
 
 #[test]
-fn stored_scan_snapshot_rejects_corrupt_and_future_formats() {
+fn stored_scan_snapshot_accepts_legacy_and_rejects_corrupt_and_future_formats() {
     let temporary = tempfile::tempdir().unwrap();
     let library = crate::Library::open(temporary.path().join("library")).unwrap();
     let connection = library.connection().unwrap();
@@ -293,7 +294,57 @@ fn stored_scan_snapshot_rejects_corrupt_and_future_formats() {
         &crate::OperationCoordinator::new("saved-root-scan", None),
     )
     .unwrap();
-    snapshot.format_version = 2;
+    let mut legacy_with_limits = serde_json::to_value(&snapshot).unwrap();
+    legacy_with_limits["format_version"] = serde_json::json!(1);
+    let connection = library.connection().unwrap();
+    connection
+        .execute(
+            "UPDATE game_file_scan_state SET snapshot_json = ?1 WHERE singleton = 1",
+            [serde_json::to_string(&legacy_with_limits).unwrap()],
+        )
+        .unwrap();
+    drop(connection);
+    let legacy = super::current_game_file_scan(&catalog, &library)
+        .unwrap()
+        .unwrap();
+    assert_eq!(legacy.format_version, 1);
+    assert!(legacy.limits.is_none());
+
+    let mut legacy_without_limits = legacy_with_limits;
+    legacy_without_limits
+        .as_object_mut()
+        .unwrap()
+        .remove("limits");
+    let connection = library.connection().unwrap();
+    connection
+        .execute(
+            "UPDATE game_file_scan_state SET snapshot_json = ?1 WHERE singleton = 1",
+            [serde_json::to_string(&legacy_without_limits).unwrap()],
+        )
+        .unwrap();
+    drop(connection);
+    let legacy = super::current_game_file_scan(&catalog, &library)
+        .unwrap()
+        .unwrap();
+    assert!(legacy.limits.is_none());
+
+    let format_two_without_limits = GameFileScanSnapshot {
+        format_version: 2,
+        ..legacy
+    };
+    library
+        .replace_game_file_scan_snapshot(&format_two_without_limits)
+        .unwrap();
+    let error = super::current_game_file_scan(&catalog, &library).unwrap_err();
+    assert!(error.to_string().contains("missing its scan limits"));
+
+    snapshot.limits.as_mut().unwrap().max_entries = 0;
+    library.replace_game_file_scan_snapshot(&snapshot).unwrap();
+    let error = super::current_game_file_scan(&catalog, &library).unwrap_err();
+    assert!(error.to_string().contains("invalid scan limits"));
+
+    snapshot.limits = Some(SourceDiscoveryLimits::default());
+    snapshot.format_version = 3;
     library.replace_game_file_scan_snapshot(&snapshot).unwrap();
 
     let error = super::current_game_file_scan(&catalog, &library).unwrap_err();

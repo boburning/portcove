@@ -5136,6 +5136,487 @@
     "title": "Array_of_GameFileRoot",
     "type": "array"
   },
+  "game_file_scan_snapshot": {
+    "$defs": {
+      "DigestScope": {
+        "enum": [
+          "original-file",
+          "original-container",
+          "normalized-content",
+          "canonical-n64-big-endian",
+          "archive-member",
+          "gamecube-normalized-iso",
+          "psx-normalized-track-set",
+          "file-set-member",
+          "disc-set-member"
+        ],
+        "type": "string"
+      },
+      "GameFileRoot": {
+        "properties": {
+          "availability": {
+            "$ref": "#/$defs/GameFileRootAvailability"
+          },
+          "created_at": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "id": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "path",
+          "availability",
+          "created_at",
+          "updated_at"
+        ],
+        "type": "object"
+      },
+      "GameFileRootAvailability": {
+        "enum": [
+          "available",
+          "unavailable"
+        ],
+        "type": "string"
+      },
+      "GameFileScanFreshness": {
+        "enum": [
+          "inputs_match",
+          "inputs_changed"
+        ],
+        "type": "string"
+      },
+      "GameFileScanSnapshot": {
+        "properties": {
+          "catalog_sha256": {
+            "type": "string"
+          },
+          "completed_at": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "format_version": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "freshness": {
+            "$ref": "#/$defs/GameFileScanFreshness"
+          },
+          "limits": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/SourceDiscoveryLimits"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "report": {
+            "$ref": "#/$defs/SourceDiscoveryReport"
+          },
+          "roots": {
+            "items": {
+              "$ref": "#/$defs/GameFileRoot"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "format_version",
+          "catalog_sha256",
+          "roots",
+          "limits",
+          "report",
+          "completed_at",
+          "freshness"
+        ],
+        "type": "object"
+      },
+      "ObservedSourceComponent": {
+        "properties": {
+          "digests": {
+            "items": {
+              "$ref": "#/$defs/ObservedSourceDigest"
+            },
+            "type": "array"
+          },
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/$defs/SourceComponentKind"
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "track_count": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "volume_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "name",
+          "digests",
+          "size",
+          "track_count",
+          "volume_id"
+        ],
+        "type": "object"
+      },
+      "ObservedSourceDigest": {
+        "properties": {
+          "algorithm": {
+            "$ref": "#/$defs/SourceDigestAlgorithm"
+          },
+          "scope": {
+            "$ref": "#/$defs/DigestScope"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "value": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "algorithm",
+          "scope",
+          "value",
+          "size"
+        ],
+        "type": "object"
+      },
+      "ObservedSourceIdentity": {
+        "description": "Durable, catalog-independent facts observed when a source registration is written.\nClassification and admission are intentionally recomputed from the active catalog.",
+        "properties": {
+          "archive_member_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "components": {
+            "items": {
+              "$ref": "#/$defs/ObservedSourceComponent"
+            },
+            "type": "array"
+          },
+          "digests": {
+            "items": {
+              "$ref": "#/$defs/ObservedSourceDigest"
+            },
+            "type": "array"
+          },
+          "schema_version": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "validator": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ObservedSourceValidator"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "schema_version",
+          "digests"
+        ],
+        "type": "object"
+      },
+      "ObservedSourceValidator": {
+        "properties": {
+          "contract_id": {
+            "type": "string"
+          },
+          "protocol_version": {
+            "type": "string"
+          },
+          "result": {
+            "$ref": "#/$defs/SourceValidatorResult"
+          },
+          "tool_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "contract_id",
+          "tool_id",
+          "protocol_version",
+          "result"
+        ],
+        "type": "object"
+      },
+      "SourceComponentKind": {
+        "enum": [
+          "file_set_member",
+          "optical_disc"
+        ],
+        "type": "string"
+      },
+      "SourceDigestAlgorithm": {
+        "enum": [
+          "sha1",
+          "sha256",
+          "crc32"
+        ],
+        "type": "string"
+      },
+      "SourceDiscoveryIssue": {
+        "properties": {
+          "message": {
+            "type": "string"
+          },
+          "path": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "profile_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "path",
+          "profile_id",
+          "message"
+        ],
+        "type": "object"
+      },
+      "SourceDiscoveryLimit": {
+        "enum": [
+          "entries",
+          "depth",
+          "file_size",
+          "hash_bytes",
+          "candidates"
+        ],
+        "type": "string"
+      },
+      "SourceDiscoveryLimits": {
+        "properties": {
+          "max_candidates": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "max_depth": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "max_entries": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "max_file_bytes": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "max_hash_bytes": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "max_entries",
+          "max_depth",
+          "max_file_bytes",
+          "max_hash_bytes",
+          "max_candidates"
+        ],
+        "type": "object"
+      },
+      "SourceDiscoveryReport": {
+        "properties": {
+          "candidates": {
+            "items": {
+              "$ref": "#/$defs/SourceRecord"
+            },
+            "type": "array"
+          },
+          "entries_examined": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "files_hashed": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "hash_bytes": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "issues": {
+            "items": {
+              "$ref": "#/$defs/SourceDiscoveryIssue"
+            },
+            "type": "array"
+          },
+          "issues_omitted": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "limits_reached": {
+            "items": {
+              "$ref": "#/$defs/SourceDiscoveryLimit"
+            },
+            "type": "array"
+          },
+          "searched_profiles": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "searched_roots": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "symlinks_skipped": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "searched_roots",
+          "searched_profiles",
+          "candidates",
+          "entries_examined",
+          "files_hashed",
+          "hash_bytes",
+          "symlinks_skipped",
+          "limits_reached",
+          "issues",
+          "issues_omitted"
+        ],
+        "type": "object"
+      },
+      "SourceRecord": {
+        "properties": {
+          "observed_identity": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ObservedSourceIdentity"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Versioned facts observed when this registration was created. Legacy rows and\nmetadata omit this field rather than guessing a schema-2 variant."
+          },
+          "path": {
+            "type": "string"
+          },
+          "profile_id": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "storage_sha256": {
+            "type": "string"
+          },
+          "storage_size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "updated_at": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "profile_id",
+          "path",
+          "sha256",
+          "size",
+          "storage_sha256",
+          "storage_size",
+          "updated_at"
+        ],
+        "type": "object"
+      },
+      "SourceValidatorResult": {
+        "enum": [
+          "not_run",
+          "passed",
+          "failed",
+          "missing_tool"
+        ],
+        "type": "string"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "anyOf": [
+      {
+        "$ref": "#/$defs/GameFileScanSnapshot"
+      },
+      {
+        "type": "null"
+      }
+    ],
+    "title": "Nullable_GameFileScanSnapshot"
+  },
   "game_update_plan": {
     "$defs": {
       "BundledRuntime": {

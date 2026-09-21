@@ -36,6 +36,8 @@ pub struct GameFileScanSnapshot {
     pub format_version: u32,
     pub catalog_sha256: String,
     pub roots: Vec<GameFileRoot>,
+    #[serde(default)]
+    pub limits: Option<crate::SourceDiscoveryLimits>,
     pub report: crate::SourceDiscoveryReport,
     pub completed_at: i64,
     pub freshness: GameFileScanFreshness,

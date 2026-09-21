@@ -50,6 +50,13 @@ evidence must not collapse into one supported flag. Missing gameplay is not a
 source mismatch. Observable schema changes require explicit versioning and
 legacy/unknown-value handling; this planning contract adds no command or field.
 
+Schema 53 adds the `source.roots.scan` capability, the `source roots scan` and
+`source roots snapshot` commands, and the nullable `game_file_scan_snapshot`
+exported schema. Scan uses core's bounded limits and emits the existing
+`discover_sources` operation events under `--jsonl`; snapshot readback reports
+`inputs_match` or `inputs_changed` rather than treating older evidence as current.
+Candidates remain unregistered until separately accepted.
+
 Schema 52 adds the `source.roots` capability, the `source roots` add, list,
 relink and remove commands, and the `game_file_roots` exported schema. Saved
 roots retain stable identities and unavailable paths; consumers must negotiate
@@ -119,7 +126,7 @@ The CLI API schema version is independent of the Portcove release version. Every
 
 ```json
 {
-  "schema_version": 52,
+  "schema_version": 53,
   "ok": true,
   "command": "status",
   "data": {},
@@ -251,7 +258,7 @@ other games remain readable. New installations retain their execution and
 persistence definitions in manifest schema 6, introduced with writer protocol 23.
 Protocol 25 now protects exact successor definition retention; older clients refuse
 to modify an upgraded library. The Playnite
-reference accepts API schemas 42 through 52 with event schema 2. Schema 50
+reference accepts API schemas 42 through 53 with event schema 2. Schema 50
 advertises that event version explicitly; the historical 42–49 window retains
 its documented event-2 contract. Schema 51 consumes the activity-feed
 completeness and protected classifications for lifecycle management.
@@ -423,6 +430,8 @@ portcove --library <path> --json source roots list
 portcove --library <path> --json source roots add "D:\Games"
 portcove --library <path> --json source roots relink <root-id> "E:\Games"
 portcove --library <path> --json source roots remove <root-id>
+portcove --library <path> --json source roots scan
+portcove --library <path> --json source roots snapshot
 ```
 
 Adding requires an available directory and returns the existing stable identity
@@ -430,6 +439,9 @@ when the same canonical folder is already saved. Listing retains unavailable
 folders so a disconnected drive does not erase user intent. Relinking preserves
 the root identity after a mount or path change. Removing forgets only the saved
 folder; it does not modify files, source registrations, or managed installs.
+Scan uses the shared bounded discovery limits described below, records their exact
+values with the resulting candidates, and replaces the prior snapshot only after
+success. Snapshot reads that evidence without scanning or registering candidates.
 
 PS1 managed recomp profiles accept CHD sources. Pass one `.chd` path for a single-disc title. For a declared multi-disc title such as Final Fantasy VII, pass one directory containing exactly the required `.chd` files with filenames that sort in disc order:
 
@@ -475,7 +487,7 @@ portcove --json source discover --root D:\Sources --profile minish-cap-gba --pro
 portcove --json source add <profile-id> <candidate-path> --expected-sha256 <candidate-sha256>
 ```
 
-Discovery requires explicit roots and source profiles. It never registers a match automatically. Defaults are 10,000 examined entries, six nested directory levels, 512 MiB per file, 8 GiB of cumulative hashing, and 64 matches. The corresponding `--max-entries`, `--max-depth`, `--max-file-bytes`, `--max-hash-bytes`, and `--max-candidates` flags can narrow these limits; core also enforces hard ceilings. The report identifies searched scope, validated candidates, hashed bytes, reached limits, and bounded per-path issues. A partial search is not evidence that every file was considered.
+Discovery requires explicit roots and source profiles. It never registers a match automatically. Defaults are 10,000 examined entries, six nested directory levels, 2 GiB per file, 16 GiB of cumulative hashing, and 64 matches. The corresponding `--max-entries`, `--max-depth`, `--max-file-bytes`, `--max-hash-bytes`, and `--max-candidates` flags can narrow these limits; core also enforces hard ceilings. The report identifies searched scope, validated candidates, hashed bytes, reached limits, and bounded per-path issues. A partial search is not evidence that every file was considered.
 
 Only exact-hash original-file and cartridge-ZIP profiles participate automatically. Other source contracts report that manual selection is required. Symlinks and entries outside the selected canonical roots are skipped. Equal profile contracts share hashing; both normalized ZIP payload and original container bytes count toward the budget. Accepting a candidate with `--expected-sha256` checks the current profile and reviewed content under the normal source locks before registration. Settings → Sources → Find source files exposes the same search, cancellation, and explicit acceptance.
 

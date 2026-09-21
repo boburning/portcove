@@ -212,6 +212,9 @@ internal static class ContractTests
         ProtocolStream.Negotiate(bad);
         Check(true, "additive saved-root API schema negotiated without requiring unused commands");
         bad["schema_version"] = 53;
+        ProtocolStream.Negotiate(bad);
+        Check(true, "additive saved-root scan API schema negotiated without requiring unused commands");
+        bad["schema_version"] = 54;
         Reject(() => ProtocolStream.Negotiate(bad), "future schema rejected with migration guidance");
         bad["schema_version"] = 42; bad["commands"] = new object[0];
         Reject(() => ProtocolStream.Negotiate(bad), "missing command capability rejected");

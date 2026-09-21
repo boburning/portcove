@@ -263,6 +263,7 @@ test("supported local Rust compilation and tests acquire admission before starti
 test("UI sources build, lint, and run import-related tests", () => {
   const { selection, plan } = planFor(["apps/desktop/src/view-model.ts"]);
   assert.equal(selection.uiFullTests, false);
+  assert.equal(selection.fallow, true);
   assert.deepEqual(ids(plan), [
     "diff-check",
     "oxfmt",
@@ -272,6 +273,7 @@ test("UI sources build, lint, and run import-related tests", () => {
     "ui-related-durations",
     "ui-theme-copy",
     "ui-copy",
+    "fallow",
   ]);
   const uiBuild = plan.find((entry) => entry.id === "ui-build");
   assert.equal(uiBuild.executable, "corepack");
@@ -485,6 +487,17 @@ test("changed Node implementations select sibling tests and syntax checks", () =
   assert.ok(ids(plan).includes("node-syntax:scripts/ci-health.mjs"));
   assert.ok(ids(plan).includes("oxlint"));
   assert.ok(ids(plan).includes("node-tests"));
+});
+
+test("competing Windows package lifecycle fixtures run serially", () => {
+  const { plan } = planFor([
+    "scripts/updater-artifact-inventory.test.mjs",
+    "scripts/windows-qualification-session.integration.test.mjs",
+  ]);
+  const nodeTests = plan.find((entry) => entry.id === "node-tests");
+  assert.ok(nodeTests);
+  assert.ok(nodeTests.args.includes("--test-concurrency=1"));
+  assert.match(nodeTests.reason, /serialize competing Windows package lifecycle fixtures/u);
 });
 
 test("heavy Rust runner and lock changes select both guarded execution contracts", () => {

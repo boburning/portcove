@@ -1277,6 +1277,7 @@ impl CapabilityDocument {
                 "catalog.check-capabilities".into(),
                 "source".into(),
                 "source.roots".into(),
+                "source.roots.scan".into(),
                 "tool".into(),
                 "status".into(),
                 "activity".into(),

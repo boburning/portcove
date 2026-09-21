@@ -845,6 +845,32 @@ async fn remove_game_file_root(
 }
 
 #[tauri::command]
+async fn scan_game_file_roots(
+    state: tauri::State<'_, DesktopState>,
+    limits: portcove_core::SourceDiscoveryLimits,
+    on_event: tauri::ipc::Channel<OperationEvent>,
+) -> DesktopResult<portcove_core::GameFileScanSnapshot> {
+    blocking_service(state.inner().clone(), move |service| {
+        service
+            .scan_game_file_roots_with_progress(&limits, |event| {
+                let _ = on_event.send(event);
+            })
+            .map_err(Into::into)
+    })
+    .await
+}
+
+#[tauri::command]
+async fn get_game_file_scan_snapshot(
+    state: tauri::State<'_, DesktopState>,
+) -> DesktopResult<Option<portcove_core::GameFileScanSnapshot>> {
+    blocking_service(state.inner().clone(), move |service| {
+        service.game_file_scan_snapshot().map_err(Into::into)
+    })
+    .await
+}
+
+#[tauri::command]
 async fn discover_sources(
     state: tauri::State<'_, DesktopState>,
     request: portcove_core::SourceDiscoveryRequest,
@@ -2111,6 +2137,8 @@ pub fn run() {
             add_game_file_root,
             relink_game_file_root,
             remove_game_file_root,
+            scan_game_file_roots,
+            get_game_file_scan_snapshot,
             discover_sources,
             get_source_inbox_paths,
             open_source_inbox,
@@ -2415,10 +2443,31 @@ mod tests {
         let service = PortcoveService::new(library.clone()).unwrap();
         let paths = vec![selected.clone()];
 
-        let core = service
+        let core_before = Library::now();
+        let mut core = service
             .inspect_source_intake("star-fox-64", &paths)
             .unwrap();
-        let desktop = inspect_source_intake_with_service(&service, "star-fox-64", &paths).unwrap();
+        let core_after = Library::now();
+        let desktop_before = Library::now();
+        let mut desktop =
+            inspect_source_intake_with_service(&service, "star-fox-64", &paths).unwrap();
+        let desktop_after = Library::now();
+        let core_updated_at = core
+            .report
+            .as_mut()
+            .and_then(|report| report.inspection.as_mut())
+            .and_then(|inspection| inspection.record.as_mut())
+            .map(|record| std::mem::replace(&mut record.updated_at, 0))
+            .unwrap();
+        let desktop_updated_at = desktop
+            .report
+            .as_mut()
+            .and_then(|report| report.inspection.as_mut())
+            .and_then(|inspection| inspection.record.as_mut())
+            .map(|record| std::mem::replace(&mut record.updated_at, 0))
+            .unwrap();
+        assert!((core_before..=core_after).contains(&core_updated_at));
+        assert!((desktop_before..=desktop_after).contains(&desktop_updated_at));
         assert_eq!(
             serde_json::to_value(desktop).unwrap(),
             serde_json::to_value(core).unwrap()

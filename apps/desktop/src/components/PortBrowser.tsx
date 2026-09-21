@@ -317,6 +317,16 @@ function LibrarySummary({ overview }: { overview: LibraryOverview }) {
   );
 }
 
+type PortCardProps = {
+  port: PortDefinition;
+  status?: PortStatus;
+  readiness: PortReadiness;
+  onSelect: (portId: string, originKey?: string) => void;
+  onLaunch?: (portId: string) => void;
+  nativeSourceDrag: NativeSourceDragState;
+  view: View;
+};
+
 function PortCard({
   port,
   status,
@@ -325,15 +335,7 @@ function PortCard({
   onLaunch,
   nativeSourceDrag,
   view,
-}: {
-  port: PortDefinition;
-  status?: PortStatus;
-  readiness: PortReadiness;
-  onSelect: (portId: string, originKey?: string) => void;
-  onLaunch?: (portId: string) => void;
-  nativeSourceDrag: NativeSourceDragState;
-  view: View;
-}) {
+}: PortCardProps) {
   const state = readinessPresentation(readiness);
   const channel = releaseChannelPresentation(status?.channel ?? port.support_tier);
   const updateAvailable = currentUpdateSnapshot(status)?.check.update_available;
@@ -342,6 +344,61 @@ function PortCard({
   const detailOrigin = `${view}:card:${port.id}`;
   const className = `port-card${view === "catalog" ? " port-card-selectable" : ""}${dropEligible ? " source-drop-eligible" : ""}${dropTarget ? " source-drop-targeted" : ""}`;
   const contents = (
+    <PortCardContents
+      {...{ port, status, state, channel, updateAvailable, dropEligible, dropTarget }}
+      detailOrigin={detailOrigin}
+      onSelect={onSelect}
+      onLaunch={onLaunch}
+      view={view}
+    />
+  );
+  if (view === "library")
+    return (
+      <article
+        className={className}
+        aria-label={`${port.name}. ${state.label}. ${state.action}.`}
+        data-source-drop-port-id={dropEligible ? port.id : undefined}
+        data-source-drop-profile-id={dropEligible ? port.source_profile : undefined}
+      >
+        {contents}
+      </article>
+    );
+  return (
+    <button
+      data-focusable
+      data-detail-origin={detailOrigin}
+      className={className}
+      aria-label={`${port.name}. ${state.label}. ${state.action}.`}
+      onClick={() => onSelect(port.id, detailOrigin)}
+      data-source-drop-port-id={dropEligible ? port.id : undefined}
+      data-source-drop-profile-id={dropEligible ? port.source_profile : undefined}
+    >
+      {contents}
+    </button>
+  );
+}
+
+function PortCardContents({
+  port,
+  status,
+  state,
+  channel,
+  updateAvailable,
+  dropEligible,
+  dropTarget,
+  detailOrigin,
+  onSelect,
+  onLaunch,
+  view,
+}: Pick<PortCardProps, "port" | "status" | "onSelect" | "onLaunch" | "view"> & {
+  state: ReturnType<typeof readinessPresentation>;
+  channel: ReturnType<typeof releaseChannelPresentation>;
+  updateAvailable?: boolean;
+  dropEligible: boolean;
+  dropTarget: boolean;
+  detailOrigin: string;
+}) {
+  return (
     <>
       {dropEligible && (
         <span className="source-drop-target" aria-hidden="true">
@@ -372,61 +429,54 @@ function PortCard({
             <span key={platform}>{platformLabel(platform)}</span>
           ))}
         </div>
-        <div className="card-status">
-          <strong>{status?.active ? status.active.version : "Not installed"}</strong>
-          {view === "library" ? (
-            <span className="card-actions">
-              <button
-                data-focusable
-                data-detail-origin={detailOrigin}
-                onClick={() => onSelect(port.id, detailOrigin)}
-              >
-                View details
-              </button>
-              {status?.readiness?.launchable === true && onLaunch && (
-                <button
-                  data-focusable
-                  className="primary button-with-icon"
-                  onClick={() => onLaunch(port.id)}
-                >
-                  <Icon glyph={Gamepad2} size="sm" />
-                  Play
-                </button>
-              )}
-            </span>
-          ) : (
-            <span>
-              {state.action}
-              <Icon glyph={ArrowRight} size="sm" />
-            </span>
-          )}
-        </div>
+        <PortCardStatus {...{ port, status, state, detailOrigin, onSelect, onLaunch, view }} />
       </div>
     </>
   );
-  if (view === "library")
-    return (
-      <article
-        className={className}
-        aria-label={`${port.name}. ${state.label}. ${state.action}.`}
-        data-source-drop-port-id={dropEligible ? port.id : undefined}
-        data-source-drop-profile-id={dropEligible ? port.source_profile : undefined}
-      >
-        {contents}
-      </article>
-    );
+}
+
+function PortCardStatus({
+  port,
+  status,
+  state,
+  detailOrigin,
+  onSelect,
+  onLaunch,
+  view,
+}: Pick<PortCardProps, "port" | "status" | "onSelect" | "onLaunch" | "view"> & {
+  state: ReturnType<typeof readinessPresentation>;
+  detailOrigin: string;
+}) {
   return (
-    <button
-      data-focusable
-      data-detail-origin={detailOrigin}
-      className={className}
-      aria-label={`${port.name}. ${state.label}. ${state.action}.`}
-      onClick={() => onSelect(port.id, detailOrigin)}
-      data-source-drop-port-id={dropEligible ? port.id : undefined}
-      data-source-drop-profile-id={dropEligible ? port.source_profile : undefined}
-    >
-      {contents}
-    </button>
+    <div className="card-status">
+      <strong>{status?.active ? status.active.version : "Not installed"}</strong>
+      {view === "library" ? (
+        <span className="card-actions">
+          <button
+            data-focusable
+            data-detail-origin={detailOrigin}
+            onClick={() => onSelect(port.id, detailOrigin)}
+          >
+            View details
+          </button>
+          {status?.readiness?.launchable === true && onLaunch && (
+            <button
+              data-focusable
+              className="primary button-with-icon"
+              onClick={() => onLaunch(port.id)}
+            >
+              <Icon glyph={Gamepad2} size="sm" />
+              Play
+            </button>
+          )}
+        </span>
+      ) : (
+        <span>
+          {state.action}
+          <Icon glyph={ArrowRight} size="sm" />
+        </span>
+      )}
+    </div>
   );
 }
 

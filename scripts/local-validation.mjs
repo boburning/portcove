@@ -353,6 +353,7 @@ function classifyOnePath(selection, input, fileExists, options = {}) {
     recognized = true;
     if (file.startsWith("apps/desktop/src/") || file.startsWith("apps/desktop/scripts/")) {
       selection.uiRelatedFiles.add(file);
+      if (file.startsWith("apps/desktop/src/")) selection.fallow = true;
     } else {
       selection.uiFullTests = true;
     }
@@ -656,11 +657,23 @@ function sorted(set) {
 }
 
 function nodeTestCommand(files) {
+  const serialWindowsQualification = [
+    "scripts/updater-artifact-inventory.test.mjs",
+    "scripts/windows-qualification-session.integration.test.mjs",
+  ].every((file) => files.includes(file));
   return command(
     "node-tests",
-    "exact repository-tool contract tests selected from changed paths",
+    serialWindowsQualification
+      ? "exact repository-tool contract tests selected from changed paths; serialize competing Windows package lifecycle fixtures"
+      : "exact repository-tool contract tests selected from changed paths",
     process.execPath,
-    ["--test", "--test-timeout=30000", `--test-reporter=${durationReporter}`, ...files],
+    [
+      "--test",
+      "--test-timeout=30000",
+      `--test-reporter=${durationReporter}`,
+      ...(serialWindowsQualification ? ["--test-concurrency=1"] : []),
+      ...files,
+    ],
   );
 }
 
@@ -976,7 +989,7 @@ export function buildPlan(selection, context = {}) {
     commands.push(
       command(
         "fallow",
-        "run the quality report governed by the changed Fallow configuration or runtime",
+        "run the quality report for changed frontend source or Fallow configuration",
         process.execPath,
         ["scripts/run-fallow.mjs"],
       ),

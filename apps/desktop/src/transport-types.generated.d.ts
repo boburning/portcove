@@ -260,6 +260,12 @@ export type RepairItemKind =
   | "backup_recovery_required";
 export type GameFileRootAvailability = "available" | "unavailable";
 export type OutputGameFileRoots = GameFileRoot[];
+export type OutputGameFileScanSnapshot = GameFileScanSnapshot | null;
+export type GameFileScanFreshness = "inputs_match" | "inputs_changed";
+export type SourceDigestAlgorithm = "sha1" | "sha256" | "crc32";
+export type SourceComponentKind = "file_set_member" | "optical_disc";
+export type SourceValidatorResult = "not_run" | "passed" | "failed" | "missing_tool";
+export type SourceDiscoveryLimit = "entries" | "depth" | "file_size" | "hash_bytes" | "candidates";
 export type InstallPlanAction = "already_active" | "use_staged" | "reuse_retained" | "blocked_unverified" | "download";
 export type SourceRequirementRole = "game_source" | "bios";
 export type GithubAuthSource = "anonymous" | "environment" | "credential_store";
@@ -279,9 +285,6 @@ export type LaunchSessionOutcome = "succeeded" | "failed" | "cancelled";
 export type LaunchSessionPhase = "preparing" | "spawning" | "running" | "collecting" | "recovering";
 export type LibraryContentKind =
   "application_versions" | "user_data" | "source_inbox" | "backups" | "toolchains" | "local_artwork";
-export type SourceDigestAlgorithm = "sha1" | "sha256" | "crc32";
-export type SourceComponentKind = "file_set_member" | "optical_disc";
-export type SourceValidatorResult = "not_run" | "passed" | "failed" | "missing_tool";
 export type LibrarySelectionSource = "invocation" | "saved" | "platform_default";
 /**
  * Versioned best-effort progress envelope. Durable activity history remains
@@ -405,7 +408,6 @@ export type SourceClassification =
       [k: string]: unknown;
     };
 export type ReconcileAction = "up_to_date" | "notify" | "staged" | "activated";
-export type SourceDiscoveryLimit = "entries" | "depth" | "file_size" | "hash_bytes" | "candidates";
 export type SourceImportMode = "copy" | "move" | "use_current_location";
 export type SourceImportOutcome =
   "copied" | "moved" | "reused_existing" | "registered_current_location" | "copied_original_retained";
@@ -466,6 +468,7 @@ export interface TransportOutputs {
   definition_capability_request: OutputDefinitionCapabilityRequest;
   doctor: OutputDoctor;
   game_file_roots: OutputGameFileRoots;
+  game_file_scan_snapshot: OutputGameFileScanSnapshot;
   game_update_plan: OutputGameUpdatePlan;
   github_auth_status: GithubAuthStatus;
   github_device_login: OutputGithubDeviceLogin;
@@ -506,7 +509,7 @@ export interface TransportOutputs {
   source_discovery_issue: SourceDiscoveryIssue;
   source_discovery_limit: SourceDiscoveryLimit;
   source_discovery_limits: SourceDiscoveryLimits;
-  source_discovery_report: OutputSourceDiscoveryReport;
+  source_discovery_report: SourceDiscoveryReport;
   source_discovery_request: OutputSourceDiscoveryRequest;
   source_import_plan: OutputSourceImportPlan;
   source_import_result: OutputSourceImportResult;
@@ -535,6 +538,7 @@ export interface TransportOutputs {
   desktop_cli_command_context: OutputDesktopCliCommandContext;
   desktop_desktop_error: FailureReport;
   desktop_game_file_roots: OutputGameFileRoots;
+  desktop_game_file_scan_snapshot: OutputGameFileScanSnapshot;
   desktop_launch_result: OutputDesktopLaunchResult;
   desktop_preparation_cleanup_preview: OutputPreparationCleanupPreview;
   desktop_reconcile_outcome: OutputReconcileBatchOutcome;
@@ -1319,6 +1323,94 @@ export interface GameFileRoot {
   updated_at: number;
   [k: string]: unknown;
 }
+export interface GameFileScanSnapshot {
+  catalog_sha256: string;
+  completed_at: number;
+  format_version: number;
+  freshness: GameFileScanFreshness;
+  limits: SourceDiscoveryLimits | null;
+  report: SourceDiscoveryReport;
+  roots: GameFileRoot[];
+  [k: string]: unknown;
+}
+export interface SourceDiscoveryLimits {
+  max_candidates: number;
+  max_depth: number;
+  max_entries: number;
+  max_file_bytes: number;
+  max_hash_bytes: number;
+  [k: string]: unknown;
+}
+export interface SourceDiscoveryReport {
+  candidates: SourceRecord[];
+  entries_examined: number;
+  files_hashed: number;
+  hash_bytes: number;
+  issues: SourceDiscoveryIssue[];
+  issues_omitted: number;
+  limits_reached: SourceDiscoveryLimit[];
+  searched_profiles: string[];
+  searched_roots: string[];
+  symlinks_skipped: number;
+  [k: string]: unknown;
+}
+export interface SourceRecord {
+  /**
+   * Versioned facts observed when this registration was created. Legacy rows and
+   * metadata omit this field rather than guessing a schema-2 variant.
+   */
+  observed_identity?: ObservedSourceIdentity | null;
+  path: string;
+  profile_id: string;
+  sha256: string;
+  size: number;
+  storage_sha256: string;
+  storage_size: number;
+  updated_at: number;
+  [k: string]: unknown;
+}
+/**
+ * Durable, catalog-independent facts observed when a source registration is written.
+ * Classification and admission are intentionally recomputed from the active catalog.
+ */
+export interface ObservedSourceIdentity {
+  archive_member_name?: string | null;
+  components?: ObservedSourceComponent[];
+  digests: ObservedSourceDigest[];
+  schema_version: number;
+  validator?: ObservedSourceValidator | null;
+  [k: string]: unknown;
+}
+export interface ObservedSourceComponent {
+  digests: ObservedSourceDigest[];
+  id: string;
+  kind: SourceComponentKind;
+  name: string | null;
+  size: number;
+  track_count: number | null;
+  volume_id: string | null;
+  [k: string]: unknown;
+}
+export interface ObservedSourceDigest {
+  algorithm: SourceDigestAlgorithm;
+  scope: DigestScope;
+  size: number;
+  value: string;
+  [k: string]: unknown;
+}
+export interface ObservedSourceValidator {
+  contract_id: string;
+  protocol_version: string;
+  result: SourceValidatorResult;
+  tool_id: string;
+  [k: string]: unknown;
+}
+export interface SourceDiscoveryIssue {
+  message: string;
+  path: string | null;
+  profile_id: string | null;
+  [k: string]: unknown;
+}
 /**
  * A reviewed game update, independent of the saved automatic-update policy.
  */
@@ -1490,57 +1582,6 @@ export interface PortabilityAdmission {
   port_id: string;
   role: string;
   selection_sha256: string;
-}
-export interface SourceRecord {
-  /**
-   * Versioned facts observed when this registration was created. Legacy rows and
-   * metadata omit this field rather than guessing a schema-2 variant.
-   */
-  observed_identity?: ObservedSourceIdentity | null;
-  path: string;
-  profile_id: string;
-  sha256: string;
-  size: number;
-  storage_sha256: string;
-  storage_size: number;
-  updated_at: number;
-  [k: string]: unknown;
-}
-/**
- * Durable, catalog-independent facts observed when a source registration is written.
- * Classification and admission are intentionally recomputed from the active catalog.
- */
-export interface ObservedSourceIdentity {
-  archive_member_name?: string | null;
-  components?: ObservedSourceComponent[];
-  digests: ObservedSourceDigest[];
-  schema_version: number;
-  validator?: ObservedSourceValidator | null;
-  [k: string]: unknown;
-}
-export interface ObservedSourceComponent {
-  digests: ObservedSourceDigest[];
-  id: string;
-  kind: SourceComponentKind;
-  name: string | null;
-  size: number;
-  track_count: number | null;
-  volume_id: string | null;
-  [k: string]: unknown;
-}
-export interface ObservedSourceDigest {
-  algorithm: SourceDigestAlgorithm;
-  scope: DigestScope;
-  size: number;
-  value: string;
-  [k: string]: unknown;
-}
-export interface ObservedSourceValidator {
-  contract_id: string;
-  protocol_version: string;
-  result: SourceValidatorResult;
-  tool_id: string;
-  [k: string]: unknown;
 }
 export interface LibraryMetadataFile {
   path: string;
@@ -1924,33 +1965,6 @@ export interface SourceInspectionReport1 {
   schema_version: number;
   state_code: string;
   summary: string;
-  [k: string]: unknown;
-}
-export interface SourceDiscoveryIssue {
-  message: string;
-  path: string | null;
-  profile_id: string | null;
-  [k: string]: unknown;
-}
-export interface SourceDiscoveryLimits {
-  max_candidates: number;
-  max_depth: number;
-  max_entries: number;
-  max_file_bytes: number;
-  max_hash_bytes: number;
-  [k: string]: unknown;
-}
-export interface OutputSourceDiscoveryReport {
-  candidates: SourceRecord[];
-  entries_examined: number;
-  files_hashed: number;
-  hash_bytes: number;
-  issues: SourceDiscoveryIssue[];
-  issues_omitted: number;
-  limits_reached: SourceDiscoveryLimit[];
-  searched_profiles: string[];
-  searched_roots: string[];
-  symlinks_skipped: number;
   [k: string]: unknown;
 }
 export interface OutputSourceDiscoveryRequest {
