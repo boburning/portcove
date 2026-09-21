@@ -144,7 +144,9 @@ fn read_zip_identity(
             .ok_or_else(|| PortcoveError::source("source ZIP size overflowed"))?,
     )?;
     let identity = hash_reader(entry, expected, maximum_size.min(512 * 1024 * 1024), budget)?;
-    let storage = hash_reader(File::open(path)?, storage_size, maximum_size, budget)?;
+    // The outer archive is retained as storage identity only. Its member receives
+    // the full content-identity treatment above.
+    let storage = hash_storage_reader(File::open(path)?, storage_size, maximum_size, budget)?;
     Ok(FileIdentity {
         sha256: identity.sha256,
         sha1: identity.sha1,
@@ -167,6 +169,11 @@ struct HashedContent {
     canonical_n64_sha256: Option<String>,
     canonical_n64_sha1: Option<String>,
     canonical_n64_size: Option<u64>,
+}
+
+struct HashedStorage {
+    sha256: String,
+    size: u64,
 }
 
 fn hash_reader(
@@ -215,13 +222,60 @@ fn hash_reader(
     })
 }
 
+fn hash_storage_reader(
+    mut reader: impl Read,
+    expected: u64,
+    maximum: u64,
+    budget: &mut HashBudget,
+) -> Result<HashedStorage> {
+    if expected > maximum {
+        return Err(PortcoveError::source(
+            "source exceeds its hashing size limit",
+        ));
+    }
+    budget.reserve(expected)?;
+    let mut sha256 = Sha256::new();
+    let mut size = 0_u64;
+    let mut buffer = [0_u8; 128 * 1024];
+    while size < expected {
+        if let Some(operation) = &budget.operation {
+            operation.checkpoint()?;
+        }
+        let wanted = (expected - size).min(buffer.len() as u64) as usize;
+        let read = reader.read(&mut buffer[..wanted])?;
+        if read == 0 {
+            return Err(PortcoveError::source("source shrank while hashing"));
+        }
+        budget.hashed += read as u64;
+        size += read as u64;
+        sha256.update(&buffer[..read]);
+    }
+    if reader.read(&mut [0_u8; 1])? != 0 {
+        return Err(PortcoveError::source("source grew while hashing"));
+    }
+    Ok(HashedStorage {
+        sha256: hex::encode(sha256.finalize()),
+        size,
+    })
+}
+
 #[derive(Default)]
 struct N64CanonicalDigest {
     order: Option<N64ByteOrder>,
-    pending: Vec<u8>,
+    pending: [u8; 4],
+    pending_len: usize,
     sha256: Sha256,
     sha1: Sha1,
     size: u64,
+    #[cfg(test)]
+    work: N64Work,
+}
+
+#[cfg(test)]
+#[derive(Default)]
+struct N64Work {
+    buffered_bytes: u64,
+    digested_bytes: u64,
 }
 
 #[derive(Clone, Copy)]
@@ -234,52 +288,117 @@ enum N64ByteOrder {
 
 impl N64CanonicalDigest {
     fn update(&mut self, bytes: &[u8]) -> Result<()> {
-        self.pending.extend_from_slice(bytes);
-        if self.order.is_none() && self.pending.len() >= 4 {
-            self.order = Some(match self.pending[..4] {
+        if matches!(self.order, Some(N64ByteOrder::Invalid)) {
+            return Ok(());
+        }
+
+        let mut remaining = bytes;
+        if self.order.is_none() {
+            let take = (4 - self.pending_len).min(remaining.len());
+            self.pending[self.pending_len..self.pending_len + take]
+                .copy_from_slice(&remaining[..take]);
+            self.pending_len += take;
+            #[cfg(test)]
+            {
+                self.work.buffered_bytes += take as u64;
+            }
+            remaining = &remaining[take..];
+            if self.pending_len < 4 {
+                return Ok(());
+            }
+            self.order = Some(match self.pending {
                 [0x80, 0x37, 0x12, 0x40] => N64ByteOrder::Big,
                 [0x37, 0x80, 0x40, 0x12] => N64ByteOrder::ByteSwapped,
                 [0x40, 0x12, 0x37, 0x80] => N64ByteOrder::Little,
                 _ => N64ByteOrder::Invalid,
             });
-        }
-        if self.order.is_some() {
-            let complete = self.pending.len() / 4 * 4;
-            if complete > 0 {
-                let mut words = self.pending.drain(..complete).collect::<Vec<_>>();
-                self.hash_words(&mut words);
+            if matches!(self.order, Some(N64ByteOrder::Invalid)) {
+                self.pending_len = 0;
+                return Ok(());
             }
+            let header = self.pending;
+            self.pending_len = 0;
+            self.hash_words(&header);
+        }
+
+        if self.pending_len > 0 {
+            let take = (4 - self.pending_len).min(remaining.len());
+            self.pending[self.pending_len..self.pending_len + take]
+                .copy_from_slice(&remaining[..take]);
+            self.pending_len += take;
+            #[cfg(test)]
+            {
+                self.work.buffered_bytes += take as u64;
+            }
+            remaining = &remaining[take..];
+            if self.pending_len < 4 {
+                return Ok(());
+            }
+            let pending = self.pending;
+            self.pending_len = 0;
+            self.hash_words(&pending);
+        }
+
+        let complete = remaining.len() / 4 * 4;
+        self.hash_words(&remaining[..complete]);
+        let tail = &remaining[complete..];
+        self.pending.fill(0);
+        self.pending[..tail.len()].copy_from_slice(tail);
+        self.pending_len = tail.len();
+        #[cfg(test)]
+        {
+            self.work.buffered_bytes += tail.len() as u64;
         }
         Ok(())
     }
 
-    fn hash_words(&mut self, words: &mut [u8]) {
+    fn hash_words(&mut self, words: &[u8]) {
+        if words.is_empty() {
+            return;
+        }
         match self.order.expect("N64 byte order is known") {
-            N64ByteOrder::Big | N64ByteOrder::Invalid => {}
+            N64ByteOrder::Big => {
+                self.sha256.update(words);
+                self.sha1.update(words);
+            }
             N64ByteOrder::ByteSwapped => {
-                for pair in words.as_chunks_mut::<2>().0 {
-                    pair.swap(0, 1);
+                let mut normalized = [0_u8; 4096];
+                for chunk in words.chunks(normalized.len()) {
+                    normalized[..chunk.len()].copy_from_slice(chunk);
+                    for pair in normalized[..chunk.len()].as_chunks_mut::<2>().0 {
+                        pair.swap(0, 1);
+                    }
+                    self.sha256.update(&normalized[..chunk.len()]);
+                    self.sha1.update(&normalized[..chunk.len()]);
                 }
             }
             N64ByteOrder::Little => {
-                for word in words.as_chunks_mut::<4>().0 {
-                    word.reverse();
+                let mut normalized = [0_u8; 4096];
+                for chunk in words.chunks(normalized.len()) {
+                    normalized[..chunk.len()].copy_from_slice(chunk);
+                    for word in normalized[..chunk.len()].as_chunks_mut::<4>().0 {
+                        word.reverse();
+                    }
+                    self.sha256.update(&normalized[..chunk.len()]);
+                    self.sha1.update(&normalized[..chunk.len()]);
                 }
             }
+            N64ByteOrder::Invalid => unreachable!("invalid N64 input is rejected before hashing"),
         }
-        self.sha256.update(&*words);
-        self.sha1.update(&*words);
         self.size += words.len() as u64;
+        #[cfg(test)]
+        {
+            self.work.digested_bytes += words.len() as u64;
+        }
     }
 
     fn finish(mut self) -> Result<(Option<String>, Option<String>, Option<u64>)> {
         if self.order.is_none() || matches!(self.order, Some(N64ByteOrder::Invalid)) {
             return Ok((None, None, None));
         }
-        if !self.pending.is_empty() {
-            self.pending.resize(4, 0);
-            let mut pending = std::mem::take(&mut self.pending);
-            self.hash_words(&mut pending);
+        if self.pending_len > 0 {
+            let pending = self.pending;
+            self.hash_words(&pending);
         }
         Ok((
             Some(hex::encode(self.sha256.finalize())),
@@ -344,4 +463,137 @@ pub(crate) fn single_zip_source_index(
         .detail("zip_match_count", matches.len().to_string()));
     }
     Ok(matches[0])
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Cursor;
+
+    fn canonical_digest(input_chunks: &[&[u8]]) -> (N64CanonicalDigest, Vec<u8>) {
+        let mut digest = N64CanonicalDigest::default();
+        for chunk in input_chunks {
+            digest.update(chunk).unwrap();
+        }
+        let canonical = match digest.order.unwrap() {
+            N64ByteOrder::Big => input_chunks.concat(),
+            N64ByteOrder::ByteSwapped => {
+                let mut bytes = input_chunks.concat();
+                for pair in bytes.as_chunks_mut::<2>().0 {
+                    pair.swap(0, 1);
+                }
+                bytes
+            }
+            N64ByteOrder::Little => {
+                let mut bytes = input_chunks.concat();
+                for word in bytes.as_chunks_mut::<4>().0 {
+                    word.reverse();
+                }
+                bytes
+            }
+            N64ByteOrder::Invalid => Vec::new(),
+        };
+        (digest, canonical)
+    }
+
+    #[test]
+    fn n64_canonical_digest_preserves_all_orders_across_split_reads() {
+        let canonical = [
+            0x80, 0x37, 0x12, 0x40, 0x11, 0x22, 0x33, 0x44, 0xaa, 0xbb, 0xcc, 0xdd,
+        ];
+        let mut byte_swapped = canonical;
+        for pair in byte_swapped.as_chunks_mut::<2>().0 {
+            pair.swap(0, 1);
+        }
+        let mut little = canonical;
+        for word in little.as_chunks_mut::<4>().0 {
+            word.reverse();
+        }
+
+        for encoded in [canonical, byte_swapped, little] {
+            let chunks = [&encoded[..1], &encoded[1..3], &encoded[3..7], &encoded[7..]];
+            let (digest, normalized) = canonical_digest(&chunks);
+            assert_eq!(normalized, canonical);
+            let (sha256, sha1, size) = digest.finish().unwrap();
+            assert_eq!(sha256.unwrap(), hex::encode(Sha256::digest(canonical)));
+            assert_eq!(sha1.unwrap(), hex::encode(Sha1::digest(canonical)));
+            assert_eq!(size, Some(canonical.len() as u64));
+        }
+    }
+
+    #[test]
+    fn n64_canonical_digest_preserves_padded_tail_semantics() {
+        for (encoded, expected) in [
+            (
+                vec![0x80, 0x37, 0x12, 0x40, 0x11, 0x22],
+                vec![0x80, 0x37, 0x12, 0x40, 0x11, 0x22, 0, 0],
+            ),
+            (
+                vec![0x37, 0x80, 0x40, 0x12, 0x22, 0x11],
+                vec![0x80, 0x37, 0x12, 0x40, 0x11, 0x22, 0, 0],
+            ),
+            (
+                vec![0x40, 0x12, 0x37, 0x80, 0x44, 0x33],
+                vec![0x80, 0x37, 0x12, 0x40, 0, 0, 0x33, 0x44],
+            ),
+        ] {
+            let mut digest = N64CanonicalDigest::default();
+            digest.update(&encoded[..3]).unwrap();
+            digest.update(&encoded[3..]).unwrap();
+            let (sha256, sha1, size) = digest.finish().unwrap();
+            assert_eq!(sha256.unwrap(), hex::encode(Sha256::digest(&expected)));
+            assert_eq!(sha1.unwrap(), hex::encode(Sha1::digest(&expected)));
+            assert_eq!(size, Some(8));
+        }
+    }
+
+    #[test]
+    fn non_n64_rejection_stops_canonical_work_after_split_header() {
+        let mut digest = N64CanonicalDigest::default();
+        digest.update(&[0xde]).unwrap();
+        digest.update(&[0xad, 0xbe]).unwrap();
+        digest.update(&[0xef, 1, 2, 3]).unwrap();
+        digest.update(&vec![0x55; 256 * 1024]).unwrap();
+
+        assert!(matches!(digest.order, Some(N64ByteOrder::Invalid)));
+        assert_eq!(digest.work.buffered_bytes, 4);
+        assert_eq!(digest.work.digested_bytes, 0);
+        assert_eq!(digest.finish().unwrap(), (None, None, None));
+    }
+
+    #[test]
+    fn short_n64_header_remains_unclassified() {
+        for bytes in [
+            &[][..],
+            &[0x80][..],
+            &[0x80, 0x37][..],
+            &[0x80, 0x37, 0x12][..],
+        ] {
+            let mut digest = N64CanonicalDigest::default();
+            digest.update(bytes).unwrap();
+            assert_eq!(digest.finish().unwrap(), (None, None, None));
+        }
+    }
+
+    #[test]
+    fn storage_identity_hashes_only_sha256_and_preserves_accounting() {
+        let bytes = b"outer zip storage bytes";
+        let mut budget = HashBudget {
+            operation: None,
+            limit: bytes.len() as u64,
+            hashed: 0,
+            max_zip_entries: 1,
+        };
+        let identity = hash_storage_reader(
+            Cursor::new(bytes),
+            bytes.len() as u64,
+            bytes.len() as u64,
+            &mut budget,
+        )
+        .unwrap();
+
+        assert_eq!(identity.sha256, hex::encode(Sha256::digest(bytes)));
+        assert_eq!(identity.size, bytes.len() as u64);
+        assert_eq!(budget.hashed, bytes.len() as u64);
+    }
 }
