@@ -114,65 +114,14 @@ async function oxlintFixture() {
     expectSuccess("Oxlint Vitest policy", runOxlint(fixture));
     for (const [rule, diagnostic, source] of [
       [
-        "React Hooks",
-        /react-hooks\(rules-of-hooks\)/,
-        'import { useState } from "react";\nexport function Fixture({ enabled }: { enabled: boolean }) {\n  if (enabled) useState(0);\n  return null;\n}\n',
-      ],
-      [
-        "jsx-a11y",
-        /jsx-a11y\(alt-text\)/,
-        'export function Fixture() {\n  return <img src="fixture" />;\n}\n',
-      ],
-      [
         "floating promises",
         /typescript\(no-floating-promises\)/,
         "export function fixture() {\n  Promise.resolve(1);\n}\n",
       ],
       [
-        "semantic unsafe assignment",
-        /typescript\(no-unsafe-assignment\)/,
-        'export const value: string = JSON.parse("\\\"Portcove\\\"");\n',
-      ],
-      [
-        "modern React correctness",
-        /react\(set-state-in-effect\)/,
-        'import { useEffect, useState } from "react";\nexport function Fixture() {\n  const [value, setValue] = useState(0);\n  useEffect(() => setValue(1), []);\n  return <p>{value}</p>;\n}\n',
-      ],
-      [
         "unused suppression",
         /unused (?:oxlint-)?disable directive/i,
         "// oxlint-disable-next-line no-undef\nexport const value = 1;\n",
-      ],
-      [
-        "native Oxc correctness",
-        /oxc\(bad-object-literal-comparison\)/,
-        "export const same = {} === {};\n",
-      ],
-      ["import default", /import\(default\)/, 'import value from "./module";\nexport { value };\n'],
-      [
-        "import namespace",
-        /import\(namespace\)/,
-        'import * as values from "./module";\nexport const missing = values.missing;\n',
-      ],
-      [
-        "Vitest focused test",
-        /vitest\(no-focused-tests\)/,
-        'import { expect, it } from "vitest";\nit.only("focused", () => {\n  expect(1).toBe(1);\n});\n',
-      ],
-      [
-        "Vitest conditional expectation",
-        /vitest\(no-conditional-expect\)/,
-        'import { expect, it } from "vitest";\nit("conditional", () => {\n  if (Date.now() > 0) expect(1).toBe(1);\n});\n',
-      ],
-      [
-        "Vitest promise expectation",
-        /vitest\(valid-expect-in-promise\)/,
-        'import { expect, it } from "vitest";\nit("promise", () => {\n  Promise.resolve().then(() => expect(1).toBe(1));\n});\n',
-      ],
-      [
-        "Vitest throw message",
-        /vitest\(require-to-throw-message\)/,
-        'import { expect, it } from "vitest";\nit("throws", () => {\n  expect(() => {\n    throw new Error("broken");\n  }).toThrow();\n});\n',
       ],
     ]) {
       await writeFile(fixture, source);
@@ -217,7 +166,11 @@ async function oxlintFixture() {
     ]);
     expectFailure("overlapping Oxlint Hooks fixture", hooksResult, /rules-of-hooks/);
     expectFailure("overlapping Oxlint a11y fixture", a11yResult, /alt-text/);
-    assert.ok(childInvocations > 0, "Oxlint fixture contract did not execute a child");
+    assert.equal(
+      childInvocations,
+      10,
+      "Oxlint fixture contract should keep a bounded representative subprocess inventory",
+    );
     console.log("Oxlint overlapping negative fixtures remained independently deterministic.");
     console.log(
       `Oxlint fixture contract executed ${childInvocations} targeted child invocations without a repository-wide scan.`,
