@@ -68,6 +68,18 @@ export async function accessibleNavigationScenario({ browser, scenario, output, 
       "keyboard",
       "ArrowDown must return input handling to keyboard mode",
     );
+    assert.equal(await search.getAttribute("aria-activedescendant"), "command-catalog");
+    await search.sendKeys(Key.ARROW_DOWN, Key.ARROW_DOWN);
+    assert.equal(await search.getAttribute("aria-activedescendant"), "command-updates");
+    const unavailableCheck = await browser.findElement(By.css("#command-check"));
+    assert.notEqual(await unavailableCheck.getAttribute("disabled"), null);
+    assert.match(await unavailableCheck.getText(), /Install a port before checking/);
+    await search.sendKeys(Key.ARROW_DOWN);
+    assert.equal(
+      await search.getAttribute("aria-activedescendant"),
+      "command-adopt",
+      "Keyboard movement must skip an unavailable command",
+    );
     const expansion = await browser.executeScript(() => {
       document.documentElement.style.fontSize = "125%";
       const samples = [];

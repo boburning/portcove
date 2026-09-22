@@ -217,6 +217,62 @@ describe("command search transitions", () => {
     expect(search.getAttribute("aria-activedescendant")).toBe("command-library");
   });
 
+  it("moves to an eligible command when refresh disables the active one", async () => {
+    const unavailableAction = vi.fn();
+    await act(async () =>
+      root.render(createElement(CommandPalette, { open: true, commands, close: vi.fn() })),
+    );
+    const search = document.body.querySelector<HTMLInputElement>("input")!;
+    await act(async () => {
+      search.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true }),
+      );
+    });
+    expect(search.getAttribute("aria-activedescendant")).toBe("command-catalog");
+
+    const refreshed = [commands[0], { ...commands[1], disabled: true, action: unavailableAction }];
+    await act(async () =>
+      root.render(
+        createElement(CommandPalette, { open: true, commands: refreshed, close: vi.fn() }),
+      ),
+    );
+    expect(search.getAttribute("aria-activedescendant")).toBe("command-library");
+    expect(document.body.querySelector<HTMLButtonElement>("#command-catalog")?.disabled).toBe(true);
+
+    await act(async () => {
+      search.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true }),
+      );
+      search.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }),
+      );
+    });
+    expect(search.getAttribute("aria-activedescendant")).toBe("command-library");
+    expect(unavailableAction).not.toHaveBeenCalled();
+  });
+
+  it("leaves unavailable-only results visible without an executable active descendant", async () => {
+    const action = vi.fn();
+    await act(async () =>
+      root.render(
+        createElement(CommandPalette, {
+          open: true,
+          commands: [{ ...commands[0], disabled: true, action }],
+          close: vi.fn(),
+        }),
+      ),
+    );
+    const search = document.body.querySelector<HTMLInputElement>("input")!;
+    expect(document.body.querySelector('[role="option"]')?.textContent).toContain("Open library");
+    expect(search.hasAttribute("aria-activedescendant")).toBe(false);
+    await act(async () => {
+      search.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }),
+      );
+    });
+    expect(action).not.toHaveBeenCalled();
+  });
+
   it("selects an eligible query result and ignores composing Enter", async () => {
     const unavailable = {
       ...commands[0],
