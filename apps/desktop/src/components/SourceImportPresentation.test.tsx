@@ -88,7 +88,7 @@ it.each(["copy", "move", "use_current_location"] as const)(
       const action = [...host.querySelectorAll<HTMLButtonElement>("button")].find(
         (button) => button.textContent === sourceImportModePresentation(mode).label,
       );
-      expect(action?.dataset.variant).toBe(mode === "move" ? "destructive" : "default");
+      expect(action?.dataset.variant).toBe(mode === "move" ? "destructive" : "primary");
       await act(async () => action!.click());
       expect(apply).toHaveBeenCalledOnce();
     } finally {

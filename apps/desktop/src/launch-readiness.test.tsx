@@ -135,7 +135,7 @@ it.each([undefined, null, { launchable: false, pending_setup: false, blockers: [
       await act(async () =>
         host
           .querySelector<HTMLButtonElement>(
-            '.continue-actions [data-slot="button"][data-variant="default"]',
+            '.continue-actions [data-slot="button"][data-variant="primary"]',
           )!
           .click(),
       );
@@ -187,20 +187,20 @@ it("restores Continue only after a new positive core assessment without changing
     await act(async () =>
       host
         .querySelector<HTMLButtonElement>(
-          '.continue-actions [data-slot="button"][data-variant="default"]',
+          '.continue-actions [data-slot="button"][data-variant="primary"]',
         )!
         .click(),
     );
     expect(launch).not.toHaveBeenCalled();
     await render(ready);
     expect(
-      host.querySelector('.continue-actions [data-slot="button"][data-variant="default"]')
+      host.querySelector('.continue-actions [data-slot="button"][data-variant="primary"]')
         ?.textContent,
     ).toBe("Play again");
     await act(async () =>
       host
         .querySelector<HTMLButtonElement>(
-          '.continue-actions [data-slot="button"][data-variant="default"]',
+          '.continue-actions [data-slot="button"][data-variant="primary"]',
         )!
         .click(),
     );

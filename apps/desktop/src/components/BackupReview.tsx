@@ -86,7 +86,7 @@ export function BackupReviewDialog({
           {review && (
             <Button
               data-focusable
-              variant={restore ? "default" : "destructive"}
+              variant={restore ? "primary" : "destructive"}
               disabled={Boolean(pending)}
               onClick={() => {
                 void execute();

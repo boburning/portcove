@@ -9,7 +9,11 @@ describe("DesignCompatibilityFixture", () => {
     expect(markup).toContain("data-offline-asset");
     expect(markup).toContain("/brand/icons/portcove-mascot-head-256.png");
     expect(markup).toContain("fixture-open-dialog");
+    expect(markup).toContain("data-theme-variant-probe");
     expect(markup).toContain('data-theme="dark"');
+    expect(markup).toContain('data-direction="ltr"');
     expect(markup).toContain('data-reduced-motion="false"');
+    expect(markup).toContain('data-variant="selected"');
+    expect(markup).toContain('data-variant="primary"');
   });
 });

@@ -130,6 +130,7 @@ function LibraryMoveDialog({ close }: { close: () => void }) {
             (plan ? (
               <Button
                 data-focusable
+                variant="primary"
                 disabled={Boolean(busy)}
                 onClick={() => {
                   void run("Copying and verifying your library…", async () => {
@@ -197,6 +198,7 @@ export function LibraryMoveRecovery({
       <div className="actions">
         <Button
           data-focusable
+          variant="primary"
           disabled={busy}
           onClick={() => {
             void recover(false);

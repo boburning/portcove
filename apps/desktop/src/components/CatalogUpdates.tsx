@@ -302,6 +302,7 @@ function PublisherTrust({ status, busy, run, changed }: CatalogActions) {
         />
         <Button
           data-focusable
+          variant="primary"
           disabled={Boolean(busy) || !publicKey.trim()}
           onClick={() => {
             void run("Confirming publisher…", async () => {
@@ -453,6 +454,7 @@ function CatalogReview({
           </details>
           <Button
             data-focusable
+            variant="primary"
             disabled={Boolean(busy)}
             onClick={() => {
               const reviewed = plan;

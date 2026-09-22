@@ -13,7 +13,7 @@ Portcove's default theme borrows its structure from Nintendo 64-era industrial h
 
 Dark is the default hardware-like graphite theme. Light uses warm controller-plastic gray and off-white surfaces with graphite text; it is a first-class semantic remap, not an inverted afterthought. System preference follows `prefers-color-scheme`, while explicit Dark and Light choices persist locally.
 
-The automated theme contract fails if a component introduces a raw hex/RGB/HSL color, references an N64 primitive directly, adds a gradient, removes a required semantic alias, changes a fixed primitive, or drops a reviewed foreground/background pair below its WCAG threshold.
+The automated theme contract fails if a component introduces a raw hex/RGB/HSL color, references an N64 primitive directly, adds a gradient, removes a required semantic alias, changes a fixed primitive, or drops a reviewed foreground/background pair below its WCAG threshold. It also inventories the checked-in Button, Dialog, Select, and runtime owner, rejects dynamic or raw-color utility fragments, and checks required selectors in available production CSS. A source-only run reports that narrower coverage when no production build exists; `just local-check` builds first and therefore exercises both.
 
 Run it directly with:
 
@@ -26,15 +26,15 @@ It also runs as part of the desktop test suite.
 ## Approved styling architecture
 
 [#917](https://github.com/boburning/portcove/issues/917) owns the finite Public
-beta migration from the current global stylesheet and bespoke controls to
-official checked-in shadcn/ui controls using Base UI, Tailwind, semantic CSS
-variables, and a custom Portcove theme. The implementation explicitly selects
-Base UI and the compact Nova style instead of relying on CLI defaults, retains
-React/Vite/Tauri and Lucide, and records the actual aliases, paths, versions, and
-configuration. That foundation is installed and several journeys are migrating;
-legacy stylesheet rules and controls remain shipped behavior only where their
-owners have not yet converted them. Nova is a compact starting scaffold rather
-than the finished Portcove look; reference compositions deliberately establish
+beta migration from the current global stylesheet and bespoke controls to the
+checked-in shadcn 4.21.0 Base Nova source using Base UI 1.8.0, Tailwind 4.3.3,
+semantic CSS variables, and a custom Portcove theme. React/Vite/Tauri and Lucide
+remain in place. `components.json` records the generated aliases and direction-ready
+configuration; [DESIGN-SYSTEM.md](DESIGN-SYSTEM.md) records exact versions and the
+bounded regeneration procedure. That foundation is installed and several journeys
+are migrating; legacy stylesheet rules and controls remain shipped behavior only
+where their owners have not yet converted them. Nova is a compact starting scaffold
+rather than the finished Portcove look; reference compositions deliberately establish
 Portcove typography, spacing, radii, depth, surface, and artwork decisions.
 
 CSS custom properties in `styles.css` are the canonical runtime authority for
@@ -62,22 +62,20 @@ and motion. Add a role only when a real screen demonstrates that the existing
 vocabulary cannot express it without bypassing semantics. Do not mechanically
 translate every legacy value into a permanent token.
 
-Geist is the bundled, offline intended default interface typeface; #1040 owns
-reconciling the current `font-ui`/body stack with that decision. Technical content
-uses an intentional monospace stack, and script fallbacks are coordinated with
-the internationalization owner. Do not maintain a parallel TypeScript or JSON
-token authority. A DTCG-compatible interchange format is conditional on a
-demonstrated second consumer and review of the then-current community
-specification; it is not a present requirement or a W3C Recommendation.
+Geist is the bundled, offline default interface typeface. Technical content uses
+an intentional monospace stack, and script fallbacks are coordinated with the
+internationalization owner. Do not maintain a parallel TypeScript or JSON token
+authority. A DTCG-compatible interchange format is conditional on a demonstrated
+second consumer and review of the then-current community specification; it is not
+a present requirement or a W3C Recommendation.
 
-The current `check-theme.mjs` reads `styles.css`. The migration must extend or
-replace that gate so applicable Tailwind CSS, checked-in control source, and JSX
-utility usage retain raw-color, primitive-token, dark/light, focus-versus-selection,
-declared-token, contrast, reduced-motion, and production-variant protection.
-Third-party directives and variables receive narrow documented handling, not a
-blanket exemption. Advisory checks for unused tokens, duplicated ownership, or
-arbitrary geometry must allow justified exceptions rather than turning taste into
-a brittle parser.
+`check-theme.mjs` reads the semantic CSS authority, checked-in control source, and
+available production CSS. It retains raw-color, primitive-token, dark/light,
+focus-versus-selection, declared-token, contrast, discoverability, and required
+production-variant protection. Third-party directives and variables receive
+narrow handling rather than a blanket exemption. Advisory checks for unused
+tokens, duplicated ownership, or arbitrary geometry must allow justified
+exceptions rather than turning taste into a brittle parser.
 
 ## Semantic hierarchy
 
@@ -133,11 +131,24 @@ Red is intentionally not the general interaction color. Yellow is intentionally 
 
 - Standard controls move through neutral raised, hover, and pressed surfaces; selected controls use the blue scale.
 - Primary calls to action use accessible red 700/600/800 surfaces for default, hover, and active states.
+- The shared Button's `default` variant is deliberately neutral. `primary` is an explicit signature action, `selected` is blue state, and `destructive` communicates risk without replacing the shared gold focus ring.
 - Keyboard and controller focus uses a three-pixel yellow ring with offset, remaining distinct from blue selection.
 - Success, warning, danger, and loading each have explicit foreground, surface, subtle, and border roles where needed.
 - Disabled controls use neutral tokens and retain their shape without implying availability.
 - Reduced-motion preference removes interactive and progress transitions.
 - Forced-colors behavior preserves useful system outlines, borders, and color adaptation; focus cannot depend on box shadow alone.
+
+The shared 30/36/42 pixel control scale exceeds WCAG 2.2's 24-by-24 CSS pixel
+minimum target size. Icon controls use the same assigned dimensions; compact
+placement must not shrink their interactive box below that scale.
+
+The runtime theme authority is `html[data-theme]`; Tailwind's `dark:` variant is
+bound to that marker rather than a parallel `.dark` class. The document `dir`
+attribute and Base UI `DirectionProvider` are the shared direction authority so
+portaled Dialog and Select content inherit the same direction. Portcove currently
+starts in `ltr`; locale selection and translated copy remain owned by #203/#1027.
+Bundled Geist Variable leads the offline UI stack, with script-aware system
+fallbacks and the intentional technical monospace stack retained in tokens.
 
 Depth is limited to small highlights, shadows, inset pressed states, and simple geometric card art. Gradients, neon glow, copyrighted assets, and generic pixel-retro styling are deliberately excluded.
 
