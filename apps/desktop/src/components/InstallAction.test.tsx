@@ -4,6 +4,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { desktopApi } from "../api";
 import type { ActivityRecord, InstallPlan } from "../types";
+import { StatusLayer } from "./Chrome";
 import { InstallAction } from "./DetailPanel";
 
 const plan: InstallPlan = {
@@ -199,6 +200,38 @@ it("keeps the active installation cancellation reachable inside the busy review"
   await click("Cancel operation");
   expect(cancel).toHaveBeenCalledWith("install-1");
   expect(dialog?.textContent).toContain("Cancellation requested");
+});
+
+it("exposes a failed install result outside the dismissed review before another attempt", async () => {
+  function FailureHarness() {
+    const [reviewed, setReviewed] = useState<InstallPlan>();
+    const [error, setError] = useState<string>();
+    return (
+      <>
+        <StatusLayer error={error} clearError={() => setError(undefined)} />
+        <InstallAction
+          ready
+          sourceReady
+          biosReady
+          plan={reviewed}
+          install={() => {
+            setError("Artifact unavailable");
+            setReviewed(undefined);
+          }}
+          review={() => setReviewed(plan)}
+          dismiss={() => setReviewed(undefined)}
+        />
+      </>
+    );
+  }
+  await act(async () => root.render(<FailureHarness />));
+  await click("Review install");
+  await click("Install · 64.0 MiB");
+  expect(document.body.querySelector('[role="dialog"]')).toBeNull();
+  expect(document.body.querySelector('[role="alert"]')?.textContent).toContain(
+    "Artifact unavailable",
+  );
+  expect(document.activeElement?.textContent).toContain("Review install");
 });
 
 it.each([

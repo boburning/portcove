@@ -37,16 +37,23 @@ export function detailActions(
       }),
     close,
     dismissInstallReview,
-    install: () =>
-      perform("install", () =>
-        desktopApi.install(
-          port.id,
-          status?.channel ?? port.channels[0],
-          sourcePath,
-          biosPath,
-          false,
-        ),
-      ),
+    install: async () => {
+      try {
+        return await perform("install", () =>
+          desktopApi.install(
+            port.id,
+            status?.channel ?? port.channels[0],
+            sourcePath,
+            biosPath,
+            false,
+          ),
+        );
+      } finally {
+        // The status layer owns the settled result, including failures and cancellation.
+        // Close the modal so that result is reachable and another attempt requires a fresh review.
+        dismissInstallReview();
+      }
+    },
     launch: () => perform("launch", () => desktopApi.launch(port.id, sourcePath)),
     openUserData: () =>
       perform("open data folder", () => desktopApi.openUserData(port.id), {

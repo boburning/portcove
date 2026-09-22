@@ -1326,13 +1326,14 @@ export function InstallAction({
       </div>
     );
   }
-  if (!plan)
-    return (
-      <div className="actions primary-actions">
+  const action = plan ? installPlanActionLabel(plan.action) : undefined;
+  return (
+    <>
+      <div className={plan ? "hidden" : "actions primary-actions"}>
         <Button
           ref={reviewButton}
           data-focusable
-          className="wide"
+          className={plan ? "hidden" : "wide"}
           variant="primary"
           size="lg"
           disabled={Boolean(busy)}
@@ -1344,64 +1345,65 @@ export function InstallAction({
           {busy === "review install" ? "Checking release…" : "Review install"}
         </Button>
       </div>
-    );
-  const action = installPlanActionLabel(plan.action);
-  return (
-    <Dialog
-      open
-      onOpenChange={(nextOpen) => {
-        if (!nextOpen && !busy) dismiss();
-      }}
-    >
-      <DialogContent
-        showCloseButton={false}
-        finalFocus={reviewButton}
-        portaled={portaled}
-        className="max-h-[calc(100dvh-var(--space-8))] w-[min(680px,90vw)] max-w-none gap-0 overflow-y-auto overscroll-contain p-8 [scroll-padding-block:var(--space-4)] sm:max-w-none"
-        aria-describedby="install-review-description"
-      >
-        <DialogTitle id="install-review-title" className="mb-2 text-xl">
-          Review installation
-        </DialogTitle>
-        <DialogDescription id="install-review-description" className="mb-4 leading-relaxed">
-          Confirm the reviewed release and storage requirements before Portcove changes this game.
-        </DialogDescription>
-        {action ? (
-          <InstallPlanSummary plan={plan} />
-        ) : (
-          <p role="alert">
-            This version of Portcove cannot display the installation plan. Review it again, or
-            update Portcove if this continues.
-          </p>
-        )}
-        {cancellations?.map((activity) => (
-          <OperationCancellation
-            key={activity.id}
-            operationId={activity.id}
-            state={activity.cancellation ?? undefined}
-          />
-        ))}
-        <DialogFooter className="mt-4">
-          {action ? (
-            <PlannedInstallButton plan={plan} busy={busy} install={install} />
-          ) : (
-            <Button
-              data-focusable
-              variant="primary"
-              disabled={Boolean(busy)}
-              onClick={() => {
-                void review();
-              }}
-            >
-              Review install again
-            </Button>
-          )}
-          <Button data-focusable variant="outline" disabled={Boolean(busy)} onClick={dismiss}>
-            Cancel review
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      {plan && (
+        <Dialog
+          open
+          onOpenChange={(nextOpen) => {
+            if (!nextOpen && !busy) dismiss();
+          }}
+        >
+          <DialogContent
+            showCloseButton={false}
+            finalFocus={reviewButton}
+            portaled={portaled}
+            className="max-h-[calc(100dvh-var(--space-8))] w-[min(680px,90vw)] max-w-none gap-0 overflow-y-auto overscroll-contain p-8 [scroll-padding-block:var(--space-4)] sm:max-w-none"
+            aria-describedby="install-review-description"
+          >
+            <DialogTitle id="install-review-title" className="mb-2 text-xl">
+              Review installation
+            </DialogTitle>
+            <DialogDescription id="install-review-description" className="mb-4 leading-relaxed">
+              Confirm the reviewed release and storage requirements before Portcove changes this
+              game.
+            </DialogDescription>
+            {action ? (
+              <InstallPlanSummary plan={plan} />
+            ) : (
+              <p role="alert">
+                This version of Portcove cannot display the installation plan. Review it again, or
+                update Portcove if this continues.
+              </p>
+            )}
+            {cancellations?.map((activity) => (
+              <OperationCancellation
+                key={activity.id}
+                operationId={activity.id}
+                state={activity.cancellation ?? undefined}
+              />
+            ))}
+            <DialogFooter className="mt-4">
+              {action ? (
+                <PlannedInstallButton plan={plan} busy={busy} install={install} />
+              ) : (
+                <Button
+                  data-focusable
+                  variant="primary"
+                  disabled={Boolean(busy)}
+                  onClick={() => {
+                    void review();
+                  }}
+                >
+                  Review install again
+                </Button>
+              )}
+              <Button data-focusable variant="outline" disabled={Boolean(busy)} onClick={dismiss}>
+                Cancel review
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+    </>
   );
 }
 
