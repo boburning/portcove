@@ -1,7 +1,5 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { readFile } from "node:fs/promises";
-import { resolve } from "node:path";
 import { blockedScenarioAction, renderScenario, scenarios } from "./scenarios";
 
 const invoke = vi.hoisted(() =>
@@ -12,16 +10,6 @@ const invoke = vi.hoisted(() =>
 vi.mock("@tauri-apps/api/core", async (original) => ({ ...(await original<object>()), invoke }));
 
 describe("static development scenarios", () => {
-  it("gives scenario themes their own semantic canvas", async () => {
-    const scenarioStyles = await readFile(
-      resolve(process.cwd(), "src/dev-scenarios/scenarios.css"),
-      "utf8",
-    );
-    expect(scenarioStyles).toMatch(
-      /\[data-development-scenario\]\s*\{[^}]*color:\s*var\(--color-text\);[^}]*background:\s*var\(--color-bg\);/s,
-    );
-  });
-
   it("renders every typed scenario deterministically without invoking native actions", () => {
     for (const scenario of scenarios) {
       const html = renderScenario(scenario.id);

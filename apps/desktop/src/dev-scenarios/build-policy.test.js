@@ -46,3 +46,10 @@ it("keeps Tailwind Preflight out of ordinary legacy screens", async () => {
   expect(css).not.toMatch(/@import\s+["']tailwindcss["']/);
   expect(css).not.toContain("tailwindcss/preflight.css");
 });
+
+it("gives scenario themes their own semantic canvas", async () => {
+  const css = await readFile(new URL("./scenarios.css", import.meta.url), "utf8");
+  expect(css).toMatch(
+    /\[data-development-scenario\]\s*\{[^}]*color:\s*var\(--color-text\);[^}]*background:\s*var\(--color-bg\);/s,
+  );
+});
