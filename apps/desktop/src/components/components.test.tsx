@@ -964,6 +964,9 @@ describe("desktop components", () => {
     expect(html).toContain("WHOLE PORTCOVE LIBRARY");
     expect(html).toContain("Review platform default");
     expect(html).toContain("Each game’s Export / install folder is reviewed separately");
+    expect(html).toMatch(
+      /<button[^>]*data-variant="outline"[^>]*>Review library switch<\/button>/u,
+    );
   });
 
   it("groups every settings capability by the six player-facing tasks", () => {
@@ -1027,6 +1030,7 @@ describe("desktop components", () => {
           volume_total_bytes: 1024 ** 4,
           volume_available_bytes: 512 * 1024 ** 3,
         }}
+        exportMetadata={vi.fn()}
       />,
     );
     expect(html).toContain("E:/Portcove");
@@ -1036,6 +1040,7 @@ describe("desktop components", () => {
     expect(html).toContain("width:50%");
     expect(html).toContain("Installed application files are kept separate from saves and settings");
     expect(html).toContain("Export saved game-file locations and installed-version settings");
+    expect(html).toMatch(/<button[^>]*data-variant="outline"[^>]*>Export metadata<\/button>/u);
     expect(html).not.toContain("recovery-safe");
   });
 
@@ -1108,6 +1113,7 @@ describe("desktop components", () => {
     expect(html).toContain("Official site");
     expect(html).toContain("Locate executable");
     expect(html).toContain("Recheck");
+    expect(html).toMatch(/<button[^>]*data-variant="outline"[^>]*>Official site<\/button>/u);
   });
 
   it("labels unavailable diagnostics instead of presenting them as healthy", () => {
@@ -1136,6 +1142,9 @@ describe("desktop components", () => {
     expect(html).toContain("Review what can remain before sharing");
     expect(html).toContain("Paths, file names, port and tool identifiers, timestamps");
     expect(html).toContain("Review the bundle before sharing it");
+    expect(html).toMatch(
+      /<button[^>]*data-variant="outline"[^>]*>Create support bundle<\/button>/u,
+    );
     expect(html).toContain("Checking disc-tool availability");
     expect(html).toContain(
       "These optional tools are used only when Portcove must check, extract, or convert supported compressed disc formats.",
@@ -1155,10 +1164,13 @@ describe("desktop components", () => {
     );
     expect(html).toContain("THEME");
     expect(html).toContain('aria-label="Color theme"');
-    expect(html).toContain('aria-pressed="true">System</button>');
-    expect(html).toContain('aria-pressed="false">Dark</button>');
-    expect(html).toContain('aria-pressed="false">Light</button>');
     expect(html).toContain("Following system · currently Light");
+    expect(html).toMatch(
+      /<button[^>]*data-variant="selected"[^>]*aria-pressed="true"[^>]*>System<\/button>/u,
+    );
+    expect(html).toMatch(
+      /<button[^>]*data-variant="ghost"[^>]*aria-pressed="false"[^>]*>Dark<\/button>/u,
+    );
   });
 
   it("keeps recovery controls available for rejected saved sign-ins and explains environment overrides", () => {
@@ -1190,8 +1202,10 @@ describe("desktop components", () => {
       expect(html).toContain(message);
       expect(signIn !== null).toBe(showsRecovery);
       expect(logout !== null).toBe(showsRecovery);
-      expect(signIn?.[1] ?? "").not.toContain("disabled");
-      expect(logout?.[1] ?? "").not.toContain("disabled");
+      expect(signIn?.[1] ?? "").not.toMatch(/\sdisabled(?:=""|\s|$)/u);
+      expect(logout?.[1] ?? "").not.toMatch(/\sdisabled(?:=""|\s|$)/u);
+      expect(signIn?.[1]?.includes('data-variant="primary"') ?? false).toBe(showsRecovery);
+      expect(logout?.[1]?.includes('data-variant="outline"') ?? false).toBe(showsRecovery);
       expect(html.includes('type="password"')).toBe(showsPasswordEntry);
     }
   });
@@ -1327,6 +1341,7 @@ describe("desktop components", () => {
     expect(verified).toContain("Full identity and evidence");
     expect(verified).toContain("D:/ROMs/sample.z64");
     expect(verified).toContain("Relink source");
+    expect(verified).toMatch(/<button[^>]*data-variant="outline"[^>]*>Relink source<\/button>/u);
     expect(failed).toContain("Needs attention");
     expect(failed).toContain("source changed since registration");
   });
@@ -1513,6 +1528,7 @@ describe("desktop components", () => {
     expect(singular).toContain("Sample Port · Game source");
     expect(singular).toContain("Add source");
     expect(singular).toContain("Add ZIP");
+    expect(singular).toMatch(/<button[^>]*data-variant="outline"[^>]*>Add source<\/button>/u);
     expect(singular).not.toContain("source requirement needs attention");
   });
 

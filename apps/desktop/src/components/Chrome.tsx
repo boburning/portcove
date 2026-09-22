@@ -61,6 +61,7 @@ import type { ApplicationUpdatePreferencesState } from "../features/application-
 import { SourceDiscoveryButton } from "./SourceDiscovery";
 import { SourceIdentityPanel } from "./SourceIdentity";
 import { Icon, NavigationHints, Shortcut } from "./ui";
+import { Button } from "./ui/button";
 import { commandShortcut } from "../keyboard-shortcuts";
 
 export function Sidebar({
@@ -587,16 +588,17 @@ function TokenEntry({ github, busy }: { github?: GithubSettingsActions; busy: bo
         value={github?.token ?? ""}
         onChange={(event) => github?.setToken(event.target.value)}
       />
-      <button
+      <Button
         data-focusable
-        className="interactive-button"
+        variant="primary"
+        size="sm"
         disabled={busy || !github?.token.trim()}
         onClick={() => {
           void github?.saveToken();
         }}
       >
         Save token
-      </button>
+      </Button>
     </div>
   );
 }
@@ -608,36 +610,42 @@ function GithubActions({ github, busy }: { github?: GithubSettingsActions; busy:
       {!status?.authenticated &&
         status?.source !== "environment" &&
         status?.device_login_available && (
-          <button
+          <Button
             data-focusable
+            variant="primary"
+            size="sm"
             disabled={busy}
             onClick={() => {
               void github?.beginDeviceLogin();
             }}
           >
             Sign in with GitHub
-          </button>
+          </Button>
         )}
       {status?.source === "credential_store" && (
-        <button
+        <Button
           data-focusable
+          variant="outline"
+          size="sm"
           disabled={busy}
           onClick={() => {
             void github?.logout();
           }}
         >
           Log out
-        </button>
+        </Button>
       )}
-      <button
+      <Button
         data-focusable
+        variant="outline"
+        size="sm"
         disabled={busy}
         onClick={() => {
           void github?.refresh();
         }}
       >
         Refresh status
-      </button>
+      </Button>
     </div>
   );
 }
@@ -732,23 +740,25 @@ function SourceRequirements({
             </small>
           </div>
           <div className="source-health-actions">
-            <button
+            <Button
               data-focusable
-              className="small-control"
+              variant="outline"
+              size="sm"
               disabled={!!busy}
               onClick={() => add?.(requirement.profile, false)}
             >
               Add source
-            </button>
+            </Button>
             {requirement.profile.kind === "file-set" && (
-              <button
+              <Button
                 data-focusable
-                className="small-control"
+                variant="outline"
+                size="sm"
                 disabled={!!busy}
                 onClick={() => add?.(requirement.profile, true)}
               >
                 Add ZIP
-              </button>
+              </Button>
             )}
           </div>
         </div>
@@ -795,14 +805,15 @@ function SourceHealth({
       <p className="eyebrow">SOURCES</p>
       <div className="settings-title">
         <h2>Game-file verification</h2>
-        <button
+        <Button
           data-focusable
-          className="small-control"
+          variant="outline"
+          size="sm"
           disabled={!!busy || sources.length === 0}
           onClick={verify}
         >
           Verify sources
-        </button>
+        </Button>
       </div>
       <SourceRequirements
         requirements={requirements}
@@ -887,14 +898,15 @@ function SourceHealthRow({
       <div className="source-health-actions">
         <SourceState report={report} outcome={outcome} profileAvailable={Boolean(profile)} />
         {profile && (
-          <button
+          <Button
             data-focusable
-            className="small-control"
+            variant="outline"
+            size="sm"
             disabled={Boolean(busy)}
             onClick={() => replace?.(source)}
           >
             Relink source
-          </button>
+          </Button>
         )}
         <SourceRemovalControl
           source={source}
@@ -1120,24 +1132,26 @@ function DiagnosticsCard({
               : "Diagnostics are current."}
       </p>
       {failure ? <p role="alert">{errorText(failure)}</p> : null}
-      <button
+      <Button
         data-focusable
-        className="small-control"
+        variant="outline"
+        size="sm"
         disabled={Boolean(busy) || refreshing || !refresh}
         onClick={() => void refresh?.()}
       >
         {failure ? "Retry diagnostics" : "Refresh diagnostics"}
-      </button>
-      <button
+      </Button>
+      <Button
         data-focusable
-        className="small-control"
+        variant="outline"
+        size="sm"
         disabled={Boolean(busy) || !createSupportBundle}
         onClick={() => {
           void create();
         }}
       >
         Create support bundle
-      </button>
+      </Button>
       {bundlePath && (
         <p role="status">
           Saved to <code>{bundlePath}</code>
@@ -1157,14 +1171,16 @@ function ThemeOption({
   select?: (preference: ThemePreference) => void;
 }) {
   return (
-    <button
+    <Button
       data-focusable
-      className={selected ? "active" : ""}
+      variant={selected ? "selected" : "ghost"}
+      size="sm"
+      className="flex-1 capitalize"
       aria-pressed={selected}
       onClick={() => select?.(option)}
     >
       {option[0].toUpperCase() + option.slice(1)}
-    </button>
+    </Button>
   );
 }
 
@@ -1456,26 +1472,28 @@ export function LibrarySelectionCard({
         move files or change any game’s Export / install folder.
       </p>
       <div className="button-row">
-        <button
+        <Button
           ref={switchTrigger}
           data-focusable
-          className="small-control"
+          variant="outline"
+          size="sm"
           disabled={Boolean(busy) || pending || !choose || !switchLibrary}
           onClick={() => {
             void chooseCandidate();
           }}
         >
           Review library switch
-        </button>
-        <button
+        </Button>
+        <Button
           ref={resetTrigger}
           data-focusable
-          className="small-control"
+          variant="outline"
+          size="sm"
           disabled={Boolean(busy) || pending || !reset}
           onClick={() => setReview({ kind: "reset" })}
         >
           Review platform default
-        </button>
+        </Button>
       </div>
       {review && (
         <div
@@ -1494,10 +1512,11 @@ export function LibrarySelectionCard({
             place, and per-game Export / install folders do not change.
           </p>
           <div className="button-row">
-            <button
+            <Button
               data-focusable
               data-autofocus
-              className="small-control"
+              variant="primary"
+              size="sm"
               disabled={pending}
               onClick={() => {
                 void applyReview();
@@ -1508,15 +1527,16 @@ export function LibrarySelectionCard({
                 : review.kind === "switch"
                   ? "Switch whole library"
                   : "Use platform default"}
-            </button>
-            <button
+            </Button>
+            <Button
               data-focusable
-              className="small-control"
+              variant="outline"
+              size="sm"
               disabled={pending}
               onClick={cancelReview}
             >
               Keep current library
-            </button>
+            </Button>
           </div>
         </div>
       )}
@@ -1642,47 +1662,51 @@ export function HostToolRow({
         )}
       </small>
       <div className="button-row">
-        <button
+        <Button
           data-focusable
-          className="small-control"
+          variant="outline"
+          size="sm"
           disabled={busy || Boolean(pending) || !actions}
           onClick={() => {
             void run("site", () => actions?.openOfficial(tool.id));
           }}
         >
           Official site
-        </button>
-        <button
+        </Button>
+        <Button
           data-focusable
-          className="small-control"
+          variant="outline"
+          size="sm"
           disabled={busy || Boolean(pending) || !actions}
           onClick={() => {
             void run("locate", () => actions?.locate(tool));
           }}
         >
           {pending === "locate" ? "Checking…" : "Locate executable…"}
-        </button>
-        <button
+        </Button>
+        <Button
           data-focusable
-          className="small-control"
+          variant="outline"
+          size="sm"
           disabled={busy || Boolean(pending) || !actions || !tool.path}
           onClick={() => {
             void run("recheck", () => actions?.recheck(tool.id));
           }}
         >
           {pending === "recheck" ? "Checking…" : "Recheck"}
-        </button>
+        </Button>
         {configured && (
-          <button
+          <Button
             data-focusable
-            className="small-control"
+            variant="outline"
+            size="sm"
             disabled={busy || Boolean(pending) || !actions}
             onClick={() => {
               void run("clear", () => actions?.clear(tool.id));
             }}
           >
             Clear custom path
-          </button>
+          </Button>
         )}
       </div>
       {outcome && <p role="status">{outcome.message}</p>}
@@ -1745,16 +1769,17 @@ function StorageCard({
         <Icon glyph={ShieldCheck} size="sm" /> Installed application files are kept separate from
         saves and settings.
       </p>
-      <button
+      <Button
         data-focusable
-        className="small-control"
+        variant="outline"
+        size="sm"
         disabled={Boolean(busy) || !exportMetadata}
         onClick={() => {
           void exportMetadata?.().then(setExported);
         }}
       >
         Export metadata
-      </button>
+      </Button>
       <p>
         Export saved game-file locations and installed-version settings. Game files, saves, backups,
         toolchains, and credentials are not included.

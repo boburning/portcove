@@ -529,6 +529,11 @@ try {
       overflowing_cards: [...document.querySelectorAll(".settings-card")]
         .filter((card) => card.scrollWidth > card.clientWidth + 1)
         .map((card) => card.getAttribute("aria-labelledby") ?? card.className),
+      legacy_buttons: [
+        ...document.querySelectorAll(
+          '[data-settings-group]:not([data-settings-group="updates"]) button:not([data-slot="button"])',
+        ),
+      ].map((button) => button.textContent?.trim() ?? ""),
     }));
     assert.equal(layout.document_overflow, false);
     assert.equal(layout.about_columns, 1);
@@ -541,6 +546,7 @@ try {
       { name: "advanced", columns: 1 },
     ]);
     assert.deepEqual(layout.overflowing_cards, []);
+    assert.deepEqual(layout.legacy_buttons, []);
 
     let focusedSettingsControl = false;
     for (let step = 0; step < 30 && !focusedSettingsControl; step++) {
@@ -577,7 +583,7 @@ try {
     const search = await browser.wait(until.elementLocated(By.id("port-search")), 15_000);
     const selectedFilter = await browser.findElement(By.css('.filter-row [aria-pressed="true"]'));
     assert.equal(await selectedFilter.getAttribute("data-slot"), "button");
-    assert.equal(await selectedFilter.getAttribute("data-variant"), "default");
+    assert.equal(await selectedFilter.getAttribute("data-variant"), "selected");
     await search.sendKeys("64");
     await browser.wait(async () => (await browser.findElements(By.css(".port-card"))).length > 2);
     const origin = await browser.executeScript(() => {

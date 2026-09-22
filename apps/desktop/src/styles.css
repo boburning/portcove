@@ -2010,7 +2010,7 @@ select {
   background: var(--color-bg-inset);
 }
 
-.segmented button {
+.segmented button:not([data-slot="button"]) {
   padding: 9px;
   border: 0;
   border-radius: var(--radius-md);
@@ -2020,12 +2020,12 @@ select {
   cursor: pointer;
 }
 
-.segmented button:hover {
+.segmented button:not([data-slot="button"]):hover {
   color: var(--color-text);
   background: var(--color-bg-hover);
 }
 
-.segmented button.active {
+.segmented button:not([data-slot="button"]).active {
   color: var(--color-interactive-text-strong);
   background: var(--color-interactive-subtle-hover);
   box-shadow: 0 1px 0 var(--color-interactive);
@@ -2877,28 +2877,6 @@ select {
   flex: 1;
   min-width: 0;
   padding: 11px;
-}
-
-.interactive-button {
-  padding: 0 16px;
-  border: 1px solid var(--color-interactive);
-  border-radius: var(--radius-md);
-  color: var(--color-text-on-dark);
-  background: var(--color-interactive);
-  font-weight: 800;
-  cursor: pointer;
-}
-
-.interactive-button:hover:not(:disabled) {
-  border-color: var(--color-interactive-hover);
-  background: var(--color-interactive-hover);
-}
-
-.interactive-button:active:not(:disabled) {
-  border-color: var(--color-interactive-active);
-  background: var(--color-interactive-active);
-  box-shadow: var(--shadow-pressed);
-  transform: translateY(1px);
 }
 
 .device-login {
