@@ -1,4 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
+import { Button } from "./components/ui/button";
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -36,9 +37,9 @@ function RenderRecovery({ error }: { error: Error }) {
         active task.
       </p>
       <pre>{error.message || "Unknown display error"}</pre>
-      <button type="button" onClick={() => window.location.reload()}>
+      <Button type="button" variant="primary" onClick={() => window.location.reload()}>
         Reload Portcove
-      </button>
+      </Button>
     </main>
   );
 }

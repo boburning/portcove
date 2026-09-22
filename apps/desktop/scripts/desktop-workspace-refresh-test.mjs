@@ -88,6 +88,8 @@ export async function workspaceRefreshScenario({
         until.elementLocated(By.xpath('//button[normalize-space(.)="Retry refresh"]')),
         10_000,
       );
+      assert.equal(await retry.getAttribute("data-slot"), "button");
+      assert.equal(await retry.getAttribute("data-variant"), "outline");
       observations.failure_text = await browser.executeScript(
         (button) => button.closest(".error-banner")?.textContent ?? "",
         retry,

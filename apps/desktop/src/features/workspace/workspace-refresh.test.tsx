@@ -513,6 +513,11 @@ describe("workspace refresh recovery", () => {
     await act(async () => data.retryRefresh());
     expect(data.catalog).toEqual(snapshot.catalog);
     expect(host.textContent).toContain("Library information could not be refreshed");
+    expect(
+      [...host.querySelectorAll('button[data-slot="button"][data-variant="outline"]')].find(
+        (button) => button.textContent === "Retry refresh",
+      ),
+    ).toBeDefined();
   });
 
   it("keeps a committed operation successful when its workspace refresh fails", async () => {
@@ -651,6 +656,11 @@ describe("workspace refresh recovery", () => {
     expect(data.catalog).toEqual(snapshot.catalog);
     expect(host.textContent).toContain("Live workspace updates are unavailable");
     expect(host.textContent).toContain("Refresh now");
+    expect(
+      [...host.querySelectorAll('button[data-slot="button"][data-variant="outline"]')].find(
+        (button) => button.textContent === "Refresh now",
+      ),
+    ).toBeDefined();
   });
 
   it("refreshes once after an operation and never starts the removed 250ms refresh", async () => {

@@ -40,6 +40,7 @@ import { ArtworkProvider } from "./artwork";
 import { SourceIntakeDialog } from "./components/SourceIntake";
 import { UpdateCenter } from "./components/UpdateCenter";
 import { FailureDetails } from "./components/FailureDetails";
+import { Button } from "./components/ui/button";
 import { WorkspaceRefreshNotice } from "./features/workspace/WorkspaceRefreshNotice";
 import {
   pickHostToolExecutable,
@@ -155,25 +156,27 @@ export function BootstrapRecovery({
         choose another library or return to the platform default.
       </p>
       <div className="button-row">
-        <button type="button" onClick={() => window.location.reload()}>
+        <Button type="button" variant="primary" onClick={() => window.location.reload()}>
           Retry startup
-        </button>
-        <button
+        </Button>
+        <Button
           type="button"
+          variant="outline"
           onClick={() => {
             void chooseLibrary?.().catch((value) => setActionError(errorText(value)));
           }}
         >
           Choose library
-        </button>
-        <button
+        </Button>
+        <Button
           type="button"
+          variant="outline"
           onClick={() => {
             void resetLibrary?.().catch((value) => setActionError(errorText(value)));
           }}
         >
           Use platform default
-        </button>
+        </Button>
       </div>
       {actionError && <p role="alert">{actionError}</p>}
       {recoveryRoot && (
