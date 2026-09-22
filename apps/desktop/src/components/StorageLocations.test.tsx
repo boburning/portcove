@@ -1,11 +1,65 @@
 // @vitest-environment jsdom
-import { act } from "react";
+import { act, useRef, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { LibrarySelectionCard } from "./Chrome";
+import {
+  useLibrarySelectionLanding,
+  useLibrarySelectionReturn,
+} from "../features/app-shell/use-library-selection-return";
 
 let root: Root;
 let container: HTMLDivElement;
+
+function RemountedWorkspace({
+  generation,
+  trigger,
+  consume,
+  switchLibrary,
+  resetLibrary,
+}: {
+  generation: number;
+  trigger?: "switch" | "reset";
+  consume: () => void;
+  switchLibrary: (path: string) => Promise<void>;
+  resetLibrary: () => Promise<void>;
+}) {
+  const workspace = useRef<HTMLElement>(null);
+  useLibrarySelectionLanding(trigger, workspace, consume);
+  return (
+    <main ref={workspace} data-focus-region="workspace" tabIndex={-1}>
+      <LibrarySelectionCard
+        selection={{
+          root: generation === 1 ? "E:/Portcove" : "F:/Other Portcove",
+          source: "saved",
+        }}
+        choose={async () => "F:/Other Portcove"}
+        switchLibrary={switchLibrary}
+        reset={resetLibrary}
+      />
+    </main>
+  );
+}
+
+function RemountFixture() {
+  const [generation, setGeneration] = useState(1);
+  const { switchFromSettings, resetFromSettings, returnToSelection, consume } =
+    useLibrarySelectionReturn(
+      generation,
+      async () => setGeneration((current) => current + 1),
+      async () => setGeneration((current) => current + 1),
+    );
+  return (
+    <RemountedWorkspace
+      key={generation}
+      generation={generation}
+      trigger={returnToSelection}
+      consume={consume}
+      switchLibrary={switchFromSettings}
+      resetLibrary={resetFromSettings}
+    />
+  );
+}
 
 function button(label: string) {
   const match = [...document.body.querySelectorAll("button")].find((candidate) =>
@@ -27,6 +81,10 @@ beforeEach(() => {
     callback(0);
     return 1;
   });
+  Object.defineProperty(HTMLElement.prototype, "scrollIntoView", {
+    configurable: true,
+    value: vi.fn(),
+  });
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
@@ -39,6 +97,24 @@ afterEach(async () => {
 });
 
 describe("Storage locations", () => {
+  it("hands focus to the new workspace after a real generation-key remount", async () => {
+    await act(async () => root.render(<RemountFixture />));
+    const oldSwitchTrigger = button("Review library switch");
+    await click("Review library switch");
+    await click("Switch whole library");
+    const newSwitchTrigger = button("Review library switch");
+    expect(newSwitchTrigger).not.toBe(oldSwitchTrigger);
+    expect(document.activeElement).toBe(newSwitchTrigger);
+    expect(document.body.querySelector('[role="dialog"]')).toBeNull();
+
+    const oldResetTrigger = button("Review platform default");
+    await click("Review platform default");
+    await click("Use platform default");
+    const newResetTrigger = button("Review platform default");
+    expect(newResetTrigger).not.toBe(oldResetTrigger);
+    expect(document.activeElement).toBe(newResetTrigger);
+  });
+
   it("keeps picker cancellation neutral and reviews a whole-library switch before applying it", async () => {
     const choose = vi.fn().mockResolvedValueOnce(null).mockResolvedValueOnce("F:/Other Portcove");
     const switchLibrary = vi.fn().mockResolvedValue(undefined);

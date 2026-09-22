@@ -10,8 +10,8 @@ const initialBrowserState = (): Record<View, BrowserState> => ({
   settings: { filter: "all", query: "" },
 });
 
-export function useAppShellState() {
-  const [view, setViewState] = useState<View>("library");
+export function useAppShellState(initialView: View = "library") {
+  const [view, setViewState] = useState<View>(initialView);
   const [browserState, setBrowserState] = useState(initialBrowserState);
   const [selectedId, setSelectedId] = useState<string>();
   const [sourcePath, setSourcePath] = useState("");

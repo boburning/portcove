@@ -1486,6 +1486,7 @@ export function LibrarySelectionCard({
       <div className="button-row">
         <Button
           ref={switchTrigger}
+          data-library-selection-trigger="switch"
           data-focusable
           variant="outline"
           size="sm"
@@ -1498,6 +1499,7 @@ export function LibrarySelectionCard({
         </Button>
         <Button
           ref={resetTrigger}
+          data-library-selection-trigger="reset"
           data-focusable
           variant="outline"
           size="sm"
