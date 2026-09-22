@@ -84,9 +84,9 @@ export function RecoveryReview({
       )}
       {(!stale || repair) && <p>{formatCountMessage(repair?.items.length, countMessages)}</p>}
       {(stale || Boolean(failure)) && !refreshing && (
-        <button data-focusable className="small-control" onClick={() => void refresh()}>
+        <Button data-focusable variant="outline" size="sm" onClick={() => void refresh()}>
           Refresh recovery information
-        </button>
+        </Button>
       )}
       {!!repair?.items.length && (
         <>
@@ -121,13 +121,15 @@ export function RecoveryReview({
                   )}
                 </dl>
                 {item.kind === "retained_preparation" && item.operation_id && (
-                  <button
+                  <Button
                     data-focusable
-                    className="danger"
+                    variant="destructive"
+                    size="sm"
+                    className="mt-2"
                     onClick={() => setCleanupOperation(item.operation_id ?? undefined)}
                   >
                     Review private-file cleanup
-                  </button>
+                  </Button>
                 )}
               </details>
             ))}

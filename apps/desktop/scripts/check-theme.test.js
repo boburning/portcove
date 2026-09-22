@@ -12,14 +12,14 @@ const validSources = {
       default: "focus-visible:ring-pc-ring forced-colors:focus-visible:outline-2 aria-busy:opacity-70 h-(--control-height-md)",
       primary: "h-(--control-height-lg) active:bg-pc-signature-active",
       selected: "h-(--control-height-sm)",
-      destructive: "text-pc-danger hover:bg-pc-danger-surface",
+      destructive: "bg-pc-danger-subtle text-pc-danger-strong hover:bg-pc-danger-surface",
     };
   `,
   dialog: `const classes = "bg-pc-scrim left-1/2 end-2 max-h-[calc(100dvh-2rem)] overflow-y-auto";`,
   main: `document.documentElement.dir = "ltr"; <DirectionProvider direction="ltr" />;`,
   select: `const classes = "pe-2 ps-2 end-2";`,
   builtCss:
-    ".bg-pc-signature{}.bg-pc-scrim{}.active\\:bg-pc-signature-active{}.hover\\:bg-pc-danger-surface{}.focus-visible\\:ring-pc-ring{}[data-theme=dark]{}",
+    ".bg-pc-signature{}.bg-pc-scrim{}.active\\:bg-pc-signature-active{}.hover\\:bg-pc-danger-surface{}.text-pc-danger-strong{}.focus-visible\\:ring-pc-ring{}[data-theme=dark]{}",
 };
 
 describe("theme foundation source contract", () => {
@@ -32,6 +32,10 @@ describe("theme foundation source contract", () => {
     ["raw shared-control color", { dialog: `${validSources.dialog} bg-[#000]` }],
     ["dynamic utility fragment", { select: "const classes = `pe-${size}`;" }],
     ["broad transition", { button: `${validSources.button} transition-all` }],
+    [
+      "weak destructive foreground",
+      { button: validSources.button.replace("text-pc-danger-strong", "text-pc-danger") },
+    ],
     [
       "missing Tailwind alias target",
       {

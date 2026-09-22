@@ -46,6 +46,7 @@
   --color-pc-accent: var(--color-interactive-subtle);
   --color-pc-accent-foreground: var(--color-interactive-text-strong);
   --color-pc-danger: var(--color-danger);
+  --color-pc-danger-strong: var(--color-danger-strong);
   --color-pc-danger-subtle: var(--color-danger-subtle);
   --color-pc-danger-surface: var(--color-danger-surface);
   --color-pc-border: var(--color-border);
@@ -3382,12 +3383,6 @@ select {
   align-items: center;
   gap: 8px;
 }
-.update-buttons button {
-  padding: 11px 16px;
-  border-radius: var(--radius-md);
-  white-space: nowrap;
-}
-
 .update-explainer {
   margin-bottom: 18px;
   color: var(--color-text-muted);
@@ -3469,7 +3464,7 @@ select {
 .update-title small,
 .update-version small {
   margin-top: 4px;
-  color: var(--color-text-muted);
+  color: var(--color-text-secondary);
   font-size: var(--text-2xs);
   text-transform: capitalize;
 }
@@ -3567,9 +3562,6 @@ select {
 .recovery-review code {
   white-space: normal;
 }
-.recovery-review details > button {
-  margin-top: var(--space-2);
-}
 .preparation-cleanup-details p,
 .preparation-cleanup-details dd,
 .cleanup-entry-list li {
@@ -3665,27 +3657,10 @@ select {
   font-size: var(--text-xs);
 }
 
-.activity-main span,
-.activity-main button {
+.activity-main span {
   margin-top: 3px;
   color: var(--color-text-muted);
   font-size: var(--text-xs);
-}
-
-.activity-main button {
-  max-width: 100%;
-  display: block;
-  overflow: hidden;
-  padding: 0;
-  border: 0;
-  background: var(--color-transparent);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  cursor: pointer;
-}
-
-.activity-main button:hover {
-  color: var(--color-interactive-text);
 }
 .activity-time {
   color: var(--color-text-muted);

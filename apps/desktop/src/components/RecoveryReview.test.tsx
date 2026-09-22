@@ -174,6 +174,7 @@ it("reviews exact private files and preserved paths before cleanup", async () =>
     const review = [...host.querySelectorAll("button")].find((button) =>
       button.textContent?.includes("Review private-file cleanup"),
     );
+    expect(review?.dataset.variant).toBe("destructive");
     await act(async () => review?.click());
     expect(load).toHaveBeenCalledWith("owned-operation", 7);
     expect(document.body.textContent).toContain(preview.retained_path);

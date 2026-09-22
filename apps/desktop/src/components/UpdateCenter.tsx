@@ -32,9 +32,12 @@ import type {
   UpdateCheckOutcome,
 } from "../types";
 import { EmptyState, Icon } from "./ui";
+import { Button } from "./ui/button";
 import { useEffect, useState } from "react";
 
 const initialActivityNowSeconds = Date.now() / 1000;
+const activityTargetButton =
+  "-mx-1 h-auto min-h-6 min-w-0 max-w-full shrink justify-start overflow-hidden px-1 py-0 text-ellipsis text-xs font-normal text-pc-secondary-foreground no-underline hover:text-pc-primary hover:no-underline";
 
 export function UpdateCenter({
   ports,
@@ -97,15 +100,15 @@ export function UpdateCenter({
           <UpdateStat label="Failed" value={failed} icon={AlertTriangle} warning={failed > 0} />
         </div>
         <div className="update-buttons">
-          <button
+          <Button
             data-focusable
-            className="button-with-icon"
+            variant="outline"
             disabled={Boolean(busy) || installed.length === 0}
             onClick={checkAll}
           >
             <Icon glyph={RefreshCw} />
             {busy === "check installed" ? "Checking installed ports…" : "Check all ports"}
-          </button>
+          </Button>
         </div>
       </div>
       <p className="update-explainer">
@@ -324,13 +327,15 @@ function ActivityRow({
           <p>{activity.failure.presentation.summary}</p>
           {activity.failure.presentation.recovery_actions.includes("review_preparation") &&
             target.portId && (
-              <button
+              <Button
                 data-focusable
+                variant="outline"
+                size="sm"
                 data-detail-origin={`updates:activity:${activity.id}:review`}
                 onClick={() => onSelect(target.portId!, `updates:activity:${activity.id}:review`)}
               >
                 Review game preparation
-              </button>
+              </Button>
             )}
           <FailureDetails
             presentation={activity.failure.presentation}
@@ -368,19 +373,28 @@ function ActivityTargetLink({
 }) {
   if (target.portId)
     return (
-      <button
+      <Button
         data-focusable
+        variant="link"
+        size="xs"
+        className={activityTargetButton}
         data-detail-origin={`updates:activity:${activity.id}:target`}
         onClick={() => onSelect(target.portId!, `updates:activity:${activity.id}:target`)}
       >
         {target.label}
-      </button>
+      </Button>
     );
   if (activity.target_kind === "source" && activity.target_id)
     return (
-      <button data-focusable onClick={onOpenSources}>
+      <Button
+        data-focusable
+        variant="link"
+        size="xs"
+        className={activityTargetButton}
+        onClick={onOpenSources}
+      >
         {target.label}
-      </button>
+      </Button>
     );
   return <span>{target.label}</span>;
 }

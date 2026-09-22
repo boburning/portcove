@@ -113,6 +113,11 @@ function checkButtonSource(button, failures) {
     button.includes("hover:bg-pc-danger-surface"),
     "destructive Button hover must use the contrast-safe danger surface",
   );
+  expectSource(
+    failures,
+    button.includes("bg-pc-danger-subtle text-pc-danger-strong"),
+    "destructive Button default must use the contrast-safe strong danger foreground",
+  );
 }
 
 function checkDialogSource(dialog, failures) {
@@ -170,6 +175,7 @@ function checkProductionCss(builtCss, failures) {
     ".bg-pc-scrim",
     ".active\\:bg-pc-signature-active",
     ".hover\\:bg-pc-danger-surface",
+    ".text-pc-danger-strong",
     ".focus-visible\\:ring-pc-ring",
   ]) {
     expectSource(
