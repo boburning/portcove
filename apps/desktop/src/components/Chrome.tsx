@@ -62,6 +62,7 @@ import { SourceDiscoveryButton } from "./SourceDiscovery";
 import { SourceIdentityPanel } from "./SourceIdentity";
 import { Icon, NavigationHints, Shortcut } from "./ui";
 import { Button } from "./ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "./ui/dialog";
 import { commandShortcut } from "../keyboard-shortcuts";
 import { LanguageSettings } from "./LanguageSettings";
 
@@ -1434,23 +1435,16 @@ export function LibrarySelectionCard({
   const [pending, setPending] = useState(false);
   const switchTrigger = useRef<HTMLButtonElement>(null);
   const resetTrigger = useRef<HTMLButtonElement>(null);
-  const run = async (operation: () => Promise<void>) => {
-    setError(undefined);
-    setPending(true);
-    try {
-      await operation();
-    } catch (value) {
-      setError(errorText(value));
-    } finally {
-      setPending(false);
-    }
-  };
+  const focusReturn = useRef<"switch" | "reset">("switch");
   const chooseCandidate = async () => {
     setError(undefined);
     setPending(true);
     try {
       const path = await choose?.(selection?.root ?? "");
-      if (path && path !== selection?.root) setReview({ kind: "switch", path });
+      if (path && path !== selection?.root) {
+        focusReturn.current = "switch";
+        setReview({ kind: "switch", path });
+      }
     } catch (value) {
       setError(errorText(value));
     } finally {
@@ -1458,17 +1452,21 @@ export function LibrarySelectionCard({
     }
   };
   const cancelReview = () => {
-    const trigger = review?.kind === "reset" ? resetTrigger : switchTrigger;
     setReview(undefined);
-    window.requestAnimationFrame(() => trigger.current?.focus());
   };
   const applyReview = async () => {
     if (!review) return;
-    await run(async () => {
+    setError(undefined);
+    setPending(true);
+    try {
       if (review.kind === "switch") await switchLibrary?.(review.path);
       else await reset?.();
+    } catch (value) {
+      setError(errorText(value));
+    } finally {
+      setPending(false);
       setReview(undefined);
-    });
+    }
   };
   const source =
     selection?.source === "saved"
@@ -1504,55 +1502,71 @@ export function LibrarySelectionCard({
           variant="outline"
           size="sm"
           disabled={Boolean(busy) || pending || !reset}
-          onClick={() => setReview({ kind: "reset" })}
+          onClick={() => {
+            focusReturn.current = "reset";
+            setError(undefined);
+            setReview({ kind: "reset" });
+          }}
         >
           Review platform default
         </Button>
       </div>
       {review && (
-        <div
-          className="library-selection-review"
-          role="group"
-          aria-labelledby="library-selection-review-title"
+        <Dialog
+          open
+          onOpenChange={(nextOpen) => {
+            if (!nextOpen && !pending) cancelReview();
+          }}
         >
-          <strong id="library-selection-review-title">
-            {review.kind === "switch"
-              ? "Switch whole Portcove library"
-              : "Use the platform-default library"}
-          </strong>
-          {review.kind === "switch" && <code>{review.path}</code>}
-          <p>
-            Portcove will close this library and open the reviewed selection. Existing files stay in
-            place, and per-game Export / install folders do not change.
-          </p>
-          <div className="button-row">
-            <Button
-              data-focusable
-              data-autofocus
-              variant="primary"
-              size="sm"
-              disabled={pending}
-              onClick={() => {
-                void applyReview();
-              }}
+          <DialogContent
+            showCloseButton={false}
+            finalFocus={() =>
+              (focusReturn.current === "reset" ? resetTrigger.current : null) ??
+              switchTrigger.current
+            }
+            className="w-[min(620px,90vw)] max-w-none gap-0 p-8 sm:max-w-none"
+            aria-describedby="library-selection-review-description"
+          >
+            <DialogTitle id="library-selection-review-title" className="mb-2 text-xl">
+              {review.kind === "switch"
+                ? "Switch whole Portcove library"
+                : "Use the platform-default library"}
+            </DialogTitle>
+            <DialogDescription
+              id="library-selection-review-description"
+              className="mb-4 leading-relaxed"
             >
-              {pending
-                ? "Switching…"
-                : review.kind === "switch"
-                  ? "Switch whole library"
-                  : "Use platform default"}
-            </Button>
-            <Button
-              data-focusable
-              variant="outline"
-              size="sm"
-              disabled={pending}
-              onClick={cancelReview}
-            >
-              Keep current library
-            </Button>
-          </div>
-        </div>
+              Portcove will close this library and open the reviewed selection. Existing files stay
+              in place, and per-game Export / install folders do not change.
+            </DialogDescription>
+            {review.kind === "switch" && <code className="block break-all">{review.path}</code>}
+            <DialogFooter className="mt-4">
+              <Button
+                data-focusable
+                variant="primary"
+                disabled={pending}
+                onClick={() => {
+                  void applyReview();
+                }}
+              >
+                {pending
+                  ? "Switching…"
+                  : review.kind === "switch"
+                    ? "Switch whole library"
+                    : "Use platform default"}
+              </Button>
+              <Button
+                data-focusable
+                data-autofocus
+                variant="outline"
+                disabled={pending}
+                onClick={cancelReview}
+              >
+                Keep current library
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       )}
       {error && <p role="alert">{error}</p>}
     </article>

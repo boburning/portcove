@@ -25,6 +25,10 @@ export const DESKTOP_SCENARIOS = Object.freeze([
   ),
   scenario("native-error-recovery", "A rejected native operation leaves the application usable."),
   scenario(
+    "native-library-selection-review",
+    "Whole-library selection review stays non-mutating and restores its trigger.",
+  ),
+  scenario(
     "native-catalog-update-dialog",
     "Catalog trust and update management preserves nested dismissal without mutating catalog state.",
     { source: "desktop-catalog-update-test.mjs" },
@@ -217,6 +221,7 @@ export const DESKTOP_SCENARIOS = Object.freeze([
 const smoke = [
   "empty-library",
   "native-error-recovery",
+  "native-library-selection-review",
   "native-catalog-update-dialog",
   "keyboard-layout",
   "native-application-update-preferences",
