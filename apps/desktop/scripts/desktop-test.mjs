@@ -668,6 +668,14 @@ try {
       until.elementLocated(By.css('[aria-label="Application update channel"]')),
       15_000,
     );
+    assert.deepEqual(
+      await browser.executeScript(() =>
+        [...document.querySelectorAll(".application-update-settings button")]
+          .filter((button) => !button.hasAttribute("data-slot"))
+          .map((button) => button.textContent?.trim() ?? ""),
+      ),
+      [],
+    );
     await browser
       .findElement(
         By.xpath(
@@ -778,22 +786,36 @@ try {
     await browser
       .findElement(By.xpath('//button[normalize-space(.)="Reset update settings"]'))
       .click();
-    await browser.wait(async () => {
-      const result = await invoke("get_application_update_preferences");
-      return result.ok && result.value.choice === null && result.value.revision > 0;
-    }, 15_000);
-    await browser.wait(until.elementLocated(choicePrompt), 15_000);
+    await browser.wait(
+      async () => {
+        const result = await invoke("get_application_update_preferences");
+        return result.ok && result.value.choice === null && result.value.revision > 0;
+      },
+      15_000,
+      "recovered application update preferences were not published by the host",
+    );
+    await browser.wait(
+      until.elementLocated(choicePrompt),
+      15_000,
+      "application update choice prompt did not return after recovery",
+    );
     await browser.findElement(By.xpath('//button[normalize-space(.)="Not now"]')).click();
-    await browser.wait(async () => (await browser.findElements(choicePrompt)).length === 0, 15_000);
+    await browser.wait(
+      async () => (await browser.findElements(choicePrompt)).length === 0,
+      15_000,
+      "application update choice prompt did not dismiss",
+    );
     await browser.wait(
       async () => (await browser.executeScript(() => document.activeElement?.tagName)) !== "BODY",
       15_000,
+      "focus did not return after dismissing the application update choice prompt",
     );
     await browser.wait(
       until.elementLocated(
         By.xpath('//p[@role="status" and contains(., "Damaged update settings reset.")]'),
       ),
       15_000,
+      "application update recovery success notice did not remain visible",
     );
     assert.deepEqual((await invoke("get_activities")).value, activities.value);
     await browser.wait(
@@ -805,10 +827,12 @@ try {
           return (
             control instanceof HTMLButtonElement &&
             !control.disabled &&
-            getComputedStyle(control).color === getComputedStyle(document.body).color
+            control.dataset.slot === "button" &&
+            control.dataset.variant === "outline"
           );
         }),
       15_000,
+      "Restore library did not retain its enabled shared outline action",
     );
     const report = path.join(output, "application-update-settings-accessibility.json");
     await captureAccessibilityReport(browser, report, artifacts);

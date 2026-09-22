@@ -1966,27 +1966,6 @@ select {
   background: var(--color-bg-inset);
 }
 
-.segmented button:not([data-slot="button"]) {
-  padding: 9px;
-  border: 0;
-  border-radius: var(--radius-md);
-  color: var(--color-text-muted);
-  background: var(--color-transparent);
-  text-transform: capitalize;
-  cursor: pointer;
-}
-
-.segmented button:not([data-slot="button"]):hover {
-  color: var(--color-text);
-  background: var(--color-bg-hover);
-}
-
-.segmented button:not([data-slot="button"]).active {
-  color: var(--color-interactive-text-strong);
-  background: var(--color-interactive-subtle-hover);
-  box-shadow: 0 1px 0 var(--color-interactive);
-}
-
 select {
   width: 100%;
   padding: 11px;
