@@ -3,7 +3,7 @@ const selector =
   "button, a[href], input, select, textarea, summary, [tabindex], [contenteditable=true], [role=option]";
 const regionFocus = new WeakMap<HTMLElement, HTMLElement>();
 
-export function visibleControl(item: HTMLElement) {
+function visibleControl(item: HTMLElement) {
   return (
     (item.tabIndex >= 0 || item.matches("[role=option]")) &&
     !item.matches(":disabled, [aria-disabled=true]") &&

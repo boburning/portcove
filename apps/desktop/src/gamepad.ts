@@ -18,6 +18,10 @@ export interface FocusRect {
   height: number;
 }
 
+export function recordKeyboardInput() {
+  document.documentElement.dataset.inputMode = "keyboard";
+}
+
 export function pressedButtons(buttons: readonly GamepadButton[]) {
   return new Set(buttons.flatMap((button, index) => (button.pressed ? [index] : [])));
 }
@@ -159,7 +163,6 @@ export function useGamepadNavigation(onBack: () => void) {
       controllerButton(state.buttons, back);
     };
     const keydown = (event: KeyboardEvent) => {
-      document.documentElement.dataset.inputMode = "keyboard";
       if (event.defaultPrevented || event.isComposing) return;
       const action = keyboardNavigationAction(event.key);
       if (action === "back") {
@@ -179,11 +182,13 @@ export function useGamepadNavigation(onBack: () => void) {
     const pointerdown = () => {
       document.documentElement.dataset.inputMode = "pointer";
     };
+    window.addEventListener("keydown", recordKeyboardInput, true);
     window.addEventListener("keydown", keydown);
     window.addEventListener("pointerdown", pointerdown);
     frame = requestAnimationFrame(poll);
     return () => {
       cancelAnimationFrame(frame);
+      window.removeEventListener("keydown", recordKeyboardInput, true);
       window.removeEventListener("keydown", keydown);
       window.removeEventListener("pointerdown", pointerdown);
     };
