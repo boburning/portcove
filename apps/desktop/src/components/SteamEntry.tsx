@@ -246,7 +246,7 @@ export function SteamEntryDialog({
               {review.writes_required && (
                 <Button
                   data-focusable
-                  variant={review.operation === "remove" ? "destructive" : "default"}
+                  variant={review.operation === "remove" ? "destructive" : "primary"}
                   disabled={Boolean(pending) || review.steam_client_state !== "closed"}
                   onClick={() => void apply()}
                 >

@@ -41,16 +41,16 @@ export async function assertDesignCompatibility({ browser, By, Key, until }) {
 
   const darkColors = await browser.executeScript(() => {
     const root = document.querySelector(".design-compatibility-fixture");
-    const button = document.querySelector("#fixture-open-dialog");
-    if (!(root instanceof HTMLElement) || !(button instanceof HTMLElement)) return null;
+    const probe = document.querySelector("[data-theme-variant-probe]");
+    if (!(root instanceof HTMLElement) || !(probe instanceof HTMLElement)) return null;
     return {
       background: getComputedStyle(root).backgroundColor,
-      button: getComputedStyle(button).backgroundColor,
+      variantOpacity: getComputedStyle(probe).opacity,
       theme: root.dataset.theme,
     };
   });
   assert.equal(darkColors.theme, "dark");
-  assert.notEqual(darkColors.button, "rgba(0, 0, 0, 0)");
+  assert.equal(darkColors.variantOpacity, "0.5");
   await browser.findElement(By.id("fixture-theme-light")).click();
   await browser.wait(async () => (await fixture.getAttribute("data-theme")) === "light", 15_000);
   assert.notEqual(
@@ -59,6 +59,20 @@ export async function assertDesignCompatibility({ browser, By, Key, until }) {
         getComputedStyle(document.querySelector(".design-compatibility-fixture")).backgroundColor,
     ),
     darkColors.background,
+  );
+  assert.equal(
+    await browser.executeScript(
+      () => getComputedStyle(document.querySelector("[data-theme-variant-probe]")).opacity,
+    ),
+    "1",
+    "a generated dark: utility changes an actual computed control property under data-theme",
+  );
+
+  await browser.findElement(By.id("fixture-direction")).click();
+  await browser.wait(async () => (await fixture.getAttribute("data-direction")) === "rtl", 15_000);
+  assert.equal(
+    await browser.executeScript(() => document.documentElement.getAttribute("dir")),
+    "rtl",
   );
 
   await browser.findElement(By.id("fixture-open-dialog")).click();
@@ -73,6 +87,23 @@ export async function assertDesignCompatibility({ browser, By, Key, until }) {
       () => document.querySelector('[data-slot="dialog-content"]')?.closest("main") === null,
     ),
     true,
+  );
+  assert.equal(
+    await browser.executeScript(
+      () => getComputedStyle(document.querySelector('[data-slot="dialog-content"]')).direction,
+    ),
+    "rtl",
+    "portaled dialog content inherits the active direction",
+  );
+  assert.equal(
+    await browser.executeScript(() => {
+      const dialog = document.querySelector('[data-slot="dialog-content"]');
+      if (!(dialog instanceof HTMLElement)) return false;
+      const bounds = dialog.getBoundingClientRect();
+      return Math.abs(bounds.left + bounds.width / 2 - window.innerWidth / 2) <= 1;
+    }),
+    true,
+    "the dialog remains centered in right-to-left direction",
   );
   const selectTrigger = await browser.findElement(By.id("fixture-channel"));
   await selectTrigger.sendKeys(Key.ENTER);
@@ -93,6 +124,13 @@ export async function assertDesignCompatibility({ browser, By, Key, until }) {
     ),
     true,
   );
+  assert.equal(
+    await browser.executeScript(
+      () => getComputedStyle(document.querySelector('[data-slot="select-content"]')).direction,
+    ),
+    "rtl",
+    "portaled select content inherits the active direction",
+  );
   await selectTrigger.sendKeys(Key.ESCAPE);
   await browser.wait(
     async () => (await fixture.getAttribute("data-select-open")) === "false",
@@ -110,7 +148,7 @@ export async function assertDesignCompatibility({ browser, By, Key, until }) {
     15_000,
     "closing the nested select restores focus to its trigger",
   );
-  await browser.actions().sendKeys(Key.ESCAPE).perform();
+  await selectTrigger.sendKeys(Key.ESCAPE);
   await browser.wait(
     async () => (await fixture.getAttribute("data-dialog-open")) === "false",
     15_000,

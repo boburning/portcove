@@ -306,6 +306,7 @@ function SourceIntakeSession({
                 <div className="actions">
                   <Button
                     data-focusable
+                    variant="primary"
                     disabled={Boolean(busy)}
                     onClick={() => {
                       void review("copy");

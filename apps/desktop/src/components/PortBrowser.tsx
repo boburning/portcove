@@ -79,7 +79,7 @@ export function PortBrowser({
             data-focusable
             aria-pressed={filter === item}
             key={item}
-            variant={filter === item ? "default" : "outline"}
+            variant={filter === item ? "selected" : "outline"}
             size="sm"
             className="capitalize"
             onClick={() => setFilter(item)}
@@ -200,7 +200,7 @@ function BrowserEmptyState({
         description="Browse the catalog to install a supported port, or copy an existing supported installation without changing the original folder."
         action={
           <>
-            <Button data-focusable size="lg" onClick={onBrowseCatalog}>
+            <Button data-focusable variant="primary" size="lg" onClick={onBrowseCatalog}>
               <Icon glyph={Boxes} />
               Browse port catalog
             </Button>
@@ -270,6 +270,7 @@ function ContinueCard({
         </Button>
         <Button
           data-focusable
+          variant="primary"
           size="lg"
           data-detail-origin={launchable ? undefined : `library:continue-review:${port.id}`}
           onClick={() =>
@@ -467,7 +468,7 @@ function PortCardStatus({
             View details
           </Button>
           {status?.readiness?.launchable === true && onLaunch && (
-            <Button data-focusable size="sm" onClick={() => onLaunch(port.id)}>
+            <Button data-focusable variant="primary" size="sm" onClick={() => onLaunch(port.id)}>
               <Icon glyph={Gamepad2} size="sm" />
               Play
             </Button>

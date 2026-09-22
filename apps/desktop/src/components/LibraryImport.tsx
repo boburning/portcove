@@ -167,6 +167,7 @@ function LibraryImportDialog({ libraryRoot, close }: { libraryRoot: string; clos
             (plan ? (
               <Button
                 data-focusable
+                variant="primary"
                 disabled={Boolean(busy)}
                 onClick={() => {
                   void run("Copying and verifying the restored library…", async () => {
@@ -232,6 +233,7 @@ export function LibraryImportRecovery({
       </p>
       <Button
         data-focusable
+        variant="primary"
         disabled={busy}
         onClick={() => {
           void recover();

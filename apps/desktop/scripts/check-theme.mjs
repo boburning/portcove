@@ -1,8 +1,19 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
+import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const cssPath = fileURLToPath(new URL("../src/styles.css", import.meta.url));
+const buttonPath = fileURLToPath(new URL("../src/components/ui/button.tsx", import.meta.url));
+const dialogPath = fileURLToPath(new URL("../src/components/ui/dialog.tsx", import.meta.url));
+const selectPath = fileURLToPath(new URL("../src/components/ui/select.tsx", import.meta.url));
+const mainPath = fileURLToPath(new URL("../src/main.tsx", import.meta.url));
 const css = readFileSync(cssPath, "utf8");
+const foundationSources = {
+  button: readFileSync(buttonPath, "utf8"),
+  dialog: readFileSync(dialogPath, "utf8"),
+  main: readFileSync(mainPath, "utf8"),
+  select: readFileSync(selectPath, "utf8"),
+};
 const themeBlockPattern = /(:root|\[data-theme=(?:"light"|'light')\])\s*\{([\s\S]*?)\r?\n\}/g;
 const tokenBlocks = [...css.matchAll(themeBlockPattern)];
 const rootBlock = tokenBlocks.find(([, selector]) => selector === ":root");
@@ -27,6 +38,172 @@ const themes = [
   { name: "light", tokens: new Map([...baseTokens, ...lightOverrides]) },
 ];
 const failures = [];
+
+function expectSource(failures, condition, message) {
+  if (!condition) failures.push(message);
+}
+
+function checkCssSource(css, failures) {
+  expectSource(
+    failures,
+    css.includes('@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));'),
+    "Tailwind dark variants must use the runtime data-theme marker",
+  );
+  expectSource(
+    failures,
+    !/@custom-variant\s+dark[^;]*\.dark/.test(css),
+    "Tailwind dark variants must not use .dark",
+  );
+  expectSource(
+    failures,
+    /--font-ui:\s*"Geist Variable"/.test(css),
+    "the bundled Geist font must lead the UI font stack",
+  );
+  expectSource(
+    failures,
+    !/\[data-slot=(?:"button"|'button')\]\[data-variant=/.test(css),
+    "Button variants must not depend on unlayered legacy CSS overrides",
+  );
+  failures.push(...semanticReferenceFailures(parseTokens(css)));
+}
+
+function checkButtonSource(button, failures) {
+  for (const variant of ["default", "primary", "selected", "destructive"]) {
+    expectSource(
+      failures,
+      button.includes(`${variant}:`),
+      `Button source is missing the ${variant} variant`,
+    );
+  }
+  for (const size of ["--control-height-sm", "--control-height-md", "--control-height-lg"]) {
+    expectSource(failures, button.includes(size), `Button source is missing ${size}`);
+  }
+  expectSource(
+    failures,
+    !button.includes("transition-all"),
+    "Button must transition only intentional properties",
+  );
+  expectSource(
+    failures,
+    button.includes("aria-busy:"),
+    "Button must own its pending interaction state",
+  );
+  expectSource(
+    failures,
+    button.includes("forced-colors:focus-visible:outline"),
+    "Button must retain a forced-colors focus signal",
+  );
+  expectSource(
+    failures,
+    button.includes("focus-visible:ring-pc-ring"),
+    "Button variants must retain the shared semantic focus ring",
+  );
+  expectSource(
+    failures,
+    !/destructive:[\s\S]*?focus-visible:(?:border|ring)-pc-danger/.test(button),
+    "destructive Button must not replace the shared focus signal",
+  );
+  expectSource(
+    failures,
+    button.includes("active:bg-pc-signature-active"),
+    "primary Button must own its signature active state",
+  );
+  expectSource(
+    failures,
+    button.includes("hover:bg-pc-danger-surface"),
+    "destructive Button hover must use the contrast-safe danger surface",
+  );
+}
+
+function checkDialogSource(dialog, failures) {
+  expectSource(failures, dialog.includes("bg-pc-scrim"), "Dialog must use the semantic scrim");
+  expectSource(
+    failures,
+    !dialog.includes("backdrop-blur"),
+    "Dialog must not blur its backdrop by default",
+  );
+  expectSource(
+    failures,
+    dialog.includes("max-h-[calc(100dvh-2rem)]") && dialog.includes("overflow-y-auto"),
+    "Dialog must own bounded scrolling geometry",
+  );
+  expectSource(
+    failures,
+    dialog.includes("left-1/2") && dialog.includes("end-2"),
+    "Dialog must center on the invariant axis and use logical edge positioning",
+  );
+}
+
+function checkDirectionSources(main, select, failures) {
+  expectSource(
+    failures,
+    select.includes("pe-2") && select.includes("ps-2") && select.includes("end-2"),
+    "Select spacing and positioning must use logical utilities",
+  );
+  expectSource(
+    failures,
+    main.includes("DirectionProvider") && main.includes('document.documentElement.dir = "ltr"'),
+    "the document and Base UI must share an explicit direction owner",
+  );
+}
+
+function sharedControlSourceFailures(source) {
+  const sourceFailures = [];
+  const literal = source.match(/(?:bg|text|border|ring)-\[?(?:#|rgba?\(|hsla?\()/i);
+  if (literal)
+    sourceFailures.push(`shared control source contains raw color utility ${literal[0]}`);
+  if (/className\s*=\s*\{?`[^`]*\$\{[^}]+\}[^`]*`/.test(source))
+    sourceFailures.push("shared control source contains a dynamic utility fragment");
+  return sourceFailures;
+}
+
+function checkProductionCss(builtCss, failures) {
+  if (builtCss === undefined) return;
+  expectSource(failures, builtCss.length > 0, "production CSS output is empty");
+  expectSource(
+    failures,
+    builtCss.includes("[data-theme=dark]"),
+    "production CSS omits the data-theme dark variant",
+  );
+  for (const selector of [
+    ".bg-pc-signature",
+    ".bg-pc-scrim",
+    ".active\\:bg-pc-signature-active",
+    ".hover\\:bg-pc-danger-surface",
+    ".focus-visible\\:ring-pc-ring",
+  ]) {
+    expectSource(
+      failures,
+      builtCss.includes(selector),
+      `production CSS omits required selector ${selector}`,
+    );
+  }
+}
+
+export function foundationSourceFailures({ css, button, dialog, main, select, builtCss }) {
+  const sourceFailures = [];
+  checkCssSource(css, sourceFailures);
+  checkButtonSource(button, sourceFailures);
+  checkDialogSource(dialog, sourceFailures);
+  checkDirectionSources(main, select, sourceFailures);
+  sourceFailures.push(
+    ...[button, dialog, select].flatMap((source) => sharedControlSourceFailures(source)),
+  );
+  checkProductionCss(builtCss, sourceFailures);
+  return sourceFailures;
+}
+
+const distAssets = fileURLToPath(new URL("../dist/assets", import.meta.url));
+let builtCss;
+try {
+  builtCss = readdirSync(distAssets)
+    .filter((entry) => entry.endsWith(".css"))
+    .map((entry) => readFileSync(path.join(distAssets, entry), "utf8"))
+    .join("\n");
+} catch {
+  // A standalone source check remains useful before a production build exists.
+}
+failures.push(...foundationSourceFailures({ css, ...foundationSources, builtCss }));
 const requiredAliases = [
   "--color-bg",
   "--color-bg-elevated",
@@ -115,35 +292,36 @@ if (/var\(\s*--n64-/i.test(componentCss))
 if (/(?:linear|radial|conic)-gradient\s*\(/i.test(css))
   failures.push("theme contains a gradient without an approved design reason");
 
-const destructiveButtonBlock = componentCss.match(
-  /\[data-slot=(?:"button"|'button')\]\[data-variant=(?:"destructive"|'destructive')\][^{]*\{([^}]*)\}/i,
-);
-if (!destructiveButtonBlock) {
-  failures.push("Base Button destructive variant is missing an unlayered semantic style mapping");
-} else {
-  for (const token of ["--color-danger-border", "--color-danger-text", "--color-danger-subtle"]) {
-    if (!destructiveButtonBlock[1].includes(`var(${token})`))
-      failures.push(`Base Button destructive variant must map to ${token}`);
-  }
-}
-
-const primaryButtonBlock = componentCss.match(
-  /\[data-slot=(?:"button"|'button')\]\[data-variant=(?:"default"|'default')\][^{]*\{([^}]*)\}/i,
-);
-if (!primaryButtonBlock) {
-  failures.push("Base Button default variant is missing an unlayered semantic style mapping");
-} else {
-  for (const token of ["--color-accent-surface", "--color-text-on-dark"]) {
-    if (!primaryButtonBlock[1].includes(`var(${token})`))
-      failures.push(`Base Button default variant must map to ${token}`);
-  }
-}
-
 function tokenValue(tokens, token) {
   const value = tokens.get(token);
   if (!value) throw new Error(`Unknown theme token ${token}`);
   return value;
 }
+
+export function semanticReferenceFailures(tokens) {
+  const referenceFailures = [];
+  for (const token of tokens.keys()) {
+    if (!token.startsWith("--color-")) continue;
+    const visited = new Set([token]);
+    let value = tokens.get(token);
+    while (value?.startsWith("var(")) {
+      const nextToken = value.slice(4, -1).trim();
+      if (!tokens.has(nextToken)) {
+        referenceFailures.push(`${token} references missing token ${nextToken}`);
+        break;
+      }
+      if (visited.has(nextToken)) {
+        referenceFailures.push(`${token} contains a cycle through ${nextToken}`);
+        break;
+      }
+      visited.add(nextToken);
+      value = tokens.get(nextToken);
+    }
+  }
+  return referenceFailures;
+}
+
+for (const theme of themes) failures.push(...semanticReferenceFailures(theme.tokens));
 
 function resolveColor(tokens, token) {
   let value = tokenValue(tokens, token);
@@ -185,6 +363,7 @@ const contrastPairs = [
   ["signature action label", "--color-text-on-dark", "--color-accent-surface", 4.5],
   ["signature action hover label", "--color-text-on-dark", "--color-accent-hover", 4.5],
   ["signature action active label", "--color-text-on-dark", "--color-accent-active", 4.5],
+  ["destructive hover label", "--color-text-on-dark", "--color-danger-surface", 4.5],
   ["highlight label", "--color-text-on-highlight", "--color-highlight", 4.5],
   ["success text", "--color-success-text", "--color-bg-elevated", 4.5],
   ["warning text", "--color-warning-text", "--color-bg-elevated", 4.5],
@@ -248,6 +427,6 @@ if (failures.length > 0) {
     return `${theme.name}: text ${lowestText.toFixed(2)}:1, controls ${lowestControl.toFixed(2)}:1`;
   });
   console.log(
-    `N64 theme contract passed (${contrastPairs.length} pairs per theme; ${summaries.join("; ")}).`,
+    `N64 theme contract passed (${contrastPairs.length} pairs per theme; 5 foundation sources${builtCss === undefined ? "" : " plus production CSS"}; ${summaries.join("; ")}).`,
   );
 }

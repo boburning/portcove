@@ -183,6 +183,7 @@ export function AdoptionModal({
           {preview ? (
             <Button
               data-focusable
+              variant="primary"
               disabled={
                 Boolean(busy) || applying || !preview.selected_port_id || !preview.destination
               }
@@ -194,6 +195,7 @@ export function AdoptionModal({
           ) : (
             <Button
               data-focusable
+              variant="primary"
               disabled={!path.trim() || Boolean(busy) || applying}
               onClick={review}
             >

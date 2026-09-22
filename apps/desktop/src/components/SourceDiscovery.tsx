@@ -368,7 +368,7 @@ export function SourceImportReview({
         {presentation.known && (
           <Button
             data-focusable
-            variant={plan.mode === "move" ? "destructive" : "default"}
+            variant={plan.mode === "move" ? "destructive" : "primary"}
             disabled={busy}
             onClick={() => {
               void onApply();
@@ -576,6 +576,7 @@ function SourceDiscoveryDialog({
           </Button>
           <Button
             data-focusable
+            variant="primary"
             disabled={Boolean(busy) || !profile || !root.trim()}
             onClick={() => {
               void workflow.search();

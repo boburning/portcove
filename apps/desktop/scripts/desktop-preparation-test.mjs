@@ -218,7 +218,7 @@ export async function preparationScenarios({
       play: "Play",
       play_disabled: false,
       play_slot: "button",
-      play_variant: "default",
+      play_variant: "primary",
       workspace_horizontal_overflow: false,
       card_horizontal_overflow: false,
       actions_fit_card: true,

@@ -4,7 +4,7 @@
 @import "tw-animate-css";
 @import "@fontsource-variable/geist";
 
-@custom-variant dark (&:is(.dark *));
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 /* The foundation controls use only these variants from shadcn 4.21.0's
    tailwind.css. Keeping the reviewed subset here avoids installing the CLI in
    every production build while preserving its generated selectors exactly. */
@@ -38,15 +38,20 @@
   --color-pc-primary: var(--color-interactive);
   --color-pc-primary-hover: var(--color-interactive-hover);
   --color-pc-primary-foreground: var(--color-text-on-dark);
+  --color-pc-signature: var(--color-accent-surface);
+  --color-pc-signature-hover: var(--color-accent-hover);
+  --color-pc-signature-active: var(--color-accent-active);
   --color-pc-secondary: var(--color-bg-raised);
   --color-pc-secondary-foreground: var(--color-text);
   --color-pc-accent: var(--color-interactive-subtle);
   --color-pc-accent-foreground: var(--color-interactive-text-strong);
   --color-pc-danger: var(--color-danger);
   --color-pc-danger-subtle: var(--color-danger-subtle);
+  --color-pc-danger-surface: var(--color-danger-surface);
   --color-pc-border: var(--color-border);
   --color-pc-input: var(--color-control-border);
   --color-pc-ring: var(--color-focus);
+  --color-pc-scrim: var(--color-bg-overlay);
   --radius-pc-sm: var(--radius-sm);
   --radius-pc-md: var(--radius-md);
   --radius-pc-lg: var(--radius-lg);
@@ -121,9 +126,8 @@
   --n64-white: #f5f3ee;
   --n64-controller-blue: #4958a7;
 
-  /* Product foundations. Space Grotesk and JetBrains Mono are optional local
-     enhancements; the offline-safe system fallbacks preserve the same intent. */
-  --font-ui: "Space Grotesk", "Aptos", "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
+  /* Geist ships with the desktop. Script-aware system fallbacks remain offline. */
+  --font-ui: "Geist Variable", "Aptos", "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
   --font-mono: "JetBrains Mono", "Cascadia Code", "SFMono-Regular", Consolas, monospace;
   --font-weight-regular: 450;
   --font-weight-medium: 600;
@@ -384,7 +388,7 @@ select {
   font: inherit;
 }
 
-button {
+button:not([data-slot="button"]) {
   min-height: var(--control-height-md);
   border: 1px solid var(--color-control-border);
   border-radius: var(--radius-md);
@@ -394,18 +398,18 @@ button {
   cursor: pointer;
 }
 
-button:hover {
+button:not([data-slot="button"]):hover {
   border-color: var(--color-interactive-border);
   background: var(--color-bg-hover);
 }
 
-button:active {
+button:not([data-slot="button"]):active {
   background: var(--color-bg-active);
   box-shadow: var(--shadow-pressed);
   transform: translateY(1px);
 }
 
-button,
+button:not([data-slot="button"]),
 a,
 input,
 select,
@@ -879,22 +883,19 @@ h2 {
   gap: 8px;
 }
 
-.primary,
-[data-slot="button"][data-variant="default"] {
+.primary {
   border-color: var(--color-accent-surface);
   color: var(--color-text-on-dark);
   background: var(--color-accent-surface);
   font-weight: 800;
 }
 
-.primary:hover:not(:disabled),
-[data-slot="button"][data-variant="default"]:hover:not(:disabled) {
+.primary:hover:not(:disabled) {
   border-color: var(--color-accent-hover);
   background: var(--color-accent-hover);
 }
 
-.primary:active:not(:disabled),
-[data-slot="button"][data-variant="default"]:active:not(:disabled) {
+.primary:active:not(:disabled) {
   border-color: var(--color-accent-active);
   background: var(--color-accent-active);
 }
@@ -1277,10 +1278,6 @@ h2 {
 .card-actions {
   flex-wrap: wrap;
   justify-content: flex-end;
-}
-
-.card-actions > [data-slot="button"][data-variant="outline"] {
-  color: var(--color-interactive-text-strong);
 }
 
 .empty-state,
@@ -2118,15 +2115,13 @@ select {
   text-transform: capitalize;
 }
 
-.danger,
-[data-slot="button"][data-variant="destructive"] {
+.danger {
   border-color: var(--color-danger-border);
   color: var(--color-danger-text);
   background: var(--color-danger-subtle);
 }
 
-.danger:hover:not(:disabled),
-[data-slot="button"][data-variant="destructive"]:hover:not(:disabled) {
+.danger:hover:not(:disabled) {
   border-color: var(--color-danger-surface);
   color: var(--color-text-on-dark);
   background: var(--color-danger-surface);
@@ -3889,7 +3884,7 @@ select {
   margin-top: 0;
 }
 
-button:disabled,
+button:not([data-slot="button"]):disabled,
 input:disabled,
 select:disabled {
   border-color: var(--color-border-disabled);
