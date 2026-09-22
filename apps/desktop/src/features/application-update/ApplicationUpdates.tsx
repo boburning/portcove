@@ -12,6 +12,7 @@ import type {
   ApplicationUpdateStatus,
 } from "../../types";
 import { errorText } from "../../view-model";
+import { Button } from "../../components/ui/button";
 
 const recommendedChoice: ApplicationUpdateChoice = {
   channel: "preview",
@@ -164,13 +165,15 @@ function ApplicationUpdateRecoveryItems({
           <strong>{copy.title}</strong>
           <p>{copy.description}</p>
         </div>
-        <button
+        <Button
           data-focusable
+          variant="outline"
+          size="sm"
           disabled={disabled || busy}
           onClick={() => void onRecover(recovery.area)}
         >
           {copy.action}
-        </button>
+        </Button>
       </div>
     );
   });
@@ -208,14 +211,15 @@ function StagedApplicationUpdateItem({
         ({formatBytes(status.staged.bytes)}) is ready for a safe apply request.
       </p>
       {restartIsAvailable(status) && (
-        <button
+        <Button
           data-focusable
-          className="primary"
+          variant="primary"
+          size="sm"
           disabled={disabled}
           onClick={() => void onRestart()}
         >
           {status.apply ? "Retry restart to update" : "Restart to update"}
-        </button>
+        </Button>
       )}
     </div>
   );
@@ -268,14 +272,15 @@ function ApplicationUpdateStatusPanel({
           <h3 id="application-status-title">Update activity</h3>
           <p>Host-owned status. Verified candidates are rechecked before replacement.</p>
         </div>
-        <button
+        <Button
           data-focusable
-          className="small-control"
+          variant="outline"
+          size="sm"
           disabled={disabled || Boolean(busy)}
           onClick={() => void onRefresh()}
         >
           Refresh update status
-        </button>
+        </Button>
       </div>
 
       {status && (
@@ -471,18 +476,24 @@ function ApplicationUpdateCheckPanel({
           </p>
         </div>
         {operation.busy ? (
-          <button data-focusable className="small-control" onClick={() => void operation.cancel()}>
-            {operation.active === "download" ? "Cancel download" : "Cancel check"}
-          </button>
-        ) : (
-          <button
+          <Button
             data-focusable
-            className="small-control"
+            variant="outline"
+            size="sm"
+            onClick={() => void operation.cancel()}
+          >
+            {operation.active === "download" ? "Cancel download" : "Cancel check"}
+          </Button>
+        ) : (
+          <Button
+            data-focusable
+            variant="outline"
+            size="sm"
             disabled={actionsDisabled}
             onClick={() => void operation.check()}
           >
             Check for updates
-          </button>
+          </Button>
         )}
       </div>
       {operation.busy && operation.phase && (
@@ -500,14 +511,15 @@ function ApplicationUpdateCheckPanel({
             </ul>
           )}
           {candidateCanDownload && (
-            <button
+            <Button
               data-focusable
-              className="primary"
+              variant="primary"
+              size="sm"
               disabled={actionsDisabled || Boolean(preferences?.choice?.paused)}
               onClick={() => void operation.download()}
             >
               Download and verify update
-            </button>
+            </Button>
           )}
         </div>
       )}
@@ -737,18 +749,25 @@ export function ApplicationUpdateSettings({
 
       {!preferences && !busy && (
         <div className="actions compact">
-          <button
+          <Button
             data-focusable
-            className="small-control"
+            variant="outline"
+            size="sm"
             disabled={disabled || !preferencesState}
             onClick={() => void load()}
           >
             Retry loading settings
-          </button>
+          </Button>
           {canRecoverPreferences && (
-            <button data-focusable disabled={disabled} onClick={() => void reset()}>
+            <Button
+              data-focusable
+              variant="destructive"
+              size="sm"
+              disabled={disabled}
+              onClick={() => void reset()}
+            >
               Reset update settings
-            </button>
+            </Button>
           )}
         </div>
       )}
@@ -768,16 +787,16 @@ export function ApplicationUpdateSettings({
             <h3 id="application-channel-label">Channel</h3>
             <div className="segmented" role="group" aria-label="Application update channel">
               {(["preview", "stable"] as const).map((channel) => (
-                <button
+                <Button
                   key={channel}
                   data-focusable
-                  className={draft.channel === channel ? "active" : ""}
+                  variant={draft.channel === channel ? "selected" : "ghost"}
                   aria-pressed={draft.channel === channel}
                   disabled={unavailable}
                   onClick={() => setDraft((value) => ({ ...value, channel }))}
                 >
                   {channel === "preview" ? "Preview" : "Stable"}
-                </button>
+                </Button>
               ))}
             </div>
             <p>
@@ -797,17 +816,17 @@ export function ApplicationUpdateSettings({
                   ["manual", "Manual"],
                 ] as const
               ).map(([mode, label]) => (
-                <button
+                <Button
                   key={mode}
                   data-focusable
-                  className={draft.mode === mode ? "active" : ""}
+                  variant={draft.mode === mode ? "selected" : "ghost"}
                   aria-pressed={draft.mode === mode}
                   disabled={unavailable}
                   onClick={() => setDraft((value) => ({ ...value, mode }))}
                 >
                   {label}
                   {mode === "automatic" && <small>Recommended</small>}
-                </button>
+                </Button>
               ))}
             </div>
             <p>
@@ -845,28 +864,33 @@ export function ApplicationUpdateSettings({
             restart Portcove.
           </p>
           <div className="actions compact">
-            <button
+            <Button
               data-focusable
-              className="primary"
+              variant="primary"
+              size="sm"
               disabled={unavailable || !changed}
               onClick={() => void save()}
             >
               Save application update settings
-            </button>
-            <button
+            </Button>
+            <Button
               data-focusable
+              variant="outline"
+              size="sm"
               disabled={unavailable || !changed}
               onClick={() => setDraft(preferences.choice ?? recommendedChoice)}
             >
               Discard changes
-            </button>
-            <button
+            </Button>
+            <Button
               data-focusable
+              variant="destructive"
+              size="sm"
               disabled={unavailable || !preferences.choice}
               onClick={() => void reset()}
             >
               Clear saved choice
-            </button>
+            </Button>
           </div>
         </>
       )}

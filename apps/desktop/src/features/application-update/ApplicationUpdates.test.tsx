@@ -123,6 +123,11 @@ describe("ApplicationUpdateSettings", () => {
     expect(changed).toHaveBeenLastCalledWith(missingChoice);
     expect(host.textContent).toContain("Automatic checks remain off until you save one.");
     expect(host.textContent).toContain("Current version 0.1.0-alpha.2");
+    expect(button("Preview").getAttribute("data-variant")).toBe("selected");
+    expect(button("Stable").getAttribute("data-variant")).toBe("ghost");
+    expect(button("Automatic").getAttribute("data-variant")).toBe("selected");
+    expect(button("Notify only").getAttribute("data-variant")).toBe("ghost");
+    expect(button("Manual").getAttribute("data-variant")).toBe("ghost");
 
     await click("Stable");
     await click("Manual");
@@ -146,6 +151,9 @@ describe("ApplicationUpdateSettings", () => {
       "No update check, download, install, or restart was started.",
     );
     expect(button("Save application update settings").disabled).toBe(true);
+    expect(button("Save application update settings").getAttribute("data-variant")).toBe("primary");
+    expect(button("Discard changes").getAttribute("data-variant")).toBe("outline");
+    expect(button("Clear saved choice").getAttribute("data-variant")).toBe("destructive");
   });
 
   it("shares the startup read with Settings and publishes saves to the global owner", async () => {
