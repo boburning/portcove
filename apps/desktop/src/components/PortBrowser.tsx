@@ -38,6 +38,7 @@ export function PortBrowser({
   overview,
   recent,
   filter,
+  query = "",
   setFilter,
   onSelect,
   onContinue,
@@ -51,6 +52,7 @@ export function PortBrowser({
   statuses: Map<string, PortStatus>;
   overview: LibraryOverview;
   filter: Filter;
+  query?: string;
   recent?: RecentPort;
   setFilter: Dispatch<SetStateAction<Filter>>;
   onSelect: (portId: string, originKey?: string, destination?: DetailDestination) => void;
@@ -98,6 +100,7 @@ export function PortBrowser({
         view={view}
         ports={ports}
         installedCount={overview.installed}
+        constrained={filter !== "all" || query.trim().length > 0}
         statuses={statuses}
         onSelect={onSelect}
         onLaunch={onContinue}
@@ -114,6 +117,7 @@ function BrowserResults({
   view,
   ports,
   installedCount,
+  constrained,
   statuses,
   onSelect,
   onLaunch,
@@ -125,6 +129,7 @@ function BrowserResults({
   view: View;
   ports: PortDefinition[];
   installedCount: number;
+  constrained: boolean;
   statuses: Map<string, PortStatus>;
   onSelect: (portId: string, originKey?: string, destination?: DetailDestination) => void;
   onLaunch?: (portId: string) => void;
@@ -139,6 +144,7 @@ function BrowserResults({
       <BrowserEmptyState
         view={view}
         installedCount={installedCount}
+        constrained={constrained}
         clearFilters={clearFilters}
         onBrowseCatalog={onBrowseCatalog}
       />
@@ -182,15 +188,17 @@ function LoadingState() {
 function BrowserEmptyState({
   view,
   installedCount,
+  constrained,
   clearFilters,
   onBrowseCatalog,
 }: {
   view: View;
   installedCount: number;
+  constrained: boolean;
   clearFilters?: () => void;
   onBrowseCatalog?: () => void;
 }) {
-  if (view === "library" && installedCount === 0)
+  if (view === "library" && installedCount === 0 && !constrained)
     return (
       <EmptyState
         visual={
@@ -217,7 +225,11 @@ function BrowserEmptyState({
         icon={Settings2}
         eyebrow="NO MATCHES"
         title="No installed ports match your search and filters"
-        description="Your installed ports are still in this library. Clear the current search and readiness filters to show them again."
+        description={
+          installedCount === 0
+            ? "This library has no installed ports yet. Clear the current search and readiness filters to return to the empty Library."
+            : "Your installed ports are still in this library. Clear the current search and readiness filters to show them again."
+        }
         action={
           <Button data-focusable variant="outline" size="lg" onClick={clearFilters}>
             <Icon glyph={Settings2} />

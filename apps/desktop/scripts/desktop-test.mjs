@@ -489,8 +489,39 @@ try {
       15_000,
     );
     assert.equal(await browse.getAttribute("data-slot"), "button");
-    assert.equal(await browse.getAttribute("data-variant"), "default");
+    assert.equal(await browse.getAttribute("data-variant"), "primary");
     await captureScenarioScreenshot("empty-library-shared-controls");
+    const search = await browser.findElement(By.id("port-search"));
+    await search.sendKeys("unmatched title");
+    const clearSearch = await browser.wait(
+      until.elementLocated(By.xpath('//button[normalize-space(.)="Clear search and filters"]')),
+      5000,
+    );
+    assert.match(
+      await browser.findElement(By.css(".empty-state")).getText(),
+      /This library has no installed ports yet/,
+    );
+    await captureScenarioScreenshot("filtered-empty-new-library");
+    await clearSearch.click();
+    assert.equal(await search.getAttribute("value"), "");
+    await browser.wait(
+      until.elementLocated(By.xpath('//button[normalize-space(.)="Browse port catalog"]')),
+      5000,
+    );
+    await browser
+      .findElement(
+        By.xpath('//div[contains(@class,"filter-row")]//button[normalize-space(.)="Ready"]'),
+      )
+      .click();
+    const clearReadiness = await browser.wait(
+      until.elementLocated(By.xpath('//button[normalize-space(.)="Clear search and filters"]')),
+      5000,
+    );
+    await clearReadiness.click();
+    await browser.wait(
+      until.elementLocated(By.xpath('//button[normalize-space(.)="Browse port catalog"]')),
+      5000,
+    );
   });
   await scenario("native-design-system-compatibility", async () => {
     const environment = await assertDesignCompatibility({ browser, By, Key, until });
