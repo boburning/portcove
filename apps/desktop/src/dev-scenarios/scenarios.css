@@ -21,6 +21,12 @@
   animation: none;
 }
 
+.scenario-preview [data-development-scenario] {
+  min-height: 100%;
+  color: var(--color-text);
+  background: var(--color-bg);
+}
+
 .scenario-preview iframe {
   display: block;
   width: min(36rem, 100%);

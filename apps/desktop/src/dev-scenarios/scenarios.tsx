@@ -5,7 +5,13 @@ import { BackupHistory } from "../components/BackupHistory";
 import { HostToolRow, StatusLayer } from "../components/Chrome";
 import { WorkspaceRefreshNotice } from "../features/workspace/WorkspaceRefreshNotice";
 import { failureReport, portDefinition, portStatus, sourceProfile } from "../test-fixtures";
-import type { InstallPlan, InstallRecord, PortDefinition, PortStatus } from "../types";
+import type {
+  DesktopError,
+  InstallPlan,
+  InstallRecord,
+  PortDefinition,
+  PortStatus,
+} from "../types";
 
 export const scenarios = [
   {
@@ -14,6 +20,36 @@ export const scenarios = [
     theme: "dark",
     viewport: "wide",
     limitation: "No catalog discovery or library IPC is executed.",
+  },
+  {
+    id: "filtered-empty-library",
+    label: "Filtered empty library",
+    theme: "light",
+    viewport: "wide",
+    limitation:
+      "Installed content is supplied but filtered out; search and filter state do not run.",
+  },
+  {
+    id: "unavailable-library",
+    label: "Unavailable library",
+    theme: "dark",
+    viewport: "narrow",
+    limitation: "The initial-load failure is synthetic; retry and library IPC do not run.",
+  },
+  {
+    id: "partial-success",
+    label: "Partial success",
+    theme: "light",
+    viewport: "wide",
+    limitation:
+      "The committed mutation and failed refresh are supplied facts; no files are changed.",
+  },
+  {
+    id: "cancelled-operation",
+    label: "Cancelled operation",
+    theme: "dark",
+    viewport: "narrow",
+    limitation: "The neutral cancellation outcome is supplied; no native prompt or operation runs.",
   },
   {
     id: "ready-game",
@@ -169,6 +205,42 @@ function reviewedInstallPlan(port: PortDefinition): InstallPlan {
   };
 }
 
+function scenarioError({
+  scenarioId,
+  code,
+  message,
+  summary,
+  technicalMessage,
+  tone = "error",
+  mutationState = "unknown",
+  recoveryActions = ["view_technical_details"],
+}: {
+  scenarioId: string;
+  code: DesktopError["code"];
+  message: string;
+  summary: string;
+  technicalMessage: string;
+  tone?: DesktopError["presentation"]["tone"];
+  mutationState?: DesktopError["presentation"]["mutation_state"];
+  recoveryActions?: DesktopError["presentation"]["recovery_actions"];
+}): DesktopError {
+  return {
+    code,
+    message,
+    details: {},
+    presentation: {
+      presentation_key: "development_scenario",
+      summary,
+      tone,
+      mutation_state: mutationState,
+      phase: null,
+      recovery_actions: recoveryActions,
+      technical_message: technicalMessage,
+      technical_context: { scenario: scenarioId },
+    },
+  };
+}
+
 function ReferenceWorkspace({ mode }: { mode: "library" | "details" | "installation-review" }) {
   const port = {
     ...portDefinition(),
@@ -255,6 +327,71 @@ function Scenario({ id }: { id: ScenarioId }) {
         loading={false}
       />
     );
+  if (id === "filtered-empty-library")
+    return (
+      <PortBrowser
+        view="library"
+        ports={[]}
+        statuses={new Map()}
+        overview={{ installed: 2, ready: 1, needsSetup: 1, staged: 0 }}
+        filter="ready"
+        setFilter={blockedScenarioAction}
+        onSelect={blockedScenarioAction}
+        clearFilters={blockedScenarioAction}
+        loading={false}
+      />
+    );
+  if (id === "unavailable-library")
+    return (
+      <WorkspaceRefreshNotice
+        hasSnapshot={false}
+        refreshing={false}
+        failure={{
+          error: scenarioError({
+            scenarioId: "unavailable-library",
+            code: "state",
+            message: "Scenario library is unavailable.",
+            summary: "The scenario library could not be loaded.",
+            technicalMessage: "Initial scenario library load failed.",
+            recoveryActions: ["view_technical_details"],
+          }),
+        }}
+        retry={blockedScenarioAction}
+      />
+    );
+  if (id === "partial-success") {
+    return (
+      <StatusLayer
+        clearError={blockedScenarioAction}
+        error={scenarioError({
+          scenarioId: "partial-success",
+          code: "state",
+          message: "The change was saved, but current library information could not be refreshed.",
+          summary: "The change was saved, but Portcove could not refresh the current view.",
+          technicalMessage: "Scenario refresh failed after the change was committed.",
+          mutationState: "committed",
+          recoveryActions: ["review_current_state", "view_technical_details"],
+        })}
+      />
+    );
+  }
+  if (id === "cancelled-operation") {
+    return (
+      <StatusLayer
+        clearError={blockedScenarioAction}
+        error={scenarioError({
+          scenarioId: "cancelled-operation",
+          code: "cancelled",
+          message: "Scenario operation cancelled.",
+          summary: "The operation was cancelled before it changed any files.",
+          technicalMessage: "Scenario operation cancelled before mutation.",
+          tone: "neutral",
+          mutationState: "no_changes",
+          recoveryActions: [],
+        })}
+      />
+    );
+  }
   if (id === "missing-tool")
     return (
       <HostToolRow
