@@ -81,6 +81,11 @@ export const DESKTOP_SCENARIOS = Object.freeze([
     prerequisites: ["desktop", "owned-fixture"],
     source: "desktop-preparation-test.mjs",
   }),
+  scenario("native-game-update-review", "Game update review is non-mutating and restores focus.", {
+    prerequisites: ["desktop", "owned-fixture"],
+    dependencies: ["native-preparation-review-and-play"],
+    source: "desktop-preparation-test.mjs",
+  }),
   scenario("native-missing-readiness-recovery", "Missing rendered readiness recovers safely.", {
     prerequisites: ["desktop", "owned-fixture"],
     dependencies: ["native-preparation-review-and-play"],
@@ -226,6 +231,7 @@ const smoke = [
 const ownedLifecycle = [
   "native-external-cli-reconciliation",
   "native-preparation-review-and-play",
+  "native-game-update-review",
   "native-missing-readiness-recovery",
   "native-retained-contract-repair-state",
   "native-preparation-cancellation",
