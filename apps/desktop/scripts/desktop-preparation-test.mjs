@@ -314,6 +314,54 @@ export async function preparationScenarios({
     });
     artifacts.push(actionsImage);
   });
+  await scenario("native-game-update-review", async () => {
+    const port = command(["catalog", "show", "opengoal-jak1"]);
+    await open(port, false);
+    const before = await status(port.id);
+    const activityBefore = (await invoke("get_activities")).value;
+    const trigger = await browser.findElement(button("Review game update"));
+    await clickVisible(browser, trigger);
+    const dialog = By.css('[aria-labelledby="game-update-review-title"]');
+    const review = await browser.wait(until.elementLocated(dialog), 15_000);
+    const reviewText = await review.getText();
+    const bootstrap = await invoke("get_bootstrap_status");
+    assert.equal(bootstrap.ok, true);
+    const candidate = await invoke("plan_game_update", {
+      portId: port.id,
+      activate: false,
+      generation: bootstrap.value.generation,
+    });
+    assert.equal(candidate.ok, true);
+    assert.ok(reviewText.includes("Confirm the release"));
+    assert.ok(reviewText.includes(candidate.value.plan.release.version));
+    assert.ok(
+      reviewText.includes("Saved update settings are unchanged") ||
+        reviewText.includes("already active") ||
+        reviewText.includes("unverified local copy"),
+    );
+    await assertCompactReview(browser, '[aria-labelledby="game-update-review-title"]');
+    const accessibility = path.join(output, "game-update-review-accessibility.json");
+    await captureAccessibilityReport(browser, accessibility, artifacts);
+    const screenshot = path.join(output, "native-game-update-review.png");
+    await writeFile(screenshot, await browser.takeScreenshot(), {
+      encoding: "base64",
+      flag: "wx",
+    });
+    artifacts.push(screenshot);
+    assert.deepEqual((await status(port.id)).active, before.active);
+    assert.deepEqual((await invoke("get_activities")).value, activityBefore);
+    await browser.actions().sendKeys(Key.ESCAPE).perform();
+    await browser.wait(
+      async () => (await browser.findElements(dialog)).length === 0,
+      5_000,
+      "Game update review did not close after Escape",
+    );
+    await browser.wait(
+      () => browser.executeScript("return document.activeElement === arguments[0];", trigger),
+      5_000,
+      "Game update review trigger did not regain focus after Escape",
+    );
+  });
   await readinessScenario({
     browser,
     scenario,

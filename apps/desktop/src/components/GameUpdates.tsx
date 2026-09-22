@@ -1,12 +1,14 @@
-import { useEffect, useRef, useState, type RefObject } from "react";
+import { useEffect, useRef, useState } from "react";
 import { desktopApi } from "../api";
 import type { GameUpdatePlan, PortStatus, UpdatePolicy } from "../types";
 import type { Perform } from "../features/operations/use-operation-state";
+import { LatestRequestGeneration } from "../shared/concurrency-state";
 import { errorText, formatBytes } from "../view-model";
 import { ChoiceSelect } from "./ChoiceSelect";
 import { OperationCancellation } from "./OperationCancellation";
 import { installPlanActionLabel } from "../install-plan-presentation";
 import { Button } from "./ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "./ui/dialog";
 
 export function UpdatePolicyControl({
   policy,
@@ -91,46 +93,44 @@ export function GameUpdateControl({
   const [message, setMessage] = useState<string>();
   const [error, setError] = useState<string>();
   const [operation, setOperation] = useState<string>();
-  const request = useRef(0);
-  const confirm = useRef<HTMLButtonElement>(null);
+  const requests = useRef(new LatestRequestGeneration());
+  const reviewButton = useRef<HTMLButtonElement>(null);
   useEffect(
     () => () => {
-      request.current += 1;
+      requests.current.begin();
     },
     [],
   );
-  useEffect(() => {
-    if (plan) confirm.current?.focus();
-  }, [plan]);
+  const dismissReview = () => setPlan(undefined);
   const review = async () => {
-    const current = ++request.current;
+    const current = requests.current.begin();
     setPending(true);
     setPlan(undefined);
     setError(undefined);
     setMessage(undefined);
     try {
       const value = await desktopApi.planGameUpdate(portId, activate, generation);
-      if (current === request.current) setPlan(value);
+      if (requests.current.isCurrent(current)) setPlan(value);
     } catch (error) {
-      if (current === request.current) setError(errorText(error));
+      if (requests.current.isCurrent(current)) setError(errorText(error));
     } finally {
-      if (current === request.current) setPending(false);
+      if (requests.current.isCurrent(current)) setPending(false);
     }
   };
   const apply = async () => {
     if (!plan || !perform || !gameUpdateActionLabel(plan)) return;
-    const current = ++request.current;
+    const current = requests.current.begin();
     setPending(true);
     setError(undefined);
     try {
       const result = await perform("run reviewed game update", () =>
         desktopApi.applyGameUpdate(portId, plan.activate, plan.plan_sha256, generation, (event) => {
-          if (current !== request.current) return;
+          if (!requests.current.isCurrent(current)) return;
           if (event.type === "started") setOperation(event.operation_id);
           if (event.type === "message") setMessage(event.message);
         }),
       );
-      if (current === request.current)
+      if (requests.current.isCurrent(current))
         setMessage(
           result
             ? plan.activate
@@ -139,9 +139,9 @@ export function GameUpdateControl({
             : "Update did not complete. Review the current state before retrying.",
         );
     } catch (error) {
-      if (current === request.current) setError(errorText(error));
+      if (requests.current.isCurrent(current)) setError(errorText(error));
     } finally {
-      if (current === request.current) {
+      if (requests.current.isCurrent(current)) {
         setPending(false);
         setPlan(undefined);
         setOperation(undefined);
@@ -165,37 +165,89 @@ export function GameUpdateControl({
           { value: "activate", label: "Install after download" },
         ]}
       />
-      {!plan && (
-        <Button
-          data-focusable
-          variant="primary"
-          disabled={busy || pending || !perform}
-          onClick={() => {
-            void review();
+      <Button
+        ref={reviewButton}
+        data-focusable
+        className={plan ? "hidden" : undefined}
+        hidden={Boolean(plan)}
+        variant="primary"
+        disabled={busy || pending || !perform}
+        onClick={() => {
+          void review();
+        }}
+      >
+        {pending ? "Checking update…" : "Review game update"}
+      </Button>
+      {plan && (
+        <Dialog
+          open
+          onOpenChange={(nextOpen) => {
+            if (!nextOpen && !busy && !pending) dismissReview();
           }}
         >
-          {pending ? "Checking update…" : "Review game update"}
-        </Button>
+          <DialogContent
+            showCloseButton={false}
+            finalFocus={reviewButton}
+            className="max-h-[calc(100dvh-var(--space-8))] w-[min(680px,90vw)] max-w-none gap-0 overflow-y-auto overscroll-contain p-8 [scroll-padding-block:var(--space-4)] sm:max-w-none"
+            aria-describedby="game-update-review-description"
+          >
+            <DialogTitle id="game-update-review-title" className="mb-2 text-xl">
+              Review game update
+            </DialogTitle>
+            <DialogDescription id="game-update-review-description" className="mb-4 leading-relaxed">
+              Confirm the release and what happens to your active version before updating.
+            </DialogDescription>
+            <GameUpdateReview plan={plan} />
+            {operation && (
+              <OperationCancellation
+                key={operation}
+                operationId={operation}
+                label="Cancel game update"
+              />
+            )}
+            {message && <p role="status">{message}</p>}
+            {error && <p role="alert">{error}</p>}
+            <DialogFooter className="mt-4">
+              {installPlanActionLabel(plan.plan.action) ? (
+                gameUpdateActionLabel(plan) ? (
+                  <Button
+                    data-focusable
+                    data-autofocus
+                    variant="primary"
+                    disabled={busy || pending || !perform}
+                    onClick={() => void apply()}
+                  >
+                    {pending ? "Updating…" : gameUpdateActionLabel(plan)}
+                  </Button>
+                ) : null
+              ) : (
+                <Button
+                  data-focusable
+                  data-autofocus
+                  variant="primary"
+                  disabled={busy || pending}
+                  onClick={() => void review()}
+                >
+                  Review game update again
+                </Button>
+              )}
+              <Button
+                data-focusable
+                variant="outline"
+                disabled={busy || pending}
+                onClick={dismissReview}
+              >
+                Cancel review
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       )}
-      {plan && (
-        <GameUpdateReview
-          plan={plan}
-          disabled={busy || pending || !perform}
-          pending={pending}
-          confirm={confirm}
-          review={() => {
-            void review();
-          }}
-          apply={() => {
-            void apply();
-          }}
-        />
-      )}
-      {operation && (
+      {!plan && operation && (
         <OperationCancellation key={operation} operationId={operation} label="Cancel game update" />
       )}
-      {message && <p role="status">{message}</p>}
-      {error && <p role="alert">{error}</p>}
+      {!plan && message && <p role="status">{message}</p>}
+      {!plan && error && <p role="alert">{error}</p>}
     </section>
   );
 }
@@ -211,21 +263,7 @@ function gameUpdateActionLabel(plan: GameUpdatePlan) {
   return Object.hasOwn(labels, plan.plan.action) ? labels[plan.plan.action] : undefined;
 }
 
-function GameUpdateReview({
-  plan,
-  disabled,
-  pending,
-  confirm,
-  review,
-  apply,
-}: {
-  plan: GameUpdatePlan;
-  disabled: boolean;
-  pending: boolean;
-  confirm: RefObject<HTMLButtonElement | null>;
-  review: () => void;
-  apply: () => void;
-}) {
+function GameUpdateReview({ plan }: { plan: GameUpdatePlan }) {
   const label = gameUpdateActionLabel(plan);
   if (!installPlanActionLabel(plan.plan.action))
     return (
@@ -234,9 +272,6 @@ function GameUpdateReview({
           This version of Portcove cannot display this update plan. Review it again, or update
           Portcove if this continues.
         </p>
-        <Button ref={confirm} data-focusable variant="outline" disabled={disabled} onClick={review}>
-          Review game update again
-        </Button>
       </div>
     );
   return (
@@ -265,11 +300,7 @@ function GameUpdateReview({
             ? "This verified release is already active."
             : "An unverified local copy blocks this update. Verify or repair it first."}
         </p>
-      ) : (
-        <Button ref={confirm} data-focusable variant="primary" disabled={disabled} onClick={apply}>
-          {pending ? "Updating…" : label}
-        </Button>
-      )}
+      ) : null}
     </div>
   );
 }

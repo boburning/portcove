@@ -51,6 +51,10 @@ let root: Root;
 let container: HTMLDivElement;
 beforeEach(() => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+  vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
+    callback(0);
+    return 1;
+  });
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
@@ -67,6 +71,14 @@ async function click(label: string, contains = false) {
   );
   expect(control).toBeDefined();
   await act(async () => control?.click());
+}
+function dialog() {
+  return document.body.querySelector('[aria-labelledby="game-update-review-title"]');
+}
+async function pressEscape() {
+  await act(async () => {
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+  });
 }
 
 it("edits locally until Save and never reviews or runs an update when saving", async () => {
@@ -115,7 +127,8 @@ it("reviews without execution and submits the exact download-only plan on confir
   await click("Review game update");
   expect(apply).not.toHaveBeenCalled();
   expect(desktopApi.planGameUpdate).toHaveBeenCalledExactlyOnceWith("sample", false, 9);
-  expect(container.textContent).toContain("active version stays unchanged");
+  expect(dialog()?.textContent).toContain("active version stays unchanged");
+  expect(document.activeElement?.textContent).toBe("Download update for later");
   await click("Download update for later");
   expect(apply).toHaveBeenCalledExactlyOnceWith(
     "sample",
@@ -150,6 +163,9 @@ it("requires another review when the chosen action changes and binds activation 
     ),
   );
   await click("Review game update");
+  await pressEscape();
+  expect(dialog()).toBeNull();
+  expect(document.activeElement?.textContent).toBe("Review game update");
   await click("This update", true);
   await click("Install after download");
   expect(container.textContent).not.toContain("2.0");
@@ -165,6 +181,52 @@ it("requires another review when the chosen action changes and binds activation 
   );
   expect(container.querySelector('[role="alert"]')?.textContent).toBe("Release changed");
   expect(container.textContent).toContain("Review game update");
+});
+
+it("keeps update cancellation inside the busy review and locks dismissal", async () => {
+  vi.spyOn(desktopApi, "planGameUpdate").mockResolvedValue(plan);
+  let finish!: () => void;
+  vi.spyOn(desktopApi, "applyGameUpdate").mockImplementation(
+    (_portId, _activate, _expectedPlan, _generation, onEvent) => {
+      onEvent({
+        schema_version: 2,
+        operation_id: "update-1",
+        parent_operation_id: null,
+        target: null,
+        sequence: 0,
+        timestamp_ms: 1,
+        operation: "update",
+        type: "started",
+      });
+      return new Promise((resolve) => {
+        finish = () => resolve(undefined!);
+      });
+    },
+  );
+  const cancel = vi
+    .spyOn(desktopApi, "cancelOperation")
+    .mockResolvedValue({ phase: "preparing", requested: true });
+  await act(async () =>
+    root.render(
+      <GameUpdateControl
+        portId="sample"
+        generation={9}
+        policy="notify"
+        busy={false}
+        perform={perform}
+      />,
+    ),
+  );
+  await click("Review game update");
+  await click("Download update for later");
+  expect(dialog()?.textContent).toContain("Cancel game update");
+  await pressEscape();
+  expect(dialog()).not.toBeNull();
+  await click("Cancel game update");
+  expect(cancel).toHaveBeenCalledExactlyOnceWith("update-1");
+  expect(dialog()?.textContent).toContain("Cancellation requested");
+  await act(async () => finish());
+  expect(dialog()).toBeNull();
 });
 
 it("discards a late update review after switching the selected library", async () => {
@@ -229,14 +291,14 @@ it.each(["future_action", "constructor", "__proto__", "toString"])(
       ),
     );
     await click("Review game update");
-    expect(container.querySelector('[role="alert"]')?.textContent).toContain(
+    expect(dialog()?.querySelector('[role="alert"]')?.textContent).toContain(
       "cannot display this update plan",
     );
-    expect(container.textContent).not.toContain("verified local release");
-    expect(container.querySelector(".install-plan button.primary")).toBeNull();
+    expect(dialog()?.textContent).not.toContain("verified local release");
+    expect(dialog()?.querySelector(".install-plan button")).toBeNull();
     expect(apply).not.toHaveBeenCalled();
     await click("Review game update again");
-    expect(container.querySelector('[role="alert"]')).toBeNull();
+    expect(dialog()?.querySelector('[role="alert"]')).toBeNull();
     await click("Download update for later");
     expect(apply).toHaveBeenCalledExactlyOnceWith(
       "sample",
@@ -268,8 +330,8 @@ it.each(["already_active", "blocked_unverified"] as const)(
       ),
     );
     await click("Review game update");
-    expect(container.querySelector(".install-plan button.primary")).toBeNull();
-    expect(container.querySelector('[role="status"]')?.textContent).toContain(
+    expect(dialog()?.querySelector(".install-plan button")).toBeNull();
+    expect(dialog()?.querySelector('[role="status"]')?.textContent).toContain(
       action === "already_active" ? "already active" : "unverified local copy",
     );
     expect(apply).not.toHaveBeenCalled();
