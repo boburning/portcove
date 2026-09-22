@@ -41,12 +41,13 @@ function OpenCommandPalette({
   const searchInput = useRef<HTMLInputElement>(null);
   const palette = useRef<HTMLDivElement>(null);
   const filtered = useMemo(() => filterCommands(commands, query), [commands, query]);
+  const eligible = filtered.filter((command) => !command.disabled);
   const fallbackId = preferredCommandId(filtered);
-  const activeId = filtered.some((command) => command.id === selectedId) ? selectedId : fallbackId;
+  const activeId = eligible.some((command) => command.id === selectedId) ? selectedId : fallbackId;
   const activeIndex = filtered.findIndex((command) => command.id === activeId);
   useEffect(() => {
     activeCommand.current?.scrollIntoView({ block: "nearest" });
-  }, [activeIndex]);
+  }, [activeId]);
   useEffect(() => {
     const frame = requestAnimationFrame(() => {
       const focused = document.activeElement;
@@ -103,12 +104,18 @@ function OpenCommandPalette({
             onKeyDown={(event) => {
               if (event.key === "ArrowDown") {
                 event.preventDefault();
-                const nextIndex = Math.max(0, Math.min(activeIndex + 1, filtered.length - 1));
-                setSelectedId(filtered[nextIndex]?.id);
+                const nextIndex = Math.min(
+                  eligible.findIndex((command) => command.id === activeId) + 1,
+                  eligible.length - 1,
+                );
+                setSelectedId(eligible[nextIndex]?.id);
               } else if (event.key === "ArrowUp") {
                 event.preventDefault();
-                const nextIndex = Math.max(activeIndex - 1, 0);
-                setSelectedId(filtered[nextIndex]?.id);
+                const nextIndex = Math.max(
+                  eligible.findIndex((command) => command.id === activeId) - 1,
+                  0,
+                );
+                setSelectedId(eligible[nextIndex]?.id);
               } else if (
                 event.key === "Enter" &&
                 !event.nativeEvent.isComposing &&
@@ -183,5 +190,5 @@ export function filterCommands(commands: PaletteCommand[], query: string) {
 }
 
 function preferredCommandId(commands: PaletteCommand[]) {
-  return (commands.find((command) => !command.disabled) ?? commands[0])?.id;
+  return commands.find((command) => !command.disabled)?.id;
 }

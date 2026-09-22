@@ -73,7 +73,12 @@ export function commandSurfaceCommands({
     {
       id: "check",
       label: "Check installed ports for updates",
-      description: "Run a read-only release check for every installed port",
+      description:
+        installedCount === 0
+          ? "Install a port before checking for updates"
+          : busy
+            ? "Wait for the current operation before checking for updates"
+            : "Run a read-only release check for every installed port",
       icon: RefreshCw,
       keywords: "update all",
       disabled: busy || installedCount === 0,
