@@ -30,6 +30,11 @@ describe("Portcove app shell", () => {
     expect(html).toContain("If the current library is the cause");
     expect(html).not.toContain("Portcove couldn’t open your library");
     expect(html).toContain("Retry startup");
+    expect(html).toContain('data-slot="button" data-variant="primary"');
+    expect(html).toMatch(/data-slot="button" data-variant="outline"[^>]*>Choose library<\/button>/);
+    expect(html).toMatch(
+      /data-slot="button" data-variant="outline"[^>]*>Use platform default<\/button>/,
+    );
     expect(html).not.toContain("Install");
   });
 

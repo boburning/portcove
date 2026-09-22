@@ -238,6 +238,7 @@
   /* Semantic status */
   --color-success: var(--n64-green-500);
   --color-success-text: var(--n64-green-300);
+  --color-success-text-raised: var(--n64-green-300);
   --color-success-strong: var(--n64-green-100);
   --color-success-subtle: var(--n64-green-950);
   --color-success-border: var(--n64-green-300);
@@ -330,6 +331,7 @@
 
   --color-success: var(--n64-green-700);
   --color-success-text: var(--n64-green-700);
+  --color-success-text-raised: var(--n64-green-800);
   --color-success-strong: var(--n64-green-100);
   --color-success-subtle: var(--n64-green-100);
   --color-success-border: var(--n64-green-700);
@@ -1127,7 +1129,7 @@ h2 {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  color: var(--color-text-muted);
+  color: var(--color-text-secondary);
   font-size: var(--text-2xs);
   font-weight: 750;
   letter-spacing: 0.025em;
@@ -1142,13 +1144,13 @@ h2 {
 }
 
 .readiness.ready {
-  color: var(--color-success-text);
+  color: var(--color-success-text-raised);
 }
 .readiness.setup {
   color: var(--color-warning-text);
 }
 .readiness.staged {
-  color: var(--color-interactive-text);
+  color: var(--color-interactive-text-strong);
 }
 .card-title h2 {
   margin: 0;
@@ -1197,7 +1199,7 @@ h2 {
   display: -webkit-box;
   overflow: hidden;
   margin: 9px 0 11px;
-  color: var(--color-text-muted);
+  color: var(--color-text-secondary);
   font-size: var(--text-xs);
   line-height: var(--leading-normal);
   -webkit-box-orient: vertical;
@@ -1237,7 +1239,7 @@ h2 {
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
-  color: var(--color-interactive-text);
+  color: var(--color-interactive-text-strong);
 }
 
 .card-actions {

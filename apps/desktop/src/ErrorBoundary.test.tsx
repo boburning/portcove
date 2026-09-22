@@ -21,6 +21,8 @@ describe("top-level render recovery", () => {
       "The Portcove window encountered an error. Reload it to reconnect and check the status of any active task.",
     );
     expect(html).toContain("injected render failure");
+    expect(html).toContain('data-slot="button" data-variant="primary"');
+    expect(html).toContain("Reload Portcove");
     expect(html).not.toContain("remains owned by the backend");
     expect(html).not.toContain("workspace");
     expect(report).toHaveBeenCalledWith(

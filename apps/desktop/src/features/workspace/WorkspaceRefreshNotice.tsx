@@ -4,6 +4,7 @@ import { focusAndReveal, focusRegion } from "../../focus";
 import { errorText, failurePresentation } from "../../view-model";
 import { FailureDetails } from "../../components/FailureDetails";
 import { Icon } from "../../components/ui";
+import { Button } from "../../components/ui/button";
 
 export function WorkspaceRefreshNotice({
   failure,
@@ -40,9 +41,14 @@ export function WorkspaceRefreshNotice({
             Portcove will keep checking activity at a reduced rate. Refresh manually after library
             changes until the desktop is restarted.
           </p>
-          <button data-focusable disabled={refreshing} onClick={() => void retry()}>
+          <Button
+            variant="outline"
+            data-focusable
+            disabled={refreshing}
+            onClick={() => void retry()}
+          >
             {refreshing ? "Refreshing library…" : "Refresh now"}
-          </button>
+          </Button>
         </div>
       </section>
     );
@@ -72,8 +78,9 @@ export function WorkspaceRefreshNotice({
           Retry refresh loads the current information. It does not repeat your last install, move,
           or other action.
         </p>
-        <button
+        <Button
           ref={retryButton}
+          variant="outline"
           data-focusable
           disabled={refreshing}
           onClick={() => {
@@ -82,7 +89,7 @@ export function WorkspaceRefreshNotice({
           }}
         >
           {refreshing ? "Refreshing library…" : "Retry refresh"}
-        </button>
+        </Button>
       </div>
     </section>
   );
