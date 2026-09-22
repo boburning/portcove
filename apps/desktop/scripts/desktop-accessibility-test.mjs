@@ -8,6 +8,8 @@ import { assertCompactReview, captureAccessibilityReport } from "./desktop-revie
 export async function accessibleNavigationScenario({ browser, scenario, output, artifacts }) {
   await scenario("native-expanded-navigation-copy", async () => {
     const modifier = process.platform === "darwin" ? Key.COMMAND : Key.CONTROL;
+    const commandTrigger = await browser.findElement(By.css('[aria-label="Open command palette"]'));
+    await browser.executeScript((element) => element.focus(), commandTrigger);
     await browser.actions().keyDown(modifier).sendKeys("k").keyUp(modifier).perform();
     await browser.wait(until.elementLocated(By.css(".command-palette")), 5000);
     const search = await browser.findElement(
@@ -18,23 +20,54 @@ export async function accessibleNavigationScenario({ browser, scenario, output, 
       0,
       "A freshly opened palette must start with an empty query",
     );
-    const hints = async () =>
-      browser.executeScript(() =>
-        [...document.querySelectorAll(".palette-footer .controller-hint > span")]
+    await browser.wait(
+      () => browser.executeScript((element) => document.activeElement === element, search),
+      5000,
+      "A freshly opened palette did not focus its search field",
+    );
+    assert.equal(
+      await browser.executeScript(
+        () => document.querySelector(".command-palette")?.closest("main") === null,
+      ),
+      true,
+      "The command palette must use the shared portal",
+    );
+    const hints = async (inputMode) =>
+      browser.executeScript((nextInputMode) => {
+        document.documentElement.dataset.inputMode = nextInputMode;
+        return [...document.querySelectorAll(".palette-footer .controller-hint > span")]
           .filter((element) => element.getClientRects().length > 0)
-          .map((element) => element.textContent),
-      );
-    assert.deepEqual(await hints(), ["Arrow keys: Move", "Enter: Select", "Esc: Back"]);
-    await browser.executeScript(() => {
-      document.documentElement.dataset.inputMode = "controller";
-    });
-    assert.deepEqual(await hints(), [
+          .map((element) => element.textContent);
+      }, inputMode);
+    assert.deepEqual(
+      await hints("keyboard"),
+      ["Arrow keys: Move", "Enter: Select", "Esc: Back"],
+      "Keyboard presentation must show keyboard navigation help",
+    );
+    assert.deepEqual(await hints("controller"), [
       "D-pad or stick: Move",
       "Confirm button: Select",
       "Back button: Back",
     ]);
-    await browser.actions().sendKeys(Key.ARROW_DOWN).perform();
-    assert.deepEqual(await hints(), ["Arrow keys: Move", "Enter: Select", "Esc: Back"]);
+    await browser.executeScript(() => {
+      delete document.documentElement.dataset.nativeKeyboardInputMode;
+      window.addEventListener(
+        "keydown",
+        () => {
+          queueMicrotask(() => {
+            document.documentElement.dataset.nativeKeyboardInputMode =
+              document.documentElement.dataset.inputMode ?? "";
+          });
+        },
+        { capture: true, once: true },
+      );
+    });
+    await search.sendKeys(Key.ARROW_DOWN);
+    assert.equal(
+      await browser.executeScript(() => document.documentElement.dataset.nativeKeyboardInputMode),
+      "keyboard",
+      "ArrowDown must return input handling to keyboard mode",
+    );
     const expansion = await browser.executeScript(() => {
       document.documentElement.style.fontSize = "125%";
       const samples = [];
@@ -83,21 +116,6 @@ export async function accessibleNavigationScenario({ browser, scenario, output, 
       flag: "wx",
     });
     artifacts.push(screenshot);
-    const evidence = path.join(output, "expanded-navigation-result.json");
-    await writeFile(
-      evidence,
-      JSON.stringify(
-        {
-          method: "Native keyboard and synthetic input-mode/expanded-text presentation",
-          expansion,
-          layout,
-        },
-        null,
-        2,
-      ),
-      { flag: "wx" },
-    );
-    artifacts.push(evidence);
     await search.sendKeys("owned-no-matching-command");
     await browser.wait(until.elementLocated(By.css(".palette-empty")), 5000);
     assert.equal(
@@ -128,6 +146,29 @@ export async function accessibleNavigationScenario({ browser, scenario, output, 
       async () => (await browser.findElements(By.css(".command-palette"))).length === 0,
       5000,
     );
+    await browser.wait(
+      () => browser.executeScript((element) => document.activeElement === element, commandTrigger),
+      5000,
+      "Command palette trigger did not regain focus after Escape",
+    );
+    const evidence = path.join(output, "expanded-navigation-result.json");
+    await writeFile(
+      evidence,
+      JSON.stringify(
+        {
+          method: "Native keyboard and synthetic input-mode/expanded-text presentation",
+          expansion,
+          layout,
+          shared_dialog_portal: true,
+          search_autofocus: true,
+          escape_restored_focus: true,
+        },
+        null,
+        2,
+      ),
+      { flag: "wx" },
+    );
+    artifacts.push(evidence);
     await browser.navigate().refresh();
   });
 }

@@ -1,7 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Boxes, Library } from "lucide-react";
-import { renderToStaticMarkup } from "react-dom/server";
 import { act, createElement } from "react";
 import { createRoot } from "react-dom/client";
 import { CommandPalette, filterCommands, type PaletteCommand } from "./CommandPalette";
@@ -26,14 +25,29 @@ const commands: PaletteCommand[] = [
 ];
 
 describe("command palette", () => {
-  it("has an exact dialog name and labelled search control in the rendered DOM", () => {
-    const html = renderToStaticMarkup(
-      createElement(CommandPalette, { open: true, commands, close: vi.fn() }),
-    );
-    expect(html).toContain('role="dialog"');
-    expect(html).toContain('aria-labelledby="command-palette-title"');
-    expect(html).toContain('<h2 class="sr-only" id="command-palette-title">Portcove commands</h2>');
-    expect(html).toContain('aria-label="Search commands"');
+  it("has an exact dialog name and labelled search control in the rendered DOM", async () => {
+    vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+    HTMLElement.prototype.scrollIntoView = vi.fn();
+    const host = document.createElement("div");
+    document.body.append(host);
+    const root = createRoot(host);
+    try {
+      await act(async () =>
+        root.render(createElement(CommandPalette, { open: true, commands, close: vi.fn() })),
+      );
+      const dialog = document.body.querySelector('[role="dialog"]');
+      expect(dialog?.getAttribute("aria-labelledby")).toBe("command-palette-title");
+      expect(dialog?.querySelector("#command-palette-title")?.textContent).toBe(
+        "Portcove commands",
+      );
+      expect(dialog?.querySelector('input[aria-label="Search commands"]')).not.toBeNull();
+      expect(host.contains(dialog)).toBe(false);
+    } finally {
+      await act(async () => root.unmount());
+      host.remove();
+      vi.restoreAllMocks();
+      vi.unstubAllGlobals();
+    }
   });
 
   it("matches labels, descriptions, and keywords with every search term", () => {
@@ -46,20 +60,36 @@ describe("command palette", () => {
     expect(filterCommands(commands, "missing")).toEqual([]);
   });
 
-  it("announces an empty command set without an empty listbox or active option", () => {
-    const html = renderToStaticMarkup(
-      createElement(CommandPalette, {
-        open: true,
-        commands: [],
-        close: vi.fn(),
-      }),
-    );
-    expect(html).toContain('role="combobox"');
-    expect(html).toContain('aria-expanded="false"');
-    expect(html).toContain('role="status">No commands are available.');
-    expect(html).not.toContain('role="listbox"');
-    expect(html).not.toContain("aria-controls");
-    expect(html).not.toContain("aria-activedescendant");
+  it("announces an empty command set without an empty listbox or active option", async () => {
+    vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+    HTMLElement.prototype.scrollIntoView = vi.fn();
+    const host = document.createElement("div");
+    document.body.append(host);
+    const root = createRoot(host);
+    try {
+      await act(async () =>
+        root.render(
+          createElement(CommandPalette, {
+            open: true,
+            commands: [],
+            close: vi.fn(),
+          }),
+        ),
+      );
+      const search = document.body.querySelector('[role="combobox"]');
+      expect(search?.getAttribute("aria-expanded")).toBe("false");
+      expect(document.body.querySelector('[role="status"]')?.textContent).toContain(
+        "No commands are available.",
+      );
+      expect(document.body.querySelector('[role="listbox"]')).toBeNull();
+      expect(search?.hasAttribute("aria-controls")).toBe(false);
+      expect(search?.hasAttribute("aria-activedescendant")).toBe(false);
+    } finally {
+      await act(async () => root.unmount());
+      host.remove();
+      vi.restoreAllMocks();
+      vi.unstubAllGlobals();
+    }
   });
 });
 
@@ -92,7 +122,7 @@ describe("command search transitions", () => {
         }),
       ),
     );
-    const search = host.querySelector("input")!;
+    const search = document.body.querySelector("input")!;
     const change = async (value: string) =>
       act(async () => {
         Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(
@@ -112,8 +142,10 @@ describe("command search transitions", () => {
         );
       });
     await change("owned-no-matching-command");
-    expect(host.querySelector('[role="status"]')?.textContent).toContain("No command matches");
-    expect(host.querySelector('[role="listbox"]')).toBeNull();
+    expect(document.body.querySelector('[role="status"]')?.textContent).toContain(
+      "No command matches",
+    );
+    expect(document.body.querySelector('[role="listbox"]')).toBeNull();
     expect(search.getAttribute("aria-expanded")).toBe("false");
     expect(search.hasAttribute("aria-controls")).toBe(false);
     await key("ArrowDown");
@@ -124,9 +156,33 @@ describe("command search transitions", () => {
     await change("library");
     expect(search.getAttribute("aria-expanded")).toBe("true");
     expect(search.getAttribute("aria-activedescendant")).toBe("command-library");
-    expect(host.querySelector('[role="option"]')?.getAttribute("aria-selected")).toBe("true");
+    expect(document.body.querySelector('[role="option"]')?.getAttribute("aria-selected")).toBe(
+      "true",
+    );
     await key("Enter");
     expect(action).toHaveBeenCalledOnce();
     expect(close).toHaveBeenCalledOnce();
+  });
+
+  it("recovers search focus when an asynchronous command update removes the focused option", async () => {
+    await act(async () =>
+      root.render(createElement(CommandPalette, { open: true, commands, close: vi.fn() })),
+    );
+    const search = document.body.querySelector<HTMLInputElement>(
+      'input[aria-label="Search commands"]',
+    )!;
+    const focusedOption = document.body.querySelector<HTMLButtonElement>('[role="option"]')!;
+    focusedOption.focus();
+    expect(document.activeElement).toBe(focusedOption);
+    await act(async () =>
+      root.render(createElement(CommandPalette, { open: true, commands: [], close: vi.fn() })),
+    );
+    await act(
+      () =>
+        new Promise<void>((resolve) => {
+          requestAnimationFrame(() => resolve());
+        }),
+    );
+    expect(document.activeElement).toBe(search);
   });
 });

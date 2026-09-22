@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { LucideIcon } from "lucide-react";
 import { Search } from "lucide-react";
-import { useDialogFocus } from "../dialog";
 import { Icon, NavigationHints, Shortcut } from "./ui";
+import { Dialog, DialogContent, DialogTitle } from "./ui/dialog";
 
 export interface PaletteCommand {
   id: string;
@@ -38,12 +38,26 @@ function OpenCommandPalette({
   const [query, setQuery] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
   const activeCommand = useRef<HTMLButtonElement>(null);
-  const dialog = useDialogFocus(close);
+  const searchInput = useRef<HTMLInputElement>(null);
+  const palette = useRef<HTMLDivElement>(null);
   const filtered = useMemo(() => filterCommands(commands, query), [commands, query]);
   const activeIndex = Math.min(selectedIndex, Math.max(0, filtered.length - 1));
   useEffect(() => {
     activeCommand.current?.scrollIntoView({ block: "nearest" });
   }, [activeIndex]);
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => {
+      const focused = document.activeElement;
+      if (
+        palette.current &&
+        (!(focused instanceof HTMLElement) ||
+          !palette.current.contains(focused) ||
+          (focused instanceof HTMLButtonElement && focused.disabled))
+      )
+        searchInput.current?.focus();
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [filtered]);
 
   const run = (command: PaletteCommand) => {
     if (command.disabled) return;
@@ -52,26 +66,26 @@ function OpenCommandPalette({
   };
 
   return (
-    <div
-      className="scrim palette-scrim"
-      role="presentation"
-      onMouseDown={(event) => {
-        if (event.currentTarget === event.target) close();
+    <Dialog
+      open
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen) close();
       }}
     >
-      <section
-        ref={dialog}
-        className="command-palette"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="command-palette-title"
+      <DialogContent
+        ref={palette}
+        initialFocus={searchInput}
+        showCloseButton={false}
+        className="command-palette top-[12vh] w-[min(40rem,calc(100vw-var(--space-12)))] max-w-none -translate-y-0 gap-0 p-0 sm:max-w-none"
+        aria-describedby={undefined}
       >
-        <h2 className="sr-only" id="command-palette-title">
+        <DialogTitle className="sr-only" id="command-palette-title">
           Portcove commands
-        </h2>
+        </DialogTitle>
         <label className="palette-search">
           <Icon glyph={Search} />
           <input
+            ref={searchInput}
             data-autofocus
             data-focusable
             role="combobox"
@@ -141,8 +155,8 @@ function OpenCommandPalette({
         <footer className="palette-footer">
           <NavigationHints />
         </footer>
-      </section>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 

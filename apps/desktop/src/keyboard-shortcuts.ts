@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import type { View } from "./view-model";
 import { navigationScope } from "./focus";
+import { recordKeyboardInput } from "./gamepad";
 
 export type KeyboardShortcutAction = "toggle-palette" | "close-palette" | "focus-search" | View;
 
@@ -46,6 +47,7 @@ export function useGlobalShortcuts({
 }) {
   useEffect(() => {
     const keydown = (event: KeyboardEvent) => {
+      recordKeyboardInput();
       if (event.defaultPrevented || event.isComposing) return;
       const target = event.target as HTMLElement | null;
       const action = keyboardShortcutAction({

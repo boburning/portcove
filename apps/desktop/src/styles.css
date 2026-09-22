@@ -3828,13 +3828,6 @@ select {
   margin-top: var(--space-1);
 }
 
-.palette-scrim {
-  z-index: 10;
-  align-items: flex-start;
-  justify-content: center;
-  padding-top: 12vh;
-}
-
 .command-palette {
   width: min(40rem, calc(100vw - var(--space-12)));
   overflow: hidden;
@@ -3842,7 +3835,6 @@ select {
   border-radius: var(--radius-lg);
   background: var(--color-bg-elevated);
   box-shadow: var(--shadow-floating);
-  animation: palette-in var(--duration-normal) var(--ease-emphasized);
 }
 
 .palette-search {
@@ -3981,17 +3973,6 @@ select:disabled {
     transform: translateX(0);
   }
 }
-@keyframes palette-in {
-  from {
-    opacity: 0;
-    transform: translateY(-0.4rem) scale(0.99);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
   [data-focusable],
   .port-card,
@@ -4002,8 +3983,7 @@ select:disabled {
   .operation-icon .icon,
   .activity-row.running .activity-indicator .icon,
   .progress-track.indeterminate i,
-  .detail-panel,
-  .command-palette {
+  .detail-panel {
     animation: none;
   }
 }

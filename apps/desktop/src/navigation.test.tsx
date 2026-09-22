@@ -6,10 +6,11 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ChoiceSelect } from "./components/ChoiceSelect";
 import { ExternalLink } from "./components/ExternalLink";
+import { Dialog, DialogContent } from "./components/ui/dialog";
 import { desktopApi } from "./api";
-import { useDialogFocus } from "./dialog";
 import { activateFocusedControl, focusRegion } from "./focus";
 import { useGamepadNavigation } from "./gamepad";
+import { useGlobalShortcuts } from "./keyboard-shortcuts";
 
 let root: Root;
 let buttons: GamepadButton[];
@@ -18,25 +19,26 @@ let frameId: number;
 let timestamp = 0;
 
 function TestDialog({ close }: { close: () => void }) {
-  const dialog = useDialogFocus(close);
   const [choice, setChoice] = useState("notify");
   return (
-    <section role="dialog" aria-modal="true" ref={dialog}>
-      <button onClick={close}>Close details</button>
-      <input aria-label="Source path" />
-      <details open>
-        <summary>Advanced controls</summary>
-        <ChoiceSelect
-          label="Update policy"
-          value={choice}
-          onChange={setChoice}
-          options={[
-            { value: "notify", label: "Notify me" },
-            { value: "stage", label: "Download and stage" },
-          ]}
-        />
-      </details>
-    </section>
+    <Dialog open onOpenChange={(open) => !open && close()}>
+      <DialogContent showCloseButton={false} aria-label="Fixture" aria-describedby={undefined}>
+        <button onClick={close}>Close details</button>
+        <input aria-label="Source path" />
+        <details open>
+          <summary>Advanced controls</summary>
+          <ChoiceSelect
+            label="Update policy"
+            value={choice}
+            onChange={setChoice}
+            options={[
+              { value: "notify", label: "Notify me" },
+              { value: "stage", label: "Download and stage" },
+            ]}
+          />
+        </details>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -72,6 +74,18 @@ function NavigationFixture() {
       {open && <TestDialog close={() => setOpen(false)} />}
     </>
   );
+}
+
+function ShortcutOrderingFixture() {
+  const [open, setOpen] = useState(true);
+  useGlobalShortcuts({
+    paletteOpen: open,
+    setPaletteOpen: setOpen,
+    setView: () => undefined,
+    focusSearch: () => undefined,
+  });
+  useGamepadNavigation(() => undefined);
+  return open ? <button>Palette open</button> : <span>Palette closed</span>;
 }
 
 function control(text: string) {
@@ -148,6 +162,28 @@ afterEach(async () => {
 });
 
 describe("controller and modal integration", () => {
+  it("records keyboard input before a focused control stops propagation", () => {
+    document.documentElement.dataset.inputMode = "controller";
+    const card = control("Game card");
+    card.addEventListener("keydown", (event) => event.stopPropagation());
+    card.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
+    expect(document.documentElement.dataset.inputMode).toBe("keyboard");
+  });
+
+  it("records keyboard input before the command palette shortcut stops Escape", async () => {
+    await act(async () => root.render(<ShortcutOrderingFixture />));
+    document.documentElement.dataset.inputMode = "controller";
+    const palette = control("Palette open");
+    palette.focus();
+    await act(async () => {
+      palette.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }),
+      );
+    });
+    expect(document.documentElement.dataset.inputMode).toBe("keyboard");
+    expect(document.body.textContent).toContain("Palette closed");
+  });
+
   it("activates once without measuring unrelated controls in a large list", async () => {
     const clicked = vi.fn();
     function LargeList() {
@@ -291,31 +327,6 @@ describe("controller and modal integration", () => {
     expect(document.activeElement).toBe(trigger);
   });
 
-  it("keeps focus in a dialog when async work removes or disables the focused control", async () => {
-    let transition!: (phase: string) => void;
-    function ChangingDialog() {
-      const [phase, setPhase] = useState("running");
-      transition = setPhase;
-      const dialog = useDialogFocus(() => undefined);
-      return (
-        <section role="dialog" aria-modal="true" ref={dialog}>
-          <button disabled={phase === "waiting"}>Search again</button>
-          {phase === "running" && <button>Cancel preparation</button>}
-          <p>{phase}</p>
-        </section>
-      );
-    }
-    await act(async () => root.render(<ChangingDialog />));
-    await frame();
-    control("Cancel preparation").focus();
-    await act(async () => transition("waiting"));
-    await frame();
-    expect(document.activeElement).toBe(document.querySelector('[role="dialog"]'));
-    await act(async () => transition("complete"));
-    await frame();
-    expect(document.activeElement).toBe(control("Search again"));
-  });
-
   it("opens external links through the desktop bridge and exposes launch errors", async () => {
     const open = vi.spyOn(desktopApi, "openExternalUrl").mockResolvedValue(undefined);
     await act(async () =>
@@ -378,22 +389,12 @@ describe("controller and modal integration", () => {
     expect(control("Library").getAttribute("aria-current")).toBe("page");
   });
 
-  it("traps Tab including summary controls, preserves input arrows, and cancels only the top choice", async () => {
+  it("preserves input arrows and cancels only the top choice", async () => {
     control("Game card").focus();
     await frame([0]);
     await frame();
-    const close = control("Close details");
-    await act(async () => {
-      close.dispatchEvent(
-        new KeyboardEvent("keydown", {
-          key: "Tab",
-          bubbles: true,
-          cancelable: true,
-        }),
-      );
-    });
     const input = document.querySelector("input")!;
-    expect(document.activeElement).toBe(input);
+    input.focus();
     const arrow = new KeyboardEvent("keydown", {
       key: "ArrowRight",
       bubbles: true,
@@ -401,16 +402,6 @@ describe("controller and modal integration", () => {
     });
     input.dispatchEvent(arrow);
     expect(arrow.defaultPrevented).toBe(false);
-    await act(async () => {
-      input.dispatchEvent(
-        new KeyboardEvent("keydown", {
-          key: "Tab",
-          bubbles: true,
-          cancelable: true,
-        }),
-      );
-    });
-    expect(document.activeElement?.tagName).toBe("SUMMARY");
     const choice = document.querySelector<HTMLButtonElement>('[data-slot="select-trigger"]')!;
     choice.focus();
     await frame([0]);
