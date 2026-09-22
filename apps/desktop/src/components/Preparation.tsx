@@ -4,6 +4,14 @@ import type { InstallRecord, OperationEvent, PreparationPlan } from "../types";
 import { errorText, formatBytes, isCancellation } from "../view-model";
 import { OperationCancellation } from "./OperationCancellation";
 import { Button } from "./ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogTitle,
+  useDialogTriggerFocus,
+} from "./ui/dialog";
 
 export type RunPreparation = (
   expectedPlan: string,
@@ -27,17 +35,17 @@ export function PreparationControl({
   const [error, setError] = useState<string>();
   const [operationId, setOperationId] = useState<string>();
   const request = useRef(0);
-  const applyButton = useRef<HTMLButtonElement>(null);
+  const { trigger: reviewButton, restoreTriggerFocus } = useDialogTriggerFocus(Boolean(plan));
   useEffect(
     () => () => {
       request.current += 1;
     },
     [],
   );
-  useEffect(() => {
-    if (plan) applyButton.current?.focus();
-  }, [plan]);
-
+  const dismissReview = () => {
+    restoreTriggerFocus();
+    setPlan(undefined);
+  };
   const review = async () => {
     const current = ++request.current;
     setPending("review");
@@ -93,6 +101,7 @@ export function PreparationControl({
       </p>
       {!plan && (
         <Button
+          ref={reviewButton}
           data-focusable
           className="wide"
           variant="primary"
@@ -106,46 +115,82 @@ export function PreparationControl({
         </Button>
       )}
       {plan && (
-        <>
-          <p>
-            <strong>Default setup · {plan.inputs.install.version}</strong>
-          </p>
-          <p>Original source: {plan.inputs.source.path}</p>
-          <p>
-            A private copy needs at least{" "}
-            {formatBytes(plan.copy.total_bytes + plan.inputs.source.storage_size)} before generated
-            output. The final space needed depends on the game.
-          </p>
-          <p>
-            The verified result becomes active. Your previous version remains available for
-            rollback.
-          </p>
-          <p>
-            Each attempt starts from the reviewed inputs in a new private copy and retains earlier
-            partial work.
-          </p>
-          <p>
-            If the upstream setup opens a window, finish generating the game data there and choose
-            its option to close setup instead of launching. Portcove will then verify and activate
-            the generated result.
-          </p>
-          <Button
-            ref={applyButton}
-            data-focusable
-            className="wide"
-            variant="primary"
-            size="lg"
-            disabled={disabled || Boolean(pending)}
-            onClick={() => {
-              void prepare();
-            }}
+        <Dialog
+          open
+          onOpenChange={(nextOpen) => {
+            if (!nextOpen && pending !== "prepare") dismissReview();
+          }}
+        >
+          <DialogContent
+            showCloseButton={false}
+            className="max-h-[calc(100dvh-var(--space-8))] w-[min(680px,90vw)] max-w-none gap-0 overflow-y-auto overscroll-contain p-8 [scroll-padding-block:var(--space-4)] sm:max-w-none"
+            aria-describedby="preparation-review-description"
           >
-            Start new preparation
-          </Button>
-        </>
+            <DialogTitle id="preparation-review-title" className="mb-2 text-xl">
+              Review game preparation
+            </DialogTitle>
+            <DialogDescription id="preparation-review-description" className="mb-4 leading-relaxed">
+              Confirm the reviewed source, existing version, and private-copy requirements before
+              starting setup.
+            </DialogDescription>
+            <div className="install-plan" aria-label="Preparation plan">
+              <p>
+                <strong>Default setup · {plan.inputs.install.version}</strong>
+              </p>
+              <p>Original source: {plan.inputs.source.path}</p>
+              <p>
+                A private copy needs at least{" "}
+                {formatBytes(plan.copy.total_bytes + plan.inputs.source.storage_size)} before
+                generated output. The final space needed depends on the game.
+              </p>
+              <p>
+                The verified result becomes active. Your previous version remains available for
+                rollback.
+              </p>
+              <p>
+                Each attempt starts from the reviewed inputs in a new private copy and retains
+                earlier partial work.
+              </p>
+              <p>
+                If the upstream setup opens a window, finish generating the game data there and
+                choose its option to close setup instead of launching. Portcove will then verify and
+                activate the generated result.
+              </p>
+              {pending === "prepare" && message && <p role="status">{message}</p>}
+              {operationId && (
+                <OperationCancellation
+                  key={operationId}
+                  operationId={operationId}
+                  label="Cancel preparation"
+                />
+              )}
+            </div>
+            <DialogFooter className="mt-4">
+              <Button
+                data-focusable
+                data-autofocus
+                variant="primary"
+                disabled={disabled || Boolean(pending)}
+                onClick={() => {
+                  void prepare();
+                }}
+              >
+                {pending === "prepare" ? "Preparing game data…" : "Start new preparation"}
+              </Button>
+              <Button
+                data-focusable
+                variant="outline"
+                disabled={disabled || pending === "prepare"}
+                onClick={dismissReview}
+              >
+                Cancel review
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       )}
-      {message && <p role="status">{message}</p>}
-      {operationId && (
+      {!plan && message && <p role="status">{message}</p>}
+      {!plan && operationId && (
         <OperationCancellation
           key={operationId}
           operationId={operationId}

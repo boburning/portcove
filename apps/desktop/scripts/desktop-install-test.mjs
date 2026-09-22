@@ -2,7 +2,11 @@ import assert from "node:assert/strict";
 import { stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { By, Key, until } from "selenium-webdriver";
-import { captureAccessibilityReport } from "./desktop-review-controls.mjs";
+import {
+  assertCompactReview,
+  assertPrimaryReviewAction,
+  captureAccessibilityReport,
+} from "./desktop-review-controls.mjs";
 
 async function exists(candidate) {
   return stat(candidate).then(
@@ -46,11 +50,47 @@ export async function installScenarios({
     await browser.findElement(card).click();
     await browser.wait(until.elementLocated(button("Review install")), 15_000);
   };
-  const reviewAndStart = async () => {
-    await browser.findElement(button("Review install")).click();
+  const reviewAndStart = async ({ inspect = false } = {}) => {
+    const trigger = await browser.findElement(button("Review install"));
+    await trigger.click();
+    const dialog = By.css('[aria-labelledby="install-review-title"]');
+    await browser.wait(until.elementLocated(dialog), 15_000);
     const install = buttonStarting("Install ·");
     await browser.wait(until.elementLocated(install), 15_000);
     await browser.wait(until.elementIsEnabled(await browser.findElement(install)), 15_000);
+    if (inspect) {
+      await assertPrimaryReviewAction(
+        browser,
+        await browser.findElement(install),
+        await browser.findElement(button("Cancel review")),
+      );
+      await assertCompactReview(browser, '[aria-labelledby="install-review-title"]');
+      const accessibility = path.join(output, "install-review-accessibility.json");
+      await captureAccessibilityReport(browser, accessibility, artifacts);
+      const screenshot = path.join(output, "native-install-review.png");
+      await writeFile(screenshot, await browser.takeScreenshot(), {
+        encoding: "base64",
+        flag: "wx",
+      });
+      artifacts.push(screenshot);
+      await browser.actions().sendKeys(Key.ESCAPE).perform();
+      await browser.wait(
+        async () => (await browser.findElements(dialog)).length === 0,
+        5_000,
+        "Install review did not close after Escape",
+      );
+      await browser.wait(
+        () =>
+          browser.executeScript(
+            'return document.activeElement?.textContent?.trim() === "Review install";',
+          ),
+        5_000,
+        "Install review trigger did not regain focus after Escape",
+      );
+      await browser.findElement(button("Review install")).click();
+      await browser.wait(until.elementLocated(dialog), 15_000);
+      await browser.wait(until.elementIsEnabled(await browser.findElement(install)), 15_000);
+    }
     await browser.findElement(install).click();
   };
   const installActivity = async (port, status) => {
@@ -68,7 +108,7 @@ export async function installScenarios({
     const port = fixture.port;
 
     await openFixture(port);
-    await reviewAndStart();
+    await reviewAndStart({ inspect: true });
     await waitForFixture(
       () => fixture.requests[0]?.bytes_sent > 0,
       "reviewed install never requested the fixture artifact",

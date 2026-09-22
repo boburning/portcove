@@ -7,6 +7,28 @@ import { cn } from "cn";
 import { Button } from "@/components/ui/button";
 import { XIcon } from "lucide-react";
 
+const overlayClassName =
+  "fixed inset-0 isolate z-50 bg-pc-scrim duration-100 data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0";
+const popupClassName =
+  "fixed top-1/2 left-1/2 z-50 grid max-h-[calc(100dvh-2rem)] w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 overflow-y-auto overscroll-contain rounded-xl bg-pc-surface p-4 text-sm text-pc-foreground ring-1 ring-pc-foreground/10 duration-100 outline-none sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95 forced-colors:outline forced-colors:outline-1";
+
+function useDialogTriggerFocus(open: boolean) {
+  const trigger = React.useRef<HTMLButtonElement>(null);
+  const restoreAfterClose = React.useRef(false);
+  React.useEffect(() => {
+    if (!open && restoreAfterClose.current) {
+      restoreAfterClose.current = false;
+      trigger.current?.focus();
+    }
+  }, [open]);
+  return {
+    trigger,
+    restoreTriggerFocus: () => {
+      restoreAfterClose.current = true;
+    },
+  };
+}
+
 function Dialog({ ...props }: DialogPrimitive.Root.Props) {
   return <DialogPrimitive.Root data-slot="dialog" {...props} />;
 }
@@ -27,10 +49,7 @@ function DialogOverlay({ className, ...props }: DialogPrimitive.Backdrop.Props) 
   return (
     <DialogPrimitive.Backdrop
       data-slot="dialog-overlay"
-      className={cn(
-        "fixed inset-0 isolate z-50 bg-pc-scrim duration-100 data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
-        className,
-      )}
+      className={cn(overlayClassName, className)}
       {...props}
     />
   );
@@ -40,31 +59,46 @@ function DialogContent({
   className,
   children,
   showCloseButton = true,
+  portaled = true,
   ...props
 }: DialogPrimitive.Popup.Props & {
   showCloseButton?: boolean;
+  portaled?: boolean;
 }) {
+  const content = (
+    <>
+      {children}
+      {showCloseButton && (
+        <DialogPrimitive.Close
+          data-slot="dialog-close"
+          render={<Button variant="ghost" className="absolute top-2 end-2" size="icon-sm" />}
+        >
+          <XIcon />
+          <span className="sr-only">Close</span>
+        </DialogPrimitive.Close>
+      )}
+    </>
+  );
+  const resolvedClassName = cn(popupClassName, className);
+  if (!portaled)
+    return (
+      <>
+        <div data-slot="dialog-overlay" className={overlayClassName} />
+        <div
+          role="dialog"
+          data-slot="dialog-content"
+          className={resolvedClassName}
+          {...(props as React.ComponentProps<"div">)}
+        >
+          {content}
+        </div>
+      </>
+    );
   return (
     <DialogPortal>
       <DialogOverlay />
-      <DialogPrimitive.Popup
-        data-slot="dialog-content"
-        className={cn(
-          "fixed top-1/2 left-1/2 z-50 grid max-h-[calc(100dvh-2rem)] w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 overflow-y-auto overscroll-contain rounded-xl bg-pc-surface p-4 text-sm text-pc-foreground ring-1 ring-pc-foreground/10 duration-100 outline-none sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95 forced-colors:outline forced-colors:outline-1",
-          className,
-        )}
-        {...props}
-      >
-        {children}
-        {showCloseButton && (
-          <DialogPrimitive.Close
-            data-slot="dialog-close"
-            render={<Button variant="ghost" className="absolute top-2 end-2" size="icon-sm" />}
-          >
-            <XIcon />
-            <span className="sr-only">Close</span>
-          </DialogPrimitive.Close>
-        )}
+      <DialogPrimitive.Popup data-slot="dialog-content" className={resolvedClassName} {...props}>
+        {content}
       </DialogPrimitive.Popup>
     </DialogPortal>
   );
@@ -133,4 +167,5 @@ export {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  useDialogTriggerFocus,
 };

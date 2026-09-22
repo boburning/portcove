@@ -36,6 +36,7 @@ const actions: DetailActions = {
   check: vi.fn(),
   close: vi.fn(),
   deleteBackup: vi.fn(),
+  dismissInstallReview: vi.fn(),
   install: vi.fn(),
   launch: vi.fn(),
   openUserData: vi.fn(),

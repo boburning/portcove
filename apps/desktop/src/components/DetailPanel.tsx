@@ -55,6 +55,14 @@ import type { Perform } from "../features/operations/use-operation-state";
 import { ExternalLink as ProjectLink } from "./ExternalLink";
 import { Icon, NavigationHints } from "./ui";
 import { Button } from "./ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogTitle,
+  useDialogTriggerFocus,
+} from "./ui/dialog";
 import { SourceIdentityPanel } from "./SourceIdentity";
 import { installPlanActionLabel } from "../install-plan-presentation";
 
@@ -64,6 +72,7 @@ export interface DetailActions {
   check: () => Promise<unknown>;
   close: () => void;
   deleteBackup: ApplyBackupAction;
+  dismissInstallReview: () => void;
   install: AsyncAction;
   launch: AsyncAction;
   openUserData: AsyncAction;
@@ -1222,6 +1231,7 @@ function PrimaryActions({
         busy={busy}
         install={actions.install}
         review={actions.reviewInstall}
+        dismiss={actions.dismissInstallReview}
       />
     );
   return (
@@ -1256,7 +1266,7 @@ function PrimaryActions({
   );
 }
 
-function InstallAction({
+export function InstallAction({
   ready,
   sourceReady,
   biosReady,
@@ -1264,6 +1274,8 @@ function InstallAction({
   busy,
   install,
   review,
+  dismiss,
+  portaled = true,
 }: {
   ready: boolean;
   sourceReady: boolean;
@@ -1272,7 +1284,14 @@ function InstallAction({
   busy?: string;
   install: AsyncAction;
   review: AsyncAction;
+  dismiss: () => void;
+  portaled?: boolean;
 }) {
+  const { trigger: reviewButton, restoreTriggerFocus } = useDialogTriggerFocus(Boolean(plan));
+  const dismissReview = () => {
+    restoreTriggerFocus();
+    dismiss();
+  };
   if (!ready) {
     const buttonLabel =
       !sourceReady && !biosReady
@@ -1299,6 +1318,7 @@ function InstallAction({
     return (
       <div className="actions primary-actions">
         <Button
+          ref={reviewButton}
           data-focusable
           className="wide"
           variant="primary"
@@ -1313,30 +1333,55 @@ function InstallAction({
         </Button>
       </div>
     );
-  if (!installPlanActionLabel(plan.action))
-    return (
-      <div className="actions primary-actions">
-        <p role="alert">
-          This version of Portcove cannot display the installation plan. Review it again, or update
-          Portcove if this continues.
-        </p>
-        <Button
-          data-focusable
-          variant="outline"
-          disabled={Boolean(busy)}
-          onClick={() => {
-            void review();
-          }}
-        >
-          Review install again
-        </Button>
-      </div>
-    );
+  const action = installPlanActionLabel(plan.action);
   return (
-    <>
-      <InstallPlanSummary plan={plan} />
-      <PlannedInstallButton plan={plan} busy={busy} install={install} />
-    </>
+    <Dialog
+      open
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen && !busy) dismissReview();
+      }}
+    >
+      <DialogContent
+        showCloseButton={false}
+        portaled={portaled}
+        className="max-h-[calc(100dvh-var(--space-8))] w-[min(680px,90vw)] max-w-none gap-0 overflow-y-auto overscroll-contain p-8 [scroll-padding-block:var(--space-4)] sm:max-w-none"
+        aria-describedby="install-review-description"
+      >
+        <DialogTitle id="install-review-title" className="mb-2 text-xl">
+          Review installation
+        </DialogTitle>
+        <DialogDescription id="install-review-description" className="mb-4 leading-relaxed">
+          Confirm the reviewed release and storage requirements before Portcove changes this game.
+        </DialogDescription>
+        {action ? (
+          <InstallPlanSummary plan={plan} />
+        ) : (
+          <p role="alert">
+            This version of Portcove cannot display the installation plan. Review it again, or
+            update Portcove if this continues.
+          </p>
+        )}
+        <DialogFooter className="mt-4">
+          {action ? (
+            <PlannedInstallButton plan={plan} busy={busy} install={install} />
+          ) : (
+            <Button
+              data-focusable
+              variant="primary"
+              disabled={Boolean(busy)}
+              onClick={() => {
+                void review();
+              }}
+            >
+              Review install again
+            </Button>
+          )}
+          <Button data-focusable variant="outline" disabled={Boolean(busy)} onClick={dismissReview}>
+            Cancel review
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -1392,21 +1437,18 @@ function PlannedInstallButton({
   else if (insufficientSpace) label = "Free space required";
   else if (busy === "install") label = "Installing…";
   return (
-    <div className="actions primary-actions">
-      <Button
-        data-focusable
-        className="wide"
-        variant="primary"
-        size="lg"
-        disabled={blocked || insufficientSpace || Boolean(busy)}
-        onClick={() => {
-          void install();
-        }}
-      >
-        <Icon glyph={Download} />
-        {label}
-      </Button>
-    </div>
+    <Button
+      data-focusable
+      data-autofocus={!blocked && !insufficientSpace}
+      variant="primary"
+      disabled={blocked || insufficientSpace || Boolean(busy)}
+      onClick={() => {
+        void install();
+      }}
+    >
+      <Icon glyph={Download} />
+      {label}
+    </Button>
   );
 }
 

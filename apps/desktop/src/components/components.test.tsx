@@ -3,7 +3,6 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import type {
   ActivityRecord,
-  InstallPlan,
   InstallRecord,
   OperationEvent,
   PortDefinition,
@@ -90,6 +89,7 @@ const actions: DetailActions = {
   check: vi.fn(),
   close: vi.fn(),
   deleteBackup: vi.fn(),
+  dismissInstallReview: vi.fn(),
   install: vi.fn(),
   launch: vi.fn(),
   openUserData: vi.fn(),
@@ -227,41 +227,6 @@ const missingRuntimeFixture = (updateAvailable: boolean) => {
     } satisfies PortStatus,
   };
 };
-
-const reviewedInstallPlan = (action: InstallPlan["action"] = "download"): InstallPlan => ({
-  bundled_runtime: null,
-  port_id: port.id,
-  channel: "stable",
-  platform: "windows-x86-64",
-  action,
-  source_requirements: [],
-  download_bytes: 64 * 1024 ** 2,
-  release: {
-    published_at: null,
-    version: "2.0",
-    channel: "stable",
-    asset: {
-      name: "sample.zip",
-      url: "https://example.com/sample.zip",
-      size: 64 * 1024 ** 2,
-      sha256: "a".repeat(64),
-    },
-  },
-  storage: {
-    library_root: "E:/Portcove",
-    volume_total_bytes: 1024 ** 4,
-    volume_available_bytes: 512 * 1024 ** 3,
-  },
-  output_location: {
-    configured_output_directory: null,
-    port_id: port.id,
-    library_root: "E:/Portcove",
-    default_output_directory: "E:/Portcove/versions/sample",
-    effective_output_directory: "E:/Portcove/versions/sample",
-    selection_source: "library_default",
-    user_data_root: "E:/Portcove/user/sample",
-  },
-});
 
 describe("desktop components", () => {
   it.each(["future_state", "constructor", "__proto__"])(
@@ -1803,54 +1768,7 @@ describe("desktop components", () => {
     expect(installed).toContain("Open upstream project");
   });
 
-  it("summarizes a resolved install before starting the download", () => {
-    const html = renderToStaticMarkup(
-      <DetailPanel
-        port={{ ...port, source_profile: null }}
-        sourcePath=""
-        setSourcePath={vi.fn()}
-        actions={actions}
-        installPlan={reviewedInstallPlan()}
-      />,
-    );
-    expect(html).toContain("INSTALL PLAN");
-    expect(html).toContain("2.0");
-    expect(html).toContain("64.0 MiB");
-    expect(html).toContain("512 GiB available");
-    expect(html).toContain("Install · 64.0 MiB");
-  });
-
-  it.each([
-    ["use_staged", "Use ready release", "Use ready release"],
-    ["reuse_retained", "Use previous release", "Use previous release"],
-  ] as const)(
-    "names the %s local install plan by its player outcome",
-    (action, planLabel, button) => {
-      const html = renderToStaticMarkup(
-        <DetailPanel
-          port={{ ...port, source_profile: null }}
-          sourcePath=""
-          setSourcePath={vi.fn()}
-          actions={actions}
-          installPlan={{
-            ...reviewedInstallPlan(action),
-            bundled_runtime: bundledRuntime,
-          }}
-        />,
-      );
-      expect(html).toContain(planLabel);
-      expect(html).toContain(button);
-      expect(html).toContain("Local release already checked");
-      expect(html).toContain("Required component included · 1.0 KiB");
-      expect(html).not.toContain("verified runtime");
-      expect(html).not.toContain("Verified local release");
-      expect(html).not.toContain("Use verified release");
-      expect(html).not.toContain("staged release");
-      expect(html).not.toContain("retained release");
-    },
-  );
-
-  it("keeps an untested port in the default catalog with its eligible install enabled", () => {
+  it("keeps an untested port in the default catalog", () => {
     const untestedPort = {
       ...port,
       automated_tested_platforms: [],
@@ -1872,26 +1790,13 @@ describe("desktop components", () => {
     expect(catalog).toContain("Sample Port");
 
     const details = renderToStaticMarkup(
-      <DetailPanel
-        port={untestedPort}
-        sourcePath=""
-        setSourcePath={vi.fn()}
-        actions={actions}
-        installPlan={reviewedInstallPlan()}
-      />,
+      <DetailPanel port={untestedPort} sourcePath="" setSourcePath={vi.fn()} actions={actions} />,
     );
     expect(details).toContain("Not yet tested");
     expect(details).toContain("No completed device test");
-    const label = details.indexOf("Install · 64.0 MiB");
-    const button = details.lastIndexOf("<button", label);
-    const openingTag = details.slice(button, details.indexOf(">", button));
-    expect(label).toBeGreaterThan(-1);
-    expect(button).toBeGreaterThan(-1);
-    expect(label).toBeGreaterThan(button);
-    expect(openingTag).not.toMatch(/\sdisabled(?:=""|[\s>])/u);
   });
 
-  it("scopes mixed testing evidence without letting evidence choose the install action", () => {
+  it("scopes mixed testing evidence by platform", () => {
     const mixedEvidencePort = {
       ...port,
       platforms: ["windows-x86-64", "linux-x86-64", "macos-aarch64"],
@@ -1899,88 +1804,17 @@ describe("desktop components", () => {
       manually_validated_platforms: ["windows-x86-64", "windows-x86-64"],
       source_profile: null,
     } satisfies PortDefinition;
-    const renderDetails = (action: InstallPlan["action"]) =>
-      renderToStaticMarkup(
-        <DetailPanel
-          port={mixedEvidencePort}
-          sourcePath=""
-          setSourcePath={vi.fn()}
-          actions={actions}
-          installPlan={reviewedInstallPlan(action)}
-        />,
-      );
-
-    const eligible = renderDetails("download");
-    expect(eligible).toContain("Windows · Linux · Not recorded: Apple silicon");
-    expect(eligible).toContain("Windows · Not recorded: Linux · Apple silicon");
-    const installLabel = eligible.indexOf("Install · 64.0 MiB");
-    expect(installLabel).toBeGreaterThanOrEqual(0);
-    const installButton = eligible.lastIndexOf("<button", installLabel);
-    expect(installButton).toBeGreaterThanOrEqual(0);
-    expect(eligible.slice(installButton, eligible.indexOf(">", installButton))).not.toMatch(
-      /\sdisabled(?:=""|[\s>])/u,
-    );
-
-    const blocked = renderDetails("blocked_unverified");
-    expect(blocked).toContain("Windows · Linux · Not recorded: Apple silicon");
-    expect(blocked).toContain("Windows · Not recorded: Linux · Apple silicon");
-    const blockedLabel = blocked.indexOf("Verify or replace the local copy before installing");
-    expect(blockedLabel).toBeGreaterThanOrEqual(0);
-    const blockedButton = blocked.lastIndexOf("<button", blockedLabel);
-    expect(blockedButton).toBeGreaterThanOrEqual(0);
-    expect(blocked.slice(blockedButton, blocked.indexOf(">", blockedButton))).toMatch(
-      /\sdisabled(?:=""|[\s>])/u,
-    );
-  });
-
-  it("describes a local copy that needs checking and keeps installation blocked", () => {
-    const html = renderToStaticMarkup(
+    const eligible = renderToStaticMarkup(
       <DetailPanel
-        port={{ ...port, source_profile: null }}
+        port={mixedEvidencePort}
         sourcePath=""
         setSourcePath={vi.fn()}
         actions={actions}
-        installPlan={reviewedInstallPlan("blocked_unverified")}
       />,
     );
-    expect(html).toContain("Local copy needs checking");
-    expect(html).toContain("Verify or replace the local copy before installing");
-    const label = html.indexOf("Verify or replace the local copy before installing");
-    const button = html.lastIndexOf("<button", label);
-    expect(button).toBeGreaterThanOrEqual(0);
-    expect(html.slice(button, html.indexOf(">", button))).toContain("disabled");
-    expect(html).not.toContain("Unverified copy");
-    expect(html).not.toContain("Verified local release");
-    expect(html).not.toContain("Use verified release");
+    expect(eligible).toContain("Windows · Linux · Not recorded: Apple silicon");
+    expect(eligible).toContain("Windows · Not recorded: Linux · Apple silicon");
   });
-
-  it.each(["future_action", "constructor", "__proto__"])(
-    "offers only another review for unknown install action %s",
-    (action) => {
-      const html = renderToStaticMarkup(
-        <DetailPanel
-          port={{ ...port, source_profile: null }}
-          sourcePath=""
-          setSourcePath={vi.fn()}
-          actions={actions}
-          installPlan={reviewedInstallPlan(action as InstallPlan["action"])}
-        />,
-      );
-      expect(html).toContain("Review install again");
-      expect(html).toContain("cannot display the installation plan");
-      for (const label of [
-        "Use installed release",
-        "Use ready release",
-        "Use previous release",
-        "Local release already checked",
-        "Required component included",
-        "Verify or replace the local copy before installing",
-        "No download",
-        "Install ·",
-      ])
-        expect(html).not.toContain(label);
-    },
-  );
 
   it("explains the folder contract for a multi-disc source", () => {
     const html = renderToStaticMarkup(

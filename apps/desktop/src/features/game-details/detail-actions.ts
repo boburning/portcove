@@ -13,6 +13,7 @@ export function detailActions(
   reviewInstall: DetailActions["reviewInstall"] = () => undefined,
   backupsChanged: () => Promise<void> = () => Promise.resolve(),
   libraryGeneration = 0,
+  dismissInstallReview: DetailActions["dismissInstallReview"] = () => undefined,
 ): DetailActions {
   return {
     activate: () =>
@@ -35,6 +36,7 @@ export function detailActions(
         invalidateDiagnostics: false,
       }),
     close,
+    dismissInstallReview,
     install: () =>
       perform("install", () =>
         desktopApi.install(

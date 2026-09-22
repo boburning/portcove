@@ -859,6 +859,7 @@ function SelectedPortPanel({
         installPlanning.review,
         backups.refresh,
         libraryGeneration,
+        installPlanning.invalidate,
       )}
     />
   );

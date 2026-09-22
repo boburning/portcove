@@ -4,7 +4,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { desktopApi } from "../api";
 import type { PreparationPlan } from "../types";
-import { PreparationControl } from "./Preparation";
+import { PreparationControl, type RunPreparation } from "./Preparation";
 
 const plan: PreparationPlan = {
   format_version: 1,
@@ -60,6 +60,10 @@ let root: Root;
 let container: HTMLDivElement;
 beforeEach(() => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+  vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
+    callback(0);
+    return 1;
+  });
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
@@ -71,11 +75,17 @@ afterEach(async () => {
   vi.unstubAllGlobals();
 });
 async function click(label: string) {
-  const button = [...container.querySelectorAll("button")].find(
+  const button = [...document.body.querySelectorAll("button")].find(
     (button) => button.textContent === label,
   );
   expect(button).toBeDefined();
   await act(async () => button?.click());
+}
+
+async function pressEscape() {
+  await act(async () => {
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+  });
 }
 
 it("reviews without executing and binds explicit confirmation to the returned plan", async () => {
@@ -87,12 +97,49 @@ it("reviews without executing and binds explicit confirmation to the returned pl
   await click("Review game preparation");
   expect(review).toHaveBeenCalledWith("sample", 7);
   expect(run).not.toHaveBeenCalled();
-  expect(container.textContent).toContain("E:/owned.iso");
-  expect(container.textContent).toContain("choose its option to close setup instead of launching");
+  expect(document.body.querySelector('[role="dialog"]')).not.toBeNull();
+  expect(document.body.textContent).toContain("E:/owned.iso");
+  expect(document.body.textContent).toContain(
+    "choose its option to close setup instead of launching",
+  );
   expect(document.activeElement?.textContent).toBe("Start new preparation");
+  await pressEscape();
+  expect(document.body.querySelector('[role="dialog"]')).toBeNull();
+  expect(document.activeElement?.textContent).toBe("Review game preparation");
+  await click("Review game preparation");
   await click("Start new preparation");
   expect(run).toHaveBeenCalledWith("reviewed-plan", expect.any(Function));
-  expect(container.textContent).toContain("Game data is prepared");
+  expect(document.body.textContent).toContain("Game data is prepared");
+});
+
+it("keeps the reviewed preparation and cancellation control available while setup starts", async () => {
+  vi.spyOn(desktopApi, "planPreparation").mockResolvedValue(plan);
+  let finish!: (value: typeof plan.inputs.install) => void;
+  const run = vi.fn<RunPreparation>((_expectedPlan, onEvent) => {
+    onEvent({
+      schema_version: 2,
+      operation_id: "preparation-1",
+      parent_operation_id: null,
+      target: null,
+      sequence: 0,
+      timestamp_ms: 1,
+      operation: "prepare",
+      type: "started",
+    });
+    return new Promise<typeof plan.inputs.install>((resolve) => {
+      finish = resolve;
+    });
+  });
+  await act(async () =>
+    root.render(<PreparationControl portId="sample" generation={7} disabled={false} run={run} />),
+  );
+  await click("Review game preparation");
+  await click("Start new preparation");
+  expect(document.body.textContent).toContain("Cancel preparation");
+  await pressEscape();
+  expect(document.body.querySelector('[role="dialog"]')).not.toBeNull();
+  await act(async () => finish(plan.inputs.install));
+  expect(document.body.querySelector('[role="dialog"]')).toBeNull();
 });
 
 it("requires a fresh review after an execution error and reports no success", async () => {
@@ -103,8 +150,8 @@ it("requires a fresh review after an execution error and reports no success", as
   );
   await click("Review game preparation");
   await click("Start new preparation");
-  expect(container.querySelector('[role="alert"]')?.textContent).toContain("Inputs changed");
-  expect(container.textContent).not.toContain("Game data is prepared");
+  expect(document.body.querySelector('[role="alert"]')?.textContent).toContain("Inputs changed");
+  expect(document.body.textContent).not.toContain("Game data is prepared");
   expect([...container.querySelectorAll("button")].map((button) => button.textContent)).toContain(
     "Review game preparation",
   );
@@ -131,6 +178,6 @@ it("does not carry a late review across a library or port switch", async () => {
     ),
   );
   await act(async () => complete(plan));
-  expect(container.textContent).not.toContain("E:/owned.iso");
+  expect(document.body.textContent).not.toContain("E:/owned.iso");
   expect(run).not.toHaveBeenCalled();
 });
