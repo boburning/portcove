@@ -18,6 +18,10 @@ import {
 import { detailActions } from "./features/game-details/detail-actions";
 import { useAppShellState } from "./features/app-shell/use-app-shell-state";
 import { useDetailWorkspaceNavigation } from "./features/app-shell/use-detail-workspace-navigation";
+import {
+  useLibrarySelectionLanding,
+  useLibrarySelectionReturn,
+} from "./features/app-shell/use-library-selection-return";
 import { useBootstrapState, type StartupFailure } from "./features/bootstrap/use-bootstrap-state";
 import { AdoptionModal } from "./components/AdoptionModal";
 import {
@@ -86,6 +90,12 @@ export const missingBootstrapError = {
 export default function App() {
   const { bootstrap, bootstrapError, switchLibrary, chooseLibrary, resetLibrary } =
     useBootstrapState();
+  const {
+    switchFromSettings,
+    resetFromSettings,
+    returnToSelection,
+    consume: consumeLibrarySelectionReturn,
+  } = useLibrarySelectionReturn(bootstrap?.generation, switchLibrary, resetLibrary);
   if (bootstrapError)
     return (
       <BootstrapRecovery
@@ -107,8 +117,10 @@ export default function App() {
     <Workspace
       key={bootstrap.generation}
       bootstrap={bootstrap}
-      switchLibrary={switchLibrary}
-      resetLibrary={resetLibrary}
+      switchLibrary={switchFromSettings}
+      resetLibrary={resetFromSettings}
+      returnToSelection={returnToSelection}
+      consumeLibrarySelectionReturn={consumeLibrarySelectionReturn}
     />
   );
 }
@@ -234,10 +246,14 @@ function Workspace({
   bootstrap,
   switchLibrary,
   resetLibrary,
+  returnToSelection,
+  consumeLibrarySelectionReturn,
 }: {
   bootstrap: BootstrapStatus;
   switchLibrary: (path: string) => Promise<void>;
   resetLibrary: () => Promise<void>;
+  returnToSelection?: "switch" | "reset";
+  consumeLibrarySelectionReturn: () => void;
 }) {
   const data = usePortcoveData(bootstrap.generation);
   const operations = useOperationState({
@@ -247,7 +263,7 @@ function Workspace({
   });
   const github = useGithubAuth(operations.perform, operations.setError);
   const updates = useUpdateCenter(operations.perform, data.statuses);
-  const ui = useAppShellState();
+  const ui = useAppShellState(returnToSelection ? "settings" : "library");
   const { catalog, diagnosticRevision, diagnosticsStale, doctor, refreshDiagnostics } = data;
   useEffect(() => {
     if (
@@ -298,6 +314,7 @@ function Workspace({
   );
   const backups = usePortBackups(model.port?.id, operations.setError);
   const { switchView, workspace } = useWorkspaceContinuity(ui.view);
+  useLibrarySelectionLanding(returnToSelection, workspace, consumeLibrarySelectionReturn);
   const { adoptOpen, selectedId, setAdoptOpen, setSelectedId, setView } = ui;
   const {
     close: closePortDetails,
@@ -406,7 +423,7 @@ function Workspace({
           activities={data.activities}
           onAdopt={() => ui.setAdoptOpen(true)}
         />
-        <main ref={workspace} data-focus-region="workspace">
+        <main ref={workspace} data-focus-region="workspace" tabIndex={-1}>
           {!model.port && (
             <PageHeader
               view={ui.view}

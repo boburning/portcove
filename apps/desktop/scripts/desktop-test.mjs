@@ -15,7 +15,7 @@ import { controllerScenario } from "./desktop-controller-test.mjs";
 import { accessibleNavigationScenario } from "./desktop-accessibility-test.mjs";
 import { reloadScenario } from "./desktop-reload-test.mjs";
 import { workspaceRefreshScenario } from "./desktop-workspace-refresh-test.mjs";
-import { captureAccessibilityReport } from "./desktop-review-controls.mjs";
+import { assertCompactReview, captureAccessibilityReport } from "./desktop-review-controls.mjs";
 import { createInstallFixture } from "./desktop-install-fixture.mjs";
 import { installScenarios } from "./desktop-install-test.mjs";
 import { assertDesignCompatibility } from "./desktop-design-compatibility-assertions.mjs";
@@ -505,6 +505,37 @@ try {
     assert.equal(failed.ok, false);
     assert.ok(failed.error.code);
     assert.equal((await invoke("get_bootstrap_status")).value.ready, true);
+  });
+  await scenario("native-library-selection-review", async () => {
+    const before = await invoke("get_bootstrap_status");
+    assert.equal(before.ok, true);
+    await browser.findElement(By.xpath('//nav//button[contains(., "Settings")]')).click();
+    const trigger = await browser.wait(
+      until.elementLocated(By.xpath('//button[normalize-space(.)="Review platform default"]')),
+      15_000,
+    );
+    await trigger.click();
+    const dialog = By.css('[aria-labelledby="library-selection-review-title"]');
+    const review = await browser.wait(until.elementLocated(dialog), 15_000);
+    assert.ok((await review.getText()).includes("Existing files stay in place"));
+    assert.equal(
+      (await invoke("get_bootstrap_status")).value.library_root,
+      before.value.library_root,
+    );
+    await assertCompactReview(browser, '[aria-labelledby="library-selection-review-title"]');
+    const accessibility = path.join(output, "library-selection-review-accessibility.json");
+    await captureAccessibilityReport(browser, accessibility, artifacts);
+    const screenshot = path.join(output, "native-library-selection-review.png");
+    await writeFile(screenshot, await browser.takeScreenshot(), { encoding: "base64", flag: "wx" });
+    artifacts.push(screenshot);
+    await browser.actions().sendKeys(Key.ESCAPE).perform();
+    await browser.wait(async () => (await browser.findElements(dialog)).length === 0, 5_000);
+    await browser.wait(
+      () => browser.executeScript("return document.activeElement === arguments[0];", trigger),
+      5_000,
+      "Library selection review trigger did not regain focus after Escape",
+    );
+    assert.deepEqual((await invoke("get_bootstrap_status")).value, before.value);
   });
   await catalogUpdateScenario({ browser, invoke, scenario, output, artifacts });
   await scenario("keyboard-layout", async () => {
