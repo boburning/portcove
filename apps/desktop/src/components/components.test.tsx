@@ -2091,6 +2091,8 @@ describe("desktop components", () => {
     expect(cards).toContain("Sample Port");
     expect(cards).toContain("Available");
     expect(cards).toContain("Windows");
+    expect(cards).toContain(port.summary);
+    expect(cards).toContain('<div class="platforms">');
     expect(cards).not.toContain('<span class="badge stable">Stable</span>');
     expect(cards).not.toContain("staged-source-portable");
     expect(empty).toContain("No ports match these filters");
@@ -2160,6 +2162,19 @@ describe("desktop components", () => {
     expect(html).toContain("Portcove uses the pinned release recorded in the catalog");
     expect(html).not.toContain("no upstream fixes or support");
     expect(html).not.toContain("Portcove checks this project for releases");
+    const library = renderToStaticMarkup(
+      <PortBrowser
+        view="library"
+        ports={[retiredPort]}
+        statuses={new Map()}
+        overview={{ installed: 1, ready: 0, needsSetup: 1, staged: 0 }}
+        filter="all"
+        setFilter={vi.fn()}
+        onSelect={vi.fn()}
+        loading={false}
+      />,
+    );
+    expect(library).toContain("Retired upstream");
   });
 
   it("orders port details by player task and distinguishes installed from eligible versions", () => {
@@ -2426,8 +2441,8 @@ describe("desktop components", () => {
     expect(html).toContain('data-slot="button"');
     expect(html).toContain('data-variant="outline"');
     expect(html).toContain('data-variant="primary"');
-    expect(html).toContain('<span class="badge stable">Stable</span>');
-    expect(html).toContain('<article class="port-card"');
+    expect(html).toContain('<small class="card-secondary">Release channel: Stable</small>');
+    expect(html).toContain('<article class="port-card port-card-library"');
     expect(html).toContain(">Play</button>");
     expect(html).not.toMatch(/<button[^>]*class="port-card/u);
     expect(html).toContain("Updates downloaded");
@@ -2437,6 +2452,14 @@ describe("desktop components", () => {
     expect(html).not.toContain("Play options");
     expect(html).not.toContain("Staged updates");
     expect(html).not.toContain("rollback-safe");
+    const card = html.match(
+      /<article class="port-card port-card-library"[\s\S]*?<\/article>/u,
+    )?.[0];
+    expect(card).toBeDefined();
+    expect(card?.indexOf("<h2>")).toBeLessThan(card!.indexOf('class="card-kicker"'));
+    expect(card).not.toContain(port.summary);
+    expect(card).not.toContain('<div class="platforms">');
+    expect(card).not.toContain(install.version);
   });
 
   it("labels a downloaded update without exposing staging terminology", () => {

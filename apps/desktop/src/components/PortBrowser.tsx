@@ -348,7 +348,7 @@ function PortCard({
   const dropEligible = nativeSourceDrag.active && Boolean(port.source_profile);
   const dropTarget = dropEligible && nativeSourceDrag.targetPortId === port.id;
   const detailOrigin = `${view}:card:${port.id}`;
-  const className = `port-card${view === "catalog" ? " port-card-selectable" : ""}${dropEligible ? " source-drop-eligible" : ""}${dropTarget ? " source-drop-targeted" : ""}`;
+  const className = `port-card ${view === "catalog" ? "port-card-selectable" : "port-card-library"}${dropEligible ? " source-drop-eligible" : ""}${dropTarget ? " source-drop-targeted" : ""}`;
   const contents = (
     <PortCardContents
       {...{ port, status, state, channel, updateAvailable, dropEligible, dropTarget }}
@@ -404,6 +404,22 @@ function PortCardContents({
   dropTarget: boolean;
   detailOrigin: string;
 }) {
+  const title = (
+    <div className="card-title">
+      <h2>{port.name}</h2>
+    </div>
+  );
+  const stateLabel = (
+    <div className="card-kicker">
+      <span className={`readiness ${state.tone}`}>
+        <i />
+        {state.label}
+      </span>
+      {view === "catalog" && channel && (
+        <span className={`badge ${channel.tone}`}>{channel.label}</span>
+      )}
+    </div>
+  );
   return (
     <>
       {dropEligible && (
@@ -413,28 +429,38 @@ function PortCardContents({
       )}
       <ArtworkImage port={port} className="card-art" />
       <div className="card-content">
-        <div className="card-kicker">
-          <span className={`readiness ${state.tone}`}>
-            <i />
-            {state.label}
-          </span>
-          {channel && <span className={`badge ${channel.tone}`}>{channel.label}</span>}
-        </div>
-        <div className="card-title">
-          <h2>{port.name}</h2>
-        </div>
-        <div className="card-flags">
-          {updateAvailable && <span className="badge update">Update available</span>}
-          {port.upstream_status === "retired" && (
-            <span className="badge retired">Retired upstream</span>
-          )}
-        </div>
-        <p>{port.summary}</p>
-        <div className="platforms">
-          {port.platforms.map((platform) => (
-            <span key={platform}>{platformLabel(platform)}</span>
-          ))}
-        </div>
+        {view === "library" ? (
+          <>
+            {title}
+            {stateLabel}
+          </>
+        ) : (
+          <>
+            {stateLabel}
+            {title}
+          </>
+        )}
+        {view === "library" && channel && (
+          <small className="card-secondary">Release channel: {channel.label}</small>
+        )}
+        {(updateAvailable || port.upstream_status === "retired") && (
+          <div className="card-flags">
+            {updateAvailable && <span className="badge update">Update available</span>}
+            {port.upstream_status === "retired" && (
+              <span className="badge retired">Retired upstream</span>
+            )}
+          </div>
+        )}
+        {view === "catalog" && (
+          <>
+            <p>{port.summary}</p>
+            <div className="platforms">
+              {port.platforms.map((platform) => (
+                <span key={platform}>{platformLabel(platform)}</span>
+              ))}
+            </div>
+          </>
+        )}
         <PortCardStatus {...{ port, status, state, detailOrigin, onSelect, onLaunch, view }} />
       </div>
     </>
@@ -455,7 +481,9 @@ function PortCardStatus({
 }) {
   return (
     <div className="card-status">
-      <strong>{status?.active ? status.active.version : "Not installed"}</strong>
+      {view === "catalog" && (
+        <strong>{status?.active ? status.active.version : "Not installed"}</strong>
+      )}
       {view === "library" ? (
         <span className="card-actions">
           <Button
