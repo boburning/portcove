@@ -172,7 +172,7 @@ describe("command search transitions", () => {
       'input[aria-label="Search commands"]',
     )!;
     const focusedOption = document.body.querySelector<HTMLButtonElement>('[role="option"]')!;
-    focusedOption.focus();
+    await act(async () => focusedOption.focus());
     expect(document.activeElement).toBe(focusedOption);
     await act(async () =>
       root.render(createElement(CommandPalette, { open: true, commands: [], close: vi.fn() })),
@@ -184,5 +184,88 @@ describe("command search transitions", () => {
         }),
     );
     expect(document.activeElement).toBe(search);
+  });
+
+  it("preserves the active command by stable ID across background reorder and removal", async () => {
+    await act(async () =>
+      root.render(createElement(CommandPalette, { open: true, commands, close: vi.fn() })),
+    );
+    const search = document.body.querySelector<HTMLInputElement>("input")!;
+    await act(async () => {
+      search.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true }),
+      );
+    });
+    expect(search.getAttribute("aria-activedescendant")).toBe("command-catalog");
+
+    await act(async () =>
+      root.render(
+        createElement(CommandPalette, {
+          open: true,
+          commands: [commands[1], commands[0]],
+          close: vi.fn(),
+        }),
+      ),
+    );
+    expect(search.getAttribute("aria-activedescendant")).toBe("command-catalog");
+
+    await act(async () =>
+      root.render(
+        createElement(CommandPalette, { open: true, commands: [commands[0]], close: vi.fn() }),
+      ),
+    );
+    expect(search.getAttribute("aria-activedescendant")).toBe("command-library");
+  });
+
+  it("selects an eligible query result and ignores composing Enter", async () => {
+    const unavailable = {
+      ...commands[0],
+      id: "unavailable",
+      label: "Open unavailable feature",
+      disabled: true,
+      action: vi.fn(),
+    };
+    const available = { ...commands[1], label: "Open available catalog", action: vi.fn() };
+    const close = vi.fn();
+    await act(async () =>
+      root.render(
+        createElement(CommandPalette, {
+          open: true,
+          commands: [unavailable, available],
+          close,
+        }),
+      ),
+    );
+    const search = document.body.querySelector<HTMLInputElement>("input")!;
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(
+        search,
+        "open",
+      );
+      search.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    expect(search.getAttribute("aria-activedescendant")).toBe("command-catalog");
+    expect(document.body.querySelector("#command-unavailable")).not.toBeNull();
+
+    await act(async () => {
+      search.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          key: "Enter",
+          bubbles: true,
+          cancelable: true,
+          isComposing: true,
+        }),
+      );
+    });
+    expect(available.action).not.toHaveBeenCalled();
+    expect(close).not.toHaveBeenCalled();
+
+    await act(async () => {
+      search.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }),
+      );
+    });
+    expect(available.action).toHaveBeenCalledOnce();
+    expect(close).toHaveBeenCalledOnce();
   });
 });

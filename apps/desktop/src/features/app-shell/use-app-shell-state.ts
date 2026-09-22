@@ -1,20 +1,54 @@
 import { useCallback, useState, type SetStateAction } from "react";
 import { type Filter, type View } from "../../view-model";
 
+type BrowserState = { filter: Filter; query: string };
+
+const initialBrowserState = (): Record<View, BrowserState> => ({
+  library: { filter: "all", query: "" },
+  catalog: { filter: "all", query: "" },
+  updates: { filter: "all", query: "" },
+  settings: { filter: "all", query: "" },
+});
+
 export function useAppShellState() {
   const [view, setViewState] = useState<View>("library");
-  const [filter, setFilter] = useState<Filter>("all");
-  const [query, setQuery] = useState("");
+  const [browserState, setBrowserState] = useState(initialBrowserState);
   const [selectedId, setSelectedId] = useState<string>();
   const [sourcePath, setSourcePath] = useState("");
   const [biosPath, setBiosPath] = useState("");
   const [adoptOpen, setAdoptOpen] = useState(false);
   const [adoptPath, setAdoptPath] = useState("");
-  const setView = useCallback((nextView: SetStateAction<View>) => {
-    setViewState((current) => (typeof nextView === "function" ? nextView(current) : nextView));
-    setFilter("all");
-    setSelectedId(undefined);
-  }, []);
+  const setView = useCallback(
+    (nextView: SetStateAction<View>) => {
+      const resolved = typeof nextView === "function" ? nextView(view) : nextView;
+      if (resolved !== view) setSelectedId(undefined);
+      setViewState(resolved);
+    },
+    [view],
+  );
+  const setFilter = useCallback(
+    (nextFilter: SetStateAction<Filter>) =>
+      setBrowserState((current) => ({
+        ...current,
+        [view]: {
+          ...current[view],
+          filter: typeof nextFilter === "function" ? nextFilter(current[view].filter) : nextFilter,
+        },
+      })),
+    [view],
+  );
+  const setQuery = useCallback(
+    (nextQuery: SetStateAction<string>) =>
+      setBrowserState((current) => ({
+        ...current,
+        [view]: {
+          ...current[view],
+          query: typeof nextQuery === "function" ? nextQuery(current[view].query) : nextQuery,
+        },
+      })),
+    [view],
+  );
+  const { filter, query } = browserState[view];
   return {
     view,
     setView,

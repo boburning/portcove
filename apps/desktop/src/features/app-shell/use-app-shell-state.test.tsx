@@ -37,9 +37,10 @@ describe("app shell state", () => {
     });
   });
 
-  it("resets the library filter whenever the primary view changes", async () => {
+  it("preserves independent Library and Catalog browsing inputs", async () => {
     await act(async () => {
       state.setFilter("ready");
+      state.setQuery("installed");
       state.setSelectedId("lighthouse");
     });
     expect(state.filter).toBe("ready");
@@ -50,7 +51,22 @@ describe("app shell state", () => {
 
     expect(state.view).toBe("catalog");
     expect(state.filter).toBe("all");
+    expect(state.query).toBe("");
     expect(state.selectedId).toBeUndefined();
+
+    await act(async () => {
+      state.setFilter("beta");
+      state.setQuery("discover");
+      state.setView("library");
+    });
+
+    expect(state.view).toBe("library");
+    expect(state.filter).toBe("ready");
+    expect(state.query).toBe("installed");
+
+    await act(async () => state.setView("catalog"));
+    expect(state.filter).toBe("beta");
+    expect(state.query).toBe("discover");
   });
 
   it("keeps independent shell inputs available to their owning surfaces", async () => {

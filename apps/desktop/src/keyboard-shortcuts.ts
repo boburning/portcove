@@ -1,6 +1,6 @@
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import type { View } from "./view-model";
-import { navigationScope } from "./focus";
+import { focusRegion, navigationScope } from "./focus";
 import { recordKeyboardInput } from "./gamepad";
 
 export type KeyboardShortcutAction = "toggle-palette" | "close-palette" | "focus-search" | View;
@@ -73,10 +73,67 @@ export function useGlobalShortcuts({
   }, [focusSearch, paletteOpen, setPaletteOpen, setView]);
 }
 
-export function useWorkspaceScroll(view: View) {
+type WorkspaceFocus = { kind: "id" | "detail-origin"; value: string };
+type WorkspaceSnapshot = { focus: WorkspaceFocus | undefined; scrollTop: number };
+type DetailReturn = { focusOrigin: string | undefined; scrollTop: number };
+
+function workspaceFocus(element: HTMLElement, workspace: HTMLElement): WorkspaceFocus | undefined {
+  if (!workspace.contains(element)) return undefined;
+  if (element.dataset.detailOrigin)
+    return { kind: "detail-origin", value: element.dataset.detailOrigin };
+  return element.id ? { kind: "id", value: element.id } : undefined;
+}
+
+function resolveWorkspaceFocus(workspace: HTMLElement, focus: WorkspaceFocus) {
+  if (focus.kind === "id")
+    return Array.from(workspace.querySelectorAll<HTMLElement>("[id]")).find(
+      (candidate) => candidate.id === focus.value,
+    );
+  return Array.from(workspace.querySelectorAll<HTMLElement>("[data-detail-origin]")).find(
+    (candidate) => candidate.dataset.detailOrigin === focus.value,
+  );
+}
+
+export function useWorkspaceContinuity(view: View) {
   const workspace = useRef<HTMLElement>(null);
-  useEffect(() => {
-    workspace.current?.scrollTo({ top: 0 });
-  }, [view]);
-  return workspace;
+  const snapshots = useRef<Partial<Record<View, WorkspaceSnapshot>>>({});
+  const switchView = useCallback(
+    (nextView: View, commit: () => void, detailReturn?: DetailReturn) => {
+      const currentWorkspace = workspace.current;
+      const active = document.activeElement;
+      const snapshot: WorkspaceSnapshot = detailReturn
+        ? {
+            scrollTop: detailReturn.scrollTop,
+            focus: detailReturn.focusOrigin
+              ? { kind: "detail-origin", value: detailReturn.focusOrigin }
+              : undefined,
+          }
+        : {
+            scrollTop: currentWorkspace?.scrollTop ?? 0,
+            focus:
+              currentWorkspace && active instanceof HTMLElement
+                ? workspaceFocus(active, currentWorkspace)
+                : undefined,
+          };
+      if (nextView === view && !detailReturn) {
+        commit();
+        return;
+      }
+      snapshots.current[view] = snapshot;
+      commit();
+      window.requestAnimationFrame(() => {
+        const nextWorkspace = workspace.current;
+        if (!nextWorkspace) return;
+        const snapshot = snapshots.current[nextView];
+        nextWorkspace.scrollTo({ top: snapshot?.scrollTop ?? 0 });
+        if (!snapshot?.focus) return;
+        const target = resolveWorkspaceFocus(nextWorkspace, snapshot.focus);
+        if (target && !target.matches(":disabled, [aria-disabled=true]"))
+          target.focus({ preventScroll: true });
+        else focusRegion("workspace");
+      });
+    },
+    [view],
+  );
+  return { switchView, workspace };
 }
