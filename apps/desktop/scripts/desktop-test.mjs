@@ -483,6 +483,14 @@ try {
     const status = await invoke("get_statuses");
     assert.equal(status.ok, true);
     assert.equal(status.value.filter((item) => item.active).length, 0);
+    await browser.findElement(By.xpath('//nav//button[contains(., "Library")]')).click();
+    const browse = await browser.wait(
+      until.elementLocated(By.xpath('//button[normalize-space(.)="Browse port catalog"]')),
+      15_000,
+    );
+    assert.equal(await browse.getAttribute("data-slot"), "button");
+    assert.equal(await browse.getAttribute("data-variant"), "default");
+    await captureScenarioScreenshot("empty-library-shared-controls");
   });
   await scenario("native-design-system-compatibility", async () => {
     const environment = await assertDesignCompatibility({ browser, By, Key, until });
@@ -567,6 +575,9 @@ try {
 
     await browser.findElement(By.xpath('//nav//button[contains(., "Port catalog")]')).click();
     const search = await browser.wait(until.elementLocated(By.id("port-search")), 15_000);
+    const selectedFilter = await browser.findElement(By.css('.filter-row [aria-pressed="true"]'));
+    assert.equal(await selectedFilter.getAttribute("data-slot"), "button");
+    assert.equal(await selectedFilter.getAttribute("data-variant"), "default");
     await search.sendKeys("64");
     await browser.wait(async () => (await browser.findElements(By.css(".port-card"))).length > 2);
     const origin = await browser.executeScript(() => {

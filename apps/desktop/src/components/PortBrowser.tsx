@@ -26,6 +26,7 @@ import { BrandMascot, BrandWordmark } from "./Brand";
 import { BrandMotif, EmptyState, Icon } from "./ui";
 import type { NativeSourceDragState } from "../native-source-drop";
 import { ArtworkImage } from "./Artwork";
+import { Button } from "./ui/button";
 
 export function PortBrowser({
   view,
@@ -74,15 +75,17 @@ export function PortBrowser({
         aria-label={view === "library" ? "Library filters" : "Release channel filters"}
       >
         {filterOptions(view).map((item) => (
-          <button
+          <Button
             data-focusable
             aria-pressed={filter === item}
             key={item}
-            className={filter === item ? "filter active" : "filter"}
+            variant={filter === item ? "default" : "outline"}
+            size="sm"
+            className="capitalize"
             onClick={() => setFilter(item)}
           >
             {filterLabel(item)}
-          </button>
+          </Button>
         ))}
         <span>
           {ports.length} {ports.length === 1 ? "port" : "ports"}
@@ -197,10 +200,10 @@ function BrowserEmptyState({
         description="Browse the catalog to install a supported port, or copy an existing supported installation without changing the original folder."
         action={
           <>
-            <button data-focusable className="primary button-with-icon" onClick={onBrowseCatalog}>
+            <Button data-focusable size="lg" onClick={onBrowseCatalog}>
               <Icon glyph={Boxes} />
               Browse port catalog
-            </button>
+            </Button>
           </>
         }
       />
@@ -213,10 +216,10 @@ function BrowserEmptyState({
         title="No installed ports match your search and filters"
         description="Your installed ports are still in this library. Clear the current search and readiness filters to show them again."
         action={
-          <button data-focusable className="button-with-icon" onClick={clearFilters}>
+          <Button data-focusable variant="outline" size="lg" onClick={clearFilters}>
             <Icon glyph={Settings2} />
             Clear search and filters
-          </button>
+          </Button>
         }
       />
     );
@@ -227,10 +230,10 @@ function BrowserEmptyState({
       title="No ports match these filters"
       description="Try another title, platform term, or release channel. The catalog itself has not been changed."
       action={
-        <button data-focusable className="button-with-icon" onClick={clearFilters}>
+        <Button data-focusable variant="outline" size="lg" onClick={clearFilters}>
           <Icon glyph={Settings2} />
           Clear search and filters
-        </button>
+        </Button>
       }
     />
   );
@@ -256,16 +259,18 @@ function ContinueCard({
         <p className="continue-meta">Last played · {status.active?.version}</p>
       </div>
       <div className="continue-actions">
-        <button
+        <Button
           data-focusable
+          variant="outline"
+          size="lg"
           data-detail-origin={`library:continue-details:${port.id}`}
           onClick={() => details(port.id, `library:continue-details:${port.id}`)}
         >
           View details
-        </button>
-        <button
+        </Button>
+        <Button
           data-focusable
-          className="primary button-with-icon"
+          size="lg"
           data-detail-origin={launchable ? undefined : `library:continue-review:${port.id}`}
           onClick={() =>
             launchable ? launch(port.id) : details(port.id, `library:continue-review:${port.id}`)
@@ -273,7 +278,7 @@ function ContinueCard({
         >
           <Icon glyph={Gamepad2} />
           {launchable ? "Play again" : "Review launch"}
-        </button>
+        </Button>
       </div>
     </section>
   );
@@ -452,22 +457,20 @@ function PortCardStatus({
       <strong>{status?.active ? status.active.version : "Not installed"}</strong>
       {view === "library" ? (
         <span className="card-actions">
-          <button
+          <Button
             data-focusable
+            variant="outline"
+            size="sm"
             data-detail-origin={detailOrigin}
             onClick={() => onSelect(port.id, detailOrigin)}
           >
             View details
-          </button>
+          </Button>
           {status?.readiness?.launchable === true && onLaunch && (
-            <button
-              data-focusable
-              className="primary button-with-icon"
-              onClick={() => onLaunch(port.id)}
-            >
+            <Button data-focusable size="sm" onClick={() => onLaunch(port.id)}>
               <Icon glyph={Gamepad2} size="sm" />
               Play
-            </button>
+            </Button>
           )}
         </span>
       ) : (

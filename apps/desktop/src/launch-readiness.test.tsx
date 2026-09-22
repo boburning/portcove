@@ -133,7 +133,11 @@ it.each([undefined, null, { launchable: false, pending_setup: false, blockers: [
         ),
       );
       await act(async () =>
-        host.querySelector<HTMLButtonElement>(".continue-actions button.primary")!.click(),
+        host
+          .querySelector<HTMLButtonElement>(
+            '.continue-actions [data-slot="button"][data-variant="default"]',
+          )!
+          .click(),
       );
       expect(launch).not.toHaveBeenCalled();
       expect(details).toHaveBeenCalledExactlyOnceWith(
@@ -181,13 +185,24 @@ it("restores Continue only after a new positive core assessment without changing
   try {
     await render(unknown);
     await act(async () =>
-      host.querySelector<HTMLButtonElement>(".continue-actions button.primary")!.click(),
+      host
+        .querySelector<HTMLButtonElement>(
+          '.continue-actions [data-slot="button"][data-variant="default"]',
+        )!
+        .click(),
     );
     expect(launch).not.toHaveBeenCalled();
     await render(ready);
-    expect(host.querySelector(".continue-actions button.primary")?.textContent).toBe("Play again");
+    expect(
+      host.querySelector('.continue-actions [data-slot="button"][data-variant="default"]')
+        ?.textContent,
+    ).toBe("Play again");
     await act(async () =>
-      host.querySelector<HTMLButtonElement>(".continue-actions button.primary")!.click(),
+      host
+        .querySelector<HTMLButtonElement>(
+          '.continue-actions [data-slot="button"][data-variant="default"]',
+        )!
+        .click(),
     );
     expect(launch).toHaveBeenCalledExactlyOnceWith(port.id);
     expect(details).toHaveBeenCalledExactlyOnceWith(port.id, `library:continue-review:${port.id}`);
