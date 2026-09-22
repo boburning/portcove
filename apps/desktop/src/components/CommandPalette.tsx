@@ -36,12 +36,14 @@ function OpenCommandPalette({
   close: () => void;
 }) {
   const [query, setQuery] = useState("");
-  const [selectedIndex, setSelectedIndex] = useState(0);
+  const [selectedId, setSelectedId] = useState<string>();
   const activeCommand = useRef<HTMLButtonElement>(null);
   const searchInput = useRef<HTMLInputElement>(null);
   const palette = useRef<HTMLDivElement>(null);
   const filtered = useMemo(() => filterCommands(commands, query), [commands, query]);
-  const activeIndex = Math.min(selectedIndex, Math.max(0, filtered.length - 1));
+  const fallbackId = preferredCommandId(filtered);
+  const activeId = filtered.some((command) => command.id === selectedId) ? selectedId : fallbackId;
+  const activeIndex = filtered.findIndex((command) => command.id === activeId);
   useEffect(() => {
     activeCommand.current?.scrollIntoView({ block: "nearest" });
   }, [activeIndex]);
@@ -93,15 +95,25 @@ function OpenCommandPalette({
             aria-autocomplete="list"
             aria-label="Search commands"
             value={query}
-            onChange={(event) => setQuery(event.target.value)}
+            onChange={(event) => {
+              const nextQuery = event.target.value;
+              setQuery(nextQuery);
+              setSelectedId(preferredCommandId(filterCommands(commands, nextQuery)));
+            }}
             onKeyDown={(event) => {
               if (event.key === "ArrowDown") {
                 event.preventDefault();
-                setSelectedIndex((index) => Math.max(0, Math.min(index + 1, filtered.length - 1)));
+                const nextIndex = Math.max(0, Math.min(activeIndex + 1, filtered.length - 1));
+                setSelectedId(filtered[nextIndex]?.id);
               } else if (event.key === "ArrowUp") {
                 event.preventDefault();
-                setSelectedIndex((index) => Math.max(index - 1, 0));
-              } else if (event.key === "Enter" && filtered[activeIndex]) {
+                const nextIndex = Math.max(activeIndex - 1, 0);
+                setSelectedId(filtered[nextIndex]?.id);
+              } else if (
+                event.key === "Enter" &&
+                !event.nativeEvent.isComposing &&
+                filtered[activeIndex]
+              ) {
                 event.preventDefault();
                 run(filtered[activeIndex]);
               }
@@ -126,18 +138,18 @@ function OpenCommandPalette({
               {query.trim() ? `No command matches “${query}”.` : "No commands are available."}
             </p>
           ) : (
-            filtered.map((command, index) => (
+            filtered.map((command) => (
               <button
                 id={`command-${command.id}`}
                 role="option"
-                aria-selected={activeIndex === index}
+                aria-selected={activeId === command.id}
                 data-focusable
                 key={command.id}
-                ref={activeIndex === index ? activeCommand : undefined}
-                onFocus={() => setSelectedIndex(index)}
-                className={activeIndex === index ? "palette-command active" : "palette-command"}
+                ref={activeId === command.id ? activeCommand : undefined}
+                onFocus={() => setSelectedId(command.id)}
+                className={activeId === command.id ? "palette-command active" : "palette-command"}
                 disabled={command.disabled}
-                onMouseEnter={() => setSelectedIndex(index)}
+                onMouseEnter={() => setSelectedId(command.id)}
                 onClick={() => run(command)}
               >
                 <span className="palette-command-icon">
@@ -168,4 +180,8 @@ export function filterCommands(commands: PaletteCommand[], query: string) {
       `${command.label} ${command.description} ${command.keywords ?? ""}`.toLowerCase();
     return terms.every((term) => haystack.includes(term));
   });
+}
+
+function preferredCommandId(commands: PaletteCommand[]) {
+  return (commands.find((command) => !command.disabled) ?? commands[0])?.id;
 }

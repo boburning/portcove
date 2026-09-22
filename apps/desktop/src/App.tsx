@@ -51,7 +51,7 @@ import {
   type SourcePickerPurpose,
 } from "./file-picker";
 import { desktopApi } from "./api";
-import { useWorkspaceScroll } from "./keyboard-shortcuts";
+import { useWorkspaceContinuity } from "./keyboard-shortcuts";
 import { useThemePreference } from "./theme";
 import { useGamepadNavigation } from "./gamepad";
 import { focusRegion } from "./focus";
@@ -294,7 +294,7 @@ function Workspace({
     operations.perform,
   );
   const backups = usePortBackups(model.port?.id, operations.setError);
-  const workspace = useWorkspaceScroll(ui.view);
+  const { switchView, workspace } = useWorkspaceContinuity(ui.view);
   const { adoptOpen, selectedId, setAdoptOpen, setSelectedId, setView } = ui;
   const {
     close: closePortDetails,
@@ -303,10 +303,21 @@ function Workspace({
   } = useDetailWorkspaceNavigation(workspace, setSelectedId);
   const setPrimaryView = useCallback(
     (...args: Parameters<typeof setView>) => {
-      invalidatePortDetails();
-      setView(...args);
+      const nextView = typeof args[0] === "function" ? args[0](ui.view) : args[0];
+      const detailReturn = invalidatePortDetails();
+      switchView(
+        nextView,
+        () => {
+          if (detailReturn) setSelectedId(undefined);
+          setView(nextView);
+        },
+        detailReturn && {
+          scrollTop: detailReturn.scrollTop,
+          focusOrigin: detailReturn.originKey,
+        },
+      );
     },
-    [invalidatePortDetails, setView],
+    [invalidatePortDetails, setSelectedId, setView, switchView, ui.view],
   );
   const commandSurface = useCommandSurface({
     recent: model.recent,

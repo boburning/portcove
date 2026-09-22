@@ -60,9 +60,11 @@ export function useDetailWorkspaceNavigation(
   const close = useCallback(() => closeToken(openingToken), [closeToken, openingToken]);
 
   const invalidate = useCallback(() => {
+    const origin = current.current;
     ++sequence.current;
     current.current = undefined;
     setOpeningToken(undefined);
+    return origin;
   }, []);
 
   return { close, invalidate, open };
