@@ -256,10 +256,12 @@ export async function preparationScenarios({
       const play = [...element.querySelectorAll("button")].find(
         (button) => button.textContent?.trim() === "Play",
       );
+      const more = element.querySelector('button[aria-label^="More actions for "]');
       const workspace = element.closest("main");
       const cardBounds = element.getBoundingClientRect();
       const detailsBounds = details.getBoundingClientRect();
       const playBounds = play.getBoundingClientRect();
+      const moreBounds = more.getBoundingClientRect();
       const detailsStyle = getComputedStyle(details);
       details.focus();
       return {
@@ -271,10 +273,14 @@ export async function preparationScenarios({
         play_disabled: play.disabled,
         play_slot: play.getAttribute("data-slot"),
         play_variant: play.getAttribute("data-variant"),
+        more_label: more.getAttribute("aria-label"),
+        more_popup: more.getAttribute("aria-haspopup"),
         workspace_horizontal_overflow: workspace.scrollWidth > workspace.clientWidth + 1,
         card_horizontal_overflow: element.scrollWidth > element.clientWidth + 1,
         actions_fit_card:
-          detailsBounds.left >= cardBounds.left && playBounds.right <= cardBounds.right,
+          detailsBounds.left >= cardBounds.left &&
+          playBounds.right <= cardBounds.right &&
+          moreBounds.right <= cardBounds.right,
         details_color: detailsStyle.color,
         details_background: detailsStyle.backgroundColor,
         nested_interactive: element.querySelectorAll("button button, button a, a button, a a")
@@ -289,13 +295,15 @@ export async function preparationScenarios({
     } = cardActions;
     assert.deepEqual(cardStructure, {
       tag: "ARTICLE",
-      details: "View details",
+      details: "Details",
       details_slot: "button",
       details_variant: "outline",
       play: "Play",
       play_disabled: false,
       play_slot: "button",
       play_variant: "primary",
+      more_label: `More actions for ${port.name}`,
+      more_popup: "menu",
       workspace_horizontal_overflow: false,
       card_horizontal_overflow: false,
       actions_fit_card: true,
@@ -313,6 +321,39 @@ export async function preparationScenarios({
       flag: "wx",
     });
     artifacts.push(actionsImage);
+
+    const more = await card.findElement(By.css('button[aria-label^="More actions for "]'));
+    await more.click();
+    await browser.wait(until.elementLocated(By.css('[role="menu"]')), 5000);
+    await browser.actions().sendKeys(Key.ESCAPE).perform();
+    await browser.wait(
+      () => browser.executeScript((element) => document.activeElement === element, more),
+      5000,
+      "Closing Library overflow must restore its trigger",
+    );
+    await more.click();
+    await browser
+      .findElement(By.xpath('//*[@role="menuitem" and normalize-space()="Updates and activity"]'))
+      .click();
+    const updatesHeading = await browser.wait(
+      until.elementLocated(By.css("#detail-updates")),
+      5000,
+    );
+    await browser.wait(
+      () => browser.executeScript((element) => document.activeElement === element, updatesHeading),
+      5000,
+      "Overflow update navigation must focus its detail heading",
+    );
+    await browser.findElement(By.css(".detail-back")).click();
+    const returnMore = await browser.wait(
+      until.elementLocated(By.css(`button[data-detail-origin="library:card-more:${port.id}"]`)),
+      5000,
+    );
+    await browser.wait(
+      () => browser.executeScript((element) => document.activeElement === element, returnMore),
+      5000,
+      "Returning from overflow details must focus the originating card menu",
+    );
   });
   await scenario("native-game-update-review", async () => {
     const port = command(["catalog", "show", "opengoal-jak1"]);

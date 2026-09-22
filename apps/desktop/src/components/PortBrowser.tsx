@@ -6,6 +6,7 @@ import {
   Download,
   Gamepad2,
   LoaderCircle,
+  MoreHorizontal,
   Settings2,
   Wrench,
 } from "lucide-react";
@@ -17,6 +18,7 @@ import {
   portReadiness,
   releaseChannelPresentation,
   type Filter,
+  type DetailDestination,
   type LibraryOverview,
   type PortReadiness,
   type RecentPort,
@@ -27,6 +29,7 @@ import { BrandMotif, EmptyState, Icon } from "./ui";
 import type { NativeSourceDragState } from "../native-source-drop";
 import { ArtworkImage } from "./Artwork";
 import { Button } from "./ui/button";
+import { Menu } from "@base-ui/react/menu";
 
 export function PortBrowser({
   view,
@@ -50,7 +53,7 @@ export function PortBrowser({
   filter: Filter;
   recent?: RecentPort;
   setFilter: Dispatch<SetStateAction<Filter>>;
-  onSelect: (portId: string, originKey?: string) => void;
+  onSelect: (portId: string, originKey?: string, destination?: DetailDestination) => void;
   onContinue?: (portId: string) => void;
   onBrowseCatalog?: () => void;
   clearFilters?: () => void;
@@ -123,7 +126,7 @@ function BrowserResults({
   ports: PortDefinition[];
   installedCount: number;
   statuses: Map<string, PortStatus>;
-  onSelect: (portId: string, originKey?: string) => void;
+  onSelect: (portId: string, originKey?: string, destination?: DetailDestination) => void;
   onLaunch?: (portId: string) => void;
   onBrowseCatalog?: () => void;
   clearFilters?: () => void;
@@ -327,7 +330,7 @@ type PortCardProps = {
   port: PortDefinition;
   status?: PortStatus;
   readiness: PortReadiness;
-  onSelect: (portId: string, originKey?: string) => void;
+  onSelect: (portId: string, originKey?: string, destination?: DetailDestination) => void;
   onLaunch?: (portId: string) => void;
   nativeSourceDrag: NativeSourceDragState;
   view: View;
@@ -479,6 +482,7 @@ function PortCardStatus({
   state: ReturnType<typeof readinessPresentation>;
   detailOrigin: string;
 }) {
+  const overflowOrigin = `library:card-more:${port.id}`;
   return (
     <div className="card-status">
       {view === "catalog" && (
@@ -490,10 +494,11 @@ function PortCardStatus({
             data-focusable
             variant="outline"
             size="sm"
+            aria-label={`View details for ${port.name}`}
             data-detail-origin={detailOrigin}
             onClick={() => onSelect(port.id, detailOrigin)}
           >
-            View details
+            Details
           </Button>
           {status?.readiness?.launchable === true && onLaunch && (
             <Button data-focusable variant="primary" size="sm" onClick={() => onLaunch(port.id)}>
@@ -501,6 +506,43 @@ function PortCardStatus({
               Play
             </Button>
           )}
+          <Menu.Root>
+            <Menu.Trigger
+              render={
+                <Button
+                  data-focusable
+                  data-detail-origin={overflowOrigin}
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label={`More actions for ${port.name}`}
+                >
+                  <Icon glyph={MoreHorizontal} size="sm" />
+                </Button>
+              }
+            />
+            <Menu.Portal>
+              <Menu.Positioner side="bottom" align="end" sideOffset={4} className="isolate z-50">
+                <Menu.Popup
+                  data-portcove-focus-scope
+                  aria-label={`More actions for ${port.name}`}
+                  className="min-w-48 rounded-lg bg-pc-surface p-1 text-pc-foreground shadow-md ring-1 ring-pc-foreground/10"
+                >
+                  <Menu.Item
+                    className="cursor-default rounded-md px-3 py-2 text-sm outline-none focus:bg-pc-accent focus:text-pc-accent-foreground"
+                    onClick={() => onSelect(port.id, overflowOrigin, "updates")}
+                  >
+                    Updates and activity
+                  </Menu.Item>
+                  <Menu.Item
+                    className="cursor-default rounded-md px-3 py-2 text-sm outline-none focus:bg-pc-accent focus:text-pc-accent-foreground"
+                    onClick={() => onSelect(port.id, overflowOrigin, "saves")}
+                  >
+                    Saves and storage
+                  </Menu.Item>
+                </Menu.Popup>
+              </Menu.Positioner>
+            </Menu.Portal>
+          </Menu.Root>
         </span>
       ) : (
         <span>

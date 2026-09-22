@@ -193,6 +193,7 @@ export function formatCountMessage(
 }
 
 export type View = "library" | "catalog" | "updates" | "settings";
+export type DetailDestination = "updates" | "saves";
 export type Filter = "all" | "ready" | "setup" | "stable" | "beta" | "rolling";
 export type PortReadiness =
   | "available"

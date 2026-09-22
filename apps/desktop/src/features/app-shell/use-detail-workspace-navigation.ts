@@ -1,10 +1,16 @@
 import { useCallback, useRef, useState, type RefObject } from "react";
 import { focusRegion } from "../../focus";
+import type { DetailDestination } from "../../view-model";
 
 type DetailReturn = {
   originKey?: string;
   scrollTop: number;
   token: number;
+};
+
+const destinationHeading: Record<DetailDestination, string> = {
+  updates: "detail-updates",
+  saves: "detail-saves-and-storage",
 };
 
 export function useDetailWorkspaceNavigation(
@@ -16,7 +22,7 @@ export function useDetailWorkspaceNavigation(
   const [openingToken, setOpeningToken] = useState<number>();
 
   const open = useCallback(
-    (portId: string, originKey?: string) => {
+    (portId: string, originKey?: string, destination?: DetailDestination) => {
       const token = ++sequence.current;
       current.current = {
         originKey,
@@ -28,7 +34,13 @@ export function useDetailWorkspaceNavigation(
       window.requestAnimationFrame(() => {
         if (current.current?.token !== token) return;
         workspace.current?.scrollTo({ top: 0 });
-        document.querySelector<HTMLElement>(".detail-back")?.focus({ preventScroll: true });
+        const target = destination
+          ? document.getElementById(destinationHeading[destination])
+          : undefined;
+        if (target) {
+          target.scrollIntoView({ block: "start" });
+          target.focus({ preventScroll: true });
+        } else document.querySelector<HTMLElement>(".detail-back")?.focus({ preventScroll: true });
       });
     },
     [setSelectedId, workspace],

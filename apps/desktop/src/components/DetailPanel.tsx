@@ -641,7 +641,9 @@ function DetailGroup({ title, children }: { title: string; children: React.React
   const headingId = `detail-${title.toLowerCase().replaceAll(" ", "-")}`;
   return (
     <section className="detail-group" aria-labelledby={headingId}>
-      <h2 id={headingId}>{title}</h2>
+      <h2 id={headingId} tabIndex={-1}>
+        {title}
+      </h2>
       <div className="detail-group-content">{children}</div>
     </section>
   );

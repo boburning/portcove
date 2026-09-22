@@ -35,6 +35,7 @@ beforeEach(async () => {
     configurable: true,
     value: vi.fn(),
   });
+  HTMLElement.prototype.scrollIntoView = vi.fn();
   workspace = { current: document.createElement("main") };
   vi.stubGlobal("CSS", { escape: (value: string) => value });
   const testRoot = createRoot(document.createElement("div"));
@@ -83,6 +84,21 @@ describe("detail workspace navigation", () => {
     await act(async () => navigation.close());
 
     expect(document.activeElement).toBe(commandTrigger);
+  });
+
+  it("focuses an overflow destination and returns to its exact card trigger", async () => {
+    const trigger = document.createElement("button");
+    trigger.dataset.detailOrigin = "library:card-more:port-a";
+    const heading = document.createElement("h2");
+    heading.id = "detail-saves-and-storage";
+    heading.tabIndex = -1;
+    document.body.append(trigger, heading);
+
+    await act(async () => navigation.open("port-a", trigger.dataset.detailOrigin, "saves"));
+    expect(document.activeElement).toBe(heading);
+    expect(heading.scrollIntoView).toHaveBeenCalledWith({ block: "start" });
+    await act(async () => navigation.close());
+    expect(document.activeElement).toBe(trigger);
   });
 
   it("ignores a retained completion callback after primary navigation invalidates the opening", async () => {
