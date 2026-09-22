@@ -18,6 +18,7 @@ import type {
 } from "../types";
 import { platformLabel } from "../view-model";
 import { Icon } from "./ui";
+import { Button } from "./ui/button";
 
 export function SourceIdentityPanel({
   report,
@@ -104,16 +105,17 @@ export function SourceIdentityPanel({
                       <strong>{evidence.authority}</strong>
                       <small>{evidence.claim}</small>
                     </span>
-                    <button
+                    <Button
                       data-focusable
-                      className="small-control button-with-icon"
+                      variant="outline"
+                      size="sm"
                       onClick={() => openEvidence?.(evidence.id)}
                       disabled={!openEvidence}
                       aria-label={`Open reviewed evidence from ${evidence.authority}`}
                     >
                       <Icon glyph={ExternalLink} size="sm" />
                       Open
-                    </button>
+                    </Button>
                   </li>
                 ))}
               </ul>
@@ -370,14 +372,15 @@ function DigestValue({
         {label} · {formatLabel(scope)}
       </strong>
       <code>{value}</code>
-      <button
+      <Button
         data-focusable
-        className="icon-button"
+        variant="ghost"
+        size="icon-sm"
         aria-label={`Copy ${label} for ${formatLabel(scope)}`}
         onClick={copy}
       >
         <Icon glyph={copied ? ClipboardCheck : Clipboard} size="sm" />
-      </button>
+      </Button>
     </div>
   );
 }

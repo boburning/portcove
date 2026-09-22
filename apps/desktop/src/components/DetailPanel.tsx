@@ -54,6 +54,7 @@ import { GameUpdateControl, UpdatePolicyControl } from "./GameUpdates";
 import type { Perform } from "../features/operations/use-operation-state";
 import { ExternalLink as ProjectLink } from "./ExternalLink";
 import { Icon, NavigationHints } from "./ui";
+import { Button } from "./ui/button";
 import { SourceIdentityPanel } from "./SourceIdentity";
 import { installPlanActionLabel } from "../install-plan-presentation";
 
@@ -190,15 +191,17 @@ export function DetailPanel(props: DetailPanelProps) {
   };
   return (
     <section className="detail-panel" aria-labelledby="port-detail-title" data-detail-workspace>
-      <button
+      <Button
         data-focusable
-        className="detail-back button-with-icon"
+        className="detail-back"
+        variant="ghost"
+        size="sm"
         aria-label="Back to previous workspace"
         onClick={actions.close}
       >
         <Icon glyph={ArrowLeft} />
         Back
-      </button>
+      </Button>
       <DetailHero port={port} state={state} />
       <ArtworkControls key={`${port.id}:${props.libraryGeneration}`} port={port} />
       {props.cancellableActivities?.map((activity) => (
@@ -526,15 +529,17 @@ function UpdatesGroup({
             Staged update: <strong>{status.staged.version}</strong>. Activation uses this verified
             local copy without downloading and keeps the current version for rollback.
           </p>
-          <button
+          <Button
             data-focusable
+            variant="primary"
+            size="lg"
             disabled={Boolean(busy)}
             onClick={() => {
               void actions.activate();
             }}
           >
             Activate staged update · {status.staged.version}
-          </button>
+          </Button>
         </section>
       )}
       {installed && (
@@ -892,28 +897,28 @@ function SourceIntakeActions({ controls, busy }: { controls: SourceControls; bus
   return (
     <div className="source-intake-shortcuts" aria-label="Check game files">
       {controls.sourceProfile && (
-        <button
+        <Button
           data-focusable
-          className="button-with-icon"
+          variant="outline"
           type="button"
           disabled={busy}
           onClick={() => controls.inspectSource?.(controls.sourceProfile!)}
         >
           <Icon glyph={FileSearch} />
           Check original game files
-        </button>
+        </Button>
       )}
       {controls.biosProfile && (
-        <button
+        <Button
           data-focusable
-          className="button-with-icon"
+          variant="outline"
           type="button"
           disabled={busy}
           onClick={() => controls.inspectSource?.(controls.biosProfile!)}
         >
           <Icon glyph={FileSearch} />
           Check required BIOS
-        </button>
+        </Button>
       )}
     </div>
   );
@@ -1110,16 +1115,16 @@ function SourceField({
           placeholder={copy.placeholder}
         />
         {pick && (
-          <button data-focusable className="button-with-icon" type="button" onClick={pick}>
+          <Button data-focusable variant="outline" type="button" onClick={pick}>
             <Icon glyph={FolderOpen} />
             {bios ? "Choose BIOS file" : "Choose game files"}
-          </button>
+          </Button>
         )}
         {pickArchive && (
-          <button data-focusable className="button-with-icon" type="button" onClick={pickArchive}>
+          <Button data-focusable variant="outline" type="button" onClick={pickArchive}>
             <Icon glyph={FileArchive} />
             Choose ZIP file
-          </button>
+          </Button>
         )}
       </div>
       <small>{sourceNote}</small>
@@ -1221,9 +1226,11 @@ function PrimaryActions({
     );
   return (
     <div className="actions primary-actions">
-      <button
+      <Button
         data-focusable
-        className="primary wide button-with-icon"
+        className="wide"
+        variant="primary"
+        size="lg"
         title={
           preparationRequired
             ? "Prepare game data before playing"
@@ -1244,7 +1251,7 @@ function PrimaryActions({
             : pendingSetup
               ? "Complete setup and play"
               : "Play now"}
-      </button>
+      </Button>
     </div>
   );
 }
@@ -1281,19 +1288,21 @@ function InstallAction({
           : "Add all required game files before installing";
     return (
       <div className="actions primary-actions">
-        <button data-focusable className="primary wide button-with-icon" title={title} disabled>
+        <Button data-focusable className="wide" variant="primary" size="lg" title={title} disabled>
           <Icon glyph={AlertTriangle} />
           {buttonLabel}
-        </button>
+        </Button>
       </div>
     );
   }
   if (!plan)
     return (
       <div className="actions primary-actions">
-        <button
+        <Button
           data-focusable
-          className="primary wide button-with-icon"
+          className="wide"
+          variant="primary"
+          size="lg"
           disabled={Boolean(busy)}
           onClick={() => {
             void review();
@@ -1301,7 +1310,7 @@ function InstallAction({
         >
           <Icon glyph={ShieldCheck} />
           {busy === "review install" ? "Checking release…" : "Review install"}
-        </button>
+        </Button>
       </div>
     );
   if (!installPlanActionLabel(plan.action))
@@ -1311,15 +1320,16 @@ function InstallAction({
           This version of Portcove cannot display the installation plan. Review it again, or update
           Portcove if this continues.
         </p>
-        <button
+        <Button
           data-focusable
+          variant="outline"
           disabled={Boolean(busy)}
           onClick={() => {
             void review();
           }}
         >
           Review install again
-        </button>
+        </Button>
       </div>
     );
   return (
@@ -1383,9 +1393,11 @@ function PlannedInstallButton({
   else if (busy === "install") label = "Installing…";
   return (
     <div className="actions primary-actions">
-      <button
+      <Button
         data-focusable
-        className="primary wide button-with-icon"
+        className="wide"
+        variant="primary"
+        size="lg"
         disabled={blocked || insufficientSpace || Boolean(busy)}
         onClick={() => {
           void install();
@@ -1393,7 +1405,7 @@ function PlannedInstallButton({
       >
         <Icon glyph={Download} />
         {label}
-      </button>
+      </Button>
     </div>
   );
 }
@@ -1413,9 +1425,9 @@ function MaintenanceActions({
 }) {
   return (
     <div className="actions maintenance-actions">
-      <button
+      <Button
         data-focusable
-        className="button-with-icon"
+        variant="outline"
         disabled={Boolean(busy)}
         onClick={() => {
           void actions.verify();
@@ -1423,10 +1435,10 @@ function MaintenanceActions({
       >
         <Icon glyph={ShieldCheck} />
         Verify installation
-      </button>
-      <button
+      </Button>
+      <Button
         data-focusable
-        className="button-with-icon"
+        variant="outline"
         disabled={!canRollback || Boolean(busy)}
         onClick={() => {
           void actions.rollback();
@@ -1434,7 +1446,7 @@ function MaintenanceActions({
       >
         <Icon glyph={RotateCcw} />
         Restore previous version
-      </button>
+      </Button>
       <RemovalControl
         key={`${port.id}:${libraryGeneration}`}
         port={port}
@@ -1455,9 +1467,9 @@ function MaintenanceActions({
 function DataActions({ busy, actions }: { busy?: string; actions: DetailActions }) {
   return (
     <div className="actions detail-inline-actions">
-      <button
+      <Button
         data-focusable
-        className="button-with-icon"
+        variant="outline"
         title="Back up saves and settings"
         disabled={Boolean(busy)}
         onClick={() => {
@@ -1466,10 +1478,10 @@ function DataActions({ busy, actions }: { busy?: string; actions: DetailActions 
       >
         <Icon glyph={Save} />
         Back up data
-      </button>
-      <button
+      </Button>
+      <Button
         data-focusable
-        className="button-with-icon"
+        variant="outline"
         disabled={Boolean(busy)}
         onClick={() => {
           void actions.openUserData();
@@ -1477,7 +1489,7 @@ function DataActions({ busy, actions }: { busy?: string; actions: DetailActions 
       >
         <Icon glyph={FolderOpen} />
         Open data folder
-      </button>
+      </Button>
     </div>
   );
 }
@@ -1485,9 +1497,9 @@ function DataActions({ busy, actions }: { busy?: string; actions: DetailActions 
 function UpdateCheckAction({ busy, check }: { busy?: string; check: DetailActions["check"] }) {
   return (
     <div className="actions detail-inline-actions">
-      <button
+      <Button
         data-focusable
-        className="button-with-icon"
+        variant="outline"
         disabled={Boolean(busy)}
         onClick={() => {
           void check();
@@ -1495,7 +1507,7 @@ function UpdateCheckAction({ busy, check }: { busy?: string; check: DetailAction
       >
         <Icon glyph={RefreshCw} />
         Check for updates
-      </button>
+      </Button>
     </div>
   );
 }

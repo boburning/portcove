@@ -690,6 +690,8 @@ describe("desktop components", () => {
     expect(html).toContain("Backups include saves and settings managed by Portcove.");
     expect(html).toContain("4 verified backups");
     expect(html).toContain("Show 1 older");
+    expect(html).toMatch(/<button[^>]*data-variant="ghost"[^>]*>[^]*?Show 1 older<\/button>/u);
+    expect(html).not.toContain("backup-expander");
     for (const backup of backups.slice(0, 3))
       expect(html).toContain(
         `aria-label="Technical details for backup from ${new Date(backup.created_at * 1000).toLocaleString()}"`,
@@ -1578,7 +1580,7 @@ describe("desktop components", () => {
       ?.split("<button")
       .at(-1);
     expect(review).toBeDefined();
-    expect(review).not.toContain("disabled");
+    expect(review).not.toMatch(/\sdisabled(?:=""|[\s>])/u);
     expect(html).not.toContain("Ready to launch");
   });
 
@@ -1711,7 +1713,17 @@ describe("desktop components", () => {
     );
     expect(sourceFree).toContain("Review install");
     expect(sourceFree).not.toContain("Choose game files");
+    expect(sourceFree).toContain('data-slot="button"');
+    expect(sourceFree).toContain('data-variant="primary"');
     expect(installed).toContain("Play");
+    expect(installed).toMatch(/<button[^>]*data-variant="primary"[^>]*>[^]*?Play now<\/button>/u);
+    expect(installed).toMatch(/<button[^>]*data-variant="ghost"[^>]*>[^]*?Back<\/button>/u);
+    expect(installed).toMatch(
+      /<button[^>]*data-variant="outline"[^>]*>[^]*?Check for updates<\/button>/u,
+    );
+    expect(installed).toMatch(
+      /<button[^>]*data-variant="destructive"[^>]*aria-label="Delete backup/u,
+    );
     expect(buttonLabels).toContain("Check for updates");
     expect(installed).toContain("Open data folder");
     expect(installed).toContain("Back up data");
@@ -1823,7 +1835,7 @@ describe("desktop components", () => {
     expect(label).toBeGreaterThan(-1);
     expect(button).toBeGreaterThan(-1);
     expect(label).toBeGreaterThan(button);
-    expect(openingTag).not.toContain("disabled");
+    expect(openingTag).not.toMatch(/\sdisabled(?:=""|[\s>])/u);
   });
 
   it("scopes mixed testing evidence without letting evidence choose the install action", () => {
@@ -1852,8 +1864,8 @@ describe("desktop components", () => {
     expect(installLabel).toBeGreaterThanOrEqual(0);
     const installButton = eligible.lastIndexOf("<button", installLabel);
     expect(installButton).toBeGreaterThanOrEqual(0);
-    expect(eligible.slice(installButton, eligible.indexOf(">", installButton))).not.toContain(
-      "disabled",
+    expect(eligible.slice(installButton, eligible.indexOf(">", installButton))).not.toMatch(
+      /\sdisabled(?:=""|[\s>])/u,
     );
 
     const blocked = renderDetails("blocked_unverified");
@@ -1863,7 +1875,9 @@ describe("desktop components", () => {
     expect(blockedLabel).toBeGreaterThanOrEqual(0);
     const blockedButton = blocked.lastIndexOf("<button", blockedLabel);
     expect(blockedButton).toBeGreaterThanOrEqual(0);
-    expect(blocked.slice(blockedButton, blocked.indexOf(">", blockedButton))).toContain("disabled");
+    expect(blocked.slice(blockedButton, blocked.indexOf(">", blockedButton))).toMatch(
+      /\sdisabled(?:=""|[\s>])/u,
+    );
   });
 
   it("describes a local copy that needs checking and keeps installation blocked", () => {
@@ -2190,6 +2204,7 @@ describe("desktop components", () => {
     expect(cards).toContain("Sample Port");
     expect(cards).toContain("Available");
     expect(cards).toContain("Windows");
+    expect(cards).not.toContain('<span class="badge stable">Stable</span>');
     expect(cards).not.toContain("staged-source-portable");
     expect(empty).toContain("No ports match these filters");
     expect(empty).toContain("Clear search and filters");
@@ -2524,6 +2539,7 @@ describe("desktop components", () => {
     expect(html).toContain('data-slot="button"');
     expect(html).toContain('data-variant="outline"');
     expect(html).toContain('data-variant="primary"');
+    expect(html).toContain('<span class="badge stable">Stable</span>');
     expect(html).toContain('<article class="port-card"');
     expect(html).toContain(">Play</button>");
     expect(html).not.toMatch(/<button[^>]*class="port-card/u);

@@ -1820,7 +1820,7 @@ select {
 .path-entry input {
   min-width: 0;
 }
-.path-entry button {
+.path-entry button:not([data-slot="button"]) {
   flex: none;
   padding: 0 13px;
   border-radius: var(--radius-md);
@@ -2061,7 +2061,7 @@ select {
   gap: 8px;
   margin-top: 24px;
 }
-.actions button {
+.actions button:not([data-slot="button"]) {
   padding: 11px 16px;
   border-radius: var(--radius-md);
 }
@@ -2074,7 +2074,7 @@ select {
 .detail-inline-actions {
   margin-top: 0;
 }
-.primary-actions button {
+.primary-actions button:not([data-slot="button"]) {
   min-height: 46px;
 }
 .primary-actions .staged-action {
@@ -2313,24 +2313,10 @@ select {
   flex: none;
   gap: 6px;
 }
-.backup-row button {
+.backup-row button:not([data-slot="button"]) {
   flex: none;
   padding: 8px 11px;
   border-radius: var(--radius-md);
-}
-
-.backup-expander {
-  justify-self: start;
-  padding: 4px 2px;
-  border: 0;
-  color: var(--color-interactive-text);
-  background: var(--color-transparent);
-  font-size: var(--text-xs);
-  cursor: pointer;
-}
-
-.backup-expander:hover {
-  color: var(--color-interactive-text-strong);
 }
 
 .backup-inventory-notice {

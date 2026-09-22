@@ -2,6 +2,7 @@ import { useState } from "react";
 import { desktopApi } from "../api";
 import type { CancellationState } from "../types";
 import { errorText } from "../view-model";
+import { Button } from "./ui/button";
 
 export function OperationCancellation({
   operationId,
@@ -30,9 +31,10 @@ export function OperationCancellation({
   if (state?.phase === "finishing") return <p role="status">Finishing safely…</p>;
   return (
     <div className="operation-cancellation">
-      <button
+      <Button
         data-focusable
-        className="small-control"
+        variant="outline"
+        size="sm"
         disabled={pending || requested || state?.requested}
         onClick={() => {
           void request();
@@ -43,7 +45,7 @@ export function OperationCancellation({
           : pending
             ? "Requesting cancellation…"
             : label}
-      </button>
+      </Button>
       {(requested || state?.requested) && (
         <p role="status">
           Portcove will stop after the current step reaches a safe stopping point.

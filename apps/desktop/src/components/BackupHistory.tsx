@@ -4,6 +4,7 @@ import type { BackupInventory, BackupProblem, BackupRecord } from "../types";
 import { formatBytes } from "../view-model";
 import { Icon } from "./ui";
 import { BackupReviewDialog, type ApplyBackupAction } from "./BackupReview";
+import { Button } from "./ui/button";
 
 export function BackupHistory({
   backups,
@@ -86,24 +87,25 @@ export function BackupHistory({
               <small className="backup-checksum">SHA-256 {backup.sha256}</small>
             </details>
             <span className="backup-actions">
-              <button
+              <Button
                 data-focusable
-                className="button-with-icon"
+                variant="outline"
                 disabled={Boolean(busy)}
                 onClick={() => setSelection({ backup, action: "restore" })}
               >
                 <Icon glyph={RotateCcw} />
                 Restore
-              </button>
-              <button
+              </Button>
+              <Button
                 data-focusable
-                className="danger icon-button"
+                variant="destructive"
+                size="icon"
                 aria-label={`Delete backup from ${createdLabel}`}
                 disabled={Boolean(busy)}
                 onClick={() => setSelection({ backup, action: "delete" })}
               >
                 <Icon glyph={Trash2} />
-              </button>
+              </Button>
             </span>
           </div>
         );
@@ -119,15 +121,16 @@ export function BackupHistory({
         />
       )}
       {backups.length > 3 && (
-        <button
+        <Button
           data-focusable
-          className="backup-expander button-with-icon"
+          className="justify-self-start"
+          variant="ghost"
           aria-expanded={expanded}
           onClick={() => setExpanded((value) => !value)}
         >
           <Icon glyph={expanded ? ChevronUp : ChevronDown} />
           {expanded ? "Show recent only" : `Show ${backups.length - 3} older`}
-        </button>
+        </Button>
       )}
     </div>
   );

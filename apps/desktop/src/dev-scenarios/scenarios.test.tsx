@@ -37,7 +37,12 @@ describe("static development scenarios", () => {
     expect(renderScenario("library-reference-long-title")).toContain(
       "The Unreasonably Long Scenario Game Title",
     );
-    expect(renderScenario("game-details-reference-narrow")).toContain("Play now");
+    const gameDetails = renderScenario("game-details-reference-narrow");
+    expect(gameDetails).toContain("Play now");
+    expect(gameDetails).toContain('data-slot="button"');
+    expect(gameDetails).toContain('data-variant="primary"');
+    expect(gameDetails).toContain('data-variant="ghost"');
+    expect(gameDetails).toContain('data-variant="outline"');
     expect(renderScenario("installation-review-reference")).toContain("INSTALL PLAN");
     expect(renderScenario("installation-review-reference")).toContain("Install · 64.0 MiB");
     expect(renderScenario("installation-review-reference")).toContain("Not installed");

@@ -343,7 +343,7 @@ function PortCard({
   view,
 }: PortCardProps) {
   const state = readinessPresentation(readiness);
-  const channel = releaseChannelPresentation(status?.channel ?? port.support_tier);
+  const channel = status?.channel ? releaseChannelPresentation(status.channel) : undefined;
   const updateAvailable = currentUpdateSnapshot(status)?.check.update_available;
   const dropEligible = nativeSourceDrag.active && Boolean(port.source_profile);
   const dropTarget = dropEligible && nativeSourceDrag.targetPortId === port.id;
@@ -398,7 +398,7 @@ function PortCardContents({
   view,
 }: Pick<PortCardProps, "port" | "status" | "onSelect" | "onLaunch" | "view"> & {
   state: ReturnType<typeof readinessPresentation>;
-  channel: ReturnType<typeof releaseChannelPresentation>;
+  channel: ReturnType<typeof releaseChannelPresentation> | undefined;
   updateAvailable?: boolean;
   dropEligible: boolean;
   dropTarget: boolean;
@@ -418,7 +418,7 @@ function PortCardContents({
             <i />
             {state.label}
           </span>
-          <span className={`badge ${channel.tone}`}>{channel.label}</span>
+          {channel && <span className={`badge ${channel.tone}`}>{channel.label}</span>}
         </div>
         <div className="card-title">
           <h2>{port.name}</h2>
