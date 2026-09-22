@@ -540,6 +540,7 @@ export interface TransportOutputs {
   desktop_game_file_roots: OutputGameFileRoots;
   desktop_game_file_scan_snapshot: OutputGameFileScanSnapshot;
   desktop_launch_result: OutputDesktopLaunchResult;
+  desktop_locale_preference: OutputDesktopLocalePreference;
   desktop_preparation_cleanup_preview: OutputPreparationCleanupPreview;
   desktop_reconcile_outcome: OutputReconcileBatchOutcome;
   desktop_source_verification_outcome: OutputSourceBatchOutcome;
@@ -2221,6 +2222,10 @@ export interface OutputDesktopCliCommandContext {
 export interface OutputDesktopLaunchResult {
   processId: number | null;
   sessionId: string;
+  [k: string]: unknown;
+}
+export interface OutputDesktopLocalePreference {
+  locale: string | null;
   [k: string]: unknown;
 }
 export interface OutputDesktopSteamEntryApplyResult {

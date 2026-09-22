@@ -62,6 +62,7 @@ import type {
   InstallRecord,
   LibraryIdentity,
   LibraryMetadataFile,
+  LocalePreferenceSnapshot,
   OutputDestinationPreview,
   OutputRelocationPlan,
   OutputRelocationResult,
@@ -87,6 +88,9 @@ import type {
 } from "./types";
 
 export const desktopApi = {
+  localePreference: () => invoke<LocalePreferenceSnapshot>("get_locale_preference"),
+  setLocalePreference: (locale: string | null) =>
+    invoke<LocalePreferenceSnapshot>("set_locale_preference", { locale }),
   applicationUpdateNotice: () =>
     invoke<ApplicationUpdateNoticeSnapshot>("get_application_update_notice"),
   dismissApplicationUpdateNotice: (expectedRevision: number) =>

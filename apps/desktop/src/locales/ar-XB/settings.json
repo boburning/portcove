@@ -1,0 +1,23 @@
+{
+  "language": {
+    "current": "يستخدم Portcove الآن {{language}}.",
+    "description": "اختر اللغة التي يستخدمها Portcove على هذا الجهاز.",
+    "engineering": "العربية (اختبار هندسي)",
+    "english": "English",
+    "eyebrow": "لغة تجريبية",
+    "pickerLabel": "لغة العرض",
+    "richProof": "يبقى تركيز لوحة المفاتيح <strong>حيث تركته</strong> عند تغيير اللغة.",
+    "sample_zero": "لا توجد رسائل مترجمة جاهزة.",
+    "sample_one": "رسالة مترجمة واحدة جاهزة.",
+    "sample_two": "رسالتان مترجمتان جاهزتان.",
+    "sample_few": "{{count}} رسائل مترجمة جاهزة.",
+    "sample_many": "{{count}} رسالة مترجمة جاهزة.",
+    "sample_other": "{{count}} رسالة مترجمة جاهزة.",
+    "saved": "تم حفظ اللغة.",
+    "saveFailed": "تعذر على Portcove حفظ اللغة. لا يزال اختيارك السابق نشطًا.",
+    "saving": "جارٍ حفظ اللغة…",
+    "system": "لغة النظام",
+    "title": "لغة الواجهة",
+    "unavailable": "الترجمة غير متاحة"
+  }
+}

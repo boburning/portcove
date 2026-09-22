@@ -2,7 +2,8 @@ packages:
   - apps/desktop
 
 allowBuilds:
+  "@swc/core": true
   esbuild: true
-onlyBuiltDependencies:
-  - esbuild
+minimumReleaseAgeExclude:
+  - react-i18next@17.0.15
 storeDir: work/pnpm-store

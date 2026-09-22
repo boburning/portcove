@@ -345,7 +345,7 @@ function classifyOnePath(selection, input, fileExists, options = {}) {
     file.startsWith("apps/desktop/assets/") ||
     file.startsWith("apps/desktop/public/") ||
     file === "apps/desktop/.fallowrc.json" ||
-    /^apps\/desktop\/(?:(?:index|scenarios)\.html|(?:components|package)\.json|pnpm-lock\.yaml|tsconfig.*\.json|vite\.config\.[cm]?ts|eslint\.config\.mjs|stylelint\.config\.mjs)$/.test(
+    /^apps\/desktop\/(?:(?:index|scenarios)\.html|(?:components|package)\.json|pnpm-lock\.yaml|tsconfig.*\.json|vite\.config\.[cm]?ts|i18next(?:\.invalid)?\.config\.ts|eslint\.config\.mjs|stylelint\.config\.mjs)$/.test(
       file,
     )
   ) {
