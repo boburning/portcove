@@ -11,6 +11,7 @@ import type {
 } from "../types";
 import { errorText, formatBytes, formatCountMessage } from "../view-model";
 import { Icon } from "./ui";
+import { Button } from "./ui/button";
 
 export function OutputLocationControl({
   portId,
@@ -305,9 +306,9 @@ export function OutputLocationControl({
           onChange={(event) => invalidate(event.target.value)}
           aria-describedby={`output-location-note-${portId}`}
         />
-        <button
+        <Button
           data-focusable
-          className="button-with-icon"
+          variant="outline"
           type="button"
           disabled={!location || controlsDisabled || pending === "review"}
           onClick={() => {
@@ -316,29 +317,29 @@ export function OutputLocationControl({
         >
           <Icon glyph={FolderOpen} />
           Browse
-        </button>
+        </Button>
       </div>
       <small id={`output-location-note-${portId}`}>
         Review checks the resolved path, volume, capacity, ownership, markers, and affected installs
         without creating the folder.
       </small>
       <div className="button-row">
-        <button
+        <Button
           ref={reviewButton}
           data-focusable
-          className="small-control"
+          variant="primary"
           disabled={!location || controlsDisabled || !draft.trim()}
           onClick={() => {
             void review(draft);
           }}
         >
           {pending === "review" ? "Checking folder…" : "Review future folder"}
-        </button>
+        </Button>
         {location?.configured_output_directory && (
-          <button
+          <Button
             ref={resetButton}
             data-focusable
-            className="small-control button-with-icon"
+            variant="outline"
             disabled={controlsDisabled || pending === "review"}
             onClick={() => {
               void review(null);
@@ -346,7 +347,7 @@ export function OutputLocationControl({
           >
             <Icon glyph={RotateCcw} />
             Review library default
-          </button>
+          </Button>
         )}
       </div>
       {preview && (
@@ -584,34 +585,29 @@ function OutputLocationReview({
         </ul>
       )}
       <div className="button-row">
-        <button
+        <Button
           ref={applyButton}
           data-focusable
           data-autofocus
-          className="small-control"
+          variant="primary"
           disabled={!safe || Boolean(pending)}
           onClick={apply}
         >
           {pending === "apply" ? "Saving…" : action}
-        </button>
+        </Button>
         {preview.affected_installs.length > 0 && (
-          <button
+          <Button
             data-focusable
-            className="small-control"
+            variant="outline"
             disabled={!safe || Boolean(pending)}
             onClick={reviewRelocation}
           >
             {pending === "review" ? "Checking versions…" : "Review moving existing versions"}
-          </button>
+          </Button>
         )}
-        <button
-          data-focusable
-          className="small-control"
-          disabled={Boolean(pending)}
-          onClick={cancel}
-        >
+        <Button data-focusable variant="outline" disabled={Boolean(pending)} onClick={cancel}>
           Cancel review
-        </button>
+        </Button>
       </div>
     </div>
   );
@@ -731,19 +727,19 @@ function OutputRelocationReview({
         </ul>
       )}
       <div className="button-row">
-        <button
+        <Button
           ref={applyButton}
           data-focusable
           data-autofocus
-          className="small-control"
+          variant="primary"
           disabled={!safe || pending}
           onClick={apply}
         >
           {pending ? "Moving and verifying…" : "Move existing versions"}
-        </button>
-        <button data-focusable className="small-control" disabled={pending} onClick={cancel}>
+        </Button>
+        <Button data-focusable variant="outline" disabled={pending} onClick={cancel}>
           Cancel review
-        </button>
+        </Button>
       </div>
     </div>
   );

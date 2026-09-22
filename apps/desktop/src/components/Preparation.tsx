@@ -3,6 +3,7 @@ import { desktopApi } from "../api";
 import type { InstallRecord, OperationEvent, PreparationPlan } from "../types";
 import { errorText, formatBytes, isCancellation } from "../view-model";
 import { OperationCancellation } from "./OperationCancellation";
+import { Button } from "./ui/button";
 
 export type RunPreparation = (
   expectedPlan: string,
@@ -91,16 +92,18 @@ export function PreparationControl({
         saves are preserved.
       </p>
       {!plan && (
-        <button
+        <Button
           data-focusable
-          className="primary wide"
+          className="wide"
+          variant="primary"
+          size="lg"
           disabled={disabled || Boolean(pending) || !run}
           onClick={() => {
             void review();
           }}
         >
           {pending === "review" ? "Checking preparation inputs…" : "Review game preparation"}
-        </button>
+        </Button>
       )}
       {plan && (
         <>
@@ -126,17 +129,19 @@ export function PreparationControl({
             its option to close setup instead of launching. Portcove will then verify and activate
             the generated result.
           </p>
-          <button
+          <Button
             ref={applyButton}
             data-focusable
-            className="primary wide"
+            className="wide"
+            variant="primary"
+            size="lg"
             disabled={disabled || Boolean(pending)}
             onClick={() => {
               void prepare();
             }}
           >
             Start new preparation
-          </button>
+          </Button>
         </>
       )}
       {message && <p role="status">{message}</p>}

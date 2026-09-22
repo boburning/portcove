@@ -9,7 +9,7 @@ import { formatBytes, platformLabel } from "./view-model";
 
 describe("catalog and capacity presentation", () => {
   it.each(["future-platform", "constructor", "__proto__", "toString"])(
-    "renders explicit fallback for %s without treating it as a supported channel",
+    "renders explicit platform fallback for %s without manufacturing a selected channel",
     (value) => {
       const port = {
         ...portDefinition(),
@@ -29,8 +29,8 @@ describe("catalog and capacity presentation", () => {
         />,
       );
       expect(html).toContain("Unknown platform");
-      expect(html).toContain("Unknown channel");
-      expect(html).toContain('class="badge unknown"');
+      expect(html).not.toContain("Unknown channel");
+      expect(html).not.toContain('class="badge unknown"');
       expect(html).not.toContain(`class="badge ${value}"`);
     },
   );

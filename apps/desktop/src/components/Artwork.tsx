@@ -3,6 +3,7 @@ import { useArtwork, useArtworkVisibility } from "../artwork";
 import { pickArtworkPath } from "../file-picker";
 import type { ArtworkSlot, ArtworkState, PortDefinition } from "../types";
 import { errorText, formatBytes } from "../view-model";
+import { Button } from "./ui/button";
 
 export function ArtworkImage({
   port,
@@ -138,31 +139,34 @@ function ArtworkSlotControl({ port, slot }: { port: PortDefinition; slot: Artwor
           : "Optional wide image for this game's details."}
       </p>
       <div className="artwork-actions">
-        <button
+        <Button
           ref={pickerButton}
           data-focusable
+          variant="outline"
           disabled={pending || !display.state}
           onClick={() => void change(true)}
         >
           Choose local image
-        </button>
-        <button
+        </Button>
+        <Button
           ref={resetButton}
           data-focusable
+          variant="outline"
           disabled={pending || !display.state?.selection}
           onClick={() => void change(false)}
         >
           Reset to default
-        </button>
-        <button
+        </Button>
+        <Button
           data-focusable
+          variant="outline"
           disabled={pending || display.loading}
           onClick={() => {
             void cache?.load(port.id, slot, true);
           }}
         >
           Refresh artwork
-        </button>
+        </Button>
       </div>
       <p className="artwork-notice">
         Static PNG or JPEG, up to 16 MiB. Portcove keeps a local copy.

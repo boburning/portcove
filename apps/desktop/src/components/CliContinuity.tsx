@@ -6,6 +6,7 @@ import { copyText } from "../clipboard";
 import type { CliCommandContext, PortDefinition, PortStatus, ReleaseChannel } from "../types";
 import { errorText } from "../view-model";
 import { Icon } from "./ui";
+import { Button } from "./ui/button";
 
 export function CliContinuity({
   generation,
@@ -58,9 +59,13 @@ export function CliContinuity({
         {error ? (
           <>
             <p role="alert">{error}</p>
-            <button data-focusable onClick={() => setAttempt((value) => value + 1)}>
+            <Button
+              data-focusable
+              variant="outline"
+              onClick={() => setAttempt((value) => value + 1)}
+            >
               Retry command details
-            </button>
+            </Button>
           </>
         ) : (
           <p role="status">Finding the command-line app…</p>
@@ -143,16 +148,17 @@ function CopyField({ value, label }: { value: string; label: string }) {
     <>
       <div className="command-line">
         <code>{value}</code>
-        <button
+        <Button
           data-focusable
-          className="icon-button"
+          variant="ghost"
+          size="icon"
           aria-label={label}
           onClick={() => {
             void copy();
           }}
         >
           <Icon glyph={copied ? ClipboardCheck : Clipboard} />
-        </button>
+        </Button>
       </div>
       {copied && <small role="status">Copied</small>}
       {failed && <small role="alert">Clipboard unavailable. Select and copy the text above.</small>}

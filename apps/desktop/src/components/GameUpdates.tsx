@@ -6,6 +6,7 @@ import { errorText, formatBytes } from "../view-model";
 import { ChoiceSelect } from "./ChoiceSelect";
 import { OperationCancellation } from "./OperationCancellation";
 import { installPlanActionLabel } from "../install-plan-presentation";
+import { Button } from "./ui/button";
 
 export function UpdatePolicyControl({
   policy,
@@ -56,15 +57,16 @@ export function UpdatePolicyControl({
         Saving changes does not run an update. Review a game update separately to choose what to do
         now.
       </p>
-      <button
+      <Button
         data-focusable
+        variant="primary"
         disabled={busy || pending || draft === policy}
         onClick={() => {
           void apply();
         }}
       >
         {pending ? "Saving update settings…" : "Save update settings"}
-      </button>
+      </Button>
       {message && <p role="status">{message}</p>}
     </section>
   );
@@ -164,15 +166,16 @@ export function GameUpdateControl({
         ]}
       />
       {!plan && (
-        <button
+        <Button
           data-focusable
+          variant="primary"
           disabled={busy || pending || !perform}
           onClick={() => {
             void review();
           }}
         >
           {pending ? "Checking update…" : "Review game update"}
-        </button>
+        </Button>
       )}
       {plan && (
         <GameUpdateReview
@@ -231,9 +234,9 @@ function GameUpdateReview({
           This version of Portcove cannot display this update plan. Review it again, or update
           Portcove if this continues.
         </p>
-        <button ref={confirm} data-focusable disabled={disabled} onClick={review}>
+        <Button ref={confirm} data-focusable variant="outline" disabled={disabled} onClick={review}>
           Review game update again
-        </button>
+        </Button>
       </div>
     );
   return (
@@ -263,15 +266,9 @@ function GameUpdateReview({
             : "An unverified local copy blocks this update. Verify or repair it first."}
         </p>
       ) : (
-        <button
-          ref={confirm}
-          data-focusable
-          className="primary"
-          disabled={disabled}
-          onClick={apply}
-        >
+        <Button ref={confirm} data-focusable variant="primary" disabled={disabled} onClick={apply}>
           {pending ? "Updating…" : label}
-        </button>
+        </Button>
       )}
     </div>
   );
