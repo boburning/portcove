@@ -215,7 +215,8 @@ page offers typed deterministic empty-library, ready-game, missing-source,
 missing-tool, staged-update, interrupted-operation, refresh-failure and unavailable
 artwork/provider previews. It also includes stable actual-component reference
 compositions for a long-title Library, a narrow game-details workspace and a narrow
-reviewed installation plan. Each reference records its light/dark theme and
+reviewed installation plan. Each reference renders one active workspace destination;
+the installation review overlays the game-details destination. Each records its light/dark theme and
 wide/narrow viewport in the rendered markup. Narrow references load the same page
 inside a 36-rem iframe so the product's real viewport media queries run in a
 genuinely narrow browsing context. It uses actual components and

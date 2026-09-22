@@ -51,19 +51,26 @@ describe("static development scenarios", () => {
     expect(renderScenario("interrupted-operation")).toContain("Backup recovery required");
     expect(renderScenario("refresh-failure")).toContain("Showing the last loaded information");
     expect(renderScenario("unavailable-provider")).toContain("Artwork is unavailable");
-    expect(renderScenario("library-reference-long-title")).toContain(
-      "The Unreasonably Long Scenario Game Title",
-    );
+    const libraryReference = renderScenario("library-reference-long-title");
+    expect(libraryReference).toContain("The Unreasonably Long Scenario Game Title");
+    expect(libraryReference).toContain('aria-label="Library filters"');
+    expect(libraryReference).not.toContain('class="detail-panel"');
     const gameDetails = renderScenario("game-details-reference-narrow");
     expect(gameDetails).toContain("Play now");
+    expect(gameDetails).toContain('class="detail-panel"');
+    expect(gameDetails).not.toContain('aria-label="Library filters"');
+    expect(gameDetails).not.toContain('class="port-grid"');
     expect(gameDetails).toContain('data-slot="button"');
     expect(gameDetails).toContain('data-variant="primary"');
     expect(gameDetails).toContain('data-variant="ghost"');
     expect(gameDetails).toContain('data-variant="outline"');
-    expect(renderScenario("installation-review-reference")).toContain("INSTALL PLAN");
-    expect(renderScenario("installation-review-reference")).toContain("Install · 64.0 MiB");
-    expect(renderScenario("installation-review-reference")).toContain("Not installed");
-    expect(renderScenario("installation-review-reference")).toContain("2 ports");
+    const installationReview = renderScenario("installation-review-reference");
+    expect(installationReview).toContain("INSTALL PLAN");
+    expect(installationReview).toContain("Install · 64.0 MiB");
+    expect(installationReview).toContain("Not installed");
+    expect(installationReview).toContain('class="detail-panel"');
+    expect(installationReview).not.toContain('aria-label="Release channel filters"');
+    expect(installationReview).not.toContain('class="port-grid"');
   });
 });
 
