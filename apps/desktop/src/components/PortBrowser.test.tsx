@@ -73,3 +73,61 @@ describe("Library card overflow", () => {
     expect(onSelect).toHaveBeenCalledWith(port.id, `library:card-more:${port.id}`, "saves");
   });
 });
+
+describe("Library empty browsing context", () => {
+  let host: HTMLDivElement;
+  let root: ReturnType<typeof createRoot>;
+
+  beforeEach(() => {
+    vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+    host = document.createElement("div");
+    document.body.append(host);
+    root = createRoot(host);
+  });
+
+  afterEach(async () => {
+    await act(async () => root.unmount());
+    host.remove();
+    vi.unstubAllGlobals();
+  });
+
+  it("offers clear filters for an empty library with an active search or filter", async () => {
+    const clearFilters = vi.fn();
+    const render = async (filter: "all" | "ready", query: string) => {
+      await act(async () =>
+        root.render(
+          <PortBrowser
+            view="library"
+            ports={[]}
+            statuses={new Map()}
+            overview={{ installed: 0, ready: 0, needsSetup: 0, staged: 0 }}
+            filter={filter}
+            query={query}
+            setFilter={vi.fn()}
+            onSelect={vi.fn()}
+            clearFilters={clearFilters}
+            loading={false}
+          />,
+        ),
+      );
+    };
+
+    await render("all", "unmatched title");
+    expect(host.textContent).toContain("No installed ports match your search and filters");
+    expect(host.textContent).toContain("This library has no installed ports yet");
+    expect(host.textContent).not.toContain("Your installed ports are still in this library");
+    await act(async () =>
+      [...host.querySelectorAll("button")]
+        .find((button) => button.textContent?.includes("Clear search and filters"))!
+        .click(),
+    );
+    expect(clearFilters).toHaveBeenCalledOnce();
+
+    await render("ready", "");
+    expect(host.textContent).toContain("No installed ports match your search and filters");
+
+    await render("all", "   ");
+    expect(host.textContent).toContain("No installed ports yet");
+    expect(host.textContent).not.toContain("Clear search and filters");
+  });
+});

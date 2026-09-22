@@ -749,6 +749,7 @@ function CurrentView({
       overview={model.overview}
       recent={model.recent}
       filter={ui.filter}
+      query={ui.query}
       setFilter={ui.setFilter}
       onSelect={openPortDetails}
       onContinue={(portId) => {
