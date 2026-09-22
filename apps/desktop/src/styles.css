@@ -391,28 +391,6 @@ select {
   font: inherit;
 }
 
-button:not([data-slot="button"]) {
-  min-height: var(--control-height-md);
-  border: 1px solid var(--color-control-border);
-  border-radius: var(--radius-md);
-  color: inherit;
-  background: var(--color-bg-raised);
-  box-shadow: var(--shadow-control);
-  cursor: pointer;
-}
-
-button:not([data-slot="button"]):hover {
-  border-color: var(--color-interactive-border);
-  background: var(--color-bg-hover);
-}
-
-button:not([data-slot="button"]):active {
-  background: var(--color-bg-active);
-  box-shadow: var(--shadow-pressed);
-  transform: translateY(1px);
-}
-
-button:not([data-slot="button"]),
 a,
 input,
 select,
@@ -1779,11 +1757,6 @@ select {
 .path-entry input {
   min-width: 0;
 }
-.path-entry button:not([data-slot="button"]) {
-  flex: none;
-  padding: 0 13px;
-  border-radius: var(--radius-md);
-}
 .detail-section small {
   display: block;
   margin-top: 7px;
@@ -1999,10 +1972,6 @@ select {
   gap: 8px;
   margin-top: 24px;
 }
-.actions button:not([data-slot="button"]) {
-  padding: 11px 16px;
-  border-radius: var(--radius-md);
-}
 .actions .wide {
   flex: 1;
 }
@@ -2011,9 +1980,6 @@ select {
 }
 .detail-inline-actions {
   margin-top: 0;
-}
-.primary-actions button:not([data-slot="button"]) {
-  min-height: 46px;
 }
 .primary-actions .staged-action {
   border-color: var(--color-interactive-border);
@@ -2251,12 +2217,6 @@ select {
   flex: none;
   gap: 6px;
 }
-.backup-row button:not([data-slot="button"]) {
-  flex: none;
-  padding: 8px 11px;
-  border-radius: var(--radius-md);
-}
-
 .backup-inventory-notice {
   padding: 12px;
   border: 1px solid var(--color-warning-border, var(--color-border));
@@ -3323,8 +3283,15 @@ select {
   border-radius: var(--radius-lg);
   color: var(--color-text);
   background: var(--color-bg-elevated);
+  box-shadow: var(--shadow-control);
   text-align: left;
   cursor: pointer;
+  transition:
+    color var(--duration-normal) var(--ease-standard),
+    background-color var(--duration-normal) var(--ease-standard),
+    border-color var(--duration-normal) var(--ease-standard),
+    box-shadow var(--duration-normal) var(--ease-standard),
+    transform var(--duration-normal) var(--ease-standard);
 }
 
 .update-row:hover {
@@ -3701,16 +3668,25 @@ select {
 }
 .palette-command {
   width: 100%;
+  min-height: var(--control-height-md);
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: var(--space-3);
   padding: var(--space-2) var(--space-3);
-  border-color: var(--color-transparent);
+  border: 1px solid var(--color-transparent);
+  border-radius: var(--radius-md);
   color: var(--color-text-secondary);
   background: var(--color-transparent);
   box-shadow: none;
   text-align: left;
+  cursor: pointer;
+  transition:
+    color var(--duration-normal) var(--ease-standard),
+    background-color var(--duration-normal) var(--ease-standard),
+    border-color var(--duration-normal) var(--ease-standard),
+    box-shadow var(--duration-normal) var(--ease-standard),
+    transform var(--duration-normal) var(--ease-standard);
 }
 
 .palette-command.active,
@@ -3718,6 +3694,11 @@ select {
   border-color: var(--color-interactive);
   color: var(--color-text);
   background: var(--color-interactive-subtle);
+}
+.palette-command:active:not(:disabled) {
+  background: var(--color-bg-active);
+  box-shadow: var(--shadow-pressed);
+  transform: translateY(1px);
 }
 .palette-command-icon {
   width: 2rem;
@@ -3760,7 +3741,7 @@ select {
   margin-top: 0;
 }
 
-button:not([data-slot="button"]):disabled,
+.palette-command:disabled,
 input:disabled,
 select:disabled {
   border-color: var(--color-border-disabled);

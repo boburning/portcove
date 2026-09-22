@@ -6,6 +6,12 @@ const validSources = {
     @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
     @theme inline { --color-pc-signature: var(--color-accent-surface); }
     :root { --font-ui: "Geist Variable", system-ui; --color-accent-surface: #a92b25; }
+    .palette-command {}
+    .palette-command:active:not(:disabled) {}
+    .port-card {}
+    .port-card-selectable:active {}
+    .update-row {}
+    .update-row:active {}
   `,
   button: `
     const variants = {
@@ -31,6 +37,15 @@ describe("theme foundation source contract", () => {
     ["runtime marker", { css: validSources.css.replace('[data-theme="dark"]', ".dark") }],
     ["raw shared-control color", { dialog: `${validSources.dialog} bg-[#000]` }],
     ["dynamic utility fragment", { select: "const classes = `pe-${size}`;" }],
+    [
+      "legacy raw-button fallback",
+      { css: `${validSources.css} button:not([data-slot="button"]) { color: inherit; }` },
+    ],
+    ["missing specialized owner", { css: validSources.css.replace(".update-row {}", "") }],
+    [
+      "missing specialized pressed state",
+      { css: validSources.css.replace(".palette-command:active:not(:disabled) {}", "") },
+    ],
     ["broad transition", { button: `${validSources.button} transition-all` }],
     [
       "weak destructive foreground",

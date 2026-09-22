@@ -64,6 +64,23 @@ function checkCssSource(css, failures) {
     !/\[data-slot=(?:"button"|'button')\]\[data-variant=/.test(css),
     "Button variants must not depend on unlayered legacy CSS overrides",
   );
+  expectSource(
+    failures,
+    !css.includes('button:not([data-slot="button"])'),
+    "ordinary buttons must not retain the legacy raw-button styling fallback",
+  );
+  expectSource(
+    failures,
+    [
+      ".palette-command {",
+      ".palette-command:active:not(:disabled) {",
+      ".port-card {",
+      ".port-card-selectable:active {",
+      ".update-row {",
+      ".update-row:active {",
+    ].every((selector) => css.includes(selector)),
+    "intentional composite buttons must retain explicit product-owned styles",
+  );
   failures.push(...semanticReferenceFailures(parseTokens(css)));
 }
 
