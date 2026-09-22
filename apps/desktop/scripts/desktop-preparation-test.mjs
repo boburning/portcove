@@ -315,6 +315,7 @@ export async function preparationScenarios({
       detailsContrast >= 4.5,
       `Library View details contrast ${detailsContrast} is below AA`,
     );
+    await browser.executeScript((element) => element.scrollIntoView({ block: "center" }), card);
     const actionsImage = path.join(output, "library-distinct-card-actions.png");
     await writeFile(actionsImage, await browser.takeScreenshot(), {
       encoding: "base64",
@@ -325,6 +326,9 @@ export async function preparationScenarios({
     const more = await card.findElement(By.css('button[aria-label^="More actions for "]'));
     await more.click();
     await browser.wait(until.elementLocated(By.css('[role="menu"]')), 5000);
+    const menuImage = path.join(output, "library-overflow-menu.png");
+    await writeFile(menuImage, await browser.takeScreenshot(), { encoding: "base64", flag: "wx" });
+    artifacts.push(menuImage);
     await browser.actions().sendKeys(Key.ESCAPE).perform();
     await browser.wait(
       () => browser.executeScript((element) => document.activeElement === element, more),
