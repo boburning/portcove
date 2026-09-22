@@ -1,11 +1,11 @@
 /** One control inventory for keyboard, controller, and top-surface navigation. */
 const selector =
-  "button, a[href], input, select, textarea, summary, [tabindex], [contenteditable=true], [role=option]";
+  "button, a[href], input, select, textarea, summary, [tabindex], [contenteditable=true], [role=option], [role=menuitem]";
 const regionFocus = new WeakMap<HTMLElement, HTMLElement>();
 
 function visibleControl(item: HTMLElement) {
   return (
-    (item.tabIndex >= 0 || item.matches("[role=option]")) &&
+    (item.tabIndex >= 0 || item.matches("[role=option], [role=menuitem]")) &&
     !item.matches(":disabled, [aria-disabled=true]") &&
     !item.closest("[inert], [hidden], [aria-hidden=true]") &&
     item.getClientRects().length > 0 &&
