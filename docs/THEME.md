@@ -31,26 +31,44 @@ official checked-in shadcn/ui controls using Base UI, Tailwind, semantic CSS
 variables, and a custom Portcove theme. The implementation explicitly selects
 Base UI and the compact Nova style instead of relying on CLI defaults, retains
 React/Vite/Tauri and Lucide, and records the actual aliases, paths, versions, and
-configuration when the foundation lands. The current stylesheet remains shipped
-behavior until that migration is reviewed; this contract does not claim Tailwind
-or shadcn is already installed. Nova is a compact starting scaffold rather than
-the finished Portcove look; reference compositions must deliberately establish
+configuration. That foundation is installed and several journeys are migrating;
+legacy stylesheet rules and controls remain shipped behavior only where their
+owners have not yet converted them. Nova is a compact starting scaffold rather
+than the finished Portcove look; reference compositions deliberately establish
 Portcove typography, spacing, radii, depth, surface, and artwork decisions.
 
-Semantic colors, dark/light mappings, typography foundations, spacing, radii,
-controls, icons, focus, resets, shared motion, and cross-component layout have
-one authority. Tailwind utilities and approved component variants are the normal
+CSS custom properties in `styles.css` are the canonical runtime authority for
+semantic colors, dark/light mappings, typography foundations, spacing, radii,
+controls, icons, focus, resets, shared motion, and cross-component layout.
+Tailwind exposes approved aliases and variants rather than maintaining a second
+theme. Tailwind utilities and approved component variants are the normal
 feature-facing styling mechanism. Limited custom CSS remains valid for specialized
 layout, artwork, interaction, and native boundaries where it materially improves
 clarity. Do not translate official components into CSS Modules, keep competing
 global/module/utility versions of the same rule, or add Sass, CSS-in-JS, another
 framework, or a custom component registry.
 
+Runtime theme selection uses the root `data-theme` contract. Tailwind dark
+variants, checked-in controls, and portaled content must respond to that same
+marker rather than an unrelated `.dark` class. Migrated controls own their
+ordinary styling directly; an unlayered legacy override must not be the hidden
+reason a checked-in component looks correct. Convert one owner, verify it, remove
+the competing rule, and document only real temporary exceptions with a removal
+condition.
+
 The foundation starts with the smallest useful semantic vocabulary: surfaces,
 text, borders, selection, focus, labeled statuses, typography, spacing, radii,
 and motion. Add a role only when a real screen demonstrates that the existing
 vocabulary cannot express it without bypassing semantics. Do not mechanically
 translate every legacy value into a permanent token.
+
+Geist is the bundled, offline intended default interface typeface; #1040 owns
+reconciling the current `font-ui`/body stack with that decision. Technical content
+uses an intentional monospace stack, and script fallbacks are coordinated with
+the internationalization owner. Do not maintain a parallel TypeScript or JSON
+token authority. A DTCG-compatible interchange format is conditional on a
+demonstrated second consumer and review of the then-current community
+specification; it is not a present requirement or a W3C Recommendation.
 
 The current `check-theme.mjs` reads `styles.css`. The migration must extend or
 replace that gate so applicable Tailwind CSS, checked-in control source, and JSX
@@ -70,6 +88,13 @@ a brittle parser.
 | Signature   | Nintendo-like red                               | Portcove mark, page punctuation, primary play/install/apply actions           |
 | Highlight   | golden yellow                                   | focus rings, update badges, counters, setup/warning state                     |
 | Success     | emerald green                                   | connected, verified, installed/current, completed, healthy state              |
+
+Ordinary buttons are neutral. Signature red is explicit primary emphasis for
+Play, Install, or Apply. Destructive actions use separate semantics, wording,
+placement, and confirmation even when they share a red palette family. Focus is
+gold and remains distinct from selection and destructive intent in combined
+states. Release metadata is quieter than operational readiness; generic controls
+never infer qualification or eligibility from a label or color.
 
 Release channels and other product states use these same semantic families
 without collapsing distinct facts:
@@ -112,6 +137,7 @@ Red is intentionally not the general interaction color. Yellow is intentionally 
 - Success, warning, danger, and loading each have explicit foreground, surface, subtle, and border roles where needed.
 - Disabled controls use neutral tokens and retain their shape without implying availability.
 - Reduced-motion preference removes interactive and progress transitions.
+- Forced-colors behavior preserves useful system outlines, borders, and color adaptation; focus cannot depend on box shadow alone.
 
 Depth is limited to small highlights, shadows, inset pressed states, and simple geometric card art. Gradients, neon glow, copyrighted assets, and generic pixel-retro styling are deliberately excluded.
 

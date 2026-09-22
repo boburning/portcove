@@ -352,6 +352,25 @@ provider authority; #29/#44/#47 retain their controller, minimum-width, physical
 and intrinsic human qualification. No broad owner closure blocks the finite
 visual outcome.
 
+[#1040](https://github.com/boburning/portcove/issues/1040) is the finite Required
+Public beta foundation-consistency child under #917. It reconciles runtime theme
+activation, semantic/component ownership, checked-in control geometry and focus,
+dialog defaults, Geist typography, direction-ready composition, cascade cleanup,
+and styling-source enforcement before #917's final cutover. That independently
+verifiable foundation blocks completion of #917 but does not interrupt the active
+Library/Catalog migration or make every later polish suggestion a beta gate. #206
+owns browsing continuity, stable command-palette selection and IME safety,
+reference-composition information hierarchy, and the deliberate separation of
+channel, support, readiness, and qualification presentation. Truthful feedback,
+visual stability, recovery, artwork resilience, optical detail, and bounded motion
+are acceptance within their owning journeys, not a perpetual polish program.
+
+Token interchange remains conditional on a demonstrated second consumer. Full
+translation delivery stays with #203 and its localization children; optional
+browser visual expansion stays with the testing-modernization owner. These
+capabilities may reuse the design contract without becoming speculative
+dependencies of the current migration.
+
 [#924](https://github.com/boburning/portcove/issues/924) retains the existing
 development-only scenario renderer, feature/shared boundaries, and read-state
 ownership. Its accepted scenario, reference-stability, workspace-boundary,
