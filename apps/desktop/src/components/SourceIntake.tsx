@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { FileSearch } from "lucide-react";
 import { desktopApi } from "../api";
-import { useDialogFocus } from "../dialog";
 import { pickSourcePath, type SourcePickerPurpose } from "../file-picker";
 import type {
   HostToolStatus,
@@ -19,6 +18,8 @@ import {
 } from "./SourceDiscovery";
 import { HostToolRow, type HostToolActions } from "./Chrome";
 import { Icon, NavigationHints } from "./ui";
+import { Button } from "./ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "./ui/dialog";
 
 export interface SourceIntakeRequest {
   portId: string;
@@ -97,7 +98,6 @@ function SourceIntakeSession({
   const dismiss = () => {
     if (!busy) close();
   };
-  const dialog = useDialogFocus(dismiss);
 
   const loadInspection = useCallback(
     async (paths: string[], current: number) => {
@@ -231,24 +231,30 @@ function SourceIntakeSession({
       : undefined;
 
   return (
-    <div className="scrim source-intake-scrim">
-      <section
-        ref={dialog}
-        className="modal wide-modal source-intake"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="source-intake-title"
+    <Dialog
+      open
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen) dismiss();
+      }}
+    >
+      <DialogContent
+        showCloseButton={false}
+        className="source-intake max-h-[calc(100dvh-var(--space-8))] w-[min(760px,90vw)] max-w-none gap-0 overflow-y-auto overscroll-contain p-8 [scroll-padding-block:var(--space-4)] sm:max-w-none"
+        aria-describedby="source-intake-description"
       >
         <p className="eyebrow">{copy.eyebrow}</p>
-        <h2 id="source-intake-title">{copy.title(request.portName)}</h2>
-        <p className="modal-description">{copy.description}</p>
+        <DialogTitle id="source-intake-title" className="mb-2 text-xl">
+          {copy.title(request.portName)}
+        </DialogTitle>
+        <DialogDescription id="source-intake-description" className="mb-4 leading-relaxed">
+          {copy.description}
+        </DialogDescription>
         <NavigationHints />
         <div className="source-intake-picker">
-          <button
+          <Button
             data-focusable
             data-autofocus
             type="button"
-            className="button-with-icon"
             disabled={Boolean(busy)}
             onClick={() => {
               void choose();
@@ -256,7 +262,7 @@ function SourceIntakeSession({
           >
             <Icon glyph={FileSearch} />
             {copy.choose}
-          </button>
+          </Button>
           <small>{request.profile.label}</small>
         </div>
         {busy && <p role="status">{busy}</p>}
@@ -298,35 +304,35 @@ function SourceIntakeSession({
               <div className="source-intake-actions" aria-label={copy.addLabel}>
                 <p>{copy.addExplanation}</p>
                 <div className="actions">
-                  <button
+                  <Button
                     data-focusable
-                    className="primary"
                     disabled={Boolean(busy)}
                     onClick={() => {
                       void review("copy");
                     }}
                   >
                     Copy to Source Inbox
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     data-focusable
+                    variant="outline"
                     disabled={Boolean(busy)}
                     onClick={() => {
                       void review("use_current_location");
                     }}
                   >
                     Use current location
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     data-focusable
-                    className="danger"
+                    variant="destructive"
                     disabled={Boolean(busy)}
                     onClick={() => {
                       void review("move");
                     }}
                   >
                     Review destructive move
-                  </button>
+                  </Button>
                 </div>
               </div>
             )}
@@ -340,12 +346,12 @@ function SourceIntakeSession({
         />
         {notice && <p role="status">{notice}</p>}
         {error && <p role="alert">{error}</p>}
-        <div className="actions">
-          <button data-focusable disabled={Boolean(busy)} onClick={dismiss}>
+        <DialogFooter className="mt-4">
+          <Button data-focusable variant="outline" disabled={Boolean(busy)} onClick={dismiss}>
             Close
-          </button>
-        </div>
-      </section>
-    </div>
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

@@ -1,6 +1,5 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { desktopApi } from "../api";
-import { useDialogFocus } from "../dialog";
 import { pickInstallFolder } from "../file-picker";
 import type {
   SourceDiscoveryLimits,
@@ -16,6 +15,8 @@ import { errorText, formatBytes, formatCountMessage, isCancellation } from "../v
 import { OperationCancellation } from "./OperationCancellation";
 import { ChoiceSelect } from "./ChoiceSelect";
 import { NavigationHints } from "./ui";
+import { Button } from "./ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "./ui/dialog";
 
 const inboxLimits: SourceDiscoveryLimits = {
   max_entries: 10_000,
@@ -94,14 +95,14 @@ export function SourceDiscoveryButton({
   const [open, setOpen] = useState(false);
   return (
     <>
-      <button
+      <Button
         data-focusable
-        className="small-control"
+        variant="outline"
         disabled={disabled || profiles.length === 0}
         onClick={() => setOpen(true)}
       >
         Choose game files
-      </button>
+      </Button>
       {open && (
         <SourceDiscoveryDialog profiles={profiles} onAdded={onAdded} close={() => setOpen(false)} />
       )}
@@ -286,33 +287,36 @@ function DiscoveryResults({ workflow }: { workflow: Workflow }) {
             <span>{formatBytes(candidate.size)}</span>
           </div>
           <div className="actions">
-            <button
+            <Button
               data-focusable
+              variant="outline"
               disabled={Boolean(busy) || registered === candidate.path}
               onClick={() => {
                 void reviewImport(candidate, "copy");
               }}
             >
               Review copy
-            </button>
-            <button
+            </Button>
+            <Button
               data-focusable
+              variant="outline"
               disabled={Boolean(busy) || registered === candidate.path}
               onClick={() => {
                 void reviewImport(candidate, "move");
               }}
             >
               Review move
-            </button>
-            <button
+            </Button>
+            <Button
               data-focusable
+              variant="outline"
               disabled={Boolean(busy) || registered === candidate.path}
               onClick={() => {
                 void reviewImport(candidate, "use_current_location");
               }}
             >
               Review current location
-            </button>
+            </Button>
           </div>
         </div>
       ))}
@@ -358,20 +362,20 @@ export function SourceImportReview({
         <p>This replaces the current registration after the selected source is rechecked.</p>
       )}
       <div className="actions">
-        <button data-focusable disabled={busy} onClick={onCancel}>
+        <Button data-focusable variant="outline" disabled={busy} onClick={onCancel}>
           Cancel review
-        </button>
+        </Button>
         {presentation.known && (
-          <button
+          <Button
             data-focusable
-            className="primary"
+            variant={plan.mode === "move" ? "destructive" : "default"}
             disabled={busy}
             onClick={() => {
               void onApply();
             }}
           >
             {presentation.label}
-          </button>
+          </Button>
         )}
       </div>
     </section>
@@ -388,12 +392,14 @@ function SourceDiscoveryDialog({
   close: () => void;
 }) {
   const workflow = useSourceDiscoveryWorkflow(onAdded);
+  const [profileSelectOpen, setProfileSelectOpen] = useState(false);
+  const profileSelectOpenRef = useRef(false);
+  const profileSelectDismissal = useRef(false);
   const { root, profile, report, inbox, plan, busy, error, registered, operationId, notice } =
     workflow;
   const dismiss = () => {
     if (!busy) close();
   };
-  const dialog = useDialogFocus(dismiss);
   const choices = [
     { value: "", label: "Choose the game files you need" },
     ...[...profiles]
@@ -401,71 +407,118 @@ function SourceDiscoveryDialog({
       .map((item) => ({ value: item.id, label: item.label })),
   ];
   return (
-    <div className="scrim">
-      <section
-        className="modal wide-modal"
-        ref={dialog}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="source-discovery-title"
+    <Dialog
+      open
+      onOpenChange={(nextOpen, eventDetails) => {
+        const nestedEscape =
+          eventDetails.reason === "escape-key" &&
+          (profileSelectOpenRef.current || profileSelectDismissal.current);
+        if (!nextOpen && nestedEscape) {
+          profileSelectOpenRef.current = false;
+          profileSelectDismissal.current = false;
+          setProfileSelectOpen(false);
+          eventDetails.cancel();
+          requestAnimationFrame(() =>
+            document.querySelector<HTMLElement>("#source-profile-select")?.focus(),
+          );
+          return;
+        }
+        profileSelectOpenRef.current = false;
+        profileSelectDismissal.current = false;
+        if (!nextOpen) dismiss();
+      }}
+    >
+      <DialogContent
+        showCloseButton={false}
+        className="max-h-[calc(100dvh-var(--space-8))] w-[min(760px,90vw)] max-w-none gap-0 overflow-y-auto overscroll-contain p-8 [scroll-padding-block:var(--space-4)] sm:max-w-none"
+        aria-describedby="source-discovery-description"
       >
         <p className="eyebrow">LOCAL SOURCES</p>
-        <h2 id="source-discovery-title">Choose game files</h2>
-        <p className="modal-description">
+        <DialogTitle id="source-discovery-title" className="mb-2 text-xl">
+          Choose game files
+        </DialogTitle>
+        <DialogDescription id="source-discovery-description" className="mb-2 leading-relaxed">
           Portcove searches only the folders you choose, checks possible matches, and lets you add
           an exact match. Nothing is uploaded or moved.
-        </p>
-        <p className="modal-description">
+        </DialogDescription>
+        <p className="mb-4 text-sm leading-relaxed text-pc-muted-foreground">
           After a match is found, review whether to copy it to Source Inbox, move it there, or use
           its current location.
         </p>
         <NavigationHints />
         <ChoiceSelect
+          triggerId="source-profile-select"
           label="Required game files"
           value={profile}
           options={choices}
           disabled={Boolean(busy)}
           onChange={workflow.selectProfile}
+          open={profileSelectOpen}
+          onOpenChange={(nextOpen, reason) => {
+            if (nextOpen) profileSelectOpenRef.current = true;
+            if (!nextOpen && reason === "escape-key") profileSelectDismissal.current = true;
+            setProfileSelectOpen(nextOpen);
+          }}
+          onOpenChangeComplete={(nextOpen) => {
+            if (!nextOpen) {
+              // Base UI may finish the Select dismissal before the parent Dialog
+              // observes the same native Escape event. Keep the ownership marker
+              // through that event turn so the Dialog can cancel its dismissal.
+              setTimeout(() => {
+                profileSelectOpenRef.current = false;
+                profileSelectDismissal.current = false;
+              }, 0);
+            }
+          }}
         />
         <div className="actions source-inbox-actions">
-          <button
+          <Button
             data-focusable
+            variant="outline"
             disabled={Boolean(busy) || !profile}
             onClick={() => {
               void workflow.openInbox();
             }}
           >
             Open Source Inbox
-          </button>
-          <button
+          </Button>
+          <Button
             data-focusable
+            variant="outline"
             disabled={Boolean(busy) || !profile}
             onClick={() => {
               void workflow.scanInbox();
             }}
           >
             Scan Source Inbox
-          </button>
+          </Button>
         </div>
-        <label htmlFor="source-search-root">Search folder</label>
+        <label
+          className="mb-2 block text-xs font-bold text-pc-muted-foreground"
+          htmlFor="source-search-root"
+        >
+          Search folder
+        </label>
         <div className="path-entry">
           <input
             data-focusable
             id="source-search-root"
+            className="w-full rounded-[var(--radius-md)] border border-pc-input bg-[var(--color-bg-inset)] p-[11px] text-pc-foreground shadow-[inset_0_1px_2px_var(--color-bg)] outline-none focus-visible:border-pc-ring focus-visible:ring-3 focus-visible:ring-pc-ring/50"
             value={root}
             disabled={Boolean(busy)}
             onChange={(event) => workflow.updateRoot(event.target.value)}
             placeholder="Folder containing your original game files"
           />
-          <button
+          <Button
             data-focusable
+            variant="outline"
             disabled={Boolean(busy)}
             onClick={() => {
               void workflow.chooseRoot();
             }}
           >
             Choose folder
-          </button>
+          </Button>
         </div>
         {busy && <p role="status">{busy}</p>}
         {notice && <p role="status">{notice}</p>}
@@ -517,22 +570,21 @@ function SourceDiscoveryDialog({
           </p>
         )}
         {error && <p role="alert">{error}</p>}
-        <div className="actions">
-          <button data-focusable disabled={Boolean(busy)} onClick={dismiss}>
+        <DialogFooter className="mt-4">
+          <Button data-focusable variant="outline" disabled={Boolean(busy)} onClick={dismiss}>
             Close
-          </button>
-          <button
+          </Button>
+          <Button
             data-focusable
-            className="primary"
             disabled={Boolean(busy) || !profile || !root.trim()}
             onClick={() => {
               void workflow.search();
             }}
           >
             Search this folder
-          </button>
-        </div>
-      </section>
-    </div>
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

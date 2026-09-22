@@ -85,7 +85,11 @@ it.each(["copy", "move", "use_current_location"] as const)(
         ),
       );
       expect(host.textContent).toContain(sourceImportModePresentation(mode).explanation);
-      await act(async () => host.querySelector<HTMLButtonElement>("button.primary")!.click());
+      const action = [...host.querySelectorAll<HTMLButtonElement>("button")].find(
+        (button) => button.textContent === sourceImportModePresentation(mode).label,
+      );
+      expect(action?.dataset.variant).toBe(mode === "move" ? "destructive" : "default");
+      await act(async () => action!.click());
       expect(apply).toHaveBeenCalledOnce();
     } finally {
       await act(async () => root.unmount());

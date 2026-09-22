@@ -1,0 +1,179 @@
+// Actual-Tauri proof for the paired one-off intake and explicit-folder source journeys.
+import assert from "node:assert/strict";
+import { mkdir, writeFile } from "node:fs/promises";
+import path from "node:path";
+import { By, Key, until } from "selenium-webdriver";
+import {
+  assertCompactReview,
+  assertPrimaryReviewAction,
+  captureAccessibilityReport,
+  reviewControls,
+} from "./desktop-review-controls.mjs";
+
+export async function sourceDialogScenario({
+  browser,
+  scenario,
+  output,
+  artifacts,
+  command,
+  open,
+}) {
+  await scenario("native-source-intake-and-discovery-dialogs", async () => {
+    const port = command(["catalog", "show", "opengoal-jak1"]);
+    const profileLabel = port.presentation.source_requirements[0].label;
+    const { button, click } = reviewControls(browser);
+
+    await open(port, false);
+    await click(By.css("summary.advanced-summary"));
+    const intakeTrigger = await browser.findElement(button("Check original game files"));
+    await click(button("Check original game files"));
+    const intakeDialog = By.css('[aria-labelledby="source-intake-title"]');
+    await browser.wait(until.elementLocated(intakeDialog), 15_000);
+    const intakeStyles = await assertPrimaryReviewAction(
+      browser,
+      await browser.findElement(button("Choose game files to check")),
+      await browser.findElement(button("Close")),
+    );
+    await assertCompactReview(browser, '[aria-labelledby="source-intake-title"]');
+    const intakeAccessibility = path.join(output, "source-intake-accessibility.json");
+    await captureAccessibilityReport(browser, intakeAccessibility, artifacts);
+    const intakeScreenshot = path.join(output, "native-source-intake-dialog.png");
+    await writeFile(intakeScreenshot, await browser.takeScreenshot(), {
+      encoding: "base64",
+      flag: "wx",
+    });
+    artifacts.push(intakeScreenshot);
+    await browser.actions().sendKeys(Key.ESCAPE).perform();
+    await browser.wait(async () => (await browser.findElements(intakeDialog)).length === 0, 5_000);
+    await browser.wait(
+      () => browser.executeScript((element) => document.activeElement === element, intakeTrigger),
+      5_000,
+      "Source intake trigger did not regain focus after Escape",
+    );
+
+    await click(By.xpath('//nav//button[contains(., "Settings")]'));
+    const discoveryTrigger = await browser.wait(
+      until.elementLocated(button("Choose game files")),
+      15_000,
+    );
+    await click(button("Choose game files"));
+    const discoveryDialog = By.css('[aria-labelledby="source-discovery-title"]');
+    await browser.wait(until.elementLocated(discoveryDialog), 15_000);
+    const searchField = await browser.findElement(By.id("source-search-root"));
+    const searchLabel = await browser.findElement(By.css('label[for="source-search-root"]'));
+    const fieldPresentation = await browser.executeScript(
+      `const field = arguments[0];
+       const label = arguments[1];
+       const dialog = arguments[2];
+       const fieldStyle = getComputedStyle(field);
+       const labelStyle = getComputedStyle(label);
+       const dialogStyle = getComputedStyle(dialog);
+       return {
+         width: fieldStyle.width,
+         paddingLeft: fieldStyle.paddingLeft,
+         borderStyle: fieldStyle.borderStyle,
+         borderWidth: fieldStyle.borderWidth,
+         backgroundColor: fieldStyle.backgroundColor,
+         dialogBackgroundColor: dialogStyle.backgroundColor,
+         color: fieldStyle.color,
+         labelColor: labelStyle.color,
+         labelFontWeight: labelStyle.fontWeight,
+       };`,
+      searchField,
+      searchLabel,
+      await browser.findElement(discoveryDialog),
+    );
+    assert.ok(parseFloat(fieldPresentation.width) >= 200, JSON.stringify(fieldPresentation));
+    assert.ok(parseFloat(fieldPresentation.paddingLeft) >= 10, JSON.stringify(fieldPresentation));
+    assert.equal(fieldPresentation.borderStyle, "solid");
+    assert.ok(parseFloat(fieldPresentation.borderWidth) >= 1, JSON.stringify(fieldPresentation));
+    assert.notEqual(fieldPresentation.backgroundColor, "rgba(0, 0, 0, 0)");
+    assert.notEqual(fieldPresentation.backgroundColor, fieldPresentation.dialogBackgroundColor);
+    assert.ok(Number(fieldPresentation.labelFontWeight) >= 700, JSON.stringify(fieldPresentation));
+    const selectTrigger = await browser.findElement(
+      By.xpath('//button[contains(., "Required game files")]'),
+    );
+    await selectTrigger.sendKeys(Key.ENTER);
+    const openSelect = By.css('[data-slot="select-content"][data-open]');
+    await browser.wait(until.elementLocated(openSelect), 5_000);
+    await selectTrigger.sendKeys(Key.ESCAPE);
+    await browser.wait(
+      async () => (await browser.findElements(openSelect)).length === 0,
+      5_000,
+      "First Escape did not close only the nested source-profile select",
+    );
+    assert.equal((await browser.findElements(discoveryDialog)).length, 1);
+    await browser.wait(
+      () => browser.executeScript((element) => document.activeElement === element, selectTrigger),
+      5_000,
+      "Source profile trigger did not regain focus after nested Escape",
+    );
+    await selectTrigger.sendKeys(Key.ENTER);
+    await click(
+      By.xpath(`//*[@role="option" and normalize-space(.)=${JSON.stringify(profileLabel)}]`),
+    );
+
+    const searchRoot = path.join(output, "owned-source-search");
+    await mkdir(searchRoot, { recursive: true });
+    await writeFile(path.join(searchRoot, "not-a-match.iso"), "owned unmatched source fixture", {
+      flag: "wx",
+    });
+    await browser.findElement(By.id("source-search-root")).sendKeys(searchRoot);
+    const searchStyles = await assertPrimaryReviewAction(
+      browser,
+      await browser.findElement(button("Search this folder")),
+      await browser.findElement(button("Close")),
+    );
+    await click(button("Search this folder"));
+    await browser.wait(
+      until.elementLocated(By.xpath('//p[contains(., "Found no exact matches.")]')),
+      15_000,
+    );
+    await assertCompactReview(browser, '[aria-labelledby="source-discovery-title"]');
+    const discoveryAccessibility = path.join(output, "source-discovery-accessibility.json");
+    await captureAccessibilityReport(browser, discoveryAccessibility, artifacts);
+    const discoveryScreenshot = path.join(output, "native-source-discovery-dialog.png");
+    await writeFile(discoveryScreenshot, await browser.takeScreenshot(), {
+      encoding: "base64",
+      flag: "wx",
+    });
+    artifacts.push(discoveryScreenshot);
+    await browser.actions().sendKeys(Key.ESCAPE).perform();
+    await browser.wait(
+      async () => (await browser.findElements(discoveryDialog)).length === 0,
+      5_000,
+    );
+    await browser.wait(
+      () =>
+        browser.executeScript((element) => document.activeElement === element, discoveryTrigger),
+      5_000,
+      "Source discovery trigger did not regain focus after Escape",
+    );
+
+    const report = path.join(output, "source-dialog-result.json");
+    await writeFile(
+      report,
+      `${JSON.stringify(
+        {
+          port_id: port.id,
+          profile_id: port.source_profile,
+          profile_label: profileLabel,
+          search_root: searchRoot,
+          result: "no exact matches",
+          nested_select_escape_preserved_dialog: true,
+          intake_escape_restored_focus: true,
+          discovery_escape_restored_focus: true,
+          intake_action_styles: intakeStyles,
+          search_action_styles: searchStyles,
+          field_presentation: fieldPresentation,
+          evidence:
+            "owned unmatched file through the actual Tauri source-discovery adapter; no source registration, mutation, gameplay, or physical-storage claim",
+        },
+        null,
+        2,
+      )}\n`,
+      { flag: "wx" },
+    );
+    artifacts.push(report);
+  });
+}

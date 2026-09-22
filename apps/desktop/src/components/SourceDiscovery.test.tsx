@@ -192,8 +192,7 @@ it("opens and scans the Inbox, then applies the exact reviewed import", async ()
   const root = createRoot(host);
   const control = (label: string) => {
     const result = [
-      ...host.querySelectorAll<HTMLButtonElement>("button"),
-      ...document.querySelectorAll<HTMLButtonElement>('[role="option"]'),
+      ...document.body.querySelectorAll<HTMLButtonElement>("button, [role=option]"),
     ].find((button) => button.textContent?.includes(label));
     if (!result) throw new Error(`Missing ${label}`);
     return result;
@@ -208,9 +207,28 @@ it("opens and scans the Inbox, then applies the exact reviewed import", async ()
       ),
     );
     await click("Choose game files");
-    expect(host.textContent).toContain(
+    const searchField = document.body.querySelector<HTMLInputElement>("#source-search-root");
+    const searchLabel = document.body.querySelector<HTMLLabelElement>(
+      'label[for="source-search-root"]',
+    );
+    expect(searchField?.className).toContain("border-pc-input");
+    expect(searchField?.className).toContain("bg-[var(--color-bg-inset)]");
+    expect(searchLabel?.className).toContain("text-pc-muted-foreground");
+    expect(document.body.textContent).toContain(
       "Portcove searches only the folders you choose, checks possible matches, and lets you add an exact match. Nothing is uploaded or moved.",
     );
+    await click("Required game files");
+    const openPopup = document.body.querySelector<HTMLElement>(
+      '[data-slot="select-content"][data-open]',
+    );
+    expect(openPopup).not.toBeNull();
+    await act(async () => {
+      openPopup?.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    });
+    expect(
+      document.body.querySelector('[aria-labelledby="source-discovery-title"]'),
+    ).not.toBeNull();
+    expect(document.activeElement).toBe(document.body.querySelector("#source-profile-select"));
     await click("Choose folder");
     expect(control("Search this folder").disabled).toBe(true);
     await click("Choose folder");
@@ -224,38 +242,38 @@ it("opens and scans the Inbox, then applies the exact reviewed import", async ()
       expect.objectContaining({ max_entries: 10_000, max_candidates: 64 }),
       expect.any(Function),
     );
-    expect(host.textContent).toContain("Inbox state: incomplete");
-    expect(host.textContent).toContain(
+    expect(document.body.textContent).toContain("Inbox state: incomplete");
+    expect(document.body.textContent).toContain(
       "Search limits prevented every possible match from being checked.",
     );
-    expect(host.textContent).toContain("Possible matches checked");
-    expect(host.textContent).toContain("Individual file size");
-    expect(host.textContent).not.toContain("Exact-match count");
-    expect(host.textContent).not.toContain("not-a-match.iso");
+    expect(document.body.textContent).toContain("Possible matches checked");
+    expect(document.body.textContent).toContain("Individual file size");
+    expect(document.body.textContent).not.toContain("Exact-match count");
+    expect(document.body.textContent).not.toContain("not-a-match.iso");
     await click("Search this folder");
     expect(search).toHaveBeenCalledWith(
       { roots: ["D:/Selected"], profile_ids: [profile.id] },
       expect.any(Function),
     );
-    expect(host.textContent).toContain(
+    expect(document.body.textContent).toContain(
       "Found 1 exact match. Checked 3 files and folders (64 B of verification data).",
     );
-    expect(host.textContent).toContain(
+    expect(document.body.textContent).toContain(
       "Search limits prevented every possible match from being checked.",
     );
-    expect(host.textContent).toContain("File and folder count");
-    expect(host.textContent).toContain("Folder depth");
-    expect(host.textContent).toContain("Individual file size");
-    expect(host.textContent).toContain("Verification data");
-    expect(host.textContent).toContain("Exact-match count");
-    expect(host.textContent).not.toContain("Possible matches checked");
-    expect(host.textContent).not.toContain("file_size");
-    expect(host.textContent).not.toContain("hash_bytes");
+    expect(document.body.textContent).toContain("File and folder count");
+    expect(document.body.textContent).toContain("Folder depth");
+    expect(document.body.textContent).toContain("Individual file size");
+    expect(document.body.textContent).toContain("Verification data");
+    expect(document.body.textContent).toContain("Exact-match count");
+    expect(document.body.textContent).not.toContain("Possible matches checked");
+    expect(document.body.textContent).not.toContain("file_size");
+    expect(document.body.textContent).not.toContain("hash_bytes");
     await click("Review copy");
     expect(review).toHaveBeenCalledWith(profile.id, candidate.path, "copy");
-    expect(host.textContent).toContain("Source changed after discovery");
+    expect(document.body.textContent).toContain("Source changed after discovery");
     await click("Review copy");
-    expect(host.textContent).toContain(plan.destination);
+    expect(document.body.textContent).toContain(plan.destination);
     expect(plan.admission_mode).toBe("exact_identity");
     await click("Copy to Inbox");
     expect(importSource).toHaveBeenCalledWith(
@@ -266,7 +284,7 @@ it("opens and scans the Inbox, then applies the exact reviewed import", async ()
       expect.any(Function),
     );
     expect(refresh).toHaveBeenCalledOnce();
-    expect(host.textContent).toContain("Source registered");
+    expect(document.body.textContent).toContain("Source registered");
   } finally {
     await act(async () => root.unmount());
     host.remove();
@@ -313,8 +331,7 @@ it("keeps cancellation tied to the emitted durable operation", async () => {
   const root = createRoot(host);
   const control = (label: string) => {
     const result = [
-      ...host.querySelectorAll<HTMLButtonElement>("button"),
-      ...document.querySelectorAll<HTMLButtonElement>('[role="option"]'),
+      ...document.body.querySelectorAll<HTMLButtonElement>("button, [role=option]"),
     ].find((button) => button.textContent?.includes(label));
     if (!result) throw new Error(`Missing ${label}`);
     return result;
@@ -340,8 +357,10 @@ it("keeps cancellation tied to the emitted durable operation", async () => {
         message: "Operation cancelled before publication",
       }),
     );
-    expect(host.textContent).toContain("Operation cancelled. No unverified source was registered.");
-    expect(host.querySelector('[role="alert"]')).toBeNull();
+    expect(document.body.textContent).toContain(
+      "Operation cancelled. No unverified source was registered.",
+    );
+    expect(document.body.querySelector('[role="alert"]')).toBeNull();
   } finally {
     await act(async () => root.unmount());
     host.remove();
