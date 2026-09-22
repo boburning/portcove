@@ -177,3 +177,47 @@ and review belong to [#518](https://github.com/boburning/portcove/issues/518);
 current scheduling remains solely in the live Project. Alpha 2's package handoff
 and existing Required commitments are preserved. These observations add no
 product implementation, catalog admission or qualification evidence.
+
+## Quiver evidence refresh — 2026-09-21
+
+This refresh is a bounded official-source, release, and catalog review. No
+Quiver build was installed or executed, and no runtime, gameplay, save-load,
+controller, platform-qualification, or comparative-usability result is claimed.
+
+- [Quiver Launcher v3.4.5](https://github.com/tgeorgiadis/quiver-launcher/releases/tag/v3.4.5)
+  was published on September 21 and resolves to
+  `425506283e453fcea2e1c8176d6aa965e4b16177`. Its release notes provide Windows
+  portable, Linux x64/ARM64 AppImage, and Android packages while describing
+  macOS signing as work in progress. They also document local-library loading
+  without waiting for network refresh, saved version information, shared
+  platform indexing, and prioritized foreground release actions.
+- The current [launcher source at that tag](https://github.com/tgeorgiadis/quiver-launcher/tree/425506283e453fcea2e1c8176d6aa965e4b16177)
+  documents catalog review/subscription, manual entries, GitHub/GitLab release
+  selection and updates, portable library data and backups, provider-backed mod
+  workflows, and controller-oriented interaction tests. Source and test presence
+  establish implemented intent, not successful operation on every package or
+  device.
+- The official [community catalog at
+  `4d944bed`](https://github.com/tgeorgiadis/quiver-community-app-catalog/tree/4d944bed5181aee6f822d5cbdb2707cb37fc8728)
+  contains 165 entries across Nintendo (82), PlayStation (47), Xbox (26), and
+  Other Platforms (10), representing 162 distinct repository values. These
+  counts describe that pinned catalog snapshot; they do not establish distinct
+  original games, independent implementations, supported platforms, integrity,
+  readiness, qualification, or gameplay parity.
+
+The overlap is broader than release downloading: catalog discovery and
+freshness, local-library continuity, version selection, mods, migration,
+controller use, and platform availability all require explicit comparison.
+Portcove's response remains outcome-owned rather than competitor-owned:
+connected-folder discovery and selected setup stay in #244; ongoing intent and
+automation in #965/#966; catalog delivery in #246; adoption in #249; managed
+profiles and provider-backed mods in #250/#262; player-ready Playnite and Steam
+integration in #910/#292; and reproducible comparative measurement in #255 and
+its finite [engineering-protocol child #1042](https://github.com/boburning/portcove/issues/1042).
+
+The comparison protocol must report distinct games and implementations, exact
+OS/architecture/channel scope, task effort and waiting, preservation/recovery
+outcomes, and end-to-end availability phases. Catalog entries, source tests, and
+completed internal issues are evidence inputs, not proof that a new player can
+get a game running or preserve progress more easily. Claims remain bounded to
+the exact builds, tasks, environments, and evidence categories observed.
