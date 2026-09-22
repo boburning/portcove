@@ -2,7 +2,7 @@
 
 Portcove should feel like development software from an alternate 1997 console studio, rebuilt with current desktop UX and accessibility standards. Nostalgia never outranks clarity. The working interface stays compact, neutral, and technical; personality appears through tactile geometry, restrained color, direct copy, and quick interaction feedback.
 
-The existing React/Vite/Tauri desktop and its custom controls remain shipped behavior until the planned [#917](https://github.com/boburning/portcove/issues/917) migration replaces them. Its first foundation is now checked in: official shadcn/ui component source using Base UI, Tailwind, semantic CSS variables, and a Portcove theme. This is a decided architecture and a migration foundation, not another framework comparison or a claim that the redesign or its platform qualification has shipped.
+The React/Vite/Tauri desktop is migrating incrementally under [#917](https://github.com/boburning/portcove/issues/917). Its checked-in foundation uses official shadcn/ui component source with Base UI, Tailwind, semantic CSS variables, and a Portcove theme; several journeys already consume that foundation while legacy controls and rules remain on unmigrated surfaces. This is a decided architecture and an active migration, not another framework comparison or a claim that the complete redesign or its platform qualification has shipped.
 
 ## Checked-in foundation
 
@@ -41,21 +41,23 @@ Vite's `es2021`, `chrome105`, and `safari13` transform targets remain unchanged 
 
 ## Foundations
 
-- Components consume one semantic token authority, never raw palette primitives or arbitrary utility colors. During migration, `apps/desktop/src/styles.css` remains the current authority until the reviewed Tailwind/theme entry owns the same roles without a competing legacy mapping.
+- CSS custom properties in `apps/desktop/src/styles.css` are the canonical runtime token authority. Tailwind exposes approved aliases and variants rather than maintaining a second independently valued theme. Components consume semantic roles, never raw palette primitives or arbitrary utility colors. Legacy unlayered rules are temporary migration inputs, not hidden final authority: each converted control or journey establishes styling in its real owner, verifies the result, removes the competing rule, and records any retained exception with an owner and removal condition.
 - The migration checks official shadcn/ui component source into Portcove; it then becomes Portcove-owned control code. Initialization explicitly selects Base UI and the compact Nova style, records React/Vite rather than Next.js assumptions, keeps React Server Components disabled, retains Lucide, and uses semantic CSS variables. Nova is initial density and composition scaffolding, not the visual acceptance target: the reference compositions must deliberately establish Portcove typography, spacing, radii, surfaces, and artwork hierarchy. Exact compatible stable versions and generated configuration are verified at implementation time instead of relying on CLI defaults.
 - Tailwind utilities and variants are the primary component styling approach. Limited custom CSS remains appropriate for specialized artwork, layout, input, or native-integration behavior where it is clearer than utilities. CSS Modules may survive only for justified specialized ownership; they are no longer the default migration destination.
 - Graphite and warm controller-gray surfaces carry most of the interface. Blue means selected or interactive, yellow means keyboard/controller focus or rare emphasis, green means healthy or complete, and red is reserved for Portcove's signature and dangerous or critical action.
 - Selected state and focus are deliberately different: blue communicates state; a gold outline communicates the current keyboard or controller target.
 - Depth comes from borders, tonal steps, restrained inset treatment, and small shadows. Portcove does not use gradients, glass, blur, neon glow, scanlines, or pixel-interface typography.
-- Space Grotesk and JetBrains Mono are optional local enhancements. Offline system fallbacks are required; the desktop must not make a network request to render its interface.
+- The bundled Geist variable font is the intended default interface typeface, with an intentional monospace stack for technical content and offline system/script fallbacks coordinated with #203. The desktop must not make a network request to render its interface.
+- A second token interchange format is unnecessary while CSS has one runtime consumer. If a demonstrated second consumer later needs exchange, evaluate the then-current Design Tokens Community Group format without treating a community-group specification as a W3C Recommendation or manually maintaining competing CSS and JSON authorities.
 
 ## Component rules
 
 - Import only controls demonstrated by current product needs. Checked-in controls should stay close to official composition, refs, events, and accessibility behavior; do not put a near-identical Portcove wrapper around every shadcn control.
 - A specific Base UI control may be replaced when a reproducible Tauri, controller, accessibility, or supported-platform failure remains after bounded repair. Preserve the shared API, semantics, and theme where practical, record the evidence, and review the replacement independently; one incompatible control does not reopen the selected system.
 - Controls use the shared 30, 36, and 42-pixel-equivalent height tokens and modest radius scale. Pills are reserved for compact status badges.
+- Ordinary buttons are neutral by default. Signature-red Play, Install, or Apply emphasis is an explicit variant; destructive actions have distinct semantics, wording, placement, and confirmation behavior. Focus remains gold and visibly distinct from both selection and destructive intent, including the combined selected-and-focused state.
 - Buttons name the result: `Review install`, `Play now`, `Verify sources`, and `Remove managed files`. Avoid `Submit`, `Proceed`, `Execute`, `Yes`, and `No` when the action can be named.
-- Every control needs deliberate default, hover, focus, pressed, selected, disabled, and loading treatment where those states apply.
+- Every control needs deliberate default, hover, focus, pressed, selected, disabled, and loading treatment where those states apply. Geometry must remain stable across those states, transitions must name intentional properties rather than use `transition-all`, and forced-colors presentation must retain visible system-compatible outlines, borders, and meaning.
 - Icons come from Lucide through the shared `Icon` wrapper. An icon-only control must have an accessible name. Status never relies on icon or color alone.
 - Dialogs trap focus, close with Escape, restore the initiating focus target, use a named heading, and reserve confirmations for destructive or difficult-to-reverse actions.
 - Empty states explain what the area is, why it is empty, and the best next action. Loading copy names real work and does not invent percentages.
@@ -63,13 +65,34 @@ Vite's `es2021`, `chrome105`, and `safari13` transform targets remain unchanged 
 
 ## Implementation levels
 
-Build three deliberately different layers:
+Build five deliberately different levels:
 
-1. **Shared controls:** the needed shadcn/Base UI buttons, fields, selects or comboboxes, menus, dialogs, tabs, tooltips, and status elements checked into the shared UI directory recorded by `components.json`.
-2. **Reusable interface patterns:** settings rows and sections, primary action with supporting status, review-and-confirm tasks, recoverable errors with diagnostics, operation progress and retained activity, and empty/loading/unavailable presentation. Extract these from the reference screens rather than prebuilding a catalogue. Promote a composition to an approved pattern only after a second real surface reuses it without feature-specific policy or parallel ordinary styling.
-3. **Product components:** game cards, detail headers, source requirements, readiness summaries, update rows, and other feature-owned Portcove compositions. Domain readiness, authorization, lifecycle, and durable state remain outside generic controls and patterns.
+1. **Tokens and foundations:** themes, surfaces, typography, spacing, control dimensions, radii, elevation, motion, focus, selection, and semantic state roles.
+2. **Tailwind integration:** approved utilities and variants exposing those roles without becoming a second theme authority.
+3. **Shared controls:** the needed shadcn/Base UI buttons, fields, selects or comboboxes, menus, dialogs, tabs, tooltips, and status elements checked into the shared UI directory recorded by `components.json`.
+4. **Reusable interface patterns:** settings rows and sections, primary action with supporting status, review-and-confirm tasks, recoverable errors with diagnostics, operation progress and retained activity, and empty/loading/unavailable presentation. Extract these from reference screens rather than prebuilding a catalogue. Promote a composition only after a second real surface reuses it without feature-specific policy or parallel ordinary styling.
+5. **Product components:** game cards, detail headers, source requirements, readiness summaries, update rows, and other feature-owned Portcove compositions. Domain readiness, authorization, lifecycle, and durable state remain outside generic controls and patterns.
 
-Shared UI cannot import feature implementations. Features normally select an approved control or pattern variant and supply authoritative data and actions instead of independently choosing ordinary borders, spacing, headings, and control arrangements.
+Shared UI cannot import feature implementations. Features normally select an approved control or pattern variant and supply authoritative data and actions instead of independently choosing ordinary colors, borders, spacing, focus treatment, disabled appearance, typography, and control arrangements. A feature may arrange a control; repeated ordinary restyling signals a missing justified variant or an ownership violation.
+
+## Finishing-quality contract
+
+Finishing is acceptance within the owning journeys, not a separate perpetual polish program:
+
+- Preserve query, filters, sort, scroll anchor, stable item selection, and sensible browsing focus per section and library. Restore context after navigation, picker cancellation, and returning from a launched game without reviving dismissed dialogs, stale review plans, cached authorization, another library's selection, or destructive confirmations.
+- Reserve artwork and card geometry; retain useful existing content during refresh; keep loading, missing-artwork, failure, pending, and inline-confirmation states from shifting important controls. First paint uses the selected theme, application/window background, and offline typography without a bright flash or disruptive reflow.
+- Acknowledge an action promptly without inventing its outcome. Copy confirmation is local; launch distinguishes accepted, starting, running when authoritative, and failure; install/update uses real stages or an honest indeterminate state; cancellation distinguishes requested from stopped; integration results distinguish core success from optional partial failure. The existing operation/event authority owns progress and durable outcomes, while toasts remain supplemental.
+- Command-palette query changes choose the best eligible result predictably, background refresh preserves the active command by stable identity where possible, and Enter during IME composition never executes a command.
+- Artwork remains legible and stable across bright, dark, white, missing, unusual-aspect, and long-title cases. Optional artwork failure does not become launch failure, and essential actions never depend on imagery.
+- Optical review covers icon/label alignment, tabular numerals where values change or align in columns, consistent dialog geometry, subordinate shortcut hints, long-path identification and exact copying, and reduced nested-card emphasis. Essential instructions and warnings never exist only in a tooltip or browser title.
+- Motion is small, interruptible, reduced-motion safe, and independent of business logic. Approximately 100–140 ms for ordinary visual transitions and 160–220 ms for small floating surfaces are evaluation ranges, not standards or global release gates.
+- First use, no filtered matches, unavailable storage, refresh failure with retained data, operation failure, partial success, and cancellation remain distinct. Settings either persist immediately and report persistence truthfully or use an explicit Apply/Cancel transaction.
+
+## Accessibility and international layout
+
+WCAG 2.2 AA is the engineering target, not a certification claim. [Ordinary text](https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html) must reach 4.5:1 contrast and qualifying large text 3:1; [meaningful non-text controls and state indicators](https://www.w3.org/WAI/WCAG22/Understanding/non-text-contrast.html) need 3:1 where the criterion applies. Pointer targets meet the [AA 24×24 CSS-pixel minimum](https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum.html) or a valid criterion exception documented in the evidence, with larger targets where task and input mode benefit. Focus is visible and [not entirely obscured](https://www.w3.org/WAI/WCAG22/Understanding/focus-not-obscured-minimum.html). The detailed [Focus Appearance](https://www.w3.org/WAI/WCAG22/Understanding/focus-appearance.html) criterion is AAA and may guide stronger treatment without being mislabeled as an AA requirement. Acceptance also covers text scaling, reflow, both themes, combined opacity/overlay/disabled/selected/focused states, and task usability.
+
+Direction-aware layout uses logical properties and synchronizes document direction, Base UI direction, and portaled content. Only direction-dependent presentation mirrors; paths, hashes, numbers, artwork, media controls, and controller glyphs retain their intended meaning and receive appropriate mixed-direction isolation. Expanded and pseudo-localized text, long titles, CJK/complex-script fallbacks, combining characters, IME composition, and RTL focus/navigation are representative engineering fixtures coordinated with #203, not claims that every fixture language is supported.
 
 ## Agent implementation workflow
 
