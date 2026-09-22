@@ -31,15 +31,20 @@ describe("static development scenarios", () => {
     expect(renderScenario("filtered-empty-library")).toContain(
       "No installed ports match your search and filters",
     );
-    expect(renderScenario("unavailable-library")).toContain(
-      "Library information could not be loaded",
-    );
+    const unavailableLibrary = renderScenario("unavailable-library");
+    expect(unavailableLibrary).toContain("Library information could not be loaded");
+    expect(unavailableLibrary).toContain("Initial scenario library load failed");
+    expect(unavailableLibrary).not.toContain("source changed since registration");
     const partialSuccess = renderScenario("partial-success");
     expect(partialSuccess).toContain("The change was saved");
     expect(partialSuccess).toContain("The change was committed");
+    expect(partialSuccess).toContain("Scenario refresh failed after the change was committed");
+    expect(partialSuccess).not.toContain("source changed since registration");
     const cancellation = renderScenario("cancelled-operation");
     expect(cancellation).toContain("Operation cancelled");
     expect(cancellation).toContain("No files were changed");
+    expect(cancellation).toContain("Scenario operation cancelled before mutation");
+    expect(cancellation).not.toContain("source changed since registration");
     expect(renderScenario("missing-source")).toContain("game files");
     expect(renderScenario("missing-tool")).toContain("Not found");
     expect(renderScenario("staged-update")).toContain("Activate staged");

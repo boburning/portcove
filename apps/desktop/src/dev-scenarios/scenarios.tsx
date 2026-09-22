@@ -5,7 +5,13 @@ import { BackupHistory } from "../components/BackupHistory";
 import { HostToolRow, StatusLayer } from "../components/Chrome";
 import { WorkspaceRefreshNotice } from "../features/workspace/WorkspaceRefreshNotice";
 import { failureReport, portDefinition, portStatus, sourceProfile } from "../test-fixtures";
-import type { InstallPlan, InstallRecord, PortDefinition, PortStatus } from "../types";
+import type {
+  DesktopError,
+  InstallPlan,
+  InstallRecord,
+  PortDefinition,
+  PortStatus,
+} from "../types";
 
 export const scenarios = [
   {
@@ -199,6 +205,42 @@ function reviewedInstallPlan(port: PortDefinition): InstallPlan {
   };
 }
 
+function scenarioError({
+  scenarioId,
+  code,
+  message,
+  summary,
+  technicalMessage,
+  tone = "error",
+  mutationState = "unknown",
+  recoveryActions = ["view_technical_details"],
+}: {
+  scenarioId: string;
+  code: DesktopError["code"];
+  message: string;
+  summary: string;
+  technicalMessage: string;
+  tone?: DesktopError["presentation"]["tone"];
+  mutationState?: DesktopError["presentation"]["mutation_state"];
+  recoveryActions?: DesktopError["presentation"]["recovery_actions"];
+}): DesktopError {
+  return {
+    code,
+    message,
+    details: {},
+    presentation: {
+      presentation_key: "development_scenario",
+      summary,
+      tone,
+      mutation_state: mutationState,
+      phase: null,
+      recovery_actions: recoveryActions,
+      technical_message: technicalMessage,
+      technical_context: { scenario: scenarioId },
+    },
+  };
+}
+
 function ReferenceWorkspace({ mode }: { mode: "library" | "details" | "installation-review" }) {
   const port = {
     ...portDefinition(),
@@ -304,46 +346,49 @@ function Scenario({ id }: { id: ScenarioId }) {
       <WorkspaceRefreshNotice
         hasSnapshot={false}
         refreshing={false}
-        failure={{ error: { ...failureReport(), message: "Scenario library is unavailable." } }}
+        failure={{
+          error: scenarioError({
+            scenarioId: "unavailable-library",
+            code: "state",
+            message: "Scenario library is unavailable.",
+            summary: "The scenario library could not be loaded.",
+            technicalMessage: "Initial scenario library load failed.",
+            recoveryActions: ["view_technical_details"],
+          }),
+        }}
         retry={blockedScenarioAction}
       />
     );
   if (id === "partial-success") {
-    const partial = failureReport();
     return (
       <StatusLayer
         clearError={blockedScenarioAction}
-        error={{
-          ...partial,
-          code: "refresh_failed_after_commit",
+        error={scenarioError({
+          scenarioId: "partial-success",
+          code: "state",
           message: "The change was saved, but current library information could not be refreshed.",
-          presentation: {
-            ...partial.presentation,
-            summary: "The change was saved, but Portcove could not refresh the current view.",
-            mutation_state: "committed",
-            recovery_actions: ["review_current_state", "view_technical_details"],
-          },
-        }}
+          summary: "The change was saved, but Portcove could not refresh the current view.",
+          technicalMessage: "Scenario refresh failed after the change was committed.",
+          mutationState: "committed",
+          recoveryActions: ["review_current_state", "view_technical_details"],
+        })}
       />
     );
   }
   if (id === "cancelled-operation") {
-    const cancelled = failureReport();
     return (
       <StatusLayer
         clearError={blockedScenarioAction}
-        error={{
-          ...cancelled,
+        error={scenarioError({
+          scenarioId: "cancelled-operation",
           code: "cancelled",
           message: "Scenario operation cancelled.",
-          presentation: {
-            ...cancelled.presentation,
-            summary: "The operation was cancelled before it changed any files.",
-            tone: "neutral",
-            mutation_state: "no_changes",
-            recovery_actions: [],
-          },
-        }}
+          summary: "The operation was cancelled before it changed any files.",
+          technicalMessage: "Scenario operation cancelled before mutation.",
+          tone: "neutral",
+          mutationState: "no_changes",
+          recoveryActions: [],
+        })}
       />
     );
   }
