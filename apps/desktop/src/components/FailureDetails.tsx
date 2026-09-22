@@ -2,6 +2,7 @@ import { useState } from "react";
 import { copyText } from "../clipboard";
 import type { DesktopError } from "../types";
 import type { FailureDisplay } from "../view-model";
+import { Button } from "./ui/button";
 
 type Presentation = DesktopError["presentation"];
 
@@ -78,8 +79,11 @@ export function FailureDetails({
         ) : (
           <pre>{technical}</pre>
         )}
-        <button
+        <Button
           data-focusable
+          variant="outline"
+          size="sm"
+          className="mt-2"
           onClick={() => {
             void copyText(technical)
               .then(() => setCopied(true))
@@ -87,7 +91,7 @@ export function FailureDetails({
           }}
         >
           {copied ? "Copied" : "Copy technical details"}
-        </button>
+        </Button>
       </details>
     </div>
   );

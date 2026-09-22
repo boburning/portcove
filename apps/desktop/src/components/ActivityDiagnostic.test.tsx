@@ -67,6 +67,11 @@ it("loads only on request, names complete capture and copies the retained redact
       (element) => element.tabIndex === 0 && element.getAttribute("aria-label"),
     ),
   ).toBe(true);
+  expect(
+    [...host.querySelectorAll("button")].every(
+      (button) => button.dataset.variant === "outline" && button.dataset.slot === "button",
+    ),
+  ).toBe(true);
   await click("Copy retained log");
   expect(JSON.parse(vi.mocked(copyText).mock.calls.at(-1)![0])).toEqual(capture);
 });

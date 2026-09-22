@@ -2815,6 +2815,7 @@ describe("desktop components", () => {
     expect(html).toContain("2.0");
     expect(html).toContain("Latest eligible");
     expect(html).toContain("Checking only looks for updates");
+    expect(html).toMatch(/<button[^>]*data-variant="outline"[^>]*>[^]*?Check all ports<\/button>/u);
     expect(html).toContain("Recent activity");
     expect(html).toContain(`data-detail-origin="updates:installed:${port.id}"`);
     expect(html).toContain(`data-detail-origin="updates:activity:activity-1:target"`);
@@ -2839,9 +2840,13 @@ describe("desktop components", () => {
       "This task has not reported completion. Review its details before retrying.",
     );
     expect(html).not.toContain("Needs review");
-    expect(html).toContain('<button data-focusable="true">Sample cartridge</button>');
-    expect(html).not.toContain('<button data-focusable="true">sample-rom</button>');
-    expect(html).toContain('<button data-focusable="true">removed-profile</button>');
+    expect(html).toMatch(
+      /<button[^>]*data-variant="link"[^>]*data-focusable="true"[^>]*>Sample cartridge<\/button>/u,
+    );
+    expect(html).not.toMatch(/>sample-rom<\/button>/u);
+    expect(html).toMatch(
+      /<button[^>]*data-variant="link"[^>]*data-focusable="true"[^>]*>removed-profile<\/button>/u,
+    );
     expect(html).toContain("Activity from the CLI and desktop appears here.");
   });
 

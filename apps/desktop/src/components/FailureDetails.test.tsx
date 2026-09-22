@@ -166,6 +166,7 @@ describe("core-owned failure presentation", () => {
         const button = [...host.querySelectorAll("button")].find(
           (item) => item.textContent === "Review game preparation",
         )!;
+        expect(button.dataset.variant).toBe("outline");
         await act(async () => button.click());
         expect(onSelect).toHaveBeenLastCalledWith(port.id, "updates:activity:recorded:review");
         expect(host.textContent).not.toMatch(

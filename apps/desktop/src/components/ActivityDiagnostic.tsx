@@ -3,6 +3,7 @@ import { desktopApi } from "../api";
 import { copyText } from "../clipboard";
 import type { ActivityDiagnostic as Diagnostic } from "../types";
 import { errorText, formatBytes } from "../view-model";
+import { Button } from "./ui/button";
 
 export function ActivityDiagnostic({
   activityId,
@@ -102,32 +103,38 @@ function ActivityDiagnosticSession({
           />
         </section>
       ))}
-      {!!capture?.length && (
-        <button
+      <div className="mt-2 flex flex-wrap gap-2">
+        {!!capture?.length && (
+          <Button
+            data-focusable
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              const current = request.current;
+              void copyText(JSON.stringify(capture, null, 2))
+                .then(() => {
+                  if (request.current === current) setCopied(true);
+                })
+                .catch(() => {
+                  if (request.current === current) setCopied(false);
+                });
+            }}
+          >
+            {copied ? "Copied" : "Copy retained log"}
+          </Button>
+        )}
+        <Button
           data-focusable
+          variant="outline"
+          size="sm"
+          disabled={pending}
           onClick={() => {
-            const current = request.current;
-            void copyText(JSON.stringify(capture, null, 2))
-              .then(() => {
-                if (request.current === current) setCopied(true);
-              })
-              .catch(() => {
-                if (request.current === current) setCopied(false);
-              });
+            void load();
           }}
         >
-          {copied ? "Copied" : "Copy retained log"}
-        </button>
-      )}
-      <button
-        data-focusable
-        disabled={pending}
-        onClick={() => {
-          void load();
-        }}
-      >
-        Refresh captured log
-      </button>
+          Refresh captured log
+        </Button>
+      </div>
     </details>
   );
 }
