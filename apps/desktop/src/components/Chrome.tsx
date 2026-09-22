@@ -104,11 +104,13 @@ export function Sidebar({
       </div>
       <nav aria-label="Primary navigation">
         {items.map((item) => (
-          <button
+          <Button
             data-focusable
             key={item.view}
             aria-current={view === item.view ? "page" : undefined}
-            className={view === item.view ? "nav-item active" : "nav-item"}
+            variant={view === item.view ? "selected" : "ghost"}
+            size="lg"
+            className="nav-item"
             onClick={() => setView(item.view)}
           >
             <Icon glyph={item.icon} />
@@ -120,14 +122,20 @@ export function Sidebar({
               <NavigationStatus updateCount={updateCount} activityState={activityState} />
             )}
             <Shortcut>{commandShortcut(item.shortcut)}</Shortcut>
-          </button>
+          </Button>
         ))}
       </nav>
       <div className="sidebar-footer">
-        <button data-focusable className="secondary full button-with-icon" onClick={onAdopt}>
+        <Button
+          data-focusable
+          variant="outline"
+          size="lg"
+          className="w-full whitespace-normal"
+          onClick={onAdopt}
+        >
           <Icon glyph={FolderInput} />
           Copy existing installation
-        </button>
+        </Button>
         <NavigationHints controller={controller} workspace />
       </div>
     </aside>
@@ -207,17 +215,19 @@ export function PageHeader({
             <Shortcut>/</Shortcut>
           </label>
         )}
-        <button
+        <Button
           data-focusable
           data-detail-origin={`command-trigger:${view}`}
-          className="command-trigger button-with-icon"
+          variant="outline"
+          size="lg"
+          className="command-trigger"
           onClick={onOpenCommands}
           aria-label="Open command palette"
         >
           <Icon glyph={Command} />
           <span>Commands</span>
           <Shortcut>{commandShortcut("K")}</Shortcut>
-        </button>
+        </Button>
       </div>
     </header>
   );
@@ -343,15 +353,15 @@ function ApplicationUpdateProductionTransitionBanner({
         </p>
       </div>
       <div className="error-actions">
-        <button data-focusable className="small-control" disabled={busy} onClick={useStable}>
+        <Button data-focusable variant="primary" size="sm" disabled={busy} onClick={useStable}>
           Use Stable
-        </button>
-        <button data-focusable className="small-control" disabled={busy} onClick={keepPreview}>
+        </Button>
+        <Button data-focusable variant="outline" size="sm" disabled={busy} onClick={keepPreview}>
           Keep Preview
-        </button>
-        <button data-focusable className="small-control" disabled={busy} onClick={dismiss}>
+        </Button>
+        <Button data-focusable variant="ghost" size="sm" disabled={busy} onClick={dismiss}>
           Not now
-        </button>
+        </Button>
       </div>
     </section>
   );
@@ -383,12 +393,12 @@ function ApplicationUpdateChoiceBanner({
         </p>
       </div>
       <div className="error-actions">
-        <button data-focusable className="small-control" onClick={review}>
+        <Button data-focusable variant="primary" size="sm" onClick={review}>
           Review options
-        </button>
-        <button data-focusable className="small-control" onClick={dismiss}>
+        </Button>
+        <Button data-focusable variant="ghost" size="sm" onClick={dismiss}>
           Not now
-        </button>
+        </Button>
       </div>
     </section>
   );
@@ -429,17 +439,18 @@ function ApplicationUpdateNoticeBanner({
         </p>
       </div>
       <div className="error-actions">
-        <button data-focusable className="small-control" onClick={review}>
+        <Button data-focusable variant="primary" size="sm" onClick={review}>
           Review update
-        </button>
-        <button
+        </Button>
+        <Button
           data-focusable
-          className="icon-button"
+          variant="ghost"
+          size="icon-sm"
           aria-label="Dismiss application update notice"
           onClick={() => void dismiss?.()}
         >
           <Icon glyph={X} />
-        </button>
+        </Button>
       </div>
     </section>
   );
@@ -464,14 +475,15 @@ function ErrorNotice({ error, clearError }: { error: unknown; clearError: () => 
         {presentation && <FailureDetails presentation={presentation} code={code} />}
       </div>
       <div className="error-actions">
-        <button
+        <Button
           data-focusable
-          className="icon-button"
+          variant="ghost"
+          size="icon-sm"
           aria-label="Dismiss error"
           onClick={clearError}
         >
           <Icon glyph={X} />
-        </button>
+        </Button>
       </div>
     </section>
   );

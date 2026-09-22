@@ -799,6 +799,17 @@ describe("desktop components", () => {
       renderToStaticMarkup(<SettingsView libraryRoot="C:/Portcove" />),
     ].join(" ");
     expect(html).toContain("Copy existing installation");
+    expect(html).toMatch(
+      /<button[^>]*data-variant="selected"[^>]*aria-current="page"[^>]*>[^]*?Library[^]*?<\/button>/u,
+    );
+    expect(html).toMatch(
+      /<button[^>]*data-variant="outline"[^>]*class="[^"]*whitespace-normal[^"]*"[^>]*>[^]*?Copy existing installation[^]*?<\/button>/u,
+    );
+    expect(html).toMatch(/<button[^>]*data-variant="ghost"[^>]*class="[^"]*bg-transparent/u);
+    expect(html).toMatch(
+      /<button[^>]*data-variant="outline"[^>]*aria-label="Open command palette"/u,
+    );
+    expect(html).toMatch(/<button[^>]*data-variant="ghost"[^>]*aria-label="Dismiss error"/u);
     expect(html).toContain("Find a native port");
     expect(html).toContain("Problem");
     expect(html).toContain("C:/Portcove");
@@ -809,6 +820,32 @@ describe("desktop components", () => {
       "Portcove keeps the desktop and CLI in sync across the catalog, game files, installed versions, and recovery history.",
     );
     expect(html).toContain("/brand/logo/portcove-logo-v2-transparent.png");
+  });
+
+  it("uses semantic shared actions for application update notices", () => {
+    const choice = renderToStaticMarkup(
+      <StatusLayer
+        clearError={vi.fn()}
+        updateChoiceRequired
+        reviewUpdate={vi.fn()}
+        dismissUpdateChoice={vi.fn()}
+      />,
+    );
+    const transition = renderToStaticMarkup(
+      <StatusLayer
+        clearError={vi.fn()}
+        productionTransitionRequired
+        useStable={vi.fn()}
+        keepPreview={vi.fn()}
+        dismissProductionTransition={vi.fn()}
+      />,
+    );
+
+    expect(choice).toMatch(/data-variant="primary"[^>]*>Review options<\/button>/u);
+    expect(choice).toMatch(/data-variant="ghost"[^>]*>Not now<\/button>/u);
+    expect(transition).toMatch(/data-variant="primary"[^>]*>Use Stable<\/button>/u);
+    expect(transition).toMatch(/data-variant="outline"[^>]*>Keep Preview<\/button>/u);
+    expect(transition).toMatch(/data-variant="ghost"[^>]*>Not now<\/button>/u);
   });
 
   it("uses player-facing catalog, update, and settings descriptions", () => {
