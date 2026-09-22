@@ -137,6 +137,15 @@ export const DESKTOP_SCENARIOS = Object.freeze([
     },
   ),
   scenario(
+    "native-source-intake-and-discovery-dialogs",
+    "One-off source intake and explicit-folder discovery preserve nested dismissal and source safety.",
+    {
+      prerequisites: ["desktop", "owned-fixture"],
+      dependencies: ["native-preparation-review-and-play"],
+      source: "desktop-source-dialog-test.mjs",
+    },
+  ),
+  scenario(
     "native-reviewed-installed-game-removal",
     "Installed-game removal preserves owned data.",
     {
@@ -215,6 +224,7 @@ const ownedLifecycle = [
   "native-release-channel-selection-and-restart",
   "native-reviewed-backup-restore-and-delete",
   "native-reviewed-steam-entry-add-and-remove",
+  "native-source-intake-and-discovery-dialogs",
   "native-reviewed-installed-game-removal",
   "native-reviewed-source-reference-removal",
   "native-reviewed-existing-install-copy",

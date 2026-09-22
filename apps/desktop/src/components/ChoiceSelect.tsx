@@ -7,14 +7,23 @@ export function ChoiceSelect<T extends string>({
   options,
   disabled,
   onChange,
+  open: controlledOpen,
+  onOpenChange,
+  onOpenChangeComplete,
+  triggerId,
 }: {
   label: string;
   value: T;
   options: readonly { value: T; label: string }[];
   disabled?: boolean;
   onChange: (value: T) => void;
+  open?: boolean;
+  onOpenChange?: (open: boolean, reason: string) => void;
+  onOpenChangeComplete?: (open: boolean) => void;
+  triggerId?: string;
 }) {
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = controlledOpen ?? internalOpen;
   const labelId = useId();
   const valueId = useId();
   const selected = options.find((option) => option.value === value);
@@ -27,8 +36,10 @@ export function ChoiceSelect<T extends string>({
           eventDetails.event.stopPropagation();
           eventDetails.event.stopImmediatePropagation();
         }
-        setOpen(nextOpen);
+        if (controlledOpen === undefined) setInternalOpen(nextOpen);
+        onOpenChange?.(nextOpen, eventDetails.reason);
       }}
+      onOpenChangeComplete={onOpenChangeComplete}
       value={value}
       disabled={disabled}
       onValueChange={(nextValue) => {
@@ -41,6 +52,7 @@ export function ChoiceSelect<T extends string>({
       }}
     >
       <SelectTrigger
+        id={triggerId}
         data-focusable
         aria-labelledby={`${labelId} ${valueId}`}
         className="w-full gap-3"

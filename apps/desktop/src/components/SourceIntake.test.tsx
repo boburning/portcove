@@ -107,7 +107,7 @@ describe("source intake dialog", () => {
     vi.unstubAllGlobals();
   });
   const button = (label: string) =>
-    [...host.querySelectorAll<HTMLButtonElement>("button")].find((item) =>
+    [...document.body.querySelectorAll<HTMLButtonElement>("button")].find((item) =>
       item.textContent?.includes(label),
     );
 
@@ -123,7 +123,7 @@ describe("source intake dialog", () => {
     );
 
     expect(inspect).toHaveBeenCalledWith(profile.id, ["D:/Game.z64"]);
-    expect(host.textContent).toContain(
+    expect(document.body.textContent).toContain(
       "Checking does not install, register, copy, move, replace, or delete anything.",
     );
     expect(button("Copy to Source Inbox")).toBeDefined();
@@ -149,7 +149,7 @@ describe("source intake dialog", () => {
       ),
     );
 
-    expect(host.textContent).toContain("Choose one source.");
+    expect(document.body.textContent).toContain("Choose one source.");
     expect(button("Copy to Source Inbox")).toBeUndefined();
   });
 
@@ -177,9 +177,11 @@ describe("source intake dialog", () => {
         root.render(<SourceIntakeDialog request={request(["D:/Game.z64"])} close={vi.fn()} />),
       );
       await act(async () => button("Copy to Source Inbox")!.click());
-      expect(host.textContent).toContain("Import method unavailable");
+      expect(document.body.textContent).toContain("Import method unavailable");
       expect(
-        host.querySelector('section[aria-label="Source import review"] button.primary'),
+        document.body.querySelector(
+          'section[aria-label="Source import review"] button:not([data-variant="outline"])',
+        ),
       ).toBeNull();
       await act(async () => button("Cancel review")!.click());
       expect(button("Copy to Source Inbox")).toBeDefined();
@@ -241,9 +243,9 @@ describe("source intake dialog", () => {
       ),
     );
 
-    expect(host.textContent).toContain("Preparation tool needed");
-    expect(host.textContent).toContain("Your selected game files remain unchanged.");
-    expect(host.textContent).not.toContain("Technical ID");
+    expect(document.body.textContent).toContain("Preparation tool needed");
+    expect(document.body.textContent).toContain("Your selected game files remain unchanged.");
+    expect(document.body.textContent).not.toContain("Technical ID");
     await act(async () => button("Locate executable")!.click());
     expect(locate).toHaveBeenCalledWith(tool);
     expect(inspect).toHaveBeenNthCalledWith(2, profile.id, ["D:/Game.chd"]);
@@ -266,7 +268,7 @@ describe("source intake dialog", () => {
       current.resolve(intake("D:/Current.z64"));
       await current.promise;
     });
-    expect(host.textContent).toContain("D:/Current.z64");
+    expect(document.body.textContent).toContain("D:/Current.z64");
     await act(async () => {
       old.resolve({
         schema_version: 1,
@@ -278,8 +280,8 @@ describe("source intake dialog", () => {
       });
       await old.promise;
     });
-    expect(host.textContent).not.toContain("Old unsupported result");
-    expect(host.textContent).toContain("D:/Current.z64");
+    expect(document.body.textContent).not.toContain("Old unsupported result");
+    expect(document.body.textContent).toContain("D:/Current.z64");
   });
 
   it("provides the always-visible keyboard path and treats picker cancellation neutrally", async () => {
@@ -294,8 +296,8 @@ describe("source intake dialog", () => {
     );
     expect(button("Choose game files to check")).toBeDefined();
     await act(async () => button("Choose game files to check")!.click());
-    expect(host.textContent).toContain("File selection cancelled. Nothing was changed.");
-    expect(host.querySelector('[role="alert"]')).toBeNull();
+    expect(document.body.textContent).toContain("File selection cancelled. Nothing was changed.");
+    expect(document.body.querySelector('[role="alert"]')).toBeNull();
     await act(async () => button("Choose game files to check")!.click());
     expect(inspect).toHaveBeenCalledWith(profile.id, ["D:/Keyboard.z64"]);
   });
@@ -316,12 +318,12 @@ describe("source intake dialog", () => {
       ),
     );
 
-    expect(host.textContent).toContain("BIOS FILE CHECK");
-    expect(host.textContent).toContain("Check BIOS for Example Port");
+    expect(document.body.textContent).toContain("BIOS FILE CHECK");
+    expect(document.body.textContent).toContain("Check BIOS for Example Port");
     expect(button("Choose BIOS file to check")).toBeDefined();
     await act(async () => button("Choose BIOS file to check")!.click());
     expect(choose).toHaveBeenCalledWith(biosProfile, "", "bios");
-    expect(host.textContent).toContain("File selection cancelled. Nothing was changed.");
+    expect(document.body.textContent).toContain("File selection cancelled. Nothing was changed.");
   });
 
   it("restores focus to the details action after the intake dialog closes", async () => {
@@ -340,7 +342,7 @@ describe("source intake dialog", () => {
     const opener = button("Check original game files")!;
     opener.focus();
     await act(async () => opener.click());
-    expect(host.querySelector('[role="dialog"]')).not.toBeNull();
+    expect(document.body.querySelector('[role="dialog"]')).not.toBeNull();
     await act(async () => button("Close")!.click());
     expect(document.activeElement).toBe(opener);
   });
