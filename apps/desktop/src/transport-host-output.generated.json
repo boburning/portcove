@@ -1607,6 +1607,22 @@
     "title": "LaunchResult",
     "type": "object"
   },
+  "locale_preference": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "locale": {
+        "type": [
+          "string",
+          "null"
+        ]
+      }
+    },
+    "required": [
+      "locale"
+    ],
+    "title": "DesktopLocalePreference",
+    "type": "object"
+  },
   "preparation_cleanup_preview": {
     "$defs": {
       "AdoptionCopyFile": {

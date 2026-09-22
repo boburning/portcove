@@ -1,0 +1,19 @@
+{
+  "language": {
+    "current": "Portcove is using {{language}}.",
+    "description": "Choose the language Portcove uses on this device.",
+    "engineering": "العربية (اختبار هندسي)",
+    "english": "English",
+    "eyebrow": "LANGUAGE",
+    "pickerLabel": "Display language",
+    "richProof": "Keyboard focus stays <strong>where you left it</strong> when the language changes.",
+    "sample_one": "{{count}} localized message is ready.",
+    "sample_other": "{{count}} localized messages are ready.",
+    "saved": "Language saved.",
+    "saveFailed": "Portcove could not save the language. Your previous choice is still active.",
+    "saving": "Saving language…",
+    "system": "System default",
+    "title": "Language",
+    "unavailable": "Translation unavailable"
+  }
+}

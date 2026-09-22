@@ -26,6 +26,8 @@ pub struct HostPreferences {
     pub format_version: u32,
     pub library_root: Option<PathBuf>,
     #[serde(default)]
+    pub locale: Option<String>,
+    #[serde(default)]
     pub host_tool_paths: BTreeMap<String, HostToolPreference>,
     #[serde(flatten)]
     extensions: BTreeMap<String, serde_json::Value>,
@@ -42,6 +44,7 @@ impl Default for HostPreferences {
         Self {
             format_version: FORMAT_VERSION,
             library_root: None,
+            locale: None,
             host_tool_paths: BTreeMap::new(),
             extensions: BTreeMap::new(),
         }
@@ -141,6 +144,9 @@ impl HostPreferenceStore {
         if let Some(root) = &preferences.library_root {
             validate_absolute(root)?;
         }
+        if let Some(locale) = &preferences.locale {
+            validate_locale_preference(locale)?;
+        }
         for (id, selection) in &preferences.host_tool_paths {
             crate::host_tools::definition(id)?;
             validate_absolute(&selection.path)?;
@@ -198,6 +204,22 @@ impl HostPreferenceStore {
         let _lock = self.lock()?;
         let mut preferences = self.load()?;
         preferences.library_root = None;
+        self.publish(&preferences)
+    }
+
+    pub fn locale_preference(&self) -> Result<Option<String>> {
+        Ok(self.load()?.locale)
+    }
+
+    /// `None` follows the operating-system preference. Canonicalization and the
+    /// supported-locale decision stay with the presentation adapter.
+    pub fn set_locale_preference(&self, locale: Option<&str>) -> Result<()> {
+        if let Some(locale) = locale {
+            validate_locale_preference(locale)?;
+        }
+        let _lock = self.lock()?;
+        let mut preferences = self.load()?;
+        preferences.locale = locale.map(str::to_owned);
         self.publish(&preferences)
     }
 
@@ -354,6 +376,21 @@ fn validate_absolute(path: &Path) -> Result<()> {
         ));
     }
     crate::path::unicode(path, "host preference")?;
+    Ok(())
+}
+
+fn validate_locale_preference(locale: &str) -> Result<()> {
+    if locale.len() > 35
+        || locale.split('-').any(|subtag| {
+            subtag.is_empty()
+                || subtag.len() > 8
+                || !subtag.bytes().all(|byte| byte.is_ascii_alphanumeric())
+        })
+    {
+        return Err(PortcoveError::usage(
+            "locale preference must be a bounded BCP 47 language tag",
+        ));
+    }
     Ok(())
 }
 

@@ -284,6 +284,34 @@ fn get_bootstrap_status(state: tauri::State<'_, DesktopState>) -> BootstrapStatu
     bootstrap_status(&state)
 }
 
+#[tauri::command]
+fn get_locale_preference(
+    state: tauri::State<'_, DesktopState>,
+) -> DesktopResult<transport::DesktopLocalePreference> {
+    let preferences = state.preferences.as_ref().map_err(Clone::clone)?;
+    Ok(transport::DesktopLocalePreference {
+        locale: preferences
+            .locale_preference()
+            .map_err(DesktopError::from)?,
+    })
+}
+
+#[tauri::command]
+fn set_locale_preference(
+    state: tauri::State<'_, DesktopState>,
+    locale: Option<String>,
+) -> DesktopResult<transport::DesktopLocalePreference> {
+    let preferences = state.preferences.as_ref().map_err(Clone::clone)?;
+    preferences
+        .set_locale_preference(locale.as_deref())
+        .map_err(DesktopError::from)?;
+    Ok(transport::DesktopLocalePreference {
+        locale: preferences
+            .locale_preference()
+            .map_err(DesktopError::from)?,
+    })
+}
+
 fn bootstrap_status(state: &DesktopState) -> BootstrapStatus {
     let (initialization, generation) = initialization_snapshot(state);
     match initialization {
@@ -2063,6 +2091,8 @@ pub fn run() {
         })
         .invoke_handler(main_window_invoke_handler(tauri::generate_handler![
             get_bootstrap_status,
+            get_locale_preference,
+            set_locale_preference,
             application_update_commands::check_application_update,
             application_update_commands::download_application_update,
             application_update_commands::cancel_application_update_check,

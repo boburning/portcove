@@ -21,8 +21,8 @@ use serde_json::{Value, json};
 use transport::{
     BackupReview, BatchOutcome, BootstrapStatus, CliCommandContext,
     DESKTOP_EVENT_APPLICATION_UPDATE_NOTICE, DESKTOP_EVENT_LIBRARY_CHANGED,
-    DESKTOP_EVENT_OPERATION, DesktopError, DesktopWorkspaceSnapshot, InstallInput, LaunchResult,
-    SourceBatchOutcome,
+    DESKTOP_EVENT_OPERATION, DesktopError, DesktopLocalePreference, DesktopWorkspaceSnapshot,
+    InstallInput, LaunchResult, SourceBatchOutcome,
 };
 
 fn output<T: JsonSchema>() -> Value {
@@ -52,6 +52,7 @@ fn main() {
         json!({
             "output": {
                 "bootstrap_status": output::<BootstrapStatus>(),
+                "locale_preference": output::<DesktopLocalePreference>(),
                 "backup_review": output::<BackupReview>(),
                 "cli_command_context": output::<CliCommandContext>(),
                 "desktop_error": output::<DesktopError>(),

@@ -64,6 +64,11 @@ pub(crate) struct BootstrapStatus {
     pub(crate) error: Option<DesktopError>,
 }
 
+#[derive(Debug, Clone, Serialize, JsonSchema)]
+pub(crate) struct DesktopLocalePreference {
+    pub(crate) locale: Option<String>,
+}
+
 #[derive(Debug, Serialize, JsonSchema)]
 pub(crate) struct BackupReview {
     pub(crate) preview: portcove_core::BackupActionPreview,

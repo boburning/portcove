@@ -304,6 +304,15 @@ test("frontend configuration changes use the complete small UI suite", () => {
   assert.ok(aggregateCommands.includes("node scripts/check-copy.mjs"));
 });
 
+test("localization configuration changes use the complete UI and i18n suite", () => {
+  for (const path of ["apps/desktop/i18next.config.ts", "apps/desktop/i18next.invalid.config.ts"]) {
+    const { selection, plan } = planFor([path]);
+    assert.equal(selection.uiFullTests, true, path);
+    assert.deepEqual([...selection.unknown], [], path);
+    assert.ok(ids(plan).includes("ui-tests"), path);
+  }
+});
+
 test("retired desktop-local pnpm authorities remain owned on deletion", () => {
   for (const path of ["apps/desktop/pnpm-lock.yaml", "apps/desktop/pnpm-workspace.yaml"]) {
     const { selection, plan } = planFor([{ status: "D", path }]);

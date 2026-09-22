@@ -37,6 +37,10 @@ export const DESKTOP_SCENARIOS = Object.freeze([
   scenario("appearance-restart", "Appearance preferences survive a real application restart.", {
     cycle_option: "restart-cycles",
   }),
+  scenario(
+    "native-localization-foundation",
+    "The actual Tauri settings journey persists locale, direction, focus and offline assets.",
+  ),
   scenario("accessibility", "The native renderer passes the automated accessibility scan.", {
     source: "desktop-review-controls.mjs",
   }),
@@ -245,6 +249,7 @@ export const DESKTOP_PROFILES = Object.freeze({
     "native-catalog-update-dialog",
     "keyboard-layout",
     "native-application-update-preferences",
+    "native-localization-foundation",
     "accessibility",
     "native-controller-large-list",
     "native-expanded-navigation-copy",

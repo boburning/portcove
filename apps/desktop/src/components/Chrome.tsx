@@ -63,6 +63,7 @@ import { SourceIdentityPanel } from "./SourceIdentity";
 import { Icon, NavigationHints, Shortcut } from "./ui";
 import { Button } from "./ui/button";
 import { commandShortcut } from "../keyboard-shortcuts";
+import { LanguageSettings } from "./LanguageSettings";
 
 export function Sidebar({
   view,
@@ -1274,6 +1275,7 @@ export function SettingsView({
         description="Choose how Portcove looks on this device."
       >
         <AppearanceSettings appearance={appearance} />
+        <LanguageSettings />
       </SettingsSection>
       <SettingsSection
         id="library-storage"

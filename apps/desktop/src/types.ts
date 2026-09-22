@@ -54,6 +54,8 @@ export type DoctorReport = Generated.TransportOutputs["doctor"];
 
 export type WorkspaceSnapshot = Generated.TransportOutputs["desktop_workspace_snapshot"];
 
+export type LocalePreferenceSnapshot = Generated.TransportOutputs["desktop_locale_preference"];
+
 export type BackupRecord = Generated.TransportOutputs["backup"];
 
 export type { BackupProblem } from "./transport-types.generated";

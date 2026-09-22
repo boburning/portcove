@@ -54,6 +54,7 @@ including its compact task/reviewer handoff and ownership-first diagnosis.
 
 - [Design system](DESIGN-SYSTEM.md)
 - [Theme contract](THEME.md)
+- [Desktop localization and authoring](LOCALIZATION.md)
 - [Brand assets](BRAND-ASSETS.md)
 - [Competitive review](GUI-COMPETITIVE-REVIEW.md)
 - [Development storage](DEVELOPMENT-STORAGE.md)

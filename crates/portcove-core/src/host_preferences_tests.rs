@@ -279,3 +279,35 @@ fn host_tool_paths_persist_independently_and_clear_without_erasing_library_choic
     assert_eq!(restarted.host_tool_path("chdman").unwrap(), None);
     assert!(restarted.load().unwrap().library_root.is_some());
 }
+
+#[test]
+fn locale_preference_persists_independently_and_rejects_invalid_tags() {
+    let temp = tempfile::tempdir().unwrap();
+    let path = temp.path().join("preferences.json");
+    let store = HostPreferenceStore::new(path.clone()).unwrap();
+    let library = temp.path().join("library");
+    fs::create_dir(&library).unwrap();
+    store.set_library(&library).unwrap();
+
+    assert_eq!(store.locale_preference().unwrap(), None);
+    store.set_locale_preference(Some("ar-XB")).unwrap();
+    assert_eq!(store.locale_preference().unwrap().as_deref(), Some("ar-XB"));
+
+    let restarted = HostPreferenceStore::new(path).unwrap();
+    assert_eq!(
+        restarted.locale_preference().unwrap().as_deref(),
+        Some("ar-XB")
+    );
+    assert!(restarted.load().unwrap().library_root.is_some());
+    for invalid in ["", "en--US", "en_US", "waytoolongsubtag"] {
+        assert!(restarted.set_locale_preference(Some(invalid)).is_err());
+    }
+    assert_eq!(
+        restarted.locale_preference().unwrap().as_deref(),
+        Some("ar-XB")
+    );
+
+    restarted.set_locale_preference(None).unwrap();
+    assert_eq!(restarted.locale_preference().unwrap(), None);
+    assert!(restarted.load().unwrap().library_root.is_some());
+}

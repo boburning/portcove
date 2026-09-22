@@ -928,6 +928,79 @@ try {
       artifacts.push(report);
     }
   });
+  await scenario("native-localization-foundation", async () => {
+    const reset = await invoke("set_locale_preference", { locale: "en" });
+    assert.equal(reset.ok, true);
+    await browser.navigate().refresh();
+    await browser.wait(
+      until.elementLocated(By.css('nav[aria-label="Primary navigation"]')),
+      15_000,
+    );
+    await browser.findElement(By.xpath('//nav//button[contains(., "Settings")]')).click();
+    const languageTrigger = await browser.wait(
+      until.elementLocated(By.xpath('//button[contains(., "Display language")]')),
+      15_000,
+    );
+    await languageTrigger.click();
+    const engineeringLocale = await browser.wait(
+      until.elementLocated(
+        By.xpath('//*[@role="option" and normalize-space(.)="العربية (اختبار هندسي)"]'),
+      ),
+      15_000,
+    );
+    await engineeringLocale.click();
+    await browser.wait(async () => {
+      const state = await browser.executeScript(() => ({
+        lang: document.documentElement.lang,
+        dir: document.documentElement.dir,
+        heading: [...document.querySelectorAll("h2")].some(
+          (element) => element.textContent?.trim() === "لغة الواجهة",
+        ),
+        focused: document.activeElement?.textContent?.includes("العربية (اختبار هندسي)"),
+      }));
+      return state.lang === "ar-XB" && state.dir === "rtl" && state.heading && state.focused;
+    }, 15_000);
+    const rendered = await browser.executeScript(() => ({
+      lang: document.documentElement.lang,
+      dir: document.documentElement.dir,
+      heading: [...document.querySelectorAll("h2")].some(
+        (element) => element.textContent?.trim() === "لغة الواجهة",
+      ),
+      focused: document.activeElement?.textContent?.includes("العربية (اختبار هندسي)"),
+      externalResources: performance
+        .getEntriesByType("resource")
+        .map((entry) => entry.name)
+        .filter((name) => {
+          const resource = new URL(name);
+          return (
+            ["http:", "https:"].includes(resource.protocol) &&
+            !["tauri.localhost", "ipc.localhost", "localhost", "127.0.0.1"].includes(
+              resource.hostname,
+            )
+          );
+        }),
+    }));
+    assert.deepEqual(rendered, {
+      lang: "ar-XB",
+      dir: "rtl",
+      heading: true,
+      focused: true,
+      externalResources: [],
+    });
+    assert.deepEqual((await invoke("get_locale_preference")).value, { locale: "ar-XB" });
+    await captureScenarioScreenshot("native-localization-rtl");
+    await browser.navigate().refresh();
+    await browser.wait(
+      async () =>
+        (await browser.executeScript(() => document.documentElement.lang === "ar-XB")) === true,
+      15_000,
+      "saved locale did not survive renderer reload",
+    );
+    assert.equal(await browser.executeScript(() => document.documentElement.dir), "rtl");
+    const accessibility = path.join(output, "native-localization-accessibility.json");
+    await captureAccessibilityReport(browser, accessibility, artifacts);
+    await invoke("set_locale_preference", { locale: null });
+  });
   await scenario("accessibility", async () => {
     const report = path.join(output, "accessibility.json");
     await captureAccessibilityReport(browser, report, artifacts);
