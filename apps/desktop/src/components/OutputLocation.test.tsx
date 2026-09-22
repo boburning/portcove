@@ -80,7 +80,7 @@ async function render(children: React.ReactNode) {
   });
 }
 
-function button(label: string, within: ParentNode = container) {
+function button(label: string, within: ParentNode = document.body) {
   const match = [...within.querySelectorAll("button")].find((candidate) =>
     candidate.textContent?.includes(label),
   );
@@ -88,7 +88,7 @@ function button(label: string, within: ParentNode = container) {
   return match;
 }
 
-async function click(label: string, within: ParentNode = container) {
+async function click(label: string, within: ParentNode = document.body) {
   await act(async () => {
     button(label, within).click();
   });
@@ -101,6 +101,12 @@ async function changePath(path: string, within: ParentNode = container) {
     const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
     if (setter) Reflect.apply(setter, input, [path]);
     input.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+}
+
+async function pressEscape() {
+  await act(async () => {
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
   });
 }
 
@@ -160,8 +166,8 @@ describe("per-game Export / install folder", () => {
     expect(current?.textContent).toContain("selected drive is unavailable");
     expect(current?.textContent).toContain("This destination stays selected");
     expect(current?.textContent).toContain("Choose an available folder below");
-    expect(container.textContent).toContain(custom);
-    expect(container.textContent).toContain("Custom for this game");
+    expect(document.body.textContent).toContain(custom);
+    expect(document.body.textContent).toContain("Custom for this game");
     expect(desktopApi.previewOutputLocation).toHaveBeenCalledWith("sample", custom, 7);
     expect(reset).not.toHaveBeenCalled();
   });
@@ -174,7 +180,7 @@ describe("per-game Export / install folder", () => {
 
     await render(<OutputLocationControl portId="sample" generation={7} />);
 
-    expect(container.textContent).toContain(
+    expect(document.body.textContent).toContain(
       "Current availability could not be checked: volume inspection failed",
     );
     expect(button("Review future folder").disabled).toBe(false);
@@ -207,9 +213,9 @@ describe("per-game Export / install folder", () => {
       await first.promise;
     });
 
-    expect(container.textContent).toContain("F:/second");
-    expect(container.textContent).toContain("Available");
-    expect(container.textContent).not.toContain("old destination is unavailable");
+    expect(document.body.textContent).toContain("F:/second");
+    expect(document.body.textContent).toContain("Available");
+    expect(document.body.textContent).not.toContain("old destination is unavailable");
   });
 
   it.each([
@@ -239,8 +245,8 @@ describe("per-game Export / install folder", () => {
       ),
     });
     await render(<OutputLocationControl portId="sample" generation={7} />);
-    expect(container.textContent).toContain(message);
-    expect(container.textContent).not.toContain("folder(s)");
+    expect(document.body.textContent).toContain(message);
+    expect(document.body.textContent).not.toContain("folder(s)");
   });
 
   it("keeps an unknown destination availability blocked", async () => {
@@ -253,7 +259,7 @@ describe("per-game Export / install folder", () => {
     await render(<OutputLocationControl portId="sample" generation={7} />);
     await changePath("F:/Games/Sample");
     await click("Review future folder");
-    expect(container.textContent).toContain("Availability result unavailable");
+    expect(document.body.textContent).toContain("Availability result unavailable");
     expect(button("Use this folder for future installs").disabled).toBe(true);
   });
 
@@ -295,7 +301,7 @@ describe("per-game Export / install folder", () => {
     await changePath("F:/Games/Sample");
     await click("Review future folder");
     await click("Review moving existing versions");
-    expect(container.textContent).toContain("Ownership result unavailable");
+    expect(document.body.textContent).toContain("Ownership result unavailable");
     expect(button("Move existing versions").disabled).toBe(true);
     await click("Move existing versions");
     expect(move).not.toHaveBeenCalled();
@@ -315,8 +321,8 @@ describe("per-game Export / install folder", () => {
       await render(<OutputLocationControl portId="sample" generation={7} />);
       await changePath("F:/Games/Sample");
       await click("Review future folder");
-      expect(container.textContent).toContain("Ownership result unavailable");
-      expect(container.textContent).toContain("Location origin unavailable");
+      expect(document.body.textContent).toContain("Ownership result unavailable");
+      expect(document.body.textContent).toContain("Location origin unavailable");
       expect(button("Use this folder for future installs").disabled).toBe(true);
       await click("Use this folder for future installs");
       expect(apply).not.toHaveBeenCalled();
@@ -344,8 +350,8 @@ describe("per-game Export / install folder", () => {
       );
 
     await render(<OutputLocationControl portId="sample" generation={7} />);
-    expect(container.textContent).toContain("Inherited from the Portcove library");
-    expect(container.textContent).toContain("future installs for this game only");
+    expect(document.body.textContent).toContain("Inherited from the Portcove library");
+    expect(document.body.textContent).toContain("future installs for this game only");
     const input = container.querySelector("input")!;
     expect(container.querySelector(`label[for="${input.id}"]`)?.textContent).toContain(
       "Future Export / install folder",
@@ -355,15 +361,15 @@ describe("per-game Export / install folder", () => {
 
     await changePath("F:/Games/Sample");
     await click("Review future folder");
-    expect(container.textContent).toContain("Unavailable");
-    expect(container.textContent).toContain("Custom for this game");
-    expect(container.textContent).toContain("selected drive is unavailable");
+    expect(document.body.textContent).toContain("Unavailable");
+    expect(document.body.textContent).toContain("Custom for this game");
+    expect(document.body.textContent).toContain("selected drive is unavailable");
     expect(button("Use this folder for future installs").disabled).toBe(true);
 
     await changePath("G:/Games/Sample");
     await click("Review future folder");
-    expect(container.textContent).toContain("Full · no free space");
-    expect(container.textContent).toContain("game output volume has no available space");
+    expect(document.body.textContent).toContain("Full · no free space");
+    expect(document.body.textContent).toContain("game output volume has no available space");
     expect(button("Use this folder for future installs").disabled).toBe(true);
   });
 
@@ -400,12 +406,14 @@ describe("per-game Export / install folder", () => {
         onApplying={onApplying}
       />,
     );
-    expect(container.textContent).toContain("Custom for this game");
+    expect(document.body.textContent).toContain("Custom for this game");
     const trigger = button("Review library default");
     await click("Review library default");
-    expect(container.textContent).toContain("Use library default for future installs");
-    expect(container.textContent).toContain("Future placement only");
-    await click("Cancel review");
+    expect(document.body.querySelector('[role="dialog"]')).not.toBeNull();
+    expect(document.body.textContent).toContain("Use library default for future installs");
+    expect(document.body.textContent).toContain("Future placement only");
+    await pressEscape();
+    expect(document.body.querySelector('[role="dialog"]')).toBeNull();
     expect(document.activeElement).toBe(trigger);
 
     await click("Review library default");
@@ -413,8 +421,8 @@ describe("per-game Export / install folder", () => {
     expect(applyReset).toHaveBeenCalledWith("sample", "a".repeat(64), 8);
     expect(onChanged).toHaveBeenCalledTimes(1);
     expect(onApplying.mock.calls).toEqual([[true], [false]]);
-    expect(container.textContent).toContain("Inherited from the Portcove library");
-    expect(container.textContent).toContain("4.0 GiB available of 16.0 GiB");
+    expect(document.body.textContent).toContain("Inherited from the Portcove library");
+    expect(document.body.textContent).toContain("4.0 GiB available of 16.0 GiB");
     expect(desktopApi.previewOutputLocation).toHaveBeenNthCalledWith(4, "sample", null, 8);
   });
 
@@ -447,7 +455,7 @@ describe("per-game Export / install folder", () => {
     const second = container.querySelector('[data-port="second"]')!;
     expect((second.querySelector("input") as HTMLInputElement).disabled).toBe(true);
     await click("Review library default", first);
-    await click("Use library default for future installs", first);
+    await click("Use library default for future installs");
     expect(reset).toHaveBeenCalledTimes(1);
     expect(reset.mock.calls[0][0]).toBe("first");
     expect(second.textContent).toContain("F:/Games/second");
@@ -481,14 +489,14 @@ describe("per-game Export / install folder", () => {
       old.reject(new Error("stale preview failed"));
       await oldReview;
     });
-    expect(container.textContent).toContain("F:/Current");
-    expect(container.textContent).not.toContain("stale preview failed");
+    expect(document.body.textContent).toContain("F:/Current");
+    expect(document.body.textContent).not.toContain("stale preview failed");
 
     await click("Use this folder for future installs");
     expect(apply).toHaveBeenCalledWith("sample", "F:/Current", "a".repeat(64), 10);
-    expect(container.textContent).toContain("destination capacity changed");
-    expect(container.textContent).toContain("Review the current destination again");
-    expect(container.textContent).not.toContain("Use this folder for future installs");
+    expect(document.body.textContent).toContain("destination capacity changed");
+    expect(document.body.textContent).toContain("Review the current destination again");
+    expect(document.body.textContent).not.toContain("Use this folder for future installs");
   });
 
   it("discards an old preview after the port and library generation change", async () => {
@@ -517,9 +525,9 @@ describe("per-game Export / install folder", () => {
       await Promise.resolve();
     });
 
-    expect(container.textContent).toContain("F:/Second");
-    expect(container.textContent).not.toContain("F:/First");
-    expect(container.textContent).not.toContain("old library failed");
+    expect(document.body.textContent).toContain("F:/Second");
+    expect(document.body.textContent).not.toContain("F:/First");
+    expect(document.body.textContent).not.toContain("old library failed");
     expect(desktopApi.previewOutputLocation).toHaveBeenNthCalledWith(2, "first", "F:/First", 11);
     expect(desktopApi.previewOutputLocation).toHaveBeenNthCalledWith(4, "second", "F:/Second", 12);
   });
@@ -551,6 +559,9 @@ describe("per-game Export / install folder", () => {
       button("Use this folder for future installs").click();
     });
     expect(onApplying.mock.calls).toEqual([[true]]);
+    expect(document.body.querySelector('[role="dialog"]')).not.toBeNull();
+    await pressEscape();
+    expect(document.body.querySelector('[role="dialog"]')).not.toBeNull();
 
     await render(
       <OutputLocationControl
@@ -568,7 +579,7 @@ describe("per-game Export / install folder", () => {
     });
     expect(onApplying.mock.calls).toEqual([[true], [false]]);
     expect(onChanged).not.toHaveBeenCalled();
-    expect(container.textContent).toContain("E:/Portcove/versions/second");
+    expect(document.body.textContent).toContain("E:/Portcove/versions/second");
   });
 
   it("offers a state-bound relocation review and reports retained cleanup truthfully", async () => {
@@ -638,18 +649,25 @@ describe("per-game Export / install folder", () => {
 
     await render(<OutputLocationControl portId="sample" generation={14} onApplying={onApplying} />);
     await changePath("F:/Games/Sample");
+    const trigger = button("Review future folder");
     await click("Review future folder");
-    expect(container.textContent).toContain("remain at their recorded locations");
+    expect(document.body.textContent).toContain("remain at their recorded locations");
     await click("Review moving existing versions");
     expect(reviewMove).toHaveBeenCalledWith("sample", "F:/Games/Sample", 14);
-    expect(container.textContent).toContain("SourcesStay in the central source library");
-    expect(container.textContent).toContain("Saves and backupsStay in their current folders");
-    expect(container.textContent).toContain("active");
+    expect(document.body.querySelector('[role="dialog"]')).not.toBeNull();
+    await pressEscape();
+    expect(document.body.querySelector('[role="dialog"]')).toBeNull();
+    expect(document.activeElement).toBe(trigger);
+    await click("Review future folder");
+    await click("Review moving existing versions");
+    expect(document.body.textContent).toContain("SourcesStay in the central source library");
+    expect(document.body.textContent).toContain("Saves and backupsStay in their current folders");
+    expect(document.body.textContent).toContain("active");
     await click("Move existing versions");
     expect(move).toHaveBeenCalledWith("sample", "F:/Games/Sample", "b".repeat(64), 14);
     expect(onApplying.mock.calls).toEqual([[true], [false]]);
-    expect(container.textContent).toContain("Move completed");
-    expect(container.textContent).toContain(
+    expect(document.body.textContent).toContain("Move completed");
+    expect(document.body.textContent).toContain(
       "Move completed. 1 old folder contains changed files and remains for safe cleanup.",
     );
   });

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { AlertTriangle, FolderOpen, HardDrive, RotateCcw, ShieldCheck } from "lucide-react";
 import { desktopApi } from "../api";
 import { pickGameOutputFolder } from "../file-picker";
@@ -12,6 +12,7 @@ import type {
 import { errorText, formatBytes, formatCountMessage } from "../view-model";
 import { Icon } from "./ui";
 import { Button } from "./ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "./ui/dialog";
 
 export function OutputLocationControl({
   portId,
@@ -42,7 +43,6 @@ export function OutputLocationControl({
   const applying = useRef(false);
   const reviewButton = useRef<HTMLButtonElement>(null);
   const resetButton = useRef<HTMLButtonElement>(null);
-  const applyButton = useRef<HTMLButtonElement>(null);
 
   const inspectCurrentDestination = useCallback(
     async (nextLocation: PortOutputLocation) => {
@@ -97,10 +97,6 @@ export function OutputLocationControl({
       }
     };
   }, [generation, inspectCurrentDestination, onApplying, portId]);
-
-  useEffect(() => {
-    if (preview || relocation) applyButton.current?.focus();
-  }, [preview, relocation]);
 
   const invalidate = (path: string) => {
     request.current += 1;
@@ -355,7 +351,6 @@ export function OutputLocationControl({
           preview={preview}
           relocation={relocation}
           pending={pending}
-          applyButton={applyButton}
           apply={() => {
             void apply();
           }}
@@ -501,7 +496,6 @@ function OutputLocationReview({
   preview,
   relocation,
   pending,
-  applyButton,
   apply,
   reviewRelocation,
   applyRelocation,
@@ -510,7 +504,6 @@ function OutputLocationReview({
   preview: OutputDestinationPreview;
   relocation?: OutputRelocationPlan;
   pending?: "load" | "pick" | "review" | "apply";
-  applyButton: RefObject<HTMLButtonElement | null>;
   apply: () => void;
   reviewRelocation: () => void;
   applyRelocation: () => void;
@@ -528,88 +521,109 @@ function OutputLocationReview({
     : "Use this folder for future installs";
   if (relocation)
     return (
-      <OutputRelocationReview
-        plan={relocation}
-        pending={pending === "apply"}
-        applyButton={applyButton}
-        apply={applyRelocation}
-        cancel={cancel}
-      />
+      <Dialog
+        open
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen && !pending) cancel();
+        }}
+      >
+        <OutputRelocationReview
+          plan={relocation}
+          pending={pending === "apply"}
+          apply={applyRelocation}
+          cancel={cancel}
+        />
+      </Dialog>
     );
   return (
-    <div
-      className={`output-location-review ${safe ? "safe" : "blocked"}`}
-      role="group"
-      aria-label="Output destination review"
+    <Dialog
+      open
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen && !pending) cancel();
+      }}
     >
-      <div className="output-review-title" aria-live="polite">
-        <strong>
+      <DialogContent
+        showCloseButton={false}
+        className="max-h-[calc(100dvh-var(--space-8))] w-[min(680px,90vw)] max-w-none gap-0 overflow-y-auto overscroll-contain p-8 [scroll-padding-block:var(--space-4)] sm:max-w-none"
+        aria-describedby="output-location-review-description"
+      >
+        <DialogTitle id="output-location-review-title" className="mb-2 text-xl">
           {preview.reset_to_default ? "Review library default" : "Review future folder"}
-        </strong>
-        <span>{availability}</span>
-      </div>
-      <code title={preview.proposed.effective_output_directory}>
-        {preview.proposed.effective_output_directory}
-      </code>
-      <dl>
-        <div>
-          <dt>Source</dt>
-          <dd>{outputSourceLabel(preview.proposed.selection_source)}</dd>
-        </div>
-        <div>
-          <dt>Capacity</dt>
-          <dd>{capacity}</dd>
-        </div>
-        <div>
-          <dt>Ownership</dt>
-          <dd>{ownership}</dd>
-        </div>
-        <div>
-          <dt>Existing installs</dt>
-          <dd>
-            {preview.affected_installs.length === 0
-              ? "None"
-              : `${preview.affected_installs.length} remain at their recorded locations`}
-          </dd>
-        </div>
-      </dl>
-      <p>
-        <Icon glyph={ShieldCheck} size="sm" />
-        Future placement only; this review does not move an existing installation.
-      </p>
-      {preview.validation_errors.length > 0 && (
-        <ul className="output-validation-errors" aria-label="Destination problems">
-          {preview.validation_errors.map((message) => (
-            <li key={message}>{message}</li>
-          ))}
-        </ul>
-      )}
-      <div className="button-row">
-        <Button
-          ref={applyButton}
-          data-focusable
-          data-autofocus
-          variant="primary"
-          disabled={!safe || Boolean(pending)}
-          onClick={apply}
+        </DialogTitle>
+        <DialogDescription id="output-location-review-description" className="mb-4 leading-relaxed">
+          Confirm the destination for future installs without moving any existing version.
+        </DialogDescription>
+        <div
+          className={`output-location-review ${safe ? "safe" : "blocked"}`}
+          aria-label="Output destination review"
         >
-          {pending === "apply" ? "Saving…" : action}
-        </Button>
-        {preview.affected_installs.length > 0 && (
+          <div className="output-review-title" aria-live="polite">
+            <strong>Destination checks</strong>
+            <span>{availability}</span>
+          </div>
+          <code title={preview.proposed.effective_output_directory}>
+            {preview.proposed.effective_output_directory}
+          </code>
+          <dl>
+            <div>
+              <dt>Source</dt>
+              <dd>{outputSourceLabel(preview.proposed.selection_source)}</dd>
+            </div>
+            <div>
+              <dt>Capacity</dt>
+              <dd>{capacity}</dd>
+            </div>
+            <div>
+              <dt>Ownership</dt>
+              <dd>{ownership}</dd>
+            </div>
+            <div>
+              <dt>Existing installs</dt>
+              <dd>
+                {preview.affected_installs.length === 0
+                  ? "None"
+                  : `${preview.affected_installs.length} remain at their recorded locations`}
+              </dd>
+            </div>
+          </dl>
+          <p>
+            <Icon glyph={ShieldCheck} size="sm" />
+            Future placement only; this review does not move an existing installation.
+          </p>
+          {preview.validation_errors.length > 0 && (
+            <ul className="output-validation-errors" aria-label="Destination problems">
+              {preview.validation_errors.map((message) => (
+                <li key={message}>{message}</li>
+              ))}
+            </ul>
+          )}
+        </div>
+        <DialogFooter className="mt-4">
           <Button
             data-focusable
-            variant="outline"
+            data-autofocus
+            variant="primary"
             disabled={!safe || Boolean(pending)}
-            onClick={reviewRelocation}
+            onClick={apply}
           >
-            {pending === "review" ? "Checking versions…" : "Review moving existing versions"}
+            {pending === "apply" ? "Saving…" : action}
           </Button>
-        )}
-        <Button data-focusable variant="outline" disabled={Boolean(pending)} onClick={cancel}>
-          Cancel review
-        </Button>
-      </div>
-    </div>
+          {preview.affected_installs.length > 0 && (
+            <Button
+              data-focusable
+              variant="outline"
+              disabled={!safe || Boolean(pending)}
+              onClick={reviewRelocation}
+            >
+              {pending === "review" ? "Checking versions…" : "Review moving existing versions"}
+            </Button>
+          )}
+          <Button data-focusable variant="outline" disabled={Boolean(pending)} onClick={cancel}>
+            Cancel review
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -632,13 +646,11 @@ function outputCapacityLabel(preview: OutputDestinationPreview) {
 function OutputRelocationReview({
   plan,
   pending,
-  applyButton,
   apply,
   cancel,
 }: {
   plan: OutputRelocationPlan;
   pending: boolean;
-  applyButton: RefObject<HTMLButtonElement | null>;
   apply: () => void;
   cancel: () => void;
 }) {
@@ -650,85 +662,95 @@ function OutputRelocationReview({
     !plan.user_data_will_move &&
     !plan.backups_will_move;
   return (
-    <div
-      className={`output-location-review ${safe ? "safe" : "blocked"}`}
-      role="group"
-      aria-label="Existing version relocation review"
+    <DialogContent
+      showCloseButton={false}
+      className="max-h-[calc(100dvh-var(--space-8))] w-[min(760px,90vw)] max-w-none gap-0 overflow-y-auto overscroll-contain p-8 [scroll-padding-block:var(--space-4)] sm:max-w-none"
+      aria-describedby="output-relocation-review-description"
     >
-      <div className="output-review-title" aria-live="polite">
-        <strong>Review moving existing versions</strong>
-        <span>
-          {plan.installs.length} version{plan.installs.length === 1 ? "" : "s"}
-        </span>
-      </div>
-      <code title={plan.destination_root}>{plan.destination_root}</code>
-      <dl>
-        <div>
-          <dt>Copy required</dt>
-          <dd>{formatBytes(plan.required_bytes)}</dd>
+      <DialogTitle id="output-relocation-review-title" className="mb-2 text-xl">
+        Review moving existing versions
+      </DialogTitle>
+      <DialogDescription id="output-relocation-review-description" className="mb-4 leading-relaxed">
+        Copy and verify the reviewed application versions before changing their recorded locations.
+      </DialogDescription>
+      <div
+        className={`output-location-review ${safe ? "safe" : "blocked"}`}
+        aria-label="Existing version relocation review"
+      >
+        <div className="output-review-title" aria-live="polite">
+          <strong>Versions and preserved data</strong>
+          <span>
+            {plan.installs.length} version{plan.installs.length === 1 ? "" : "s"}
+          </span>
         </div>
-        <div>
-          <dt>Capacity</dt>
-          <dd>
-            {plan.available_bytes == null
-              ? "Capacity unavailable"
-              : `${formatBytes(plan.available_bytes)} available`}
-          </dd>
-        </div>
-        <div>
-          <dt>Ownership</dt>
-          <dd>{outputOwnershipLabel(plan.ownership)}</dd>
-        </div>
-        <div>
-          <dt>Sources</dt>
-          <dd>
-            {plan.sources_will_move
-              ? "Unexpected move requested"
-              : "Stay in the central source library"}
-          </dd>
-        </div>
-        <div>
-          <dt>Saves and backups</dt>
-          <dd>
-            {plan.user_data_will_move || plan.backups_will_move
-              ? "Unexpected move requested"
-              : "Stay in their current folders"}
-          </dd>
-        </div>
-      </dl>
-      <ul className="output-relocation-installs" aria-label="Versions to move">
-        {plan.installs.map((item) => (
-          <li key={item.install.id}>
-            <strong>{item.install.version}</strong>
-            <span>
-              {[
-                item.active && "active",
-                item.previous && "previous",
-                item.staged && "staged",
-                item.retained && "retained",
-              ]
-                .filter(Boolean)
-                .join(" · ")}
-            </span>
-            <code title={item.install.path}>{item.install.path}</code>
-          </li>
-        ))}
-      </ul>
-      <p>
-        <Icon glyph={ShieldCheck} size="sm" />
-        Portcove copies and verifies every recorded version before atomically changing its records.
-        Old folders are removed only when their reviewed contents are unchanged.
-      </p>
-      {plan.validation_errors.length > 0 && (
-        <ul className="output-validation-errors" aria-label="Relocation problems">
-          {plan.validation_errors.map((message) => (
-            <li key={message}>{message}</li>
+        <code title={plan.destination_root}>{plan.destination_root}</code>
+        <dl>
+          <div>
+            <dt>Copy required</dt>
+            <dd>{formatBytes(plan.required_bytes)}</dd>
+          </div>
+          <div>
+            <dt>Capacity</dt>
+            <dd>
+              {plan.available_bytes == null
+                ? "Capacity unavailable"
+                : `${formatBytes(plan.available_bytes)} available`}
+            </dd>
+          </div>
+          <div>
+            <dt>Ownership</dt>
+            <dd>{outputOwnershipLabel(plan.ownership)}</dd>
+          </div>
+          <div>
+            <dt>Sources</dt>
+            <dd>
+              {plan.sources_will_move
+                ? "Unexpected move requested"
+                : "Stay in the central source library"}
+            </dd>
+          </div>
+          <div>
+            <dt>Saves and backups</dt>
+            <dd>
+              {plan.user_data_will_move || plan.backups_will_move
+                ? "Unexpected move requested"
+                : "Stay in their current folders"}
+            </dd>
+          </div>
+        </dl>
+        <ul className="output-relocation-installs" aria-label="Versions to move">
+          {plan.installs.map((item) => (
+            <li key={item.install.id}>
+              <strong>{item.install.version}</strong>
+              <span>
+                {[
+                  item.active && "active",
+                  item.previous && "previous",
+                  item.staged && "staged",
+                  item.retained && "retained",
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}
+              </span>
+              <code title={item.install.path}>{item.install.path}</code>
+            </li>
           ))}
         </ul>
-      )}
-      <div className="button-row">
+        <p>
+          <Icon glyph={ShieldCheck} size="sm" />
+          Portcove copies and verifies every recorded version before atomically changing its
+          records. Old folders are removed only when their reviewed contents are unchanged.
+        </p>
+        {plan.validation_errors.length > 0 && (
+          <ul className="output-validation-errors" aria-label="Relocation problems">
+            {plan.validation_errors.map((message) => (
+              <li key={message}>{message}</li>
+            ))}
+          </ul>
+        )}
+      </div>
+      <DialogFooter className="mt-4">
         <Button
-          ref={applyButton}
           data-focusable
           data-autofocus
           variant="primary"
@@ -740,8 +762,8 @@ function OutputRelocationReview({
         <Button data-focusable variant="outline" disabled={pending} onClick={cancel}>
           Cancel review
         </Button>
-      </div>
-    </div>
+      </DialogFooter>
+    </DialogContent>
   );
 }
 

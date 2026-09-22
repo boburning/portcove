@@ -254,6 +254,7 @@ function SourceIntakeSession({
           <Button
             data-focusable
             data-autofocus
+            variant="primary"
             type="button"
             disabled={Boolean(busy)}
             onClick={() => {
