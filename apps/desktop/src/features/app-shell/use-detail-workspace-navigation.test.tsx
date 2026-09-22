@@ -14,14 +14,19 @@ import { useDetailWorkspaceNavigation } from "./use-detail-workspace-navigation"
 let root: Root | undefined;
 let selectedId: string | undefined;
 let select: Dispatch<SetStateAction<string | undefined>>;
+let setAvailablePortIds: Dispatch<SetStateAction<ReadonlySet<string> | undefined>>;
 let navigation: ReturnType<typeof useDetailWorkspaceNavigation>;
 let workspace: RefObject<HTMLElement | null>;
 
 function Fixture() {
   const [selection, setSelection] = useState<string>();
+  const [available, setAvailable] = useState<ReadonlySet<string> | undefined>(
+    new Set(["port-a", "port-b"]),
+  );
   selectedId = selection;
   select = setSelection;
-  navigation = useDetailWorkspaceNavigation(workspace, setSelection);
+  setAvailablePortIds = setAvailable;
+  navigation = useDetailWorkspaceNavigation(workspace, setSelection, available);
   return null;
 }
 
@@ -47,6 +52,7 @@ afterEach(async () => {
   if (root) await act(async () => root?.unmount());
   root = undefined;
   document.body.replaceChildren();
+  vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
 
@@ -112,5 +118,32 @@ describe("detail workspace navigation", () => {
     await act(async () => deferredRemovalClose());
 
     expect(selectedId).toBeUndefined();
+  });
+
+  it("returns to browsing when the selected catalog entry disappears", async () => {
+    vi.spyOn(HTMLElement.prototype, "getClientRects").mockImplementation(
+      () => [new DOMRect(0, 0, 100, 20)] as unknown as DOMRectList,
+    );
+    const main = workspace.current!;
+    main.dataset.focusRegion = "workspace";
+    const search = document.createElement("input");
+    search.id = "port-search";
+    const card = document.createElement("button");
+    card.dataset.detailOrigin = "library:card:port-a";
+    main.append(search, card);
+    document.body.append(main);
+    main.scrollTop = 114;
+    card.focus();
+
+    await act(async () => navigation.open("port-a", card.dataset.detailOrigin));
+    await act(async () => setAvailablePortIds(undefined));
+    expect(selectedId).toBe("port-a");
+
+    card.remove();
+    await act(async () => setAvailablePortIds(new Set(["port-b"])));
+
+    expect(selectedId).toBeUndefined();
+    expect(document.activeElement).toBe(search);
+    expect(main.scrollTo).toHaveBeenLastCalledWith({ top: 114 });
   });
 });

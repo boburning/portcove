@@ -1,8 +1,9 @@
-import { useCallback, useRef, useState, type RefObject } from "react";
+import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
 import { focusRegion } from "../../focus";
 import type { DetailDestination } from "../../view-model";
 
 type DetailReturn = {
+  portId: string;
   originKey?: string;
   scrollTop: number;
   token: number;
@@ -16,6 +17,7 @@ const destinationHeading: Record<DetailDestination, string> = {
 export function useDetailWorkspaceNavigation(
   workspace: RefObject<HTMLElement | null>,
   setSelectedId: (portId: string | undefined) => void,
+  availablePortIds?: ReadonlySet<string>,
 ) {
   const sequence = useRef(0);
   const current = useRef<DetailReturn | undefined>(undefined);
@@ -25,6 +27,7 @@ export function useDetailWorkspaceNavigation(
     (portId: string, originKey?: string, destination?: DetailDestination) => {
       const token = ++sequence.current;
       current.current = {
+        portId,
         originKey,
         scrollTop: workspace.current?.scrollTop ?? 0,
         token,
@@ -70,6 +73,12 @@ export function useDetailWorkspaceNavigation(
   );
 
   const close = useCallback(() => closeToken(openingToken), [closeToken, openingToken]);
+
+  useEffect(() => {
+    const origin = current.current;
+    if (origin && availablePortIds && !availablePortIds.has(origin.portId))
+      closeToken(origin.token);
+  }, [availablePortIds, closeToken]);
 
   const invalidate = useCallback(() => {
     const origin = current.current;
