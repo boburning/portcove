@@ -294,7 +294,7 @@ describe("source intake dialog", () => {
     await act(async () =>
       root.render(<SourceIntakeDialog request={request([])} close={vi.fn()} />),
     );
-    expect(button("Choose game files to check")).toBeDefined();
+    expect(button("Choose game files to check")?.getAttribute("data-variant")).toBe("primary");
     await act(async () => button("Choose game files to check")!.click());
     expect(document.body.textContent).toContain("File selection cancelled. Nothing was changed.");
     expect(document.body.querySelector('[role="alert"]')).toBeNull();

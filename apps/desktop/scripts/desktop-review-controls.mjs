@@ -145,7 +145,7 @@ export async function assertPrimaryReviewAction(browser, primary, neutral) {
     browser,
     primary,
     neutral,
-    "default",
+    "primary",
     "A primary review action",
   );
 }

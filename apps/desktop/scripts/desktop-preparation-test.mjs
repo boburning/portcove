@@ -12,7 +12,12 @@ import { libraryHandoffScenario } from "./desktop-library-handoff-test.mjs";
 import { adoptionReviewScenario } from "./desktop-adoption-review-test.mjs";
 import { sourceRemovalScenario } from "./desktop-source-removal-test.mjs";
 import { interruptedPreparationScenario } from "./desktop-preparation-recovery-test.mjs";
-import { captureAccessibilityReport, clickVisible } from "./desktop-review-controls.mjs";
+import {
+  assertCompactReview,
+  assertPrimaryReviewAction,
+  captureAccessibilityReport,
+  clickVisible,
+} from "./desktop-review-controls.mjs";
 import { readinessScenario } from "./desktop-readiness-test.mjs";
 import { steamEntryScenario } from "./desktop-steam-entry-test.mjs";
 import { sourceDialogScenario } from "./desktop-source-dialog-test.mjs";
@@ -139,6 +144,53 @@ export async function preparationScenarios({
     const { port, install } = await seed("opengoal-jak1", "success");
     await open(port);
     assert.equal((await status(port.id)).readiness.launchable, false);
+    const outputLocationInput = await browser.findElement(By.id(`output-location-path-${port.id}`));
+    const reviewedOutput = path.join(output, "reviewed-future-output");
+    await outputLocationInput.sendKeys(
+      Key.chord(process.platform === "darwin" ? Key.COMMAND : Key.CONTROL, "a"),
+      reviewedOutput,
+    );
+    const outputLocationTrigger = await browser.findElement(button("Review future folder"));
+    await clickVisible(browser, outputLocationTrigger);
+    const outputLocationDialog = By.css('[aria-labelledby="output-location-review-title"]');
+    const review = await browser.wait(until.elementLocated(outputLocationDialog), 15_000);
+    const reviewText = await review.getText();
+    assert.ok(reviewText.includes(reviewedOutput));
+    assert.ok(reviewText.includes("Future placement only"));
+    assert.ok(reviewText.includes("does not move an existing installation"));
+    await assertPrimaryReviewAction(
+      browser,
+      await browser.findElement(button("Use this folder for future installs")),
+      await browser.findElement(button("Cancel review")),
+    );
+    await assertCompactReview(browser, '[aria-labelledby="output-location-review-title"]');
+    const outputLocationAccessibility = path.join(
+      output,
+      "output-location-review-accessibility.json",
+    );
+    await captureAccessibilityReport(browser, outputLocationAccessibility, artifacts);
+    const outputLocationImage = path.join(output, "native-output-location-review.png");
+    await writeFile(outputLocationImage, await browser.takeScreenshot(), {
+      encoding: "base64",
+      flag: "wx",
+    });
+    artifacts.push(outputLocationImage);
+    await browser.actions().sendKeys(Key.ESCAPE).perform();
+    await browser.wait(
+      async () => (await browser.findElements(outputLocationDialog)).length === 0,
+      5_000,
+      "Output location review did not close after Escape",
+    );
+    await browser.wait(
+      () =>
+        browser.executeScript(
+          "return document.activeElement === arguments[0];",
+          outputLocationTrigger,
+        ),
+      5_000,
+      "Output location review trigger did not regain focus after Escape",
+    );
+    assert.equal((await status(port.id)).active.id, install.id, "review must not move versions");
     await browser.findElement(button("Review game preparation")).click();
     await browser.wait(until.elementLocated(button("Start new preparation")), 15_000);
     assert.equal((await status(port.id)).active.id, install.id, "review must not prepare");
