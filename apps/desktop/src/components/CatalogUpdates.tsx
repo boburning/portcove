@@ -1,6 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { desktopApi } from "../api";
-import { useDialogFocus } from "../dialog";
 import { pickSignedCatalogPath } from "../file-picker";
 import type {
   CatalogProvenance,
@@ -12,6 +11,8 @@ import { errorText, isCancellation } from "../view-model";
 import { ChoiceSelect } from "./ChoiceSelect";
 import { OperationCancellation } from "./OperationCancellation";
 import { NavigationHints } from "./ui";
+import { Button } from "./ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "./ui/dialog";
 
 export function CatalogSettings({
   provenance,
@@ -32,14 +33,15 @@ export function CatalogSettings({
         Optional signed updates refresh port information and release locations. Choose a publisher
         you trust and review each update. The built-in catalog is always available offline.
       </p>
-      <button
+      <Button
         data-focusable
-        className="small-control"
+        variant="outline"
+        size="sm"
         disabled={disabled}
         onClick={() => setOpen(true)}
       >
         Manage catalog updates
-      </button>
+      </Button>
       {open && <CatalogUpdatesDialog close={() => setOpen(false)} onChanged={onChanged} />}
     </article>
   );
@@ -121,9 +123,9 @@ function CatalogUpdatesDialog({
   const [error, setError] = useState<string>();
   const [notice, setNotice] = useState<string>();
   const [operationId, setOperationId] = useState<string>();
-  const dialog = useDialogFocus(() => {
-    if (!busy) close();
-  });
+  const [sourceSelectOpen, setSourceSelectOpen] = useState(false);
+  const sourceSelectOpenRef = useRef(false);
+  const sourceSelectDismissal = useRef(false);
   useEffect(() => {
     let current = true;
     void desktopApi
@@ -163,22 +165,64 @@ function CatalogUpdatesDialog({
   };
   const actions = { busy: Boolean(busy), run, changed };
   return (
-    <div className="scrim">
-      <section
-        className="modal wide-modal catalog-update-dialog"
-        ref={dialog}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="catalog-update-title"
+    <Dialog
+      open
+      onOpenChange={(nextOpen, eventDetails) => {
+        const nestedEscape =
+          eventDetails.reason === "escape-key" &&
+          (sourceSelectOpenRef.current || sourceSelectDismissal.current);
+        if (!nextOpen && nestedEscape) {
+          sourceSelectOpenRef.current = false;
+          sourceSelectDismissal.current = false;
+          setSourceSelectOpen(false);
+          eventDetails.cancel();
+          requestAnimationFrame(() =>
+            document.querySelector<HTMLElement>("#catalog-update-source")?.focus(),
+          );
+          return;
+        }
+        sourceSelectOpenRef.current = false;
+        sourceSelectDismissal.current = false;
+        if (!nextOpen && !busy) close();
+      }}
+    >
+      <DialogContent
+        showCloseButton={false}
+        className="catalog-update-dialog max-h-[calc(100dvh-var(--space-8))] w-[min(760px,90vw)] max-w-none gap-0 overflow-y-auto overscroll-contain p-8 [scroll-padding-block:var(--space-4)] sm:max-w-none"
+        aria-describedby="catalog-update-description"
       >
         <p className="eyebrow">CATALOG</p>
-        <h2 id="catalog-update-title">Manage catalog updates</h2>
+        <DialogTitle id="catalog-update-title" className="mb-2 text-xl">
+          Manage catalog updates
+        </DialogTitle>
+        <DialogDescription id="catalog-update-description" className="mb-4 leading-relaxed">
+          Trust a publisher, review a signed update, and choose which verified catalog Portcove
+          uses. The built-in catalog remains available offline.
+        </DialogDescription>
         <NavigationHints />
         <CatalogOrigin provenance={status?.provenance} />
         {status && (
           <>
             <PublisherTrust status={status} {...actions} />
-            <CatalogReview status={status} {...actions} started={setOperationId} />
+            <CatalogReview
+              status={status}
+              {...actions}
+              started={setOperationId}
+              sourceSelectOpen={sourceSelectOpen}
+              onSourceSelectOpenChange={(nextOpen, reason) => {
+                if (nextOpen) sourceSelectOpenRef.current = true;
+                if (!nextOpen && reason === "escape-key") sourceSelectDismissal.current = true;
+                setSourceSelectOpen(nextOpen);
+              }}
+              onSourceSelectOpenChangeComplete={(nextOpen) => {
+                if (!nextOpen) {
+                  setTimeout(() => {
+                    sourceSelectOpenRef.current = false;
+                    sourceSelectDismissal.current = false;
+                  }, 0);
+                }
+              }}
+            />
             <CatalogSelection status={status} {...actions} />
           </>
         )}
@@ -192,13 +236,13 @@ function CatalogUpdatesDialog({
         )}
         {notice && <p role="status">{notice}</p>}
         {error && <p role="alert">{error}</p>}
-        <div className="actions">
-          <button data-focusable disabled={Boolean(busy)} onClick={close}>
+        <DialogFooter className="mt-4 border-t border-pc-border pt-4">
+          <Button data-focusable variant="outline" disabled={Boolean(busy)} onClick={close}>
             Close
-          </button>
-        </div>
-      </section>
-    </div>
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -225,8 +269,9 @@ function PublisherTrust({ status, busy, run, changed }: CatalogActions) {
             <span>Publisher fingerprint</span>
             <code>{key.key_id}</code>
           </div>
-          <button
+          <Button
             data-focusable
+            variant="destructive"
             disabled={Boolean(busy)}
             onClick={() => {
               void run("Removing publisher…", async () =>
@@ -235,21 +280,27 @@ function PublisherTrust({ status, busy, run, changed }: CatalogActions) {
             }}
           >
             Stop trusting
-          </button>
+          </Button>
         </div>
       ))}
-      <label htmlFor="catalog-public-key">Publisher public key (64 hex characters)</label>
+      <label
+        className="mb-2 block text-xs font-bold text-pc-muted-foreground"
+        htmlFor="catalog-public-key"
+      >
+        Publisher public key (64 hex characters)
+      </label>
       <div className="path-entry">
         <input
           data-focusable
           data-autofocus={status.trusted_keys.length === 0 || undefined}
           id="catalog-public-key"
+          className="w-full rounded-[var(--radius-md)] border border-pc-input bg-[var(--color-bg-inset)] p-[11px] text-pc-foreground shadow-[inset_0_1px_2px_var(--color-bg)] outline-none focus-visible:border-pc-ring focus-visible:ring-3 focus-visible:ring-pc-ring/50"
           autoComplete="off"
           value={publicKey}
           disabled={Boolean(busy)}
           onChange={(event) => setPublicKey(event.target.value)}
         />
-        <button
+        <Button
           data-focusable
           disabled={Boolean(busy) || !publicKey.trim()}
           onClick={() => {
@@ -259,7 +310,7 @@ function PublisherTrust({ status, busy, run, changed }: CatalogActions) {
           }}
         >
           Trust publisher
-        </button>
+        </Button>
       </div>
     </>
   );
@@ -271,7 +322,15 @@ function CatalogReview({
   run,
   changed,
   started,
-}: CatalogActions & { started: (id: string) => void }) {
+  sourceSelectOpen,
+  onSourceSelectOpenChange,
+  onSourceSelectOpenChangeComplete,
+}: CatalogActions & {
+  started: (id: string) => void;
+  sourceSelectOpen: boolean;
+  onSourceSelectOpenChange: (open: boolean, reason: string) => void;
+  onSourceSelectOpenChangeComplete: (open: boolean) => void;
+}) {
   const [kind, setKind] = useState<CatalogUpdateSource["kind"]>("file");
   const [location, setLocation] = useState("");
   const [planState, setPlanState] = useState<{
@@ -285,6 +344,7 @@ function CatalogReview({
     <>
       <h3>Review an update</h3>
       <ChoiceSelect
+        triggerId="catalog-update-source"
         label="Update source"
         value={kind}
         options={[
@@ -292,13 +352,19 @@ function CatalogReview({
           { value: "https", label: "HTTPS address" },
         ]}
         disabled={Boolean(busy)}
+        open={sourceSelectOpen}
+        onOpenChange={onSourceSelectOpenChange}
+        onOpenChangeComplete={onSourceSelectOpenChangeComplete}
         onChange={(value) => {
           setKind(value);
           setLocation("");
           setPlan(undefined);
         }}
       />
-      <label htmlFor="catalog-update-location">
+      <label
+        className="mb-2 block text-xs font-bold text-pc-muted-foreground"
+        htmlFor="catalog-update-location"
+      >
         {kind === "file" ? "Signed catalog file" : "Signed catalog HTTPS address"}
       </label>
       <div className="path-entry">
@@ -306,6 +372,7 @@ function CatalogReview({
           data-focusable
           data-autofocus={status.trusted_keys.length > 0 || undefined}
           id="catalog-update-location"
+          className="w-full rounded-[var(--radius-md)] border border-pc-input bg-[var(--color-bg-inset)] p-[11px] text-pc-foreground shadow-[inset_0_1px_2px_var(--color-bg)] outline-none focus-visible:border-pc-ring focus-visible:ring-3 focus-visible:ring-pc-ring/50"
           value={location}
           disabled={Boolean(busy)}
           onChange={(event) => {
@@ -314,8 +381,9 @@ function CatalogReview({
           }}
         />
         {kind === "file" && (
-          <button
+          <Button
             data-focusable
+            variant="outline"
             disabled={Boolean(busy)}
             onClick={() => {
               void run("Choosing a catalog…", async () => {
@@ -328,11 +396,12 @@ function CatalogReview({
             }}
           >
             Choose file
-          </button>
+          </Button>
         )}
       </div>
-      <button
+      <Button
         data-focusable
+        variant="outline"
         disabled={Boolean(busy) || !location.trim()}
         onClick={() => {
           void run("Verifying catalog…", async () => {
@@ -346,7 +415,7 @@ function CatalogReview({
         }}
       >
         Review update
-      </button>
+      </Button>
       {plan && (
         <section aria-label="Catalog update review">
           <h3>Catalog update ready</h3>
@@ -382,9 +451,8 @@ function CatalogReview({
               </dd>
             </dl>
           </details>
-          <button
+          <Button
             data-focusable
-            className="primary"
             disabled={Boolean(busy)}
             onClick={() => {
               const reviewed = plan;
@@ -403,7 +471,7 @@ function CatalogReview({
             }}
           >
             Apply catalog update
-          </button>
+          </Button>
         </section>
       )}
     </>
@@ -419,8 +487,9 @@ function catalogChangeSummary(count: number) {
 function CatalogSelection({ status, busy, run, changed }: CatalogActions) {
   return (
     <div className="actions compact">
-      <button
+      <Button
         data-focusable
+        variant="outline"
         disabled={Boolean(busy) || !status.can_rollback}
         onClick={() => {
           void run("Restoring previous catalog…", async () =>
@@ -429,9 +498,10 @@ function CatalogSelection({ status, busy, run, changed }: CatalogActions) {
         }}
       >
         Restore previous catalog
-      </button>
-      <button
+      </Button>
+      <Button
         data-focusable
+        variant="outline"
         disabled={Boolean(busy) || status.updates_enabled || !status.can_use_cached}
         onClick={() => {
           void run("Selecting cached catalog…", async () =>
@@ -440,9 +510,10 @@ function CatalogSelection({ status, busy, run, changed }: CatalogActions) {
         }}
       >
         Use cached signed catalog
-      </button>
-      <button
+      </Button>
+      <Button
         data-focusable
+        variant="outline"
         disabled={Boolean(busy) || !status.updates_enabled}
         onClick={() => {
           void run("Selecting built-in catalog…", async () =>
@@ -451,7 +522,7 @@ function CatalogSelection({ status, busy, run, changed }: CatalogActions) {
         }}
       >
         Use built-in catalog
-      </button>
+      </Button>
     </div>
   );
 }

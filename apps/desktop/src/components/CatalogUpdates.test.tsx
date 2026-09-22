@@ -83,8 +83,8 @@ it("requires explicit review, invalidates changed candidates and uses core prove
   document.body.append(host);
   const root = createRoot(host);
   const button = (label: string) =>
-    [...host.querySelectorAll<HTMLButtonElement>("button")].find(
-      (item) => item.textContent === label,
+    [...document.body.querySelectorAll<HTMLButtonElement>("button")].find((item) =>
+      item.textContent?.includes(label),
     )!;
   const click = async (label: string) => {
     await act(async () => button(label).click());
@@ -97,45 +97,63 @@ it("requires explicit review, invalidates changed candidates and uses core prove
     );
     expect(review).not.toHaveBeenCalled();
     await click("Manage catalog updates");
-    expect(host.textContent).toContain("Verify the publisher key through a trusted channel.");
+    expect(document.body.textContent).toContain(
+      "Verify the publisher key through a trusted channel.",
+    );
     expect(button("Stop trusting")).toBeDefined();
+    expect(document.body.querySelector("#catalog-public-key")?.className).toContain(
+      "border-pc-input",
+    );
+    expect(document.body.querySelector('label[for="catalog-public-key"]')?.className).toContain(
+      "text-pc-muted-foreground",
+    );
+    await click("Update source");
+    const openPopup = document.body.querySelector<HTMLElement>(
+      '[data-slot="select-content"][data-open]',
+    );
+    expect(openPopup).not.toBeNull();
+    await act(async () => {
+      openPopup?.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    });
+    expect(document.body.querySelector('[aria-labelledby="catalog-update-title"]')).not.toBeNull();
+    expect(document.activeElement).toBe(document.body.querySelector("#catalog-update-source"));
     await click("Choose file");
     expect(apply).not.toHaveBeenCalled();
     await click("Review update");
     expect(review).toHaveBeenCalledWith(plan.source);
-    expect(host.textContent).toContain("Catalog update ready");
-    expect(host.textContent).toContain("Catalog signature valid");
-    expect(host.textContent).toContain("Signed by");
-    expect(host.textContent).toContain(plan.key_id);
-    expect(host.textContent).toContain("Publisher trusted");
-    expect(host.textContent).toContain("Sequence 1 accepted");
-    expect(host.textContent).toContain(
+    expect(document.body.textContent).toContain("Catalog update ready");
+    expect(document.body.textContent).toContain("Catalog signature valid");
+    expect(document.body.textContent).toContain("Signed by");
+    expect(document.body.textContent).toContain(plan.key_id);
+    expect(document.body.textContent).toContain("Publisher trusted");
+    expect(document.body.textContent).toContain("Sequence 1 accepted");
+    expect(document.body.textContent).toContain(
       `Valid until ${new Date(plan.expires_at * 1000).toLocaleString()}.`,
     );
-    expect(host.textContent).toContain("1 port will change.");
-    const technical = host.querySelector(
+    expect(document.body.textContent).toContain("1 port will change.");
+    const technical = document.body.querySelector(
       'summary[aria-label="Technical details for catalog update sequence 1"]',
     )?.parentElement;
     expect(technical?.textContent).toContain("shipwright");
     expect(technical?.textContent).toContain(plan.envelope_sha256);
     await click("Review update");
-    expect(host.textContent).toContain("No port information will change.");
+    expect(document.body.textContent).toContain("No port information will change.");
     await click("Review update");
-    expect(host.textContent).toContain("2 ports will change.");
+    expect(document.body.textContent).toContain("2 ports will change.");
     await click("Review update");
-    expect(host.textContent).toContain("1 port will change.");
+    expect(document.body.textContent).toContain("1 port will change.");
     await click("Apply catalog update");
     expect(apply).toHaveBeenCalledWith(plan.source, plan.plan_sha256, expect.any(Function));
-    expect(host.textContent).toContain("Catalog changed; review again");
+    expect(document.body.textContent).toContain("Catalog changed; review again");
     expect(button("Apply catalog update")).toBeUndefined();
     expect(refresh).not.toHaveBeenCalled();
     await click("Review update");
     await click("Apply catalog update");
     expect(refresh).toHaveBeenCalledOnce();
-    expect(host.textContent).toContain("Signed catalog · version 1");
+    expect(document.body.textContent).toContain("Signed catalog · version 1");
     expect(button("Use built-in catalog").disabled).toBe(false);
     await click("Close");
-    expect(host.querySelector('[role="dialog"]')).toBeNull();
+    expect(document.body.querySelector('[role="dialog"]')).toBeNull();
   } finally {
     await act(async () => root.unmount());
     host.remove();
