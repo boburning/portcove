@@ -4,14 +4,7 @@ import type { InstallRecord, OperationEvent, PreparationPlan } from "../types";
 import { errorText, formatBytes, isCancellation } from "../view-model";
 import { OperationCancellation } from "./OperationCancellation";
 import { Button } from "./ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogTitle,
-  useDialogTriggerFocus,
-} from "./ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "./ui/dialog";
 
 export type RunPreparation = (
   expectedPlan: string,
@@ -35,7 +28,7 @@ export function PreparationControl({
   const [error, setError] = useState<string>();
   const [operationId, setOperationId] = useState<string>();
   const request = useRef(0);
-  const { trigger: reviewButton, restoreTriggerFocus } = useDialogTriggerFocus(Boolean(plan));
+  const reviewButton = useRef<HTMLButtonElement>(null);
   useEffect(
     () => () => {
       request.current += 1;
@@ -43,7 +36,6 @@ export function PreparationControl({
     [],
   );
   const dismissReview = () => {
-    restoreTriggerFocus();
     setPlan(undefined);
   };
   const review = async () => {
@@ -99,21 +91,20 @@ export function PreparationControl({
         Prepare and verify the original game data before playing. Your current installation and
         saves are preserved.
       </p>
-      {!plan && (
-        <Button
-          ref={reviewButton}
-          data-focusable
-          className="wide"
-          variant="primary"
-          size="lg"
-          disabled={disabled || Boolean(pending) || !run}
-          onClick={() => {
-            void review();
-          }}
-        >
-          {pending === "review" ? "Checking preparation inputs…" : "Review game preparation"}
-        </Button>
-      )}
+      <Button
+        ref={reviewButton}
+        hidden={Boolean(plan)}
+        data-focusable
+        className={plan ? "hidden" : "wide"}
+        variant="primary"
+        size="lg"
+        disabled={disabled || Boolean(pending) || !run}
+        onClick={() => {
+          void review();
+        }}
+      >
+        {pending === "review" ? "Checking preparation inputs…" : "Review game preparation"}
+      </Button>
       {plan && (
         <Dialog
           open
@@ -123,6 +114,7 @@ export function PreparationControl({
         >
           <DialogContent
             showCloseButton={false}
+            finalFocus={reviewButton}
             className="max-h-[calc(100dvh-var(--space-8))] w-[min(680px,90vw)] max-w-none gap-0 overflow-y-auto overscroll-contain p-8 [scroll-padding-block:var(--space-4)] sm:max-w-none"
             aria-describedby="preparation-review-description"
           >

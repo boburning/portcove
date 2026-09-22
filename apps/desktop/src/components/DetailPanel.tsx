@@ -3,7 +3,7 @@ import { SteamEntryControl } from "./SteamEntry";
 import { ArtworkControls, ArtworkImage, DetailArtwork } from "./Artwork";
 import type { ApplyBackupAction } from "./BackupReview";
 import { ReleaseChannelControl } from "./ReleaseChannel";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -55,14 +55,7 @@ import type { Perform } from "../features/operations/use-operation-state";
 import { ExternalLink as ProjectLink } from "./ExternalLink";
 import { Icon, NavigationHints } from "./ui";
 import { Button } from "./ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogTitle,
-  useDialogTriggerFocus,
-} from "./ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "./ui/dialog";
 import { SourceIdentityPanel } from "./SourceIdentity";
 import { installPlanActionLabel } from "../install-plan-presentation";
 
@@ -156,6 +149,13 @@ export function DetailPanel(props: DetailPanelProps) {
   );
   const selectedRequirement = selectedSourceRequirement(source, sourcePath, bios, biosPath);
   const runtimeUpdateAvailable = currentUpdateSnapshot(status)?.check.update_available === true;
+  const installReviewVisible = Boolean(
+    installPlan &&
+    !installed &&
+    launchReady &&
+    !status?.readiness?.blockers.includes("invalid_installation") &&
+    !status?.readiness?.blockers.includes("missing_runtime"),
+  );
   const state =
     installed && typeof status?.readiness?.launchable !== "boolean"
       ? {
@@ -213,14 +213,19 @@ export function DetailPanel(props: DetailPanelProps) {
       </Button>
       <DetailHero port={port} state={state} />
       <ArtworkControls key={`${port.id}:${props.libraryGeneration}`} port={port} />
-      {props.cancellableActivities?.map((activity) => (
-        <OperationCancellation
-          key={activity.id}
-          operationId={activity.id}
-          state={activity.cancellation ?? undefined}
-        />
-      ))}
+      {props.cancellableActivities
+        ?.filter((activity) => !(installReviewVisible && activity.operation === "install"))
+        .map((activity) => (
+          <OperationCancellation
+            key={activity.id}
+            operationId={activity.id}
+            state={activity.cancellation ?? undefined}
+          />
+        ))}
       <DetailBody
+        installCancellations={props.cancellableActivities?.filter(
+          (activity) => activity.operation === "install",
+        )}
         perform={props.perform}
         prepare={props.prepare}
         port={port}
@@ -270,6 +275,7 @@ function DetailHero({ port, state }: { port: PortDefinition; state: DetailState 
 }
 
 function DetailBody({
+  installCancellations,
   perform,
   prepare,
   port,
@@ -295,6 +301,7 @@ function DetailBody({
   outputApplying,
   actions,
 }: {
+  installCancellations?: ActivityRecord[];
   perform?: Perform;
   prepare?: RunPreparation;
   port: PortDefinition;
@@ -328,6 +335,7 @@ function DetailBody({
       <p className="summary">{port.summary}</p>
       <NavigationHints />
       <StatusActionsGroup
+        installCancellations={installCancellations}
         port={port}
         status={status}
         state={state}
@@ -402,6 +410,7 @@ function DetailBody({
 }
 
 function StatusActionsGroup({
+  installCancellations,
   port,
   status,
   state,
@@ -416,6 +425,7 @@ function StatusActionsGroup({
   busy,
   actions,
 }: {
+  installCancellations?: ActivityRecord[];
   port: PortDefinition;
   status?: PortStatus;
   state: DetailState;
@@ -435,6 +445,7 @@ function StatusActionsGroup({
       <RetiredNotice port={port} />
       <ReadinessCard state={state} />
       <PrimaryActions
+        installCancellations={installCancellations}
         invalidInstallation={Boolean(status?.readiness?.blockers.includes("invalid_installation"))}
         preparationRequired={managedPreparation && pendingSetup}
         runtimeNeeded={Boolean(status?.readiness?.blockers.includes("missing_runtime"))}
@@ -1185,6 +1196,7 @@ function sourceFieldCopy(profile: SourceProfile | undefined, bios: boolean) {
 }
 
 function PrimaryActions({
+  installCancellations,
   invalidInstallation,
   preparationRequired,
   runtimeNeeded,
@@ -1198,6 +1210,7 @@ function PrimaryActions({
   busy,
   actions,
 }: {
+  installCancellations?: ActivityRecord[];
   invalidInstallation: boolean;
   preparationRequired: boolean;
   runtimeNeeded: boolean;
@@ -1224,6 +1237,7 @@ function PrimaryActions({
   if (!installed)
     return (
       <InstallAction
+        cancellations={installCancellations}
         ready={launchReady}
         sourceReady={sourceReady}
         biosReady={biosReady}
@@ -1267,6 +1281,7 @@ function PrimaryActions({
 }
 
 export function InstallAction({
+  cancellations,
   ready,
   sourceReady,
   biosReady,
@@ -1277,6 +1292,7 @@ export function InstallAction({
   dismiss,
   portaled = true,
 }: {
+  cancellations?: ActivityRecord[];
   ready: boolean;
   sourceReady: boolean;
   biosReady: boolean;
@@ -1287,11 +1303,7 @@ export function InstallAction({
   dismiss: () => void;
   portaled?: boolean;
 }) {
-  const { trigger: reviewButton, restoreTriggerFocus } = useDialogTriggerFocus(Boolean(plan));
-  const dismissReview = () => {
-    restoreTriggerFocus();
-    dismiss();
-  };
+  const reviewButton = useRef<HTMLButtonElement>(null);
   if (!ready) {
     const buttonLabel =
       !sourceReady && !biosReady
@@ -1338,11 +1350,12 @@ export function InstallAction({
     <Dialog
       open
       onOpenChange={(nextOpen) => {
-        if (!nextOpen && !busy) dismissReview();
+        if (!nextOpen && !busy) dismiss();
       }}
     >
       <DialogContent
         showCloseButton={false}
+        finalFocus={reviewButton}
         portaled={portaled}
         className="max-h-[calc(100dvh-var(--space-8))] w-[min(680px,90vw)] max-w-none gap-0 overflow-y-auto overscroll-contain p-8 [scroll-padding-block:var(--space-4)] sm:max-w-none"
         aria-describedby="install-review-description"
@@ -1361,6 +1374,13 @@ export function InstallAction({
             update Portcove if this continues.
           </p>
         )}
+        {cancellations?.map((activity) => (
+          <OperationCancellation
+            key={activity.id}
+            operationId={activity.id}
+            state={activity.cancellation ?? undefined}
+          />
+        ))}
         <DialogFooter className="mt-4">
           {action ? (
             <PlannedInstallButton plan={plan} busy={busy} install={install} />
@@ -1376,7 +1396,7 @@ export function InstallAction({
               Review install again
             </Button>
           )}
-          <Button data-focusable variant="outline" disabled={Boolean(busy)} onClick={dismissReview}>
+          <Button data-focusable variant="outline" disabled={Boolean(busy)} onClick={dismiss}>
             Cancel review
           </Button>
         </DialogFooter>

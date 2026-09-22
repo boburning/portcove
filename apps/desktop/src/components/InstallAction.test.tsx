@@ -2,7 +2,8 @@
 import { act, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import type { InstallPlan } from "../types";
+import { desktopApi } from "../api";
+import type { ActivityRecord, InstallPlan } from "../types";
 import { InstallAction } from "./DetailPanel";
 
 const plan: InstallPlan = {
@@ -156,6 +157,48 @@ it("does not dismiss the reviewed installation after installation starts", async
   await pressEscape();
   expect(document.body.querySelector('[role="dialog"]')).not.toBeNull();
   expect(button("Cancel review").disabled).toBe(true);
+});
+
+it("keeps the active installation cancellation reachable inside the busy review", async () => {
+  const cancel = vi
+    .spyOn(desktopApi, "cancelOperation")
+    .mockResolvedValue({ phase: "preparing", requested: true });
+  const activity: ActivityRecord = {
+    id: "install-1",
+    operation: "install",
+    target_id: "sample",
+    target_kind: "port",
+    status: "running",
+    started_at: 1,
+    finished_at: null,
+    message: null,
+    failure: null,
+    cancellation: { phase: "preparing", requested: false },
+  };
+  await act(async () =>
+    root.render(
+      <InstallAction
+        ready
+        sourceReady
+        biosReady
+        plan={plan}
+        busy="install"
+        cancellations={[activity]}
+        install={vi.fn()}
+        review={vi.fn()}
+        dismiss={vi.fn()}
+      />,
+    ),
+  );
+  const dialog = document.body.querySelector('[role="dialog"]');
+  expect(dialog?.querySelectorAll("button")).toHaveLength(3);
+  expect(dialog?.textContent).toContain("Cancel operation");
+  expect(button("Cancel review").disabled).toBe(true);
+  await pressEscape();
+  expect(document.body.querySelector('[role="dialog"]')).not.toBeNull();
+  await click("Cancel operation");
+  expect(cancel).toHaveBeenCalledWith("install-1");
+  expect(dialog?.textContent).toContain("Cancellation requested");
 });
 
 it.each([

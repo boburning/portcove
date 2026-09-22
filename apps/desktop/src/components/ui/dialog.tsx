@@ -12,23 +12,6 @@ const overlayClassName =
 const popupClassName =
   "fixed top-1/2 left-1/2 z-50 grid max-h-[calc(100dvh-2rem)] w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 overflow-y-auto overscroll-contain rounded-xl bg-pc-surface p-4 text-sm text-pc-foreground ring-1 ring-pc-foreground/10 duration-100 outline-none sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95 forced-colors:outline forced-colors:outline-1";
 
-function useDialogTriggerFocus(open: boolean) {
-  const trigger = React.useRef<HTMLButtonElement>(null);
-  const restoreAfterClose = React.useRef(false);
-  React.useEffect(() => {
-    if (!open && restoreAfterClose.current) {
-      restoreAfterClose.current = false;
-      trigger.current?.focus();
-    }
-  }, [open]);
-  return {
-    trigger,
-    restoreTriggerFocus: () => {
-      restoreAfterClose.current = true;
-    },
-  };
-}
-
 function Dialog({ ...props }: DialogPrimitive.Root.Props) {
   return <DialogPrimitive.Root data-slot="dialog" {...props} />;
 }
@@ -60,6 +43,7 @@ function DialogContent({
   children,
   showCloseButton = true,
   portaled = true,
+  finalFocus,
   ...props
 }: DialogPrimitive.Popup.Props & {
   showCloseButton?: boolean;
@@ -97,7 +81,12 @@ function DialogContent({
   return (
     <DialogPortal>
       <DialogOverlay />
-      <DialogPrimitive.Popup data-slot="dialog-content" className={resolvedClassName} {...props}>
+      <DialogPrimitive.Popup
+        data-slot="dialog-content"
+        className={resolvedClassName}
+        finalFocus={finalFocus}
+        {...props}
+      >
         {content}
       </DialogPrimitive.Popup>
     </DialogPortal>
@@ -167,5 +156,4 @@ export {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-  useDialogTriggerFocus,
 };
