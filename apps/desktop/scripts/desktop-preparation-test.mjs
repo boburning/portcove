@@ -316,7 +316,7 @@ export async function preparationScenarios({
   });
   await scenario("native-game-update-review", async () => {
     const port = command(["catalog", "show", "opengoal-jak1"]);
-    await open(port);
+    await open(port, false);
     const before = await status(port.id);
     const activityBefore = (await invoke("get_activities")).value;
     const trigger = await browser.findElement(button("Review game update"));
@@ -324,8 +324,16 @@ export async function preparationScenarios({
     const dialog = By.css('[aria-labelledby="game-update-review-title"]');
     const review = await browser.wait(until.elementLocated(dialog), 15_000);
     const reviewText = await review.getText();
+    const bootstrap = await invoke("get_bootstrap_status");
+    assert.equal(bootstrap.ok, true);
+    const candidate = await invoke("plan_game_update", {
+      portId: port.id,
+      activate: false,
+      generation: bootstrap.value.generation,
+    });
+    assert.equal(candidate.ok, true);
     assert.ok(reviewText.includes("Confirm the release"));
-    assert.ok(reviewText.includes(before.active.version));
+    assert.ok(reviewText.includes(candidate.value.plan.release.version));
     assert.ok(
       reviewText.includes("Saved update settings are unchanged") ||
         reviewText.includes("already active") ||
