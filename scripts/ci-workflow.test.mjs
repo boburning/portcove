@@ -863,6 +863,7 @@ test("frontend tooling uses the pinned Oxc contracts without legacy quality laye
   );
   assert.deepEqual(fallow, {
     $schema: "../../node_modules/fallow/schema.json",
+    entry: ["i18next.invalid.config.ts", "src/i18next-contract.test-d.ts", "src/i18next.d.ts"],
     boundaries: {
       zones: [
         { name: "shared", patterns: ["src/shared/**"] },
