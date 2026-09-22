@@ -275,27 +275,23 @@ function ReferenceWorkspace({ mode }: { mode: "library" | "details" | "installat
     : installedStatus;
   return (
     <div className="scenario-workspace-reference">
-      <PortBrowser
-        view={reviewing ? "catalog" : "library"}
-        ports={[port, secondPort]}
-        statuses={
-          new Map([
-            [port.id, detailStatus],
-            [secondPort.id, secondStatus],
-          ])
-        }
-        overview={{
-          installed: reviewing ? 1 : 2,
-          ready: reviewing ? 1 : 2,
-          needsSetup: 0,
-          staged: 0,
-        }}
-        filter="all"
-        setFilter={blockedScenarioAction}
-        onSelect={blockedScenarioAction}
-        loading={false}
-      />
-      {mode !== "library" && (
+      {mode === "library" ? (
+        <PortBrowser
+          view="library"
+          ports={[port, secondPort]}
+          statuses={
+            new Map([
+              [port.id, installedStatus],
+              [secondPort.id, secondStatus],
+            ])
+          }
+          overview={{ installed: 2, ready: 2, needsSetup: 0, staged: 0 }}
+          filter="all"
+          setFilter={blockedScenarioAction}
+          onSelect={blockedScenarioAction}
+          loading={false}
+        />
+      ) : (
         <DetailPanel
           port={port}
           status={detailStatus}
