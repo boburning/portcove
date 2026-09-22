@@ -1,5 +1,5 @@
 import { renderToStaticMarkup } from "react-dom/server";
-import { DetailPanel, type DetailActions } from "../components/DetailPanel";
+import { DetailPanel, InstallAction, type DetailActions } from "../components/DetailPanel";
 import { PortBrowser } from "../components/PortBrowser";
 import { BackupHistory } from "../components/BackupHistory";
 import { HostToolRow, StatusLayer } from "../components/Chrome";
@@ -139,6 +139,7 @@ const actions: DetailActions = {
   check: blockedScenarioAction,
   close: blockedScenarioAction,
   deleteBackup: blockedScenarioAction,
+  dismissInstallReview: blockedScenarioAction,
   install: blockedScenarioAction,
   launch: blockedScenarioAction,
   openUserData: blockedScenarioAction,
@@ -298,10 +299,21 @@ function ReferenceWorkspace({ mode }: { mode: "library" | "details" | "installat
         <DetailPanel
           port={port}
           status={detailStatus}
-          installPlan={reviewing ? reviewedInstallPlan(port) : undefined}
           sourcePath=""
           setSourcePath={blockedScenarioAction}
           actions={actions}
+        />
+      )}
+      {reviewing && (
+        <InstallAction
+          ready
+          sourceReady
+          biosReady
+          plan={reviewedInstallPlan(port)}
+          install={blockedScenarioAction}
+          review={blockedScenarioAction}
+          dismiss={blockedScenarioAction}
+          portaled={false}
         />
       )}
     </div>

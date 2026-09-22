@@ -100,6 +100,41 @@ describe("detail actions", () => {
     expect(install).toHaveBeenCalledExactlyOnceWith(port.id, "stable", "source.z64", "", false);
   });
 
+  it("closes a failed installation review only after the shared operation settles", async () => {
+    let fail!: (error: Error) => void;
+    vi.spyOn(desktopApi, "install").mockImplementation(
+      () =>
+        new Promise<never>((_resolve, reject) => {
+          fail = reject;
+        }),
+    );
+    const dismiss = vi.fn();
+    const perform: Perform = async (_name, task) => {
+      try {
+        return await task();
+      } catch {
+        return undefined;
+      }
+    };
+    const actions = detailActions(
+      port,
+      undefined,
+      "",
+      "",
+      perform,
+      vi.fn(),
+      vi.fn(),
+      async () => {},
+      0,
+      dismiss,
+    );
+    const installing = actions.install();
+    expect(dismiss).not.toHaveBeenCalled();
+    fail(new Error("Artifact unavailable"));
+    await installing;
+    expect(dismiss).toHaveBeenCalledOnce();
+  });
+
   it("backs up through the shared operation boundary", async () => {
     vi.spyOn(desktopApi, "backup").mockResolvedValue({
       id: "backup-1",

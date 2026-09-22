@@ -3,7 +3,7 @@ import { SteamEntryControl } from "./SteamEntry";
 import { ArtworkControls, ArtworkImage, DetailArtwork } from "./Artwork";
 import type { ApplyBackupAction } from "./BackupReview";
 import { ReleaseChannelControl } from "./ReleaseChannel";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -55,6 +55,7 @@ import type { Perform } from "../features/operations/use-operation-state";
 import { ExternalLink as ProjectLink } from "./ExternalLink";
 import { Icon, NavigationHints } from "./ui";
 import { Button } from "./ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "./ui/dialog";
 import { SourceIdentityPanel } from "./SourceIdentity";
 import { installPlanActionLabel } from "../install-plan-presentation";
 
@@ -64,6 +65,7 @@ export interface DetailActions {
   check: () => Promise<unknown>;
   close: () => void;
   deleteBackup: ApplyBackupAction;
+  dismissInstallReview: () => void;
   install: AsyncAction;
   launch: AsyncAction;
   openUserData: AsyncAction;
@@ -147,6 +149,13 @@ export function DetailPanel(props: DetailPanelProps) {
   );
   const selectedRequirement = selectedSourceRequirement(source, sourcePath, bios, biosPath);
   const runtimeUpdateAvailable = currentUpdateSnapshot(status)?.check.update_available === true;
+  const installReviewVisible = Boolean(
+    installPlan &&
+    !installed &&
+    launchReady &&
+    !status?.readiness?.blockers.includes("invalid_installation") &&
+    !status?.readiness?.blockers.includes("missing_runtime"),
+  );
   const state =
     installed && typeof status?.readiness?.launchable !== "boolean"
       ? {
@@ -204,14 +213,19 @@ export function DetailPanel(props: DetailPanelProps) {
       </Button>
       <DetailHero port={port} state={state} />
       <ArtworkControls key={`${port.id}:${props.libraryGeneration}`} port={port} />
-      {props.cancellableActivities?.map((activity) => (
-        <OperationCancellation
-          key={activity.id}
-          operationId={activity.id}
-          state={activity.cancellation ?? undefined}
-        />
-      ))}
+      {props.cancellableActivities
+        ?.filter((activity) => !(installReviewVisible && activity.operation === "install"))
+        .map((activity) => (
+          <OperationCancellation
+            key={activity.id}
+            operationId={activity.id}
+            state={activity.cancellation ?? undefined}
+          />
+        ))}
       <DetailBody
+        installCancellations={props.cancellableActivities?.filter(
+          (activity) => activity.operation === "install",
+        )}
         perform={props.perform}
         prepare={props.prepare}
         port={port}
@@ -261,6 +275,7 @@ function DetailHero({ port, state }: { port: PortDefinition; state: DetailState 
 }
 
 function DetailBody({
+  installCancellations,
   perform,
   prepare,
   port,
@@ -286,6 +301,7 @@ function DetailBody({
   outputApplying,
   actions,
 }: {
+  installCancellations?: ActivityRecord[];
   perform?: Perform;
   prepare?: RunPreparation;
   port: PortDefinition;
@@ -319,6 +335,7 @@ function DetailBody({
       <p className="summary">{port.summary}</p>
       <NavigationHints />
       <StatusActionsGroup
+        installCancellations={installCancellations}
         port={port}
         status={status}
         state={state}
@@ -393,6 +410,7 @@ function DetailBody({
 }
 
 function StatusActionsGroup({
+  installCancellations,
   port,
   status,
   state,
@@ -407,6 +425,7 @@ function StatusActionsGroup({
   busy,
   actions,
 }: {
+  installCancellations?: ActivityRecord[];
   port: PortDefinition;
   status?: PortStatus;
   state: DetailState;
@@ -426,6 +445,7 @@ function StatusActionsGroup({
       <RetiredNotice port={port} />
       <ReadinessCard state={state} />
       <PrimaryActions
+        installCancellations={installCancellations}
         invalidInstallation={Boolean(status?.readiness?.blockers.includes("invalid_installation"))}
         preparationRequired={managedPreparation && pendingSetup}
         runtimeNeeded={Boolean(status?.readiness?.blockers.includes("missing_runtime"))}
@@ -1176,6 +1196,7 @@ function sourceFieldCopy(profile: SourceProfile | undefined, bios: boolean) {
 }
 
 function PrimaryActions({
+  installCancellations,
   invalidInstallation,
   preparationRequired,
   runtimeNeeded,
@@ -1189,6 +1210,7 @@ function PrimaryActions({
   busy,
   actions,
 }: {
+  installCancellations?: ActivityRecord[];
   invalidInstallation: boolean;
   preparationRequired: boolean;
   runtimeNeeded: boolean;
@@ -1215,6 +1237,7 @@ function PrimaryActions({
   if (!installed)
     return (
       <InstallAction
+        cancellations={installCancellations}
         ready={launchReady}
         sourceReady={sourceReady}
         biosReady={biosReady}
@@ -1222,6 +1245,7 @@ function PrimaryActions({
         busy={busy}
         install={actions.install}
         review={actions.reviewInstall}
+        dismiss={actions.dismissInstallReview}
       />
     );
   return (
@@ -1256,7 +1280,8 @@ function PrimaryActions({
   );
 }
 
-function InstallAction({
+export function InstallAction({
+  cancellations,
   ready,
   sourceReady,
   biosReady,
@@ -1264,7 +1289,10 @@ function InstallAction({
   busy,
   install,
   review,
+  dismiss,
+  portaled = true,
 }: {
+  cancellations?: ActivityRecord[];
   ready: boolean;
   sourceReady: boolean;
   biosReady: boolean;
@@ -1272,7 +1300,10 @@ function InstallAction({
   busy?: string;
   install: AsyncAction;
   review: AsyncAction;
+  dismiss: () => void;
+  portaled?: boolean;
 }) {
+  const reviewButton = useRef<HTMLButtonElement>(null);
   if (!ready) {
     const buttonLabel =
       !sourceReady && !biosReady
@@ -1295,12 +1326,14 @@ function InstallAction({
       </div>
     );
   }
-  if (!plan)
-    return (
-      <div className="actions primary-actions">
+  const action = plan ? installPlanActionLabel(plan.action) : undefined;
+  return (
+    <>
+      <div className={plan ? "hidden" : "actions primary-actions"}>
         <Button
+          ref={reviewButton}
           data-focusable
-          className="wide"
+          className={plan ? "hidden" : "wide"}
           variant="primary"
           size="lg"
           disabled={Boolean(busy)}
@@ -1312,30 +1345,64 @@ function InstallAction({
           {busy === "review install" ? "Checking release…" : "Review install"}
         </Button>
       </div>
-    );
-  if (!installPlanActionLabel(plan.action))
-    return (
-      <div className="actions primary-actions">
-        <p role="alert">
-          This version of Portcove cannot display the installation plan. Review it again, or update
-          Portcove if this continues.
-        </p>
-        <Button
-          data-focusable
-          variant="outline"
-          disabled={Boolean(busy)}
-          onClick={() => {
-            void review();
+      {plan && (
+        <Dialog
+          open
+          onOpenChange={(nextOpen) => {
+            if (!nextOpen && !busy) dismiss();
           }}
         >
-          Review install again
-        </Button>
-      </div>
-    );
-  return (
-    <>
-      <InstallPlanSummary plan={plan} />
-      <PlannedInstallButton plan={plan} busy={busy} install={install} />
+          <DialogContent
+            showCloseButton={false}
+            finalFocus={reviewButton}
+            portaled={portaled}
+            className="max-h-[calc(100dvh-var(--space-8))] w-[min(680px,90vw)] max-w-none gap-0 overflow-y-auto overscroll-contain p-8 [scroll-padding-block:var(--space-4)] sm:max-w-none"
+            aria-describedby="install-review-description"
+          >
+            <DialogTitle id="install-review-title" className="mb-2 text-xl">
+              Review installation
+            </DialogTitle>
+            <DialogDescription id="install-review-description" className="mb-4 leading-relaxed">
+              Confirm the reviewed release and storage requirements before Portcove changes this
+              game.
+            </DialogDescription>
+            {action ? (
+              <InstallPlanSummary plan={plan} />
+            ) : (
+              <p role="alert">
+                This version of Portcove cannot display the installation plan. Review it again, or
+                update Portcove if this continues.
+              </p>
+            )}
+            {cancellations?.map((activity) => (
+              <OperationCancellation
+                key={activity.id}
+                operationId={activity.id}
+                state={activity.cancellation ?? undefined}
+              />
+            ))}
+            <DialogFooter className="mt-4">
+              {action ? (
+                <PlannedInstallButton plan={plan} busy={busy} install={install} />
+              ) : (
+                <Button
+                  data-focusable
+                  variant="primary"
+                  disabled={Boolean(busy)}
+                  onClick={() => {
+                    void review();
+                  }}
+                >
+                  Review install again
+                </Button>
+              )}
+              <Button data-focusable variant="outline" disabled={Boolean(busy)} onClick={dismiss}>
+                Cancel review
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </>
   );
 }
@@ -1392,21 +1459,18 @@ function PlannedInstallButton({
   else if (insufficientSpace) label = "Free space required";
   else if (busy === "install") label = "Installing…";
   return (
-    <div className="actions primary-actions">
-      <Button
-        data-focusable
-        className="wide"
-        variant="primary"
-        size="lg"
-        disabled={blocked || insufficientSpace || Boolean(busy)}
-        onClick={() => {
-          void install();
-        }}
-      >
-        <Icon glyph={Download} />
-        {label}
-      </Button>
-    </div>
+    <Button
+      data-focusable
+      data-autofocus={!blocked && !insufficientSpace}
+      variant="primary"
+      disabled={blocked || insufficientSpace || Boolean(busy)}
+      onClick={() => {
+        void install();
+      }}
+    >
+      <Icon glyph={Download} />
+      {label}
+    </Button>
   );
 }
 

@@ -13,6 +13,7 @@ export function detailActions(
   reviewInstall: DetailActions["reviewInstall"] = () => undefined,
   backupsChanged: () => Promise<void> = () => Promise.resolve(),
   libraryGeneration = 0,
+  dismissInstallReview: DetailActions["dismissInstallReview"] = () => undefined,
 ): DetailActions {
   return {
     activate: () =>
@@ -35,16 +36,24 @@ export function detailActions(
         invalidateDiagnostics: false,
       }),
     close,
-    install: () =>
-      perform("install", () =>
-        desktopApi.install(
-          port.id,
-          status?.channel ?? port.channels[0],
-          sourcePath,
-          biosPath,
-          false,
-        ),
-      ),
+    dismissInstallReview,
+    install: async () => {
+      try {
+        return await perform("install", () =>
+          desktopApi.install(
+            port.id,
+            status?.channel ?? port.channels[0],
+            sourcePath,
+            biosPath,
+            false,
+          ),
+        );
+      } finally {
+        // The status layer owns the settled result, including failures and cancellation.
+        // Close the modal so that result is reachable and another attempt requires a fresh review.
+        dismissInstallReview();
+      }
+    },
     launch: () => perform("launch", () => desktopApi.launch(port.id, sourcePath)),
     openUserData: () =>
       perform("open data folder", () => desktopApi.openUserData(port.id), {

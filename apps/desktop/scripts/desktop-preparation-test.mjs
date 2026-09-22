@@ -192,8 +192,16 @@ export async function preparationScenarios({
     );
     assert.equal((await status(port.id)).active.id, install.id, "review must not move versions");
     await browser.findElement(button("Review game preparation")).click();
+    const preparationDialog = By.css('[aria-labelledby="preparation-review-title"]');
+    await browser.wait(until.elementLocated(preparationDialog), 15_000);
     await browser.wait(until.elementLocated(button("Start new preparation")), 15_000);
     assert.equal((await status(port.id)).active.id, install.id, "review must not prepare");
+    await assertPrimaryReviewAction(
+      browser,
+      await browser.findElement(button("Start new preparation")),
+      await browser.findElement(button("Cancel review")),
+    );
+    await assertCompactReview(browser, '[aria-labelledby="preparation-review-title"]');
     const reviewImage = path.join(output, "native-preparation-review.png");
     await writeFile(reviewImage, await browser.takeScreenshot(), {
       encoding: "base64",
@@ -202,6 +210,23 @@ export async function preparationScenarios({
     artifacts.push(reviewImage);
     const accessibilityReport = path.join(output, "preparation-accessibility.json");
     await captureAccessibilityReport(browser, accessibilityReport, artifacts);
+    await browser.actions().sendKeys(Key.ESCAPE).perform();
+    await browser.wait(
+      async () => (await browser.findElements(preparationDialog)).length === 0,
+      5_000,
+      "Preparation review did not close after Escape",
+    );
+    await browser.wait(
+      () =>
+        browser.executeScript(
+          'return document.activeElement?.textContent?.trim() === "Review game preparation";',
+        ),
+      5_000,
+      "Preparation review trigger did not regain focus after Escape",
+    );
+    assert.equal((await status(port.id)).active.id, install.id, "dismissal must not prepare");
+    await browser.findElement(button("Review game preparation")).click();
+    await browser.wait(until.elementLocated(preparationDialog), 15_000);
     await browser.findElement(button("Start new preparation")).click();
     await browser.wait(async () => (await status(port.id)).readiness.launchable, 15_000);
     const prepared = await status(port.id);
