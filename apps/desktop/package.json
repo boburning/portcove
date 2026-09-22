@@ -32,7 +32,7 @@
     "test:copy": "vitest run scripts/check-copy.test.mjs src/count-messages.test.ts && node scripts/check-copy.mjs",
     "test:theme": "node scripts/check-theme.mjs",
     "i18n:extract": "i18next-cli extract",
-    "i18n:check": "i18next-cli extract --ci && i18next-cli status && i18next-cli lint && i18next-cli types && node ../../scripts/run-oxfmt.mjs --write apps/desktop/src/resources.d.ts && node scripts/check-i18n-negative-fixture.mjs",
+    "i18n:check": "i18next-cli extract --ci && i18next-cli status && i18next-cli lint && i18next-cli types --ci && node scripts/check-i18n-negative-fixture.mjs",
     "transport:check": "node scripts/generate-transport-types.mjs",
     "test:cli-handoff": "vitest run scripts/cli-command-shell.test.mjs src/cli-command.test.ts src/components/CliContinuity.test.tsx"
   },

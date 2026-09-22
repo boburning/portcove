@@ -25,6 +25,7 @@ export default defineConfig({
   types: {
     input: ["src/locales/en/*.json"],
     basePath: "src/locales/en",
-    output: "src/i18next.generated.d.ts",
+    output: "src/i18next.d.ts",
+    resourcesFile: "src/resources.generated.d.ts",
   },
 });

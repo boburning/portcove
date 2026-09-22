@@ -12,6 +12,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -140,6 +141,7 @@ export function LocalizationProvider({
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState(false);
+  const preferenceRequest = useRef(0);
 
   const apply = useCallback(
     async (nextChoice: LocaleChoice) => {
@@ -156,16 +158,17 @@ export function LocalizationProvider({
 
   useEffect(() => {
     let active = true;
+    const request = ++preferenceRequest.current;
     void api
       .localePreference()
       .then((snapshot) => {
-        if (!active) return;
+        if (!active || request !== preferenceRequest.current) return;
         const stored = snapshot.locale;
         const nextChoice: LocaleChoice = stored === "en" || stored === "ar-XB" ? stored : "system";
         return apply(nextChoice);
       })
       .catch(() => {
-        if (active) setError(true);
+        if (active && request === preferenceRequest.current) setError(true);
       });
     return () => {
       active = false;
@@ -175,6 +178,7 @@ export function LocalizationProvider({
   const select = useCallback(
     async (nextChoice: LocaleChoice) => {
       if (nextChoice === choice || saving) return;
+      preferenceRequest.current += 1;
       setSaving(true);
       setSaved(false);
       setError(false);

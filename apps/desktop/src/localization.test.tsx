@@ -107,4 +107,66 @@ describe("LocalizationProvider", () => {
     expect(localization.error).toBe(true);
     expect(localization.saved).toBe(false);
   });
+
+  it("ignores a stale startup preference after a newer selection succeeds", async () => {
+    let resolveRead!: (snapshot: { locale: string | null }) => void;
+    const pendingRead = new Promise<{ locale: string | null }>((resolve) => {
+      resolveRead = resolve;
+    });
+    const api: LocalePreferenceApi = {
+      localePreference: vi.fn().mockReturnValue(pendingRead),
+      setLocalePreference: vi.fn().mockResolvedValue({ locale: "ar-XB" }),
+    };
+    let localization!: ReturnType<typeof useLocalization>;
+    function Fixture() {
+      localization = useLocalization();
+      return <span>{localization.locale}</span>;
+    }
+    await act(async () =>
+      root.render(
+        <LocalizationProvider api={api}>
+          <Fixture />
+        </LocalizationProvider>,
+      ),
+    );
+    await act(async () => localization.select("ar-XB"));
+    await act(async () => {
+      resolveRead({ locale: null });
+      await pendingRead;
+    });
+    expect(localization.locale).toBe("ar-XB");
+    expect(localization.saved).toBe(true);
+    expect(localization.error).toBe(false);
+  });
+
+  it("ignores a stale startup failure after a newer selection succeeds", async () => {
+    let rejectRead!: (error: Error) => void;
+    const pendingRead = new Promise<{ locale: string | null }>((_resolve, reject) => {
+      rejectRead = reject;
+    });
+    const api: LocalePreferenceApi = {
+      localePreference: vi.fn().mockReturnValue(pendingRead),
+      setLocalePreference: vi.fn().mockResolvedValue({ locale: "ar-XB" }),
+    };
+    let localization!: ReturnType<typeof useLocalization>;
+    function Fixture() {
+      localization = useLocalization();
+      return <span>{localization.locale}</span>;
+    }
+    await act(async () =>
+      root.render(
+        <LocalizationProvider api={api}>
+          <Fixture />
+        </LocalizationProvider>,
+      ),
+    );
+    await act(async () => localization.select("ar-XB"));
+    await act(async () => {
+      rejectRead(new Error("stale read failure"));
+      await pendingRead.catch(() => undefined);
+    });
+    expect(localization.locale).toBe("ar-XB");
+    expect(localization.saved).toBe(true);
+    expect(localization.error).toBe(false);
+  });
 });
