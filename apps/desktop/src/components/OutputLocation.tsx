@@ -43,6 +43,7 @@ export function OutputLocationControl({
   const applying = useRef(false);
   const reviewButton = useRef<HTMLButtonElement>(null);
   const resetButton = useRef<HTMLButtonElement>(null);
+  const focusReturn = useRef<"review" | "reset">("review");
 
   const inspectCurrentDestination = useCallback(
     async (nextLocation: PortOutputLocation) => {
@@ -131,6 +132,7 @@ export function OutputLocationControl({
       return;
     }
     const currentRequest = ++request.current;
+    focusReturn.current = path === null ? "reset" : "review";
     setPreview(undefined);
     setRelocation(undefined);
     setError(undefined);
@@ -149,6 +151,7 @@ export function OutputLocationControl({
 
   const reviewRelocation = async () => {
     if (!preview) return;
+    focusReturn.current = "review";
     const reviewedDestination = preview.proposed.effective_output_directory;
     const currentRequest = ++request.current;
     setPending("review");
@@ -168,6 +171,7 @@ export function OutputLocationControl({
 
   const applyRelocation = async () => {
     if (!relocation) return;
+    focusReturn.current = "review";
     const reviewed = relocation;
     const currentRequest = ++request.current;
     setPending("apply");
@@ -204,12 +208,12 @@ export function OutputLocationControl({
       applying.current = false;
       onApplying?.(false);
       setError(`${errorText(value)} Review the current destination again.`);
-      window.requestAnimationFrame(() => reviewButton.current?.focus());
     }
   };
 
   const apply = async () => {
     if (!preview) return;
+    focusReturn.current = "review";
     const reviewed = preview;
     const currentRequest = ++request.current;
     setPending("apply");
@@ -241,19 +245,18 @@ export function OutputLocationControl({
       applying.current = false;
       onApplying?.(false);
       setError(`${errorText(value)} Review the current destination again.`);
-      window.requestAnimationFrame(() => reviewButton.current?.focus());
     }
   };
 
   const cancelReview = () => {
-    const reset = preview?.reset_to_default;
     request.current += 1;
     setPreview(undefined);
     setRelocation(undefined);
     setError(undefined);
     setPending(undefined);
-    window.requestAnimationFrame(() => (reset ? resetButton : reviewButton).current?.focus());
   };
+  const finalReviewFocus = () =>
+    (focusReturn.current === "reset" ? resetButton.current : null) ?? reviewButton.current;
 
   const controlsDisabled =
     Boolean(busy) || pending === "load" || pending === "pick" || pending === "apply";
@@ -361,6 +364,7 @@ export function OutputLocationControl({
             void applyRelocation();
           }}
           cancel={cancelReview}
+          finalFocus={finalReviewFocus}
         />
       )}
       <OutputLocationStatus result={relocationResult} status={relocationStatus} error={error} />
@@ -500,6 +504,7 @@ function OutputLocationReview({
   reviewRelocation,
   applyRelocation,
   cancel,
+  finalFocus,
 }: {
   preview: OutputDestinationPreview;
   relocation?: OutputRelocationPlan;
@@ -508,6 +513,7 @@ function OutputLocationReview({
   reviewRelocation: () => void;
   applyRelocation: () => void;
   cancel: () => void;
+  finalFocus: () => HTMLButtonElement | null;
 }) {
   const safe =
     preview.availability === "available" &&
@@ -532,6 +538,7 @@ function OutputLocationReview({
           pending={pending === "apply"}
           apply={applyRelocation}
           cancel={cancel}
+          finalFocus={finalFocus}
         />
       </Dialog>
     );
@@ -543,6 +550,7 @@ function OutputLocationReview({
       }}
     >
       <DialogContent
+        finalFocus={finalFocus}
         showCloseButton={false}
         className="max-h-[calc(100dvh-var(--space-8))] w-[min(680px,90vw)] max-w-none gap-0 overflow-y-auto overscroll-contain p-8 [scroll-padding-block:var(--space-4)] sm:max-w-none"
         aria-describedby="output-location-review-description"
@@ -648,11 +656,13 @@ function OutputRelocationReview({
   pending,
   apply,
   cancel,
+  finalFocus,
 }: {
   plan: OutputRelocationPlan;
   pending: boolean;
   apply: () => void;
   cancel: () => void;
+  finalFocus: () => HTMLButtonElement | null;
 }) {
   const safe =
     plan.availability === "available" &&
@@ -663,6 +673,7 @@ function OutputRelocationReview({
     !plan.backups_will_move;
   return (
     <DialogContent
+      finalFocus={finalFocus}
       showCloseButton={false}
       className="max-h-[calc(100dvh-var(--space-8))] w-[min(760px,90vw)] max-w-none gap-0 overflow-y-auto overscroll-contain p-8 [scroll-padding-block:var(--space-4)] sm:max-w-none"
       aria-describedby="output-relocation-review-description"

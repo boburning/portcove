@@ -422,6 +422,7 @@ describe("per-game Export / install folder", () => {
     expect(onChanged).toHaveBeenCalledTimes(1);
     expect(onApplying.mock.calls).toEqual([[true], [false]]);
     expect(document.body.textContent).toContain("Inherited from the Portcove library");
+    expect(document.activeElement).toBe(button("Review future folder"));
     expect(document.body.textContent).toContain("4.0 GiB available of 16.0 GiB");
     expect(desktopApi.previewOutputLocation).toHaveBeenNthCalledWith(4, "sample", null, 8);
   });
@@ -497,6 +498,7 @@ describe("per-game Export / install folder", () => {
     expect(document.body.textContent).toContain("destination capacity changed");
     expect(document.body.textContent).toContain("Review the current destination again");
     expect(document.body.textContent).not.toContain("Use this folder for future installs");
+    expect(document.activeElement).toBe(button("Review future folder"));
   });
 
   it("discards an old preview after the port and library generation change", async () => {
@@ -667,6 +669,7 @@ describe("per-game Export / install folder", () => {
     expect(move).toHaveBeenCalledWith("sample", "F:/Games/Sample", "b".repeat(64), 14);
     expect(onApplying.mock.calls).toEqual([[true], [false]]);
     expect(document.body.textContent).toContain("Move completed");
+    expect(document.activeElement).toBe(trigger);
     expect(document.body.textContent).toContain(
       "Move completed. 1 old folder contains changed files and remains for safe cleanup.",
     );
