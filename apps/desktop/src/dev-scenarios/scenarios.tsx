@@ -16,6 +16,36 @@ export const scenarios = [
     limitation: "No catalog discovery or library IPC is executed.",
   },
   {
+    id: "filtered-empty-library",
+    label: "Filtered empty library",
+    theme: "light",
+    viewport: "wide",
+    limitation:
+      "Installed content is supplied but filtered out; search and filter state do not run.",
+  },
+  {
+    id: "unavailable-library",
+    label: "Unavailable library",
+    theme: "dark",
+    viewport: "narrow",
+    limitation: "The initial-load failure is synthetic; retry and library IPC do not run.",
+  },
+  {
+    id: "partial-success",
+    label: "Partial success",
+    theme: "light",
+    viewport: "wide",
+    limitation:
+      "The committed mutation and failed refresh are supplied facts; no files are changed.",
+  },
+  {
+    id: "cancelled-operation",
+    label: "Cancelled operation",
+    theme: "dark",
+    viewport: "narrow",
+    limitation: "The neutral cancellation outcome is supplied; no native prompt or operation runs.",
+  },
+  {
     id: "ready-game",
     label: "Ready game",
     theme: "dark",
@@ -255,6 +285,68 @@ function Scenario({ id }: { id: ScenarioId }) {
         loading={false}
       />
     );
+  if (id === "filtered-empty-library")
+    return (
+      <PortBrowser
+        view="library"
+        ports={[]}
+        statuses={new Map()}
+        overview={{ installed: 2, ready: 1, needsSetup: 1, staged: 0 }}
+        filter="ready"
+        setFilter={blockedScenarioAction}
+        onSelect={blockedScenarioAction}
+        clearFilters={blockedScenarioAction}
+        loading={false}
+      />
+    );
+  if (id === "unavailable-library")
+    return (
+      <WorkspaceRefreshNotice
+        hasSnapshot={false}
+        refreshing={false}
+        failure={{ error: { ...failureReport(), message: "Scenario library is unavailable." } }}
+        retry={blockedScenarioAction}
+      />
+    );
+  if (id === "partial-success") {
+    const partial = failureReport();
+    return (
+      <StatusLayer
+        clearError={blockedScenarioAction}
+        error={{
+          ...partial,
+          code: "refresh_failed_after_commit",
+          message: "The change was saved, but current library information could not be refreshed.",
+          presentation: {
+            ...partial.presentation,
+            summary: "The change was saved, but Portcove could not refresh the current view.",
+            mutation_state: "committed",
+            recovery_actions: ["review_current_state", "view_technical_details"],
+          },
+        }}
+      />
+    );
+  }
+  if (id === "cancelled-operation") {
+    const cancelled = failureReport();
+    return (
+      <StatusLayer
+        clearError={blockedScenarioAction}
+        error={{
+          ...cancelled,
+          code: "cancelled",
+          message: "Scenario operation cancelled.",
+          presentation: {
+            ...cancelled.presentation,
+            summary: "The operation was cancelled before it changed any files.",
+            tone: "neutral",
+            mutation_state: "no_changes",
+            recovery_actions: [],
+          },
+        }}
+      />
+    );
+  }
   if (id === "missing-tool")
     return (
       <HostToolRow
