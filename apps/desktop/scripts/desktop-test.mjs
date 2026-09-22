@@ -534,6 +534,11 @@ try {
           '[data-settings-group]:not([data-settings-group="updates"]) button:not([data-slot="button"])',
         ),
       ].map((button) => button.textContent?.trim() ?? ""),
+      legacy_shell_buttons: [
+        ...document.querySelectorAll(
+          'aside button:not([data-slot="button"]), header button:not([data-slot="button"])',
+        ),
+      ].map((button) => button.textContent?.trim() ?? button.getAttribute("aria-label") ?? ""),
     }));
     assert.equal(layout.document_overflow, false);
     assert.equal(layout.about_columns, 1);
@@ -547,6 +552,7 @@ try {
     ]);
     assert.deepEqual(layout.overflowing_cards, []);
     assert.deepEqual(layout.legacy_buttons, []);
+    assert.deepEqual(layout.legacy_shell_buttons, []);
 
     let focusedSettingsControl = false;
     for (let step = 0; step < 30 && !focusedSettingsControl; step++) {

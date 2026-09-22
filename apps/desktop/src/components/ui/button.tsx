@@ -18,10 +18,10 @@ const buttonVariants = cva(
         secondary:
           "bg-pc-secondary text-pc-secondary-foreground hover:bg-pc-surface-muted aria-expanded:bg-pc-secondary aria-expanded:text-pc-secondary-foreground",
         ghost:
-          "hover:bg-pc-surface-muted hover:text-pc-foreground aria-expanded:bg-pc-surface-muted aria-expanded:text-pc-foreground dark:hover:bg-pc-surface-muted/50",
+          "bg-transparent hover:bg-pc-surface-muted hover:text-pc-foreground aria-expanded:bg-pc-surface-muted aria-expanded:text-pc-foreground dark:hover:bg-pc-surface-muted/50",
         destructive:
           "border-pc-danger bg-pc-danger-subtle text-pc-danger-strong hover:border-pc-danger-surface hover:bg-pc-danger-surface hover:text-pc-primary-foreground dark:bg-pc-danger/20",
-        link: "text-pc-primary underline-offset-4 hover:underline",
+        link: "bg-transparent text-pc-primary underline-offset-4 hover:underline",
       },
       size: {
         default:
