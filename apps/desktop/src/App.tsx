@@ -316,11 +316,15 @@ function Workspace({
   const { switchView, workspace } = useWorkspaceContinuity(ui.view);
   useLibrarySelectionLanding(returnToSelection, workspace, consumeLibrarySelectionReturn);
   const { adoptOpen, selectedId, setAdoptOpen, setSelectedId, setView } = ui;
+  const availablePortIds = useMemo(
+    () => (data.catalog ? new Set(data.catalog.ports.map((port) => port.id)) : undefined),
+    [data.catalog],
+  );
   const {
     close: closePortDetails,
     invalidate: invalidatePortDetails,
     open: openPortDetails,
-  } = useDetailWorkspaceNavigation(workspace, setSelectedId);
+  } = useDetailWorkspaceNavigation(workspace, setSelectedId, availablePortIds);
   const setPrimaryView = useCallback(
     (...args: Parameters<typeof setView>) => {
       const nextView = typeof args[0] === "function" ? args[0](ui.view) : args[0];
