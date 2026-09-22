@@ -24,6 +24,11 @@ export const DESKTOP_SCENARIOS = Object.freeze([
     },
   ),
   scenario("native-error-recovery", "A rejected native operation leaves the application usable."),
+  scenario(
+    "native-catalog-update-dialog",
+    "Catalog trust and update management preserves nested dismissal without mutating catalog state.",
+    { source: "desktop-catalog-update-test.mjs" },
+  ),
   scenario("keyboard-layout", "Keyboard focus and compact layout remain usable."),
   scenario(
     "native-application-update-preferences",
@@ -203,6 +208,7 @@ export const DESKTOP_SCENARIOS = Object.freeze([
 const smoke = [
   "empty-library",
   "native-error-recovery",
+  "native-catalog-update-dialog",
   "keyboard-layout",
   "native-application-update-preferences",
   "appearance-restart",
@@ -236,6 +242,7 @@ export const DESKTOP_PROFILES = Object.freeze({
   smoke: Object.freeze(smoke),
   presentation: Object.freeze([
     "empty-library",
+    "native-catalog-update-dialog",
     "keyboard-layout",
     "native-application-update-preferences",
     "accessibility",

@@ -19,6 +19,7 @@ import { captureAccessibilityReport } from "./desktop-review-controls.mjs";
 import { createInstallFixture } from "./desktop-install-fixture.mjs";
 import { installScenarios } from "./desktop-install-test.mjs";
 import { assertDesignCompatibility } from "./desktop-design-compatibility-assertions.mjs";
+import { catalogUpdateScenario } from "./desktop-catalog-update-test.mjs";
 import {
   desktopHarnessDeadlineMs,
   desktopScenarioById,
@@ -103,6 +104,9 @@ for (const name of ["native-session.ps1", "native-process-tree.ps1"])
 inputs.push(await fileIdentity(fileURLToPath(new URL("desktop-reload-test.mjs", import.meta.url))));
 inputs.push(
   await fileIdentity(fileURLToPath(new URL("desktop-workspace-refresh-test.mjs", import.meta.url))),
+);
+inputs.push(
+  await fileIdentity(fileURLToPath(new URL("desktop-catalog-update-test.mjs", import.meta.url))),
 );
 if (selection.prerequisites.includes("owned-fixture")) {
   for (const name of ["preparation-cli", "preparation-tool"]) {
@@ -494,6 +498,7 @@ try {
     assert.ok(failed.error.code);
     assert.equal((await invoke("get_bootstrap_status")).value.ready, true);
   });
+  await catalogUpdateScenario({ browser, invoke, scenario, output, artifacts });
   await scenario("keyboard-layout", async () => {
     await browser.manage().window().setRect({ width: 640, height: 640 });
     await browser.findElement(By.xpath('//nav//button[contains(., "Settings")]')).click();
