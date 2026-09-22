@@ -878,10 +878,6 @@ h2 {
   display: flex;
   gap: 8px;
 }
-.continue-actions button {
-  padding: 10px 14px;
-  border-radius: var(--radius-md);
-}
 
 .primary,
 [data-slot="button"][data-variant="default"] {
@@ -992,34 +988,6 @@ h2 {
   margin-left: auto;
   color: var(--color-text-muted);
   font-size: var(--text-xs);
-}
-
-.filter {
-  padding: 7px 13px;
-  border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius-md);
-  color: var(--color-text-muted);
-  background: var(--color-transparent);
-  text-transform: capitalize;
-  cursor: pointer;
-}
-
-.filter:hover {
-  color: var(--color-text);
-  background: var(--color-bg-hover);
-}
-
-.filter:active {
-  background: var(--color-bg-active);
-  box-shadow: var(--shadow-pressed);
-  transform: translateY(1px);
-}
-
-.filter.active {
-  border-color: var(--color-interactive);
-  color: var(--color-text-on-dark);
-  background: var(--color-interactive);
-  font-weight: 750;
 }
 
 .port-grid {
@@ -1311,11 +1279,8 @@ h2 {
   justify-content: flex-end;
 }
 
-.card-actions button {
-  min-height: 2rem;
-  padding: var(--space-1) var(--space-2);
+.card-actions > [data-slot="button"][data-variant="outline"] {
   color: var(--color-interactive-text-strong);
-  font-size: var(--text-xs);
 }
 
 .empty-state,
@@ -1362,10 +1327,6 @@ h2 {
 .empty-state-action {
   margin-top: var(--space-2);
 }
-.empty-state-action button {
-  padding: 0 var(--space-4);
-}
-
 .empty-mascot-stage {
   width: 13rem;
   height: 10rem;

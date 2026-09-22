@@ -2521,6 +2521,9 @@ describe("desktop components", () => {
     );
     expect(html).toContain("Ready to play");
     expect(html).toContain("View details");
+    expect(html).toContain('data-slot="button"');
+    expect(html).toContain('data-variant="outline"');
+    expect(html).toContain('data-variant="default"');
     expect(html).toContain('<article class="port-card"');
     expect(html).toContain(">Play</button>");
     expect(html).not.toMatch(/<button[^>]*class="port-card/u);

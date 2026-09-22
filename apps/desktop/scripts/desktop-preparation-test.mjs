@@ -17,6 +17,23 @@ import { readinessScenario } from "./desktop-readiness-test.mjs";
 import { steamEntryScenario } from "./desktop-steam-entry-test.mjs";
 import { sourceDialogScenario } from "./desktop-source-dialog-test.mjs";
 
+function rgbLuminance(color) {
+  const channels = color
+    .match(/[\d.]+/g)
+    .slice(0, 3)
+    .map(Number);
+  const linear = channels.map((value) => {
+    const channel = value / 255;
+    return channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2];
+}
+
+function contrastRatio(foreground, background) {
+  const values = [rgbLuminance(foreground), rgbLuminance(background)].sort((a, b) => b - a);
+  return (values[0] + 0.05) / (values[1] + 0.05);
+}
+
 export async function preparationScenarios({
   browser,
   invoke,
@@ -162,25 +179,57 @@ export async function preparationScenarios({
       const play = [...element.querySelectorAll("button")].find(
         (button) => button.textContent?.trim() === "Play",
       );
-      if (details instanceof HTMLElement) details.focus();
+      const workspace = element.closest("main");
+      const cardBounds = element.getBoundingClientRect();
+      const detailsBounds = details.getBoundingClientRect();
+      const playBounds = play.getBoundingClientRect();
+      const detailsStyle = getComputedStyle(details);
+      details.focus();
       return {
         tag: element.tagName,
-        details: details?.textContent?.trim(),
-        play: play?.textContent?.trim(),
-        play_disabled: play instanceof HTMLButtonElement ? play.disabled : null,
+        details: details.textContent.trim(),
+        details_slot: details.getAttribute("data-slot"),
+        details_variant: details.getAttribute("data-variant"),
+        play: play.textContent.trim(),
+        play_disabled: play.disabled,
+        play_slot: play.getAttribute("data-slot"),
+        play_variant: play.getAttribute("data-variant"),
+        workspace_horizontal_overflow: workspace.scrollWidth > workspace.clientWidth + 1,
+        card_horizontal_overflow: element.scrollWidth > element.clientWidth + 1,
+        actions_fit_card:
+          detailsBounds.left >= cardBounds.left && playBounds.right <= cardBounds.right,
+        details_color: detailsStyle.color,
+        details_background: detailsStyle.backgroundColor,
         nested_interactive: element.querySelectorAll("button button, button a, a button, a a")
           .length,
         details_focused: document.activeElement === details,
       };
     }, card);
-    assert.deepEqual(cardActions, {
+    const {
+      details_color: detailsColor,
+      details_background: detailsBackground,
+      ...cardStructure
+    } = cardActions;
+    assert.deepEqual(cardStructure, {
       tag: "ARTICLE",
       details: "View details",
+      details_slot: "button",
+      details_variant: "outline",
       play: "Play",
       play_disabled: false,
+      play_slot: "button",
+      play_variant: "default",
+      workspace_horizontal_overflow: false,
+      card_horizontal_overflow: false,
+      actions_fit_card: true,
       nested_interactive: 0,
       details_focused: true,
     });
+    const detailsContrast = contrastRatio(detailsColor, detailsBackground);
+    assert.ok(
+      detailsContrast >= 4.5,
+      `Library View details contrast ${detailsContrast} is below AA`,
+    );
     const actionsImage = path.join(output, "library-distinct-card-actions.png");
     await writeFile(actionsImage, await browser.takeScreenshot(), {
       encoding: "base64",
