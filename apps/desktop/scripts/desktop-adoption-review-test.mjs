@@ -100,6 +100,7 @@ export async function adoptionReviewScenario({
     );
     const ambiguousReport = path.join(output, "adoption-ambiguous-accessibility.json");
     await captureAccessibilityReport(browser, ambiguousReport, artifacts);
+    await assertCompactReview(browser, '[aria-labelledby="adopt-title"]');
     const ambiguousScreenshot = path.join(output, "native-adoption-ambiguous-choice.png");
     await writeFile(ambiguousScreenshot, await browser.takeScreenshot(), {
       encoding: "base64",
@@ -112,6 +113,13 @@ export async function adoptionReviewScenario({
       15_000,
     );
     await browser.wait(until.elementIsEnabled(selectedContinue), 15_000);
+    const selectedIdentity = await browser.findElement(By.id("adopt-port-identity"));
+    await browser.wait(
+      () =>
+        browser.executeScript("return document.activeElement === arguments[0]", selectedIdentity),
+      5_000,
+      "Selected copy plan did not receive focus after candidate review",
+    );
     const selectedText = await browser.findElement(dialog).getText();
     assert.ok(selectedText.includes(port.name));
     assert.ok(selectedText.includes(`Catalog ID: ${port.id}`));
@@ -135,6 +143,7 @@ export async function adoptionReviewScenario({
       ambiguousFiles,
     );
     assert.equal(command(["status", port.id]).active.id, previous.id);
+    await browser.manage().window().setRect({ width: 1440, height: 1000 });
     const open = async () => {
       await click(trigger);
       const input = await browser.findElement(By.id("adopt-path"));

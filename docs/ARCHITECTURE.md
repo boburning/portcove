@@ -502,7 +502,9 @@ When an unscoped folder matches multiple catalog ports, Desktop offers only the
 detected IDs. Choosing one requests a fresh core preview for that ID before the
 copy action is enabled; the native confirmation and authorization receive the
 ID and fingerprint from the reviewed preview. Path, selected-port, or library
-generation changes invalidate that ephemeral choice.
+generation changes invalidate that ephemeral choice. Focus moves to the stable
+dialog title while a chosen port is re-reviewed, then to its selected-plan
+identity; a failed review keeps focus inside the dialog.
 
 ## Backup review presentation
 

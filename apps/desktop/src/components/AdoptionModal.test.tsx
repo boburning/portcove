@@ -3,6 +3,7 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { expect, it, vi } from "vitest";
 import { portDefinition } from "../test-fixtures";
+import type { AdoptionPreview } from "../types";
 import { AdoptionModal } from "./AdoptionModal";
 
 it("keeps an uncancellable copy open and inputs locked even while another operation is busy", async () => {
@@ -136,6 +137,21 @@ it("offers only detected ports for a fresh bound copy review", async () => {
   const port = { ...portDefinition(), id: "sample", name: "Sample Port" };
   const other = { ...port, id: "other", name: "Other Port" };
   const review = vi.fn();
+  const ambiguousPreview: AdoptionPreview = {
+    source: "D:/Ambiguous",
+    detected_port_ids: [port.id, other.id],
+    selected_port_id: null,
+    application_files_will_be_copied: true,
+    original_will_be_modified: false,
+    copy_plan: {
+      directories: [],
+      files: [],
+      skipped_entries: [],
+      total_bytes: 0,
+    },
+    destination: null,
+    plan_sha256: "d".repeat(64),
+  };
   try {
     await act(async () =>
       root.render(
@@ -146,21 +162,7 @@ it("offers only detected ports for a fresh bound copy review", async () => {
           review={review}
           adopt={vi.fn()}
           ports={[port, other]}
-          preview={{
-            source: "D:/Ambiguous",
-            detected_port_ids: [port.id, other.id],
-            selected_port_id: null,
-            application_files_will_be_copied: true,
-            original_will_be_modified: false,
-            copy_plan: {
-              directories: [],
-              files: [],
-              skipped_entries: [],
-              total_bytes: 0,
-            },
-            destination: null,
-            plan_sha256: "d".repeat(64),
-          }}
+          preview={ambiguousPreview}
         />,
       ),
     );
@@ -180,8 +182,55 @@ it("offers only detected ports for a fresh bound copy review", async () => {
         .click();
     });
     expect(review).toHaveBeenCalledExactlyOnceWith("other");
+    expect(document.activeElement?.id).toBe("adopt-title");
+    await act(async () =>
+      root.render(
+        <AdoptionModal
+          path="D:/Ambiguous"
+          setPath={vi.fn()}
+          close={vi.fn()}
+          review={review}
+          adopt={vi.fn()}
+          ports={[port, other]}
+        />,
+      ),
+    );
+    expect(document.activeElement?.id).toBe("adopt-title");
+    await act(async () =>
+      root.render(
+        <AdoptionModal
+          path="D:/Ambiguous"
+          setPath={vi.fn()}
+          close={vi.fn()}
+          review={review}
+          adopt={vi.fn()}
+          ports={[port, other]}
+          preview={{
+            ...ambiguousPreview,
+            detected_port_ids: [other.id],
+            selected_port_id: other.id,
+            destination: {
+              output_location: {
+                port_id: other.id,
+                library_root: "D:/Library",
+                default_output_directory: "D:/Library/versions/other",
+                configured_output_directory: null,
+                effective_output_directory: "D:/Library/versions/other",
+                selection_source: "library_default",
+                user_data_root: "D:/Library/user/other",
+              },
+              active_install: null,
+              imported_user_data_paths: [],
+              current_user_data_files: 0,
+              current_user_data_sha256: "c".repeat(64),
+            },
+          }}
+        />,
+      ),
+    );
+    expect(document.activeElement?.id).toBe("adopt-port-identity");
     expect(dialog.textContent).toContain("Cancel");
-    expect(dialog.querySelector("strong")?.textContent).toBe("Multiple supported ports detected");
+    expect(dialog.querySelector("strong")?.textContent).toBe("Other Port");
   } finally {
     await act(async () => root.unmount());
     container.remove();
