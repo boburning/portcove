@@ -341,7 +341,8 @@ export async function interruptedPreparationScenario({
       evidence,
       JSON.stringify(
         {
-          method: "simulated durable interruption with real CLI recovery and native UI",
+          method:
+            "simulated durable interruption with read-only CLI checks, Desktop startup recovery, and native UI",
           activity: recovered,
           repair,
           captures: retained,
@@ -610,17 +611,22 @@ export async function interruptedPreparationScenario({
     );
     assert.deepEqual(command(["status", before.port_id]).active, before.active);
     assert.deepEqual(command(["activity", "log", activity.id]), retained);
-    const journalDatabase = new DatabaseSync(path.join(library, "portcove.sqlite3"));
-    try {
-      journalDatabase.exec("PRAGMA busy_timeout=1000");
-      journalDatabase.exec("BEGIN IMMEDIATE");
-      insertOwnedRow(journalDatabase, "activity_history", journalOnlyActivityRow);
-      insertOwnedRow(journalDatabase, "lifecycle_operations", journalOnlyOperationRow);
-      journalDatabase.exec("COMMIT");
-    } finally {
-      journalDatabase.close();
-    }
-    await assert.rejects(access(journalOnlyPath));
+    browser = await restartApplication("journal-only-preparation-recovery", async () => {
+      const journalDatabase = new DatabaseSync(path.join(library, "portcove.sqlite3"));
+      try {
+        journalDatabase.exec("PRAGMA busy_timeout=1000");
+        journalDatabase.exec("BEGIN IMMEDIATE");
+        insertOwnedRow(journalDatabase, "activity_history", journalOnlyActivityRow);
+        insertOwnedRow(journalDatabase, "lifecycle_operations", journalOnlyOperationRow);
+        journalDatabase.exec("COMMIT");
+      } finally {
+        journalDatabase.close();
+      }
+      await assert.rejects(access(journalOnlyPath));
+      const pendingDoctor = command(["doctor"]);
+      assert.equal(cliActivities().find((item) => item.id === journalOnlyId).status, "running");
+      assert.ok(pendingDoctor.repair.items.some((item) => item.operation_id === journalOnlyId));
+    });
     const journalOnlyDoctor = command(["doctor"]);
     const journalOnlyActivity = cliActivities().find((item) => item.id === journalOnlyId);
     assert.equal(journalOnlyActivity.status, "failed");
@@ -636,7 +642,6 @@ export async function interruptedPreparationScenario({
     assert.equal(journalOnlyRepair.path, journalOnlyPath);
     assert.deepEqual(command(["status", before.port_id]).active, before.active);
     assert.deepEqual(command(["activity", "log", activity.id]), retained);
-    browser = await restartApplication("journal-only-preparation-recovery");
     controls = reviewControls(browser);
     await dismissApplicationUpdateChoice();
     await browser.findElement(By.xpath('//nav//button[contains(., "Updates")]')).click();
@@ -734,7 +739,8 @@ export async function interruptedPreparationScenario({
       journalOnlyEvidence,
       JSON.stringify(
         {
-          method: "journal-only durable fixture with real CLI recovery and native reviewed cleanup",
+          method:
+            "journal-only durable fixture with read-only CLI checks, Desktop startup recovery, and native reviewed cleanup",
           operation_id: journalOnlyId,
           absent_private_path: journalOnlyPath,
           private_path_absent_before_review: true,
