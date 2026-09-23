@@ -556,6 +556,12 @@ try {
     await trigger.click();
     const dialog = By.css('[aria-labelledby="library-selection-review-title"]');
     const review = await browser.wait(until.elementLocated(dialog), 15_000);
+    await browser.wait(until.elementIsVisible(review), 5_000);
+    await browser.wait(
+      async () => (await review.getText()).includes("Open the default library?"),
+      5_000,
+      "Default library review title did not become visible",
+    );
     const reviewText = await review.getText();
     assert.ok(reviewText.includes("Open the default library?"));
     assert.ok(reviewText.includes(defaultRoot.value));
