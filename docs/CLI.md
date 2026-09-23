@@ -287,6 +287,10 @@ API schema 20 exports the shared read-only source inspection result. It includes
 observed digest algorithm/scope records, typed file-set and optical-disc
 components (including track counts and readable volume IDs), and typed exact,
 structural, mismatch, and ambiguity outcomes.
+Human source inspection output prints the core report's next action: an accepted
+new selection offers an add choice, a current registration needs no source action,
+an unfinished file check runs during reviewed setup, and a known mismatch calls for files
+from a supported edition. JSON and JSONL retain the same report fields.
 
 API schema 21 adds the pinned source-validator observation to that result. It
 identifies the catalog contract, tool, protocol, and current validator result.

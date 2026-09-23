@@ -476,7 +476,7 @@ fn report_message(
         return (
             "selected_needs_checking",
             "The source passed preliminary selection and still needs its upstream check.",
-            "Run the reviewed setup check before treating this source as ready.",
+            "Continue with the port's reviewed setup to complete the remaining file check.",
         );
     }
     match (
@@ -486,7 +486,11 @@ fn report_message(
         (SourceClassification::Recognized { .. }, SourceAdmission::Admitted { .. }) => (
             "recognized_exact",
             "The source matches one exact catalog identity.",
-            "Review the dependent port requirements and qualification coverage before setup.",
+            if health == SourceHealth::Current {
+                "No source action is needed for these registered files. Review the port's available actions."
+            } else {
+                "Choose how to add these files."
+            },
         ),
         (
             _,
@@ -496,7 +500,7 @@ fn report_message(
         ) => (
             "known_mismatch",
             "The source does not match an accepted catalog identity.",
-            "Choose an edition listed by the reviewed requirements.",
+            "Choose files from a supported edition and check them again.",
         ),
         (
             _,
@@ -565,7 +569,10 @@ mod tests {
     use std::path::PathBuf;
 
     use super::*;
-    use crate::{ObservedSourceDigest, SourceAssessment, SourceDigestAlgorithm, SourceIdentity};
+    use crate::{
+        ObservedSourceDigest, ObservedSourceValidator, SourceAssessment, SourceDigestAlgorithm,
+        SourceIdentity, SourceValidatorResult,
+    };
 
     #[test]
     fn source_problem_exposes_only_the_matching_host_tool_hint() {
@@ -654,6 +661,7 @@ mod tests {
 
         assert_eq!(report.schema_version, 1);
         assert_eq!(report.state_code, "recognized_exact");
+        assert_eq!(report.next_action, "Choose how to add these files.");
         assert!(!report.applications.is_empty());
         assert!(report.expected_identity.is_some());
         let value = serde_json::to_value(&report).unwrap();
@@ -704,6 +712,52 @@ mod tests {
         assert!(parsed.registered.is_none());
         assert!(parsed.inspection.is_none());
         assert!(parsed.expected_identity.is_none());
+    }
+
+    #[test]
+    fn source_next_actions_reflect_registration_and_check_state() {
+        let catalog = Catalog::embedded().unwrap();
+        let profile_id = &catalog.source_catalog().unwrap().identities[0].id;
+        let report = report_for(
+            &catalog,
+            profile_id,
+            SourceClassification::Recognized {
+                identity: SourceIdentity {
+                    game_id: profile_id.clone(),
+                    variant_id: "test-edition".into(),
+                    representation_id: "test-files".into(),
+                },
+            },
+            SourceAdmission::Admitted {
+                mode: SourceAdmissionMode::ExactIdentity,
+            },
+        );
+        let mut inspection = report.inspection.unwrap();
+        assert_eq!(
+            report_message(SourceHealth::Current, &inspection).2,
+            "No source action is needed for these registered files. Review the port's available actions."
+        );
+
+        inspection.validator = Some(ObservedSourceValidator {
+            contract_id: "test-contract".into(),
+            tool_id: "test-tool".into(),
+            protocol_version: "1".into(),
+            result: SourceValidatorResult::NotRun,
+        });
+        assert_eq!(
+            report_message(SourceHealth::NotBaselined, &inspection).2,
+            "Continue with the port's reviewed setup to complete the remaining file check."
+        );
+
+        inspection.validator = None;
+        inspection.assessment.classification = SourceClassification::Unrecognized;
+        inspection.assessment.admission = SourceAdmission::Rejected {
+            reason: SourceRejectionReason::KnownMismatch,
+        };
+        assert_eq!(
+            report_message(SourceHealth::NotBaselined, &inspection).2,
+            "Choose files from a supported edition and check them again."
+        );
     }
 
     #[test]
