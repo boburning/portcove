@@ -97,6 +97,14 @@ Stop if the entry is missing, duplicated, conflicting, or mismatched. A matching
 checksum establishes agreement with that manifest; it does not identify an OS
 publisher or prove gameplay support.
 
+The current release workflow is designed to include an SPDX 2.3 JSON software
+bill of materials and GitHub artifact attestations for the final tagged files
+in future releases. Its aggregate checksum manifest covers the packages and
+the SBOM before a draft release is created. Check the actual assets and
+attestations for the version you choose: the published Alpha 2 release lists
+package and checksum files, but no SBOM. These records do not replace an
+operating-system publisher signature or hands-on package qualification.
+
 Windows packages lack Authenticode signing and may show unknown-publisher or
 reputation warnings. macOS packages lack Developer ID signing and notarization
 and may be blocked by platform policy. Keep operating-system security
