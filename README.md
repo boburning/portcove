@@ -16,27 +16,39 @@
   <a href="https://github.com/users/boburning/projects/1">Roadmap</a>
 </p>
 
-Native ports are easier to find than they used to be, but they are still awkward to live with. Every project has its own release page, expected game revision, install layout, save folders, and update process. Portcove gives those moving parts one home.
-
-Portcove is a local desktop app and CLI built around a shared Rust core. It can connect the game files required by an upstream project, install a checksum-matched release, launch it, and keep saves intact through updates or rollbacks.
+Portcove helps you install, launch, and update native game ports from one local
+library. Add the original game files each port needs, then manage installed
+versions and backups in the desktop app or CLI.
 
 Existing Alpha 1 libraries can be carried forward with the documented
 [upgrade and recovery procedure](docs/UPGRADING.md).
 
 > [!NOTE]
-> Portcove does not include or download ROMs, disc images, BIOS files, or other copyrighted game data. Required source files stay on your computer and are not modified.
+> Portcove does not include or download ROMs, disc images, BIOS files, or other
+> copyrighted game data. It checks original game files locally and does not
+> upload them. You can use their current location, copy them into Portcove, or
+> explicitly move them after reviewing the consequences. A completed Move
+> removes the original only after a verified managed copy is registered.
 
 ## What Portcove does
 
 - Browse a catalog of native ports and manage them as one library.
-- Register local game files without uploading them. Portcove enforces exact hashes when the catalog has them and records a local size and SHA-256 baseline to detect later changes.
+- Check original game files locally. A saved game-file location can point to the
+  current file; a Source Inbox Copy leaves the original in place, while Move
+  requires separate authorization. Portcove checks known exact identities and
+  records a local baseline to detect later changes.
 - Refuse release archives that cannot be matched to a SHA-256 published upstream—directly or in a checksum sidecar—or pinned in the catalog for a retired project.
 - Keep installed versions side by side so updates can be staged, activated, verified, or rolled back.
-- Preserve known save, configuration, and mod folders separately from application versions, with independent backup and restore.
+- Keep the saved data declared for a port, such as its known save, settings, and
+  mod locations, separately from installed versions; back up and restore that
+  managed data. This does not establish save compatibility across game versions.
 - Adopt an existing installation by copying it into Portcove without changing the original.
 - Provide the same behavior through a keyboard- and controller-friendly Tauri app or an automation-focused CLI with JSON, JSONL, schemas, and stable exit codes.
 
-Portcove keeps its library, source references, and application state local. A GitHub account is optional and is used only to raise the API rate limit; startup and launching do not depend on an account or a Portcove-hosted service.
+Portcove keeps its library, saved game-file locations, and application state
+local. A GitHub account is optional and is used only to raise the API rate
+limit; startup and launching do not depend on an account or a Portcove-hosted
+service.
 
 ## Project status
 
@@ -55,31 +67,43 @@ A port appearing in the catalog does **not** mean every platform has completed h
 
 Current priorities and blockers live in the public [Portcove Roadmap](https://github.com/users/boburning/projects/1). The meaning of Alpha, Beta, RC, and V1 lives in [docs/ROADMAP.md](docs/ROADMAP.md). The catalog can continue growing without turning every newly discovered port into a V1 blocker.
 
-## Technical alpha downloads
+## Download the technical alpha
 
-[Choose your operating system and download Portcove Desktop from GitHub
-Releases](https://github.com/boburning/portcove/releases). Future releases made
-by the current pipeline start with generated, version-bound Desktop choices,
-then separately labeled standalone CLI archives, one `SHA256SUMS.txt`, and an
-SPDX 2.3 JSON software bill of materials. The checksum manifest covers every
-package and the SBOM. GitHub artifact attestations bind the same final files to
-the tag workflow before a draft can be created.
-Historical releases retain their original assets and notes. The release page is
-the source of current filenames; this README does not advertise an unreleased
-candidate or require a manual version/link update.
+For the graphical app, choose a **Desktop** package for your operating system
+and processor from the [Alpha 2 release](https://github.com/boburning/portcove/releases/tag/v0.1.0-alpha.2).
+For terminal use, choose the separate **CLI** archive. The desktop app does not
+require that archive, and the CLI archive is not a graphical app. GitHub's
+generated **Source code** archives are for building Portcove yourself.
 
-The desktop app does not require the separate CLI. CLI archives contain the
-command-line tool, not a portable graphical app. GitHub's **Source code**
-archives require a development build. Choose the package for your operating
-system and processor, read its release-specific limitations, and verify only the
-file you selected against its exact line in the release checksum manifest.
-Windows packages lack Authenticode signing; macOS packages lack Developer ID
-signing/notarization. Linux and macOS have hosted build/test evidence, but not
-equivalent hands-on desktop package qualification. Application upgrades are
-manual. Read the [Alpha 1 notes](docs/releases/0.1.0-alpha.1-release-notes.md)
-before upgrading an existing library, and read the
-[Alpha 2 notes](docs/releases/0.1.0-alpha.2-release-notes.md) for the current
-package scope, checksum guidance, and known limitations.
+| System                            | Desktop package                                                                                                       | Standalone CLI archive          |
+| --------------------------------- | --------------------------------------------------------------------------------------------------------------------- | ------------------------------- |
+| Windows x64                       | `Portcove_0.1.0-alpha.2_x64-setup.exe`                                                                                | `portcove-windows-x86_64.zip`   |
+| Linux x64, experimental           | `Portcove_0.1.0-alpha.2_amd64.AppImage`, `Portcove_0.1.0-alpha.2_amd64.deb`, or `Portcove-0.1.0-alpha.2-1.x86_64.rpm` | `portcove-linux-x86_64.tar.gz`  |
+| macOS Intel, experimental         | `Portcove_0.1.0-alpha.2_x64.dmg`                                                                                      | `portcove-macos-x86_64.tar.gz`  |
+| macOS Apple silicon, experimental | `Portcove_0.1.0-alpha.2_aarch64.dmg`                                                                                  | `portcove-macos-aarch64.tar.gz` |
+
+These are the published Alpha 2 choices; check the selected release page for
+later versions and their limitations. Application upgrades are manual. Before
+opening an existing library, follow the [upgrade and recovery
+steps](docs/UPGRADING.md). Read the [Alpha 2 release
+notes](docs/releases/0.1.0-alpha.2-release-notes.md) for package scope and
+known limitations.
+
+### Verify a download
+
+Download `SHA256SUMS-<platform>.txt` or `SHA256SUMS.txt` from the same release
+and compare the complete SHA-256 on the line for the exact filename you chose.
+Stop if the entry is missing, duplicated, conflicting, or mismatched. A matching
+checksum establishes agreement with that manifest; it does not identify an OS
+publisher or prove gameplay support.
+
+Windows packages lack Authenticode signing and may show unknown-publisher or
+reputation warnings. macOS packages lack Developer ID signing and notarization
+and may be blocked by platform policy. Keep operating-system security
+protections enabled. Linux and macOS have hosted build/test evidence, but not
+equivalent hands-on desktop package qualification. The [Alpha 1
+notes](docs/releases/0.1.0-alpha.1-release-notes.md) remain available for
+people upgrading from that preview.
 
 ## Catalog and support
 

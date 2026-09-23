@@ -1374,10 +1374,12 @@ export function SettingsView({
         />
         <article className="settings-card privacy-card">
           <p className="eyebrow">PRIVACY</p>
-          <h2>Local and source-safe</h2>
+          <h2>Original game files stay local</h2>
           <p>
-            Portcove does not upload game sources or collect telemetry. Source files remain where
-            you keep them.
+            Portcove checks original game files locally and does not upload them or collect
+            telemetry. Use their current location, copy them into Portcove, or explicitly move them
+            after reviewing the consequences. A completed move removes the original after its
+            verified copy is registered.
           </p>
         </article>
         <AboutCard />
