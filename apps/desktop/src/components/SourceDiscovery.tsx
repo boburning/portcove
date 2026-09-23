@@ -17,6 +17,7 @@ import { ChoiceSelect } from "./ChoiceSelect";
 import { NavigationHints } from "./ui";
 import { Button } from "./ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "./ui/dialog";
+import { Input } from "./ui/input";
 
 const scanLimits: SourceDiscoveryLimits = {
   max_entries: 10_000,
@@ -528,10 +529,9 @@ function SourceDiscoveryDialog({
           Search folder
         </label>
         <div className="path-entry">
-          <input
+          <Input
             data-focusable
             id="source-search-root"
-            className="w-full rounded-[var(--radius-md)] border border-pc-input bg-[var(--color-bg-inset)] p-[11px] text-pc-foreground shadow-[inset_0_1px_2px_var(--color-bg)] outline-none focus-visible:border-pc-ring focus-visible:ring-3 focus-visible:ring-pc-ring/50"
             value={root}
             disabled={Boolean(busy)}
             onChange={(event) => workflow.updateRoot(event.target.value)}

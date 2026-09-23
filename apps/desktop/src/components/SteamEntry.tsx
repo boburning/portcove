@@ -12,6 +12,7 @@ import { errorText } from "../view-model";
 import { Icon } from "./ui";
 import { Button } from "./ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "./ui/dialog";
+import { Input } from "./ui/input";
 
 export function SteamEntryControl({
   port,
@@ -136,10 +137,9 @@ export function SteamEntryDialog({
               Steam installation folder
             </label>
             <div className="path-entry">
-              <input
+              <Input
                 data-focusable
                 id="steam-installation"
-                className="w-full rounded-[var(--radius-md)] border border-pc-input bg-[var(--color-bg-inset)] p-[11px] text-pc-foreground shadow-[inset_0_1px_2px_var(--color-bg)] outline-none focus-visible:border-pc-ring focus-visible:ring-3 focus-visible:ring-pc-ring/50"
                 value={steamRoot}
                 onChange={(event) => {
                   setSteamRoot(event.target.value);
@@ -163,10 +163,9 @@ export function SteamEntryDialog({
             >
               Steam profile ID
             </label>
-            <input
+            <Input
               data-focusable
               id="steam-profile"
-              className="w-full rounded-[var(--radius-md)] border border-pc-input bg-[var(--color-bg-inset)] p-[11px] text-pc-foreground shadow-[inset_0_1px_2px_var(--color-bg)] outline-none focus-visible:border-pc-ring focus-visible:ring-3 focus-visible:ring-pc-ring/50"
               inputMode="numeric"
               pattern="[0-9]+"
               value={steamUserId}

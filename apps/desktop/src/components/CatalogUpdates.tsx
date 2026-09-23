@@ -13,6 +13,7 @@ import { OperationCancellation } from "./OperationCancellation";
 import { NavigationHints } from "./ui";
 import { Button } from "./ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "./ui/dialog";
+import { Input } from "./ui/input";
 
 export function CatalogSettings({
   provenance,
@@ -290,11 +291,10 @@ function PublisherTrust({ status, busy, run, changed }: CatalogActions) {
         Publisher public key (64 hex characters)
       </label>
       <div className="path-entry">
-        <input
+        <Input
           data-focusable
           data-autofocus={status.trusted_keys.length === 0 || undefined}
           id="catalog-public-key"
-          className="w-full rounded-[var(--radius-md)] border border-pc-input bg-[var(--color-bg-inset)] p-[11px] text-pc-foreground shadow-[inset_0_1px_2px_var(--color-bg)] outline-none focus-visible:border-pc-ring focus-visible:ring-3 focus-visible:ring-pc-ring/50"
           autoComplete="off"
           value={publicKey}
           disabled={Boolean(busy)}
@@ -369,11 +369,10 @@ function CatalogReview({
         {kind === "file" ? "Signed catalog file" : "Signed catalog HTTPS address"}
       </label>
       <div className="path-entry">
-        <input
+        <Input
           data-focusable
           data-autofocus={status.trusted_keys.length > 0 || undefined}
           id="catalog-update-location"
-          className="w-full rounded-[var(--radius-md)] border border-pc-input bg-[var(--color-bg-inset)] p-[11px] text-pc-foreground shadow-[inset_0_1px_2px_var(--color-bg)] outline-none focus-visible:border-pc-ring focus-visible:ring-3 focus-visible:ring-pc-ring/50"
           value={location}
           disabled={Boolean(busy)}
           onChange={(event) => {
