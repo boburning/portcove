@@ -95,8 +95,18 @@ export function UpdateCenter({
       <div className="update-toolbar" data-focus-group>
         <div className="update-stats">
           <UpdateStat label="Installed" value={installed.length} icon={PackageCheck} />
-          <UpdateStat label="Available" value={available} icon={Download} accent={available > 0} />
-          <UpdateStat label="Staged" value={staged} icon={ShieldCheck} accent={staged > 0} />
+          <UpdateStat
+            label="Updates available"
+            value={available}
+            icon={Download}
+            accent={available > 0}
+          />
+          <UpdateStat
+            label="Ready to install"
+            value={staged}
+            icon={ShieldCheck}
+            accent={staged > 0}
+          />
           <UpdateStat label="Failed" value={failed} icon={AlertTriangle} warning={failed > 0} />
         </div>
         <div className="update-buttons">
@@ -107,7 +117,9 @@ export function UpdateCenter({
             onClick={checkAll}
           >
             <Icon glyph={RefreshCw} />
-            {busy === "check installed" ? "Checking installed ports…" : "Check all ports"}
+            {busy === "check installed"
+              ? "Checking installed ports…"
+              : "Check installed ports for updates"}
           </Button>
         </div>
       </div>
@@ -515,17 +527,22 @@ function UpdateStat({
 }
 
 function policyLabel(policy: PortStatus["update_policy"]) {
-  const labels = { automatic: "Automatic", stage: "Stage", notify: "Notify" };
+  const labels = {
+    automatic: "Install when running updates",
+    stage: "Download for later",
+    notify: "Notify me",
+  };
   return Object.hasOwn(labels, policy) ? labels[policy] : "Update policy unavailable";
 }
 
 function updateState(status: PortStatus, outcome?: UpdateCheckOutcome) {
   if (!outcome)
     return status.staged
-      ? { label: "Staged", tone: "staged" }
+      ? { label: "Update ready to install", tone: "staged" }
       : { label: "Not checked", tone: "muted" };
   if (!outcome.ok) return { label: "Check failed", tone: "failed" };
-  if (status.staged) return { label: "Staged", tone: "staged" };
-  if (outcome.result?.update_available) return { label: "Available", tone: "available" };
-  return { label: "Current", tone: "current" };
+  if (status.staged) return { label: "Update ready to install", tone: "staged" };
+  if (!outcome.result) return { label: "Check result unavailable", tone: "muted" };
+  if (outcome.result.update_available) return { label: "Update available", tone: "available" };
+  return { label: "No update found at last check", tone: "current" };
 }
