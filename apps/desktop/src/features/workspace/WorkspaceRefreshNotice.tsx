@@ -8,27 +8,60 @@ import { Button } from "../../components/ui/button";
 
 export function WorkspaceRefreshNotice({
   failure,
+  recoveryFailure,
   hasSnapshot,
   refreshing,
   retry,
+  retryRecovery,
   subscriptionFailure,
 }: {
   failure?: { error: unknown };
+  recoveryFailure?: { error: unknown };
   hasSnapshot: boolean;
   refreshing: boolean;
   retry: () => Promise<void>;
+  retryRecovery: () => Promise<void>;
   subscriptionFailure?: unknown;
 }) {
   const retryButton = useRef<HTMLButtonElement>(null);
+  const recoveryRetryButton = useRef<HTMLButtonElement>(null);
   const retryRequested = useRef(false);
   useEffect(() => {
     if (refreshing || !retryRequested.current) return;
     retryRequested.current = false;
     if (document.activeElement !== document.body) return;
     if (failure) focusAndReveal(retryButton.current);
+    else if (recoveryFailure) focusAndReveal(recoveryRetryButton.current);
     else focusRegion("workspace");
-  }, [failure, refreshing]);
-  if (!failure && !subscriptionFailure) return null;
+  }, [failure, recoveryFailure, refreshing]);
+  if (!failure && !recoveryFailure && !subscriptionFailure) return null;
+  if (!failure && recoveryFailure)
+    return (
+      <section className="error-banner" role="alert" aria-busy={refreshing}>
+        <span className="error-icon">
+          <Icon glyph={AlertTriangle} />
+        </span>
+        <div>
+          <strong>Library recovery could not finish</strong>
+          <p>
+            Current library information is available, but some unfinished work still needs review.
+          </p>
+          <p>{errorText(recoveryFailure.error)}</p>
+          <Button
+            ref={recoveryRetryButton}
+            variant="outline"
+            data-focusable
+            disabled={refreshing}
+            onClick={() => {
+              retryRequested.current = true;
+              void retryRecovery();
+            }}
+          >
+            Retry recovery
+          </Button>
+        </div>
+      </section>
+    );
   if (!failure)
     return (
       <section className="error-banner" role="status" aria-busy={refreshing}>

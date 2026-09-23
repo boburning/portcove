@@ -96,9 +96,11 @@ function Fixture({ generation = 7 }: { generation?: number }) {
     >
       <WorkspaceRefreshNotice
         failure={data.refreshFailure}
+        recoveryFailure={data.recoveryFailure}
         hasSnapshot={Boolean(data.catalog)}
         refreshing={data.refreshing}
         retry={data.retryRefresh}
+        retryRecovery={data.retryRecovery}
         subscriptionFailure={data.subscriptionFailure?.error ?? operations.subscriptionFailure}
       />
     </div>
@@ -148,6 +150,7 @@ beforeEach(() => {
   vi.spyOn(desktopApi, "workspaceSnapshot").mockResolvedValue(snapshot);
   vi.spyOn(desktopApi, "workspaceChanged").mockResolvedValue(false);
   vi.spyOn(desktopApi, "workspaceChanged").mockResolvedValue(false);
+  vi.spyOn(desktopApi, "discoverOrphanedOperations").mockResolvedValue(undefined);
   vi.spyOn(desktopApi, "activities").mockResolvedValue(emptyActivityFeed());
   vi.spyOn(desktopApi, "doctor").mockResolvedValue(doctor);
 });
@@ -355,9 +358,11 @@ describe("workspace refresh recovery", () => {
     });
     await render();
     expect(desktopApi.workspaceSnapshot).not.toHaveBeenCalled();
+    expect(desktopApi.discoverOrphanedOperations).not.toHaveBeenCalled();
     registration.resolve(() => eventHandlers.delete("portcove://library-changed"));
     await act(async () => registration.promise);
     expect(desktopApi.workspaceSnapshot).toHaveBeenCalledOnce();
+    expect(desktopApi.discoverOrphanedOperations).not.toHaveBeenCalled();
   });
 
   it("renders essential data without waiting for slow diagnostics", async () => {
@@ -459,6 +464,7 @@ describe("workspace refresh recovery", () => {
     await act(async () => previous.promise);
 
     expect(desktopApi.workspaceSnapshot).not.toHaveBeenCalled();
+    expect(desktopApi.discoverOrphanedOperations).not.toHaveBeenCalled();
   });
 
   it("coalesces a burst and runs one follow-up when invalidated during a request", async () => {
@@ -481,7 +487,7 @@ describe("workspace refresh recovery", () => {
     expect(desktopApi.workspaceSnapshot).toHaveBeenCalledTimes(2);
   });
 
-  it("treats an external library event as a readback hint and invalidates diagnostics", async () => {
+  it("discovers orphaned work after a library event and invalidates diagnostics", async () => {
     await render();
     vi.mocked(desktopApi.workspaceSnapshot).mockClear();
 
@@ -492,6 +498,7 @@ describe("workspace refresh recovery", () => {
     });
 
     expect(desktopApi.workspaceSnapshot).toHaveBeenCalledOnce();
+    expect(desktopApi.discoverOrphanedOperations).toHaveBeenCalledWith(7);
     expect(data.diagnosticsStale).toBe(true);
   });
 
@@ -503,8 +510,66 @@ describe("workspace refresh recovery", () => {
     await act(async () => vi.advanceTimersByTimeAsync(10_000));
 
     expect(desktopApi.workspaceChanged).toHaveBeenCalledWith(7);
+    expect(desktopApi.discoverOrphanedOperations).toHaveBeenCalledWith(7);
     expect(desktopApi.workspaceSnapshot).toHaveBeenCalledOnce();
     expect(data.diagnosticsStale).toBe(true);
+  });
+
+  it("keeps recovery failure distinct from a successful workspace read and retries explicitly", async () => {
+    await render();
+    vi.mocked(desktopApi.workspaceChanged).mockResolvedValueOnce(true);
+    vi.mocked(desktopApi.discoverOrphanedOperations).mockRejectedValueOnce(failureReport());
+
+    await act(async () => vi.advanceTimersByTimeAsync(10_000));
+    expect(desktopApi.workspaceSnapshot).toHaveBeenCalledTimes(2);
+    expect(data.refreshFailure).toBeUndefined();
+    expect(data.recoveryFailure).toBeDefined();
+    expect(host.textContent).toContain("Library recovery could not finish");
+    expect(host.textContent).toContain("Retry recovery");
+
+    await act(async () => data.retryRecovery());
+    expect(desktopApi.discoverOrphanedOperations).toHaveBeenCalledTimes(2);
+    expect(data.recoveryFailure).toBeUndefined();
+    expect(host.textContent).not.toContain("Library recovery could not finish");
+  });
+
+  it("restores focus after recovery retry failure and success", async () => {
+    HTMLElement.prototype.scrollIntoView = vi.fn();
+    const region = document.createElement("main");
+    region.dataset.focusRegion = "workspace";
+    const workspaceButton = document.createElement("button");
+    workspaceButton.setAttribute("aria-current", "page");
+    region.append(workspaceButton);
+    document.body.append(region);
+    await render();
+    vi.mocked(desktopApi.workspaceChanged).mockResolvedValueOnce(true);
+    vi.mocked(desktopApi.discoverOrphanedOperations).mockRejectedValueOnce(failureReport());
+    await act(async () => vi.advanceTimersByTimeAsync(10_000));
+
+    vi.mocked(desktopApi.discoverOrphanedOperations).mockRejectedValueOnce(failureReport());
+    let retryButton = [...host.querySelectorAll<HTMLButtonElement>("button")].find(
+      (button) => button.textContent === "Retry recovery",
+    );
+    expect(retryButton).toBeDefined();
+    await act(async () => {
+      retryButton?.focus();
+      retryButton?.click();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    retryButton = [...host.querySelectorAll<HTMLButtonElement>("button")].find(
+      (button) => button.textContent === "Retry recovery",
+    );
+    expect(document.activeElement).toBe(retryButton);
+
+    await act(async () => {
+      retryButton?.click();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(data.recoveryFailure).toBeUndefined();
+    expect(document.activeElement).toBe(workspaceButton);
+    region.remove();
   });
 
   it("retains the last essential snapshot and exposes a failed refresh", async () => {
@@ -584,6 +649,7 @@ describe("workspace refresh recovery", () => {
     await act(async () => vi.advanceTimersByTimeAsync(60_000));
     expect(desktopApi.activities).toHaveBeenCalledTimes(6);
     expect(desktopApi.workspaceSnapshot).toHaveBeenCalledOnce();
+    expect(desktopApi.discoverOrphanedOperations).toHaveBeenCalledOnce();
     window.dispatchEvent(new Event("focus"));
     await act(async () => Promise.resolve());
     expect(desktopApi.activities).toHaveBeenCalledTimes(7);

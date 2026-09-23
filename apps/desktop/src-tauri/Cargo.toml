@@ -50,6 +50,7 @@ zip.workspace = true
 
 [dev-dependencies]
 aws-lc-rs = "1.18.1"
+rusqlite.workspace = true
 tempfile.workspace = true
 
 [target.'cfg(windows)'.dependencies]

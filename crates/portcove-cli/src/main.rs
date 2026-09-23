@@ -839,6 +839,59 @@ fn main() -> ExitCode {
     }
 }
 
+fn command_is_observation(command: &Commands) -> bool {
+    matches!(
+        command,
+        Commands::Auth {
+            command: AuthCommand::Status,
+        } | Commands::Capabilities
+            | Commands::Catalog {
+                command: CatalogCommand::Update { apply: false, .. },
+            }
+            | Commands::Status { .. }
+            | Commands::Activity { .. }
+            | Commands::Storage
+            | Commands::Doctor
+            | Commands::Paths { .. }
+            | Commands::Plan { .. }
+            | Commands::Catalog {
+                command: CatalogCommand::List
+                    | CatalogCommand::Export
+                    | CatalogCommand::Show { .. }
+                    | CatalogCommand::Status,
+            }
+            | Commands::Backup {
+                command: BackupCommand::List { .. },
+            }
+            | Commands::Preparation {
+                command: PreparationCommand::Plan { .. } | PreparationCommand::CleanupPlan { .. },
+            }
+            | Commands::Source {
+                command: SourceCommand::List
+                    | SourceCommand::Inspect { .. }
+                    | SourceCommand::Verify(_)
+                    | SourceCommand::Relink { apply: false, .. }
+                    | SourceCommand::Inbox {
+                        command: SourceInboxCommand::Path { .. },
+                    }
+                    | SourceCommand::Inbox {
+                        command: SourceInboxCommand::Import { apply: false, .. },
+                    }
+                    | SourceCommand::Roots {
+                        command: GameFileRootCommand::List | GameFileRootCommand::Snapshot,
+                    },
+            }
+            | Commands::Output {
+                command: OutputCommand::Show { .. }
+                    | OutputCommand::Preview { .. }
+                    | OutputCommand::Move { apply: false, .. },
+            }
+            | Commands::Artwork {
+                command: ArtworkCommand::Show { .. } | ArtworkCommand::Unused,
+            }
+    )
+}
+
 #[tokio::main]
 async fn run() -> ExitCode {
     let raw_args = std::env::args_os().collect::<Vec<_>>();
@@ -973,7 +1026,11 @@ async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
         )?;
         return Ok(ExitCode::SUCCESS);
     }
-    let service = std::sync::Arc::new(PortcoveService::new(library)?);
+    let service = std::sync::Arc::new(if command_is_observation(&cli.command) {
+        PortcoveService::new_read_only(library)?
+    } else {
+        PortcoveService::new(library)?
+    });
     let _cancellation_signals = matches!(
         &cli.command,
         Commands::Install(_)
@@ -2060,12 +2117,12 @@ fn execute_library(
         }
         LibraryCommand::Move { destination, .. } => {
             let root = preferences.resolve(invocation_root, platform_default)?.root;
-            let service = PortcoveService::new(portcove_core::Library::open(root)?)?;
+            let service = PortcoveService::new_read_only(portcove_core::Library::open(root)?)?;
             render_success(mode, name, service.plan_library_move(destination)?)?;
         }
         LibraryCommand::Export { output } => {
             let root = preferences.resolve(invocation_root, platform_default)?.root;
-            let service = PortcoveService::new(portcove_core::Library::open(root)?)?;
+            let service = PortcoveService::new_read_only(portcove_core::Library::open(root)?)?;
             if let Some(path) = output {
                 render_success(mode, name, service.write_library_metadata(path)?)?;
             } else {
@@ -2767,6 +2824,64 @@ mod tests {
         assert_eq!(limit, 25);
         assert!(Cli::try_parse_from(["portcove", "activity", "--limit", "0"]).is_err());
         assert!(Cli::try_parse_from(["portcove", "activity", "--limit", "201"]).is_err());
+    }
+
+    #[test]
+    fn observation_commands_do_not_trigger_constructor_recovery() {
+        for arguments in [
+            vec!["portcove", "status"],
+            vec!["portcove", "activity"],
+            vec!["portcove", "doctor"],
+            vec!["portcove", "auth", "status"],
+            vec!["portcove", "capabilities"],
+            vec!["portcove", "source", "verify", "zelda64-recomp"],
+            vec!["portcove", "source", "verify", "--all"],
+            vec!["portcove", "catalog", "update", "--file", "catalog.json"],
+            vec![
+                "portcove",
+                "source",
+                "inbox",
+                "import",
+                "zelda64-recomp",
+                "source.iso",
+            ],
+            vec!["portcove", "catalog", "export"],
+            vec!["portcove", "backup", "list", "zelda64-recomp"],
+        ] {
+            let cli = Cli::try_parse_from(arguments.clone()).unwrap();
+            assert!(super::command_is_observation(&cli.command), "{arguments:?}");
+        }
+        for arguments in [
+            vec!["portcove", "remove", "zelda64-recomp", "--yes"],
+            vec!["portcove", "backup", "create", "zelda64-recomp"],
+            vec![
+                "portcove",
+                "catalog",
+                "update",
+                "--file",
+                "catalog.json",
+                "--apply",
+                "--expected-plan",
+                "abc",
+            ],
+            vec![
+                "portcove",
+                "source",
+                "inbox",
+                "import",
+                "zelda64-recomp",
+                "source.iso",
+                "--apply",
+                "--expected-plan",
+                "abc",
+            ],
+        ] {
+            let cli = Cli::try_parse_from(arguments.clone()).unwrap();
+            assert!(
+                !super::command_is_observation(&cli.command),
+                "{arguments:?}"
+            );
+        }
     }
 
     #[test]

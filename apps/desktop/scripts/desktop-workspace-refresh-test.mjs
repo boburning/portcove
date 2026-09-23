@@ -129,9 +129,17 @@ export async function workspaceRefreshScenario({
         observations.commands.filter((command) => command === "get_workspace_snapshot").length,
         2,
       );
+      assert.equal(
+        observations.commands.filter((command) => command === "discover_orphaned_operations")
+          .length,
+        1,
+      );
       assert.ok(
         observations.commands.every(
-          (command) => command.startsWith("get_") || command.startsWith("plugin:"),
+          (command) =>
+            command.startsWith("get_") ||
+            command.startsWith("plugin:") ||
+            command === "discover_orphaned_operations",
         ),
         JSON.stringify(observations.commands),
       );

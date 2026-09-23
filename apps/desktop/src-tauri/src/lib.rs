@@ -257,7 +257,7 @@ fn require_no_library_handoff(
 fn service(state: &DesktopState) -> DesktopResult<PortcoveService> {
     let state = ready(state)?;
     let releases: std::sync::Arc<dyn ReleaseProvider> = state.releases.clone();
-    PortcoveService::with_provider(state.library.clone(), releases).map_err(Into::into)
+    PortcoveService::with_provider_read_only(state.library.clone(), releases).map_err(Into::into)
 }
 
 fn service_at_generation(
@@ -525,6 +525,26 @@ async fn get_workspace_changed(
 ) -> DesktopResult<bool> {
     let state = state.inner().clone();
     blocking_worker(move || workspace_changed_at_generation(&state, generation)).await
+}
+
+#[tauri::command]
+async fn discover_orphaned_operations(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+) -> DesktopResult<()> {
+    let state = state.inner().clone();
+    blocking_worker(move || discover_orphaned_operations_at_generation(&state, generation)).await
+}
+
+fn discover_orphaned_operations_at_generation(
+    state: &DesktopState,
+    generation: u64,
+) -> DesktopResult<()> {
+    let service = service_at_generation(state, generation)?;
+    service
+        .recover_pending_operations()
+        .map_err(DesktopError::from)?;
+    require_library_generation(state_generation(state), generation)
 }
 
 fn workspace_changed_at_generation(state: &DesktopState, generation: u64) -> DesktopResult<bool> {
@@ -1478,7 +1498,7 @@ pub fn run_hidden_helper() -> Option<i32> {
 #[cfg(any(feature = "qualification-fixtures", test))]
 fn adapter_conformance_statuses(library: &Path) -> DesktopResult<Vec<PortStatus>> {
     let library = Library::open(library).map_err(DesktopError::from)?;
-    let service = PortcoveService::new(library).map_err(DesktopError::from)?;
+    let service = PortcoveService::new_read_only(library).map_err(DesktopError::from)?;
     statuses_with_service(&service)
 }
 
@@ -2147,6 +2167,7 @@ pub fn run() {
             get_activities,
             get_workspace_snapshot,
             get_workspace_changed,
+            discover_orphaned_operations,
             get_activity_diagnostic,
             cancel_operation,
             get_backups,
@@ -2321,6 +2342,81 @@ mod tests {
         let stale = workspace_changed_at_generation(&state, 1).unwrap_err();
         assert!(stale.message.contains("open library changed"));
         assert!(!workspace_changed_at_generation(&state, 2).unwrap());
+    }
+
+    #[test]
+    fn workspace_read_does_not_recover_an_external_journal_but_discovery_does() {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path().join("library");
+        let initialized = initialize_desktop_at(Some(root.clone())).unwrap();
+        let state = DesktopState {
+            initialization: std::sync::Arc::new(std::sync::Mutex::new(Ok(initialized))),
+            preferences: HostPreferenceStore::new(temporary.path().join("preferences.json"))
+                .map_err(DesktopError::from),
+            generation: std::sync::Arc::new(std::sync::atomic::AtomicU64::new(1)),
+            launch_observer: std::sync::Arc::new(std::sync::Mutex::new(None)),
+        };
+        let connection = rusqlite::Connection::open(root.join("portcove.sqlite3")).unwrap();
+        connection
+            .execute(
+                "INSERT INTO lifecycle_operations(id,kind,port_id,phase,quarantine_path,created_at,updated_at)
+                 VALUES('external-remove','remove','zelda64-recomp','preparing',?1,1,1)",
+                [root.join("unused-quarantine").to_str().unwrap()],
+            )
+            .unwrap();
+        assert!(workspace_changed_at_generation(&state, 1).unwrap());
+        workspace_snapshot_with_service(&service_at_generation(&state, 1).unwrap()).unwrap();
+        let retained: i64 = connection
+            .query_row(
+                "SELECT count(*) FROM lifecycle_operations WHERE id='external-remove'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(retained, 1);
+        discover_orphaned_operations_at_generation(&state, 1).unwrap();
+        let retained: i64 = connection
+            .query_row(
+                "SELECT count(*) FROM lifecycle_operations WHERE id='external-remove'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(retained, 0);
+
+        let next_root = temporary.path().join("next-library");
+        let next = initialize_desktop_at(Some(next_root.clone())).unwrap();
+        *state.initialization.lock().unwrap() = Ok(next);
+        state
+            .generation
+            .store(2, std::sync::atomic::Ordering::Release);
+        let next_connection =
+            rusqlite::Connection::open(next_root.join("portcove.sqlite3")).unwrap();
+        next_connection
+            .execute(
+                "INSERT INTO lifecycle_operations(id,kind,port_id,phase,quarantine_path,created_at,updated_at)
+                 VALUES('next-remove','remove','zelda64-recomp','preparing',?1,1,1)",
+                [next_root.join("unused-quarantine").to_str().unwrap()],
+            )
+            .unwrap();
+        assert!(discover_orphaned_operations_at_generation(&state, 1).is_err());
+        let retained: i64 = next_connection
+            .query_row(
+                "SELECT count(*) FROM lifecycle_operations WHERE id='next-remove'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(retained, 1);
+        discover_orphaned_operations_at_generation(&state, 2).unwrap();
+        let retained: i64 = next_connection
+            .query_row(
+                "SELECT count(*) FROM lifecycle_operations WHERE id='next-remove'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(retained, 0);
     }
 
     #[test]

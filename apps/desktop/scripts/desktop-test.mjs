@@ -365,7 +365,7 @@ async function requestApplicationShutdown(snapshot) {
   return driverStop;
 }
 
-async function restartApplication(name) {
+async function restartApplication(name, prepareWhileStopped) {
   const snapshot = path.join(output, `${name}-processes.json`);
   const restartEvidence = path.join(output, `${name}-restart.json`);
   const observation = {
@@ -380,6 +380,10 @@ async function restartApplication(name) {
   observation.session_delete_completed_at = new Date().toISOString();
   if (process.platform === "win32") {
     observation.shutdown = observeNativeSession("Wait", snapshot);
+  }
+  if (prepareWhileStopped) {
+    await prepareWhileStopped();
+    observation.fixture_prepared_while_stopped = true;
   }
   await startDriver();
   await connect();

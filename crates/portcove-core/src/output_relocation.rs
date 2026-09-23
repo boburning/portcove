@@ -449,8 +449,9 @@ fn execute_relocation(
             store.put(operation)?;
             return relocation_result(service, operation, &plan, true);
         }
+        let result = relocation_result(service, operation, &plan, false)?;
         store.remove(&operation.id)?;
-        return relocation_result(service, operation, &plan, false);
+        return Ok(result);
     }
 
     Err(PortcoveError::state(
