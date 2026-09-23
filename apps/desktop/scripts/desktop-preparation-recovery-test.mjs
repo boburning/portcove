@@ -100,80 +100,86 @@ export async function interruptedPreparationScenario({
     retained.at(-1).complete = false;
     // Simulate the durable state left before a worker's terminal update, only
     // in this harness's owned library. This is not a physical process-crash test.
-    const database = new DatabaseSync(path.join(library, "portcove.sqlite3"));
     let privatePath;
     let journalOnlyId;
     let journalOnlyPath;
     let journalOnlyActivityRow;
     let journalOnlyOperationRow;
-    try {
-      database.exec("PRAGMA busy_timeout=1000");
-      const operation = database
-        .prepare(
-          "SELECT * FROM lifecycle_operations WHERE id=? AND kind='prepare' AND phase='preparing'",
-        )
-        .get(activity.id);
-      const activityRow = database
-        .prepare("SELECT * FROM activity_history WHERE id=? AND operation='prepare'")
-        .get(activity.id);
-      assert.ok(operation?.staging_path);
-      assert.ok(activityRow);
-      assert.notEqual(operation.staging_path, operation.final_path);
-      privatePath = operation.staging_path;
-      journalOnlyId = randomUUID();
-      journalOnlyPath = path.join(path.dirname(privatePath), journalOnlyId);
-      const plan = JSON.parse(operation.preparation_json);
-      const journalOnlyDestination = createHash("sha256")
-        .update(
-          JSON.stringify(["Portcove prepared derivative v1", plan.plan_sha256, journalOnlyId]),
-        )
-        .digest("hex");
-      database.exec("BEGIN IMMEDIATE");
-      const changed = database
-        .prepare(
-          "UPDATE activity_history SET status='running',finished_at=NULL,message=NULL,failure_json=NULL,cancellation_phase='preparing',cancel_requested=1 WHERE id=? AND operation='prepare' AND status='cancelled'",
-        )
-        .run(activity.id);
-      assert.equal(changed.changes, 1);
-      journalOnlyActivityRow = {
-        ...activityRow,
-        id: journalOnlyId,
-        status: "running",
-        message: null,
-        finished_at: null,
-        failure_json: null,
-        cancellation_phase: "preparing",
-        cancel_requested: 1,
-        cancellation_owner: null,
-      };
-      journalOnlyOperationRow = {
-        ...operation,
-        id: journalOnlyId,
-        phase: "preparing",
-        staging_path: journalOnlyPath,
-        final_path: path.join(path.dirname(operation.final_path), journalOnlyDestination),
-        quarantine_path: null,
-        install_json: null,
-        last_error: "owned journal-only preparation fixture",
-        preparation_process_quiesced: 1,
-      };
-      for (const capture of retained) {
-        const payload = JSON.stringify(capture);
-        assert.equal(
-          database
-            .prepare(
-              "UPDATE activity_diagnostics SET payload=?,payload_bytes=? WHERE activity_id=? AND phase=?",
-            )
-            .run(payload, Buffer.byteLength(payload), activity.id, capture.phase).changes,
-          1,
-        );
+    browser = await restartApplication("interrupted-preparation-fixture", async () => {
+      const database = new DatabaseSync(path.join(library, "portcove.sqlite3"));
+      try {
+        database.exec("PRAGMA busy_timeout=1000");
+        const operation = database
+          .prepare(
+            "SELECT * FROM lifecycle_operations WHERE id=? AND kind='prepare' AND phase='preparing'",
+          )
+          .get(activity.id);
+        const activityRow = database
+          .prepare("SELECT * FROM activity_history WHERE id=? AND operation='prepare'")
+          .get(activity.id);
+        assert.ok(operation?.staging_path);
+        assert.ok(activityRow);
+        assert.notEqual(operation.staging_path, operation.final_path);
+        privatePath = operation.staging_path;
+        journalOnlyId = randomUUID();
+        journalOnlyPath = path.join(path.dirname(privatePath), journalOnlyId);
+        const plan = JSON.parse(operation.preparation_json);
+        const journalOnlyDestination = createHash("sha256")
+          .update(
+            JSON.stringify(["Portcove prepared derivative v1", plan.plan_sha256, journalOnlyId]),
+          )
+          .digest("hex");
+        database.exec("BEGIN IMMEDIATE");
+        const changed = database
+          .prepare(
+            "UPDATE activity_history SET status='running',finished_at=NULL,message=NULL,failure_json=NULL,cancellation_phase='preparing',cancel_requested=1 WHERE id=? AND operation='prepare' AND status='cancelled'",
+          )
+          .run(activity.id);
+        assert.equal(changed.changes, 1);
+        journalOnlyActivityRow = {
+          ...activityRow,
+          id: journalOnlyId,
+          status: "running",
+          message: null,
+          finished_at: null,
+          failure_json: null,
+          cancellation_phase: "preparing",
+          cancel_requested: 1,
+          cancellation_owner: null,
+        };
+        journalOnlyOperationRow = {
+          ...operation,
+          id: journalOnlyId,
+          phase: "preparing",
+          staging_path: journalOnlyPath,
+          final_path: path.join(path.dirname(operation.final_path), journalOnlyDestination),
+          quarantine_path: null,
+          install_json: null,
+          last_error: "owned journal-only preparation fixture",
+          preparation_process_quiesced: 1,
+        };
+        for (const capture of retained) {
+          const payload = JSON.stringify(capture);
+          assert.equal(
+            database
+              .prepare(
+                "UPDATE activity_diagnostics SET payload=?,payload_bytes=? WHERE activity_id=? AND phase=?",
+              )
+              .run(payload, Buffer.byteLength(payload), activity.id, capture.phase).changes,
+            1,
+          );
+        }
+        database.exec("COMMIT");
+      } finally {
+        database.close();
       }
-      database.exec("COMMIT");
-    } finally {
-      database.close();
-    }
-    await assert.rejects(access(journalOnlyPath));
-    const doctor = command(["doctor"]); // A fresh CLI executes real core startup recovery.
+      await assert.rejects(access(journalOnlyPath));
+      const pendingDoctor = command(["doctor"]);
+      assert.equal(cliActivities().find((item) => item.id === activity.id).status, "running");
+      assert.ok(pendingDoctor.repair.items.some((item) => item.operation_id === activity.id));
+    });
+    // Desktop startup performs locked recovery; later CLI observations remain read-only.
+    const doctor = command(["doctor"]);
     const recovered = cliActivities().find((item) => item.id === activity.id);
     assert.equal(recovered.status, "failed");
     assert.equal(recovered.failure.presentation.presentation_key, "preparation_interrupted");
