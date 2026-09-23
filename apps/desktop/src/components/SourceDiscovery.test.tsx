@@ -41,14 +41,16 @@ it("presents source discovery counts and limits in player-facing language", () =
   expect(sourceDiscoveryLimitGuidance("entries", "folder")).toBe(
     "Choose a smaller folder and search again.",
   );
-  expect(sourceDiscoveryLimitGuidance("depth", "inbox")).toContain("Use Search this folder");
+  expect(sourceDiscoveryLimitGuidance("depth", "inbox")).toContain("Source Inbox");
   expect(sourceDiscoveryLimitGuidance("file_size")).toContain("2.0 GiB");
   expect(sourceDiscoveryLimitGuidance("file_size")).toContain(
     "does not identify which file hit this limit",
   );
   expect(sourceDiscoveryLimitGuidance("hash_bytes")).toContain("16.0 GiB");
-  expect(sourceDiscoveryLimitGuidance("hash_bytes")).toContain("one subfolder at a time");
-  expect(sourceDiscoveryLimitGuidance("candidates", "inbox")).toContain("narrower folder");
+  expect(sourceDiscoveryLimitGuidance("hash_bytes")).toContain("verification-work budget");
+  expect(sourceDiscoveryLimitGuidance("hash_bytes", "inbox")).toContain("Source Inbox batches");
+  expect(sourceDiscoveryLimitGuidance("candidates", "inbox")).toContain("possible matches shown");
+  expect(sourceDiscoveryLimitGuidance("candidates", "inbox")).not.toContain("Search this folder");
   expect(sourceDiscoveryLimitGuidance("future_limit")).toBe(
     "Review the search limits and try a narrower search.",
   );
@@ -264,7 +266,7 @@ it("opens and scans the Inbox, then applies the exact reviewed import", async ()
     expect(document.body.textContent).toContain("Possible matches checked");
     expect(document.body.textContent).toContain("Individual file size");
     expect(document.body.textContent).toContain("2.0 GiB");
-    expect(document.body.textContent).toContain("Use Search this folder on a smaller folder");
+    expect(document.body.textContent).toContain("smaller batch of files in the Source Inbox");
     expect(document.body.textContent).not.toContain("Exact-match count");
     expect(document.body.textContent).not.toContain("not-a-match.iso");
     await click("Search this folder");

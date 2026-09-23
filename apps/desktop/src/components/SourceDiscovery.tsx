@@ -75,15 +75,17 @@ export function sourceDiscoveryLimitLabel(limit: string, source: "folder" | "inb
 export function sourceDiscoveryLimitGuidance(limit: string, source: "folder" | "inbox" = "folder") {
   if (limit === "entries" || limit === "depth")
     return source === "inbox"
-      ? "Use Search this folder on a smaller folder to check the files left out."
+      ? "Scan a smaller batch of files in the Source Inbox to check what was left out."
       : "Choose a smaller folder and search again.";
   if (limit === "file_size")
     return `This scan skips files over ${formatBytes(scanLimits.max_file_bytes)}. The result does not identify which file hit this limit; check a suspected file from its game details.`;
   if (limit === "hash_bytes")
-    return `This scan can check up to ${formatBytes(scanLimits.max_hash_bytes)} of file data. Search one subfolder at a time to check the rest.`;
+    return source === "inbox"
+      ? `This scan reached its ${formatBytes(scanLimits.max_hash_bytes)} verification-work budget. Scan smaller Source Inbox batches; a single file over the budget still cannot be checked.`
+      : `This scan reached its ${formatBytes(scanLimits.max_hash_bytes)} verification-work budget. Search separate subfolders; a single file over the budget still cannot be checked.`;
   if (limit === "candidates")
     return source === "inbox"
-      ? "Use Search this folder on a narrower folder to check more possible matches."
+      ? "Review the possible matches shown. Scan smaller Source Inbox batches to check the rest."
       : "Search a smaller folder to check more exact matches.";
   return "Review the search limits and try a narrower search.";
 }
