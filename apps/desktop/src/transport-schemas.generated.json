@@ -4167,6 +4167,21 @@
   },
   "catalog_update_plan": {
     "$defs": {
+      "CatalogChangedPort": {
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "type": "object"
+      },
       "CatalogOrigin": {
         "enum": [
           "embedded",
@@ -4266,6 +4281,12 @@
         },
         "type": "array"
       },
+      "changed_ports": {
+        "items": {
+          "$ref": "#/$defs/CatalogChangedPort"
+        },
+        "type": "array"
+      },
       "current": {
         "$ref": "#/$defs/CatalogProvenance"
       },
@@ -4302,6 +4323,7 @@
       "issued_at",
       "expires_at",
       "changed_port_ids",
+      "changed_ports",
       "current",
       "plan_sha256"
     ],

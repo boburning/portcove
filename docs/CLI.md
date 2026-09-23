@@ -916,7 +916,7 @@ API schema 7 adds catalog provenance to `doctor`, public-key trust and selection
 - `catalog status`: current effective provenance, trusted public keys, highest accepted sequence, valid rollback/cache availability, and `state_sha256`.
 - `catalog trust-key <64-character-public-key-hex> [--yes]`: explicitly trust a publisher. Non-interactive callers need `--yes`; verify its fingerprint independently first.
 - `catalog revoke-key <key-id> --expected-state <state_sha256>`: remove trust and immediately recompute fallback.
-- `catalog update --file <signed.json>` or `--url <https-address>`: verify and return a read-only plan, including changed port IDs, validity, publisher fingerprint, and `plan_sha256`.
+- `catalog update --file <signed.json>` or `--url <https-address>`: verify and return a read-only plan, including changed port IDs, candidate display names, validity, publisher fingerprint, and `plan_sha256`. The existing `changed_port_ids` field remains available to JSON consumers.
 - The same command with `--apply --expected-plan <plan_sha256>`: reread, reverify, and atomically publish only the reviewed candidate against unchanged trust/selection state.
 - `catalog rollback --expected-state <state_sha256>`: select the still-trusted, unexpired previous catalog. The replay floor never decreases, and the rejected newer version is not retained as fallback.
 - `catalog use-embedded --expected-state <state_sha256>`: choose the built-in catalog without discarding trust, cached versions, or replay history.

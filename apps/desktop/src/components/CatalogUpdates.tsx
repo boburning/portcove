@@ -419,21 +419,18 @@ function CatalogReview({
       </Button>
       {plan && (
         <section aria-label="Catalog update review">
-          <h3>Catalog update ready</h3>
-          <p>
-            <strong>Catalog signature valid</strong>
-          </p>
-          <p>
-            <strong>Signed by</strong> <code>{plan.key_id}</code>
-          </p>
-          <p>
-            <strong>Publisher trusted</strong>
-          </p>
-          <p>
-            <strong>Sequence {plan.sequence} accepted</strong>
-          </p>
-          <p>Valid until {new Date(plan.expires_at * 1000).toLocaleString()}.</p>
-          <p>{catalogChangeSummary(plan.changed_port_ids.length)}</p>
+          <h3>Review catalog information</h3>
+          <p>Signature verified with a trusted publisher key.</p>
+          <p>{catalogChangeSummary(plan.changed_ports.length)}</p>
+          {plan.changed_ports.length > 0 && (
+            <ul aria-label="Affected ports">
+              {plan.changed_ports.map((port) => (
+                <li key={port.id}>{port.name}</li>
+              ))}
+            </ul>
+          )}
+          <p>This does not install game updates.</p>
+          <p>Trusting a publisher allows changes to release download locations.</p>
           <details>
             <summary
               data-focusable
@@ -442,9 +439,21 @@ function CatalogReview({
               Technical details
             </summary>
             <dl>
+              <dt>Signature</dt>
+              <dd>Valid</dd>
+              <dt>Publisher key</dt>
+              <dd>
+                <code>{plan.key_id}</code>
+              </dd>
+              <dt>Publisher trust</dt>
+              <dd>Trusted</dd>
+              <dt>Sequence</dt>
+              <dd>{plan.sequence} accepted</dd>
+              <dt>Valid until</dt>
+              <dd>{new Date(plan.expires_at * 1000).toLocaleString()}</dd>
               <dt>Changed port IDs</dt>
               <dd>
-                <code>{plan.changed_port_ids.join(", ") || "None"}</code>
+                <code>{plan.changed_ports.map((port) => port.id).join(", ") || "None"}</code>
               </dd>
               <dt>Envelope SHA-256</dt>
               <dd>
@@ -482,8 +491,7 @@ function CatalogReview({
 
 function catalogChangeSummary(count: number) {
   if (count === 0) return "No port information will change.";
-  if (count === 1) return "1 port will change.";
-  return `${count.toLocaleString()} ports will change.`;
+  return `Catalog information will change for ${count.toLocaleString()} ${count === 1 ? "port" : "ports"}.`;
 }
 
 function CatalogSelection({ status, busy, run, changed }: CatalogActions) {

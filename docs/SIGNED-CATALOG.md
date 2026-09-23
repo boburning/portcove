@@ -59,6 +59,8 @@ portcove --library <isolated-review-library> --json doctor
 
 Production users verify the public key/fingerprint through a trusted independent channel before granting trust. Key rotation requires explicitly adding the replacement key and later revoking the old one. Sequences continue increasing across keys; rotation does not reset replay protection. No production custody or infrastructure decision is implied by these examples.
 
+The review plan lists changed port IDs and display names from the verified candidate catalog. Desktop presents those names as catalog information changes and makes clear that applying the catalog does not install game updates. It keeps the verified signature, trusted key fingerprint, accepted sequence, expiry, changed IDs, and envelope digest available in technical details. Trusting a publisher permits changes to release download locations.
+
 ## Publication and recovery
 
 Review binds the exact envelope, delivery selection, current key set, selection revision, cached versions, and highest accepted sequence. Application rereads and revalidates, including expiry. SQLite atomically publishes the candidate, advances the replay floor, and records the completed activity. Cancellation can win before publication admission; a critical commit finishes safely. Concurrent or changed reviews cannot both publish. Failed verification or a rolled-back database transaction leaves the prior selection intact.
