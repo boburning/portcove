@@ -151,6 +151,10 @@ that reuses a local release must not present the configured future output folder
 as that release's existing path. File-health summaries describe the saved files'
 current comparison state in plain language; keep saved checksums in File details
 and do not equate unchanged bytes with a supported edition or launch readiness.
+Game-file inspection reports lead with the identified game, current result, and
+next action. Admission, source authority, and test coverage stay in named
+disclosures; assistive announcements report the actual result without claiming
+that every check completed.
 Use sentence case and neutral task names beside authoritative status. Complete
 localized messages use named interpolation and correct plurals; human formatting
 may follow locale while machine contracts remain stable. Keep technical detail

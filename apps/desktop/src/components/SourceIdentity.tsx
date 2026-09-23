@@ -39,25 +39,34 @@ export function SourceIdentityPanel({
   return (
     <section
       className="source-identity"
-      aria-label={`Source identity for ${report.expected_identity?.label ?? report.profile_id}`}
+      aria-label={`Game-file check for ${report.expected_identity?.label ?? report.profile_id}`}
     >
       <p className="sr-only" role="status">
-        Source check complete: {state.label}. {report.summary}
+        Game-file check result: {state.label}. {report.summary}
       </p>
       <div className="source-identity-heading">
         <div>
-          <small>Source identity</small>
+          <small>Game-file check</small>
           <strong>{report.expected_identity?.label ?? report.profile_id}</strong>
         </div>
         <span
           className={`source-result ${state.tone}`}
-          aria-label={`Source result: ${state.label}`}
+          aria-label={`Game-file check result: ${state.label}`}
         >
           <Icon glyph={state.icon} size="sm" />
           {state.label}
         </span>
       </div>
       <p>{report.summary}</p>
+      {report.problem && (
+        <p className="source-problem" role="status">
+          <Icon glyph={AlertTriangle} size="sm" />
+          {report.problem.message}
+        </p>
+      )}
+      <p className="source-next">
+        <strong>Next:</strong> {report.next_action}
+      </p>
       <dl className="source-identity-summary">
         <div>
           <dt>Selected</dt>
@@ -73,17 +82,7 @@ export function SourceIdentityPanel({
           <dt>Edition</dt>
           <dd>{variant ? variantLabel(variant) : classificationLabel(report)}</dd>
         </div>
-        <div>
-          <dt>Admission</dt>
-          <dd>{admissionLabel(report)}</dd>
-        </div>
       </dl>
-      {report.problem && (
-        <p className="source-problem" role="status">
-          <Icon glyph={AlertTriangle} size="sm" />
-          {report.problem.message}
-        </p>
-      )}
       {report.applications.map((application) => (
         <ApplicationResult
           key={`${application.port_id}:${application.role}`}
@@ -93,6 +92,12 @@ export function SourceIdentityPanel({
       <details className="source-technical">
         <summary data-focusable>Full identity and evidence</summary>
         <div className="source-technical-body">
+          <dl className="source-identity-summary">
+            <div>
+              <dt>Admission</dt>
+              <dd>{admissionLabel(report)}</dd>
+            </div>
+          </dl>
           <IdentityDigests report={report} />
           <Qualification report={report} />
           {report.evidence.length > 0 && (
@@ -127,9 +132,6 @@ export function SourceIdentityPanel({
           </p>
         </div>
       </details>
-      <p className="source-next">
-        <strong>Next:</strong> {report.next_action}
-      </p>
     </section>
   );
 }
@@ -163,24 +165,29 @@ function ApplicationResult({
           {result}
         </span>
       </div>
-      <small>{application.contract.authority_ref}</small>
       <dl>
         <div>
           <dt>Release applicability</dt>
           <dd>{applicability}</dd>
         </div>
-        <div>
-          <dt>Exact automated evidence</dt>
-          <dd>{evidencePlatforms(exactAutomated) || "Not recorded"}</dd>
-        </div>
-        <div>
-          <dt>Exact hands-on evidence</dt>
-          <dd>{evidencePlatforms(exactHandsOn) || "Not recorded"}</dd>
-        </div>
       </dl>
       {exactHandsOn.length === 0 && (
         <p>Missing gameplay evidence does not block an otherwise admitted source.</p>
       )}
+      <details className="source-technical">
+        <summary data-focusable>Test results and source authority</summary>
+        <small>{application.contract.authority_ref}</small>
+        <dl>
+          <div>
+            <dt>Exact automated evidence</dt>
+            <dd>{evidencePlatforms(exactAutomated) || "Not recorded"}</dd>
+          </div>
+          <div>
+            <dt>Exact hands-on evidence</dt>
+            <dd>{evidencePlatforms(exactHandsOn) || "Not recorded"}</dd>
+          </div>
+        </dl>
+      </details>
     </section>
   );
 }
@@ -518,40 +525,45 @@ function representationFacts(representation: SourceRepresentation) {
 }
 
 function sourceDisplayState(report: SourceInspectionReport) {
+  const admission = report.inspection?.assessment.admission;
+  const unknownEditionLabel =
+    admission?.state === "admitted" && admission.mode === "structural_checks"
+      ? "Required file checks passed · edition unknown"
+      : "Edition unknown · review check details";
   const known = {
     recognized_exact: { label: "Exact match", tone: "success", icon: Check },
     accepted_identity_unknown: {
-      label: "Accepted · identity unknown",
+      label: unknownEditionLabel,
       tone: "warning",
       icon: HelpCircle,
     },
     source_changed: {
-      label: "Doesn't match registered source",
+      label: "Files changed since they were added",
       tone: "danger",
       icon: ShieldAlert,
     },
     ambiguous_identity: {
-      label: "Couldn't determine one edition",
+      label: "More checks needed · edition unclear",
       tone: "warning",
       icon: HelpCircle,
     },
     selected_needs_checking: {
-      label: "Selected · needs checking",
+      label: "More checks needed",
       tone: "warning",
       icon: HelpCircle,
     },
     known_mismatch: {
-      label: "Doesn't match",
+      label: "Files don't match reviewed requirements",
       tone: "danger",
       icon: ShieldAlert,
     },
     source_missing: {
-      label: "Couldn't check · file missing",
+      label: "Files not found",
       tone: "danger",
       icon: AlertTriangle,
     },
     source_could_not_be_checked: {
-      label: "Couldn't check",
+      label: "Files couldn't be checked",
       tone: "danger",
       icon: AlertTriangle,
     },

@@ -293,7 +293,7 @@ describe("source identity presentation", () => {
         "Release applicability unavailable",
       ])
         expect(html).toContain(label);
-      expect(html).not.toContain("Source result: Exact match");
+      expect(html).not.toContain("Game-file check result: Exact match");
     },
   );
 
@@ -311,22 +311,55 @@ describe("source identity presentation", () => {
 
   it.each([
     ["recognized_exact", "Exact match"],
-    ["accepted_identity_unknown", "Accepted · identity unknown"],
-    ["ambiguous_identity", "Couldn't determine one edition"],
-    ["selected_needs_checking", "Selected · needs checking"],
+    ["accepted_identity_unknown", "Edition unknown · review check details"],
+    ["ambiguous_identity", "More checks needed · edition unclear"],
+    ["selected_needs_checking", "More checks needed"],
     ["not_evaluated", "Not evaluated"],
-    ["known_mismatch", "Known mismatch · refused"],
-    ["source_changed", "Doesn't match registered source"],
-    ["source_missing", "Couldn't check · file missing"],
-    ["recognized_not_listed", "Recognized · not listed"],
-    ["release_inapplicable", "Not applicable to this release"],
+    ["known_mismatch", "Files don't match reviewed requirements"],
+    ["source_changed", "Files changed since they were added"],
+    ["source_missing", "Files not found"],
+    ["source_could_not_be_checked", "Files couldn't be checked"],
   ])("renders %s without collapsing its meaning", (state, expected) => {
     const html = renderToStaticMarkup(<SourceIdentityPanel report={report(state)} />).replaceAll(
       "&#x27;",
       "'",
     );
+    expect(html).toContain(`Game-file check result: ${expected}`);
+    expect(html).not.toContain("Source check complete:");
+  });
+
+  it.each([
+    ["recognized_not_listed", "Recognized · not listed"],
+    ["release_inapplicable", "Not applicable to this release"],
+  ])("keeps %s as an application result without claiming a global match", (state, expected) => {
+    const html = renderToStaticMarkup(<SourceIdentityPanel report={report(state)} />);
     expect(html).toContain(expected);
-    expect(html).toContain("Source result:");
+    expect(html).toContain("Game-file check result: Result unavailable");
+  });
+
+  it("distinguishes structural checks from consent when an edition is unknown", () => {
+    const structural = report("accepted_identity_unknown");
+    const admission = structural.inspection?.assessment.admission;
+    if (admission?.state !== "admitted") throw new Error("expected admitted fixture");
+    admission.mode = "structural_checks";
+    const html = renderToStaticMarkup(<SourceIdentityPanel report={structural} />);
+    expect(html).toContain("Required file checks passed · edition unknown");
+    expect(html).not.toContain("Exact match");
+  });
+
+  it("leads with result and next action while keeping authority and test counts in disclosures", () => {
+    const html = renderToStaticMarkup(<SourceIdentityPanel report={report()} />);
+    const firstDisclosure = html.indexOf('<details class="source-technical">');
+    const primary = html.slice(0, firstDisclosure);
+    expect(primary).toContain("Game-file check");
+    expect(primary).toContain("Exact match");
+    expect(primary).toContain("Next:");
+    expect(primary).not.toContain("Admission");
+    expect(primary).not.toContain("Exact automated evidence");
+    expect(primary).not.toContain("catalog row");
+    expect(html.slice(firstDisclosure)).toContain("Admission");
+    expect(html.slice(firstDisclosure)).toContain("Test results and source authority");
+    expect(html.slice(firstDisclosure)).toContain("Exact automated evidence");
   });
 
   it("labels a legacy row without structured observations as not evaluated", () => {
