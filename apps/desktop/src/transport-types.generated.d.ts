@@ -436,6 +436,8 @@ export type ApplicationUpdateNativeLaunchSummary =
 export type ApplicationUpdateRequestedAction = "safe-exit" | "restart-to-apply";
 export type ApplicationUpdateObservedTermination =
   "normal-exit" | "restart-to-apply" | "crash" | "os-shutdown" | "steam-stop";
+export type ApplicationUpdateInstallEligibility =
+  "eligible" | "package-managed-deb" | "package-managed-rpm" | "not-configured" | "unavailable";
 export type ApplicationUpdateRecoveryArea = "schedule" | "staging" | "apply";
 export type SteamEntryChangeKind = "add" | "repair" | "remove" | "unchanged";
 export type SteamEntryOperation = "add_or_repair" | "remove";
@@ -2178,6 +2180,7 @@ export interface OutputDesktopApplicationUpdateProductionTransitionResult {
 }
 export interface OutputDesktopApplicationUpdateStatus {
   apply: ApplicationUpdateApplySummary | null;
+  install_eligibility: ApplicationUpdateInstallEligibility;
   recovery_required: ApplicationUpdateRecoveryNotice[];
   schedule: ApplicationUpdateScheduleSummary | null;
   staged: ApplicationUpdateCandidateSummary | null;

@@ -496,6 +496,16 @@
         ],
         "type": "object"
       },
+      "ApplicationUpdateInstallEligibility": {
+        "enum": [
+          "eligible",
+          "package-managed-deb",
+          "package-managed-rpm",
+          "not-configured",
+          "unavailable"
+        ],
+        "type": "string"
+      },
       "ApplicationUpdateNativeLaunchSummary": {
         "enum": [
           "starting",
@@ -586,6 +596,9 @@
           }
         ]
       },
+      "install_eligibility": {
+        "$ref": "#/$defs/ApplicationUpdateInstallEligibility"
+      },
       "recovery_required": {
         "items": {
           "$ref": "#/$defs/ApplicationUpdateRecoveryNotice"
@@ -617,6 +630,7 @@
       "schedule",
       "staged",
       "apply",
+      "install_eligibility",
       "recovery_required"
     ],
     "title": "ApplicationUpdateStatus",

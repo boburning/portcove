@@ -32,19 +32,18 @@ const recoveryCopy: Record<
 > = {
   schedule: {
     title: "Update check history needs repair",
-    description: "Reset its check timing and retry history. Your update choice stays unchanged.",
-    action: "Repair update check history",
+    description: "Reset check timing and retry history. Your update settings stay unchanged.",
+    action: "Reset update-check history",
   },
   staging: {
-    title: "The staged update needs repair",
-    description:
-      "Clear the damaged staged download. Portcove will require a fresh verified download.",
-    action: "Clear damaged staged update",
+    title: "Update download needs repair",
+    description: "Delete the damaged download. You will need to download and verify it again.",
+    action: "Delete damaged update download",
   },
   apply: {
     title: "The pending update request needs repair",
-    description: "Clear the damaged exit or restart request. The verified staged download is kept.",
-    action: "Clear damaged update request",
+    description: "Clear only the pending request. This does not delete a verified download.",
+    action: "Clear pending update request",
   },
 };
 
@@ -62,29 +61,27 @@ function formatBytes(value: number) {
 
 const nativeLaunchCopy = {
   starting: {
-    title: "Update launch needs confirmation",
+    title: "Installer start is unconfirmed",
     description:
-      "Portcove may have started the installer. It needs to check which version is installed before it can safely launch another one.",
+      "Portcove cannot confirm whether the installer started. Reopen Portcove to check the installed version before another update attempt.",
   },
   started: {
-    title: "Installer process started",
+    title: "Installer started",
     description:
-      "Portcove recorded that the installer process started. It needs to check which version is installed before it can safely offer another update action.",
+      "The installer started, but Portcove has not confirmed the update. Reopen Portcove to check the installed version.",
   },
   failed: {
-    title: "Installer did not start",
-    description:
-      "No installer process was created. A retry will still repeat the fresh trust, consent, ownership, compatibility and idle-state checks.",
+    title: "Installer didn't start",
+    description: "The installer didn't start.",
   },
   "installer-succeeded": {
-    title: "Installer process completed",
+    title: "Installer reported success",
     description:
-      "The installer reported success. Portcove still needs to confirm the installed version and application health before clearing the update request.",
+      "The installer reported success. Reopen Portcove to confirm the installed version and application health.",
   },
   "installer-failed": {
-    title: "Installer process did not complete",
-    description:
-      "The installer process exited unsuccessfully and is no longer running. A retry will repeat every update safety check.",
+    title: "Installer did not complete",
+    description: "The installer exited unsuccessfully.",
   },
 } as const;
 
@@ -100,43 +97,99 @@ function applicationUpdateCheckCopy(result: ApplicationUpdateCheckResult) {
   switch (result.kind) {
     case "update-available":
       return result.staged
-        ? `${version ?? "The update"} is verified and staged for a safe apply request.`
-        : `${version ?? "An update"} is available. Its download has not started.`;
+        ? {
+            title: "Update downloaded and verified",
+            description: `Portcove ${version ?? "update"} has been downloaded and verified. Restart eligibility is checked before installation.`,
+          }
+        : {
+            title: "Update check complete",
+            description: `Portcove ${version ?? "update"} is available. Its download has not started.`,
+          };
     case "current":
-      return "Portcove is current on the selected application update channel.";
+      return {
+        title: "Update check complete",
+        description: "Portcove is current on the selected application update channel.",
+      };
     case "held":
-      return "An eligible update is being held by its signed release policy.";
+      return {
+        title: "Update check complete",
+        description: "No update can be offered on this channel.",
+      };
     case "incompatible":
-      return "The available release is not compatible with this installation.";
+      return {
+        title: "Update check complete",
+        description: "The available release is not compatible with this installation.",
+      };
     case "no-candidate":
-      return "No eligible release is published for the selected channel.";
+      return {
+        title: "Update check complete",
+        description: "No eligible release is published for the selected channel.",
+      };
     case "superseded":
-      return "Your update choice changed during the check. Run it again for the current choice.";
+      return {
+        title: "Update check not completed",
+        description:
+          "Your update choice changed during the check. Run it again for the current choice.",
+      };
     case "consent-required":
-      return "Save an application update choice before checking.";
+      return {
+        title: "Update settings required",
+        description: "Save your update settings before checking.",
+      };
     case "offline":
-      return "The host reports that the network is offline.";
+      return {
+        title: "Couldn't check for updates",
+        description: "Connect to the internet and try again.",
+      };
     case "paused":
+      return {
+        title: "Automatic update checks are paused",
+        description: "Manual checks remain available. Resume downloads in update settings.",
+      };
     case "manual-mode":
+      return {
+        title: "Automatic update checks are off",
+        description: "Use Check for updates when you want to look for a release.",
+      };
     case "metered":
+      return {
+        title: "Waiting to check for updates",
+        description: "Automatic checks are waiting for an unmetered connection.",
+      };
     case "metered-state-unknown":
+      return {
+        title: "Waiting to check for updates",
+        description: "Portcove cannot confirm whether this connection is unmetered.",
+      };
     case "startup-delay":
     case "cadence":
-      return "The application update check is deferred by the saved host policy.";
+      return {
+        title: "Next automatic check is scheduled for later",
+        description: "You can check manually now, or wait for the scheduled automatic check.",
+      };
   }
 }
 
-function applicationUpdateApplyCopy(apply: NonNullable<ApplicationUpdateStatus["apply"]>) {
-  if (apply.native_launch) return nativeLaunchCopy[apply.native_launch];
+function applicationUpdateApplyCopy(status: ApplicationUpdateStatus) {
+  const apply = status.apply;
+  if (!apply) return undefined;
+  if (apply.native_launch) {
+    const copy = nativeLaunchCopy[apply.native_launch];
+    if (apply.native_launch === "failed" || apply.native_launch === "installer-failed") {
+      return {
+        ...copy,
+        description: `${copy.description} ${restartIsAvailable(status) ? "Try Restart to update again." : "Refresh update status to review the next available action."}`,
+      };
+    }
+    return copy;
+  }
 
   return {
     title:
-      apply.request === "restart-to-apply"
-        ? "Restart to update requested"
-        : "Update on safe exit requested",
+      apply.request === "restart-to-apply" ? "Restart request saved" : "Safe-exit request saved",
     description: apply.termination
-      ? `Portcove recorded ${apply.termination.replaceAll("-", " ")}. Fresh trust, consent, ownership, compatibility and idle-state checks still run before replacement.`
-      : "The request is saved. Closing or restarting Portcove does not bypass fresh trust, consent, ownership, compatibility or idle-state checks.",
+      ? `Portcove recorded ${apply.termination.replaceAll("-", " ")}. The installer has not been confirmed to start.`
+      : "The request is saved. The installer has not started; Portcove checks eligibility again before replacement.",
   };
 }
 
@@ -184,6 +237,7 @@ function restartIsAvailable(status: ApplicationUpdateStatus) {
     status.apply?.native_launch === "failed" || status.apply?.native_launch === "installer-failed";
   return Boolean(
     status.staged &&
+    status.install_eligibility === "eligible" &&
     !status.recovery_required.some(({ area }) => area === "apply") &&
     (!status.apply ||
       (status.apply.request === "restart-to-apply" &&
@@ -193,24 +247,52 @@ function restartIsAvailable(status: ApplicationUpdateStatus) {
   );
 }
 
+function installRestrictionCopy(status: ApplicationUpdateStatus) {
+  switch (status.install_eligibility) {
+    case "package-managed-deb":
+      return "This DEB installation is managed by its package manager. Update it through the same package source.";
+    case "package-managed-rpm":
+      return "This RPM installation is managed by its package manager. Update it through the same package source.";
+    case "not-configured":
+      return "Application updating is not configured in this build. Use the documented manual recovery path.";
+    case "unavailable":
+      return "This installation cannot use Portcove's built-in updater. Use a supported package or the documented manual recovery path.";
+    case "eligible":
+      return status.recovery_required.some(({ area }) => area === "apply")
+        ? "Repair the pending update request before trying again."
+        : "Review the pending request or installer result below before another restart.";
+  }
+}
+
 function StagedApplicationUpdateItem({
   status,
   disabled,
+  blocker,
   onRestart,
 }: {
   status: ApplicationUpdateStatus;
   disabled: boolean;
+  blocker?: string;
   onRestart: () => Promise<void>;
 }) {
   if (!status.staged) return null;
+  const canRestart = restartIsAvailable(status);
   return (
     <div className="application-update-status-item">
-      <strong>Verified update staged</strong>
+      <strong>
+        {canRestart && !blocker ? "Update ready to install" : "Verified update downloaded"}
+      </strong>
       <p>
-        {status.staged.channel === "preview" ? "Preview" : "Stable"} version {status.staged.version}{" "}
-        ({formatBytes(status.staged.bytes)}) is ready for a safe apply request.
+        Portcove {status.staged.version} (
+        {status.staged.channel === "preview" ? "Preview" : "Stable"},{" "}
+        {formatBytes(status.staged.bytes)}) has been downloaded and verified.
+        {blocker
+          ? ` ${blocker}`
+          : canRestart
+            ? " Restart to update will check package ownership and other installation requirements again."
+            : ` ${installRestrictionCopy(status)}`}
       </p>
-      {restartIsAvailable(status) && (
+      {canRestart && (
         <Button
           data-focusable
           variant="primary"
@@ -253,6 +335,7 @@ function ApplicationUpdateStatusPanel({
   onRecover,
   onRestart,
   restartDisabled,
+  restartBlocker,
 }: {
   status: ApplicationUpdateStatus | undefined;
   busy: string;
@@ -262,15 +345,16 @@ function ApplicationUpdateStatusPanel({
   onRecover: (area: ApplicationUpdateRecoveryArea) => Promise<void>;
   onRestart: () => Promise<void>;
   restartDisabled: boolean;
+  restartBlocker?: string;
 }) {
-  const applyCopy = status?.apply ? applicationUpdateApplyCopy(status.apply) : undefined;
+  const applyCopy = status?.apply ? applicationUpdateApplyCopy(status) : undefined;
 
   return (
     <section className="application-update-status" aria-labelledby="application-status-title">
       <div className="application-update-status-heading">
         <div>
           <h3 id="application-status-title">Update activity</h3>
-          <p>Host-owned status. Verified candidates are rechecked before replacement.</p>
+          <p>See the download, restart request, and installer state.</p>
         </div>
         <Button
           data-focusable
@@ -294,6 +378,7 @@ function ApplicationUpdateStatusPanel({
           <StagedApplicationUpdateItem
             status={status}
             disabled={restartDisabled || Boolean(busy)}
+            blocker={restartBlocker}
             onRestart={onRestart}
           />
 
@@ -442,6 +527,54 @@ function useApplicationUpdateOperation({
   return { busy, active, phase, result, error, check, download, cancel };
 }
 
+function checkSettingsBlocker(
+  preferences: ApplicationUpdatePreferences | undefined,
+  changed: boolean,
+) {
+  if (!preferences) return undefined;
+  if (!preferences.choice) return "Save your update settings before checking for updates.";
+  if (changed) return "Save or discard your changes before checking for updates.";
+  return undefined;
+}
+
+function ApplicationUpdateCheckResultItem({
+  result,
+  downloadDisabled,
+  onDownload,
+}: {
+  result: ApplicationUpdateCheckResult;
+  downloadDisabled: boolean;
+  onDownload: () => Promise<void>;
+}) {
+  const copy = applicationUpdateCheckCopy(result);
+  const candidateCanDownload =
+    result.kind === "update-available" && Boolean(result.candidate) && !result.staged;
+  return (
+    <div className="application-update-status-item" role="status">
+      <strong>{copy.title}</strong>
+      <p>{copy.description}</p>
+      {result.reasons.length > 0 && (
+        <ul>
+          {result.reasons.map((reason) => (
+            <li key={reason}>{reason}</li>
+          ))}
+        </ul>
+      )}
+      {candidateCanDownload && (
+        <Button
+          data-focusable
+          variant="primary"
+          size="sm"
+          disabled={downloadDisabled}
+          onClick={() => void onDownload()}
+        >
+          Download and verify update
+        </Button>
+      )}
+    </div>
+  );
+}
+
 function ApplicationUpdateCheckPanel({
   disabled,
   settingsBusy,
@@ -455,11 +588,8 @@ function ApplicationUpdateCheckPanel({
   preferences: ApplicationUpdatePreferences | undefined;
   operation: ApplicationUpdateOperationState;
 }) {
-  const candidateCanDownload =
-    operation.result?.kind === "update-available" &&
-    Boolean(operation.result.candidate) &&
-    !operation.result.staged;
   const actionsDisabled = disabled || settingsBusy || changed || !preferences?.choice;
+  const blocker = checkSettingsBlocker(preferences, changed);
 
   return (
     <section
@@ -499,29 +629,13 @@ function ApplicationUpdateCheckPanel({
       {operation.busy && operation.phase && (
         <p role="status">{checkProgressCopy[operation.phase]}</p>
       )}
+      {blocker && <p className="application-update-disclosure">{blocker}</p>}
       {operation.result && (
-        <div className="application-update-status-item" role="status">
-          <strong>Check complete</strong>
-          <p>{applicationUpdateCheckCopy(operation.result)}</p>
-          {operation.result.reasons.length > 0 && (
-            <ul>
-              {operation.result.reasons.map((reason) => (
-                <li key={reason}>{reason}</li>
-              ))}
-            </ul>
-          )}
-          {candidateCanDownload && (
-            <Button
-              data-focusable
-              variant="primary"
-              size="sm"
-              disabled={actionsDisabled || Boolean(preferences?.choice?.paused)}
-              onClick={() => void operation.download()}
-            >
-              Download and verify update
-            </Button>
-          )}
-        </div>
+        <ApplicationUpdateCheckResultItem
+          result={operation.result}
+          downloadDisabled={actionsDisabled || Boolean(preferences?.choice?.paused)}
+          onDownload={operation.download}
+        />
       )}
       {operation.error && <p role="alert">{operation.error}</p>}
     </section>
@@ -645,9 +759,7 @@ export function ApplicationUpdateSettings({
       const value = await desktopApi.setApplicationUpdatePreferences(preferences.revision, draft);
       if (!requests.current.isCurrent(request)) return;
       applyPreferences(value);
-      setNotice(
-        "Application update settings saved. No update check, download, install, or restart was started.",
-      );
+      setNotice("Update settings saved. Saving these settings does not start an update.");
     } catch (value) {
       if (!requests.current.isCurrent(request)) return;
       const message = errorText(value);
@@ -686,7 +798,7 @@ export function ApplicationUpdateSettings({
       setNotice(
         recovering
           ? "Damaged update settings reset. No choice is saved, and automatic application update checks remain off."
-          : "Saved choice cleared. Automatic application update checks remain off.",
+          : "Update preferences reset. Automatic checks remain off until you save a new choice.",
       );
     } catch (value) {
       if (requests.current.isCurrent(request)) setError(errorText(value));
@@ -704,7 +816,15 @@ export function ApplicationUpdateSettings({
       const value = await desktopApi.recoverApplicationUpdateState(area);
       if (!statusRequests.current.isCurrent(request)) return;
       setStatus(value);
-      setNotice(`Application update ${area} state repaired.`);
+      setNotice(
+        {
+          schedule: "Update-check history reset.",
+          staging: "Damaged update download deleted. Download the update again.",
+          apply: value.staged
+            ? "Pending update request cleared. The verified download remains available."
+            : "Pending update request cleared. No verified download is currently available.",
+        }[area],
+      );
     } catch (value) {
       if (statusRequests.current.isCurrent(request)) setStatusError(errorText(value));
     } finally {
@@ -860,8 +980,7 @@ export function ApplicationUpdateSettings({
           </div>
 
           <p className="application-update-disclosure">
-            Saving changes only stores this preference. It does not check, download, install, or
-            restart Portcove.
+            Saving these settings does not start an update.
           </p>
           <div className="actions compact">
             <Button
@@ -889,9 +1008,13 @@ export function ApplicationUpdateSettings({
               disabled={unavailable || !preferences.choice}
               onClick={() => void reset()}
             >
-              Clear saved choice
+              Reset update preferences
             </Button>
           </div>
+          <p className="application-update-disclosure">
+            Reset update preferences clears your saved choice and turns off automatic checks until
+            you choose again.
+          </p>
         </>
       )}
 
@@ -913,6 +1036,13 @@ export function ApplicationUpdateSettings({
         onRestart={restartToUpdate}
         restartDisabled={
           disabled || Boolean(busy) || updateOperation.busy || changed || !preferences?.choice
+        }
+        restartBlocker={
+          !preferences?.choice
+            ? "Save your update settings before restarting to update."
+            : changed
+              ? "Save or discard your changes before restarting to update."
+              : undefined
         }
       />
 

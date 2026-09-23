@@ -63,6 +63,14 @@ updates** identifies the package format and directs you back to that same packag
 source. Portcove does not overwrite the managed executable or silently convert the
 installation to an AppImage.
 
+The application update screen distinguishes a completed check from an automatic
+check that was deferred, a verified download from a pending restart request, and
+installer-reported success from confirmation of the installed Portcove version.
+It reports the running package's current in-app update eligibility. A verified
+download on a DEB or RPM installation still uses that package manager's source;
+the in-app Restart to update action is withheld. Eligibility is checked again
+at restart, so a status read alone does not authorize replacement.
+
 The same ownership check is available without starting the GUI:
 
 ```text
