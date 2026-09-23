@@ -365,6 +365,7 @@ function Scenario({ id }: { id: ScenarioId }) {
           }),
         }}
         retry={blockedScenarioAction}
+        retryRecovery={blockedScenarioAction}
       />
     );
   if (id === "partial-success") {
@@ -442,6 +443,7 @@ function Scenario({ id }: { id: ScenarioId }) {
         refreshing={false}
         failure={{ error: { ...failureReport(), message: "Scenario refresh is unavailable." } }}
         retry={blockedScenarioAction}
+        retryRecovery={blockedScenarioAction}
       />
     );
   if (id === "unavailable-provider")
