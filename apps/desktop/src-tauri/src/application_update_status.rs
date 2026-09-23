@@ -94,7 +94,7 @@ pub enum ApplicationUpdateInstallEligibility {
 
 fn install_eligibility(
     installed: Result<(), InstalledApplicationContextError>,
-    configured: bool,
+    configured: Result<bool, ()>,
 ) -> ApplicationUpdateInstallEligibility {
     match installed {
         Err(InstalledApplicationContextError::PackageManager(ApplicationPackageManager::Deb)) => {
@@ -103,8 +103,8 @@ fn install_eligibility(
         Err(InstalledApplicationContextError::PackageManager(ApplicationPackageManager::Rpm)) => {
             ApplicationUpdateInstallEligibility::PackageManagedRpm
         }
-        Ok(()) if configured => ApplicationUpdateInstallEligibility::Eligible,
-        Ok(()) => ApplicationUpdateInstallEligibility::NotConfigured,
+        Ok(()) if configured == Ok(true) => ApplicationUpdateInstallEligibility::Eligible,
+        Ok(()) if configured == Ok(false) => ApplicationUpdateInstallEligibility::NotConfigured,
         _ => ApplicationUpdateInstallEligibility::Unavailable,
     }
 }
@@ -196,9 +196,8 @@ async fn load_status(
                 .chain(apply_recovery)
                 .collect();
             let configured = ApplicationUpdateHostProvider::compiled()
-                .ok()
-                .flatten()
-                .is_some();
+                .map(|provider| provider.is_some())
+                .map_err(|_| ());
             let installed = CurrentInstalledApplicationContext.observe().map(|_| ());
             Ok((
                 schedule,
@@ -400,11 +399,11 @@ mod tests {
     #[test]
     fn installation_eligibility_keeps_package_ownership_distinct() {
         assert_eq!(
-            install_eligibility(Ok(()), true),
+            install_eligibility(Ok(()), Ok(true)),
             ApplicationUpdateInstallEligibility::Eligible
         );
         assert_eq!(
-            install_eligibility(Ok(()), false),
+            install_eligibility(Ok(()), Ok(false)),
             ApplicationUpdateInstallEligibility::NotConfigured
         );
         for (manager, expected) in [
@@ -420,7 +419,7 @@ mod tests {
             assert_eq!(
                 install_eligibility(
                     Err(InstalledApplicationContextError::PackageManager(manager)),
-                    false,
+                    Ok(false),
                 ),
                 expected,
             );
@@ -430,8 +429,12 @@ mod tests {
                 Err(InstalledApplicationContextError::Unavailable(
                     "private package path".into(),
                 )),
-                true,
+                Ok(true),
             ),
+            ApplicationUpdateInstallEligibility::Unavailable,
+        );
+        assert_eq!(
+            install_eligibility(Ok(()), Err(())),
             ApplicationUpdateInstallEligibility::Unavailable,
         );
     }

@@ -352,7 +352,7 @@ describe("ApplicationUpdateSettings", () => {
     ["cadence", "Next automatic check is scheduled for later", "check manually now"],
     ["superseded", "Update check not completed", "choice changed"],
     ["current", "Update check complete", "Portcove is current"],
-    ["held", "Update check complete", "held by its signed release policy"],
+    ["held", "Update check complete", "No update can be offered on this channel"],
     ["incompatible", "Update check complete", "not compatible"],
     ["no-candidate", "Update check complete", "No eligible release"],
   ] as const)(
@@ -371,6 +371,22 @@ describe("ApplicationUpdateSettings", () => {
       expect(check?.textContent).toContain(description);
     },
   );
+
+  it("does not call an older held candidate eligible or policy-blocked", async () => {
+    vi.spyOn(desktopApi, "applicationUpdatePreferences").mockResolvedValue(savedChoice);
+    const result: ApplicationUpdateCheckResult = {
+      kind: "held",
+      candidate: { version: "0.1.0-alpha.1", channel: "stable", bytes: 25 * 1024 * 1024 },
+      reasons: ["channel has no compatible non-older version"],
+      staged: false,
+    };
+    await render({ preference_revision: savedChoice.revision, result });
+    const check = host.querySelector('.application-update-status-item[role="status"]');
+    expect(check?.textContent).toContain("No update can be offered on this channel.");
+    expect(check?.textContent).toContain("channel has no compatible non-older version");
+    expect(check?.textContent).not.toContain("eligible update");
+    expect(check?.textContent).not.toContain("signed release policy");
+  });
 
   it("downloads only the checked candidate through an explicit host-owned action", async () => {
     vi.spyOn(desktopApi, "applicationUpdatePreferences").mockResolvedValue(savedChoice);

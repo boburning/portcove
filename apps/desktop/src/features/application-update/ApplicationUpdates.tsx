@@ -113,7 +113,7 @@ function applicationUpdateCheckCopy(result: ApplicationUpdateCheckResult) {
     case "held":
       return {
         title: "Update check complete",
-        description: "An eligible update is being held by its signed release policy.",
+        description: "No update can be offered on this channel.",
       };
     case "incompatible":
       return {
