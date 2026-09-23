@@ -7,6 +7,7 @@ import { errorText, formatBytes, formatCountMessage } from "../view-model";
 import { NavigationHints } from "./ui";
 import { Button } from "./ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "./ui/dialog";
+import { Input } from "./ui/input";
 
 export function LibraryMoveButton({ disabled }: { disabled: boolean }) {
   const [open, setOpen] = useState(false);
@@ -85,7 +86,7 @@ function LibraryMoveDialog({ close }: { close: () => void }) {
         <NavigationHints />
         <label htmlFor="library-destination">New library folder</label>
         <div className="path-entry">
-          <input
+          <Input
             data-autofocus
             data-focusable
             id="library-destination"

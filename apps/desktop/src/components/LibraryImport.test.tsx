@@ -85,6 +85,8 @@ it("invalidates a reviewed backup after editing and exposes recoverable import e
   expect(document.querySelector<HTMLInputElement>("#import-content")?.placeholder).toBe(
     "Choose the copied library folder",
   );
+  expect(document.querySelector("#import-metadata")?.getAttribute("data-slot")).toBe("input");
+  expect(document.querySelector("#import-content")?.getAttribute("data-slot")).toBe("input");
   await click("Choose file");
   await click("Choose folder");
   await click("Review restore");
@@ -140,6 +142,7 @@ it("keeps the dialog open while a reviewed import is running", async () => {
 it("explains retained originals and space before reviewing a library move", async () => {
   await act(async () => root.render(<LibraryMoveButton disabled={false} />));
   await click("Move library");
+  expect(document.querySelector("#library-destination")?.getAttribute("data-slot")).toBe("input");
   expect(document.body.textContent).toContain(
     "The old folder is kept, so this does not free space on its drive.",
   );
