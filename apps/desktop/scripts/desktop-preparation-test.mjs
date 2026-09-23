@@ -331,6 +331,11 @@ export async function preparationScenarios({
     artifacts.push(menuImage);
     await browser.actions().sendKeys(Key.ESCAPE).perform();
     await browser.wait(
+      async () => (await browser.findElements(By.css('[role="menu"]'))).length === 0,
+      5000,
+      "Library overflow did not close after Escape",
+    );
+    await browser.wait(
       () => browser.executeScript((element) => document.activeElement === element, more),
       5000,
       "Closing Library overflow must restore its trigger",
@@ -358,6 +363,101 @@ export async function preparationScenarios({
       5000,
       "Returning from overflow details must focus the originating card menu",
     );
+  });
+  await scenario("native-game-return-continuity", async () => {
+    const port = command(["catalog", "show", "opengoal-jak1"]);
+    const before = await status(port.id);
+    assert.equal(before.readiness.launchable, true);
+    await browser.navigate().refresh();
+    await browser.wait(
+      until.elementLocated(By.css('nav[aria-label="Primary navigation"]')),
+      15_000,
+    );
+    await dismissApplicationUpdateChoice();
+    await browser.findElement(By.xpath('//nav//button[contains(., "Library")]')).click();
+    const originalWindow = await browser.manage().window().getRect();
+    try {
+      await browser.manage().window().setRect({ width: 720, height: 560 });
+      const query = await browser.wait(until.elementLocated(By.id("port-search")), 15_000);
+      await query.sendKeys(port.name);
+      const ready = await browser.findElement(
+        By.xpath('//div[@aria-label="Library filters"]//button[normalize-space(.)="Ready"]'),
+      );
+      await ready.click();
+      const card = await browser.wait(
+        until.elementLocated(
+          By.xpath(
+            `//article[contains(@class,"port-card") and starts-with(@aria-label,"${port.name}.")]`,
+          ),
+        ),
+        15_000,
+      );
+      const play = await card.findElement(By.xpath('.//button[normalize-space(.)="Play"]'));
+      await browser.executeScript((element) => element.scrollIntoView({ block: "center" }), play);
+      const scrollBefore = await browser.executeScript(
+        "return document.querySelector('main[data-focus-region=workspace]').scrollTop;",
+      );
+      assert.ok(scrollBefore > 0, "The compact Library fixture must exercise a real scroll");
+      await play.click();
+      await browser.wait(
+        async () => (await status(port.id)).successful_launches > before.successful_launches,
+        15_000,
+      );
+      await browser.wait(
+        () =>
+          browser.executeScript(
+            (portName, launches) => {
+              const recent = document.querySelector(".continue-card");
+              return (
+                recent?.getAttribute("aria-label") === `Continue ${portName}` &&
+                Number(recent.dataset.successfulLaunches ?? 0) > launches
+              );
+            },
+            port.name,
+            before.successful_launches,
+          ),
+        15_000,
+        "Library did not render the completed launch after the game exited",
+      );
+      const returned = await browser.executeScript((element) => {
+        const workspace = document.querySelector('main[data-focus-region="workspace"]');
+        const search = document.getElementById("port-search");
+        const ready = document.querySelector(
+          '[aria-label="Library filters"] button[aria-pressed="true"]',
+        );
+        const card = element.closest("article.port-card");
+        const bounds = card?.getBoundingClientRect();
+        const workspaceBounds = workspace?.getBoundingClientRect();
+        return {
+          query: search?.value,
+          filter: ready?.textContent?.trim(),
+          scrollTop: workspace?.scrollTop,
+          playFocused: document.activeElement === element,
+          playConnected: element.isConnected,
+          cardVisible:
+            bounds && workspaceBounds
+              ? bounds.bottom > workspaceBounds.top && bounds.top < workspaceBounds.bottom
+              : false,
+        };
+      }, play);
+      assert.equal(returned.query, port.name);
+      assert.equal(returned.filter, "Ready");
+      assert.equal(returned.playConnected, true);
+      assert.equal(returned.playFocused, true);
+      assert.equal(returned.cardVisible, true);
+      assert.ok(
+        Math.abs(returned.scrollTop - scrollBefore) <= 2,
+        `Library scroll changed after game return: ${scrollBefore} -> ${returned.scrollTop}`,
+      );
+      const screenshot = path.join(output, "native-game-return-continuity.png");
+      await writeFile(screenshot, await browser.takeScreenshot(), {
+        encoding: "base64",
+        flag: "wx",
+      });
+      artifacts.push(screenshot);
+    } finally {
+      await browser.manage().window().setRect(originalWindow);
+    }
   });
   await scenario("native-game-update-review", async () => {
     const port = command(["catalog", "show", "opengoal-jak1"]);

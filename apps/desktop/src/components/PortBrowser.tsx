@@ -266,7 +266,12 @@ function ContinueCard({
   const { port, status } = recent;
   const launchable = status.readiness?.launchable === true;
   return (
-    <section className="continue-card" data-focus-group aria-label={`Continue ${port.name}`}>
+    <section
+      className="continue-card"
+      data-focus-group
+      data-successful-launches={status.successful_launches}
+      aria-label={`Continue ${port.name}`}
+    >
       <ArtworkImage port={port} className="continue-art" />
       <div>
         <p className="eyebrow">CONTINUE</p>
