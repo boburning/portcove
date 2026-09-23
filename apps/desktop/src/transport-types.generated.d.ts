@@ -1238,6 +1238,7 @@ export interface CatalogTrustKey {
 }
 export interface OutputCatalogUpdatePlan {
   changed_port_ids: string[];
+  changed_ports: CatalogChangedPort[];
   current: CatalogProvenance;
   envelope_sha256: string;
   expires_at: number;
@@ -1246,6 +1247,11 @@ export interface OutputCatalogUpdatePlan {
   plan_sha256: string;
   sequence: number;
   source: CatalogUpdateSource;
+  [k: string]: unknown;
+}
+export interface CatalogChangedPort {
+  id: string;
+  name: string;
   [k: string]: unknown;
 }
 export interface OutputCheckBatchOutcome {

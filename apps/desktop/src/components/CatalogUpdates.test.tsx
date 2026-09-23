@@ -39,19 +39,26 @@ it("requires explicit review, invalidates changed candidates and uses core prove
     issued_at: 1789620000,
     expires_at: 1789706400,
     changed_port_ids: ["shipwright"],
+    changed_ports: [{ id: "shipwright", name: "Ship of Harkinian" }],
     current: status.provenance,
     plan_sha256: "fe5c62deb351405b326acc1ccada7931fd11f224e8c4849c7731d3891be15947",
   };
   const zeroChangePlan: CatalogUpdatePlan = {
     ...plan,
     envelope_sha256: "e".repeat(64),
+    sequence: 2,
     changed_port_ids: [],
+    changed_ports: [],
     plan_sha256: "1437af5c9a99b06c3e1c634f9f564874ca1f820a58f96b3f46e896d946c750ab",
   };
   const manyChangePlan: CatalogUpdatePlan = {
     ...plan,
     envelope_sha256: "f".repeat(64),
     changed_port_ids: ["shipwright", "2ship2harkinian"],
+    changed_ports: [
+      { id: "shipwright", name: "Ship of Harkinian" },
+      { id: "2ship2harkinian", name: "2Ship2Harkinian" },
+    ],
     plan_sha256: "6eb79ca92dacff3ee56468a26c5675d4c5415f0a5eb8ce70b56baac32b5b8d22",
   };
   vi.spyOn(desktopApi, "catalogStatus").mockResolvedValue(status);
@@ -121,27 +128,39 @@ it("requires explicit review, invalidates changed candidates and uses core prove
     expect(apply).not.toHaveBeenCalled();
     await click("Review update");
     expect(review).toHaveBeenCalledWith(plan.source);
-    expect(document.body.textContent).toContain("Catalog update ready");
-    expect(document.body.textContent).toContain("Catalog signature valid");
-    expect(document.body.textContent).toContain("Signed by");
-    expect(document.body.textContent).toContain(plan.key_id);
-    expect(document.body.textContent).toContain("Publisher trusted");
-    expect(document.body.textContent).toContain("Sequence 1 accepted");
+    expect(document.body.textContent).toContain("Review catalog information");
+    expect(document.body.textContent).toContain("Signature verified with a trusted publisher key.");
+    expect(document.body.textContent).toContain("Catalog information will change for 1 port.");
+    expect(document.body.textContent).toContain("This does not install game updates.");
     expect(document.body.textContent).toContain(
-      `Valid until ${new Date(plan.expires_at * 1000).toLocaleString()}.`,
+      "Trusting a publisher allows changes to release download locations.",
     );
-    expect(document.body.textContent).toContain("1 port will change.");
+    expect(document.body.querySelector('[aria-label="Affected ports"]')?.textContent).toBe(
+      "Ship of Harkinian",
+    );
     const technical = document.body.querySelector(
       'summary[aria-label="Technical details for catalog update sequence 1"]',
     )?.parentElement;
     expect(technical?.textContent).toContain("shipwright");
+    expect(technical?.textContent).toContain(plan.key_id);
+    expect(technical?.textContent).toContain("1 accepted");
+    expect(technical?.textContent).toContain(new Date(plan.expires_at * 1000).toLocaleString());
     expect(technical?.textContent).toContain(plan.envelope_sha256);
     await click("Review update");
     expect(document.body.textContent).toContain("No port information will change.");
+    expect(document.body.querySelector('[aria-label="Affected ports"]')).toBeNull();
+    expect(
+      document.body.querySelector(
+        'summary[aria-label="Technical details for catalog update sequence 2"]',
+      )?.parentElement?.textContent,
+    ).toContain("2 accepted");
     await click("Review update");
-    expect(document.body.textContent).toContain("2 ports will change.");
+    expect(document.body.textContent).toContain("Catalog information will change for 2 ports.");
+    expect(document.body.querySelector('[aria-label="Affected ports"]')?.textContent).toBe(
+      "Ship of Harkinian2Ship2Harkinian",
+    );
     await click("Review update");
-    expect(document.body.textContent).toContain("1 port will change.");
+    expect(document.body.textContent).toContain("Catalog information will change for 1 port.");
     await click("Apply catalog update");
     expect(apply).toHaveBeenCalledWith(plan.source, plan.plan_sha256, expect.any(Function));
     expect(document.body.textContent).toContain("Catalog changed; review again");

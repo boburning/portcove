@@ -129,6 +129,28 @@ async fn publish(service: &PortcoveService, source: &CatalogUpdateSource) -> Cat
         .unwrap()
 }
 
+#[tokio::test]
+async fn review_names_changed_ports_from_the_verified_candidate() {
+    let root = tempfile::tempdir().unwrap();
+    let library = Library::open(root.path().join("library")).unwrap();
+    trusted(&library);
+    let service = PortcoveService::new(library).unwrap();
+    let mut candidate = fixture(1, Library::now());
+    let port = &mut candidate.catalog.ports[0];
+    let id = port.id.clone();
+    port.name = "Renamed candidate port".into();
+    let source = CatalogUpdateSource::File(root.path().join("renamed-catalog.json"));
+    if let CatalogUpdateSource::File(path) = &source {
+        std::fs::write(path, sign(&candidate)).unwrap();
+    }
+
+    let plan = service.plan_catalog_update(&source).await.unwrap();
+    assert_eq!(plan.changed_ports.len(), 1);
+    assert_eq!(plan.changed_port_ids, vec![id.clone()]);
+    assert_eq!(plan.changed_ports[0].id, id);
+    assert_eq!(plan.changed_ports[0].name, "Renamed candidate port");
+}
+
 #[test]
 fn signatures_reject_untrusted_tampered_weak_and_invalid_documents() {
     let now = 1_800_000_000;

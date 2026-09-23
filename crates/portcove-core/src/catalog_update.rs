@@ -30,8 +30,15 @@ pub struct CatalogUpdatePlan {
     pub issued_at: i64,
     pub expires_at: i64,
     pub changed_port_ids: Vec<String>,
+    pub changed_ports: Vec<CatalogChangedPort>,
     pub current: CatalogProvenance,
     pub plan_sha256: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct CatalogChangedPort {
+    pub id: String,
+    pub name: String,
 }
 
 impl PortcoveService {
@@ -131,7 +138,7 @@ fn plan(
         ));
     }
     let (current_catalog, current) = state.resolve(now)?;
-    let changed_port_ids = verified
+    let changed_ports = verified
         .catalog
         .ports()
         .iter()
@@ -139,9 +146,13 @@ fn plan(
             let changed = current_catalog.port(&port.id).ok().is_none_or(|original| {
                 serde_json::to_value(original).ok() != serde_json::to_value(port).ok()
             });
-            changed.then(|| port.id.clone())
+            changed.then(|| CatalogChangedPort {
+                id: port.id.clone(),
+                name: port.name.clone(),
+            })
         })
-        .collect();
+        .collect::<Vec<_>>();
+    let changed_port_ids = changed_ports.iter().map(|port| port.id.clone()).collect();
     let envelope_sha256 = signed_catalog::digest(bytes);
     let plan_sha256 = signed_catalog::digest(&serde_json::to_vec(&(
         source,
@@ -159,6 +170,7 @@ fn plan(
         issued_at: payload.issued_at,
         expires_at: payload.expires_at,
         changed_port_ids,
+        changed_ports,
         current,
         plan_sha256,
     })
