@@ -102,7 +102,7 @@ export function UpdateCenter({
             accent={available > 0}
           />
           <UpdateStat
-            label="Ready to install"
+            label="Saved for later"
             value={staged}
             icon={ShieldCheck}
             accent={staged > 0}
@@ -538,10 +538,10 @@ function policyLabel(policy: PortStatus["update_policy"]) {
 function updateState(status: PortStatus, outcome?: UpdateCheckOutcome) {
   if (!outcome)
     return status.staged
-      ? { label: "Update ready to install", tone: "staged" }
+      ? { label: "Update saved for later", tone: "staged" }
       : { label: "Not checked", tone: "muted" };
   if (!outcome.ok) return { label: "Check failed", tone: "failed" };
-  if (status.staged) return { label: "Update ready to install", tone: "staged" };
+  if (status.staged) return { label: "Update saved for later", tone: "staged" };
   if (!outcome.result) return { label: "Check result unavailable", tone: "muted" };
   if (outcome.result.update_available) return { label: "Update available", tone: "available" };
   return { label: "No update found at last check", tone: "current" };

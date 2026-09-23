@@ -3012,7 +3012,7 @@ describe("desktop components", () => {
     }
     const states: Array<[string, PortStatus, UpdateCheckOutcome[]]> = [
       ["Not checked", status, []],
-      ["Update ready to install", { ...status, staged: installRecord({ version: "2.0" }) }, []],
+      ["Update saved for later", { ...status, staged: installRecord({ version: "2.0" }) }, []],
       [
         "No update found at last check",
         status,
@@ -3038,6 +3038,11 @@ describe("desktop components", () => {
       [
         "Check failed",
         status,
+        [{ port_id: port.id, ok: false, error: failureReport(), result: null }],
+      ],
+      [
+        "Check failed",
+        { ...status, staged: installRecord({ version: "2.0" }) },
         [{ port_id: port.id, ok: false, error: failureReport(), result: null }],
       ],
     ];
