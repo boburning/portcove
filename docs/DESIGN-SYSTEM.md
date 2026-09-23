@@ -148,8 +148,10 @@ visible. Errors state the known cause, outcome, and realistic next action. Use
 actually ran and what it found separately. Show the planned output folder with
 version and download size when the installation plan downloads a release; a plan
 that reuses a local release must not present the configured future output folder
-as that release's existing path. Use sentence case and
-neutral task names beside authoritative status. Complete
+as that release's existing path. File-health summaries describe the saved files'
+current comparison state in plain language; keep saved checksums in File details
+and do not equate unchanged bytes with a supported edition or launch readiness.
+Use sentence case and neutral task names beside authoritative status. Complete
 localized messages use named interpolation and correct plurals; human formatting
 may follow locale while machine contracts remain stable. Keep technical detail
 for the audience that needs it. [#209](https://github.com/boburning/portcove/issues/209)
