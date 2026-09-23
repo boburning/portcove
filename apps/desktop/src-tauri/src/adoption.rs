@@ -42,10 +42,15 @@ pub(crate) async fn adopt_port(
         .destination
         .as_ref()
         .ok_or_else(|| PortcoveError::conflict("select one detected port before adoption"))?;
+    let selected_port_id = preview
+        .selected_port_id
+        .as_deref()
+        .ok_or_else(|| PortcoveError::conflict("select one detected port before adoption"))?;
     let message = format!(
-        "Copy {} files ({} bytes) into Portcove?\n\nOriginal: {}\nDestination: {}\nSaved data: {}\n\nCatalog-selected saved data will be merged, replacing matching saved files. No automatic safety backup is created. Existing versions and backups remain; the copy becomes active. The original folder will not be modified. {}",
+        "Copy {} files ({} bytes) into Portcove for catalog port {}?\n\nOriginal: {}\nDestination: {}\nSaved data: {}\n\nCatalog-selected saved data will be merged, replacing matching saved files. No automatic safety backup is created. Existing versions and backups remain; the copy becomes active. The original folder will not be modified. {}",
         preview.copy_plan.files.len(),
         preview.copy_plan.total_bytes,
+        selected_port_id,
         preview.source.display(),
         destination
             .output_location

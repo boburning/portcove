@@ -38,14 +38,14 @@ function Fixture({
   open = true,
   generation = 1,
 }: {
-  port?: string;
+  port?: string | null;
   channel?: "stable" | "beta";
   path?: string;
   open?: boolean;
   generation?: number;
 }) {
-  install = useInstallPlanning(port, channel, perform);
-  adoption = useAdoptionPlanning(path, port, open, generation, perform, done);
+  install = useInstallPlanning(port ?? undefined, channel, perform);
+  adoption = useAdoptionPlanning(path, port ?? undefined, open, generation, perform, done);
   return null;
 }
 async function render(props: Parameters<typeof Fixture>[0] = {}) {
@@ -66,6 +66,45 @@ afterEach(async () => {
 });
 
 describe("current review intent", () => {
+  it("binds an ambiguous detected choice to a fresh plan and its native authorization", async () => {
+    const ambiguous = {
+      detected_port_ids: ["first", "second"],
+      selected_port_id: null,
+      plan_sha256: "unbound",
+    } as Preview;
+    const selected = {
+      detected_port_ids: ["second"],
+      selected_port_id: "second",
+      plan_sha256: "bound",
+    } as Preview;
+    const preview = vi
+      .spyOn(desktopApi, "previewAdoption")
+      .mockResolvedValueOnce(ambiguous)
+      .mockResolvedValueOnce(selected);
+    const adopt = vi.spyOn(desktopApi, "adopt").mockResolvedValue(null);
+    await render({ port: null });
+    await act(async () => {
+      await adoption.review();
+    });
+    expect(preview).toHaveBeenCalledWith("A", 1, undefined);
+    await act(async () => {
+      await adoption.review("unlisted");
+      await adoption.adopt();
+    });
+    expect(preview).toHaveBeenCalledTimes(1);
+    expect(adopt).not.toHaveBeenCalled();
+    expect(adoption.preview).toBe(ambiguous);
+    await act(async () => {
+      await adoption.review("second");
+    });
+    expect(preview).toHaveBeenLastCalledWith("A", 1, "second");
+    expect(adoption.preview).toBe(selected);
+    await act(async () => {
+      await adoption.adopt();
+    });
+    expect(adopt).toHaveBeenCalledExactlyOnceWith("A", "bound", 1, "second");
+  });
+
   it.each([{ port: "second" }, { channel: "beta" as const }])(
     "rejects reverse install completion after %j changes",
     async (props) => {

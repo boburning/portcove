@@ -28,6 +28,11 @@ export async function adoptionReviewScenario({
     const original = path.join(output, "owned-adoption-review");
     await mkdir(original);
     await copyFile(tool, path.join(original, port.executable_hints[host][0]));
+    const otherPort = command(["catalog", "show", "opengoal-jak1"]);
+    const ambiguous = path.join(output, "owned-adoption-ambiguous");
+    await mkdir(ambiguous);
+    await copyFile(tool, path.join(ambiguous, port.executable_hints[host][0]));
+    await copyFile(tool, path.join(ambiguous, otherPort.executable_hints[host][0]));
     const incoming = path.join(original, "general.json");
     await writeFile(incoming, "incoming settings", { flag: "wx" });
     const previous = command(["adopt", original, "--port", port.id, "--yes"]);
@@ -74,6 +79,62 @@ export async function adoptionReviewScenario({
       5_000,
       "existing-install trigger did not regain focus after Escape",
     );
+    await click(trigger);
+    const ambiguousInput = await browser.findElement(By.id("adopt-path"));
+    await ambiguousInput.clear();
+    await ambiguousInput.sendKeys(ambiguous);
+    await click(button("Review copy plan"));
+    const chosenPort = button(`Review ${port.name} — Catalog ID: ${port.id}`);
+    const otherChoice = button(`Review ${otherPort.name} — Catalog ID: ${otherPort.id}`);
+    await browser.wait(until.elementLocated(chosenPort), 15_000);
+    await browser.wait(until.elementLocated(otherChoice), 15_000);
+    assert.equal(
+      await browser.findElement(button("Continue to copy confirmation")).isEnabled(),
+      false,
+      "Ambiguous detection must not authorize a copy",
+    );
+    const ambiguousFiles = await Promise.all(
+      [port.executable_hints[host][0], otherPort.executable_hints[host][0]].map((name) =>
+        fileIdentity(path.join(ambiguous, name)),
+      ),
+    );
+    const ambiguousReport = path.join(output, "adoption-ambiguous-accessibility.json");
+    await captureAccessibilityReport(browser, ambiguousReport, artifacts);
+    const ambiguousScreenshot = path.join(output, "native-adoption-ambiguous-choice.png");
+    await writeFile(ambiguousScreenshot, await browser.takeScreenshot(), {
+      encoding: "base64",
+      flag: "wx",
+    });
+    artifacts.push(ambiguousScreenshot);
+    await click(chosenPort);
+    const selectedContinue = await browser.wait(
+      until.elementLocated(button("Continue to copy confirmation")),
+      15_000,
+    );
+    await browser.wait(until.elementIsEnabled(selectedContinue), 15_000);
+    const selectedText = await browser.findElement(dialog).getText();
+    assert.ok(selectedText.includes(port.name));
+    assert.ok(selectedText.includes(`Catalog ID: ${port.id}`));
+    assert.ok(selectedText.includes(paths.user_data_root));
+    await click(button("Continue to copy confirmation"));
+    await confirmNative(
+      "Confirm existing installation copy",
+      "__observe__",
+      `catalog port ${port.id}?`,
+      "adoption-ambiguous-selected-before-consent",
+    );
+    await confirmNative(
+      "Confirm existing installation copy",
+      "Cancel",
+      ambiguous,
+      "adoption-ambiguous-cancelled",
+    );
+    await browser.wait(async () => (await browser.findElements(dialog)).length === 0, 15_000);
+    assert.deepEqual(
+      await Promise.all(ambiguousFiles.map((item) => fileIdentity(item.path))),
+      ambiguousFiles,
+    );
+    assert.equal(command(["status", port.id]).active.id, previous.id);
     const open = async () => {
       await click(trigger);
       const input = await browser.findElement(By.id("adopt-path"));
@@ -100,7 +161,7 @@ export async function adoptionReviewScenario({
       "cannot cancel",
     ])
       assert.ok(text.includes(expected), expected);
-    await click(button("Keep original setup"));
+    await click(button("Cancel"));
     assert.equal(await readFile(current, "utf8"), "current settings");
     await open();
     await click(button("Continue to copy confirmation"));

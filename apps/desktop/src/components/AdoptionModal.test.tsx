@@ -128,13 +128,14 @@ it("shows the reviewed copy plan and skipped entries in the portaled Dialog", as
   }
 });
 
-it("lists ambiguous detected ports without presenting one as selected", async () => {
+it("offers only detected ports for a fresh bound copy review", async () => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   const container = document.createElement("div");
   document.body.append(container);
   const root = createRoot(container);
   const port = { ...portDefinition(), id: "sample", name: "Sample Port" };
   const other = { ...port, id: "other", name: "Other Port" };
+  const review = vi.fn();
   try {
     await act(async () =>
       root.render(
@@ -142,7 +143,7 @@ it("lists ambiguous detected ports without presenting one as selected", async ()
           path="D:/Ambiguous"
           setPath={vi.fn()}
           close={vi.fn()}
-          review={vi.fn()}
+          review={review}
           adopt={vi.fn()}
           ports={[port, other]}
           preview={{
@@ -165,14 +166,21 @@ it("lists ambiguous detected ports without presenting one as selected", async ()
     );
     const dialog = document.body.querySelector<HTMLElement>('[data-slot="dialog-content"]')!;
     expect(dialog.textContent).toContain("Multiple supported ports detected");
-    expect(dialog.textContent).toContain("Sample Port — Catalog ID: sample");
-    expect(dialog.textContent).toContain("Other Port — Catalog ID: other");
-    expect(dialog.textContent).toContain("Choose the matching port in Portcove");
+    expect(dialog.textContent).toContain("Review Sample Port — Catalog ID: sample");
+    expect(dialog.textContent).toContain("Review Other Port — Catalog ID: other");
+    expect(dialog.textContent).toContain("Choose the correct game");
     expect(
       [...dialog.querySelectorAll("button")].find((item) =>
         item.textContent?.includes("Continue to copy confirmation"),
       )?.disabled,
     ).toBe(true);
+    await act(async () => {
+      [...dialog.querySelectorAll("button")]
+        .find((item) => item.textContent?.includes("Review Other Port"))!
+        .click();
+    });
+    expect(review).toHaveBeenCalledExactlyOnceWith("other");
+    expect(dialog.textContent).toContain("Cancel");
     expect(dialog.querySelector("strong")?.textContent).toBe("Multiple supported ports detected");
   } finally {
     await act(async () => root.unmount());

@@ -26,7 +26,7 @@ export function AdoptionModal({
   applying?: boolean;
   copyFailed?: boolean;
   close: () => void;
-  review: () => void;
+  review: (selectedPortId?: string) => void;
   adopt: () => void;
   pickFolder?: () => void;
   ports?: readonly PortDefinition[];
@@ -121,11 +121,22 @@ export function AdoptionModal({
             </p>
             {portIdentity?.kind === "ambiguous" && (
               <>
-                <p>Choose the matching port in Portcove before reviewing this folder again.</p>
+                <p>
+                  This folder matches more than one supported port. Choose the correct game to
+                  review its destination and saved-data changes before copying.
+                </p>
                 <ul aria-label="Detected ports">
                   {portIdentity.ports.map((port) => (
                     <li key={port.id}>
-                      {port.name ?? "Unknown catalog port"} — Catalog ID: <code>{port.id}</code>
+                      <Button
+                        data-focusable
+                        variant="outline"
+                        type="button"
+                        disabled={Boolean(busy) || applying}
+                        onClick={() => review(port.id)}
+                      >
+                        Review {port.name ?? "Unknown catalog port"} — Catalog ID: {port.id}
+                      </Button>
                     </li>
                   ))}
                 </ul>
@@ -134,7 +145,10 @@ export function AdoptionModal({
             <p>
               {preview.copy_plan.files.length.toLocaleString()}{" "}
               {preview.copy_plan.files.length === 1 ? "file" : "files"} ·{" "}
-              {formatBytes(preview.copy_plan.total_bytes)} will be copied into the managed library.
+              {formatBytes(preview.copy_plan.total_bytes)}{" "}
+              {preview.selected_port_id
+                ? "will be copied into the managed library."
+                : "found. Choose a port to review the exact destination before copying."}
             </p>
             {preview.copy_plan.skipped_entries.length > 0 && (
               <details>
@@ -179,7 +193,7 @@ export function AdoptionModal({
         )}
         <DialogFooter className="mt-4">
           <Button data-focusable variant="outline" onClick={dismiss} disabled={applying}>
-            Keep original setup
+            Cancel
           </Button>
           {preview ? (
             <Button
@@ -198,7 +212,7 @@ export function AdoptionModal({
               data-focusable
               variant="primary"
               disabled={!path.trim() || Boolean(busy) || applying}
-              onClick={review}
+              onClick={() => review()}
             >
               <Icon glyph={FolderInput} />
               {applying

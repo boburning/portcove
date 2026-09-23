@@ -934,8 +934,8 @@ function AdoptionOverlay({
       pickFolder={() => {
         void applyPathChoice(pickInstallFolder(ui.adoptPath), setPath, operations.setError);
       }}
-      review={() => {
-        void planning.review();
+      review={(selectedPortId) => {
+        void planning.review(selectedPortId);
       }}
       adopt={() => {
         void planning.adopt();
