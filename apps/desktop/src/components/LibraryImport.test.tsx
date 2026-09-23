@@ -72,14 +72,18 @@ afterEach(async () => {
 });
 
 it("invalidates a reviewed backup after editing and exposes recoverable import errors", async () => {
-  await click("Restore library");
+  await click("Restore from a library copy");
   expect(document.body.textContent).toContain("RESTORE PORTCOVE LIBRARY");
   expect(document.body.textContent).toContain(
-    "Portcove checks the copy before opening it and does not change the export.",
+    "You need a library metadata file and a separate copy of the original library folder.",
   );
+  expect(document.body.textContent).toContain("Restore into a new or empty library.");
+  expect(document.body.textContent).toContain("Library metadata file");
+  expect(document.body.textContent).toContain("Copy of the original library folder");
+  expect(document.body.textContent).toContain(plan.destination_root);
   expect(document.body.textContent).toContain("Use an export you trust.");
   expect(document.querySelector<HTMLInputElement>("#import-content")?.placeholder).toBe(
-    "Folder containing the exported Portcove library",
+    "Choose the copied library folder",
   );
   await click("Choose file");
   await click("Choose folder");
@@ -119,7 +123,7 @@ it("keeps the dialog open while a reviewed import is running", async () => {
       rejectImport = reject;
     }),
   );
-  await click("Restore library");
+  await click("Restore from a library copy");
   await click("Choose file");
   await click("Choose folder");
   await click("Review restore");
@@ -131,6 +135,15 @@ it("keeps the dialog open while a reviewed import is running", async () => {
   expect(document.querySelector("[role=dialog]")).not.toBeNull();
   await act(async () => rejectImport({ message: "Import was not confirmed" }));
   expect(button("Close").disabled).toBe(false);
+});
+
+it("explains retained originals and space before reviewing a library move", async () => {
+  await act(async () => root.render(<LibraryMoveButton disabled={false} />));
+  await click("Move library");
+  expect(document.body.textContent).toContain(
+    "The old folder is kept, so this does not free space on its drive.",
+  );
+  expect(document.body.textContent).toContain("Original game files stay at their saved locations");
 });
 
 it.each(["move", "import"] as const)(
@@ -171,7 +184,7 @@ it.each(["move", "import"] as const)(
       await click("Review move");
       await click("Move to this folder");
     } else {
-      await click("Restore library");
+      await click("Restore from a library copy");
       await click("Choose file");
       await click("Choose folder");
       await click("Review restore");

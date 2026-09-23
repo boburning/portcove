@@ -25,7 +25,7 @@ export function LibraryImportButton({
         disabled={disabled}
         onClick={() => setOpen(true)}
       >
-        Restore library
+        Restore from a library copy
       </Button>
       {open && <LibraryImportDialog libraryRoot={libraryRoot} close={() => setOpen(false)} />}
     </>
@@ -82,11 +82,13 @@ function LibraryImportDialog({ libraryRoot, close }: { libraryRoot: string; clos
       >
         <p className="eyebrow">RESTORE PORTCOVE LIBRARY</p>
         <DialogTitle id="import-library-title" className="mb-2 text-xl">
-          Restore your library
+          Restore from a library copy
         </DialogTitle>
         <DialogDescription id="import-library-description" className="mb-4 leading-relaxed">
-          Restore a Portcove export and its copied library data into this empty library. Portcove
-          checks the copy before opening it and does not change the export.
+          You need a library metadata file and a separate copy of the original library folder.
+          Restore into a new or empty library. Portcove checks this destination and the copy during
+          review before changing files, then opens the restored library. The originals stay where
+          they are.
         </DialogDescription>
         <p>
           <strong>Use an export you trust.</strong> Review its source, destination, required space,
@@ -96,7 +98,7 @@ function LibraryImportDialog({ libraryRoot, close }: { libraryRoot: string; clos
           Destination: <code>{libraryRoot}</code>
         </p>
         <NavigationHints />
-        <label htmlFor="import-metadata">Portcove export file</label>
+        <label htmlFor="import-metadata">Library metadata file</label>
         <div className="path-entry">
           <input
             data-autofocus
@@ -108,7 +110,7 @@ function LibraryImportDialog({ libraryRoot, close }: { libraryRoot: string; clos
               setMetadata(event.target.value);
               setPlan(undefined);
             }}
-            placeholder="Choose a Portcove library export"
+            placeholder="Choose the library metadata file"
           />
           <Button
             data-focusable
@@ -121,7 +123,7 @@ function LibraryImportDialog({ libraryRoot, close }: { libraryRoot: string; clos
             Choose file
           </Button>
         </div>
-        <label htmlFor="import-content">Exported library folder</label>
+        <label htmlFor="import-content">Copy of the original library folder</label>
         <div className="path-entry">
           <input
             data-focusable
@@ -132,7 +134,7 @@ function LibraryImportDialog({ libraryRoot, close }: { libraryRoot: string; clos
               setContent(event.target.value);
               setPlan(undefined);
             }}
-            placeholder="Folder containing the exported Portcove library"
+            placeholder="Choose the copied library folder"
           />
           <Button
             data-focusable

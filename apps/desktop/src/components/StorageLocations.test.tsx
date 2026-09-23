@@ -3,6 +3,7 @@ import { act, useRef, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { LibrarySelectionCard } from "./Chrome";
+import { desktopApi } from "../api";
 import {
   useLibrarySelectionLanding,
   useLibrarySelectionReturn,
@@ -76,6 +77,7 @@ async function click(label: string) {
 }
 
 beforeEach(() => {
+  vi.spyOn(desktopApi, "defaultLibraryRoot").mockResolvedValue("C:/Users/test/Portcove");
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
     callback(0);
@@ -94,6 +96,7 @@ afterEach(async () => {
   await act(async () => root.unmount());
   container.remove();
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
 });
 
 describe("Storage locations", () => {
@@ -167,11 +170,37 @@ describe("Storage locations", () => {
     });
 
     await click("Review platform default");
-    expect(document.body.textContent).toContain("Use the platform-default library");
+    expect(desktopApi.defaultLibraryRoot).toHaveBeenCalledTimes(1);
+    expect(document.body.textContent).toContain("Open the default library?");
+    expect(document.body.textContent).toContain("C:/Users/test/Portcove");
+    expect(document.body.textContent).toContain(
+      "Files in the current library will stay where they are",
+    );
     expect(reset).not.toHaveBeenCalled();
     await click("Use platform default");
     expect(reset).toHaveBeenCalledTimes(1);
     expect(document.activeElement).toBe(button("Review platform default"));
+  });
+
+  it("refuses default reset when the real destination cannot be resolved", async () => {
+    vi.mocked(desktopApi.defaultLibraryRoot).mockRejectedValueOnce(
+      new Error("Default location unavailable"),
+    );
+    const reset = vi.fn();
+    await act(async () =>
+      root.render(
+        <LibrarySelectionCard
+          selection={{ root: "E:/Portcove", source: "saved" }}
+          choose={vi.fn()}
+          switchLibrary={vi.fn()}
+          reset={reset}
+        />,
+      ),
+    );
+    await click("Review platform default");
+    expect(document.body.querySelector('[role="dialog"]')).toBeNull();
+    expect(document.body.textContent).toContain("Default location unavailable");
+    expect(reset).not.toHaveBeenCalled();
   });
 
   it("dismisses a reset review with Escape and returns focus without changing selection", async () => {

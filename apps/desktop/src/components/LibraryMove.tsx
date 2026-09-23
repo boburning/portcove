@@ -77,9 +77,10 @@ function LibraryMoveDialog({ close }: { close: () => void }) {
           Move your library
         </DialogTitle>
         <DialogDescription id="move-library-description" className="mb-4 leading-relaxed">
-          Copy and verify application versions, saves, backups, and toolchains before switching to
-          the new folder. The original folder stays available for recovery. Original game sources
-          and other saved game-file locations stay unchanged.
+          Portcove copies the library to the new location, verifies application versions, saves,
+          backups, and toolchains, then opens that copy. The old folder is kept, so this does not
+          free space on its drive. Original game files stay at their saved locations; keep those
+          locations available.
         </DialogDescription>
         <NavigationHints />
         <label htmlFor="library-destination">New library folder</label>

@@ -8,6 +8,11 @@ use portcove_core::{Library, LibrarySelection, LibrarySelectionSource, PortcoveE
 use std::path::PathBuf;
 
 #[tauri::command]
+pub(crate) fn get_default_library_root() -> DesktopResult<PathBuf> {
+    Library::default_root().map_err(DesktopError::from)
+}
+
+#[tauri::command]
 pub(crate) async fn get_library_identity(
     state: tauri::State<'_, DesktopState>,
     generation: u64,

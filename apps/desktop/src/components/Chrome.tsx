@@ -1,4 +1,5 @@
 import { SourceRemovalControl } from "./SourceRemoval";
+import { desktopApi } from "../api";
 import { useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
 import {
   AlertTriangle,
@@ -1431,7 +1432,7 @@ export function LibrarySelectionCard({
   reset?: () => Promise<void>;
 }) {
   const [error, setError] = useState<string>();
-  const [review, setReview] = useState<{ kind: "switch"; path: string } | { kind: "reset" }>();
+  const [review, setReview] = useState<{ kind: "switch" | "reset"; path: string }>();
   const [pending, setPending] = useState(false);
   const switchTrigger = useRef<HTMLButtonElement>(null);
   const resetTrigger = useRef<HTMLButtonElement>(null);
@@ -1453,6 +1454,20 @@ export function LibrarySelectionCard({
   };
   const cancelReview = () => {
     setReview(undefined);
+  };
+  const reviewDefault = async () => {
+    setError(undefined);
+    setPending(true);
+    try {
+      const path = await desktopApi.defaultLibraryRoot();
+      if (!path.trim()) throw new Error("The default library location is unavailable.");
+      focusReturn.current = "reset";
+      setReview({ kind: "reset", path });
+    } catch (value) {
+      setError(errorText(value));
+    } finally {
+      setPending(false);
+    }
   };
   const applyReview = async () => {
     if (!review) return;
@@ -1505,9 +1520,7 @@ export function LibrarySelectionCard({
           size="sm"
           disabled={Boolean(busy) || pending || !reset}
           onClick={() => {
-            focusReturn.current = "reset";
-            setError(undefined);
-            setReview({ kind: "reset" });
+            void reviewDefault();
           }}
         >
           Review platform default
@@ -1532,16 +1545,17 @@ export function LibrarySelectionCard({
             <DialogTitle id="library-selection-review-title" className="mb-2 text-xl">
               {review.kind === "switch"
                 ? "Switch whole Portcove library"
-                : "Use the platform-default library"}
+                : "Open the default library?"}
             </DialogTitle>
             <DialogDescription
               id="library-selection-review-description"
               className="mb-4 leading-relaxed"
             >
-              Portcove will close this library and open the reviewed selection. Existing files stay
-              in place, and per-game Export / install folders do not change.
+              {review.kind === "switch"
+                ? "Portcove will close this library and open the reviewed selection. Existing files stay in place, and per-game Export / install folders do not change."
+                : "Portcove will open the default library shown below. Files in the current library will stay where they are. Per-game Export / install folders do not change."}
             </DialogDescription>
-            {review.kind === "switch" && <code className="block break-all">{review.path}</code>}
+            <code className="block break-all">{review.path}</code>
             <DialogFooter className="mt-4">
               <Button
                 data-focusable
