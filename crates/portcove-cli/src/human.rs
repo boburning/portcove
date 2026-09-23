@@ -12,6 +12,18 @@ use portcove_core::{
 };
 use serde::Serialize;
 use serde_json::Value;
+use time::{OffsetDateTime, format_description::well_known::Rfc3339};
+
+fn utc_time(seconds: i64) -> String {
+    OffsetDateTime::from_unix_timestamp(seconds)
+        .ok()
+        .and_then(|instant| instant.format(&Rfc3339).ok())
+        .unwrap_or_else(|| "Unknown time (invalid Unix timestamp)".into())
+}
+
+fn utc_rate_reset(seconds: u64) -> String {
+    i64::try_from(seconds).map_or_else(|_| "Unknown time (invalid Unix timestamp)".into(), utc_time)
+}
 
 pub(crate) fn document<T: Serialize>(data: &T) -> serde_json::Result<String> {
     let mut output = String::new();
@@ -116,8 +128,10 @@ pub(crate) fn auth_status(status: &GithubAuthStatus) -> String {
     ];
     if let Some(rate) = &status.rate_limit {
         lines.push(format!(
-            "API allowance: {}/{} (reset Unix time {})",
-            rate.remaining, rate.limit, rate.resets_at
+            "API allowance: {}/{} (resets at {})",
+            rate.remaining,
+            rate.limit,
+            utc_rate_reset(rate.resets_at)
         ));
     }
     lines.join("\n")
@@ -205,7 +219,7 @@ pub(crate) fn backup_list(port_id: &str, inventory: &BackupInventory) -> String 
         .map(|backup| {
             vec![
                 backup.id.clone(),
-                backup.created_at.to_string(),
+                utc_time(backup.created_at),
                 backup.file_count.to_string(),
                 format_bytes(backup.size),
                 backup.path.display().to_string(),
@@ -219,7 +233,7 @@ pub(crate) fn backup_list(port_id: &str, inventory: &BackupInventory) -> String 
             "Backups for {} ({})\n{}",
             clean(port_id),
             inventory.backups.len(),
-            table(&["ID", "CREATED (UNIX)", "FILES", "SIZE", "PATH"], rows)
+            table(&["ID", "CREATED (UTC)", "FILES", "SIZE", "PATH"], rows)
         )
     };
     if inventory.problems.is_empty() {
@@ -276,7 +290,7 @@ pub(crate) fn source_list(sources: &[SourceRecord]) -> String {
             vec![
                 source.profile_id.clone(),
                 format_bytes(source.storage_size),
-                source.updated_at.to_string(),
+                utc_time(source.updated_at),
                 source.path.display().to_string(),
             ]
         })
@@ -284,7 +298,7 @@ pub(crate) fn source_list(sources: &[SourceRecord]) -> String {
     format!(
         "Registered sources ({})\n{}",
         sources.len(),
-        table(&["PROFILE", "SIZE", "UPDATED (UNIX)", "PATH"], rows)
+        table(&["PROFILE", "SIZE", "UPDATED (UTC)", "PATH"], rows)
     )
 }
 
@@ -614,7 +628,7 @@ fn activity(record: &ActivityRecord, catalog: &portcove_core::Catalog, technical
             ActivityTargetKind::Library => None,
         });
     let mut output = format!(
-        "Activity: {}\nStatus: {}\nOperation: {}\nTarget: {}\nStarted (UNIX): {}",
+        "Activity: {}\nStatus: {}\nOperation: {}\nTarget: {}\nStarted (UTC): {}",
         clean(&record.id),
         record.status,
         record.operation,
@@ -623,7 +637,7 @@ fn activity(record: &ActivityRecord, catalog: &portcove_core::Catalog, technical
             ActivityTargetKind::Source => "source (not in current catalog)",
             ActivityTargetKind::Library => "library",
         })),
-        record.started_at,
+        utc_time(record.started_at),
     );
     output.push('\n');
     if let Some(report) = &record.failure {
@@ -1083,7 +1097,11 @@ fn render_value(value: &Value, indent: usize, output: &mut String) {
                     output.push_str(&format!("{padding}{}:\n", human_key(key)));
                     render_value(value, indent + 2, output);
                 } else {
-                    output.push_str(&format!("{padding}{}: {}\n", human_key(key), scalar(value)));
+                    output.push_str(&format!(
+                        "{padding}{}: {}\n",
+                        human_key(key),
+                        field_scalar(key, value)
+                    ));
                 }
             }
         }
@@ -1102,6 +1120,22 @@ fn render_value(value: &Value, indent: usize, output: &mut String) {
         }
         value => output.push_str(&format!("{padding}{}\n", scalar(value))),
     }
+}
+
+fn field_scalar(key: &str, value: &Value) -> String {
+    if matches!(
+        key,
+        "created_at" | "updated_at" | "started_at" | "finished_at" | "resets_at"
+    ) && let Value::Number(number) = value
+    {
+        if let Some(seconds) = number.as_i64() {
+            return utc_time(seconds);
+        }
+        if let Some(seconds) = number.as_u64() {
+            return utc_rate_reset(seconds);
+        }
+    }
+    scalar(value)
 }
 
 fn scalar(value: &Value) -> String {
@@ -1327,7 +1361,59 @@ mod tests {
         BackupInventoryState, BackupRecord, PreparationCleanupPreview, StorageSummary,
     };
 
-    use super::{backup_list, catalog_show, document, storage, table};
+    use super::{backup_list, catalog_show, document, storage, table, utc_rate_reset, utc_time};
+
+    #[test]
+    fn human_times_use_utc_and_report_unrepresentable_values() {
+        assert_eq!(utc_time(0), "1970-01-01T00:00:00Z");
+        assert_eq!(utc_time(-1), "1969-12-31T23:59:59Z");
+        assert_eq!(utc_time(i64::MAX), "Unknown time (invalid Unix timestamp)");
+        assert_eq!(utc_rate_reset(42), "1970-01-01T00:00:42Z");
+        assert_eq!(
+            utc_rate_reset(u64::MAX),
+            "Unknown time (invalid Unix timestamp)"
+        );
+        let status = portcove_core::GithubAuthStatus {
+            source: portcove_core::GithubAuthSource::Anonymous,
+            authenticated: false,
+            login: None,
+            rate_limit: Some(portcove_core::GithubRateLimit {
+                limit: 60,
+                remaining: 12,
+                resets_at: 42,
+            }),
+            device_login_available: false,
+        };
+        assert!(super::auth_status(&status).contains("resets at 1970-01-01T00:00:42Z"));
+        let source = portcove_core::SourceRecord {
+            profile_id: "fixture".into(),
+            path: PathBuf::from("C:/fixture.iso"),
+            sha256: "a".repeat(64),
+            size: 3,
+            storage_sha256: "b".repeat(64),
+            storage_size: 3,
+            updated_at: 42,
+            observed_identity: None,
+        };
+        let sources = super::source_list(&[source]);
+        assert!(sources.contains("UPDATED (UTC)"));
+        assert!(sources.contains("1970-01-01T00:00:42Z"));
+        let document = document(&serde_json::json!({
+            "created_at": 42,
+            "updated_at": -1,
+            "started_at": i64::MAX,
+            "finished_at": null,
+            "resets_at": u64::MAX,
+            "file_count": 42
+        }))
+        .unwrap();
+        assert!(document.contains("Created at: 1970-01-01T00:00:42Z"));
+        assert!(document.contains("Updated at: 1969-12-31T23:59:59Z"));
+        assert!(document.contains("Started at: Unknown time (invalid Unix timestamp)"));
+        assert!(document.contains("Resets at: Unknown time (invalid Unix timestamp)"));
+        assert!(document.contains("Finished at: none"));
+        assert!(document.contains("File count: 42"));
+    }
 
     #[test]
     fn catalog_show_uses_structured_presentation_without_adapter_ids() {
@@ -1446,6 +1532,7 @@ mod tests {
             record.status = status;
             let plain = super::activities(&activity_feed(record.clone()), &catalog, false);
             assert!(plain.contains(expected));
+            assert!(plain.contains("Started (UTC): 1970-01-01T00:00:42Z"));
             assert!(plain.contains("Target: opengoal-jak1"));
             assert!(plain.contains("activity log owned-activity-id"));
             assert!(!plain.contains(&temporary.path().display().to_string()));
@@ -1540,7 +1627,7 @@ mod tests {
                     problems: Vec::new(),
                 },
             ),
-            "Backups for sample (1)\nID        CREATED (UNIX)  FILES  SIZE     PATH\n--------  --------------  -----  -------  ----------------------------\nbackup-1  42              3      2.0 KiB  C:/Portcove/backups/backup-1",
+            "Backups for sample (1)\nID        CREATED (UTC)         FILES  SIZE     PATH\n--------  --------------------  -----  -------  ----------------------------\nbackup-1  1970-01-01T00:00:42Z  3      2.0 KiB  C:/Portcove/backups/backup-1",
         );
         let degraded = backup_list(
             "sample",
