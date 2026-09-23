@@ -8,10 +8,16 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use crate::application_update::ApplicationUpdateCandidateSummary;
+use crate::application_update::{
+    ApplicationPackageManager, ApplicationUpdateCandidateSummary, InstalledApplicationContextError,
+};
 use crate::application_update_apply::{
     ApplicationTerminationKind, ApplicationUpdateApplyError, ApplicationUpdateApplyRequest,
     ApplicationUpdateApplyState, ApplicationUpdateApplyStore, ApplicationUpdateNativeLaunchState,
+};
+use crate::application_update_host::{
+    ApplicationUpdateHostProvider, CurrentInstalledApplicationContext,
+    InstalledApplicationContextSource,
 };
 use crate::application_update_schedule::{
     ApplicationUpdateSchedule, ApplicationUpdateScheduleError, ApplicationUpdateScheduleStore,
@@ -76,11 +82,39 @@ pub struct ApplicationUpdateApplySummary {
     pub native_launch: Option<ApplicationUpdateNativeLaunchSummary>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, JsonSchema)]
+#[serde(rename_all = "kebab-case")]
+pub enum ApplicationUpdateInstallEligibility {
+    Eligible,
+    PackageManagedDeb,
+    PackageManagedRpm,
+    NotConfigured,
+    Unavailable,
+}
+
+fn install_eligibility(
+    installed: Result<(), InstalledApplicationContextError>,
+    configured: bool,
+) -> ApplicationUpdateInstallEligibility {
+    match installed {
+        Err(InstalledApplicationContextError::PackageManager(ApplicationPackageManager::Deb)) => {
+            ApplicationUpdateInstallEligibility::PackageManagedDeb
+        }
+        Err(InstalledApplicationContextError::PackageManager(ApplicationPackageManager::Rpm)) => {
+            ApplicationUpdateInstallEligibility::PackageManagedRpm
+        }
+        Ok(()) if configured => ApplicationUpdateInstallEligibility::Eligible,
+        Ok(()) => ApplicationUpdateInstallEligibility::NotConfigured,
+        _ => ApplicationUpdateInstallEligibility::Unavailable,
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, JsonSchema)]
 pub struct ApplicationUpdateStatus {
     pub schedule: Option<ApplicationUpdateScheduleSummary>,
     pub staged: Option<ApplicationUpdateCandidateSummary>,
     pub apply: Option<ApplicationUpdateApplySummary>,
+    pub install_eligibility: ApplicationUpdateInstallEligibility,
     pub recovery_required: Vec<ApplicationUpdateRecoveryNotice>,
 }
 
@@ -153,16 +187,27 @@ async fn load_status(
 ) -> DesktopResult<ApplicationUpdateStatus> {
     let schedule_store = stores.schedule.clone();
     let apply_store = stores.apply.clone();
-    let (schedule, apply, mut recovery_required) = blocking_worker(move || {
-        let (schedule, schedule_recovery) = read_schedule(&schedule_store)?;
-        let (apply, apply_recovery) = read_apply(&apply_store)?;
-        let recovery_required: Vec<ApplicationUpdateRecoveryNotice> = schedule_recovery
-            .into_iter()
-            .chain(apply_recovery)
-            .collect();
-        Ok((schedule, apply, recovery_required))
-    })
-    .await?;
+    let (schedule, apply, mut recovery_required, install_eligibility) =
+        blocking_worker(move || {
+            let (schedule, schedule_recovery) = read_schedule(&schedule_store)?;
+            let (apply, apply_recovery) = read_apply(&apply_store)?;
+            let recovery_required: Vec<ApplicationUpdateRecoveryNotice> = schedule_recovery
+                .into_iter()
+                .chain(apply_recovery)
+                .collect();
+            let configured = ApplicationUpdateHostProvider::compiled()
+                .ok()
+                .flatten()
+                .is_some();
+            let installed = CurrentInstalledApplicationContext.observe().map(|_| ());
+            Ok((
+                schedule,
+                apply,
+                recovery_required,
+                install_eligibility(installed, configured),
+            ))
+        })
+        .await?;
     let staged = match stores.staging.status().await {
         Ok(staged) => staged.as_ref().map(candidate_summary),
         Err(ApplicationUpdateStagingError::InvalidState(_))
@@ -176,6 +221,7 @@ async fn load_status(
         schedule,
         staged,
         apply,
+        install_eligibility,
         recovery_required,
     })
 }
@@ -350,6 +396,45 @@ fn domain_error(message: &str, conflict: bool, unsupported: bool) -> DesktopErro
 mod tests {
     use super::*;
     use std::fs;
+
+    #[test]
+    fn installation_eligibility_keeps_package_ownership_distinct() {
+        assert_eq!(
+            install_eligibility(Ok(()), true),
+            ApplicationUpdateInstallEligibility::Eligible
+        );
+        assert_eq!(
+            install_eligibility(Ok(()), false),
+            ApplicationUpdateInstallEligibility::NotConfigured
+        );
+        for (manager, expected) in [
+            (
+                ApplicationPackageManager::Deb,
+                ApplicationUpdateInstallEligibility::PackageManagedDeb,
+            ),
+            (
+                ApplicationPackageManager::Rpm,
+                ApplicationUpdateInstallEligibility::PackageManagedRpm,
+            ),
+        ] {
+            assert_eq!(
+                install_eligibility(
+                    Err(InstalledApplicationContextError::PackageManager(manager)),
+                    false,
+                ),
+                expected,
+            );
+        }
+        assert_eq!(
+            install_eligibility(
+                Err(InstalledApplicationContextError::Unavailable(
+                    "private package path".into(),
+                )),
+                true,
+            ),
+            ApplicationUpdateInstallEligibility::Unavailable,
+        );
+    }
 
     #[test]
     fn native_launch_status_preserves_every_sanitized_state() {

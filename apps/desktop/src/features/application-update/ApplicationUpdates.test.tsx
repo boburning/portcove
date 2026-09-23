@@ -4,6 +4,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { desktopApi } from "../../api";
 import type {
+  ApplicationUpdateCheckResult,
   ApplicationUpdateNoticeSnapshot,
   ApplicationUpdatePreferences,
   ApplicationUpdateStatus,
@@ -31,6 +32,7 @@ const idleStatus: ApplicationUpdateStatus = {
   },
   staged: null,
   apply: null,
+  install_eligibility: "eligible",
   recovery_required: [],
 };
 
@@ -148,12 +150,12 @@ describe("ApplicationUpdateSettings", () => {
       choice: { channel: "stable", mode: "manual", paused: true },
     });
     expect(host.querySelector('[role="status"]')?.textContent).toContain(
-      "No update check, download, install, or restart was started.",
+      "Saving these settings does not start an update.",
     );
     expect(button("Save application update settings").disabled).toBe(true);
     expect(button("Save application update settings").getAttribute("data-variant")).toBe("primary");
     expect(button("Discard changes").getAttribute("data-variant")).toBe("outline");
-    expect(button("Clear saved choice").getAttribute("data-variant")).toBe("destructive");
+    expect(button("Reset update preferences").getAttribute("data-variant")).toBe("destructive");
   });
 
   it("shares the startup read with Settings and publishes saves to the global owner", async () => {
@@ -169,6 +171,8 @@ describe("ApplicationUpdateSettings", () => {
     expect(read).toHaveBeenCalledTimes(1);
     expect(host.querySelector("output")?.getAttribute("data-preference-revision")).toBe("4");
     await click("Stable");
+    expect(host.textContent).toContain("Save or discard your changes before checking for updates.");
+    expect(button("Check for updates").disabled).toBe(true);
     await click("Save application update settings");
     expect(read).toHaveBeenCalledTimes(1);
     expect(host.querySelector("output")?.getAttribute("data-preference-revision")).toBe("5");
@@ -243,10 +247,10 @@ describe("ApplicationUpdateSettings", () => {
       )?.textContent,
     ).toBe("Notify only");
 
-    await click("Clear saved choice");
+    await click("Reset update preferences");
     expect(reset).toHaveBeenCalledOnce();
-    expect(host.textContent).toContain("Saved choice cleared.");
-    expect(host.textContent).toContain("Automatic application update checks remain off.");
+    expect(host.textContent).toContain("Update preferences reset.");
+    expect(host.textContent).toContain("Automatic checks remain off until you save a new choice.");
   });
 
   it("refreshes a conflicting revision before another save", async () => {
@@ -333,9 +337,40 @@ describe("ApplicationUpdateSettings", () => {
     await click("Check for updates");
 
     expect(check).toHaveBeenCalledOnce();
-    expect(host.textContent).toContain("0.2.0-beta.3 is verified and staged");
+    expect(host.textContent).toContain("Portcove 0.2.0-beta.3 has been downloaded and verified");
     expect(host.textContent).toContain("Manual checks never use a URL supplied by this screen.");
   });
+
+  it.each([
+    ["consent-required", "Update settings required", "Save your update settings before checking."],
+    ["offline", "Couldn't check for updates", "Connect to the internet and try again."],
+    ["paused", "Automatic update checks are paused", "Manual checks remain available."],
+    ["manual-mode", "Automatic update checks are off", "Use Check for updates"],
+    ["metered", "Waiting to check for updates", "unmetered connection"],
+    ["metered-state-unknown", "Waiting to check for updates", "cannot confirm"],
+    ["startup-delay", "Next automatic check is scheduled for later", "check manually now"],
+    ["cadence", "Next automatic check is scheduled for later", "check manually now"],
+    ["superseded", "Update check not completed", "choice changed"],
+    ["current", "Update check complete", "Portcove is current"],
+    ["held", "Update check complete", "held by its signed release policy"],
+    ["incompatible", "Update check complete", "not compatible"],
+    ["no-candidate", "Update check complete", "No eligible release"],
+  ] as const)(
+    "presents %s without claiming an unperformed check completed",
+    async (kind, title, description) => {
+      vi.spyOn(desktopApi, "applicationUpdatePreferences").mockResolvedValue(savedChoice);
+      const result: ApplicationUpdateCheckResult = {
+        kind,
+        candidate: null,
+        reasons: [],
+        staged: false,
+      };
+      await render({ preference_revision: savedChoice.revision, result });
+      const check = host.querySelector('.application-update-status-item[role="status"]');
+      expect(check?.querySelector("strong")?.textContent).toBe(title);
+      expect(check?.textContent).toContain(description);
+    },
+  );
 
   it("downloads only the checked candidate through an explicit host-owned action", async () => {
     vi.spyOn(desktopApi, "applicationUpdatePreferences").mockResolvedValue(savedChoice);
@@ -377,7 +412,7 @@ describe("ApplicationUpdateSettings", () => {
       },
       expect.any(Function),
     );
-    expect(host.textContent).toContain("0.2.0-beta.3 is verified and staged");
+    expect(host.textContent).toContain("Portcove 0.2.0-beta.3 has been downloaded and verified");
   });
 
   it("uses a revision-bound automatic result without repeating its check", async () => {
@@ -528,6 +563,7 @@ describe("ApplicationUpdateSettings", () => {
         termination: null,
         native_launch: null,
       },
+      install_eligibility: "eligible",
       recovery_required: [
         {
           area: "schedule",
@@ -539,14 +575,60 @@ describe("ApplicationUpdateSettings", () => {
       .mockResolvedValue(idleStatus);
 
     await render();
-    expect(host.textContent).toContain("Preview version 0.2.0-beta.3");
-    expect(host.textContent).toContain("Restart to update requested");
+    expect(host.textContent).toContain("Portcove 0.2.0-beta.3 (Preview");
+    expect(host.textContent).toContain("Restart request saved");
     expect(host.textContent).toContain("Update check history needs repair");
 
-    await click("Repair update check history");
+    await click("Reset update-check history");
     expect(recover).toHaveBeenCalledExactlyOnceWith("schedule");
     expect(host.textContent).toContain("No verified application update is staged.");
-    expect(host.textContent).toContain("Application update schedule state repaired.");
+    expect(host.textContent).toContain("Update-check history reset.");
+  });
+
+  it.each([
+    [
+      "staging",
+      "Delete damaged update download",
+      "Damaged update download deleted. Download the update again.",
+    ],
+    [
+      "apply",
+      "Clear pending update request",
+      "Pending update request cleared. The verified download remains available.",
+    ],
+  ] as const)("explains and repairs only %s state", async (area, action, notice) => {
+    vi.spyOn(desktopApi, "applicationUpdatePreferences").mockResolvedValue(savedChoice);
+    const staged =
+      area === "apply"
+        ? { version: "0.2.0-beta.3", channel: "preview" as const, bytes: 25 * 1024 * 1024 }
+        : null;
+    vi.mocked(desktopApi.applicationUpdateStatus).mockResolvedValueOnce({
+      ...idleStatus,
+      staged,
+      recovery_required: [{ area }],
+    });
+    const recover = vi.spyOn(desktopApi, "recoverApplicationUpdateState").mockResolvedValue({
+      ...idleStatus,
+      staged,
+    });
+    await render();
+    await click(action);
+    expect(recover).toHaveBeenCalledExactlyOnceWith(area);
+    expect(host.textContent).toContain(notice);
+    expect(host.textContent?.includes("Portcove 0.2.0-beta.3")).toBe(area === "apply");
+  });
+
+  it("does not claim a retained download when clearing an empty apply request", async () => {
+    vi.spyOn(desktopApi, "applicationUpdatePreferences").mockResolvedValue(savedChoice);
+    vi.mocked(desktopApi.applicationUpdateStatus).mockResolvedValueOnce({
+      ...idleStatus,
+      recovery_required: [{ area: "apply" }],
+    });
+    vi.spyOn(desktopApi, "recoverApplicationUpdateState").mockResolvedValue(idleStatus);
+    await render();
+    await click("Clear pending update request");
+    expect(host.textContent).toContain("No verified download is currently available.");
+    expect(host.textContent).not.toContain("The verified download remains available.");
   });
 
   it("restarts only through the explicit staged-update action bound to the current library", async () => {
@@ -564,37 +646,89 @@ describe("ApplicationUpdateSettings", () => {
       .mockResolvedValue(undefined);
 
     await act(async () => root.render(<SettingsFixture generation={17} />));
+    expect(host.textContent).toContain("Update ready to install");
     await click("Restart to update");
 
     expect(restart).toHaveBeenCalledExactlyOnceWith(17);
     expect(host.querySelector('[role="status"]')?.textContent).toContain("Restarting Portcove");
   });
 
+  it("holds a verified download until an update choice is saved", async () => {
+    vi.spyOn(desktopApi, "applicationUpdatePreferences").mockResolvedValue(missingChoice);
+    vi.mocked(desktopApi.applicationUpdateStatus).mockResolvedValueOnce({
+      ...idleStatus,
+      staged: { version: "0.2.0-beta.3", channel: "preview", bytes: 25 * 1024 * 1024 },
+    });
+    await render();
+    expect(host.textContent).toContain("Verified update downloaded");
+    expect(host.textContent).toContain("Save your update settings before restarting to update.");
+    expect(button("Restart to update").disabled).toBe(true);
+    expect(host.textContent).not.toContain("Update ready to install");
+  });
+
   it.each([
-    [
-      "starting",
-      "Update launch needs confirmation",
-      "It needs to check which version is installed before it can safely launch another one.",
-    ],
-    [
-      "started",
-      "Installer process started",
-      "It needs to check which version is installed before it can safely offer another update action.",
-    ],
+    ["package-managed-deb", "DEB installation is managed by its package manager"],
+    ["package-managed-rpm", "RPM installation is managed by its package manager"],
+    ["not-configured", "Application updating is not configured in this build"],
+    ["unavailable", "cannot use Portcove's built-in updater"],
+  ] as const)(
+    "keeps %s package restrictions visible without offering restart",
+    async (install_eligibility, guidance) => {
+      vi.spyOn(desktopApi, "applicationUpdatePreferences").mockResolvedValue(savedChoice);
+      vi.mocked(desktopApi.applicationUpdateStatus).mockResolvedValueOnce({
+        ...idleStatus,
+        install_eligibility,
+        staged: { version: "0.2.0-beta.3", channel: "preview", bytes: 25 * 1024 * 1024 },
+      });
+      await render();
+      expect(host.textContent).toContain("Verified update downloaded");
+      expect(host.textContent).toContain(guidance);
+      expect(host.textContent).not.toContain("Update ready to install");
+      expect(
+        [...host.querySelectorAll("button")].some((item) =>
+          item.textContent?.includes("Restart to update"),
+        ),
+      ).toBe(false);
+    },
+  );
+
+  it.each(["failed", "installer-failed"] as const)(
+    "offers an actual retry for a verified %s installer outcome",
+    async (native_launch) => {
+      vi.spyOn(desktopApi, "applicationUpdatePreferences").mockResolvedValue(savedChoice);
+      vi.mocked(desktopApi.applicationUpdateStatus).mockResolvedValueOnce({
+        ...idleStatus,
+        staged: { version: "0.2.0-beta.3", channel: "preview", bytes: 25 * 1024 * 1024 },
+        apply: {
+          revision: 7,
+          request: "restart-to-apply",
+          termination: "restart-to-apply",
+          native_launch,
+        },
+      });
+      await render();
+      expect(host.textContent).toContain("Try Restart to update again.");
+      expect(button("Retry restart to update").disabled).toBe(false);
+    },
+  );
+
+  it.each([
+    ["starting", "Installer start is unconfirmed", "cannot confirm whether the installer started"],
+    ["started", "Installer started", "Portcove has not confirmed the update"],
     [
       "failed",
-      "Installer did not start",
-      "A retry will still repeat the fresh trust, consent, ownership, compatibility and idle-state checks.",
+      "Installer didn't start",
+      "Refresh update status to review the next available action.",
     ],
     [
       "installer-succeeded",
-      "Installer process completed",
-      "still needs to confirm the installed version and application health",
+      "Installer reported success",
+      "Reopen Portcove to confirm the installed version and application health",
     ],
     [
       "installer-failed",
-      "Installer process did not complete",
-      "A retry will repeat every update safety check.",
+      "Installer did not complete",
+      "Refresh update status to review the next available action.",
     ],
   ] as const)("explains the %s native launch state", async (native_launch, title, detail) => {
     vi.spyOn(desktopApi, "applicationUpdatePreferences").mockResolvedValue(savedChoice);

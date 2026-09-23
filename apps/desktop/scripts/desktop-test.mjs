@@ -779,7 +779,7 @@ try {
     await browser.wait(
       until.elementLocated(
         By.xpath(
-          '//p[@role="status" and contains(., "No update check, download, install, or restart was started.")]',
+          '//p[@role="status" and contains(., "Saving these settings does not start an update.")]',
         ),
       ),
       15_000,
@@ -818,7 +818,7 @@ try {
       .findElement(By.xpath('//button[normalize-space(.)="Refresh update status"]'))
       .click();
     await browser.wait(
-      until.elementLocated(By.xpath('//button[normalize-space(.)="Repair update check history"]')),
+      until.elementLocated(By.xpath('//button[normalize-space(.)="Reset update-check history"]')),
       15_000,
     );
     assert.equal(
@@ -826,7 +826,7 @@ try {
       "schedule",
     );
     await browser
-      .findElement(By.xpath('//button[normalize-space(.)="Repair update check history"]'))
+      .findElement(By.xpath('//button[normalize-space(.)="Reset update-check history"]'))
       .click();
     await browser.wait(async () => {
       const result = await invoke("get_application_update_status");
@@ -834,7 +834,7 @@ try {
     }, 15_000);
     await browser.wait(
       until.elementLocated(
-        By.xpath('//p[@role="status" and contains(., "schedule state repaired")]'),
+        By.xpath('//p[@role="status" and contains(., "Update-check history reset.")]'),
       ),
       15_000,
     );
@@ -890,7 +890,7 @@ try {
       () =>
         browser.executeScript(() => {
           const control = [...document.querySelectorAll("button")].find(
-            (element) => element.textContent?.trim() === "Restore library",
+            (element) => element.textContent?.trim() === "Restore from a library copy",
           );
           return (
             control instanceof HTMLButtonElement &&
@@ -900,7 +900,7 @@ try {
           );
         }),
       15_000,
-      "Restore library did not retain its enabled shared outline action",
+      "Restore from a library copy did not retain its enabled shared outline action",
     );
     const report = path.join(output, "application-update-settings-accessibility.json");
     await captureAccessibilityReport(browser, report, artifacts);
