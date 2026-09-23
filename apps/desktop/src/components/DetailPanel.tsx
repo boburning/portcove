@@ -1160,14 +1160,7 @@ function SourceField({
         )}
       </div>
       <small>{sourceNote}</small>
-      {source && (
-        <details className="source-technical">
-          <summary data-focusable>File details</summary>
-          <p>
-            Saved SHA-256: <code>{source.sha256 || "Not recorded"}</code>
-          </p>
-        </details>
-      )}
+      <SourceFileDetails source={source} />
       {selectedOverride && source && health && health !== "current" && (
         <small>{sourceHealthNote(health, bios)}</small>
       )}
@@ -1178,13 +1171,28 @@ function SourceField({
   );
 }
 
+function SourceFileDetails({ source }: { source?: SourceRecord }) {
+  if (!source) return null;
+  return (
+    <details className="source-technical">
+      <summary data-focusable>File details</summary>
+      <div className="digest-value">
+        <strong>Saved SHA-256</strong>
+        <code>{source.sha256 || "Not recorded"}</code>
+      </div>
+    </details>
+  );
+}
+
 function sourceHealthNote(health: SourceHealth | null | undefined, bios: boolean) {
   if (health === "current")
     return bios
       ? "BIOS file is unchanged since it was added"
       : "Files are unchanged since they were added";
   if (health === "not_checked")
-    return bios ? "BIOS file added · not checked again" : "Files added · not checked again";
+    return bios
+      ? "BIOS file added · current contents not checked"
+      : "Files added · current contents not checked";
   if (health === "changed")
     return bios
       ? "BIOS file has changed since it was added"

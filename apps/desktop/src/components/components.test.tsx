@@ -584,7 +584,7 @@ describe("desktop components", () => {
 
   it.each([
     ["current", "Files are unchanged since they were added"],
-    ["not_checked", "Files added · not checked again"],
+    ["not_checked", "Files added · current contents not checked"],
     ["changed", "Files have changed since they were added"],
     ["missing", "Files not found at the saved location"],
     ["unreadable", "Portcove couldn't read these files"],
@@ -623,12 +623,12 @@ describe("desktop components", () => {
     expect(html).toMatch(
       /<details class="source-technical"><summary[^>]*>File details<\/summary>/u,
     );
-    expect(html).toContain(`Saved SHA-256: <code>${source.sha256}</code>`);
+    expect(html).toContain(`Saved SHA-256</strong><code>${source.sha256}</code>`);
   });
 
   it.each([
     ["current", "BIOS file is unchanged since it was added"],
-    ["not_checked", "BIOS file added · not checked again"],
+    ["not_checked", "BIOS file added · current contents not checked"],
     ["changed", "BIOS file has changed since it was added"],
     ["missing", "BIOS file not found at the saved location"],
     ["unreadable", "Portcove couldn't read this BIOS file"],
@@ -670,7 +670,7 @@ describe("desktop components", () => {
     );
     expect(html).toContain(note.replaceAll("'", "&#x27;"));
     expect(html).not.toContain("Registered BIOS file");
-    expect(html).toContain(`Saved SHA-256: <code>${bios.sha256}</code>`);
+    expect(html).toContain(`Saved SHA-256</strong><code>${bios.sha256}</code>`);
   });
 
   it("keeps missing health data unknown even when saved game files exist", () => {
