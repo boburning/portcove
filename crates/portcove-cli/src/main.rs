@@ -869,6 +869,7 @@ fn command_is_observation(command: &Commands) -> bool {
             | Commands::Source {
                 command: SourceCommand::List
                     | SourceCommand::Inspect { .. }
+                    | SourceCommand::Verify(_)
                     | SourceCommand::Relink { apply: false, .. }
                     | SourceCommand::Inbox {
                         command: SourceInboxCommand::Path { .. },
@@ -2833,6 +2834,8 @@ mod tests {
             vec!["portcove", "doctor"],
             vec!["portcove", "auth", "status"],
             vec!["portcove", "capabilities"],
+            vec!["portcove", "source", "verify", "zelda64-recomp"],
+            vec!["portcove", "source", "verify", "--all"],
             vec!["portcove", "catalog", "update", "--file", "catalog.json"],
             vec![
                 "portcove",
