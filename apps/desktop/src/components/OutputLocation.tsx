@@ -292,8 +292,8 @@ export function OutputLocationControl({
         />
       )}
       <p>
-        Future installs use this folder by default. Existing versions will not move. Relocation is
-        a separate reviewed action.
+        Future installs use this folder by default. Existing versions will not move. Relocation is a
+        separate reviewed action.
       </p>
       <label htmlFor={`output-location-path-${portId}`}>Folder for future installs</label>
       <div className="path-entry">
