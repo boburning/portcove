@@ -73,10 +73,14 @@ export function sourceDiscoveryLimitLabel(limit: string, source: "folder" | "inb
 }
 
 export function sourceDiscoveryLimitGuidance(limit: string, source: "folder" | "inbox" = "folder") {
-  if (limit === "entries" || limit === "depth")
+  if (limit === "entries")
     return source === "inbox"
       ? "Open Source Inbox and temporarily move some files outside it. Scan the files left there, then swap batches and scan again."
       : "Choose a smaller folder and search again.";
+  if (limit === "depth")
+    return source === "inbox"
+      ? "Open Source Inbox and move deeply nested files closer to its root, then scan again."
+      : "Choose a deeper folder as the search root and search again.";
   if (limit === "file_size")
     return `This scan skips files over ${formatBytes(scanLimits.max_file_bytes)}. The result does not identify which file hit this limit; check a suspected file from its game details.`;
   if (limit === "hash_bytes")

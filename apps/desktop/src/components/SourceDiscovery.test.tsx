@@ -41,8 +41,14 @@ it("presents source discovery counts and limits in player-facing language", () =
   expect(sourceDiscoveryLimitGuidance("entries", "folder")).toBe(
     "Choose a smaller folder and search again.",
   );
-  expect(sourceDiscoveryLimitGuidance("depth", "inbox")).toContain(
+  expect(sourceDiscoveryLimitGuidance("entries", "inbox")).toContain(
     "temporarily move some files outside it",
+  );
+  expect(sourceDiscoveryLimitGuidance("depth", "inbox")).toContain(
+    "move deeply nested files closer to its root",
+  );
+  expect(sourceDiscoveryLimitGuidance("depth", "folder")).toContain(
+    "deeper folder as the search root",
   );
   expect(sourceDiscoveryLimitGuidance("file_size")).toContain("2.0 GiB");
   expect(sourceDiscoveryLimitGuidance("file_size")).toContain(
