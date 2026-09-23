@@ -534,6 +534,21 @@ export async function preparationScenarios({
       );
       assert.equal((await browser.findElements(button("Play now"))).length, 0);
       assert.equal((await browser.findElements(button("Choose required source"))).length, 0);
+      const verify = await browser.findElement(By.css(".primary-actions button"));
+      assert.equal(await verify.getText(), "Verify installation");
+      assert.equal(await verify.isEnabled(), true);
+      assert.equal((await browser.findElements(button("Verify installation"))).length, 1);
+      await clickVisible(browser, verify);
+      await browser.wait(
+        until.elementLocated(By.css('.error-banner[role="alert"]')),
+        15_000,
+        "Damaged installation verification did not expose its actual failure",
+      );
+      await browser.wait(
+        async () => (await browser.findElement(By.css(".primary-actions button"))).isEnabled(),
+        5_000,
+      );
+      assert.deepEqual((await status(port.id)).readiness.blockers, ["invalid_installation"]);
       assert.deepEqual(command(["status", port.id]).readiness, damaged.readiness);
       const report = path.join(output, "retained-contract-accessibility.json");
       await captureAccessibilityReport(browser, report, artifacts);
