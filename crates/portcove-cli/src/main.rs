@@ -311,6 +311,7 @@ enum LibraryCommand {
     AbortImport,
     /// Export metadata without application files, saves, or original sources.
     Export {
+        /// Write metadata to PATH instead of printing it.
         #[arg(long)]
         output: Option<PathBuf>,
     },
@@ -598,13 +599,16 @@ struct InstallArgs {
 struct EnsureArgs {
     /// Port to use or install.
     port_id: String,
+    /// Release channel to select if installation is needed.
     #[arg(long, value_enum)]
     channel: Option<ChannelArg>,
     /// Override the source game file used if installation is needed.
     #[arg(long)]
     source: Option<PathBuf>,
+    /// Override the BIOS file used if installation is needed.
     #[arg(long)]
     bios: Option<PathBuf>,
+    /// Folder for a new install; an existing install is not moved.
     #[arg(long)]
     output_dir: Option<PathBuf>,
 }

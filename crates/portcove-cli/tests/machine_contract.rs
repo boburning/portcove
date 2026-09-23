@@ -59,6 +59,19 @@ fn consequential_help_explains_actions_and_review_arguments() {
     let help = std::str::from_utf8(&relink.stdout).unwrap();
     assert!(help.contains("--apply"));
     assert!(help.contains("--expected-plan"));
+    let ensure = Command::new(cli_binary())
+        .args(["ensure", "--help"])
+        .output()
+        .unwrap();
+    let help = std::str::from_utf8(&ensure.stdout).unwrap();
+    assert!(help.contains("Release channel to select if installation is needed"));
+    assert!(help.contains("an existing install is not moved"));
+    let export = Command::new(cli_binary())
+        .args(["library", "export", "--help"])
+        .output()
+        .unwrap();
+    let help = std::str::from_utf8(&export.stdout).unwrap();
+    assert!(help.contains("Write metadata to PATH instead of printing it"));
 }
 
 #[test]
