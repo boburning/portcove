@@ -21,6 +21,7 @@ import {
 import { readinessScenario } from "./desktop-readiness-test.mjs";
 import { steamEntryScenario } from "./desktop-steam-entry-test.mjs";
 import { sourceDialogScenario } from "./desktop-source-dialog-test.mjs";
+import { primaryFilePickerScenario } from "./desktop-primary-file-picker-test.mjs";
 
 function rgbLuminance(color) {
   const channels = color
@@ -962,6 +963,15 @@ export async function preparationScenarios({
     confirmNative,
   });
   await sourceDialogScenario({ browser, scenario, output, artifacts, command, open });
+  await primaryFilePickerScenario({
+    browser,
+    scenario,
+    output,
+    artifacts,
+    command,
+    open,
+    confirmNative,
+  });
   await removalReviewScenario({
     browser,
     invoke,

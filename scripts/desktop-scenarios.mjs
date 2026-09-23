@@ -173,6 +173,15 @@ export const DESKTOP_SCENARIOS = Object.freeze([
     },
   ),
   scenario(
+    "native-primary-file-pickers",
+    "Primary setup action opens the owned game and BIOS pickers and restores focus.",
+    {
+      prerequisites: ["desktop", "owned-fixture", "native-dialog"],
+      host_resources: [...nativeResources, "native-dialog"],
+      source: "desktop-primary-file-picker-test.mjs",
+    },
+  ),
+  scenario(
     "native-reviewed-installed-game-removal",
     "Installed-game removal preserves owned data.",
     {
@@ -256,6 +265,7 @@ const ownedLifecycle = [
   "native-reviewed-backup-restore-and-delete",
   "native-reviewed-steam-entry-add-and-remove",
   "native-source-intake-and-discovery-dialogs",
+  "native-primary-file-pickers",
   "native-reviewed-installed-game-removal",
   "native-reviewed-source-reference-removal",
   "native-reviewed-existing-install-copy",
