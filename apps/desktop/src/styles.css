@@ -2793,10 +2793,32 @@ select {
   background: var(--color-success-subtle);
 }
 
+.github-connection-details {
+  margin-top: var(--space-3);
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+.github-connection-details summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.github-connection-details p {
+  margin: var(--space-2) 0 0;
+}
+.token-entry-group {
+  margin-top: var(--space-4);
+}
+.token-entry-group > p {
+  margin: 0 0 var(--space-2);
+}
+.token-entry-group > label {
+  display: block;
+  font-weight: 600;
+}
 .token-entry {
   display: flex;
   gap: 8px;
-  margin-top: 14px;
+  margin-top: var(--space-2);
 }
 .token-entry input {
   flex: 1;

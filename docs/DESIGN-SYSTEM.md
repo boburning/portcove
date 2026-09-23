@@ -312,6 +312,11 @@ remain intact. Infrequent maintenance and technical controls use progressive
 disclosure without becoming hidden safety state. Settings grows through clear
 Appearance, Library & Storage, Game Files, Updates, Integrations, and Advanced
 grouping using the smallest scalable structure, not an automatic second sidebar.
+In GitHub settings, lead with connection purpose and signed-in state; keep
+credential provenance and request accounting in Connection details. Token entry
+has a persistent visible label, while environment-controlled credentials keep
+their outside-Portcove recovery instructions. An unavailable connection-status
+read must not appear as an anonymous sign-in result.
 
 Motion remains short, tactile, and functional for press, selection, panel,
 palette, notice, disclosure, and artwork transitions. Reduced motion removes
