@@ -47,7 +47,7 @@ export function commandSurfaceCommands({
     {
       id: "catalog",
       label: "Open port catalog",
-      description: "Browse supported decomps and recompilations",
+      description: "Browse native game ports",
       icon: Boxes,
       shortcut: commandShortcut("2"),
       keywords: "navigate discover",
@@ -63,8 +63,8 @@ export function commandSurfaceCommands({
     },
     {
       id: "updates",
-      label: "Open update center",
-      description: "Review versions, policies, and operation history",
+      label: "Go to Updates",
+      description: "Review updates and recent activity",
       icon: Download,
       shortcut: commandShortcut("3"),
       keywords: "navigate activity",
@@ -78,7 +78,7 @@ export function commandSurfaceCommands({
           ? "Install a port before checking for updates"
           : busy
             ? "Wait for the current operation before checking for updates"
-            : "Run a read-only release check for every installed port",
+            : "Check for updates without installing them",
       icon: RefreshCw,
       keywords: "update all",
       disabled: busy || installedCount === 0,
@@ -97,7 +97,7 @@ export function commandSurfaceCommands({
     {
       id: "settings",
       label: "Open settings",
-      description: "Manage sources, GitHub, storage, and appearance",
+      description: "Manage game files, GitHub, storage, and appearance",
       icon: Settings,
       shortcut: commandShortcut("4"),
       keywords: "navigate preferences",

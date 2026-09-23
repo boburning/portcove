@@ -2705,7 +2705,8 @@ describe("desktop components", () => {
     );
     expect(html).toContain("CONTINUE");
     expect(html).toContain("Play again");
-    expect(html).toContain("Last played");
+    expect(html).toContain(`Version ${install.version}`);
+    expect(html).not.toContain("Last played ·");
     expect(html).toContain('data-successful-launches="1"');
     expect(html).toContain(`data-detail-origin="library:continue-details:${port.id}"`);
     expect(html).toContain(`data-detail-origin="library:card:${port.id}"`);
