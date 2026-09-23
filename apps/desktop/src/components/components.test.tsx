@@ -582,6 +582,120 @@ describe("desktop components", () => {
     );
   });
 
+  it.each([
+    ["current", "Files are unchanged since they were added"],
+    ["not_checked", "Files added · current contents not checked"],
+    ["changed", "Files have changed since they were added"],
+    ["missing", "Files not found at the saved location"],
+    ["unreadable", "Portcove couldn't read these files"],
+    ["not_baselined", "No saved record to compare these files with"],
+  ] as const)("describes game-file health %s with the hash in File details", (health, note) => {
+    const source = {
+      profile_id: "sample-rom",
+      path: "source.z64",
+      sha256: "a".repeat(64),
+      size: 12,
+      storage_sha256: "a".repeat(64),
+      storage_size: 12,
+      updated_at: 1,
+    };
+    const html = renderToStaticMarkup(
+      <DetailPanel
+        port={port}
+        source={source}
+        sourcePath={source.path}
+        setSourcePath={vi.fn()}
+        actions={actions}
+        status={{
+          ...portStatus(),
+          active: installRecord(),
+          readiness: {
+            launchable: health === "current",
+            blockers: [],
+            pending_setup: false,
+            source: health,
+          },
+        }}
+      />,
+    );
+    expect(html).toContain(note.replaceAll("'", "&#x27;"));
+    expect(html).not.toContain("Registered game files");
+    expect(html).toMatch(
+      /<details class="source-technical"><summary[^>]*>File details<\/summary>/u,
+    );
+    expect(html).toContain(`Saved SHA-256</strong><code>${source.sha256}</code>`);
+  });
+
+  it.each([
+    ["current", "BIOS file is unchanged since it was added"],
+    ["not_checked", "BIOS file added · current contents not checked"],
+    ["changed", "BIOS file has changed since it was added"],
+    ["missing", "BIOS file not found at the saved location"],
+    ["unreadable", "Portcove couldn't read this BIOS file"],
+    ["not_baselined", "No saved record to compare this BIOS file with"],
+  ] as const)("uses BIOS-specific grammar for health %s", (health, note) => {
+    const bios = {
+      profile_id: psxBiosProfile.id,
+      path: "scph1001.bin",
+      sha256: "b".repeat(64),
+      size: 524_288,
+      storage_sha256: "b".repeat(64),
+      storage_size: 524_288,
+      updated_at: 1,
+    };
+    const html = renderToStaticMarkup(
+      <DetailPanel
+        port={biosPort}
+        source={mortalKombat4Source}
+        sourceProfile={mortalKombat4Profile}
+        sourcePath="game.chd"
+        setSourcePath={vi.fn()}
+        bios={bios}
+        biosPath={bios.path}
+        setBiosPath={vi.fn()}
+        biosProfile={psxBiosProfile}
+        actions={actions}
+        status={{
+          ...portStatus(),
+          active: installRecord(),
+          readiness: {
+            launchable: health === "current",
+            blockers: [],
+            pending_setup: false,
+            source: "current",
+            bios: health,
+          },
+        }}
+      />,
+    );
+    expect(html).toContain(note.replaceAll("'", "&#x27;"));
+    expect(html).not.toContain("Registered BIOS file");
+    expect(html).toContain(`Saved SHA-256</strong><code>${bios.sha256}</code>`);
+  });
+
+  it("keeps missing health data unknown even when saved game files exist", () => {
+    const source = {
+      profile_id: "sample-rom",
+      path: "source.z64",
+      sha256: "a".repeat(64),
+      size: 12,
+      storage_sha256: "a".repeat(64),
+      storage_size: 12,
+      updated_at: 1,
+    };
+    const html = renderToStaticMarkup(
+      <DetailPanel
+        port={port}
+        source={source}
+        sourcePath={source.path}
+        setSourcePath={vi.fn()}
+        actions={actions}
+      />,
+    );
+    expect(html).toContain("Game-file check status unavailable");
+    expect(html).not.toContain("Files are unchanged since they were added");
+  });
+
   it("shows changed registered bytes as setup instead of launch readiness", () => {
     const source = {
       profile_id: "sample-rom",
@@ -616,7 +730,7 @@ describe("desktop components", () => {
     );
     expect(html).toContain("Game files changed");
     expect(html).toContain("Choose and add the game files again before playing.");
-    expect(html).toContain("Registered game files changed since they were added");
+    expect(html).toContain("Files have changed since they were added");
     expect(html).toContain("Play unavailable");
     expect(html).not.toContain("Play now");
   });
@@ -661,7 +775,7 @@ describe("desktop components", () => {
     );
     expect(html).toContain("Required BIOS file changed");
     expect(html).toContain("Choose and add the required BIOS file again before playing.");
-    expect(html).toContain("Registered BIOS file changed since it was added.");
+    expect(html).toContain("BIOS file has changed since it was added");
     expect(html).toContain("Play unavailable");
     expect(html).not.toContain("Play now");
   });

@@ -1130,7 +1130,7 @@ function SourceField({
       ? "Selected BIOS file has not been checked. Portcove validates it when you continue."
       : "Selected path has not been checked. Portcove validates these files when you continue."
     : source
-      ? sourceHealthNote(inspection?.health ?? health, source, bios)
+      ? sourceHealthNote(inspection?.health ?? health, bios)
       : copy.note;
   const inputId = `source-${profileId}`;
   return (
@@ -1160,8 +1160,9 @@ function SourceField({
         )}
       </div>
       <small>{sourceNote}</small>
+      <SourceFileDetails source={source} />
       {selectedOverride && source && health && health !== "current" && (
-        <small>{sourceHealthNote(health, source, bios)}</small>
+        <small>{sourceHealthNote(health, bios)}</small>
       )}
       {!selectedOverride && inspection && (
         <SourceIdentityPanel report={inspection} openEvidence={openEvidence} />
@@ -1170,22 +1171,43 @@ function SourceField({
   );
 }
 
-function sourceHealthNote(
-  health: SourceHealth | null | undefined,
-  source: SourceRecord,
-  bios: boolean,
-) {
-  const hash = `${source.sha256.slice(0, 12)}…`;
-  const label = bios ? "BIOS file" : "game files";
-  if (health === "current") return `Current registered ${label} checked · ${hash}`;
+function SourceFileDetails({ source }: { source?: SourceRecord }) {
+  if (!source) return null;
+  return (
+    <details className="source-technical">
+      <summary data-focusable>File details</summary>
+      <div className="digest-value">
+        <strong>Saved SHA-256</strong>
+        <code>{source.sha256 || "Not recorded"}</code>
+      </div>
+    </details>
+  );
+}
+
+function sourceHealthNote(health: SourceHealth | null | undefined, bios: boolean) {
+  if (health === "current")
+    return bios
+      ? "BIOS file is unchanged since it was added"
+      : "Files are unchanged since they were added";
+  if (health === "not_checked")
+    return bios
+      ? "BIOS file added · current contents not checked"
+      : "Files added · current contents not checked";
   if (health === "changed")
-    return `Registered ${label} changed since ${bios ? "it was" : "they were"} added.`;
-  if (health === "missing") return `Registered ${label} ${bios ? "is" : "are"} missing.`;
-  if (health === "unreadable") return `Registered ${label} cannot be read.`;
-  if (health === "not_checked") return `Registered ${label} · current bytes not checked · ${hash}`;
+    return bios
+      ? "BIOS file has changed since it was added"
+      : "Files have changed since they were added";
+  if (health === "missing")
+    return bios
+      ? "BIOS file not found at the saved location"
+      : "Files not found at the saved location";
+  if (health === "unreadable")
+    return bios ? "Portcove couldn't read this BIOS file" : "Portcove couldn't read these files";
   if (health === "not_baselined")
-    return `Selected ${label} ${bios ? "has" : "have"} no saved identity baseline.`;
-  return `Registered ${label} · ${hash}`;
+    return bios
+      ? "No saved record to compare this BIOS file with"
+      : "No saved record to compare these files with";
+  return bios ? "BIOS check status unavailable" : "Game-file check status unavailable";
 }
 
 function sourceFieldCopy(profile: SourceProfile | undefined, bios: boolean) {
