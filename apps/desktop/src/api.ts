@@ -234,6 +234,7 @@ export const desktopApi = {
     invoke<CatalogStatus>("use_embedded_catalog", { expectedState }),
 
   bootstrapStatus: () => invoke<BootstrapStatus>("get_bootstrap_status"),
+  defaultLibraryRoot: () => invoke<string>("get_default_library_root"),
   setDefaultLibrary: (path: string) => invoke<BootstrapStatus>("set_default_library", { path }),
   resetDefaultLibrary: () => invoke<BootstrapStatus>("reset_default_library"),
   githubAuthStatus: () => invoke<GithubAuthStatus>("get_github_auth_status"),

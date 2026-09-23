@@ -2111,6 +2111,7 @@ pub fn run() {
             steam_entry_commands::preview_steam_entry,
             steam_entry_commands::apply_steam_entry,
             library_selection::get_library_identity,
+            library_selection::get_default_library_root,
             library_selection::set_default_library,
             library_selection::reset_default_library,
             get_github_auth_status,

@@ -540,6 +540,9 @@ try {
   await scenario("native-library-selection-review", async () => {
     const before = await invoke("get_bootstrap_status");
     assert.equal(before.ok, true);
+    const defaultRoot = await invoke("get_default_library_root");
+    assert.equal(defaultRoot.ok, true);
+    assert.ok(defaultRoot.value);
     await browser.findElement(By.xpath('//nav//button[contains(., "Settings")]')).click();
     const trigger = await browser.wait(
       until.elementLocated(By.xpath('//button[normalize-space(.)="Review platform default"]')),
@@ -548,7 +551,10 @@ try {
     await trigger.click();
     const dialog = By.css('[aria-labelledby="library-selection-review-title"]');
     const review = await browser.wait(until.elementLocated(dialog), 15_000);
-    assert.ok((await review.getText()).includes("Existing files stay in place"));
+    const reviewText = await review.getText();
+    assert.ok(reviewText.includes("Open the default library?"));
+    assert.ok(reviewText.includes(defaultRoot.value));
+    assert.ok(reviewText.includes("Files in the current library will stay where they are"));
     assert.equal(
       (await invoke("get_bootstrap_status")).value.library_root,
       before.value.library_root,
