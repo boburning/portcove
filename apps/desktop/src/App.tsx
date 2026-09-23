@@ -455,9 +455,11 @@ function Workspace({
           />
           <WorkspaceRefreshNotice
             failure={data.refreshFailure}
+            recoveryFailure={data.recoveryFailure}
             hasSnapshot={Boolean(data.catalog)}
             refreshing={data.refreshing}
             retry={data.retryRefresh}
+            retryRecovery={data.retryRecovery}
             subscriptionFailure={data.subscriptionFailure?.error ?? operations.subscriptionFailure}
           />
           {model.port ? (

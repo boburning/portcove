@@ -66,6 +66,7 @@ function useWorkspaceViewState() {
   const [activityFeed, setActivityFeed] = useState<ActivityFeed>(() => emptyActivityFeed());
   const [doctor, setDoctor] = useState<DoctorReport>();
   const [refreshFailure, setRefreshFailure] = useState<{ error: unknown }>();
+  const [recoveryFailure, setRecoveryFailure] = useState<{ error: unknown }>();
   const [refreshing, setRefreshing] = useState(false);
   const [diagnosticFailure, setDiagnosticFailure] = useState<{ error: unknown }>();
   const [diagnosticRefreshing, setDiagnosticRefreshing] = useState(false);
@@ -85,6 +86,8 @@ function useWorkspaceViewState() {
     setDoctor,
     refreshFailure,
     setRefreshFailure,
+    recoveryFailure,
+    setRecoveryFailure,
     refreshing,
     setRefreshing,
     diagnosticFailure,
@@ -135,6 +138,7 @@ export function usePortcoveData(libraryGeneration = 0) {
     activityFeed,
     doctor,
     refreshFailure,
+    recoveryFailure,
     refreshing,
     diagnosticFailure,
     diagnosticRefreshing,
@@ -149,6 +153,7 @@ export function usePortcoveData(libraryGeneration = 0) {
     setDiagnosticRevision,
     setDoctor,
     setRefreshFailure,
+    setRecoveryFailure,
     setRefreshing,
     setSources,
     setStatuses,
@@ -335,11 +340,20 @@ export function usePortcoveData(libraryGeneration = 0) {
       /* A forced or periodic full read remains the actionable fallback. */
     }
     if (!externalGeneration.current.isCurrent(requestGeneration)) return;
-    if (changed) invalidateDiagnostics();
     const periodicFullReadDue =
       !document.hidden && Date.now() - lastFullReconciliationAt.current >= 60_000;
+    if (force || changed || periodicFullReadDue) {
+      try {
+        await desktopApi.discoverOrphanedOperations(libraryGeneration);
+        if (externalGeneration.current.isCurrent(requestGeneration)) setRecoveryFailure(undefined);
+      } catch (error) {
+        if (externalGeneration.current.isCurrent(requestGeneration)) setRecoveryFailure({ error });
+      }
+      if (!externalGeneration.current.isCurrent(requestGeneration)) return;
+      invalidateDiagnostics();
+    }
     if (force || changed || periodicFullReadDue) await refresh();
-  }, [invalidateDiagnostics, libraryGeneration, refresh]);
+  }, [invalidateDiagnostics, libraryGeneration, refresh, setRecoveryFailure]);
   const reconcileWorkspace = useCallback(
     (force = false) => {
       if (force) forceWorkspaceReconciliation.current = true;
@@ -350,6 +364,9 @@ export function usePortcoveData(libraryGeneration = 0) {
     },
     [libraryGeneration, runWorkspaceReconciliation],
   );
+  const retryRecovery = useCallback(async () => {
+    await reconcileWorkspace(true);
+  }, [reconcileWorkspace]);
 
   useEffect(() => {
     const refreshRequests = refreshGeneration.current;
@@ -431,7 +448,9 @@ export function usePortcoveData(libraryGeneration = 0) {
     retryRefresh,
     refreshActivities,
     refreshFailure,
+    recoveryFailure,
     refreshing,
+    retryRecovery,
     refreshDiagnostics,
     refreshDiagnosticsAfterMutation,
     invalidateDiagnostics,

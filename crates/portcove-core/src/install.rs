@@ -1980,6 +1980,11 @@ mod tests {
         fired: AtomicBool,
     }
 
+    struct FailWithMessage {
+        point: LifecycleFaultPoint,
+        message: &'static str,
+    }
+
     struct FailSequence {
         points: Mutex<Vec<LifecycleFaultPoint>>,
     }
@@ -2116,6 +2121,15 @@ mod tests {
                 return Err(PortcoveError::state(format!(
                     "injected lifecycle failure at {point:?}"
                 )));
+            }
+            Ok(())
+        }
+    }
+
+    impl LifecycleFaultInjector for FailWithMessage {
+        fn check(&self, point: LifecycleFaultPoint) -> Result<()> {
+            if point == self.point {
+                return Err(PortcoveError::state(self.message));
             }
             Ok(())
         }
@@ -3341,6 +3355,52 @@ mod tests {
         assert!(retry_error.contains("InstallReadyToPublish"));
         assert!(retry_error.contains("cleanup retry failed"));
         assert_eq!(staging.exists(), staging_survives_failure);
+
+        crate::database::connect(library.root())
+            .unwrap()
+            .execute(
+                "UPDATE lifecycle_operations SET updated_at=1 WHERE id=?1",
+                [&operation_id],
+            )
+            .unwrap();
+        let same_retry = crate::PortcoveService::with_faults(
+            library.clone(),
+            Arc::new(FailOnce {
+                point: cleanup_point,
+                fired: AtomicBool::new(false),
+            }),
+        )
+        .unwrap();
+        same_retry.recover_lifecycle_operations_for_test().unwrap();
+        let unchanged = OperationStore::new(library.clone())
+            .get(&operation_id)
+            .unwrap()
+            .unwrap();
+        assert_eq!(unchanged.last_error.as_deref(), Some(retry_error));
+        assert_eq!(
+            unchanged.updated_at, 1,
+            "identical retry must not rewrite the journal"
+        );
+
+        let changed_retry = crate::PortcoveService::with_faults(
+            library.clone(),
+            Arc::new(FailWithMessage {
+                point: cleanup_point,
+                message: "different retry cause",
+            }),
+        )
+        .unwrap();
+        changed_retry
+            .recover_lifecycle_operations_for_test()
+            .unwrap();
+        let changed = OperationStore::new(library.clone())
+            .get(&operation_id)
+            .unwrap()
+            .unwrap();
+        let changed_error = changed.last_error.as_deref().unwrap();
+        assert!(changed_error.contains("InstallReadyToPublish"));
+        assert!(changed_error.ends_with("different retry cause"));
+        assert_eq!(changed_error.matches("cleanup retry failed").count(), 1);
 
         crate::PortcoveService::new(library.clone()).unwrap();
         assert!(!staging.exists());

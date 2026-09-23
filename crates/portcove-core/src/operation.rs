@@ -279,15 +279,28 @@ impl OperationStore {
     pub fn all(&self) -> Result<Vec<LifecycleOperation>> {
         #[cfg(test)]
         ALL_READ_COUNT.with(|count| count.set(count.get() + 1));
+        self.read(None)
+    }
+
+    pub fn get(&self, id: &str) -> Result<Option<LifecycleOperation>> {
+        Ok(self.read(Some(id))?.pop())
+    }
+
+    fn read(&self, id: Option<&str>) -> Result<Vec<LifecycleOperation>> {
         let connection = database::connect(self.library.root())?;
-        let mut statement = connection.prepare(
+        let where_or_order = if id.is_some() {
+            "WHERE id=?1"
+        } else {
+            "ORDER BY created_at, rowid"
+        };
+        let mut statement = connection.prepare(&format!(
             "SELECT id, kind, port_id, phase, staging_path, final_path, quarantine_path,
                     install_json, relocation_json, source_import_json, original_paths_json, activate, last_error, created_at, updated_at, preparation_json,
                     preparation_process_quiesced
              FROM lifecycle_operations
-             ORDER BY created_at, rowid",
-        )?;
-        let rows = statement.query_map([], |row| {
+             {where_or_order}"
+        ))?;
+        let rows = statement.query_map(rusqlite::params_from_iter(id), |row| {
             Ok((
                 row.get::<_, String>(0)?,
                 row.get::<_, String>(1)?,
@@ -369,6 +382,8 @@ fn path_string(path: Option<&PathBuf>) -> Result<Option<String>> {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum LifecycleFaultPoint {
+    #[cfg(test)]
+    RecoveryInventoried,
     PreparationJournaled,
     PreparationCopied,
     PreparationToolCompleted,

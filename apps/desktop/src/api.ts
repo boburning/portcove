@@ -249,6 +249,8 @@ export const desktopApi = {
     invoke<WorkspaceSnapshot>("get_workspace_snapshot", { generation }),
   workspaceChanged: (generation: number) =>
     invoke<boolean>("get_workspace_changed", { generation }),
+  discoverOrphanedOperations: (generation: number) =>
+    invoke<void>("discover_orphaned_operations", { generation }),
   planPreparation: (portId: string, generation: number) =>
     invoke<PreparationPlan>("plan_preparation", { portId, generation }),
   planGameUpdate: (portId: string, activate: boolean, generation: number) =>

@@ -228,28 +228,36 @@ struct OperationReporter<'a, F> {
     emit: &'a mut F,
 }
 
+fn install_cleanup_retry_message(previous: Option<&str>, current: &str) -> String {
+    const RETRY_SEPARATOR: &str = "; private preparation cleanup retry failed: ";
+    const MAX_CAUSE_CHARS: usize = 1024;
+    let original = previous
+        .unwrap_or("install cleanup failed")
+        .split_once(RETRY_SEPARATOR)
+        .map_or(
+            previous.unwrap_or("install cleanup failed"),
+            |(cause, _)| cause,
+        );
+    format!(
+        "{}{}{}",
+        original.chars().take(MAX_CAUSE_CHARS).collect::<String>(),
+        RETRY_SEPARATOR,
+        current.chars().take(MAX_CAUSE_CHARS).collect::<String>()
+    )
+}
+
 impl PortcoveService {
     pub fn new(library: Library) -> Result<Self> {
-        let releases = Arc::new(CompositeReleaseProvider::for_library(&library)?);
-        let (catalog, catalog_provenance) = library.load_catalog()?;
-        let service = Self {
-            cancellation_owner: Uuid::new_v4().to_string(),
-            cancellation_requested: std::sync::atomic::AtomicBool::new(false),
-            catalog,
-            catalog_provenance,
-            library,
-            releases,
-            adapters: AdapterRegistry,
-            faults: Arc::new(NoLifecycleFaults),
-        };
-        service.recover_cancellations()?;
-        service.recover_lifecycle_operations()?;
+        let service = Self::new_read_only(library)?;
+        service.recover_pending_operations()?;
         Ok(service)
     }
 
-    pub fn with_provider(library: Library, releases: Arc<dyn ReleaseProvider>) -> Result<Self> {
+    /// Open core state for observation without advancing durable recovery.
+    pub fn new_read_only(library: Library) -> Result<Self> {
+        let releases = Arc::new(CompositeReleaseProvider::for_library(&library)?);
         let (catalog, catalog_provenance) = library.load_catalog()?;
-        let service = Self {
+        Ok(Self {
             cancellation_owner: Uuid::new_v4().to_string(),
             cancellation_requested: std::sync::atomic::AtomicBool::new(false),
             catalog,
@@ -258,10 +266,38 @@ impl PortcoveService {
             releases,
             adapters: AdapterRegistry,
             faults: Arc::new(NoLifecycleFaults),
-        };
-        service.recover_cancellations()?;
-        service.recover_lifecycle_operations()?;
+        })
+    }
+
+    pub fn with_provider(library: Library, releases: Arc<dyn ReleaseProvider>) -> Result<Self> {
+        let service = Self::with_provider_read_only(library, releases)?;
+        service.recover_pending_operations()?;
         Ok(service)
+    }
+
+    /// Use a supplied provider for observation without advancing recovery.
+    pub fn with_provider_read_only(
+        library: Library,
+        releases: Arc<dyn ReleaseProvider>,
+    ) -> Result<Self> {
+        let (catalog, catalog_provenance) = library.load_catalog()?;
+        Ok(Self {
+            cancellation_owner: Uuid::new_v4().to_string(),
+            cancellation_requested: std::sync::atomic::AtomicBool::new(false),
+            catalog,
+            catalog_provenance,
+            library,
+            releases,
+            adapters: AdapterRegistry,
+            faults: Arc::new(NoLifecycleFaults),
+        })
+    }
+
+    /// Explicitly discover and retry orphaned work under its existing locks.
+    pub fn recover_pending_operations(&self) -> Result<()> {
+        self.recover_cancellations()?;
+        self.recover_lifecycle_operations()?;
+        Ok(())
     }
 
     #[cfg(test)]
@@ -471,12 +507,12 @@ impl PortcoveService {
 
     fn recover_lifecycle_operations(&self) -> Result<()> {
         let store = OperationStore::new(self.library.clone());
-        for mut operation in store.all()? {
-            if self.is_reviewable_retained_preparation(&operation)? {
-                continue;
-            }
-            let _guards = if operation.kind == LifecycleOperationKind::ImportSource {
-                match self.lock_source_dependents(&operation.port_id, None) {
+        for candidate in store.all()? {
+            #[cfg(test)]
+            self.faults
+                .check(LifecycleFaultPoint::RecoveryInventoried)?;
+            let _guards = if candidate.kind == LifecycleOperationKind::ImportSource {
+                match self.lock_source_dependents(&candidate.port_id, None) {
                     Ok(guards) => guards,
                     Err(error) if error.code == crate::ErrorCode::Conflict => continue,
                     Err(error) => return Err(error),
@@ -484,13 +520,25 @@ impl PortcoveService {
             } else {
                 match self
                     .library
-                    .try_lock_port(&operation.port_id, "recover-lifecycle-operation")
+                    .try_lock_port(&candidate.port_id, "recover-lifecycle-operation")
                 {
                     Ok(guard) => vec![guard],
                     Err(error) if error.code == crate::ErrorCode::Conflict => continue,
                     Err(error) => return Err(error),
                 }
             };
+            let Some(mut operation) = store.get(&candidate.id)? else {
+                continue;
+            };
+            // The inventory only discovers candidates. A reused or reassigned ID
+            // cannot be recovered under locks chosen for its former owner/kind.
+            if operation.created_at != candidate.created_at
+                || operation.kind != candidate.kind
+                || operation.port_id != candidate.port_id
+                || self.is_reviewable_retained_preparation(&operation)?
+            {
+                continue;
+            }
             let unstarted_removal = operation.kind == LifecycleOperationKind::Remove
                 && operation.phase == LifecyclePhase::Preparing
                 && operation.original_paths.is_empty();
@@ -502,19 +550,18 @@ impl PortcoveService {
                 && operation.install.is_none();
             match self.recover_lifecycle_operation(&store, &mut operation) {
                 Err(error) => {
-                    operation.last_error = Some(if failed_install_cleanup {
-                        format!(
-                            "{}; private preparation cleanup retry failed: {}",
-                            operation
-                                .last_error
-                                .as_deref()
-                                .unwrap_or("install cleanup failed"),
-                            error.message
+                    let new_error = if failed_install_cleanup {
+                        install_cleanup_retry_message(
+                            operation.last_error.as_deref(),
+                            &error.message,
                         )
                     } else {
                         error.message.clone()
-                    });
-                    store.put(&mut operation)?;
+                    };
+                    if operation.last_error.as_deref() != Some(new_error.as_str()) {
+                        operation.last_error = Some(new_error);
+                        store.put(&mut operation)?;
+                    }
                     tracing::warn!(
                         operation_id = operation.id,
                         port_id = operation.port_id,
@@ -5674,6 +5721,195 @@ mod tests {
         crate::operation::reset_all_read_count();
         service.repair_plan().unwrap();
         assert_eq!(crate::operation::all_read_count(), 1);
+    }
+
+    struct PauseRecoveryInventory {
+        entered: mpsc::Sender<()>,
+        proceed: Mutex<mpsc::Receiver<()>>,
+    }
+
+    impl LifecycleFaultInjector for PauseRecoveryInventory {
+        fn check(&self, point: LifecycleFaultPoint) -> Result<()> {
+            if point == LifecycleFaultPoint::RecoveryInventoried {
+                self.entered.send(()).unwrap();
+                self.proceed
+                    .lock()
+                    .unwrap()
+                    .recv_timeout(Duration::from_secs(5))
+                    .unwrap();
+            }
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn recovery_does_not_recreate_a_journal_removed_after_inventory() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let id = Uuid::new_v4();
+        let activity = library
+            .begin_identified_activity(
+                id,
+                ActivityOperation::Remove,
+                ActivityTargetKind::Port,
+                Some("zelda64-recomp"),
+            )
+            .unwrap();
+        let store = OperationStore::new(library.clone());
+        let mut operation = LifecycleOperation::new(
+            id.to_string(),
+            LifecycleOperationKind::Remove,
+            "zelda64-recomp",
+        );
+        operation.paths.quarantine = Some(library.staging_dir().join("unused-quarantine"));
+        store.put(&mut operation).unwrap();
+
+        let (entered, observed) = mpsc::channel();
+        let (proceed, resume) = mpsc::channel();
+        let recovery = PortcoveService::with_faults(
+            library.clone(),
+            Arc::new(PauseRecoveryInventory {
+                entered,
+                proceed: Mutex::new(resume),
+            }),
+        )
+        .unwrap();
+        let worker = thread::spawn(move || recovery.recover_lifecycle_operations_for_test());
+        observed.recv_timeout(Duration::from_secs(5)).unwrap();
+        store.remove(&operation.id).unwrap();
+        proceed.send(()).unwrap();
+        worker.join().unwrap().unwrap();
+
+        assert!(store.get(&operation.id).unwrap().is_none());
+        assert_eq!(library.activities(1).unwrap()[0].id, activity.id);
+        assert_eq!(
+            library.activities(1).unwrap()[0].status,
+            ActivityStatus::Running
+        );
+    }
+
+    #[test]
+    fn recovery_uses_fresh_phase_and_skips_changed_lock_ownership() {
+        for change in ["phase", "kind", "owner", "identity"] {
+            let temporary = tempfile::tempdir().unwrap();
+            let library = Library::open(temporary.path().join("library")).unwrap();
+            let store = OperationStore::new(library.clone());
+            let mut operation = LifecycleOperation::new(
+                Uuid::new_v4().to_string(),
+                LifecycleOperationKind::Remove,
+                "zelda64-recomp",
+            );
+            operation.paths.quarantine = Some(library.staging_dir().join("unused-quarantine"));
+            store.put(&mut operation).unwrap();
+            let (entered, observed) = mpsc::channel();
+            let (proceed, resume) = mpsc::channel();
+            let recovery = PortcoveService::with_faults(
+                library.clone(),
+                Arc::new(PauseRecoveryInventory {
+                    entered,
+                    proceed: Mutex::new(resume),
+                }),
+            )
+            .unwrap();
+            let worker = thread::spawn(move || recovery.recover_lifecycle_operations_for_test());
+            observed.recv_timeout(Duration::from_secs(5)).unwrap();
+            match change {
+                "phase" => operation.phase = LifecyclePhase::CleanupPending,
+                "kind" => operation.kind = LifecycleOperationKind::Install,
+                "owner" => operation.port_id = "paperboat".into(),
+                "identity" => {
+                    crate::database::connect(library.root())
+                        .unwrap()
+                        .execute(
+                            "UPDATE lifecycle_operations SET created_at=created_at-1 WHERE id=?1",
+                            [&operation.id],
+                        )
+                        .unwrap();
+                }
+                _ => unreachable!(),
+            }
+            if change != "identity" {
+                store.put(&mut operation).unwrap();
+            }
+            proceed.send(()).unwrap();
+            worker.join().unwrap().unwrap();
+            assert_eq!(
+                store.get(&operation.id).unwrap().is_none(),
+                change == "phase",
+                "{change}"
+            );
+        }
+    }
+
+    #[test]
+    fn second_recovery_client_can_complete_while_first_waits_after_inventory() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let id = Uuid::new_v4();
+        library
+            .begin_identified_activity(
+                id,
+                ActivityOperation::Remove,
+                ActivityTargetKind::Port,
+                Some("zelda64-recomp"),
+            )
+            .unwrap();
+        let store = OperationStore::new(library.clone());
+        let mut operation = LifecycleOperation::new(
+            id.to_string(),
+            LifecycleOperationKind::Remove,
+            "zelda64-recomp",
+        );
+        operation.paths.quarantine = Some(library.staging_dir().join("unused-quarantine"));
+        store.put(&mut operation).unwrap();
+        let (entered, observed) = mpsc::channel();
+        let (proceed, resume) = mpsc::channel();
+        let recovery = PortcoveService::with_faults(
+            library.clone(),
+            Arc::new(PauseRecoveryInventory {
+                entered,
+                proceed: Mutex::new(resume),
+            }),
+        )
+        .unwrap();
+        let worker = thread::spawn(move || recovery.recover_lifecycle_operations_for_test());
+        observed.recv_timeout(Duration::from_secs(5)).unwrap();
+        PortcoveService::new(library.clone()).unwrap();
+        proceed.send(()).unwrap();
+        worker.join().unwrap().unwrap();
+        assert!(store.get(&operation.id).unwrap().is_none());
+        assert_eq!(
+            library.activities(1).unwrap()[0].status,
+            ActivityStatus::Failed
+        );
+    }
+
+    #[test]
+    fn read_only_construction_and_live_worker_preserve_an_orphan_until_explicit_retry() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let store = OperationStore::new(library.clone());
+        let mut operation = LifecycleOperation::new(
+            Uuid::new_v4().to_string(),
+            LifecycleOperationKind::Remove,
+            "zelda64-recomp",
+        );
+        operation.paths.quarantine = Some(library.staging_dir().join("unused-quarantine"));
+        store.put(&mut operation).unwrap();
+
+        let observer = PortcoveService::new_read_only(library.clone()).unwrap();
+        observer.statuses().unwrap();
+        observer.repair_plan().unwrap();
+        assert!(store.get(&operation.id).unwrap().is_some());
+
+        let worker_guard = library
+            .try_lock_port("zelda64-recomp", "live-worker")
+            .unwrap();
+        observer.recover_pending_operations().unwrap();
+        assert!(store.get(&operation.id).unwrap().is_some());
+        drop(worker_guard);
+        observer.recover_pending_operations().unwrap();
+        assert!(store.get(&operation.id).unwrap().is_none());
     }
 
     #[cfg(windows)]
