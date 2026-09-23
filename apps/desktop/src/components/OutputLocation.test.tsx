@@ -355,6 +355,7 @@ describe("per-game install folder", () => {
       "Future installs use this folder by default. Existing versions will not move.",
     );
     const input = container.querySelector("input")!;
+    expect(input.dataset.slot).toBe("input");
     expect(container.querySelector(`label[for="${input.id}"]`)?.textContent).toContain(
       "Folder for future installs",
     );

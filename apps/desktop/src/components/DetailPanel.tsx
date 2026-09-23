@@ -56,6 +56,7 @@ import { ExternalLink as ProjectLink } from "./ExternalLink";
 import { Icon, NavigationHints } from "./ui";
 import { Button } from "./ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "./ui/dialog";
+import { Input } from "./ui/input";
 import { SourceIdentityPanel } from "./SourceIdentity";
 import { installPlanActionLabel } from "../install-plan-presentation";
 
@@ -1139,7 +1140,7 @@ function SourceField({
         {heading} · {profile?.label ?? profileId}
       </label>
       <div className="path-entry">
-        <input
+        <Input
           data-focusable
           id={inputId}
           value={path}

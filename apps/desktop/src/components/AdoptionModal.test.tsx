@@ -29,6 +29,7 @@ it("keeps an uncancellable copy open and inputs locked even while another operat
     );
     const dialog = document.body.querySelector<HTMLElement>('[data-slot="dialog-content"]')!;
     expect(dialog).not.toBeNull();
+    expect(dialog.querySelector("#adopt-path")?.getAttribute("data-slot")).toBe("input");
     expect(dialog.classList.contains("modal")).toBe(false);
     for (const control of dialog.querySelectorAll<HTMLInputElement | HTMLButtonElement>(
       "button, input",

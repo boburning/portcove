@@ -3,6 +3,7 @@ import { formatBytes } from "../view-model";
 import { Icon, NavigationHints } from "./ui";
 import { Button } from "./ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "./ui/dialog";
+import { Input } from "./ui/input";
 import type { AdoptionPreview, PortDefinition } from "../types";
 
 export function AdoptionModal({
@@ -74,7 +75,7 @@ export function AdoptionModal({
         <NavigationHints />
         <label htmlFor="adopt-path">Existing installation folder</label>
         <div className="path-entry">
-          <input
+          <Input
             data-autofocus
             data-focusable
             id="adopt-path"
