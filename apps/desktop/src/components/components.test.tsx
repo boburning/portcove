@@ -2,6 +2,7 @@ import { failureReport, portDefinition, portStatus, sourceProfile } from "../tes
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import type {
+  ActivityFeed,
   ActivityRecord,
   DoctorReport,
   InstallRecord,
@@ -268,7 +269,7 @@ describe("desktop components", () => {
           onOpenSources={vi.fn()}
         />,
       );
-      expect(html).toContain("Recorded activity");
+      expect(html).toContain("<strong>Activity</strong>");
       expect(html).toContain("Unknown channel");
       expect(html).toContain("Update policy unavailable");
       expect(html).not.toContain("· Notify");
@@ -1131,7 +1132,7 @@ describe("desktop components", () => {
         onOpenSources={vi.fn()}
       />,
     );
-    expect(history).toContain("Prepared game data");
+    expect(history).toContain("Game-data setup");
     expect(history).toContain("In progress");
 
     const abandoned = renderToStaticMarkup(
@@ -3004,6 +3005,18 @@ describe("desktop components", () => {
             finished_at: 3,
           },
           {
+            id: "activity-policy",
+            failure: null,
+            cancellation: null,
+            message: null,
+            operation: "reconcile",
+            target_kind: "port",
+            target_id: port.id,
+            status: "running",
+            started_at: Math.floor(Date.now() / 1000),
+            finished_at: null,
+          },
+          {
             id: "activity-2",
             failure: null,
             cancellation: null,
@@ -3123,11 +3136,13 @@ describe("desktop components", () => {
     expect(html).toContain("Recent activity");
     expect(html).toContain(`data-detail-origin="updates:installed:${port.id}"`);
     expect(html).toContain(`data-detail-origin="updates:activity:activity-1:target"`);
-    expect(html).toContain("Updated port");
-    expect(html).toContain("Verified source");
-    expect(html).toContain("Copied existing installation");
+    expect(html).toContain("Game update");
+    expect(html).toContain("Game-file check");
+    expect(html).toContain("Existing-installation copy");
+    expect(html).toContain("Update policy run");
+    expect(html).not.toContain("Update settings run");
     expect(html).not.toContain("Adopted installation");
-    expect(html).toContain("Older activity details are available in a redacted support bundle");
+    expect(html).toContain("More details may be available in a support bundle.");
     expect(html).not.toContain("source changed");
     for (const label of [
       "Completed",
@@ -3141,8 +3156,9 @@ describe("desktop components", () => {
     expect(html).not.toMatch(/activity-status">(?:succeeded|failed|cancelled|unfinished|running)</);
     expect(html).toContain("No completion reported");
     expect(html).toContain(
-      "This task has not reported completion. Review its details before retrying.",
+      '<p class="activity-details">This task has not reported completion. Review its details before retrying.</p>',
     );
+    expect(html).not.toContain('title="This task has not reported completion');
     expect(html).not.toContain("Needs review");
     expect(html).toMatch(
       /<button[^>]*data-variant="link"[^>]*data-focusable="true"[^>]*>Sample cartridge<\/button>/u,
@@ -3152,6 +3168,71 @@ describe("desktop components", () => {
       /<button[^>]*data-variant="link"[^>]*data-focusable="true"[^>]*>removed-profile<\/button>/u,
     );
     expect(html).toContain("Activity from the CLI and desktop appears here.");
+  });
+
+  it("counts displayed finished activity separately from loaded history and protected rows", () => {
+    const finished: ActivityRecord[] = Array.from({ length: 10 }, (_, index) => ({
+      id: `finished-${index}`,
+      operation: "backup",
+      target_kind: "port",
+      target_id: port.id,
+      status: "succeeded",
+      started_at: 100 - index,
+      finished_at: 101 - index,
+      message: null,
+      failure: null,
+      cancellation: null,
+    }));
+    const records: ActivityRecord[] = [
+      ...finished,
+      { ...finished[0], id: "attention", status: "failed" },
+      { ...finished[0], id: "current", operation: "install", status: "running", finished_at: null },
+    ];
+    const feed: ActivityFeed = {
+      records,
+      current_activity_ids: ["current"],
+      attention_required_activity_ids: ["attention"],
+      recovery_required_activity_ids: [],
+      active_and_actionable_complete: true,
+      terminal_history_limit: 11,
+      terminal_history_count: 11,
+      terminal_history_complete: true,
+    };
+    const renderHistory = (activityFeed: ActivityFeed, displayRecords = records) =>
+      renderToStaticMarkup(
+        <UpdateCenter
+          generation={1}
+          ports={[port]}
+          statuses={new Map()}
+          activities={displayRecords}
+          activityFeed={activityFeed}
+          outcomes={[]}
+          diagnosticsRefreshing={false}
+          diagnosticsStale={false}
+          refreshDiagnostics={vi.fn()}
+          checkAll={vi.fn()}
+          onSelect={vi.fn()}
+          onOpenSources={vi.fn()}
+        />,
+      );
+    const complete = renderHistory(feed);
+    expect(complete).toContain("Showing 8 recent finished tasks");
+    expect(complete.match(/class="activity-row /gu)).toHaveLength(10);
+    expect(complete).not.toContain("Earlier finished tasks exist");
+    expect(renderHistory({ ...feed, terminal_history_complete: false })).toContain(
+      "Earlier finished tasks exist beyond the records loaded here.",
+    );
+    expect(renderHistory({ ...feed, active_and_actionable_complete: false })).toContain(
+      "Current work and attention coverage is incomplete.",
+    );
+    const withUnknownStatus = [...records];
+    withUnknownStatus[2] = {
+      ...withUnknownStatus[2],
+      status: "future-status" as ActivityRecord["status"],
+    };
+    expect(renderHistory({ ...feed, records: withUnknownStatus }, withUnknownStatus)).toContain(
+      "Showing 7 recent finished tasks",
+    );
   });
 
   it("keeps update policy and last-check states distinct in the installed list", () => {
@@ -3319,11 +3400,11 @@ describe("desktop components", () => {
     );
 
     for (const label of [
-      "Created backup",
-      "Removed installed versions",
-      "Removed saved game-file location",
-      "Saved game-file location",
-      "Searched for game files",
+      "Backup",
+      "Uninstall",
+      "Game-file location removal",
+      "Game-file location update",
+      "Game-file search",
     ])
       expect(html).toContain(label);
     for (const internalLabel of [

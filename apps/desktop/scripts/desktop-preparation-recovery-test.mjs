@@ -210,6 +210,7 @@ export async function interruptedPreparationScenario({
       for (const candidate of candidates) {
         const text = await candidate.getText();
         if (
+          text.includes("Game-data setup") &&
           text.includes("Game preparation stopped before its outcome could be recorded") &&
           text.toLowerCase().includes("failed") &&
           text.includes("Review game preparation")
@@ -243,7 +244,7 @@ export async function interruptedPreparationScenario({
     );
     await browser.findElement(By.xpath('//nav//button[contains(., "Settings")]')).click();
     await browser.wait(
-      until.elementLocated(By.xpath('//h1[normalize-space(.)="Portcove settings"]')),
+      until.elementLocated(By.xpath('//h1[normalize-space(.)="Settings"]')),
       15_000,
     );
     await browser.findElement(By.xpath('//nav//button[contains(., "Updates")]')).click();
@@ -286,6 +287,7 @@ export async function interruptedPreparationScenario({
       for (const candidate of candidates) {
         const text = await candidate.getText();
         if (
+          text.includes("Game-data setup") &&
           text.includes("Game preparation stopped before its outcome could be recorded") &&
           text.toLowerCase().includes("failed") &&
           text.includes("Review game preparation")

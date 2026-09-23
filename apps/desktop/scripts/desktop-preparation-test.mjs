@@ -602,20 +602,7 @@ export async function preparationScenarios({
       15_000,
       "Preparation must reach its owned cancellation checkpoint",
     );
-    await browser.findElement(By.css(".detail-back")).click();
-    await browser.findElement(By.xpath('//nav//button[contains(., "Updates")]')).click();
-    const runningRowSelector = By.xpath(
-      '//div[contains(@class, "activity-row") and contains(@class, "running")][.//strong[normalize-space(.)="Prepared game data"]]',
-    );
-    const runningRow = await browser.wait(
-      until.elementLocated(runningRowSelector),
-      15_000,
-      "Running preparation must remain discoverable after navigating away",
-    );
-    const runningText = await runningRow.getText();
-    assert.ok(runningText.includes(port.name));
-    assert.match(runningText, /In progress/);
-    await runningRow.findElement(button("Cancel operation")).click();
+    await browser.findElement(button("Cancel preparation")).click();
     await browser.wait(
       async () => {
         return (await activities()).find((item) => item.id === activity.id)?.status === "cancelled";
@@ -623,6 +610,25 @@ export async function preparationScenarios({
       15_000,
       "Preparation cancellation must become durable",
     );
+    await browser.wait(
+      async () => (await browser.findElements(By.css("#preparation-review-title"))).length === 0,
+      15_000,
+      "Busy preparation review must close after cancellation",
+    );
+    await browser.findElement(By.css(".detail-back")).click();
+    await browser.findElement(By.xpath('//nav//button[contains(., "Updates")]')).click();
+    const cancelledRow = await browser.wait(
+      until.elementLocated(
+        By.xpath(
+          '//div[contains(@class, "activity-row") and contains(@class, "cancelled")][.//strong[normalize-space(.)="Game-data setup"]]',
+        ),
+      ),
+      15_000,
+      "Cancelled preparation must remain discoverable after navigating away",
+    );
+    const cancelledText = await cancelledRow.getText();
+    assert.ok(cancelledText.includes(port.name));
+    assert.match(cancelledText, /Cancelled/i);
     assert.equal((await status(port.id)).active.id, install.id);
     assert.equal((await status(port.id)).readiness.launchable, false);
     const recorded = (await activities()).find((item) => item.id === activity.id);
@@ -632,7 +638,7 @@ export async function preparationScenarios({
     assert.equal(recorded.failure.presentation.phase, "preparation.setup");
     await browser.findElement(By.xpath('//nav//button[contains(., "Settings")]')).click();
     await browser.wait(
-      until.elementLocated(By.xpath('//h1[normalize-space(.)="Portcove settings"]')),
+      until.elementLocated(By.xpath('//h1[normalize-space(.)="Settings"]')),
       15_000,
     );
     await browser.findElement(By.xpath('//nav//button[contains(., "Updates")]')).click();
