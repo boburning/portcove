@@ -144,7 +144,13 @@ than replacing words globally.
 Name a concrete action and object; say “Review” when review is actually next.
 Place consequences before implementation detail and keep essential warnings
 visible. Errors state the known cause, outcome, and realistic next action. Use
-**Check method** for a configured way to inspect game files; say whether a check
+neutral activity names for running, failed, and completed tasks; the separate
+status states the outcome. Activity summaries count the finished rows actually
+shown and distinguish that preview from the history loaded by core. Put
+interruption guidance inline, and describe older diagnostic availability as
+possible when retention is not known.
+
+Use **Check method** for a configured way to inspect game files; say whether a check
 actually ran and what it found separately. Show the planned output folder with
 version and download size when the installation plan downloads a release; a plan
 that reuses a local release must not present the configured future output folder

@@ -239,9 +239,12 @@ function ActivityHistory({
       ]
     : [];
   const visibleActivities = activityHistoryPreview(activities, nowSeconds, protectedActivityIds);
-  const historyDescription = activityFeed?.terminal_history_complete
-    ? `All ${activityFeed.terminal_history_count} completed activities are included.`
-    : `Showing the latest ${activityFeed?.terminal_history_count ?? 0} completed activities; current work and items needing attention are always included.`;
+  const protectedIds = new Set(protectedActivityIds);
+  const visibleFinishedCount = visibleActivities.filter(
+    (activity) =>
+      ["succeeded", "failed", "cancelled"].includes(activity.status) &&
+      !protectedIds.has(activity.id),
+  ).length;
   return (
     <section className="activity-history">
       <div className="activity-heading">
@@ -250,7 +253,18 @@ function ActivityHistory({
           <h2>Recent activity</h2>
         </div>
         <small>
-          {activityFeed ? historyDescription : "Activity from the CLI and desktop appears here."}
+          {activityFeed ? (
+            <>
+              Showing {visibleFinishedCount} recent finished tasks, plus tasks in progress and items
+              needing attention.
+              {!activityFeed.active_and_actionable_complete &&
+                " Current work and attention coverage is incomplete."}
+              {!activityFeed.terminal_history_complete &&
+                " Earlier finished tasks exist beyond the records loaded here."}
+            </>
+          ) : (
+            "Activity from the CLI and desktop appears here."
+          )}
         </small>
       </div>
       {activities.length === 0 ? (
@@ -303,13 +317,12 @@ function ActivityRow({
 }) {
   const target = activityTarget(activity, names, sourceNames);
   const presentation = activityPresentation(activity, nowSeconds);
-  const title =
-    activity.failure?.presentation.summary ??
-    (presentation.state === "unfinished"
-      ? "This task has not reported completion. Review its details before retrying."
-      : undefined);
   return (
-    <div className={`activity-row ${presentation.state}`} title={title} data-focus-group>
+    <div
+      className={`activity-row ${presentation.state}`}
+      title={activity.failure?.presentation.summary}
+      data-focus-group
+    >
       <span className="activity-indicator" aria-hidden="true">
         <Icon glyph={presentation.icon} size="sm" />
       </span>
@@ -331,6 +344,11 @@ function ActivityRow({
         {presentation.time}
       </span>
       <span className="activity-status">{presentation.label}</span>
+      {presentation.state === "unfinished" && (
+        <p className="activity-details">
+          This task has not reported completion. Review its details before retrying.
+        </p>
+      )}
       {activity.cancellation && (
         <OperationCancellation operationId={activity.id} state={activity.cancellation} />
       )}
@@ -356,9 +374,7 @@ function ActivityRow({
         </div>
       ) : (
         activity.message && (
-          <p className="activity-details">
-            Older activity details are available in a redacted support bundle in Settings.
-          </p>
+          <p className="activity-details">More details may be available in a support bundle.</p>
         )
       )}
       {activity.operation === "prepare" && (
@@ -429,31 +445,31 @@ function activityTarget(
 
 function operationLabel(operation: ActivityOperation) {
   const labels: Record<ActivityOperation, string> = {
-    prepare: "Prepared game data",
-    launch: "Launched port",
-    check_update: "Checked for update",
-    backup: "Created backup",
-    restore: "Restored data backup",
-    delete_backup: "Deleted data backup",
-    install: "Installed port",
-    update: "Updated port",
-    reconcile: "Applied update policy",
-    verify_install: "Verified installation",
-    activate: "Activated staged release",
-    rollback: "Rolled back release",
-    adopt: "Copied existing installation",
-    remove: "Removed installed versions",
-    remove_source: "Removed saved game-file location",
-    register_source: "Saved game-file location",
-    verify_source: "Verified source",
-    move_library: "Moved library",
-    relocate_output: "Relocated game files",
-    import_library: "Imported library",
-    import_source: "Imported source",
-    discover_sources: "Searched for game files",
-    update_catalog: "Updated catalog",
+    prepare: "Game-data setup",
+    launch: "Game launch",
+    check_update: "Update check",
+    backup: "Backup",
+    restore: "Backup restore",
+    delete_backup: "Backup deletion",
+    install: "Installation",
+    update: "Game update",
+    reconcile: "Update policy run",
+    verify_install: "Installation check",
+    activate: "Update activation",
+    rollback: "Previous-version restore",
+    adopt: "Existing-installation copy",
+    remove: "Uninstall",
+    remove_source: "Game-file location removal",
+    register_source: "Game-file location update",
+    verify_source: "Game-file check",
+    move_library: "Library move",
+    relocate_output: "Installed-version move",
+    import_library: "Library restore",
+    import_source: "Game-file import",
+    discover_sources: "Game-file search",
+    update_catalog: "Catalog update",
   };
-  return Object.hasOwn(labels, operation) ? labels[operation] : "Recorded activity";
+  return Object.hasOwn(labels, operation) ? labels[operation] : "Activity";
 }
 
 function formatActivityTime(timestamp: number) {
