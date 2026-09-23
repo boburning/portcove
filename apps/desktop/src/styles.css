@@ -2015,8 +2015,19 @@ select {
   background: var(--color-interactive-subtle);
 }
 
-.install-plan > div:last-child {
+.install-plan > div:nth-child(2) {
   text-align: right;
+}
+.install-plan-destination {
+  grid-column: 1 / -1;
+  padding-top: 12px;
+  border-top: 1px solid var(--color-interactive-border);
+}
+.install-plan-destination code {
+  display: block;
+  margin-top: 4px;
+  overflow-wrap: anywhere;
+  user-select: text;
 }
 .install-plan p {
   margin-bottom: 5px;

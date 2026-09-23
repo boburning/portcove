@@ -2124,6 +2124,8 @@ describe("desktop components", () => {
     expect(cards).not.toContain('<span class="badge stable">Stable</span>');
     expect(cards).not.toContain("staged-source-portable");
     expect(empty).toContain("No ports match these filters");
+    expect(empty).toContain("Try another search or change the filters.");
+    expect(empty).not.toContain("The catalog itself has not been changed.");
     expect(empty).toContain("Clear search and filters");
     expect(emptyLibrary).toContain("/brand/mascot/portcove-mascot-v2-front.png");
     expect(emptyLibrary).toContain('aria-hidden="true"');
@@ -2133,6 +2135,8 @@ describe("desktop components", () => {
     expect(emptyLibrary).not.toContain("Clear search and filters");
     expect(filteredEmptyLibrary).toContain("No installed ports match your search and filters");
     expect(filteredEmptyLibrary).toContain("Clear search and filters");
+    expect(filteredEmptyLibrary).toContain("Clear the search or change the readiness filter.");
+    expect(filteredEmptyLibrary).not.toContain("Your installed ports are still in this library.");
     expect(filteredEmptyLibrary).not.toContain("No installed ports yet");
     expect(loading).toContain("/brand/logo/portcove-logo-v2-transparent.png");
     expect(loading).toContain('alt="Portcove"');
@@ -2150,11 +2154,38 @@ describe("desktop components", () => {
     expect(html).toContain("Installation method");
     expect(html).toContain("Prepared game files beside the port");
     expect(html).toContain("Sample cartridge");
-    expect(html).toContain("Compared with reviewed catalog identity");
+    expect(html).toContain("Check method: Known file signatures");
+    expect(html).toContain("Version shown when you review installation.");
+    expect(html).not.toContain("Compared with reviewed catalog identity");
     expect(html).toContain("Managed by Portcove for backup and restore");
     expect(html).toContain("Active");
     expect(html).toContain("Stable · Beta");
     expect(html).not.toContain("staged-source-portable");
+  });
+
+  it("names configured file-check methods without implying a completed check", () => {
+    const requirements = port.presentation!.source_requirements;
+    const html = renderToStaticMarkup(
+      <DetailPanel
+        port={{
+          ...port,
+          presentation: {
+            ...port.presentation!,
+            source_requirements: [
+              { ...requirements[0], verification: "upstream-validator" },
+              { ...requirements[0], role: "bios", verification: "catalog-rules" },
+            ],
+          },
+        }}
+        sourcePath=""
+        setSourcePath={vi.fn()}
+        actions={actions}
+      />,
+    );
+    expect(html).toContain("Check method: The port’s validation tool");
+    expect(html).toContain("Check method: Required files and format checks");
+    expect(html).not.toContain("Checked by the upstream validator");
+    expect(html).not.toContain("Checked with catalog-declared file rules");
   });
 
   it("keeps retired-upstream maintenance distinct from Portcove support", () => {
@@ -2310,7 +2341,7 @@ describe("desktop components", () => {
     );
     expect(html).toContain("Selected channel");
     expect(html).toContain("Beta");
-    expect(html).toContain("Unknown — check for updates");
+    expect(html).toContain("No current check");
     expect(html).not.toContain("9.9-stale");
   });
 
@@ -2353,7 +2384,7 @@ describe("desktop components", () => {
       />,
     );
     expect(html).toContain("Installed version</small>1.1");
-    expect(html).toContain("Unknown — check for updates");
+    expect(html).toContain("No current check");
     expect(html).not.toContain("9.9-stale");
   });
 

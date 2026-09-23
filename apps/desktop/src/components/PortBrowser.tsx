@@ -228,7 +228,7 @@ function BrowserEmptyState({
         description={
           installedCount === 0
             ? "This library has no installed ports yet. Clear the current search and readiness filters to return to the empty Library."
-            : "Your installed ports are still in this library. Clear the current search and readiness filters to show them again."
+            : "Clear the search or change the readiness filter."
         }
         action={
           <Button data-focusable variant="outline" size="lg" onClick={clearFilters}>
@@ -243,7 +243,7 @@ function BrowserEmptyState({
       icon={Settings2}
       eyebrow="NO MATCHES"
       title="No ports match these filters"
-      description="Try another title, platform term, or release channel. The catalog itself has not been changed."
+      description="Try another search or change the filters."
       action={
         <Button data-focusable variant="outline" size="lg" onClick={clearFilters}>
           <Icon glyph={Settings2} />
