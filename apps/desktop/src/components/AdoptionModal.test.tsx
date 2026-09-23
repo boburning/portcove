@@ -3,6 +3,7 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { expect, it, vi } from "vitest";
 import { portDefinition } from "../test-fixtures";
+import type { AdoptionPreview } from "../types";
 import { AdoptionModal } from "./AdoptionModal";
 
 it("keeps an uncancellable copy open and inputs locked even while another operation is busy", async () => {
@@ -128,13 +129,49 @@ it("shows the reviewed copy plan and skipped entries in the portaled Dialog", as
   }
 });
 
-it("lists ambiguous detected ports without presenting one as selected", async () => {
+it("offers only detected ports for a fresh bound copy review", async () => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   const container = document.createElement("div");
   document.body.append(container);
   const root = createRoot(container);
   const port = { ...portDefinition(), id: "sample", name: "Sample Port" };
   const other = { ...port, id: "other", name: "Other Port" };
+  const review = vi.fn();
+  const ambiguousPreview: AdoptionPreview = {
+    source: "D:/Ambiguous",
+    detected_port_ids: [port.id, other.id],
+    selected_port_id: null,
+    application_files_will_be_copied: true,
+    original_will_be_modified: false,
+    copy_plan: {
+      directories: [],
+      files: [],
+      skipped_entries: [],
+      total_bytes: 0,
+    },
+    destination: null,
+    plan_sha256: "d".repeat(64),
+  };
+  const selectedPreview: AdoptionPreview = {
+    ...ambiguousPreview,
+    detected_port_ids: [other.id],
+    selected_port_id: other.id,
+    destination: {
+      output_location: {
+        port_id: other.id,
+        library_root: "D:/Library",
+        default_output_directory: "D:/Library/versions/other",
+        configured_output_directory: null,
+        effective_output_directory: "D:/Library/versions/other",
+        selection_source: "library_default",
+        user_data_root: "D:/Library/user/other",
+      },
+      active_install: null,
+      imported_user_data_paths: [],
+      current_user_data_files: 0,
+      current_user_data_sha256: "c".repeat(64),
+    },
+  };
   try {
     await act(async () =>
       root.render(
@@ -142,38 +179,95 @@ it("lists ambiguous detected ports without presenting one as selected", async ()
           path="D:/Ambiguous"
           setPath={vi.fn()}
           close={vi.fn()}
-          review={vi.fn()}
+          review={review}
           adopt={vi.fn()}
           ports={[port, other]}
-          preview={{
-            source: "D:/Ambiguous",
-            detected_port_ids: [port.id, other.id],
-            selected_port_id: null,
-            application_files_will_be_copied: true,
-            original_will_be_modified: false,
-            copy_plan: {
-              directories: [],
-              files: [],
-              skipped_entries: [],
-              total_bytes: 0,
-            },
-            destination: null,
-            plan_sha256: "d".repeat(64),
-          }}
+          preview={ambiguousPreview}
         />,
       ),
     );
     const dialog = document.body.querySelector<HTMLElement>('[data-slot="dialog-content"]')!;
     expect(dialog.textContent).toContain("Multiple supported ports detected");
-    expect(dialog.textContent).toContain("Sample Port — Catalog ID: sample");
-    expect(dialog.textContent).toContain("Other Port — Catalog ID: other");
-    expect(dialog.textContent).toContain("Choose the matching port in Portcove");
+    expect(dialog.textContent).toContain("Review Sample Port — Catalog ID: sample");
+    expect(dialog.textContent).toContain("Review Other Port — Catalog ID: other");
+    expect(dialog.textContent).toContain("Choose the correct game");
     expect(
       [...dialog.querySelectorAll("button")].find((item) =>
         item.textContent?.includes("Continue to copy confirmation"),
       )?.disabled,
     ).toBe(true);
-    expect(dialog.querySelector("strong")?.textContent).toBe("Multiple supported ports detected");
+    await act(async () => {
+      [...dialog.querySelectorAll("button")]
+        .find((item) => item.textContent?.includes("Review Other Port"))!
+        .click();
+    });
+    expect(review).toHaveBeenCalledExactlyOnceWith("other");
+    expect(document.activeElement?.id).toBe("adopt-title");
+    await act(async () =>
+      root.render(
+        <AdoptionModal
+          path="D:/Ambiguous"
+          setPath={vi.fn()}
+          close={vi.fn()}
+          review={review}
+          adopt={vi.fn()}
+          ports={[port, other]}
+        />,
+      ),
+    );
+    expect(document.activeElement?.id).toBe("adopt-title");
+    await act(async () =>
+      root.render(
+        <AdoptionModal
+          path="D:/Ambiguous"
+          setPath={vi.fn()}
+          close={vi.fn()}
+          review={review}
+          adopt={vi.fn()}
+          ports={[port, other]}
+          preview={selectedPreview}
+        />,
+      ),
+    );
+    expect(document.activeElement?.id).toBe("adopt-port-identity");
+    expect(dialog.textContent).toContain("Cancel");
+    expect(dialog.querySelector("strong")?.textContent).toBe("Other Port");
+    await act(async () =>
+      root.render(
+        <AdoptionModal
+          path="D:/Ambiguous"
+          setPath={vi.fn()}
+          close={vi.fn()}
+          review={review}
+          adopt={vi.fn()}
+          ports={[port, other]}
+          preview={ambiguousPreview}
+        />,
+      ),
+    );
+    const cancel = [...dialog.querySelectorAll<HTMLButtonElement>("button")].find(
+      (button) => button.textContent === "Cancel",
+    )!;
+    await act(async () => {
+      [...dialog.querySelectorAll<HTMLButtonElement>("button")]
+        .find((button) => button.textContent?.includes("Review Other Port"))!
+        .click();
+      cancel.focus();
+    });
+    await act(async () =>
+      root.render(
+        <AdoptionModal
+          path="D:/Ambiguous"
+          setPath={vi.fn()}
+          close={vi.fn()}
+          review={review}
+          adopt={vi.fn()}
+          ports={[port, other]}
+          preview={selectedPreview}
+        />,
+      ),
+    );
+    expect(document.activeElement).toBe(cancel);
   } finally {
     await act(async () => root.unmount());
     container.remove();

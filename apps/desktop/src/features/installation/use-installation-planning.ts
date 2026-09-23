@@ -85,11 +85,12 @@ export function useAdoptionPlanning(
   const [failedIdentity, setFailedIdentity] = useState<string>();
   const [completedIdentity, setCompletedIdentity] = useState<string>();
   const notifiedCompletion = useRef<string | undefined>(undefined);
-  const review = async () => {
+  const review = async (selectedPortId?: string) => {
+    if (selectedPortId && !request.value?.detected_port_ids.includes(selectedPortId)) return;
     setFailedIdentity(undefined);
     if (open && path.trim())
       await request.review("preview adoption", () =>
-        desktopApi.previewAdoption(path, generation, portId),
+        desktopApi.previewAdoption(path, generation, selectedPortId ?? portId),
       );
   };
   const inFlight = useRef(false);
@@ -112,7 +113,12 @@ export function useAdoptionPlanning(
     let adopted: Awaited<ReturnType<typeof desktopApi.adopt>> | undefined;
     try {
       adopted = await perform("adopt", () =>
-        desktopApi.adopt(path, preview.plan_sha256, generation, portId),
+        desktopApi.adopt(
+          path,
+          preview.plan_sha256,
+          generation,
+          preview.selected_port_id ?? undefined,
+        ),
       );
     } finally {
       inFlight.current = false;

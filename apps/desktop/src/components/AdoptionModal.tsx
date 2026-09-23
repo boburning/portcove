@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { FolderInput, FolderOpen, ShieldCheck, X } from "lucide-react";
 import { formatBytes } from "../view-model";
 import { Icon, NavigationHints } from "./ui";
@@ -26,7 +27,7 @@ export function AdoptionModal({
   applying?: boolean;
   copyFailed?: boolean;
   close: () => void;
-  review: () => void;
+  review: (selectedPortId?: string) => void;
   adopt: () => void;
   pickFolder?: () => void;
   ports?: readonly PortDefinition[];
@@ -34,6 +35,22 @@ export function AdoptionModal({
   const dismiss = () => {
     if (!applying) close();
   };
+  const titleRef = useRef<HTMLHeadingElement>(null);
+  const portIdentityRef = useRef<HTMLParagraphElement>(null);
+  const pendingCandidate = useRef<{ path: string; id: string } | null>(null);
+  useEffect(() => {
+    const pending = pendingCandidate.current;
+    if (!pending) return;
+    if (pending.path !== path) {
+      pendingCandidate.current = null;
+      return;
+    }
+    if (preview?.selected_port_id === pending.id && preview.destination) {
+      if (document.activeElement === titleRef.current || document.activeElement === document.body)
+        portIdentityRef.current?.focus();
+      pendingCandidate.current = null;
+    }
+  }, [path, preview]);
   const portIdentity = preview ? adoptionPortIdentity(preview, ports) : undefined;
   return (
     <Dialog
@@ -62,7 +79,7 @@ export function AdoptionModal({
           <Icon glyph={FolderInput} size="lg" />
         </span>
         <p className="eyebrow">COPY EXISTING INSTALLATION</p>
-        <DialogTitle id="adopt-title" className="mb-2 text-xl">
+        <DialogTitle ref={titleRef} tabIndex={-1} id="adopt-title" className="mb-2 text-xl">
           Add an existing installation to Portcove
         </DialogTitle>
         <DialogDescription id="adopt-description" className="mb-4 leading-relaxed">
@@ -102,7 +119,12 @@ export function AdoptionModal({
             className="adoption-plan adoption-review"
             aria-label="Existing installation copy plan"
           >
-            <p>
+            <p
+              ref={portIdentityRef}
+              id="adopt-port-identity"
+              tabIndex={preview.selected_port_id ? -1 : undefined}
+              className="rounded-sm focus:outline-2 focus:outline-offset-2 focus:outline-pc-ring"
+            >
               <strong>
                 {portIdentity?.kind === "selected"
                   ? (portIdentity.ports[0]?.name ?? "Unknown catalog port")
@@ -121,11 +143,27 @@ export function AdoptionModal({
             </p>
             {portIdentity?.kind === "ambiguous" && (
               <>
-                <p>Choose the matching port in Portcove before reviewing this folder again.</p>
+                <p>
+                  This folder matches more than one supported port. Choose the correct game to
+                  review its destination and saved-data changes before copying.
+                </p>
                 <ul aria-label="Detected ports">
                   {portIdentity.ports.map((port) => (
                     <li key={port.id}>
-                      {port.name ?? "Unknown catalog port"} — Catalog ID: <code>{port.id}</code>
+                      <Button
+                        data-focusable
+                        variant="outline"
+                        type="button"
+                        className="h-auto min-h-(--control-height-md) w-full min-w-0 max-w-full justify-start whitespace-normal break-words py-2 text-left"
+                        disabled={Boolean(busy) || applying}
+                        onClick={() => {
+                          pendingCandidate.current = { path, id: port.id };
+                          titleRef.current?.focus();
+                          review(port.id);
+                        }}
+                      >
+                        Review {port.name ?? "Unknown catalog port"} — Catalog ID: {port.id}
+                      </Button>
                     </li>
                   ))}
                 </ul>
@@ -134,7 +172,10 @@ export function AdoptionModal({
             <p>
               {preview.copy_plan.files.length.toLocaleString()}{" "}
               {preview.copy_plan.files.length === 1 ? "file" : "files"} ·{" "}
-              {formatBytes(preview.copy_plan.total_bytes)} will be copied into the managed library.
+              {formatBytes(preview.copy_plan.total_bytes)}{" "}
+              {preview.selected_port_id
+                ? "will be copied into the managed library."
+                : "found. Choose a port to review the exact destination before copying."}
             </p>
             {preview.copy_plan.skipped_entries.length > 0 && (
               <details>
@@ -179,7 +220,7 @@ export function AdoptionModal({
         )}
         <DialogFooter className="mt-4">
           <Button data-focusable variant="outline" onClick={dismiss} disabled={applying}>
-            Keep original setup
+            Cancel
           </Button>
           {preview ? (
             <Button
@@ -198,7 +239,7 @@ export function AdoptionModal({
               data-focusable
               variant="primary"
               disabled={!path.trim() || Boolean(busy) || applying}
-              onClick={review}
+              onClick={() => review()}
             >
               <Icon glyph={FolderInput} />
               {applying
