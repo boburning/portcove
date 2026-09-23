@@ -29,6 +29,7 @@ describe("native path pickers", () => {
       ),
     ).resolves.toBe("D:/Sources/game.z64");
     expect(openMock).toHaveBeenCalledWith({
+      title: "Choose game files",
       multiple: false,
       directory: false,
       defaultPath: "D:/Sources/old.z64",
@@ -48,6 +49,7 @@ describe("native path pickers", () => {
       "",
     );
     expect(openMock).toHaveBeenCalledWith({
+      title: "Choose game files",
       multiple: false,
       directory: false,
       defaultPath: undefined,
@@ -69,6 +71,7 @@ describe("native path pickers", () => {
       "bios",
     );
     expect(openMock).toHaveBeenCalledWith({
+      title: "Choose BIOS file",
       multiple: false,
       directory: false,
       defaultPath: undefined,
@@ -116,6 +119,7 @@ describe("native path pickers", () => {
       "D:/Sources/Final Fantasy VII",
     );
     expect(openMock).toHaveBeenCalledWith({
+      title: "Choose game files",
       multiple: false,
       directory: true,
       defaultPath: "D:/Sources/Final Fantasy VII",
@@ -145,6 +149,7 @@ describe("native path pickers", () => {
 
     await expect(pickSourcePath(profile, "")).resolves.toBe("D:/Sources/G-Diffuser");
     expect(openMock).toHaveBeenCalledWith({
+      title: "Choose game files",
       multiple: false,
       directory: true,
       defaultPath: undefined,
@@ -156,6 +161,7 @@ describe("native path pickers", () => {
     openMock.mockResolvedValue("D:/Sources/outrun.zip");
     await expect(pickSourceArchivePath("")).resolves.toBe("D:/Sources/outrun.zip");
     expect(openMock).toHaveBeenCalledWith({
+      title: "Choose game files",
       multiple: false,
       directory: false,
       defaultPath: undefined,
@@ -167,6 +173,7 @@ describe("native path pickers", () => {
     openMock.mockResolvedValue("D:/Sources/bios.zip");
     await expect(pickSourceArchivePath("", "bios")).resolves.toBe("D:/Sources/bios.zip");
     expect(openMock).toHaveBeenCalledWith({
+      title: "Choose BIOS file",
       multiple: false,
       directory: false,
       defaultPath: undefined,

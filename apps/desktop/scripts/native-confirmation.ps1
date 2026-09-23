@@ -75,7 +75,7 @@ if (-not $window) {
 $windowScope = 'owned-exact-target'
 if ($FilePath) {
     Assert-LiveApplication
-    if ($Button -ne 'Open' -or $Title -ne 'Choose local artwork') { throw 'File input is limited to the owned artwork picker.' }
+    if ($Button -ne 'Open' -or $Title -notin @('Choose local artwork', 'Choose game files', 'Choose BIOS file')) { throw 'File input is limited to owned artwork or source pickers.' }
     $selected = (Resolve-Path -LiteralPath $FilePath).Path
     if (-not [IO.File]::Exists($selected)) { throw 'Owned picker fixture is not a file.' }
     $fields = @($children | Where-Object { $_.Current.ControlType -eq [System.Windows.Automation.ControlType]::Edit -and $_.Current.Name -eq 'File name:' })

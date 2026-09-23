@@ -796,7 +796,7 @@ function SelectedPortPanel({
   if (!model.port) return null;
   const pickSource = model.sourceProfile
     ? () => {
-        void applyPathChoice(
+        return applyPathChoice(
           pickSourcePath(model.sourceProfile!, ui.sourcePath),
           ui.setSourcePath,
           operations.setError,
@@ -815,7 +815,7 @@ function SelectedPortPanel({
       : undefined;
   const pickBios = model.biosProfile
     ? () => {
-        void applyPathChoice(
+        return applyPathChoice(
           pickSourcePath(model.biosProfile!, ui.biosPath, "bios"),
           ui.setBiosPath,
           operations.setError,

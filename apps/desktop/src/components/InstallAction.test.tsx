@@ -102,6 +102,90 @@ async function pressEscape() {
   });
 }
 
+it("opens the missing game picker, then the BIOS picker, and restores focus after each choice", async () => {
+  let finishPicker: (() => void) | undefined;
+  const pickSource = vi.fn(
+    () =>
+      new Promise<void>((resolve) => {
+        finishPicker = resolve;
+      }),
+  );
+  const pickBios = vi.fn(() => Promise.resolve());
+  function MissingFilesHarness() {
+    const [sourceReady, setSourceReady] = useState(false);
+    const [biosReady, setBiosReady] = useState(false);
+    return (
+      <InstallAction
+        ready={sourceReady && biosReady}
+        sourceReady={sourceReady}
+        biosReady={biosReady}
+        pickSource={async () => {
+          await pickSource();
+          setSourceReady(true);
+        }}
+        pickBios={async () => {
+          await pickBios();
+          setBiosReady(true);
+        }}
+        install={vi.fn()}
+        review={vi.fn()}
+        dismiss={vi.fn()}
+      />
+    );
+  }
+  await act(async () => root.render(<MissingFilesHarness />));
+  expect(button("Choose game files and BIOS").disabled).toBe(false);
+  await click("Choose game files and BIOS");
+  expect(pickSource).toHaveBeenCalledTimes(1);
+  expect(button("Choose game files and BIOS").disabled).toBe(true);
+  await act(async () => finishPicker?.());
+  expect(button("Choose BIOS file").disabled).toBe(false);
+  expect(document.activeElement).toBe(button("Choose BIOS file"));
+  await click("Choose BIOS file");
+  expect(pickBios).toHaveBeenCalledTimes(1);
+  expect(document.activeElement).toBe(button("Review install"));
+});
+
+it("returns focus after a canceled picker and focuses the matching field without a picker", async () => {
+  const pickSource = vi.fn(() => Promise.resolve());
+  await act(async () =>
+    root.render(
+      <InstallAction
+        ready={false}
+        sourceReady={false}
+        biosReady
+        pickSource={pickSource}
+        install={vi.fn()}
+        review={vi.fn()}
+        dismiss={vi.fn()}
+      />,
+    ),
+  );
+  await click("Choose game files");
+  expect(document.activeElement).toBe(button("Choose game files"));
+  expect(pickSource).toHaveBeenCalledTimes(1);
+
+  const field = document.createElement("input");
+  field.id = "source-bios";
+  container.append(field);
+  await act(async () =>
+    root.render(
+      <InstallAction
+        ready={false}
+        sourceReady
+        biosReady={false}
+        biosInputId="source-bios"
+        install={vi.fn()}
+        review={vi.fn()}
+        dismiss={vi.fn()}
+      />,
+    ),
+  );
+  expect(button("Choose BIOS file").disabled).toBe(false);
+  await click("Choose BIOS file");
+  expect(document.activeElement).toBe(field);
+});
+
 function ReviewHarness({ install = () => undefined }: { install?: () => void }) {
   const [reviewed, setReviewed] = useState<InstallPlan>();
   return (

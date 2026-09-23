@@ -33,6 +33,7 @@ export async function pickSourcePath(
   )
     extensions.push("zip");
   return open({
+    title: purpose === "bios" ? "Choose BIOS file" : "Choose game files",
     multiple: false,
     directory,
     defaultPath: currentPath || undefined,
@@ -50,6 +51,7 @@ export async function pickSourcePath(
 
 export function pickSourceArchivePath(currentPath: string, purpose: SourcePickerPurpose = "game") {
   return open({
+    title: purpose === "bios" ? "Choose BIOS file" : "Choose game files",
     multiple: false,
     directory: false,
     defaultPath: currentPath || undefined,

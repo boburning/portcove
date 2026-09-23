@@ -3,7 +3,7 @@ import { SteamEntryControl } from "./SteamEntry";
 import { ArtworkControls, ArtworkImage, DetailArtwork } from "./Artwork";
 import type { ApplyBackupAction } from "./BackupReview";
 import { ReleaseChannelControl } from "./ReleaseChannel";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState, type RefObject } from "react";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -95,14 +95,14 @@ interface DetailPanelProps {
   sourceProfile?: SourceProfile;
   sourcePath: string;
   setSourcePath: (path: string) => void;
-  pickSource?: () => void;
+  pickSource?: AsyncAction;
   pickSourceArchive?: () => void;
   bios?: SourceRecord;
   biosInspection?: SourceInspectionReport;
   biosProfile?: SourceProfile;
   biosPath?: string;
   setBiosPath?: (path: string) => void;
-  pickBios?: () => void;
+  pickBios?: AsyncAction;
   busy?: string;
   libraryGeneration?: number;
   outputLocationChanged?: () => void;
@@ -339,6 +339,7 @@ function DetailBody({
         port={port}
         status={status}
         state={state}
+        sources={sources}
         installed={installed}
         sourceReady={sourceReady}
         biosReady={biosReady}
@@ -414,6 +415,7 @@ function StatusActionsGroup({
   port,
   status,
   state,
+  sources,
   installed,
   sourceReady,
   biosReady,
@@ -429,6 +431,7 @@ function StatusActionsGroup({
   port: PortDefinition;
   status?: PortStatus;
   state: DetailState;
+  sources: SourceControls;
   installed: boolean;
   sourceReady: boolean;
   biosReady: boolean;
@@ -446,6 +449,7 @@ function StatusActionsGroup({
       <ReadinessCard state={state} />
       <PrimaryActions
         installCancellations={installCancellations}
+        sources={sources}
         invalidInstallation={Boolean(status?.readiness?.blockers.includes("invalid_installation"))}
         preparationRequired={managedPreparation && pendingSetup}
         runtimeNeeded={Boolean(status?.readiness?.blockers.includes("missing_runtime"))}
@@ -1108,7 +1112,7 @@ function SourceField({
   health?: SourceHealth | null;
   path: string;
   setPath: (path: string) => void;
-  pick?: () => void;
+  pick?: AsyncAction;
   pickArchive?: () => void;
   openEvidence?: (evidenceId: string) => void;
 }) {
@@ -1137,7 +1141,7 @@ function SourceField({
           placeholder={copy.placeholder}
         />
         {pick && (
-          <Button data-focusable variant="outline" type="button" onClick={pick}>
+          <Button data-focusable variant="outline" type="button" onClick={() => void pick()}>
             <Icon glyph={FolderOpen} />
             {bios ? "Choose BIOS file" : "Choose game files"}
           </Button>
@@ -1199,6 +1203,7 @@ function sourceFieldCopy(profile: SourceProfile | undefined, bios: boolean) {
 
 function PrimaryActions({
   installCancellations,
+  sources,
   invalidInstallation,
   preparationRequired,
   runtimeNeeded,
@@ -1213,6 +1218,7 @@ function PrimaryActions({
   actions,
 }: {
   installCancellations?: ActivityRecord[];
+  sources: SourceControls;
   invalidInstallation: boolean;
   preparationRequired: boolean;
   runtimeNeeded: boolean;
@@ -1243,6 +1249,16 @@ function PrimaryActions({
         ready={launchReady}
         sourceReady={sourceReady}
         biosReady={biosReady}
+        pickSource={sources.pickSource}
+        pickBios={sources.pickBios}
+        sourceInputId={
+          sources.port.source_profile ? `source-${sources.port.source_profile}` : undefined
+        }
+        biosInputId={
+          sources.port.bios_source_profile && sources.biosProfile && sources.setBiosPath
+            ? `source-${sources.port.bios_source_profile}`
+            : undefined
+        }
         plan={plan}
         busy={busy}
         install={actions.install}
@@ -1287,6 +1303,10 @@ export function InstallAction({
   ready,
   sourceReady,
   biosReady,
+  pickSource,
+  pickBios,
+  sourceInputId,
+  biosInputId,
   plan,
   busy,
   install,
@@ -1298,6 +1318,10 @@ export function InstallAction({
   ready: boolean;
   sourceReady: boolean;
   biosReady: boolean;
+  pickSource?: AsyncAction;
+  pickBios?: AsyncAction;
+  sourceInputId?: string;
+  biosInputId?: string;
   plan?: InstallPlan;
   busy?: string;
   install: AsyncAction;
@@ -1306,26 +1330,42 @@ export function InstallAction({
   portaled?: boolean;
 }) {
   const reviewButton = useRef<HTMLButtonElement>(null);
+  const chooseButton = useRef<HTMLButtonElement>(null);
+  const restoreFocus = useRef(false);
+  const [choosing, setChoosing] = useState(false);
+  useEffect(() => {
+    if (!choosing && restoreFocus.current) {
+      restoreFocus.current = false;
+      (ready ? reviewButton : chooseButton).current?.focus();
+    }
+  }, [choosing, ready, sourceReady, biosReady]);
   if (!ready) {
-    const buttonLabel =
-      !sourceReady && !biosReady
-        ? "Choose game files and BIOS"
-        : !biosReady
-          ? "Choose BIOS file"
-          : "Choose game files";
-    const title =
-      !sourceReady && !biosReady
-        ? "Add all required game files and the BIOS file before installing"
-        : !biosReady
-          ? "Add the required BIOS file before installing"
-          : "Add all required game files before installing";
+    const pick = !sourceReady ? pickSource : pickBios;
+    const inputId = !sourceReady ? sourceInputId : biosInputId;
     return (
-      <div className="actions primary-actions">
-        <Button data-focusable className="wide" variant="primary" size="lg" title={title} disabled>
-          <Icon glyph={AlertTriangle} />
-          {buttonLabel}
-        </Button>
-      </div>
+      <MissingInstallAction
+        sourceReady={sourceReady}
+        biosReady={biosReady}
+        pick={pick}
+        inputId={inputId}
+        choosing={choosing}
+        busy={busy}
+        buttonRef={chooseButton}
+        onPick={() => {
+          if (pick) {
+            restoreFocus.current = true;
+            setChoosing(true);
+            void Promise.resolve()
+              .then(pick)
+              .then(
+                () => setChoosing(false),
+                () => setChoosing(false),
+              );
+          } else if (inputId) {
+            document.getElementById(inputId)?.focus();
+          }
+        }}
+      />
     );
   }
   const action = plan ? installPlanActionLabel(plan.action) : undefined;
@@ -1406,6 +1446,56 @@ export function InstallAction({
         </Dialog>
       )}
     </>
+  );
+}
+
+function MissingInstallAction({
+  sourceReady,
+  biosReady,
+  pick,
+  inputId,
+  choosing,
+  busy,
+  buttonRef,
+  onPick,
+}: {
+  sourceReady: boolean;
+  biosReady: boolean;
+  pick?: AsyncAction;
+  inputId?: string;
+  choosing: boolean;
+  busy?: string;
+  buttonRef: RefObject<HTMLButtonElement | null>;
+  onPick: () => void;
+}) {
+  const bothMissing = !sourceReady && !biosReady;
+  const buttonLabel = bothMissing
+    ? "Choose game files and BIOS"
+    : !biosReady
+      ? "Choose BIOS file"
+      : "Choose game files";
+  const title = bothMissing
+    ? "Add all required game files and the BIOS file before installing"
+    : !biosReady
+      ? "Add the required BIOS file before installing"
+      : "Add all required game files before installing";
+  return (
+    <div className="actions primary-actions">
+      <Button
+        ref={buttonRef}
+        data-focusable
+        className="wide"
+        variant="primary"
+        size="lg"
+        title={title}
+        disabled={Boolean(busy) || choosing || (!pick && !inputId)}
+        onClick={onPick}
+      >
+        <Icon glyph={AlertTriangle} />
+        {buttonLabel}
+      </Button>
+      {bothMissing && <p>Choose game files first, then the required BIOS file.</p>}
+    </div>
   );
 }
 
