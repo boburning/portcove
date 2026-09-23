@@ -16,12 +16,14 @@ The official CLI requires Node 22 or newer. It is a development dependency and i
 
 Using Vite's production report from the unchanged pre-foundation checkpoint, JavaScript moved from 734.78 kB raw / 221.61 kB gzip to 801.27 kB raw / 243.94 kB gzip after the runtime, catalogs, and representative setting were added. CSS remained 108.27 kB raw / 18.72 kB gzip. The reported JavaScript delta is 66.49 kB raw / 22.33 kB gzip; it is a bundle effect, not a startup, memory, or responsiveness claim.
 
-`apps/desktop/src/locales/en` is the canonical source catalog. `ar-XB` is an offline right-to-left engineering locale: it proves Arabic plural categories, interpolation, safe rich text, logical layout, accessibility text, and direction changes. It is not a promise that Arabic is a supported product language. The picker uses language self-names and never flags.
+`apps/desktop/src/locales/en` is the canonical source catalog. English is the supported Public beta display language. The production picker offers System default and English; System default resolves to English when the system language has no supported match. The panel reports the resolved display language rather than repeating the saved choice. A failed preference read uses the resolved fallback and reports a load failure separately from a rejected save.
+
+`ar-XB` remains an offline right-to-left engineering locale for Arabic plural categories, interpolation, safe rich text, logical layout, accessibility text, and direction changes. It is not a supported Arabic product language and cannot be newly selected in the production picker. A previously saved `ar-XB` choice remains visible only as a labeled preview so the current choice and direction are not hidden; the panel explains that the rest of Portcove remains in English. Development and native fixtures may still load `ar-XB` directly.
 
 ## Runtime ownership
 
 - A saved `null` locale means `System default`; explicit supported values are canonical BCP 47 tags. Core validates bounded tag syntax but does not decide which product locales exist.
-- The React resolver accepts exact `ar-XB` and the English language family. Unsupported, malformed, missing, or removed locales safely resolve to English. Ordinary Arabic system locales do not select the engineering locale.
+- The React resolver accepts an explicitly saved `ar-XB` preference and the English language family. Unsupported, malformed, missing, or removed locales safely resolve to English. System locales, including `ar-XB`, do not select the engineering preview.
 - The provider updates i18next, `html[lang]`, `html[dir]`, and Base UI's `DirectionProvider` together. It does not key or remount the application, so a live change retains screen state and focus.
 - A selection becomes active only after the host preference write succeeds. A rejected write leaves the previous locale active and reports failure rather than showing false success.
 - Resources are static imports. No locale path, remote service, dynamic script, CSP exception, permission, or network access is added.

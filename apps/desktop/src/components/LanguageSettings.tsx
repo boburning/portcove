@@ -1,21 +1,29 @@
-import { Trans } from "react-i18next";
+import { useEffect, useId, useRef } from "react";
 import { localeOptions, useLocalization } from "../localization";
 import { ChoiceSelect } from "./ChoiceSelect";
 
 export function LanguageSettings() {
   const localization = useLocalization();
   const { choice, locale, saving, saved, error } = localization;
-  const options = localeOptions.map((option) => ({
-    value: option.value,
-    label:
-      option.value === "system"
-        ? localization.t("language.system")
-        : option.value === "en"
-          ? localization.t("language.english")
-          : localization.t("language.engineering"),
-  }));
-  const selectedLabel =
-    options.find((option) => option.value === choice)?.label ?? localization.t("language.system");
+  const triggerId = useId();
+  const restoreFocusAfterSave = useRef(false);
+  useEffect(() => {
+    if (saving || !restoreFocusAfterSave.current) return;
+    restoreFocusAfterSave.current = false;
+    if (document.activeElement === document.body) document.getElementById(triggerId)?.focus();
+  }, [saving, triggerId]);
+  const options = [
+    ...localeOptions.map((option) => ({
+      value: option.value,
+      label: localization.t(option.value === "system" ? "language.system" : "language.english"),
+    })),
+    ...(choice === "ar-XB"
+      ? [{ value: "ar-XB" as const, label: localization.t("language.engineering") }]
+      : []),
+  ];
+  const resolvedLanguage = localization.t(
+    locale === "ar-XB" ? "language.engineering" : "language.english",
+  );
 
   return (
     <article className="settings-card language-card" data-focus-group>
@@ -23,25 +31,35 @@ export function LanguageSettings() {
       <h2>{localization.t("language.title")}</h2>
       <p>{localization.t("language.description")}</p>
       <ChoiceSelect
+        triggerId={triggerId}
         label={localization.t("language.pickerLabel")}
         value={choice}
         options={options}
         disabled={saving}
-        onChange={(nextChoice) => void localization.select(nextChoice)}
+        onChange={(nextChoice) => {
+          restoreFocusAfterSave.current = true;
+          void localization.select(nextChoice);
+        }}
       />
-      <p>{localization.t("language.current", { language: selectedLabel })}</p>
-      <p>{localization.t("language.sample", { count: locale === "ar-XB" ? 3 : 2 })}</p>
-      <p>
-        <Trans ns="settings" i18nKey="language.richProof" components={{ strong: <strong /> }} />
-      </p>
+      <p>{localization.t("language.current", { language: resolvedLanguage })}</p>
+      {locale === "ar-XB" && (
+        <div role="note">
+          <strong>{localization.t("language.previewTitle")}</strong>
+          <p>{localization.t("language.previewDescription")}</p>
+        </div>
+      )}
       <p role="status" aria-live="polite">
         {saving
           ? localization.t("language.saving")
-          : error
-            ? localization.t("language.saveFailed")
-            : saved
-              ? localization.t("language.saved")
-              : ""}
+          : error === "load"
+            ? localization.t("language.loadFailed", { language: resolvedLanguage })
+            : error === "save"
+              ? localization.t("language.saveFailed")
+              : error === "apply"
+                ? localization.t("language.applyFailed")
+                : saved
+                  ? localization.t("language.saved")
+                  : ""}
       </p>
     </article>
   );
