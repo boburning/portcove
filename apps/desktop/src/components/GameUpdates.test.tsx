@@ -4,7 +4,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { desktopApi } from "../api";
 import { portStatus } from "../test-fixtures";
-import type { GameUpdatePlan } from "../types";
+import type { GameUpdatePlan, InstallRecord } from "../types";
 import type { Perform } from "../features/operations/use-operation-state";
 import { GameUpdateControl, UpdatePolicyControl } from "./GameUpdates";
 
@@ -45,6 +45,20 @@ const plan: GameUpdatePlan = {
       user_data_root: "E:/Portcove/user/sample",
     },
   },
+};
+const stagedUpdate: InstallRecord = {
+  id: "staged-2.0",
+  port_id: "sample",
+  version: "2.0",
+  path: "E:/Portcove/versions/sample/2.0",
+  channel: "stable",
+  installed_at: 1,
+  verified: true,
+  staged: true,
+  artifact: { asset_name: "sample.zip", sha256: "a".repeat(64), size: 1024 },
+  manifest_sha256: "b".repeat(64),
+  selected_executable: "sample.exe",
+  runtime: null,
 };
 const perform: Perform = async (_name, task) => task();
 let root: Root;
@@ -112,7 +126,7 @@ it("does not report a settings save as successful after failure", async () => {
 
 it("reviews without execution and submits the exact download-only plan on confirmation", async () => {
   vi.spyOn(desktopApi, "planGameUpdate").mockResolvedValue(plan);
-  const apply = vi.spyOn(desktopApi, "applyGameUpdate").mockResolvedValue(undefined!);
+  const apply = vi.spyOn(desktopApi, "applyGameUpdate").mockResolvedValue(stagedUpdate);
   await act(async () =>
     root.render(
       <GameUpdateControl
@@ -127,6 +141,7 @@ it("reviews without execution and submits the exact download-only plan on confir
   await click("Review game update");
   expect(apply).not.toHaveBeenCalled();
   expect(desktopApi.planGameUpdate).toHaveBeenCalledExactlyOnceWith("sample", false, 9);
+  expect(dialog()?.textContent).toContain("to download");
   expect(dialog()?.textContent).toContain("active version stays unchanged");
   expect(document.activeElement?.textContent).toBe("Download update for later");
   await click("Download update for later");
@@ -138,6 +153,10 @@ it("reviews without execution and submits the exact download-only plan on confir
     expect.any(Function),
   );
   expect(container.textContent).toContain("Review game update");
+  expect(container.textContent).toContain(
+    "Update staged for later. Your active version is unchanged.",
+  );
+  expect(container.textContent).not.toContain("Update downloaded for later");
 });
 
 it("requires another review when the chosen action changes and binds activation to that review", async () => {
@@ -167,7 +186,7 @@ it("requires another review when the chosen action changes and binds activation 
   expect(dialog()).toBeNull();
   expect(document.activeElement?.textContent).toBe("Review game update");
   await click("This update", true);
-  await click("Install after download");
+  await click("Install update");
   expect(container.textContent).not.toContain("2.0");
   expect(apply).not.toHaveBeenCalled();
   await click("Review game update");
@@ -346,7 +365,7 @@ it.each(["use_staged", "reuse_retained"] as const)(
       plan_sha256: `reviewed-${action}`,
       plan: { ...plan.plan, action },
     });
-    const apply = vi.spyOn(desktopApi, "applyGameUpdate").mockResolvedValue(undefined!);
+    const apply = vi.spyOn(desktopApi, "applyGameUpdate").mockResolvedValue(stagedUpdate);
     await act(async () =>
       root.render(
         <GameUpdateControl
@@ -360,6 +379,8 @@ it.each(["use_staged", "reuse_retained"] as const)(
     );
     await click("Review game update");
     expect(apply).not.toHaveBeenCalled();
+    expect(dialog()?.textContent).toContain("No download; use the verified local release.");
+    expect(dialog()?.textContent).toContain("This will stage the verified update for later.");
     await click("Stage verified update for later");
     expect(apply).toHaveBeenCalledExactlyOnceWith(
       "sample",
@@ -368,5 +389,9 @@ it.each(["use_staged", "reuse_retained"] as const)(
       9,
       expect.any(Function),
     );
+    expect(container.textContent).toContain(
+      "Update staged for later. Your active version is unchanged.",
+    );
+    expect(container.textContent).not.toContain("Update downloaded for later");
   },
 );

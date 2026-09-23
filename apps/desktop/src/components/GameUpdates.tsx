@@ -135,7 +135,7 @@ export function GameUpdateControl({
           result
             ? plan.activate
               ? "Update installed. Your previous version remains available."
-              : "Update downloaded for later. Your active version is unchanged."
+              : "Update staged for later. Your active version is unchanged."
             : "Update did not complete. Review the current state before retrying.",
         );
     } catch (error) {
@@ -161,8 +161,8 @@ export function GameUpdateControl({
           setMessage(undefined);
         }}
         options={[
-          { value: "stage", label: "Download for later" },
-          { value: "activate", label: "Install after download" },
+          { value: "stage", label: "Stage for later" },
+          { value: "activate", label: "Install update" },
         ]}
       />
       <Button
@@ -290,7 +290,7 @@ function GameUpdateReview({ plan }: { plan: GameUpdatePlan }) {
         <p>
           {plan.activate
             ? "The verified update becomes active and the current version remains available for rollback."
-            : "The update is staged for later. Your active version stays unchanged."}{" "}
+            : "This will stage the verified update for later. Your active version stays unchanged."}{" "}
           Saved update settings are unchanged.
         </p>
       )}
