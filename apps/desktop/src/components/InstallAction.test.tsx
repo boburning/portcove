@@ -347,6 +347,15 @@ it.each([
     expect(document.body.textContent).toContain("INSTALL PLAN");
     expect(document.body.textContent).toContain(firstDetail);
     expect(document.body.textContent).toContain(secondDetail);
+    expect(document.body.textContent).toContain(
+      action === "download"
+        ? "Review the version, download size, and install folder."
+        : "Review the version and how this local release will be used.",
+    );
+    expect(document.body.textContent?.includes("Install folder")).toBe(action === "download");
+    expect(document.body.textContent?.includes("E:/Portcove/versions/sample")).toBe(
+      action === "download",
+    );
     expect(button(actionLabel).disabled).toBe(false);
     await click(actionLabel);
     expect(install).toHaveBeenCalledTimes(1);

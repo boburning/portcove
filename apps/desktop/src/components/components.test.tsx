@@ -2341,7 +2341,7 @@ describe("desktop components", () => {
     );
     expect(html).toContain("Selected channel");
     expect(html).toContain("Beta");
-    expect(html).toContain("Not checked yet");
+    expect(html).toContain("No current check");
     expect(html).not.toContain("9.9-stale");
   });
 
@@ -2384,7 +2384,7 @@ describe("desktop components", () => {
       />,
     );
     expect(html).toContain("Installed version</small>1.1");
-    expect(html).toContain("Not checked yet");
+    expect(html).toContain("No current check");
     expect(html).not.toContain("9.9-stale");
   });
 

@@ -663,7 +663,7 @@ function InstallationVersionSummary({
   const checked = currentUpdateSnapshot(status)?.check;
   const latestEligible =
     checked?.release.version ??
-    (status?.active ? "Not checked yet" : "Version shown when you review installation.");
+    (status?.active ? "No current check" : "Version shown when you review installation.");
   return (
     <div className="metadata" aria-label="Installation and release versions">
       <span>
@@ -1425,7 +1425,9 @@ export function InstallAction({
               Review installation
             </DialogTitle>
             <DialogDescription id="install-review-description" className="mb-4 leading-relaxed">
-              Review the version, download size, and install folder.
+              {plan.action === "download"
+                ? "Review the version, download size, and install folder."
+                : "Review the version and how this local release will be used."}
             </DialogDescription>
             {action ? (
               <InstallPlanSummary plan={plan} />
@@ -1542,10 +1544,12 @@ function InstallPlanSummary({ plan }: { plan: InstallPlan }) {
           {download ? `${formatBytes(plan.storage.volume_available_bytes)} available` : localState}
         </span>
       </div>
-      <div className="install-plan-destination">
-        <strong>Install folder</strong>
-        <code>{plan.output_location.effective_output_directory}</code>
-      </div>
+      {download && (
+        <div className="install-plan-destination">
+          <strong>Install folder</strong>
+          <code>{plan.output_location.effective_output_directory}</code>
+        </div>
+      )}
     </div>
   );
 }

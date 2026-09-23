@@ -145,8 +145,10 @@ Name a concrete action and object; say “Review” when review is actually next
 Place consequences before implementation detail and keep essential warnings
 visible. Errors state the known cause, outcome, and realistic next action. Use
 **Check method** for a configured way to inspect game files; say whether a check
-actually ran and what it found separately. Keep the planned install folder visible
-with version and download size in installation review. Use sentence case and
+actually ran and what it found separately. Show the planned output folder with
+version and download size when the installation plan downloads a release; a plan
+that reuses a local release must not present the configured future output folder
+as that release's existing path. Use sentence case and
 neutral task names beside authoritative status. Complete
 localized messages use named interpolation and correct plurals; human formatting
 may follow locale while machine contracts remain stable. Keep technical detail

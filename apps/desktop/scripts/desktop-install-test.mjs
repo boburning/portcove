@@ -60,9 +60,18 @@ export async function installScenarios({
     await browser.wait(until.elementIsEnabled(await browser.findElement(install)), 15_000);
     if (inspect) {
       const reviewText = await browser.findElement(dialog).getText();
+      const reviewedPlan = await invoke("plan_port", {
+        portId: fixture.port.id,
+        channel: "stable",
+      });
+      assert.equal(reviewedPlan.action, "download");
       assert.match(reviewText, /Review the version, download size, and install folder\./);
       assert.match(reviewText, /Install folder/);
-      assert.ok(reviewText.includes(library), "Install review must show its owned library path");
+      assert.equal(
+        await browser.findElement(By.css(".install-plan-destination code")).getText(),
+        reviewedPlan.output_location.effective_output_directory,
+        "Install review must show the planned output folder",
+      );
       await assertPrimaryReviewAction(
         browser,
         await browser.findElement(install),
