@@ -195,7 +195,7 @@ describe("native path pickers", () => {
     openMock.mockResolvedValue("F:/Games/Sample");
     await expect(pickGameOutputFolder("F:/Games")).resolves.toBe("F:/Games/Sample");
     expect(openMock).toHaveBeenCalledWith({
-      title: "Choose Export / install folder",
+      title: "Choose install folder",
       multiple: false,
       directory: true,
       defaultPath: "F:/Games",

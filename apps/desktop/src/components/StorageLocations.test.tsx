@@ -102,18 +102,18 @@ afterEach(async () => {
 describe("Storage locations", () => {
   it("hands focus to the new workspace after a real generation-key remount", async () => {
     await act(async () => root.render(<RemountFixture />));
-    const oldSwitchTrigger = button("Review library switch");
-    await click("Review library switch");
+    const oldSwitchTrigger = button("Choose another library");
+    await click("Choose another library");
     await click("Switch whole library");
-    const newSwitchTrigger = button("Review library switch");
+    const newSwitchTrigger = button("Choose another library");
     expect(newSwitchTrigger).not.toBe(oldSwitchTrigger);
     expect(document.activeElement).toBe(newSwitchTrigger);
     expect(document.body.querySelector('[role="dialog"]')).toBeNull();
 
-    const oldResetTrigger = button("Review platform default");
-    await click("Review platform default");
-    await click("Use platform default");
-    const newResetTrigger = button("Review platform default");
+    const oldResetTrigger = button("Use default library");
+    await click("Use default library");
+    await click("Open default library");
+    const newResetTrigger = button("Use default library");
     expect(newResetTrigger).not.toBe(oldResetTrigger);
     expect(document.activeElement).toBe(newResetTrigger);
   });
@@ -133,23 +133,25 @@ describe("Storage locations", () => {
       );
     });
 
-    await click("Review library switch");
+    await click("Choose another library");
     expect(container.textContent).not.toContain("Switch whole Portcove library");
     expect(switchLibrary).not.toHaveBeenCalled();
 
-    const trigger = button("Review library switch");
-    await click("Review library switch");
+    const trigger = button("Choose another library");
+    await click("Choose another library");
     expect(document.body.querySelector('[role="dialog"]')).not.toBeNull();
     expect(document.body.textContent).toContain("Switch whole Portcove library");
     expect(document.body.textContent).toContain("F:/Other Portcove");
-    expect(document.body.textContent).toContain("per-game Export / install folders do not change");
+    expect(document.body.textContent).toContain(
+      "The library you open uses its own game install folder settings",
+    );
     expect(switchLibrary).not.toHaveBeenCalled();
     await click("Keep current library");
     expect(document.activeElement).toBe(trigger);
     expect(document.body.querySelector('[role="dialog"]')).toBeNull();
 
     choose.mockResolvedValueOnce("F:/Other Portcove");
-    await click("Review library switch");
+    await click("Choose another library");
     await click("Switch whole library");
     expect(switchLibrary).toHaveBeenCalledWith("F:/Other Portcove");
     expect(reset).not.toHaveBeenCalled();
@@ -169,17 +171,23 @@ describe("Storage locations", () => {
       );
     });
 
-    await click("Review platform default");
+    await click("Use default library");
     expect(desktopApi.defaultLibraryRoot).toHaveBeenCalledTimes(1);
     expect(document.body.textContent).toContain("Open the default library?");
     expect(document.body.textContent).toContain("C:/Users/test/Portcove");
     expect(document.body.textContent).toContain(
       "Files in the current library will stay where they are",
     );
+    expect(document.body.textContent).toContain(
+      "The default library uses its own game install folder settings",
+    );
+    expect(document.body.textContent).toContain(
+      "If host preferences are damaged or from a newer format",
+    );
     expect(reset).not.toHaveBeenCalled();
-    await click("Use platform default");
+    await click("Open default library");
     expect(reset).toHaveBeenCalledTimes(1);
-    expect(document.activeElement).toBe(button("Review platform default"));
+    expect(document.activeElement).toBe(button("Use default library"));
   });
 
   it("refuses default reset when the real destination cannot be resolved", async () => {
@@ -197,7 +205,7 @@ describe("Storage locations", () => {
         />,
       ),
     );
-    await click("Review platform default");
+    await click("Use default library");
     expect(document.body.querySelector('[role="dialog"]')).toBeNull();
     expect(document.body.textContent).toContain("Default location unavailable");
     expect(reset).not.toHaveBeenCalled();
@@ -215,8 +223,8 @@ describe("Storage locations", () => {
         />,
       );
     });
-    const trigger = button("Review platform default");
-    await click("Review platform default");
+    const trigger = button("Use default library");
+    await click("Use default library");
     await act(async () => {
       document.body.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
     });
@@ -243,8 +251,8 @@ describe("Storage locations", () => {
         />,
       );
     });
-    const trigger = button("Review library switch");
-    await click("Review library switch");
+    const trigger = button("Choose another library");
+    await click("Choose another library");
     await click("Switch whole library");
     expect(button("Switching…").disabled).toBe(true);
     await act(async () => {
@@ -256,7 +264,7 @@ describe("Storage locations", () => {
     expect(document.body.textContent).toContain("selected library is unavailable");
     expect(document.activeElement).toBe(trigger);
     expect(switchLibrary).toHaveBeenCalledTimes(1);
-    await click("Review library switch");
+    await click("Choose another library");
     expect(choose).toHaveBeenCalledTimes(2);
     expect(switchLibrary).toHaveBeenCalledTimes(1);
   });

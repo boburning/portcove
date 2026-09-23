@@ -132,7 +132,7 @@ afterEach(async () => {
   vi.unstubAllGlobals();
 });
 
-describe("per-game Export / install folder", () => {
+describe("per-game install folder", () => {
   it("shows current destination availability and capacity without requiring a review", async () => {
     vi.spyOn(desktopApi, "outputLocation").mockResolvedValue(defaultLocation("sample"));
 
@@ -351,10 +351,12 @@ describe("per-game Export / install folder", () => {
 
     await render(<OutputLocationControl portId="sample" generation={7} />);
     expect(document.body.textContent).toContain("Inherited from the Portcove library");
-    expect(document.body.textContent).toContain("future installs for this game only");
+    expect(document.body.textContent).toContain(
+      "Future installs use this folder by default. Existing versions will not move.",
+    );
     const input = container.querySelector("input")!;
     expect(container.querySelector(`label[for="${input.id}"]`)?.textContent).toContain(
-      "Future Export / install folder",
+      "Folder for future installs",
     );
     expect(input.getAttribute("aria-describedby")).toBe("output-location-note-sample");
     expect(button("Review future folder").hasAttribute("data-focusable")).toBe(true);

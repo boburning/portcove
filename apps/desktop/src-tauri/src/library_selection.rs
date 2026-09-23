@@ -158,7 +158,9 @@ fn persist_selection(
         LibrarySelectionSource::Saved => preferences
             .set_library(&selection.root)
             .map_err(DesktopError::from),
-        LibrarySelectionSource::PlatformDefault => preferences.reset().map_err(DesktopError::from),
+        LibrarySelectionSource::PlatformDefault => preferences
+            .clear_library_or_reset_invalid()
+            .map_err(DesktopError::from),
         LibrarySelectionSource::Invocation => Err(PortcoveError::state(
             "an invocation override cannot be persisted as a desktop selection",
         )
@@ -251,6 +253,76 @@ mod tests {
         assert_eq!(crate::ready(&state).unwrap().library.root(), current);
         assert_eq!(fs::read(preference_path).unwrap(), b"{");
         assert_eq!(fs::read_dir(next).unwrap().count(), 0);
+    }
+
+    #[test]
+    fn selecting_default_preserves_other_valid_host_preferences() {
+        let temporary = tempfile::tempdir().unwrap();
+        let preference_path = temporary.path().join("config/preferences.json");
+        fs::create_dir_all(preference_path.parent().unwrap()).unwrap();
+        let library = temporary.path().join("saved");
+        let tool = temporary.path().join("chdman.exe");
+        let original = serde_json::json!({
+            "format_version": 1,
+            "library_root": library,
+            "locale": "fr",
+            "host_tool_paths": {
+                "chdman": { "path": tool, "sha256": "a".repeat(64) }
+            },
+            "future_setting": { "enabled": true }
+        });
+        fs::write(&preference_path, serde_json::to_vec(&original).unwrap()).unwrap();
+        let preferences = HostPreferenceStore::new(preference_path).unwrap();
+        persist_selection(
+            &preferences,
+            &LibrarySelection {
+                root: temporary.path().join("default"),
+                source: LibrarySelectionSource::PlatformDefault,
+            },
+        )
+        .unwrap();
+        let result = serde_json::to_value(preferences.load().unwrap()).unwrap();
+        assert!(result["library_root"].is_null());
+        for key in ["locale", "host_tool_paths", "future_setting"] {
+            assert_eq!(result[key], original[key]);
+        }
+    }
+
+    #[test]
+    fn selecting_default_recovers_only_invalid_host_preference_documents() {
+        let temporary = tempfile::tempdir().unwrap();
+        let preference_path = temporary.path().join("config/preferences.json");
+        fs::create_dir_all(preference_path.parent().unwrap()).unwrap();
+        let preferences = HostPreferenceStore::new(preference_path.clone()).unwrap();
+        let damaged = [
+            b"{".to_vec(),
+            vec![b'x'; 70 * 1024],
+            br#"{"format_version":1,"library_root":"relative"}"#.to_vec(),
+            br#"{"format_version":99,"library_root":null}"#.to_vec(),
+            serde_json::to_vec(&serde_json::json!({
+                "format_version": 1,
+                "library_root": null,
+                "host_tool_paths": {
+                    "chdman": { "path": temporary.path().join("chdman.exe"), "sha256": "invalid" }
+                }
+            }))
+            .unwrap(),
+        ];
+        for bytes in damaged {
+            fs::write(&preference_path, bytes).unwrap();
+            persist_selection(
+                &preferences,
+                &LibrarySelection {
+                    root: temporary.path().join("default"),
+                    source: LibrarySelectionSource::PlatformDefault,
+                },
+            )
+            .unwrap();
+            assert_eq!(
+                serde_json::to_value(preferences.load().unwrap()).unwrap(),
+                serde_json::to_value(portcove_core::HostPreferences::default()).unwrap()
+            );
+        }
     }
     #[test]
     fn library_switch_cannot_replace_an_inflight_transfer_or_switch() {

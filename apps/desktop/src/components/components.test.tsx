@@ -1115,15 +1115,29 @@ describe("desktop components", () => {
       />,
     );
     expect(html).toContain("D:/Portcove Library");
-    expect(html).toContain("Saved host preference");
-    expect(html).toContain("does not move files");
+    expect(html).toContain("Saved library");
+    expect(html).toContain("Opening another library does not move your files");
+    expect(html).toContain("The library you open uses its own game install folder settings");
     expect(html).toContain("STORAGE LOCATIONS");
     expect(html).toContain("WHOLE PORTCOVE LIBRARY");
-    expect(html).toContain("Review platform default");
-    expect(html).toContain("Each game’s Export / install folder is reviewed separately");
+    expect(html).toContain("Use default library");
+    expect(html).toContain("Each game’s install folder is reviewed separately");
     expect(html).toMatch(
-      /<button[^>]*data-variant="outline"[^>]*>Review library switch<\/button>/u,
+      /<button[^>]*data-variant="outline"[^>]*>Choose another library<\/button>/u,
     );
+  });
+
+  it("distinguishes a launch override and the default library from a saved choice", () => {
+    for (const [source, label] of [
+      ["invocation", "This launch only"],
+      ["platform_default", "Default library"],
+    ] as const) {
+      const html = renderToStaticMarkup(
+        <SettingsView librarySelection={{ root: "D:/Portcove Library", source }} />,
+      );
+      expect(html).toContain(label);
+      expect(html).not.toContain("Saved library");
+    }
   });
 
   it("groups every settings capability by the six player-facing tasks", () => {
@@ -1159,7 +1173,7 @@ describe("desktop components", () => {
       return html.slice(start, end);
     };
     expect(groupMarkup("appearance")).toContain("Color theme");
-    expect(groupMarkup("library-storage")).toContain("Startup selection");
+    expect(groupMarkup("library-storage")).toContain("Library at startup");
     expect(groupMarkup("library-storage")).toContain("Files and capacity");
     expect(groupMarkup("game-files")).toContain("Game-file verification");
     expect(groupMarkup("game-files")).toContain("Disc tools");

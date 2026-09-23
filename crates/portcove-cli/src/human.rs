@@ -928,7 +928,7 @@ pub(crate) fn paths(paths: &PortPaths) -> String {
 
 pub(crate) fn output_location(location: &PortOutputLocation) -> String {
     format!(
-        "Export / install folder for {}\nEffective: {} ({})\nSaved custom folder: {}\nLibrary default: {}\nExisting installs are not moved when this setting changes.",
+        "Install folder for {}\nEffective: {} ({})\nSaved custom folder: {}\nLibrary default: {}\nExisting installs are not moved when this setting changes.",
         clean(&location.port_id),
         clean(&location.effective_output_directory.display().to_string()),
         output_location_source(location.selection_source),
@@ -988,7 +988,7 @@ pub(crate) fn output_preview(preview: &OutputDestinationPreview) -> String {
             .join("; ")
     };
     format!(
-        "Export / install folder preview for {}\nProposed: {}\nAvailability: {}\nOwnership: {}\nCapacity: {}\nExisting installs: {}\nEffect: future placement only; existing installs will not move\nValidation: {}\nPreview fingerprint: {}",
+        "Install folder preview for {}\nProposed: {}\nAvailability: {}\nOwnership: {}\nCapacity: {}\nExisting installs: {}\nEffect: future placement only; existing installs will not move\nValidation: {}\nPreview fingerprint: {}",
         clean(&preview.port_id),
         clean(
             &preview

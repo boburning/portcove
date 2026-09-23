@@ -544,13 +544,24 @@ try {
     assert.equal(defaultRoot.ok, true);
     assert.ok(defaultRoot.value);
     await browser.findElement(By.xpath('//nav//button[contains(., "Settings")]')).click();
+    const card = await browser.wait(
+      until.elementLocated(By.xpath('//article[.//h2[normalize-space(.)="Library at startup"]]')),
+      15_000,
+    );
+    assert.ok((await card.getText()).includes("Opening another library does not move your files"));
     const trigger = await browser.wait(
-      until.elementLocated(By.xpath('//button[normalize-space(.)="Review platform default"]')),
+      until.elementLocated(By.xpath('//button[normalize-space(.)="Use default library"]')),
       15_000,
     );
     await trigger.click();
     const dialog = By.css('[aria-labelledby="library-selection-review-title"]');
     const review = await browser.wait(until.elementLocated(dialog), 15_000);
+    await browser.wait(until.elementIsVisible(review), 5_000);
+    await browser.wait(
+      async () => (await review.getText()).includes("Open the default library?"),
+      5_000,
+      "Default library review title did not become visible",
+    );
     const reviewText = await review.getText();
     assert.ok(reviewText.includes("Open the default library?"));
     assert.ok(reviewText.includes(defaultRoot.value));

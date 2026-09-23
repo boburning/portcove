@@ -70,6 +70,16 @@ fn damaged_or_future_preferences_are_visible_and_explicitly_recoverable() {
 }
 
 #[test]
+fn default_library_recovery_does_not_replace_a_non_regular_preference_target() {
+    let temp = tempfile::tempdir().unwrap();
+    let path = temp.path().join("preferences.json");
+    fs::create_dir(&path).unwrap();
+    let store = HostPreferenceStore::new(path.clone()).unwrap();
+    assert!(store.clear_library_or_reset_invalid().is_err());
+    assert!(path.is_dir());
+}
+
+#[test]
 fn compatible_extensions_survive_set_and_private_staging_is_ignored() {
     let temp = tempfile::tempdir().unwrap();
     let path = temp.path().join("preferences.json");
