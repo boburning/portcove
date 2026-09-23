@@ -60,10 +60,12 @@ export async function installScenarios({
     await browser.wait(until.elementIsEnabled(await browser.findElement(install)), 15_000);
     if (inspect) {
       const reviewText = await browser.findElement(dialog).getText();
-      const reviewedPlan = await invoke("plan_port", {
+      const response = await invoke("plan_port", {
         portId: fixture.port.id,
         channel: "stable",
       });
+      assert.equal(response.ok, true, `Plan inspection failed: ${JSON.stringify(response.error)}`);
+      const reviewedPlan = response.value;
       assert.equal(reviewedPlan.action, "download");
       assert.match(reviewText, /Review the version, download size, and install folder\./);
       assert.match(reviewText, /Install folder/);
