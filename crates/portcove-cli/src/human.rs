@@ -1387,7 +1387,7 @@ mod tests {
         assert!(super::auth_status(&status).contains("resets at 1970-01-01T00:00:42Z"));
         let source = portcove_core::SourceRecord {
             profile_id: "fixture".into(),
-            path: PathBuf::from("C:/fixture.iso"),
+            path: PathBuf::from("fixture.iso"),
             sha256: "a".repeat(64),
             size: 3,
             storage_sha256: "b".repeat(64),
