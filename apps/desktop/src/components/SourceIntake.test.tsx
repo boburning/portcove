@@ -246,7 +246,7 @@ describe("source intake dialog", () => {
     expect(document.body.textContent).toContain("Preparation tool needed");
     expect(document.body.textContent).toContain("Your selected game files remain unchanged.");
     expect(document.body.textContent).not.toContain("Technical ID");
-    await act(async () => button("Locate executable")!.click());
+    await act(async () => button("Locate chdman…")!.click());
     expect(locate).toHaveBeenCalledWith(tool);
     expect(inspect).toHaveBeenNthCalledWith(2, profile.id, ["D:/Game.chd"]);
     expect(button("Copy to Source Inbox")).toBeDefined();

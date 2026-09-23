@@ -2759,6 +2759,20 @@ select {
 .host-tool-row small {
   color: var(--color-text-secondary);
 }
+.host-tool-details {
+  min-width: 0;
+  margin-top: var(--space-1);
+}
+.host-tool-details summary {
+  cursor: pointer;
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm);
+}
+.host-tool-details > code,
+.host-tool-details > small {
+  display: block;
+  margin-top: var(--space-2);
+}
 
 .host-tool-state {
   display: inline-flex;

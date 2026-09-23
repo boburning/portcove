@@ -1265,9 +1265,12 @@ describe("desktop components", () => {
     expect(html).toContain("Not found");
     expect(html).toContain("C:/Tools/chdman.exe");
     expect(html).toContain("E:/Missing/DolphinTool.exe");
-    expect(html).toContain("Set PORTCOVE_FUTURE_TOOL");
+    expect(html).toContain("Future tool was not found. Choose its executable to continue.");
+    expect(html).toContain("Environment variable: PORTCOVE_FUTURE_TOOL");
+    expect(html).toContain("Tool details");
     expect(html).toContain("Official site");
-    expect(html).toContain("Locate executable");
+    expect(html).toContain("Locate Future tool…");
+    expect(html).not.toContain("Locate DolphinTool…");
     expect(html).toContain("Recheck");
     expect(html).toMatch(/<button[^>]*data-variant="outline"[^>]*>Official site<\/button>/u);
   });
@@ -1281,7 +1284,12 @@ describe("desktop components", () => {
       />,
     );
     expect(html).toContain("Diagnostics could not be checked");
-    expect(html).toContain("Host readiness is unavailable until diagnostics succeed");
+    expect(html).toContain("Couldn’t check disc tools.");
+    expect(html).toContain("Disc-tool availability is unavailable until the check succeeds.");
+    expect(html).toContain("Check disc tools again");
+    expect(html.match(/<button\b([^>]*)>Check disc tools again<\/button>/)?.[1]).not.toMatch(
+      /\sdisabled(?:=""|\s|$)/u,
+    );
     expect(html).toContain("Retry diagnostics");
     expect(html).not.toContain("Diagnostics are current");
   });
