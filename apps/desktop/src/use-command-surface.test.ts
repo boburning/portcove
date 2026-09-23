@@ -22,6 +22,22 @@ function commands(recent = true) {
 }
 
 describe("command surface player-facing copy", () => {
+  it("uses the same navigation vocabulary as the destination pages", () => {
+    const { actions, commands: available } = commands();
+    expect(available.find(({ id }) => id === "catalog")).toMatchObject({
+      description: "Browse native game ports",
+    });
+    expect(available.find(({ id }) => id === "updates")).toMatchObject({
+      label: "Go to Updates",
+      description: "Review updates and recent activity",
+    });
+    expect(available.find(({ id }) => id === "settings")).toMatchObject({
+      description: "Manage game files, GitHub, storage, and appearance",
+    });
+    available.find(({ id }) => id === "updates")?.action();
+    expect(actions.setView).toHaveBeenCalledWith("updates");
+  });
+
   it("explains why the update check is unavailable", () => {
     const make = (installedCount: number, busy: boolean) =>
       commandSurfaceCommands({
@@ -43,7 +59,7 @@ describe("command surface player-facing copy", () => {
     });
     expect(make(1, false)).toMatchObject({
       disabled: false,
-      description: "Run a read-only release check for every installed port",
+      description: "Check for updates without installing them",
     });
   });
 

@@ -276,7 +276,7 @@ function ContinueCard({
       <div>
         <p className="eyebrow">CONTINUE</p>
         <h2>{port.name}</h2>
-        <p className="continue-meta">Last played · {status.active?.version}</p>
+        {status.active && <p className="continue-meta">Version {status.active.version}</p>}
       </div>
       <div className="continue-actions">
         <Button
