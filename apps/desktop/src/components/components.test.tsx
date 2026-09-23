@@ -8,6 +8,7 @@ import type {
   PortDefinition,
   PortStatus,
   SourceInspectionReport,
+  UpdateCheckOutcome,
 } from "../types";
 import { PageHeader, SettingsView, Sidebar, StatusLayer } from "./Chrome";
 import { BackupHistory } from "./BackupHistory";
@@ -2922,11 +2923,14 @@ describe("desktop components", () => {
         ]}
       />,
     );
-    expect(html).toContain("Available");
     expect(html).toContain("2.0");
     expect(html).toContain("Latest eligible");
     expect(html).toContain("Checking only looks for updates");
-    expect(html).toMatch(/<button[^>]*data-variant="outline"[^>]*>[^]*?Check all ports<\/button>/u);
+    expect(html).toContain("Update available");
+    expect(html).toContain("Stable · Notify me");
+    expect(html).toMatch(
+      /<button[^>]*data-variant="outline"[^>]*>[^]*?Check installed ports for updates<\/button>/u,
+    );
     expect(html).toContain("Recent activity");
     expect(html).toContain(`data-detail-origin="updates:installed:${port.id}"`);
     expect(html).toContain(`data-detail-origin="updates:activity:activity-1:target"`);
@@ -2959,6 +2963,91 @@ describe("desktop components", () => {
       /<button[^>]*data-variant="link"[^>]*data-focusable="true"[^>]*>removed-profile<\/button>/u,
     );
     expect(html).toContain("Activity from the CLI and desktop appears here.");
+  });
+
+  it("keeps update policy and last-check states distinct in the installed list", () => {
+    const status: PortStatus = { ...portStatus(), active: installRecord() };
+    const result: NonNullable<UpdateCheckOutcome["result"]> = {
+      port_id: port.id,
+      channel: "stable",
+      installed_version: "1.0",
+      installed_runtime: null,
+      required_runtime: null,
+      installed_artifact: null,
+      update_available: false,
+      release: {
+        published_at: null,
+        version: "1.0",
+        channel: "stable",
+        asset: {
+          name: "sample.zip",
+          url: "https://example.com/sample.zip",
+          size: 1,
+          sha256: "a".repeat(64),
+        },
+      },
+    };
+    const render = (current: PortStatus, outcomes: UpdateCheckOutcome[] = []) =>
+      renderToStaticMarkup(
+        <UpdateCenter
+          generation={1}
+          ports={[port]}
+          statuses={new Map([[port.id, current]])}
+          activities={[]}
+          outcomes={outcomes}
+          diagnosticsRefreshing={false}
+          diagnosticsStale={false}
+          refreshDiagnostics={vi.fn()}
+          checkAll={vi.fn()}
+          onSelect={vi.fn()}
+          onOpenSources={vi.fn()}
+        />,
+      );
+    for (const [policy, label] of [
+      ["notify", "Notify me"],
+      ["stage", "Download for later"],
+      ["automatic", "Install when running updates"],
+    ] as const) {
+      expect(render({ ...status, update_policy: policy })).toContain(`Stable · ${label}`);
+    }
+    const states: Array<[string, PortStatus, UpdateCheckOutcome[]]> = [
+      ["Not checked", status, []],
+      ["Update saved for later", { ...status, staged: installRecord({ version: "2.0" }) }, []],
+      [
+        "No update found at last check",
+        status,
+        [{ port_id: port.id, ok: true, error: null, result }],
+      ],
+      [
+        "Update available",
+        status,
+        [
+          {
+            port_id: port.id,
+            ok: true,
+            error: null,
+            result: { ...result, update_available: true },
+          },
+        ],
+      ],
+      [
+        "Check result unavailable",
+        status,
+        [{ port_id: port.id, ok: true, error: null, result: null }],
+      ],
+      [
+        "Check failed",
+        status,
+        [{ port_id: port.id, ok: false, error: failureReport(), result: null }],
+      ],
+      [
+        "Check failed",
+        { ...status, staged: installRecord({ version: "2.0" }) },
+        [{ port_id: port.id, ok: false, error: failureReport(), result: null }],
+      ],
+    ];
+    for (const [label, current, outcomes] of states)
+      expect(render(current, outcomes)).toContain(`>${label}</span>`);
   });
 
   it("describes activity mutations with outcomes shared producers can support", () => {
