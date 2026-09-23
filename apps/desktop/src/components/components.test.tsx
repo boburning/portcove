@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import type {
   ActivityRecord,
+  DoctorReport,
   InstallRecord,
   OperationEvent,
   PortDefinition,
@@ -1201,60 +1202,64 @@ describe("desktop components", () => {
   });
 
   it("shows the core host-readiness report with explicit tool states", () => {
-    const html = renderToStaticMarkup(
+    const doctor: DoctorReport = {
+      platform: "windows-x86-64",
+      library: {
+        library_root: "E:/Portcove",
+        volume_total_bytes: 1024,
+        volume_available_bytes: 512,
+      },
+      catalog_port_count: 61,
+      catalog_provenance: {
+        origin: "embedded",
+        catalog_sha256: "a".repeat(64),
+        sequence: null,
+        key_id: null,
+        expires_at: null,
+        fallback_reasons: [],
+      },
+      installed_port_count: 10,
+      registered_source_count: 9,
+      repair: { generated_at: 1, items: [] },
+      host_tools: [
+        {
+          id: "chdman",
+          display_name: "chdman",
+          state: "available",
+          path: "C:/Tools/chdman.exe",
+          source: "discovery",
+          configuration_variable: "PORTCOVE_CHDMAN",
+          purpose: "CHD validation and disc-image materialization",
+          official_url: "https://docs.mamedev.org/tools/chdman.html",
+        },
+        {
+          id: "dolphin_tool",
+          display_name: "DolphinTool",
+          state: "misconfigured",
+          path: "E:/Missing/DolphinTool.exe",
+          source: "environment",
+          configuration_variable: "PORTCOVE_DOLPHIN_TOOL",
+          purpose: "compressed GameCube validation and ISO materialization",
+          official_url: "https://dolphin-emu.org/download/",
+        },
+        {
+          id: "future_tool",
+          display_name: "Future tool",
+          state: "missing",
+          path: null,
+          source: null,
+          configuration_variable: "PORTCOVE_FUTURE_TOOL",
+          purpose: "future source conversion",
+          official_url: "https://example.com/tool",
+        },
+      ],
+    };
+    const html = renderToStaticMarkup(<SettingsView doctor={doctor} />);
+    const retained = renderToStaticMarkup(
       <SettingsView
-        doctor={{
-          platform: "windows-x86-64",
-          library: {
-            library_root: "E:/Portcove",
-            volume_total_bytes: 1024,
-            volume_available_bytes: 512,
-          },
-          catalog_port_count: 61,
-          catalog_provenance: {
-            origin: "embedded",
-            catalog_sha256: "a".repeat(64),
-            sequence: null,
-            key_id: null,
-            expires_at: null,
-            fallback_reasons: [],
-          },
-          installed_port_count: 10,
-          registered_source_count: 9,
-          repair: { generated_at: 1, items: [] },
-          host_tools: [
-            {
-              id: "chdman",
-              display_name: "chdman",
-              state: "available",
-              path: "C:/Tools/chdman.exe",
-              source: "discovery",
-              configuration_variable: "PORTCOVE_CHDMAN",
-              purpose: "CHD validation and disc-image materialization",
-              official_url: "https://docs.mamedev.org/tools/chdman.html",
-            },
-            {
-              id: "dolphin_tool",
-              display_name: "DolphinTool",
-              state: "misconfigured",
-              path: "E:/Missing/DolphinTool.exe",
-              source: "environment",
-              configuration_variable: "PORTCOVE_DOLPHIN_TOOL",
-              purpose: "compressed GameCube validation and ISO materialization",
-              official_url: "https://dolphin-emu.org/download/",
-            },
-            {
-              id: "future_tool",
-              display_name: "Future tool",
-              state: "missing",
-              path: null,
-              source: null,
-              configuration_variable: "PORTCOVE_FUTURE_TOOL",
-              purpose: "future source conversion",
-              official_url: "https://example.com/tool",
-            },
-          ],
-        }}
+        doctor={doctor}
+        diagnosticFailure={new Error("retry failed")}
+        refreshDiagnostics={vi.fn()}
       />,
     );
     expect(html).toContain("Disc tools");
@@ -1273,6 +1278,10 @@ describe("desktop components", () => {
     expect(html).not.toContain("Locate DolphinTool…");
     expect(html).toContain("Recheck");
     expect(html).toMatch(/<button[^>]*data-variant="outline"[^>]*>Official site<\/button>/u);
+    expect(retained).toContain("Couldn’t check disc tools.");
+    expect(retained).toContain("Showing the last successful host check.");
+    expect(retained).toContain("C:/Tools/chdman.exe");
+    expect(retained).toContain("Check disc tools again");
   });
 
   it("labels unavailable diagnostics instead of presenting them as healthy", () => {
@@ -1285,7 +1294,7 @@ describe("desktop components", () => {
     );
     expect(html).toContain("Diagnostics could not be checked");
     expect(html).toContain("Couldn’t check disc tools.");
-    expect(html).toContain("Disc-tool availability is unavailable until the check succeeds.");
+    expect(html).toContain("Disc-tool status is unavailable until the check succeeds.");
     expect(html).toContain("Check disc tools again");
     expect(html.match(/<button\b([^>]*)>Check disc tools again<\/button>/)?.[1]).not.toMatch(
       /\sdisabled(?:=""|\s|$)/u,

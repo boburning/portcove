@@ -1639,7 +1639,9 @@ function HostReadiness({
       {Boolean(failure) && <p role="alert">Couldn’t check disc tools.</p>}
       {doctor ? (
         <>
-          {stale && <p role="status">Showing the last successful host check.</p>}
+          {(stale || Boolean(failure)) && (
+            <p role="status">Showing the last successful host check.</p>
+          )}
           <p className="host-summary">
             <code>{doctor.platform}</code>
             <span>
@@ -1654,7 +1656,7 @@ function HostReadiness({
           </div>
         </>
       ) : failure ? (
-        <p>Disc-tool availability is unavailable until the check succeeds.</p>
+        <p>Disc-tool status is unavailable until the check succeeds.</p>
       ) : (
         <p>Checking disc-tool availability…</p>
       )}
