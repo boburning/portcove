@@ -486,8 +486,9 @@ describe("desktop components", () => {
         }}
       />,
     );
-    expect(html).toContain("Game files required");
-    expect(html).toContain("Run the port&#x27;s setup before playing for the first time.");
+    expect(html).toContain("First-time setup required");
+    expect(html).toContain("Complete the port&#x27;s setup before playing.");
+    expect(html).not.toContain("Game files required");
     expect(html).not.toContain("Prepare game data</strong>");
     expect(html).not.toContain("Portcove will run and verify the upstream setup before play.");
   });
@@ -549,9 +550,36 @@ describe("desktop components", () => {
       />,
     );
     expect(html).toContain("Installation needs repair");
-    expect(html).toContain("Verify the game files below");
+    expect(html).toContain("Portcove couldn&#x27;t verify the installed files.");
+    expect(html.match(/>Verify installation<\/button>/g)).toHaveLength(1);
+    expect(html).toMatch(
+      /<div class="actions primary-actions"><button[^>]*>.*Verify installation<\/button><\/div>/s,
+    );
     expect(html).not.toContain("Play now");
     expect(html).not.toContain("Choose required source");
+    expect(html).not.toContain("Verify the game files below");
+
+    const checking = renderToStaticMarkup(
+      <DetailPanel
+        port={{ ...port, source_profile: null }}
+        sourcePath=""
+        setSourcePath={vi.fn()}
+        actions={actions}
+        busy="verify"
+        status={{
+          ...portStatus(),
+          active: installRecord(),
+          readiness: {
+            launchable: false,
+            blockers: ["invalid_installation"],
+            pending_setup: false,
+          },
+        }}
+      />,
+    );
+    expect(checking.match(/<div class="actions primary-actions"><button([^>]*)>/)?.[1]).toContain(
+      "disabled",
+    );
   });
 
   it("shows changed registered bytes as setup instead of launch readiness", () => {

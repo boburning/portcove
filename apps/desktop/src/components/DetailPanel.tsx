@@ -1060,6 +1060,9 @@ function TechnicalDetails({
             port={port}
             libraryGeneration={libraryGeneration}
             canRollback={Boolean(status?.previous)}
+            verificationPrimary={Boolean(
+              status?.readiness?.blockers.includes("invalid_installation"),
+            )}
             busy={busy}
             actions={actions}
           />
@@ -1233,7 +1236,21 @@ function PrimaryActions({
   actions: DetailActions;
 }) {
   if (invalidInstallation)
-    return <p>Verify the game files below and review repair before playing.</p>;
+    return (
+      <div className="actions primary-actions">
+        <Button
+          data-focusable
+          className="wide"
+          variant="primary"
+          size="lg"
+          disabled={Boolean(busy)}
+          onClick={() => void actions.verify()}
+        >
+          <Icon glyph={ShieldCheck} />
+          Verify installation
+        </Button>
+      </div>
+    );
   if (runtimeNeeded)
     return runtimeUpdateAvailable ? (
       <p>Review the game update below to install the required component.</p>
@@ -1570,28 +1587,32 @@ function MaintenanceActions({
   port,
   libraryGeneration,
   canRollback,
+  verificationPrimary,
   busy,
   actions,
 }: {
   port: PortDefinition;
   libraryGeneration: number;
   canRollback: boolean;
+  verificationPrimary: boolean;
   busy?: string;
   actions: DetailActions;
 }) {
   return (
     <div className="actions maintenance-actions">
-      <Button
-        data-focusable
-        variant="outline"
-        disabled={Boolean(busy)}
-        onClick={() => {
-          void actions.verify();
-        }}
-      >
-        <Icon glyph={ShieldCheck} />
-        Verify installation
-      </Button>
+      {!verificationPrimary && (
+        <Button
+          data-focusable
+          variant="outline"
+          disabled={Boolean(busy)}
+          onClick={() => {
+            void actions.verify();
+          }}
+        >
+          <Icon glyph={ShieldCheck} />
+          Verify installation
+        </Button>
+      )}
       <Button
         data-focusable
         variant="outline"
@@ -1684,7 +1705,7 @@ function detailState(
     return {
       title: "Installation needs repair",
       description:
-        "Portcove could not verify this installation. Verify the game files and review repair before playing.",
+        "Portcove couldn't verify the installed files. Choose Verify installation to check them.",
       tone: "setup",
       icon: AlertTriangle,
     };
@@ -1701,8 +1722,8 @@ function detailState(
     biosHealth !== "unregistered"
   )
     return {
-      title: "Game files required",
-      description: "Run the port's setup before playing for the first time.",
+      title: "First-time setup required",
+      description: "Complete the port's setup before playing.",
       tone: "setup",
       icon: Wrench,
     };
@@ -1717,8 +1738,8 @@ function detailState(
   if (selectedRequirement) return selectedRequirementState(selectedRequirement);
   if (pendingSetup)
     return {
-      title: "Game files required",
-      description: "Run the port's setup before playing for the first time.",
+      title: "First-time setup required",
+      description: "Complete the port's setup before playing.",
       tone: "setup",
       icon: Wrench,
     };
