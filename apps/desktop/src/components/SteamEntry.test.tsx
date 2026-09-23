@@ -80,6 +80,8 @@ it("uses the selected installation and profile, shows exact consumer evidence, a
   const installationLabel = document.body.querySelector<HTMLLabelElement>(
     'label[for="steam-installation"]',
   );
+  expect(installation?.dataset.slot).toBe("input");
+  expect(document.body.querySelector<HTMLElement>("#steam-profile")?.dataset.slot).toBe("input");
   expect(installation?.className).toContain("border-pc-input");
   expect(installation?.className).toContain("bg-[var(--color-bg-inset)]");
   expect(installationLabel?.className).toContain("text-pc-muted-foreground");

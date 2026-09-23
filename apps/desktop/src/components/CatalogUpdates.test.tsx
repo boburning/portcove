@@ -108,6 +108,12 @@ it("requires explicit review, invalidates changed candidates and uses core prove
       "Verify the publisher key through a trusted channel.",
     );
     expect(button("Stop trusting")).toBeDefined();
+    expect(document.body.querySelector<HTMLElement>("#catalog-public-key")?.dataset.slot).toBe(
+      "input",
+    );
+    expect(document.body.querySelector<HTMLElement>("#catalog-update-location")?.dataset.slot).toBe(
+      "input",
+    );
     expect(document.body.querySelector("#catalog-public-key")?.className).toContain(
       "border-pc-input",
     );

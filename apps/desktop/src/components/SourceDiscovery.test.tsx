@@ -241,6 +241,7 @@ it("opens and scans the Inbox, then applies the exact reviewed import", async ()
     const searchLabel = document.body.querySelector<HTMLLabelElement>(
       'label[for="source-search-root"]',
     );
+    expect(searchField?.dataset.slot).toBe("input");
     expect(searchField?.className).toContain("border-pc-input");
     expect(searchField?.className).toContain("bg-[var(--color-bg-inset)]");
     expect(searchLabel?.className).toContain("text-pc-muted-foreground");
