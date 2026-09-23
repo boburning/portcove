@@ -917,7 +917,7 @@ describe("desktop components", () => {
       /<button[^>]*data-variant="outline"[^>]*aria-label="Open command palette"/u,
     );
     expect(html).toMatch(/<button[^>]*data-variant="ghost"[^>]*aria-label="Dismiss error"/u);
-    expect(html).toContain("Find a native port");
+    expect(html).toContain("Port catalog");
     expect(html).toContain("Problem");
     expect(html).toContain("C:/Portcove");
     expect(html).toContain("width:50%");
@@ -955,7 +955,14 @@ describe("desktop components", () => {
     expect(transition).toMatch(/data-variant="ghost"[^>]*>Not now<\/button>/u);
   });
 
-  it("uses player-facing catalog, update, and settings descriptions", () => {
+  it("keeps page introductions concise without losing catalog count or controls", () => {
+    const library = renderToStaticMarkup(<PageHeader view="library" query="" setQuery={vi.fn()} />);
+    const emptyCatalog = renderToStaticMarkup(
+      <PageHeader view="catalog" query="" setQuery={vi.fn()} portCount={0} />,
+    );
+    const onePort = renderToStaticMarkup(
+      <PageHeader view="catalog" query="" setQuery={vi.fn()} portCount={1} />,
+    );
     const catalog = renderToStaticMarkup(
       <PageHeader view="catalog" query="" setQuery={vi.fn()} portCount={61} />,
     );
@@ -964,16 +971,20 @@ describe("desktop components", () => {
       <PageHeader view="settings" query="" setQuery={vi.fn()} />,
     );
 
-    expect(catalog).toContain(
-      "Explore 61 native game ports and recompilations available through Portcove.",
-    );
-    expect(catalog).toContain("Keep original game files local");
-    expect(catalog).not.toContain("release provenance");
-    expect(updates).toContain("Review available updates, downloaded releases, and failed checks");
-    expect(settings).toContain(
-      "Manage appearance, GitHub sign-in, game-file verification, and library storage.",
-    );
-    expect(settings).not.toContain("local storage boundaries");
+    expect(library).toContain("<h1>Your library</h1>");
+    expect(emptyCatalog).toContain("Browse 0 native game ports.");
+    expect(onePort).toContain("Browse 1 native game port.");
+    expect(catalog).toContain("<h1>Port catalog</h1>");
+    expect(catalog).toContain("Browse 61 native game ports.");
+    expect(catalog).toContain('id="port-search"');
+    expect(updates).toContain("<h1>Updates</h1>");
+    expect(settings).toContain("<h1>Settings</h1>");
+    for (const header of [library, catalog, updates, settings]) {
+      expect(header).not.toContain('class="eyebrow"');
+      expect(header).toContain('aria-label="Open command palette"');
+    }
+    for (const header of [library, updates, settings])
+      expect(header).not.toContain('class="page-description"');
   });
 
   it("keeps current and abandoned activity discoverable from primary navigation", () => {

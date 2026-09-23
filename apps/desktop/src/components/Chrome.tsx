@@ -199,9 +199,8 @@ export function PageHeader({
   return (
     <header>
       <div>
-        <p className="eyebrow">{copy.eyebrow}</p>
         <h1>{copy.title}</h1>
-        <p className="page-description">{copy.description}</p>
+        {copy.description && <p className="page-description">{copy.description}</p>}
       </div>
       <div className="header-tools" data-focus-group>
         {(view === "library" || view === "catalog") && (
@@ -237,27 +236,19 @@ export function PageHeader({
 }
 
 function pageCopy(view: View, portCount: number) {
-  const copy: Record<View, { eyebrow: string; title: string; description: string }> = {
+  const copy: Record<View, { title: string; description?: string }> = {
     library: {
-      eyebrow: "LIBRARY",
-      title: "Your native library",
-      description: "Launch installed ports, finish source setup, and see what needs attention.",
+      title: "Your library",
     },
     catalog: {
-      eyebrow: "PORT CATALOG",
-      title: "Find a native port",
-      description: `Explore ${portCount} native game ports and recompilations available through Portcove. Keep original game files local, review updates, and restore previous versions.`,
+      title: "Port catalog",
+      description: `Browse ${portCount} native game ${portCount === 1 ? "port" : "ports"}.`,
     },
     updates: {
-      eyebrow: "UPDATES",
-      title: "Keep every port current",
-      description: "Review available updates, downloaded releases, and failed checks in one place.",
+      title: "Updates",
     },
     settings: {
-      eyebrow: "SETTINGS",
-      title: "Portcove settings",
-      description:
-        "Manage appearance, GitHub sign-in, game-file verification, and library storage.",
+      title: "Settings",
     },
   };
   return copy[view];
