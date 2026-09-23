@@ -1,4 +1,46 @@
-# CLI contract
+# Portcove CLI
+
+## Using the CLI
+
+Run `portcove --help` to see commands and `portcove COMMAND --help` to check
+arguments before a consequential action. The commands below use `PORT_ID` from
+`catalog list`. For a source command, `portcove --json catalog show PORT_ID`
+provides the `source_profile` and `bios_source_profile` IDs; use the applicable
+one as `PROFILE_ID`. Substitute paths on your machine. Use `--library PATH` when working with a library other than
+the saved default. These examples are human-output commands; automation should
+use the [reference below](#automation-and-integration-reference).
+
+1. Browse available ports with `portcove catalog list`, then read a port's game
+   file and BIOS requirements with `portcove catalog show PORT_ID`. Use
+   `portcove plan PORT_ID` to review what an installation would do.
+2. If that port needs your game files, register the catalog's required source
+   profile with `portcove source add PROFILE_ID PATH`. This validates and records
+   a reference to the selected file; it does not copy or alter the original.
+   Use `portcove source list` to check registered sources.
+3. Run `portcove install PORT_ID` after reviewing the plan. Installation can
+   download and activate a managed version, subject to its source and host
+   requirements. `portcove status PORT_ID` reports the resulting state. To reuse
+   the current install when its required runtime is present, or install a
+   selected release, run `portcove ensure PORT_ID`. Check reported launch blockers
+   with `portcove status PORT_ID` separately.
+4. Start the installed game with `portcove exec PORT_ID`. Portcove supervises
+   the process and retains a launch activity; inspect recent outcomes with
+   `portcove activity`. Review reported launch blockers first in
+   `portcove status PORT_ID`.
+5. Check for an update with `portcove check PORT_ID`. To follow the port's saved
+   update policy, use `portcove reconcile PORT_ID`; a notify policy can report
+   an available update without installing it. Review the current channel and
+   policy in `portcove status PORT_ID` before changing anything.
+6. For managed saved data, run `portcove backup create PORT_ID`, then
+   `portcove backup list PORT_ID` to inspect verified backups and any problems.
+   A backup is not a copy of the original game files. Review backup and restore
+   consequences in `portcove backup --help` before deleting or restoring one.
+
+Human Created, Updated, Started, and API reset times are shown in UTC. A value
+outside the supported timestamp range is labeled unknown. `--json` and
+`--jsonl` retain their Unix timestamp fields for integrations.
+
+## Automation and integration reference
 
 Without a machine-output flag, Portcove renders concise human output. Catalog, status, source, backup, activity, storage, doctor, plan, paths, authentication-status, and capability reads use labeled summaries or tables; other results use a control-character-safe labeled document rather than exposing transport JSON. `portcove about` remains the one branded command and prints a compact product name, version, tagline, repository, and license without opening the library. Repeated operational commands never print banners or raster/ASCII artwork.
 
@@ -175,7 +217,7 @@ Argument-parser failures also use the machine envelope when `--json` or `--jsonl
 
 The compiled-binary machine contract is exercised on both Windows and Linux CI. These tests treat stdout line count, envelope fields, nested command names, JSONL completion, parser behavior, and exit codes as public integration behavior rather than implementation details.
 
-## Standalone package and focused build
+### Standalone package and focused build
 
 `catalog inspect-observation <port-id> <file> --repository-id <numeric-id>`
 inspects an inert format-1 GitHub observation using the embedded catalog and
@@ -210,7 +252,7 @@ stores. Standalone means independent of Desktop, not dependency-free.
 See [Releasing](RELEASING.md) for exact archive names, checksums, package limits,
 and the transition from Alpha 1 and Alpha 2's unversioned CLI archive names.
 
-## Discovery
+### Discovery
 
 API schema 13 exports `source_assessment`, the shared typed contract for source
 health, classification, release-contract result, admission and scoped evidence.
@@ -382,7 +424,7 @@ portcove --json output move <port-id> <path> --apply --expected-plan <sha256> --
 portcove --json backup list <port-id>
 ```
 
-## GitHub authentication
+### GitHub authentication
 
 Authentication is optional. Anonymous operation remains supported, while a GitHub user token raises the API allowance and lets unchanged conditional requests return `304 Not Modified` without consuming the authenticated primary limit.
 
@@ -480,7 +522,7 @@ portcove --library <path> --json source relink <profile-id> <new-path> --apply -
 
 The preview validates the new path against the current catalog profile and the registered content hash and size; the old path may be offline. It returns the original record, validated replacement, and `preview_sha256` without changing either file or the registry. Apply takes the profile and dependent-port locks, revalidates the replacement, and rejects a stale plan if registration, catalog rules, location, or validated bytes changed. A different container is allowed only when its normalized content is identical. Settings → Sources → Relink source uses the same core operation. Registration, relinking, and removal fail with a conflict while a dependent port is running or another source writer holds the profile lock.
 
-## Opt-in source discovery
+### Opt-in source discovery
 
 ```powershell
 portcove --json source discover --root D:\Sources --profile minish-cap-gba --profile super-smash-bros-64
@@ -491,7 +533,7 @@ Discovery requires explicit roots and source profiles. It never registers a matc
 
 Only exact-hash original-file and cartridge-ZIP profiles participate automatically. Other source contracts report that manual selection is required. Symlinks and entries outside the selected canonical roots are skipped. Equal profile contracts share hashing; both normalized ZIP payload and original container bytes count toward the budget. Accepting a candidate with `--expected-sha256` checks the current profile and reviewed content under the normal source locks before registration. Settings → Sources → Find source files exposes the same search, cancellation, and explicit acceptance.
 
-## Cancellation
+### Cancellation
 
 ```text
 portcove --json activity
@@ -512,7 +554,7 @@ outcomes, which must be inspected individually.
 
 Ctrl-C requests cancellation of this CLI command's current and queued source discovery, release checks, install, update, ensure, or reconciliation work, then keeps waiting. Unix SIGTERM uses the same path. Another client's operations are unaffected. Downloads and hashing stop cooperatively; extraction, conversion, or compilation may need to finish their current preparation step. Repeated signals do not force an unsafe publication interruption. Restore, library transfer, migration, and game supervision retain their existing recovery/lifetime behavior. Desktop game details and activity history offer the same core cancellation request; source search also keeps its own Cancel search control inside its dialog.
 
-## Library selection
+### Library selection
 
 ```text
 portcove --json library show
@@ -526,7 +568,7 @@ Library selection uses `--library` or `PORTCOVE_LIBRARY` for one invocation, the
 
 The preference document lives in Portcove's platform configuration directory, outside movable library data and credential storage. `PORTCOVE_PREFERENCES` may select an alternate absolute preference file for portable/test hosts; it does not change library precedence or make a relative path valid.
 
-## Library identity
+### Library identity
 
 ```text
 portcove --library <path> --json library identity
@@ -557,7 +599,7 @@ ID does not replace operation/session IDs or the Desktop generation used to reje
 stale requests. Tauri's `get_library_identity(generation)` reads the same core record
 under the current generation and lease; Desktop continues to call core directly.
 
-## Local artwork
+### Local artwork
 
 ```text
 portcove --json artwork show <port-id> --slot cover
@@ -592,7 +634,7 @@ encoded input and decoding. Clear-cache affects only disposable thumbnails, whic
 are rebuilt when requested by a client. These commands activate no catalog artwork
 default or online provider.
 
-## Library metadata
+### Library metadata
 
 Format 3 includes local artwork choices and copied-image identities. Include the
 `artwork` tree when copying the separate payload backup; `artwork-cache` contains
@@ -610,7 +652,7 @@ Export reads one consistent SQLite snapshot. The versioned metadata document con
 
 Without `--output`, the document appears in the normal CLI response. With `--output`, core writes a raw metadata document to a new file and returns its path, byte size, and SHA-256. Publication does not replace an existing file. Settings → Library → Export metadata invokes the same operation through a native save dialog.
 
-## Library imports and recovery
+### Library imports and recovery
 
 Import a trusted metadata export together with a separate backup folder containing its `versions`, `user`, `source-inbox`, `backups`, and `toolchains` trees:
 
@@ -625,7 +667,7 @@ Review reads only the explicitly selected metadata and content, checks capacity 
 
 An interrupted import reports `details.import_destination` and `recovery_action: resume_library_import`. Unpublished copies remain closed until recovery succeeds. Resume after publication preserves new destination saves and works with the old backup offline. Abort retains every copied file and keeps the incomplete destination closed; choose a different empty destination for another import. Settings → Library → Import library exposes review, native confirmation, and recovery for the currently configured empty library. This is a trusted local-backup restore, not a merge operation or proof of third-party backup authenticity.
 
-## Library moves and recovery
+### Library moves and recovery
 
 ```text
 portcove --library <original> --json library move <new-directory>
@@ -642,7 +684,7 @@ An interrupted move blocks normal use until `resume-move` finishes or `abort-mov
 
 Machine schema version 5 introduced `move_library` to the activity operation enum and exports library metadata, move-plan, and move-result schemas. Move result fields identify the retained source, destination, active root, and terminal completion state. A transfer awaiting recovery has a durable journal and running activity; a resumed or aborted transfer records its explicit terminal outcome.
 
-## Idempotent automation
+### Idempotent automation
 
 ```text
 portcove --library <path> --json --non-interactive ensure <port-id> [--channel stable|beta|rolling] [--source <path>]
@@ -825,7 +867,7 @@ An update also reuses a matching artifact already retained as a rollback or inac
 
 `source verify --all` follows the same batch rule, keyed by `profile_id` rather than `port_id`. `capabilities.failure_isolated_batches` advertises these contracts so launchers do not need to infer support from a Portcove version string.
 
-## Exit codes
+### Exit codes
 
 | Code | Meaning                               |
 | ---: | ------------------------------------- |
@@ -843,7 +885,7 @@ An update also reuses a matching artifact already retained as a rollback or inac
 
 For `exec`, a successfully started game returns its exit code when it fits the portable `0..=255` process range. Native Windows crash statuses and other out-of-range codes map to `1`, never `0`, while termination without a code maps to `125`. Integrators should treat the structured `error.code` as authoritative for management commands.
 
-## Environment
+### Environment
 
 - `PORTCOVE_LIBRARY`: overrides the default library root.
 - `PORTCOVE_PREFERENCES`: optional absolute host-preference file override for portable/test hosts.
@@ -867,7 +909,7 @@ Environment tokens take precedence over a credential saved by Portcove. Tokens a
 
 There is no prompt unless an operation needs confirmation. Pass `--non-interactive` from frontends and services.
 
-## Signed catalog delivery
+### Signed catalog delivery
 
 API schema 7 adds catalog provenance to `doctor`, public-key trust and selection state, signed-envelope/payload schemas, reviewed catalog updates, and the `update_catalog` activity operation. Operation event schema stays at 2.
 

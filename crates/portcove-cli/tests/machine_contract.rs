@@ -27,6 +27,70 @@ fn cli_binary() -> std::path::PathBuf {
         .unwrap_or_else(|| env!("CARGO_BIN_EXE_portcove").into())
 }
 
+#[test]
+fn consequential_help_explains_actions_and_review_arguments() {
+    for (args, expected) in [
+        (&["ensure", "--help"][..], "required runtime is present"),
+        (&["reconcile", "--help"][..], "saved update policy"),
+        (&["activate", "--help"][..], "staged release"),
+        (
+            &["rollback", "--help"][..],
+            "retained previous installed version",
+        ),
+        (&["remove", "--help"][..], "keeping persistent saved data"),
+        (
+            &["source", "relink", "--help"][..],
+            "same registered game files",
+        ),
+        (
+            &["library", "export", "--help"][..],
+            "without application files",
+        ),
+    ] {
+        let output = Command::new(cli_binary()).args(args).output().unwrap();
+        assert!(output.status.success(), "{args:?}: {output:?}");
+        let help = std::str::from_utf8(&output.stdout).unwrap();
+        assert!(help.contains(expected), "{args:?}: {help}");
+    }
+    let relink = Command::new(cli_binary())
+        .args(["source", "relink", "--help"])
+        .output()
+        .unwrap();
+    let help = std::str::from_utf8(&relink.stdout).unwrap();
+    assert!(help.contains("--apply"));
+    assert!(help.contains("--expected-plan"));
+    let ensure = Command::new(cli_binary())
+        .args(["ensure", "--help"])
+        .output()
+        .unwrap();
+    let help = std::str::from_utf8(&ensure.stdout).unwrap();
+    assert!(help.contains("Release channel to select if installation is needed"));
+    assert!(help.contains("an existing install is not moved"));
+    let export = Command::new(cli_binary())
+        .args(["library", "export", "--help"])
+        .output()
+        .unwrap();
+    let help = std::str::from_utf8(&export.stdout).unwrap();
+    assert!(help.contains("Write metadata to PATH instead of printing it"));
+}
+
+#[test]
+fn cli_guide_read_only_examples_run_against_an_empty_fixture() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = temporary.path().join("library");
+    for args in [
+        &["catalog", "list"][..],
+        &["catalog", "show", "lighthouse"][..],
+        &["source", "list"][..],
+        &["status", "lighthouse"][..],
+        &["activity"][..],
+        &["backup", "list", "lighthouse"][..],
+    ] {
+        let output = portcove(&library, args);
+        assert!(output.status.success(), "{args:?}: {output:?}");
+    }
+}
+
 struct RunningCli(std::process::Child);
 
 #[test]

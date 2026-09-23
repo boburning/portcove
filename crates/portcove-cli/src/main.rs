@@ -129,22 +129,31 @@ enum Commands {
         port_id: String,
     },
     Check(UpdateTargetArgs),
+    /// Check installed ports and follow each port's saved update policy.
     Reconcile(UpdateTargetArgs),
     Install(InstallArgs),
     Adopt(AdoptArgs),
+    /// Reuse the current installation when its required runtime is present, or install a selected release.
     Ensure(EnsureArgs),
     Update(UpdateArgs),
     Verify {
         port_id: String,
     },
+    /// Make a staged release the current installed version.
     Activate {
+        /// Port with a staged release to activate.
         port_id: String,
     },
+    /// Return to the retained previous installed version.
     Rollback {
+        /// Port whose retained previous version should become current.
         port_id: String,
     },
+    /// Remove managed installed versions while keeping persistent saved data.
     Remove {
+        /// Port whose managed installed versions should be removed.
         port_id: String,
+        /// Confirm the reviewed removal without an interactive prompt.
         #[arg(long)]
         yes: bool,
     },
@@ -302,6 +311,7 @@ enum LibraryCommand {
     AbortImport,
     /// Export metadata without application files, saves, or original sources.
     Export {
+        /// Write metadata to PATH instead of printing it.
         #[arg(long)]
         output: Option<PathBuf>,
     },
@@ -363,12 +373,16 @@ enum SourceCommand {
         #[arg(long)]
         expected_sha256: Option<String>,
     },
-    /// Validate a replacement path; apply only the exact reviewed plan.
+    /// Review a new location for the same registered game files; apply only the reviewed plan.
     Relink {
+        /// Registered source whose location is changing.
         profile_id: String,
+        /// Replacement game-file path to review.
         path: PathBuf,
+        /// Save the reviewed new location.
         #[arg(long, requires = "expected_plan")]
         apply: bool,
+        /// Exact plan fingerprint returned by the review.
         #[arg(long, requires = "apply")]
         expected_plan: Option<String>,
     },
@@ -583,13 +597,18 @@ struct InstallArgs {
 
 #[derive(Debug, Args)]
 struct EnsureArgs {
+    /// Port to use or install.
     port_id: String,
+    /// Release channel to select if installation is needed.
     #[arg(long, value_enum)]
     channel: Option<ChannelArg>,
+    /// Override the source game file used if installation is needed.
     #[arg(long)]
     source: Option<PathBuf>,
+    /// Override the BIOS file used if installation is needed.
     #[arg(long)]
     bios: Option<PathBuf>,
+    /// Folder for a new install; an existing install is not moved.
     #[arg(long)]
     output_dir: Option<PathBuf>,
 }
@@ -649,7 +668,9 @@ struct UpdateArgs {
 
 #[derive(Debug, Args)]
 struct UpdateTargetArgs {
+    /// Installed port to check or reconcile.
     port_id: Option<String>,
+    /// Use every installed port instead of one PORT_ID.
     #[arg(long, conflicts_with = "port_id")]
     all: bool,
 }
