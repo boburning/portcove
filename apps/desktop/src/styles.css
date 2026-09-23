@@ -1753,7 +1753,6 @@ h2 {
 
 .detail-section input:not([data-slot="input"]),
 .modal input,
-.token-entry input,
 select {
   border: 1px solid var(--color-control-border);
   border-radius: var(--radius-md);
@@ -2823,11 +2822,6 @@ select {
   display: flex;
   gap: 8px;
   margin-top: var(--space-2);
-}
-.token-entry input {
-  flex: 1;
-  min-width: 0;
-  padding: 11px;
 }
 
 .device-login {
