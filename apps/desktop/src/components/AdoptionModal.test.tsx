@@ -152,6 +152,26 @@ it("offers only detected ports for a fresh bound copy review", async () => {
     destination: null,
     plan_sha256: "d".repeat(64),
   };
+  const selectedPreview: AdoptionPreview = {
+    ...ambiguousPreview,
+    detected_port_ids: [other.id],
+    selected_port_id: other.id,
+    destination: {
+      output_location: {
+        port_id: other.id,
+        library_root: "D:/Library",
+        default_output_directory: "D:/Library/versions/other",
+        configured_output_directory: null,
+        effective_output_directory: "D:/Library/versions/other",
+        selection_source: "library_default",
+        user_data_root: "D:/Library/user/other",
+      },
+      active_install: null,
+      imported_user_data_paths: [],
+      current_user_data_files: 0,
+      current_user_data_sha256: "c".repeat(64),
+    },
+  };
   try {
     await act(async () =>
       root.render(
@@ -205,32 +225,49 @@ it("offers only detected ports for a fresh bound copy review", async () => {
           review={review}
           adopt={vi.fn()}
           ports={[port, other]}
-          preview={{
-            ...ambiguousPreview,
-            detected_port_ids: [other.id],
-            selected_port_id: other.id,
-            destination: {
-              output_location: {
-                port_id: other.id,
-                library_root: "D:/Library",
-                default_output_directory: "D:/Library/versions/other",
-                configured_output_directory: null,
-                effective_output_directory: "D:/Library/versions/other",
-                selection_source: "library_default",
-                user_data_root: "D:/Library/user/other",
-              },
-              active_install: null,
-              imported_user_data_paths: [],
-              current_user_data_files: 0,
-              current_user_data_sha256: "c".repeat(64),
-            },
-          }}
+          preview={selectedPreview}
         />,
       ),
     );
     expect(document.activeElement?.id).toBe("adopt-port-identity");
     expect(dialog.textContent).toContain("Cancel");
     expect(dialog.querySelector("strong")?.textContent).toBe("Other Port");
+    await act(async () =>
+      root.render(
+        <AdoptionModal
+          path="D:/Ambiguous"
+          setPath={vi.fn()}
+          close={vi.fn()}
+          review={review}
+          adopt={vi.fn()}
+          ports={[port, other]}
+          preview={ambiguousPreview}
+        />,
+      ),
+    );
+    const cancel = [...dialog.querySelectorAll<HTMLButtonElement>("button")].find(
+      (button) => button.textContent === "Cancel",
+    )!;
+    await act(async () => {
+      [...dialog.querySelectorAll<HTMLButtonElement>("button")]
+        .find((button) => button.textContent?.includes("Review Other Port"))!
+        .click();
+      cancel.focus();
+    });
+    await act(async () =>
+      root.render(
+        <AdoptionModal
+          path="D:/Ambiguous"
+          setPath={vi.fn()}
+          close={vi.fn()}
+          review={review}
+          adopt={vi.fn()}
+          ports={[port, other]}
+          preview={selectedPreview}
+        />,
+      ),
+    );
+    expect(document.activeElement).toBe(cancel);
   } finally {
     await act(async () => root.unmount());
     container.remove();

@@ -46,7 +46,8 @@ export function AdoptionModal({
       return;
     }
     if (preview?.selected_port_id === pending.id && preview.destination) {
-      portIdentityRef.current?.focus();
+      if (document.activeElement === titleRef.current || document.activeElement === document.body)
+        portIdentityRef.current?.focus();
       pendingCandidate.current = null;
     }
   }, [path, preview]);
