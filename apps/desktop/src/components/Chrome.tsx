@@ -1344,6 +1344,8 @@ export function SettingsView({
           doctor={doctor}
           busy={busy}
           actions={hostToolActions}
+          refreshing={diagnosticsRefreshing}
+          refresh={refreshDiagnostics}
           stale={diagnosticsStale}
           failure={diagnosticFailure}
         />
@@ -1614,12 +1616,16 @@ function HostReadiness({
   doctor,
   busy,
   actions,
+  refreshing,
+  refresh,
   stale,
   failure,
 }: {
   doctor?: DoctorReport;
   busy?: string;
   actions?: HostToolActions;
+  refreshing?: boolean;
+  refresh?: () => Promise<unknown>;
   stale?: boolean;
   failure?: unknown;
 }) {
@@ -1630,9 +1636,12 @@ function HostReadiness({
         <Icon glyph={Wrench} />
         Disc tools
       </h2>
+      {Boolean(failure) && <p role="alert">Couldn’t check disc tools.</p>}
       {doctor ? (
         <>
-          {stale && <p role="status">Showing the last successful host check.</p>}
+          {(stale || Boolean(failure)) && (
+            <p role="status">Showing the last successful host check.</p>
+          )}
           <p className="host-summary">
             <code>{doctor.platform}</code>
             <span>
@@ -1647,9 +1656,20 @@ function HostReadiness({
           </div>
         </>
       ) : failure ? (
-        <p>Host readiness is unavailable until diagnostics succeed.</p>
+        <p>Disc-tool status is unavailable until the check succeeds.</p>
       ) : (
         <p>Checking disc-tool availability…</p>
+      )}
+      {Boolean(failure) && (
+        <Button
+          data-focusable
+          variant="outline"
+          size="sm"
+          disabled={Boolean(busy) || Boolean(refreshing) || !refresh}
+          onClick={() => void refresh?.()}
+        >
+          {refreshing ? "Checking disc tools…" : "Check disc tools again"}
+        </Button>
       )}
       <p>
         These optional tools are used only when Portcove must check, extract, or convert supported
@@ -1696,7 +1716,7 @@ export function HostToolRow({
     unsupported: { label: "Unsupported", icon: CircleMinus },
   };
   const state = states[tool.state];
-  const location = tool.path ?? `Set ${tool.configuration_variable}`;
+  const location = tool.path ?? `Environment variable: ${tool.configuration_variable}`;
   const configured = tool.source === "saved";
   const source =
     tool.source === "saved"
@@ -1716,39 +1736,29 @@ export function HostToolRow({
         </span>
       </div>
       <small>{tool.purpose}</small>
-      <code title={location}>{location}</code>
-      <small>
-        {source}
-        {showTechnicalId && (
-          <>
-            {" "}
-            · Technical ID: <code>{tool.id}</code>
-          </>
-        )}
-      </small>
+      {tool.state === "missing" && (
+        <p>{tool.display_name} was not found. Choose its executable to continue.</p>
+      )}
+      {tool.state === "misconfigured" &&
+        (tool.source === "environment" ? (
+          <p>Update this tool’s environment override outside Portcove, restart, then recheck it.</p>
+        ) : (
+          <p>Portcove couldn’t use this executable. Choose it again to continue.</p>
+        ))}
       <div className="button-row">
-        <Button
-          data-focusable
-          variant="outline"
-          size="sm"
-          disabled={busy || Boolean(pending) || !actions}
-          onClick={() => {
-            void run("site", () => actions?.openOfficial(tool.id));
-          }}
-        >
-          Official site
-        </Button>
-        <Button
-          data-focusable
-          variant="outline"
-          size="sm"
-          disabled={busy || Boolean(pending) || !actions}
-          onClick={() => {
-            void run("locate", () => actions?.locate(tool));
-          }}
-        >
-          {pending === "locate" ? "Checking…" : "Locate executable…"}
-        </Button>
+        {tool.source !== "environment" && (
+          <Button
+            data-focusable
+            variant="outline"
+            size="sm"
+            disabled={busy || Boolean(pending) || !actions}
+            onClick={() => {
+              void run("locate", () => actions?.locate(tool));
+            }}
+          >
+            {pending === "locate" ? "Checking…" : `Locate ${tool.display_name}…`}
+          </Button>
+        )}
         <Button
           data-focusable
           variant="outline"
@@ -1759,6 +1769,17 @@ export function HostToolRow({
           }}
         >
           {pending === "recheck" ? "Checking…" : "Recheck"}
+        </Button>
+        <Button
+          data-focusable
+          variant="outline"
+          size="sm"
+          disabled={busy || Boolean(pending) || !actions}
+          onClick={() => {
+            void run("site", () => actions?.openOfficial(tool.id));
+          }}
+        >
+          Official site
         </Button>
         {configured && (
           <Button
@@ -1774,6 +1795,19 @@ export function HostToolRow({
           </Button>
         )}
       </div>
+      <details className="host-tool-details">
+        <summary>Tool details</summary>
+        <code title={location}>{location}</code>
+        <small>
+          {source}
+          {showTechnicalId && (
+            <>
+              {" "}
+              · Technical ID: <code>{tool.id}</code>
+            </>
+          )}
+        </small>
+      </details>
       {outcome && <p role="status">{outcome.message}</p>}
       {error && <p role="alert">{error}</p>}
     </div>

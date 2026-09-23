@@ -317,6 +317,10 @@ credential provenance and request accounting in Connection details. Token entry
 has a persistent visible label, while environment-controlled credentials keep
 their outside-Portcove recovery instructions. An unavailable connection-status
 read must not appear as an anonymous sign-in result.
+Disc-tool recovery leads with the tool name, missing or invalid state, and a
+working Locate or retry action. Keep executable paths, configuration variables,
+and discovery provenance in Tool details; an environment override cannot be
+replaced by a saved path inside Portcove.
 
 Motion remains short, tactile, and functional for press, selection, panel,
 palette, notice, disclosure, and artwork transitions. Reduced motion removes
