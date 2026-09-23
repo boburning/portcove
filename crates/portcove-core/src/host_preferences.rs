@@ -15,6 +15,11 @@ use crate::{PortcoveError, Result};
 
 const FORMAT_VERSION: u32 = 1;
 const MAX_BYTES: u64 = 64 * 1024;
+const INVALID_DOCUMENT_DETAIL: &str = "invalid_host_preference_document";
+
+fn invalid_document(error: PortcoveError) -> PortcoveError {
+    error.detail(INVALID_DOCUMENT_DETAIL, "true")
+}
 
 type ProcessPreferenceLock = Arc<Mutex<()>>;
 type ProcessPreferenceLockRegistry = Mutex<HashMap<PathBuf, Weak<Mutex<()>>>>;
@@ -132,33 +137,37 @@ impl HostPreferenceStore {
         }
         let bytes = crate::path::read_bounded_regular(&self.path, MAX_BYTES)?;
         let preferences: HostPreferences = serde_json::from_slice(&bytes).map_err(|error| {
-            PortcoveError::state("host preferences are malformed; explicitly reset or repair them")
-                .detail("cause", error.to_string())
+            invalid_document(
+                PortcoveError::state(
+                    "host preferences are malformed; explicitly reset or repair them",
+                )
+                .detail("cause", error.to_string()),
+            )
         })?;
         if preferences.format_version != FORMAT_VERSION {
-            return Err(
+            return Err(invalid_document(
                 PortcoveError::unsupported("unsupported host preference format")
                     .detail("format_version", preferences.format_version.to_string()),
-            );
+            ));
         }
         if let Some(root) = &preferences.library_root {
-            validate_absolute(root)?;
+            validate_absolute(root).map_err(invalid_document)?;
         }
         if let Some(locale) = &preferences.locale {
-            validate_locale_preference(locale)?;
+            validate_locale_preference(locale).map_err(invalid_document)?;
         }
         for (id, selection) in &preferences.host_tool_paths {
-            crate::host_tools::definition(id)?;
-            validate_absolute(&selection.path)?;
+            crate::host_tools::definition(id).map_err(invalid_document)?;
+            validate_absolute(&selection.path).map_err(invalid_document)?;
             if selection.sha256.len() != 64
                 || !selection
                     .sha256
                     .bytes()
                     .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
             {
-                return Err(PortcoveError::state(format!(
+                return Err(invalid_document(PortcoveError::state(format!(
                     "saved host-tool fingerprint is invalid: {id}"
-                )));
+                ))));
             }
         }
         Ok(preferences)
@@ -205,6 +214,23 @@ impl HostPreferenceStore {
         let mut preferences = self.load()?;
         preferences.library_root = None;
         self.publish(&preferences)
+    }
+
+    /// Select the default library without erasing other valid settings. Explicit
+    /// recovery replaces only a document that fails parsing or validation; path,
+    /// lock, and publication errors remain failures.
+    pub fn clear_library_or_reset_invalid(&self) -> Result<()> {
+        let _lock = self.lock()?;
+        match self.load() {
+            Ok(mut preferences) => {
+                preferences.library_root = None;
+                self.publish(&preferences)
+            }
+            Err(error) if error.details.contains_key(INVALID_DOCUMENT_DETAIL) => {
+                self.publish(&HostPreferences::default())
+            }
+            Err(error) => Err(error),
+        }
     }
 
     pub fn locale_preference(&self) -> Result<Option<String>> {

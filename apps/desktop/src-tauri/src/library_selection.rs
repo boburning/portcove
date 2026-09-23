@@ -158,17 +158,9 @@ fn persist_selection(
         LibrarySelectionSource::Saved => preferences
             .set_library(&selection.root)
             .map_err(DesktopError::from),
-        LibrarySelectionSource::PlatformDefault => match preferences.clear_library() {
-            Ok(()) => Ok(()),
-            Err(error)
-                if error.code == portcove_core::ErrorCode::Unsupported
-                    || error.details.contains_key("cause") =>
-            {
-                // Only a damaged or newer-format document needs explicit recovery.
-                preferences.reset().map_err(DesktopError::from)
-            }
-            Err(error) => Err(error.into()),
-        },
+        LibrarySelectionSource::PlatformDefault => preferences
+            .clear_library_or_reset_invalid()
+            .map_err(DesktopError::from),
         LibrarySelectionSource::Invocation => Err(PortcoveError::state(
             "an invocation override cannot be persisted as a desktop selection",
         )
@@ -297,24 +289,39 @@ mod tests {
     }
 
     #[test]
-    fn selecting_default_recovers_a_malformed_host_preference_document() {
+    fn selecting_default_recovers_only_invalid_host_preference_documents() {
         let temporary = tempfile::tempdir().unwrap();
         let preference_path = temporary.path().join("config/preferences.json");
         fs::create_dir_all(preference_path.parent().unwrap()).unwrap();
-        fs::write(&preference_path, b"{").unwrap();
-        let preferences = HostPreferenceStore::new(preference_path).unwrap();
-        persist_selection(
-            &preferences,
-            &LibrarySelection {
-                root: temporary.path().join("default"),
-                source: LibrarySelectionSource::PlatformDefault,
-            },
-        )
-        .unwrap();
-        assert_eq!(
-            serde_json::to_value(preferences.load().unwrap()).unwrap(),
-            serde_json::to_value(portcove_core::HostPreferences::default()).unwrap()
-        );
+        let preferences = HostPreferenceStore::new(preference_path.clone()).unwrap();
+        let damaged = [
+            b"{".to_vec(),
+            br#"{"format_version":1,"library_root":"relative"}"#.to_vec(),
+            br#"{"format_version":99,"library_root":null}"#.to_vec(),
+            serde_json::to_vec(&serde_json::json!({
+                "format_version": 1,
+                "library_root": null,
+                "host_tool_paths": {
+                    "chdman": { "path": temporary.path().join("chdman.exe"), "sha256": "invalid" }
+                }
+            }))
+            .unwrap(),
+        ];
+        for bytes in damaged {
+            fs::write(&preference_path, bytes).unwrap();
+            persist_selection(
+                &preferences,
+                &LibrarySelection {
+                    root: temporary.path().join("default"),
+                    source: LibrarySelectionSource::PlatformDefault,
+                },
+            )
+            .unwrap();
+            assert_eq!(
+                serde_json::to_value(preferences.load().unwrap()).unwrap(),
+                serde_json::to_value(portcove_core::HostPreferences::default()).unwrap()
+            );
+        }
     }
     #[test]
     fn library_switch_cannot_replace_an_inflight_transfer_or_switch() {
