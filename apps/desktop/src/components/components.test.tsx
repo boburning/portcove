@@ -2207,6 +2207,9 @@ describe("desktop components", () => {
       />,
     );
     expect(unselected).toContain("Required BIOS");
+    const sourceInputs = unselected.match(/<input\b[^>]*id="source-[^"]+"[^>]*>/g) ?? [];
+    expect(sourceInputs).toHaveLength(2);
+    expect(sourceInputs.every((input) => input.includes('data-slot="input"'))).toBe(true);
     expect(unselected).toContain("PlayStation SCPH-1001 BIOS");
     expect(unselected).toContain("Choose the required BIOS file");
     expect(unselected).toContain(

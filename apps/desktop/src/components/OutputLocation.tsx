@@ -13,6 +13,7 @@ import { errorText, formatBytes, formatCountMessage } from "../view-model";
 import { Icon } from "./ui";
 import { Button } from "./ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "./ui/dialog";
+import { Input } from "./ui/input";
 
 export function OutputLocationControl({
   portId,
@@ -297,7 +298,7 @@ export function OutputLocationControl({
       </p>
       <label htmlFor={`output-location-path-${portId}`}>Folder for future installs</label>
       <div className="path-entry">
-        <input
+        <Input
           id={`output-location-path-${portId}`}
           data-focusable
           value={draft}
