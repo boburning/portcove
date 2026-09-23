@@ -842,7 +842,13 @@ fn main() -> ExitCode {
 fn command_is_observation(command: &Commands) -> bool {
     matches!(
         command,
-        Commands::Status { .. }
+        Commands::Auth {
+            command: AuthCommand::Status,
+        } | Commands::Capabilities
+            | Commands::Catalog {
+                command: CatalogCommand::Update { apply: false, .. },
+            }
+            | Commands::Status { .. }
             | Commands::Activity { .. }
             | Commands::Storage
             | Commands::Doctor
@@ -866,6 +872,9 @@ fn command_is_observation(command: &Commands) -> bool {
                     | SourceCommand::Relink { apply: false, .. }
                     | SourceCommand::Inbox {
                         command: SourceInboxCommand::Path { .. },
+                    }
+                    | SourceCommand::Inbox {
+                        command: SourceInboxCommand::Import { apply: false, .. },
                     }
                     | SourceCommand::Roots {
                         command: GameFileRootCommand::List | GameFileRootCommand::Snapshot,
@@ -2822,6 +2831,17 @@ mod tests {
             vec!["portcove", "status"],
             vec!["portcove", "activity"],
             vec!["portcove", "doctor"],
+            vec!["portcove", "auth", "status"],
+            vec!["portcove", "capabilities"],
+            vec!["portcove", "catalog", "update", "--file", "catalog.json"],
+            vec![
+                "portcove",
+                "source",
+                "inbox",
+                "import",
+                "zelda64-recomp",
+                "source.iso",
+            ],
             vec!["portcove", "catalog", "export"],
             vec!["portcove", "backup", "list", "zelda64-recomp"],
         ] {
@@ -2831,6 +2851,27 @@ mod tests {
         for arguments in [
             vec!["portcove", "remove", "zelda64-recomp", "--yes"],
             vec!["portcove", "backup", "create", "zelda64-recomp"],
+            vec![
+                "portcove",
+                "catalog",
+                "update",
+                "--file",
+                "catalog.json",
+                "--apply",
+                "--expected-plan",
+                "abc",
+            ],
+            vec![
+                "portcove",
+                "source",
+                "inbox",
+                "import",
+                "zelda64-recomp",
+                "source.iso",
+                "--apply",
+                "--expected-plan",
+                "abc",
+            ],
         ] {
             let cli = Cli::try_parse_from(arguments.clone()).unwrap();
             assert!(

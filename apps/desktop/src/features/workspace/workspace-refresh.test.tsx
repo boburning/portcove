@@ -533,6 +533,45 @@ describe("workspace refresh recovery", () => {
     expect(host.textContent).not.toContain("Library recovery could not finish");
   });
 
+  it("restores focus after recovery retry failure and success", async () => {
+    HTMLElement.prototype.scrollIntoView = vi.fn();
+    const region = document.createElement("main");
+    region.dataset.focusRegion = "workspace";
+    const workspaceButton = document.createElement("button");
+    workspaceButton.setAttribute("aria-current", "page");
+    region.append(workspaceButton);
+    document.body.append(region);
+    await render();
+    vi.mocked(desktopApi.workspaceChanged).mockResolvedValueOnce(true);
+    vi.mocked(desktopApi.discoverOrphanedOperations).mockRejectedValueOnce(failureReport());
+    await act(async () => vi.advanceTimersByTimeAsync(10_000));
+
+    vi.mocked(desktopApi.discoverOrphanedOperations).mockRejectedValueOnce(failureReport());
+    let retryButton = [...host.querySelectorAll<HTMLButtonElement>("button")].find(
+      (button) => button.textContent === "Retry recovery",
+    );
+    expect(retryButton).toBeDefined();
+    await act(async () => {
+      retryButton?.focus();
+      retryButton?.click();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    retryButton = [...host.querySelectorAll<HTMLButtonElement>("button")].find(
+      (button) => button.textContent === "Retry recovery",
+    );
+    expect(document.activeElement).toBe(retryButton);
+
+    await act(async () => {
+      retryButton?.click();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(data.recoveryFailure).toBeUndefined();
+    expect(document.activeElement).toBe(workspaceButton);
+    region.remove();
+  });
+
   it("retains the last essential snapshot and exposes a failed refresh", async () => {
     await render();
     vi.mocked(desktopApi.workspaceSnapshot).mockRejectedValueOnce(failureReport());

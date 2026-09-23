@@ -550,17 +550,30 @@ impl PortcoveService {
                 && operation.install.is_none();
             match self.recover_lifecycle_operation(&store, &mut operation) {
                 Err(error) => {
+                    // A recovery handler may retire its own journal before a later
+                    // result/diagnostic step fails. Never recreate that retired row.
+                    let Some(mut current) = store.get(&candidate.id)? else {
+                        tracing::warn!(
+                            operation_id = candidate.id,
+                            port_id = candidate.port_id,
+                            "lifecycle recovery retired its journal before reporting: {error}"
+                        );
+                        continue;
+                    };
+                    if current.created_at != candidate.created_at
+                        || current.kind != candidate.kind
+                        || current.port_id != candidate.port_id
+                    {
+                        continue;
+                    }
                     let new_error = if failed_install_cleanup {
-                        install_cleanup_retry_message(
-                            operation.last_error.as_deref(),
-                            &error.message,
-                        )
+                        install_cleanup_retry_message(current.last_error.as_deref(), &error.message)
                     } else {
                         error.message.clone()
                     };
-                    if operation.last_error.as_deref() != Some(new_error.as_str()) {
-                        operation.last_error = Some(new_error);
-                        store.put(&mut operation)?;
+                    if current.last_error.as_deref() != Some(new_error.as_str()) {
+                        current.last_error = Some(new_error);
+                        store.put(&mut current)?;
                     }
                     tracing::warn!(
                         operation_id = operation.id,

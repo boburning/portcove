@@ -24,14 +24,16 @@ export function WorkspaceRefreshNotice({
   subscriptionFailure?: unknown;
 }) {
   const retryButton = useRef<HTMLButtonElement>(null);
+  const recoveryRetryButton = useRef<HTMLButtonElement>(null);
   const retryRequested = useRef(false);
   useEffect(() => {
     if (refreshing || !retryRequested.current) return;
     retryRequested.current = false;
     if (document.activeElement !== document.body) return;
     if (failure) focusAndReveal(retryButton.current);
+    else if (recoveryFailure) focusAndReveal(recoveryRetryButton.current);
     else focusRegion("workspace");
-  }, [failure, refreshing]);
+  }, [failure, recoveryFailure, refreshing]);
   if (!failure && !recoveryFailure && !subscriptionFailure) return null;
   if (!failure && recoveryFailure)
     return (
@@ -46,10 +48,14 @@ export function WorkspaceRefreshNotice({
           </p>
           <p>{errorText(recoveryFailure.error)}</p>
           <Button
+            ref={recoveryRetryButton}
             variant="outline"
             data-focusable
             disabled={refreshing}
-            onClick={() => void retryRecovery()}
+            onClick={() => {
+              retryRequested.current = true;
+              void retryRecovery();
+            }}
           >
             Retry recovery
           </Button>
