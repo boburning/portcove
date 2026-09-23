@@ -171,6 +171,33 @@ mod tests {
     }
 
     #[test]
+    fn registered_source_recovery_guidance_matches_relink_content_guard() {
+        let (_temporary, service, original, replacement) = fixture();
+        fs::write(&original, b"different synthetic source").unwrap();
+
+        let changed = service.inspect_registered_source("star-fox-64").unwrap();
+        assert_eq!(changed.state_code, "source_changed");
+        assert!(changed.next_action.contains("unchanged copy"));
+        assert!(changed.next_action.contains("add them again"));
+        assert!(
+            service
+                .plan_source_relink("star-fox-64", &original)
+                .is_err()
+        );
+        assert!(
+            service
+                .plan_source_relink("star-fox-64", &replacement)
+                .is_ok()
+        );
+
+        fs::remove_file(&original).unwrap();
+        let missing = service.inspect_registered_source("star-fox-64").unwrap();
+        assert_eq!(missing.state_code, "source_missing");
+        assert!(missing.next_action.contains("unchanged copy"));
+        assert!(missing.next_action.contains("add them again"));
+    }
+
+    #[test]
     fn source_changes_conflict_with_a_dependent_port_and_another_source_writer() {
         let (_temporary, service, original, replacement) = fixture();
         let plan = service

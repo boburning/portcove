@@ -183,7 +183,7 @@ pub(crate) fn unavailable_report(
         SourceHealth::Missing => (
             "source_missing",
             "The registered source could not be found.",
-            "Reconnect the original storage or relink this source to the reviewed replacement.",
+            "Reconnect the original storage or relink to an unchanged copy of the registered files. To use different files, add them again for checking.",
         ),
         _ => (
             "source_could_not_be_checked",
@@ -455,7 +455,7 @@ fn report_message(
         return (
             "source_changed",
             "The selected source differs from the registered baseline.",
-            "Review the full actual and expected identities, then relink only if this replacement is intended.",
+            "These files have changed since they were added. Choose an unchanged copy to update their location. To use different files, add them again so Portcove can check them.",
         );
     }
     if matches!(
