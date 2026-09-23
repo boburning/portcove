@@ -63,6 +63,7 @@ import { SourceDiscoveryButton } from "./SourceDiscovery";
 import { SourceIdentityPanel } from "./SourceIdentity";
 import { Icon, NavigationHints, Shortcut } from "./ui";
 import { Button } from "./ui/button";
+import { Input } from "./ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "./ui/dialog";
 import { commandShortcut } from "../keyboard-shortcuts";
 import { LanguageSettings } from "./LanguageSettings";
@@ -601,9 +602,10 @@ function TokenEntry({ github, busy }: { github?: GithubSettingsActions; busy: bo
       {github?.status?.device_login_available && <p>Use a token instead</p>}
       <label htmlFor="github-personal-access-token">Personal access token</label>
       <div className="token-entry">
-        <input
+        <Input
           id="github-personal-access-token"
           data-focusable
+          className="flex-1"
           type="password"
           autoComplete="off"
           value={github?.token ?? ""}

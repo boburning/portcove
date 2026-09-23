@@ -1468,6 +1468,10 @@ describe("desktop components", () => {
       '<label for="github-personal-access-token">Personal access token</label>',
     );
     expect(anonymous).toContain('id="github-personal-access-token"');
+    const tokenField = anonymous.match(/<input[^>]*id="github-personal-access-token"[^>]*>/)?.[0];
+    expect(tokenField).toContain('data-slot="input"');
+    expect(tokenField).toContain('type="password"');
+    expect(tokenField).toContain('autoComplete="off"');
     expect(anonymous).toContain("Sign in with GitHub");
     expect(connectedWithoutLogin).toContain("Connected to GitHub");
     expect(connectedWithoutLogin).not.toContain("Connected as null");
