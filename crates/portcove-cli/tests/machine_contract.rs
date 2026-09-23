@@ -1840,7 +1840,7 @@ fn output_preview_agrees_across_modes() {
         &["output", "preview", "lighthouse", destination_text],
     ))
     .to_owned();
-    assert!(human_preview.starts_with("Export / install folder preview for lighthouse"));
+    assert!(human_preview.starts_with("Install folder preview for lighthouse"));
     assert!(human_preview.contains(fingerprint));
     let jsonl_preview = json_stdout(&portcove(
         library,
@@ -1881,7 +1881,7 @@ fn output_set_rejects_stale_review_and_show_agrees_across_modes() {
 
     let show = portcove(library, &["output", "show", "lighthouse"]);
     let human = human_stdout(&show);
-    assert!(human.starts_with("Export / install folder for lighthouse\nEffective:"));
+    assert!(human.starts_with("Install folder for lighthouse\nEffective:"));
     assert!(human.contains("Existing installs are not moved"));
     let json_show = json_stdout(&portcove(
         library,

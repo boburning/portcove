@@ -1301,7 +1301,7 @@ export function SettingsView({
         id="library-storage"
         eyebrow="STORAGE LOCATIONS"
         title="Library & Storage"
-        description="Choose which Portcove library opens at startup. Each game’s Export / install folder is reviewed separately from its game page."
+        description="Choose which Portcove library opens at startup. Each game’s install folder is reviewed separately from its game page."
       >
         <LibrarySelectionCard
           selection={librarySelection}
@@ -1508,18 +1508,20 @@ export function LibrarySelectionCard({
   };
   const source =
     selection?.source === "saved"
-      ? "Saved host preference"
+      ? "Saved library"
       : selection?.source === "invocation"
-        ? "One-run override"
-        : "Platform default";
+        ? "This launch only"
+        : selection?.source === "platform_default"
+          ? "Default library"
+          : "Selection unavailable";
   return (
     <article className="settings-card" data-focus-group>
       <p className="eyebrow">WHOLE PORTCOVE LIBRARY</p>
-      <h2>Startup selection</h2>
+      <h2>Library at startup</h2>
       <code>{selection?.root ?? "Unavailable"}</code>
       <p>
-        {source}. Switching opens another existing empty folder or Portcove library. It does not
-        move files or change any game’s Export / install folder.
+        {source}. Opening another library does not move your files. Game install folders stay as
+        configured.
       </p>
       <div className="button-row">
         <Button
@@ -1533,7 +1535,7 @@ export function LibrarySelectionCard({
             void chooseCandidate();
           }}
         >
-          Review library switch
+          Choose another library
         </Button>
         <Button
           ref={resetTrigger}
@@ -1546,7 +1548,7 @@ export function LibrarySelectionCard({
             void reviewDefault();
           }}
         >
-          Review platform default
+          Use default library
         </Button>
       </div>
       {review && (
@@ -1575,8 +1577,8 @@ export function LibrarySelectionCard({
               className="mb-4 leading-relaxed"
             >
               {review.kind === "switch"
-                ? "Portcove will close this library and open the reviewed selection. Existing files stay in place, and per-game Export / install folders do not change."
-                : "Portcove will open the default library shown below. Files in the current library will stay where they are. Per-game Export / install folders do not change."}
+                ? "Portcove will open this library and save it for future launches. A launch override can still select another library for one launch. Existing files and game install folders stay where they are."
+                : "Portcove will open the default library shown below and clear the saved library choice. Files in the current library will stay where they are. Game install folders stay configured."}
             </DialogDescription>
             <code className="block break-all">{review.path}</code>
             <DialogFooter className="mt-4">
@@ -1592,7 +1594,7 @@ export function LibrarySelectionCard({
                   ? "Switching…"
                   : review.kind === "switch"
                     ? "Switch whole library"
-                    : "Use platform default"}
+                    : "Open default library"}
               </Button>
               <Button
                 data-focusable

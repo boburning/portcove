@@ -128,7 +128,7 @@ export function OutputLocationControl({
   const review = async (path: string | null) => {
     const selectedPath = path?.trim() ?? null;
     if (path !== null && !selectedPath) {
-      setError("Choose an absolute Export / install folder before reviewing the change.");
+      setError("Choose an absolute install folder before reviewing the change.");
       return;
     }
     const currentRequest = ++request.current;
@@ -272,7 +272,7 @@ export function OutputLocationControl({
           <p className="eyebrow">STORAGE LOCATION</p>
           <h3 id={`output-location-${portId}`}>
             <Icon glyph={HardDrive} />
-            Export / install folder
+            Install folder
           </h3>
         </div>
         <span
@@ -292,10 +292,10 @@ export function OutputLocationControl({
         />
       )}
       <p>
-        Changing this folder affects future installs for this game only. Existing versions stay
-        where Portcove recorded them; relocation is a separate reviewed action.
+        New versions will be installed here. Existing versions will not move. Relocation is a
+        separate reviewed action.
       </p>
-      <label htmlFor={`output-location-path-${portId}`}>Future Export / install folder</label>
+      <label htmlFor={`output-location-path-${portId}`}>Folder for future installs</label>
       <div className="path-entry">
         <input
           id={`output-location-path-${portId}`}

@@ -95,7 +95,7 @@ export function pickSteamFolder(currentPath: string) {
 
 export function pickGameOutputFolder(currentPath: string) {
   return open({
-    title: "Choose Export / install folder",
+    title: "Choose install folder",
     multiple: false,
     directory: true,
     defaultPath: currentPath || undefined,
