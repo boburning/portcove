@@ -296,6 +296,7 @@ mod tests {
         let preferences = HostPreferenceStore::new(preference_path.clone()).unwrap();
         let damaged = [
             b"{".to_vec(),
+            vec![b'x'; 70 * 1024],
             br#"{"format_version":1,"library_root":"relative"}"#.to_vec(),
             br#"{"format_version":99,"library_root":null}"#.to_vec(),
             serde_json::to_vec(&serde_json::json!({

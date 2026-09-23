@@ -29,10 +29,17 @@ pub(crate) fn refuse_symlink_ancestors(path: &Path) -> Result<()> {
 pub(crate) fn read_bounded_regular(path: &Path, limit: u64) -> Result<Vec<u8>> {
     use std::io::Read;
     let metadata = std::fs::symlink_metadata(path)?;
-    if !metadata.is_file() || metadata.file_type().is_symlink() || metadata.len() > limit {
+    if !metadata.is_file() || metadata.file_type().is_symlink() {
         return Err(
             PortcoveError::verification("metadata must be a bounded regular file")
                 .detail("path", path.display().to_string()),
+        );
+    }
+    if metadata.len() > limit {
+        return Err(
+            PortcoveError::verification("metadata must be a bounded regular file")
+                .detail("path", path.display().to_string())
+                .detail("bounded_regular_oversize", "true"),
         );
     }
     let mut bytes = Vec::new();
@@ -40,9 +47,10 @@ pub(crate) fn read_bounded_regular(path: &Path, limit: u64) -> Result<Vec<u8>> {
         .take(limit.saturating_add(1))
         .read_to_end(&mut bytes)?;
     if bytes.len() as u64 > limit {
-        return Err(PortcoveError::verification(
-            "metadata grew beyond its read limit",
-        ));
+        return Err(
+            PortcoveError::verification("metadata grew beyond its read limit")
+                .detail("bounded_regular_oversize", "true"),
+        );
     }
     Ok(bytes)
 }

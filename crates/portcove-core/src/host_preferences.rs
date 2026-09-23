@@ -135,7 +135,13 @@ impl HostPreferenceStore {
             Err(error) => return Err(error.into()),
             Ok(_) => {}
         }
-        let bytes = crate::path::read_bounded_regular(&self.path, MAX_BYTES)?;
+        let bytes = crate::path::read_bounded_regular(&self.path, MAX_BYTES).map_err(|error| {
+            if error.details.contains_key("bounded_regular_oversize") {
+                invalid_document(error)
+            } else {
+                error
+            }
+        })?;
         let preferences: HostPreferences = serde_json::from_slice(&bytes).map_err(|error| {
             invalid_document(
                 PortcoveError::state(
