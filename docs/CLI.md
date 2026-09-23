@@ -19,8 +19,10 @@ use the [reference below](#automation-and-integration-reference).
    Use `portcove source list` to check registered sources.
 3. Run `portcove install PORT_ID` after reviewing the plan. Installation can
    download and activate a managed version, subject to its source and host
-   requirements. `portcove status PORT_ID` reports the resulting state. To use
-   an existing ready install or install when needed, run `portcove ensure PORT_ID`.
+   requirements. `portcove status PORT_ID` reports the resulting state. To reuse
+   the current install when its required runtime is present, or install a
+   selected release, run `portcove ensure PORT_ID`. Check full launch readiness
+   with `portcove status PORT_ID` separately.
 4. Start the installed game with `portcove exec PORT_ID`. Portcove supervises
    the process and retains a launch activity; inspect recent outcomes with
    `portcove activity`. Review launch readiness first in `portcove status PORT_ID`.

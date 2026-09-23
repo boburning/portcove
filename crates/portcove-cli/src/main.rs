@@ -133,7 +133,7 @@ enum Commands {
     Reconcile(UpdateTargetArgs),
     Install(InstallArgs),
     Adopt(AdoptArgs),
-    /// Use a ready current installation, or install a selected release when needed.
+    /// Reuse the current installation when its required runtime is present, or install a selected release.
     Ensure(EnsureArgs),
     Update(UpdateArgs),
     Verify {

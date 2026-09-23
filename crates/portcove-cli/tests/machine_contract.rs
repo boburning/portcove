@@ -30,10 +30,7 @@ fn cli_binary() -> std::path::PathBuf {
 #[test]
 fn consequential_help_explains_actions_and_review_arguments() {
     for (args, expected) in [
-        (
-            &["ensure", "--help"][..],
-            "Use a ready current installation",
-        ),
+        (&["ensure", "--help"][..], "required runtime is present"),
         (&["reconcile", "--help"][..], "saved update policy"),
         (&["activate", "--help"][..], "staged release"),
         (
