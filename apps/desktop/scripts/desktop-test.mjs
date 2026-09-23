@@ -1014,10 +1014,11 @@ try {
       15_000,
     );
     await languageTrigger.click();
-    assert.equal(
-      (await browser.findElements(By.xpath('//*[@role="option" and contains(., "العربية")]')))
-        .length,
-      0,
+    assert.deepEqual(
+      await Promise.all(
+        (await browser.findElements(By.css('[role="option"]'))).map((option) => option.getText()),
+      ),
+      ["System default", "English"],
       "the engineering locale must not be a new production picker choice",
     );
     await browser

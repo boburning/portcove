@@ -158,19 +158,24 @@ export function LocalizationProvider({
   useEffect(() => {
     let active = true;
     const request = ++preferenceRequest.current;
-    void api
-      .localePreference()
-      .then((snapshot) => {
+    void (async () => {
+      let snapshot: LocalePreferenceSnapshot;
+      try {
+        snapshot = await api.localePreference();
+      } catch {
+        if (active && request === preferenceRequest.current) setError("load");
+        return;
+      }
+      try {
         if (!active || request !== preferenceRequest.current) return;
         const stored = snapshot.locale;
         const nextChoice: LocaleChoice = stored === "en" || stored === "ar-XB" ? stored : "system";
-        return apply(nextChoice).then(() => {
-          if (active && request === preferenceRequest.current) setError(null);
-        });
-      })
-      .catch(() => {
-        if (active && request === preferenceRequest.current) setError("load");
-      });
+        await apply(nextChoice);
+        if (active && request === preferenceRequest.current) setError(null);
+      } catch {
+        if (active && request === preferenceRequest.current) setError("apply");
+      }
+    })();
     return () => {
       active = false;
     };

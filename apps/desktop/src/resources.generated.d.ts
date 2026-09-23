@@ -2,7 +2,7 @@
 export default interface Resources {
   "settings": {
     "language": {
-      "applyFailed": "Language preference saved, but Portcove couldn't confirm the display switch. Reopen Settings to check.",
+      "applyFailed": "Portcove couldn't confirm the display language. Reopen Settings to check.",
       "current": "Current language: {{language}}.",
       "description": "English is the supported display language. System default uses English when your system language is unavailable.",
       "engineering": "Arabic (engineering preview)",

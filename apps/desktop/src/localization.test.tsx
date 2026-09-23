@@ -245,8 +245,33 @@ describe("LocalizationProvider", () => {
     await act(async () => localization.select("ar-XB"));
     expect(localization.error).toBe("apply");
     expect(localization.saved).toBe(false);
-    expect(host.textContent).toContain("Language preference saved, but Portcove couldn't confirm");
+    expect(host.textContent).toContain("Portcove couldn't confirm the display language.");
     expect(host.textContent).not.toContain("Couldn't save the language.");
+  });
+
+  it("labels a startup display failure separately from preference loading", async () => {
+    const api: LocalePreferenceApi = {
+      localePreference: vi.fn().mockResolvedValue({ locale: "ar-XB" }),
+      setLocalePreference: vi.fn(),
+    };
+    vi.spyOn(initializeLocalization(), "changeLanguage").mockRejectedValueOnce(
+      new Error("display switch failed"),
+    );
+    let localization!: ReturnType<typeof useLocalization>;
+    function Fixture() {
+      localization = useLocalization();
+      return <LanguageSettings />;
+    }
+    await act(async () =>
+      root.render(
+        <LocalizationProvider api={api}>
+          <Fixture />
+        </LocalizationProvider>,
+      ),
+    );
+    expect(localization.error).toBe("apply");
+    expect(host.textContent).toContain("Portcove couldn't confirm the display language.");
+    expect(host.textContent).not.toContain("Couldn't load your language preference.");
   });
 
   it("labels a previously saved engineering locale as a limited preview", async () => {
