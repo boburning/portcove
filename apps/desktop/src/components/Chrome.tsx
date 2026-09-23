@@ -540,11 +540,13 @@ function GithubConnection({ status }: { status?: GithubAuthStatus }) {
     status && Object.hasOwn(labels, status.source)
       ? labels[status.source]
       : "Sign-in source unavailable";
-  const connectionStatus = connected
-    ? status?.login?.trim()
-      ? `Connected as ${status.login}`
-      : "Connected to GitHub"
-    : "Not signed in";
+  const connectionStatus = !status
+    ? "Connection status unavailable"
+    : connected
+      ? status.login?.trim()
+        ? `Connected as ${status.login}`
+        : "Connected to GitHub"
+      : "Not signed in";
   const stateClass = connected ? "auth-state connected" : "auth-state";
   const StateIcon = connected ? CheckCircle2 : CircleUserRound;
   return (
@@ -556,7 +558,11 @@ function GithubConnection({ status }: { status?: GithubAuthStatus }) {
           {connectionStatus}
         </span>
       </div>
-      {!connected && <p>Not signed in. Signing in increases the limit for release checks.</p>}
+      {!status ? (
+        <p>Refresh status to check the GitHub connection.</p>
+      ) : (
+        !connected && <p>Not signed in. Signing in increases the limit for release checks.</p>
+      )}
       <details className="github-connection-details">
         <summary>Connection details</summary>
         <p>Sign-in source: {source}.</p>
@@ -588,7 +594,8 @@ function DeviceLogin({ login }: { login?: GithubDeviceLogin }) {
 }
 
 function TokenEntry({ github, busy }: { github?: GithubSettingsActions; busy: boolean }) {
-  if (github?.status?.authenticated || github?.status?.source === "environment") return null;
+  if (!github?.status || github.status.authenticated || github.status.source === "environment")
+    return null;
   return (
     <div className="token-entry-group">
       {github?.status?.device_login_available && <p>Use a token instead</p>}

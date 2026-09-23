@@ -1443,6 +1443,15 @@ describe("desktop components", () => {
     expect(connectedWithoutLogin).not.toContain('id="github-personal-access-token"');
   });
 
+  it("does not infer anonymous sign-in while GitHub status is unavailable", () => {
+    const html = renderToStaticMarkup(<SettingsView />);
+    expect(html).toContain("Connection status unavailable");
+    expect(html).toContain("Refresh status to check the GitHub connection.");
+    expect(html).not.toContain("Not signed in.");
+    expect(html).not.toContain('id="github-personal-access-token"');
+    expect(html).toContain("Refresh status");
+  });
+
   it("hides unavailable device sign-in without exposing build configuration", () => {
     const html = renderToStaticMarkup(
       <SettingsView
