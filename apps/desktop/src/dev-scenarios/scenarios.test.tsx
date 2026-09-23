@@ -48,7 +48,12 @@ describe("static development scenarios", () => {
     expect(renderScenario("missing-source")).toContain("game files");
     expect(renderScenario("missing-tool")).toContain("Not found");
     expect(renderScenario("staged-update")).toContain("Activate staged");
-    expect(renderScenario("interrupted-operation")).toContain("Backup recovery required");
+    const interrupted = renderScenario("interrupted-operation");
+    expect(interrupted).toContain("Backup recovery required");
+    expect(interrupted).toContain("Backups need attention");
+    expect(interrupted.indexOf("Restart Portcove, then review doctor output.")).toBeLessThan(
+      interrupted.indexOf("<details"),
+    );
     expect(renderScenario("refresh-failure")).toContain("Showing the last loaded information");
     expect(renderScenario("unavailable-provider")).toContain("Artwork is unavailable");
     const libraryReference = renderScenario("library-reference-long-title");

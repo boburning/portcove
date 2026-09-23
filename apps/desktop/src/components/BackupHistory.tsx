@@ -33,10 +33,10 @@ export function BackupHistory({
     <div className="backup-history">
       <div className="backup-heading">
         <span>Backups</span>
-        <small>{backupSummary(backups.length)}</small>
+        <small>{backupSummary(backups.length, problems.length, state)}</small>
       </div>
       <p>Backups include saves and settings managed by Portcove.</p>
-      {state !== "healthy" && (
+      {(state !== "healthy" || problems.length > 0) && (
         <div className={`backup-inventory-notice ${state}`} role="status">
           <strong>
             {state === "recovery_required"
@@ -44,12 +44,29 @@ export function BackupHistory({
               : "Some backups need attention"}
           </strong>
           <p>
-            {problems.length} backup {problems.length === 1 ? "entry is" : "entries are"}{" "}
-            unavailable.{" "}
+            {problems.length > 0
+              ? `${problems.length} backup ${problems.length === 1 ? "entry is" : "entries are"} unavailable. `
+              : "The backup inventory could not be fully checked. "}
             {backups.length
-              ? "Verified backups remain listed and usable."
-              : "No verified backup is currently available."}
+              ? state === "recovery_required"
+                ? "Verified backups remain listed, but restoring and deleting require recovery to finish."
+                : "Verified backups remain listed and usable."
+              : problems.length > 0
+                ? "No backup is currently available to restore. Review the problems below."
+                : "No backup is currently available to restore."}
           </p>
+          {problems.length > 0 && (
+            <div className="mt-2">
+              <strong>What to do next</strong>
+              <ul className="mt-1 list-disc space-y-1 pl-5">
+                {problems.map((problem) => (
+                  <li key={`${problem.operation_id ?? "entry"}-${problem.path}`}>
+                    {problemLabel(problem.kind)}: {problem.proposed_action}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
           <details>
             <summary data-focusable>Technical details</summary>
             {problems.map((problem) => (
@@ -60,7 +77,6 @@ export function BackupHistory({
                 <strong>{problemLabel(problem.kind)}</strong>
                 <span>{problem.message}</span>
                 <small>{problem.path}</small>
-                <small>Next: {problem.proposed_action}</small>
               </div>
             ))}
           </details>
@@ -90,7 +106,7 @@ export function BackupHistory({
               <Button
                 data-focusable
                 variant="outline"
-                disabled={Boolean(busy)}
+                disabled={Boolean(busy) || state === "recovery_required"}
                 onClick={() => setSelection({ backup, action: "restore" })}
               >
                 <Icon glyph={RotateCcw} />
@@ -101,7 +117,7 @@ export function BackupHistory({
                 variant="destructive"
                 size="icon"
                 aria-label={`Delete backup from ${createdLabel}`}
-                disabled={Boolean(busy)}
+                disabled={Boolean(busy) || state === "recovery_required"}
                 onClick={() => setSelection({ backup, action: "delete" })}
               >
                 <Icon glyph={Trash2} />
@@ -148,7 +164,8 @@ function problemLabel(kind: BackupProblem["kind"]) {
   return Object.hasOwn(labels, kind) ? labels[kind] : "Backup information unavailable";
 }
 
-function backupSummary(count: number) {
-  if (!count) return "No backups yet";
+function backupSummary(count: number, problemCount: number, state: BackupInventory["state"]) {
+  if (!count)
+    return problemCount > 0 || state !== "healthy" ? "Backups need attention" : "No backups yet";
   return `${count} verified backup${count === 1 ? "" : "s"}`;
 }

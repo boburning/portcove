@@ -835,7 +835,7 @@ describe("desktop components", () => {
     expect(populated).not.toContain(`${backup.sha256.slice(0, 10)}…`);
   });
 
-  it("keeps verified backups usable while exposing degraded and recovery details", () => {
+  it("keeps verified backups listed but blocks actions during required recovery", () => {
     const backups = [
       {
         id: "backup-1",
@@ -867,9 +867,98 @@ describe("desktop components", () => {
     );
     expect(html).toContain("Backup recovery required");
     expect(html).toContain("1 verified backup");
+    expect(html).toContain(
+      "Verified backups remain listed, but restoring and deleting require recovery to finish.",
+    );
+    const actionButtons = Array.from(html.matchAll(/<button[^>]*>/gu), ([opening]) => opening);
+    expect(actionButtons).toHaveLength(2);
+    for (const opening of actionButtons) expect(opening).toContain('disabled=""');
+    expect(html).toContain("What to do next");
+    expect(html.indexOf("Restart Portcove, then review doctor output.")).toBeLessThan(
+      html.indexOf("<details"),
+    );
     expect(html).toContain("Technical details");
     expect(html).toContain("Deletion was interrupted");
     expect(html).toContain("Restore");
+  });
+
+  it("leaves verified backups actionable when another inventory entry is degraded", () => {
+    const html = renderToStaticMarkup(
+      <BackupHistory
+        backups={[
+          {
+            id: "backup-1",
+            port_id: port.id,
+            path: "backups/sample/backup-1",
+            created_at: 1,
+            file_count: 1,
+            size: 1024,
+            sha256: "a".repeat(64),
+          },
+        ]}
+        state="degraded"
+        problems={[
+          {
+            kind: "missing_manifest",
+            backup_id: "backup-2",
+            operation_id: null,
+            path: "backups/sample/backup-2",
+            message: "The other backup manifest is missing.",
+            proposed_action: "Review the affected entry.",
+          },
+        ]}
+        restore={vi.fn()}
+        remove={vi.fn()}
+      />,
+    );
+    expect(html).toContain("Verified backups remain listed and usable.");
+    const actionButtons = Array.from(html.matchAll(/<button[^>]*>/gu), ([opening]) => opening);
+    expect(actionButtons).toHaveLength(2);
+    for (const opening of actionButtons) expect(opening).not.toContain('disabled=""');
+  });
+
+  it("names unusable backups honestly and shows each recovery action outside technical details", () => {
+    const html = renderToStaticMarkup(
+      <BackupHistory
+        backups={[]}
+        state="degraded"
+        problems={[
+          {
+            kind: "missing_manifest",
+            backup_id: "backup-1",
+            operation_id: null,
+            path: "backups/sample/backup-1",
+            message: "The manifest is missing.",
+            proposed_action: "Review this entry before removing it.",
+          },
+          {
+            kind: "unreadable_manifest",
+            backup_id: "backup-2",
+            operation_id: null,
+            path: "backups/sample/backup-2",
+            message: "The manifest cannot be read.",
+            proposed_action: "Restore access, then check again.",
+          },
+        ]}
+        restore={vi.fn()}
+        remove={vi.fn()}
+      />,
+    );
+    expect(html).toContain("Backups need attention");
+    expect(html).toContain(
+      "No backup is currently available to restore. Review the problems below.",
+    );
+    expect(html).not.toContain("No backups yet");
+    expect(html).not.toContain("Restore</button>");
+    expect(html.indexOf("What to do next")).toBeLessThan(html.indexOf("<details"));
+    expect(html.indexOf("Review this entry before removing it.")).toBeLessThan(
+      html.indexOf("<details"),
+    );
+    expect(html.indexOf("Restore access, then check again.")).toBeLessThan(
+      html.indexOf("<details"),
+    );
+    expect(html.indexOf("backups/sample/backup-1")).toBeGreaterThan(html.indexOf("<details"));
+    expect(html.indexOf("The manifest is missing.")).toBeGreaterThan(html.indexOf("<details"));
   });
 
   it("renders navigation, headers, status, and settings content", () => {
