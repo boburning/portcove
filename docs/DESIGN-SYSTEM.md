@@ -128,6 +128,28 @@ The first foundation slice records the actual `components.json` paths, aliases, 
 
 GUI labels should match the CLI concepts. A GUI action that external tools may automate should expose its canonical `portcove` command where practical.
 
+### Public beta writing and terminology
+
+Use **original game files** for user-supplied input; name a ROM, disc image,
+or BIOS when its format matters. A **saved game-file location** is a remembered
+external reference, the **Portcove library** holds managed content, and an
+**install folder** is future placement for installed versions. Use **saved data**
+for the port's managed saves, settings, and other persistent files, with that
+scope explained. A **Steam shortcut** is the integration object. **File details**,
+**Technical details**, and **Test results** name different supporting information.
+Use “port” for an implementation, catalog entry, or channel and “game” for
+playing or managing saved data. Apply these terms to the affected copy rather
+than replacing words globally.
+
+Name a concrete action and object; say “Review” when review is actually next.
+Place consequences before implementation detail and keep essential warnings
+visible. Errors state the known cause, outcome, and realistic next action. Use
+sentence case and neutral task names beside authoritative status. Complete
+localized messages use named interpolation and correct plurals; human formatting
+may follow locale while machine contracts remain stable. Keep technical detail
+for the audience that needs it. [#209](https://github.com/boburning/portcove/issues/209)
+owns the broader 1.0 documentation architecture.
+
 When a general product explanation is useful, prefer: “Portcove handles
 installation, updates, and saves for native game ports. Use its desktop app, or
 connect another launcher through the command-line interface.” Use named projects

@@ -1016,9 +1016,9 @@ describe("desktop components", () => {
     expect(groupMarkup("integrations")).toContain("Optional authentication");
     const advanced = groupMarkup("advanced");
     expect(advanced.indexOf("Create support bundle")).toBeLessThan(
-      advanced.indexOf("Local and source-safe"),
+      advanced.indexOf("Original game files stay local"),
     );
-    expect(advanced.indexOf("Local and source-safe")).toBeLessThan(
+    expect(advanced.indexOf("Original game files stay local")).toBeLessThan(
       advanced.indexOf("One harbor for native ports"),
     );
     expect(html).not.toContain("<nav");
