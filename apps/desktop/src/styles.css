@@ -3806,7 +3806,7 @@ select {
 }
 
 .palette-command:disabled,
-input:disabled,
+input:disabled:not([data-slot="input"]),
 select:disabled {
   border-color: var(--color-border-disabled);
   color: var(--color-text-disabled);

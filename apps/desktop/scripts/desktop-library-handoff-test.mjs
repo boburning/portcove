@@ -40,12 +40,12 @@ export async function libraryHandoffScenario({
     const profile = command(["catalog", "show", "opengoal-jak1"]).source_profile;
     ownedCommand(["source", "add", profile, path.join(output, "opengoal-jak1.iso")]);
     const selected = await invoke("set_default_library", { path: source });
-    assert.equal(selected.ok, true);
+    assert.equal(selected.ok, true, JSON.stringify(selected));
     const before = (await invoke("get_bootstrap_status")).value;
     const identityBefore = await invoke("get_library_identity", {
       generation: before.generation,
     });
-    assert.equal(identityBefore.ok, true);
+    assert.equal(identityBefore.ok, true, JSON.stringify(identityBefore));
     assert.deepEqual(identityBefore.value, ownedCommand(["library", "identity"]));
     const active = ownedCommand(["status", portId]).active;
     const preserved = await Promise.all(
@@ -178,10 +178,10 @@ export async function libraryHandoffScenario({
     const restoreRoot = path.join(output, "restored-library");
     await mkdir(restoreRoot);
     const restoreSelection = await invoke("set_default_library", { path: restoreRoot });
-    assert.equal(restoreSelection.ok, true);
+    assert.equal(restoreSelection.ok, true, JSON.stringify(restoreSelection));
     await browser.navigate().refresh();
     await click(By.xpath('//nav//button[contains(., "Settings")]'));
-    const restoreTrigger = button("Restore library");
+    const restoreTrigger = button("Restore from a library copy");
     const restoreDialog = By.css('[aria-labelledby="import-library-title"]');
     await click(restoreTrigger);
     await browser.wait(until.elementLocated(restoreDialog), 15_000);

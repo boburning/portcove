@@ -7,6 +7,7 @@ import { LibraryCopySummary, transferRecoveryRoot } from "./LibraryMove";
 import { NavigationHints } from "./ui";
 import { Button } from "./ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "./ui/dialog";
+import { Input } from "./ui/input";
 
 export function LibraryImportButton({
   disabled,
@@ -100,7 +101,7 @@ function LibraryImportDialog({ libraryRoot, close }: { libraryRoot: string; clos
         <NavigationHints />
         <label htmlFor="import-metadata">Library metadata file</label>
         <div className="path-entry">
-          <input
+          <Input
             data-autofocus
             data-focusable
             id="import-metadata"
@@ -125,7 +126,7 @@ function LibraryImportDialog({ libraryRoot, close }: { libraryRoot: string; clos
         </div>
         <label htmlFor="import-content">Copy of the original library folder</label>
         <div className="path-entry">
-          <input
+          <Input
             data-focusable
             id="import-content"
             value={content}
