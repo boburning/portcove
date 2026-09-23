@@ -343,7 +343,12 @@ export async function preparationScenarios({
     );
     await more.click();
     await browser
-      .findElement(By.xpath('//*[@role="menuitem" and normalize-space()="Updates and activity"]'))
+      .wait(
+        until.elementLocated(
+          By.xpath('//*[@role="menuitem" and normalize-space()="Updates and activity"]'),
+        ),
+        5000,
+      )
       .click();
     const updatesHeading = await browser.wait(
       until.elementLocated(By.css("#detail-updates")),
