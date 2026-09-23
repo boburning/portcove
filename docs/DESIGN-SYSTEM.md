@@ -144,7 +144,10 @@ than replacing words globally.
 Name a concrete action and object; say “Review” when review is actually next.
 Place consequences before implementation detail and keep essential warnings
 visible. Errors state the known cause, outcome, and realistic next action. Use
-sentence case and neutral task names beside authoritative status. Complete
+**Check method** for a configured way to inspect game files; say whether a check
+actually ran and what it found separately. Keep the planned install folder visible
+with version and download size in installation review. Use sentence case and
+neutral task names beside authoritative status. Complete
 localized messages use named interpolation and correct plurals; human formatting
 may follow locale while machine contracts remain stable. Keep technical detail
 for the audience that needs it. [#209](https://github.com/boburning/portcove/issues/209)

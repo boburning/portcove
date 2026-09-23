@@ -208,6 +208,11 @@ it("presents the reviewed installation in a dismissible dialog and restores trig
   expect(document.body.querySelector('[role="dialog"]')).not.toBeNull();
   expect(document.body.textContent).toContain("2.0");
   expect(document.body.textContent).toContain("64.0 MiB");
+  expect(document.body.textContent).toContain(
+    "Review the version, download size, and install folder.",
+  );
+  expect(document.body.textContent).toContain("Install folder");
+  expect(document.body.textContent).toContain("E:/Portcove/versions/sample");
   expect(document.activeElement?.textContent).toContain("Install · 64.0 MiB");
   await pressEscape();
   expect(document.body.querySelector('[role="dialog"]')).toBeNull();

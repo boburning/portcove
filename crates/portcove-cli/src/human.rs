@@ -189,7 +189,7 @@ pub(crate) fn catalog_show(port: &PortDefinition) -> String {
         ));
         for requirement in &presentation.source_requirements {
             lines.push(format!(
-                "{}: {} ({})",
+                "{}: {} (Check method: {})",
                 match requirement.role {
                     portcove_core::PortSourceRole::Game => "Game files",
                     portcove_core::PortSourceRole::Bios => "BIOS",
@@ -1293,9 +1293,9 @@ fn installation_method(method: portcove_core::InstallationMethod) -> &'static st
 
 fn source_verification(method: portcove_core::SourceVerificationMethod) -> &'static str {
     match method {
-        portcove_core::SourceVerificationMethod::CatalogIdentity => "reviewed catalog identity",
-        portcove_core::SourceVerificationMethod::UpstreamValidator => "upstream validator",
-        portcove_core::SourceVerificationMethod::CatalogRules => "catalog-declared file rules",
+        portcove_core::SourceVerificationMethod::CatalogIdentity => "Known file signatures",
+        portcove_core::SourceVerificationMethod::UpstreamValidator => "The port’s validation tool",
+        portcove_core::SourceVerificationMethod::CatalogRules => "Required files and format checks",
     }
 }
 
@@ -1421,7 +1421,8 @@ mod tests {
         let output = catalog_show(catalog.port("shipwright").unwrap());
         assert!(output.contains("Installation: portable upstream package"));
         assert!(output.contains("Game files: The Legend of Zelda: Ocarina of Time source"));
-        assert!(output.contains("catalog-declared file rules"));
+        assert!(output.contains("Check method: Required files and format checks"));
+        assert!(!output.contains("catalog-declared file rules"));
         assert!(output.contains("Saves and settings: managed by Portcove"));
         assert!(output.contains("Upstream state: active"));
         assert!(!output.contains("libultraship-portable"));

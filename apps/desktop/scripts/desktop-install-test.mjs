@@ -59,6 +59,10 @@ export async function installScenarios({
     await browser.wait(until.elementLocated(install), 15_000);
     await browser.wait(until.elementIsEnabled(await browser.findElement(install)), 15_000);
     if (inspect) {
+      const reviewText = await browser.findElement(dialog).getText();
+      assert.match(reviewText, /Review the version, download size, and install folder\./);
+      assert.match(reviewText, /Install folder/);
+      assert.ok(reviewText.includes(library), "Install review must show its owned library path");
       await assertPrimaryReviewAction(
         browser,
         await browser.findElement(install),

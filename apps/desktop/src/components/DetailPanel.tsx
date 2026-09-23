@@ -661,7 +661,9 @@ function InstallationVersionSummary({
   selectedChannel: ReleaseChannel;
 }) {
   const checked = currentUpdateSnapshot(status)?.check;
-  const latestEligible = checked?.release.version ?? "Unknown — check for updates";
+  const latestEligible =
+    checked?.release.version ??
+    (status?.active ? "Not checked yet" : "Version shown when you review installation.");
   return (
     <div className="metadata" aria-label="Installation and release versions">
       <span>
@@ -786,7 +788,8 @@ function RequirementsSummary({ port }: { port: PortDefinition }) {
       {port.presentation.source_requirements.map((requirement) => (
         <span key={requirement.role}>
           <small>{requirement.role === "bios" ? "Required BIOS" : "Required game files"}</small>
-          {requirement.label} · {sourceVerificationPresentation[requirement.verification]}
+          {requirement.label}
+          <small>Check method: {sourceVerificationPresentation[requirement.verification]}</small>
         </span>
       ))}
     </div>
@@ -1076,9 +1079,9 @@ const sourceVerificationPresentation: Record<
   NonNullable<PortDefinition["presentation"]>["source_requirements"][number]["verification"],
   string
 > = {
-  "catalog-identity": "Compared with reviewed catalog identity",
-  "upstream-validator": "Checked by the upstream validator",
-  "catalog-rules": "Checked with catalog-declared file rules",
+  "catalog-identity": "Known file signatures",
+  "upstream-validator": "The port’s validation tool",
+  "catalog-rules": "Required files and format checks",
 };
 
 const upstreamStatusPresentation: Record<PortDefinition["upstream_status"], string> = {
@@ -1422,8 +1425,7 @@ export function InstallAction({
               Review installation
             </DialogTitle>
             <DialogDescription id="install-review-description" className="mb-4 leading-relaxed">
-              Confirm the reviewed release and storage requirements before Portcove changes this
-              game.
+              Review the version, download size, and install folder.
             </DialogDescription>
             {action ? (
               <InstallPlanSummary plan={plan} />
@@ -1539,6 +1541,10 @@ function InstallPlanSummary({ plan }: { plan: InstallPlan }) {
         <span>
           {download ? `${formatBytes(plan.storage.volume_available_bytes)} available` : localState}
         </span>
+      </div>
+      <div className="install-plan-destination">
+        <strong>Install folder</strong>
+        <code>{plan.output_location.effective_output_directory}</code>
       </div>
     </div>
   );
