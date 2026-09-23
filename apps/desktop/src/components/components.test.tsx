@@ -1167,7 +1167,7 @@ describe("desktop components", () => {
     expect(groupMarkup("updates")).toContain(
       'class="settings-section-content settings-section-content-stacked"',
     );
-    expect(groupMarkup("integrations")).toContain("Optional authentication");
+    expect(groupMarkup("integrations")).toContain("GitHub connection");
     const advanced = groupMarkup("advanced");
     expect(advanced.indexOf("Create support bundle")).toBeLessThan(
       advanced.indexOf("Original game files stay local"),
@@ -1354,7 +1354,7 @@ describe("desktop components", () => {
         />,
       );
       const signIn = html.match(/<button\b([^>]*)>Sign in with GitHub<\/button>/);
-      const logout = html.match(/<button\b([^>]*)>Log out<\/button>/);
+      const logout = html.match(/<button\b([^>]*)>Sign out<\/button>/);
       expect(html).toContain(message);
       expect(signIn !== null).toBe(showsRecovery);
       expect(logout !== null).toBe(showsRecovery);
@@ -1388,9 +1388,59 @@ describe("desktop components", () => {
       />,
     );
     expect(html).toContain("Connected as port-user");
+    expect(html).toContain("GitHub connection");
+    expect(html).toContain("<summary>Connection details</summary>");
     expect(html).toContain("4,998 of 5,000 GitHub requests remaining");
     expect(html).toContain("Operating-system credential store");
     expect(html).not.toContain("Personal access token");
+  });
+
+  it("labels the token alternative visibly and handles a connected account without a login name", () => {
+    const actions = {
+      token: "",
+      setToken: vi.fn(),
+      saveToken: vi.fn(),
+      logout: vi.fn(),
+      beginDeviceLogin: vi.fn(),
+      refresh: vi.fn(),
+    };
+    const anonymous = renderToStaticMarkup(
+      <SettingsView
+        github={{
+          ...actions,
+          status: {
+            source: "anonymous",
+            authenticated: false,
+            login: null,
+            rate_limit: null,
+            device_login_available: true,
+          },
+        }}
+      />,
+    );
+    const connectedWithoutLogin = renderToStaticMarkup(
+      <SettingsView
+        github={{
+          ...actions,
+          status: {
+            source: "credential_store",
+            authenticated: true,
+            login: null,
+            rate_limit: null,
+            device_login_available: true,
+          },
+        }}
+      />,
+    );
+    expect(anonymous).toContain("Use a token instead");
+    expect(anonymous).toContain(
+      '<label for="github-personal-access-token">Personal access token</label>',
+    );
+    expect(anonymous).toContain('id="github-personal-access-token"');
+    expect(anonymous).toContain("Sign in with GitHub");
+    expect(connectedWithoutLogin).toContain("Connected to GitHub");
+    expect(connectedWithoutLogin).not.toContain("Connected as null");
+    expect(connectedWithoutLogin).not.toContain('id="github-personal-access-token"');
   });
 
   it("hides unavailable device sign-in without exposing build configuration", () => {
@@ -1421,10 +1471,13 @@ describe("desktop components", () => {
       />,
     );
 
-    expect(html).toContain("Sign in to GitHub for a higher release-check limit");
+    expect(html).toContain("Not signed in. Signing in increases the limit for release checks.");
     expect(html).toContain("GitHub request limit unavailable");
     expect(html).toContain("Continue anonymously or use a personal access token");
-    expect(html).toContain('aria-label="GitHub personal access token"');
+    expect(html).toContain(
+      '<label for="github-personal-access-token">Personal access token</label>',
+    );
+    expect(html).not.toContain("Use a token instead");
     expect(html).not.toContain("Sign in with GitHub");
     expect(html).not.toContain("STALE-CODE");
     expect(html).not.toContain("https://github.example/device");

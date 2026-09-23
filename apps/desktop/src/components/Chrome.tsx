@@ -540,25 +540,31 @@ function GithubConnection({ status }: { status?: GithubAuthStatus }) {
     status && Object.hasOwn(labels, status.source)
       ? labels[status.source]
       : "Sign-in source unavailable";
-  const title = connected ? `Connected as ${status?.login}` : "Optional authentication";
+  const connectionStatus = connected
+    ? status?.login?.trim()
+      ? `Connected as ${status.login}`
+      : "Connected to GitHub"
+    : "Not signed in";
   const stateClass = connected ? "auth-state connected" : "auth-state";
   const StateIcon = connected ? CheckCircle2 : CircleUserRound;
   return (
     <>
       <div className="settings-title">
-        <h2>{title}</h2>
+        <h2>GitHub connection</h2>
         <span className={stateClass}>
           <Icon glyph={StateIcon} size="sm" />
-          {source}
+          {connectionStatus}
         </span>
       </div>
-      <p>
-        {!connected && "Sign in to GitHub for a higher release-check limit. "}
-        {githubQuota(status)}.
-      </p>
-      <small>
-        Repeated checks for an unchanged GitHub release may not use the primary request limit.
-      </small>
+      {!connected && <p>Not signed in. Signing in increases the limit for release checks.</p>}
+      <details className="github-connection-details">
+        <summary>Connection details</summary>
+        <p>Sign-in source: {source}.</p>
+        <p>{githubQuota(status)}.</p>
+        <p>
+          Repeated checks for an unchanged GitHub release may not use the primary request limit.
+        </p>
+      </details>
     </>
   );
 }
@@ -584,27 +590,30 @@ function DeviceLogin({ login }: { login?: GithubDeviceLogin }) {
 function TokenEntry({ github, busy }: { github?: GithubSettingsActions; busy: boolean }) {
   if (github?.status?.authenticated || github?.status?.source === "environment") return null;
   return (
-    <div className="token-entry">
-      <input
-        data-focusable
-        type="password"
-        autoComplete="off"
-        aria-label="GitHub personal access token"
-        placeholder="Personal access token"
-        value={github?.token ?? ""}
-        onChange={(event) => github?.setToken(event.target.value)}
-      />
-      <Button
-        data-focusable
-        variant="primary"
-        size="sm"
-        disabled={busy || !github?.token.trim()}
-        onClick={() => {
-          void github?.saveToken();
-        }}
-      >
-        Save token
-      </Button>
+    <div className="token-entry-group">
+      {github?.status?.device_login_available && <p>Use a token instead</p>}
+      <label htmlFor="github-personal-access-token">Personal access token</label>
+      <div className="token-entry">
+        <input
+          id="github-personal-access-token"
+          data-focusable
+          type="password"
+          autoComplete="off"
+          value={github?.token ?? ""}
+          onChange={(event) => github?.setToken(event.target.value)}
+        />
+        <Button
+          data-focusable
+          variant="primary"
+          size="sm"
+          disabled={busy || !github?.token.trim()}
+          onClick={() => {
+            void github?.saveToken();
+          }}
+        >
+          Save token
+        </Button>
+      </div>
     </div>
   );
 }
@@ -638,7 +647,7 @@ function GithubActions({ github, busy }: { github?: GithubSettingsActions; busy:
             void github?.logout();
           }}
         >
-          Log out
+          Sign out
         </Button>
       )}
       <Button
@@ -668,7 +677,7 @@ function GithubNotes({ status }: { status?: GithubAuthStatus }) {
   if (status?.source === "credential_store" && !status.authenticated)
     return (
       <small>
-        GitHub no longer accepts the saved sign-in. Sign in again, or log out to continue
+        GitHub no longer accepts the saved sign-in. Sign in again, or sign out to continue
         anonymously.
       </small>
     );
