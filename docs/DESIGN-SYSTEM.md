@@ -158,6 +158,9 @@ that every check completed.
 When a game-file search reaches a safety limit, name the limit and give a next
 step that fits it. Show the submitted size and verification-work caps, and state when the
 report does not identify the affected file.
+In Game Files settings, distinguish a library with no installed ports from
+installed ports with no missing game-file requirements; neither state proves a
+fresh file verification or launch readiness.
 Use sentence case and neutral task names beside authoritative status. Complete
 localized messages use named interpolation and correct plurals; human formatting
 may follow locale while machine contracts remain stable. Keep technical detail

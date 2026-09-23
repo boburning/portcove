@@ -730,6 +730,7 @@ function CurrentView({
           );
         }}
         sourceNeeds={model.sourceNeeds}
+        installedCount={model.overview.installed}
         sourceRequirementsState={
           data.catalog ? "available" : data.refreshFailure ? "unavailable" : "loading"
         }

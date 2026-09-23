@@ -709,11 +709,13 @@ type SourceRequirementsState = "loading" | "available" | "unavailable";
 function SourceRequirements({
   requirements,
   state,
+  installedCount,
   busy,
   add,
 }: {
   requirements: SourceRequirement[];
   state: SourceRequirementsState;
+  installedCount: number;
   busy?: string;
   add?: (profile: SourceProfile, archive: boolean) => void;
 }) {
@@ -732,8 +734,12 @@ function SourceRequirements({
     );
   if (requirements.length === 0)
     return (
-      <div className="source-requirements complete">
-        <strong>All required game files have been added for your installed ports.</strong>
+      <div className={`source-requirements${installedCount > 0 ? " complete" : ""}`}>
+        <strong>
+          {installedCount > 0
+            ? "Required game files have been added for your installed ports."
+            : "No ports installed yet. Game-file requirements for installed ports will appear here."}
+        </strong>
       </div>
     );
   return (
@@ -788,6 +794,7 @@ function SourceHealth({
   sources,
   requirements,
   requirementsState,
+  installedCount,
   outcomes,
   inspections,
   busy,
@@ -807,6 +814,7 @@ function SourceHealth({
   replace?: (source: SourceRecord) => void;
   requirements: SourceRequirement[];
   requirementsState: SourceRequirementsState;
+  installedCount: number;
   add?: (profile: SourceProfile, archive: boolean) => void;
   profiles: SourceProfile[];
   inspections: ReadonlyMap<string, SourceInspectionReport>;
@@ -833,6 +841,7 @@ function SourceHealth({
       <SourceRequirements
         requirements={requirements}
         state={requirementsState}
+        installedCount={installedCount}
         busy={busy}
         add={add}
       />
@@ -1214,6 +1223,7 @@ export function SettingsView({
   sources = [],
   sourceNeeds = [],
   sourceRequirementsState = "loading",
+  installedCount = 0,
   sourceOutcomes = [],
   sourceInspections = new Map(),
   verifySources,
@@ -1248,6 +1258,7 @@ export function SettingsView({
   resetLibrary?: () => Promise<void>;
   sourceNeeds?: SourceRequirement[];
   sourceRequirementsState?: SourceRequirementsState;
+  installedCount?: number;
   sourceOutcomes?: SourceVerificationOutcome[];
   verifySources?: () => void;
   replaceSource?: (source: SourceRecord) => void;
@@ -1311,6 +1322,7 @@ export function SettingsView({
           sources={sources}
           requirements={sourceNeeds}
           requirementsState={sourceRequirementsState}
+          installedCount={installedCount}
           outcomes={sourceOutcomes}
           inspections={sourceInspections}
           busy={busy}

@@ -1618,8 +1618,15 @@ describe("desktop components", () => {
     const unavailable = renderToStaticMarkup(
       <SettingsView {...unavailableInputs} sourceRequirementsState="unavailable" />,
     );
-    const complete = renderToStaticMarkup(
+    const noInstalledPorts = renderToStaticMarkup(
       <SettingsView libraryRoot="C:/Portcove" sourceRequirementsState="available" />,
+    );
+    const complete = renderToStaticMarkup(
+      <SettingsView
+        libraryRoot="C:/Portcove"
+        sourceRequirementsState="available"
+        installedCount={1}
+      />,
     );
     const singular = renderToStaticMarkup(
       <SettingsView
@@ -1645,7 +1652,8 @@ describe("desktop components", () => {
     );
 
     expect(loading).toContain("Checking required game files");
-    expect(loading).not.toContain("All required game files have been added");
+    expect(loading).not.toContain("Required game files have been added");
+    expect(loading).not.toContain("No ports installed yet");
     expect(loading).not.toContain("No source files are registered yet");
     expect(loading.match(/<button\b([^>]*)>Choose game files<\/button>/)?.[1]).toContain(
       "disabled",
@@ -1654,14 +1662,20 @@ describe("desktop components", () => {
     expect(loading).not.toContain(registeredSource.path);
     expect(unavailable).toContain("Required game files could not be checked");
     expect(unavailable).toContain("Retry loading the library before changing saved locations");
-    expect(unavailable).not.toContain("All required game files have been added");
+    expect(unavailable).not.toContain("Required game files have been added");
+    expect(unavailable).not.toContain("No ports installed yet");
     expect(unavailable).not.toContain("No source files are registered yet");
     expect(unavailable.match(/<button\b([^>]*)>Choose game files<\/button>/)?.[1]).toContain(
       "disabled",
     );
     expect(unavailable).not.toContain(requirement.profile.label);
     expect(unavailable).not.toContain(registeredSource.path);
-    expect(complete).toContain("All required game files have been added for your installed ports");
+    expect(noInstalledPorts).toContain(
+      "No ports installed yet. Game-file requirements for installed ports will appear here.",
+    );
+    expect(noInstalledPorts).not.toContain("source-requirements complete");
+    expect(complete).toContain("Required game files have been added for your installed ports");
+    expect(complete).toContain("source-requirements complete");
     expect(complete).toContain("No source files are registered yet");
     expect(singular).toContain("1 game-file requirement needs attention");
     expect(plural).toContain("2 game-file requirements need attention");
