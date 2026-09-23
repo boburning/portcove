@@ -155,6 +155,9 @@ Game-file inspection reports lead with the identified game, current result, and
 next action. Admission, source authority, and test coverage stay in named
 disclosures; assistive announcements report the actual result without claiming
 that every check completed.
+When a game-file search reaches a safety limit, name the limit and give a next
+step that fits it. Show the submitted size and hashing caps, and state when the
+report does not identify the affected file.
 Use sentence case and neutral task names beside authoritative status. Complete
 localized messages use named interpolation and correct plurals; human formatting
 may follow locale while machine contracts remain stable. Keep technical detail

@@ -7,6 +7,7 @@ import * as picker from "../file-picker";
 import type { SourceDiscoveryReport, SourceImportPlan, SourceProfile } from "../types";
 import {
   SourceDiscoveryButton,
+  sourceDiscoveryLimitGuidance,
   sourceDiscoveryLimitLabel,
   sourceDiscoveryResultSummary,
 } from "./SourceDiscovery";
@@ -37,6 +38,20 @@ it("presents source discovery counts and limits in player-facing language", () =
     "Possible matches checked",
   ]);
   expect(sourceDiscoveryLimitLabel("future_limit")).toBe("Another search safety limit");
+  expect(sourceDiscoveryLimitGuidance("entries", "folder")).toBe(
+    "Choose a smaller folder and search again.",
+  );
+  expect(sourceDiscoveryLimitGuidance("depth", "inbox")).toContain("Use Search this folder");
+  expect(sourceDiscoveryLimitGuidance("file_size")).toContain("2.0 GiB");
+  expect(sourceDiscoveryLimitGuidance("file_size")).toContain(
+    "does not identify which file hit this limit",
+  );
+  expect(sourceDiscoveryLimitGuidance("hash_bytes")).toContain("16.0 GiB");
+  expect(sourceDiscoveryLimitGuidance("hash_bytes")).toContain("one subfolder at a time");
+  expect(sourceDiscoveryLimitGuidance("candidates", "inbox")).toContain("narrower folder");
+  expect(sourceDiscoveryLimitGuidance("future_limit")).toBe(
+    "Review the search limits and try a narrower search.",
+  );
 });
 
 it("opens and scans the Inbox, then applies the exact reviewed import", async () => {
@@ -244,27 +259,41 @@ it("opens and scans the Inbox, then applies the exact reviewed import", async ()
     );
     expect(document.body.textContent).toContain("Inbox state: incomplete");
     expect(document.body.textContent).toContain(
-      "Search limits prevented every possible match from being checked.",
+      "Some files weren't checked because this scan reached a limit.",
     );
     expect(document.body.textContent).toContain("Possible matches checked");
     expect(document.body.textContent).toContain("Individual file size");
+    expect(document.body.textContent).toContain("2.0 GiB");
+    expect(document.body.textContent).toContain("Use Search this folder on a smaller folder");
     expect(document.body.textContent).not.toContain("Exact-match count");
     expect(document.body.textContent).not.toContain("not-a-match.iso");
     await click("Search this folder");
     expect(search).toHaveBeenCalledWith(
-      { roots: ["D:/Selected"], profile_ids: [profile.id] },
+      {
+        roots: ["D:/Selected"],
+        profile_ids: [profile.id],
+        limits: {
+          max_entries: 10_000,
+          max_depth: 6,
+          max_file_bytes: 2 * 1024 * 1024 * 1024,
+          max_hash_bytes: 16 * 1024 * 1024 * 1024,
+          max_candidates: 64,
+        },
+      },
       expect.any(Function),
     );
     expect(document.body.textContent).toContain(
       "Found 1 exact match. Checked 3 files and folders (64 B of verification data).",
     );
     expect(document.body.textContent).toContain(
-      "Search limits prevented every possible match from being checked.",
+      "Some files weren't checked because this scan reached a limit.",
     );
     expect(document.body.textContent).toContain("File and folder count");
     expect(document.body.textContent).toContain("Folder depth");
     expect(document.body.textContent).toContain("Individual file size");
     expect(document.body.textContent).toContain("Verification data");
+    expect(document.body.textContent).toContain("16.0 GiB");
+    expect(document.body.textContent).toContain("Choose a smaller folder and search again.");
     expect(document.body.textContent).toContain("Exact-match count");
     expect(document.body.textContent).not.toContain("Possible matches checked");
     expect(document.body.textContent).not.toContain("file_size");
