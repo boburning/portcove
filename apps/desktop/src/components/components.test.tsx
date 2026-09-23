@@ -1117,6 +1117,7 @@ describe("desktop components", () => {
     expect(html).toContain("D:/Portcove Library");
     expect(html).toContain("Saved library");
     expect(html).toContain("Opening another library does not move your files");
+    expect(html).toContain("The library you open uses its own game install folder settings");
     expect(html).toContain("STORAGE LOCATIONS");
     expect(html).toContain("WHOLE PORTCOVE LIBRARY");
     expect(html).toContain("Use default library");

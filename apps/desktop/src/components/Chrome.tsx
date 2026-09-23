@@ -1520,8 +1520,8 @@ export function LibrarySelectionCard({
       <h2>Library at startup</h2>
       <code>{selection?.root ?? "Unavailable"}</code>
       <p>
-        {source}. Opening another library does not move your files. Game install folders stay as
-        configured.
+        {source}. Opening another library does not move your files. The library you open uses its
+        own game install folder settings.
       </p>
       <div className="button-row">
         <Button
@@ -1577,8 +1577,8 @@ export function LibrarySelectionCard({
               className="mb-4 leading-relaxed"
             >
               {review.kind === "switch"
-                ? "Portcove will open this library and save it for future launches. A launch override can still select another library for one launch. Existing files and game install folders stay where they are."
-                : "Portcove will open the default library shown below and clear the saved library choice. Files in the current library will stay where they are. Game install folders stay configured."}
+                ? "Portcove will open this library and save it for future launches. A launch override can still select another library for one launch. Existing files stay in place. The library you open uses its own game install folder settings."
+                : "Portcove will open the default library shown below and clear the saved library choice. If host preferences are damaged or from a newer format, this also resets saved language and tool paths. Files in the current library will stay where they are. The default library uses its own game install folder settings."}
             </DialogDescription>
             <code className="block break-all">{review.path}</code>
             <DialogFooter className="mt-4">

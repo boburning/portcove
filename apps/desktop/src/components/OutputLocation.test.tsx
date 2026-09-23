@@ -352,7 +352,7 @@ describe("per-game install folder", () => {
     await render(<OutputLocationControl portId="sample" generation={7} />);
     expect(document.body.textContent).toContain("Inherited from the Portcove library");
     expect(document.body.textContent).toContain(
-      "New versions will be installed here. Existing versions will not move.",
+      "Future installs use this folder by default. Existing versions will not move.",
     );
     const input = container.querySelector("input")!;
     expect(container.querySelector(`label[for="${input.id}"]`)?.textContent).toContain(

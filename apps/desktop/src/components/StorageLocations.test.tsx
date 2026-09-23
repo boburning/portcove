@@ -142,7 +142,9 @@ describe("Storage locations", () => {
     expect(document.body.querySelector('[role="dialog"]')).not.toBeNull();
     expect(document.body.textContent).toContain("Switch whole Portcove library");
     expect(document.body.textContent).toContain("F:/Other Portcove");
-    expect(document.body.textContent).toContain("game install folders stay where they are");
+    expect(document.body.textContent).toContain(
+      "The library you open uses its own game install folder settings",
+    );
     expect(switchLibrary).not.toHaveBeenCalled();
     await click("Keep current library");
     expect(document.activeElement).toBe(trigger);
@@ -175,6 +177,12 @@ describe("Storage locations", () => {
     expect(document.body.textContent).toContain("C:/Users/test/Portcove");
     expect(document.body.textContent).toContain(
       "Files in the current library will stay where they are",
+    );
+    expect(document.body.textContent).toContain(
+      "The default library uses its own game install folder settings",
+    );
+    expect(document.body.textContent).toContain(
+      "If host preferences are damaged or from a newer format",
     );
     expect(reset).not.toHaveBeenCalled();
     await click("Open default library");
