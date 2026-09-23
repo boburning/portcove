@@ -468,6 +468,10 @@ export async function preparationScenarios({
   await scenario("native-game-update-review", async () => {
     const port = command(["catalog", "show", "opengoal-jak1"]);
     await open(port, false);
+    const updateControl = await browser.findElement(
+      By.css('section[aria-label="Review game update"]'),
+    );
+    assert.ok((await updateControl.getText()).includes("Stage for later"));
     const before = await status(port.id);
     const activityBefore = (await invoke("get_activities")).value;
     const trigger = await browser.findElement(button("Review game update"));
@@ -485,6 +489,8 @@ export async function preparationScenarios({
     assert.equal(candidate.ok, true);
     assert.ok(reviewText.includes("Confirm the release"));
     assert.ok(reviewText.includes(candidate.value.plan.release.version));
+    if (["download", "use_staged", "reuse_retained"].includes(candidate.value.plan.action))
+      assert.ok(reviewText.includes("This will stage the verified update for later"));
     assert.ok(
       reviewText.includes("Saved update settings are unchanged") ||
         reviewText.includes("already active") ||
