@@ -18,7 +18,7 @@ import { NavigationHints } from "./ui";
 import { Button } from "./ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "./ui/dialog";
 
-const inboxLimits: SourceDiscoveryLimits = {
+const scanLimits: SourceDiscoveryLimits = {
   max_entries: 10_000,
   max_depth: 6,
   max_file_bytes: 2 * 1024 * 1024 * 1024,
@@ -70,6 +70,28 @@ export function sourceDiscoveryLimitLabel(limit: string, source: "folder" | "inb
     candidates: source === "folder" ? "Exact-match count" : "Possible matches checked",
   };
   return labels[limit] ?? "Another search safety limit";
+}
+
+export function sourceDiscoveryLimitGuidance(limit: string, source: "folder" | "inbox" = "folder") {
+  if (limit === "entries")
+    return source === "inbox"
+      ? "Open Source Inbox and temporarily move some files outside it. Scan the files left there, then swap batches and scan again."
+      : "Choose a smaller folder and search again.";
+  if (limit === "depth")
+    return source === "inbox"
+      ? "Open Source Inbox and move deeply nested files closer to its root, then scan again."
+      : "Choose a deeper folder as the search root and search again.";
+  if (limit === "file_size")
+    return `This scan skips files over ${formatBytes(scanLimits.max_file_bytes)}. The result does not identify which file hit this limit; check a suspected file from its game details.`;
+  if (limit === "hash_bytes")
+    return source === "inbox"
+      ? `This scan reached its ${formatBytes(scanLimits.max_hash_bytes)} verification-work budget. Open Source Inbox and temporarily move some files outside it. Scan the files left there, then swap batches; a single file over the budget still cannot be checked.`
+      : `This scan reached its ${formatBytes(scanLimits.max_hash_bytes)} verification-work budget. Search separate subfolders; a single file over the budget still cannot be checked.`;
+  if (limit === "candidates")
+    return source === "inbox"
+      ? "Review the possible matches shown. Open Source Inbox and temporarily move some files outside it. Scan the files left there, then swap batches to check the rest."
+      : "Search a smaller folder to check more exact matches.";
+  return "Review the search limits and try a narrower search.";
 }
 
 export function sourceImportModePresentation(mode: string) {
@@ -185,14 +207,17 @@ function useSourceDiscoveryWorkflow(onAdded?: () => Promise<unknown>) {
   const scanInbox = () => {
     clearResults();
     return run("Scanning Source Inbox…", async () =>
-      setInbox(await desktopApi.scanSourceInbox(profile, inboxLimits, trackStart)),
+      setInbox(await desktopApi.scanSourceInbox(profile, scanLimits, trackStart)),
     );
   };
   const search = () => {
     clearResults();
     return run("Searching your selected folder…", async () =>
       setReport(
-        await desktopApi.discoverSources({ roots: [root], profile_ids: [profile] }, trackStart),
+        await desktopApi.discoverSources(
+          { roots: [root], profile_ids: [profile], limits: scanLimits },
+          trackStart,
+        ),
       ),
     );
   };
@@ -269,12 +294,15 @@ function DiscoveryResults({ workflow }: { workflow: Workflow }) {
     <section className="source-discovery-results" aria-label="Source search results">
       {limits.length > 0 && (
         <>
-          <p>Search limits prevented every possible match from being checked.</p>
+          <p>Some files weren't checked because this scan reached a limit.</p>
           <details>
             <summary data-focusable>Search limits</summary>
             <ul>
               {limits.map((limit) => (
-                <li key={limit}>{sourceDiscoveryLimitLabel(limit, limitSource)}</li>
+                <li key={limit}>
+                  <strong>{sourceDiscoveryLimitLabel(limit, limitSource)}</strong> ·{" "}
+                  {sourceDiscoveryLimitGuidance(limit, limitSource)}
+                </li>
               ))}
             </ul>
           </details>
