@@ -997,26 +997,46 @@ try {
     }
   });
   await scenario("native-localization-foundation", async () => {
+    async function refreshSettings() {
+      await browser.navigate().refresh();
+      await browser.wait(
+        until.elementLocated(By.css('nav[aria-label="Primary navigation"]')),
+        15_000,
+      );
+      await browser.findElement(By.xpath('//nav//button[contains(., "Settings")]')).click();
+    }
+
     const reset = await invoke("set_locale_preference", { locale: "en" });
     assert.equal(reset.ok, true);
-    await browser.navigate().refresh();
-    await browser.wait(
-      until.elementLocated(By.css('nav[aria-label="Primary navigation"]')),
-      15_000,
-    );
-    await browser.findElement(By.xpath('//nav//button[contains(., "Settings")]')).click();
+    await refreshSettings();
     const languageTrigger = await browser.wait(
       until.elementLocated(By.xpath('//button[contains(., "Display language")]')),
       15_000,
     );
     await languageTrigger.click();
-    const engineeringLocale = await browser.wait(
-      until.elementLocated(
-        By.xpath('//*[@role="option" and normalize-space(.)="العربية (اختبار هندسي)"]'),
+    assert.deepEqual(
+      await Promise.all(
+        (await browser.findElements(By.css('[role="option"]'))).map((option) => option.getText()),
       ),
+      ["System default", "English"],
+      "the engineering locale must not be a new production picker choice",
+    );
+    await browser
+      .findElement(By.xpath('//*[@role="option" and contains(., "System default")]'))
+      .click();
+    await browser.wait(
+      async () => (await invoke("get_locale_preference")).value.locale === null,
       15_000,
     );
-    await engineeringLocale.click();
+    assert.ok(
+      (await browser.findElement(By.css(".language-card")).getText()).includes(
+        "Current language: English.",
+      ),
+    );
+
+    const engineering = await invoke("set_locale_preference", { locale: "ar-XB" });
+    assert.equal(engineering.ok, true);
+    await refreshSettings();
     await browser.wait(async () => {
       const state = await browser.executeScript(() => ({
         lang: document.documentElement.lang,
@@ -1024,9 +1044,11 @@ try {
         heading: [...document.querySelectorAll("h2")].some(
           (element) => element.textContent?.trim() === "لغة الواجهة",
         ),
-        focused: document.activeElement?.textContent?.includes("العربية (اختبار هندسي)"),
+        preview: document
+          .querySelector('.language-card [role="note"]')
+          ?.textContent?.includes("معاينة اللغة"),
       }));
-      return state.lang === "ar-XB" && state.dir === "rtl" && state.heading && state.focused;
+      return state.lang === "ar-XB" && state.dir === "rtl" && state.heading && state.preview;
     }, 15_000);
     const rendered = await browser.executeScript(() => ({
       lang: document.documentElement.lang,
@@ -1034,7 +1056,9 @@ try {
       heading: [...document.querySelectorAll("h2")].some(
         (element) => element.textContent?.trim() === "لغة الواجهة",
       ),
-      focused: document.activeElement?.textContent?.includes("العربية (اختبار هندسي)"),
+      preview: document
+        .querySelector('.language-card [role="note"]')
+        ?.textContent?.includes("معاينة اللغة"),
       externalResources: performance
         .getEntriesByType("resource")
         .map((entry) => entry.name)
@@ -1052,7 +1076,7 @@ try {
       lang: "ar-XB",
       dir: "rtl",
       heading: true,
-      focused: true,
+      preview: true,
       externalResources: [],
     });
     assert.deepEqual((await invoke("get_locale_preference")).value, { locale: "ar-XB" });
@@ -1067,6 +1091,59 @@ try {
     assert.equal(await browser.executeScript(() => document.documentElement.dir), "rtl");
     const accessibility = path.join(output, "native-localization-accessibility.json");
     await captureAccessibilityReport(browser, accessibility, artifacts);
+
+    await browser.findElement(By.xpath('//nav//button[contains(., "Settings")]')).click();
+    const rtlTrigger = await browser.wait(
+      until.elementLocated(By.css(".language-card button")),
+      15_000,
+    );
+    await rtlTrigger.click();
+    await browser
+      .findElement(By.xpath('//*[@role="option" and normalize-space(.)="English"]'))
+      .click();
+    await browser.wait(
+      async () =>
+        (await browser.executeScript(
+          () => document.documentElement.lang === "en" && document.documentElement.dir === "ltr",
+        )) === true,
+      15_000,
+      "switching away from the preview did not resolve English",
+    );
+    const focusAfterSwitch = await browser.executeScript(() => ({
+      activeTag: document.activeElement?.tagName,
+      activeText: document.activeElement?.textContent?.trim().slice(0, 100),
+      activeHtml: document.activeElement?.outerHTML.slice(0, 500),
+      inLanguageCard: document.activeElement?.closest(".language-card") !== null,
+    }));
+    const focusReport = path.join(output, "localization-focus-after-switch.json");
+    await writeFile(focusReport, JSON.stringify(focusAfterSwitch, null, 2), { flag: "wx" });
+    artifacts.push(focusReport);
+    assert.equal(
+      focusAfterSwitch.inLanguageCard,
+      true,
+      "switching away from the preview lost language-control focus",
+    );
+    assert.deepEqual((await invoke("get_locale_preference")).value, { locale: "en" });
+
+    const preferencePath = path.join(output, "preferences.json");
+    const savedPreferences = await readFile(preferencePath);
+    try {
+      await writeFile(preferencePath, "not-json\n");
+      await browser.findElement(By.css(".language-card button")).click();
+      await browser
+        .findElement(By.xpath('//*[@role="option" and contains(., "System default")]'))
+        .click();
+      await browser.wait(
+        until.elementLocated(
+          By.xpath('//p[@role="status" and contains(., "Couldn\'t save the language.")]'),
+        ),
+        15_000,
+      );
+      assert.equal(await browser.executeScript(() => document.documentElement.lang), "en");
+    } finally {
+      await writeFile(preferencePath, savedPreferences);
+    }
+    assert.deepEqual((await invoke("get_locale_preference")).value, { locale: "en" });
     await invoke("set_locale_preference", { locale: null });
   });
   await scenario("accessibility", async () => {

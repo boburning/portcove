@@ -28,7 +28,6 @@ export type TextDirection = "ltr" | "rtl";
 export const localeOptions: readonly { value: LocaleChoice; key: string }[] = [
   { value: "system", key: "language.system" },
   { value: "en", key: "language.english" },
-  { value: "ar-XB", key: "language.engineering" },
 ];
 
 export interface LocalePreferenceApi {
@@ -51,7 +50,7 @@ export function resolveLocale(
   const candidates = preference ? [preference] : systemLocales;
   for (const candidate of candidates) {
     const locale = canonicalLocale(candidate);
-    if (locale === "ar-XB") return "ar-XB";
+    if (preference && locale === "ar-XB") return "ar-XB";
     if (locale === "en" || locale?.startsWith("en-")) return "en";
   }
   return "en";
@@ -112,7 +111,7 @@ interface LocalizationState {
   direction: TextDirection;
   saving: boolean;
   saved: boolean;
-  error: boolean;
+  error: "load" | "save" | "apply" | null;
   select(choice: LocaleChoice): Promise<void>;
 }
 
@@ -124,7 +123,7 @@ const LocalizationContext = createContext<LocalizationState>({
   direction: localeDirection(defaultLocale),
   saving: false,
   saved: false,
-  error: false,
+  error: null,
   select: async () => {},
 });
 
@@ -140,7 +139,7 @@ export function LocalizationProvider({
   const [locale, setLocale] = useState<SupportedLocale>(() => resolveLocale(null, systemLocales()));
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
-  const [error, setError] = useState(false);
+  const [error, setError] = useState<LocalizationState["error"]>(null);
   const preferenceRequest = useRef(0);
 
   const apply = useCallback(
@@ -159,17 +158,24 @@ export function LocalizationProvider({
   useEffect(() => {
     let active = true;
     const request = ++preferenceRequest.current;
-    void api
-      .localePreference()
-      .then((snapshot) => {
+    void (async () => {
+      let snapshot: LocalePreferenceSnapshot;
+      try {
+        snapshot = await api.localePreference();
+      } catch {
+        if (active && request === preferenceRequest.current) setError("load");
+        return;
+      }
+      try {
         if (!active || request !== preferenceRequest.current) return;
         const stored = snapshot.locale;
         const nextChoice: LocaleChoice = stored === "en" || stored === "ar-XB" ? stored : "system";
-        return apply(nextChoice);
-      })
-      .catch(() => {
-        if (active && request === preferenceRequest.current) setError(true);
-      });
+        await apply(nextChoice);
+        if (active && request === preferenceRequest.current) setError(null);
+      } catch {
+        if (active && request === preferenceRequest.current) setError("apply");
+      }
+    })();
     return () => {
       active = false;
     };
@@ -181,16 +187,20 @@ export function LocalizationProvider({
       preferenceRequest.current += 1;
       setSaving(true);
       setSaved(false);
-      setError(false);
+      setError(null);
       try {
         const snapshot = await api.setLocalePreference(nextChoice === "system" ? null : nextChoice);
         const persisted = snapshot.locale;
         const persistedChoice: LocaleChoice =
           persisted === "en" || persisted === "ar-XB" ? persisted : "system";
-        await apply(persistedChoice);
-        setSaved(true);
+        try {
+          await apply(persistedChoice);
+          setSaved(true);
+        } catch {
+          setError("apply");
+        }
       } catch {
-        setError(true);
+        setError("save");
       } finally {
         setSaving(false);
       }
