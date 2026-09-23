@@ -959,7 +959,6 @@ export async function preparationScenarios({
     output,
     artifacts,
     command,
-    open,
     confirmNative,
   });
   await sourceDialogScenario({ browser, scenario, output, artifacts, command, open });

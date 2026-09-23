@@ -11,13 +11,18 @@ export async function primaryFilePickerScenario({
   output,
   artifacts,
   command,
-  open,
   confirmNative,
 }) {
   await scenario("native-primary-file-pickers", async () => {
     const port = command(["catalog", "show", "mortal-kombat-4-recompiled"]);
     const { button, click } = reviewControls(browser);
-    await open(port, false);
+    await click(By.xpath('//nav//button[contains(., "Port catalog")]'));
+    await browser.wait(until.elementLocated(By.id("port-search")), 15_000);
+    await browser.findElement(By.id("port-search")).sendKeys(port.name);
+    const card = By.css(`button.port-card[data-detail-origin][aria-label^="${port.name}."]`);
+    await browser.wait(until.elementLocated(card), 15_000);
+    await click(card);
+    await browser.wait(until.elementLocated(By.css("[data-detail-workspace]")), 15_000);
     const primary = () => By.css(".actions.primary-actions > button");
     const game = await browser.wait(until.elementLocated(primary()), 15_000);
     assert.match(await game.getText(), /Choose game files and BIOS/);
