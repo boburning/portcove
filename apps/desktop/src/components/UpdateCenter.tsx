@@ -94,7 +94,7 @@ export function UpdateCenter({
   const complete = checked.length === installed.length;
   const latestSavedCheck = Math.max(
     0,
-    ...checked.map((port) => currentUpdateSnapshot(statuses.get(port.id))?.checked_at ?? 0),
+    ...installed.map((port) => currentUpdateSnapshot(statuses.get(port.id))?.checked_at ?? 0),
   );
   const failed = outcomes.filter((outcome) => !outcome.ok).length;
   const staged = installed.filter((port) => statuses.get(port.id)?.staged).length;

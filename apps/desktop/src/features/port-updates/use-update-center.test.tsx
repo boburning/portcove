@@ -198,6 +198,38 @@ describe("port update read owner", () => {
     expect(state.outcomes).toEqual([outcome(beta)]);
   });
 
+  it("drops a retained result when an unsnapshotted installation changes", async () => {
+    const earlier = { ...status("alpha", "a".repeat(64)), last_update_check: null };
+    const changed = { ...status("alpha", "b".repeat(64)), last_update_check: null };
+    const oldResult = outcome(status("alpha", "a".repeat(64)));
+    vi.spyOn(desktopApi, "checkInstalled").mockResolvedValue([oldResult]);
+    await act(async () => root.render(<Fixture statuses={[earlier]} />));
+    await act(async () => state.checkAll());
+    expect(state.outcomes).toEqual([oldResult]);
+
+    await act(async () => root.render(<Fixture statuses={[changed]} />));
+    expect(state.outcomes).toEqual([]);
+  });
+
+  it("rejects an in-flight result after an unsnapshotted installation changes", async () => {
+    const earlier = { ...status("alpha", "a".repeat(64)), last_update_check: null };
+    const changed = { ...status("alpha", "b".repeat(64)), last_update_check: null };
+    const pending = deferred<UpdateCheckOutcome[]>();
+    vi.spyOn(desktopApi, "checkInstalled").mockImplementation(() => pending.promise);
+    await act(async () => root.render(<Fixture statuses={[earlier]} />));
+
+    let run!: Promise<void>;
+    act(() => {
+      run = state.checkAll();
+    });
+    await act(async () => root.render(<Fixture statuses={[changed]} />));
+    await act(async () => {
+      pending.resolve([outcome(status("alpha", "a".repeat(64)))]);
+      await run;
+    });
+    expect(state.outcomes).toEqual([]);
+  });
+
   it("absorbs a rejection from an earlier workspace baseline", async () => {
     const alpha = status("alpha", "a".repeat(64));
     const beta = status("beta", "b".repeat(64));

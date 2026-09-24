@@ -3344,6 +3344,18 @@ describe("desktop components", () => {
     );
     expect(saved).toContain("Update results cover 1 of 1 installed games.");
     expect(saved).toContain("Latest saved check:");
+    const savedStatus = {
+      ...status,
+      last_update_check: { checked_at: 1_700_000_000, check: savedCheck },
+    };
+    for (const attempted of [
+      { port_id: port.id, ok: false, error: failureReport(), result: null },
+      { port_id: port.id, ok: true, error: null, result: null },
+    ]) {
+      const incomplete = render(savedStatus, [attempted]);
+      expect(incomplete).toContain("Update results cover 0 of 1 installed games.");
+      expect(incomplete).toContain("Latest saved check:");
+    }
 
     const second = { ...port, id: "second-game", name: "Second game" };
     const partial = renderToStaticMarkup(

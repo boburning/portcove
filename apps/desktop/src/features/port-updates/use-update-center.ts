@@ -24,12 +24,25 @@ export function useUpdateCenter(perform: UpdateCheckOperation, statuses: PortSta
         ]
       : [];
   });
-  const snapshotBaseline = snapshots
-    .map(
-      (outcome) =>
-        `${outcome.port_id}:${outcome.result?.release.asset.sha256}:${outcome.result?.installed_artifact?.sha256}:${JSON.stringify(outcome.result?.required_runtime)}:${JSON.stringify(outcome.result?.installed_runtime)}`,
-    )
-    .join("|");
+  const snapshotBaseline = JSON.stringify(
+    statuses
+      .filter((status) => status.active)
+      .map((status) => {
+        const snapshot = currentUpdateSnapshot(status);
+        return [
+          status.port_id,
+          status.channel,
+          status.active!.id,
+          status.active!.version,
+          status.active!.artifact.sha256,
+          status.active!.runtime,
+          snapshot?.checked_at,
+          snapshot?.check.release.asset.sha256,
+          snapshot?.check.required_runtime,
+        ] as const;
+      })
+      .sort((a, b) => a[0].localeCompare(b[0])),
+  );
   const [checked, setChecked] = useState<{
     baseline: string;
     outcomes: UpdateCheckOutcome[];
