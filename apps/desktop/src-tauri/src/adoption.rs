@@ -47,7 +47,7 @@ pub(crate) async fn adopt_port(
         .as_deref()
         .ok_or_else(|| PortcoveError::conflict("select one detected port before adoption"))?;
     let message = format!(
-        "Copy {} files ({} bytes) into Portcove for catalog port {}?\n\nOriginal: {}\nDestination: {}\nSaved data: {}\n\nCatalog-selected saved data will be merged, replacing matching saved files. No automatic safety backup is created. Existing versions and backups remain; the copy becomes active. The original folder will not be modified. {}",
+        "Copy {} files ({} bytes) into Portcove for catalog port {}?\n\nOriginal: {}\nDestination: {}\nSaved-data destination: {}\n\n{}\n\nExisting versions and backups remain; the copy becomes active. The original folder will not be modified. {}",
         preview.copy_plan.files.len(),
         preview.copy_plan.total_bytes,
         selected_port_id,
@@ -57,6 +57,7 @@ pub(crate) async fn adopt_port(
             .effective_output_directory
             .display(),
         destination.output_location.user_data_root.display(),
+        saved_data_disclosure(&destination.imported_user_data_paths),
         unsupported_items_disclosure(preview.copy_plan.skipped_entries.len()),
     );
     if !confirm_destructive(
@@ -81,6 +82,29 @@ pub(crate) async fn adopt_port(
     .await
 }
 
+fn saved_data_disclosure(paths: &[PathBuf]) -> String {
+    if paths.is_empty() {
+        return "No catalog-selected saved-data paths will be imported from this folder."
+            .to_owned();
+    }
+    const SHOWN_PATHS: usize = 5;
+    let shown = paths
+        .iter()
+        .take(SHOWN_PATHS)
+        .map(|path| format!("- {}", path.display()))
+        .collect::<Vec<_>>()
+        .join("\n");
+    let remaining = paths.len().saturating_sub(SHOWN_PATHS);
+    let more = if remaining == 0 {
+        String::new()
+    } else {
+        format!("\n- and {remaining} more; see the full reviewed path list")
+    };
+    format!(
+        "Matching saved files in Portcove will be replaced. Portcove does not create a backup before this copy.\nAffected saved-data paths from the original folder:\n{shown}{more}"
+    )
+}
+
 fn unsupported_items_disclosure(count: usize) -> String {
     match count {
         0 => "No unsupported items were found in the reviewed copy plan.".to_owned(),
@@ -91,7 +115,18 @@ fn unsupported_items_disclosure(count: usize) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::unsupported_items_disclosure;
+    use super::{saved_data_disclosure, unsupported_items_disclosure};
+    use std::path::PathBuf;
+
+    #[test]
+    fn confirmation_discloses_replacement_only_for_imported_saved_data() {
+        assert!(saved_data_disclosure(&[]).starts_with("No catalog-selected"));
+        let paths = [PathBuf::from("settings"), PathBuf::from("saves/slot1")];
+        let message = saved_data_disclosure(&paths);
+        assert!(message.contains("Matching saved files in Portcove will be replaced"));
+        assert!(message.contains("Portcove does not create a backup before this copy"));
+        assert!(message.contains("- settings\n- saves/slot1"));
+    }
 
     #[test]
     fn unsupported_copy_items_name_where_they_remain() {

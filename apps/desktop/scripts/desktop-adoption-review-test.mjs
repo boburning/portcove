@@ -165,8 +165,10 @@ export async function adoptionReviewScenario({
       original,
       paths.user_data_root,
       previous.path,
-      "Matching saved files are replaced",
-      "No automatic safety backup",
+      "Matching saved files in Portcove will be replaced",
+      "Portcove does not create a backup before this copy",
+      "Affected saved-data paths from the original folder",
+      "general.json",
       "cannot cancel",
     ])
       assert.ok(text.includes(expected), expected);
@@ -177,7 +179,7 @@ export async function adoptionReviewScenario({
     await confirmNative(
       "Confirm existing installation copy",
       "__observe__",
-      "No unsupported items were found in the reviewed copy plan.",
+      "Portcove does not create a backup before this copy.",
       "adoption-native-before-consent",
     );
     assert.equal(await readFile(current, "utf8"), "current settings");

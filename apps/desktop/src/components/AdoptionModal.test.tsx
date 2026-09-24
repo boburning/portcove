@@ -55,6 +55,38 @@ it("keeps an uncancellable copy open and inputs locked even while another operat
   }
 });
 
+it("starts an unscoped copy review without passing the click event as a port ID", async () => {
+  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+  const container = document.createElement("div");
+  document.body.append(container);
+  const root = createRoot(container);
+  const review = vi.fn();
+  try {
+    await act(async () =>
+      root.render(
+        <AdoptionModal
+          path="D:/Existing"
+          setPath={vi.fn()}
+          close={vi.fn()}
+          review={review}
+          adopt={vi.fn()}
+        />,
+      ),
+    );
+    const dialog = document.body.querySelector<HTMLElement>('[data-slot="dialog-content"]')!;
+    await act(async () => {
+      [...dialog.querySelectorAll<HTMLButtonElement>("button")]
+        .find((button) => button.textContent?.includes("Review copy plan"))!
+        .click();
+    });
+    expect(review).toHaveBeenCalledExactlyOnceWith();
+  } finally {
+    await act(async () => root.unmount());
+    container.remove();
+    vi.unstubAllGlobals();
+  }
+});
+
 it("shows the reviewed copy plan and skipped entries in the portaled Dialog", async () => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   const container = document.createElement("div");
@@ -114,14 +146,26 @@ it("shows the reviewed copy plan and skipped entries in the portaled Dialog", as
       "Continue to copy confirmation",
       "E:/Games",
       "D:/Library/user/sample",
-      "Matching saved files are replaced",
-      "No automatic safety backup",
+      "Matching saved files in Portcove will be replaced",
+      "Portcove does not create a backup before this copy",
+      "Affected saved-data paths from the original folder",
       "cannot cancel",
     ])
       expect(dialog.textContent).toContain(expected);
     expect(dialog.textContent).not.toContain("SAFE ADOPTION");
     expect(dialog.textContent).not.toContain("Bring an existing install into Portcove");
     expect([...dialog.querySelectorAll("code")].map((item) => item.textContent)).toContain(port.id);
+    expect(dialog.querySelector('[role="note"]')?.classList.contains("adoption-save-warning")).toBe(
+      true,
+    );
+    expect(
+      dialog.querySelector('[aria-label="Saved-data paths to import"]')?.textContent,
+    ).toContain("settings");
+    expect(
+      [...dialog.querySelectorAll("button")]
+        .find((item) => item.textContent?.includes("Continue to copy confirmation"))
+        ?.getAttribute("aria-describedby"),
+    ).toBe("adopt-save-warning");
   } finally {
     await act(async () => root.unmount());
     container.remove();
@@ -232,6 +276,8 @@ it("offers only detected ports for a fresh bound copy review", async () => {
     expect(document.activeElement?.id).toBe("adopt-port-identity");
     expect(dialog.textContent).toContain("Cancel");
     expect(dialog.querySelector("strong")?.textContent).toBe("Other Port");
+    expect(dialog.textContent).toContain("No catalog-selected saved-data paths will be imported");
+    expect(dialog.querySelector("#adopt-save-warning")).toBeNull();
     await act(async () =>
       root.render(
         <AdoptionModal
