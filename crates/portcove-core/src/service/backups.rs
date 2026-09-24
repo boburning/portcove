@@ -27,15 +27,26 @@ use crate::{
 };
 
 const BACKUP_MANIFEST_MAX_BYTES: u64 = 64 * 1024;
+const BACKUP_PREPARATION_MARKER: &str = "preparation.json";
 
 #[derive(Debug, Serialize, Deserialize)]
 struct BackupManifest {
     id: String,
     port_id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    staging_name: Option<String>,
     created_at: i64,
     file_count: u64,
     size: u64,
     sha256: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct BackupPreparationMarker {
+    schema_version: u32,
+    backup_id: String,
+    port_id: String,
+    staging_name: String,
 }
 
 #[derive(Debug, Default)]
@@ -77,8 +88,35 @@ impl PortcoveService {
         let temporary = tempfile::Builder::new()
             .prefix(".backup-")
             .tempdir_in(&parent)?;
+        let staging_name = temporary
+            .path()
+            .file_name()
+            .and_then(|name| name.to_str())
+            .ok_or_else(|| PortcoveError::state("private backup staging name is not Unicode"))?
+            .to_owned();
+        let backup_id = Uuid::new_v4().to_string();
+        let marker_path = temporary.path().join(BACKUP_PREPARATION_MARKER);
+        let mut marker_file = fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&marker_path)?;
+        serde_json::to_writer_pretty(
+            &mut marker_file,
+            &BackupPreparationMarker {
+                schema_version: 1,
+                backup_id: backup_id.clone(),
+                port_id: port_id.into(),
+                staging_name: staging_name.clone(),
+            },
+        )?;
+        marker_file.write_all(b"\n")?;
+        marker_file.sync_all()?;
+        drop(marker_file);
+        self.faults
+            .check(LifecycleFaultPoint::BackupStagingCreated)?;
         let mut stats = BackupStats::default();
         copy_backup_tree(&source, &temporary.path().join("data"), &source, &mut stats)?;
+        self.faults.check(LifecycleFaultPoint::BackupDataCopied)?;
         if stats.file_count == 0 {
             return Err(PortcoveError::not_found(format!(
                 "{port_id} has no persistent data to back up"
@@ -97,8 +135,9 @@ impl PortcoveService {
             .first()
             .map_or(now, |latest| now.max(latest.created_at.saturating_add(1)));
         let manifest = BackupManifest {
-            id: Uuid::new_v4().to_string(),
+            id: backup_id,
             port_id: port_id.into(),
+            staging_name: Some(staging_name),
             created_at,
             file_count,
             size,
@@ -111,6 +150,9 @@ impl PortcoveService {
         manifest_file.write_all(b"\n")?;
         manifest_file.sync_all()?;
         drop(manifest_file);
+        self.faults
+            .check(LifecycleFaultPoint::BackupManifestSynced)?;
+        fs::remove_file(marker_path)?;
         let directory_sync = prepare_backup_publication(
             self.library.root(),
             &self.library.backups_dir(),
@@ -118,7 +160,9 @@ impl PortcoveService {
             temporary.path(),
         )?;
         let staging_path = temporary.keep();
+        self.faults.check(LifecycleFaultPoint::BackupStagingKept)?;
         publish_backup_directory(&staging_path, &final_path, &parent, directory_sync)?;
+        self.faults.check(LifecycleFaultPoint::BackupPublished)?;
         Ok(backup_record(manifest, final_path))
     }
 
@@ -246,6 +290,10 @@ impl PortcoveService {
                 });
             }
         };
+        // Only an idle port lock can establish that a private stage is no
+        // longer being written. Keep the probe guard through the scan so a
+        // new backup cannot start between classification and readback.
+        let mut staging_lock = None;
         for entry in entries {
             let entry = match entry {
                 Ok(entry) => entry,
@@ -273,6 +321,27 @@ impl PortcoveService {
                 }
             };
             if directory_id.starts_with(".backup-") {
+                if staging_lock.is_none() {
+                    staging_lock = Some(self.library.try_probe_port_lock(port_id));
+                }
+                let lock = staging_lock.as_ref().expect("probe state was just set");
+                match lock {
+                    Ok(Some(_guard)) => problems.push(staged_backup_problem(port_id, &path)),
+                    Ok(None) => {} // Live port work may still own this stage.
+                    Err(error) => problems.push(BackupProblem {
+                        kind: BackupProblemKind::RecoveryRequired,
+                        backup_id: None,
+                        operation_id: None,
+                        path,
+                        message: format!(
+                            "private backup preparation ownership could not be checked: {}",
+                            error.message
+                        ),
+                        proposed_action:
+                            "preserve this path and inspect the port lock before any recovery"
+                                .into(),
+                    }),
+                }
                 continue;
             }
             if directory_id.starts_with('.') {
@@ -772,6 +841,76 @@ fn backup_problem(
             _ => "repair or remove this backup entry after review",
         }
         .into(),
+    }
+}
+
+fn staged_backup_problem(port_id: &str, path: &Path) -> BackupProblem {
+    let stage_name = path.file_name().and_then(|name| name.to_str());
+    let stage_is_directory = fs::symlink_metadata(path)
+        .is_ok_and(|metadata| metadata.is_dir() && !metadata.file_type().is_symlink());
+    let (marker, manifest_present, manifest) = if stage_is_directory {
+        let marker = crate::path::read_bounded_regular(
+            &path.join(BACKUP_PREPARATION_MARKER),
+            BACKUP_MANIFEST_MAX_BYTES,
+        )
+        .ok()
+        .and_then(|bytes| serde_json::from_slice::<BackupPreparationMarker>(&bytes).ok());
+        let manifest_path = path.join("backup.json");
+        let manifest_present = fs::symlink_metadata(&manifest_path).is_ok();
+        let manifest = crate::path::read_bounded_regular(&manifest_path, BACKUP_MANIFEST_MAX_BYTES)
+            .ok()
+            .and_then(|bytes| serde_json::from_slice::<BackupManifest>(&bytes).ok());
+        (marker, manifest_present, manifest)
+    } else {
+        (None, false, None)
+    };
+    let marker_present = stage_is_directory
+        && !matches!(
+            fs::symlink_metadata(path.join(BACKUP_PREPARATION_MARKER)),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound
+        );
+    let marker_owned = marker.as_ref().is_some_and(|marker| {
+        marker.schema_version == 1
+            && marker.port_id == port_id
+            && Some(marker.staging_name.as_str()) == stage_name
+            && Uuid::parse_str(&marker.backup_id).is_ok_and(|id| id.to_string() == marker.backup_id)
+    });
+    let manifest_owned = manifest.as_ref().is_some_and(|manifest| {
+        manifest.port_id == port_id
+            && manifest.staging_name.as_deref() == stage_name
+            && Uuid::parse_str(&manifest.id).is_ok_and(|id| id.to_string() == manifest.id)
+    });
+    let identities_conflict = matches!(
+        (&marker, &manifest),
+        (Some(marker), Some(manifest))
+            if marker_owned && manifest_owned && marker.backup_id != manifest.id
+    );
+    let owned = stage_is_directory
+        && (marker_owned || manifest_owned)
+        && (!marker_present || marker_owned)
+        && !identities_conflict;
+    let description = if !owned {
+        "the entry has no consistent Portcove preparation identity; preserve it as ambiguous private data"
+    } else if manifest_owned {
+        "a complete-looking manifest remains unpublished; its data is unverified and cannot be restored from this stage"
+    } else if manifest_present {
+        "the staged manifest is unreadable or has mismatched identity; no restorable backup was published"
+    } else {
+        "the owned preparation has no manifest; copied bytes are not a restorable backup"
+    };
+    BackupProblem {
+        kind: BackupProblemKind::RecoveryRequired,
+        backup_id: None,
+        operation_id: None,
+        path: path.to_path_buf(),
+        message: if owned {
+            format!("unpublished backup preparation remains while the port is idle; {description}")
+        } else {
+            format!("backup staging-shaped entry remains while the port is idle; {description}")
+        },
+        proposed_action:
+            "preserve this staging path and use doctor to review its exact identity; do not restore or delete it as a backup"
+                .into(),
     }
 }
 
