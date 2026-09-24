@@ -55,17 +55,21 @@ it("lists every affected path, removed settings and preserved data before explic
   for (const path of [...review.managed_paths, review.persistent_data_path])
     expect(dialog().textContent).toContain(path);
   for (const text of [
-    "2 managed folders",
+    "2 installation folders",
+    `Uninstall ${port.name}?`,
+    `all installed versions of ${port.name} managed by Portcove`,
     "release-channel and update-policy settings",
     "original folders",
+    "Your saved data, backups, and original game files are kept",
+    "reinstall it or copy an existing installation",
     "retains a recovery journal",
-    "not an undo",
+    "interrupted deletion may finish",
   ])
     expect(dialog().textContent).toContain(text);
   expect(dialog().textContent).toContain("original folders used for copied installations");
   expect(dialog().textContent?.toLowerCase()).not.toContain("adoption");
-  expect(dialog().querySelector("[data-autofocus]")?.textContent).toBe("Keep installed files");
-  await click("Remove these managed folders");
+  expect(dialog().querySelector("[data-autofocus]")?.textContent).toBe("Cancel");
+  await click("Uninstall all versions");
   expect(apply).toHaveBeenCalledExactlyOnceWith("reviewed-installations");
   expect(close).toHaveBeenCalledOnce();
 });
@@ -77,7 +81,7 @@ it("dismisses a removal review without applying it", async () => {
   await act(async () =>
     root.render(<RemovalReviewDialog port={port} generation={7} apply={apply} close={close} />),
   );
-  await click("Keep installed files");
+  await click("Cancel");
   expect(close).toHaveBeenCalledOnce();
   expect(apply).not.toHaveBeenCalled();
 });
@@ -89,7 +93,7 @@ it("closes the review without an error when final native consent is declined", a
   await act(async () =>
     root.render(<RemovalReviewDialog port={port} generation={7} apply={apply} close={close} />),
   );
-  await click("Remove these managed folders");
+  await click("Uninstall all versions");
   expect(close).toHaveBeenCalledOnce();
   expect(dialog().querySelector('[role="alert"]')).toBeNull();
 });
@@ -107,14 +111,18 @@ it("blocks duplicate removal and requires a new review after failure", async () 
   await act(async () =>
     root.render(<RemovalReviewDialog port={port} generation={7} apply={apply} close={close} />),
   );
-  await click("Remove these managed folders");
-  await click("Removing reviewed files…");
-  await click("Keep installed files");
+  await click("Uninstall all versions");
+  await click("Uninstalling…");
+  await click("Cancel");
   expect(apply).toHaveBeenCalledOnce();
   expect(close).not.toHaveBeenCalled();
   await act(async () => finish(false));
   expect(dialog().querySelector('[role="alert"]')?.textContent).toContain("did not complete");
-  expect(dialog().textContent).not.toContain("Remove these managed folders");
+  expect(
+    [...dialog().querySelectorAll("button")].some(
+      (button) => button.textContent === "Uninstall all versions",
+    ),
+  ).toBe(false);
   await click("Review removal again");
   expect(preview).toHaveBeenCalledTimes(2);
 });

@@ -525,10 +525,13 @@ their existing core implementation and machine contract.
 
 ## Installed-game removal review
 
-Desktop lists every managed version path returned by core before removal,
-including retained versions and external output paths. The review names saved
-settings that are removed, saved data and backups that remain, original source
-and adoption-folder preservation, and the irreversible/interruption behavior.
+Desktop presents uninstall as removal of all Portcove-managed versions and lists
+every path returned by core, including retained versions and external output
+paths. The review names saved settings that are removed, saved data and backups
+that remain, original source and copied-folder preservation, the need to reinstall
+or copy again, and the irreversible/interruption behavior. Final native consent
+repeats the recognizable port name, every affected folder, and the saved-data
+destination.
 An explicit apply request is bound to the reviewed install fingerprint and current
 library generation, followed by final backend-owned native confirmation. The adapter delegates authorization and removal to core,
 which revalidates under its port lock, collects saved data and journals quarantine

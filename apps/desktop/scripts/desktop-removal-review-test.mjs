@@ -42,10 +42,10 @@ export async function removalReviewScenario({
     const { button, click } = reviewControls(browser);
     const dialog = By.css('[aria-labelledby="removal-review-title"]');
     await click(By.css("summary.advanced-summary"));
-    const trigger = button("Remove managed files");
+    const trigger = button(`Uninstall ${port.name}`);
     const review = async () => {
       await click(trigger);
-      await browser.wait(until.elementLocated(button("Remove these managed folders")), 15_000);
+      await browser.wait(until.elementLocated(button("Uninstall all versions")), 15_000);
     };
     const generation = (await invoke("get_bootstrap_status")).value.generation;
     const initial = await invoke("preview_removal", {
@@ -74,25 +74,29 @@ export async function removalReviewScenario({
     await review();
     const destructiveStyles = await assertDestructiveReviewAction(
       browser,
-      await browser.findElement(button("Remove these managed folders")),
-      await browser.findElement(button("Keep installed files")),
+      await browser.findElement(button("Uninstall all versions")),
+      await browser.findElement(button("Cancel")),
     );
     for (const affected of initial.value.managed_paths)
       assert.ok((await browser.findElement(dialog).getText()).includes(affected));
-    await click(button("Keep installed files"));
+    await click(button("Cancel"));
     await assertManagedFolders(initial.value.managed_paths);
     assert.deepEqual(await readFile(save), beforeSave);
     await review();
-    await click(button("Remove these managed folders"));
-    await confirmNative(
-      "Confirm port removal",
+    await click(button("Uninstall all versions"));
+    const initialConsent = await confirmNative(
+      "Confirm uninstall",
       "__observe__",
       paths.user_data_root,
       "removal-native-before-consent",
     );
+    for (const expected of [port.name, port.id, ...initial.value.managed_paths])
+      assert.ok(initialConsent.text.includes(expected), `native consent omitted ${expected}`);
+    assert.ok(initialConsent.text.includes("original game files will be kept"));
+    assert.ok(!initialConsent.text.includes("review you just read"));
     await assertManagedFolders(initial.value.managed_paths);
     await confirmNative(
-      "Confirm port removal",
+      "Confirm uninstall",
       "Cancel",
       paths.user_data_root,
       "removal-native-cancelled",
@@ -106,7 +110,7 @@ export async function removalReviewScenario({
     });
     const added = command(["adopt", original, "--port", port.id, "--yes"]);
     assert.ok(!initial.value.managed_paths.includes(added.path));
-    await click(button("Remove these managed folders"));
+    await click(button("Uninstall all versions"));
     await browser.wait(until.elementLocated(button("Review removal again")), 15_000);
     const current = await invoke("preview_removal", {
       portId: port.id,
@@ -123,7 +127,7 @@ export async function removalReviewScenario({
     assert.equal(stale.ok, false);
     assert.equal(stale.error.code, "conflict");
     await click(button("Review removal again"));
-    await browser.wait(until.elementLocated(button("Remove these managed folders")), 15_000);
+    await browser.wait(until.elementLocated(button("Uninstall all versions")), 15_000);
     const text = await browser.findElement(dialog).getText();
     for (const affected of [...current.value.managed_paths, paths.user_data_root])
       assert.ok(text.includes(affected));
@@ -154,13 +158,15 @@ export async function removalReviewScenario({
       flag: "wx",
     });
     artifacts.push(screenshot);
-    await click(button("Remove these managed folders"));
-    await confirmNative(
-      "Confirm port removal",
-      "Remove reviewed folders",
+    await click(button("Uninstall all versions"));
+    const finalConsent = await confirmNative(
+      "Confirm uninstall",
+      "Uninstall port",
       paths.user_data_root,
       "removal-native-confirmed",
     );
+    for (const expected of [port.name, port.id, ...current.value.managed_paths])
+      assert.ok(finalConsent.text.includes(expected), `native consent omitted ${expected}`);
     await browser.wait(async () => (await browser.findElements(dialog)).length === 0, 15_000);
     for (const affected of current.value.managed_paths)
       await assert.rejects(stat(affected), { code: "ENOENT" });

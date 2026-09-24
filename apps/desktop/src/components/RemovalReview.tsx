@@ -25,7 +25,7 @@ export function RemovalControl({
     <>
       <Button data-focusable variant="destructive" disabled={busy} onClick={() => setOpen(true)}>
         <Icon glyph={Trash2} />
-        Remove managed files
+        Uninstall {port.name}
       </Button>
       {open && (
         <RemovalReviewDialog
@@ -78,19 +78,19 @@ export function RemovalReviewDialog({
         aria-describedby="removal-review-description"
       >
         <DialogTitle id="removal-review-title" className="mb-2 text-xl">
-          Review installed-game removal
+          Uninstall {port.name}?
         </DialogTitle>
         <DialogDescription id="removal-review-description" className="mb-4 leading-relaxed">
-          Remove the managed versions of {port.name} listed below.
+          This removes all installed versions of {port.name} managed by Portcove.
         </DialogDescription>
         {pending === "review" && <p role="status">Checking installed versions…</p>}
         {preview && (
           <section className="removal-review-details" aria-label="Files removed and data preserved">
             <p>
               <strong>
-                {preview.managed_paths.length} managed{" "}
-                {preview.managed_paths.length === 1 ? "folder" : "folders"} will be removed,
-                including any retained versions listed here.
+                Files inside these {preview.managed_paths.length} installation{" "}
+                {preview.managed_paths.length === 1 ? "folder" : "folders"} will be deleted,
+                including retained versions:
               </strong>
             </p>
             <ul>
@@ -106,12 +106,13 @@ export function RemovalReviewDialog({
             </p>
             <p>{preview.persistent_data_path}</p>
             <p>
-              Backups, registered original game sources and the original folders used for copied
-              installations are preserved. Other games are unaffected.
+              Your saved data, backups, and original game files are kept. Registered original game
+              sources and the original folders used for copied installations are also kept. Other
+              games are unaffected.
             </p>
             <p>
-              The game must be stopped. Files inside the listed managed folders will be deleted;
-              reinstalling or copying an original again is a new operation, not an undo.
+              The game must be stopped. To use this port again, reinstall it or copy an existing
+              installation. Uninstall cannot be undone.
             </p>
             <p>
               If interrupted, Portcove retains a recovery journal and checks removal when the
@@ -129,7 +130,7 @@ export function RemovalReviewDialog({
             disabled={pending === "apply"}
             onClick={dismiss}
           >
-            Keep installed files
+            Cancel
           </Button>
           {!preview && (
             <Button
@@ -151,7 +152,7 @@ export function RemovalReviewDialog({
                 void remove();
               }}
             >
-              {pending === "apply" ? "Removing reviewed files…" : "Remove these managed folders"}
+              {pending === "apply" ? "Uninstalling…" : "Uninstall all versions"}
             </Button>
           )}
         </DialogFooter>
