@@ -484,6 +484,7 @@ export async function interruptedPreparationScenario({
     const cleanupText = await browser.findElement(cleanupDialog).getText();
     for (const expected of [
       "Delete files left by unfinished setup?",
+      "Setup working folder to delete",
       privatePath,
       "Original installation preserved",
       "Registered source preserved",
@@ -685,6 +686,9 @@ export async function interruptedPreparationScenario({
     );
     const journalOnlyText = await browser.findElement(cleanupDialog).getText();
     assert.ok(journalOnlyText.includes("Clear unfinished setup record?"));
+    assert.ok(journalOnlyText.includes("Recorded setup path to clear"));
+    assert.ok(journalOnlyText.includes("before clearing this record"));
+    assert.ok(!journalOnlyText.includes("before deleting these files"));
     assert.ok(journalOnlyText.includes("Cancel"));
     assert.ok(!journalOnlyText.includes("Keep retained files"));
     assert.match(journalOnlyText, /0 files/);

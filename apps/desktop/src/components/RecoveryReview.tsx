@@ -267,7 +267,9 @@ function PreparationCleanupDetails({ preview }: { preview: PreparationCleanupPre
       </p>
       <dl>
         <div>
-          <dt>{entries.length ? "Setup working folder deleted" : "Recorded setup path cleared"}</dt>
+          <dt>
+            {entries.length ? "Setup working folder to delete" : "Recorded setup path to clear"}
+          </dt>
           <dd>{preview.retained_path}</dd>
         </div>
         <div>
@@ -297,8 +299,9 @@ function PreparationCleanupDetails({ preview }: { preview: PreparationCleanupPre
           : "No setup working files were found. Cleanup clears the recorded setup path if it exists and its stale recovery journal."}
       </p>
       <p>
-        Portcove must confirm that setup and any programs it started have stopped before deleting
-        these files.
+        {entries.length
+          ? "Portcove must confirm that setup and any programs it started have stopped before deleting these files."
+          : "Portcove must confirm that setup and any programs it started have stopped before clearing this record."}
       </p>
       <details>
         <summary data-focusable>Affected entries ({entries.length})</summary>

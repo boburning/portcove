@@ -182,6 +182,7 @@ it("reviews exact private files and preserved paths before cleanup", async () =>
     expect(document.body.textContent).toContain(preview.source_path);
     expect(document.body.textContent).toContain(preview.persistent_data_path);
     expect(document.body.textContent).toContain("private.bin");
+    expect(document.body.textContent).toContain("Setup working folder to delete");
     expect(document.body.textContent).toContain("Link or special entry");
     expect(document.body.textContent).toContain("cannot be recovered");
     expect(document.body.textContent).toContain("Delete files left by unfinished setup?");
@@ -258,7 +259,9 @@ it("explains that journal-only cleanup has no private entries to remove", async 
       "No setup working files remain. Clear the unfinished setup record and its recorded path if present.",
     );
     expect(document.body.textContent).toContain("Clear unfinished setup record?");
-    expect(document.body.textContent).toContain("Recorded setup path cleared");
+    expect(document.body.textContent).toContain("Recorded setup path to clear");
+    expect(document.body.textContent).toContain("before clearing this record");
+    expect(document.body.textContent).not.toContain("before deleting these files");
     expect(document.body.textContent).toContain(
       "No setup working files were found. Cleanup clears the recorded setup path if it exists and its stale recovery journal.",
     );
