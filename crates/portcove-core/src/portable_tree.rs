@@ -2,11 +2,13 @@
 //!
 //! Downloaded archive members intentionally use the stricter ASCII-only policy
 //! in `archive`. Upstream setup output can contain source-derived Unicode names;
-//! this policy preserves those names while rejecting traversal and aliases that
-//! would collide on case-insensitive or normalization-aware filesystems.
+//! this policy preserves those names while rejecting traversal and aliases under
+//! NFD full case folding with default-ignorable code points removed.
 
 use std::path::PathBuf;
 
+use icu_casemap::CaseMapper;
+use icu_properties::props::{BinaryProperty, DefaultIgnorableCodePoint};
 use unicode_normalization::UnicodeNormalization;
 
 use crate::{PortcoveError, Result};
@@ -43,11 +45,13 @@ pub(crate) fn validate_relative_path(name: &str, directory: bool) -> Result<(Pat
     let key = components
         .iter()
         .map(|component| {
-            let folded = component
-                .nfc()
-                .map(casefold::simple_fold_char)
-                .collect::<String>();
-            folded.nfc().collect::<String>()
+            let decomposed = component.nfd().collect::<String>();
+            let folded = CaseMapper::new().fold_string(&decomposed);
+            folded
+                .chars()
+                .filter(|character| !DefaultIgnorableCodePoint::for_char(*character))
+                .nfd()
+                .collect::<String>()
         })
         .collect::<Vec<_>>()
         .join("/");
@@ -111,7 +115,7 @@ mod tests {
     }
 
     #[test]
-    fn collision_keys_fold_case_and_canonical_unicode_only() {
+    fn collision_keys_use_full_canonical_casefold_without_compatibility_mapping() {
         let (_, composed) = validate_relative_path("Assets/Étage.bin", false).unwrap();
         let (_, decomposed) = validate_relative_path("assets/E\u{301}tage.BIN", false).unwrap();
         assert_eq!(composed, decomposed);
@@ -119,6 +123,14 @@ mod tests {
         let (_, sigma) = validate_relative_path("assets/σ.bin", false).unwrap();
         let (_, final_sigma) = validate_relative_path("assets/ς.bin", false).unwrap();
         assert_eq!(sigma, final_sigma);
+
+        let (_, sharp_s) = validate_relative_path("assets/Straße.bin", false).unwrap();
+        let (_, double_s) = validate_relative_path("assets/STRASSE.BIN", false).unwrap();
+        assert_eq!(sharp_s, double_s);
+
+        let (_, invisible) = validate_relative_path("assets/foo\u{200b}.bin", false).unwrap();
+        let (_, visible) = validate_relative_path("assets/foo.bin", false).unwrap();
+        assert_eq!(invisible, visible);
     }
 
     #[test]

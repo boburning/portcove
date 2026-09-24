@@ -12,7 +12,6 @@ qualification-fixtures = []
 
 [dependencies]
 async-trait.workspace = true
-casefold.workspace = true
 directories.workspace = true
 ed25519-dalek.workspace = true
 crc32fast.workspace = true
@@ -20,6 +19,8 @@ flate2.workspace = true
 futures-util.workspace = true
 fs2.workspace = true
 hex.workspace = true
+icu_casemap.workspace = true
+icu_properties.workspace = true
 image.workspace = true
 keyring.workspace = true
 reqwest.workspace = true

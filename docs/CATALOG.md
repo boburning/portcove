@@ -15,11 +15,12 @@ install and runtime ownership boundaries.
 
 Generated setup trees use a separate portable-path check from downloaded
 archives. It preserves Unicode names byte-for-byte, rejects traversal,
-Windows-unrepresentable names, and case or canonical-Unicode collisions, and
-does not apply compatibility normalization that could merge distinct names.
-Library transfer and import use the same check so verified generated assets keep
-their names when copied. The stricter ASCII archive-member policy remains in
-place for downloaded packages.
+Windows-unrepresentable names, and collisions under NFD full Unicode case
+folding with default-ignorable code points removed. It does not apply
+compatibility normalization that could merge distinct names. Library transfer
+and import use the same check so verified generated assets keep their names when
+copied. The stricter ASCII archive-member policy remains in place for downloaded
+packages.
 
 The OpenGOAL family declares `data/iso_data`, `data/decompiler_out` and `data/out`,
 following the [extractor](https://github.com/open-goal/jak-project/blob/ce97ce959b8c773097f593bf42f470555f6a6e2b/decompiler/extractor/main.cpp)

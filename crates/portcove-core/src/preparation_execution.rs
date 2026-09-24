@@ -498,7 +498,7 @@ pub(super) fn supports_single_source_setup_layout(port: &PortDefinition) -> bool
         && port.persistent_file_patterns.is_empty()
 }
 
-fn setup_output_root(
+pub(super) fn setup_output_root(
     port: &PortDefinition,
     payload: &Path,
     selected_executable: &Path,
@@ -512,7 +512,7 @@ fn setup_output_root(
     }
 }
 
-fn setup_source_path(
+pub(super) fn setup_source_path(
     port: &PortDefinition,
     payload: &Path,
     operation_root: &Path,

@@ -18,7 +18,6 @@ rust-version = "1.98"
 [workspace.dependencies]
 async-trait = "0.1.92"
 bytes = "1.12.1"
-casefold = "0.1.0"
 clap = { version = "4.6.7", features = ["derive", "env"] }
 directories = "6"
 ed25519-dalek = { version = "3.0.0", default-features = false, features = [
@@ -30,6 +29,8 @@ filetime = "0.2.29"
 futures-util = "0.3.34"
 fs2 = "0.4.3"
 hex = "0.4.3"
+icu_casemap = { version = "2.3.0", default-features = false, features = ["compiled_data"] }
+icu_properties = { version = "2.3.0", default-features = false, features = ["compiled_data"] }
 image = { version = "=0.25.10", default-features = false, features = [
   "png",
   "jpeg",

@@ -307,26 +307,38 @@ mod tests {
     }
 
     #[test]
-    fn reviewed_tree_rejects_unicode_casefold_aliases_when_the_host_can_represent_both() {
+    fn reviewed_tree_rejects_unicode_portable_aliases_when_the_host_can_represent_both() {
         let temporary = tempfile::tempdir().unwrap();
         let source = temporary.path().join("source");
         fs::create_dir(&source).unwrap();
-        fs::write(source.join("σ.bin"), b"sigma").unwrap();
-        fs::write(source.join("ς.bin"), b"final sigma").unwrap();
+        for (index, (left, right)) in [
+            ("σ.bin", "ς.bin"),
+            ("Straße.bin", "STRASSE.BIN"),
+            ("foo\u{200b}.bin", "foo.bin"),
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            let pair = source.join(format!("pair-{index}"));
+            fs::create_dir(&pair).unwrap();
+            fs::write(pair.join(left), b"left").unwrap();
+            fs::write(pair.join(right), b"right").unwrap();
 
-        let names = fs::read_dir(&source)
-            .unwrap()
-            .map(|entry| entry.unwrap().file_name().to_string_lossy().into_owned())
-            .collect::<BTreeSet<_>>();
-        if names.contains("σ.bin") && names.contains("ς.bin") {
-            let error = reviewed_tree(&source).unwrap_err();
-            assert!(
-                error
-                    .message
-                    .contains("collide on a case-insensitive destination")
-            );
-        } else {
-            assert_eq!(names.len(), 1, "host did not preserve both alias names");
+            let names = fs::read_dir(&pair)
+                .unwrap()
+                .map(|entry| entry.unwrap().file_name().to_string_lossy().into_owned())
+                .collect::<BTreeSet<_>>();
+            if names.contains(left) && names.contains(right) {
+                let error = reviewed_tree(&pair).unwrap_err();
+                assert!(
+                    error
+                        .message
+                        .contains("collide on a case-insensitive destination"),
+                    "unexpected error for aliases {left:?} and {right:?}: {error}"
+                );
+            } else {
+                assert_eq!(names.len(), 1, "host did not preserve both alias names");
+            }
         }
     }
 
