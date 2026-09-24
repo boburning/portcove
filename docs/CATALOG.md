@@ -43,7 +43,10 @@ unpublished-release qualification.
 Open Nectar 0.8.5 creates a `shader_cache` directory beside its Windows runtime
 on launch. The catalog treats that exact directory as disposable runtime output;
 its `save` directory and `pikmin_settings.conf` remain Portcove-managed player
-data. The [2026-09-24 Windows observation record](qualification/open-nectar-pikmin-windows-observations-2026-09-24.md)
+data. Preparation capacity checks reserve a full GameCube disc image for
+materialization and a separate disc-sized allowance for generated setup output,
+in addition to the copied installation; the registered compressed file size
+alone cannot represent that peak. The [2026-09-24 Windows observation record](qualification/open-nectar-pikmin-windows-observations-2026-09-24.md)
 describes setup, startup and persistence evidence and its limits. This runtime
 observation does not establish gameplay qualification.
 

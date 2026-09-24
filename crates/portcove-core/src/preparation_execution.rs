@@ -26,6 +26,31 @@ pub(super) struct PreparationReceipt {
     pub(super) inputs: PreparationInputs,
 }
 
+// A GameCube disc image is at most 1,459,978,240 bytes. The pinned source
+// validator records compressed containers by their stored size, so reserve a
+// full image for materialization and another for generated setup output.
+const GAMECUBE_DISC_CAPACITY_BYTES: u64 = 1_459_978_240;
+
+fn preparation_capacity_bytes(
+    copy_bytes: u64,
+    stored_source_bytes: u64,
+    materialization: Option<RuntimeSourceMaterialization>,
+) -> Result<u64> {
+    let (source_bytes, generated_bytes) =
+        if materialization == Some(RuntimeSourceMaterialization::GamecubeIso) {
+            (
+                stored_source_bytes.max(GAMECUBE_DISC_CAPACITY_BYTES),
+                GAMECUBE_DISC_CAPACITY_BYTES,
+            )
+        } else {
+            (stored_source_bytes, 0)
+        };
+    copy_bytes
+        .checked_add(source_bytes)
+        .and_then(|bytes| bytes.checked_add(generated_bytes))
+        .ok_or_else(|| PortcoveError::state("preparation capacity size overflowed"))
+}
+
 impl PortcoveService {
     /// Review the exact private preparation tree retained by an interrupted attempt.
     pub fn preview_preparation_cleanup(
@@ -190,11 +215,12 @@ impl PortcoveService {
             .path
             .parent()
             .ok_or_else(|| PortcoveError::state("installed preparation has no managed parent"))?;
-        let required = plan
-            .copy
-            .total_bytes
-            .checked_add(plan.inputs.source.storage_size)
-            .ok_or_else(|| PortcoveError::state("preparation copy size overflowed"))?;
+        let port = self.installed_port(original)?;
+        let required = preparation_capacity_bytes(
+            plan.copy.total_bytes,
+            plan.inputs.source.storage_size,
+            port.runtime_source_materialization,
+        )?;
         let prepared = crate::output_root::prepare_for_install(
             self.library(),
             &plan.port_id,
@@ -1083,4 +1109,45 @@ fn validate_cleanup_fingerprint(fingerprint: &str) -> Result<()> {
         ));
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod capacity_tests {
+    use super::{GAMECUBE_DISC_CAPACITY_BYTES, preparation_capacity_bytes};
+    use crate::RuntimeSourceMaterialization;
+
+    #[test]
+    fn compressed_gamecube_preparation_reserves_full_disc_and_generated_output() {
+        let copied_install = 100_000_000;
+        let compressed_source = 200_000_000;
+        let required = preparation_capacity_bytes(
+            copied_install,
+            compressed_source,
+            Some(RuntimeSourceMaterialization::GamecubeIso),
+        )
+        .unwrap();
+        assert_eq!(required, copied_install + 2 * GAMECUBE_DISC_CAPACITY_BYTES);
+        assert_eq!(
+            preparation_capacity_bytes(
+                copied_install,
+                GAMECUBE_DISC_CAPACITY_BYTES + 1,
+                Some(RuntimeSourceMaterialization::GamecubeIso),
+            )
+            .unwrap(),
+            copied_install + 2 * GAMECUBE_DISC_CAPACITY_BYTES + 1
+        );
+    }
+
+    #[test]
+    fn preparation_capacity_preserves_other_materialization_and_rejects_overflow() {
+        assert_eq!(preparation_capacity_bytes(100, 200, None).unwrap(), 300);
+        assert!(
+            preparation_capacity_bytes(
+                u64::MAX,
+                1,
+                Some(RuntimeSourceMaterialization::GamecubeIso),
+            )
+            .is_err()
+        );
+    }
 }
