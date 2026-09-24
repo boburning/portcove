@@ -3324,6 +3324,57 @@ describe("desktop components", () => {
     ];
     for (const [label, current, outcomes] of states)
       expect(render(current, outcomes)).toContain(`>${label}</span>`);
+
+    expect(render(status)).toMatch(/<strong>Unknown<\/strong><span>Updates available<\/span>/u);
+    expect(render(status, [{ port_id: port.id, ok: true, error: null, result }])).toMatch(
+      /<strong>0<\/strong><span>Updates available<\/span>/u,
+    );
+    expect(
+      render(status, [{ port_id: port.id, ok: false, error: failureReport(), result: null }]),
+    ).toContain("Update results cover 0 of 1 installed games.");
+
+    const savedCheck = {
+      ...result,
+      installed_artifact: status.active!.artifact,
+      installed_runtime: status.active!.runtime ?? null,
+    };
+    const saved = render(
+      { ...status, last_update_check: { checked_at: 1_700_000_000, check: savedCheck } },
+      [{ port_id: port.id, ok: true, error: null, result: savedCheck }],
+    );
+    expect(saved).toContain("Update results cover 1 of 1 installed games.");
+    expect(saved).toContain("Latest saved check:");
+
+    const second = { ...port, id: "second-game", name: "Second game" };
+    const partial = renderToStaticMarkup(
+      <UpdateCenter
+        generation={1}
+        ports={[port, second]}
+        statuses={
+          new Map([
+            [port.id, status],
+            [second.id, { ...status, port_id: second.id }],
+          ])
+        }
+        activities={[]}
+        outcomes={[
+          {
+            port_id: port.id,
+            ok: true,
+            error: null,
+            result: { ...result, update_available: true },
+          },
+        ]}
+        diagnosticsRefreshing={false}
+        diagnosticsStale={false}
+        refreshDiagnostics={vi.fn()}
+        checkAll={vi.fn()}
+        onSelect={vi.fn()}
+        onOpenSources={vi.fn()}
+      />,
+    );
+    expect(partial).toMatch(/<strong>1\+<\/strong><span>Updates available<\/span>/u);
+    expect(partial).toContain("Update results cover 1 of 2 installed games.");
   });
 
   it("describes activity mutations with outcomes shared producers can support", () => {
