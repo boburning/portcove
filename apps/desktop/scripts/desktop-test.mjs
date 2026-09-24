@@ -743,9 +743,23 @@ try {
     await browser.wait(until.elementLocated(settings), 15_000);
     await browser.wait(
       async () =>
-        (await browser.executeScript(() => document.activeElement?.id)) ===
-        "application-update-settings-title",
+        await browser.executeScript(
+          () =>
+            document.activeElement?.closest(".application-update-settings") !== null &&
+            document.activeElement?.textContent?.trim() === "Preview",
+        ),
       15_000,
+    );
+    await browser.actions().sendKeys(Key.ARROW_DOWN).perform();
+    await browser.wait(
+      async () =>
+        await browser.executeScript(
+          () =>
+            document.activeElement?.closest(".application-update-settings") !== null &&
+            document.activeElement?.textContent?.trim() !== "Preview",
+        ),
+      5_000,
+      "Directional navigation left application update settings",
     );
     await browser.wait(
       until.elementLocated(By.css('[aria-label="Application update channel"]')),
