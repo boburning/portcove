@@ -98,16 +98,20 @@ it("reviews without executing and binds explicit confirmation to the returned pl
   expect(review).toHaveBeenCalledWith("sample", 7);
   expect(run).not.toHaveBeenCalled();
   expect(document.body.querySelector('[role="dialog"]')).not.toBeNull();
+  expect(document.body.querySelector('[role="dialog"] .preparation-plan')).not.toBeNull();
   expect(document.body.textContent).toContain("E:/owned.iso");
-  expect(document.body.textContent).toContain(
-    "choose its option to close setup instead of launching",
-  );
-  expect(document.activeElement?.textContent).toBe("Start new preparation");
+  expect(document.body.textContent).toContain("Prepare game data");
+  expect(document.body.textContent).toContain("Selected original files");
+  expect(document.body.textContent).toContain("of free space before the game generates output");
+  expect(document.body.textContent).toContain("previous version remains available for rollback");
+  expect(document.body.textContent).toContain("unfinished setup files kept for review");
+  expect(document.body.textContent).toContain("Do not launch the game from that window");
+  expect(document.activeElement?.textContent).toBe("Prepare game data");
   await pressEscape();
   expect(document.body.querySelector('[role="dialog"]')).toBeNull();
   expect(document.activeElement?.textContent).toBe("Review game preparation");
   await click("Review game preparation");
-  await click("Start new preparation");
+  await click("Prepare game data");
   expect(run).toHaveBeenCalledWith("reviewed-plan", expect.any(Function));
   expect(document.body.textContent).toContain("Game data is prepared");
 });
@@ -134,7 +138,7 @@ it("keeps the reviewed preparation and cancellation control available while setu
     root.render(<PreparationControl portId="sample" generation={7} disabled={false} run={run} />),
   );
   await click("Review game preparation");
-  await click("Start new preparation");
+  await click("Prepare game data");
   expect(document.body.textContent).toContain("Cancel preparation");
   await pressEscape();
   expect(document.body.querySelector('[role="dialog"]')).not.toBeNull();
@@ -149,7 +153,7 @@ it("requires a fresh review after an execution error and reports no success", as
     root.render(<PreparationControl portId="sample" generation={7} disabled={false} run={run} />),
   );
   await click("Review game preparation");
-  await click("Start new preparation");
+  await click("Prepare game data");
   expect(document.body.querySelector('[role="alert"]')?.textContent).toContain("Inputs changed");
   expect(document.body.textContent).not.toContain("Game data is prepared");
   expect([...container.querySelectorAll("button")].map((button) => button.textContent)).toContain(

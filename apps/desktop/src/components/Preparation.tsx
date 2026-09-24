@@ -88,8 +88,8 @@ export function PreparationControl({
   return (
     <section aria-label="Prepare game data" className="preparation-control">
       <p>
-        Prepare and verify the original game data before playing. Your current installation and
-        saves are preserved.
+        Portcove will use your selected original files to prepare this installed version. Your
+        current installation and saved data will stay in place.
       </p>
       <Button
         ref={reviewButton}
@@ -119,34 +119,35 @@ export function PreparationControl({
             aria-describedby="preparation-review-description"
           >
             <DialogTitle id="preparation-review-title" className="mb-2 text-xl">
-              Review game preparation
+              Prepare game data
             </DialogTitle>
             <DialogDescription id="preparation-review-description" className="mb-4 leading-relaxed">
-              Confirm the reviewed source, existing version, and private-copy requirements before
+              Check the original files, installed version, space needed, and preserved data before
               starting setup.
             </DialogDescription>
-            <div className="install-plan" aria-label="Preparation plan">
+            <div className="preparation-plan" aria-label="Preparation plan">
               <p>
-                <strong>Default setup · {plan.inputs.install.version}</strong>
+                <strong>Installed version · {plan.inputs.install.version}</strong>
               </p>
-              <p>Original source: {plan.inputs.source.path}</p>
+              <p>Selected original files: {plan.inputs.source.path}</p>
               <p>
-                A private copy needs at least{" "}
-                {formatBytes(plan.copy.total_bytes + plan.inputs.source.storage_size)} before
-                generated output. The final space needed depends on the game.
-              </p>
-              <p>
-                The verified result becomes active. Your previous version remains available for
-                rollback.
+                Portcove needs at least{" "}
+                {formatBytes(plan.copy.total_bytes + plan.inputs.source.storage_size)} of free space
+                before the game generates output. The final amount depends on the game.
               </p>
               <p>
-                Each attempt starts from the reviewed inputs in a new private copy and retains
-                earlier partial work.
+                Your original files and current installation remain unchanged. The verified result
+                becomes active, and your previous version remains available for rollback.
               </p>
               <p>
-                If the upstream setup opens a window, finish generating the game data there and
-                choose its option to close setup instead of launching. Portcove will then verify and
-                activate the generated result.
+                If preparation is cancelled or interrupted, check Recent activity for any unfinished
+                setup files kept for review. Starting again uses the selected original files without
+                erasing earlier unfinished work.
+              </p>
+              <p>
+                If setup opens a window, complete setup there, then choose its option to close
+                setup. Do not launch the game from that window. Portcove will verify and activate
+                the prepared result afterward.
               </p>
               {pending === "prepare" && message && <p role="status">{message}</p>}
               {operationId && (
@@ -167,7 +168,7 @@ export function PreparationControl({
                   void prepare();
                 }}
               >
-                {pending === "prepare" ? "Preparing game data…" : "Start new preparation"}
+                {pending === "prepare" ? "Preparing game data…" : "Prepare game data"}
               </Button>
               <Button
                 data-focusable

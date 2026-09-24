@@ -714,8 +714,12 @@ runs. The working directory and process group are not a sandbox. The reviewed
 family now prepares through explicit CLI/Tauri operations. Its launch path checks
 manifest-bound readiness and full immutable output, then restores user data and
 supervises the game; it does not materialize sources or run setup. React owns the
-review screen and transient progress only. Tauri rejects a review from another
-library generation and translates events through its existing channel transport.
+review screen and transient progress only. Its preparation review names the
+selected original files and installed version, minimum space before generated
+output, preserved installation and rollback path, setup-window close guidance,
+and retained-work guidance after cancellation. Tauri rejects a review from
+another library generation and translates events through its existing channel
+transport.
 
 Preparation receipts bind the generating definition, source, artifact/runtime,
 host and default options. Changed identities require a new preparation review.
