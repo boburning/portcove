@@ -531,7 +531,7 @@ describe("desktop components", () => {
     expect(ready.indexOf("Play now")).toBeLessThan(ready.indexOf(port.summary));
     expect(ready.indexOf("Play now")).toBeLessThan(ready.indexOf("Change artwork"));
     expect(downloaded).toContain("Ready to play · update downloaded");
-    expect(downloaded).toContain("Play the installed version or review the downloaded update.");
+    expect(downloaded).toContain("Play the installed version or activate staged version 1.0.");
     expect(`${ready}${downloaded}`).not.toContain("Ready to launch");
     expect(`${ready}${downloaded}`).not.toContain("update staged");
     expect(`${ready}${downloaded}`).not.toContain("active version");
@@ -2376,7 +2376,7 @@ describe("desktop components", () => {
     expect(primary).toContain("Add all required game files and the BIOS file before installing");
   });
 
-  it("offers activation when an update is staged", () => {
+  it("places staged activation beside Play while keeping update consequences in Updates", () => {
     const install = installRecord();
     const status: PortStatus = {
       ...portStatus(),
@@ -2385,17 +2385,36 @@ describe("desktop components", () => {
       update_policy: "stage",
       active: install,
       staged: { ...install, id: "2", version: "2.0", staged: true },
+      readiness: { launchable: true, blockers: [], pending_setup: false },
     };
     const html = renderToStaticMarkup(
       <DetailPanel
-        port={port}
+        port={{ ...port, source_profile: null }}
         status={status}
         sourcePath=""
         setSourcePath={vi.fn()}
         actions={actions}
       />,
     );
-    expect(html).toContain("Activate staged");
+    expect(html).toContain("Play the installed version or activate staged version 2.0.");
+    expect(html).toContain("Activate update · 2.0");
+    expect(html.indexOf("Play now")).toBeLessThan(html.indexOf("Activate update · 2.0"));
+    expect(html.indexOf("Activate update · 2.0")).toBeLessThan(html.indexOf(port.summary));
+    expect(html).toContain("keeps the current version for rollback");
+    expect(html.match(/Activate update · 2\.0/g)).toHaveLength(1);
+    const busyHtml = renderToStaticMarkup(
+      <DetailPanel
+        port={{ ...port, source_profile: null }}
+        status={status}
+        sourcePath=""
+        setSourcePath={vi.fn()}
+        busy="activating staged update"
+        actions={actions}
+      />,
+    );
+    expect(busyHtml).toMatch(
+      /<button(?=[^>]*staged-action)(?=[^>]*disabled="")[^>]*>Activate update · 2\.0<\/button>/,
+    );
   });
 
   it("renders port cards and empty states", () => {

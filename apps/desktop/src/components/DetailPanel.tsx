@@ -168,7 +168,7 @@ export function DetailPanel(props: DetailPanelProps) {
       : detailState(
           installed,
           launchReady,
-          Boolean(status?.staged),
+          status?.staged?.version,
           pendingSetup,
           Boolean(status?.readiness?.blockers.includes("missing_runtime")),
           runtimeUpdateAvailable,
@@ -230,6 +230,7 @@ export function DetailPanel(props: DetailPanelProps) {
         prepare={props.prepare}
         port={port}
         status={status}
+        stagedVersion={status?.staged?.version}
         state={state}
         sources={sources}
         installed={installed}
@@ -280,6 +281,7 @@ function DetailBody({
   prepare,
   port,
   status,
+  stagedVersion,
   state,
   sources,
   installed,
@@ -306,6 +308,7 @@ function DetailBody({
   prepare?: RunPreparation;
   port: PortDefinition;
   status?: PortStatus;
+  stagedVersion?: string;
   state: DetailState;
   sources: SourceControls;
   installed: boolean;
@@ -336,6 +339,7 @@ function DetailBody({
         installCancellations={installCancellations}
         port={port}
         status={status}
+        stagedVersion={stagedVersion}
         state={state}
         sources={sources}
         installed={installed}
@@ -415,6 +419,7 @@ function StatusActionsGroup({
   installCancellations,
   port,
   status,
+  stagedVersion,
   state,
   sources,
   installed,
@@ -431,6 +436,7 @@ function StatusActionsGroup({
   installCancellations?: ActivityRecord[];
   port: PortDefinition;
   status?: PortStatus;
+  stagedVersion?: string;
   state: DetailState;
   sources: SourceControls;
   installed: boolean;
@@ -455,6 +461,7 @@ function StatusActionsGroup({
         preparationRequired={managedPreparation && pendingSetup}
         runtimeNeeded={Boolean(status?.readiness?.blockers.includes("missing_runtime"))}
         runtimeUpdateAvailable={runtimeUpdateAvailable}
+        stagedVersion={stagedVersion}
         installed={installed}
         sourceReady={sourceReady}
         biosReady={biosReady}
@@ -554,17 +561,6 @@ function UpdatesGroup({
             Staged update: <strong>{status.staged.version}</strong>. Activation uses this verified
             local copy without downloading and keeps the current version for rollback.
           </p>
-          <Button
-            data-focusable
-            variant="primary"
-            size="lg"
-            disabled={Boolean(busy)}
-            onClick={() => {
-              void actions.activate();
-            }}
-          >
-            Activate staged update · {status.staged.version}
-          </Button>
         </section>
       )}
       {installed && (
@@ -1237,6 +1233,7 @@ function PrimaryActions({
   preparationRequired,
   runtimeNeeded,
   runtimeUpdateAvailable,
+  stagedVersion,
   installed,
   sourceReady,
   biosReady,
@@ -1252,6 +1249,7 @@ function PrimaryActions({
   preparationRequired: boolean;
   runtimeNeeded: boolean;
   runtimeUpdateAvailable: boolean;
+  stagedVersion?: string;
   installed: boolean;
   sourceReady: boolean;
   biosReady: boolean;
@@ -1337,6 +1335,20 @@ function PrimaryActions({
               ? "Complete setup and play"
               : "Play now"}
       </Button>
+      {stagedVersion && (
+        <Button
+          data-focusable
+          className="staged-action"
+          variant="outline"
+          size="lg"
+          disabled={Boolean(busy)}
+          onClick={() => {
+            void actions.activate();
+          }}
+        >
+          Activate update · {stagedVersion}
+        </Button>
+      )}
     </div>
   );
 }
@@ -1725,7 +1737,7 @@ function UpdateCheckAction({ busy, check }: { busy?: string; check: DetailAction
 function detailState(
   installed: boolean,
   launchReady: boolean,
-  staged: boolean,
+  stagedVersion: string | undefined,
   pendingSetup: boolean,
   runtimeNeeded: boolean,
   runtimeUpdateAvailable: boolean,
@@ -1776,10 +1788,10 @@ function detailState(
       tone: "setup",
       icon: Wrench,
     };
-  if (staged)
+  if (stagedVersion)
     return {
       title: "Ready to play · update downloaded",
-      description: "Play the installed version or review the downloaded update.",
+      description: `Play the installed version or activate staged version ${stagedVersion}.`,
       tone: "staged",
       icon: RefreshCw,
     };
