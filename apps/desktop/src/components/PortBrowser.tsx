@@ -62,6 +62,14 @@ export function PortBrowser({
   loading: boolean;
   nativeSourceDrag?: NativeSourceDragState;
 }) {
+  const firstUseEmpty =
+    view === "library" &&
+    !loading &&
+    !recent &&
+    overview.installed === 0 &&
+    ports.length === 0 &&
+    filter === "all" &&
+    query.trim().length === 0;
   return (
     <>
       <p className="sr-only" aria-live="polite">
@@ -72,30 +80,32 @@ export function PortBrowser({
       {view === "library" && recent && onContinue && (
         <ContinueCard recent={recent} launch={onContinue} details={onSelect} />
       )}
-      {view === "library" && <LibrarySummary overview={overview} />}
-      <div
-        className="filter-row"
-        data-focus-group
-        role="group"
-        aria-label={view === "library" ? "Library filters" : "Release channel filters"}
-      >
-        {filterOptions(view).map((item) => (
-          <Button
-            data-focusable
-            aria-pressed={filter === item}
-            key={item}
-            variant={filter === item ? "selected" : "outline"}
-            size="sm"
-            className="capitalize"
-            onClick={() => setFilter(item)}
-          >
-            {filterLabel(item)}
-          </Button>
-        ))}
-        <span>
-          {ports.length} {ports.length === 1 ? "port" : "ports"}
-        </span>
-      </div>
+      {view === "library" && !firstUseEmpty && <LibrarySummary overview={overview} />}
+      {!firstUseEmpty && (
+        <div
+          className="filter-row"
+          data-focus-group
+          role="group"
+          aria-label={view === "library" ? "Library filters" : "Release channel filters"}
+        >
+          {filterOptions(view).map((item) => (
+            <Button
+              data-focusable
+              aria-pressed={filter === item}
+              key={item}
+              variant={filter === item ? "selected" : "outline"}
+              size="sm"
+              className="capitalize"
+              onClick={() => setFilter(item)}
+            >
+              {filterLabel(item)}
+            </Button>
+          ))}
+          <span>
+            {ports.length} {ports.length === 1 ? "port" : "ports"}
+          </span>
+        </div>
+      )}
       <BrowserResults
         view={view}
         ports={ports}
