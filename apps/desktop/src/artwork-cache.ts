@@ -13,6 +13,12 @@ export interface ArtworkDisplay {
 
 const empty: ArtworkDisplay = { loading: false };
 const maximumEntries = 32;
+const maximumPngBytes = 1024 * 1024;
+
+function decodedBytes(encoded: string) {
+  const padding = encoded.endsWith("==") ? 2 : Number(encoded.endsWith("="));
+  return (encoded.length / 4) * 3 - padding;
+}
 
 function thumbnailUrl(thumbnail: DesktopArtworkThumbnail, state: ArtworkState) {
   const encoded = thumbnail.png_base64;
@@ -21,9 +27,10 @@ function thumbnailUrl(thumbnail: DesktopArtworkThumbnail, state: ArtworkState) {
     thumbnail.asset_sha256 !== state.resolved_source.asset_sha256 ||
     thumbnail.choice_revision !== state.choice.revision ||
     encoded.length === 0 ||
-    encoded.length > 4 * Math.ceil((1024 * 1024) / 3) ||
+    encoded.length > 4 * Math.ceil(maximumPngBytes / 3) ||
     encoded.length % 4 !== 0 ||
-    !/^[A-Za-z0-9+/]*={0,2}$/.test(encoded)
+    !/^[A-Za-z0-9+/]*={0,2}$/.test(encoded) ||
+    decodedBytes(encoded) > maximumPngBytes
   )
     throw new Error("The artwork preview changed. Refresh to try again.");
   return `data:image/png;base64,${encoded}`;

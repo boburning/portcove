@@ -228,19 +228,22 @@ describe("disposable artwork display cache", () => {
     expect(second.read("sample", "cover").error).toContain("preview changed");
   });
 
-  it.each(["", "iVBORw=", "iVBORw!#", "A".repeat(4 * Math.ceil((1024 * 1024) / 3) + 4)])(
-    "rejects malformed or oversized encoded preview payloads",
-    async (png_base64) => {
-      vi.spyOn(desktopApi, "artwork").mockResolvedValue(artworkState("sample", "cover", 1, true));
-      vi.spyOn(desktopApi, "artworkThumbnail").mockResolvedValue({
-        asset_sha256: "a".repeat(64),
-        choice_revision: 1,
-        png_base64,
-      });
-      const cache = new ArtworkCache(7);
-      await cache.load("sample", "cover");
-      expect(cache.read("sample", "cover").image).toBeUndefined();
-      expect(cache.read("sample", "cover").error).toContain("preview changed");
-    },
-  );
+  it.each([
+    "",
+    "iVBORw=",
+    "iVBORw!#",
+    "A".repeat(4 * Math.ceil((1024 * 1024) / 3) + 4),
+    `${"A".repeat(4 * Math.floor((1024 * 1024) / 3) + 3)}=`,
+  ])("rejects malformed or oversized encoded preview payloads", async (png_base64) => {
+    vi.spyOn(desktopApi, "artwork").mockResolvedValue(artworkState("sample", "cover", 1, true));
+    vi.spyOn(desktopApi, "artworkThumbnail").mockResolvedValue({
+      asset_sha256: "a".repeat(64),
+      choice_revision: 1,
+      png_base64,
+    });
+    const cache = new ArtworkCache(7);
+    await cache.load("sample", "cover");
+    expect(cache.read("sample", "cover").image).toBeUndefined();
+    expect(cache.read("sample", "cover").error).toContain("preview changed");
+  });
 });

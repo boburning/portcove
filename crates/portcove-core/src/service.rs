@@ -6743,8 +6743,6 @@ fn main() {
 
     #[test]
     fn interrupted_backup_stages_are_visible_without_hiding_verified_backups() {
-        use std::process::Command;
-
         for (name, has_data, has_manifest) in [
             ("created", false, false),
             ("copied", true, false),
@@ -6763,16 +6761,20 @@ fn main() {
             let published = service.create_backup(port_id).unwrap();
             fs::write(user_root.join("save.dat"), b"later save").unwrap();
 
-            let output = Command::new(std::env::current_exe().unwrap())
-                .args([
-                    "backup_interruption_child",
-                    "--nocapture",
-                    "--test-threads=1",
-                ])
-                .env("PORTCOVE_BACKUP_INTERRUPTION_ROOT", &root)
-                .env("PORTCOVE_BACKUP_INTERRUPTION_POINT", name)
-                .output()
-                .unwrap();
+            let output = ChildProcessPolicy::native_command(
+                ChildProcessClass::HostTool,
+                std::env::current_exe().unwrap(),
+            )
+            .unwrap()
+            .args([
+                "backup_interruption_child",
+                "--nocapture",
+                "--test-threads=1",
+            ])
+            .env("PORTCOVE_BACKUP_INTERRUPTION_ROOT", &root)
+            .env("PORTCOVE_BACKUP_INTERRUPTION_POINT", name)
+            .output()
+            .unwrap();
             assert_eq!(output.status.code(), Some(77), "{name}: {output:?}");
 
             let parent = library.backups_dir().join(port_id);

@@ -43,6 +43,32 @@ export function artworkObservations({ browser, output, artifacts }) {
   };
   const begin = () =>
     browser.executeScript(() => {
+      function pngBytes(encoded) {
+        if (typeof encoded !== "string") return undefined;
+        const padding = encoded.endsWith("==") ? 2 : Number(encoded.endsWith("="));
+        return (encoded.length / 4) * 3 - padding;
+      }
+      function observation(value) {
+        const body = value ?? {};
+        const choice = body.choice ?? {};
+        return {
+          availability: body.availability,
+          revision: choice.revision,
+          asset_sha256: choice.asset_sha256,
+          png_encoded_bytes: body.png_base64?.length,
+          png_bytes: pngBytes(body.png_base64),
+        };
+      }
+      function failure(value) {
+        const body = value ?? {};
+        const presentation = body.presentation ?? {};
+        return {
+          code: body.code,
+          message: String(body.message).slice(0, 512),
+          summary: presentation.summary?.slice(0, 512),
+          mutation_state: presentation.mutation_state,
+        };
+      }
       const original = window.fetch;
       const probe = { original, requests: [], omitted: 0 };
       window.__portcoveArtworkProbe = probe;
@@ -80,29 +106,8 @@ export function artworkObservations({ browser, output, artifacts }) {
               .then((value) => {
                 record.completed = true;
                 record.completed_ms = performance.now() - started;
-                if (record.result === "ok")
-                  record.observation = {
-                    availability: value?.availability,
-                    revision: value?.choice?.revision,
-                    asset_sha256: value?.choice?.asset_sha256,
-                    png_encoded_bytes: value?.png_base64?.length,
-                    png_bytes:
-                      typeof value?.png_base64 === "string"
-                        ? (value.png_base64.length / 4) * 3 -
-                          (value.png_base64.endsWith("==")
-                            ? 2
-                            : value.png_base64.endsWith("=")
-                              ? 1
-                              : 0)
-                        : undefined,
-                  };
-                else
-                  record.failure = {
-                    code: value?.code,
-                    message: String(value?.message).slice(0, 512),
-                    summary: value?.presentation?.summary?.slice(0, 512),
-                    mutation_state: value?.presentation?.mutation_state,
-                  };
+                if (record.result === "ok") record.observation = observation(value);
+                else record.failure = failure(value);
               })
               .catch((error) => {
                 record.observation_error = error.message;
