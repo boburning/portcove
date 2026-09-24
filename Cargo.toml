@@ -29,8 +29,12 @@ filetime = "0.2.29"
 futures-util = "0.3.34"
 fs2 = "0.4.3"
 hex = "0.4.3"
-icu_casemap = { version = "2.3.0", default-features = false, features = ["compiled_data"] }
-icu_properties = { version = "2.3.0", default-features = false, features = ["compiled_data"] }
+icu_casemap = { version = "2.3.0", default-features = false, features = [
+  "compiled_data",
+] }
+icu_properties = { version = "2.3.0", default-features = false, features = [
+  "compiled_data",
+] }
 image = { version = "=0.25.10", default-features = false, features = [
   "png",
   "jpeg",
