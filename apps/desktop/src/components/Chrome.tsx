@@ -1143,14 +1143,15 @@ function DiagnosticsCard({
         Create support bundle
       </h2>
       <p>
-        Collect recent logs, operation history, and system details without game-file contents or
-        saved credentials.
+        Create a support bundle with recent logs, operation history, and system details. Game-file
+        contents and saved credentials are excluded, but paths, file names, and other metadata may
+        remain. Review the bundle before sharing it.
       </p>
       <details>
-        <summary>Review what can remain before sharing</summary>
+        <summary>Examples of details that may remain</summary>
         <p>
-          Paths, file names, port and tool identifiers, timestamps, and other system metadata can
-          remain after sensitive values are redacted. Review the bundle before sharing it.
+          Port and tool identifiers, timestamps, and other system details can remain after sensitive
+          values are redacted.
         </p>
       </details>
       <p role="status">

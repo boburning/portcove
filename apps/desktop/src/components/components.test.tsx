@@ -1413,12 +1413,13 @@ describe("desktop components", () => {
     );
 
     expect(html).toContain("Create support bundle");
-    expect(html).toContain(
-      "Collect recent logs, operation history, and system details without game-file contents or saved credentials.",
-    );
-    expect(html).toContain("Review what can remain before sharing");
-    expect(html).toContain("Paths, file names, port and tool identifiers, timestamps");
+    expect(html).toContain("Game-file contents and saved credentials are excluded");
+    expect(html).toContain("paths, file names, and other metadata may remain");
     expect(html).toContain("Review the bundle before sharing it");
+    expect(html).toContain("Examples of details that may remain");
+    expect(html).toMatch(
+      /<p>[^<]*Game-file contents and saved credentials are excluded[^<]*paths, file names, and other metadata may remain[^<]*Review the bundle before sharing it\.<\/p>\s*<details>/u,
+    );
     expect(html).toMatch(
       /<button[^>]*data-variant="outline"[^>]*>Create support bundle<\/button>/u,
     );
