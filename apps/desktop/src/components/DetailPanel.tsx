@@ -1259,20 +1259,6 @@ function PrimaryActions({
   busy?: string;
   actions: DetailActions;
 }) {
-  const stagedAction = stagedVersion && (
-    <Button
-      data-focusable
-      className="staged-action"
-      variant="outline"
-      size="lg"
-      disabled={Boolean(busy)}
-      onClick={() => {
-        void actions.activate();
-      }}
-    >
-      Activate update · {stagedVersion}
-    </Button>
-  );
   if (invalidInstallation)
     return (
       <div className="actions primary-actions">
@@ -1287,7 +1273,7 @@ function PrimaryActions({
           <Icon glyph={ShieldCheck} />
           Verify installation
         </Button>
-        {stagedAction}
+        <StagedActivation version={stagedVersion} busy={busy} activate={actions.activate} />
       </div>
     );
   if (runtimeNeeded)
@@ -1300,7 +1286,11 @@ function PrimaryActions({
             Check for updates. If none is available, verify the installation for diagnostic details.
           </p>
         )}
-        {stagedAction && <div className="actions primary-actions">{stagedAction}</div>}
+        {stagedVersion && (
+          <div className="actions primary-actions">
+            <StagedActivation version={stagedVersion} busy={busy} activate={actions.activate} />
+          </div>
+        )}
       </>
     );
   if (!installed)
@@ -1327,6 +1317,33 @@ function PrimaryActions({
         dismiss={actions.dismissInstallReview}
       />
     );
+  return (
+    <InstalledPlayActions
+      preparationRequired={preparationRequired}
+      launchReady={launchReady}
+      pendingSetup={pendingSetup}
+      stagedVersion={stagedVersion}
+      busy={busy}
+      actions={actions}
+    />
+  );
+}
+
+function InstalledPlayActions({
+  preparationRequired,
+  launchReady,
+  pendingSetup,
+  stagedVersion,
+  busy,
+  actions,
+}: {
+  preparationRequired: boolean;
+  launchReady: boolean;
+  pendingSetup: boolean;
+  stagedVersion?: string;
+  busy?: string;
+  actions: DetailActions;
+}) {
   return (
     <div className="actions primary-actions">
       <Button
@@ -1355,8 +1372,34 @@ function PrimaryActions({
               ? "Complete setup and play"
               : "Play now"}
       </Button>
-      {stagedAction}
+      <StagedActivation version={stagedVersion} busy={busy} activate={actions.activate} />
     </div>
+  );
+}
+
+function StagedActivation({
+  version,
+  busy,
+  activate,
+}: {
+  version?: string;
+  busy?: string;
+  activate: DetailActions["activate"];
+}) {
+  if (!version) return null;
+  return (
+    <Button
+      data-focusable
+      className="staged-action"
+      variant="outline"
+      size="lg"
+      disabled={Boolean(busy)}
+      onClick={() => {
+        void activate();
+      }}
+    >
+      Activate update · {version}
+    </Button>
   );
 }
 
