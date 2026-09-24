@@ -12,7 +12,7 @@ export async function readinessScenario({ browser, scenario, output, artifacts, 
     assert.equal(before.readiness.launchable, true);
     const observations = {
       injection:
-        "omit one owned port's readiness from actual get_statuses responses; core remains launchable",
+        "omit one owned port's readiness from actual get_workspace_snapshot responses; core remains launchable",
       before,
     };
     const controls = reviewControls(browser);
@@ -22,27 +22,28 @@ export async function readinessScenario({ browser, scenario, output, artifacts, 
         .executeAsyncScript((portId, done) => {
           const native = window.__TAURI_INTERNALS__;
           const original = window.fetch;
-          const target = native.convertFileSrc("get_statuses", "ipc");
+          const target = native.convertFileSrc("get_workspace_snapshot", "ipc");
           window.__portcoveReadinessProbe = { original, injected: 0 };
           window.fetch = async function (input, ...args) {
             const url = typeof input === "string" ? input : (input.url ?? String(input));
             const response = await original.call(window, input, ...args);
             if (url !== target) return response;
-            const statuses = await response.clone().json();
+            const snapshot = await response.clone().json();
             if (
-              !Array.isArray(statuses) ||
-              !statuses.some(
+              !Array.isArray(snapshot.statuses) ||
+              !snapshot.statuses.some(
                 (status) => status.port_id === portId && status.readiness?.launchable === true,
               )
             )
               return response;
             window.__portcoveReadinessProbe.injected++;
             return new Response(
-              JSON.stringify(
-                statuses.map((status) =>
+              JSON.stringify({
+                ...snapshot,
+                statuses: snapshot.statuses.map((status) =>
                   status.port_id === portId ? { ...status, readiness: null } : status,
                 ),
-              ),
+              }),
               {
                 status: response.status,
                 statusText: response.statusText,
