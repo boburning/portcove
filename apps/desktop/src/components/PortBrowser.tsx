@@ -18,6 +18,7 @@ import {
   portReadiness,
   releaseChannelPresentation,
   type Filter,
+  type CatalogSort,
   type DetailDestination,
   type LibraryOverview,
   type PortReadiness,
@@ -30,6 +31,13 @@ import type { NativeSourceDragState } from "../native-source-drop";
 import { ArtworkImage } from "./Artwork";
 import { Button } from "./ui/button";
 import { Menu } from "@base-ui/react/menu";
+import { ChoiceSelect } from "./ChoiceSelect";
+
+const catalogSortOptions: readonly { value: CatalogSort; label: string }[] = [
+  { value: "catalog", label: "Catalog order" },
+  { value: "name", label: "Name A–Z" },
+  { value: "installed-first", label: "Installed first" },
+];
 
 export function PortBrowser({
   view,
@@ -39,6 +47,8 @@ export function PortBrowser({
   recent,
   filter,
   query = "",
+  catalogSort = "catalog",
+  setCatalogSort,
   setFilter,
   onSelect,
   onContinue,
@@ -53,6 +63,8 @@ export function PortBrowser({
   overview: LibraryOverview;
   filter: Filter;
   query?: string;
+  catalogSort?: CatalogSort;
+  setCatalogSort?: Dispatch<SetStateAction<CatalogSort>>;
   recent?: RecentPort;
   setFilter: Dispatch<SetStateAction<Filter>>;
   onSelect: (portId: string, originKey?: string, destination?: DetailDestination) => void;
@@ -104,6 +116,16 @@ export function PortBrowser({
           <span>
             {ports.length} {ports.length === 1 ? "port" : "ports"}
           </span>
+        </div>
+      )}
+      {view === "catalog" && setCatalogSort && (
+        <div className="mb-4 ml-auto w-52">
+          <ChoiceSelect
+            label="Sort"
+            value={catalogSort}
+            options={catalogSortOptions}
+            onChange={setCatalogSort}
+          />
         </div>
       )}
       <BrowserResults

@@ -117,6 +117,25 @@ describe("catalog view model", () => {
     ).toEqual(["beta"]);
   });
 
+  it("keeps catalog order by default and sorts names or installed ports with stable ties", () => {
+    const unordered = [
+      { ...port("zeta", ["stable"]), name: "Zeta" },
+      { ...port("alpha", ["stable"]), name: "Alpha" },
+      { ...port("alpha-two", ["stable"]), name: "alpha" },
+      { ...port("beta", ["stable"]), name: "Beta" },
+    ];
+    const statuses = indexStatuses([{ ...status, port_id: "beta" }]);
+    const ids = (sort: "catalog" | "name" | "installed-first") =>
+      filterPorts(unordered, statuses, "catalog", "all", "", sort).map((item) => item.id);
+    expect(ids("catalog")).toEqual(["zeta", "alpha", "alpha-two", "beta"]);
+    expect(ids("name")).toEqual(["alpha", "alpha-two", "beta", "zeta"]);
+    expect(ids("installed-first")).toEqual(["beta", "zeta", "alpha", "alpha-two"]);
+    expect(
+      filterPorts(unordered, statuses, "catalog", "all", "alpha", "name").map((item) => item.id),
+    ).toEqual(["alpha", "alpha-two"]);
+    expect(unordered.map((item) => item.id)).toEqual(["zeta", "alpha", "alpha-two", "beta"]);
+  });
+
   it("searches the visible installation method without indexing the internal adapter id", () => {
     const searchable = {
       ...ports[0],

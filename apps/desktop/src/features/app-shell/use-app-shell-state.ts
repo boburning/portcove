@@ -1,5 +1,5 @@
 import { useCallback, useState, type SetStateAction } from "react";
-import { type Filter, type View } from "../../view-model";
+import { type CatalogSort, type Filter, type View } from "../../view-model";
 
 type BrowserState = { filter: Filter; query: string };
 
@@ -13,6 +13,7 @@ const initialBrowserState = (): Record<View, BrowserState> => ({
 export function useAppShellState(initialView: View = "library") {
   const [view, setViewState] = useState<View>(initialView);
   const [browserState, setBrowserState] = useState(initialBrowserState);
+  const [catalogSort, setCatalogSort] = useState<CatalogSort>("catalog");
   const [selectedId, setSelectedId] = useState<string>();
   const [sourcePath, setSourcePath] = useState("");
   const [biosPath, setBiosPath] = useState("");
@@ -56,6 +57,8 @@ export function useAppShellState(initialView: View = "library") {
     setFilter,
     query,
     setQuery,
+    catalogSort,
+    setCatalogSort,
     selectedId,
     setSelectedId,
     sourcePath,

@@ -2455,6 +2455,7 @@ describe("desktop components", () => {
         overview={overview}
         filter="all"
         setFilter={vi.fn()}
+        setCatalogSort={vi.fn()}
         onSelect={vi.fn()}
         loading={false}
       />,
@@ -2509,6 +2510,8 @@ describe("desktop components", () => {
       />,
     );
     expect(cards).toContain("Sample Port");
+    expect(cards).toContain("Catalog order");
+    expect(cards).toContain("Sort");
     expect(cards).toContain("Available");
     expect(cards).toContain("Windows");
     expect(cards).toContain(port.summary);
