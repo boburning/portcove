@@ -47,11 +47,45 @@ export async function sourceRemovalScenario({
       command(["source", "list"]).filter((item) => item.profile_id !== source.profile_id);
     const otherSources = others();
     await browser.navigate().refresh();
+    const updatePreference = await invoke("get_application_update_preferences");
+    assert.equal(updatePreference.ok, true);
+    if (updatePreference.value.choice === null) {
+      const defer = await browser.wait(
+        until.elementLocated(By.xpath('//button[normalize-space(.)="Not now"]')),
+        15_000,
+      );
+      await defer.click();
+      await browser.wait(until.stalenessOf(defer), 15_000);
+    }
     const { button, click } = reviewControls(browser);
     await click(By.xpath('//nav//button[contains(., "Settings")]'));
     const row = By.css(`[data-source-profile="${source.profile_id}"]`);
     const dialog = By.css('[aria-labelledby="source-removal-title"]');
     const trigger = By.css(`[data-source-profile="${source.profile_id}"] [data-slot="button"]`);
+    await browser.wait(until.elementLocated(row), 15_000);
+    const rowLayout = await browser.executeScript(
+      (element) => {
+        const title = element.querySelector("strong");
+        const actions = element.querySelector(".source-health-actions");
+        const bounds = element.getBoundingClientRect();
+        const titleBounds = title?.getBoundingClientRect();
+        const actionBounds = actions?.getBoundingClientRect();
+        return {
+          rowWidth: bounds.width,
+          titleColumnWidth: title?.parentElement?.getBoundingClientRect().width ?? 0,
+          titleHeight: titleBounds?.height ?? 0,
+          actionsTop: actionBounds?.top ?? 0,
+          titleBottom: titleBounds?.bottom ?? 0,
+        };
+      },
+      await browser.findElement(row),
+    );
+    assert.ok(
+      rowLayout.titleColumnWidth > rowLayout.rowWidth * 0.7 &&
+        rowLayout.titleHeight < 80 &&
+        rowLayout.actionsTop >= rowLayout.titleBottom,
+      `saved source title is cramped: ${JSON.stringify(rowLayout)}`,
+    );
     const openReview = async () => {
       await click(trigger);
       await browser.wait(until.elementLocated(button("Continue to removal confirmation")), 15_000);
@@ -84,7 +118,7 @@ export async function sourceRemovalScenario({
     assert.ok(
       text.includes(source.path) &&
         text.includes(port.name) &&
-        text.includes("The files will stay at") &&
+        text.includes("will not move or delete files at") &&
         text.includes("If interrupted, reopen Settings"),
     );
     await click(button("Keep source reference"));

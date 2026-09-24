@@ -113,8 +113,9 @@ export function SourceRemovalDialog({
         <DialogDescription id="source-removal-description" className="mb-4 leading-relaxed">
           {preview ? (
             <>
-              The files will stay at <code className="break-all">{preview.source.path}</code>. Games
-              that need these originals may ask you to add their location again.
+              Removing this saved location will not move or delete files at{" "}
+              <code className="break-all">{preview.source.path}</code>. Games that need these
+              originals may ask you to add their location again.
             </>
           ) : (
             "Portcove will check the saved location and affected games before removal."
@@ -179,8 +180,9 @@ function SourceRemovalDetails({
       </p>
       <p>{preview.source.path}</p>
       <p>
-        The registered file or folder, its contents, installed game versions, saves, backups and
-        other source references are preserved. Only this library's reference is removed.
+        Removing this reference does not move or delete files at the path above, installed game
+        versions, saves, backups, or other source references. Only this library's reference is
+        removed.
       </p>
       <h3>Installed games affected</h3>
       {preview.installed_dependent_port_ids.length ? (
