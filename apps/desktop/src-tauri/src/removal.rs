@@ -81,7 +81,7 @@ fn removal_consent(review: &PortRemovalPreview, port_name: &str) -> String {
         .collect::<Vec<_>>()
         .join("\n");
     format!(
-        "Uninstall all Portcove-managed versions of {port_name} (catalog ID: {})?\n\nFiles inside these installation folders will be deleted:\n{paths}\n\nSaved data will remain at {}. Backups and original game files will be kept. This cannot be undone; to use this port again, reinstall it or copy an existing installation. If interrupted after confirmation, removal may finish during recovery.",
+        "Uninstall all Portcove-managed versions of {port_name} (catalog ID: {})?\n\nFiles inside these installation folders will be deleted:\n{paths}\n\nThis game's saved release-channel and update-policy settings will also be removed. Saved data will remain at {}. Backups and original game files will be kept. This cannot be undone; to use this port again, reinstall it or copy an existing installation. If interrupted after confirmation, removal may finish during recovery.",
         review.port_id,
         review.persistent_data_path.display(),
     )
@@ -112,6 +112,7 @@ mod tests {
             "installed/current",
             "installed/old",
             "user/sample-port",
+            "saved release-channel and update-policy settings will also be removed",
             "Backups and original game files will be kept",
             "removal may finish during recovery",
         ] {
