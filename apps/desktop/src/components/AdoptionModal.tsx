@@ -83,8 +83,8 @@ export function AdoptionModal({
           Add an existing installation to Portcove
         </DialogTitle>
         <DialogDescription id="adopt-description" className="mb-4 leading-relaxed">
-          Portcove checks the folder, identifies the port, and copies supported application files
-          into your library without changing the original.
+          Copy this installation and any supported saved data into Portcove. The original folder
+          will stay unchanged. Review the detected port and destination before copying.
         </DialogDescription>
         <p className="inline-assurance">
           <Icon glyph={ShieldCheck} /> Review first, then confirm before copying.
@@ -218,40 +218,67 @@ export function AdoptionModal({
             then review the current copy plan.
           </p>
         )}
-        <DialogFooter className="mt-4">
-          <Button data-focusable variant="outline" onClick={dismiss} disabled={applying}>
-            Cancel
-          </Button>
-          {preview ? (
-            <Button
-              data-focusable
-              variant="primary"
-              disabled={
-                Boolean(busy) || applying || !preview.selected_port_id || !preview.destination
-              }
-              onClick={adopt}
-            >
-              <Icon glyph={FolderInput} />
-              {applying ? "Copying…" : "Continue to copy confirmation"}
-            </Button>
-          ) : (
-            <Button
-              data-focusable
-              variant="primary"
-              disabled={!path.trim() || Boolean(busy) || applying}
-              onClick={() => review()}
-            >
-              <Icon glyph={FolderInput} />
-              {applying
-                ? "Copying…"
-                : busy === "preview adoption"
-                  ? "Reviewing…"
-                  : "Review copy plan"}
-            </Button>
-          )}
-        </DialogFooter>
+        <AdoptionActions
+          path={path}
+          preview={preview}
+          busy={busy}
+          applying={applying}
+          dismiss={dismiss}
+          review={review}
+          adopt={adopt}
+        />
       </DialogContent>
     </Dialog>
+  );
+}
+
+function AdoptionActions({
+  path,
+  preview,
+  busy,
+  applying,
+  dismiss,
+  review,
+  adopt,
+}: {
+  path: string;
+  preview?: AdoptionPreview;
+  busy?: string;
+  applying: boolean;
+  dismiss: () => void;
+  review: () => void;
+  adopt: () => void;
+}) {
+  return (
+    <DialogFooter className="mt-4">
+      <Button data-focusable variant="outline" onClick={dismiss} disabled={applying}>
+        Cancel
+      </Button>
+      {preview ? (
+        <Button
+          data-focusable
+          variant="primary"
+          aria-describedby={
+            preview.destination?.imported_user_data_paths.length ? "adopt-save-warning" : undefined
+          }
+          disabled={Boolean(busy) || applying || !preview.selected_port_id || !preview.destination}
+          onClick={adopt}
+        >
+          <Icon glyph={FolderInput} />
+          {applying ? "Copying…" : "Continue to copy confirmation"}
+        </Button>
+      ) : (
+        <Button
+          data-focusable
+          variant="primary"
+          disabled={!path.trim() || Boolean(busy) || applying}
+          onClick={() => review()}
+        >
+          <Icon glyph={FolderInput} />
+          {applying ? "Copying…" : busy === "preview adoption" ? "Reviewing…" : "Review copy plan"}
+        </Button>
+      )}
+    </DialogFooter>
   );
 }
 
@@ -293,17 +320,19 @@ function AdoptionConsequences({
         {destination.current_user_data_files === 1 ? "file" : "files"}.
       </p>
       {destination.imported_user_data_paths.length > 0 ? (
-        <>
+        <div id="adopt-save-warning" className="adoption-save-warning" role="note">
+          <strong>Saved-file replacement — no backup before copying</strong>
           <p>
-            These saved-data paths are merged from the original folder. Matching saved files are
-            replaced; other saved files remain. No automatic safety backup is created.
+            Matching saved files in Portcove will be replaced. Portcove does not create a backup
+            before this copy. Other saved files remain.
           </p>
-          <ul>
+          <p>Affected saved-data paths from the original folder:</p>
+          <ul aria-label="Saved-data paths to import">
             {destination.imported_user_data_paths.map((path) => (
               <li key={path}>{path}</li>
             ))}
           </ul>
-        </>
+        </div>
       ) : (
         <p>No catalog-selected saved-data paths will be imported from this folder.</p>
       )}

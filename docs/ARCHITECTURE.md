@@ -493,9 +493,12 @@ Existing journal recovery may finish verified publication and saved-data transfe
 
 Desktop transports this core preview under the selected library generation and
 retains backend-owned native confirmation. Its detailed review names destination,
-preserved state, saved-file replacement, lack of a single undo and interruption
-behavior. Once applying, dismissal and path editing are disabled because adoption
-has no supported cancellation. React owns only the review request and pending UI;
+preserved state, lack of a single undo and interruption behavior. When the preview
+includes saved-data paths, the review places a prominent replacement/no-backup
+warning and affected paths beside the saved-data destination, and repeats the
+warning in native confirmation. Once applying, dismissal and path editing are
+disabled because adoption has no supported cancellation. React owns only the
+review request and pending UI;
 core remains the only copy/persistence/authorization authority. CLI schema 40
 versions the extended preview; no crate boundary or dependency changes.
 When an unscoped folder matches multiple catalog ports, Desktop offers only the
