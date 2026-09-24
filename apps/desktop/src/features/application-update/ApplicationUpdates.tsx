@@ -13,6 +13,7 @@ import type {
 } from "../../types";
 import { errorText } from "../../view-model";
 import { Button } from "../../components/ui/button";
+import { focusAndReveal } from "../../focus";
 
 const recommendedChoice: ApplicationUpdateChoice = {
   channel: "preview",
@@ -657,6 +658,7 @@ export function ApplicationUpdateSettings({
 }) {
   const requests = useRef(new LatestRequestGeneration());
   const statusRequests = useRef(new LatestRequestGeneration());
+  const headingRef = useRef<HTMLHeadingElement>(null);
   const preferences = preferencesState?.preferences;
   const refreshPreferences = preferencesState?.refresh;
   const [status, setStatus] = useState<ApplicationUpdateStatus>();
@@ -848,6 +850,16 @@ export function ApplicationUpdateSettings({
 
   const unavailable = disabled || Boolean(busy) || !preferences;
 
+  useEffect(() => {
+    const heading = headingRef.current;
+    if (unavailable || !heading || document.activeElement !== heading) return;
+    focusAndReveal(
+      heading
+        .closest(".application-update-settings")
+        ?.querySelector<HTMLElement>("button:not(:disabled)"),
+    );
+  }, [unavailable]);
+
   return (
     <article
       className="settings-card application-update-settings"
@@ -858,7 +870,7 @@ export function ApplicationUpdateSettings({
       <div className="application-update-heading">
         <div>
           <p className="eyebrow">APPLICATION UPDATES</p>
-          <h2 id="application-update-settings-title" tabIndex={-1}>
+          <h2 id="application-update-settings-title" ref={headingRef} tabIndex={-1}>
             Choose how Portcove updates
           </h2>
         </div>

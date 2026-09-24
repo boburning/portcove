@@ -754,7 +754,8 @@ try {
     } catch (error) {
       const focus = await browser.executeScript(() => ({
         active: document.activeElement?.outerHTML,
-        firstControl: document.querySelector(".application-update-settings button:not(:disabled)")?.outerHTML,
+        firstControl: document.querySelector(".application-update-settings button:not(:disabled)")
+          ?.outerHTML,
       }));
       throw new Error(`Review options focus: ${JSON.stringify(focus)}`, { cause: error });
     }
