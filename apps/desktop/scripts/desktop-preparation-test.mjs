@@ -553,7 +553,7 @@ export async function preparationScenarios({
           theme,
         );
         await browser
-          .findElement(By.xpath('//nav//button[normalize-space(.)="Game updates"]'))
+          .findElement(By.xpath('//nav//button[./span[normalize-space(.)="Game updates"]]'))
           .click();
         const row = await browser.wait(
           until.elementLocated(By.css(`[data-detail-origin="updates:installed:${port.id}"]`)),
@@ -708,7 +708,9 @@ export async function preparationScenarios({
       "Busy preparation review must close after cancellation",
     );
     await browser.findElement(By.css(".detail-back")).click();
-    await browser.findElement(By.xpath('//nav//button[normalize-space(.)="Game updates"]')).click();
+    await browser
+      .findElement(By.xpath('//nav//button[./span[normalize-space(.)="Game updates"]]'))
+      .click();
     const cancelledRow = await browser.wait(
       until.elementLocated(
         By.xpath(
@@ -733,7 +735,9 @@ export async function preparationScenarios({
       until.elementLocated(By.xpath('//h1[normalize-space(.)="Settings"]')),
       15_000,
     );
-    await browser.findElement(By.xpath('//nav//button[normalize-space(.)="Game updates"]')).click();
+    await browser
+      .findElement(By.xpath('//nav//button[./span[normalize-space(.)="Game updates"]]'))
+      .click();
     await browser.wait(
       until.elementLocated(By.css(".activity-row.cancelled .failure-details")),
       15_000,
@@ -748,7 +752,9 @@ export async function preparationScenarios({
       (await activities()).find((item) => item.id === activity.id).failure,
       recorded.failure,
     );
-    await browser.findElement(By.xpath('//nav//button[normalize-space(.)="Game updates"]')).click();
+    await browser
+      .findElement(By.xpath('//nav//button[./span[normalize-space(.)="Game updates"]]'))
+      .click();
     await browser.wait(
       until.elementLocated(By.css(".activity-row.cancelled .failure-details")),
       15_000,
