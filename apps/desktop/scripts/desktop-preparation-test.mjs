@@ -79,7 +79,14 @@ export async function preparationScenarios({
           ? "macos-aarch64"
           : "macos-x86-64"
         : "linux-x86-64";
+  const seeded = new Map();
   async function seed(portId, mode, chd = false) {
+    const previous = seeded.get(portId);
+    if (previous) {
+      assert.equal(previous.mode, mode, `Fixture mode changed for ${portId}`);
+      assert.equal(previous.chd, chd, `Fixture source kind changed for ${portId}`);
+      return previous.value;
+    }
     const port = command(["catalog", "show", portId]);
     const original = path.join(output, `owned-${portId}`);
     await mkdir(original);
@@ -94,7 +101,9 @@ export async function preparationScenarios({
     const source = path.join(output, `${portId}.${chd ? "chd" : "iso"}`);
     await writeFile(source, "owned source awaiting upstream validation");
     command(["source", "add", port.source_profile, source]);
-    return { port, install };
+    const value = { port, install };
+    seeded.set(portId, { mode, chd, value });
+    return value;
   }
   const button = (label) => By.xpath(`//button[normalize-space(.)="${label}"]`);
   async function dismissApplicationUpdateChoice() {
@@ -491,7 +500,7 @@ export async function preparationScenarios({
     }
   });
   await scenario("native-game-update-review", async () => {
-    const port = command(["catalog", "show", "opengoal-jak1"]);
+    const { port } = await seed("opengoal-jak1", "success");
     await open(port, false);
     const updateControl = await browser.findElement(
       By.css('section[aria-label="Review game update"]'),
@@ -1089,6 +1098,7 @@ export async function preparationScenarios({
     output,
     artifacts,
     command,
+    seed,
     open,
     confirmNative,
   });

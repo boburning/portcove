@@ -162,6 +162,7 @@ export function buildDesktopVerifyPlan({ selection, paths, drivers, source, pack
     phases: [
       "desktop-doctor",
       "workspace-package-preflight",
+      ...(ownedFixture ? ["scenario-context-preflight"] : []),
       "frontend-build",
       "desktop-build",
       ...(ownedFixture ? ["cli-build", "owned-probe-build"] : []),
@@ -348,6 +349,10 @@ async function runVerification(options, selection) {
     const environment = desktopBuildEnvironment(childEnvironment(paths), selection);
     const phase = (id, command, args) =>
       executePhase({ id, command, args, cwd: root, environment, log, timings });
+    if (selection.prerequisites.includes("owned-fixture"))
+      await phase("scenario-context-preflight", process.execPath, [
+        "apps/desktop/scripts/desktop-context-preflight.mjs",
+      ]);
     const pins = readToolPins();
     const packageManagerVersion = spawnCommand("corepack", ["pnpm", "--version"], {
       cwd: path.join(root, "apps", "desktop"),

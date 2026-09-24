@@ -11,18 +11,51 @@ import {
   reviewControls,
 } from "./desktop-review-controls.mjs";
 
-export async function steamEntryScenario({
-  browser,
-  invoke,
-  scenario,
-  output,
-  artifacts,
-  command,
-  open,
-  confirmNative,
-}) {
+/**
+ * @typedef {object} SteamEntryContext
+ * @property {import("selenium-webdriver").WebDriver} browser
+ * @property {(command: string, args?: object) => Promise<object>} invoke
+ * @property {(name: string, run: () => Promise<void>) => Promise<void>} scenario
+ * @property {string} output
+ * @property {string[]} artifacts
+ * @property {(args: string[]) => object} command
+ * @property {(portId: string, mode: string) => Promise<{port: object, install: object}>} seed
+ * @property {(port: object, waitForPreparation?: boolean) => Promise<void>} open
+ * @property {Function} confirmNative
+ */
+
+/** @param {SteamEntryContext} context */
+export function assertSteamEntryContext(context) {
+  for (const member of [
+    "browser",
+    "invoke",
+    "scenario",
+    "output",
+    "artifacts",
+    "command",
+    "seed",
+    "open",
+    "confirmNative",
+  ]) {
+    const value = context?.[member];
+    const valid =
+      member === "output"
+        ? typeof value === "string"
+        : member === "artifacts"
+          ? Array.isArray(value)
+          : member === "browser"
+            ? value && typeof value === "object"
+            : typeof value === "function";
+    if (!valid) throw new TypeError(`Steam review scenario requires context.${member}`);
+  }
+}
+
+/** @param {SteamEntryContext} context */
+export async function steamEntryScenario(context) {
+  assertSteamEntryContext(context);
+  const { browser, invoke, scenario, output, artifacts, command, open, confirmNative } = context;
   await scenario("native-reviewed-steam-entry-add-and-remove", async () => {
-    const port = command(["catalog", "show", "opengoal-jak1"]);
+    const { port } = await context.seed("opengoal-jak1", "success");
     assert.ok(command(["status", port.id]).active, "setup must leave the fixture port installed");
     const steamRoot = path.join(output, "controlled Steam ü");
     const steamUserId = "12345";
