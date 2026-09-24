@@ -365,7 +365,7 @@ export async function interruptedPreparationScenario({
     assert.match(await review.getText(), /cannot be resumed/);
     let controls = reviewControls(browser);
     const cleanupReview = await review.findElement(
-      By.xpath('.//button[normalize-space(.)="Review private-file cleanup"]'),
+      By.xpath('.//button[normalize-space(.)="Review unfinished setup files"]'),
     );
     assert.equal((await review.findElements(By.css("button,a"))).length, 1);
     await browser.executeScript('arguments[0].scrollIntoView({ block: "start" });', review);
@@ -478,11 +478,13 @@ export async function interruptedPreparationScenario({
     );
     const cleanupActionStyles = await assertDestructiveReviewAction(
       browser,
-      await browser.findElement(controls.button("Remove reviewed private files permanently")),
+      await browser.findElement(controls.button("Delete setup working files")),
       await browser.findElement(controls.button("Keep retained files")),
     );
     const cleanupText = await browser.findElement(cleanupDialog).getText();
     for (const expected of [
+      "Delete files left by unfinished setup?",
+      "Setup working folder to delete",
       privatePath,
       "Original installation preserved",
       "Registered source preserved",
@@ -490,7 +492,7 @@ export async function interruptedPreparationScenario({
       "Backups preserved",
       "Logs preserved",
       "cannot be recovered",
-      "process tree stopped",
+      "setup and any programs it started have stopped",
     ]) {
       assert.ok(cleanupText.includes(expected), expected);
     }
@@ -507,15 +509,12 @@ export async function interruptedPreparationScenario({
 
     await clickVisible(browser, cleanupReview);
     await browser.wait(until.elementLocated(cleanupDialog), 15_000);
-    await browser.wait(
-      until.elementLocated(controls.button("Remove reviewed private files permanently")),
-      15_000,
-    );
+    await browser.wait(until.elementLocated(controls.button("Delete setup working files")), 15_000);
     await writeFile(path.join(privatePath, "changed-after-review.bin"), "owned stale review");
     await clickVisible(
       browser,
       await browser.wait(
-        until.elementLocated(controls.button("Remove reviewed private files permanently")),
+        until.elementLocated(controls.button("Delete setup working files")),
         15_000,
       ),
       { dispatch: "dom" },
@@ -523,14 +522,11 @@ export async function interruptedPreparationScenario({
     await browser.wait(until.elementLocated(controls.button("Review again")), 15_000);
     await access(privatePath);
     await controls.click(controls.button("Review again"));
-    await browser.wait(
-      until.elementLocated(controls.button("Remove reviewed private files permanently")),
-      15_000,
-    );
+    await browser.wait(until.elementLocated(controls.button("Delete setup working files")), 15_000);
     await clickVisible(
       browser,
       await browser.wait(
-        until.elementLocated(controls.button("Remove reviewed private files permanently")),
+        until.elementLocated(controls.button("Delete setup working files")),
         15_000,
       ),
       { dispatch: "dom" },
@@ -578,7 +574,7 @@ export async function interruptedPreparationScenario({
     await clickVisible(
       browser,
       await recoveredReview.findElement(
-        By.xpath('.//button[normalize-space(.)="Review private-file cleanup"]'),
+        By.xpath('.//button[normalize-space(.)="Review unfinished setup files"]'),
       ),
     );
     await browser.wait(until.elementLocated(cleanupDialog), 15_000);
@@ -589,7 +585,7 @@ export async function interruptedPreparationScenario({
     await clickVisible(
       browser,
       await browser.wait(
-        until.elementLocated(controls.button("Remove reviewed private files permanently")),
+        until.elementLocated(controls.button("Delete setup working files")),
         15_000,
       ),
       { dispatch: "dom" },
@@ -676,7 +672,7 @@ export async function interruptedPreparationScenario({
       );
     }
     const journalOnlyCleanupReview = await journalOnlyReview.findElement(
-      By.xpath('.//button[normalize-space(.)="Review private-file cleanup"]'),
+      By.xpath('.//button[normalize-space(.)="Review unfinished setup files"]'),
     );
     await browser.executeScript(
       'arguments[0].scrollIntoView({ block: "center", inline: "nearest" });',
@@ -689,10 +685,16 @@ export async function interruptedPreparationScenario({
       15_000,
     );
     const journalOnlyText = await browser.findElement(cleanupDialog).getText();
+    assert.ok(journalOnlyText.includes("Clear unfinished setup record?"));
+    assert.ok(journalOnlyText.includes("Recorded setup path to clear"));
+    assert.ok(journalOnlyText.includes("before clearing this record"));
+    assert.ok(!journalOnlyText.includes("before deleting these files"));
+    assert.ok(journalOnlyText.includes("Cancel"));
+    assert.ok(!journalOnlyText.includes("Keep retained files"));
     assert.match(journalOnlyText, /0 files/);
     assert.match(
       journalOnlyText,
-      /No retained private entries are present\. Cleanup removes the recorded private path if it exists and its stale recovery journal/,
+      /No setup working files were found\. Cleanup clears the recorded setup path if it exists and its stale recovery journal/,
     );
     await assert.rejects(access(journalOnlyPath));
     const journalOnlyAccessibility = path.join(
@@ -712,7 +714,7 @@ export async function interruptedPreparationScenario({
     await clickVisible(
       browser,
       await browser.wait(
-        until.elementLocated(controls.button("Remove empty private state")),
+        until.elementLocated(controls.button("Clear unfinished setup record")),
         15_000,
       ),
       { dispatch: "dom" },
