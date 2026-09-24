@@ -3371,9 +3371,7 @@ select {
 .update-row {
   width: 100%;
   display: grid;
-  grid-template-columns:
-    42px minmax(180px, 1fr) minmax(100px, 135px) minmax(100px, 135px)
-    90px;
+  grid-template-columns: 42px minmax(180px, 1fr) minmax(214px, 284px) 90px;
   gap: 14px;
   align-items: center;
   padding: 12px;
@@ -3428,8 +3426,14 @@ select {
   background: var(--color-interactive);
 }
 .update-title,
-.update-version {
+.update-version,
+.update-versions {
   min-width: 0;
+}
+.update-versions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
 }
 .update-title strong,
 .update-title small,
@@ -3960,12 +3964,15 @@ select:disabled {
     grid-template-columns: repeat(3, 1fr);
   }
   .update-row {
-    grid-template-columns:
-      2.625rem minmax(11rem, 1fr) minmax(6.25rem, 8.5rem)
-      5.625rem;
+    grid-template-columns: 2.625rem minmax(11rem, 1fr) minmax(8rem, 1fr) 5.625rem;
   }
-  .update-version + .update-version {
-    display: none;
+  .update-versions {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-2);
+  }
+  .update-version span {
+    overflow-wrap: anywhere;
+    white-space: normal;
   }
   .activity-row {
     grid-template-columns: 1.5rem minmax(0, 1fr) 4.5rem;

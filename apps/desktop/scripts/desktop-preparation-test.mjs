@@ -543,6 +543,71 @@ export async function preparationScenarios({
       5_000,
       "Game update review trigger did not regain focus after Escape",
     );
+    const originalWindow = await browser.manage().window().getRect();
+    try {
+      for (const theme of ["dark", "light"]) {
+        await browser.findElement(By.xpath('//nav//button[contains(., "Settings")]')).click();
+        await browser.findElement(button(theme === "dark" ? "Dark" : "Light")).click();
+        assert.equal(
+          await browser.executeScript(() => document.documentElement.dataset.theme),
+          theme,
+        );
+        await browser.findElement(By.xpath('//nav//button[contains(., "Updates")]')).click();
+        const row = await browser.wait(
+          until.elementLocated(By.css(`[data-detail-origin="updates:installed:${port.id}"]`)),
+          15_000,
+        );
+        for (const { width, height } of [
+          { width: 960, height: 640 },
+          { width: 1280, height: 800 },
+        ]) {
+          await browser.manage().window().setRect({ width, height });
+          await browser.executeScript((element) => element.scrollIntoView(), row);
+          const comparison = await browser.executeScript((element) => {
+            const blocks = [...element.querySelectorAll(".update-version")];
+            return {
+              rowOverflow: element.scrollWidth > element.clientWidth + 1,
+              documentOverflow:
+                document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
+              blocks: blocks.map((block) => {
+                const label = block.querySelector("small");
+                const value = block.querySelector("span");
+                const rect = block.getBoundingClientRect();
+                return {
+                  label: label?.textContent?.trim(),
+                  value: value?.textContent?.trim(),
+                  visible: getComputedStyle(block).display !== "none" && rect.width > 0,
+                  left: rect.left,
+                  right: rect.right,
+                  top: rect.top,
+                  bottom: rect.bottom,
+                };
+              }),
+            };
+          }, row);
+          assert.equal(comparison.rowOverflow, false);
+          assert.equal(comparison.documentOverflow, false);
+          assert.deepEqual(
+            comparison.blocks.map(({ label }) => label),
+            ["Installed", "Latest eligible"],
+          );
+          assert.ok(comparison.blocks.every(({ visible, value }) => visible && value));
+          if (width === 960) assert.ok(comparison.blocks[0].bottom <= comparison.blocks[1].top + 1);
+          else assert.ok(comparison.blocks[0].right <= comparison.blocks[1].left + 1);
+          const comparisonScreenshot = path.join(
+            output,
+            `native-game-update-comparison-${theme}-${width}x${height}.png`,
+          );
+          await writeFile(comparisonScreenshot, await browser.takeScreenshot(), {
+            encoding: "base64",
+            flag: "wx",
+          });
+          artifacts.push(comparisonScreenshot);
+        }
+      }
+    } finally {
+      await browser.manage().window().setRect(originalWindow);
+    }
   });
   await readinessScenario({
     browser,
