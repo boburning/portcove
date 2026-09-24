@@ -195,6 +195,7 @@ export function formatCountMessage(
 export type View = "library" | "catalog" | "updates" | "settings";
 export type DetailDestination = "updates" | "saves";
 export type Filter = "all" | "ready" | "setup" | "stable" | "beta" | "rolling";
+export type CatalogSort = "catalog" | "name" | "installed-first";
 export type PortReadiness =
   | "available"
   | "ready"
@@ -390,14 +391,27 @@ export function filterPorts(
   view: View,
   filter: Filter,
   query: string,
+  catalogSort: CatalogSort = "catalog",
 ) {
   const normalizedQuery = query.trim().toLowerCase();
-  return ports.filter(
+  const visible = ports.filter(
     (port) =>
       visibleInView(port, statuses, view) &&
       matchesFilter(port, statuses.get(port.id), filter) &&
       searchableText(port).includes(normalizedQuery),
   );
+  if (view !== "catalog" || catalogSort === "catalog") return visible;
+  return visible
+    .map((port, index) => ({ port, index }))
+    .sort((left, right) => {
+      const comparison =
+        catalogSort === "name"
+          ? left.port.name.localeCompare(right.port.name, "en", { sensitivity: "base" })
+          : Number(Boolean(statuses.get(right.port.id)?.active)) -
+            Number(Boolean(statuses.get(left.port.id)?.active));
+      return comparison || left.index - right.index;
+    })
+    .map(({ port }) => port);
 }
 
 function visibleInView(port: PortDefinition, statuses: Map<string, PortStatus>, view: View) {

@@ -543,8 +543,16 @@ function useAppModel(data: DataState, ui: UiState) {
   const { catalog, sources, statuses } = data;
   const statusMap = useMemo(() => indexStatuses(statuses), [statuses]);
   const visible = useMemo(
-    () => filterPorts(data.catalog?.ports ?? [], statusMap, ui.view, ui.filter, ui.query),
-    [data.catalog, statusMap, ui.view, ui.filter, ui.query],
+    () =>
+      filterPorts(
+        data.catalog?.ports ?? [],
+        statusMap,
+        ui.view,
+        ui.filter,
+        ui.query,
+        ui.catalogSort,
+      ),
+    [data.catalog, statusMap, ui.view, ui.filter, ui.query, ui.catalogSort],
   );
   const overview = useMemo(
     () => summarizeLibrary(data.catalog?.ports ?? [], statusMap),
@@ -757,6 +765,8 @@ function CurrentView({
       recent={model.recent}
       filter={ui.filter}
       query={ui.query}
+      catalogSort={ui.catalogSort}
+      setCatalogSort={ui.setCatalogSort}
       setFilter={ui.setFilter}
       onSelect={openPortDetails}
       onContinue={(portId) => {

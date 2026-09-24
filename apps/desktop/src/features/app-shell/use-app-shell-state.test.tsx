@@ -29,6 +29,7 @@ describe("app shell state", () => {
       view: "library",
       filter: "all",
       query: "",
+      catalogSort: "catalog",
       selectedId: undefined,
       sourcePath: "",
       biosPath: "",
@@ -57,6 +58,7 @@ describe("app shell state", () => {
     await act(async () => {
       state.setFilter("beta");
       state.setQuery("discover");
+      state.setCatalogSort("installed-first");
       state.setView("library");
     });
 
@@ -67,6 +69,7 @@ describe("app shell state", () => {
     await act(async () => state.setView("catalog"));
     expect(state.filter).toBe("beta");
     expect(state.query).toBe("discover");
+    expect(state.catalogSort).toBe("installed-first");
   });
 
   it("keeps independent shell inputs available to their owning surfaces", async () => {
