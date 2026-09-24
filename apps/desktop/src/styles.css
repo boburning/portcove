@@ -2085,12 +2085,14 @@ select {
   gap: var(--space-1);
 }
 
-.advanced-settings {
+.advanced-settings,
+.requirements-disclosure {
   border-top: 1px solid var(--color-border);
   border-bottom: 1px solid var(--color-border);
 }
 
-.advanced-summary {
+.advanced-summary,
+.requirements-summary {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -2102,32 +2104,39 @@ select {
   cursor: pointer;
 }
 
-.advanced-summary::-webkit-details-marker {
+.advanced-summary::-webkit-details-marker,
+.requirements-summary::-webkit-details-marker {
   display: none;
 }
 
-.advanced-summary::before {
+.advanced-summary::before,
+.requirements-summary::before {
   content: none;
 }
 
-.advanced-summary > .icon {
+.advanced-summary > .icon,
+.requirements-summary > .icon {
   color: var(--color-interactive-text);
 }
-.advanced-settings[open] .advanced-summary > .icon {
+.advanced-settings[open] .advanced-summary > .icon,
+.requirements-disclosure[open] .requirements-summary > .icon {
   transform: rotate(180deg);
 }
 
-.advanced-summary-meta {
+.advanced-summary-meta,
+.requirements-summary-meta {
   margin-left: auto;
   color: var(--color-text-muted);
   font-size: var(--text-2xs);
   font-weight: 500;
 }
 
-.advanced-summary:hover {
+.advanced-summary:hover,
+.requirements-summary:hover {
   color: var(--color-interactive-text-strong);
 }
-.advanced-body {
+.advanced-body,
+.requirements-body {
   padding: 2px 0 22px;
 }
 .maintenance-actions {

@@ -72,7 +72,7 @@ describe("static development scenarios", () => {
     const installationReview = renderScenario("installation-review-reference");
     expect(installationReview).toContain("INSTALL PLAN");
     expect(installationReview).toContain("Install · 64.0 MiB");
-    expect(installationReview).toContain("Not installed");
+    expect(installationReview).not.toContain("Installation and version");
     expect(installationReview).toContain('class="detail-panel"');
     expect(installationReview).not.toContain('aria-label="Release channel filters"');
     expect(installationReview).not.toContain('class="port-grid"');

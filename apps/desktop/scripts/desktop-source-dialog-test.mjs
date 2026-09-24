@@ -24,7 +24,7 @@ export async function sourceDialogScenario({
     const { button, click } = reviewControls(browser);
 
     await open(port, false);
-    await click(By.css("summary.advanced-summary"));
+    await click(By.css(".requirements-disclosure > .requirements-summary"));
     const intakeTrigger = await browser.findElement(button("Check original game files"));
     await click(button("Check original game files"));
     const intakeDialog = By.css('[aria-labelledby="source-intake-title"]');

@@ -353,13 +353,11 @@ function DetailBody({
         busy={busy}
         actions={actions}
       />
-      <p className="summary">{port.summary}</p>
-      <NavigationHints />
-      <ArtworkControls key={`${port.id}:${libraryGeneration}`} port={port} />
-      <DetailArtwork key={`${port.id}:${libraryGeneration}`} port={port} />
       <RequirementsGroup
+        key={port.id}
         port={port}
         status={status}
+        installed={installed}
         sources={sources}
         managedPreparation={managedPreparation}
         pendingSetup={pendingSetup}
@@ -367,9 +365,15 @@ function DetailBody({
         busy={busy}
         prepare={prepare}
       />
-      <DetailGroup title="Installation and version">
-        <InstallationVersionSummary status={status} selectedChannel={selectedChannel} />
-      </DetailGroup>
+      <p className="summary">{port.summary}</p>
+      <NavigationHints />
+      <ArtworkControls key={`${port.id}:${libraryGeneration}`} port={port} />
+      <DetailArtwork key={`${port.id}:${libraryGeneration}`} port={port} />
+      {installed && (
+        <DetailGroup title="Installation and version">
+          <InstallationVersionSummary status={status} selectedChannel={selectedChannel} />
+        </DetailGroup>
+      )}
       <UpdatesGroup
         perform={perform}
         port={port}
@@ -478,6 +482,7 @@ function StatusActionsGroup({
 function RequirementsGroup({
   port,
   status,
+  installed,
   sources,
   managedPreparation,
   pendingSetup,
@@ -487,6 +492,7 @@ function RequirementsGroup({
 }: {
   port: PortDefinition;
   status?: PortStatus;
+  installed: boolean;
   sources: SourceControls;
   managedPreparation: boolean;
   pendingSetup: boolean;
@@ -494,22 +500,41 @@ function RequirementsGroup({
   busy?: string;
   prepare?: RunPreparation;
 }) {
+  const needsAttention =
+    !installed ||
+    !sources.sourceReady ||
+    !sources.biosReady ||
+    (managedPreparation && pendingSetup);
+  const [initiallyOpen] = useState(needsAttention);
+  const disclosure = useRef<HTMLDetailsElement>(null);
+  useEffect(() => {
+    if (needsAttention && disclosure.current) disclosure.current.open = true;
+  }, [needsAttention]);
   if (!port.source_profile && !port.bios_source_profile && !managedPreparation) return null;
   return (
     <DetailGroup title="Requirements">
-      <RequirementsSummary port={port} />
-      <SourceFields mode="missing" controls={sources} />
-      <SourceFields mode="registered" controls={sources} />
-      <SourceIntakeActions controls={sources} busy={Boolean(busy)} />
-      {managedPreparation && pendingSetup && (
-        <PreparationControl
-          key={`${port.id}:${libraryGeneration}:${status?.active?.id}`}
-          portId={port.id}
-          generation={libraryGeneration}
-          disabled={Boolean(busy) || !sources.sourceReady || !sources.biosReady}
-          run={prepare}
-        />
-      )}
+      <details ref={disclosure} className="requirements-disclosure" open={initiallyOpen}>
+        <summary data-focusable className="requirements-summary">
+          Game-file requirements and setup
+          <span className="requirements-summary-meta">File controls</span>
+          <Icon glyph={ChevronDown} />
+        </summary>
+        <div className="detail-group-content requirements-body">
+          <RequirementsSummary port={port} />
+          <SourceFields mode="missing" controls={sources} />
+          <SourceFields mode="registered" controls={sources} />
+          <SourceIntakeActions controls={sources} busy={Boolean(busy)} />
+          {managedPreparation && pendingSetup && (
+            <PreparationControl
+              key={`${port.id}:${libraryGeneration}:${status?.active?.id}`}
+              portId={port.id}
+              generation={libraryGeneration}
+              disabled={Boolean(busy) || !sources.sourceReady || !sources.biosReady}
+              run={prepare}
+            />
+          )}
+        </div>
+      </details>
     </DetailGroup>
   );
 }
@@ -667,6 +692,12 @@ function InstallationVersionSummary({
         <small>Installed version</small>
         {status?.active?.version ?? "Not installed"}
       </span>
+      {status?.active && (
+        <span>
+          <small>Installed folder</small>
+          {status.active.path}
+        </span>
+      )}
       <span>
         <small>Selected channel</small>
         {releaseChannelPresentation(selectedChannel).label}
