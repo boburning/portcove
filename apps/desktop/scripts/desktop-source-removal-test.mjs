@@ -61,7 +61,9 @@ export async function sourceRemovalScenario({
     await click(By.xpath('//nav//button[contains(., "Settings")]'));
     const row = By.css(`[data-source-profile="${source.profile_id}"]`);
     const dialog = By.css('[aria-labelledby="source-removal-title"]');
-    const trigger = By.css(`[data-source-profile="${source.profile_id}"] [data-slot="button"]`);
+    const trigger = By.xpath(
+      `//*[@data-source-profile="${source.profile_id}"]//button[normalize-space(.)="Remove reference"]`,
+    );
     await browser.wait(until.elementLocated(row), 15_000);
     const rowLayout = await browser.executeScript(
       (element) => {
