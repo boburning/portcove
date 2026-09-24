@@ -21,6 +21,7 @@ export function LibraryImportButton({
     <>
       <Button
         data-focusable
+        data-settings-control="import-library"
         variant="outline"
         size="sm"
         disabled={disabled}

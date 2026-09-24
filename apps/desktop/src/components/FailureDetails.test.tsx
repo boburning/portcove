@@ -9,6 +9,7 @@ import { UpdateCenter } from "./UpdateCenter";
 import { useOperationState } from "../features/operations/use-operation-state";
 import { BootstrapRecovery } from "../App";
 import { errorText, failurePresentation } from "../view-model";
+import type { ActivityRecord } from "../types";
 
 vi.mock("@tauri-apps/api/event", () => ({
   listen: vi.fn().mockResolvedValue(() => {}),
@@ -140,7 +141,7 @@ describe("core-owned failure presentation", () => {
       diagnosticFailure: undefined,
       refreshDiagnostics: vi.fn().mockResolvedValue("completed"),
       onSelect,
-      onOpenSources: vi.fn(),
+      onOpenSettings: vi.fn(),
       activities: [
         {
           id: "recorded",
@@ -175,6 +176,78 @@ describe("core-owned failure presentation", () => {
       } finally {
         await act(async () => root.unmount());
       }
+    }
+  });
+
+  it("opens the owning Settings control from library activity while leaving unrelated activity inert", async () => {
+    vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+    const onOpenSettings = vi.fn();
+    const now = Math.floor(Date.now() / 1000);
+    const operations: ActivityRecord["operation"][] = [
+      "discover_sources",
+      "move_library",
+      "import_library",
+      "update_catalog",
+      "check_update",
+    ];
+    const activities: ActivityRecord[] = operations.map((operation, index) => ({
+      id: `library-${index}`,
+      operation,
+      target_kind: "library",
+      target_id: null,
+      status: "failed",
+      started_at: now - index,
+      finished_at: now - index,
+      cancellation: null,
+      failure: null,
+      message: null,
+    }));
+    const host = document.createElement("div");
+    const root = createRoot(host);
+    try {
+      await act(async () =>
+        root.render(
+          <UpdateCenter
+            generation={1}
+            ports={[]}
+            statuses={new Map()}
+            activities={activities}
+            outcomes={[]}
+            checkAll={vi.fn()}
+            onSelect={vi.fn()}
+            onOpenSettings={onOpenSettings}
+            diagnosticsRefreshing={false}
+            diagnosticsStale={false}
+            refreshDiagnostics={vi.fn()}
+          />,
+        ),
+      );
+      const routes = [
+        ["Game-file search", "Game Files", "game-files"],
+        ["Library move", "Library & Storage", "move-library"],
+        ["Library restore", "Library & Storage", "import-library"],
+        ["Catalog update", "Catalog updates", "catalog-updates"],
+      ] as const;
+      for (const [operation, destination, target] of routes) {
+        const row = [...host.querySelectorAll(".activity-row")].find(
+          (item) => item.querySelector(".activity-main strong")?.textContent === operation,
+        );
+        const button = row?.querySelector<HTMLButtonElement>(".activity-main button");
+        expect(button).not.toBeNull();
+        expect(button?.getAttribute("aria-label")).toBe(
+          `Open ${destination} settings for Portcove library`,
+        );
+        await act(async () => button!.click());
+        expect(onOpenSettings).toHaveBeenLastCalledWith(target);
+      }
+      expect(onOpenSettings).toHaveBeenCalledTimes(4);
+      expect(host.querySelectorAll(".activity-row")).toHaveLength(5);
+      const unrelated = [...host.querySelectorAll(".activity-row")].find(
+        (item) => item.querySelector(".activity-main strong")?.textContent === "Update check",
+      );
+      expect(unrelated?.querySelector(".activity-main button")).toBeNull();
+    } finally {
+      await act(async () => root.unmount());
     }
   });
 });

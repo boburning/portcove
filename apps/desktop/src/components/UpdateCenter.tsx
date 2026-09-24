@@ -39,6 +39,13 @@ import { useEffect, useState } from "react";
 const initialActivityNowSeconds = Date.now() / 1000;
 const activityTargetButton =
   "-mx-1 h-auto min-h-6 min-w-0 max-w-full shrink justify-start overflow-hidden px-1 py-0 text-ellipsis text-xs font-normal text-pc-secondary-foreground no-underline hover:text-pc-primary hover:no-underline";
+type ActivitySettingsTarget = "game-files" | "move-library" | "import-library" | "catalog-updates";
+const libraryActivitySettingsTargets: Partial<Record<ActivityOperation, ActivitySettingsTarget>> = {
+  discover_sources: "game-files",
+  move_library: "move-library",
+  import_library: "import-library",
+  update_catalog: "catalog-updates",
+};
 
 export function UpdateCenter({
   ports,
@@ -50,7 +57,7 @@ export function UpdateCenter({
   busy,
   checkAll,
   onSelect,
-  onOpenSources,
+  onOpenSettings,
   generation,
   repair,
   diagnosticsRefreshing,
@@ -75,7 +82,7 @@ export function UpdateCenter({
   busy?: string;
   checkAll: () => void;
   onSelect: (portId: string, originKey?: string) => void;
-  onOpenSources: () => void;
+  onOpenSettings: (target: ActivitySettingsTarget) => void;
 }) {
   const [nowSeconds, setNowSeconds] = useState(initialActivityNowSeconds);
   useEffect(() => {
@@ -206,7 +213,7 @@ export function UpdateCenter({
         activities={activities}
         activityFeed={activityFeed}
         onSelect={onSelect}
-        onOpenSources={onOpenSources}
+        onOpenSettings={onOpenSettings}
         generation={generation}
         nowSeconds={nowSeconds}
       />
@@ -230,7 +237,7 @@ function ActivityHistory({
   activities,
   activityFeed,
   onSelect,
-  onOpenSources,
+  onOpenSettings,
   generation,
   nowSeconds,
 }: {
@@ -241,7 +248,7 @@ function ActivityHistory({
   activities: ActivityRecord[];
   activityFeed?: ActivityFeed;
   onSelect: (portId: string, originKey?: string) => void;
-  onOpenSources: () => void;
+  onOpenSettings: (target: ActivitySettingsTarget) => void;
 }) {
   const names = new Map(ports.map((port) => [port.id, port.name]));
   const sourceNames = new Map(sourceProfiles.map((profile) => [profile.id, profile.label]));
@@ -300,7 +307,7 @@ function ActivityHistory({
               names={names}
               sourceNames={sourceNames}
               onSelect={onSelect}
-              onOpenSources={onOpenSources}
+              onOpenSettings={onOpenSettings}
               key={activity.id}
               generation={generation}
               nowSeconds={nowSeconds}
@@ -317,7 +324,7 @@ function ActivityRow({
   names,
   sourceNames,
   onSelect,
-  onOpenSources,
+  onOpenSettings,
   generation,
   nowSeconds,
 }: {
@@ -327,7 +334,7 @@ function ActivityRow({
   names: ReadonlyMap<string, string>;
   sourceNames: ReadonlyMap<string, string>;
   onSelect: (portId: string, originKey?: string) => void;
-  onOpenSources: () => void;
+  onOpenSettings: (target: ActivitySettingsTarget) => void;
 }) {
   const target = activityTarget(activity, names, sourceNames);
   const presentation = activityPresentation(activity, nowSeconds);
@@ -346,7 +353,7 @@ function ActivityRow({
           activity={activity}
           target={target}
           onSelect={onSelect}
-          onOpenSources={onOpenSources}
+          onOpenSettings={onOpenSettings}
         />
       </div>
       <span
@@ -406,12 +413,12 @@ function ActivityTargetLink({
   activity,
   target,
   onSelect,
-  onOpenSources,
+  onOpenSettings,
 }: {
   activity: ActivityRecord;
   target: ReturnType<typeof activityTarget>;
   onSelect: (portId: string, originKey?: string) => void;
-  onOpenSources: () => void;
+  onOpenSettings: (target: ActivitySettingsTarget) => void;
 }) {
   if (target.portId)
     return (
@@ -434,11 +441,35 @@ function ActivityTargetLink({
         size="xs"
         className={activityTargetButton}
         aria-label={`Open Game Files settings for ${target.label}`}
-        onClick={onOpenSources}
+        onClick={() => onOpenSettings("game-files")}
       >
         {target.label}
       </Button>
     );
+  const settingsTarget =
+    activity.target_kind === "library"
+      ? libraryActivitySettingsTargets[activity.operation]
+      : undefined;
+  if (settingsTarget) {
+    const destination = {
+      "game-files": "Game Files",
+      "move-library": "Library & Storage",
+      "import-library": "Library & Storage",
+      "catalog-updates": "Catalog updates",
+    }[settingsTarget];
+    return (
+      <Button
+        data-focusable
+        variant="link"
+        size="xs"
+        className={activityTargetButton}
+        aria-label={`Open ${destination} settings for ${target.label}`}
+        onClick={() => onOpenSettings(settingsTarget)}
+      >
+        {target.label}
+      </Button>
+    );
+  }
   return <span>{target.label}</span>;
 }
 

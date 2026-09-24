@@ -158,7 +158,15 @@ export async function sourceDialogScenario({
       "Source discovery trigger did not regain focus after Escape",
     );
 
-    const sourceRegistration = command(["activity"]).records.find(
+    const activities = command(["activity"]).records;
+    const sourceDiscovery = activities.find(
+      (item) =>
+        item.operation === "discover_sources" &&
+        item.target_kind === "library" &&
+        item.status === "succeeded",
+    );
+    assert.ok(sourceDiscovery, "Owned discovery search must record a library activity");
+    const sourceRegistration = activities.find(
       (item) =>
         item.operation === "register_source" &&
         item.target_kind === "source" &&
@@ -199,6 +207,29 @@ export async function sourceDialogScenario({
     });
     artifacts.push(settingsScreenshot);
 
+    await click(By.xpath('//nav//button[contains(., "Game updates")]'));
+    const discoveryActivity = By.xpath(
+      '//div[contains(@class, "activity-row") and .//strong[normalize-space()="Game-file search"]]//button[@aria-label="Open Game Files settings for Portcove library"]',
+    );
+    await browser.wait(until.elementLocated(discoveryActivity), 15_000);
+    await click(discoveryActivity);
+    await browser.wait(
+      () =>
+        browser.executeScript(
+          () =>
+            document.activeElement?.closest('[data-settings-group="game-files"]') !== null &&
+            document.activeElement?.textContent?.includes("Verify sources"),
+        ),
+      5_000,
+      "Library discovery activity did not focus the Game Files verification control",
+    );
+    const discoverySettingsScreenshot = path.join(output, "native-discovery-activity-settings.png");
+    await writeFile(discoverySettingsScreenshot, await browser.takeScreenshot(), {
+      encoding: "base64",
+      flag: "wx",
+    });
+    artifacts.push(discoverySettingsScreenshot);
+
     const report = path.join(output, "source-dialog-result.json");
     await writeFile(
       report,
@@ -214,6 +245,8 @@ export async function sourceDialogScenario({
           discovery_escape_restored_focus: true,
           source_activity_opened_game_files_settings: true,
           source_activity_settings_control_focused: true,
+          library_discovery_activity_opened_game_files_settings: true,
+          library_discovery_settings_control_focused: true,
           directional_navigation_stayed_in_game_files: true,
           intake_action_styles: intakeStyles,
           search_action_styles: searchStyles,

@@ -677,14 +677,24 @@ function CurrentView({
           void updates.checkAll();
         }}
         onSelect={openPortDetails}
-        onOpenSources={() => {
+        onOpenSettings={(target) => {
+          const group =
+            target === "game-files"
+              ? "game-files"
+              : target === "catalog-updates"
+                ? "updates"
+                : "library-storage";
           ui.setView("settings");
           window.requestAnimationFrame(() => {
-            const heading = document.getElementById("settings-game-files-heading");
+            const heading = document.getElementById(`settings-${group}-heading`);
             heading?.scrollIntoView({ block: "start" });
             const control = heading
               ?.closest("[data-settings-group]")
-              ?.querySelector<HTMLElement>("button:not(:disabled), a[href]");
+              ?.querySelector<HTMLElement>(
+                target === "game-files"
+                  ? "button:not(:disabled), a[href]"
+                  : `[data-settings-control="${target}"]:not(:disabled)`,
+              );
             if (control) focusAndReveal(control);
             else heading?.focus({ preventScroll: true });
           });
