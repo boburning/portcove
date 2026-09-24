@@ -15,6 +15,7 @@ export function LibraryMoveButton({ disabled }: { disabled: boolean }) {
     <>
       <Button
         data-focusable
+        data-settings-control="move-library"
         variant="outline"
         size="sm"
         disabled={disabled}

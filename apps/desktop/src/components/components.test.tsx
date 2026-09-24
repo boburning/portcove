@@ -266,7 +266,7 @@ describe("desktop components", () => {
           refreshDiagnostics={vi.fn()}
           checkAll={vi.fn()}
           onSelect={vi.fn()}
-          onOpenSources={vi.fn()}
+          onOpenSettings={vi.fn()}
         />,
       );
       expect(html).toContain("<strong>Activity</strong>");
@@ -1136,7 +1136,7 @@ describe("desktop components", () => {
         refreshDiagnostics={vi.fn()}
         checkAll={vi.fn()}
         onSelect={vi.fn()}
-        onOpenSources={vi.fn()}
+        onOpenSettings={vi.fn()}
       />,
     );
     expect(history).toContain("Game-data setup");
@@ -3177,7 +3177,7 @@ describe("desktop components", () => {
         refreshDiagnostics={vi.fn()}
         checkAll={vi.fn()}
         onSelect={vi.fn()}
-        onOpenSources={vi.fn()}
+        onOpenSettings={vi.fn()}
         outcomes={[
           {
             port_id: port.id,
@@ -3295,7 +3295,7 @@ describe("desktop components", () => {
           refreshDiagnostics={vi.fn()}
           checkAll={vi.fn()}
           onSelect={vi.fn()}
-          onOpenSources={vi.fn()}
+          onOpenSettings={vi.fn()}
         />,
       );
     const complete = renderHistory(feed);
@@ -3353,7 +3353,7 @@ describe("desktop components", () => {
           refreshDiagnostics={vi.fn()}
           checkAll={vi.fn()}
           onSelect={vi.fn()}
-          onOpenSources={vi.fn()}
+          onOpenSettings={vi.fn()}
         />,
       );
     for (const [policy, label] of [
@@ -3459,7 +3459,7 @@ describe("desktop components", () => {
         refreshDiagnostics={vi.fn()}
         checkAll={vi.fn()}
         onSelect={vi.fn()}
-        onOpenSources={vi.fn()}
+        onOpenSettings={vi.fn()}
       />,
     );
     expect(partial).toMatch(/<strong>1\+<\/strong><span>Updates available<\/span>/u);
@@ -3541,7 +3541,7 @@ describe("desktop components", () => {
         refreshDiagnostics={vi.fn()}
         checkAll={vi.fn()}
         onSelect={vi.fn()}
-        onOpenSources={vi.fn()}
+        onOpenSettings={vi.fn()}
       />,
     );
 
@@ -3577,7 +3577,7 @@ describe("desktop components", () => {
         refreshDiagnostics={vi.fn()}
         checkAll={vi.fn()}
         onSelect={vi.fn()}
-        onOpenSources={vi.fn()}
+        onOpenSettings={vi.fn()}
       />,
     );
     expect(html).toContain(

@@ -36,6 +36,7 @@ export function CatalogSettings({
       </p>
       <Button
         data-focusable
+        data-settings-control="catalog-updates"
         variant="outline"
         size="sm"
         disabled={disabled}
