@@ -2110,7 +2110,7 @@ describe("desktop components", () => {
     expect(installed).toContain("1 verified backup");
     expect(installed).toContain("Restore");
     expect(installed).toContain("Delete");
-    expect(installed).toContain("Remove managed files");
+    expect(installed).toContain("Uninstall Sample");
     expect(installed).toContain("source.z64");
     expect(uninstalled).not.toContain('<details class="advanced-settings" open="">');
     expect(installed).not.toContain('<details class="advanced-settings" open="">');
