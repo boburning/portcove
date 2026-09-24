@@ -12,36 +12,38 @@ export async function readinessScenario({ browser, scenario, output, artifacts, 
     assert.equal(before.readiness.launchable, true);
     const observations = {
       injection:
-        "omit one owned port's readiness from actual get_statuses responses; core remains launchable",
+        "omit one owned port's readiness from actual get_workspace_snapshot responses; core remains launchable",
       before,
     };
     const controls = reviewControls(browser);
+    await open(port, false);
     try {
       await browser
         .executeAsyncScript((portId, done) => {
           const native = window.__TAURI_INTERNALS__;
           const original = window.fetch;
-          const target = native.convertFileSrc("get_statuses", "ipc");
+          const target = native.convertFileSrc("get_workspace_snapshot", "ipc");
           window.__portcoveReadinessProbe = { original, injected: 0 };
           window.fetch = async function (input, ...args) {
             const url = typeof input === "string" ? input : (input.url ?? String(input));
             const response = await original.call(window, input, ...args);
             if (url !== target) return response;
-            const statuses = await response.clone().json();
+            const snapshot = await response.clone().json();
             if (
-              !Array.isArray(statuses) ||
-              !statuses.some(
+              !Array.isArray(snapshot.statuses) ||
+              !snapshot.statuses.some(
                 (status) => status.port_id === portId && status.readiness?.launchable === true,
               )
             )
               return response;
             window.__portcoveReadinessProbe.injected++;
             return new Response(
-              JSON.stringify(
-                statuses.map((status) =>
+              JSON.stringify({
+                ...snapshot,
+                statuses: snapshot.statuses.map((status) =>
                   status.port_id === portId ? { ...status, readiness: null } : status,
                 ),
-              ),
+              }),
               {
                 status: response.status,
                 statusText: response.statusText,
@@ -70,6 +72,20 @@ export async function readinessScenario({ browser, scenario, output, artifacts, 
       const primary = await browser.findElement(By.css(".detail-panel .primary-actions button"));
       assert.equal(await primary.isEnabled(), false);
       assert.equal(await primary.getText(), "Play unavailable");
+      const blockerOrder = await browser.executeScript(() => {
+        const bounds = (selector) =>
+          document.querySelector(`.detail-panel ${selector}`)?.getBoundingClientRect();
+        return {
+          reasonBottom: bounds(".readiness-card")?.bottom,
+          actionTop: bounds(".primary-actions button")?.top,
+          summaryTop: bounds(".summary")?.top,
+        };
+      });
+      assert.ok(
+        blockerOrder.reasonBottom <= blockerOrder.actionTop &&
+          blockerOrder.actionTop < blockerOrder.summaryTop,
+        `blocker and next action must lead the detail summary: ${JSON.stringify(blockerOrder)}`,
+      );
       await browser.executeScript(axe.source);
       const accessibility = await browser.executeAsyncScript((done) => window.axe.run().then(done));
       const report = path.join(output, "readiness-accessibility.json");
@@ -118,10 +134,6 @@ export async function readinessScenario({ browser, scenario, output, artifacts, 
           return result;
         });
         assert.equal(observations.probe.restored, true);
-        assert.ok(
-          observations.probe.injected > 0,
-          "The native omission must actually reach the renderer",
-        );
       } finally {
         const report = path.join(output, "readiness-observations.json");
         await writeFile(report, JSON.stringify(observations, null, 2), {
@@ -130,6 +142,10 @@ export async function readinessScenario({ browser, scenario, output, artifacts, 
         artifacts.push(report);
       }
     }
+    assert.ok(
+      observations.probe.injected > 0,
+      "The native omission must actually reach the renderer",
+    );
     await open(port, false);
     await browser.wait(
       until.elementLocated(By.css(".detail-panel .primary-actions button")),
@@ -144,6 +160,34 @@ export async function readinessScenario({ browser, scenario, output, artifacts, 
     assert.equal(
       await browser.findElement(By.css(".detail-panel .primary-actions button")).isEnabled(),
       true,
+    );
+    const readyLayout = await browser.executeScript(() => {
+      const bounds = (selector) =>
+        document.querySelector(`.detail-panel ${selector}`)?.getBoundingClientRect();
+      return {
+        heroBottom: bounds(".detail-hero")?.bottom,
+        actionTop: bounds(".primary-actions button")?.top,
+        actionBottom: bounds(".primary-actions button")?.bottom,
+        summaryTop: bounds(".summary")?.top,
+        artworkTop: bounds(".artwork-controls")?.top,
+        viewportHeight: window.innerHeight,
+        duplicateReadyCard: Boolean(document.querySelector(".detail-panel .readiness-card.ready")),
+      };
+    });
+    const readyImage = path.join(output, "native-ready-next-action.png");
+    await writeFile(readyImage, await browser.takeScreenshot(), {
+      encoding: "base64",
+      flag: "wx",
+    });
+    artifacts.push(readyImage);
+    assert.ok(
+      readyLayout.actionTop >= readyLayout.heroBottom &&
+        readyLayout.actionTop >= 0 &&
+        readyLayout.actionBottom <= readyLayout.viewportHeight &&
+        readyLayout.actionBottom <= readyLayout.summaryTop &&
+        readyLayout.actionBottom < readyLayout.artworkTop &&
+        !readyLayout.duplicateReadyCard,
+      `the ready next action must follow the hero and remain visible before supporting content: ${JSON.stringify(readyLayout)}`,
     );
     assert.equal(command(["status", port.id]).successful_launches, before.successful_launches);
   });

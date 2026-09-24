@@ -526,7 +526,10 @@ describe("desktop components", () => {
     );
 
     expect(ready).toContain("Ready to play");
-    expect(ready).toContain("The installed version and all required game files are available.");
+    expect(ready).not.toContain('class="readiness-card ready"');
+    expect(ready.indexOf("Ready to play")).toBeLessThan(ready.indexOf("Play now"));
+    expect(ready.indexOf("Play now")).toBeLessThan(ready.indexOf(port.summary));
+    expect(ready.indexOf("Play now")).toBeLessThan(ready.indexOf("Change artwork"));
     expect(downloaded).toContain("Ready to play · update downloaded");
     expect(downloaded).toContain("Play the installed version or review the downloaded update.");
     expect(`${ready}${downloaded}`).not.toContain("Ready to launch");
@@ -2085,6 +2088,12 @@ describe("desktop components", () => {
       ([, content]) => content.replaceAll(/<[^>]+>/g, "").trim(),
     );
     expect(uninstalled).toContain("Choose game files");
+    expect(uninstalled.indexOf("Portcove will check required game files")).toBeLessThan(
+      uninstalled.indexOf("Choose game files"),
+    );
+    expect(uninstalled.indexOf("Choose game files")).toBeLessThan(
+      uninstalled.indexOf(port.summary),
+    );
     expect(uninstalled).toContain("Add all required game files before installing");
     expect(uninstalled).toContain("Choose the required game file");
     expect(uninstalled).toContain(
