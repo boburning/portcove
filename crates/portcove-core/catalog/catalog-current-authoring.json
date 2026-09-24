@@ -299,6 +299,16 @@
         "reviewed_at": "2026-09-17",
         "claim": "Normalizes z64, n64, and v64 byte orders to canonical big-endian bytes before exact identity verification and private runtime materialization",
         "immutable_url": "https://github.com/boburning/portcove/blob/45e884c5a05fc5583abf14ca6fb99436ca5ca8c0/crates/portcove-core/src/adapter.rs"
+      },
+      {
+        "id": "open-nectar-0-8-5-disc-setup-persistence",
+        "role": "upstream_support",
+        "authority": "SSunnKing/Open-Nectar---Pikmin-Native-PC-Mobile-Port",
+        "authority_ref": "2462f20cecdf578d8a5ba77fb6dee36130fc668f",
+        "reviewed_at": "2026-09-24",
+        "claim": "Open Nectar 0.8.5 documents USA Rev. 1 and European Pikmin discs, headless extraction, and save/settings paths used by its Windows launcher.",
+        "immutable_url": "https://github.com/SSunnKing/Open-Nectar---Pikmin-Native-PC-Mobile-Port/blob/2462f20cecdf578d8a5ba77fb6dee36130fc668f/README.md",
+        "live_url": "https://github.com/SSunnKing/Open-Nectar---Pikmin-Native-PC-Mobile-Port/blob/main/README.md"
       }
     ],
     "identities": [
@@ -4495,6 +4505,46 @@
         "aliases": [],
         "tombstones": [],
         "evidence_gap": null
+      },
+      {
+        "id": "open-nectar-pikmin-disc",
+        "label": "Pikmin USA Rev. 1 or Europe disc; Open Nectar checks it during preparation.",
+        "kind": "optical-disc",
+        "variants": [
+          {
+            "id": "upstream-accepted",
+            "title": "Pikmin USA Rev. 1 or Europe disc checked by Open Nectar during preparation",
+            "region": null,
+            "revision": null,
+            "product_codes": [
+              "GPIE01",
+              "GPIP01"
+            ],
+            "representations": [
+              {
+                "id": "upstream-validated-gamecube-disc",
+                "extensions": [
+                  "iso",
+                  "gcm",
+                  "rvz",
+                  "wia",
+                  "gcz"
+                ],
+                "kind": "pinned-validator",
+                "validator_contract_id": "open-nectar-pikmin-disc-validator-v1",
+                "evidence_ids": [
+                  "open-nectar-0-8-5-disc-setup-persistence"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "open-nectar-0-8-5-disc-setup-persistence"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
       }
     ],
     "contracts": [
@@ -6290,6 +6340,28 @@
         ],
         "aliases": [],
         "tombstones": []
+      },
+      {
+        "id": "open-nectar-pikmin-game-source",
+        "port_id": "open-nectar-pikmin",
+        "role": "game",
+        "profile_id": "open-nectar-pikmin-disc",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "upstream-accepted"
+        ],
+        "validator_contract_id": "open-nectar-pikmin-disc-validator-v1",
+        "evidence_ids": [
+          "open-nectar-0-8-5-disc-setup-persistence"
+        ],
+        "authority_ref": "2462f20cecdf578d8a5ba77fb6dee36130fc668f",
+        "reviewed_at": "2026-09-24",
+        "immutable_review_url": "https://github.com/SSunnKing/Open-Nectar---Pikmin-Native-PC-Mobile-Port/blob/2462f20cecdf578d8a5ba77fb6dee36130fc668f/README.md",
+        "live_review_url": "https://github.com/SSunnKing/Open-Nectar---Pikmin-Native-PC-Mobile-Port/blob/main/README.md",
+        "evidence_gap": null,
+        "applicability": [],
+        "aliases": [],
+        "tombstones": []
       }
     ],
     "validators": [
@@ -6315,6 +6387,14 @@
         "protocol_version": "schema1-upstream-validator",
         "evidence_ids": [
           "alpha1-schema1-source-contracts"
+        ]
+      },
+      {
+        "id": "open-nectar-pikmin-disc-validator-v1",
+        "tool_id": "open-nectar-launcher",
+        "protocol_version": "extract-only-cli",
+        "evidence_ids": [
+          "open-nectar-0-8-5-disc-setup-persistence"
         ]
       }
     ],
@@ -12263,6 +12343,74 @@
             "profile_id": "mega-man-x5-psx",
             "label": "Mega Man X5 (USA) disc",
             "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed"
+      }
+    },
+    {
+      "id": "open-nectar-pikmin",
+      "name": "Open Nectar (Pikmin)",
+      "summary": "A native Pikmin port that prepares your disc locally with Open Nectar; gameplay has not been tested by Portcove.",
+      "project_url": "https://github.com/SSunnKing/Open-Nectar---Pikmin-Native-PC-Mobile-Port",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "upstream-managed-setup",
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "release": {
+        "repository": "SSunnKing/Open-Nectar---Pikmin-Native-PC-Mobile-Port",
+        "asset_hints": {
+          "windows-x86-64": [
+            "nectar-windows"
+          ]
+        }
+      },
+      "source_profile": "open-nectar-pikmin-disc",
+      "runtime_source_filename": "source.iso",
+      "runtime_source_materialization": "gamecube-iso",
+      "runtime_subdirectory": "nectar-windows",
+      "setup_executable_hints": {
+        "windows-x86-64": [
+          "nectar-launcher.exe"
+        ]
+      },
+      "setup_arguments": [
+        "--install-dir",
+        ".",
+        "--extract-only",
+        "--rom"
+      ],
+      "setup_marker": "assets/.pikmin-assets",
+      "setup_output_paths": [
+        "nectar-windows/assets"
+      ],
+      "launch_arguments": [],
+      "executable_hints": {
+        "windows-x86-64": [
+          "nectar-launcher.exe"
+        ]
+      },
+      "runtime_mutable_paths": [
+        "shader_cache"
+      ],
+      "persistent_paths": [
+        "save",
+        "pikmin_settings.conf"
+      ],
+      "presentation": {
+        "installation_method": "upstream-setup",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "open-nectar-pikmin-disc",
+            "label": "Pikmin USA Rev. 1 or Europe disc; Open Nectar checks it during preparation.",
+            "verification": "upstream-validator"
           }
         ],
         "saves_and_settings": "portcove-managed"

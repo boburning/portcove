@@ -3,7 +3,6 @@ use std::{
     fs::File,
     io::{Read, Seek, SeekFrom},
     path::{Path, PathBuf},
-    process::Stdio,
 };
 
 use serde::{Deserialize, Serialize};
@@ -446,7 +445,7 @@ pub(crate) fn prepare_runtime_source_with_tool(
     destination: &Path,
     materialization: RuntimeSourceMaterialization,
     required_hashes: &BTreeMap<String, String>,
-    chdman: Option<&Path>,
+    pinned_host_tool: Option<&Path>,
     checkpoint: &dyn Fn() -> Result<()>,
     observer: crate::tool_process::ToolProcessObserver<'_>,
 ) -> Result<()> {
@@ -475,13 +474,19 @@ pub(crate) fn prepare_runtime_source_with_tool(
     match materialization {
         RuntimeSourceMaterialization::N64BigEndian => prepare_n64_source(source, destination)?,
         RuntimeSourceMaterialization::Copy => copy_runtime_source(source, destination)?,
-        RuntimeSourceMaterialization::GamecubeIso => materialize_gamecube_iso(source, destination)?,
+        RuntimeSourceMaterialization::GamecubeIso => materialize_gamecube_iso_with_tool(
+            source,
+            destination,
+            pinned_host_tool,
+            checkpoint,
+            observer,
+        )?,
         RuntimeSourceMaterialization::PsxBinCue => {
-            materialize_psx_bin_cue(source, destination, chdman, checkpoint, observer)?
+            materialize_psx_bin_cue(source, destination, pinned_host_tool, checkpoint, observer)?
         }
         RuntimeSourceMaterialization::PsxRawSet => materialize_psx_raw_set(source, destination)?,
         RuntimeSourceMaterialization::Ps2Iso => {
-            materialize_ps2_iso(source, destination, chdman, checkpoint, observer)?
+            materialize_ps2_iso(source, destination, pinned_host_tool, checkpoint, observer)?
         }
         RuntimeSourceMaterialization::StfsDirectory => {
             materialize_stfs_directory(source, destination, required_hashes, checkpoint)?
@@ -1849,6 +1854,33 @@ fn validate_gamecube_disc_source(profile: &SourceProfile, path: &Path) -> Result
 }
 
 fn materialize_gamecube_iso(source: &Path, destination: &Path) -> Result<()> {
+    materialize_gamecube_iso_with_tool(
+        source,
+        destination,
+        None,
+        &|| Ok(()),
+        crate::tool_process::ToolProcessObserver::default(),
+    )
+}
+
+pub(crate) fn gamecube_source_requires_conversion(source: &Path) -> bool {
+    source
+        .extension()
+        .and_then(|extension| extension.to_str())
+        .is_some_and(|extension| {
+            ["rvz", "ciso", "gcz", "wia"]
+                .iter()
+                .any(|candidate| candidate.eq_ignore_ascii_case(extension))
+        })
+}
+
+fn materialize_gamecube_iso_with_tool(
+    source: &Path,
+    destination: &Path,
+    pinned_tool: Option<&Path>,
+    checkpoint: &dyn Fn() -> Result<()>,
+    observer: crate::tool_process::ToolProcessObserver<'_>,
+) -> Result<()> {
     let extension = source
         .extension()
         .and_then(|value| value.to_str())
@@ -1866,35 +1898,29 @@ fn materialize_gamecube_iso(source: &Path, destination: &Path) -> Result<()> {
         )));
     }
 
-    let program = resolve_dolphin_tool()?;
+    let program = pinned_tool
+        .map(Path::to_path_buf)
+        .map_or_else(resolve_dolphin_tool, Ok)?;
     let temporary = destination.with_extension(format!("tmp-{}.iso", Uuid::new_v4()));
-    let output = ChildProcessPolicy::native_command(ChildProcessClass::HostTool, &program)?
+    let mut command = ChildProcessPolicy::native_command(ChildProcessClass::HostTool, &program)?;
+    command
         .arg("convert")
         .arg("-i")
         .arg(source)
         .arg("-o")
         .arg(&temporary)
         .arg("-f")
-        .arg("iso")
-        .stdout(Stdio::null())
-        .stderr(Stdio::piped())
-        .output()
-        .map_err(|error| {
-            PortcoveError::source(format!(
-                "could not run DolphinTool at {} ({error})",
-                program.display()
-            ))
-            .detail("dolphin_tool_path", program.display().to_string())
-        })?;
+        .arg("iso");
+    let output = crate::tool_process::run_tool(&mut command, checkpoint, observer)?;
     if !output.status.success() {
-        let _ = std::fs::remove_file(&temporary);
-        let detail = String::from_utf8_lossy(&output.stderr);
         return Err(PortcoveError::source(format!(
-            "DolphinTool could not convert {}: {}",
-            source.display(),
-            detail.trim()
-        )));
+            "DolphinTool could not convert {}",
+            source.display()
+        ))
+        .detail("exit_code", output.status.code().unwrap_or(-1).to_string())
+        .detail("tool_output", output.output));
     }
+    checkpoint()?;
     if !temporary.is_file() {
         return Err(PortcoveError::source(
             "DolphinTool completed without producing an ISO",
@@ -1903,7 +1929,7 @@ fn materialize_gamecube_iso(source: &Path, destination: &Path) -> Result<()> {
     replace_atomic(&temporary, destination)
 }
 
-fn resolve_dolphin_tool() -> Result<PathBuf> {
+pub(crate) fn resolve_dolphin_tool() -> Result<PathBuf> {
     let candidates = dolphin_tool_candidates();
     resolve_host_tool_path(
         "dolphin_tool",

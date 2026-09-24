@@ -7,6 +7,19 @@ marker must belong to a declared output path. Older definitions may omit
 the field and remain readable, but cannot acquire the explicit preparation-plan
 capability without a reviewed output contract. These paths add no manifest
 exclusion or permission to trust newly hashed files.
+Output paths are relative to the install root; setup markers, persistent paths,
+and disposable runtime paths are relative to the runtime working directory when a
+nested runtime is declared. Managed preparation permits that nested working directory only for
+the upstream-managed adapter and still checks every generated path against the
+install and runtime ownership boundaries.
+
+Generated setup trees use a separate portable-path check from downloaded
+archives. It preserves Unicode names byte-for-byte, rejects traversal,
+Windows-unrepresentable names, and case or canonical-Unicode collisions, and
+does not apply compatibility normalization that could merge distinct names.
+Library transfer and import use the same check so verified generated assets keep
+their names when copied. The stricter ASCII archive-member policy remains in
+place for downloaded packages.
 
 The OpenGOAL family declares `data/iso_data`, `data/decompiler_out` and `data/out`,
 following the [extractor](https://github.com/open-goal/jak-project/blob/ce97ce959b8c773097f593bf42f470555f6a6e2b/decompiler/extractor/main.cpp)
@@ -25,6 +38,13 @@ Generated game data therefore rolls back with its release, while saves,
 configuration and mods remain separately backed-up player data. Logs remain
 disposable. This contract does not claim a ROM, gameplay, Steam Deck, macOS, or
 unpublished-release qualification.
+
+Open Nectar 0.8.5 creates a `shader_cache` directory beside its Windows runtime
+on launch. The catalog treats that exact directory as disposable runtime output;
+its `save` directory and `pikmin_settings.conf` remain Portcove-managed player
+data. The [2026-09-24 Windows observation record](qualification/open-nectar-pikmin-windows-observations-2026-09-24.md)
+describes setup, startup and persistence evidence and its limits. This runtime
+observation does not establish gameplay qualification.
 
 `crates/portcove-core/catalog/catalog.json` is the machine-readable authority
 for actual ports, platforms, upstream sources, release channels, adapters,

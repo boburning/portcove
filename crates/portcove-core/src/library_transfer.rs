@@ -159,7 +159,7 @@ pub(crate) fn reviewed_tree(root: &Path) -> Result<AdoptionCopyPlan> {
             .map(|file| (&mut file.relative_path, false)),
     ) {
         let relative = portable_relative(path)?;
-        let (normalized, key) = crate::archive::validate_relative_path(&relative, directory)
+        let (normalized, key) = crate::portable_tree::validate_relative_path(&relative, directory)
             .map_err(|error| {
                 PortcoveError::unsupported(
                     "library path does not satisfy the portable filesystem policy",
@@ -266,6 +266,44 @@ mod tests {
         );
         assert!(service.plan_library_move(&source.join("nested")).is_err());
         assert!(service.plan_library_move(&source).is_err());
+    }
+
+    #[test]
+    fn generated_unicode_tree_round_trips_without_compatibility_normalization() {
+        let temporary = tempfile::tempdir().unwrap();
+        let source = temporary.path().join("source");
+        let destination = temporary.path().join("destination");
+        let fullwidth = Path::new("dataDir/stages/コピー ～ practice/re_ｐ2_00.blo");
+        let ascii = Path::new("dataDir/stages/コピー ～ practice/re_p2_00.blo");
+        fs::create_dir_all(source.join(fullwidth.parent().unwrap())).unwrap();
+        fs::write(source.join(fullwidth), b"fullwidth p").unwrap();
+        fs::write(source.join(ascii), b"ASCII p").unwrap();
+
+        let plan = reviewed_tree(&source).unwrap();
+        assert_eq!(plan.files.len(), 2);
+        assert!(
+            plan.files
+                .iter()
+                .any(|file| file.relative_path == fullwidth)
+        );
+        assert!(plan.files.iter().any(|file| file.relative_path == ascii));
+        assert!(
+            crate::archive::validate_relative_path(&fullwidth.to_string_lossy(), false).is_err()
+        );
+
+        crate::transfer_copy::copy_reviewed_tree(
+            &source,
+            &destination,
+            &plan,
+            &temporary.path().join("copy-work"),
+        )
+        .unwrap();
+        crate::transfer_copy::verify_reviewed_tree(&destination, &plan).unwrap();
+        assert_eq!(
+            fs::read(destination.join(fullwidth)).unwrap(),
+            b"fullwidth p"
+        );
+        assert_eq!(fs::read(destination.join(ascii)).unwrap(), b"ASCII p");
     }
 
     #[test]

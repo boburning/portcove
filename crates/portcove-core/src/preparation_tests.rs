@@ -329,7 +329,15 @@ fn generated_outputs_cannot_claim_executables_sources_or_persistent_data() {
     }
     let mut nested = port.clone();
     nested.runtime_subdirectory = Some("nested".into());
+    nested.setup_output_paths = port
+        .setup_output_paths
+        .iter()
+        .map(|path| format!("nested/{path}"))
+        .collect();
     validate_output_contract(&nested).unwrap();
+    let mut runtime_root_output = nested.clone();
+    runtime_root_output.setup_output_paths = vec!["nested".into()];
+    assert!(validate_output_contract(&runtime_root_output).is_err());
     let mut portable = port.clone();
     portable.portable_marker = true;
     portable.setup_output_paths.push("portable.txt".into());

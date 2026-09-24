@@ -1,4 +1,8 @@
-use std::{collections::BTreeMap, fs, path::Path};
+use std::{
+    collections::BTreeMap,
+    fs,
+    path::{Path, PathBuf},
+};
 
 use rusqlite::OptionalExtension;
 
@@ -128,13 +132,7 @@ impl PortcoveService {
                     .during("preparation.review")
             })?;
         let port = self.installed_port(&plan.inputs.install)?;
-        if !matches!(
-            port.runtime_source_materialization,
-            Some(RuntimeSourceMaterialization::Ps2Iso)
-                | Some(RuntimeSourceMaterialization::N64BigEndian)
-        ) || !port.runtime_source_set.is_empty()
-            || !port.persistent_file_patterns.is_empty()
-        {
+        if !supports_single_source_setup_layout(&port) {
             return Err(PortcoveError::unsupported(
                 "this preparation operation requires a reviewed single-source setup layout",
             ));
@@ -290,7 +288,14 @@ impl PortcoveService {
                 "prepared output failed its immutable manifest check",
             ));
         }
-        crate::adapter::bind_upstream_setup_manifest(&payload, &install.manifest_sha256)
+        let port = self.installed_port(original)?;
+        let working = crate::adapter::launch_working_directory(
+            port.adapter,
+            &port,
+            &payload,
+            &payload.join(&install.selected_executable),
+        )?;
+        crate::adapter::bind_upstream_setup_manifest(&working, &install.manifest_sha256)
             .map_err(|error| error.detail("preparation_phase", "bind manifest"))?;
         self.check_lifecycle_fault(LifecycleFaultPoint::PreparationOutputsValidated)?;
         install.path = destination;
@@ -318,6 +323,12 @@ impl PortcoveService {
             ..plan.inputs.install.clone()
         };
         Installer::new(self.library().clone())?.verify_critical(&copied, &qualification)?;
+        let setup_root = crate::adapter::launch_working_directory(
+            port.adapter,
+            &port,
+            payload,
+            &payload.join(&copied.selected_executable),
+        )?;
         for relative in &port.setup_output_paths {
             let target = payload.join(relative);
             crate::path::refuse_symlink_ancestors(&target)?;
@@ -327,13 +338,20 @@ impl PortcoveService {
                 fs::remove_file(&target)?;
             }
         }
-        for name in [RECEIPT_FILE, crate::adapter::UPSTREAM_SETUP_METADATA] {
-            let target = payload.join(name);
-            if target.exists() {
-                fs::remove_file(&target)?;
-            }
+        let receipt = payload.join(RECEIPT_FILE);
+        if receipt.exists() {
+            fs::remove_file(&receipt)?;
         }
-        let source = payload.join(
+        let setup_metadata = setup_root.join(crate::adapter::UPSTREAM_SETUP_METADATA);
+        if setup_metadata.exists() {
+            fs::remove_file(&setup_metadata)?;
+        }
+        let operation_root = payload
+            .parent()
+            .ok_or_else(|| PortcoveError::state("private payload has no operation root"))?;
+        let source_root = operation_root.join("setup-source");
+        fs::create_dir(&source_root)?;
+        let source = source_root.join(
             port.runtime_source_filename
                 .as_deref()
                 .ok_or_else(|| PortcoveError::state("setup has no materialized source path"))?,
@@ -414,14 +432,11 @@ impl PortcoveService {
             || record_preparation_process_quiescence(self, operation.operation_id(), true);
         let isolated_setup = port.adapter == crate::AdapterKind::LibultrashipPortable;
         let setup_directory = if isolated_setup {
-            let directory = payload
-                .parent()
-                .ok_or_else(|| PortcoveError::state("private preparation has no operation root"))?
-                .join("setup-runtime");
+            let directory = operation_root.join("setup-runtime");
             fs::create_dir(&directory)?;
             directory
         } else {
-            payload.to_path_buf()
+            setup_root.clone()
         };
         let setup_environment = if isolated_setup {
             std::collections::BTreeMap::from([(
@@ -472,18 +487,29 @@ impl PortcoveService {
             .setup_marker
             .as_deref()
             .ok_or_else(|| PortcoveError::state("setup has no output marker"))?;
-        if !payload.join(marker).is_file() {
+        if !setup_root.join(marker).is_file() {
             return Err(PortcoveError::verification(
                 "setup completed without its declared output marker",
             )
             .during("preparation.verify"));
         }
-        crate::adapter::record_prepared_setup(payload, &source)?;
+        crate::adapter::record_prepared_setup(&setup_root, &source)?;
         if isolated_setup {
             fs::remove_dir_all(&setup_directory)?;
         }
         operation.checkpoint()
     }
+}
+
+pub(super) fn supports_single_source_setup_layout(port: &PortDefinition) -> bool {
+    let materialization_supported = matches!(
+        port.runtime_source_materialization,
+        Some(RuntimeSourceMaterialization::Ps2Iso | RuntimeSourceMaterialization::N64BigEndian)
+    ) || (port.adapter == crate::AdapterKind::UpstreamManagedSetup
+        && port.runtime_source_materialization == Some(RuntimeSourceMaterialization::GamecubeIso));
+    materialization_supported
+        && port.runtime_source_set.is_empty()
+        && port.persistent_file_patterns.is_empty()
 }
 
 pub(super) fn copy_setup_outputs(
@@ -537,10 +563,20 @@ fn validate_outputs(
     permissions: &BTreeMap<std::path::PathBuf, bool>,
 ) -> Result<()> {
     let after = crate::library_transfer::reviewed_tree(root)?;
+    let output_roots = port
+        .setup_output_paths
+        .iter()
+        .map(PathBuf::from)
+        .chain(port.runtime_mutable_paths.iter().map(|relative| {
+            port.runtime_subdirectory.as_deref().map_or_else(
+                || PathBuf::from(relative),
+                |prefix| Path::new(prefix).join(relative),
+            )
+        }))
+        .collect::<Vec<_>>();
     let allowed = |path: &Path| {
-        port.setup_output_paths
+        output_roots
             .iter()
-            .chain(&port.runtime_mutable_paths)
             .any(|relative| path.starts_with(relative))
     };
     let original = before
@@ -571,11 +607,9 @@ fn validate_outputs(
     }
     let allowed_directory = |path: &Path| {
         allowed(path)
-            || port
-                .setup_output_paths
+            || output_roots
                 .iter()
-                .chain(&port.runtime_mutable_paths)
-                .any(|relative| Path::new(relative).starts_with(path))
+                .any(|relative| relative.starts_with(path))
     };
     let before_dirs = before
         .directories

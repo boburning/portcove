@@ -10,14 +10,35 @@ use std::{
 };
 
 #[test]
+fn gamecube_setup_source_is_scoped_to_the_upstream_setup_adapter() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    assert!(
+        super::super::execution::supports_single_source_setup_layout(
+            catalog.port("open-nectar-pikmin").unwrap()
+        )
+    );
+    assert!(
+        !super::super::execution::supports_single_source_setup_layout(
+            catalog.port("animal-crossing-pc-port").unwrap()
+        )
+    );
+}
+
+#[test]
 fn isolated_setup_copies_only_declared_generated_outputs() {
     let temporary = tempfile::tempdir().unwrap();
     let source = temporary.path().join("setup-runtime");
     let payload = temporary.path().join("payload");
     fs::create_dir_all(source.join("generated/assets")).unwrap();
+    fs::create_dir_all(source.join("generated/dataDir/stages/コピー ～ practice")).unwrap();
     fs::create_dir_all(&payload).unwrap();
     fs::write(source.join("pm64.o2r"), b"generated archive").unwrap();
     fs::write(source.join("generated/assets/owned.bin"), b"owned output").unwrap();
+    fs::write(
+        source.join("generated/dataDir/stages/コピー ～ practice/re_ｐ2_00.blo"),
+        b"source-derived Unicode output",
+    )
+    .unwrap();
     fs::write(source.join("paperboat.cfg.json"), b"setup-only defaults").unwrap();
     let mut port = crate::Catalog::embedded()
         .unwrap()
@@ -35,6 +56,11 @@ fn isolated_setup_copies_only_declared_generated_outputs() {
     assert_eq!(
         fs::read(payload.join("generated/assets/owned.bin")).unwrap(),
         b"owned output"
+    );
+    assert_eq!(
+        fs::read(payload.join("generated/dataDir/stages/コピー ～ practice/re_ｐ2_00.blo"))
+            .unwrap(),
+        b"source-derived Unicode output"
     );
     assert!(!payload.join("paperboat.cfg.json").exists());
     assert!(!payload.join("optional").exists());
@@ -176,6 +202,8 @@ fn preparation_publishes_a_verified_derivative_and_preserves_the_staged_update()
         fs::read(prepared.path.join("OpenGOAL/jak1/save.bin")).unwrap(),
         b"preserved player save"
     );
+    assert!(!prepared.path.join("source.iso").exists());
+    assert!(!prepared.path.join("source.portcove-source.json").exists());
     assert!(prepared.path.join(RECEIPT_FILE).is_file());
     assert!(
         OperationStore::new(library.clone())
