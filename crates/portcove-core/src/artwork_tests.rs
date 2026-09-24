@@ -132,6 +132,61 @@ fn choices_are_per_slot_and_reset_cache_and_retirement_are_separate() {
 }
 
 #[test]
+fn imported_thumbnail_is_reused_without_a_second_decode_and_regenerates_after_clear() {
+    let temp = tempfile::tempdir().unwrap();
+    let service = open_service(&temp.path().join("library"));
+    let png = image_file(temp.path(), "cover.png", image::ImageFormat::Png);
+    let before = crate::artwork_image::decode_count();
+    let selected = service
+        .import_artwork("zelda64-recomp", ArtworkSlot::Cover, &png, 0)
+        .unwrap();
+    assert_eq!(crate::artwork_image::decode_count(), before + 1);
+    let first = service
+        .artwork_thumbnail("zelda64-recomp", ArtworkSlot::Cover, 1)
+        .unwrap();
+    assert_eq!(crate::artwork_image::decode_count(), before + 1);
+    assert_eq!(first.asset_sha256, selected.choice.asset_sha256.unwrap());
+    assert_eq!(first.choice_revision, selected.choice.revision);
+
+    service.clear_artwork_cache().unwrap();
+    let regenerated = service
+        .artwork_thumbnail("zelda64-recomp", ArtworkSlot::Cover, 1)
+        .unwrap();
+    assert_eq!(regenerated.png, first.png);
+    assert_eq!(crate::artwork_image::decode_count(), before + 2);
+}
+
+#[test]
+fn failed_import_thumbnail_publication_preserves_committed_choice_and_regeneration() {
+    let temp = tempfile::tempdir().unwrap();
+    let service = open_service(&temp.path().join("library"));
+    let png = image_file(temp.path(), "cover.png", image::ImageFormat::Png);
+    let cache_root = service.library().root().join("artwork-cache");
+    fs::write(&cache_root, b"cache obstruction").unwrap();
+    let selected = service
+        .import_artwork("zelda64-recomp", ArtworkSlot::Cover, &png, 0)
+        .unwrap();
+    assert_eq!(selected.availability, ArtworkAvailability::Available);
+    assert_eq!(selected.choice.revision, 1);
+    assert_eq!(
+        service
+            .artwork("zelda64-recomp", ArtworkSlot::Cover)
+            .unwrap()
+            .choice,
+        selected.choice
+    );
+    fs::remove_file(cache_root).unwrap();
+    let thumbnail = service
+        .artwork_thumbnail("zelda64-recomp", ArtworkSlot::Cover, 1)
+        .unwrap();
+    assert_eq!(
+        thumbnail.asset_sha256,
+        selected.choice.asset_sha256.unwrap()
+    );
+    assert!(!thumbnail.png.is_empty());
+}
+
+#[test]
 fn malformed_oversized_animated_and_stale_replacements_preserve_the_choice() {
     let temp = tempfile::tempdir().unwrap();
     let service = open_service(&temp.path().join("library"));
@@ -673,7 +728,9 @@ fn interrupted_thumbnail_staging_can_be_cleared_or_rebuilt_without_losing_choice
         .join("artwork-cache/pending-thumbnail");
     fs::create_dir_all(pending.parent().unwrap()).unwrap();
     fs::write(&pending, b"incomplete thumbnail").unwrap();
-    assert_eq!(service.clear_artwork_cache().unwrap().removed_files, 1);
+    // Import already populated its disposable cache; clear removes it and the
+    // interrupted pending file together.
+    assert_eq!(service.clear_artwork_cache().unwrap().removed_files, 2);
     fs::write(&pending, b"another incomplete thumbnail").unwrap();
     assert!(
         !service

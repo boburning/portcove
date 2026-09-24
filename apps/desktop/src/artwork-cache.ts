@@ -1,5 +1,6 @@
 import { desktopApi } from "./api";
-import type { ArtworkSlot, ArtworkState, ArtworkThumbnail } from "./types";
+import type { DesktopArtworkThumbnail } from "./api";
+import type { ArtworkSlot, ArtworkState } from "./types";
 import { errorText } from "./view-model";
 
 export interface ArtworkDisplay {
@@ -12,20 +13,27 @@ export interface ArtworkDisplay {
 
 const empty: ArtworkDisplay = { loading: false };
 const maximumEntries = 32;
+const maximumPngBytes = 1024 * 1024;
 
-function thumbnailUrl(thumbnail: ArtworkThumbnail, state: ArtworkState) {
+function decodedBytes(encoded: string) {
+  const padding = encoded.endsWith("==") ? 2 : Number(encoded.endsWith("="));
+  return (encoded.length / 4) * 3 - padding;
+}
+
+function thumbnailUrl(thumbnail: DesktopArtworkThumbnail, state: ArtworkState) {
+  const encoded = thumbnail.png_base64;
   if (
     state.resolved_source.kind !== "local_import" ||
     thumbnail.asset_sha256 !== state.resolved_source.asset_sha256 ||
     thumbnail.choice_revision !== state.choice.revision ||
-    thumbnail.png.length === 0 ||
-    thumbnail.png.length > 1024 * 1024
+    encoded.length === 0 ||
+    encoded.length > 4 * Math.ceil(maximumPngBytes / 3) ||
+    encoded.length % 4 !== 0 ||
+    !/^[A-Za-z0-9+/]*={0,2}$/.test(encoded) ||
+    decodedBytes(encoded) > maximumPngBytes
   )
     throw new Error("The artwork preview changed. Refresh to try again.");
-  let binary = "";
-  for (let offset = 0; offset < thumbnail.png.length; offset += 8192)
-    binary += String.fromCharCode(...thumbnail.png.slice(offset, offset + 8192));
-  return `data:image/png;base64,${btoa(binary)}`;
+  return `data:image/png;base64,${encoded}`;
 }
 
 /** Disposable display cache for one library generation. Core owns every choice. */

@@ -7,6 +7,7 @@ import type {
   BackupReview,
   PortRemovalPreview,
 } from "./types";
+
 import type { InstallInput, LaunchResult } from "./types";
 import type { GameUpdatePlan, PreparationCleanupPreview, PreparationPlan } from "./types";
 import type { CatalogStatus, CatalogUpdatePlan, CatalogUpdateSource } from "./types";
@@ -87,6 +88,10 @@ import type {
   WorkspaceSnapshot,
 } from "./types";
 
+export type DesktopArtworkThumbnail = Pick<ArtworkThumbnail, "asset_sha256" | "choice_revision"> & {
+  png_base64: string;
+};
+
 export const desktopApi = {
   localePreference: () => invoke<LocalePreferenceSnapshot>("get_locale_preference"),
   setLocalePreference: (locale: string | null) =>
@@ -148,7 +153,7 @@ export const desktopApi = {
     expectedRevision: number,
     generation: number,
   ) =>
-    invoke<ArtworkThumbnail>("get_artwork_thumbnail", {
+    invoke<DesktopArtworkThumbnail>("get_artwork_thumbnail", {
       portId,
       slot,
       expectedRevision,
