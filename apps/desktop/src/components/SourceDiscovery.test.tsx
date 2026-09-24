@@ -320,7 +320,7 @@ it("opens and scans the Inbox, then applies the exact reviewed import", async ()
     await click("Review copy");
     expect(document.body.textContent).toContain(plan.destination);
     expect(plan.admission_mode).toBe("exact_identity");
-    await click("Copy to Inbox");
+    await click("Copy into Portcove");
     expect(importSource).toHaveBeenCalledWith(
       profile.id,
       candidate.path,

@@ -76,8 +76,8 @@ it("shows the original path, installed impact and all dependents without removin
     "Installed game",
     "Another compatible game",
     "Only this library's reference",
-    "never schedules deletion",
-    "no one-click undo",
+    "The files will stay at",
+    "If interrupted, reopen Settings",
   ])
     expect(dialog().textContent).toContain(text);
   expect(dialog().querySelector("[data-autofocus]")?.textContent).toBe("Keep source reference");

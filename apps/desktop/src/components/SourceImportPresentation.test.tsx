@@ -61,7 +61,7 @@ it.each(["future_mode", "constructor", "__proto__"])(
     expect(html).toContain("Import method unavailable");
     expect(html).toContain("Cancel review");
     expect(html.match(/<button /g)).toHaveLength(1);
-    expect(html).not.toContain("No source bytes are copied or removed");
+    expect(html).not.toContain("Keep this location available");
     expect(html).not.toContain('class="primary"');
     expect(sourceImportModePresentation(mode).known).toBe(false);
     expect(JSON.stringify(review)).toBe(original);
@@ -85,6 +85,10 @@ it.each(["copy", "move", "use_current_location"] as const)(
         ),
       );
       expect(host.textContent).toContain(sourceImportModePresentation(mode).explanation);
+      expect(host.textContent).toContain(plan(mode).destination);
+      expect(host.textContent).toContain(
+        mode === "use_current_location" ? "Saved file location" : "Portcove game-file folder",
+      );
       const action = [...host.querySelectorAll<HTMLButtonElement>("button")].find(
         (button) => button.textContent === sourceImportModePresentation(mode).label,
       );
@@ -98,11 +102,14 @@ it.each(["copy", "move", "use_current_location"] as const)(
 );
 
 it.each([
-  ["copied", "Inbox copy verified and registered; the original was retained."],
-  ["reused_existing", "Existing Inbox copy verified and registered; the original was retained."],
-  ["moved", "Inbox copy verified and registered; the original was removed."],
-  ["registered_current_location", "Source registered at its current location."],
-  ["copied_original_retained", `Inbox copy registered. The original remains at ${source.path}.`],
+  ["copied", "Portcove's copy was checked and added; the original was kept."],
+  ["reused_existing", "The existing Portcove copy was checked and added; the original was kept."],
+  ["moved", "Portcove's copy was checked and added; the original was removed."],
+  ["registered_current_location", "Saved the original file location. Keep it available."],
+  [
+    "copied_original_retained",
+    `Portcove's copy was added. The original remains at ${source.path}.`,
+  ],
 ] as const)("retains the specific known %s outcome", (outcome, expected) => {
   const value = result(outcome);
   const original = JSON.stringify(value);

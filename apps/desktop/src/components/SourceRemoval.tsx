@@ -108,11 +108,17 @@ export function SourceRemovalDialog({
         aria-describedby="source-removal-description"
       >
         <DialogTitle id="source-removal-title" className="mb-2 text-xl">
-          Review source-reference removal
+          Remove this saved game-file location?
         </DialogTitle>
         <DialogDescription id="source-removal-description" className="mb-4 leading-relaxed">
-          Remove Portcove's saved reference to these game files. The files themselves will stay
-          where they are.
+          {preview ? (
+            <>
+              The files will stay at <code className="break-all">{preview.source.path}</code>. Games
+              that need these originals may ask you to add their location again.
+            </>
+          ) : (
+            "Portcove will check the saved location and affected games before removal."
+          )}
         </DialogDescription>
         {pending === "review" && <p role="status">Checking the source and affected games…</p>}
         {preview && <SourceRemovalDetails preview={preview} ports={ports} />}
@@ -186,7 +192,6 @@ function SourceRemovalDetails({
       ) : (
         <p>No installed game currently depends on this reference.</p>
       )}
-      <p>Actions that need these original files may require registering them again.</p>
       <details>
         <summary>All catalog games using this source ({preview.dependent_port_ids.length})</summary>
         <ul>
@@ -196,12 +201,7 @@ function SourceRemovalDetails({
         </ul>
       </details>
       <p>
-        To use these files again, add them and pass the current source checks. There is no one-click
-        undo or automatic re-registration.
-      </p>
-      <p>
         If interrupted, reopen Settings and check whether the reference remains before trying again.
-        Removing a reference never schedules deletion of the original files.
       </p>
     </section>
   );

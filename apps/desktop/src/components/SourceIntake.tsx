@@ -43,28 +43,24 @@ function sourceIntakeCopy(purpose: SourcePickerPurpose) {
     return {
       eyebrow: "BIOS FILE CHECK",
       title: (portName: string) => `Check BIOS for ${portName}`,
-      description:
-        "Portcove checks the selected BIOS file for this game only. Checking does not install, register, copy, move, replace, or delete anything.",
+      description: "Check this BIOS file for the game. Checking won't change the file.",
       checking: "Checking BIOS file…",
       choose: "Choose BIOS file to check",
       resultLabel: "BIOS file check result",
       unchanged: "Your selected BIOS file remains unchanged.",
       addLabel: "Add checked BIOS file",
-      addExplanation:
-        "Checking is complete. Choose a separate action only if you want Portcove to add this BIOS file.",
+      addExplanation: "Choose how to add this BIOS file.",
     };
   return {
     eyebrow: "GAME FILE CHECK",
     title: (portName: string) => `Check files for ${portName}`,
-    description:
-      "Portcove checks the selected files for this game only. Checking does not install, register, copy, move, replace, or delete anything.",
+    description: "Check these files for this game. Checking won't change them.",
     checking: "Checking game files…",
     choose: "Choose game files to check",
     resultLabel: "Game file check result",
     unchanged: "Your selected game files remain unchanged.",
     addLabel: "Add checked game files",
-    addExplanation:
-      "Checking is complete. Choose a separate action only if you want Portcove to add these files.",
+    addExplanation: "Choose how to add these files.",
   };
 }
 
@@ -303,7 +299,11 @@ function SourceIntakeSession({
             )}
             {candidate && !plan && (
               <div className="source-intake-actions" aria-label={copy.addLabel}>
-                <p>{copy.addExplanation}</p>
+                <p>
+                  {result.state_code === "recognized_exact"
+                    ? copy.addExplanation
+                    : result.next_action}
+                </p>
                 <div className="actions">
                   <Button
                     data-focusable
@@ -313,7 +313,7 @@ function SourceIntakeSession({
                       void review("copy");
                     }}
                   >
-                    Copy to Source Inbox
+                    Copy into Portcove
                   </Button>
                   <Button
                     data-focusable
@@ -333,7 +333,7 @@ function SourceIntakeSession({
                       void review("move");
                     }}
                   >
-                    Review destructive move
+                    Review move
                   </Button>
                 </div>
               </div>

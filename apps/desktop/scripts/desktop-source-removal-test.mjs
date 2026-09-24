@@ -84,7 +84,8 @@ export async function sourceRemovalScenario({
     assert.ok(
       text.includes(source.path) &&
         text.includes(port.name) &&
-        text.includes("never schedules deletion"),
+        text.includes("The files will stay at") &&
+        text.includes("If interrupted, reopen Settings"),
     );
     await click(button("Keep source reference"));
     assert.deepEqual(

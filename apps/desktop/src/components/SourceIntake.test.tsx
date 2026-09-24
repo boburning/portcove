@@ -123,12 +123,11 @@ describe("source intake dialog", () => {
     );
 
     expect(inspect).toHaveBeenCalledWith(profile.id, ["D:/Game.z64"]);
-    expect(document.body.textContent).toContain(
-      "Checking does not install, register, copy, move, replace, or delete anything.",
-    );
-    expect(button("Copy to Source Inbox")).toBeDefined();
+    expect(document.body.textContent).toContain("Checking won't change them.");
+    expect(document.body.textContent).toContain("Choose how to add these files.");
+    expect(button("Copy into Portcove")).toBeDefined();
     expect(button("Use current location")).toBeDefined();
-    expect(button("Review destructive move")).toBeDefined();
+    expect(button("Review move")).toBeDefined();
     expect(plan).not.toHaveBeenCalled();
     expect(apply).not.toHaveBeenCalled();
   });
@@ -150,7 +149,26 @@ describe("source intake dialog", () => {
     );
 
     expect(document.body.textContent).toContain("Choose one source.");
-    expect(button("Copy to Source Inbox")).toBeUndefined();
+    expect(button("Copy into Portcove")).toBeUndefined();
+    expect(document.body.textContent).toContain("Try again.");
+    expect(document.body.textContent).not.toContain("Choose how to add them.");
+  });
+
+  it("keeps pending validation guidance distinct from an accepted match", async () => {
+    const pending = intake("D:/Needs-upstream-check.iso");
+    pending.state_code = "selected_needs_checking";
+    pending.next_action = "Complete the remaining file check during reviewed setup.";
+    pending.report!.state_code = pending.state_code;
+    pending.report!.next_action = pending.next_action;
+    vi.spyOn(desktopApi, "inspectSourceIntake").mockResolvedValue(pending);
+    await act(async () =>
+      root.render(
+        <SourceIntakeDialog request={request(["D:/Needs-upstream-check.iso"])} close={vi.fn()} />,
+      ),
+    );
+    expect(document.body.textContent).toContain(pending.next_action);
+    expect(document.body.textContent).not.toContain("Choose how to add these files.");
+    expect(button("Copy into Portcove")).toBeDefined();
   });
 
   it.each(["future_mode", "constructor", "__proto__"])(
@@ -176,7 +194,7 @@ describe("source intake dialog", () => {
       await act(async () =>
         root.render(<SourceIntakeDialog request={request(["D:/Game.z64"])} close={vi.fn()} />),
       );
-      await act(async () => button("Copy to Source Inbox")!.click());
+      await act(async () => button("Copy into Portcove")!.click());
       expect(document.body.textContent).toContain("Import method unavailable");
       expect(
         document.body.querySelector(
@@ -184,7 +202,7 @@ describe("source intake dialog", () => {
         ),
       ).toBeNull();
       await act(async () => button("Cancel review")!.click());
-      expect(button("Copy to Source Inbox")).toBeDefined();
+      expect(button("Copy into Portcove")).toBeDefined();
       expect(apply).not.toHaveBeenCalled();
     },
   );
@@ -249,7 +267,7 @@ describe("source intake dialog", () => {
     await act(async () => button("Locate chdman…")!.click());
     expect(locate).toHaveBeenCalledWith(tool);
     expect(inspect).toHaveBeenNthCalledWith(2, profile.id, ["D:/Game.chd"]);
-    expect(button("Copy to Source Inbox")).toBeDefined();
+    expect(button("Copy into Portcove")).toBeDefined();
   });
 
   it("ignores an older inspection and an older error after the selected path changes", async () => {
