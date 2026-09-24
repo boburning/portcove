@@ -195,11 +195,21 @@ export async function preparationScenarios({
     await browser.findElement(button("Review game preparation")).click();
     const preparationDialog = By.css('[aria-labelledby="preparation-review-title"]');
     await browser.wait(until.elementLocated(preparationDialog), 15_000);
-    await browser.wait(until.elementLocated(button("Start new preparation")), 15_000);
+    await browser.wait(until.elementLocated(button("Prepare game data")), 15_000);
     assert.equal((await status(port.id)).active.id, install.id, "review must not prepare");
+    const preparationText = await browser.findElement(preparationDialog).getText();
+    for (const expected of [
+      "Prepare game data",
+      "Selected original files",
+      "of free space before the game generates output",
+      "previous version remains available for rollback",
+      "unfinished setup files kept for review",
+      "Do not launch the game from that window",
+    ])
+      assert.ok(preparationText.includes(expected), `preparation review omitted ${expected}`);
     await assertPrimaryReviewAction(
       browser,
-      await browser.findElement(button("Start new preparation")),
+      await browser.findElement(button("Prepare game data")),
       await browser.findElement(button("Cancel review")),
     );
     await assertCompactReview(browser, '[aria-labelledby="preparation-review-title"]');
@@ -228,7 +238,7 @@ export async function preparationScenarios({
     assert.equal((await status(port.id)).active.id, install.id, "dismissal must not prepare");
     await browser.findElement(button("Review game preparation")).click();
     await browser.wait(until.elementLocated(preparationDialog), 15_000);
-    await browser.findElement(button("Start new preparation")).click();
+    await browser.findElement(button("Prepare game data")).click();
     await browser.wait(async () => (await status(port.id)).readiness.launchable, 15_000);
     const prepared = await status(port.id);
     assert.notEqual(prepared.active.id, install.id);
@@ -580,8 +590,8 @@ export async function preparationScenarios({
     const { port, install } = await seed("opengoal-jak2", "wait", true);
     await open(port);
     await browser.findElement(button("Review game preparation")).click();
-    await browser.wait(until.elementLocated(button("Start new preparation")), 15_000);
-    await browser.findElement(button("Start new preparation")).click();
+    await browser.wait(until.elementLocated(button("Prepare game data")), 15_000);
+    await browser.findElement(button("Prepare game data")).click();
     let activity;
     await browser.wait(
       async () => {
