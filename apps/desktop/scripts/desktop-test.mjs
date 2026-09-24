@@ -589,6 +589,130 @@ try {
     );
     assert.deepEqual((await invoke("get_bootstrap_status")).value, before.value);
   });
+  await scenario("native-library-browsing-context", async () => {
+    const chooseOwnedLibrary = nativeConfirmation({
+      application: values.app,
+      getDriverPid: () => driver.pid,
+      output,
+      artifacts,
+    });
+    const original = (await invoke("get_bootstrap_status")).value;
+    assert.equal(path.resolve(original.library_root), library);
+    const alternate = path.join(output, "browsing-alternate-library");
+    await mkdir(alternate);
+    await browser.findElement(By.xpath('//nav//button[contains(., "Port catalog")]')).click();
+    const search = await browser.wait(until.elementLocated(By.id("port-search")), 15_000);
+    await search.sendKeys("zelda");
+    const beta = await browser.wait(
+      until.elementLocated(
+        By.xpath('//div[@aria-label="Release channel filters"]//button[normalize-space(.)="beta"]'),
+      ),
+      15_000,
+    );
+    await beta.click();
+    assert.equal(await beta.getAttribute("aria-pressed"), "true");
+    await search.click();
+    assert.equal(await browser.executeScript("return document.activeElement.id"), "port-search");
+    await browser.actions().keyDown(Key.CONTROL).sendKeys("4").keyUp(Key.CONTROL).perform();
+    await browser.wait(until.elementLocated(By.css(".diagnostics-card")), 15_000);
+    const switchTo = async (target, artifactName, previousGeneration) => {
+      await browser.findElement(By.xpath('//nav//button[contains(., "Settings")]')).click();
+      await browser.wait(
+        async () => {
+          const diagnostics = await browser.findElement(By.css(".diagnostics-card"));
+          return (await diagnostics.getText()).includes("Diagnostics are current.");
+        },
+        15_000,
+        "Settings diagnostics did not settle before the library switch",
+      );
+      await browser.wait(
+        async () => {
+          const connection = await browser.findElement(By.css(".github-auth"));
+          const text = await connection.getText();
+          return (
+            !text.includes("Connection status unavailable") ||
+            (await browser.findElements(By.css('.error-banner[role="alert"]'))).length > 0
+          );
+        },
+        65_000,
+        "GitHub status request retained the outgoing library lease",
+      );
+      await browser
+        .findElement(By.xpath('//button[normalize-space(.)="Choose another library"]'))
+        .click();
+      const picker = await chooseOwnedLibrary(
+        "Choose Portcove library",
+        "Select Folder",
+        "Folder",
+        artifactName,
+        undefined,
+        target,
+      );
+      assert.equal(path.resolve(picker.selected_directory), path.resolve(target));
+      const review = await browser.wait(
+        until.elementLocated(By.css('[aria-labelledby="library-selection-review-title"]')),
+        15_000,
+      );
+      await browser.wait(until.elementIsVisible(review), 5_000);
+      assert.ok((await review.getText()).includes(target));
+      await review
+        .findElement(By.xpath('.//button[normalize-space(.)="Switch whole library"]'))
+        .click();
+      const outcome = await browser.wait(
+        async () => {
+          const status = await invoke("get_bootstrap_status");
+          if (
+            status.ok &&
+            status.value.ready &&
+            status.value.generation > previousGeneration &&
+            path.toNamespacedPath(status.value.library_root) === path.toNamespacedPath(target)
+          )
+            return "switched";
+          const alerts = await browser.findElements(
+            By.xpath('//article[.//h2[normalize-space(.)="Library at startup"]]//*[@role="alert"]'),
+          );
+          return alerts.length ? { error: await alerts[0].getText(), status } : false;
+        },
+        15_000,
+        "Owned library switch did not advance bootstrap generation",
+      );
+      assert.equal(outcome, "switched", `Library switch failed: ${JSON.stringify(outcome)}`);
+      await browser.wait(
+        until.elementLocated(By.xpath('//button[normalize-space(.)="Choose another library"]')),
+        15_000,
+      );
+    };
+    await switchTo(alternate, "library-picker-select-alternate", original.generation);
+    await browser.findElement(By.xpath('//nav//button[contains(., "Port catalog")]')).click();
+    const alternateSearch = await browser.wait(until.elementLocated(By.id("port-search")), 15_000);
+    assert.equal(await alternateSearch.getAttribute("value"), "");
+    const alternateBeta = await browser.findElement(
+      By.xpath('//div[@aria-label="Release channel filters"]//button[normalize-space(.)="beta"]'),
+    );
+    assert.equal(await alternateBeta.getAttribute("aria-pressed"), "false");
+    const alternateStatus = (await invoke("get_bootstrap_status")).value;
+    await switchTo(library, "library-picker-select-original", alternateStatus.generation);
+    await browser.findElement(By.xpath('//nav//button[contains(., "Port catalog")]')).click();
+    const restoredSearch = await browser.wait(until.elementLocated(By.id("port-search")), 15_000);
+    assert.equal(await restoredSearch.getAttribute("value"), "zelda");
+    const restoredBeta = await browser.findElement(
+      By.xpath('//div[@aria-label="Release channel filters"]//button[normalize-space(.)="beta"]'),
+    );
+    assert.equal(await restoredBeta.getAttribute("aria-pressed"), "true");
+    assert.equal((await browser.findElements(By.css('[role="dialog"]'))).length, 0);
+    await browser.wait(
+      async () => (await browser.findElements(By.css(".loading-state"))).length === 0,
+      15_000,
+      "Restored catalog did not finish loading",
+    );
+    await browser.wait(
+      () => browser.executeScript("return document.activeElement.id === 'port-search'"),
+      5_000,
+      "Saved catalog focus did not return after library data loaded",
+    );
+    await browser.executeScript("arguments[0].scrollIntoView({block: 'center'});", restoredSearch);
+    await captureScenarioScreenshot("native-library-browsing-context-restored");
+  });
   await catalogUpdateScenario({ browser, invoke, scenario, output, artifacts });
   await scenario("keyboard-layout", async () => {
     await browser.manage().window().setRect({ width: 640, height: 640 });

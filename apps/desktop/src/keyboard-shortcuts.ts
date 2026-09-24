@@ -75,6 +75,7 @@ export function useGlobalShortcuts({
 
 type WorkspaceFocus = { kind: "id" | "detail-origin"; value: string };
 type WorkspaceSnapshot = { focus: WorkspaceFocus | undefined; scrollTop: number };
+export type WorkspaceBrowsingPositions = Partial<Record<View, WorkspaceSnapshot>>;
 type DetailReturn = { focusOrigin: string | undefined; scrollTop: number };
 
 function workspaceFocus(element: HTMLElement, workspace: HTMLElement): WorkspaceFocus | undefined {
@@ -94,9 +95,91 @@ function resolveWorkspaceFocus(workspace: HTMLElement, focus: WorkspaceFocus) {
   );
 }
 
-export function useWorkspaceContinuity(view: View) {
+function restoreWorkspaceSnapshot(workspace: HTMLElement, snapshot: WorkspaceSnapshot) {
+  workspace.scrollTo({ top: snapshot.scrollTop });
+  if (!snapshot.focus) return;
+  const target = resolveWorkspaceFocus(workspace, snapshot.focus);
+  if (target && !target.matches(":disabled, [aria-disabled=true]"))
+    target.focus({ preventScroll: true });
+  else focusRegion("workspace");
+}
+
+export function useWorkspaceContinuity(
+  view: View,
+  initial?: WorkspaceBrowsingPositions,
+  restoreInitial = true,
+  ready = true,
+) {
   const workspace = useRef<HTMLElement>(null);
-  const snapshots = useRef<Partial<Record<View, WorkspaceSnapshot>>>({});
+  const snapshots = useRef<WorkspaceBrowsingPositions>({ ...initial });
+  const initialRestore = useRef(restoreInitial ? initial?.[view] : undefined);
+  const pending = useRef<
+    | { view: View; snapshot: WorkspaceSnapshot; anchor: Element | null; scrollTop: number }
+    | undefined
+  >(undefined);
+  useEffect(() => {
+    const snapshot = initialRestore.current;
+    if (!snapshot) return;
+    initialRestore.current = undefined;
+    if (!ready) {
+      pending.current = {
+        view,
+        snapshot,
+        anchor: document.activeElement,
+        scrollTop: workspace.current?.scrollTop ?? 0,
+      };
+      return;
+    }
+    const frame = window.requestAnimationFrame(() => {
+      const targetWorkspace = workspace.current;
+      if (!targetWorkspace) return;
+      restoreWorkspaceSnapshot(targetWorkspace, snapshot);
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [ready, view]);
+  useEffect(() => {
+    const restore = pending.current;
+    if (!ready || !restore || restore.view !== view) return;
+    const frame = window.requestAnimationFrame(() => {
+      if (pending.current !== restore) return;
+      pending.current = undefined;
+      const targetWorkspace = workspace.current;
+      if (!targetWorkspace || targetWorkspace.scrollTop !== restore.scrollTop) return;
+      if (restore.anchor) {
+        if (document.activeElement !== restore.anchor) return;
+      } else if (targetWorkspace.contains(document.activeElement)) return;
+      restoreWorkspaceSnapshot(targetWorkspace, restore.snapshot);
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [ready, view]);
+  useEffect(() => {
+    if (pending.current?.view !== view) return;
+    const cancel = () => {
+      pending.current = undefined;
+    };
+    document.addEventListener("focusin", cancel, true);
+    document.addEventListener("pointerdown", cancel, true);
+    document.addEventListener("keydown", cancel, true);
+    return () => {
+      document.removeEventListener("focusin", cancel, true);
+      document.removeEventListener("pointerdown", cancel, true);
+      document.removeEventListener("keydown", cancel, true);
+    };
+  }, [ready, view]);
+  const browsingPositions = useCallback((): WorkspaceBrowsingPositions => {
+    const active = document.activeElement;
+    const currentWorkspace = workspace.current;
+    return {
+      ...snapshots.current,
+      [view]: {
+        scrollTop: currentWorkspace?.scrollTop ?? 0,
+        focus:
+          currentWorkspace && active instanceof HTMLElement
+            ? workspaceFocus(active, currentWorkspace)
+            : undefined,
+      },
+    };
+  }, [view]);
   const switchView = useCallback(
     (nextView: View, commit: () => void, detailReturn?: DetailReturn) => {
       const currentWorkspace = workspace.current;
@@ -120,20 +203,29 @@ export function useWorkspaceContinuity(view: View) {
         return;
       }
       snapshots.current[view] = snapshot;
+      pending.current = undefined;
+      const nextSnapshot = snapshots.current[nextView];
+      if (!ready && nextSnapshot) {
+        pending.current = {
+          view: nextView,
+          snapshot: nextSnapshot,
+          anchor: active instanceof Element && !currentWorkspace?.contains(active) ? active : null,
+          scrollTop: 0,
+        };
+      }
       commit();
       window.requestAnimationFrame(() => {
         const nextWorkspace = workspace.current;
         if (!nextWorkspace) return;
-        const snapshot = snapshots.current[nextView];
-        nextWorkspace.scrollTo({ top: snapshot?.scrollTop ?? 0 });
-        if (!snapshot?.focus) return;
-        const target = resolveWorkspaceFocus(nextWorkspace, snapshot.focus);
-        if (target && !target.matches(":disabled, [aria-disabled=true]"))
-          target.focus({ preventScroll: true });
-        else focusRegion("workspace");
+        if (!ready) {
+          nextWorkspace.scrollTo({ top: 0 });
+          return;
+        }
+        if (nextSnapshot) restoreWorkspaceSnapshot(nextWorkspace, nextSnapshot);
+        else nextWorkspace.scrollTo({ top: 0 });
       });
     },
-    [view],
+    [ready, view],
   );
-  return { switchView, workspace };
+  return { browsingPositions, switchView, workspace };
 }

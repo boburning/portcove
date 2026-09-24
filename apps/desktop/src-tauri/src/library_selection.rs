@@ -4,8 +4,9 @@ use crate::{
     BootstrapStatus, DesktopError, DesktopResult, DesktopState, blocking_worker, bootstrap_status,
     initialize_desktop_selection, observe_launch_completion, ready, require_no_library_handoff,
 };
-use portcove_core::{Library, LibrarySelection, LibrarySelectionSource, PortcoveError};
+use portcove_core::{ErrorCode, Library, LibrarySelection, LibrarySelectionSource, PortcoveError};
 use std::path::PathBuf;
+use std::time::{Duration, Instant};
 
 #[tauri::command]
 pub(crate) fn get_default_library_root() -> DesktopResult<PathBuf> {
@@ -120,7 +121,7 @@ fn switch_library(
     drop(previous);
 
     if let Some(root) = &previous_root
-        && let Err(error) = Library::confirm_idle_for_switch(root)
+        && let Err(error) = wait_for_outgoing_library(root)
     {
         restore_previous(state, previous_selection);
         return Err(error.into());
@@ -148,6 +149,27 @@ fn switch_library(
             .fetch_add(1, std::sync::atomic::Ordering::AcqRel);
     }
     Ok(bootstrap_status(state))
+}
+
+fn wait_for_outgoing_library(root: &std::path::Path) -> portcove_core::Result<()> {
+    // The in-progress state stops new readers. Give already-dispatched short
+    // reads time to release their shared lease before opening another library.
+    const DRAIN_LIMIT: Duration = Duration::from_secs(2);
+    let started = Instant::now();
+    loop {
+        match Library::confirm_idle_for_switch(root) {
+            Ok(()) => return Ok(()),
+            Err(error)
+                if error.code == ErrorCode::Conflict
+                    && error.message
+                        == "the library is in use by another Portcove operation or process"
+                    && started.elapsed() < DRAIN_LIMIT =>
+            {
+                std::thread::sleep(Duration::from_millis(25));
+            }
+            Err(error) => return Err(error),
+        }
+    }
 }
 
 fn persist_selection(
@@ -215,6 +237,30 @@ mod tests {
         assert_eq!(switched.generation, 2);
         assert_eq!(
             switched.selection.unwrap().root,
+            fs::canonicalize(next).unwrap()
+        );
+    }
+
+    #[test]
+    fn switch_waits_for_an_outgoing_read_to_finish() {
+        let temporary = tempfile::tempdir().unwrap();
+        let current = temporary.path().join("current");
+        let next = temporary.path().join("next");
+        fs::create_dir(&next).unwrap();
+        let preferences =
+            HostPreferenceStore::new(temporary.path().join("config/preferences.json")).unwrap();
+        let state = desktop_state(preferences, current);
+        let held = crate::ready(&state).unwrap().library;
+        let reader = std::thread::spawn(move || {
+            std::thread::sleep(Duration::from_millis(100));
+            drop(held);
+        });
+
+        let switched = switch_library(&state, Some(next.clone())).unwrap();
+        reader.join().unwrap();
+        assert_eq!(switched.generation, 2);
+        assert_eq!(
+            switched.library_root.unwrap(),
             fs::canonicalize(next).unwrap()
         );
     }
