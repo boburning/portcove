@@ -249,8 +249,11 @@ fn preparation_publishes_a_verified_derivative_and_preserves_the_staged_update()
         fs::read(prepared.path.join("OpenGOAL/jak1/save.bin")).unwrap(),
         b"preserved player save"
     );
-    assert!(!prepared.path.join("source.iso").exists());
-    assert!(!prepared.path.join("source.portcove-source.json").exists());
+    assert_eq!(
+        fs::read(prepared.path.join("source.iso")).unwrap(),
+        fs::read(&fixture.source).unwrap()
+    );
+    assert!(prepared.path.join("source.portcove-source.json").is_file());
     assert!(prepared.path.join(RECEIPT_FILE).is_file());
     assert!(
         OperationStore::new(library.clone())
