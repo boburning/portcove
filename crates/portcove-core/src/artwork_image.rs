@@ -4,6 +4,16 @@ use image::{DynamicImage, ImageDecoder, ImageFormat, Limits};
 
 use crate::{PortcoveError, Result};
 
+#[cfg(test)]
+thread_local! {
+    static DECODE_COUNT: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+}
+
+#[cfg(test)]
+pub(crate) fn decode_count() -> usize {
+    DECODE_COUNT.with(std::cell::Cell::get)
+}
+
 pub(crate) const MAX_ORIGINAL_BYTES: u64 = 16 * 1024 * 1024;
 pub(crate) const MAX_DECODED_BYTES: u64 = 32 * 1024 * 1024;
 pub(crate) const MAX_PIXELS: u64 = 8 * 1024 * 1024;
@@ -17,6 +27,8 @@ pub(crate) struct DecodedArtwork {
 }
 
 pub(crate) fn decode(bytes: &[u8]) -> Result<DecodedArtwork> {
+    #[cfg(test)]
+    DECODE_COUNT.with(|count| count.set(count.get() + 1));
     if bytes.len() as u64 > MAX_ORIGINAL_BYTES {
         return Err(PortcoveError::verification(
             "artwork exceeds the encoded byte limit",

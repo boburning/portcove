@@ -85,7 +85,16 @@ export function artworkObservations({ browser, output, artifacts }) {
                     availability: value?.availability,
                     revision: value?.choice?.revision,
                     asset_sha256: value?.choice?.asset_sha256,
-                    png_bytes: value?.png?.length,
+                    png_encoded_bytes: value?.png_base64?.length,
+                    png_bytes:
+                      typeof value?.png_base64 === "string"
+                        ? (value.png_base64.length / 4) * 3 -
+                          (value.png_base64.endsWith("==")
+                            ? 2
+                            : value.png_base64.endsWith("=")
+                              ? 1
+                              : 0)
+                        : undefined,
                   };
                 else
                   record.failure = {

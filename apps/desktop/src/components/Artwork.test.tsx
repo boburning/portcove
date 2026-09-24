@@ -57,7 +57,7 @@ beforeEach(() => {
   vi.spyOn(desktopApi, "artworkThumbnail").mockImplementation(async (_port, _slot, revision) => ({
     asset_sha256: "a".repeat(64),
     choice_revision: revision,
-    png: [137, 80, 78, 71],
+    png_base64: "iVBORw==",
   }));
 });
 

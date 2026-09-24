@@ -218,9 +218,16 @@ impl PortcoveService {
             expected_revision,
             Some(&proposed.sha256),
         )?;
-        // Choices publish only after validated originals. Disposable thumbnails
-        // are generated on demand; a cache fault cannot prevent selection.
+        // Choices publish only after validated originals. The accepted decode
+        // also produced the thumbnail, but its disposable cache cannot make a
+        // committed selection appear to fail and invite an unsafe retry.
         transaction.commit()?;
+        let _ = publish_thumbnail(
+            self.library(),
+            &connection,
+            &proposed.sha256,
+            &decoded.thumbnail,
+        );
         self.artwork(port_id, slot)
     }
 

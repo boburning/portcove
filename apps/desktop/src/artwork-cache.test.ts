@@ -59,7 +59,7 @@ describe("disposable artwork display cache", () => {
     const thumbnail = vi.spyOn(desktopApi, "artworkThumbnail").mockResolvedValue({
       asset_sha256: "a".repeat(64),
       choice_revision: 1,
-      png: [137, 80, 78, 71],
+      png_base64: "iVBORw==",
     });
     const cache = new ArtworkCache(7);
     await cache.load("sample", "cover");
@@ -68,7 +68,7 @@ describe("disposable artwork display cache", () => {
     thumbnail.mockResolvedValue({
       asset_sha256: "b".repeat(64),
       choice_revision: 1,
-      png: [137],
+      png_base64: "iQ==",
     });
     const refresh = cache.load("sample", "cover", true);
     expect(cache.read("sample", "cover").image).toBe(image);
@@ -83,14 +83,14 @@ describe("disposable artwork display cache", () => {
     let finishRefresh!: (value: {
       asset_sha256: string;
       choice_revision: number;
-      png: number[];
+      png_base64: string;
     }) => void;
     const thumbnail = vi
       .spyOn(desktopApi, "artworkThumbnail")
       .mockResolvedValueOnce({
         asset_sha256: "a".repeat(64),
         choice_revision: 1,
-        png: [137, 80, 78, 71],
+        png_base64: "iVBORw==",
       })
       .mockReturnValueOnce(
         new Promise((resolve) => {
@@ -111,7 +111,7 @@ describe("disposable artwork display cache", () => {
     finishRefresh({
       asset_sha256: "a".repeat(64),
       choice_revision: 1,
-      png: [137, 80, 78, 71],
+      png_base64: "iVBORw==",
     });
     await refresh;
     expect(cache.read("sample", "cover").image).toMatch(/^data:image\/png;base64,/);
@@ -217,7 +217,7 @@ describe("disposable artwork display cache", () => {
     vi.spyOn(desktopApi, "artworkThumbnail").mockImplementation(async (_port, _slot, revision) => ({
       asset_sha256: "a".repeat(64),
       choice_revision: revision,
-      png: new Array<number>(1024 * 1024 + 1).fill(0),
+      png_base64: "A".repeat(4 * Math.ceil((1024 * 1024) / 3) + 4),
     }));
     const first = new ArtworkCache(1),
       second = new ArtworkCache(2);
@@ -227,4 +227,20 @@ describe("disposable artwork display cache", () => {
     expect(second.read("sample", "cover").image).toBeUndefined();
     expect(second.read("sample", "cover").error).toContain("preview changed");
   });
+
+  it.each(["", "iVBORw=", "iVBORw!#", "A".repeat(4 * Math.ceil((1024 * 1024) / 3) + 4)])(
+    "rejects malformed or oversized encoded preview payloads",
+    async (png_base64) => {
+      vi.spyOn(desktopApi, "artwork").mockResolvedValue(artworkState("sample", "cover", 1, true));
+      vi.spyOn(desktopApi, "artworkThumbnail").mockResolvedValue({
+        asset_sha256: "a".repeat(64),
+        choice_revision: 1,
+        png_base64,
+      });
+      const cache = new ArtworkCache(7);
+      await cache.load("sample", "cover");
+      expect(cache.read("sample", "cover").image).toBeUndefined();
+      expect(cache.read("sample", "cover").error).toContain("preview changed");
+    },
+  );
 });
