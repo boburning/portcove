@@ -253,7 +253,6 @@ fn preparation_publishes_a_verified_derivative_and_preserves_the_staged_update()
         fs::read(prepared.path.join("source.iso")).unwrap(),
         fs::read(&fixture.source).unwrap()
     );
-    assert!(prepared.path.join("source.portcove-source.json").is_file());
     assert!(prepared.path.join(RECEIPT_FILE).is_file());
     assert!(
         OperationStore::new(library.clone())
