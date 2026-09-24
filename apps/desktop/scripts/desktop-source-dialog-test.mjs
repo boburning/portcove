@@ -158,35 +158,36 @@ export async function sourceDialogScenario({
       "Source discovery trigger did not regain focus after Escape",
     );
 
-    await click(button("Verify sources"));
-    await browser.wait(
-      async () => browser.findElement(button("Verify sources")).isEnabled(),
-      15_000,
+    const sourceRegistration = command(["activity"]).records.find(
+      (item) =>
+        item.operation === "register_source" &&
+        item.target_kind === "source" &&
+        item.target_id === port.source_profile &&
+        item.status === "succeeded",
     );
+    assert.ok(sourceRegistration, "Owned setup must record this source registration");
     await click(By.xpath('//nav//button[contains(., "Game updates")]'));
     const sourceActivity = By.xpath(
-      '//button[starts-with(@aria-label, "Open Game Files settings for ")]',
+      `//div[contains(@class, "activity-row") and .//strong[normalize-space()="Game-file location update"]]//button[@aria-label=${JSON.stringify(`Open Game Files settings for ${profileLabel}`)}]`,
     );
     await browser.wait(until.elementLocated(sourceActivity), 15_000);
     await click(sourceActivity);
-    const gameFilesHeading = await browser.wait(
-      until.elementLocated(By.id("settings-game-files-heading")),
-      5_000,
-    );
+    await browser.wait(until.elementLocated(By.id("settings-game-files-heading")), 5_000);
     await browser.wait(
       () =>
-        browser.executeScript((element) => document.activeElement === element, gameFilesHeading),
+        browser.executeScript(
+          () =>
+            document.activeElement?.closest('[data-settings-group="game-files"]') !== null &&
+            document.activeElement?.textContent?.includes("Verify sources"),
+        ),
       5_000,
-      "Source activity did not focus Game Files settings",
+      "Source activity did not focus the Game Files verification control",
     );
     await browser.actions().sendKeys(Key.ARROW_DOWN).perform();
     await browser.wait(
       () =>
         browser.executeScript(
-          (heading) =>
-            document.activeElement !== heading &&
-            document.activeElement?.closest('[data-settings-group="game-files"]') !== null,
-          gameFilesHeading,
+          () => document.activeElement?.closest('[data-settings-group="game-files"]') !== null,
         ),
       5_000,
       "Directional navigation left Game Files settings",
@@ -212,7 +213,7 @@ export async function sourceDialogScenario({
           intake_escape_restored_focus: true,
           discovery_escape_restored_focus: true,
           source_activity_opened_game_files_settings: true,
-          source_activity_settings_heading_focused: true,
+          source_activity_settings_control_focused: true,
           directional_navigation_stayed_in_game_files: true,
           intake_action_styles: intakeStyles,
           search_action_styles: searchStyles,

@@ -59,7 +59,7 @@ import { desktopApi } from "./api";
 import { useWorkspaceContinuity } from "./keyboard-shortcuts";
 import { useThemePreference } from "./theme";
 import { useGamepadNavigation } from "./gamepad";
-import { focusRegion } from "./focus";
+import { focusAndReveal, focusRegion } from "./focus";
 import { overlayBackAction } from "./overlay-stack";
 import { useNativeSourceDrop } from "./native-source-drop";
 import { useCommandSurface } from "./use-command-surface";
@@ -676,7 +676,11 @@ function CurrentView({
           window.requestAnimationFrame(() => {
             const heading = document.getElementById("settings-game-files-heading");
             heading?.scrollIntoView({ block: "start" });
-            heading?.focus({ preventScroll: true });
+            const control = heading
+              ?.closest("[data-settings-group]")
+              ?.querySelector<HTMLElement>("button:not(:disabled), a[href]");
+            if (control) focusAndReveal(control);
+            else heading?.focus({ preventScroll: true });
           });
         }}
       />
