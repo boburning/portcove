@@ -4013,9 +4013,6 @@ select:disabled {
 }
 
 @media (max-height: 43.75rem) {
-  .card-content > p {
-    display: none;
-  }
   .detail-hero {
     min-height: 8.125rem;
   }

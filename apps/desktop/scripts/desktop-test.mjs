@@ -722,6 +722,57 @@ try {
     assert.equal(restored.focus, origin.originKey);
     assert.ok(Math.abs(restored.scrollTop - origin.scrollTop) <= 1);
     await captureScenarioScreenshot("game-details-workspace-return");
+
+    const compactWindow = await browser.manage().window().getRect();
+    try {
+      await browser.manage().window().setRect({ width: 960, height: 640 });
+      for (const theme of ["dark", "light"]) {
+        await browser.findElement(By.xpath('//nav//button[contains(., "Settings")]')).click();
+        await browser
+          .findElement(
+            By.xpath(`//button[normalize-space(.)="${theme === "dark" ? "Dark" : "Light"}"]`),
+          )
+          .click();
+        assert.equal(
+          await browser.executeScript(() => document.documentElement.dataset.theme),
+          theme,
+        );
+        await browser.findElement(By.xpath('//nav//button[contains(., "Port catalog")]')).click();
+        await browser.wait(
+          async () => (await browser.findElements(By.css(".port-card"))).length > 2,
+        );
+        const descriptions = await browser.executeScript(() => {
+          const cards = [...document.querySelectorAll(".port-card-selectable")].slice(0, 3);
+          cards[0]?.scrollIntoView({ block: "center" });
+          return {
+            documentOverflow:
+              document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
+            items: cards.map((card) => {
+              const description = card.querySelector(".card-content > p");
+              const rect = description?.getBoundingClientRect();
+              const style = description ? getComputedStyle(description) : null;
+              return {
+                text: description?.textContent?.trim(),
+                visible: style?.display !== "none" && (rect?.height ?? 0) > 0,
+                clamp: style?.webkitLineClamp,
+                cardOverflow: card.scrollWidth > card.clientWidth + 1,
+              };
+            }),
+          };
+        });
+        assert.equal(descriptions.documentOverflow, false);
+        assert.equal(descriptions.items.length, 3);
+        assert.ok(
+          descriptions.items.every(
+            ({ text, visible, clamp, cardOverflow }) =>
+              text && visible && clamp === "2" && !cardOverflow,
+          ),
+        );
+        await captureScenarioScreenshot(`catalog-short-window-${theme}`);
+      }
+    } finally {
+      await browser.manage().window().setRect(compactWindow);
+    }
   });
   await scenario("native-application-update-preferences", async () => {
     const before = await invoke("get_application_update_preferences");
