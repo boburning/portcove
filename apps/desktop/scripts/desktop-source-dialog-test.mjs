@@ -29,6 +29,9 @@ export async function sourceDialogScenario({
     await click(button("Check original game files"));
     const intakeDialog = By.css('[aria-labelledby="source-intake-title"]');
     await browser.wait(until.elementLocated(intakeDialog), 15_000);
+    assert.ok(
+      (await browser.findElement(intakeDialog).getText()).includes("Checking won't change them."),
+    );
     const intakeStyles = await assertPrimaryReviewAction(
       browser,
       await browser.findElement(button("Choose game files to check")),
@@ -59,6 +62,11 @@ export async function sourceDialogScenario({
     await click(button("Choose game files"));
     const discoveryDialog = By.css('[aria-labelledby="source-discovery-title"]');
     await browser.wait(until.elementLocated(discoveryDialog), 15_000);
+    assert.ok(
+      (await browser.findElement(discoveryDialog).getText()).includes(
+        "Source Inbox is Portcove's game-file folder.",
+      ),
+    );
     const searchField = await browser.findElement(By.id("source-search-root"));
     const searchLabel = await browser.findElement(By.css('label[for="source-search-root"]'));
     const fieldPresentation = await browser.executeScript(

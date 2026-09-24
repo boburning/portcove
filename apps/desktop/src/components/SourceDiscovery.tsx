@@ -29,16 +29,17 @@ const scanLimits: SourceDiscoveryLimits = {
 
 const importModes: Record<SourceImportMode, { label: string; explanation: string }> = {
   copy: {
-    label: "Copy to Inbox",
-    explanation: "The original stays in place after the verified Inbox copy is registered.",
+    label: "Copy into Portcove",
+    explanation: "Keep the original and save a checked copy in Portcove's game-file folder.",
   },
   move: {
-    label: "Move to Inbox",
-    explanation: "The original is removed only after the Inbox copy is verified and registered.",
+    label: "Move into Portcove",
+    explanation:
+      "Move the files into Portcove's game-file folder. The original is deleted only after the copy is checked and added.",
   },
   use_current_location: {
     label: "Use current location",
-    explanation: "No source bytes are copied or removed.",
+    explanation: "Use the files where they are. Keep this location available.",
   },
 };
 
@@ -136,15 +137,15 @@ export function SourceDiscoveryButton({
 export function sourceImportNotice(result: SourceImportResult) {
   switch (result.outcome) {
     case "copied_original_retained":
-      return `Inbox copy registered. The original remains at ${result.retained_original_path ?? "its prior location"}.`;
+      return `Portcove's copy was added. The original remains at ${result.retained_original_path ?? "its prior location"}.`;
     case "moved":
-      return "Inbox copy verified and registered; the original was removed.";
+      return "Portcove's copy was checked and added; the original was removed.";
     case "registered_current_location":
-      return "Source registered at its current location.";
+      return "Saved the original file location. Keep it available.";
     case "copied":
-      return "Inbox copy verified and registered; the original was retained.";
+      return "Portcove's copy was checked and added; the original was kept.";
     case "reused_existing":
-      return "Existing Inbox copy verified and registered; the original was retained.";
+      return "The existing Portcove copy was checked and added; the original was kept.";
     default:
       return "Source import outcome is unavailable in this version. Review the current registration before another attempt.";
   }
@@ -385,7 +386,8 @@ export function SourceImportReview({
         Source: <code>{plan.source.path}</code>
       </p>
       <p>
-        Registration: <code>{plan.destination}</code>
+        {plan.mode === "use_current_location" ? "Saved file location" : "Portcove game-file folder"}
+        : <code>{plan.destination}</code>
       </p>
       {plan.existing_registration && (
         <p>This replaces the current registration after the selected source is rechecked.</p>
@@ -471,8 +473,8 @@ function SourceDiscoveryDialog({
           an exact match. Nothing is uploaded or moved.
         </DialogDescription>
         <p className="mb-4 text-sm leading-relaxed text-pc-muted-foreground">
-          After a match is found, review whether to copy it to Source Inbox, move it there, or use
-          its current location.
+          Source Inbox is Portcove's game-file folder. After a match is found, review whether to
+          copy it there, move it there, or keep using its current location.
         </p>
         <NavigationHints />
         <ChoiceSelect

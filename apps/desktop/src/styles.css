@@ -2911,6 +2911,14 @@ select {
   background: var(--color-bg-inset);
 }
 
+.source-health-row[data-source-profile] {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.source-health-row[data-source-profile] > .source-health-actions {
+  flex-wrap: wrap;
+}
+
 .source-health-row > div {
   min-width: 0;
 }
