@@ -741,15 +741,23 @@ try {
     await browser.findElement(By.xpath('//button[normalize-space(.)="Review options"]')).click();
     const settings = By.css('article[aria-labelledby="application-update-settings-title"]');
     await browser.wait(until.elementLocated(settings), 15_000);
-    await browser.wait(
-      async () =>
-        await browser.executeScript(
-          () =>
-            document.activeElement?.closest(".application-update-settings") !== null &&
-            document.activeElement?.textContent?.trim() === "Preview",
-        ),
-      15_000,
-    );
+    try {
+      await browser.wait(
+        async () =>
+          await browser.executeScript(
+            () =>
+              document.activeElement?.closest(".application-update-settings") !== null &&
+              document.activeElement?.textContent?.trim() === "Preview",
+          ),
+        15_000,
+      );
+    } catch (error) {
+      const focus = await browser.executeScript(() => ({
+        active: document.activeElement?.outerHTML,
+        firstControl: document.querySelector(".application-update-settings button:not(:disabled)")?.outerHTML,
+      }));
+      throw new Error(`Review options focus: ${JSON.stringify(focus)}`, { cause: error });
+    }
     await browser.actions().sendKeys(Key.ARROW_DOWN).perform();
     await browser.wait(
       async () =>
