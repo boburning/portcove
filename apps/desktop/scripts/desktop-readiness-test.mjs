@@ -174,21 +174,21 @@ export async function readinessScenario({ browser, scenario, output, artifacts, 
         duplicateReadyCard: Boolean(document.querySelector(".detail-panel .readiness-card.ready")),
       };
     });
-    assert.ok(
-      readyLayout.actionTop >= readyLayout.heroBottom &&
-        readyLayout.actionTop >= 0 &&
-        readyLayout.actionBottom <= readyLayout.viewportHeight &&
-        readyLayout.actionBottom < readyLayout.summaryTop &&
-        readyLayout.actionBottom < readyLayout.artworkTop &&
-        !readyLayout.duplicateReadyCard,
-      `the ready next action must follow the hero and remain visible before supporting content: ${JSON.stringify(readyLayout)}`,
-    );
     const readyImage = path.join(output, "native-ready-next-action.png");
     await writeFile(readyImage, await browser.takeScreenshot(), {
       encoding: "base64",
       flag: "wx",
     });
     artifacts.push(readyImage);
+    assert.ok(
+      readyLayout.actionTop >= readyLayout.heroBottom &&
+        readyLayout.actionTop >= 0 &&
+        readyLayout.actionBottom <= readyLayout.viewportHeight &&
+        readyLayout.actionBottom <= readyLayout.summaryTop &&
+        readyLayout.actionBottom < readyLayout.artworkTop &&
+        !readyLayout.duplicateReadyCard,
+      `the ready next action must follow the hero and remain visible before supporting content: ${JSON.stringify(readyLayout)}`,
+    );
     assert.equal(command(["status", port.id]).successful_launches, before.successful_launches);
   });
 }
