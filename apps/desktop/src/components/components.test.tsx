@@ -738,6 +738,9 @@ describe("desktop components", () => {
     expect(html).toContain("Choose and add the game files again before playing.");
     expect(html).toContain("Files have changed since they were added");
     expect(html).toContain("Play unavailable");
+    expect(html.indexOf("Requirements")).toBeLessThan(html.indexOf(port.summary));
+    expect(html).toContain('class="requirements-disclosure" open=""');
+    expect(html).toContain("Installation and version");
     expect(html).not.toContain("Play now");
   });
 
@@ -2094,6 +2097,8 @@ describe("desktop components", () => {
     expect(uninstalled.indexOf("Choose game files")).toBeLessThan(
       uninstalled.indexOf(port.summary),
     );
+    expect(uninstalled.indexOf("Requirements")).toBeLessThan(uninstalled.indexOf(port.summary));
+    expect(uninstalled).not.toContain("Installation and version");
     expect(uninstalled).toContain("Add all required game files before installing");
     expect(uninstalled).toContain("Choose the required game file");
     expect(uninstalled).toContain(
@@ -2101,9 +2106,12 @@ describe("desktop components", () => {
     );
     expect(sourceFree).toContain("Review install");
     expect(sourceFree).not.toContain("Choose game files");
+    expect(sourceFree).not.toContain("Installation and version");
     expect(sourceFree).toContain('data-slot="button"');
     expect(sourceFree).toContain('data-variant="primary"');
     expect(installed).toContain("Play");
+    expect(installed).toContain('class="requirements-disclosure"');
+    expect(installed).not.toContain('class="requirements-disclosure" open=""');
     expect(installed).toMatch(/<button[^>]*data-variant="primary"[^>]*>[^]*?Play now<\/button>/u);
     expect(installed).toMatch(/<button[^>]*data-variant="ghost"[^>]*>[^]*?Back<\/button>/u);
     expect(installed).toMatch(
@@ -2555,7 +2563,7 @@ describe("desktop components", () => {
     expect(html).toContain("Prepared game files beside the port");
     expect(html).toContain("Sample cartridge");
     expect(html).toContain("Check method: Known file signatures");
-    expect(html).toContain("Version shown when you review installation.");
+    expect(html).not.toContain("Installation and version");
     expect(html).not.toContain("Compared with reviewed catalog identity");
     expect(html).toContain("Managed by Portcove for backup and restore");
     expect(html).toContain("Active");
@@ -2693,6 +2701,9 @@ describe("desktop components", () => {
       previous = current;
     }
     expect(html).toContain("Installed version");
+    expect(html.indexOf("Requirements")).toBeLessThan(html.indexOf(port.summary));
+    expect(html).toContain("Installed folder");
+    expect(html).toContain(install.path);
     expect(html).toContain("Latest eligible release");
     expect(html).toContain("2.0");
     expect(html).toContain("E:/Portcove/user/sample");
