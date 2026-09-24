@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { assertSteamEntryContext } from "../apps/desktop/scripts/desktop-context-contract.mjs";
 import {
   catalogReport,
   desktopHarnessDeadlineMs,
@@ -78,15 +79,43 @@ test("focused lifecycle selection resolves setup without claiming it", () => {
   assert.ok(selection.host_resources.includes("native-dialog"));
 });
 
-test("focused Steam entry selection keeps native consent and owned setup explicit", () => {
+test("fixture-only reviews select without first-play while continuity keeps its setup", () => {
   const selection = resolveDesktopSelection({
     scenarios: ["native-reviewed-steam-entry-add-and-remove"],
   });
   assert.deepEqual(selection.selected_scenarios, ["native-reviewed-steam-entry-add-and-remove"]);
-  assert.deepEqual(selection.setup_scenarios, ["native-preparation-review-and-play"]);
+  assert.deepEqual(selection.setup_scenarios, []);
   assert.ok(selection.prerequisites.includes("owned-fixture"));
   assert.ok(selection.prerequisites.includes("steam-fixture"));
   assert.ok(selection.host_resources.includes("native-dialog"));
+  for (const id of ["native-game-update-review", "native-reviewed-backup-restore-and-delete"])
+    assert.deepEqual(resolveDesktopSelection({ scenarios: [id] }).setup_scenarios, [], id);
+  assert.deepEqual(
+    resolveDesktopSelection({ scenarios: ["native-game-return-continuity"] }).setup_scenarios,
+    ["native-preparation-review-and-play"],
+  );
+  assert.ok(
+    resolveDesktopSelection({ profile: "full" }).selected_scenarios.includes(
+      "native-preparation-review-and-play",
+    ),
+  );
+});
+
+test("missing Steam review context fails without loading Selenium", () => {
+  const context = {
+    browser: {},
+    invoke: async () => {},
+    scenario: async () => {},
+    output: "<negative-fixture>",
+    artifacts: [],
+    command: () => {},
+    seed: async () => {},
+    confirmNative: async () => {},
+  };
+  assert.throws(
+    () => assertSteamEntryContext(context),
+    /Steam review scenario requires context\.open/,
+  );
 });
 
 test("selection rejects ambiguity, unknown IDs, and invalid reload requests", () => {

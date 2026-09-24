@@ -96,7 +96,6 @@ export const DESKTOP_SCENARIOS = Object.freeze([
   ),
   scenario("native-game-update-review", "Game update review is non-mutating and restores focus.", {
     prerequisites: ["desktop", "owned-fixture"],
-    dependencies: ["native-preparation-review-and-play"],
     source: "desktop-preparation-test.mjs",
   }),
   scenario("native-missing-readiness-recovery", "Missing rendered readiness recovers safely.", {
@@ -158,7 +157,6 @@ export const DESKTOP_SCENARIOS = Object.freeze([
     "Steam entry Add and Remove use the reviewed isolated profile and native consent.",
     {
       prerequisites: ["desktop", "owned-fixture", "native-dialog", "steam-fixture"],
-      dependencies: ["native-preparation-review-and-play"],
       host_resources: [...nativeResources, "native-dialog"],
       source: "desktop-steam-entry-test.mjs",
     },

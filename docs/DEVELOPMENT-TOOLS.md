@@ -285,6 +285,15 @@ to see stable IDs, descriptions, profile membership, prerequisites and host-impa
 metadata. `--plan --json` and `--list-scenarios --json` provide machine-readable
 output without building or launching.
 
+Selected Steam-entry and game-update reviews seed their own installed port through
+the existing owned CLI/core fixture route. Like backup review, they do not first
+run the full preparation-and-Play journey. The `full` profile still includes that
+journey, and continuity scenarios keep their real dependencies. Owned-fixture
+selections register their scenario callers in a context preflight before frontend
+or Tauri compilation; a missing required Steam review member such as `open` fails
+there before any browser action. This preflight is a wiring check, not native
+qualification.
+
 `native-design-system-compatibility` is deliberately exact-selection-only. It
 builds the isolated foundation fixture and exercises actual generated styles,
 both themes, bundled assets, nested Dialog/Select portals, topmost-first Escape,

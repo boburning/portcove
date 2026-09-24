@@ -2,6 +2,7 @@
 import assert from "node:assert/strict";
 import { copyFile, mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { By, Key, until } from "selenium-webdriver";
 import { spawnCommand } from "../../../scripts/dev-storage.mjs";
 import { backupReviewScenario } from "./desktop-backup-review-test.mjs";
@@ -79,7 +80,14 @@ export async function preparationScenarios({
           ? "macos-aarch64"
           : "macos-x86-64"
         : "linux-x86-64";
+  const seeded = new Map();
   async function seed(portId, mode, chd = false) {
+    const previous = seeded.get(portId);
+    if (previous) {
+      assert.equal(previous.mode, mode, `Fixture mode changed for ${portId}`);
+      assert.equal(previous.chd, chd, `Fixture source kind changed for ${portId}`);
+      return previous.value;
+    }
     const port = command(["catalog", "show", portId]);
     const original = path.join(output, `owned-${portId}`);
     await mkdir(original);
@@ -94,7 +102,9 @@ export async function preparationScenarios({
     const source = path.join(output, `${portId}.${chd ? "chd" : "iso"}`);
     await writeFile(source, "owned source awaiting upstream validation");
     command(["source", "add", port.source_profile, source]);
-    return { port, install };
+    const value = { port, install };
+    seeded.set(portId, { mode, chd, value });
+    return value;
   }
   const button = (label) => By.xpath(`//button[normalize-space(.)="${label}"]`);
   async function dismissApplicationUpdateChoice() {
@@ -491,7 +501,7 @@ export async function preparationScenarios({
     }
   });
   await scenario("native-game-update-review", async () => {
-    const port = command(["catalog", "show", "opengoal-jak1"]);
+    const { port } = await seed("opengoal-jak1", "success");
     await open(port, false);
     const updateControl = await browser.findElement(
       By.css('section[aria-label="Review game update"]'),
@@ -1089,6 +1099,7 @@ export async function preparationScenarios({
     output,
     artifacts,
     command,
+    seed,
     open,
     confirmNative,
   });
@@ -1163,4 +1174,23 @@ export async function preparationScenarios({
     command,
     confirmNative,
   });
+}
+
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  if (process.argv[2] !== "--context-preflight")
+    throw new Error("Usage: node desktop-preparation-test.mjs --context-preflight");
+  // Register actual callers without executing their browser or CLI callbacks.
+  await preparationScenarios({
+    browser: {},
+    invoke: async () => {},
+    scenario: async () => {},
+    library: "<preflight-library>",
+    output: "<preflight-output>",
+    artifacts: [],
+    cli: "<preflight-cli>",
+    tool: "<preflight-tool>",
+    confirmNative: async () => {},
+    restartApplication: async () => {},
+  });
+  console.log("Native scenario context preflight passed.");
 }

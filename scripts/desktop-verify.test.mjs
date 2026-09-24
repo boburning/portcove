@@ -71,6 +71,7 @@ test("focused plans omit owned binaries while lifecycle plans include them", () 
   });
   assert.equal(focused.paths.cli, null);
   assert.ok(!focused.phases.includes("owned-probe-build"));
+  assert.ok(!focused.phases.includes("scenario-context-preflight"));
   assert.equal(focused.harness_deadline_ms, 180_000);
   assert.deepEqual(focused.qualification_features, []);
 
@@ -93,6 +94,10 @@ test("focused plans omit owned binaries while lifecycle plans include them", () 
     selection: resolveDesktopSelection({ scenarios: ["native-reviewed-existing-install-copy"] }),
   });
   assert.ok(lifecycle.paths.cli);
+  assert.ok(
+    lifecycle.phases.indexOf("scenario-context-preflight") <
+      lifecycle.phases.indexOf("frontend-build"),
+  );
   assert.ok(lifecycle.phases.includes("owned-probe-build"));
   assert.deepEqual(lifecycle.setup_scenarios, ["native-preparation-review-and-play"]);
   assert.equal(lifecycle.harness_deadline_ms, 180_000);
