@@ -956,6 +956,22 @@ try {
     assert.ok(layout.advanced.about.top >= layout.advanced.diagnostics.bottom);
     assert.ok(layout.advanced.about.top >= layout.advanced.privacy.bottom);
     assert.ok(Math.abs(layout.advanced.about.width - layout.advanced.content.width) < 2);
+    const bundleWarningVisible = await browser.executeScript(() => {
+      const card = document.querySelector('[data-settings-group="advanced"] .diagnostics-card');
+      const warning = [...(card?.querySelectorAll("p") ?? [])].find((element) =>
+        element.textContent?.includes("paths, file names, and other metadata may remain"),
+      );
+      return Boolean(
+        warning &&
+        !warning.closest("details") &&
+        warning.getBoundingClientRect().height > 0 &&
+        getComputedStyle(warning).visibility === "visible",
+      );
+    });
+    assert.ok(
+      bundleWarningVisible,
+      "support-bundle metadata warning must be visible before creation",
+    );
     const updates = await browser.findElement(By.css('[data-settings-group="updates"]'));
     await browser.executeScript(
       (element) => element.scrollIntoView({ block: "start", inline: "nearest" }),
