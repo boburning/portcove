@@ -84,17 +84,20 @@ export async function backupReviewScenario({
     const restoreActionStyles = await assertPrimaryReviewAction(
       browser,
       await browser.findElement(button("Restore this backup")),
-      await browser.findElement(button("Keep current state")),
+      await browser.findElement(button("Cancel")),
     );
     const text = await browser
       .findElement(By.css('[aria-labelledby="backup-review-title"]'))
       .getText();
     assert.ok(text.includes(selected.path) && text.includes(paths.user_data_root));
-    assert.ok(text.includes("new safety backup") && text.includes("retains recovery data"));
+    assert.ok(
+      text.includes("Portcove will back up the current saved data before replacing it") &&
+        text.includes("retains recovery data"),
+    );
     assert.equal(await readFile(save, "utf8"), "current data before review");
     assert.equal(list().length, 2);
     await capture("native-backup-restore-review");
-    await browser.findElement(button("Keep current state")).click();
+    await browser.findElement(button("Cancel")).click();
     assert.equal(await readFile(save, "utf8"), "current data before review");
     assert.equal(list().length, 2);
     await clickRestore();
@@ -106,6 +109,18 @@ export async function backupReviewScenario({
       selected.path,
       "backup-native-restore-before-consent",
     );
+    const restoreConsent = JSON.parse(
+      await readFile(path.join(output, "backup-native-restore-before-consent.json"), "utf8"),
+    ).text;
+    for (const expected of [
+      new Date(selected.created_at * 1000).toISOString().slice(0, 10),
+      port.name,
+      port.id,
+      paths.user_data_root,
+      "This will replace the current saved data",
+      "Portcove will back up the current saved data before replacing it",
+    ])
+      assert.ok(restoreConsent.includes(expected), expected);
     assert.equal(await readFile(save, "utf8"), "current data before review");
     assert.equal(list().length, 2);
     await confirmNative(
@@ -154,7 +169,7 @@ export async function backupReviewScenario({
     await browser.findElement(button("Restore this backup")).click();
     await confirmNative(
       "Confirm backup restore",
-      "Restore reviewed backup",
+      "Restore backup",
       selected.path,
       "backup-native-restore-confirmed",
     );
@@ -180,7 +195,7 @@ export async function backupReviewScenario({
     const deleteActionStyles = await assertDestructiveReviewAction(
       browser,
       await browser.findElement(button("Delete this backup permanently")),
-      await browser.findElement(button("Keep current state")),
+      await browser.findElement(button("Cancel")),
     );
     await capture("native-backup-delete-review");
     await browser.findElement(button("Delete this backup permanently")).click();
@@ -190,10 +205,22 @@ export async function backupReviewScenario({
       selected.path,
       "backup-native-delete-before-consent",
     );
+    const deleteConsent = JSON.parse(
+      await readFile(path.join(output, "backup-native-delete-before-consent.json"), "utf8"),
+    ).text;
+    for (const expected of [
+      new Date(selected.created_at * 1000).toISOString().slice(0, 10),
+      port.name,
+      port.id,
+      paths.user_data_root,
+      "This cannot be undone",
+      "Current saved data and other backups remain",
+    ])
+      assert.ok(deleteConsent.includes(expected), expected);
     assert.equal(list().length, 3);
     await confirmNative(
       "Confirm backup deletion",
-      "Delete reviewed backup",
+      "Delete backup permanently",
       selected.path,
       "backup-native-delete-confirmed",
     );

@@ -72,6 +72,7 @@ pub(crate) struct DesktopLocalePreference {
 #[derive(Debug, Serialize, JsonSchema)]
 pub(crate) struct BackupReview {
     pub(crate) preview: portcove_core::BackupActionPreview,
+    pub(crate) port_name: String,
     pub(crate) persistent_data_path: PathBuf,
 }
 

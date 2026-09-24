@@ -70,7 +70,7 @@ export function BackupReviewDialog({
             disabled={pending === "apply"}
             onClick={dismiss}
           >
-            Keep current state
+            Cancel
           </Button>
           {!review && (
             <Button
@@ -93,7 +93,9 @@ export function BackupReviewDialog({
               }}
             >
               {pending === "apply"
-                ? "Applying reviewed change…"
+                ? restore
+                  ? "Restoring backup…"
+                  : "Deleting backup…"
                 : restore
                   ? "Restore this backup"
                   : "Delete this backup permanently"}
@@ -106,14 +108,16 @@ export function BackupReviewDialog({
 }
 
 function BackupReviewDetails({ review }: { review: BackupReview }) {
-  const { preview, persistent_data_path: dataPath } = review;
+  const { preview, port_name: portName, persistent_data_path: dataPath } = review;
   const { backup, action } = preview;
   return (
     <section className="backup-review-details" aria-label="Backup changes and preserved data">
       <p>
         <strong>
-          {backup.port_id} · {new Date(backup.created_at * 1000).toLocaleString()}
+          {portName} · {new Date(backup.created_at * 1000).toLocaleString()}
         </strong>
+        <br />
+        <small>Catalog ID: {backup.port_id}</small>
       </p>
       <p>
         {backup.file_count} {backup.file_count === 1 ? "file" : "files"} ·{" "}
@@ -137,8 +141,8 @@ function BackupReviewDetails({ review }: { review: BackupReview }) {
           </p>
           <p>
             {preview.safety_backup_will_be_created
-              ? "Current saved data will be preserved in a new safety backup before replacement. Restore that safety backup to return to the previous data."
-              : "There is no current saved-data content to preserve in a safety backup. A previous-data safety backup will not be created."}
+              ? "Portcove will back up the current saved data before replacing it. Restore that safety backup to return to the previous data."
+              : "There is no current saved data to back up. A safety backup will not be created."}
           </p>
           <p>
             The game must be stopped. If its data changes after this review, review again before

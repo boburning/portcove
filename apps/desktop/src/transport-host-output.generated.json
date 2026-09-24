@@ -719,12 +719,16 @@
       "persistent_data_path": {
         "type": "string"
       },
+      "port_name": {
+        "type": "string"
+      },
       "preview": {
         "$ref": "#/$defs/BackupActionPreview"
       }
     },
     "required": [
       "preview",
+      "port_name",
       "persistent_data_path"
     ],
     "title": "BackupReview",
