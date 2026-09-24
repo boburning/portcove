@@ -6811,7 +6811,10 @@ fn main() {
                 );
                 assert!(!new_backup.path.join("preparation.json").exists());
             } else {
-                assert_eq!(inventory.backups, [published.clone()]);
+                assert_eq!(
+                    inventory.backups.as_slice(),
+                    std::slice::from_ref(&published)
+                );
             }
             assert_eq!(
                 inventory
@@ -6873,7 +6876,10 @@ fn main() {
 
         let owner = library.try_lock_port(port_id, "backup").unwrap();
         let inventory = service.list_backups(port_id).unwrap();
-        assert_eq!(inventory.backups, [published.clone()]);
+        assert_eq!(
+            inventory.backups.as_slice(),
+            std::slice::from_ref(&published)
+        );
         assert!(inventory.problems.is_empty());
         assert!(
             !service
