@@ -158,6 +158,46 @@ export async function sourceDialogScenario({
       "Source discovery trigger did not regain focus after Escape",
     );
 
+    await click(button("Verify sources"));
+    await browser.wait(
+      async () => browser.findElement(button("Verify sources")).isEnabled(),
+      15_000,
+    );
+    await click(By.xpath('//nav//button[contains(., "Game updates")]'));
+    const sourceActivity = By.xpath(
+      '//button[starts-with(@aria-label, "Open Game Files settings for ")]',
+    );
+    await browser.wait(until.elementLocated(sourceActivity), 15_000);
+    await click(sourceActivity);
+    const gameFilesHeading = await browser.wait(
+      until.elementLocated(By.id("settings-game-files-heading")),
+      5_000,
+    );
+    await browser.wait(
+      () =>
+        browser.executeScript((element) => document.activeElement === element, gameFilesHeading),
+      5_000,
+      "Source activity did not focus Game Files settings",
+    );
+    await browser.actions().sendKeys(Key.ARROW_DOWN).perform();
+    await browser.wait(
+      () =>
+        browser.executeScript(
+          (heading) =>
+            document.activeElement !== heading &&
+            document.activeElement?.closest('[data-settings-group="game-files"]') !== null,
+          gameFilesHeading,
+        ),
+      5_000,
+      "Directional navigation left Game Files settings",
+    );
+    const settingsScreenshot = path.join(output, "native-source-activity-settings.png");
+    await writeFile(settingsScreenshot, await browser.takeScreenshot(), {
+      encoding: "base64",
+      flag: "wx",
+    });
+    artifacts.push(settingsScreenshot);
+
     const report = path.join(output, "source-dialog-result.json");
     await writeFile(
       report,
@@ -171,6 +211,9 @@ export async function sourceDialogScenario({
           nested_select_escape_preserved_dialog: true,
           intake_escape_restored_focus: true,
           discovery_escape_restored_focus: true,
+          source_activity_opened_game_files_settings: true,
+          source_activity_settings_heading_focused: true,
+          directional_navigation_stayed_in_game_files: true,
           intake_action_styles: intakeStyles,
           search_action_styles: searchStyles,
           field_presentation: fieldPresentation,

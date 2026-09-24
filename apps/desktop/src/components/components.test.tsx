@@ -1262,7 +1262,9 @@ describe("desktop components", () => {
         `data-settings-group="${group}" aria-labelledby="settings-${group}-heading"`,
       );
       expect(html).toContain(`id="settings-${group}-heading"`);
-      expect(html).toContain(`id="settings-${group}-heading" tabindex="-1"`);
+      expect(html).toContain(
+        `id="settings-${group}-heading" tabindex="${group === "game-files" ? 0 : -1}"`,
+      );
     }
     const groupMarkup = (group: string) => {
       const start = html.indexOf(`data-settings-group="${group}"`);
