@@ -307,6 +307,30 @@ mod tests {
     }
 
     #[test]
+    fn reviewed_tree_rejects_unicode_casefold_aliases_when_the_host_can_represent_both() {
+        let temporary = tempfile::tempdir().unwrap();
+        let source = temporary.path().join("source");
+        fs::create_dir(&source).unwrap();
+        fs::write(source.join("σ.bin"), b"sigma").unwrap();
+        fs::write(source.join("ς.bin"), b"final sigma").unwrap();
+
+        let names = fs::read_dir(&source)
+            .unwrap()
+            .map(|entry| entry.unwrap().file_name().to_string_lossy().into_owned())
+            .collect::<BTreeSet<_>>();
+        if names.contains("σ.bin") && names.contains("ς.bin") {
+            let error = reviewed_tree(&source).unwrap_err();
+            assert!(
+                error
+                    .message
+                    .contains("collide on a case-insensitive destination")
+            );
+        } else {
+            assert_eq!(names.len(), 1, "host did not preserve both alias names");
+        }
+    }
+
+    #[test]
     fn move_plan_accepts_an_admitted_post_client_definition() {
         let temporary = tempfile::tempdir().unwrap();
         let source = temporary.path().join("source");

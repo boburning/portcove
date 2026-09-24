@@ -12,6 +12,7 @@ qualification-fixtures = []
 
 [dependencies]
 async-trait.workspace = true
+casefold.workspace = true
 directories.workspace = true
 ed25519-dalek.workspace = true
 crc32fast.workspace = true

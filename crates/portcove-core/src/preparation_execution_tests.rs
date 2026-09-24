@@ -25,6 +25,53 @@ fn gamecube_setup_source_is_scoped_to_the_upstream_setup_adapter() {
 }
 
 #[test]
+fn gamecube_setup_source_is_private_and_legacy_ps2_source_stays_in_the_payload() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let temporary = tempfile::tempdir().unwrap();
+    let operation = temporary.path().join("operation");
+    let payload = operation.join("payload");
+    fs::create_dir_all(&payload).unwrap();
+
+    let open_goal = catalog.port("opengoal-jak1").unwrap();
+    assert_eq!(
+        super::super::execution::setup_source_path(open_goal, &payload, &operation).unwrap(),
+        payload.join("source.iso")
+    );
+
+    let open_nectar = catalog.port("open-nectar-pikmin").unwrap();
+    assert_eq!(
+        super::super::execution::setup_source_path(open_nectar, &payload, &operation).unwrap(),
+        operation.join("setup-source/source.iso")
+    );
+}
+
+#[test]
+fn setup_output_root_uses_only_a_declared_upstream_runtime_subdirectory() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let temporary = tempfile::tempdir().unwrap();
+    let payload = temporary.path().join("payload");
+    fs::create_dir_all(payload.join("nectar-windows")).unwrap();
+
+    let open_goal = catalog.port("opengoal-jak1").unwrap();
+    assert_eq!(
+        super::super::execution::setup_output_root(
+            open_goal,
+            &payload,
+            &payload.join("inferred/nested/gk.exe")
+        )
+        .unwrap(),
+        payload
+    );
+
+    let open_nectar = catalog.port("open-nectar-pikmin").unwrap();
+    let executable = payload.join("nectar-windows/nectar-launcher.exe");
+    assert_eq!(
+        super::super::execution::setup_output_root(open_nectar, &payload, &executable).unwrap(),
+        payload.join("nectar-windows")
+    );
+}
+
+#[test]
 fn isolated_setup_copies_only_declared_generated_outputs() {
     let temporary = tempfile::tempdir().unwrap();
     let source = temporary.path().join("setup-runtime");

@@ -599,6 +599,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "casefold"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4382156a4e6d5f0c279184bb37207f1259a5061c23084d3aa93eedf2a68c2eed"
+
+[[package]]
 name = "cbc"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3578,6 +3584,7 @@ version = "0.1.0-alpha.2"
 dependencies = [
  "async-trait",
  "aws-lc-rs",
+ "casefold",
  "crc32fast",
  "directories",
  "ed25519-dalek",

@@ -45,7 +45,7 @@ pub(crate) fn validate_relative_path(name: &str, directory: bool) -> Result<(Pat
         .map(|component| {
             let folded = component
                 .nfc()
-                .flat_map(char::to_lowercase)
+                .map(casefold::simple_fold_char)
                 .collect::<String>();
             folded.nfc().collect::<String>()
         })
@@ -115,6 +115,10 @@ mod tests {
         let (_, composed) = validate_relative_path("Assets/Étage.bin", false).unwrap();
         let (_, decomposed) = validate_relative_path("assets/E\u{301}tage.BIN", false).unwrap();
         assert_eq!(composed, decomposed);
+
+        let (_, sigma) = validate_relative_path("assets/σ.bin", false).unwrap();
+        let (_, final_sigma) = validate_relative_path("assets/ς.bin", false).unwrap();
+        assert_eq!(sigma, final_sigma);
     }
 
     #[test]

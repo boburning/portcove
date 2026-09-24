@@ -1670,7 +1670,7 @@ mod tests {
 
         assert!(document.get("source_catalog").is_some());
         assert!(document.get("source_profiles").is_none());
-        assert_eq!(document["ports"].as_array().unwrap().len(), 75);
+        assert_eq!(document["ports"].as_array().unwrap().len(), 76);
     }
 
     #[test]
@@ -1918,6 +1918,7 @@ mod tests {
                     "ape-escape-psx",
                     "mega-man-x5-psx",
                     "paperboat-paper-mario-us",
+                    "open-nectar-pikmin-disc",
                 ]
                 .contains(&profile.id.as_str())
             })

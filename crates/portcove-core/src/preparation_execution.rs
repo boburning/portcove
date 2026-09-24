@@ -289,13 +289,9 @@ impl PortcoveService {
             ));
         }
         let port = self.installed_port(original)?;
-        let working = crate::adapter::launch_working_directory(
-            port.adapter,
-            &port,
-            &payload,
-            &payload.join(&install.selected_executable),
-        )?;
-        crate::adapter::bind_upstream_setup_manifest(&working, &install.manifest_sha256)
+        let setup_root =
+            setup_output_root(&port, &payload, &payload.join(&install.selected_executable))?;
+        crate::adapter::bind_upstream_setup_manifest(&setup_root, &install.manifest_sha256)
             .map_err(|error| error.detail("preparation_phase", "bind manifest"))?;
         self.check_lifecycle_fault(LifecycleFaultPoint::PreparationOutputsValidated)?;
         install.path = destination;
@@ -323,12 +319,8 @@ impl PortcoveService {
             ..plan.inputs.install.clone()
         };
         Installer::new(self.library().clone())?.verify_critical(&copied, &qualification)?;
-        let setup_root = crate::adapter::launch_working_directory(
-            port.adapter,
-            &port,
-            payload,
-            &payload.join(&copied.selected_executable),
-        )?;
+        let setup_root =
+            setup_output_root(&port, payload, &payload.join(&copied.selected_executable))?;
         for relative in &port.setup_output_paths {
             let target = payload.join(relative);
             crate::path::refuse_symlink_ancestors(&target)?;
@@ -349,13 +341,7 @@ impl PortcoveService {
         let operation_root = payload
             .parent()
             .ok_or_else(|| PortcoveError::state("private payload has no operation root"))?;
-        let source_root = operation_root.join("setup-source");
-        fs::create_dir(&source_root)?;
-        let source = source_root.join(
-            port.runtime_source_filename
-                .as_deref()
-                .ok_or_else(|| PortcoveError::state("setup has no materialized source path"))?,
-        );
+        let source = setup_source_path(&port, payload, operation_root)?;
         if let Some(parent) = source.parent() {
             fs::create_dir_all(parent)?;
         }
@@ -510,6 +496,40 @@ pub(super) fn supports_single_source_setup_layout(port: &PortDefinition) -> bool
     materialization_supported
         && port.runtime_source_set.is_empty()
         && port.persistent_file_patterns.is_empty()
+}
+
+fn setup_output_root(
+    port: &PortDefinition,
+    payload: &Path,
+    selected_executable: &Path,
+) -> Result<PathBuf> {
+    if port.adapter == crate::AdapterKind::UpstreamManagedSetup
+        && port.runtime_subdirectory.is_some()
+    {
+        crate::adapter::launch_working_directory(port.adapter, port, payload, selected_executable)
+    } else {
+        Ok(payload.to_path_buf())
+    }
+}
+
+fn setup_source_path(
+    port: &PortDefinition,
+    payload: &Path,
+    operation_root: &Path,
+) -> Result<PathBuf> {
+    let filename = port
+        .runtime_source_filename
+        .as_deref()
+        .ok_or_else(|| PortcoveError::state("setup has no materialized source path"))?;
+    if port.adapter == crate::AdapterKind::UpstreamManagedSetup
+        && port.runtime_source_materialization == Some(RuntimeSourceMaterialization::GamecubeIso)
+    {
+        let source_root = operation_root.join("setup-source");
+        fs::create_dir(&source_root)?;
+        Ok(source_root.join(filename))
+    } else {
+        Ok(payload.join(filename))
+    }
 }
 
 pub(super) fn copy_setup_outputs(

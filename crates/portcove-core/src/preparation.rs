@@ -132,6 +132,7 @@ impl PortcoveService {
         let working =
             crate::adapter::launch_working_directory(port.adapter, port, &install.path, &selected)?;
         let nested_upstream_runtime = port.adapter == crate::AdapterKind::UpstreamManagedSetup
+            && port.runtime_subdirectory.is_some()
             && working != install.path
             && working.starts_with(&install.path);
         if working != install.path && !nested_upstream_runtime {
