@@ -98,6 +98,7 @@ it("reviews without executing and binds explicit confirmation to the returned pl
   expect(review).toHaveBeenCalledWith("sample", 7);
   expect(run).not.toHaveBeenCalled();
   expect(document.body.querySelector('[role="dialog"]')).not.toBeNull();
+  expect(document.body.querySelector('[role="dialog"] .preparation-plan')).not.toBeNull();
   expect(document.body.textContent).toContain("E:/owned.iso");
   expect(document.body.textContent).toContain("Prepare game data");
   expect(document.body.textContent).toContain("Selected original files");

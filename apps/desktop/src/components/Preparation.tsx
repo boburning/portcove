@@ -125,7 +125,7 @@ export function PreparationControl({
               Check the original files, installed version, space needed, and preserved data before
               starting setup.
             </DialogDescription>
-            <div className="install-plan" aria-label="Preparation plan">
+            <div className="preparation-plan" aria-label="Preparation plan">
               <p>
                 <strong>Installed version · {plan.inputs.install.version}</strong>
               </p>

@@ -2036,6 +2036,23 @@ select {
   text-transform: capitalize;
 }
 
+.preparation-plan {
+  margin-top: 16px;
+  padding: 14px;
+  border: 1px solid var(--color-interactive-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-interactive-subtle);
+  overflow-wrap: anywhere;
+}
+
+.preparation-plan p {
+  margin: 0;
+}
+
+.preparation-plan p + p {
+  margin-top: 12px;
+}
+
 .danger {
   border-color: var(--color-danger-border);
   color: var(--color-danger-text);

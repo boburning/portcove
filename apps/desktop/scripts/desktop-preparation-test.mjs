@@ -207,6 +207,21 @@ export async function preparationScenarios({
       "Do not launch the game from that window",
     ])
       assert.ok(preparationText.includes(expected), `preparation review omitted ${expected}`);
+    const preparationLayout = await browser.executeScript(() => {
+      const plan = document.querySelector(
+        '[aria-labelledby="preparation-review-title"] .preparation-plan',
+      );
+      const paragraph = plan?.querySelector("p");
+      return {
+        planWidth: plan?.getBoundingClientRect().width ?? 0,
+        paragraphWidth: paragraph?.getBoundingClientRect().width ?? 0,
+      };
+    });
+    assert.ok(
+      preparationLayout.planWidth > 300 &&
+        preparationLayout.paragraphWidth > preparationLayout.planWidth * 0.8,
+      `preparation review text is cramped: ${JSON.stringify(preparationLayout)}`,
+    );
     await assertPrimaryReviewAction(
       browser,
       await browser.findElement(button("Prepare game data")),
