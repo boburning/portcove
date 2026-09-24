@@ -267,6 +267,12 @@ it("explains that journal-only cleanup has no private entries to remove", async 
         (button) => button.textContent === "Clear unfinished setup record",
       ),
     ).toBe(true);
+    expect(
+      [...document.body.querySelectorAll("button")].some(
+        (button) => button.textContent === "Cancel",
+      ),
+    ).toBe(true);
+    expect(document.body.textContent).not.toContain("Keep retained files");
     expect(document.body.textContent).toContain(preview.retained_path);
     expect(document.body.textContent).toContain(preview.original_install_path);
     expect(document.body.textContent).toContain(preview.source_path);

@@ -685,6 +685,8 @@ export async function interruptedPreparationScenario({
     );
     const journalOnlyText = await browser.findElement(cleanupDialog).getText();
     assert.ok(journalOnlyText.includes("Clear unfinished setup record?"));
+    assert.ok(journalOnlyText.includes("Cancel"));
+    assert.ok(!journalOnlyText.includes("Keep retained files"));
     assert.match(journalOnlyText, /0 files/);
     assert.match(
       journalOnlyText,

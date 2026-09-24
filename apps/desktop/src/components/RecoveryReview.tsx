@@ -210,7 +210,7 @@ function PreparationCleanupDialog({
             disabled={pending === "apply"}
             onClick={dismiss}
           >
-            Keep retained files
+            {emptyReview ? "Cancel" : "Keep retained files"}
           </Button>
           {!preview && (
             <Button data-focusable disabled={Boolean(pending)} onClick={() => void review()}>
