@@ -180,13 +180,15 @@ export function UpdateCenter({
                     {policyLabel(status.update_policy)}
                   </small>
                 </div>
-                <div className="update-version">
-                  <small>Installed</small>
-                  <span>{status.active?.version}</span>
-                </div>
-                <div className="update-version">
-                  <small>Latest eligible</small>
-                  <span>{releaseLabel(outcome?.result)}</span>
+                <div className="update-versions">
+                  <div className="update-version">
+                    <small>Installed</small>
+                    <span>{status.active?.version}</span>
+                  </div>
+                  <div className="update-version">
+                    <small>Latest eligible</small>
+                    <span>{releaseLabel(outcome?.result)}</span>
+                  </div>
                 </div>
                 <span className={`update-state ${state.tone}`}>{state.label}</span>
                 {outcome?.error && (
