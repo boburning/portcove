@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { steamEntryScenario } from "../apps/desktop/scripts/desktop-steam-entry-test.mjs";
+import { assertSteamEntryContext } from "../apps/desktop/scripts/desktop-context-contract.mjs";
 import {
   catalogReport,
   desktopHarnessDeadlineMs,
@@ -101,24 +101,21 @@ test("fixture-only reviews select without first-play while continuity keeps its 
   );
 });
 
-test("missing Steam review context fails before a scenario callback", async () => {
-  let entered = false;
-  await assert.rejects(
-    steamEntryScenario({
-      browser: {},
-      invoke: async () => {},
-      scenario: async () => {
-        entered = true;
-      },
-      output: "<negative-fixture>",
-      artifacts: [],
-      command: () => {},
-      seed: async () => {},
-      confirmNative: async () => {},
-    }),
+test("missing Steam review context fails without loading Selenium", () => {
+  const context = {
+    browser: {},
+    invoke: async () => {},
+    scenario: async () => {},
+    output: "<negative-fixture>",
+    artifacts: [],
+    command: () => {},
+    seed: async () => {},
+    confirmNative: async () => {},
+  };
+  assert.throws(
+    () => assertSteamEntryContext(context),
     /Steam review scenario requires context\.open/,
   );
-  assert.equal(entered, false);
 });
 
 test("selection rejects ambiguity, unknown IDs, and invalid reload requests", () => {

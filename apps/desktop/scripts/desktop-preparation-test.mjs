@@ -2,6 +2,7 @@
 import assert from "node:assert/strict";
 import { copyFile, mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { By, Key, until } from "selenium-webdriver";
 import { spawnCommand } from "../../../scripts/dev-storage.mjs";
 import { backupReviewScenario } from "./desktop-backup-review-test.mjs";
@@ -1173,4 +1174,23 @@ export async function preparationScenarios({
     command,
     confirmNative,
   });
+}
+
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  if (process.argv[2] !== "--context-preflight")
+    throw new Error("Usage: node desktop-preparation-test.mjs --context-preflight");
+  // Register actual callers without executing their browser or CLI callbacks.
+  await preparationScenarios({
+    browser: {},
+    invoke: async () => {},
+    scenario: async () => {},
+    library: "<preflight-library>",
+    output: "<preflight-output>",
+    artifacts: [],
+    cli: "<preflight-cli>",
+    tool: "<preflight-tool>",
+    confirmNative: async () => {},
+    restartApplication: async () => {},
+  });
+  console.log("Native scenario context preflight passed.");
 }

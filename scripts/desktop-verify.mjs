@@ -351,7 +351,8 @@ async function runVerification(options, selection) {
       executePhase({ id, command, args, cwd: root, environment, log, timings });
     if (selection.prerequisites.includes("owned-fixture"))
       await phase("scenario-context-preflight", process.execPath, [
-        "apps/desktop/scripts/desktop-context-preflight.mjs",
+        "apps/desktop/scripts/desktop-preparation-test.mjs",
+        "--context-preflight",
       ]);
     const pins = readToolPins();
     const packageManagerVersion = spawnCommand("corepack", ["pnpm", "--version"], {
