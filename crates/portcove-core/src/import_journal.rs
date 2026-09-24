@@ -109,7 +109,7 @@ impl ImportJournal {
                     .iter()
                     .map(|file| (&file.relative_path, false)),
             ) {
-                crate::archive::validate_relative_path(
+                crate::portable_tree::validate_relative_path(
                     &crate::portability::portable_relative(path)?,
                     directory,
                 )?;

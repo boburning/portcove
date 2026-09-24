@@ -10,14 +10,82 @@ use std::{
 };
 
 #[test]
+fn gamecube_setup_source_is_scoped_to_the_upstream_setup_adapter() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    assert!(
+        super::super::execution::supports_single_source_setup_layout(
+            catalog.port("open-nectar-pikmin").unwrap()
+        )
+    );
+    assert!(
+        !super::super::execution::supports_single_source_setup_layout(
+            catalog.port("animal-crossing-pc-port").unwrap()
+        )
+    );
+}
+
+#[test]
+fn gamecube_setup_source_is_private_and_legacy_ps2_source_stays_in_the_payload() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let temporary = tempfile::tempdir().unwrap();
+    let operation = temporary.path().join("operation");
+    let payload = operation.join("payload");
+    fs::create_dir_all(&payload).unwrap();
+
+    let open_goal = catalog.port("opengoal-jak1").unwrap();
+    assert_eq!(
+        super::super::execution::setup_source_path(open_goal, &payload, &operation).unwrap(),
+        payload.join("source.iso")
+    );
+
+    let open_nectar = catalog.port("open-nectar-pikmin").unwrap();
+    assert_eq!(
+        super::super::execution::setup_source_path(open_nectar, &payload, &operation).unwrap(),
+        operation.join("setup-source/source.iso")
+    );
+}
+
+#[test]
+fn setup_output_root_uses_only_a_declared_upstream_runtime_subdirectory() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let temporary = tempfile::tempdir().unwrap();
+    let payload = temporary.path().join("payload");
+    fs::create_dir_all(payload.join("nectar-windows")).unwrap();
+
+    let open_goal = catalog.port("opengoal-jak1").unwrap();
+    assert_eq!(
+        super::super::execution::setup_output_root(
+            open_goal,
+            &payload,
+            &payload.join("inferred/nested/gk.exe")
+        )
+        .unwrap(),
+        payload
+    );
+
+    let open_nectar = catalog.port("open-nectar-pikmin").unwrap();
+    let executable = payload.join("nectar-windows/nectar-launcher.exe");
+    assert_eq!(
+        super::super::execution::setup_output_root(open_nectar, &payload, &executable).unwrap(),
+        payload.join("nectar-windows")
+    );
+}
+
+#[test]
 fn isolated_setup_copies_only_declared_generated_outputs() {
     let temporary = tempfile::tempdir().unwrap();
     let source = temporary.path().join("setup-runtime");
     let payload = temporary.path().join("payload");
     fs::create_dir_all(source.join("generated/assets")).unwrap();
+    fs::create_dir_all(source.join("generated/dataDir/stages/コピー ～ practice")).unwrap();
     fs::create_dir_all(&payload).unwrap();
     fs::write(source.join("pm64.o2r"), b"generated archive").unwrap();
     fs::write(source.join("generated/assets/owned.bin"), b"owned output").unwrap();
+    fs::write(
+        source.join("generated/dataDir/stages/コピー ～ practice/re_ｐ2_00.blo"),
+        b"source-derived Unicode output",
+    )
+    .unwrap();
     fs::write(source.join("paperboat.cfg.json"), b"setup-only defaults").unwrap();
     let mut port = crate::Catalog::embedded()
         .unwrap()
@@ -35,6 +103,11 @@ fn isolated_setup_copies_only_declared_generated_outputs() {
     assert_eq!(
         fs::read(payload.join("generated/assets/owned.bin")).unwrap(),
         b"owned output"
+    );
+    assert_eq!(
+        fs::read(payload.join("generated/dataDir/stages/コピー ～ practice/re_ｐ2_00.blo"))
+            .unwrap(),
+        b"source-derived Unicode output"
     );
     assert!(!payload.join("paperboat.cfg.json").exists());
     assert!(!payload.join("optional").exists());
@@ -175,6 +248,10 @@ fn preparation_publishes_a_verified_derivative_and_preserves_the_staged_update()
     assert_eq!(
         fs::read(prepared.path.join("OpenGOAL/jak1/save.bin")).unwrap(),
         b"preserved player save"
+    );
+    assert_eq!(
+        fs::read(prepared.path.join("source.iso")).unwrap(),
+        fs::read(&fixture.source).unwrap()
     );
     assert!(prepared.path.join(RECEIPT_FILE).is_file());
     assert!(

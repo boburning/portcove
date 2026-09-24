@@ -19,6 +19,8 @@ flate2.workspace = true
 futures-util.workspace = true
 fs2.workspace = true
 hex.workspace = true
+icu_casemap.workspace = true
+icu_properties.workspace = true
 image.workspace = true
 keyring.workspace = true
 reqwest.workspace = true
@@ -35,6 +37,7 @@ time.workspace = true
 tokio.workspace = true
 tough.workspace = true
 tracing.workspace = true
+unicode-normalization.workspace = true
 uuid.workspace = true
 zip.workspace = true
 

@@ -296,15 +296,11 @@ impl Catalog {
                 SourceKind::UpstreamValidatedDisc => {
                     if profile.disc.is_some()
                         || !profile.members.is_empty()
-                        || profile.accepted_extensions.len() != 2
-                        || !profile
-                            .accepted_extensions
-                            .iter()
-                            .any(|extension| extension.eq_ignore_ascii_case("iso"))
-                        || !profile
-                            .accepted_extensions
-                            .iter()
-                            .any(|extension| extension.eq_ignore_ascii_case("chd"))
+                        || (!upstream_disc_has_extensions(profile, &["iso", "chd"])
+                            && !upstream_disc_has_extensions(
+                                profile,
+                                &["iso", "gcm", "rvz", "wia", "gcz"],
+                            ))
                         || !profile.accepted_sha1.is_empty()
                         || !profile.accepted_sha256.is_empty()
                     {
@@ -661,7 +657,6 @@ impl Catalog {
                         .as_ref()
                         .is_some_and(|source| relative == source);
                 let upstream_setup_path = port.adapter == AdapterKind::UpstreamManagedSetup
-                    && port.runtime_subdirectory.is_none()
                     && port
                         .runtime_source_filename
                         .as_ref()
@@ -837,14 +832,25 @@ impl Catalog {
                                 && port.source_environment.is_some())
                     }
                     RuntimeSourceMaterialization::GamecubeIso => {
-                        port.adapter == AdapterKind::StagedSourcePortable
-                            && filename.ends_with(".iso")
+                        (port.adapter == AdapterKind::StagedSourcePortable
                             && port.source_profile.as_ref().is_some_and(|profile_id| {
                                 self.document.source_profiles.iter().any(|profile| {
                                     profile.id == *profile_id
                                         && profile.kind == SourceKind::GamecubeDisc
                                 })
                             })
+                            || port.adapter == AdapterKind::UpstreamManagedSetup
+                                && port.source_profile.as_ref().is_some_and(|profile_id| {
+                                    self.document.source_profiles.iter().any(|profile| {
+                                        profile.id == *profile_id
+                                            && profile.kind == SourceKind::UpstreamValidatedDisc
+                                            && upstream_disc_has_extensions(
+                                                profile,
+                                                &["iso", "gcm", "rvz", "wia", "gcz"],
+                                            )
+                                    })
+                                }))
+                            && filename.ends_with(".iso")
                     }
                     RuntimeSourceMaterialization::PsxBinCue => {
                         port.adapter == AdapterKind::StagedSourcePortable
@@ -885,6 +891,7 @@ impl Catalog {
                                 self.document.source_profiles.iter().any(|profile| {
                                     profile.id == *profile_id
                                         && profile.kind == SourceKind::UpstreamValidatedDisc
+                                        && upstream_disc_has_extensions(profile, &["iso", "chd"])
                                 })
                             })
                     }
@@ -1082,8 +1089,13 @@ impl Catalog {
                     AdapterKind::UpstreamManagedSetup => {
                         !port.setup_arguments.is_empty()
                             && source_kind == Some(SourceKind::UpstreamValidatedDisc)
-                            && port.runtime_source_materialization
-                                == Some(RuntimeSourceMaterialization::Ps2Iso)
+                            && matches!(
+                                port.runtime_source_materialization,
+                                Some(
+                                    RuntimeSourceMaterialization::Ps2Iso
+                                        | RuntimeSourceMaterialization::GamecubeIso
+                                )
+                            )
                     }
                     AdapterKind::LibultrashipPortable => {
                         source_kind == Some(SourceKind::File)
@@ -1108,6 +1120,18 @@ impl Catalog {
         }
         Ok(())
     }
+}
+
+fn upstream_disc_has_extensions(profile: &crate::SourceProfile, expected: &[&str]) -> bool {
+    let extensions = profile
+        .accepted_extensions
+        .iter()
+        .map(|extension| extension.to_ascii_lowercase())
+        .collect::<HashSet<_>>();
+    extensions.len() == expected.len()
+        && expected
+            .iter()
+            .all(|extension| extensions.contains(*extension))
 }
 
 fn valid_repository_path(value: &str) -> bool {
@@ -1303,7 +1327,7 @@ mod tests {
         let source_catalog = migrated.source_catalog().expect("schema-2 authority");
         assert_eq!(
             source_catalog.identities.len(),
-            legacy.document().source_profiles.len() + 8
+            legacy.document().source_profiles.len() + 9
         );
         let projected_legacy_profiles = migrated
             .document()
@@ -1319,6 +1343,7 @@ mod tests {
                     "ape-escape-psx",
                     "mega-man-x5-psx",
                     "paperboat-paper-mario-us",
+                    "open-nectar-pikmin-disc",
                 ]
                 .contains(&profile.id.as_str())
             })
@@ -1468,6 +1493,7 @@ mod tests {
                     "ape-escape-recompiled",
                     "mega-man-x5-recompiled",
                     "paperboat",
+                    "open-nectar-pikmin",
                 ]
                 .contains(&port.id.as_str())
             })
@@ -1644,7 +1670,7 @@ mod tests {
 
         assert!(document.get("source_catalog").is_some());
         assert!(document.get("source_profiles").is_none());
-        assert_eq!(document["ports"].as_array().unwrap().len(), 75);
+        assert_eq!(document["ports"].as_array().unwrap().len(), 76);
     }
 
     #[test]
@@ -1892,6 +1918,7 @@ mod tests {
                     "ape-escape-psx",
                     "mega-man-x5-psx",
                     "paperboat-paper-mario-us",
+                    "open-nectar-pikmin-disc",
                 ]
                 .contains(&profile.id.as_str())
             })
@@ -4286,6 +4313,46 @@ mod tests {
                     .ends_with("/iso/0COMMON.TXT")
             );
         }
+    }
+
+    #[test]
+    fn open_nectar_is_a_bounded_windows_setup_with_upstream_disc_validation() {
+        let catalog = Catalog::embedded().expect("catalog should load");
+        let profile = catalog.source_profile("open-nectar-pikmin-disc").unwrap();
+        assert_eq!(profile.kind, SourceKind::UpstreamValidatedDisc);
+        assert_eq!(
+            profile.accepted_extensions,
+            ["iso", "gcm", "rvz", "wia", "gcz"]
+        );
+
+        let port = catalog.port("open-nectar-pikmin").unwrap();
+        assert_eq!(port.adapter, AdapterKind::UpstreamManagedSetup);
+        assert_eq!(port.platforms, [Platform::WindowsX86_64]);
+        assert!(port.automated_tested_platforms.is_empty());
+        assert!(port.manually_validated_platforms.is_empty());
+        assert_eq!(port.runtime_subdirectory.as_deref(), Some("nectar-windows"));
+        assert_eq!(
+            port.runtime_source_materialization,
+            Some(RuntimeSourceMaterialization::GamecubeIso)
+        );
+        assert_eq!(port.runtime_source_filename.as_deref(), Some("source.iso"));
+        assert_eq!(
+            port.setup_executable_hints[&Platform::WindowsX86_64],
+            ["nectar-launcher.exe"]
+        );
+        assert_eq!(port.setup_output_paths, ["nectar-windows/assets"]);
+        assert_eq!(port.setup_marker.as_deref(), Some("assets/.pikmin-assets"));
+        assert_eq!(port.runtime_mutable_paths, ["shader_cache"]);
+        assert_eq!(port.persistent_paths, ["save", "pikmin_settings.conf"]);
+
+        let mut document = catalog.authoritative_document();
+        let port = document
+            .ports
+            .iter_mut()
+            .find(|port| port.id == "open-nectar-pikmin")
+            .unwrap();
+        port.runtime_source_materialization = Some(RuntimeSourceMaterialization::Ps2Iso);
+        assert!(Catalog::from_json(&serde_json::to_string(&document).unwrap()).is_err());
     }
 
     #[test]

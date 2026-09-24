@@ -131,9 +131,13 @@ impl PortcoveService {
         let selected = installer.verify_critical(&install, &qualification)?;
         let working =
             crate::adapter::launch_working_directory(port.adapter, port, &install.path, &selected)?;
-        if working != install.path {
+        let nested_upstream_runtime = port.adapter == crate::AdapterKind::UpstreamManagedSetup
+            && port.runtime_subdirectory.is_some()
+            && working != install.path
+            && working.starts_with(&install.path);
+        if working != install.path && !nested_upstream_runtime {
             return Err(PortcoveError::unsupported(
-                "managed preparation currently requires an install-root working directory",
+                "managed preparation requires a reviewed install-root or nested upstream runtime directory",
             ));
         }
         if !installer.verify_managed(&install, &qualification)?.valid {
@@ -167,20 +171,25 @@ impl PortcoveService {
         let setup =
             crate::install::resolve_executable_hints(&working, host, hints, "setup executable")?;
         let setup_tool = tool_identity(setup, ChildProcessClass::UpstreamSetup)?;
-        let conversion_tool = if port.runtime_source_materialization
-            == Some(crate::RuntimeSourceMaterialization::Ps2Iso)
-            && source
-                .path
-                .extension()
-                .is_some_and(|extension| extension.eq_ignore_ascii_case("chd"))
-        {
-            Some(tool_identity(
-                crate::adapter::resolve_chdman()?,
-                ChildProcessClass::HostTool,
-            )?)
-        } else {
-            None
+        let conversion_tool_path = match port.runtime_source_materialization {
+            Some(crate::RuntimeSourceMaterialization::Ps2Iso)
+                if source
+                    .path
+                    .extension()
+                    .is_some_and(|extension| extension.eq_ignore_ascii_case("chd")) =>
+            {
+                Some(crate::adapter::resolve_chdman()?)
+            }
+            Some(crate::RuntimeSourceMaterialization::GamecubeIso)
+                if crate::adapter::gamecube_source_requires_conversion(&source.path) =>
+            {
+                Some(crate::adapter::resolve_dolphin_tool()?)
+            }
+            _ => None,
         };
+        let conversion_tool = conversion_tool_path
+            .map(|path| tool_identity(path, ChildProcessClass::HostTool))
+            .transpose()?;
         let definition_sha256 = crate::signed_catalog::digest(&serde_json::to_vec(&(
             port,
             catalog.source_profile(profile_id)?,
@@ -215,26 +224,43 @@ fn tool_identity(path: PathBuf, class: ChildProcessClass) -> Result<PreparationT
 }
 
 pub(crate) fn validate_output_contract(port: &crate::PortDefinition) -> Result<()> {
+    let in_install_root = |relative: &str| {
+        port.runtime_subdirectory
+            .as_deref()
+            .map_or_else(|| relative.to_owned(), |root| format!("{root}/{relative}"))
+    };
     let generated_metadata = crate::adapter::generated_metadata(port)?;
+    let generated_metadata = generated_metadata
+        .iter()
+        .map(|path| in_install_root(path))
+        .collect::<Vec<_>>();
     for (index, output) in port.setup_output_paths.iter().enumerate() {
         crate::archive::validate_relative_path(output, true)?;
-        let overlaps = |other: &String| crate::runtime::overlaps(output, other);
+        let overlaps_runtime_path =
+            |other: &String| crate::runtime::overlaps(output, &in_install_root(other));
         if crate::path::is_portcove_metadata(std::path::Path::new(output))
-            || generated_metadata.iter().any(overlaps)
-            || port.setup_output_paths[..index].iter().any(overlaps)
-            || port.persistent_paths.iter().any(overlaps)
-            || port.runtime_mutable_paths.iter().any(overlaps)
-            || port.runtime_source_filename.iter().any(overlaps)
+            || generated_metadata
+                .iter()
+                .any(|metadata| crate::runtime::overlaps(output, metadata))
+            || port.setup_output_paths[..index]
+                .iter()
+                .any(|prior| crate::runtime::overlaps(output, prior))
+            || port.persistent_paths.iter().any(overlaps_runtime_path)
+            || port.runtime_mutable_paths.iter().any(overlaps_runtime_path)
+            || port
+                .runtime_source_filename
+                .iter()
+                .any(overlaps_runtime_path)
             || port
                 .bundled_runtime
                 .values()
-                .any(|runtime| overlaps(&runtime.target_directory))
+                .any(|runtime| overlaps_runtime_path(&runtime.target_directory))
             || port
                 .executable_hints
                 .values()
                 .chain(port.setup_executable_hints.values())
                 .flatten()
-                .any(overlaps)
+                .any(overlaps_runtime_path)
         {
             return Err(PortcoveError::usage(
                 "setup output paths overlap another ownership contract",
@@ -245,9 +271,10 @@ pub(crate) fn validate_output_contract(port: &crate::PortDefinition) -> Result<(
     }
     if !port.setup_output_paths.is_empty()
         && !port.setup_marker.as_ref().is_some_and(|marker| {
+            let marker = in_install_root(marker);
             port.setup_output_paths
                 .iter()
-                .any(|output| std::path::Path::new(marker).starts_with(output))
+                .any(|output| std::path::Path::new(&marker).starts_with(output))
         })
     {
         return Err(PortcoveError::usage(

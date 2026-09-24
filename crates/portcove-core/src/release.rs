@@ -2065,6 +2065,115 @@ mod tests {
         assert_ne!(successor.asset.sha256, baseline.asset.sha256);
     }
 
+    #[tokio::test]
+    async fn open_nectar_windows_hint_tracks_a_successor_without_a_definition_edit() {
+        let catalog = crate::Catalog::embedded().unwrap();
+        let port = catalog.port("open-nectar-pikmin").unwrap();
+        let release = |tag: &str, digest: char| {
+            serde_json::json!({
+                "tag_name": tag,
+                "draft": false,
+                "prerelease": false,
+                "published_at": null,
+                "assets": [{
+                    "name": format!("nectar-windows-{tag}.zip"),
+                    "browser_download_url": format!("https://downloads.example.invalid/nectar-{tag}.zip"),
+                    "size": 1,
+                    "digest": format!("sha256:{}", digest.to_string().repeat(64))
+                }]
+            })
+        };
+        let v1 = release("0.8.5", 'a');
+        let v2 = release("0.8.6", 'b');
+
+        let responses = vec![
+            ok_json(r#"{"archived":false}"#, ""),
+            ok_json(&serde_json::to_string(&vec![v1.clone()]).unwrap(), ""),
+        ];
+        let (api_root, _, server) = serve_http(responses);
+        let baseline = GithubReleaseProvider::with_api_root(api_root)
+            .unwrap()
+            .resolve(port, ReleaseChannel::Stable, Platform::WindowsX86_64)
+            .await
+            .unwrap();
+        server.join().unwrap();
+
+        let responses = vec![
+            ok_json(r#"{"archived":false}"#, ""),
+            ok_json(&serde_json::to_string(&vec![v2, v1]).unwrap(), ""),
+        ];
+        let (api_root, _, server) = serve_http(responses);
+        let successor = GithubReleaseProvider::with_api_root(api_root)
+            .unwrap()
+            .resolve(port, ReleaseChannel::Stable, Platform::WindowsX86_64)
+            .await
+            .unwrap();
+        server.join().unwrap();
+
+        assert_eq!(baseline.version, "0.8.5");
+        assert_eq!(successor.version, "0.8.6");
+        assert_eq!(baseline.asset.name, "nectar-windows-0.8.5.zip");
+        assert_eq!(successor.asset.name, "nectar-windows-0.8.6.zip");
+        assert_eq!(successor.asset.sha256, "b".repeat(64));
+        assert_ne!(successor.asset.sha256, baseline.asset.sha256);
+    }
+
+    #[tokio::test]
+    async fn open_nectar_selector_rejects_wrong_platform_ambiguous_assets_and_missing_digest() {
+        let catalog = crate::Catalog::embedded().unwrap();
+        let port = catalog.port("open-nectar-pikmin").unwrap();
+        let unsupported = GithubReleaseProvider::with_api_root("https://api.example.invalid")
+            .unwrap()
+            .resolve(port, ReleaseChannel::Stable, Platform::LinuxX86_64)
+            .await
+            .unwrap_err();
+        assert_eq!(unsupported.code, crate::ErrorCode::Unsupported);
+
+        let ambiguous = [
+            GithubAsset {
+                name: "nectar-windows-one.zip".into(),
+                browser_download_url: "https://downloads.example.invalid/one.zip".into(),
+                size: 1,
+                digest: Some(format!("sha256:{}", "a".repeat(64))),
+            },
+            GithubAsset {
+                name: "nectar-windows-two.zip".into(),
+                browser_download_url: "https://downloads.example.invalid/two.zip".into(),
+                size: 1,
+                digest: Some(format!("sha256:{}", "b".repeat(64))),
+            },
+        ];
+        let error = choose_asset(port, Platform::WindowsX86_64, &ambiguous).unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Conflict);
+        assert!(error.message.contains("equally qualified"));
+
+        let unchecksummed = serde_json::json!({
+            "tag_name": "0.8.5",
+            "draft": false,
+            "prerelease": false,
+            "published_at": null,
+            "assets": [{
+                "name": "nectar-windows.zip",
+                "browser_download_url": "https://downloads.example.invalid/nectar-windows.zip",
+                "size": 1,
+                "digest": null
+            }]
+        });
+        let responses = vec![
+            ok_json(r#"{"archived":false}"#, ""),
+            ok_json(&serde_json::to_string(&vec![unchecksummed]).unwrap(), ""),
+        ];
+        let (api_root, _, server) = serve_http(responses);
+        let error = GithubReleaseProvider::with_api_root(api_root)
+            .unwrap()
+            .resolve(port, ReleaseChannel::Stable, Platform::WindowsX86_64)
+            .await
+            .unwrap_err();
+        server.join().unwrap();
+        assert_eq!(error.code, crate::ErrorCode::Verification);
+        assert!(error.message.contains("does not publish a SHA-256 digest"));
+    }
+
     #[test]
     fn runnable_archive_wins_over_matching_symbol_archive() {
         let catalog = crate::Catalog::embedded().unwrap();

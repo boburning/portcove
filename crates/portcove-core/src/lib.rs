@@ -51,6 +51,7 @@ mod permissions;
 mod persistence;
 mod portability;
 mod portability_authority;
+mod portable_tree;
 mod preparation;
 mod process;
 mod providers;
