@@ -614,7 +614,7 @@ try {
         .map((card) => card.getAttribute("aria-labelledby") ?? card.className),
       legacy_buttons: [
         ...document.querySelectorAll(
-          '[data-settings-group]:not([data-settings-group="updates"]) button:not([data-slot="button"])',
+          '[data-settings-group]:not([data-settings-group="updates"]) button:not([data-slot="button"]):not([data-slot="select-trigger"])',
         ),
       ].map((button) => button.textContent?.trim() ?? ""),
       legacy_shell_buttons: [
