@@ -671,7 +671,14 @@ function CurrentView({
           void updates.checkAll();
         }}
         onSelect={openPortDetails}
-        onOpenSources={() => ui.setView("settings")}
+        onOpenSources={() => {
+          ui.setView("settings");
+          window.requestAnimationFrame(() => {
+            const heading = document.getElementById("settings-game-files-heading");
+            heading?.scrollIntoView({ block: "start" });
+            heading?.focus({ preventScroll: true });
+          });
+        }}
       />
     );
   if (ui.view === "settings")

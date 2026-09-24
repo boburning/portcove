@@ -1432,7 +1432,9 @@ function SettingsSection({
     <section className="settings-section" data-settings-group={id} aria-labelledby={headingId}>
       <div className="settings-section-heading">
         <p className="eyebrow">{eyebrow}</p>
-        <h2 id={headingId}>{title}</h2>
+        <h2 id={headingId} tabIndex={-1}>
+          {title}
+        </h2>
         <p>{description}</p>
       </div>
       <div

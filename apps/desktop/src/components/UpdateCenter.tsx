@@ -433,6 +433,7 @@ function ActivityTargetLink({
         variant="link"
         size="xs"
         className={activityTargetButton}
+        aria-label={`Open Game Files settings for ${target.label}`}
         onClick={onOpenSources}
       >
         {target.label}
