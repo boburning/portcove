@@ -2417,6 +2417,34 @@ describe("desktop components", () => {
     );
   });
 
+  it.each(["missing_runtime", "invalid_installation"] as const)(
+    "keeps staged activation reachable when %s blocks Play",
+    (blocker) => {
+      const active = installRecord();
+      const status: PortStatus = {
+        ...portStatus(),
+        active,
+        staged: { ...active, id: "2", version: "2.0", staged: true },
+        readiness: { launchable: false, blockers: [blocker], pending_setup: false },
+      };
+      const html = renderToStaticMarkup(
+        <DetailPanel
+          port={{ ...port, source_profile: null }}
+          status={status}
+          sourcePath=""
+          setSourcePath={vi.fn()}
+          actions={actions}
+        />,
+      );
+      expect(html).toContain(
+        blocker === "missing_runtime" ? "Check for updates" : "Verify installation",
+      );
+      expect(html).toContain("Activate update · 2.0");
+      expect(html.indexOf("Activate update · 2.0")).toBeLessThan(html.indexOf(port.summary));
+      expect(html.match(/Activate update · 2\.0/g)).toHaveLength(1);
+    },
+  );
+
   it("renders port cards and empty states", () => {
     const overview = { installed: 0, ready: 0, needsSetup: 0, staged: 0 };
     const cards = renderToStaticMarkup(

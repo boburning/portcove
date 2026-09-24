@@ -1259,6 +1259,20 @@ function PrimaryActions({
   busy?: string;
   actions: DetailActions;
 }) {
+  const stagedAction = stagedVersion && (
+    <Button
+      data-focusable
+      className="staged-action"
+      variant="outline"
+      size="lg"
+      disabled={Boolean(busy)}
+      onClick={() => {
+        void actions.activate();
+      }}
+    >
+      Activate update · {stagedVersion}
+    </Button>
+  );
   if (invalidInstallation)
     return (
       <div className="actions primary-actions">
@@ -1273,15 +1287,21 @@ function PrimaryActions({
           <Icon glyph={ShieldCheck} />
           Verify installation
         </Button>
+        {stagedAction}
       </div>
     );
   if (runtimeNeeded)
-    return runtimeUpdateAvailable ? (
-      <p>Review the game update below to install the required component.</p>
-    ) : (
-      <p>
-        Check for updates. If none is available, verify the installation for diagnostic details.
-      </p>
+    return (
+      <>
+        {runtimeUpdateAvailable ? (
+          <p>Review the game update below to install the required component.</p>
+        ) : (
+          <p>
+            Check for updates. If none is available, verify the installation for diagnostic details.
+          </p>
+        )}
+        {stagedAction && <div className="actions primary-actions">{stagedAction}</div>}
+      </>
     );
   if (!installed)
     return (
@@ -1335,20 +1355,7 @@ function PrimaryActions({
               ? "Complete setup and play"
               : "Play now"}
       </Button>
-      {stagedVersion && (
-        <Button
-          data-focusable
-          className="staged-action"
-          variant="outline"
-          size="lg"
-          disabled={Boolean(busy)}
-          onClick={() => {
-            void actions.activate();
-          }}
-        >
-          Activate update · {stagedVersion}
-        </Button>
-      )}
+      {stagedAction}
     </div>
   );
 }
