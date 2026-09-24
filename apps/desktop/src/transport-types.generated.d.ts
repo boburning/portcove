@@ -2211,6 +2211,7 @@ export interface ApplicationUpdateScheduleSummary {
 }
 export interface OutputDesktopBackupReview {
   persistent_data_path: string;
+  port_name: string;
   preview: BackupActionPreview;
   [k: string]: unknown;
 }

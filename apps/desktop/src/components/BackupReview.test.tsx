@@ -7,6 +7,7 @@ import type { BackupReview } from "../types";
 import { BackupReviewDialog } from "./BackupReview";
 
 const review: BackupReview = {
+  port_name: "Sample Port",
   persistent_data_path: "library/user/sample",
   preview: {
     action: "restore",
@@ -64,11 +65,15 @@ it("reviews exact paths and safety-backup behavior before a bound restore", asyn
   expect(preview).toHaveBeenCalledWith("sample", "snapshot", "restore", 7);
   expect(apply).not.toHaveBeenCalled();
   expect(document.body.textContent).toContain("library/user/sample");
+  expect(document.body.textContent).toContain("Sample Port");
+  expect(document.body.textContent).toContain("Catalog ID: sample");
   expect(document.body.textContent).toContain("library/backups/sample/snapshot");
-  expect(document.body.textContent).toContain("new safety backup");
+  expect(document.body.textContent).toContain(
+    "Portcove will back up the current saved data before replacing it",
+  );
   expect(document.body.textContent).toContain("game must be stopped");
   expect(document.body.textContent).toContain("retains recovery data");
-  expect(document.body.querySelector("[data-autofocus]")?.textContent).toBe("Keep current state");
+  expect(document.body.querySelector("[data-autofocus]")?.textContent).toBe("Cancel");
   await click("Restore this backup");
   expect(apply).toHaveBeenCalledWith(review.preview.backup, "reviewed-data");
   expect(close).toHaveBeenCalledOnce();
@@ -101,7 +106,7 @@ it("explains permanent deletion and can dismiss without authorizing it", async (
   );
   expect(document.body.textContent).toContain("cannot be recovered after deletion");
   expect(document.body.textContent).toContain("not a reversible cancellation");
-  await click("Keep current state");
+  await click("Cancel");
   expect(close).toHaveBeenCalledOnce();
   expect(apply).not.toHaveBeenCalled();
 });
@@ -148,8 +153,9 @@ it("requires a fresh review after a changed selection fails and rejects duplicat
     ),
   );
   await click("Restore this backup");
-  await click("Applying reviewed change…");
-  await click("Keep current state");
+  expect(document.body.textContent).toContain("Restoring backup…");
+  await click("Restoring backup…");
+  await click("Cancel");
   expect(apply).toHaveBeenCalledOnce();
   expect(close).not.toHaveBeenCalled();
   await act(async () => finish(false));
@@ -209,6 +215,6 @@ it("ignores an old review after the library or selected backup changes", async (
   await act(async () => finish(review));
   expect(document.body.textContent).toContain("current/snapshot");
   expect(document.body.textContent).not.toContain("library/backups/sample/snapshot");
-  expect(document.body.textContent).toContain("safety backup will not be created");
+  expect(document.body.textContent).toContain("There is no current saved data to back up");
   expect(apply).not.toHaveBeenCalled();
 });
