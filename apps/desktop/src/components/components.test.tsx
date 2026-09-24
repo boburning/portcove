@@ -1262,6 +1262,7 @@ describe("desktop components", () => {
         `data-settings-group="${group}" aria-labelledby="settings-${group}-heading"`,
       );
       expect(html).toContain(`id="settings-${group}-heading"`);
+      expect(html).toContain(`id="settings-${group}-heading" tabindex="-1"`);
     }
     const groupMarkup = (group: string) => {
       const start = html.indexOf(`data-settings-group="${group}"`);
@@ -3244,6 +3245,7 @@ describe("desktop components", () => {
     expect(html).toMatch(
       /<button[^>]*data-variant="link"[^>]*data-focusable="true"[^>]*>Sample cartridge<\/button>/u,
     );
+    expect(html).toContain('aria-label="Open Game Files settings for Sample cartridge"');
     expect(html).not.toMatch(/>sample-rom<\/button>/u);
     expect(html).toMatch(
       /<button[^>]*data-variant="link"[^>]*data-focusable="true"[^>]*>removed-profile<\/button>/u,

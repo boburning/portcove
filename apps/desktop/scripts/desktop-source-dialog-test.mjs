@@ -158,6 +158,47 @@ export async function sourceDialogScenario({
       "Source discovery trigger did not regain focus after Escape",
     );
 
+    const sourceRegistration = command(["activity"]).records.find(
+      (item) =>
+        item.operation === "register_source" &&
+        item.target_kind === "source" &&
+        item.target_id === port.source_profile &&
+        item.status === "succeeded",
+    );
+    assert.ok(sourceRegistration, "Owned setup must record this source registration");
+    await click(By.xpath('//nav//button[contains(., "Game updates")]'));
+    const sourceActivity = By.xpath(
+      `//div[contains(@class, "activity-row") and .//strong[normalize-space()="Game-file location update"]]//button[@aria-label=${JSON.stringify(`Open Game Files settings for ${profileLabel}`)}]`,
+    );
+    await browser.wait(until.elementLocated(sourceActivity), 15_000);
+    await click(sourceActivity);
+    await browser.wait(until.elementLocated(By.id("settings-game-files-heading")), 5_000);
+    await browser.wait(
+      () =>
+        browser.executeScript(
+          () =>
+            document.activeElement?.closest('[data-settings-group="game-files"]') !== null &&
+            document.activeElement?.textContent?.includes("Verify sources"),
+        ),
+      5_000,
+      "Source activity did not focus the Game Files verification control",
+    );
+    await browser.actions().sendKeys(Key.ARROW_DOWN).perform();
+    await browser.wait(
+      () =>
+        browser.executeScript(
+          () => document.activeElement?.closest('[data-settings-group="game-files"]') !== null,
+        ),
+      5_000,
+      "Directional navigation left Game Files settings",
+    );
+    const settingsScreenshot = path.join(output, "native-source-activity-settings.png");
+    await writeFile(settingsScreenshot, await browser.takeScreenshot(), {
+      encoding: "base64",
+      flag: "wx",
+    });
+    artifacts.push(settingsScreenshot);
+
     const report = path.join(output, "source-dialog-result.json");
     await writeFile(
       report,
@@ -171,6 +212,9 @@ export async function sourceDialogScenario({
           nested_select_escape_preserved_dialog: true,
           intake_escape_restored_focus: true,
           discovery_escape_restored_focus: true,
+          source_activity_opened_game_files_settings: true,
+          source_activity_settings_control_focused: true,
+          directional_navigation_stayed_in_game_files: true,
           intake_action_styles: intakeStyles,
           search_action_styles: searchStyles,
           field_presentation: fieldPresentation,
