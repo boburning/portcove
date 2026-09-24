@@ -172,7 +172,7 @@ it("reviews exact private files and preserved paths before cleanup", async () =>
       ),
     );
     const review = [...host.querySelectorAll("button")].find((button) =>
-      button.textContent?.includes("Review private-file cleanup"),
+      button.textContent?.includes("Review unfinished setup files"),
     );
     expect(review?.dataset.variant).toBe("destructive");
     await act(async () => review?.click());
@@ -184,9 +184,11 @@ it("reviews exact private files and preserved paths before cleanup", async () =>
     expect(document.body.textContent).toContain("private.bin");
     expect(document.body.textContent).toContain("Link or special entry");
     expect(document.body.textContent).toContain("cannot be recovered");
+    expect(document.body.textContent).toContain("Delete files left by unfinished setup?");
+    expect(document.body.textContent).toContain("setup and any programs it started have stopped");
     expect(cleanup).not.toHaveBeenCalled();
     const apply = [...document.body.querySelectorAll("button")].find((button) =>
-      button.textContent?.includes("Remove reviewed private files permanently"),
+      button.textContent?.includes("Delete setup working files"),
     );
     await act(async () => apply?.click());
     expect(cleanup).toHaveBeenCalledWith("owned-operation", preview.preview_sha256, 7);
@@ -246,22 +248,23 @@ it("explains that journal-only cleanup has no private entries to remove", async 
       ),
     );
     const review = [...host.querySelectorAll("button")].find((button) =>
-      button.textContent?.includes("Review private-file cleanup"),
+      button.textContent?.includes("Review unfinished setup files"),
     );
     await act(async () => review?.click());
     expect(load).toHaveBeenCalledWith(preview.operation_id, 8);
     expect(document.body.textContent).toContain("0 files");
     expect(document.body.textContent).toContain("Affected entries (0)");
     expect(document.body.querySelector("#preparation-cleanup-description")?.textContent).toBe(
-      "Remove empty private preparation state and its stale recovery journal.",
+      "No setup working files remain. Clear the unfinished setup record and its recorded path if present.",
     );
-    expect(document.body.textContent).toContain("Recorded private path cleared");
+    expect(document.body.textContent).toContain("Clear unfinished setup record?");
+    expect(document.body.textContent).toContain("Recorded setup path cleared");
     expect(document.body.textContent).toContain(
-      "No retained private entries are present. Cleanup removes the recorded private path if it exists and its stale recovery journal.",
+      "No setup working files were found. Cleanup clears the recorded setup path if it exists and its stale recovery journal.",
     );
     expect(
       [...document.body.querySelectorAll("button")].some(
-        (button) => button.textContent === "Remove empty private state",
+        (button) => button.textContent === "Clear unfinished setup record",
       ),
     ).toBe(true);
     expect(document.body.textContent).toContain(preview.retained_path);

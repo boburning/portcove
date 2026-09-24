@@ -128,7 +128,7 @@ export function RecoveryReview({
                     className="mt-2"
                     onClick={() => setCleanupOperation(item.operation_id ?? undefined)}
                   >
-                    Review private-file cleanup
+                    Review unfinished setup files
                   </Button>
                 )}
               </details>
@@ -190,12 +190,14 @@ function PreparationCleanupDialog({
         aria-describedby="preparation-cleanup-description"
       >
         <DialogTitle id="preparation-cleanup-title" className="mb-2 text-xl">
-          Review retained preparation cleanup
+          {emptyReview
+            ? "Clear unfinished setup record?"
+            : "Delete files left by unfinished setup?"}
         </DialogTitle>
         <DialogDescription id="preparation-cleanup-description" className="mb-4 leading-relaxed">
           {emptyReview
-            ? "Remove empty private preparation state and its stale recovery journal."
-            : "Permanently discard one failed attempt's private working files."}
+            ? "No setup working files remain. Clear the unfinished setup record and its recorded path if present."
+            : "Delete the private working files left by this unfinished setup. Review the affected folder and preserved locations first."}
         </DialogDescription>
         {pending === "review" && <p role="status">Reading the retained private folder…</p>}
         {preview && <PreparationCleanupDetails preview={preview} />}
@@ -224,11 +226,11 @@ function PreparationCleanupDialog({
             >
               {pending === "apply"
                 ? emptyReview
-                  ? "Removing empty private state…"
-                  : "Removing reviewed private files…"
+                  ? "Clearing unfinished setup record…"
+                  : "Deleting setup working files…"
                 : emptyReview
-                  ? "Remove empty private state"
-                  : "Remove reviewed private files permanently"}
+                  ? "Clear unfinished setup record"
+                  : "Delete setup working files"}
             </Button>
           )}
         </DialogFooter>
@@ -265,7 +267,7 @@ function PreparationCleanupDetails({ preview }: { preview: PreparationCleanupPre
       </p>
       <dl>
         <div>
-          <dt>{entries.length ? "Private folder removed" : "Recorded private path cleared"}</dt>
+          <dt>{entries.length ? "Setup working folder deleted" : "Recorded setup path cleared"}</dt>
           <dd>{preview.retained_path}</dd>
         </div>
         <div>
@@ -291,12 +293,12 @@ function PreparationCleanupDetails({ preview }: { preview: PreparationCleanupPre
       </dl>
       <p>
         {entries.length
-          ? "This removes only the recorded private folder and its recovery journal. The removed files cannot be recovered. If cleanup is interrupted, Portcove keeps the accepted cleanup in its journal and retries it when the library reopens."
-          : "No retained private entries are present. Cleanup removes the recorded private path if it exists and its stale recovery journal."}
+          ? "This deletes only the recorded setup working folder and its recovery journal. The deleted files cannot be recovered. If cleanup is interrupted, Portcove keeps the accepted cleanup in its journal and retries it when the library reopens."
+          : "No setup working files were found. Cleanup clears the recorded setup path if it exists and its stale recovery journal."}
       </p>
       <p>
-        Portcove requires durable proof that the owned preparation process tree stopped before
-        cleanup.
+        Portcove must confirm that setup and any programs it started have stopped before deleting
+        these files.
       </p>
       <details>
         <summary data-focusable>Affected entries ({entries.length})</summary>
