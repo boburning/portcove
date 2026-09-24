@@ -392,9 +392,15 @@ function Workspace({
   };
   const reviewApplicationUpdate = () => {
     setPrimaryView("settings");
-    window.requestAnimationFrame(() =>
-      document.getElementById("application-update-settings-title")?.focus(),
-    );
+    window.requestAnimationFrame(() => {
+      const heading = document.getElementById("application-update-settings-title");
+      heading?.scrollIntoView({ block: "start" });
+      const control = heading
+        ?.closest(".application-update-settings")
+        ?.querySelector<HTMLElement>("button:not(:disabled), a[href]");
+      if (control) focusAndReveal(control);
+      else heading?.focus({ preventScroll: true });
+    });
   };
   const dismissApplicationUpdateChoice = () => {
     applicationUpdateChoice.dismiss();
