@@ -4,6 +4,7 @@ import { RecoveryReview } from "./RecoveryReview";
 import {
   activityHistoryPreview,
   activityPresentationState,
+  currentUpdateSnapshot,
   errorText,
   releaseChannelPresentation,
 } from "../view-model";
@@ -85,9 +86,16 @@ export function UpdateCenter({
   }, []);
   const installed = ports.filter((port) => statuses.get(port.id)?.active);
   const byPort = new Map(outcomes.map((outcome) => [outcome.port_id, outcome]));
-  const available = outcomes.filter(
-    (outcome) => outcome.ok && outcome.result?.update_available,
-  ).length;
+  const checked = installed.filter((port) => {
+    const outcome = byPort.get(port.id);
+    return outcome?.ok && outcome.result?.port_id === port.id;
+  });
+  const available = checked.filter((port) => byPort.get(port.id)?.result?.update_available).length;
+  const complete = checked.length === installed.length;
+  const latestSavedCheck = Math.max(
+    0,
+    ...installed.map((port) => currentUpdateSnapshot(statuses.get(port.id))?.checked_at ?? 0),
+  );
   const failed = outcomes.filter((outcome) => !outcome.ok).length;
   const staged = installed.filter((port) => statuses.get(port.id)?.staged).length;
   return (
@@ -97,7 +105,7 @@ export function UpdateCenter({
           <UpdateStat label="Installed" value={installed.length} icon={PackageCheck} />
           <UpdateStat
             label="Updates available"
-            value={available}
+            value={complete ? available : available > 0 ? `${available}+` : "Unknown"}
             icon={Download}
             accent={available > 0}
           />
@@ -127,6 +135,12 @@ export function UpdateCenter({
         Checking only looks for updates. Open a game below to review a download or installation.
         Saving its update settings runs no update.
       </p>
+      {installed.length > 0 && (
+        <p className="update-explainer">
+          Update results cover {checked.length} of {installed.length} installed games.
+          {latestSavedCheck > 0 && ` Latest saved check: ${formatActivityTime(latestSavedCheck)}.`}
+        </p>
+      )}
       {installed.length === 0 ? (
         <EmptyState
           icon={RefreshCw}
@@ -526,7 +540,7 @@ function UpdateStat({
   warning,
 }: {
   label: string;
-  value: number;
+  value: number | string;
   icon: LucideIcon;
   accent?: boolean;
   warning?: boolean;
