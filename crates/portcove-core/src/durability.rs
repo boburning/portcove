@@ -293,6 +293,33 @@ mod tests {
         );
     }
 
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn failed_final_parent_sync_rolls_back_visibility_and_removes_private_stage() {
+        let temporary = tempfile::tempdir().unwrap();
+        let parent = temporary.path().join("backups/sample");
+        fs::create_dir_all(&parent).unwrap();
+        let staging = parent.join(".backup-staged");
+        let final_path = parent.join("published");
+        fs::create_dir(&staging).unwrap();
+        fs::write(staging.join("save.dat"), b"save").unwrap();
+        let missing_sync_directory = temporary.path().join("missing-parent");
+
+        let error = publish_backup_directory(&staging, &final_path, &missing_sync_directory, true)
+            .unwrap_err();
+
+        assert_eq!(error.code, crate::ErrorCode::State);
+        assert!(
+            !final_path.exists(),
+            "a failed sync cannot leave a claimed backup"
+        );
+        assert!(
+            !staging.exists(),
+            "successful rollback removes private staging"
+        );
+        assert!(fs::read_dir(parent).unwrap().next().is_none());
+    }
+
     #[test]
     fn byte_publication_replaces_an_existing_file() {
         let temporary = tempfile::tempdir().unwrap();

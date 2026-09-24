@@ -672,6 +672,23 @@ impl Library {
         self.lock_port(port_id, operation, None)
     }
 
+    /// Hold the port lock while an inventory classifies private paths. The
+    /// lock file may be created so a new writer cannot race this scan, but its
+    /// owner payload is never replaced. `None` means another operation owns it.
+    pub(crate) fn try_probe_port_lock(&self, port_id: &str) -> Result<Option<PortOperationGuard>> {
+        let key = hex::encode(Sha256::digest(port_id.as_bytes()));
+        let lock_path = self.locks_dir().join(format!("{key}.lock"));
+        crate::path::refuse_symlink_ancestors(&lock_path)?;
+        match self.acquire_lock(&key, port_id, "inspect-backup-preparation") {
+            Ok(file) => {
+                crate::path::refuse_symlink_ancestors(&lock_path)?;
+                Ok(Some(PortOperationGuard { file }))
+            }
+            Err(error) if error.code == crate::ErrorCode::Conflict => Ok(None),
+            Err(error) => Err(error),
+        }
+    }
+
     pub(crate) fn try_lock_source(&self, profile_id: &str) -> Result<PortOperationGuard> {
         let key = format!(
             "source-{}",

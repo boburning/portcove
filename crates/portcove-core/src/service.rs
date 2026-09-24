@@ -6702,6 +6702,266 @@ fn main() {
         assert_eq!(activity.status, ActivityStatus::Succeeded);
     }
 
+    struct ExitBackupAt(LifecycleFaultPoint);
+
+    impl LifecycleFaultInjector for ExitBackupAt {
+        fn check(&self, point: LifecycleFaultPoint) -> Result<()> {
+            if point == self.0 {
+                // Deliberately bypass TempDir and lock destructors to model an
+                // abrupt process stop at this exact publication boundary.
+                std::process::exit(77);
+            }
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn backup_interruption_child() {
+        let Some(root) = std::env::var_os("PORTCOVE_BACKUP_INTERRUPTION_ROOT") else {
+            return;
+        };
+        let point = match std::env::var("PORTCOVE_BACKUP_INTERRUPTION_POINT").as_deref() {
+            Ok("created") => LifecycleFaultPoint::BackupStagingCreated,
+            Ok("copied") => LifecycleFaultPoint::BackupDataCopied,
+            Ok("manifest") => LifecycleFaultPoint::BackupManifestSynced,
+            Ok("kept") => LifecycleFaultPoint::BackupStagingKept,
+            Ok("published") => LifecycleFaultPoint::BackupPublished,
+            other => panic!("unexpected backup interruption point: {other:?}"),
+        };
+        let library = Library::open(PathBuf::from(root)).unwrap();
+        let service = PortcoveService::with_provider_and_faults(
+            library,
+            Arc::new(StaticReleaseProvider {
+                version: "v1".into(),
+            }),
+            Arc::new(ExitBackupAt(point)),
+        )
+        .unwrap();
+        let _ = service.create_backup("zelda64-recomp");
+        panic!("backup did not stop at {point:?}");
+    }
+
+    #[test]
+    fn interrupted_backup_stages_are_visible_without_hiding_verified_backups() {
+        use std::process::Command;
+
+        for (name, has_data, has_manifest) in [
+            ("created", false, false),
+            ("copied", true, false),
+            ("manifest", true, true),
+            ("kept", true, true),
+            ("published", false, false),
+        ] {
+            let temporary = tempfile::tempdir().unwrap();
+            let root = temporary.path().join("library");
+            let library = Library::open(&root).unwrap();
+            let service = service_with_release(library.clone(), "v1");
+            let port_id = "zelda64-recomp";
+            let user_root = library.user_dir(port_id);
+            fs::create_dir_all(&user_root).unwrap();
+            fs::write(user_root.join("save.dat"), b"original").unwrap();
+            let published = service.create_backup(port_id).unwrap();
+            fs::write(user_root.join("save.dat"), b"later save").unwrap();
+
+            let output = Command::new(std::env::current_exe().unwrap())
+                .args([
+                    "backup_interruption_child",
+                    "--nocapture",
+                    "--test-threads=1",
+                ])
+                .env("PORTCOVE_BACKUP_INTERRUPTION_ROOT", &root)
+                .env("PORTCOVE_BACKUP_INTERRUPTION_POINT", name)
+                .output()
+                .unwrap();
+            assert_eq!(output.status.code(), Some(77), "{name}: {output:?}");
+
+            let parent = library.backups_dir().join(port_id);
+            let stages = fs::read_dir(&parent)
+                .unwrap()
+                .map(|entry| entry.unwrap().path())
+                .filter(|path| {
+                    path.file_name()
+                        .unwrap()
+                        .to_string_lossy()
+                        .starts_with(".backup-")
+                })
+                .collect::<Vec<_>>();
+            assert_eq!(stages.len(), usize::from(name != "published"), "{name}");
+            if let Some(stage) = stages.first() {
+                assert_eq!(stage.join("data/save.dat").is_file(), has_data, "{name}");
+                assert_eq!(stage.join("backup.json").is_file(), has_manifest, "{name}");
+                assert_eq!(
+                    stage.join("preparation.json").is_file(),
+                    name != "kept",
+                    "{name}"
+                );
+            }
+            let inventory = service.list_backups(port_id).unwrap();
+            assert!(inventory.backups.contains(&published), "{name}");
+            if name == "published" {
+                assert_eq!(inventory.backups.len(), 2);
+                let new_backup = inventory
+                    .backups
+                    .iter()
+                    .find(|backup| backup.id != published.id)
+                    .unwrap();
+                assert_eq!(
+                    fs::read(new_backup.path.join("data/save.dat")).unwrap(),
+                    b"later save"
+                );
+                assert!(!new_backup.path.join("preparation.json").exists());
+            } else {
+                assert_eq!(
+                    inventory.backups.as_slice(),
+                    std::slice::from_ref(&published)
+                );
+            }
+            assert_eq!(
+                inventory
+                    .problems
+                    .iter()
+                    .filter(|problem| problem.path.starts_with(&parent))
+                    .count(),
+                usize::from(name != "published"),
+                "{name}: {:?}",
+                inventory.problems
+            );
+            if name != "published" {
+                assert_eq!(inventory.state, BackupInventoryState::RecoveryRequired);
+                assert_eq!(inventory.problems[0].path, stages[0]);
+                assert!(
+                    inventory.problems[0]
+                        .message
+                        .contains("unpublished backup preparation")
+                );
+                assert!(
+                    service
+                        .repair_plan()
+                        .unwrap()
+                        .items
+                        .iter()
+                        .any(|item| { item.path.as_ref() == Some(&stages[0]) })
+                );
+                if name == "kept" {
+                    fs::write(stages[0].join("preparation.json"), b"mismatched marker").unwrap();
+                    let ambiguous = service.list_backups(port_id).unwrap();
+                    assert!(
+                        ambiguous.problems[0]
+                            .message
+                            .contains("no consistent Portcove preparation identity")
+                    );
+                    assert!(stages[0].join("backup.json").is_file());
+                }
+            }
+            assert_eq!(fs::read(user_root.join("save.dat")).unwrap(), b"later save");
+            assert_eq!(
+                fs::read(published.path.join("data/save.dat")).unwrap(),
+                b"original"
+            );
+        }
+    }
+
+    #[test]
+    fn concurrent_backup_stage_is_not_called_abandoned_until_its_owner_releases_the_port() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let service = service_with_release(library.clone(), "v1");
+        let port_id = "zelda64-recomp";
+        fs::create_dir_all(library.user_dir(port_id)).unwrap();
+        fs::write(library.user_dir(port_id).join("save.dat"), b"original").unwrap();
+        let published = service.create_backup(port_id).unwrap();
+        let stage = library.backups_dir().join(port_id).join(".backup-live");
+        fs::create_dir(&stage).unwrap();
+        fs::write(stage.join("partial"), b"still being copied").unwrap();
+
+        let owner = library.try_lock_port(port_id, "backup").unwrap();
+        let inventory = service.list_backups(port_id).unwrap();
+        assert_eq!(
+            inventory.backups.as_slice(),
+            std::slice::from_ref(&published)
+        );
+        assert!(inventory.problems.is_empty());
+        assert!(
+            !service
+                .repair_plan()
+                .unwrap()
+                .items
+                .iter()
+                .any(|item| { item.path.as_ref() == Some(&stage) })
+        );
+        drop(owner);
+
+        let inventory = service.list_backups(port_id).unwrap();
+        assert_eq!(inventory.backups, [published]);
+        assert_eq!(inventory.state, BackupInventoryState::RecoveryRequired);
+        assert_eq!(inventory.problems.len(), 1);
+        assert_eq!(inventory.problems[0].path, stage);
+        assert!(
+            inventory.problems[0]
+                .message
+                .contains("no consistent Portcove preparation identity")
+        );
+        assert!(stage.join("partial").is_file());
+    }
+
+    struct CollideBackupDestination(PathBuf);
+
+    impl LifecycleFaultInjector for CollideBackupDestination {
+        fn check(&self, point: LifecycleFaultPoint) -> Result<()> {
+            if point == LifecycleFaultPoint::BackupManifestSynced {
+                let stage = fs::read_dir(&self.0)?
+                    .map(|entry| entry.map(|entry| entry.path()))
+                    .collect::<std::io::Result<Vec<_>>>()?
+                    .into_iter()
+                    .find(|path| {
+                        path.file_name()
+                            .unwrap()
+                            .to_string_lossy()
+                            .starts_with(".backup-")
+                    })
+                    .unwrap();
+                let manifest: serde_json::Value =
+                    serde_json::from_slice(&fs::read(stage.join("backup.json"))?)?;
+                let destination = self.0.join(manifest["id"].as_str().unwrap());
+                fs::create_dir(&destination)?;
+                fs::write(destination.join("existing"), b"keep me")?;
+            }
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn backup_publication_collision_preserves_the_existing_destination_and_saves() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let port_id = "zelda64-recomp";
+        let parent = library.backups_dir().join(port_id);
+        fs::create_dir_all(library.user_dir(port_id)).unwrap();
+        fs::write(library.user_dir(port_id).join("save.dat"), b"save").unwrap();
+        let service = PortcoveService::with_provider_and_faults(
+            library.clone(),
+            Arc::new(StaticReleaseProvider {
+                version: "v1".into(),
+            }),
+            Arc::new(CollideBackupDestination(parent.clone())),
+        )
+        .unwrap();
+
+        let error = service.create_backup(port_id).unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Conflict);
+        let entries = fs::read_dir(&parent)
+            .unwrap()
+            .map(|entry| entry.unwrap().path())
+            .collect::<Vec<_>>();
+        assert_eq!(entries.len(), 1);
+        assert_eq!(fs::read(entries[0].join("existing")).unwrap(), b"keep me");
+        assert_eq!(
+            fs::read(library.user_dir(port_id).join("save.dat")).unwrap(),
+            b"save"
+        );
+        assert!(service.list_backups(port_id).unwrap().backups.is_empty());
+    }
+
     #[test]
     fn reused_backup_snapshot_matches_fresh_inventory_across_diagnostic_states() {
         let temporary = tempfile::tempdir().unwrap();
