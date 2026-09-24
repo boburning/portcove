@@ -4,14 +4,14 @@ This record documents the first Portcove integration exercise for Open Nectar.
 It supports a limited Windows setup and supervised-launch workflow; it does not
 qualify gameplay or make a supported-platform claim.
 
-| Field | Observed value |
-| --- | --- |
-| Portcove catalog ID | `open-nectar-pikmin` |
-| Upstream | [SSunnKing/Open-Nectar---Pikmin-Native-PC-Mobile-Port](https://github.com/SSunnKing/Open-Nectar---Pikmin-Native-PC-Mobile-Port) |
-| Reviewed README | [commit `2462f20cecdf578d8a5ba77fb6dee36130fc668f`](https://github.com/SSunnKing/Open-Nectar---Pikmin-Native-PC-Mobile-Port/blob/2462f20cecdf578d8a5ba77fb6dee36130fc668f/README.md) |
-| Exercised release | [0.8.5](https://github.com/SSunnKing/Open-Nectar---Pikmin-Native-PC-Mobile-Port/releases/tag/0.8.5) |
-| Portcove platform | Windows x86-64 only |
-| Tested source variant | Pikmin USA Rev. 1, supplied from private local storage |
+| Field                 | Observed value                                                                                                                                                                       |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Portcove catalog ID   | `open-nectar-pikmin`                                                                                                                                                                 |
+| Upstream              | [SSunnKing/Open-Nectar---Pikmin-Native-PC-Mobile-Port](https://github.com/SSunnKing/Open-Nectar---Pikmin-Native-PC-Mobile-Port)                                                      |
+| Reviewed README       | [commit `2462f20cecdf578d8a5ba77fb6dee36130fc668f`](https://github.com/SSunnKing/Open-Nectar---Pikmin-Native-PC-Mobile-Port/blob/2462f20cecdf578d8a5ba77fb6dee36130fc668f/README.md) |
+| Exercised release     | [0.8.5](https://github.com/SSunnKing/Open-Nectar---Pikmin-Native-PC-Mobile-Port/releases/tag/0.8.5)                                                                                  |
+| Portcove platform     | Windows x86-64 only                                                                                                                                                                  |
+| Tested source variant | Pikmin USA Rev. 1, supplied from private local storage                                                                                                                               |
 
 The pinned README documents native Windows and Linux builds and Android, USA
 Rev. 1 (`GPIE01` revision 1) and Europe (`GPIP01` revision 0) discs, and a
