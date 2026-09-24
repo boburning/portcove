@@ -70,6 +70,20 @@ export async function readinessScenario({ browser, scenario, output, artifacts, 
       const primary = await browser.findElement(By.css(".detail-panel .primary-actions button"));
       assert.equal(await primary.isEnabled(), false);
       assert.equal(await primary.getText(), "Play unavailable");
+      const blockerOrder = await browser.executeScript(() => {
+        const bounds = (selector) =>
+          document.querySelector(`.detail-panel ${selector}`)?.getBoundingClientRect();
+        return {
+          reasonBottom: bounds(".readiness-card")?.bottom,
+          actionTop: bounds(".primary-actions button")?.top,
+          summaryTop: bounds(".summary")?.top,
+        };
+      });
+      assert.ok(
+        blockerOrder.reasonBottom <= blockerOrder.actionTop &&
+          blockerOrder.actionTop < blockerOrder.summaryTop,
+        `blocker and next action must lead the detail summary: ${JSON.stringify(blockerOrder)}`,
+      );
       await browser.executeScript(axe.source);
       const accessibility = await browser.executeAsyncScript((done) => window.axe.run().then(done));
       const report = path.join(output, "readiness-accessibility.json");
@@ -145,6 +159,34 @@ export async function readinessScenario({ browser, scenario, output, artifacts, 
       await browser.findElement(By.css(".detail-panel .primary-actions button")).isEnabled(),
       true,
     );
+    const readyLayout = await browser.executeScript(() => {
+      const bounds = (selector) =>
+        document.querySelector(`.detail-panel ${selector}`)?.getBoundingClientRect();
+      return {
+        heroBottom: bounds(".detail-hero")?.bottom,
+        actionTop: bounds(".primary-actions button")?.top,
+        actionBottom: bounds(".primary-actions button")?.bottom,
+        summaryTop: bounds(".summary")?.top,
+        artworkTop: bounds(".artwork-controls")?.top,
+        viewportHeight: window.innerHeight,
+        duplicateReadyCard: Boolean(document.querySelector(".detail-panel .readiness-card.ready")),
+      };
+    });
+    assert.ok(
+      readyLayout.actionTop >= readyLayout.heroBottom &&
+        readyLayout.actionTop >= 0 &&
+        readyLayout.actionBottom <= readyLayout.viewportHeight &&
+        readyLayout.actionBottom < readyLayout.summaryTop &&
+        readyLayout.actionBottom < readyLayout.artworkTop &&
+        !readyLayout.duplicateReadyCard,
+      `the ready next action must follow the hero and remain visible before supporting content: ${JSON.stringify(readyLayout)}`,
+    );
+    const readyImage = path.join(output, "native-ready-next-action.png");
+    await writeFile(readyImage, await browser.takeScreenshot(), {
+      encoding: "base64",
+      flag: "wx",
+    });
+    artifacts.push(readyImage);
     assert.equal(command(["status", port.id]).successful_launches, before.successful_launches);
   });
 }

@@ -1638,6 +1638,11 @@ h2 {
 .detail-body {
   padding: var(--space-7) var(--space-8) var(--space-10);
 }
+.detail-body > .detail-group:first-child {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+}
 .summary {
   color: var(--color-text-secondary);
   line-height: var(--leading-relaxed);

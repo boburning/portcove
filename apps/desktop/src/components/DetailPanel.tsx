@@ -213,7 +213,6 @@ export function DetailPanel(props: DetailPanelProps) {
         Back
       </Button>
       <DetailHero port={port} state={state} />
-      <ArtworkControls key={`${port.id}:${props.libraryGeneration}`} port={port} />
       {props.cancellableActivities
         ?.filter((activity) => !(installReviewVisible && activity.operation === "install"))
         .map((activity) => (
@@ -333,8 +332,6 @@ function DetailBody({
   );
   return (
     <div className="detail-body">
-      <p className="summary">{port.summary}</p>
-      <NavigationHints />
       <StatusActionsGroup
         installCancellations={installCancellations}
         port={port}
@@ -352,6 +349,9 @@ function DetailBody({
         busy={busy}
         actions={actions}
       />
+      <p className="summary">{port.summary}</p>
+      <NavigationHints />
+      <ArtworkControls key={`${port.id}:${libraryGeneration}`} port={port} />
       <DetailArtwork key={`${port.id}:${libraryGeneration}`} port={port} />
       <RequirementsGroup
         port={port}
@@ -447,7 +447,7 @@ function StatusActionsGroup({
   return (
     <DetailGroup title="Status and actions">
       <RetiredNotice port={port} />
-      <ReadinessCard state={state} />
+      {state.tone !== "ready" && <ReadinessCard state={state} />}
       <PrimaryActions
         installCancellations={installCancellations}
         sources={sources}
