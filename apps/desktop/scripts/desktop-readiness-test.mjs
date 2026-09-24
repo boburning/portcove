@@ -16,6 +16,7 @@ export async function readinessScenario({ browser, scenario, output, artifacts, 
       before,
     };
     const controls = reviewControls(browser);
+    await open(port, false);
     try {
       await browser
         .executeAsyncScript((portId, done) => {
@@ -132,10 +133,6 @@ export async function readinessScenario({ browser, scenario, output, artifacts, 
           return result;
         });
         assert.equal(observations.probe.restored, true);
-        assert.ok(
-          observations.probe.injected > 0,
-          "The native omission must actually reach the renderer",
-        );
       } finally {
         const report = path.join(output, "readiness-observations.json");
         await writeFile(report, JSON.stringify(observations, null, 2), {
@@ -144,6 +141,10 @@ export async function readinessScenario({ browser, scenario, output, artifacts, 
         artifacts.push(report);
       }
     }
+    assert.ok(
+      observations.probe.injected > 0,
+      "The native omission must actually reach the renderer",
+    );
     await open(port, false);
     await browser.wait(
       until.elementLocated(By.css(".detail-panel .primary-actions button")),
