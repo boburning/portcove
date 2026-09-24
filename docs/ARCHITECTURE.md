@@ -347,29 +347,39 @@ rules. Rust module privacy keeps backup implementation helpers inside their owne
 the public API doctest pairs an available action type with a rejected internal
 manifest import. Other service responsibilities remain incremental #925 work.
 
-Durable ordering is unchanged. Creation locks the port, reconciles launched user
-data, writes and syncs a private payload/manifest, then publishes through the
-existing backup-directory durability helpers. Restore records lifecycle intent,
+Creation locks the port, reconciles launched user data, writes and syncs a
+bounded preparation identity before copying, then writes the private payload and
+manifest before publication through the existing backup-directory durability
+helpers. New manifests bind their backup ID to that staging name through an
+optional field; legacy published manifests remain readable. Restore records
+lifecycle intent,
 uses the existing port lock and one-use state-bound authorization, validates and
 stages the selected payload, and creates the safety backup before replacing live
 data. It records payload publication and metadata commit before retiring retained
 recovery data. Deletion rechecks its content-bound review under the port lock,
 records the prepared intent, quarantines with no replacement, records publication,
 removes only that quarantine, then records metadata commit and retires the journal.
-The existing fault points and recovery rules still distinguish those phases;
-activity finalization remains separate from payload publication. Manifest bytes,
-journal fields, paths, lock order and legacy interpretation are unchanged.
+The existing restore/deletion fault points and recovery rules still distinguish
+those phases; activity finalization remains separate from payload publication.
+Backup inventory probes the per-port lock to distinguish live staging from idle
+owned preparation without changing the lock owner payload. The detailed backup
+durability contract below owns stage classification and filesystem guarantees.
 
 ## Steam shortcut compatibility boundary
 
-Desktop owns the operating-system-facing adapter for a deliberately selected
-Steam installation and user profile. The adapter does not become a game-lifecycle
-authority: it receives stable port, library and standalone-CLI identities and
-creates only the Steam-facing route back to the public CLI. Core continues to own
-the installed game, update, rollback, persistence and launch behavior.
+The Tauri host owns the operating-system-facing adapter for a deliberately
+selected Steam installation and user profile. Its registered
+`preview_steam_entry` and `apply_steam_entry` commands derive the installed
+port, active library and compatible standalone-CLI identities from the host;
+React's `SteamEntryControl` offers Add/Repair/Remove review for one installed
+game in its technical actions. The renderer supplies the selected Steam folder,
+numeric profile ID, operation and reviewed plan hash, not game-lifecycle
+authority. Core continues to own the installed game, update, rollback,
+persistence and launch behavior. The Steam-facing route returns to the public
+standalone CLI.
 
 Valve documents adding a non-Steam shortcut through the client, but does not
-document a supported shortcut-writing API. The initial backend foundation
+document a supported shortcut-writing API. The host's `steam_entries` writer
 therefore labels per-profile `shortcuts.vdf` access as a reverse-engineered
 compatibility boundary. Its bounded binary-VDF reader preserves field order,
 casing, unknown fields and raw 32-bit values for the supported object/string/int
@@ -378,25 +388,35 @@ on a general VDF package or make unqualified promises about future Steam formats
 
 Plans bind the exact selected installation/profile, complete file identity,
 Portcove library identity, standalone CLI path, selected ports and proposed bytes.
-Apply requires a closed-client observation from the future host adapter, reacquires
-a per-profile lock, recomputes the plan, rejects candidates beyond its own parser
-limits, and preserves a content-addressed regular-file backup. Publication
+The host observes the Steam process and obtains a separate native confirmation.
+After consent it reconstructs the host context, checks the installed game,
+library, CLI and complete plan again, and accepts only a closed-client
+observation. The writer reacquires a per-profile lock, rejects candidates beyond
+its parser limits, and preserves a content-addressed regular-file backup.
+Publication
 evacuates and rechecks the reviewed source before a no-clobber same-directory
 handoff; a concurrent destination or changed source is preserved instead of being
 overwritten. A durable journal distinguishes an abandoned pre-commit operation
-from a completed replacement; an unrecognized identity preserves the journal,
-staged bytes, evacuated original and backup for inspection. The owned entry marker
-is narrow reconciliation metadata, not another lifecycle database.
+from a completed replacement. A retained journal blocks ordinary preview/apply;
+the writer has a bounded recovery helper, but no renderer recovery command or
+automatic replay is claimed. An unrecognized identity preserves the journal,
+staged bytes, evacuated original and backup for inspection. The owned entry
+marker is narrow reconciliation metadata, not another lifecycle database.
 Repair changes only target, working-directory and launch-option routing (or restores
 a missing name), preserving Steam/user names, artwork references, tags and unknown
 customization. Remove requires the exact marker and never touches the Portcove
 installation or library.
 
-This foundation is not yet a renderer command or a Steam compatibility claim.
-Actual profile discovery, backend-owned process observation, native consent, UI
-presentation and real Desktop Steam qualification remain required before product
-mutation is enabled. Steam Deck and artwork/provider evidence retain their separate
-owners and acceptance environments.
+The selected-game Desktop flow can mutate an explicitly chosen local shortcut
+file after review and confirmation. It does not discover profiles, select a batch,
+write artwork, or establish compatibility with a real Steam client or every
+profile/version. The [Windows native fixture evidence for the reviewed
+journey](https://github.com/boburning/portcove/issues/292#issuecomment-5769276812)
+exercises Tauri interaction and an isolated Steam tree, not Steam-client launch,
+Stop/return, packaged behavior or Steam Deck. The [Steam integration
+contract](INTEGRATIONS.md#steam-and-steam-deck-without-decky) owns the remaining
+#292 selected-game and artwork scope, #290 manual Deck route, and separate
+platform/device qualification; these are not implied by the controlled writer.
 
 ## Public launch observation
 
