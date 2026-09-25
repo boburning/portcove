@@ -80,6 +80,55 @@ pub struct DefinitionOperationAssessment {
     pub retained: bool,
 }
 
+/// A read-only projection of the existing operation guards for client presentation.
+/// An `allowed` result is not an authorization token: execution rechecks current
+/// inputs under its own lock and may still require an exact reviewed plan.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum PortAction {
+    Install,
+    Launch,
+    RemoveManaged,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum PortActionAvailability {
+    NotOffered,
+    Waiting,
+    Held,
+    Allowed,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum PortActionReason {
+    Available,
+    UnsupportedPlatform,
+    NotInstalled,
+    ReviewRequired,
+    MissingSource,
+    UnreadableSource,
+    ChangedSource,
+    MissingBios,
+    UnreadableBios,
+    ChangedBios,
+    MissingRuntime,
+    PreparationRequired,
+    InvalidInstallation,
+    DefinitionIneligible,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct PortActionAssessment {
+    pub action: PortAction,
+    pub availability: PortActionAvailability,
+    pub reason: PortActionReason,
+    /// The authoritative signed-definition reason, when it limits this action.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub definition: Option<DefinitionEligibility>,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct DefinitionOperationContext {
     pub operation: DefinitionOperation,

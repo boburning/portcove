@@ -5763,6 +5763,73 @@
         ],
         "type": "string"
       },
+      "PortAction": {
+        "description": "A read-only projection of the existing operation guards for client presentation.\nAn `allowed` result is not an authorization token: execution rechecks current\ninputs under its own lock and may still require an exact reviewed plan.",
+        "enum": [
+          "install",
+          "launch",
+          "remove_managed"
+        ],
+        "type": "string"
+      },
+      "PortActionAssessment": {
+        "properties": {
+          "action": {
+            "$ref": "#/$defs/PortAction"
+          },
+          "availability": {
+            "$ref": "#/$defs/PortActionAvailability"
+          },
+          "definition": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/DefinitionEligibility"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The authoritative signed-definition reason, when it limits this action."
+          },
+          "reason": {
+            "$ref": "#/$defs/PortActionReason"
+          }
+        },
+        "required": [
+          "action",
+          "availability",
+          "reason"
+        ],
+        "type": "object"
+      },
+      "PortActionAvailability": {
+        "enum": [
+          "not_offered",
+          "waiting",
+          "held",
+          "allowed"
+        ],
+        "type": "string"
+      },
+      "PortActionReason": {
+        "enum": [
+          "available",
+          "unsupported_platform",
+          "not_installed",
+          "review_required",
+          "missing_source",
+          "unreadable_source",
+          "changed_source",
+          "missing_bios",
+          "unreadable_bios",
+          "changed_bios",
+          "missing_runtime",
+          "preparation_required",
+          "invalid_installation",
+          "definition_ineligible"
+        ],
+        "type": "string"
+      },
       "PortDefinition": {
         "properties": {
           "adapter": {
@@ -6253,6 +6320,13 @@
                 "type": "null"
               }
             ]
+          },
+          "port_actions": {
+            "description": "Client-facing projection of core-owned operation guards. Execution rechecks.",
+            "items": {
+              "$ref": "#/$defs/PortActionAssessment"
+            },
+            "type": "array"
           },
           "port_id": {
             "type": "string"

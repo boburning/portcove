@@ -50,7 +50,7 @@ user's ordinary Playnite library.
 
 ## Compatibility and use
 
-This revision supports **Portcove API schemas 42–53 and event schema 2**. Schema
+This revision supports **Portcove API schemas 42–54 and event schema 2**. Schema
 50 advertises the independently versioned operation-event contract through
 `operation_event_schema_version`; the client consumes and rejects an unsupported
 value before lifecycle management. Launch-only and read-only library negotiation
@@ -67,7 +67,7 @@ client does not use. Schema 53 adds optional saved-root scan and snapshot comman
 that this client also does not use. It accepts both additive schemas while
 continuing to negotiate only its required capabilities. Use an exactly identified schema-42,
 schema-43, schema-44, schema-45, schema-46, schema-47, schema-48, schema-49,
-schema-50, schema-51, schema-52 or schema-53 candidate until a matching public
+schema-50, schema-51, schema-52, schema-53 or schema-54 candidate until a matching public
 standalone release exists; the older published technical previews must not be
 described as supporting these new commands.
 See the [author guide](../../docs/INTEGRATION-AUTHOR.md).
@@ -78,6 +78,12 @@ decision applies to the selected definition or a retained installed contract. A
 hold or escalation is not converted into client consent, and unknown operation,
 outcome or reason values require a compatible client update. Core revalidates the
 decision when an operation starts.
+
+Schema 54 adds a read-only action assessment for install, launch, and owned
+removal. The management view shows the shared core reason, including the exact
+signed-definition restriction where applicable. An allowed status is advisory
+until execution rechecks current inputs; owned removal still needs an exact
+review and consent. Earlier schemas retain their existing readiness display.
 
 Schema 48 adds reviewed cleanup for a retained private preparation. The management
 window reads the current doctor repair plan, accepts only the known

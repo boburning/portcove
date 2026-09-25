@@ -92,6 +92,15 @@ evidence must not collapse into one supported flag. Missing gameplay is not a
 source mismatch. Observable schema changes require explicit versioning and
 legacy/unknown-value handling; this planning contract adds no command or field.
 
+Schema 54 adds `port_actions` to port status. Core projects install, launch,
+and owned-removal availability as `not_offered`, `waiting`, `held`, or
+`allowed` with a stable reason. A signed-definition restriction includes the
+existing exact eligibility result. The projection does not grant consent or
+replace execution-time source, ownership, and reviewed-plan checks. In
+particular, an uninstalled registered source is not hashed merely to render
+status; `allowed` means the attempt can start without a known blocker, not
+that every mutable input has already passed execution validation.
+
 Schema 53 adds the `source.roots.scan` capability, the `source roots scan` and
 `source roots snapshot` commands, and the nullable `game_file_scan_snapshot`
 exported schema. Scan uses core's bounded limits and emits the existing
@@ -168,7 +177,7 @@ The CLI API schema version is independent of the Portcove release version. Every
 
 ```json
 {
-  "schema_version": 53,
+  "schema_version": 54,
   "ok": true,
   "command": "status",
   "data": {},
@@ -304,7 +313,7 @@ other games remain readable. New installations retain their execution and
 persistence definitions in manifest schema 6, introduced with writer protocol 23.
 Protocol 25 now protects exact successor definition retention; older clients refuse
 to modify an upgraded library. The Playnite
-reference accepts API schemas 42 through 53 with event schema 2. Schema 50
+reference accepts API schemas 42 through 54 with event schema 2. Schema 50
 advertises that event version explicitly; the historical 42–49 window retains
 its documented event-2 contract. Schema 51 consumes the activity-feed
 completeness and protected classifications for lifecycle management.

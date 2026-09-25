@@ -66,6 +66,28 @@ export type DefinitionEligibilityReason =
   | "required_source_missing";
 export type DefinitionOperation = "availability" | "install" | "prepare" | "launch" | "update";
 /**
+ * A read-only projection of the existing operation guards for client presentation.
+ * An `allowed` result is not an authorization token: execution rechecks current
+ * inputs under its own lock and may still require an exact reviewed plan.
+ */
+export type PortAction = "install" | "launch" | "remove_managed";
+export type PortActionAvailability = "not_offered" | "waiting" | "held" | "allowed";
+export type PortActionReason =
+  | "available"
+  | "unsupported_platform"
+  | "not_installed"
+  | "review_required"
+  | "missing_source"
+  | "unreadable_source"
+  | "changed_source"
+  | "missing_bios"
+  | "unreadable_bios"
+  | "changed_bios"
+  | "missing_runtime"
+  | "preparation_required"
+  | "invalid_installation"
+  | "definition_ineligible";
+/**
  * Current relationship between a registered source path and its saved storage identity.
  * `Current` means the bytes are unchanged since registration; it does not strengthen the
  * catalog profile's game-revision evidence.
@@ -739,6 +761,10 @@ export interface PortStatus {
   definition_operations?: DefinitionOperationAssessment[];
   last_launched_at: number | null;
   last_update_check?: UpdateSnapshot | null;
+  /**
+   * Client-facing projection of core-owned operation guards. Execution rechecks.
+   */
+  port_actions?: PortActionAssessment[];
   port_id: string;
   previous: InstallRecord | null;
   readiness?: LaunchReadiness | null;
@@ -793,6 +819,16 @@ export interface ReleaseAsset {
   sha256: string;
   size: number;
   url: string;
+  [k: string]: unknown;
+}
+export interface PortActionAssessment {
+  action: PortAction;
+  availability: PortActionAvailability;
+  /**
+   * The authoritative signed-definition reason, when it limits this action.
+   */
+  definition?: DefinitionEligibility | null;
+  reason: PortActionReason;
   [k: string]: unknown;
 }
 export interface LaunchReadiness {
