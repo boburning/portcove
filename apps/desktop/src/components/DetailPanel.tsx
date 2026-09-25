@@ -231,7 +231,6 @@ export function DetailPanel(props: DetailPanelProps) {
         port={port}
         status={status}
         stagedVersion={status?.staged?.version}
-        state={state}
         sources={sources}
         installed={installed}
         sourceReady={sourceReady}
@@ -269,7 +268,11 @@ function DetailHero({ port, state }: { port: PortDefinition; state: DetailState 
         <h1 className="detail-title" id="port-detail-title">
           {port.name}
         </h1>
-        <span className={`hero-state ${state.tone}`}>{state.title}</span>
+        <span className={`hero-state ${state.tone}`}>
+          <Icon glyph={state.icon} size="sm" />
+          {state.title}
+        </span>
+        {state.tone !== "ready" && <p className="hero-reason">{state.description}</p>}
       </div>
     </div>
   );
@@ -282,7 +285,6 @@ function DetailBody({
   port,
   status,
   stagedVersion,
-  state,
   sources,
   installed,
   sourceReady,
@@ -309,7 +311,6 @@ function DetailBody({
   port: PortDefinition;
   status?: PortStatus;
   stagedVersion?: string;
-  state: DetailState;
   sources: SourceControls;
   installed: boolean;
   sourceReady: boolean;
@@ -340,7 +341,6 @@ function DetailBody({
         port={port}
         status={status}
         stagedVersion={stagedVersion}
-        state={state}
         sources={sources}
         installed={installed}
         sourceReady={sourceReady}
@@ -424,7 +424,6 @@ function StatusActionsGroup({
   port,
   status,
   stagedVersion,
-  state,
   sources,
   installed,
   sourceReady,
@@ -441,7 +440,6 @@ function StatusActionsGroup({
   port: PortDefinition;
   status?: PortStatus;
   stagedVersion?: string;
-  state: DetailState;
   sources: SourceControls;
   installed: boolean;
   sourceReady: boolean;
@@ -457,7 +455,6 @@ function StatusActionsGroup({
   return (
     <DetailGroup title="Status and actions">
       <RetiredNotice port={port} />
-      {state.tone !== "ready" && <ReadinessCard state={state} />}
       <PrimaryActions
         installCancellations={installCancellations}
         sources={sources}
@@ -833,20 +830,6 @@ function SavesAndSettingsSummary({ port }: { port: PortDefinition }) {
           ? "Managed by Portcove for backup and restore"
           : "Unavailable in this catalog"}
       </span>
-    </div>
-  );
-}
-
-function ReadinessCard({ state }: { state: DetailState }) {
-  return (
-    <div className={`readiness-card ${state.tone}`}>
-      <span>
-        <Icon glyph={state.icon} />
-      </span>
-      <div>
-        <strong>{state.title}</strong>
-        <p>{state.description}</p>
-      </div>
     </div>
   );
 }

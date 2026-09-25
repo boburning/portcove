@@ -955,7 +955,48 @@ try {
       await browser.executeScript(() => document.activeElement?.classList.contains("detail-back")),
       true,
     );
+    const verifyDetailActionHierarchy = async () => {
+      const hierarchy = await browser.executeScript(() => {
+        const hero = document.querySelector(".detail-hero");
+        const title = document.querySelector(".detail-title");
+        const reason = document.querySelector(".hero-reason");
+        const action = document.querySelector(".primary-actions button");
+        if (
+          !(hero instanceof HTMLElement) ||
+          !(title instanceof HTMLElement) ||
+          !(reason instanceof HTMLElement) ||
+          !(action instanceof HTMLElement)
+        ) {
+          throw new Error("Game detail hierarchy is incomplete");
+        }
+        const heroBounds = hero.getBoundingClientRect();
+        const reasonBounds = reason.getBoundingClientRect();
+        const actionBounds = action.getBoundingClientRect();
+        return {
+          duplicateReadiness: document.querySelectorAll(".readiness-card").length,
+          horizontalOverflow: document.documentElement.scrollWidth > window.innerWidth + 1,
+          titleFits: title.scrollWidth <= title.clientWidth + 1,
+          reasonFits: reason.scrollWidth <= reason.clientWidth + 1,
+          reasonInHero:
+            reasonBounds.top >= heroBounds.top && reasonBounds.bottom <= heroBounds.bottom,
+          actionGap: actionBounds.top - heroBounds.bottom,
+          actionFits: actionBounds.left >= 0 && actionBounds.right <= window.innerWidth,
+        };
+      });
+      assert.equal(hierarchy.duplicateReadiness, 0);
+      assert.equal(hierarchy.horizontalOverflow, false);
+      assert.equal(hierarchy.titleFits, true);
+      assert.equal(hierarchy.reasonFits, true);
+      assert.equal(hierarchy.reasonInHero, true);
+      assert.ok(hierarchy.actionGap >= 0 && hierarchy.actionGap < 160);
+      assert.equal(hierarchy.actionFits, true);
+    };
+    await verifyDetailActionHierarchy();
     await captureScenarioScreenshot("game-details-workspace");
+    await browser.manage().window().setRect({ width: 960, height: 640 });
+    await verifyDetailActionHierarchy();
+    await captureScenarioScreenshot("game-details-action-hierarchy");
+    await browser.manage().window().setRect({ width: 640, height: 640 });
     await browser.findElement(By.css(".detail-back")).click();
     await browser.wait(until.elementLocated(By.id("port-search")), 15_000);
     await browser.wait(
