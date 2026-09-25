@@ -464,9 +464,13 @@ function ErrorNotice({ error, clearError }: { error: unknown; clearError: () => 
         <strong>
           {presentation?.tone === "neutral"
             ? "Operation cancelled"
-            : "Portcove couldn’t finish that action"}
+            : presentation?.mutation_state === "committed"
+              ? "Change saved; review the current state"
+              : "Portcove couldn’t finish that action"}
         </strong>
-        <p>{errorText(error)}</p>
+        {!(
+          presentation?.tone === "neutral" && errorText(error) === "The operation was cancelled."
+        ) && <p>{errorText(error)}</p>}
         {presentation && <FailureDetails presentation={presentation} code={code} />}
       </div>
       <div className="error-actions">
@@ -474,7 +478,7 @@ function ErrorNotice({ error, clearError }: { error: unknown; clearError: () => 
           data-focusable
           variant="ghost"
           size="icon-sm"
-          aria-label="Dismiss error"
+          aria-label={presentation?.tone === "neutral" ? "Dismiss notice" : "Dismiss error"}
           onClick={clearError}
         >
           <Icon glyph={X} />

@@ -36,12 +36,16 @@ describe("static development scenarios", () => {
     expect(unavailableLibrary).toContain("Initial scenario library load failed");
     expect(unavailableLibrary).not.toContain("source changed since registration");
     const partialSuccess = renderScenario("partial-success");
+    expect(partialSuccess).toContain("Change saved; review the current state");
+    expect(partialSuccess).not.toContain("Portcove couldn’t finish that action");
     expect(partialSuccess).toContain("The change was saved");
     expect(partialSuccess).toContain("The change was committed");
     expect(partialSuccess).toContain("Scenario refresh failed after the change was committed");
     expect(partialSuccess).not.toContain("source changed since registration");
     const cancellation = renderScenario("cancelled-operation");
     expect(cancellation).toContain("Operation cancelled");
+    expect(cancellation).toContain('aria-label="Dismiss notice"');
+    expect(cancellation).not.toContain("The operation was cancelled.");
     expect(cancellation).toContain("No files were changed");
     expect(cancellation).toContain("Scenario operation cancelled before mutation");
     expect(cancellation).not.toContain("source changed since registration");
