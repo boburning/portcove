@@ -114,13 +114,13 @@ export async function steamEntryScenario(context) {
     await captureAccessibilityReport(browser, accessibility, artifacts);
     await click(button("Add or repair shortcut"));
     await confirmNative(
-      "Confirm Steam entry change",
+      "Confirm Steam shortcut change",
       "__observe__",
       shortcuts,
       "steam-entry-add-native-before-consent",
     );
     await confirmNative(
-      "Confirm Steam entry change",
+      "Confirm Steam shortcut change",
       "Cancel",
       shortcuts,
       "steam-entry-add-native-cancelled",
@@ -129,8 +129,8 @@ export async function steamEntryScenario(context) {
     await assert.rejects(stat(shortcuts), { code: "ENOENT" });
     await click(button("Add or repair shortcut"));
     await confirmNative(
-      "Confirm Steam entry change",
-      "Apply reviewed Add / Repair",
+      "Confirm Steam shortcut change",
+      "Add or repair shortcut",
       shortcuts,
       "steam-entry-add-native-confirmed",
     );
@@ -205,8 +205,8 @@ export async function steamEntryScenario(context) {
     artifacts.push(screenshot);
     await click(button("Remove shortcut"));
     await confirmNative(
-      "Confirm Steam entry change",
-      "Apply reviewed Remove",
+      "Confirm Steam shortcut change",
+      "Remove shortcut",
       shortcuts,
       "steam-entry-remove-native-confirmed",
     );
@@ -334,7 +334,7 @@ export async function steamEntryScenario(context) {
     await assert.rejects(stat(shortcuts), { code: "ENOENT" });
     await click(button("Add or repair selected shortcuts"));
     await confirmNative(
-      "Confirm Steam entry change",
+      "Confirm Steam shortcut change",
       "Cancel",
       shortcuts,
       "steam-batch-native-cancelled",
@@ -342,8 +342,8 @@ export async function steamEntryScenario(context) {
     await assert.rejects(stat(shortcuts), { code: "ENOENT" });
     await click(button("Add or repair selected shortcuts"));
     await confirmNative(
-      "Confirm Steam entry change",
-      "Apply reviewed batch Add / Repair",
+      "Confirm Steam shortcut change",
+      "Add or repair selected shortcuts",
       shortcuts,
       "steam-batch-native-confirmed",
     );

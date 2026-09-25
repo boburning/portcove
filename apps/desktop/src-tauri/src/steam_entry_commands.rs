@@ -151,8 +151,8 @@ pub(crate) async fn apply_steam_entry(
     })
     .await?;
     let action = match review.operation {
-        SteamEntryOperation::AddOrRepair => "Apply reviewed Add / Repair",
-        SteamEntryOperation::Remove => "Apply reviewed Remove",
+        SteamEntryOperation::AddOrRepair => "Add or repair shortcut",
+        SteamEntryOperation::Remove => "Remove shortcut",
     };
     let message = format!(
         "{action} for {} in Steam profile {}?\n\nShortcut file: {}\nPortcove library: {}\n\nSteam must be closed. Portcove will recheck the profile, process state, and reviewed plan before writing.",
@@ -161,7 +161,7 @@ pub(crate) async fn apply_steam_entry(
         review.shortcuts_path.display(),
         review.library_root.display(),
     );
-    if !confirm_destructive(&app, "Confirm Steam entry change", message, action).await {
+    if !confirm_destructive(&app, "Confirm Steam shortcut change", message, action).await {
         return Ok(None);
     }
     blocking_worker(move || {
@@ -223,7 +223,7 @@ pub(crate) async fn apply_steam_batch_add(
         ))
     })
     .await?;
-    let action = "Apply reviewed batch Add / Repair";
+    let action = "Add or repair selected shortcuts";
     let games = review
         .selected_games
         .iter()
@@ -236,7 +236,7 @@ pub(crate) async fn apply_steam_batch_add(
         review.shortcuts_path.display(),
         review.library_root.display(),
     );
-    if !confirm_destructive(&app, "Confirm Steam entry change", message, action).await {
+    if !confirm_destructive(&app, "Confirm Steam shortcut change", message, action).await {
         return Ok(None);
     }
     blocking_worker(move || {
