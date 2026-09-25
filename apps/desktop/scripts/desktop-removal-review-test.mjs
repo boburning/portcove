@@ -27,7 +27,12 @@ export async function removalReviewScenario({
     const original = path.join(output, `owned-${port.id}`);
     const paths = command(["paths", port.id]);
     const save = path.join(paths.user_data_root, "owned-review-save.bin");
-    const otherInstall = command(["status", "opengoal-jak1"]).active;
+    const otherInstallPortId = ["opengoal-jak1", "opengoal-jak2"].find(
+      (id) => command(["status", id]).active,
+    );
+    assert.ok(otherInstallPortId, "another owned installation is required for preservation proof");
+    const otherInstall = command(["status", otherInstallPortId]).active;
+    assert.ok(otherInstall);
     const sources = command(["source", "list"]);
     const snapshots = command(["backup", "list", port.id]);
     const beforeSave = await readFile(save);
@@ -179,7 +184,7 @@ export async function removalReviewScenario({
       await Promise.all(preservedFiles.map((item) => fileIdentity(item.path))),
       preservedFiles,
     );
-    assert.deepEqual(command(["status", "opengoal-jak1"]).active, otherInstall);
+    assert.deepEqual(command(["status", otherInstallPortId]).active, otherInstall);
     const report = path.join(output, "removal-review-result.json");
     await writeFile(
       report,

@@ -29,6 +29,9 @@ export async function sourceRemovalScenario({
     );
     assert.ok(source);
     const install = command(["status", port.id]).active;
+    const affectedInstallText = install
+      ? port.name
+      : "No installed game currently depends on this reference.";
     const paths = command(["paths", port.id]);
     const relative = path.relative(library, paths.user_data_root);
     assert.ok(relative && !relative.startsWith("..") && !path.isAbsolute(relative));
@@ -119,7 +122,7 @@ export async function sourceRemovalScenario({
     let text = await browser.findElement(dialog).getText();
     assert.ok(
       text.includes(source.path) &&
-        text.includes(port.name) &&
+        text.includes(affectedInstallText) &&
         text.includes("will not move or delete files at") &&
         text.includes("If interrupted, reopen Settings"),
     );
@@ -201,7 +204,7 @@ export async function sourceRemovalScenario({
       await Promise.all(preserved.map((item) => fileIdentity(item.path))),
       preserved,
     );
-    assert.equal(command(["status", port.id]).active.id, install.id);
+    assert.deepEqual(command(["status", port.id]).active, install);
     assert.ok(command(["backup", "list", port.id]).backups.some((item) => item.id === backup.id));
     const result = path.join(output, "source-removal-result.json");
     await writeFile(
@@ -210,7 +213,7 @@ export async function sourceRemovalScenario({
         {
           profile_id: source.profile_id,
           preserved_files: preserved,
-          preserved_install: install.id,
+          preserved_install: install?.id ?? null,
           preserved_backup: backup.id,
           preserved_other_sources: otherSources,
           dismissal_and_native_cancel_preserved_reference: true,

@@ -53,7 +53,12 @@ export async function adoptionReviewScenario({
         path.join(previous.path, port.executable_hints[host][0]),
       ].map(fileIdentity),
     );
-    const otherInstall = command(["status", "opengoal-jak1"]).active;
+    const otherInstallPortId = ["opengoal-jak1", "opengoal-jak2"].find(
+      (id) => command(["status", id]).active,
+    );
+    assert.ok(otherInstallPortId, "another owned installation is required for preservation proof");
+    const otherInstall = command(["status", otherInstallPortId]).active;
+    assert.ok(otherInstall);
     const sources = command(["source", "list"]);
     await browser.manage().window().setRect({ width: 1440, height: 1000 });
     await browser.navigate().refresh();
@@ -257,7 +262,7 @@ export async function adoptionReviewScenario({
       preserved,
     );
     assert.deepEqual(command(["source", "list"]), sources);
-    assert.equal(command(["status", "opengoal-jak1"]).active.id, otherInstall.id);
+    assert.equal(command(["status", otherInstallPortId]).active.id, otherInstall.id);
     assert.deepEqual(
       command(["backup", "list", port.id]).backups.map((item) => item.id),
       [backup.id],

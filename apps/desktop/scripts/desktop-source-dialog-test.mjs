@@ -10,20 +10,24 @@ import {
   reviewControls,
 } from "./desktop-review-controls.mjs";
 
-export async function sourceDialogScenario({
-  browser,
-  scenario,
-  output,
-  artifacts,
-  command,
-  open,
-}) {
+export async function sourceDialogScenario({ browser, scenario, output, artifacts, command }) {
   await scenario("native-source-intake-and-discovery-dialogs", async () => {
     const port = command(["catalog", "show", "opengoal-jak1"]);
     const profileLabel = port.presentation.source_requirements[0].label;
     const { button, click } = reviewControls(browser);
 
-    await open(port, false);
+    await browser.navigate().refresh();
+    await browser.wait(
+      until.elementLocated(By.css('nav[aria-label="Primary navigation"]')),
+      15_000,
+    );
+    await click(By.xpath('//nav//button[contains(., "Port catalog")]'));
+    const search = await browser.findElement(By.id("port-search"));
+    await search.sendKeys(
+      Key.chord(process.platform === "darwin" ? Key.COMMAND : Key.CONTROL, "a"),
+      Key.BACK_SPACE,
+    );
+    await click(By.css(`[data-detail-origin="catalog:card:${port.id}"]`));
     await click(By.css(".requirements-disclosure > .requirements-summary"));
     const intakeTrigger = await browser.findElement(button("Check original game files"));
     await click(button("Check original game files"));

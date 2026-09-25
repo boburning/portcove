@@ -347,7 +347,7 @@ export async function installScenarios({
         return buttons.length === 0;
       }, 15_000);
       await browser.wait(
-        until.elementLocated(By.xpath('//*[normalize-space(.)="Ready to launch"]')),
+        until.elementLocated(By.xpath('//*[normalize-space(.)="Ready to play"]')),
         15_000,
       );
       observations.commands_after_retry = await browser.executeScript(
