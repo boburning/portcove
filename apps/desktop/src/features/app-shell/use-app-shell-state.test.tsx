@@ -3,18 +3,23 @@ import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useAppShellState } from "./use-app-shell-state";
+import type { BrowsingInputs } from "./use-app-shell-state";
 
 let root: Root;
+let host: HTMLDivElement;
 let state: ReturnType<typeof useAppShellState>;
+let initialInputs: BrowsingInputs | undefined;
 
 function Fixture() {
-  state = useAppShellState();
+  state = useAppShellState("library", initialInputs);
   return null;
 }
 
 beforeEach(async () => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
-  root = createRoot(document.createElement("div"));
+  initialInputs = undefined;
+  host = document.createElement("div");
+  root = createRoot(host);
   await act(async () => root.render(createElement(Fixture)));
 });
 
@@ -89,6 +94,41 @@ describe("app shell state", () => {
       biosPath: "D:/bios/system.bin",
       adoptOpen: true,
       adoptPath: "D:/existing-port",
+    });
+  });
+
+  it("restores only browsing inputs after a library generation remount", async () => {
+    await act(async () => {
+      state.setFilter("ready");
+      state.setQuery("my ports");
+      state.setSelectedId("old-detail");
+      state.setAdoptOpen(true);
+      state.setSourcePath("D:/old-source.iso");
+      state.setView("catalog");
+    });
+    await act(async () => {
+      state.setFilter("beta");
+      state.setQuery("new ports");
+      state.setCatalogSort("installed-first");
+    });
+    initialInputs = state.browsingInputs;
+    await act(async () => root.unmount());
+    root = createRoot(host);
+    await act(async () => root.render(createElement(Fixture)));
+
+    expect(state).toMatchObject({
+      view: "library",
+      filter: "ready",
+      query: "my ports",
+      selectedId: undefined,
+      adoptOpen: false,
+      sourcePath: "",
+    });
+    await act(async () => state.setView("catalog"));
+    expect(state).toMatchObject({
+      filter: "beta",
+      query: "new ports",
+      catalogSort: "installed-first",
     });
   });
 });

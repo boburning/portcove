@@ -16,7 +16,11 @@ import {
   useInstallPlanning,
 } from "./features/installation/use-installation-planning";
 import { detailActions } from "./features/game-details/detail-actions";
-import { useAppShellState } from "./features/app-shell/use-app-shell-state";
+import {
+  libraryBrowsingKey,
+  useLibraryBrowsingContext,
+  type LibraryBrowsingContext,
+} from "./features/app-shell/use-library-browsing-context";
 import { useDetailWorkspaceNavigation } from "./features/app-shell/use-detail-workspace-navigation";
 import {
   useLibrarySelectionLanding,
@@ -56,7 +60,6 @@ import {
   type SourcePickerPurpose,
 } from "./file-picker";
 import { desktopApi } from "./api";
-import { useWorkspaceContinuity } from "./keyboard-shortcuts";
 import { useThemePreference } from "./theme";
 import { useGamepadNavigation } from "./gamepad";
 import { focusAndReveal, focusRegion } from "./focus";
@@ -88,6 +91,19 @@ export const missingBootstrapError = {
 } as const;
 
 export default function App() {
+  const [browsingContexts, setBrowsingContexts] = useState(
+    () => new Map<string, LibraryBrowsingContext>(),
+  );
+  const rememberBrowsingContext = useCallback((root: string, context: LibraryBrowsingContext) => {
+    setBrowsingContexts((current) => {
+      const next = new Map(current);
+      const key = libraryBrowsingKey(root);
+      next.delete(key);
+      next.set(key, context);
+      if (next.size > 8) next.delete(next.keys().next().value!);
+      return next;
+    });
+  }, []);
   const { bootstrap, bootstrapError, switchLibrary, chooseLibrary, resetLibrary } =
     useBootstrapState();
   const {
@@ -117,6 +133,12 @@ export default function App() {
     <Workspace
       key={bootstrap.generation}
       bootstrap={bootstrap}
+      initialBrowsingContext={
+        bootstrap.library_root
+          ? browsingContexts.get(libraryBrowsingKey(bootstrap.library_root))
+          : undefined
+      }
+      rememberBrowsingContext={rememberBrowsingContext}
       switchLibrary={switchFromSettings}
       resetLibrary={resetFromSettings}
       returnToSelection={returnToSelection}
@@ -244,12 +266,16 @@ function startupDetailLabel(key: string) {
 
 function Workspace({
   bootstrap,
+  initialBrowsingContext,
+  rememberBrowsingContext,
   switchLibrary,
   resetLibrary,
   returnToSelection,
   consumeLibrarySelectionReturn,
 }: {
   bootstrap: BootstrapStatus;
+  initialBrowsingContext?: LibraryBrowsingContext;
+  rememberBrowsingContext: (root: string, context: LibraryBrowsingContext) => void;
   switchLibrary: (path: string) => Promise<void>;
   resetLibrary: () => Promise<void>;
   returnToSelection?: "switch" | "reset";
@@ -263,7 +289,16 @@ function Workspace({
   });
   const github = useGithubAuth(operations.perform, operations.setError);
   const updates = useUpdateCenter(operations.perform, data.statuses);
-  const ui = useAppShellState(returnToSelection ? "settings" : "library");
+  const { ui, switchView, workspace, switchLibraryWithContext, resetLibraryWithContext } =
+    useLibraryBrowsingContext({
+      root: bootstrap.library_root,
+      initial: initialBrowsingContext,
+      returnToSelection,
+      remember: rememberBrowsingContext,
+      switchLibrary,
+      resetLibrary,
+      ready: Boolean(data.catalog),
+    });
   const { catalog, diagnosticRevision, diagnosticsStale, doctor, refreshDiagnostics } = data;
   useEffect(() => {
     if (
@@ -313,7 +348,6 @@ function Workspace({
     operations.perform,
   );
   const backups = usePortBackups(model.port?.id, operations.setError);
-  const { switchView, workspace } = useWorkspaceContinuity(ui.view);
   useLibrarySelectionLanding(returnToSelection, workspace, consumeLibrarySelectionReturn);
   const { adoptOpen, selectedId, setAdoptOpen, setSelectedId, setView } = ui;
   const availablePortIds = useMemo(
@@ -492,8 +526,8 @@ function Workspace({
               sourceHealth={sourceHealth}
               appearance={appearance}
               bootstrap={bootstrap}
-              switchLibrary={switchLibrary}
-              resetLibrary={resetLibrary}
+              switchLibrary={switchLibraryWithContext}
+              resetLibrary={resetLibraryWithContext}
               nativeSourceDrag={nativeSourceDrag}
               hostToolActions={hostToolActions}
               applicationUpdateNotice={applicationUpdate.notice}
@@ -535,7 +569,7 @@ function Workspace({
 }
 
 type DataState = ReturnType<typeof usePortcoveData>;
-type UiState = ReturnType<typeof useAppShellState>;
+type UiState = ReturnType<typeof useLibraryBrowsingContext>["ui"];
 type OperationState = ReturnType<typeof useOperationState>;
 type GithubState = ReturnType<typeof useGithubAuth>;
 type UpdateState = ReturnType<typeof useUpdateCenter>;

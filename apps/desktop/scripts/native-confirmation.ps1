@@ -4,7 +4,8 @@ param(
     [Parameter(Mandatory)][string]$Title,
     [Parameter(Mandatory)][string]$ExpectedText,
     [Parameter(Mandatory)][string]$Button,
-    [string]$FilePath
+    [string]$FilePath,
+    [string]$DirectoryPath
 )
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName UIAutomationClient
@@ -73,6 +74,7 @@ if (-not $window) {
     throw "Owned native confirmation did not appear. Owned window observations: $observed"
 }
 $windowScope = 'owned-exact-target'
+if ($FilePath -and $DirectoryPath) { throw 'Choose only one native picker input.' }
 if ($FilePath) {
     Assert-LiveApplication
     if ($Button -ne 'Open' -or $Title -notin @('Choose local artwork', 'Choose game files', 'Choose BIOS file')) { throw 'File input is limited to owned artwork or source pickers.' }
@@ -80,6 +82,15 @@ if ($FilePath) {
     if (-not [IO.File]::Exists($selected)) { throw 'Owned picker fixture is not a file.' }
     $fields = @($children | Where-Object { $_.Current.ControlType -eq [System.Windows.Automation.ControlType]::Edit -and $_.Current.Name -eq 'File name:' })
     if ($fields.Count -ne 1) { throw 'Expected one exact file-name field in the owned artwork picker.' }
+    $fields[0].GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).SetValue($selected)
+}
+if ($DirectoryPath) {
+    Assert-LiveApplication
+    if ($Button -ne 'Select Folder' -or $Title -ne 'Choose Portcove library') { throw 'Directory input is limited to the owned library picker.' }
+    $selected = (Resolve-Path -LiteralPath $DirectoryPath).Path
+    if (-not [IO.Directory]::Exists($selected)) { throw 'Owned picker fixture is not a directory.' }
+    $fields = @($children | Where-Object { $_.Current.ControlType -eq [System.Windows.Automation.ControlType]::Edit -and $_.Current.Name -eq 'Folder:' })
+    if ($fields.Count -ne 1) { throw 'Expected one exact folder field in the owned library picker.' }
     $fields[0].GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).SetValue($selected)
 }
 if ($Button -ne '__observe__') {
@@ -120,4 +131,4 @@ Assert-LiveApplication
 if ($Button -ne '__observe__') {
     $buttons[0].GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
 }
-[pscustomobject]@{ application_pid = $applicationId; driver_pid = $DriverProcessId; application_path = $applicationFull; title = $Title; window_scope = $windowScope; button = $Button; text = $text; selected_file = $FilePath } | ConvertTo-Json -Compress
+[pscustomobject]@{ application_pid = $applicationId; driver_pid = $DriverProcessId; application_path = $applicationFull; title = $Title; window_scope = $windowScope; button = $Button; text = $text; selected_file = $FilePath; selected_directory = $DirectoryPath } | ConvertTo-Json -Compress

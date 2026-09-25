@@ -2,6 +2,10 @@ import { useCallback, useState, type SetStateAction } from "react";
 import { type CatalogSort, type Filter, type View } from "../../view-model";
 
 type BrowserState = { filter: Filter; query: string };
+export type BrowsingInputs = {
+  sections: Record<View, BrowserState>;
+  catalogSort: CatalogSort;
+};
 
 const initialBrowserState = (): Record<View, BrowserState> => ({
   library: { filter: "all", query: "" },
@@ -10,10 +14,12 @@ const initialBrowserState = (): Record<View, BrowserState> => ({
   settings: { filter: "all", query: "" },
 });
 
-export function useAppShellState(initialView: View = "library") {
+export function useAppShellState(initialView: View = "library", initial?: BrowsingInputs) {
   const [view, setViewState] = useState<View>(initialView);
-  const [browserState, setBrowserState] = useState(initialBrowserState);
-  const [catalogSort, setCatalogSort] = useState<CatalogSort>("catalog");
+  const [browserState, setBrowserState] = useState(
+    () => initial?.sections ?? initialBrowserState(),
+  );
+  const [catalogSort, setCatalogSort] = useState<CatalogSort>(initial?.catalogSort ?? "catalog");
   const [selectedId, setSelectedId] = useState<string>();
   const [sourcePath, setSourcePath] = useState("");
   const [biosPath, setBiosPath] = useState("");
@@ -51,6 +57,7 @@ export function useAppShellState(initialView: View = "library") {
   );
   const { filter, query } = browserState[view];
   return {
+    browsingInputs: { sections: browserState, catalogSort },
     view,
     setView,
     filter,

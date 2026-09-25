@@ -29,6 +29,11 @@ export const DESKTOP_SCENARIOS = Object.freeze([
     "Whole-library selection review stays non-mutating and restores its trigger.",
   ),
   scenario(
+    "native-library-browsing-context",
+    "A reviewed library generation change restores only its Catalog browsing inputs.",
+    { qualification_only: true },
+  ),
+  scenario(
     "native-catalog-update-dialog",
     "Catalog trust and update management preserves nested dismissal without mutating catalog state.",
     { source: "desktop-catalog-update-test.mjs" },
