@@ -388,6 +388,24 @@ pub(crate) fn document(contract: SchemaContract) -> serde_json::Value {
                 serde_json::json!(schema_for_contract::<PortRemovalPreview>(contract)),
             ),
             (
+                "external_runtime_preview",
+                serde_json::json!(
+                    schema_for_contract::<portcove_core::ExternalRuntimePreview>(contract)
+                ),
+            ),
+            (
+                "external_runtime_removal_preview",
+                serde_json::json!(schema_for_contract::<
+                    portcove_core::ExternalRuntimeRemovalPreview,
+                >(contract)),
+            ),
+            (
+                "external_runtime_record",
+                serde_json::json!(schema_for_contract::<portcove_core::ExternalRuntimeRecord>(
+                    contract
+                )),
+            ),
+            (
                 "storage",
                 serde_json::json!(schema_for_contract::<StorageSummary>(contract)),
             ),

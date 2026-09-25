@@ -65,6 +65,10 @@ export type BackupInventory = Generated.TransportOutputs["backup_inventory"];
 export type RestoreResult = Generated.TransportOutputs["restore_result"];
 
 export type AdoptionPreview = Generated.TransportOutputs["adoption_preview"];
+export type ExternalRuntimePreview = Generated.TransportOutputs["desktop_external_runtime_preview"];
+export type ExternalRuntimeRemovalPreview =
+  Generated.TransportOutputs["desktop_external_runtime_removal_preview"];
+export type ExternalRuntimeRecord = Generated.TransportOutputs["desktop_external_runtime_record"];
 
 export type { SourceRecord } from "./transport-types.generated";
 

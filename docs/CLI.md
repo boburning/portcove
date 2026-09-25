@@ -36,6 +36,24 @@ use the [reference below](#automation-and-integration-reference).
    A backup is not a copy of the original game files. Review backup and restore
    consequences in `portcove backup --help` before deleting or restoring one.
 
+An official port that offers a user-prepared runtime uses a separate route:
+prepare the exact accepted package outside Portcove, run `portcove external
+preview PORT_ID PATH` against its extracted folder, then `portcove external
+register PORT_ID PATH` to review and save a non-owning reference. `portcove exec
+PORT_ID` supervises its launch. `portcove external remove PORT_ID` removes only
+that reference; it never uninstalls or cleans up external files. The catalog must
+actually offer this route for the selected platform. Portcove checks immutable
+package files at registration and launch; game-owned output remains outside
+Portcove backup and restore. Source files, when required, are registered
+separately through the accepted source profile.
+
+For Wave Race 64: Recompiled on Windows, extract the official v1.0.2 ZIP and
+create an **empty `portable.txt`** beside `WaveRace64Recomp.exe` before
+`external preview`. The marker is a player-created preparation step, not a file
+in the upstream ZIP. It is part of the exact accepted tree; without it, review
+fails. Portable mode keeps game-owned settings, the copied source, and saves
+beside the executable. Portcove does not back up, remove, or restore those files.
+
 Human Created, Updated, Started, and API reset times are shown in UTC. A value
 outside the supported timestamp range is labeled unknown. `--json` and
 `--jsonl` retain their Unix timestamp fields for integrations.
@@ -91,6 +109,15 @@ publisher origin/trust, digest provenance, source compatibility and scoped test
 evidence must not collapse into one supported flag. Missing gameplay is not a
 source mismatch. Observable schema changes require explicit versioning and
 legacy/unknown-value handling; this planning contract adds no command or field.
+
+Schema 55 adds the `external` capability and `external.preview`,
+`external.register`, and `external.remove`,
+the `user-prepared` release route, external registration status, and retained
+launch ownership. Register and remove require reviewed state and consent. The
+registration is local library state; metadata export/import does not transfer
+the outside runtime or grant ownership of it. On another host or after moving
+the external folder, prepare and register it again against an accepted catalog
+entry.
 
 Schema 54 adds `port_actions` to port status. Core projects install, launch,
 and owned-removal availability as `not_offered`, `waiting`, `held`, or
@@ -177,7 +204,7 @@ The CLI API schema version is independent of the Portcove release version. Every
 
 ```json
 {
-  "schema_version": 54,
+  "schema_version": 55,
   "ok": true,
   "command": "status",
   "data": {},
@@ -313,7 +340,7 @@ other games remain readable. New installations retain their execution and
 persistence definitions in manifest schema 6, introduced with writer protocol 23.
 Protocol 25 now protects exact successor definition retention; older clients refuse
 to modify an upgraded library. The Playnite
-reference accepts API schemas 42 through 54 with event schema 2. Schema 50
+reference accepts API schemas 42 through 55 with event schema 2. Schema 50
 advertises that event version explicitly; the historical 42–49 window retains
 its documented event-2 contract. Schema 51 consumes the activity-feed
 completeness and protected classifications for lifecycle management.

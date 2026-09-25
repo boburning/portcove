@@ -39,6 +39,8 @@ export type ActivityOperation =
   | "adopt"
   | "remove"
   | "remove_source"
+  | "register_external"
+  | "remove_external"
   | "register_source"
   | "verify_source";
 export type ActivityStatus = "running" | "succeeded" | "failed" | "cancelled";
@@ -64,16 +66,19 @@ export type DefinitionEligibilityReason =
   | "mandatory_check_failed"
   | "source_identity_mismatch"
   | "required_source_missing";
-export type DefinitionOperation = "availability" | "install" | "prepare" | "launch" | "update";
+export type DefinitionOperation = "availability" | "install" | "register_external" | "prepare" | "launch" | "update";
+export type Platform = "windows-x86-64" | "linux-x86-64" | "macos-x86-64" | "macos-aarch64";
 /**
  * A read-only projection of the existing operation guards for client presentation.
  * An `allowed` result is not an authorization token: execution rechecks current
  * inputs under its own lock and may still require an exact reviewed plan.
  */
-export type PortAction = "install" | "launch" | "remove_managed";
+export type PortAction = "install" | "register_external" | "launch" | "remove_managed" | "remove_external";
 export type PortActionAvailability = "not_offered" | "waiting" | "held" | "allowed";
 export type PortActionReason =
   | "available"
+  | "route_not_offered"
+  | "already_registered"
   | "unsupported_platform"
   | "not_installed"
   | "review_required"
@@ -155,7 +160,6 @@ export type AdapterKind =
   | "generated-cache"
   | "upstream-managed-setup"
   | "psx-recomp-managed";
-export type Platform = "windows-x86-64" | "linux-x86-64" | "macos-x86-64" | "macos-aarch64";
 /**
  * User-facing installation behavior supplied by the catalog. Adapters remain an
  * implementation detail and must not be translated into product copy by clients.
@@ -167,8 +171,9 @@ export type InstallationMethod =
   | "referenced-disc"
   | "generated-game-data"
   | "upstream-setup"
-  | "managed-recompilation";
-export type SavesAndSettingsBehavior = "portcove-managed";
+  | "managed-recompilation"
+  | "user-prepared-runtime";
+export type SavesAndSettingsBehavior = "portcove-managed" | "external-user-owned";
 export type PortSourceRole = "game" | "bios";
 export type SourceVerificationMethod = "catalog-identity" | "upstream-validator" | "catalog-rules";
 export type RuntimeSourceMaterialization =
@@ -491,6 +496,9 @@ export interface TransportOutputs {
   definition_capability_report: OutputDefinitionCapabilityReport;
   definition_capability_request: OutputDefinitionCapabilityRequest;
   doctor: OutputDoctor;
+  external_runtime_preview: OutputExternalRuntimePreview;
+  external_runtime_record: ExternalRuntimeRecord;
+  external_runtime_removal_preview: OutputExternalRuntimeRemovalPreview;
   game_file_roots: OutputGameFileRoots;
   game_file_scan_snapshot: OutputGameFileScanSnapshot;
   game_update_plan: OutputGameUpdatePlan;
@@ -561,6 +569,9 @@ export interface TransportOutputs {
   desktop_bootstrap_status: OutputDesktopBootstrapStatus;
   desktop_cli_command_context: OutputDesktopCliCommandContext;
   desktop_desktop_error: FailureReport;
+  desktop_external_runtime_preview: OutputExternalRuntimePreview;
+  desktop_external_runtime_record: ExternalRuntimeRecord;
+  desktop_external_runtime_removal_preview: OutputExternalRuntimeRemovalPreview;
   desktop_game_file_roots: OutputGameFileRoots;
   desktop_game_file_scan_snapshot: OutputGameFileScanSnapshot;
   desktop_launch_result: OutputDesktopLaunchResult;
@@ -759,6 +770,7 @@ export interface PortStatus {
    * Successor-definition policy decisions. Legacy catalog ports retain an empty list.
    */
   definition_operations?: DefinitionOperationAssessment[];
+  external_runtime?: ExternalRuntimeRecord | null;
   last_launched_at: number | null;
   last_update_check?: UpdateSnapshot | null;
   /**
@@ -790,6 +802,45 @@ export interface DefinitionEligibility {
   outcome: DefinitionEligibilityOutcome;
   reason: DefinitionEligibilityReason;
   [k: string]: unknown;
+}
+export interface ExternalRuntimeRecord {
+  archive_sha256: string;
+  executable: string;
+  id: string;
+  immutable_tree_sha256: string;
+  path: string;
+  platform: Platform;
+  port_id: string;
+  registered_at: number;
+  retained_definition?: DefinitionSelectionIdentity | null;
+  version: string;
+  [k: string]: unknown;
+}
+export interface DefinitionSelectionIdentity {
+  definition_revision: number;
+  grant_id: string;
+  namespace: string;
+  policy_revision: number;
+  provenance: AuthenticatedDefinitionProvenance;
+  repository_root_sha256: string;
+  stable_id: string;
+}
+/**
+ * Authenticated metadata facts captured with a candidate. They are not a persisted replay floor.
+ */
+export interface AuthenticatedDefinitionProvenance {
+  definitions_sha256: string;
+  definitions_version: number;
+  earliest_expiration: string;
+  index_sha256: string;
+  root_sha256: string;
+  root_version: number;
+  snapshot_sha256: string;
+  snapshot_version: number;
+  targets_sha256: string;
+  targets_version: number;
+  timestamp_sha256: string;
+  timestamp_version: number;
 }
 export interface UpdateSnapshot {
   check: UpdateCheck;
@@ -1029,6 +1080,7 @@ export interface PersistentFilePattern {
  */
 export interface PortPresentation {
   installation_method: InstallationMethod;
+  manual_preparation?: string | null;
   saves_and_settings: SavesAndSettingsBehavior;
   source_requirements: SourceRequirementPresentation[];
   [k: string]: unknown;
@@ -1053,9 +1105,15 @@ export interface ReleaseSpec {
     "macos-x86-64"?: DirectReleaseSpec;
     "windows-x86-64"?: DirectReleaseSpec;
   };
-  provider: "github" | "gitlab" | "direct-manifest";
+  provider: "github" | "gitlab" | "direct-manifest" | "user-prepared";
   repository: string;
   rolling_tag: string | null;
+  user_prepared: {
+    "linux-x86-64"?: UserPreparedRuntimeSpec;
+    "macos-aarch64"?: UserPreparedRuntimeSpec;
+    "macos-x86-64"?: UserPreparedRuntimeSpec;
+    "windows-x86-64"?: UserPreparedRuntimeSpec;
+  };
   [k: string]: unknown;
 }
 export interface DirectReleaseSpec {
@@ -1063,6 +1121,24 @@ export interface DirectReleaseSpec {
   sha256: string;
   size: number;
   url: string;
+  version: string;
+  [k: string]: unknown;
+}
+/**
+ * Catalog-accepted identity for a runtime the player prepares outside Portcove.
+ * Portcove never downloads or owns this package through this route.
+ */
+export interface UserPreparedRuntimeSpec {
+  archive_name: string;
+  archive_sha256: string;
+  archive_size: number;
+  executable: string;
+  /**
+   * Digest of the bounded, sorted immutable file inventory after extraction.
+   */
+  immutable_tree_sha256: string;
+  mutable_paths: string[];
+  source_argument_extension: string | null;
   version: string;
   [k: string]: unknown;
 }
@@ -1361,6 +1437,25 @@ export interface RepairItem {
   proposed_action: string;
   [k: string]: unknown;
 }
+export interface OutputExternalRuntimePreview {
+  archive_sha256: string;
+  executable: string;
+  immutable_file_count: number;
+  immutable_tree_sha256: string;
+  path: string;
+  port_id: string;
+  preview_sha256: string;
+  version: string;
+  [k: string]: unknown;
+}
+export interface OutputExternalRuntimeRemovalPreview {
+  external_files_will_be_preserved: boolean;
+  path: string;
+  port_id: string;
+  preview_sha256: string;
+  version: string;
+  [k: string]: unknown;
+}
 export interface GameFileRoot {
   availability: GameFileRootAvailability;
   created_at: number;
@@ -1534,6 +1629,7 @@ export interface LaunchSessionRecord {
   install_root: string;
   message: string | null;
   outcome: LaunchSessionOutcome | null;
+  owner_kind: "managed" | "external";
   phase: LaunchSessionPhase;
   port_id: string;
   started_at: number;

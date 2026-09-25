@@ -1076,6 +1076,252 @@
     "title": "FailureReport",
     "type": "object"
   },
+  "external_runtime_preview": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "archive_sha256": {
+        "type": "string"
+      },
+      "executable": {
+        "type": "string"
+      },
+      "immutable_file_count": {
+        "format": "uint",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "immutable_tree_sha256": {
+        "type": "string"
+      },
+      "path": {
+        "type": "string"
+      },
+      "port_id": {
+        "type": "string"
+      },
+      "preview_sha256": {
+        "type": "string"
+      },
+      "version": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "port_id",
+      "path",
+      "executable",
+      "version",
+      "archive_sha256",
+      "immutable_tree_sha256",
+      "immutable_file_count",
+      "preview_sha256"
+    ],
+    "title": "ExternalRuntimePreview",
+    "type": "object"
+  },
+  "external_runtime_record": {
+    "$defs": {
+      "AuthenticatedDefinitionProvenance": {
+        "additionalProperties": false,
+        "description": "Authenticated metadata facts captured with a candidate. They are not a persisted replay floor.",
+        "properties": {
+          "definitions_sha256": {
+            "type": "string"
+          },
+          "definitions_version": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "earliest_expiration": {
+            "type": "string"
+          },
+          "index_sha256": {
+            "type": "string"
+          },
+          "root_sha256": {
+            "type": "string"
+          },
+          "root_version": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "snapshot_sha256": {
+            "type": "string"
+          },
+          "snapshot_version": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "targets_sha256": {
+            "type": "string"
+          },
+          "targets_version": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "timestamp_sha256": {
+            "type": "string"
+          },
+          "timestamp_version": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "root_version",
+          "root_sha256",
+          "timestamp_version",
+          "timestamp_sha256",
+          "snapshot_version",
+          "snapshot_sha256",
+          "targets_version",
+          "targets_sha256",
+          "definitions_version",
+          "definitions_sha256",
+          "earliest_expiration",
+          "index_sha256"
+        ],
+        "type": "object"
+      },
+      "DefinitionSelectionIdentity": {
+        "additionalProperties": false,
+        "properties": {
+          "definition_revision": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "grant_id": {
+            "type": "string"
+          },
+          "namespace": {
+            "type": "string"
+          },
+          "policy_revision": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "provenance": {
+            "$ref": "#/$defs/AuthenticatedDefinitionProvenance"
+          },
+          "repository_root_sha256": {
+            "type": "string"
+          },
+          "stable_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "namespace",
+          "stable_id",
+          "definition_revision",
+          "repository_root_sha256",
+          "grant_id",
+          "policy_revision",
+          "provenance"
+        ],
+        "type": "object"
+      },
+      "Platform": {
+        "enum": [
+          "windows-x86-64",
+          "linux-x86-64",
+          "macos-x86-64",
+          "macos-aarch64"
+        ],
+        "type": "string"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "archive_sha256": {
+        "type": "string"
+      },
+      "executable": {
+        "type": "string"
+      },
+      "id": {
+        "type": "string"
+      },
+      "immutable_tree_sha256": {
+        "type": "string"
+      },
+      "path": {
+        "type": "string"
+      },
+      "platform": {
+        "$ref": "#/$defs/Platform"
+      },
+      "port_id": {
+        "type": "string"
+      },
+      "registered_at": {
+        "format": "int64",
+        "type": "integer"
+      },
+      "retained_definition": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/DefinitionSelectionIdentity"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "version": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "id",
+      "port_id",
+      "path",
+      "executable",
+      "version",
+      "platform",
+      "archive_sha256",
+      "immutable_tree_sha256",
+      "registered_at"
+    ],
+    "title": "ExternalRuntimeRecord",
+    "type": "object"
+  },
+  "external_runtime_removal_preview": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "external_files_will_be_preserved": {
+        "type": "boolean"
+      },
+      "path": {
+        "type": "string"
+      },
+      "port_id": {
+        "type": "string"
+      },
+      "preview_sha256": {
+        "type": "string"
+      },
+      "version": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "port_id",
+      "path",
+      "version",
+      "external_files_will_be_preserved",
+      "preview_sha256"
+    ],
+    "title": "ExternalRuntimeRemovalPreview",
+    "type": "object"
+  },
   "game_file_roots": {
     "$defs": {
       "GameFileRoot": {
@@ -4853,6 +5099,8 @@
           "adopt",
           "remove",
           "remove_source",
+          "register_external",
+          "remove_external",
           "register_source",
           "verify_source"
         ],
@@ -4978,6 +5226,73 @@
           "asset_name",
           "sha256",
           "size"
+        ],
+        "type": "object"
+      },
+      "AuthenticatedDefinitionProvenance": {
+        "additionalProperties": false,
+        "description": "Authenticated metadata facts captured with a candidate. They are not a persisted replay floor.",
+        "properties": {
+          "definitions_sha256": {
+            "type": "string"
+          },
+          "definitions_version": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "earliest_expiration": {
+            "type": "string"
+          },
+          "index_sha256": {
+            "type": "string"
+          },
+          "root_sha256": {
+            "type": "string"
+          },
+          "root_version": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "snapshot_sha256": {
+            "type": "string"
+          },
+          "snapshot_version": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "targets_sha256": {
+            "type": "string"
+          },
+          "targets_version": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "timestamp_sha256": {
+            "type": "string"
+          },
+          "timestamp_version": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "root_version",
+          "root_sha256",
+          "timestamp_version",
+          "timestamp_sha256",
+          "snapshot_version",
+          "snapshot_sha256",
+          "targets_version",
+          "targets_sha256",
+          "definitions_version",
+          "definitions_sha256",
+          "earliest_expiration",
+          "index_sha256"
         ],
         "type": "object"
       },
@@ -5175,6 +5490,7 @@
         "enum": [
           "availability",
           "install",
+          "register_external",
           "prepare",
           "launch",
           "update"
@@ -5198,6 +5514,46 @@
           "operation",
           "eligibility",
           "retained"
+        ],
+        "type": "object"
+      },
+      "DefinitionSelectionIdentity": {
+        "additionalProperties": false,
+        "properties": {
+          "definition_revision": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "grant_id": {
+            "type": "string"
+          },
+          "namespace": {
+            "type": "string"
+          },
+          "policy_revision": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "provenance": {
+            "$ref": "#/$defs/AuthenticatedDefinitionProvenance"
+          },
+          "repository_root_sha256": {
+            "type": "string"
+          },
+          "stable_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "namespace",
+          "stable_id",
+          "definition_revision",
+          "repository_root_sha256",
+          "grant_id",
+          "policy_revision",
+          "provenance"
         ],
         "type": "object"
       },
@@ -5366,6 +5722,60 @@
         ],
         "type": "string"
       },
+      "ExternalRuntimeRecord": {
+        "properties": {
+          "archive_sha256": {
+            "type": "string"
+          },
+          "executable": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "immutable_tree_sha256": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "platform": {
+            "$ref": "#/$defs/Platform"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "registered_at": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "retained_definition": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/DefinitionSelectionIdentity"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "port_id",
+          "path",
+          "executable",
+          "version",
+          "platform",
+          "archive_sha256",
+          "immutable_tree_sha256",
+          "registered_at"
+        ],
+        "type": "object"
+      },
       "FailurePresentation": {
         "properties": {
           "mutation_state": {
@@ -5527,7 +5937,8 @@
           "referenced-disc",
           "generated-game-data",
           "upstream-setup",
-          "managed-recompilation"
+          "managed-recompilation",
+          "user-prepared-runtime"
         ],
         "type": "string"
       },
@@ -5767,8 +6178,10 @@
         "description": "A read-only projection of the existing operation guards for client presentation.\nAn `allowed` result is not an authorization token: execution rechecks current\ninputs under its own lock and may still require an exact reviewed plan.",
         "enum": [
           "install",
+          "register_external",
           "launch",
-          "remove_managed"
+          "remove_managed",
+          "remove_external"
         ],
         "type": "string"
       },
@@ -5814,6 +6227,8 @@
       "PortActionReason": {
         "enum": [
           "available",
+          "route_not_offered",
+          "already_registered",
           "unsupported_platform",
           "not_installed",
           "review_required",
@@ -6156,6 +6571,12 @@
           "installation_method": {
             "$ref": "#/$defs/InstallationMethod"
           },
+          "manual_preparation": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "saves_and_settings": {
             "$ref": "#/$defs/SavesAndSettingsBehavior"
           },
@@ -6303,6 +6724,16 @@
             },
             "type": "array"
           },
+          "external_runtime": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ExternalRuntimeRecord"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "last_launched_at": {
             "default": null,
             "format": "int64",
@@ -6434,7 +6865,8 @@
         "enum": [
           "github",
           "gitlab",
-          "direct-manifest"
+          "direct-manifest",
+          "user-prepared"
         ],
         "type": "string"
       },
@@ -6504,6 +6936,25 @@
               "string",
               "null"
             ]
+          },
+          "user_prepared": {
+            "additionalProperties": false,
+            "default": {},
+            "properties": {
+              "linux-x86-64": {
+                "$ref": "#/$defs/UserPreparedRuntimeSpec"
+              },
+              "macos-aarch64": {
+                "$ref": "#/$defs/UserPreparedRuntimeSpec"
+              },
+              "macos-x86-64": {
+                "$ref": "#/$defs/UserPreparedRuntimeSpec"
+              },
+              "windows-x86-64": {
+                "$ref": "#/$defs/UserPreparedRuntimeSpec"
+              }
+            },
+            "type": "object"
           }
         },
         "required": [
@@ -6511,7 +6962,8 @@
           "repository",
           "rolling_tag",
           "asset_hints",
-          "direct"
+          "direct",
+          "user_prepared"
         ],
         "type": "object"
       },
@@ -6611,7 +7063,8 @@
       },
       "SavesAndSettingsBehavior": {
         "enum": [
-          "portcove-managed"
+          "portcove-managed",
+          "external-user-owned"
         ],
         "type": "string"
       },
@@ -7671,6 +8124,57 @@
           "abandoned"
         ],
         "type": "string"
+      },
+      "UserPreparedRuntimeSpec": {
+        "description": "Catalog-accepted identity for a runtime the player prepares outside Portcove.\nPortcove never downloads or owns this package through this route.",
+        "properties": {
+          "archive_name": {
+            "type": "string"
+          },
+          "archive_sha256": {
+            "type": "string"
+          },
+          "archive_size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "executable": {
+            "type": "string"
+          },
+          "immutable_tree_sha256": {
+            "description": "Digest of the bounded, sorted immutable file inventory after extraction.",
+            "type": "string"
+          },
+          "mutable_paths": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "source_argument_extension": {
+            "default": null,
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "version",
+          "archive_name",
+          "archive_size",
+          "archive_sha256",
+          "executable",
+          "immutable_tree_sha256",
+          "source_argument_extension",
+          "mutable_paths"
+        ],
+        "type": "object"
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",

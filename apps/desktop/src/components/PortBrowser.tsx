@@ -37,7 +37,7 @@ import { SteamBatchEntryDialog } from "./SteamEntry";
 const catalogSortOptions: readonly { value: CatalogSort; label: string }[] = [
   { value: "catalog", label: "Catalog order" },
   { value: "name", label: "Name A–Z" },
-  { value: "installed-first", label: "Installed first" },
+  { value: "installed-first", label: "In library first" },
 ];
 
 export function PortBrowser({
@@ -337,7 +337,13 @@ function ContinueCard({
       <div>
         <p className="eyebrow">CONTINUE</p>
         <h2>{port.name}</h2>
-        {status.active && <p className="continue-meta">Version {status.active.version}</p>}
+        {(status.active || status.external_runtime) && (
+          <p className="continue-meta">
+            {status.active
+              ? `Version ${status.active.version}`
+              : `External version ${status.external_runtime?.version}`}
+          </p>
+        )}
       </div>
       <div className="continue-actions">
         <Button
@@ -397,7 +403,7 @@ function LibrarySummary({ overview }: { overview: LibraryOverview }) {
         </p>
       </div>
       <p className="summary-note">
-        <strong>{overview.installed} installed</strong>
+        <strong>{overview.installed} in library</strong>
         <span>View a game's details for setup and recovery options.</span>
       </p>
     </section>
@@ -564,7 +570,15 @@ function PortCardStatus({
   return (
     <div className="card-status">
       {view === "catalog" && (
-        <strong>{status?.active ? status.active.version : "Not installed"}</strong>
+        <strong>
+          {status?.active
+            ? status.active.version
+            : status?.external_runtime
+              ? `External ${status.external_runtime.version}`
+              : port.release.provider === "user-prepared"
+                ? "Prepare runtime"
+                : "Not installed"}
+        </strong>
       )}
       {view === "library" ? (
         <span className="card-actions">

@@ -495,6 +495,8 @@ function operationLabel(operation: ActivityOperation) {
   const labels: Record<ActivityOperation, string> = {
     prepare: "Game-data setup",
     launch: "Game launch",
+    register_external: "External runtime registration",
+    remove_external: "External registration removal",
     check_update: "Update check",
     backup: "Backup",
     restore: "Backup restore",

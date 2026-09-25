@@ -27,6 +27,7 @@ mod definition_projection;
 mod definition_repository;
 mod durability;
 mod error;
+mod external_runtime;
 mod failure;
 mod game_file_root;
 mod gitlab;
@@ -121,6 +122,7 @@ pub use definition_repository::{
     acquire_definition_candidate,
 };
 pub use error::{ErrorCode, PortcoveError, Result};
+pub use external_runtime::{ExternalRuntimePreview, ExternalRuntimeRemovalPreview};
 pub use failure::{
     FailurePresentation, FailureReport, FailureTone, MutationState, RecoveryAction,
     redact_diagnostic_text, redact_diagnostic_value, sensitive_diagnostic_field,
@@ -202,7 +204,7 @@ pub use source_report::{
 };
 pub use types::*;
 
-pub const API_SCHEMA_VERSION: u32 = 54;
+pub const API_SCHEMA_VERSION: u32 = 55;
 /// Oldest library schema this build can read and migrate.
 pub const MIN_LIBRARY_SCHEMA_VERSION: u32 = 1;
 /// Library schema this build writes after opening a library.

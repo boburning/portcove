@@ -21,6 +21,10 @@ namespace Portcove.ReferenceClient
         private readonly List<Button> actions = new List<Button>();
         private readonly Button cancel = new Button { Content = "Request cancellation", IsEnabled = false, Margin = new Thickness(4), Padding = new Thickness(10, 6, 10, 6) };
         private Button cleanupAction;
+        private Button installAction;
+        private Button updateAction;
+        private Button prepareAction;
+        private bool externalRoute;
         private PublicCli cli;
         private string port;
         private string operationId;
@@ -59,9 +63,9 @@ namespace Portcove.ReferenceClient
             panel.Children.Add(buttons);
             AddAction(buttons, "Refresh readiness and activity", Refresh);
             AddAction(buttons, "Register supplied files", RegisterSources);
-            AddAction(buttons, "Install / use existing", () => Manage("ensure"));
-            AddAction(buttons, "Check and update", () => Manage("update"));
-            AddAction(buttons, "Review preparation", Prepare);
+            installAction = AddAction(buttons, "Install / use existing", () => Manage("ensure"));
+            updateAction = AddAction(buttons, "Check and update", () => Manage("update"));
+            prepareAction = AddAction(buttons, "Review preparation", Prepare);
             cleanupAction = AddAction(buttons, "Review retained cleanup", CleanupPreparation);
             cleanupAction.IsEnabled = false;
             cancel.Click += async (sender, args) =>
@@ -128,6 +132,12 @@ namespace Portcove.ReferenceClient
                 source.IsEnabled = bios.IsEnabled = true;
                 actions.ForEach(button => button.IsEnabled = cli != null && port != null);
                 if (cleanupAction != null) cleanupAction.IsEnabled = cleanupAction.IsEnabled && retainedCleanupAvailable;
+                if (externalRoute)
+                {
+                    installAction.IsEnabled = false;
+                    updateAction.IsEnabled = false;
+                    prepareAction.IsEnabled = false;
+                }
             }
         }
 
@@ -146,11 +156,15 @@ namespace Portcove.ReferenceClient
             if (detached) return;
             retainedCleanupAvailable = repairs.Length != 0;
             var active = Json.Field(status, "active");
+            var external = Json.Field(status, "external_runtime");
+            externalRoute = external != null || Json.Text(Json.Field(catalog, "release"), "provider") == "user-prepared";
             var readiness = Json.Field(status, "readiness");
             var blockers = readiness == null ? "Readiness unknown" : string.Join(", ", Json.Array(Json.Field(readiness, "blockers")).Select(value => Convert.ToString(value).Replace('_', ' ')));
             var definitionOperations = DefinitionOperations.Summary(status);
             var portActions = PortActions.Summary(status);
-            state.Text = (active == null ? "Not installed." : "Installed: " + Json.Text(active, "version") + ".") + "\n" +
+            state.Text = (active != null ? "Installed: " + Json.Text(active, "version") + "." :
+                external != null ? "External runtime registered: " + Json.Text(external, "version") + ". Portcove does not own its files." :
+                externalRoute ? "User-prepared runtime not registered. Register it in Portcove Desktop or CLI before launching from Playnite." : "Not installed.") + "\n" +
                 (readiness != null && Json.Boolean(readiness, "launchable") ? "Portcove reports this game is ready to launch." : "Setup: " + blockers + ".") +
                 "\nSource profile: " + (Json.Field(catalog, "source_profile") ?? "none") +
                 "\nBIOS profile: " + (Json.Field(catalog, "bios_source_profile") ?? "none") +
@@ -204,6 +218,7 @@ namespace Portcove.ReferenceClient
 
         private async Task Manage(string command)
         {
+            if (externalRoute) throw new InvalidOperationException("This user-prepared runtime is registered and removed through Portcove Desktop or CLI; Playnite cannot install or update its external files.");
             var status = await cli.Read("status", "status", port);
             DefinitionOperations.RequireEligible(status, "install");
             var sourcePath = source.Text.Trim();
@@ -225,6 +240,7 @@ namespace Portcove.ReferenceClient
 
         private async Task Prepare()
         {
+            if (externalRoute) throw new InvalidOperationException("Portcove does not prepare this player-owned external runtime. Use Portcove Desktop or CLI to register the accepted folder.");
             var status = await cli.Read("status", "status", port);
             DefinitionOperations.RequireEligible(status, "prepare");
             var plan = await cli.Read("preparation.plan", "preparation", "plan", port);

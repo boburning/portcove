@@ -198,7 +198,17 @@ pub(crate) fn catalog_show(port: &PortDefinition) -> String {
                 source_verification(requirement.verification)
             ));
         }
-        lines.push("Saves and settings: managed by Portcove for backup and restore".into());
+        if let Some(instructions) = &presentation.manual_preparation {
+            lines.push(format!("Preparation: {}", clean(instructions)));
+        }
+        lines.push(match presentation.saves_and_settings {
+            portcove_core::SavesAndSettingsBehavior::PortcoveManaged => {
+                "Saves and settings: managed by Portcove for backup and restore".into()
+            }
+            portcove_core::SavesAndSettingsBehavior::ExternalUserOwned => {
+                "Saves and settings: user-owned; Portcove does not back up or remove them".into()
+            }
+        });
     } else {
         lines.push("Presentation details: unavailable in this catalog".into());
     }
@@ -1307,6 +1317,7 @@ fn installation_method(method: portcove_core::InstallationMethod) -> &'static st
         portcove_core::InstallationMethod::GeneratedGameData => "generated game data",
         portcove_core::InstallationMethod::UpstreamSetup => "managed upstream setup",
         portcove_core::InstallationMethod::ManagedRecompilation => "managed native recompilation",
+        portcove_core::InstallationMethod::UserPreparedRuntime => "user-prepared external runtime",
     }
 }
 
@@ -1445,6 +1456,10 @@ mod tests {
         assert!(output.contains("Saves and settings: managed by Portcove"));
         assert!(output.contains("Upstream state: active"));
         assert!(!output.contains("libultraship-portable"));
+        let external = catalog_show(catalog.port("wave-race-64-recomp").unwrap());
+        assert!(external.contains("Preparation: Extract the official v1.0.2 Windows ZIP"));
+        assert!(external.contains("create an empty portable.txt"));
+        assert!(external.contains("Saves and settings: user-owned"));
     }
 
     #[test]

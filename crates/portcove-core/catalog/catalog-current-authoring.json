@@ -309,6 +309,16 @@
         "claim": "Open Nectar 0.8.5 documents USA Rev. 1 and European Pikmin discs, headless extraction, and save/settings paths used by its Windows launcher.",
         "immutable_url": "https://github.com/SSunnKing/Open-Nectar---Pikmin-Native-PC-Mobile-Port/blob/2462f20cecdf578d8a5ba77fb6dee36130fc668f/README.md",
         "live_url": "https://github.com/SSunnKing/Open-Nectar---Pikmin-Native-PC-Mobile-Port/blob/main/README.md"
+      },
+      {
+        "id": "wave-race-recomp-1-0-2-source-contract",
+        "role": "upstream_support",
+        "authority": "danielgomesvieira2000/wave-race-64-recomp",
+        "authority_ref": "ac2a296530f957f128388a6fc18028529c7f2b40",
+        "reviewed_at": "2026-09-25",
+        "claim": "Wave Race 64 Recomp v1.0.2 requires the USA Rev A 8 MiB ROM and documents its exact SHA-1 and direct Windows launch.",
+        "immutable_url": "https://github.com/danielgomesvieira2000/wave-race-64-recomp/blob/ac2a296530f957f128388a6fc18028529c7f2b40/README.md",
+        "live_url": "https://github.com/danielgomesvieira2000/wave-race-64-recomp/blob/main/README.md"
       }
     ],
     "identities": [
@@ -4545,6 +4555,46 @@
         "aliases": [],
         "tombstones": [],
         "evidence_gap": null
+      },
+      {
+        "id": "wave-race-64",
+        "label": "Wave Race 64 (USA Rev A) source",
+        "kind": "file",
+        "variants": [
+          {
+            "id": "usa-rev-a",
+            "title": "Wave Race 64",
+            "region": "USA",
+            "revision": "Rev A",
+            "product_codes": [],
+            "representations": [
+              {
+                "id": "canonical-rom",
+                "extensions": [
+                  "z64"
+                ],
+                "kind": "canonical-n64",
+                "identities": [
+                  {
+                    "scope": "canonical-n64-big-endian",
+                    "sha1": "508dfc2d4caa42b6f6de5263d0aed5e44ac7966a",
+                    "sha256": "f35d2423ebcb86eaf86fa935b613c7532b123a7bc50fb74996984c3b02fc3999",
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "wave-race-recomp-1-0-2-source-contract"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "wave-race-recomp-1-0-2-source-contract"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
       }
     ],
     "contracts": [
@@ -6360,6 +6410,33 @@
         "live_review_url": "https://github.com/SSunnKing/Open-Nectar---Pikmin-Native-PC-Mobile-Port/blob/main/README.md",
         "evidence_gap": null,
         "applicability": [],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "wave-race-64-recomp-game-source",
+        "port_id": "wave-race-64-recomp",
+        "role": "game",
+        "profile_id": "wave-race-64",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "usa-rev-a"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "wave-race-recomp-1-0-2-source-contract"
+        ],
+        "authority_ref": "ac2a296530f957f128388a6fc18028529c7f2b40",
+        "reviewed_at": "2026-09-25",
+        "immutable_review_url": "https://github.com/danielgomesvieira2000/wave-race-64-recomp/blob/ac2a296530f957f128388a6fc18028529c7f2b40/README.md",
+        "live_review_url": "https://github.com/danielgomesvieira2000/wave-race-64-recomp/blob/main/README.md",
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v1.0.2",
+            "artifact_sha256": "8603e582e7a549f1f3a02c108d1453ad61e7f5df03b2f3232f9939323b044583"
+          }
+        ],
         "aliases": [],
         "tombstones": []
       }
@@ -12414,6 +12491,76 @@
           }
         ],
         "saves_and_settings": "portcove-managed"
+      }
+    },
+    {
+      "id": "wave-race-64-recomp",
+      "name": "Wave Race 64: Recompiled",
+      "summary": "Play Wave Race 64 using a runtime you prepare from the official Windows package.",
+      "project_url": "https://github.com/danielgomesvieira2000/wave-race-64-recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "n64-recomp-portable",
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "release": {
+        "provider": "user-prepared",
+        "repository": "danielgomesvieira2000/wave-race-64-recomp",
+        "user_prepared": {
+          "windows-x86-64": {
+            "version": "v1.0.2",
+            "archive_name": "WaveRace64Recomp-1.0.2-windows-x64.zip",
+            "archive_size": 17397538,
+            "archive_sha256": "8603e582e7a549f1f3a02c108d1453ad61e7f5df03b2f3232f9939323b044583",
+            "executable": "WaveRace64Recomp.exe",
+            "immutable_tree_sha256": "099e36267d4c288d142d8e7ae0be0fa3f3d79756a8637bcde9a53af24b8856da",
+            "source_argument_extension": "z64",
+            "mutable_paths": [
+              "general.json",
+              "general.json.bak",
+              "graphics.json",
+              "graphics.json.bak",
+              "controls.json",
+              "controls.json.bak",
+              "sound.json",
+              "sound.json.bak",
+              "mods.json",
+              "mods.json.bak",
+              "hud.json",
+              "water.json",
+              "wr64.log",
+              "wr64.us.rev1.z64",
+              "saves",
+              "mods",
+              "mod_config",
+              "texture_packs"
+            ]
+          }
+        }
+      },
+      "source_profile": "wave-race-64",
+      "executable_hints": {
+        "windows-x86-64": [
+          "WaveRace64Recomp.exe"
+        ]
+      },
+      "presentation": {
+        "installation_method": "user-prepared-runtime",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "wave-race-64",
+          "label": "Wave Race 64 (USA Rev A) source",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Extract the official v1.0.2 Windows ZIP, then create an empty portable.txt beside WaveRace64Recomp.exe. The marker is not in the ZIP; it keeps game-owned saves and settings beside the executable. Choose that folder for Portcove's exact-file review."
       }
     }
   ]

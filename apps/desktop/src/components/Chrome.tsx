@@ -120,7 +120,7 @@ export function Sidebar({
             <Icon glyph={item.icon} />
             <span>{item.label}</span>
             {item.view === "library" && (
-              <b aria-label={`${installedCount} installed`}>{installedCount}</b>
+              <b aria-label={`${installedCount} in library`}>{installedCount}</b>
             )}
             {item.view === "updates" && (updateCount > 0 || activityState) && (
               <NavigationStatus updateCount={updateCount} activityState={activityState} />

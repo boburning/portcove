@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 pub enum DefinitionOperation {
     Availability,
     Install,
+    RegisterExternal,
     Prepare,
     Launch,
     Update,
@@ -87,8 +88,10 @@ pub struct DefinitionOperationAssessment {
 #[serde(rename_all = "snake_case")]
 pub enum PortAction {
     Install,
+    RegisterExternal,
     Launch,
     RemoveManaged,
+    RemoveExternal,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -104,6 +107,8 @@ pub enum PortActionAvailability {
 #[serde(rename_all = "snake_case")]
 pub enum PortActionReason {
     Available,
+    RouteNotOffered,
+    AlreadyRegistered,
     UnsupportedPlatform,
     NotInstalled,
     ReviewRequired,

@@ -231,6 +231,18 @@ new installations now retain the admitted catalog content described below.
 
 ## Retained installation contracts
 
+An official `user-prepared` release keeps a non-owning registration in library
+SQLite, separate from managed installations and their manifests. Core records
+the canonical outside path, accepted immutable extracted-tree identity, exact
+definition selection, and retained catalog/source contract. Registration and
+each launch recheck the tree; launch uses the retained contract so a later
+definition cannot silently reinterpret already registered files. The existing
+launch supervisor records whether its session uses a managed install or an
+external registration. For external sessions it neither writes an install
+marker nor collects, backs up, restores, relocates, or removes player-owned
+files. CLI and Tauri call the same core preview, authorization, registration,
+launch, and registration-only removal operations.
+
 For an inspected successor catalog projection, core carries an immutable exact
 definition snapshot with the catalog for its selected port only. Catalog clones
 share that snapshot; a newly parsed unrelated catalog does not inherit it. This
