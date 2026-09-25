@@ -73,7 +73,7 @@ pub(crate) async fn preview_steam_entry(
     let state = state.inner().clone();
     blocking_worker(move || {
         let service = service_at_generation(&state, generation)?;
-        let context = entry_context(&service, &request.port_id)?;
+        let context = entry_context(&service, &request.port_id, request.operation)?;
         review_entry(
             context,
             request.steam_root,
@@ -99,7 +99,11 @@ pub(crate) async fn apply_steam_entry(
     let request_for_review = request.clone();
     let (review, plan) = blocking_worker(move || {
         let service = service_at_generation(&state_for_review, generation)?;
-        let context = entry_context(&service, &request_for_review.port_id)?;
+        let context = entry_context(
+            &service,
+            &request_for_review.port_id,
+            request_for_review.operation,
+        )?;
         let plan = plan_entry(
             &context,
             request_for_review.steam_root,
@@ -132,7 +136,7 @@ pub(crate) async fn apply_steam_entry(
     }
     blocking_worker(move || {
         let service = service_at_generation(&state_for_apply, generation)?;
-        let context = entry_context(&service, &request.port_id)?;
+        let context = entry_context(&service, &request.port_id, request.operation)?;
         let current = revalidate_reviewed_plan(&context, &request, &plan).map_err(steam_error)?;
         let client_state = observe_steam_client();
         apply_steam_entry_plan(&current, client_state)
@@ -142,9 +146,13 @@ pub(crate) async fn apply_steam_entry(
     .await
 }
 
-fn entry_context(service: &PortcoveService, port_id: &str) -> DesktopResult<SteamEntryContext> {
+fn entry_context(
+    service: &PortcoveService,
+    port_id: &str,
+    operation: SteamEntryOperation,
+) -> DesktopResult<SteamEntryContext> {
     let port = service.catalog().port(port_id)?;
-    if service.status(port_id)?.active.is_none() {
+    if operation == SteamEntryOperation::AddOrRepair && service.status(port_id)?.active.is_none() {
         return Err(DesktopError::from(PortcoveError::usage(format!(
             "install {} before adding it to Steam",
             port.name
@@ -156,7 +164,9 @@ fn entry_context(service: &PortcoveService, port_id: &str) -> DesktopResult<Stea
         display_name: port.name.clone(),
         library_id: library.id,
         library_root: library.root,
-        cli: cli_context::discover_cli_identity_from_environment(),
+        cli: (operation == SteamEntryOperation::AddOrRepair)
+            .then(cli_context::discover_cli_identity_from_environment)
+            .flatten(),
     })
 }
 
@@ -224,7 +234,7 @@ fn revalidate_reviewed_plan(
     )?;
     if current != *reviewed {
         return Err(SteamEntryError::Conflict(
-            "the installed game, Portcove library, standalone CLI, Steam profile, or reviewed plan changed while consent was open".into(),
+            "the installed game or owned shortcut, Portcove library, standalone CLI, Steam profile, or reviewed plan changed while consent was open".into(),
         ));
     }
     Ok(current)
@@ -376,6 +386,31 @@ fn running_process_names() -> Result<Vec<String>, ()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn uninstalled_port_can_plan_remove_but_cannot_plan_add() {
+        let root = tempfile::tempdir().unwrap();
+        let library = portcove_core::Library::open(root.path().join("library")).unwrap();
+        let service = PortcoveService::new(library).unwrap();
+        let port_id = "opengoal-jak1";
+        assert!(service.status(port_id).unwrap().active.is_none());
+        assert!(entry_context(&service, port_id, SteamEntryOperation::AddOrRepair).is_err());
+        let context = entry_context(&service, port_id, SteamEntryOperation::Remove).unwrap();
+        assert_eq!(context.port_id, port_id);
+        assert!(context.cli.is_none());
+        let steam_root = root.path().join("Steam");
+        std::fs::create_dir_all(steam_root.join("userdata/42/config")).unwrap();
+        let review = review_entry(
+            context,
+            steam_root,
+            "42".into(),
+            SteamEntryOperation::Remove,
+            SteamClientState::Closed,
+        )
+        .unwrap();
+        assert!(!review.writes_required);
+        assert!(review.cli_path.is_none());
+    }
 
     fn context(root: &std::path::Path) -> SteamEntryContext {
         let library_root = root.join("Portcove library ü");

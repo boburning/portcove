@@ -1098,6 +1098,15 @@ function TechnicalDetails({
             actions={actions}
           />
         )}
+        <div className="actions maintenance-actions">
+          <SteamEntryControl
+            key={`steam:${port.id}:${libraryGeneration}`}
+            port={port}
+            generation={libraryGeneration}
+            installed={installed}
+            busy={Boolean(busy)}
+          />
+        </div>
       </div>
     </details>
   );
@@ -1756,12 +1765,6 @@ function MaintenanceActions({
         generation={libraryGeneration}
         busy={Boolean(busy)}
         apply={actions.remove}
-      />
-      <SteamEntryControl
-        key={`steam:${port.id}:${libraryGeneration}`}
-        port={port}
-        generation={libraryGeneration}
-        busy={Boolean(busy)}
       />
     </div>
   );

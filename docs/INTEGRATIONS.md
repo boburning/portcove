@@ -319,6 +319,13 @@ package implementation.
 [#292](https://github.com/boburning/portcove/issues/292) owns user-initiated Add,
 Repair, Update artwork, and Remove for selected installed games, including selected
 batch Add.
+The current Desktop shortcut review requires a live managed installation and a
+compatible standalone CLI for Add or Repair. Remove can review and delete a
+demonstrably Portcove-owned shortcut after the managed game has been uninstalled;
+it still binds the selected library, Steam installation/profile, exact shortcut
+contents, process state and final consent. Removing the shortcut never uninstalls
+the game or removes saved data. An unowned or changed shortcut is not eligible
+for removal through this route.
 It investigates current primary documentation and maintained mechanisms before
 choosing a writer; it must not invent an official API or conceal a reverse-
 engineered dependency. The user selects the exact Steam installation and profile,
