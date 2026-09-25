@@ -28,6 +28,7 @@ import {
 import { spawnCommand } from "./dev-storage.mjs";
 import { parseRawDiff } from "./select-ci-plan.mjs";
 import { readRustTestImpactMap, selectRustTestImpact } from "./rust-test-impact.mjs";
+import { isExcludedOxfmtPath } from "./oxfmt-ownership.mjs";
 
 const projectRoot = fileURLToPath(new URL("../", import.meta.url));
 const desktopRoot = path.join(projectRoot, "apps", "desktop");
@@ -296,7 +297,7 @@ function classifyOnePath(selection, input, fileExists, options = {}) {
   const includeFileChecks = options.includeFileChecks ?? true;
   let recognized = false;
 
-  if (includeFileChecks && oxfmtExtensions.has(extension)) {
+  if (includeFileChecks && oxfmtExtensions.has(extension) && !isExcludedOxfmtPath(file)) {
     selection.oxfmtFiles.add(file);
   }
   if (extension === ".toml") selection.toml = true;
