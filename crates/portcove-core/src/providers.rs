@@ -38,6 +38,10 @@ impl ReleaseProvider for CompositeReleaseProvider {
             ReleaseSource::Github => self.github.resolve(port, channel, platform).await,
             ReleaseSource::Gitlab => self.gitlab.resolve(port, channel, platform).await,
             ReleaseSource::DirectManifest => resolve_direct(port, channel, platform),
+            ReleaseSource::UserPrepared => Err(PortcoveError::unsupported(format!(
+                "{} has a user-prepared runtime; Portcove does not acquire it",
+                port.name
+            ))),
         }
     }
 }
@@ -119,6 +123,7 @@ mod tests {
                 rolling_tag: None,
                 asset_hints: BTreeMap::new(),
                 direct,
+                user_prepared: BTreeMap::new(),
             },
             bundled_runtime: BTreeMap::new(),
             source_profile: None,

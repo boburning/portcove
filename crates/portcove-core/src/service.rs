@@ -17,16 +17,17 @@ use crate::{
     ActivityOperation, ActivityRecord, ActivityStatus, ActivityTargetKind, AdapterRegistry,
     BackupProblemKind, BackupRecord, Catalog, ChildProcessPolicy, CompositeReleaseProvider,
     DefinitionEligibilityOutcome, DefinitionOperation, DefinitionOperationAssessment, DoctorReport,
-    InstallPlan, InstallPlanAction, InstallQualification, InstallRecord, InstallRequest,
+    ExternalRuntimePreview, ExternalRuntimeRecord, ExternalRuntimeRemovalPreview, InstallPlan,
+    InstallPlanAction, InstallQualification, InstallRecord, InstallRequest,
     InstallSourceRequirement, Installer, LaunchBlocker, LaunchReadiness, LaunchSessionOutcome,
     LaunchSessionPhase, LaunchSessionRecord, LaunchStdio, Library, OperationCoordinator,
     OperationEvent, OperationResult, OutputAffectedInstall, OutputDestinationPreview,
     OutputLocationSource, Platform, PortAction, PortActionAssessment, PortActionAvailability,
     PortActionReason, PortDefinition, PortOutputLocation, PortPaths, PortStatus, PortcoveError,
-    ReconcileAction, ReconcileResult, ReleaseChannel, ReleaseProvider, RepairItem, RepairItemKind,
-    RepairPlan, ResolvedRelease, Result, SourceHealth, SourceRecord, SourceRemovalPreview,
-    SourceRequirementRole, SourceVerification, SupervisedLaunchOutcome, UpdateCheck, UpdatePolicy,
-    VerificationReport, WorkspaceSnapshot,
+    ReconcileAction, ReconcileResult, ReleaseChannel, ReleaseProvider, ReleaseSource, RepairItem,
+    RepairItemKind, RepairPlan, ResolvedRelease, Result, SourceHealth, SourceRecord,
+    SourceRemovalPreview, SourceRequirementRole, SourceVerification, SupervisedLaunchOutcome,
+    UpdateCheck, UpdatePolicy, VerificationReport, WorkspaceSnapshot,
     definition_eligibility::DefinitionOperationContext,
     operation::{
         LifecycleFaultInjector, LifecycleFaultPoint, LifecycleOperation, LifecycleOperationKind,
@@ -1311,7 +1312,7 @@ impl PortcoveService {
         };
         let catalog = retained_catalog.as_ref().unwrap_or(current_catalog);
         let port = catalog.port(&port.id)?;
-        let installed = status.active.is_some();
+        let installed = status.active.is_some() || status.external_runtime.is_some();
         let source = port
             .source_profile
             .as_deref()
@@ -1373,11 +1374,18 @@ impl PortcoveService {
     }
 
     fn retained_catalog_for_status(&self, status: &PortStatus) -> Result<Option<Catalog>> {
-        status
-            .active
-            .as_ref()
-            .map(|install| self.installed_catalog(install))
-            .transpose()
+        if let Some(active) = status.active.as_ref() {
+            return self.installed_catalog(active).map(Some);
+        }
+        if status.external_runtime.is_some() {
+            return self
+                .library
+                .external_runtime_with_port(&status.port_id)?
+                .map(|(_, catalog)| catalog)
+                .ok_or_else(|| PortcoveError::state("external registration disappeared"))
+                .map(Some);
+        }
+        Ok(None)
     }
 
     fn launch_source_profiles(
@@ -1407,24 +1415,45 @@ impl PortcoveService {
         mut status: PortStatus,
     ) -> Result<PortStatus> {
         status.definition_operations.clear();
+        let admission_operation = if current_port.release.provider == ReleaseSource::UserPrepared {
+            DefinitionOperation::RegisterExternal
+        } else {
+            DefinitionOperation::Install
+        };
         if let Some(identity) = current_catalog.definition_selection(&current_port.id) {
             status
                 .definition_operations
                 .push(DefinitionOperationAssessment {
-                    operation: DefinitionOperation::Install,
+                    operation: admission_operation,
                     eligibility: self.library.assess_definition_operation(
                         identity,
-                        DefinitionOperationContext::observed(
-                            DefinitionOperation::Install,
-                            false,
-                            true,
-                        ),
+                        DefinitionOperationContext::observed(admission_operation, false, true),
                     )?,
                     retained: false,
                 });
         }
 
         let Some(active) = status.active.as_ref() else {
+            if let Some(external) = status.external_runtime.as_ref()
+                && let Some(identity) = external.retained_definition.as_ref()
+            {
+                let launch = self.library.assess_definition_operation(
+                    identity,
+                    DefinitionOperationContext::observed(DefinitionOperation::Launch, true, true),
+                )?;
+                if launch.outcome != DefinitionEligibilityOutcome::Eligible
+                    && let Some(readiness) = status.readiness.as_mut()
+                {
+                    readiness.launchable = false;
+                }
+                status
+                    .definition_operations
+                    .push(DefinitionOperationAssessment {
+                        operation: DefinitionOperation::Launch,
+                        eligibility: launch,
+                        retained: true,
+                    });
+            }
             return Ok(status);
         };
         if status.readiness.as_ref().is_some_and(|readiness| {
@@ -1512,6 +1541,7 @@ impl PortcoveService {
         });
         let source_reason = source_blocker.map(port_action_blocker);
         let on_platform = current_port.platforms.contains(&Platform::current()?);
+        let user_prepared = current_port.release.provider == ReleaseSource::UserPrepared;
         // Install evaluates the current definition. Launch readiness may have
         // inspected a different, retained installed contract.
         let current_missing = [
@@ -1527,7 +1557,21 @@ impl PortcoveService {
                 .filter(|id| !registered_sources.contains_key(*id))
                 .map(|_| reason)
         });
-        let install = if !on_platform {
+        let install = if status.external_runtime.is_some() {
+            assessed(
+                Action::Install,
+                Availability::NotOffered,
+                Reason::AlreadyRegistered,
+                None,
+            )
+        } else if user_prepared {
+            assessed(
+                Action::Install,
+                Availability::NotOffered,
+                Reason::RouteNotOffered,
+                None,
+            )
+        } else if !on_platform {
             assessed(
                 Action::Install,
                 Availability::NotOffered,
@@ -1552,7 +1596,48 @@ impl PortcoveService {
             )
         };
 
-        let launch = if status.active.is_none() {
+        let register_external = if !user_prepared {
+            assessed(
+                Action::RegisterExternal,
+                Availability::NotOffered,
+                Reason::RouteNotOffered,
+                None,
+            )
+        } else if !on_platform {
+            assessed(
+                Action::RegisterExternal,
+                Availability::NotOffered,
+                Reason::UnsupportedPlatform,
+                None,
+            )
+        } else if status.external_runtime.is_some()
+            || status.active.is_some()
+            || status.previous.is_some()
+            || status.staged.is_some()
+        {
+            assessed(
+                Action::RegisterExternal,
+                Availability::NotOffered,
+                Reason::AlreadyRegistered,
+                None,
+            )
+        } else if let Some(ineligible) = definition(DefinitionOperation::RegisterExternal) {
+            assessed(
+                Action::RegisterExternal,
+                Availability::Held,
+                Reason::DefinitionIneligible,
+                Some(ineligible),
+            )
+        } else {
+            assessed(
+                Action::RegisterExternal,
+                Availability::Waiting,
+                Reason::ReviewRequired,
+                None,
+            )
+        };
+
+        let launch = if status.active.is_none() && status.external_runtime.is_none() {
             assessed(
                 Action::Launch,
                 Availability::Waiting,
@@ -1605,7 +1690,23 @@ impl PortcoveService {
                 )
             };
 
-        status.port_actions = vec![install, launch, removal];
+        let remove_external = if status.external_runtime.is_some() {
+            assessed(
+                Action::RemoveExternal,
+                Availability::Waiting,
+                Reason::ReviewRequired,
+                None,
+            )
+        } else {
+            assessed(
+                Action::RemoveExternal,
+                Availability::NotOffered,
+                Reason::NotInstalled,
+                None,
+            )
+        };
+
+        status.port_actions = vec![install, register_external, launch, removal, remove_external];
         Ok(status)
     }
 
@@ -1615,7 +1716,15 @@ impl PortcoveService {
         port: &PortDefinition,
         context: DefinitionOperationContext,
     ) -> Result<()> {
-        let Some(identity) = catalog.definition_selection(&port.id) else {
+        self.require_definition_identity(catalog.definition_selection(&port.id), context)
+    }
+
+    fn require_definition_identity(
+        &self,
+        identity: Option<&crate::DefinitionSelectionIdentity>,
+        context: DefinitionOperationContext,
+    ) -> Result<()> {
+        let Some(identity) = identity else {
             return Ok(());
         };
         let eligibility = self
@@ -2920,16 +3029,19 @@ impl PortcoveService {
         let mut detected = Vec::new();
         if let Some(id) = selected_port_id {
             let port = self.catalog.port(id)?;
+            if port.release.provider == ReleaseSource::UserPrepared {
+                return Err(PortcoveError::unsupported(
+                    "user-prepared runtimes use non-owning external registration, not adoption",
+                ));
+            }
             let qualification = InstallQualification::from_port(port, platform)?;
             crate::install::resolve_declared_executable(source, &qualification)?;
             detected.push(id.to_owned());
         } else {
-            for port in self
-                .catalog
-                .ports()
-                .iter()
-                .filter(|port| port.platforms.contains(&platform))
-            {
+            for port in self.catalog.ports().iter().filter(|port| {
+                port.platforms.contains(&platform)
+                    && port.release.provider != ReleaseSource::UserPrepared
+            }) {
                 if port
                     .executable_hints
                     .get(&platform)
@@ -3298,6 +3410,186 @@ impl PortcoveService {
         self.finish_activity(activity, result)
     }
 
+    pub fn preview_external_runtime(
+        &self,
+        port_id: &str,
+        requested_root: &Path,
+    ) -> Result<ExternalRuntimePreview> {
+        self.preview_external_runtime_with_checkpoint(port_id, requested_root, &|| Ok(()))
+    }
+
+    fn preview_external_runtime_with_checkpoint(
+        &self,
+        port_id: &str,
+        requested_root: &Path,
+        checkpoint: &dyn Fn() -> Result<()>,
+    ) -> Result<ExternalRuntimePreview> {
+        let port = self.catalog.port(port_id)?;
+        if port.release.provider != ReleaseSource::UserPrepared {
+            return Err(PortcoveError::unsupported(format!(
+                "{} does not offer user-prepared runtime registration",
+                port.name
+            )));
+        }
+        let platform = Platform::current()?;
+        let spec = port.release.user_prepared.get(&platform).ok_or_else(|| {
+            PortcoveError::unsupported("no user-prepared runtime for this platform")
+        })?;
+        self.require_definition_operation(
+            &self.catalog,
+            port,
+            DefinitionOperationContext::observed(
+                DefinitionOperation::RegisterExternal,
+                false,
+                true,
+            ),
+        )?;
+        let inspected = crate::external_runtime::inspect_with_checkpoint(
+            requested_root,
+            spec,
+            self.library.root(),
+            checkpoint,
+        )?;
+        let preview_sha256 = hex::encode(Sha256::digest(serde_json::to_vec(&(
+            port,
+            &inspected.root,
+            &inspected.immutable_tree_sha256,
+            inspected.immutable_file_count,
+        ))?));
+        Ok(ExternalRuntimePreview {
+            port_id: port_id.to_owned(),
+            path: inspected.root,
+            executable: inspected.executable,
+            version: spec.version.clone(),
+            archive_sha256: spec.archive_sha256.clone(),
+            immutable_tree_sha256: inspected.immutable_tree_sha256,
+            immutable_file_count: inspected.immutable_file_count,
+            preview_sha256,
+        })
+    }
+
+    pub fn authorize_external_runtime(
+        &self,
+        port_id: &str,
+        requested_root: &Path,
+        expected_preview_sha256: &str,
+    ) -> Result<crate::DestructiveAuthorization> {
+        let preview = self.preview_external_runtime(port_id, requested_root)?;
+        if preview.preview_sha256 != expected_preview_sha256 {
+            return Err(PortcoveError::conflict(
+                "user-prepared runtime changed after review",
+            ));
+        }
+        self.library
+            .issue_authorization("register_external", port_id, &preview.preview_sha256)
+    }
+
+    pub fn register_external_runtime(
+        &self,
+        port_id: &str,
+        requested_root: &Path,
+        authorization_token: &str,
+    ) -> Result<ExternalRuntimeRecord> {
+        let (activity, operation) = self.begin_cancellable_activity(
+            ActivityOperation::RegisterExternal,
+            ActivityTargetKind::Port,
+            Some(port_id),
+        )?;
+        let result = (|| {
+            let _lock = self.library.try_lock_port(port_id, "register-external")?;
+            let preview =
+                self.preview_external_runtime_with_checkpoint(port_id, requested_root, &|| {
+                    operation.checkpoint()
+                })?;
+            self.library.consume_authorization(
+                authorization_token,
+                "register_external",
+                port_id,
+                &preview.preview_sha256,
+            )?;
+            operation.begin_publication()?;
+            let record = ExternalRuntimeRecord {
+                id: Uuid::new_v4().to_string(),
+                port_id: port_id.to_owned(),
+                path: preview.path,
+                executable: preview.executable,
+                version: preview.version,
+                platform: Platform::current()?,
+                archive_sha256: preview.archive_sha256,
+                immutable_tree_sha256: preview.immutable_tree_sha256,
+                registered_at: Library::now(),
+                retained_definition: self.catalog.definition_selection(port_id).cloned(),
+            };
+            self.library
+                .register_external_runtime(&record, &self.catalog)?;
+            Ok(record)
+        })();
+        self.finish_activity(activity, result)
+    }
+
+    pub fn preview_external_removal(&self, port_id: &str) -> Result<ExternalRuntimeRemovalPreview> {
+        let (record, _) = self
+            .library
+            .external_runtime_with_port(port_id)?
+            .ok_or_else(|| {
+                PortcoveError::not_found("external runtime registration was not found")
+            })?;
+        let preview_sha256 = hex::encode(Sha256::digest(serde_json::to_vec(&record)?));
+        Ok(ExternalRuntimeRemovalPreview {
+            port_id: port_id.to_owned(),
+            path: record.path,
+            version: record.version,
+            external_files_will_be_preserved: true,
+            preview_sha256,
+        })
+    }
+
+    pub fn authorize_external_removal(
+        &self,
+        port_id: &str,
+        expected_preview_sha256: &str,
+    ) -> Result<crate::DestructiveAuthorization> {
+        let preview = self.preview_external_removal(port_id)?;
+        if preview.preview_sha256 != expected_preview_sha256 {
+            return Err(PortcoveError::conflict(
+                "external registration changed after removal review",
+            ));
+        }
+        self.library
+            .issue_authorization("remove_external", port_id, &preview.preview_sha256)
+    }
+
+    pub fn remove_external_runtime(
+        &self,
+        port_id: &str,
+        authorization_token: &str,
+    ) -> Result<ExternalRuntimeRecord> {
+        let activity = self.library.begin_activity(
+            ActivityOperation::RemoveExternal,
+            ActivityTargetKind::Port,
+            Some(port_id),
+        )?;
+        let result = (|| {
+            let _lock = self.library.try_lock_port(port_id, "remove-external")?;
+            let (record, _) = self
+                .library
+                .external_runtime_with_port(port_id)?
+                .ok_or_else(|| {
+                    PortcoveError::not_found("external runtime registration was not found")
+                })?;
+            let fingerprint = hex::encode(Sha256::digest(serde_json::to_vec(&record)?));
+            self.library.consume_authorization(
+                authorization_token,
+                "remove_external",
+                port_id,
+                &fingerprint,
+            )?;
+            self.library.remove_external_runtime(&record)?;
+            Ok(record)
+        })();
+        self.finish_activity(activity, result)
+    }
+
     /// Owns a launch from preparation through exact-install save collection.
     ///
     /// Callers may use `on_started` to report the durable session after the
@@ -3362,19 +3654,39 @@ impl PortcoveService {
         let result = (|| {
             self.require_completed_restore(port_id)?;
             let port = self.catalog.port(port_id)?;
-            let install = self
-                .library
-                .status(port_id, default_channel(port))?
-                .active
-                .ok_or_else(|| PortcoveError::not_found(format!("{port_id} is not installed")))?;
+            let active = self.library.status(port_id, default_channel(port))?.active;
+            let external = self.library.external_runtime_with_port(port_id)?;
+            let (install_id, install_root, owner_kind) = match (&active, &external) {
+                (Some(_), Some(_)) => {
+                    return Err(PortcoveError::state(
+                        "managed installation and external registration both exist for this port",
+                    ));
+                }
+                (Some(install), None) => (
+                    install.id.clone(),
+                    install.path.clone(),
+                    crate::LaunchOwnerKind::Managed,
+                ),
+                (None, Some((record, _))) => (
+                    record.id.clone(),
+                    record.path.clone(),
+                    crate::LaunchOwnerKind::External,
+                ),
+                (None, None) => {
+                    return Err(PortcoveError::not_found(format!(
+                        "{port_id} has no installed or registered runtime"
+                    )));
+                }
+            };
             let supervisor_identity = crate::launch::process_identity(std::process::id())?
                 .ok_or_else(|| PortcoveError::state("launch supervisor identity disappeared"))?;
             let now = Library::now();
             let mut session = LaunchSessionRecord {
                 id: activity.id.clone(),
                 port_id: port_id.to_owned(),
-                install_id: install.id.clone(),
-                install_root: install.path.clone(),
+                install_id,
+                install_root: install_root.clone(),
+                owner_kind,
                 supervisor_pid: std::process::id(),
                 supervisor_identity: Some(supervisor_identity),
                 child_pid: None,
@@ -3392,9 +3704,19 @@ impl PortcoveService {
             on_accepted(&session);
 
             operation.checkpoint()?;
-            let spec =
-                self.launch_spec_for_install(port, &install, source_override, Some(&operation))?;
-            if spec.install_root != install.path {
+            let spec = match (&active, &external) {
+                (Some(install), None) => {
+                    self.launch_spec_for_install(port, install, source_override, Some(&operation))?
+                }
+                (None, Some((record, retained_catalog))) => self.launch_spec_for_external(
+                    record,
+                    retained_catalog,
+                    source_override,
+                    &operation,
+                )?,
+                _ => unreachable!("runtime ownership was checked above"),
+            };
+            if spec.install_root != install_root {
                 return Err(PortcoveError::state(format!(
                     "the prepared {port_id} launch changed its registered install identity"
                 )));
@@ -3416,6 +3738,29 @@ impl PortcoveService {
             }
             crate::launch::configure_supervised_game(&mut command);
             operation.checkpoint()?;
+            if let Some((record, retained_catalog)) = external.as_ref() {
+                let accepted = retained_catalog
+                    .port(&record.port_id)?
+                    .release
+                    .user_prepared
+                    .get(&record.platform)
+                    .ok_or_else(|| {
+                        PortcoveError::verification(
+                            "retained external runtime has no platform contract",
+                        )
+                    })?;
+                let inspected = crate::external_runtime::inspect_with_checkpoint(
+                    &record.path,
+                    accepted,
+                    self.library.root(),
+                    &|| operation.checkpoint(),
+                )?;
+                if inspected.root != spec.install_root || inspected.executable != spec.executable {
+                    return Err(PortcoveError::verification(
+                        "external runtime changed before launch",
+                    ));
+                }
+            }
             operation.begin_publication()?;
             self.library.update_launch_session(
                 &session.id,
@@ -3462,9 +3807,13 @@ impl PortcoveService {
                 child_state_uncertain = true;
                 self.faults.check(LifecycleFaultPoint::LaunchChildStarted)?;
 
-                let first_error = fs::write(spec.install_root.join(LAUNCH_MARKER), b"1")
-                    .err()
-                    .map(PortcoveError::from);
+                let first_error = if owner_kind == crate::LaunchOwnerKind::Managed {
+                    fs::write(spec.install_root.join(LAUNCH_MARKER), b"1")
+                        .err()
+                        .map(PortcoveError::from)
+                } else {
+                    None
+                };
                 on_started(&session);
 
                 let status = match child.wait() {
@@ -3502,9 +3851,13 @@ impl PortcoveService {
                 session.phase = LaunchSessionPhase::Collecting;
                 session.updated_at = Library::now();
                 child_state_uncertain = true;
-                let first_error = fs::write(spec.install_root.join(LAUNCH_MARKER), b"1")
-                    .err()
-                    .map(PortcoveError::from);
+                let first_error = if owner_kind == crate::LaunchOwnerKind::Managed {
+                    fs::write(spec.install_root.join(LAUNCH_MARKER), b"1")
+                        .err()
+                        .map(PortcoveError::from)
+                } else {
+                    None
+                };
                 (status, first_error)
             };
             if session.phase != LaunchSessionPhase::Collecting {
@@ -3527,11 +3880,13 @@ impl PortcoveService {
             {
                 first_error = Some(error);
             }
-            let collected = self.collect_user_data_from_install(port_id, &session.install_root);
-            if let Err(error) = collected
-                && first_error.is_none()
-            {
-                first_error = Some(error);
+            if owner_kind == crate::LaunchOwnerKind::Managed {
+                let collected = self.collect_user_data_from_install(port_id, &session.install_root);
+                if let Err(error) = collected
+                    && first_error.is_none()
+                {
+                    first_error = Some(error);
+                }
             }
 
             if let Some(error) = first_error {
@@ -3626,11 +3981,21 @@ impl PortcoveService {
                     "launch session {session_id} was recovered elsewhere"
                 ))
             })?;
-        let install_is_exact = self.library.all_installs()?.into_iter().any(|install| {
-            install.id == session.install_id
-                && install.port_id == session.port_id
-                && install.path == session.install_root
-        });
+        let install_is_exact = match session.owner_kind {
+            crate::LaunchOwnerKind::Managed => {
+                self.library.all_installs()?.into_iter().any(|install| {
+                    install.id == session.install_id
+                        && install.port_id == session.port_id
+                        && install.path == session.install_root
+                })
+            }
+            crate::LaunchOwnerKind::External => self
+                .library
+                .external_runtime_with_port(&session.port_id)?
+                .is_some_and(|(record, _)| {
+                    record.id == session.install_id && record.path == session.install_root
+                }),
+        };
         if !install_is_exact {
             return Err(PortcoveError::conflict(format!(
                 "launch session {session_id} no longer matches its registered install"
@@ -3688,7 +4053,9 @@ impl PortcoveService {
             })?;
             crate::launch::wait_for_process_exit(child_pid, child_identity)?;
         }
-        self.collect_user_data_from_install(&session.port_id, &session.install_root)?;
+        if session.owner_kind == crate::LaunchOwnerKind::Managed {
+            self.collect_user_data_from_install(&session.port_id, &session.install_root)?;
+        }
         self.library.finish_launch_session(
             session_id,
             LaunchSessionOutcome::Failed,
@@ -3814,6 +4181,110 @@ impl PortcoveService {
         self.refresh_upstream_setup_manifest(port, active, &spec.working_directory)?;
         checkpoint()?;
         Ok(spec)
+    }
+
+    fn launch_spec_for_external(
+        &self,
+        record: &ExternalRuntimeRecord,
+        retained_catalog: &Catalog,
+        source_override: Option<&Path>,
+        operation: &OperationCoordinator,
+    ) -> Result<crate::LaunchSpec> {
+        let retained_port = retained_catalog.port(&record.port_id)?;
+        let platform = Platform::current()?;
+        if record.port_id != retained_port.id
+            || record.platform != platform
+            || retained_port.release.provider != ReleaseSource::UserPrepared
+        {
+            return Err(PortcoveError::verification(
+                "external runtime retained contract does not match the current platform",
+            ));
+        }
+        let spec = retained_port
+            .release
+            .user_prepared
+            .get(&platform)
+            .ok_or_else(|| {
+                PortcoveError::verification("retained external runtime has no platform contract")
+            })?;
+        if record.version != spec.version
+            || !record
+                .archive_sha256
+                .eq_ignore_ascii_case(&spec.archive_sha256)
+            || !record
+                .immutable_tree_sha256
+                .eq_ignore_ascii_case(&spec.immutable_tree_sha256)
+        {
+            return Err(PortcoveError::verification(
+                "external runtime record differs from its retained accepted identity",
+            ));
+        }
+        let inspected = crate::external_runtime::inspect_with_checkpoint(
+            &record.path,
+            spec,
+            self.library.root(),
+            &|| operation.checkpoint(),
+        )?;
+        if inspected.root != record.path || inspected.executable != record.executable {
+            return Err(PortcoveError::verification(
+                "external runtime path changed since registration",
+            ));
+        }
+        self.require_definition_identity(
+            record.retained_definition.as_ref(),
+            DefinitionOperationContext::observed(DefinitionOperation::Launch, true, true),
+        )?;
+        let mut arguments = Vec::new();
+        if let Some(profile_id) = retained_port.source_profile.as_deref() {
+            let source = if let Some(path) = source_override {
+                crate::source_inspection::inspect(retained_catalog, profile_id, path)?
+                    .require_admitted_record()?
+            } else {
+                self.verified_source_record_with_checkpoint(retained_catalog, profile_id, &|| {
+                    operation.checkpoint()
+                })?
+            };
+            if let Some(extension) = spec.source_argument_extension.as_deref() {
+                if source
+                    .path
+                    .extension()
+                    .and_then(|value| value.to_str())
+                    .is_none_or(|actual| !actual.eq_ignore_ascii_case(extension))
+                {
+                    return Err(PortcoveError::source(format!(
+                        "{} requires an uncompressed .{extension} original source",
+                        retained_port.name
+                    )));
+                }
+                arguments.push(crate::path::unicode(
+                    &source.path,
+                    "external launch source",
+                )?);
+            }
+            Self::verify_source_record_with_checkpoint(retained_catalog, &source, &|| {
+                operation.checkpoint()
+            })?;
+        } else if source_override.is_some() {
+            return Err(PortcoveError::usage(
+                "this external runtime does not accept a source override",
+            ));
+        }
+        arguments.extend(retained_port.launch_arguments.iter().cloned());
+        let launch_kind = crate::LaunchKind::for_executable(&record.executable);
+        if launch_kind != crate::LaunchKind::Native {
+            return Err(PortcoveError::unsupported(
+                "user-prepared runtime launch requires a native executable",
+            ));
+        }
+        operation.checkpoint()?;
+        Ok(crate::LaunchSpec {
+            executable: record.executable.clone(),
+            install_root: record.path.clone(),
+            working_directory: record.path.clone(),
+            environment: retained_port.launch_environment.clone(),
+            arguments,
+            launch_kind,
+        })
     }
 
     fn refresh_upstream_setup_manifest(
@@ -6779,6 +7250,235 @@ fn main() {
         fs::remove_file(source).unwrap();
         fs::write(path.join("engine.dll"), b"critical library").unwrap();
         register_existing_test_artifact(library, "zelda64-recomp", version, &path, artifact, active)
+    }
+
+    #[test]
+    fn external_runtime_register_launch_restart_and_remove_preserve_player_files() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library_root = temporary.path().join("library");
+        let library = Library::open(&library_root).unwrap();
+        let probe = register_launch_probe(&library, "v1", true);
+        let external = temporary.path().join("player-owned");
+        fs::create_dir(&external).unwrap();
+        let executable_name = if cfg!(windows) {
+            "zelda64recompiled.exe"
+        } else {
+            "zelda64recompiled"
+        };
+        let executable = external.join(executable_name);
+        fs::copy(probe.path.join(executable_name), &executable).unwrap();
+
+        let platform = Platform::current().unwrap();
+        let mut runtime = crate::UserPreparedRuntimeSpec {
+            version: "probe-v1".into(),
+            archive_name: "probe.zip".into(),
+            archive_size: 1,
+            archive_sha256: "a".repeat(64),
+            executable: executable_name.into(),
+            immutable_tree_sha256: "0".repeat(64),
+            source_argument_extension: None,
+            mutable_paths: vec!["general.json".into()],
+        };
+        let mismatch =
+            crate::external_runtime::inspect(&external, &runtime, &library_root).unwrap_err();
+        runtime.immutable_tree_sha256 = mismatch.details["actual_tree_sha256"].clone();
+
+        let mut service = service_with_release(library.clone(), "v1");
+        let mut document = service.catalog().authoritative_document();
+        let mut port = document
+            .ports
+            .iter()
+            .find(|port| port.id == "zelda64-recomp")
+            .unwrap()
+            .clone();
+        port.id = "external-probe".into();
+        port.name = "External probe".into();
+        port.platforms = vec![platform];
+        port.automated_tested_platforms.clear();
+        port.manually_validated_platforms.clear();
+        port.source_profile = None;
+        port.bios_source_profile = None;
+        port.runtime_source_filename = None;
+        port.persistent_paths.clear();
+        port.presentation = None;
+        port.release.provider = ReleaseSource::UserPrepared;
+        port.release.asset_hints.clear();
+        port.release.user_prepared.insert(platform, runtime);
+        port.executable_hints = [(platform, vec![executable_name.into()])].into();
+        document.ports.push(port);
+        let catalog = Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap();
+        service.replace_catalog_for_test(catalog);
+
+        let preview = service
+            .preview_external_runtime("external-probe", &external)
+            .unwrap();
+        let accepted_bytes = fs::read(&executable).unwrap();
+        fs::write(&executable, b"changed after review").unwrap();
+        assert_eq!(
+            service
+                .authorize_external_runtime("external-probe", &external, &preview.preview_sha256)
+                .unwrap_err()
+                .code,
+            crate::ErrorCode::Verification
+        );
+        fs::write(&executable, &accepted_bytes).unwrap();
+        let authorization = service
+            .authorize_external_runtime("external-probe", &external, &preview.preview_sha256)
+            .unwrap();
+        let record = service
+            .register_external_runtime("external-probe", &external, &authorization.token)
+            .unwrap();
+        assert_eq!(record.path, fs::canonicalize(&external).unwrap());
+        assert_eq!(
+            service
+                .preview_adoption(&external, Some("external-probe"))
+                .unwrap_err()
+                .code,
+            crate::ErrorCode::Unsupported
+        );
+        let mut conflicting_install = probe.clone();
+        conflicting_install.id = Uuid::new_v4().to_string();
+        conflicting_install.port_id = "external-probe".into();
+        assert_eq!(
+            library
+                .register_install(&conflicting_install, true)
+                .unwrap_err()
+                .code,
+            crate::ErrorCode::Conflict
+        );
+        assert!(
+            service
+                .status("external-probe")
+                .unwrap()
+                .external_runtime
+                .is_some()
+        );
+
+        drop(service);
+        let mut reopened = service_with_release(Library::open(&library_root).unwrap(), "v1");
+        reopened.replace_catalog_for_test(
+            Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap(),
+        );
+        assert_eq!(
+            reopened
+                .status("external-probe")
+                .unwrap()
+                .external_runtime
+                .unwrap()
+                .id,
+            record.id
+        );
+        let mut changed_definition = document.clone();
+        changed_definition
+            .ports
+            .iter_mut()
+            .find(|port| port.id == "external-probe")
+            .unwrap()
+            .release
+            .user_prepared
+            .get_mut(&platform)
+            .unwrap()
+            .immutable_tree_sha256 = "f".repeat(64);
+        reopened.replace_catalog_for_test(
+            Catalog::from_json(&serde_json::to_string(&changed_definition).unwrap()).unwrap(),
+        );
+        assert_eq!(
+            reopened
+                .status("external-probe")
+                .unwrap()
+                .external_runtime
+                .unwrap()
+                .immutable_tree_sha256,
+            record.immutable_tree_sha256
+        );
+        let marker = temporary.path().join("started");
+        let arguments = vec![
+            marker.display().to_string(),
+            "0".into(),
+            "player settings".into(),
+            "0".into(),
+        ];
+        let request_id = Uuid::new_v4().to_string();
+        let outcome = reopened
+            .supervise_launch_identified(
+                IdentifiedLaunchRequest {
+                    request_id: &request_id,
+                    port_id: "external-probe",
+                    source_override: None,
+                    arguments: &arguments,
+                    stdio: LaunchStdio::Null,
+                },
+                |session| assert_eq!(session.owner_kind, crate::LaunchOwnerKind::External),
+                |_| {},
+            )
+            .unwrap();
+        assert!(outcome.successful);
+        assert_eq!(fs::read(&marker).unwrap(), b"started");
+        assert_eq!(
+            fs::read(external.join("general.json")).unwrap(),
+            b"player settings"
+        );
+        assert!(!external.join(LAUNCH_MARKER).exists());
+        assert!(
+            reopened
+                .supervise_launch_identified(
+                    IdentifiedLaunchRequest {
+                        request_id: &Uuid::new_v4().to_string(),
+                        port_id: "external-probe",
+                        source_override: None,
+                        arguments: &arguments,
+                        stdio: LaunchStdio::Null,
+                    },
+                    |_| {},
+                    |_| {},
+                )
+                .unwrap()
+                .successful
+        );
+
+        fs::write(external.join("foreign.dll"), b"unrecognized loader").unwrap();
+        assert_eq!(
+            reopened
+                .supervise_launch_identified(
+                    IdentifiedLaunchRequest {
+                        request_id: &Uuid::new_v4().to_string(),
+                        port_id: "external-probe",
+                        source_override: None,
+                        arguments: &arguments,
+                        stdio: LaunchStdio::Null,
+                    },
+                    |_| {},
+                    |_| panic!("changed external tree must not start"),
+                )
+                .unwrap_err()
+                .code,
+            crate::ErrorCode::Verification
+        );
+
+        let removal = reopened.preview_external_removal("external-probe").unwrap();
+        assert!(removal.external_files_will_be_preserved);
+        let authorization = reopened
+            .authorize_external_removal("external-probe", &removal.preview_sha256)
+            .unwrap();
+        reopened
+            .remove_external_runtime("external-probe", &authorization.token)
+            .unwrap();
+        assert!(
+            reopened
+                .status("external-probe")
+                .unwrap()
+                .external_runtime
+                .is_none()
+        );
+        assert!(executable.is_file());
+        assert_eq!(
+            fs::read(external.join("foreign.dll")).unwrap(),
+            b"unrecognized loader"
+        );
+        assert_eq!(
+            fs::read(external.join("general.json")).unwrap(),
+            b"player settings"
+        );
     }
 
     fn register_gen1_install(library: &Library, version: &str, active: bool) -> PathBuf {
@@ -10452,6 +11152,7 @@ fn main() {
                 port_id: "zelda64-recomp".into(),
                 install_id: install.id,
                 install_root: install.path,
+                owner_kind: crate::LaunchOwnerKind::Managed,
                 supervisor_pid: u32::MAX,
                 supervisor_identity: None,
                 child_pid: Some(std::process::id()),
@@ -10498,6 +11199,7 @@ fn main() {
                 port_id: "zelda64-recomp".into(),
                 install_id: install.id,
                 install_root: install.path,
+                owner_kind: crate::LaunchOwnerKind::Managed,
                 supervisor_pid: u32::MAX,
                 supervisor_identity: None,
                 child_pid: None,
@@ -10546,6 +11248,7 @@ fn main() {
                 port_id: "zelda64-recomp".into(),
                 install_id: "replaced-install".into(),
                 install_root: install.path,
+                owner_kind: crate::LaunchOwnerKind::Managed,
                 supervisor_pid: u32::MAX,
                 supervisor_identity: None,
                 child_pid: None,
@@ -10795,6 +11498,7 @@ fn main() {
                 port_id: "zelda64-recomp".into(),
                 install_id: launched.id.clone(),
                 install_root: launched.path.clone(),
+                owner_kind: crate::LaunchOwnerKind::Managed,
                 supervisor_pid: u32::MAX,
                 supervisor_identity: None,
                 child_pid: Some(child_pid),
@@ -10850,6 +11554,7 @@ fn main() {
                     .unwrap()
                     .id,
                 install_root: install.clone(),
+                owner_kind: crate::LaunchOwnerKind::Managed,
                 supervisor_pid: u32::MAX,
                 supervisor_identity: None,
                 child_pid: None,

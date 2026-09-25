@@ -8,14 +8,16 @@ use std::{
 
 use directories::ProjectDirs;
 use fs2::FileExt;
-use rusqlite::{Connection, OptionalExtension, limits::Limit, params, params_from_iter};
+use rusqlite::{
+    Connection, OptionalExtension, TransactionBehavior, limits::Limit, params, params_from_iter,
+};
 use sha2::{Digest, Sha256};
 
 use crate::{
     ActivityOperation, ActivityRecord, ActivityStatus, ActivityTargetKind, ArtifactIdentity,
-    InstallRecord, LaunchSessionOutcome, LaunchSessionPhase, LaunchSessionRecord, PortStatus,
-    PortcoveError, ReleaseChannel, Result, SourceRecord, StorageSummary, UpdateCheck, UpdatePolicy,
-    UpdateSnapshot,
+    Catalog, ExternalRuntimeRecord, InstallRecord, LaunchOwnerKind, LaunchSessionOutcome,
+    LaunchSessionPhase, LaunchSessionRecord, PortStatus, PortcoveError, ReleaseChannel, Result,
+    SourceRecord, StorageSummary, UpdateCheck, UpdatePolicy, UpdateSnapshot,
     authorization::{AuthorizationStore, DestructiveAuthorization},
     database,
 };
@@ -169,6 +171,7 @@ pub(crate) struct StatusReadMetrics {
     pub sqlite_query_count: usize,
     pub settings_row_count: usize,
     pub install_row_count: usize,
+    pub external_runtime_row_count: usize,
     pub launch_history_row_count: usize,
     pub update_snapshot_row_count: usize,
 }
@@ -1218,8 +1221,8 @@ impl Library {
             "INSERT INTO launch_sessions(
                id, port_id, install_id, install_root, supervisor_pid, supervisor_identity,
                child_pid, child_identity, phase, outcome, exit_code, message,
-               started_at, updated_at, finished_at
-             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, NULL, NULL, NULL, ?10, ?11, NULL)",
+               started_at, updated_at, finished_at, owner_kind
+             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, NULL, NULL, NULL, ?10, ?11, NULL, ?12)",
             params![
                 session.id,
                 session.port_id,
@@ -1232,6 +1235,7 @@ impl Library {
                 session.phase.to_string(),
                 session.started_at,
                 session.updated_at,
+                session.owner_kind.to_string(),
             ],
         )?;
         Ok(())
@@ -1312,7 +1316,7 @@ impl Library {
         let mut statement = connection.prepare(
             "SELECT id, port_id, install_id, install_root, supervisor_pid,
                     supervisor_identity, child_pid, child_identity, phase, outcome,
-                    exit_code, message, started_at, updated_at, finished_at
+                    exit_code, message, started_at, updated_at, finished_at, owner_kind
              FROM launch_sessions WHERE outcome IS NULL ORDER BY started_at, id",
         )?;
         let rows = statement.query_map([], launch_session_row)?;
@@ -1325,7 +1329,7 @@ impl Library {
             .query_row(
                 "SELECT id, port_id, install_id, install_root, supervisor_pid,
                         supervisor_identity, child_pid, child_identity, phase, outcome,
-                        exit_code, message, started_at, updated_at, finished_at
+                        exit_code, message, started_at, updated_at, finished_at, owner_kind
                  FROM launch_sessions WHERE id=?1",
                 [id],
                 launch_session_row,
@@ -1346,7 +1350,7 @@ impl Library {
             .query_row(
                 "SELECT id, port_id, install_id, install_root, supervisor_pid,
                         supervisor_identity, child_pid, child_identity, phase, outcome,
-                        exit_code, message, started_at, updated_at, finished_at
+                        exit_code, message, started_at, updated_at, finished_at, owner_kind
                  FROM launch_sessions WHERE port_id=?1 AND outcome IS NULL",
                 [port_id],
                 launch_session_row,
@@ -1670,6 +1674,16 @@ impl Library {
     pub fn register_install(&self, install: &InstallRecord, activate: bool) -> Result<()> {
         let mut connection = self.connection()?;
         let transaction = connection.transaction()?;
+        let external_exists: bool = transaction.query_row(
+            "SELECT EXISTS(SELECT 1 FROM external_runtime_registrations WHERE port_id=?1)",
+            [&install.port_id],
+            |row| row.get(0),
+        )?;
+        if external_exists {
+            return Err(PortcoveError::conflict(
+                "port has an external runtime registration; it cannot acquire a managed install",
+            ));
+        }
         Self::write_install(&transaction, install, !activate)?;
         transaction.execute(
             "INSERT OR IGNORE INTO port_settings(port_id, channel, update_policy) VALUES (?1, ?2, 'notify')",
@@ -1768,6 +1782,111 @@ impl Library {
             .into_iter()
             .next()
             .ok_or_else(|| PortcoveError::state("status read model returned no row"))
+    }
+
+    pub(crate) fn external_runtime_with_port(
+        &self,
+        port_id: &str,
+    ) -> Result<Option<(ExternalRuntimeRecord, Catalog)>> {
+        let row = self
+            .connection()?
+            .query_row(
+                "SELECT record_json, retained_catalog_json FROM external_runtime_registrations
+             WHERE port_id=?1",
+                [port_id],
+                |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)),
+            )
+            .optional()?;
+        row.map(|(record, catalog)| {
+            let record: ExternalRuntimeRecord = serde_json::from_str(&record)?;
+            let catalog = Catalog::from_json(&catalog)?;
+            if record.port_id != port_id || catalog.port(port_id).is_err() {
+                return Err(PortcoveError::state(
+                    "retained external runtime has a mismatched port identity",
+                ));
+            }
+            Ok((record, catalog))
+        })
+        .transpose()
+    }
+
+    pub(crate) fn register_external_runtime(
+        &self,
+        record: &ExternalRuntimeRecord,
+        retained_catalog: &Catalog,
+    ) -> Result<()> {
+        if retained_catalog.port(&record.port_id).is_err() {
+            return Err(PortcoveError::state(
+                "external runtime and retained port identities differ",
+            ));
+        }
+        let mut connection = self.connection()?;
+        let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+        let existing: bool = transaction.query_row(
+            "SELECT EXISTS(SELECT 1 FROM external_runtime_registrations WHERE port_id=?1)
+                    OR EXISTS(SELECT 1 FROM installs WHERE port_id=?1)",
+            [&record.port_id],
+            |row| row.get(0),
+        )?;
+        if existing {
+            return Err(PortcoveError::conflict(
+                "port already has a managed install or external runtime registration",
+            ));
+        }
+        transaction.execute(
+            "INSERT INTO external_runtime_registrations
+             (port_id, record_json, retained_catalog_json, registered_at)
+             VALUES (?1, ?2, ?3, ?4)",
+            params![
+                record.port_id,
+                serde_json::to_string(record)?,
+                serde_json::to_string(&retained_catalog.authoritative_document())?,
+                record.registered_at,
+            ],
+        )?;
+        transaction.commit()?;
+        Ok(())
+    }
+
+    pub(crate) fn remove_external_runtime(&self, expected: &ExternalRuntimeRecord) -> Result<()> {
+        let mut connection = self.connection()?;
+        let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+        let current: Option<String> = transaction
+            .query_row(
+                "SELECT record_json FROM external_runtime_registrations WHERE port_id=?1",
+                [&expected.port_id],
+                |row| row.get(0),
+            )
+            .optional()?;
+        let Some(current) = current else {
+            return Err(PortcoveError::not_found(
+                "external runtime registration no longer exists",
+            ));
+        };
+        if serde_json::from_str::<ExternalRuntimeRecord>(&current)?.id != expected.id
+            || current != serde_json::to_string(expected)?
+        {
+            return Err(PortcoveError::conflict(
+                "external runtime registration changed after review",
+            ));
+        }
+        let active_launch: bool = transaction.query_row(
+            "SELECT EXISTS(SELECT 1 FROM launch_sessions
+             WHERE port_id=?1 AND outcome IS NULL)",
+            [&expected.port_id],
+            |row| row.get(0),
+        )?;
+        if active_launch {
+            return Err(PortcoveError::conflict(
+                "external runtime has an active launch session",
+            ));
+        }
+        transaction.execute(
+            "DELETE FROM external_runtime_registrations WHERE port_id=?1",
+            [&expected.port_id],
+        )?;
+        transaction.commit()?;
+        Ok(())
     }
 
     pub(crate) fn statuses_with_metrics(
@@ -1873,6 +1992,31 @@ impl Library {
         }
 
         let mut launch_history = HashMap::new();
+        let mut external_runtimes = HashMap::new();
+        for port_ids in port_ids.chunks(ports_per_query) {
+            metrics.record_query();
+            let sql = format!(
+                "SELECT port_id, record_json FROM external_runtime_registrations
+                 WHERE port_id IN ({})",
+                sql_placeholders(port_ids.len())
+            );
+            let mut statement = connection.prepare(&sql)?;
+            let rows = statement.query_map(params_from_iter(port_ids), |row| {
+                Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+            })?;
+            for row in rows {
+                let (port_id, json) = row?;
+                let record: ExternalRuntimeRecord = serde_json::from_str(&json)?;
+                if record.port_id != port_id {
+                    return Err(PortcoveError::state(
+                        "external runtime record has a mismatched port identity",
+                    ));
+                }
+                metrics.external_runtime_row_count += 1;
+                external_runtimes.insert(port_id, record);
+            }
+        }
+
         for port_ids in port_ids.chunks(ports_per_query) {
             metrics.record_query();
             let sql = format!(
@@ -1951,6 +2095,7 @@ impl Library {
                     channel,
                     update_policy,
                     active,
+                    external_runtime: external_runtimes.get(port_id).cloned(),
                     previous,
                     staged,
                     last_launched_at: history.map(|value| value.0),
@@ -2157,6 +2302,7 @@ type StoredLaunchSession = (
     i64,
     i64,
     Option<i64>,
+    String,
 );
 
 fn launch_session_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<StoredLaunchSession> {
@@ -2176,6 +2322,7 @@ fn launch_session_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<StoredLaunchS
         row.get(12)?,
         row.get(13)?,
         row.get(14)?,
+        row.get(15)?,
     ))
 }
 
@@ -2185,6 +2332,7 @@ fn parse_launch_session(row: StoredLaunchSession) -> Result<LaunchSessionRecord>
         port_id: row.1,
         install_id: row.2,
         install_root: PathBuf::from(row.3),
+        owner_kind: row.15.parse::<LaunchOwnerKind>()?,
         supervisor_pid: row.4,
         supervisor_identity: row.5,
         child_pid: row.6,
@@ -2693,10 +2841,11 @@ mod tests {
             assert_eq!(statuses.len(), record_count);
             assert_eq!(
                 metrics.sqlite_query_count,
-                4 * record_count.div_ceil(status_ports_per_query(&transaction).unwrap())
+                5 * record_count.div_ceil(status_ports_per_query(&transaction).unwrap())
             );
             assert_eq!(metrics.settings_row_count, record_count);
             assert_eq!(metrics.install_row_count, 0);
+            assert_eq!(metrics.external_runtime_row_count, 0);
             assert_eq!(metrics.launch_history_row_count, record_count);
             assert_eq!(metrics.update_snapshot_row_count, 0);
             assert_eq!(statuses.first().unwrap().port_id, "port-0000");
@@ -2734,7 +2883,7 @@ mod tests {
             .statuses_from_with_metrics(&connection, &ports)
             .unwrap();
 
-        assert_eq!(metrics.sqlite_query_count, 16);
+        assert_eq!(metrics.sqlite_query_count, 20);
         assert_eq!(statuses.len(), 10);
         assert_eq!(statuses[0].port_id, "port-09");
         assert_eq!(statuses[9].port_id, "port-00");
@@ -2845,7 +2994,7 @@ mod tests {
             assert_eq!(statuses.len(), 1);
             assert_eq!(statuses[0].active.as_ref().unwrap().id, "target-install");
             assert_eq!(statuses[0].successful_launches, 3);
-            assert_eq!(metrics.sqlite_query_count, 4);
+            assert_eq!(metrics.sqlite_query_count, 5);
             assert_eq!(metrics.settings_row_count, 1);
             assert_eq!(metrics.install_row_count, 1);
             assert_eq!(metrics.launch_history_row_count, 1);

@@ -251,6 +251,7 @@ const installationMethodLabels: Record<
   "generated-game-data": "Generated game data",
   "upstream-setup": "Managed upstream setup",
   "managed-recompilation": "Managed native recompilation",
+  "user-prepared-runtime": "User-prepared external runtime",
 };
 
 export function installationMethodLabel(port: PortDefinition) {
@@ -284,7 +285,7 @@ export function filterOptions(view: View): Filter[] {
 }
 
 export function portReadiness(status: PortStatus | undefined): PortReadiness {
-  if (!status?.active) return "available";
+  if (!status?.active && !status?.external_runtime) return "available";
   const assessment = status.readiness;
   if (!assessment || typeof assessment.launchable !== "boolean") return "unknown";
   if (assessment.blockers.includes("invalid_installation")) return "repair";
@@ -311,7 +312,10 @@ export function summarizeLibrary(
   ports: PortDefinition[],
   statuses: Map<string, PortStatus>,
 ): LibraryOverview {
-  const installed = ports.filter((port) => statuses.get(port.id)?.active);
+  const installed = ports.filter((port) => {
+    const status = statuses.get(port.id);
+    return status?.active || status?.external_runtime;
+  });
   const states = installed.map((port) => portReadiness(statuses.get(port.id)));
   return {
     installed: installed.length,
@@ -327,7 +331,7 @@ export function mostRecentPort(
 ): RecentPort | undefined {
   return ports.reduce<RecentPort | undefined>((recent, port) => {
     const status = statuses.get(port.id);
-    if (!status?.active || !status.last_launched_at) return recent;
+    if ((!status?.active && !status?.external_runtime) || !status.last_launched_at) return recent;
     if (!recent || status.last_launched_at > (recent.status.last_launched_at ?? 0))
       return { port, status };
     return recent;
@@ -357,7 +361,10 @@ export function requiredSourceNeeds(
   const profilesById = new Map(profiles.map((profile) => [profile.id, profile]));
   const registered = new Set(sources.map((source) => source.profile_id));
   const requirements = new Map<string, SourceRequirement>();
-  for (const port of ports.filter((candidate) => statuses.get(candidate.id)?.active)) {
+  for (const port of ports.filter((candidate) => {
+    const status = statuses.get(candidate.id);
+    return status?.active || status?.external_runtime;
+  })) {
     addSourceNeed(requirements, profilesById, registered, port, port.source_profile, "Game source");
     addSourceNeed(requirements, profilesById, registered, port, port.bios_source_profile, "BIOS");
   }
@@ -407,15 +414,25 @@ export function filterPorts(
       const comparison =
         catalogSort === "name"
           ? left.port.name.localeCompare(right.port.name, "en", { sensitivity: "base" })
-          : Number(Boolean(statuses.get(right.port.id)?.active)) -
-            Number(Boolean(statuses.get(left.port.id)?.active));
+          : Number(
+              Boolean(
+                statuses.get(right.port.id)?.active ||
+                statuses.get(right.port.id)?.external_runtime,
+              ),
+            ) -
+            Number(
+              Boolean(
+                statuses.get(left.port.id)?.active || statuses.get(left.port.id)?.external_runtime,
+              ),
+            );
       return comparison || left.index - right.index;
     })
     .map(({ port }) => port);
 }
 
 function visibleInView(port: PortDefinition, statuses: Map<string, PortStatus>, view: View) {
-  return view !== "library" || Boolean(statuses.get(port.id)?.active);
+  const status = statuses.get(port.id);
+  return view !== "library" || Boolean(status?.active || status?.external_runtime);
 }
 
 function needsAttention(readiness: PortReadiness) {

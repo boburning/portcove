@@ -299,7 +299,7 @@ function Workspace({
       resetLibrary,
       ready: Boolean(data.catalog),
       installedCount: data.catalog
-        ? data.statuses.filter((status) => status.active).length
+        ? data.statuses.filter((status) => status.active || status.external_runtime).length
         : undefined,
       catalogCount: data.catalog?.ports.length,
     });
@@ -463,7 +463,7 @@ function Workspace({
           view={ui.view}
           setView={setPrimaryView}
           controller={controller}
-          installedCount={data.statuses.filter((status) => status.active).length}
+          installedCount={model.overview.installed}
           updateCount={
             data.statuses.filter((status) => currentUpdateSnapshot(status)?.check.update_available)
               .length
@@ -516,6 +516,9 @@ function Workspace({
               backups={backups}
               activities={data.activities}
               libraryGeneration={bootstrap.generation}
+              refreshAfterMutation={() => {
+                void data.refreshAfterMutation();
+              }}
               openSourceIntake={openSourceIntake}
               close={closePortDetails}
             />
@@ -865,6 +868,7 @@ function SelectedPortPanel({
   backups,
   activities,
   libraryGeneration,
+  refreshAfterMutation,
   openSourceIntake,
   close,
 }: {
@@ -876,6 +880,7 @@ function SelectedPortPanel({
   backups: BackupState;
   activities: ActivityRecord[];
   libraryGeneration: number;
+  refreshAfterMutation: () => void;
   openSourceIntake: (portId: string, profileId: string, paths?: string[]) => void;
   close: () => void;
 }) {
@@ -936,6 +941,10 @@ function SelectedPortPanel({
       )}
       libraryGeneration={libraryGeneration}
       outputLocationChanged={installPlanning.invalidate}
+      externalRuntimeChanged={() => {
+        installPlanning.invalidate();
+        refreshAfterMutation();
+      }}
       pickSource={pickSource}
       pickSourceArchive={pickArchive}
       busy={operations.busy}

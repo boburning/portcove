@@ -218,6 +218,9 @@ internal static class ContractTests
         ProtocolStream.Negotiate(bad);
         Check(true, "action assessment API schema negotiated without changing required commands");
         bad["schema_version"] = 55;
+        ProtocolStream.Negotiate(bad);
+        Check(true, "external runtime API schema negotiated without requiring unused commands");
+        bad["schema_version"] = 56;
         Reject(() => ProtocolStream.Negotiate(bad), "future schema rejected with migration guidance");
         bad["schema_version"] = 42; bad["commands"] = new object[0];
         Reject(() => ProtocolStream.Negotiate(bad), "missing command capability rejected");
@@ -622,16 +625,24 @@ internal static class ContractTests
             port_actions = new object[]
             {
                 new { action = "install", availability = "waiting", reason = "missing_source" },
+                new { action = "register_external", availability = "held", reason = "definition_ineligible",
+                    definition = new { outcome = "hold", reason = "metadata_stale" } },
                 new { action = "launch", availability = "held", reason = "definition_ineligible",
                     definition = new { outcome = "hold", reason = "publisher_revoked" } },
-                new { action = "remove_managed", availability = "waiting", reason = "review_required" }
+                new { action = "remove_managed", availability = "not_offered", reason = "route_not_offered" },
+                new { action = "remove_external", availability = "waiting", reason = "review_required" }
             }
         }));
         var actions = PortActions.Read(status);
-        Check(actions.Length == 3 && actions[1].DefinitionReason == "publisher_revoked",
-            "client consumes shared action and exact signed-definition reason");
+        Check(actions.Length == 5 && actions[1].DefinitionReason == "metadata_stale" &&
+            actions[2].DefinitionReason == "publisher_revoked",
+            "client consumes external and managed actions with exact signed-definition reasons");
         Check(PortActions.Summary(status).Contains("review required"),
-            "client presents managed removal as awaiting review");
+            "client presents external registration removal as awaiting review");
+        Check(PortActionDecision.Read(Json.Parse(Json.Print(new
+        {
+            action = "register_external", availability = "not_offered", reason = "already_registered"
+        }))).Reason == "already_registered", "client consumes retained managed/external conflict");
         var invalid = Json.Object(Json.Parse(Json.Print(new
         {
             action = "launch", availability = "allowed", reason = "changed_source"

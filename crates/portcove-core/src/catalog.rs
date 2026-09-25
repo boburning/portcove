@@ -538,6 +538,7 @@ impl Catalog {
                 ReleaseSource::Github | ReleaseSource::Gitlab => {
                     if !valid_repository_path(&port.release.repository)
                         || !port.release.direct.is_empty()
+                        || !port.release.user_prepared.is_empty()
                     {
                         return Err(PortcoveError::usage(format!(
                             "{} has an invalid hosted release specification",
@@ -559,6 +560,7 @@ impl Catalog {
                     if port.channels != [ReleaseChannel::Stable]
                         || port.release.rolling_tag.is_some()
                         || port.release.direct.len() != port.platforms.len()
+                        || !port.release.user_prepared.is_empty()
                     {
                         return Err(PortcoveError::usage(format!(
                             "{} direct manifests must pin one stable artifact per declared platform",
@@ -582,6 +584,61 @@ impl Catalog {
                                 port.id
                             )));
                         }
+                    }
+                }
+                ReleaseSource::UserPrepared => {
+                    if port.channels != [ReleaseChannel::Stable]
+                        || port.release.rolling_tag.is_some()
+                        || !port.release.direct.is_empty()
+                        || !port.release.asset_hints.is_empty()
+                        || port.release.user_prepared.len() != port.platforms.len()
+                        || !port.bundled_runtime.is_empty()
+                    {
+                        return Err(PortcoveError::usage(format!(
+                            "{} has an incomplete user-prepared runtime route",
+                            port.id
+                        )));
+                    }
+                    for platform in &port.platforms {
+                        let Some(runtime) = port.release.user_prepared.get(platform) else {
+                            return Err(PortcoveError::usage(format!(
+                                "{} has no user-prepared runtime for {platform:?}",
+                                port.id
+                            )));
+                        };
+                        if runtime.version.trim().is_empty()
+                            || !is_safe_basename(&runtime.archive_name)
+                            || !runtime.archive_name.to_ascii_lowercase().ends_with(".zip")
+                            || runtime.archive_size == 0
+                            || !is_sha256(&runtime.archive_sha256)
+                            || !is_sha256(&runtime.immutable_tree_sha256)
+                            || !is_safe_executable_hint(&runtime.executable, *platform)
+                            || port.executable_hints.get(platform).is_none_or(|hints| {
+                                hints.len() != 1
+                                    || !hints[0].eq_ignore_ascii_case(&runtime.executable)
+                            })
+                            || runtime.mutable_paths.iter().any(|path| {
+                                crate::archive::validate_relative_path(path, true).is_err()
+                                    || crate::runtime::overlaps(path, &runtime.executable)
+                            })
+                            || runtime
+                                .source_argument_extension
+                                .as_ref()
+                                .is_some_and(|extension| {
+                                    port.source_profile.is_none()
+                                        || extension.is_empty()
+                                        || extension.len() > 16
+                                        || !extension
+                                            .bytes()
+                                            .all(|byte| byte.is_ascii_alphanumeric())
+                                })
+                        {
+                            return Err(PortcoveError::usage(format!(
+                                "{} has an unsafe user-prepared runtime for {platform:?}",
+                                port.id
+                            )));
+                        }
+                        crate::archive::validate_download_progress(0, runtime.archive_size)?;
                     }
                 }
             }
@@ -1308,7 +1365,7 @@ mod tests {
         let source_catalog = migrated.source_catalog().expect("schema-2 authority");
         assert_eq!(
             source_catalog.identities.len(),
-            legacy.document().source_profiles.len() + 9
+            legacy.document().source_profiles.len() + 10
         );
         let projected_legacy_profiles = migrated
             .document()
@@ -1325,6 +1382,7 @@ mod tests {
                     "mega-man-x5-psx",
                     "paperboat-paper-mario-us",
                     "open-nectar-pikmin-disc",
+                    "wave-race-64",
                 ]
                 .contains(&profile.id.as_str())
             })
@@ -1475,6 +1533,7 @@ mod tests {
                     "mega-man-x5-recompiled",
                     "paperboat",
                     "open-nectar-pikmin",
+                    "wave-race-64-recomp",
                 ]
                 .contains(&port.id.as_str())
             })
@@ -1651,7 +1710,7 @@ mod tests {
 
         assert!(document.get("source_catalog").is_some());
         assert!(document.get("source_profiles").is_none());
-        assert_eq!(document["ports"].as_array().unwrap().len(), 76);
+        assert_eq!(document["ports"].as_array().unwrap().len(), 77);
     }
 
     #[test]
@@ -1900,6 +1959,7 @@ mod tests {
                     "mega-man-x5-psx",
                     "paperboat-paper-mario-us",
                     "open-nectar-pikmin-disc",
+                    "wave-race-64",
                 ]
                 .contains(&profile.id.as_str())
             })

@@ -153,6 +153,7 @@ pub enum InstallationMethod {
     GeneratedGameData,
     UpstreamSetup,
     ManagedRecompilation,
+    UserPreparedRuntime,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -175,6 +176,7 @@ pub struct SourceRequirementPresentation {
 #[serde(rename_all = "kebab-case")]
 pub enum SavesAndSettingsBehavior {
     PortcoveManaged,
+    ExternalUserOwned,
 }
 
 /// Additive catalog-owned facts intended for user-facing clients. Older catalog
@@ -184,6 +186,8 @@ pub struct PortPresentation {
     pub installation_method: InstallationMethod,
     pub source_requirements: Vec<SourceRequirementPresentation>,
     pub saves_and_settings: SavesAndSettingsBehavior,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub manual_preparation: Option<String>,
 }
 
 impl AdapterKind {
@@ -284,6 +288,7 @@ pub enum ReleaseSource {
     Github,
     Gitlab,
     DirectManifest,
+    UserPrepared,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema, Default)]
@@ -306,6 +311,23 @@ pub struct DirectReleaseSpec {
     pub published_at: Option<String>,
 }
 
+/// Catalog-accepted identity for a runtime the player prepares outside Portcove.
+/// Portcove never downloads or owns this package through this route.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct UserPreparedRuntimeSpec {
+    pub version: String,
+    pub archive_name: String,
+    pub archive_size: u64,
+    pub archive_sha256: String,
+    pub executable: String,
+    /// Digest of the bounded, sorted immutable file inventory after extraction.
+    pub immutable_tree_sha256: String,
+    #[serde(default)]
+    pub source_argument_extension: Option<String>,
+    #[serde(default)]
+    pub mutable_paths: Vec<String>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ReleaseSpec {
     #[serde(default)]
@@ -318,6 +340,8 @@ pub struct ReleaseSpec {
     pub asset_hints: BTreeMap<Platform, Vec<String>>,
     #[serde(default)]
     pub direct: BTreeMap<Platform, DirectReleaseSpec>,
+    #[serde(default)]
+    pub user_prepared: BTreeMap<Platform, UserPreparedRuntimeSpec>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -511,6 +535,21 @@ pub struct InstallRecord {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct ExternalRuntimeRecord {
+    pub id: String,
+    pub port_id: String,
+    pub path: PathBuf,
+    pub executable: PathBuf,
+    pub version: String,
+    pub platform: Platform,
+    pub archive_sha256: String,
+    pub immutable_tree_sha256: String,
+    pub registered_at: i64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub retained_definition: Option<crate::DefinitionSelectionIdentity>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct PortStatus {
     pub port_id: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -518,6 +557,8 @@ pub struct PortStatus {
     pub channel: ReleaseChannel,
     pub update_policy: UpdatePolicy,
     pub active: Option<InstallRecord>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub external_runtime: Option<ExternalRuntimeRecord>,
     pub previous: Option<InstallRecord>,
     pub staged: Option<InstallRecord>,
     #[serde(default)]
@@ -593,6 +634,8 @@ pub enum ActivityOperation {
     Adopt,
     Remove,
     RemoveSource,
+    RegisterExternal,
+    RemoveExternal,
     RegisterSource,
     VerifySource,
 }
@@ -621,6 +664,8 @@ impl std::fmt::Display for ActivityOperation {
             Self::Adopt => "adopt",
             Self::Remove => "remove",
             Self::RemoveSource => "remove_source",
+            Self::RegisterExternal => "register_external",
+            Self::RemoveExternal => "remove_external",
             Self::RegisterSource => "register_source",
             Self::VerifySource => "verify_source",
         })
@@ -653,6 +698,8 @@ impl FromStr for ActivityOperation {
             "adopt" => Ok(Self::Adopt),
             "remove" => Ok(Self::Remove),
             "remove_source" => Ok(Self::RemoveSource),
+            "register_external" => Ok(Self::RegisterExternal),
+            "remove_external" => Ok(Self::RemoveExternal),
             "register_source" => Ok(Self::RegisterSource),
             "verify_source" => Ok(Self::VerifySource),
             _ => Err(PortcoveError::state(format!(
@@ -707,6 +754,8 @@ pub struct LaunchSessionRecord {
     pub port_id: String,
     pub install_id: String,
     pub install_root: PathBuf,
+    #[serde(default)]
+    pub owner_kind: LaunchOwnerKind,
     pub supervisor_pid: u32,
     pub supervisor_identity: Option<String>,
     pub child_pid: Option<u32>,
@@ -718,6 +767,37 @@ pub struct LaunchSessionRecord {
     pub started_at: i64,
     pub updated_at: i64,
     pub finished_at: Option<i64>,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum LaunchOwnerKind {
+    #[default]
+    Managed,
+    External,
+}
+
+impl std::fmt::Display for LaunchOwnerKind {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str(match self {
+            Self::Managed => "managed",
+            Self::External => "external",
+        })
+    }
+}
+
+impl FromStr for LaunchOwnerKind {
+    type Err = PortcoveError;
+
+    fn from_str(value: &str) -> Result<Self> {
+        match value {
+            "managed" => Ok(Self::Managed),
+            "external" => Ok(Self::External),
+            _ => Err(PortcoveError::state(format!(
+                "unknown launch owner kind: {value}"
+            ))),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -1278,6 +1358,7 @@ impl CapabilityDocument {
                 "artwork".into(),
                 "catalog".into(),
                 "catalog.check-capabilities".into(),
+                "external".into(),
                 "source".into(),
                 "source.roots".into(),
                 "source.roots.scan".into(),

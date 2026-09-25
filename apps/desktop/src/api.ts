@@ -6,6 +6,9 @@ import type {
   BackupAction,
   BackupReview,
   PortRemovalPreview,
+  ExternalRuntimePreview,
+  ExternalRuntimeRemovalPreview,
+  ExternalRuntimeRecord,
 } from "./types";
 
 import type { InstallInput, LaunchResult } from "./types";
@@ -558,6 +561,28 @@ export const desktopApi = {
     invoke<PortRemovalPreview>("preview_removal", { portId, generation }),
   remove: (portId: string, expectedPreview: string, generation: number) =>
     invoke<string[] | null>("remove_port", {
+      portId,
+      expectedPreview,
+      generation,
+    }),
+  previewExternalRuntime: (portId: string, path: string, generation: number) =>
+    invoke<ExternalRuntimePreview>("preview_external_runtime", { portId, path, generation }),
+  registerExternalRuntime: (
+    portId: string,
+    path: string,
+    expectedPreview: string,
+    generation: number,
+  ) =>
+    invoke<ExternalRuntimeRecord | null>("register_external_runtime", {
+      portId,
+      path,
+      expectedPreview,
+      generation,
+    }),
+  previewExternalRemoval: (portId: string, generation: number) =>
+    invoke<ExternalRuntimeRemovalPreview>("preview_external_removal", { portId, generation }),
+  removeExternalRuntime: (portId: string, expectedPreview: string, generation: number) =>
+    invoke<ExternalRuntimeRecord | null>("remove_external_runtime", {
       portId,
       expectedPreview,
       generation,

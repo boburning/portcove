@@ -68,6 +68,7 @@ export function portDefinition(): PortDefinition {
       rolling_tag: null,
       asset_hints: {},
       direct: {},
+      user_prepared: {},
     },
     executable_hints: {},
     bundled_runtime: {},

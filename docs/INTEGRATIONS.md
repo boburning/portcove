@@ -95,6 +95,13 @@ keep eligibility, source compatibility, publisher trust, artifact integrity,
 and scoped evidence distinct. They expose Portcove decisions rather than
 recreating them.
 
+For an official user-prepared runtime, clients negotiate the `external`
+capability and use the reviewed `external preview/register/remove` CLI route.
+`status` distinguishes a non-owning registration from a managed installation;
+`exec` uses the same supervised launch path. Removing that registration never
+means uninstalling the external files. An external path is host-local and is
+rechecked against its retained accepted contract before each launch.
+
 Headless calls select noninteractive behavior deliberately. Documentation must
 cover confirmation, previews and stale-plan rejection, timeouts, fail-fast
 conflicts, cancellation, safe retries, and mutations that require fresh consent.

@@ -58,6 +58,16 @@ const port: PortDefinition = {
   release: portDefinition().release,
   executable_hints: {},
 };
+const preparedPort: PortDefinition = {
+  ...port,
+  source_profile: null,
+  release: { ...port.release, provider: "user-prepared" },
+  presentation: {
+    installation_method: "user-prepared-runtime",
+    source_requirements: [],
+    saves_and_settings: "external-user-owned",
+  },
+};
 const biosPort = currentCatalogPort("mortal-kombat-4-recompiled");
 const psxBiosProfile = {
   ...sourceProfile(),
@@ -232,6 +242,45 @@ const missingRuntimeFixture = (updateAvailable: boolean) => {
 };
 
 describe("desktop components", () => {
+  it("describes player-prepared registration before and after it joins the library", () => {
+    const props = {
+      port: preparedPort,
+      sourcePath: "",
+      setSourcePath: vi.fn(),
+      actions,
+    };
+    const available = renderToStaticMarkup(<DetailPanel {...props} />);
+    expect(available).toContain("Prepare your runtime");
+    expect(available).toContain("without installing or owning them");
+    expect(available).toContain("You prepare the runtime");
+    expect(available).not.toContain("Available to install");
+    expect(available).not.toContain("Portcove checks this project for releases");
+
+    const registered = renderToStaticMarkup(
+      <DetailPanel
+        {...props}
+        status={{
+          ...portStatus(),
+          external_runtime: {
+            id: "prepared-1",
+            port_id: preparedPort.id,
+            path: "C:\\Player\\Runtime",
+            executable: "C:\\Player\\Runtime\\game.exe",
+            version: "1.0.2",
+            platform: "windows-x86-64",
+            archive_sha256: "a".repeat(64),
+            immutable_tree_sha256: "b".repeat(64),
+            registered_at: 1,
+          },
+          readiness: { launchable: true, blockers: [], pending_setup: false },
+        }}
+      />,
+    );
+    expect(registered).toContain("Ready to play");
+    expect(registered).toContain(
+      "Portcove launches it without owning or managing the external files",
+    );
+  });
   it.each(["future_state", "constructor", "__proto__"])(
     "keeps unknown activity and policy labels neutral for %s",
     (value) => {
@@ -1018,6 +1067,7 @@ describe("desktop components", () => {
     expect(html).toMatch(/<button[^>]*data-variant="ghost"[^>]*aria-label="Dismiss error"/u);
     expect(html).toContain("Port catalog");
     expect(html).toContain("<span>Game updates</span>");
+    expect(html).toContain('aria-label="2 in library"');
     expect(html).toContain("Problem");
     expect(html).toContain("C:/Portcove");
     expect(html).toContain("width:50%");
@@ -2651,6 +2701,7 @@ describe("desktop components", () => {
             published_at: null,
           },
         },
+        user_prepared: {},
       },
     };
     const html = renderToStaticMarkup(

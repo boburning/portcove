@@ -88,6 +88,11 @@ enum Commands {
         #[command(subcommand)]
         command: SourceCommand,
     },
+    /// Inspect or register a player-owned, catalog-accepted runtime without copying it.
+    External {
+        #[command(subcommand)]
+        command: ExternalCommand,
+    },
     /// Inspect and configure optional disc preparation tools for this host.
     Tool {
         #[command(subcommand)]
@@ -248,6 +253,25 @@ enum LaunchCommand {
     Show { request_id: Uuid },
     /// Recover an unfinished request after its recorded supervisor has exited.
     Recover { request_id: Uuid },
+}
+
+#[derive(Debug, Subcommand)]
+enum ExternalCommand {
+    /// Compare a player-owned runtime with the exact accepted package contract.
+    Preview { port_id: String, path: PathBuf },
+    /// Register a reviewed runtime; no external file becomes Portcove-owned.
+    Register {
+        port_id: String,
+        path: PathBuf,
+        #[arg(long)]
+        yes: bool,
+    },
+    /// Remove only Portcove's registration, preserving every external file.
+    Remove {
+        port_id: String,
+        #[arg(long)]
+        yes: bool,
+    },
 }
 
 #[derive(Debug, Subcommand)]
@@ -849,6 +873,9 @@ fn command_is_observation(command: &Commands) -> bool {
                 command: CatalogCommand::Update { apply: false, .. },
             }
             | Commands::Status { .. }
+            | Commands::External {
+                command: ExternalCommand::Preview { .. },
+            }
             | Commands::Activity { .. }
             | Commands::Storage
             | Commands::Doctor
@@ -1885,6 +1912,57 @@ async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
                 serde_json::json!({ "removed": service.remove(&port_id, &authorization.token)? }),
             )?;
         }
+        Commands::External { command } => match command {
+            ExternalCommand::Preview { port_id, path } => {
+                render_success(
+                    mode,
+                    "external.preview",
+                    service.preview_external_runtime(&port_id, &path)?,
+                )?;
+            }
+            ExternalCommand::Register { port_id, path, yes } => {
+                let preview = service.preview_external_runtime(&port_id, &path)?;
+                if mode == OutputMode::Human {
+                    println!("{}", human::document(&preview)?);
+                }
+                require_confirmation(
+                    &format!(
+                        "Register {} as a player-owned runtime? Portcove will launch it but never remove its files.",
+                        preview.path.display()
+                    ),
+                    yes,
+                    cli.non_interactive,
+                )?;
+                let authorization =
+                    service.authorize_external_runtime(&port_id, &path, &preview.preview_sha256)?;
+                render_success(
+                    mode,
+                    "external.register",
+                    service.register_external_runtime(&port_id, &path, &authorization.token)?,
+                )?;
+            }
+            ExternalCommand::Remove { port_id, yes } => {
+                let preview = service.preview_external_removal(&port_id)?;
+                if mode == OutputMode::Human {
+                    println!("{}", human::document(&preview)?);
+                }
+                require_confirmation(
+                    &format!(
+                        "Remove only Portcove's registration for {port_id}? {} and all other external files will stay untouched.",
+                        preview.path.display()
+                    ),
+                    yes,
+                    cli.non_interactive,
+                )?;
+                let authorization =
+                    service.authorize_external_removal(&port_id, &preview.preview_sha256)?;
+                render_success(
+                    mode,
+                    "external.remove",
+                    service.remove_external_runtime(&port_id, &authorization.token)?,
+                )?;
+            }
+        },
         Commands::Adopt(args) => {
             let preview = service.preview_adoption(&args.path, args.port.as_deref())?;
             if mode == OutputMode::Human {
@@ -2599,6 +2677,11 @@ fn command_name(command: &Commands) -> &'static str {
             LaunchCommand::Show { .. } => "launch.show",
             LaunchCommand::Recover { .. } => "launch.recover",
         },
+        Commands::External { command } => match command {
+            ExternalCommand::Preview { .. } => "external.preview",
+            ExternalCommand::Register { .. } => "external.register",
+            ExternalCommand::Remove { .. } => "external.remove",
+        },
         Commands::Storage => "storage",
         Commands::Library { command } => library_command_name(command),
         Commands::Doctor => "doctor",
@@ -3112,7 +3195,7 @@ mod tests {
     #[test]
     fn capabilities_advertise_failure_isolated_batches() {
         let capabilities = CapabilityDocument::current();
-        assert_eq!(capabilities.schema_version, 54);
+        assert_eq!(capabilities.schema_version, 55);
         assert!(
             capabilities
                 .commands

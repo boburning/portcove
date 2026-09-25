@@ -73,10 +73,19 @@ shared acquisition, transaction, persistence and lifecycle owners when catalog
 data or a shared adapter cannot express the useful route. A bare upstream link
 or placeholder is not an integration.
 
-Current catalog schema 1/2 still implements hosted or exact direct-manifest
-package installation through its existing adapters. The official non-owning
-existing-runtime route belongs to [#1169](https://github.com/boburning/portcove/issues/1169);
-this policy does not present that unimplemented route as available. Hosted
+Catalog schema 1/2 supports hosted or exact direct-manifest package installation
+through its existing adapters. The `user-prepared` release route is separate:
+an official definition pins the package's exact archive identity and the
+immutable extracted tree, executable, platform, and explicitly mutable game
+output. Core only inspects and records a player-owned folder; it does not
+acquire, extract, own, update, back up, relocate, or delete that folder.
+Only catalog entries that declare and qualify this route offer it. [#1169](https://github.com/boburning/portcove/issues/1169)
+owns the first real-port qualification and its remaining end-to-end evidence.
+An optional `presentation.manual_preparation` gives the exact player-created
+steps for a user-prepared runtime; the short port summary remains an outcome
+description. The Wave Race pilot requires an empty `portable.txt` beside its
+executable, in addition to the extracted upstream ZIP files.
+Hosted
 installation still requires a provider digest or verified checksum sidecar;
 an exact direct manifest still requires an accepted HTTPS URL, size, version and
 SHA-256 for each declared platform. The owner has approved catalog-curated

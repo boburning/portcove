@@ -184,6 +184,7 @@ mod tests {
                 port_id: "example".into(),
                 install_id: "install".into(),
                 install_root: root.join("versions/example/install"),
+                owner_kind: crate::LaunchOwnerKind::Managed,
                 supervisor_pid: 10,
                 supervisor_identity: Some("supervisor".into()),
                 child_pid: Some(11),

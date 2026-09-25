@@ -1,5 +1,6 @@
 import { RemovalControl, type ApplyRemoval } from "./RemovalReview";
 import { SteamEntryControl } from "./SteamEntry";
+import { ExternalRuntimeControl } from "./ExternalRuntime";
 import { ArtworkControls, ArtworkImage, DetailArtwork } from "./Artwork";
 import type { ApplyBackupAction } from "./BackupReview";
 import { ReleaseChannelControl } from "./ReleaseChannel";
@@ -107,6 +108,7 @@ interface DetailPanelProps {
   busy?: string;
   libraryGeneration?: number;
   outputLocationChanged?: () => void;
+  externalRuntimeChanged?: () => void;
   openSourceEvidence?: (evidenceId: string) => void;
   inspectSource?: (profile: SourceProfile) => void;
   actions: DetailActions;
@@ -179,6 +181,7 @@ export function DetailPanel(props: DetailPanelProps) {
           selectedRequirement,
           missingRequirement,
           Boolean(status?.readiness?.blockers.includes("invalid_installation")),
+          port.release.provider === "user-prepared",
         );
   const sources: SourceControls = {
     port,
@@ -251,6 +254,7 @@ export function DetailPanel(props: DetailPanelProps) {
         outputExternalBusy={busy}
         libraryGeneration={props.libraryGeneration ?? 0}
         outputLocationChanged={props.outputLocationChanged}
+        externalRuntimeChanged={props.externalRuntimeChanged}
         outputApplying={setOutputApplying}
         actions={actions}
       />
@@ -305,6 +309,7 @@ function DetailBody({
   outputExternalBusy,
   libraryGeneration,
   outputLocationChanged,
+  externalRuntimeChanged,
   outputApplying,
   actions,
 }: {
@@ -331,6 +336,7 @@ function DetailBody({
   outputExternalBusy?: string;
   libraryGeneration: number;
   outputLocationChanged?: () => void;
+  externalRuntimeChanged?: () => void;
   outputApplying: (applying: boolean) => void;
   actions: DetailActions;
 }) {
@@ -354,6 +360,8 @@ function DetailBody({
         managedPreparation={managedPreparation}
         installPlan={installPlan}
         busy={busy}
+        libraryGeneration={libraryGeneration}
+        onChanged={externalRuntimeChanged}
         actions={actions}
       />
       <RequirementsGroup
@@ -372,52 +380,65 @@ function DetailBody({
       <NavigationHints />
       <ArtworkControls key={`${port.id}:${libraryGeneration}`} port={port} />
       <DetailArtwork key={`${port.id}:${libraryGeneration}`} port={port} />
-      {installed && (
+      {status?.active && (
         <DetailGroup title="Installation and version">
           <InstallationVersionSummary status={status} selectedChannel={selectedChannel} />
         </DetailGroup>
       )}
-      <UpdatesGroup
-        perform={perform}
-        port={port}
-        status={status}
-        installed={installed}
-        selectedChannel={selectedChannel}
-        policy={policy}
-        libraryGeneration={libraryGeneration}
-        busy={busy}
-        actions={actions}
-      />
-      <SavesStorageGroup
-        port={port}
-        status={status}
-        installed={installed}
-        backups={backups}
-        backupProblems={backupProblems}
-        backupState={backupState}
-        libraryGeneration={libraryGeneration}
-        busy={busy}
-        outputExternalBusy={outputExternalBusy}
-        outputLocationChanged={outputLocationChanged}
-        outputApplying={outputApplying}
-        actions={actions}
-      />
+      {port.release.provider !== "user-prepared" && !status?.external_runtime && (
+        <UpdatesGroup
+          perform={perform}
+          port={port}
+          status={status}
+          installed={installed}
+          selectedChannel={selectedChannel}
+          policy={policy}
+          libraryGeneration={libraryGeneration}
+          busy={busy}
+          actions={actions}
+        />
+      )}
+      {port.release.provider === "user-prepared" || status?.external_runtime ? (
+        <DetailGroup title="Saves and storage">
+          <p>
+            Game-owned settings and saves in the external runtime remain outside Portcove's backup,
+            update, and removal operations.
+          </p>
+        </DetailGroup>
+      ) : (
+        <SavesStorageGroup
+          port={port}
+          status={status}
+          installed={installed}
+          backups={backups}
+          backupProblems={backupProblems}
+          backupState={backupState}
+          libraryGeneration={libraryGeneration}
+          busy={busy}
+          outputExternalBusy={outputExternalBusy}
+          outputLocationChanged={outputLocationChanged}
+          outputApplying={outputApplying}
+          actions={actions}
+        />
+      )}
       <DetailGroup title="Compatibility and testing">
         <CompatibilitySummary port={port} />
       </DetailGroup>
       <DetailGroup title="Project and release">
         <ProjectReleaseSummary port={port} />
       </DetailGroup>
-      <TechnicalDetails
-        libraryGeneration={libraryGeneration}
-        port={port}
-        status={status}
-        selectedChannel={selectedChannel}
-        installed={installed}
-        busy={busy}
-        sources={sources}
-        actions={actions}
-      />
+      {port.release.provider !== "user-prepared" && !status?.external_runtime && (
+        <TechnicalDetails
+          libraryGeneration={libraryGeneration}
+          port={port}
+          status={status}
+          selectedChannel={selectedChannel}
+          installed={installed}
+          busy={busy}
+          sources={sources}
+          actions={actions}
+        />
+      )}
     </div>
   );
 }
@@ -437,6 +458,8 @@ function StatusActionsGroup({
   managedPreparation,
   installPlan,
   busy,
+  libraryGeneration,
+  onChanged,
   actions,
 }: {
   installCancellations?: ActivityRecord[];
@@ -453,8 +476,34 @@ function StatusActionsGroup({
   managedPreparation: boolean;
   installPlan?: InstallPlan;
   busy?: string;
+  libraryGeneration: number;
+  onChanged?: () => void;
   actions: DetailActions;
 }) {
+  if (port.release.provider === "user-prepared" || status?.external_runtime) {
+    return (
+      <DetailGroup title="Status and actions">
+        <RetiredNotice port={port} />
+        {status?.external_runtime && (
+          <InstalledPlayActions
+            preparationRequired={false}
+            launchReady={launchReady}
+            pendingSetup={false}
+            stagedVersion={undefined}
+            busy={busy}
+            actions={actions}
+          />
+        )}
+        <ExternalRuntimeControl
+          port={port}
+          status={status}
+          generation={libraryGeneration}
+          busy={Boolean(busy)}
+          onChanged={onChanged}
+        />
+      </DetailGroup>
+    );
+  }
   return (
     <DetailGroup title="Status and actions">
       <RetiredNotice port={port} />
@@ -801,7 +850,9 @@ function ProjectReleaseSummary({ port }: { port: PortDefinition }) {
             ? port.upstream_status === "retired"
               ? "Portcove uses the pinned release recorded in the catalog."
               : "Portcove uses the release details recorded in the catalog."
-            : "Portcove checks this project for releases."}
+            : port.release.provider === "user-prepared"
+              ? "Portcove uses the accepted package identity recorded in the catalog. You prepare the runtime."
+              : "Portcove checks this project for releases."}
         </span>
       </div>
     </>
@@ -831,7 +882,9 @@ function SavesAndSettingsSummary({ port }: { port: PortDefinition }) {
         <small>Saved data handling</small>
         {port.presentation?.saves_and_settings === "portcove-managed"
           ? "Managed by Portcove for backup and restore"
-          : "Unavailable in this catalog"}
+          : port.presentation?.saves_and_settings === "external-user-owned"
+            ? "Stored with your external runtime; Portcove does not back up or remove it"
+            : "Unavailable in this catalog"}
       </span>
     </div>
   );
@@ -862,7 +915,7 @@ function detailReadiness(
   bios: SourceRecord | undefined,
   biosPath: string | undefined,
 ) {
-  const installed = Boolean(status?.active);
+  const installed = Boolean(status?.active || status?.external_runtime);
   const sourceReady = sourceRequirementReady(
     Boolean(port.source_profile),
     installed,
@@ -1817,6 +1870,7 @@ function detailState(
   selectedRequirement?: "game" | "bios" | "both",
   missingRequirement?: SelectedRequirement,
   invalidInstallation = false,
+  externalRuntime = false,
 ) {
   if (invalidInstallation)
     return {
@@ -1826,7 +1880,8 @@ function detailState(
       tone: "setup",
       icon: AlertTriangle,
     };
-  if (!installed) return availableInstallState(selectedRequirement, missingRequirement);
+  if (!installed)
+    return availableInstallState(selectedRequirement, missingRequirement, externalRuntime);
   if (runtimeNeeded) return runtimeRequirementState(runtimeUpdateAvailable);
   const sourceIssue = sourceHealthState("game", sourceHealth);
   if (sourceIssue) return sourceIssue;
@@ -1895,6 +1950,7 @@ function selectedSourceRequirement(
 function availableInstallState(
   selectedRequirement?: SelectedRequirement,
   missingRequirement?: SelectedRequirement,
+  externalRuntime = false,
 ) {
   if (missingRequirement) {
     const requirement =
@@ -1911,11 +1967,21 @@ function availableInstallState(
           : "Choose the required game files";
     return {
       title: `${requirement} needed`,
-      description: `${nextStep} before reviewing installation. Portcove checks selected files before activation.`,
+      description: externalRuntime
+        ? `${nextStep} before registering your prepared runtime. Portcove checks selected files and the external folder.`
+        : `${nextStep} before reviewing installation. Portcove checks selected files before activation.`,
       tone: "setup",
       icon: Wrench,
     };
   }
+  if (externalRuntime)
+    return {
+      title: "Prepare your runtime",
+      description:
+        "Choose the accepted external folder after preparing it. Portcove reviews its files without installing or owning them.",
+      tone: "available",
+      icon: Wrench,
+    };
   let description =
     "Portcove will check required game files and verify the release before it becomes active.";
   if (selectedRequirement === "bios")

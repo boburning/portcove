@@ -14,7 +14,7 @@ use crate::{PortcoveError, Result};
 #[path = "database_concurrency_tests.rs"]
 mod concurrency_tests;
 
-pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 31;
+pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 32;
 
 struct Migration {
     version: i64,
@@ -210,7 +210,41 @@ const MIGRATIONS: &[Migration] = &[
         apply: migration_31,
         verify: verify_migration_31,
     },
+    Migration {
+        version: 32,
+        name: "non-owning runtime registration",
+        apply: migration_32,
+        verify: verify_migration_32,
+    },
 ];
+
+fn migration_32(transaction: &Transaction<'_>) -> Result<()> {
+    transaction.execute_batch(
+        "CREATE TABLE external_runtime_registrations (
+            port_id TEXT PRIMARY KEY,
+            record_json TEXT NOT NULL,
+            retained_catalog_json TEXT NOT NULL,
+            registered_at INTEGER NOT NULL
+        );
+        ALTER TABLE launch_sessions ADD COLUMN owner_kind TEXT NOT NULL
+            DEFAULT 'managed' CHECK(owner_kind IN ('managed','external'));",
+    )?;
+    Ok(())
+}
+
+fn verify_migration_32(connection: &Connection) -> Result<()> {
+    require_columns(
+        connection,
+        "external_runtime_registrations",
+        &[
+            "port_id",
+            "record_json",
+            "retained_catalog_json",
+            "registered_at",
+        ],
+    )?;
+    require_columns(connection, "launch_sessions", &["owner_kind"])
+}
 
 struct MigrationLock {
     file: File,
@@ -1430,6 +1464,7 @@ mod tests {
         schema_28: 28,
         schema_29: 29,
         schema_30: 30,
+        schema_31: 31,
     }
 
     #[test]

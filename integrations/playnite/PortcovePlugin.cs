@@ -59,13 +59,14 @@ namespace Portcove.ReferenceClient
                 object status;
                 if (!statuses.TryGetValue(portId, out status)) throw new InvalidOperationException("The catalog changed during discovery. Refresh again.");
                 var active = Json.Field(status, "active");
+                var external = Json.Field(status, "external_runtime");
                 result.Add(new GameMetadata
                 {
                     GameId = key, Name = Json.Text(port, "name"),
                     Description = System.Net.WebUtility.HtmlEncode(Json.Text(port, "summary")),
-                    IsInstalled = active != null,
-                    InstallDirectory = active == null ? null : Json.Text(active, "path"),
-                    Version = active == null ? null : Json.Text(active, "version")
+                    IsInstalled = active != null || external != null,
+                    InstallDirectory = active != null ? Json.Text(active, "path") : external == null ? null : Json.Text(external, "path"),
+                    Version = active != null ? Json.Text(active, "version") : external == null ? null : Json.Text(external, "version")
                 });
             }
             return result;
@@ -112,9 +113,11 @@ namespace Portcove.ReferenceClient
             {
                 var status = plugin.ShowManagement(Game);
                 var active = status == null ? null : Json.Field(status, "active");
-                if (active != null) InvokeOnInstalled(new GameInstalledEventArgs
+                var external = status == null ? null : Json.Field(status, "external_runtime");
+                var installed = active ?? external;
+                if (installed != null) InvokeOnInstalled(new GameInstalledEventArgs
                 {
-                    InstalledInfo = new GameInstallationData { InstallDirectory = Json.Text(active, "path") }
+                    InstalledInfo = new GameInstallationData { InstallDirectory = Json.Text(installed, "path") }
                 });
                 else InvokeOnInstallationCancelled(new GameInstallationCancelledEventArgs());
             }

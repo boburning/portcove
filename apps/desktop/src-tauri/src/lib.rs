@@ -29,6 +29,7 @@ mod backup_review;
 mod catalog;
 mod cli_context;
 mod diagnostics;
+mod external_runtime_commands;
 mod game_updates;
 mod library_selection;
 mod library_transfer;
@@ -2213,6 +2214,10 @@ pub fn run() {
             adoption::adopt_port,
             removal::preview_removal,
             removal::remove_port,
+            external_runtime_commands::preview_external_runtime,
+            external_runtime_commands::register_external_runtime,
+            external_runtime_commands::preview_external_removal,
+            external_runtime_commands::remove_external_runtime,
             preparation::preview_preparation_cleanup,
             preparation::cleanup_preparation,
             launch_port,
