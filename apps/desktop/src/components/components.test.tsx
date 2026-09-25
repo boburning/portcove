@@ -1590,6 +1590,28 @@ describe("desktop components", () => {
     expect(html).toContain("Refresh status");
   });
 
+  it("offers the six Settings sections as direct, shared-control jumps", () => {
+    const html = renderToStaticMarkup(<SettingsView />);
+    const index = html.match(
+      /<div[^>]*aria-label="Settings sections"[^>]*>([\s\S]*?)<\/div>/u,
+    )?.[1];
+    expect(index).toBeDefined();
+    for (const id of [
+      "appearance",
+      "library-storage",
+      "game-files",
+      "updates",
+      "integrations",
+      "advanced",
+    ]) {
+      expect(html).toContain(`data-settings-group="${id}"`);
+      expect(html).toContain(`id="settings-${id}-heading"`);
+    }
+    expect(index?.match(/data-slot="button"/gu)).toHaveLength(6);
+    expect(index).toContain("Library &amp; Storage");
+    expect(index).toContain("Portcove &amp; catalog updates");
+  });
+
   it("hides unavailable device sign-in without exposing build configuration", () => {
     const html = renderToStaticMarkup(
       <SettingsView
