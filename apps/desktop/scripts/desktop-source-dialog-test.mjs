@@ -27,9 +27,13 @@ export async function sourceDialogScenario({ browser, scenario, output, artifact
       Key.chord(process.platform === "darwin" ? Key.COMMAND : Key.CONTROL, "a"),
       Key.BACK_SPACE,
     );
+    await click(
+      By.xpath('//div[@aria-label="Release channel filters"]//button[normalize-space(.)="All"]'),
+    );
     await click(By.css(`[data-detail-origin="catalog:card:${port.id}"]`));
     await click(By.css(".requirements-disclosure > .requirements-summary"));
     const intakeTrigger = await browser.findElement(button("Check original game files"));
+    await browser.executeScript('arguments[0].scrollIntoView({ block: "center" });', intakeTrigger);
     await click(button("Check original game files"));
     const intakeDialog = By.css('[aria-labelledby="source-intake-title"]');
     await browser.wait(until.elementLocated(intakeDialog), 15_000);
@@ -62,6 +66,10 @@ export async function sourceDialogScenario({ browser, scenario, output, artifact
     const discoveryTrigger = await browser.wait(
       until.elementLocated(button("Choose game files")),
       15_000,
+    );
+    await browser.executeScript(
+      'arguments[0].scrollIntoView({ block: "center" });',
+      discoveryTrigger,
     );
     await click(button("Choose game files"));
     const discoveryDialog = By.css('[aria-labelledby="source-discovery-title"]');

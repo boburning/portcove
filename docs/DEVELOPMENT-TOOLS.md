@@ -473,8 +473,10 @@ serves only that artifact from an ephemeral loopback address, and records the ex
 request, cancellation, staging absence and successful fresh-review retry. The
 second synthetic port proves a committed install remains successful while immediate
 workspace reads are temporarily unavailable, retains the last view as explicitly
-stale, and retries only that read without repeating install review, download or
-mutation. The
+stale, and retries the workspace read without repeating install review, download
+or install mutation. A separate generation-bound orphan discovery can occur
+during the retry observation; the harness records it separately from the install.
+The
 qualification feature accepts only an absolute catalog file and loopback HTTP URL;
 default and shipping binaries ignore the fixture variable and continue to require
 HTTPS direct manifests. The fixture proves native progress/cancellation and safe

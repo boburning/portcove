@@ -356,14 +356,15 @@ export async function installScenarios({
       observations.retry_commands = observations.commands_after_retry.slice(
         observations.commands_before_retry.length,
       );
-      const retryReads = new Set([
+      const retryAndBackgroundCommands = new Set([
         "get_activities",
         "get_workspace_changed",
         "get_workspace_snapshot",
+        "discover_orphaned_operations",
       ]);
       assert.ok(observations.retry_commands.includes("get_workspace_snapshot"));
       assert.ok(
-        observations.retry_commands.every((command) => retryReads.has(command)),
+        observations.retry_commands.every((command) => retryAndBackgroundCommands.has(command)),
         JSON.stringify(observations.retry_commands),
       );
       assert.equal(
@@ -371,7 +372,7 @@ export async function installScenarios({
         1,
       );
       assert.equal(fixture.requests.length, requestIndex + 1);
-      observations.retry_read_only = true;
+      observations.retry_did_not_repeat_install = true;
     } catch (error) {
       observations.failure = error.message;
       throw error;

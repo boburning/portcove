@@ -23,15 +23,15 @@ export async function sourceRemovalScenario({
 }) {
   await scenario("native-reviewed-source-reference-removal", async () => {
     assert.equal(path.resolve(library), path.resolve(output, "library"));
-    const port = command(["catalog", "show", "opengoal-jak1"]);
+    const portId = ["opengoal-jak1", "opengoal-jak2"].find((id) => command(["status", id]).active);
+    assert.ok(portId, "an installed game is required for source impact review");
+    const port = command(["catalog", "show", portId]);
     const source = command(["source", "list"]).find(
       (item) => item.profile_id === port.source_profile,
     );
     assert.ok(source);
     const install = command(["status", port.id]).active;
-    const affectedInstallText = install
-      ? port.name
-      : "No installed game currently depends on this reference.";
+    assert.ok(install);
     const paths = command(["paths", port.id]);
     const relative = path.relative(library, paths.user_data_root);
     assert.ok(relative && !relative.startsWith("..") && !path.isAbsolute(relative));
@@ -122,7 +122,7 @@ export async function sourceRemovalScenario({
     let text = await browser.findElement(dialog).getText();
     assert.ok(
       text.includes(source.path) &&
-        text.includes(affectedInstallText) &&
+        text.includes(port.name) &&
         text.includes("will not move or delete files at") &&
         text.includes("If interrupted, reopen Settings"),
     );
@@ -146,7 +146,7 @@ export async function sourceRemovalScenario({
     await confirmNative("Confirm source removal", "Cancel", source.path, "source-native-cancelled");
     await browser.wait(async () => (await browser.findElements(dialog)).length === 0, 15_000);
     await openReview();
-    const replacement = path.join(output, "owned-replacement-jak1.iso");
+    const replacement = path.join(output, `owned-replacement-${port.id}.iso`);
     await writeFile(replacement, "changed owned source registration", {
       flag: "wx",
     });
@@ -213,7 +213,7 @@ export async function sourceRemovalScenario({
         {
           profile_id: source.profile_id,
           preserved_files: preserved,
-          preserved_install: install?.id ?? null,
+          preserved_install: install.id,
           preserved_backup: backup.id,
           preserved_other_sources: otherSources,
           dismissal_and_native_cancel_preserved_reference: true,
