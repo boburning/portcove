@@ -181,7 +181,7 @@
   --icon-sm: 0.75rem;
   --icon-md: 1rem;
   --icon-lg: 1.25rem;
-  --layout-sidebar: 14.5rem;
+  --layout-sidebar: 15.5rem;
   --layout-sidebar-compact: 12rem;
   --layout-detail: 32rem;
   --layout-content-max: 100rem;
@@ -601,14 +601,16 @@ nav {
   grid-template-columns: var(--icon-lg) minmax(0, 1fr) auto auto;
   gap: var(--space-2);
   align-items: center;
-  padding-inline: var(--space-3);
+  height: auto;
+  min-height: var(--control-height-lg);
+  padding: var(--space-2) var(--space-3);
   text-align: left;
+  white-space: normal;
 }
 
 .nav-item > span:not(.icon) {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  min-width: 0;
+  overflow-wrap: break-word;
 }
 .nav-item kbd {
   opacity: 0;

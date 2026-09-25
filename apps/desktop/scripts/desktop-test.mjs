@@ -818,7 +818,31 @@ try {
   });
   await catalogUpdateScenario({ browser, invoke, scenario, output, artifacts });
   await scenario("keyboard-layout", async () => {
+    const verifySidebarLabels = async () => {
+      const labels = await browser.executeScript(() =>
+        [...document.querySelectorAll(".sidebar nav .nav-item")].map((button) => {
+          const label = button.querySelector("span:not(.icon)");
+          if (!(button instanceof HTMLElement) || !(label instanceof HTMLElement))
+            throw new Error("Primary navigation label is missing");
+          return {
+            text: label.textContent,
+            widthFits: label.scrollWidth <= label.clientWidth + 1,
+            heightFits: label.scrollHeight <= label.clientHeight + 1,
+            buttonFits: button.scrollHeight <= button.clientHeight + 1,
+          };
+        }),
+      );
+      assert.deepEqual(
+        labels.map((label) => label.text),
+        ["Library", "Port catalog", "Game updates", "Settings"],
+      );
+      assert.ok(labels.every((label) => label.widthFits && label.heightFits && label.buttonFits));
+    };
+    await browser.manage().window().setRect({ width: 1280, height: 800 });
+    await verifySidebarLabels();
+    await captureScenarioScreenshot("sidebar-full-labels-default");
     await browser.manage().window().setRect({ width: 640, height: 640 });
+    await verifySidebarLabels();
     await browser.findElement(By.xpath('//nav//button[contains(., "Settings")]')).click();
     await browser.wait(until.elementLocated(By.css('[data-settings-group="appearance"]')), 15_000);
     const layout = await browser.executeScript(() => ({
@@ -954,6 +978,7 @@ try {
     const compactWindow = await browser.manage().window().getRect();
     try {
       await browser.manage().window().setRect({ width: 960, height: 640 });
+      await verifySidebarLabels();
       for (const theme of ["dark", "light"]) {
         await browser.findElement(By.xpath('//nav//button[contains(., "Settings")]')).click();
         await browser
