@@ -16,6 +16,7 @@ use crate::{
 use portcove_core::{PortcoveError, PortcoveService};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 use std::path::PathBuf;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -89,6 +90,7 @@ struct SteamEntryContext {
     library_id: String,
     library_root: PathBuf,
     cli: Option<cli_context::CliExecutableIdentity>,
+    active_install_id: Option<String>,
 }
 
 #[tauri::command]
@@ -200,16 +202,24 @@ pub(crate) async fn apply_steam_batch_add(
     let state_for_review = state.inner().clone();
     let state_for_apply = state_for_review.clone();
     let review_request = request.clone();
-    let (review, reviewed_plan) = blocking_worker(move || {
+    let (review, reviewed_plan, reviewed_install_ids) = blocking_worker(move || {
         let service = service_at_generation(&state_for_review, generation)?;
         let contexts = batch_contexts(&service, &review_request.port_ids)?;
         let plan = plan_batch(&contexts, &review_request).map_err(steam_error)?;
-        if plan.plan_sha256 != expected_plan_sha256 {
+        if batch_review_hash(&plan, &contexts) != expected_plan_sha256 {
             return Err(DesktopError::from(PortcoveError::conflict(
                 "Steam batch state changed after preview; review the current plan again",
             )));
         }
-        Ok((batch_review(&contexts, &plan, observe_steam_client()), plan))
+        let install_ids = contexts
+            .iter()
+            .map(|context| context.active_install_id.clone())
+            .collect::<Vec<_>>();
+        Ok((
+            batch_review(&contexts, &plan, observe_steam_client()),
+            plan,
+            install_ids,
+        ))
     })
     .await?;
     let action = "Apply reviewed batch Add / Repair";
@@ -232,7 +242,11 @@ pub(crate) async fn apply_steam_batch_add(
         let service = service_at_generation(&state_for_apply, generation)?;
         let contexts = batch_contexts(&service, &request.port_ids)?;
         let current = plan_batch(&contexts, &request).map_err(steam_error)?;
-        if current != reviewed_plan {
+        let current_install_ids = contexts
+            .iter()
+            .map(|context| context.active_install_id.clone())
+            .collect::<Vec<_>>();
+        if current != reviewed_plan || current_install_ids != reviewed_install_ids {
             return Err(DesktopError::from(PortcoveError::conflict(
                 "a selected install, Portcove library, standalone CLI, Steam profile, or reviewed batch plan changed while consent was open",
             )));
@@ -334,11 +348,25 @@ fn batch_review(
         shortcuts_path: plan.shortcuts_path.clone(),
         snapshot_sha256: plan.snapshot_sha256.clone(),
         proposed_sha256: plan.proposed_sha256.clone(),
-        plan_sha256: plan.plan_sha256.clone(),
+        plan_sha256: batch_review_hash(plan, contexts),
         changes: plan.changes.clone(),
         steam_client_state,
         writes_required: plan.changes_required(),
     }
+}
+
+fn batch_review_hash(plan: &SteamEntryPlan, contexts: &[SteamEntryContext]) -> String {
+    let identities = contexts
+        .iter()
+        .map(|context| (&context.port_id, &context.active_install_id))
+        .collect::<Vec<_>>();
+    let serialized = serde_json::to_vec(&(
+        "portcove-steam-batch-review-v1",
+        &plan.plan_sha256,
+        identities,
+    ))
+    .expect("string-only batch review identity is serializable");
+    hex::encode(Sha256::digest(serialized))
 }
 
 fn entry_context(
@@ -347,12 +375,22 @@ fn entry_context(
     operation: SteamEntryOperation,
 ) -> DesktopResult<SteamEntryContext> {
     let port = service.catalog().port(port_id)?;
-    if operation == SteamEntryOperation::AddOrRepair && service.status(port_id)?.active.is_none() {
-        return Err(DesktopError::from(PortcoveError::usage(format!(
-            "install {} before adding it to Steam",
-            port.name
-        ))));
-    }
+    let active_install_id = if operation == SteamEntryOperation::AddOrRepair {
+        Some(
+            service
+                .status(port_id)?
+                .active
+                .ok_or_else(|| {
+                    DesktopError::from(PortcoveError::usage(format!(
+                        "install {} before adding it to Steam",
+                        port.name
+                    )))
+                })?
+                .id,
+        )
+    } else {
+        None
+    };
     let library = service.library().identity_record()?;
     Ok(SteamEntryContext {
         port_id: port.id.clone(),
@@ -362,6 +400,7 @@ fn entry_context(
         cli: (operation == SteamEntryOperation::AddOrRepair)
             .then(cli_context::discover_cli_identity_from_environment)
             .flatten(),
+        active_install_id,
     })
 }
 
@@ -626,6 +665,7 @@ mod tests {
             library_id: "library-123".into(),
             library_root,
             cli: Some(cli_context::inspect_cli(&cli_path).unwrap()),
+            active_install_id: Some("install-v1".into()),
         }
     }
 
@@ -733,12 +773,16 @@ mod tests {
         let review = batch_review(&contexts, &plan, SteamClientState::Closed);
         assert_eq!(review.selected_games.len(), 2);
         assert_eq!(review.changes.len(), 2);
-        assert_eq!(review.plan_sha256, plan.plan_sha256);
+        assert_eq!(review.plan_sha256, batch_review_hash(&plan, &contexts));
         assert!(review.writes_required);
         assert!(!plan.shortcuts_path.exists());
         let mut changed = contexts.clone();
         changed[1].display_name = "Renamed Port".into();
         assert_ne!(plan_batch(&changed, &selection).unwrap(), plan);
+        let mut replaced = contexts;
+        replaced[1].active_install_id = Some("install-v2".into());
+        assert_eq!(plan_batch(&replaced, &selection).unwrap(), plan);
+        assert_ne!(batch_review_hash(&plan, &replaced), review.plan_sha256);
     }
 
     #[test]

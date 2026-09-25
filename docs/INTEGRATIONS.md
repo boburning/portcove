@@ -420,8 +420,9 @@ single-game consumer in the game's Technical details, including after uninstall.
 Library also offers selected-batch Add/Repair for at least two installed games.
 The selection is explicit and one reviewed plan covers every selected game in
 one exact Steam profile. The host rejects duplicate, unknown, or uninstalled
-selection, rederives every game and the compatible CLI before and after native
-consent, and refuses the write if any selected identity or profile state changed.
+selection, binds each active install ID into the batch review hash, rederives
+every game and the compatible CLI before and after native consent, and refuses
+the write if any selected install or profile state changed.
 The durable writer applies the batch as one shortcut-file publication, retaining
 its original backup and journal recovery behavior.
 The user chooses a Steam installation folder and enters the exact numeric profile

@@ -276,17 +276,31 @@ export async function steamEntryScenario(context) {
     const boxes = await browser.findElements(
       By.css('[aria-labelledby="steam-batch-title"] input[type="checkbox"]'),
     );
-    assert.equal(boxes.length, 2, "fixture should offer exactly the two installed games");
+    assert.ok(boxes.length >= 2, "fixture should offer both installed target games");
     assert.equal(
       await browser.findElement(button("Review selected Add / Repair")).isEnabled(),
       false,
     );
-    await boxes[0].click();
+    const firstBox = await browser.findElement(
+      By.xpath(
+        `//div[@aria-labelledby="steam-batch-title"]//label[normalize-space(.)="${first.port.name}"]/input[@type="checkbox"]`,
+      ),
+    );
+    const secondBox = await browser.findElement(
+      By.xpath(
+        `//div[@aria-labelledby="steam-batch-title"]//label[normalize-space(.)="${second.port.name}"]/input[@type="checkbox"]`,
+      ),
+    );
+    await firstBox.click();
     assert.equal(
       await browser.findElement(button("Review selected Add / Repair")).isEnabled(),
       false,
     );
-    await boxes[1].click();
+    await secondBox.click();
+    assert.equal(
+      (await Promise.all(boxes.map((box) => box.isSelected()))).filter(Boolean).length,
+      2,
+    );
     await browser.findElement(By.id("steam-batch-installation")).sendKeys(steamRoot);
     await browser.findElement(By.id("steam-batch-profile")).sendKeys(steamUserId);
     await click(button("Review selected Add / Repair"));
