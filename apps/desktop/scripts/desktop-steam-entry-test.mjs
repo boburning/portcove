@@ -40,7 +40,7 @@ export async function steamEntryScenario(context) {
     await open(port, false);
     const { button, click } = reviewControls(browser);
     await click(By.css("summary.advanced-summary"));
-    await click(button("Steam entry"));
+    await click(button("Steam shortcut"));
     const dialog = By.css('[aria-labelledby="steam-entry-title"]');
     await browser.wait(until.elementLocated(dialog), 15_000);
     await browser.actions().sendKeys(Key.ESCAPE).perform();
@@ -49,13 +49,13 @@ export async function steamEntryScenario(context) {
       5_000,
       "Steam entry dialog did not close after Escape",
     );
-    const trigger = await browser.findElement(button("Steam entry"));
+    const trigger = await browser.findElement(button("Steam shortcut"));
     await browser.wait(
       async () => browser.executeScript("return document.activeElement === arguments[0];", trigger),
       5_000,
       "Steam entry trigger did not regain focus after Escape",
     );
-    await click(button("Steam entry"));
+    await click(button("Steam shortcut"));
     await browser.wait(until.elementLocated(dialog), 15_000);
     const installationField = await browser.findElement(By.id("steam-installation"));
     const installationLabel = await browser.findElement(By.css('label[for="steam-installation"]'));
@@ -99,20 +99,20 @@ export async function steamEntryScenario(context) {
     assert.equal(preview.value.cli_sha256.length, 64);
     assert.equal(preview.value.cli_product_version, "0.1.0-alpha.2");
     assert.equal(preview.value.writes_required, true);
-    await click(button("Review Add / Repair"));
-    await browser.wait(until.elementLocated(button("Apply reviewed Add / Repair")), 15_000);
+    await click(button("Review shortcut setup"));
+    await browser.wait(until.elementLocated(button("Add or repair shortcut")), 15_000);
     const addActionStyles = await assertPrimaryReviewAction(
       browser,
-      await browser.findElement(button("Apply reviewed Add / Repair")),
+      await browser.findElement(button("Add or repair shortcut")),
       await browser.findElement(button("Review current state again")),
     );
     const reviewed = await browser.findElement(dialog).getText();
     assert.ok(reviewed.includes(shortcuts));
     assert.ok(reviewed.includes("add"));
-    assert.ok(reviewed.includes("Steam appears closed"));
+    assert.ok(reviewed.includes("Keep Steam closed until this finishes"));
     const accessibility = path.join(output, "steam-entry-review-accessibility.json");
     await captureAccessibilityReport(browser, accessibility, artifacts);
-    await click(button("Apply reviewed Add / Repair"));
+    await click(button("Add or repair shortcut"));
     await confirmNative(
       "Confirm Steam entry change",
       "__observe__",
@@ -125,9 +125,9 @@ export async function steamEntryScenario(context) {
       shortcuts,
       "steam-entry-add-native-cancelled",
     );
-    await browser.wait(until.elementLocated(button("Apply reviewed Add / Repair")), 15_000);
+    await browser.wait(until.elementLocated(button("Add or repair shortcut")), 15_000);
     await assert.rejects(stat(shortcuts), { code: "ENOENT" });
-    await click(button("Apply reviewed Add / Repair"));
+    await click(button("Add or repair shortcut"));
     await confirmNative(
       "Confirm Steam entry change",
       "Apply reviewed Add / Repair",
@@ -135,7 +135,9 @@ export async function steamEntryScenario(context) {
       "steam-entry-add-native-confirmed",
     );
     await browser.wait(
-      until.elementLocated(By.xpath('//p[@role="status" and contains(., "was written")]')),
+      until.elementLocated(
+        By.xpath('//p[@role="status" and contains(., "Steam shortcut updated.")]'),
+      ),
       15_000,
     );
     const added = await fileIdentity(shortcuts);
@@ -177,21 +179,23 @@ export async function steamEntryScenario(context) {
     );
     await click(catalogCard);
     await click(By.css("summary.advanced-summary"));
-    await click(button("Steam entry"));
+    await click(button("Steam shortcut"));
     assert.ok((await browser.findElement(dialog).getText()).includes("game is not installed here"));
     await browser.findElement(By.id("steam-installation")).sendKeys(steamRoot);
     await browser.findElement(By.id("steam-profile")).sendKeys(steamUserId);
-    assert.equal(await browser.findElement(button("Review Add / Repair")).isEnabled(), false);
-    await click(button("Review Remove"));
-    await browser.wait(until.elementLocated(button("Remove reviewed entry")), 15_000);
+    assert.equal(await browser.findElement(button("Review shortcut setup")).isEnabled(), false);
+    await click(button("Review shortcut removal"));
+    await browser.wait(until.elementLocated(button("Remove shortcut")), 15_000);
     const removeActionStyles = await assertDestructiveReviewAction(
       browser,
-      await browser.findElement(button("Remove reviewed entry")),
+      await browser.findElement(button("Remove shortcut")),
       await browser.findElement(button("Review current state again")),
     );
     assert.ok((await browser.findElement(dialog).getText()).includes("remove"));
     assert.ok(
-      (await browser.findElement(dialog).getText()).includes("owned shortcut before writing"),
+      (await browser.findElement(dialog).getText()).includes(
+        "selected profile and shortcut are checked",
+      ),
     );
     const screenshot = path.join(output, "native-steam-entry-remove-review.png");
     await writeFile(screenshot, await browser.takeScreenshot(), {
@@ -199,7 +203,7 @@ export async function steamEntryScenario(context) {
       flag: "wx",
     });
     artifacts.push(screenshot);
-    await click(button("Remove reviewed entry"));
+    await click(button("Remove shortcut"));
     await confirmNative(
       "Confirm Steam entry change",
       "Apply reviewed Remove",
@@ -207,7 +211,9 @@ export async function steamEntryScenario(context) {
       "steam-entry-remove-native-confirmed",
     );
     await browser.wait(
-      until.elementLocated(By.xpath('//p[@role="status" and contains(., "was written")]')),
+      until.elementLocated(
+        By.xpath('//p[@role="status" and contains(., "Steam shortcut removed.")]'),
+      ),
       15_000,
     );
     const removed = await fileIdentity(shortcuts);
@@ -277,10 +283,7 @@ export async function steamEntryScenario(context) {
       By.css('[aria-labelledby="steam-batch-title"] input[type="checkbox"]'),
     );
     assert.ok(boxes.length >= 2, "fixture should offer both installed target games");
-    assert.equal(
-      await browser.findElement(button("Review selected Add / Repair")).isEnabled(),
-      false,
-    );
+    assert.equal(await browser.findElement(button("Review selected shortcuts")).isEnabled(), false);
     const firstBox = await browser.findElement(
       By.xpath(
         `//div[@aria-labelledby="steam-batch-title"]//label[normalize-space(.)="${first.port.name}"]/input[@type="checkbox"]`,
@@ -292,10 +295,7 @@ export async function steamEntryScenario(context) {
       ),
     );
     await firstBox.click();
-    assert.equal(
-      await browser.findElement(button("Review selected Add / Repair")).isEnabled(),
-      false,
-    );
+    assert.equal(await browser.findElement(button("Review selected shortcuts")).isEnabled(), false);
     await secondBox.click();
     assert.equal(
       (await Promise.all(boxes.map((box) => box.isSelected()))).filter(Boolean).length,
@@ -303,8 +303,8 @@ export async function steamEntryScenario(context) {
     );
     await browser.findElement(By.id("steam-batch-installation")).sendKeys(steamRoot);
     await browser.findElement(By.id("steam-batch-profile")).sendKeys(steamUserId);
-    await click(button("Review selected Add / Repair"));
-    await browser.wait(until.elementLocated(button("Apply reviewed batch Add / Repair")), 15_000);
+    await click(button("Review selected shortcuts"));
+    await browser.wait(until.elementLocated(button("Add or repair selected shortcuts")), 15_000);
     const reviewText = await browser.findElement(dialog).getText();
     for (const { port } of [first, second]) assert.ok(reviewText.includes(port.name));
     assert.ok(reviewText.includes(shortcuts));
@@ -332,7 +332,7 @@ export async function steamEntryScenario(context) {
     });
     assert.equal(changedSelection.ok, false, "a changed batch selection must not open consent");
     await assert.rejects(stat(shortcuts), { code: "ENOENT" });
-    await click(button("Apply reviewed batch Add / Repair"));
+    await click(button("Add or repair selected shortcuts"));
     await confirmNative(
       "Confirm Steam entry change",
       "Cancel",
@@ -340,7 +340,7 @@ export async function steamEntryScenario(context) {
       "steam-batch-native-cancelled",
     );
     await assert.rejects(stat(shortcuts), { code: "ENOENT" });
-    await click(button("Apply reviewed batch Add / Repair"));
+    await click(button("Add or repair selected shortcuts"));
     await confirmNative(
       "Confirm Steam entry change",
       "Apply reviewed batch Add / Repair",
@@ -348,7 +348,9 @@ export async function steamEntryScenario(context) {
       "steam-batch-native-confirmed",
     );
     await browser.wait(
-      until.elementLocated(By.xpath('//p[@role="status" and contains(., "was written")]')),
+      until.elementLocated(
+        By.xpath('//p[@role="status" and contains(., "Selected Steam shortcuts updated.")]'),
+      ),
       15_000,
     );
     const written = await fileIdentity(shortcuts);
