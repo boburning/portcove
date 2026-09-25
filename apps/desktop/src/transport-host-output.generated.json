@@ -5176,7 +5176,8 @@
           "availability",
           "install",
           "prepare",
-          "launch"
+          "launch",
+          "update"
         ],
         "type": "string"
       },

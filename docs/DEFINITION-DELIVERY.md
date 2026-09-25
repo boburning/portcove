@@ -176,26 +176,36 @@ grant; a reused textual repository name is not continuity of authority.
 
 ## Acquisition decision
 
-Retain authenticated upstream expected SHA-256 or the existing narrowly reviewed
+The current runtime accepts an upstream expected SHA-256 or existing reviewed
 direct-manifest provenance. Read-only API observations distinguish missing API
-digests from independently published checksum assets; neither is inferred from a
-same-download hash. The dated inventory linked from the issue records current
-observations and known legacy adoption failures without admitting those assets.
+digests from published checksum assets; neither is inferred from a same-download
+hash. The minimum [#246](https://github.com/boburning/portcove/issues/246)
+publication proof is independent of curated acquisition and uses an existing
+accepted route. A verified cache may be reused only against its retained
+accepted expected identity. Wrong bytes, ambiguous sidecars, missing provenance
+and changed asset IDs remain explicit outcomes.
 
-Do not add a general curated-legacy pinning authority for the minimum #246 proof.
-Use a redistributable candidate whose acquisition identity can be authenticated.
-Repeated hashing establishes repeatability, not original authenticity. An existing
-verified cache may be reused only against its retained trusted expected identity.
-Wrong bytes, ambiguous sidecar checksums, missing provenance and changed asset IDs
-remain explicit outcomes; a fresh digest does not silently repair a recorded
-same-identity replacement. No new DirectManifest exception or source-build
-workaround is introduced by this decision.
+On 2026-09-25 the owner authorized
+[#315](https://github.com/boburning/portcove/issues/315)'s policy direction:
+an exact artifact from an attributable upstream release may be accepted without
+a separately published publisher checksum after the acquisition route receives
+independent review under protected catalog authority. The accepted record must
+bind upstream/host, release, asset, platform, size, SHA-256, acquisition evidence
+and acceptance provenance. A catalog-curated hash proves integrity against
+accepted bytes; it is not a publisher signature or authentication claim. A new
+release identity may enter normal protected acceptance. Different bytes under
+the same accepted identity require investigation, not silent repinning.
 
-If legacy acquisition later warrants #315, its separate proposal must bind narrow
-repositories/assets/platforms, exact observed bytes/size, origin/provenance,
-explicit distinct consent, cache reuse, withdrawal/revocation and recovery. The
-owner must authorize that new trust authority before implementation/activation.
-Existing direct-manifest pins and permitted installed use survive this design.
+The #315 implementation must preserve withdrawal/revocation, verified-cache,
+recovery and permitted retained-version behavior. Proposal-producing runners
+cannot approve their own authority changes or hold signing credentials.
+Protected publisher automation may sign or publish only exact independently
+authorized inputs, with enforceable workflow separation and exact-input
+validation. Routine candidates within established authority do not need a
+separate owner stamp. The policy decision accepts no particular artifact and
+does not provision credentials or change current protections; existing source,
+acquisition, ownership, consent and operation guards remain in force until the
+route is implemented and afterward.
 
 ## Delivery, compatibility and retention
 

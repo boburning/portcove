@@ -27,5 +27,13 @@
   {"name":"popular or gameplay-qualified content still needs mandatory integrity", "scenario":{"gameplay_observed":true,"expected_integrity":false}, "outcome":"hold", "reason":"authenticated_integrity_required"},
   {"name":"explicitly authorized retained local adoption preserves permitted launch without claiming authenticated acquisition", "scenario":{"operation":"launch","retained_contract":true,"retained_local_authorization":true,"expected_integrity":false}, "outcome":"eligible", "reason":"mandatory_checks_passed"},
   {"name":"local launch authorization cannot authorize downloading unauthenticated bytes", "scenario":{"operation":"install","retained_contract":true,"retained_local_authorization":true,"expected_integrity":false}, "outcome":"hold", "reason":"authenticated_integrity_required"},
-  {"name":"retained local authorization cannot override corruption", "scenario":{"operation":"launch","retained_contract":true,"retained_local_authorization":true,"expected_integrity":false,"local_integrity_valid":false}, "outcome":"hold", "reason":"local_integrity_failed"}
+  {"name":"retained local authorization cannot override corruption", "scenario":{"operation":"launch","retained_contract":true,"retained_local_authorization":true,"expected_integrity":false,"local_integrity_valid":false}, "outcome":"hold", "reason":"local_integrity_failed"},
+  {"name":"external runtime with unknown saves can offer non-destructive launch", "scenario":{"operation":"launch","ownership_preserved":true}, "outcome":"eligible", "reason":"mandatory_checks_passed"},
+  {"name":"unknown external persistence cannot authorize destructive update", "scenario":{"operation":"update","ownership_preserved":false}, "outcome":"escalate", "reason":"ownership_migration_required"},
+  {"name":"a known safe update may be offered on its exact platform", "scenario":{"operation":"update"}, "outcome":"eligible", "reason":"mandatory_checks_passed"},
+  {"name":"known changed update bytes hold only that identity", "scenario":{"operation":"update","same_identity_changed":true}, "outcome":"hold", "reason":"recorded_identity_changed"},
+  {"name":"accepted catalog-curated expected bytes may be assessed under protected authority", "scenario":{"operation":"install","expected_integrity":true}, "outcome":"eligible", "reason":"mandatory_checks_passed"},
+  {"name":"locally measured unaccepted bytes cannot become catalog authority", "scenario":{"operation":"install","expected_integrity":false}, "outcome":"hold", "reason":"authenticated_integrity_required"},
+  {"name":"one available platform can be eligible", "scenario":{"operation":"install","capability_supported":true}, "outcome":"eligible", "reason":"mandatory_checks_passed"},
+  {"name":"another platform without the route remains unavailable", "scenario":{"operation":"install","capability_supported":false}, "outcome":"escalate", "reason":"engine_capability_required"}
 ]

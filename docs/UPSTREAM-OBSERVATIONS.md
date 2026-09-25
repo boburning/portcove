@@ -57,6 +57,8 @@ prerelease flag is false; Beta retains its existing stable fallback, while
 Rolling requires the catalog's explicit rolling tag. A held newest candidate
 does not fall through to an older release and call it current. Missing or
 ambiguous platform assets and absent provider SHA-256 claims remain held.
+The observed host archive flag is retained in the digested facts as maintenance
+information; it is not a hold by itself.
 The output includes the adapter capability and exact catalog-definition hash.
 
 `latest_eligible` means **core release metadata eligibility only**. Its

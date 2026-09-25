@@ -58,18 +58,31 @@ copy its current count or maintain a second title list.
 
 ## Continuous admission
 
-A candidate is eligible only when Portcove can represent it without weakening
-the architecture or trust model. Admission requires:
+A candidate is eligible when it has an attributable upstream or accepted
+user-provided-runtime route and a useful operation Portcove can perform safely
+on at least one declared platform. Record acquisition authority, exact artifact
+identity where bytes are acquired, required game-source identity, and the
+platform and operations actually offered. Each offered operation needs its own
+bounded executable, setup, ownership, consent, persistence and recovery
+contract. Unknown saves may coexist with non-destructive launch; they do not
+authorize replacement, cleanup, backup, restore or deletion of unowned bytes.
+Missing gameplay observations, active upstream maintenance, automatic updates,
+complete save mapping, every platform, or a reusable family adapter are not
+universal admission gates. Small title-specific core code may use the existing
+shared acquisition, transaction, persistence and lifecycle owners when catalog
+data or a shared adapter cannot express the useful route. A bare upstream link
+or placeholder is not an integration.
 
-- a direct and attributable upstream;
-- a useful native release for each declared platform;
-- immutable artifact identity through a published digest, verified checksum
-  sidecar, or a narrowly reviewed retired-project manifest;
-- an exact, lawful local-source contract when upstream code needs game data;
-- deterministic executable, setup, persistence, and update boundaries;
-- a reusable existing adapter or a justified family-level adapter owned by
-  `portcove-core`; and
-- honest automated and manual qualification fields.
+Current catalog schema 1/2 still implements hosted or exact direct-manifest
+package installation through its existing adapters. The official non-owning
+existing-runtime route belongs to [#1169](https://github.com/boburning/portcove/issues/1169);
+this policy does not present that unimplemented route as available. Hosted
+installation still requires a provider digest or verified checksum sidecar;
+an exact direct manifest still requires an accepted HTTPS URL, size, version and
+SHA-256 for each declared platform. The owner has approved catalog-curated
+exact-byte acquisition under [#315](https://github.com/boburning/portcove/issues/315),
+but its protected authority and runtime route must be implemented before use.
+No client may accept bytes by hashing an arbitrary first download.
 
 Every declared platform must provide at least one executable hint. A hint is an
 ASCII safe relative path under the declared runtime root; a basename remains a
@@ -79,17 +92,14 @@ missing platform entries, duplicate hints, traversal, cross-platform filename
 aliases, and macOS bundle directories in place of the executable inside the
 bundle.
 
-Release asset hints identify a stable port, platform, architecture and package
-shape. Do not include an ordinary release number merely because it was the
-version used for qualification: hosted providers already select the current
-eligible channel release and obtain that artifact's independently advertised
-SHA-256. Intake must answer, with provider metadata or a controlled N/N+1 test,
-“Will the next ordinary compatible upstream release work without editing this
-definition?” When the answer is no, record the concrete selector, layout,
-integrity, source, persistence or compatibility constraint and the condition
-that would remove it. A deliberate `DirectManifest`, rolling tag, source/runtime
-identity or exact qualification record is not an asset-selection pin and must
-not be broadened to manufacture automatic updates.
+Release asset hints should identify a stable port, platform, architecture and
+package shape when automatic release selection is offered. A controlled N/N+1
+test supports an automatic-update claim; it is not a prerequisite for a useful
+pinned-release integration. If the selector cannot safely follow an ordinary
+compatible release, record that limit and the exact condition for enabling
+updates. A deliberate `DirectManifest`, rolling tag, source/runtime identity or
+exact qualification record must not be broadened to manufacture automatic
+updates.
 
 A standalone Linux AppImage release may use a version-bearing asset filename.
 When its port declares exactly one AppImage basename and no runtime subdirectory,
@@ -102,27 +112,23 @@ declared runtime filename for compatibility; that filename is not a release-vers
 claim. Version displays and update selection use the recorded release identity.
 
 Hosted GitHub and GitLab providers inspect repository metadata before every
-resolution, including reuse of a five-minute in-memory release selection, and
-reject resolution when the host reports the repository as archived. A
-conditional `304 Not Modified` reuses only the last semantically valid metadata
-body. If repository-state revalidation cannot reach the host, resolution fails
-with that network error instead of treating the cached release as either
-supported or withdrawn.
+resolution, including reuse of a five-minute in-memory release selection. A
+host archive flag and Portcove's `Retired`, `Superseded` and `Abandoned` values
+describe maintenance status; none alone proves unsafe bytes, revokes an exact
+accepted release, or grants acquisition authority. A conditional `304 Not
+Modified` reuses only the last semantically valid metadata body. If metadata
+revalidation cannot reach the host, resolution fails with that network error
+rather than silently using a cached selection. Known withdrawal, compromised
+routes, changed accepted bytes, failed integrity and unsafe operations still
+hold at their actual scope. Exact direct manifests retain their existing
+per-platform HTTPS URL, nonzero size, version and SHA-256 requirements.
 
-The hosting service's archive flag is not the same as Portcove's catalog
-`Retired` status. A `Retired` entry cannot use a hosted provider; current
-catalog validation permits it only through a manually reviewed
-`DirectManifest` containing exactly one stable artifact for every declared
-platform, each with an HTTPS URL, nonzero size, version, and SHA-256 digest.
-`Superseded` and `Abandoned` entries are rejected. Active projects may also use
-direct manifests when their immutable artifacts satisfy the same contract.
-
-Future work to harden approval, withdrawal, cache, rollback, or signing
-governance for retired-project manifests is tracked in
-[issue #233](https://github.com/boburning/portcove/issues/233). That optional
-work does not grant catalog eligibility and is not an Alpha 1 or V1
-requirement. Current catalog admission and all ordinary source, archive,
-executable, install, and rollback checks remain authoritative.
+The earlier archive-state veto was completed under
+[issue #212](https://github.com/boburning/portcove/issues/212) and remains
+historical evidence. This availability-first contract supersedes that veto;
+it preserves the independent release, source, archive, executable,
+installation, rollback and retained-version checks. Broader retired-project
+governance remains [#233](https://github.com/boburning/portcove/issues/233).
 
 Discovery creates one durable issue immediately for every independently
 catalogable or independently prioritizable port, with the direct upstream URL,
@@ -326,16 +332,19 @@ or platform qualification. The paths come from the tagged
 its pinned [logger](https://github.com/Kenix3/libultraship/blob/6b861a64d29d9fe95d100be228eb6d190231cc0d/src/ship/log/Logger.cpp),
 and [Torch cache writer](https://github.com/HarbourMasters/Torch/blob/106621f0f0f9731b8739bec95227c2c5887492df/src/Companion.cpp).
 
-The procedure below describes the current repository workflow. Future automatic
-admission is owned by [#245](https://github.com/boburning/portcove/issues/245)
-and [#246](https://github.com/boburning/portcove/issues/246); this policy direction
-does not remove current runtime checks or activate a publisher.
+The procedure below describes the current repository workflow. The completed
+[#245](https://github.com/boburning/portcove/issues/245) design is a foundation;
+future protected publication remains owned by
+[#246](https://github.com/boburning/portcove/issues/246). This contract does not
+activate a publisher.
 
 1. Capture or update the roadmap item and direct upstream evidence.
 2. Search the catalog and core adapters before adding behavior.
-3. Add declarative metadata and the narrowest reusable adapter contract.
-4. Run catalog validation, release-resolution tests, source/profile tests,
-   lifecycle tests, and the relevant platform checks.
+3. Add declarative metadata or the smallest safe core capability needed for the
+   offered route; do not require a family abstraction first.
+4. Run catalog and source/profile validation, release-resolution checks where
+   acquisition is offered, and the lifecycle and platform checks for operations
+   actually promised.
 5. Record only the qualification evidence that actually passed.
 6. Link the pull request to its issue and update Project status.
 
@@ -403,19 +412,24 @@ top-level filename match and one conjunctive digest identity. Directory
 symlinks and nested or traversal-shaped ZIP entries cannot satisfy a member.
 Observed member facts remain available separately from the aggregate identity.
 
-## Planned policy acceptance and evidence
+## Admission decisions and protected publication target
 
 Operation eligibility is independent of publisher/source trust, artifact
 integrity, game-file compatibility, and evidence/health. Release channels and
-Project stages are separate again. Policy-eligible untested entries remain
-ordinary installable catalog entries when installation prerequisites pass.
+Project stages are separate. Untested entries may remain useful catalog entries
+when their actually offered operation prerequisites pass.
 Missing/stale gameplay reports change the evidence display, not automatically
 installation or update eligibility. A known relevant failure holds only the
 affected operation/artifact/platform/variant. A schema pass is not an install
 test, and source-file correctness is not gameplay certification.
 
-Reusable capabilities, templates and narrowly scoped publisher authorities are
-reviewed once; deterministic checks decide routine candidates within them.
+The following table is the approved target for #246 and related publisher
+work, not behavior shipped by the current manual catalog workflow. The
+current core evaluator applies the operation-specific rules above; automatic
+candidate acceptance and publication still require their protected pipeline.
+Under that future pipeline, reusable capabilities, templates and narrowly
+scoped publisher authorities are reviewed once; deterministic checks decide
+routine candidates within them.
 
 | Candidate                                                                                  | Planned result                                                                                     |
 | ------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------- |
@@ -431,9 +445,12 @@ Source hashes, variants and relative paths may be accepted data inside a bounded
 schema. Ownership reinterpretation needs explicit migration/consent semantics;
 safe reusable migration templates can later be policy-authorized. Publisher
 onboarding specifies actual repository/artifact authority and reauthorization
-conditions, not a broad domain popularity rule. Missing published digests must
-be inventoried by #245; a same-download hash does not replace today's required
-independent integrity evidence. No integrity-policy change is implemented here.
+conditions, not a broad domain popularity rule. The authorized
+[#315](https://github.com/boburning/portcove/issues/315) policy allows an
+independently reviewed catalog-curated exact hash for an attributable release.
+That authority is not yet implemented: hosted providers still require their
+current published digest or checksum sidecar, and an arbitrary same-download
+hash is never a substitute.
 
 Local/community definitions use the same validator, explicit namespaced origin,
 conflict handling and scoped trust. Partial management may permit install/launch

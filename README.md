@@ -37,7 +37,10 @@ Existing Alpha 1 libraries can be carried forward with the documented
   current file; a Source Inbox Copy leaves the original in place, while Move
   requires separate authorization. Portcove checks known exact identities and
   records a local baseline to detect later changes.
-- Refuse release archives that cannot be matched to a SHA-256 published upstream—directly or in a checksum sidecar—or pinned in the catalog for a retired project.
+- Refuse acquired release bytes that do not match an accepted expected SHA-256.
+  Current hosted releases use provider digests or checksum sidecars; accepted
+  direct manifests pin exact artifacts. Catalog-curated acquisition is planned
+  under [#315](https://github.com/boburning/portcove/issues/315).
 - Keep installed versions side by side so updates can be staged, activated, verified, or rolled back.
 - Keep the saved data declared for a port, such as its known save, settings, and
   mod locations, separately from installed versions; back up and restore that
@@ -187,7 +190,11 @@ Set `PORTCOVE_LIBRARY` or pass `--library <path>` to use a specific library root
 
 Start with the [documentation map](docs/README.md). Deeper references cover the [architecture](docs/ARCHITECTURE.md), [catalog policy](docs/CATALOG.md), [CLI contract](docs/CLI.md), [external frontend integration](docs/INTEGRATIONS.md), [release stages](docs/ROADMAP.md), and [security policy](SECURITY.md).
 
-Check the [live roadmap](https://github.com/users/boburning/projects/1) and existing issues before starting work. New ports should normally be added as catalog data or through a reusable family-level adapter rather than one-off behavior in the CLI or desktop app. See [CONTRIBUTING.md](CONTRIBUTING.md) for the full workflow.
+Check the [live roadmap](https://github.com/users/boburning/projects/1) and
+existing issues before starting work. Prefer catalog data and shared core
+adapters; use small title-specific core code when it enables a bounded useful
+route without duplicating lifecycle authority. See
+[CONTRIBUTING.md](CONTRIBUTING.md) for the full workflow.
 
 ## License
 

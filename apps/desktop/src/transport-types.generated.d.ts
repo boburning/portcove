@@ -64,7 +64,7 @@ export type DefinitionEligibilityReason =
   | "mandatory_check_failed"
   | "source_identity_mismatch"
   | "required_source_missing";
-export type DefinitionOperation = "availability" | "install" | "prepare" | "launch";
+export type DefinitionOperation = "availability" | "install" | "prepare" | "launch" | "update";
 /**
  * Current relationship between a registered source path and its saved storage identity.
  * `Current` means the bytes are unchanged since registration; it does not strengthen the

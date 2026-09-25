@@ -6,7 +6,7 @@ use std::{
 
 use crate::{
     AdapterKind, CatalogDocument, PortDefinition, PortcoveError, ReleaseChannel, ReleaseSource,
-    Result, RuntimeSourceMaterialization, SourceKind, SourceProfile, UpstreamStatus,
+    Result, RuntimeSourceMaterialization, SourceKind, SourceProfile,
 };
 
 const EMBEDDED_CATALOG: &str = include_str!("../catalog/catalog.json");
@@ -532,21 +532,8 @@ impl Catalog {
                     )));
                 }
             }
-            match port.upstream_status {
-                UpstreamStatus::Active | UpstreamStatus::Retired => {}
-                UpstreamStatus::Superseded => {
-                    return Err(PortcoveError::unsupported(format!(
-                        "{} is superseded; catalog its maintained successor instead",
-                        port.id
-                    )));
-                }
-                UpstreamStatus::Abandoned => {
-                    return Err(PortcoveError::unsupported(format!(
-                        "{} is abandoned and cannot be included in the catalog",
-                        port.id
-                    )));
-                }
-            }
+            // Maintenance state describes the upstream; exact source and operation
+            // contracts decide whether this port can be admitted and used.
             match port.release.provider {
                 ReleaseSource::Github | ReleaseSource::Gitlab => {
                     if !valid_repository_path(&port.release.repository)
@@ -564,12 +551,6 @@ impl Catalog {
                     {
                         return Err(PortcoveError::usage(format!(
                             "{} must resolve from its game upstream, not the RetComM launcher",
-                            port.id
-                        )));
-                    }
-                    if port.upstream_status == UpstreamStatus::Retired {
-                        return Err(PortcoveError::unsupported(format!(
-                            "{} is retired and must use a pinned direct manifest",
                             port.id
                         )));
                     }
@@ -2019,16 +2000,68 @@ mod tests {
     }
 
     #[test]
-    fn superseded_and_abandoned_projects_fail_closed() {
-        let catalog = Catalog::embedded().unwrap();
+    fn upstream_maintenance_status_does_not_reinterpret_existing_port_contracts() {
+        let baseline = Catalog::embedded().unwrap();
+        let retained = baseline
+            .ports()
+            .iter()
+            .map(|port| {
+                (
+                    port.id.clone(),
+                    crate::installed_contract::InstalledContract::capture(&baseline, &port.id)
+                        .unwrap(),
+                )
+            })
+            .collect::<std::collections::BTreeMap<_, _>>();
         for status in [
+            crate::UpstreamStatus::Active,
+            crate::UpstreamStatus::Retired,
             crate::UpstreamStatus::Superseded,
             crate::UpstreamStatus::Abandoned,
         ] {
-            let mut document = catalog.document().clone();
-            document.ports[0].upstream_status = status;
+            let mut document = baseline.document().clone();
+            for port in &mut document.ports {
+                port.upstream_status = status;
+            }
             let value = serde_json::to_string(&document).unwrap();
-            assert!(Catalog::from_json(&value).is_err());
+            let observed = Catalog::from_json(&value).unwrap();
+            assert_eq!(observed.ports().len(), baseline.ports().len());
+            for (before, after) in baseline.ports().iter().zip(observed.ports()) {
+                let mut normalized = after.clone();
+                normalized.upstream_status = before.upstream_status;
+                assert_eq!(
+                    serde_json::to_value(&normalized).unwrap(),
+                    serde_json::to_value(before).unwrap(),
+                    "{}",
+                    before.id
+                );
+                for platform in &before.platforms {
+                    let original =
+                        crate::install::InstallQualification::from_port(before, *platform).unwrap();
+                    let after_status =
+                        crate::install::InstallQualification::from_port(after, *platform).unwrap();
+                    assert_eq!(
+                        format!("{original:?}"),
+                        format!("{after_status:?}"),
+                        "{} on {platform:?}",
+                        before.id
+                    );
+                }
+                let old_contract = retained.get(&before.id).unwrap();
+                assert_eq!(
+                    serde_json::to_value(
+                        old_contract
+                            .catalog(&before.id)
+                            .unwrap()
+                            .port(&before.id)
+                            .unwrap()
+                    )
+                    .unwrap(),
+                    serde_json::to_value(before).unwrap(),
+                    "retained {}",
+                    before.id
+                );
+            }
         }
     }
 

@@ -9,6 +9,7 @@ pub enum DefinitionOperation {
     Install,
     Prepare,
     Launch,
+    Update,
 }
 
 /// Facts supplied by core-owned trust, capability, integrity and lifecycle authorities.

@@ -1,6 +1,5 @@
-//! Executable design examples for #245, not runtime admission or a new authority.
-//! #397 must consume these cases in the one core implementation. No candidate
-//! file can supply trusted grants or mandatory-check results to production.
+//! Executable admission decisions for the one core eligibility implementation.
+//! Candidate files cannot supply trusted grants or mandatory-check results.
 
 use serde::Deserialize;
 
@@ -17,6 +16,7 @@ enum Operation {
     Install,
     Prepare,
     Launch,
+    Update,
 }
 
 #[derive(Deserialize)]
@@ -75,6 +75,7 @@ impl From<&Scenario> for DefinitionEligibilityFacts {
                 Operation::Install => DefinitionOperation::Install,
                 Operation::Prepare => DefinitionOperation::Prepare,
                 Operation::Launch => DefinitionOperation::Launch,
+                Operation::Update => DefinitionOperation::Update,
             },
             publisher_scoped: scenario.publisher_scoped,
             publisher_revoked: scenario.publisher_revoked,
