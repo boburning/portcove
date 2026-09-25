@@ -9,6 +9,7 @@ import {
   assertDestructiveReviewAction,
   assertPrimaryReviewAction,
   captureAccessibilityReport,
+  openCatalogPortAfterRefresh,
   reviewControls,
 } from "./desktop-review-controls.mjs";
 
@@ -162,22 +163,7 @@ export async function steamEntryScenario(context) {
     assert.deepEqual(command(["backup", "list", port.id]), backupsBeforeUninstall);
     assert.deepEqual(await fileIdentity(savedData), savedDataBefore);
     assert.deepEqual(await fileIdentity(shortcuts), added);
-    await browser.navigate().refresh();
-    await browser.wait(
-      until.elementLocated(By.css('nav[aria-label="Primary navigation"]')),
-      15_000,
-    );
-    await click(By.xpath('//nav//button[contains(., "Port catalog")]'));
-    const search = await browser.findElement(By.id("port-search"));
-    await search.sendKeys(
-      Key.chord(process.platform === "darwin" ? Key.COMMAND : Key.CONTROL, "a"),
-      Key.BACK_SPACE,
-      port.name,
-    );
-    const catalogCard = By.xpath(
-      `//button[contains(@class,"port-card") and starts-with(@aria-label,"${port.name}.")]`,
-    );
-    await click(catalogCard);
+    await openCatalogPortAfterRefresh(browser, port, port.name);
     await click(By.css("summary.advanced-summary"));
     await click(button("Steam shortcut"));
     assert.ok((await browser.findElement(dialog).getText()).includes("game is not installed here"));

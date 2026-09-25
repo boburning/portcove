@@ -4,6 +4,7 @@ import path from "node:path";
 import { mkdir, writeFile } from "node:fs/promises";
 import { fileIdentity } from "../../../scripts/development-evidence.mjs";
 import { By, Key, until } from "selenium-webdriver";
+import { installedPreservationWitness } from "./desktop-scenario-state.mjs";
 import {
   reviewControls,
   assertCompactReview,
@@ -23,15 +24,12 @@ export async function sourceRemovalScenario({
 }) {
   await scenario("native-reviewed-source-reference-removal", async () => {
     assert.equal(path.resolve(library), path.resolve(output, "library"));
-    const portId = ["opengoal-jak1", "opengoal-jak2"].find((id) => command(["status", id]).active);
-    assert.ok(portId, "an installed game is required for source impact review");
+    const { portId, install } = installedPreservationWitness(command);
     const port = command(["catalog", "show", portId]);
     const source = command(["source", "list"]).find(
       (item) => item.profile_id === port.source_profile,
     );
     assert.ok(source);
-    const install = command(["status", port.id]).active;
-    assert.ok(install);
     const paths = command(["paths", port.id]);
     const relative = path.relative(library, paths.user_data_root);
     assert.ok(relative && !relative.startsWith("..") && !path.isAbsolute(relative));

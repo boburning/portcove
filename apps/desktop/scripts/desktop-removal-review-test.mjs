@@ -4,6 +4,7 @@ import path from "node:path";
 import { readFile, readdir, stat, writeFile } from "node:fs/promises";
 import { fileIdentity } from "../../../scripts/development-evidence.mjs";
 import { By, Key, until } from "selenium-webdriver";
+import { installedPreservationWitness } from "./desktop-scenario-state.mjs";
 import {
   assertDestructiveReviewAction,
   captureAccessibilityReport,
@@ -27,12 +28,8 @@ export async function removalReviewScenario({
     const original = path.join(output, `owned-${port.id}`);
     const paths = command(["paths", port.id]);
     const save = path.join(paths.user_data_root, "owned-review-save.bin");
-    const otherInstallPortId = ["opengoal-jak1", "opengoal-jak2"].find(
-      (id) => command(["status", id]).active,
-    );
-    assert.ok(otherInstallPortId, "another owned installation is required for preservation proof");
-    const otherInstall = command(["status", otherInstallPortId]).active;
-    assert.ok(otherInstall);
+    const { portId: otherInstallPortId, install: otherInstall } =
+      installedPreservationWitness(command);
     const sources = command(["source", "list"]);
     const snapshots = command(["backup", "list", port.id]);
     const beforeSave = await readFile(save);

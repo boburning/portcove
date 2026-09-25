@@ -4,6 +4,7 @@ import path from "node:path";
 import { copyFile, mkdir, readFile, realpath, writeFile } from "node:fs/promises";
 import { fileIdentity } from "../../../scripts/development-evidence.mjs";
 import { By, Key, until } from "selenium-webdriver";
+import { installedPreservationWitness } from "./desktop-scenario-state.mjs";
 import {
   reviewControls,
   assertCompactReview,
@@ -53,12 +54,8 @@ export async function adoptionReviewScenario({
         path.join(previous.path, port.executable_hints[host][0]),
       ].map(fileIdentity),
     );
-    const otherInstallPortId = ["opengoal-jak1", "opengoal-jak2"].find(
-      (id) => command(["status", id]).active,
-    );
-    assert.ok(otherInstallPortId, "another owned installation is required for preservation proof");
-    const otherInstall = command(["status", otherInstallPortId]).active;
-    assert.ok(otherInstall);
+    const { portId: otherInstallPortId, install: otherInstall } =
+      installedPreservationWitness(command);
     const sources = command(["source", "list"]);
     await browser.manage().window().setRect({ width: 1440, height: 1000 });
     await browser.navigate().refresh();
