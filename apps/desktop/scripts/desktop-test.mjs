@@ -470,6 +470,115 @@ async function startDriver() {
   throw new Error("tauri-driver did not become ready within ten seconds");
 }
 
+async function verifyCompactSettingsJumps() {
+  const index = await browser.findElement(By.css('[role="group"][aria-label="Settings sections"]'));
+  assert.equal((await index.findElements(By.css('button[data-slot="button"]'))).length, 6);
+  await browser.executeScript((element) => element.scrollIntoView({ block: "start" }), index);
+  await captureScenarioScreenshot("settings-section-index-compact");
+  await index.findElement(By.xpath('.//button[normalize-space(.)="Game Files"]')).click();
+  const jump = await browser.executeScript(() => {
+    const active = document.activeElement;
+    if (!(active instanceof HTMLElement)) return null;
+    const bounds = active.getBoundingClientRect();
+    return {
+      id: active.id,
+      tabIndex: active.tabIndex,
+      outlineStyle: getComputedStyle(active).outlineStyle,
+      top: bounds.top,
+      bottom: bounds.bottom,
+    };
+  });
+  assert.equal(jump?.id, "settings-game-files-heading");
+  assert.equal(jump.tabIndex, 0);
+  assert.equal(jump.outlineStyle, "solid");
+  assert.ok(jump.top >= 0 && jump.bottom <= 640);
+  await captureScenarioScreenshot("settings-section-jump-game-files");
+  await browser.actions().sendKeys(Key.ARROW_DOWN).perform();
+  assert.equal(
+    await browser.executeScript(() =>
+      document.activeElement?.closest("[data-settings-group]")?.getAttribute("data-settings-group"),
+    ),
+    "game-files",
+  );
+  assert.equal(
+    await browser.executeScript(
+      () => document.getElementById("settings-game-files-heading")?.tabIndex,
+    ),
+    -1,
+  );
+
+  const diagnosticCopy = await browser.executeScript(() => {
+    const paragraph = document.querySelector(".diagnostics-card > p:not(.eyebrow):not([role])");
+    if (!(paragraph instanceof HTMLElement)) throw new Error("Diagnostics explanation is missing");
+    const original = paragraph.textContent;
+    paragraph.textContent = `${original} `.repeat(8);
+    return original;
+  });
+  try {
+    await browser.executeScript((element) => element.scrollIntoView({ block: "start" }), index);
+    await index.findElement(By.xpath('.//button[normalize-space(.)="Advanced"]')).click();
+    const focus = await browser.executeScript(() => {
+      const active = document.activeElement;
+      if (!(active instanceof HTMLElement)) return null;
+      const bounds = active.getBoundingClientRect();
+      return {
+        id: active.id,
+        outlineStyle: getComputedStyle(active).outlineStyle,
+        top: bounds.top,
+        bottom: bounds.bottom,
+      };
+    });
+    await captureScenarioScreenshot("settings-section-jump-advanced-long-content");
+    assert.equal(focus?.id, "settings-advanced-heading");
+    assert.equal(focus.outlineStyle, "solid");
+    assert.ok(focus.top >= 0 && focus.bottom <= 640, JSON.stringify(focus));
+    await browser.actions().sendKeys(Key.ARROW_DOWN).perform();
+    assert.equal(
+      await browser.executeScript(() =>
+        document.activeElement
+          ?.closest("[data-settings-group]")
+          ?.getAttribute("data-settings-group"),
+      ),
+      "advanced",
+    );
+    assert.equal(
+      await browser.executeScript(
+        () => document.getElementById("settings-advanced-heading")?.tabIndex,
+      ),
+      -1,
+    );
+    const next = await browser.executeScript(() => {
+      const bounds = document.activeElement?.getBoundingClientRect();
+      return { top: bounds?.top, bottom: bounds?.bottom };
+    });
+    assert.ok(next.top >= 0 && next.bottom <= 640, JSON.stringify(next));
+    await captureScenarioScreenshot("settings-section-advanced-next-control");
+  } finally {
+    await browser.executeScript((copy) => {
+      const paragraph = document.querySelector(".diagnostics-card > p:not(.eyebrow):not([role])");
+      if (paragraph) paragraph.textContent = copy;
+    }, diagnosticCopy);
+  }
+}
+
+async function verifySettingsIndexTheme(theme) {
+  const index = await browser.findElement(By.css('[role="group"][aria-label="Settings sections"]'));
+  const geometry = await browser.executeScript((element) => {
+    element.scrollIntoView({ block: "start" });
+    const bounds = element.getBoundingClientRect();
+    return {
+      left: bounds.left,
+      right: bounds.right,
+      bottom: bounds.bottom,
+      documentOverflow: document.documentElement.scrollWidth > window.innerWidth + 1,
+    };
+  }, index);
+  assert.equal(geometry.documentOverflow, false);
+  assert.ok(geometry.left >= 0 && geometry.right <= 960);
+  assert.ok(geometry.bottom <= 640);
+  await captureScenarioScreenshot(`settings-section-index-${theme}`);
+}
+
 try {
   if (selection.prerequisites.includes("install-fixture")) {
     installFixture = await createInstallFixture({ root, output });
@@ -760,6 +869,7 @@ try {
     assert.deepEqual(layout.overflowing_cards, []);
     assert.deepEqual(layout.legacy_buttons, []);
     assert.deepEqual(layout.legacy_shell_buttons, []);
+    await verifyCompactSettingsJumps();
 
     let focusedSettingsControl = false;
     for (let step = 0; step < 30 && !focusedSettingsControl; step++) {
@@ -861,6 +971,7 @@ try {
           await browser.executeScript(() => document.documentElement.dataset.theme),
           theme,
         );
+        await verifySettingsIndexTheme(theme);
         await browser.findElement(By.xpath('//nav//button[contains(., "Port catalog")]')).click();
         await browser.wait(
           async () => (await browser.findElements(By.css(".port-card"))).length > 2,

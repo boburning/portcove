@@ -1289,8 +1289,43 @@ export function SettingsView({
   diagnosticFailure?: unknown;
   refreshDiagnostics?: () => Promise<unknown>;
 }) {
+  const sections = [
+    { id: "appearance", label: "Appearance" },
+    { id: "library-storage", label: "Library & Storage" },
+    { id: "game-files", label: "Game Files" },
+    { id: "updates", label: "Portcove & catalog updates" },
+    { id: "integrations", label: "Integrations" },
+    { id: "advanced", label: "Advanced" },
+  ];
+  const jumpToSection = (id: string) => {
+    const heading = document.getElementById(`settings-${id}-heading`);
+    if (!heading) return;
+    heading.tabIndex = 0;
+    heading.focus({ preventScroll: true });
+    heading.scrollIntoView({ block: "start" });
+    heading.addEventListener("blur", () => (heading.tabIndex = -1), { once: true });
+  };
   return (
     <section className="settings-grid">
+      <div
+        className="settings-section-index"
+        role="group"
+        aria-label="Settings sections"
+        data-focus-group
+      >
+        <span>Jump to</span>
+        {sections.map(({ id, label }) => (
+          <Button
+            key={id}
+            data-focusable
+            variant="outline"
+            size="sm"
+            onClick={() => jumpToSection(id)}
+          >
+            {label}
+          </Button>
+        ))}
+      </div>
       <SettingsSection
         id="appearance"
         eyebrow="DISPLAY"

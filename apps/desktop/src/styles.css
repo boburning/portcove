@@ -2394,6 +2394,25 @@ select {
   gap: var(--space-8);
 }
 
+.settings-section-index {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.settings-section-index > span {
+  margin-right: var(--space-1);
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+.settings-section-index [data-slot="button"] {
+  max-width: 100%;
+  white-space: normal;
+  text-align: center;
+}
+
 .settings-section {
   display: grid;
   gap: 15px;
@@ -2419,6 +2438,12 @@ select {
 .settings-section-heading h2 {
   margin: 0 0 var(--space-1);
   font-size: var(--text-xl);
+  scroll-margin-top: var(--space-3);
+}
+
+.settings-section-heading h2:focus {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 3px;
 }
 .settings-section-heading p:last-child {
   max-width: 52rem;
