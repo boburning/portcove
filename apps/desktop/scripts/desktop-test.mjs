@@ -1038,7 +1038,9 @@ try {
     assert.equal(restored.focus, origin.originKey);
     assert.ok(Math.abs(restored.scrollTop - origin.scrollTop) <= 1);
     await captureScenarioScreenshot("game-details-workspace-return");
-    await browser.findElement(By.id("port-search")).clear();
+    await browser
+      .findElement(By.id("port-search"))
+      .sendKeys(Key.chord(Key.CONTROL, "a"), Key.BACK_SPACE);
     await browser.wait(
       async () => (await browser.findElements(By.css(".port-card"))).length > 2,
       15_000,
