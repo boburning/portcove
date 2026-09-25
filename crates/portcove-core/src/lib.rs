@@ -108,7 +108,8 @@ pub use definition_capabilities::{
 };
 pub use definition_eligibility::{
     DefinitionEligibility, DefinitionEligibilityFacts, DefinitionEligibilityOutcome,
-    DefinitionEligibilityReason, DefinitionOperation, DefinitionOperationAssessment,
+    DefinitionEligibilityReason, DefinitionOperation, DefinitionOperationAssessment, PortAction,
+    PortActionAssessment, PortActionAvailability, PortActionReason,
     evaluate_definition_eligibility,
 };
 pub use definition_entry::DefinitionEntryInspection;
@@ -201,7 +202,7 @@ pub use source_report::{
 };
 pub use types::*;
 
-pub const API_SCHEMA_VERSION: u32 = 53;
+pub const API_SCHEMA_VERSION: u32 = 54;
 /// Oldest library schema this build can read and migrate.
 pub const MIN_LIBRARY_SCHEMA_VERSION: u32 = 1;
 /// Library schema this build writes after opening a library.

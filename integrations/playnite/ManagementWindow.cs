@@ -149,13 +149,15 @@ namespace Portcove.ReferenceClient
             var readiness = Json.Field(status, "readiness");
             var blockers = readiness == null ? "Readiness unknown" : string.Join(", ", Json.Array(Json.Field(readiness, "blockers")).Select(value => Convert.ToString(value).Replace('_', ' ')));
             var definitionOperations = DefinitionOperations.Summary(status);
+            var portActions = PortActions.Summary(status);
             state.Text = (active == null ? "Not installed." : "Installed: " + Json.Text(active, "version") + ".") + "\n" +
                 (readiness != null && Json.Boolean(readiness, "launchable") ? "Portcove reports this game is ready to launch." : "Setup: " + blockers + ".") +
                 "\nSource profile: " + (Json.Field(catalog, "source_profile") ?? "none") +
                 "\nBIOS profile: " + (Json.Field(catalog, "bios_source_profile") ?? "none") +
                 "\nCatalog support: " + Json.Text(catalog, "support_tier") + ". Gameplay evidence is separate from launch readiness." +
                 "\nRetained private preparations: " + repairs.Length + "." +
-                (definitionOperations == null ? "" : "\n" + definitionOperations);
+                (definitionOperations == null ? "" : "\n" + definitionOperations) +
+                (portActions == null ? "" : "\n" + portActions);
             var entries = activityFeed.VisibleRecords(
                 item => (Json.Field(item, "target_id") as string) == port,
                 8);

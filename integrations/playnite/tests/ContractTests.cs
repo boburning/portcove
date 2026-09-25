@@ -215,6 +215,9 @@ internal static class ContractTests
         ProtocolStream.Negotiate(bad);
         Check(true, "additive saved-root scan API schema negotiated without requiring unused commands");
         bad["schema_version"] = 54;
+        ProtocolStream.Negotiate(bad);
+        Check(true, "action assessment API schema negotiated without changing required commands");
+        bad["schema_version"] = 55;
         Reject(() => ProtocolStream.Negotiate(bad), "future schema rejected with migration guidance");
         bad["schema_version"] = 42; bad["commands"] = new object[0];
         Reject(() => ProtocolStream.Negotiate(bad), "missing command capability rejected");
@@ -248,6 +251,7 @@ internal static class ContractTests
         var failure = new ProtocolStream("ensure"); failure.Line(Result("ensure", null, false));
         Reject(() => failure.Finish(14), "structured busy-port failure remains a failure");
         DefinitionOperationRecords();
+        PortActionRecords();
         PreparationCleanupRecords();
         LaunchRecords();
         var root = Path.Combine(Path.GetDirectoryName(Binary), "fixture-library");
@@ -608,6 +612,45 @@ internal static class ContractTests
             }
         }));
         Reject(() => DefinitionOperations.Read(duplicate), "duplicate definition operation decision rejected");
+    }
+    private static void PortActionRecords()
+    {
+        var legacy = Json.Parse(Json.Print(new { port_id = "legacy" }));
+        Check(PortActions.Read(legacy).Length == 0, "older status has no invented action assessment");
+        var status = Json.Parse(Json.Print(new
+        {
+            port_actions = new object[]
+            {
+                new { action = "install", availability = "waiting", reason = "missing_source" },
+                new { action = "launch", availability = "held", reason = "definition_ineligible",
+                    definition = new { outcome = "hold", reason = "publisher_revoked" } },
+                new { action = "remove_managed", availability = "waiting", reason = "review_required" }
+            }
+        }));
+        var actions = PortActions.Read(status);
+        Check(actions.Length == 3 && actions[1].DefinitionReason == "publisher_revoked",
+            "client consumes shared action and exact signed-definition reason");
+        Check(PortActions.Summary(status).Contains("review required"),
+            "client presents managed removal as awaiting review");
+        var invalid = Json.Object(Json.Parse(Json.Print(new
+        {
+            action = "launch", availability = "allowed", reason = "changed_source"
+        })));
+        Reject(() => PortActionDecision.Read(invalid), "inconsistent allowed action rejected");
+        invalid["availability"] = "future_state";
+        Reject(() => PortActionDecision.Read(invalid), "unknown action availability rejected");
+        invalid["availability"] = "held";
+        invalid["reason"] = "future_reason";
+        Reject(() => PortActionDecision.Read(invalid), "unknown action reason rejected");
+        var repeated = Json.Parse(Json.Print(new
+        {
+            port_actions = new object[]
+            {
+                new { action = "launch", availability = "allowed", reason = "available" },
+                new { action = "launch", availability = "waiting", reason = "not_installed" }
+            }
+        }));
+        Reject(() => PortActions.Read(repeated), "duplicate action assessment rejected");
     }
     private static object Repair(string kind, string operation, string port, string path) => new
     {

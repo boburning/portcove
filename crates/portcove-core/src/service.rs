@@ -21,11 +21,12 @@ use crate::{
     InstallSourceRequirement, Installer, LaunchBlocker, LaunchReadiness, LaunchSessionOutcome,
     LaunchSessionPhase, LaunchSessionRecord, LaunchStdio, Library, OperationCoordinator,
     OperationEvent, OperationResult, OutputAffectedInstall, OutputDestinationPreview,
-    OutputLocationSource, Platform, PortDefinition, PortOutputLocation, PortPaths, PortStatus,
-    PortcoveError, ReconcileAction, ReconcileResult, ReleaseChannel, ReleaseProvider, RepairItem,
-    RepairItemKind, RepairPlan, ResolvedRelease, Result, SourceHealth, SourceRecord,
-    SourceRemovalPreview, SourceRequirementRole, SourceVerification, SupervisedLaunchOutcome,
-    UpdateCheck, UpdatePolicy, VerificationReport, WorkspaceSnapshot,
+    OutputLocationSource, Platform, PortAction, PortActionAssessment, PortActionAvailability,
+    PortActionReason, PortDefinition, PortOutputLocation, PortPaths, PortStatus, PortcoveError,
+    ReconcileAction, ReconcileResult, ReleaseChannel, ReleaseProvider, RepairItem, RepairItemKind,
+    RepairPlan, ResolvedRelease, Result, SourceHealth, SourceRecord, SourceRemovalPreview,
+    SourceRequirementRole, SourceVerification, SupervisedLaunchOutcome, UpdateCheck, UpdatePolicy,
+    VerificationReport, WorkspaceSnapshot,
     definition_eligibility::DefinitionOperationContext,
     operation::{
         LifecycleFaultInjector, LifecycleFaultPoint, LifecycleOperation, LifecycleOperationKind,
@@ -758,7 +759,18 @@ impl PortcoveService {
             .pop()
             .ok_or_else(|| PortcoveError::state("status read model returned no row"))?;
         let retained_catalog = self.retained_catalog_for_status(&status);
-        let source_profiles = self.launch_source_profiles(port, retained_catalog.as_ref())?;
+        let mut source_profiles = self.launch_source_profiles(port, retained_catalog.as_ref())?;
+        for profile in [
+            port.source_profile.as_ref(),
+            port.bios_source_profile.as_ref(),
+        ]
+        .into_iter()
+        .flatten()
+        {
+            if !source_profiles.contains(profile) {
+                source_profiles.push(profile.clone());
+            }
+        }
         let source_query_count = usize::from(!source_profiles.is_empty());
         let registered_sources = self
             .library
@@ -783,7 +795,8 @@ impl PortcoveService {
             &mut HashMap::new(),
             retained_catalog,
         )?;
-        self.with_definition_operations(&self.catalog, port, status)
+        let status = self.with_definition_operations(&self.catalog, port, status)?;
+        self.with_port_actions(port, status, &registered_sources)
     }
 
     pub fn statuses(&self) -> Result<Vec<PortStatus>> {
@@ -837,7 +850,8 @@ impl PortcoveService {
                     &mut checked_sources,
                     retained_catalog,
                 )?;
-                self.with_definition_operations(catalog, port, status)
+                let status = self.with_definition_operations(catalog, port, status)?;
+                self.with_port_actions(port, status, &registered_sources)
             })
             .collect()
     }
@@ -1461,6 +1475,137 @@ impl PortcoveService {
                 eligibility: launch,
                 retained: true,
             });
+        Ok(status)
+    }
+
+    fn with_port_actions(
+        &self,
+        current_port: &PortDefinition,
+        mut status: PortStatus,
+        registered_sources: &HashMap<String, SourceRecord>,
+    ) -> Result<PortStatus> {
+        use PortAction as Action;
+        use PortActionAvailability as Availability;
+        use PortActionReason as Reason;
+
+        let assessed = |action, availability, reason, definition| PortActionAssessment {
+            action,
+            availability,
+            reason,
+            definition,
+        };
+        let definition = |operation| {
+            status
+                .definition_operations
+                .iter()
+                .find(|item| item.operation == operation)
+                .map(|item| item.eligibility)
+                .filter(|eligibility| eligibility.outcome != DefinitionEligibilityOutcome::Eligible)
+        };
+        let source_blocker = status.readiness.as_ref().and_then(|readiness| {
+            readiness
+                .blockers
+                .iter()
+                .find(|blocker| **blocker == LaunchBlocker::InvalidInstallation)
+                .or_else(|| readiness.blockers.first())
+                .copied()
+        });
+        let source_reason = source_blocker.map(port_action_blocker);
+        let on_platform = current_port.platforms.contains(&Platform::current()?);
+        // Install evaluates the current definition. Launch readiness may have
+        // inspected a different, retained installed contract.
+        let current_missing = [
+            (current_port.source_profile.as_ref(), Reason::MissingSource),
+            (
+                current_port.bios_source_profile.as_ref(),
+                Reason::MissingBios,
+            ),
+        ]
+        .into_iter()
+        .find_map(|(profile, reason)| {
+            profile
+                .filter(|id| !registered_sources.contains_key(*id))
+                .map(|_| reason)
+        });
+        let install = if !on_platform {
+            assessed(
+                Action::Install,
+                Availability::NotOffered,
+                Reason::UnsupportedPlatform,
+                None,
+            )
+        } else if let Some(ineligible) = definition(DefinitionOperation::Install) {
+            assessed(
+                Action::Install,
+                Availability::Held,
+                Reason::DefinitionIneligible,
+                Some(ineligible),
+            )
+        } else if let Some(reason) = current_missing {
+            assessed(Action::Install, Availability::Waiting, reason, None)
+        } else {
+            assessed(
+                Action::Install,
+                Availability::Allowed,
+                Reason::Available,
+                None,
+            )
+        };
+
+        let launch = if status.active.is_none() {
+            assessed(
+                Action::Launch,
+                Availability::Waiting,
+                Reason::NotInstalled,
+                None,
+            )
+        } else if let Some(ineligible) = definition(DefinitionOperation::Launch) {
+            assessed(
+                Action::Launch,
+                Availability::Held,
+                Reason::DefinitionIneligible,
+                Some(ineligible),
+            )
+        } else if status
+            .readiness
+            .as_ref()
+            .is_some_and(|readiness| readiness.launchable)
+        {
+            assessed(
+                Action::Launch,
+                Availability::Allowed,
+                Reason::Available,
+                None,
+            )
+        } else if let Some((availability, reason)) = source_reason {
+            assessed(Action::Launch, availability, reason, None)
+        } else {
+            assessed(
+                Action::Launch,
+                Availability::Held,
+                Reason::InvalidInstallation,
+                None,
+            )
+        };
+
+        let removal =
+            if status.active.is_some() || status.previous.is_some() || status.staged.is_some() {
+                assessed(
+                    Action::RemoveManaged,
+                    Availability::Waiting,
+                    Reason::ReviewRequired,
+                    None,
+                )
+            } else {
+                assessed(
+                    Action::RemoveManaged,
+                    Availability::NotOffered,
+                    Reason::NotInstalled,
+                    None,
+                )
+            };
+
+        status.port_actions = vec![install, launch, removal];
         Ok(status)
     }
 
@@ -3971,6 +4116,22 @@ impl PortcoveService {
         let qualification = InstallQualification::from_port(port, Platform::current()?)?;
         let executable = crate::install::resolve_declared_executable(install_root, &qualification)?;
         Ok(qualification.persistence_root(install_root, &executable))
+    }
+}
+
+fn port_action_blocker(blocker: LaunchBlocker) -> (PortActionAvailability, PortActionReason) {
+    use PortActionAvailability as Availability;
+    use PortActionReason as Reason;
+    match blocker {
+        LaunchBlocker::MissingSource => (Availability::Waiting, Reason::MissingSource),
+        LaunchBlocker::UnreadableSource => (Availability::Held, Reason::UnreadableSource),
+        LaunchBlocker::ChangedSource => (Availability::Held, Reason::ChangedSource),
+        LaunchBlocker::MissingBios => (Availability::Waiting, Reason::MissingBios),
+        LaunchBlocker::UnreadableBios => (Availability::Held, Reason::UnreadableBios),
+        LaunchBlocker::ChangedBios => (Availability::Held, Reason::ChangedBios),
+        LaunchBlocker::MissingRuntime => (Availability::Held, Reason::MissingRuntime),
+        LaunchBlocker::PreparationRequired => (Availability::Waiting, Reason::PreparationRequired),
+        LaunchBlocker::InvalidInstallation => (Availability::Held, Reason::InvalidInstallation),
     }
 }
 
@@ -8693,6 +8854,95 @@ fn main() {
     }
 
     #[test]
+    fn operation_projection_distinguishes_inputs_holds_and_review_without_granting_ownership() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let service = PortcoveService::new(library.clone()).unwrap();
+        let action = |status: &PortStatus, wanted| {
+            *status
+                .port_actions
+                .iter()
+                .find(|item| item.action == wanted)
+                .unwrap()
+        };
+
+        let empty = service.status("opengoal-jak1").unwrap();
+        assert_eq!(
+            action(&empty, PortAction::Install).availability,
+            PortActionAvailability::Waiting
+        );
+        assert_eq!(
+            action(&empty, PortAction::Install).reason,
+            PortActionReason::MissingSource
+        );
+        assert_eq!(
+            action(&empty, PortAction::Launch).reason,
+            PortActionReason::NotInstalled
+        );
+        assert_eq!(
+            action(&empty, PortAction::RemoveManaged).availability,
+            PortActionAvailability::NotOffered
+        );
+
+        let install = library.versions_dir().join("opengoal-jak1").join("v1");
+        fs::create_dir_all(&install).unwrap();
+        write_host_test_executable(&install, "opengoal-jak1");
+        register_existing_test_install(&library, "opengoal-jak1", "v1", &install, true);
+        let installed = service.status("opengoal-jak1").unwrap();
+        assert_eq!(
+            action(&installed, PortAction::Launch).availability,
+            PortActionAvailability::Waiting
+        );
+        assert_eq!(
+            action(&installed, PortAction::RemoveManaged).reason,
+            PortActionReason::ReviewRequired
+        );
+        assert_eq!(
+            service
+                .statuses()
+                .unwrap()
+                .into_iter()
+                .find(|status| status.port_id == installed.port_id)
+                .unwrap()
+                .port_actions,
+            installed.port_actions
+        );
+
+        let source_path = temporary.path().join("jak1.iso");
+        fs::write(&source_path, b"registered source").unwrap();
+        let (storage_sha256, storage_size) = crate::adapter::hash_file(&source_path).unwrap();
+        library
+            .register_source(&SourceRecord {
+                profile_id: "opengoal-jak1-disc".into(),
+                path: source_path.clone(),
+                sha256: storage_sha256.clone(),
+                size: storage_size,
+                storage_sha256,
+                storage_size,
+                updated_at: Library::now(),
+                observed_identity: None,
+            })
+            .unwrap();
+        let pending = service.status("opengoal-jak1").unwrap();
+        assert_eq!(
+            action(&pending, PortAction::Launch).reason,
+            PortActionReason::PreparationRequired
+        );
+        fs::write(&source_path, b"changed source").unwrap();
+        let held = service.status("opengoal-jak1").unwrap();
+        assert_eq!(
+            action(&held, PortAction::Launch).availability,
+            PortActionAvailability::Held
+        );
+        assert_eq!(
+            action(&held, PortAction::Launch).reason,
+            PortActionReason::ChangedSource
+        );
+        // The presentation projection cannot turn a changed source into permission.
+        assert!(service.launch_spec("opengoal-jak1", None).is_err());
+    }
+
+    #[test]
     fn source_health_states_map_to_explicit_role_blockers() {
         let cases = [
             (
@@ -9170,8 +9420,65 @@ fn main() {
                 representation.extensions = vec!["future".into()];
             }
         }
+        let current_port = document
+            .ports
+            .iter_mut()
+            .find(|port| port.id == "starship")
+            .unwrap();
+        current_port.source_profile = Some("majoras-mask".into());
+        let requirement = current_port
+            .presentation
+            .as_mut()
+            .unwrap()
+            .source_requirements
+            .iter_mut()
+            .find(|requirement| requirement.role == crate::PortSourceRole::Game)
+            .unwrap();
+        requirement.profile_id = "majoras-mask".into();
+        requirement.label = "The Legend of Zelda: Majora's Mask source".into();
+        let current_binding = document
+            .source_catalog
+            .as_mut()
+            .unwrap()
+            .contracts
+            .iter_mut()
+            .find(|contract| contract.port_id == "starship")
+            .unwrap();
+        current_binding.profile_id = "majoras-mask".into();
+        current_binding.supported_variant_ids = vec!["ntsc-u-1-0".into()];
         service.catalog = Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap();
 
+        let status = service.status("starship").unwrap();
+        let install_action = status
+            .port_actions
+            .iter()
+            .find(|item| item.action == PortAction::Install)
+            .unwrap();
+        assert_eq!(install_action.availability, PortActionAvailability::Waiting);
+        assert_eq!(install_action.reason, PortActionReason::MissingSource);
+        assert_eq!(
+            status.readiness.unwrap().source,
+            Some(SourceHealth::Current),
+            "launch still uses the retained source contract"
+        );
+        let mut current_record = registered.clone();
+        current_record.profile_id = "majoras-mask".into();
+        current_record.observed_identity = None;
+        library.register_source(&current_record).unwrap();
+        library.remove_source("star-fox-64").unwrap();
+        let status = service.status("starship").unwrap();
+        let install_action = status
+            .port_actions
+            .iter()
+            .find(|item| item.action == PortAction::Install)
+            .unwrap();
+        assert_eq!(install_action.availability, PortActionAvailability::Allowed);
+        assert_eq!(
+            status.readiness.unwrap().source,
+            Some(SourceHealth::Unregistered),
+            "retained launch cannot borrow the current source registration"
+        );
+        library.register_source(&registered).unwrap();
         assert!(
             service
                 .inspect_source_record("star-fox-64", &source)
@@ -9672,6 +9979,20 @@ fn main() {
                 )
                 .unwrap();
             let status = service.status(&original.id).unwrap();
+            let assessed_launch = status
+                .port_actions
+                .iter()
+                .find(|item| item.action == PortAction::Launch)
+                .unwrap();
+            assert_eq!(assessed_launch.availability, PortActionAvailability::Held);
+            assert_eq!(
+                assessed_launch.reason,
+                PortActionReason::DefinitionIneligible
+            );
+            assert_eq!(
+                assessed_launch.definition.unwrap().reason,
+                crate::DefinitionEligibilityReason::PublisherRevoked
+            );
             assert!(!status.readiness.unwrap().launchable);
             let error = service.launch_spec(&original.id, None).unwrap_err();
             assert_eq!(error.code, crate::ErrorCode::Conflict);

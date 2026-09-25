@@ -1958,6 +1958,7 @@ impl Library {
                     readiness: None,
                     last_update_check: update_snapshots.get(port_id).cloned(),
                     definition_operations: Vec::new(),
+                    port_actions: Vec::new(),
                 })
             })
             .collect::<Result<Vec<_>>>()?;

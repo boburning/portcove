@@ -146,6 +146,80 @@ namespace Portcove.ReferenceClient
         }
     }
 
+    internal sealed class PortActionDecision
+    {
+        internal string Action { get; private set; }
+        internal string Availability { get; private set; }
+        internal string Reason { get; private set; }
+        internal string DefinitionReason { get; private set; }
+
+        internal static PortActionDecision Read(object value)
+        {
+            var action = Json.Text(value, "action");
+            if (!new[] { "install", "launch", "remove_managed" }.Contains(action))
+                throw new InvalidOperationException("Unknown Portcove action. Update the client before managing this game.");
+            var availability = Json.Text(value, "availability");
+            if (!new[] { "not_offered", "waiting", "held", "allowed" }.Contains(availability))
+                throw new InvalidOperationException("Unknown Portcove action availability. Update the client before managing this game.");
+            var reason = Json.Text(value, "reason");
+            if (!new[]
+            {
+                "available", "unsupported_platform", "not_installed", "review_required",
+                "missing_source", "unreadable_source", "changed_source", "missing_bios",
+                "unreadable_bios", "changed_bios", "missing_runtime", "preparation_required",
+                "invalid_installation", "definition_ineligible"
+            }.Contains(reason))
+                throw new InvalidOperationException("Unknown Portcove action reason. Update the client before managing this game.");
+            if ((availability == "allowed") != (reason == "available"))
+                throw new InvalidOperationException("Portcove action availability and reason disagree. Refresh state.");
+            object definition;
+            Json.TryField(value, "definition", out definition);
+            string definitionReason = null;
+            if (reason == "definition_ineligible")
+            {
+                if (definition == null || action == "remove_managed" || availability != "held")
+                    throw new InvalidOperationException("Portcove action lacks a valid definition restriction. Refresh state.");
+                var parsed = DefinitionOperationDecision.Read(new Dictionary<string, object>
+                {
+                    { "operation", action }, { "eligibility", definition }, { "retained", action == "launch" }
+                });
+                if (parsed.Outcome == "eligible")
+                    throw new InvalidOperationException("Portcove action has an eligible definition restriction. Refresh state.");
+                definitionReason = parsed.Reason;
+            }
+            else if (definition != null)
+                throw new InvalidOperationException("Portcove action has an unexpected definition restriction. Refresh state.");
+            return new PortActionDecision
+            {
+                Action = action, Availability = availability, Reason = reason,
+                DefinitionReason = definitionReason
+            };
+        }
+    }
+
+    internal static class PortActions
+    {
+        internal static PortActionDecision[] Read(object status)
+        {
+            object raw;
+            if (!Json.TryField(status, "port_actions", out raw))
+                return new PortActionDecision[0]; // API schemas before 54.
+            var decisions = Json.Array(raw).Select(PortActionDecision.Read).ToArray();
+            if (decisions.Select(value => value.Action).Distinct(StringComparer.Ordinal).Count() != decisions.Length)
+                throw new InvalidOperationException("Portcove repeated an action decision. Refresh state.");
+            return decisions;
+        }
+
+        internal static string Summary(object status)
+        {
+            var decisions = Read(status);
+            if (decisions.Length == 0) return null;
+            return string.Join("\n", decisions.Select(value =>
+                "Action " + value.Action.Replace('_', ' ') + ": " + value.Availability.Replace('_', ' ') +
+                " — " + (value.DefinitionReason ?? value.Reason).Replace('_', ' ')));
+        }
+    }
+
     internal sealed class RetainedPreparationRepair
     {
         private static readonly string[] KnownKinds =
@@ -451,7 +525,7 @@ namespace Portcove.ReferenceClient
 
     internal sealed class ProtocolStream
     {
-        internal const int Schema = 53;
+        internal const int Schema = 54;
         private static bool SupportedSchema(long version) => version >= 42 && version <= Schema;
         private readonly string command;
         private readonly Action<Dictionary<string, object>> progress;
@@ -478,7 +552,7 @@ namespace Portcove.ReferenceClient
             if (type == null || (type as string) == "result")
             {
                 if (!SupportedSchema(Json.Number(record, "schema_version")) || Json.Text(record, "command") != command)
-                    throw new InvalidOperationException("Unsupported Portcove response. This client requires API schema 42 through 53; install a matching CLI/client pair.");
+                    throw new InvalidOperationException("Unsupported Portcove response. This client requires API schema 42 through 54; install a matching CLI/client pair.");
                 Json.Boolean(record, "ok");
                 result = record;
                 return;
@@ -566,7 +640,7 @@ namespace Portcove.ReferenceClient
         {
             var schema = Json.Number(capabilities, "schema_version");
             if (!SupportedSchema(schema) || Json.Text(capabilities, "product") != "Portcove")
-                throw new InvalidOperationException("This reference client requires Portcove API schema 42 through 53. Select a compatible CLI or update the client.");
+                throw new InvalidOperationException("This reference client requires Portcove API schema 42 through 54. Select a compatible CLI or update the client.");
             if (requiredCapabilities == null || requiredCapabilities.Length == 0)
                 throw new InvalidOperationException("Select at least one Portcove consumer capability before negotiation.");
             var commands = Json.Array(Json.Field(capabilities, "commands")).OfType<string>().ToArray();

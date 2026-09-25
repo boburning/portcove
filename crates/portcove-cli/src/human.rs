@@ -548,7 +548,26 @@ fn platform_list(platforms: &[Platform]) -> String {
 }
 
 pub(crate) fn status(status: &PortStatus) -> String {
-    statuses(std::slice::from_ref(status))
+    let table = statuses(std::slice::from_ref(status));
+    if status.port_actions.is_empty() {
+        return table;
+    }
+    let actions = status
+        .port_actions
+        .iter()
+        .map(|assessment| {
+            let value = serde_json::to_value(assessment).unwrap_or_default();
+            let action = value["action"].as_str().unwrap_or("unknown");
+            let availability = value["availability"].as_str().unwrap_or("unknown");
+            let reason = value["definition"]["reason"]
+                .as_str()
+                .or_else(|| value["reason"].as_str())
+                .unwrap_or("unknown");
+            format!("  {action}: {availability} ({reason})")
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+    format!("{table}\nActions:\n{actions}")
 }
 
 pub(crate) fn statuses(statuses: &[PortStatus]) -> String {
