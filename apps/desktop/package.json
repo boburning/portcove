@@ -61,7 +61,7 @@
     "i18next-cli": "1.74.1",
     "jsdom": "^30.1.1",
     "json-schema-to-typescript": "16.0.0",
-    "oxc-parser": "0.149.0",
+    "oxc-parser": "0.151.0",
     "selenium-webdriver": "4.49.0",
     "semver": "7.8.5",
     "stylelint": "17.15.0",
@@ -69,6 +69,6 @@
     "tailwindcss": "4.3.3",
     "typescript": "7.0.2",
     "vite": "^8.3.0",
-    "vitest": "^5.0.0"
+    "vitest": "^5.0.1"
   }
 }
