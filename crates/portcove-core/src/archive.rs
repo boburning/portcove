@@ -36,6 +36,8 @@ struct EntryPlan {
 #[derive(Default)]
 struct CollisionSet {
     entries: BTreeMap<String, bool>,
+    #[cfg(test)]
+    descendant_candidates_checked: usize,
 }
 
 impl CollisionSet {
@@ -60,11 +62,13 @@ impl CollisionSet {
         }
         if !directory {
             let prefix = format!("{key}/");
-            if self
-                .entries
-                .keys()
-                .any(|existing| existing.starts_with(&prefix))
+            // Only the first key at or after the prefix can be a descendant.
+            let next = self.entries.range(prefix.clone()..).next();
+            #[cfg(test)]
             {
+                self.descendant_candidates_checked += usize::from(next.is_some());
+            }
+            if next.is_some_and(|(existing, _)| existing.starts_with(&prefix)) {
                 return Err(PortcoveError::verification(format!(
                     "archive file collides with a directory: {key}"
                 )));
@@ -620,6 +624,41 @@ mod tests {
 
     use super::*;
 
+    // The pre-#989 implementation is retained only as a test oracle.
+    fn reference_collision_insert(
+        entries: &mut BTreeMap<String, bool>,
+        key: String,
+        directory: bool,
+    ) -> Result<()> {
+        if entries.contains_key(&key) {
+            return Err(PortcoveError::verification(format!(
+                "archive contains duplicate or platform-colliding path: {key}"
+            )));
+        }
+        let mut ancestor = key.as_str();
+        while let Some(index) = ancestor.rfind('/') {
+            ancestor = &ancestor[..index];
+            if entries
+                .get(ancestor)
+                .is_some_and(|is_directory| !*is_directory)
+            {
+                return Err(PortcoveError::verification(format!(
+                    "archive path descends through a file: {key}"
+                )));
+            }
+        }
+        if !directory {
+            let prefix = format!("{key}/");
+            if entries.keys().any(|existing| existing.starts_with(&prefix)) {
+                return Err(PortcoveError::verification(format!(
+                    "archive file collides with a directory: {key}"
+                )));
+            }
+        }
+        entries.insert(key, directory);
+        Ok(())
+    }
+
     proptest! {
         #[test]
         fn property_archive_paths_reject_traversal_and_device_aliases(
@@ -644,6 +683,63 @@ mod tests {
             prop_assert!(collisions.insert(first, false).is_ok());
             prop_assert!(collisions.insert(second, false).is_err());
         }
+
+        #[test]
+        fn ordered_collision_lookup_matches_the_previous_decisions(
+            entries in prop::collection::vec((
+                prop::sample::select(vec![
+                    "a", "a/b", "a/b/c", "a/bc", "ab", "ab/c", "b", "b/a", "foo", "foo/bar", "foobar",
+                ]),
+                any::<bool>(),
+            ), 0..128),
+        ) {
+            let mut reference = BTreeMap::new();
+            let mut actual = CollisionSet::default();
+            for (key, directory) in entries {
+                let expected = reference_collision_insert(&mut reference, key.into(), directory);
+                let observed = actual.insert(key.into(), directory);
+                prop_assert_eq!(
+                    observed.as_ref().err().map(|error| error.message.as_str()),
+                    expected.as_ref().err().map(|error| error.message.as_str()),
+                );
+                prop_assert_eq!(&actual.entries, &reference);
+            }
+        }
+    }
+
+    #[test]
+    fn archive_collision_edges_keep_both_orders_and_prefix_neighbors() {
+        for (first, first_dir, second, second_dir, rejected) in [
+            ("foo", false, "foo/bar", false, true),
+            ("foo/bar", false, "foo", false, true),
+            ("foo", true, "foo/bar", false, false),
+            ("foo/bar", false, "foo", true, false),
+            ("foo", false, "foobar/bar", false, false),
+            ("foobar/bar", false, "foo", false, false),
+            ("foo/bar", false, "foo/bar", false, true),
+            ("foo", true, "foo", true, true),
+        ] {
+            let mut collisions = CollisionSet::default();
+            collisions.insert(first.into(), first_dir).unwrap();
+            assert_eq!(
+                collisions.insert(second.into(), second_dir).is_err(),
+                rejected,
+                "{first} then {second}",
+            );
+        }
+    }
+
+    #[test]
+    fn large_noncolliding_archive_checks_at_most_one_descendant_candidate_per_file() {
+        let mut collisions = CollisionSet::default();
+        let count = 4096;
+        for index in (0..count).rev() {
+            collisions.insert(format!("file{index:05}"), false).unwrap();
+        }
+        assert_eq!(collisions.entries.len(), count);
+        assert_eq!(collisions.descendant_candidates_checked, count - 1);
+        // The previous whole-map scan would check this many keys for the same order.
+        assert_eq!(count * (count - 1) / 2, 8_386_560);
     }
 
     #[test]
