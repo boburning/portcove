@@ -74,7 +74,7 @@ it("uses the selected installation and profile, shows exact consumer evidence, a
     wrote: true,
   });
   await act(async () =>
-    root.render(<SteamEntryDialog port={port} generation={7} close={vi.fn()} />),
+    root.render(<SteamEntryDialog port={port} generation={7} installed close={vi.fn()} />),
   );
   const installation = document.body.querySelector<HTMLInputElement>("#steam-installation");
   const installationLabel = document.body.querySelector<HTMLLabelElement>(
@@ -124,7 +124,7 @@ it("blocks apply while Steam is running and clears a review when the target chan
   });
   const apply = vi.spyOn(desktopApi, "applySteamEntry");
   await act(async () =>
-    root.render(<SteamEntryDialog port={port} generation={7} close={vi.fn()} />),
+    root.render(<SteamEntryDialog port={port} generation={7} installed close={vi.fn()} />),
   );
   await input("Steam installation folder", "C:\\Steam");
   await input("Steam profile ID", "12345");
@@ -144,7 +144,7 @@ it("keeps the reviewed plan visible when native consent is declined", async () =
   vi.spyOn(desktopApi, "previewSteamEntry").mockResolvedValue(review);
   vi.spyOn(desktopApi, "applySteamEntry").mockResolvedValue(null);
   await act(async () =>
-    root.render(<SteamEntryDialog port={port} generation={7} close={vi.fn()} />),
+    root.render(<SteamEntryDialog port={port} generation={7} installed close={vi.fn()} />),
   );
   await input("Steam installation folder", "C:\\Steam");
   await input("Steam profile ID", "12345");
@@ -152,4 +152,30 @@ it("keeps the reviewed plan visible when native consent is declined", async () =
   await click("Apply reviewed Add / Repair");
   expect(document.body.textContent).toContain(review.shortcuts_path);
   expect(document.body.querySelector('[role="alert"]')).toBeNull();
+});
+
+it("offers owned-shortcut removal after uninstall without offering Add or Repair", async () => {
+  const removeReview: SteamEntryReview = {
+    ...review,
+    operation: "remove",
+    cli_path: null,
+    cli_sha256: null,
+    cli_product_version: null,
+    changes: [{ port_id: port.id, display_name: port.name, kind: "remove" }],
+  };
+  const preview = vi.spyOn(desktopApi, "previewSteamEntry").mockResolvedValue(removeReview);
+  await act(async () =>
+    root.render(<SteamEntryDialog port={port} generation={7} installed={false} close={vi.fn()} />),
+  );
+  await input("Steam installation folder", "C:\\Steam");
+  await input("Steam profile ID", "12345");
+  const add = [...document.body.querySelectorAll("button")].find(
+    (candidate) => candidate.textContent === "Review Add / Repair",
+  );
+  expect(add?.disabled).toBe(true);
+  expect(document.body.textContent).toContain("game is not installed here");
+  await click("Review Remove");
+  expect(preview).toHaveBeenCalledExactlyOnceWith(port.id, "C:\\Steam", "12345", "remove", 7);
+  expect(document.body.textContent).toContain("owned shortcut before writing");
+  expect(document.body.textContent).toContain("Not required for this removal review");
 });

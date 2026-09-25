@@ -146,9 +146,42 @@ export async function steamEntryScenario(context) {
     assert.equal(current.ok, true);
     assert.equal(current.value.writes_required, false);
     await click(button("Close"));
+    const sourcesBeforeUninstall = command(["source", "list"]);
+    const backupsBeforeUninstall = command(["backup", "list", port.id]);
+    const savedDataRoot = command(["paths", port.id]).user_data_root;
+    const savedData = path.join(savedDataRoot, "owned-steam-removal-save.bin");
+    await mkdir(savedDataRoot, { recursive: true });
+    await writeFile(savedData, "owned save must survive game and shortcut removal", { flag: "wx" });
+    const savedDataBefore = await fileIdentity(savedData);
+    const removedInstall = command(["remove", port.id, "--yes"]);
+    assert.ok(removedInstall.removed.length > 0);
+    assert.equal(command(["status", port.id]).active, null);
+    assert.deepEqual(command(["source", "list"]), sourcesBeforeUninstall);
+    assert.deepEqual(command(["backup", "list", port.id]), backupsBeforeUninstall);
+    assert.deepEqual(await fileIdentity(savedData), savedDataBefore);
+    assert.deepEqual(await fileIdentity(shortcuts), added);
+    await browser.navigate().refresh();
+    await browser.wait(
+      until.elementLocated(By.css('nav[aria-label="Primary navigation"]')),
+      15_000,
+    );
+    await click(By.xpath('//nav//button[contains(., "Port catalog")]'));
+    const search = await browser.findElement(By.id("port-search"));
+    await search.sendKeys(
+      Key.chord(process.platform === "darwin" ? Key.COMMAND : Key.CONTROL, "a"),
+      Key.BACK_SPACE,
+      port.name,
+    );
+    const catalogCard = By.xpath(
+      `//button[contains(@class,"port-card") and starts-with(@aria-label,"${port.name}.")]`,
+    );
+    await click(catalogCard);
+    await click(By.css("summary.advanced-summary"));
     await click(button("Steam entry"));
+    assert.ok((await browser.findElement(dialog).getText()).includes("game is not installed here"));
     await browser.findElement(By.id("steam-installation")).sendKeys(steamRoot);
     await browser.findElement(By.id("steam-profile")).sendKeys(steamUserId);
+    assert.equal(await browser.findElement(button("Review Add / Repair")).isEnabled(), false);
     await click(button("Review Remove"));
     await browser.wait(until.elementLocated(button("Remove reviewed entry")), 15_000);
     const removeActionStyles = await assertDestructiveReviewAction(
@@ -157,6 +190,9 @@ export async function steamEntryScenario(context) {
       await browser.findElement(button("Review current state again")),
     );
     assert.ok((await browser.findElement(dialog).getText()).includes("remove"));
+    assert.ok(
+      (await browser.findElement(dialog).getText()).includes("owned shortcut before writing"),
+    );
     const screenshot = path.join(output, "native-steam-entry-remove-review.png");
     await writeFile(screenshot, await browser.takeScreenshot(), {
       encoding: "base64",
@@ -182,6 +218,10 @@ export async function steamEntryScenario(context) {
     });
     assert.equal(absent.ok, true);
     assert.equal(absent.value.writes_required, false);
+    assert.equal(command(["status", port.id]).active, null);
+    assert.deepEqual(command(["source", "list"]), sourcesBeforeUninstall);
+    assert.deepEqual(command(["backup", "list", port.id]), backupsBeforeUninstall);
+    assert.deepEqual(await fileIdentity(savedData), savedDataBefore);
     const report = path.join(output, "steam-entry-result.json");
     await writeFile(
       report,
@@ -197,6 +237,8 @@ export async function steamEntryScenario(context) {
           native_add_cancelled_without_write: true,
           exact_add_became_idempotent: true,
           exact_owned_remove_became_idempotent: true,
+          uninstall_before_owned_remove: true,
+          original_sources_backups_and_saved_data_preserved: true,
           escape_dismissed_and_restored_focus: true,
           add_action_styles: addActionStyles,
           remove_action_styles: removeActionStyles,

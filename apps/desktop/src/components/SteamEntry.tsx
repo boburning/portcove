@@ -17,10 +17,12 @@ import { Input } from "./ui/input";
 export function SteamEntryControl({
   port,
   generation,
+  installed,
   busy,
 }: {
   port: PortDefinition;
   generation: number;
+  installed: boolean;
   busy: boolean;
 }) {
   const [open, setOpen] = useState(false);
@@ -31,7 +33,12 @@ export function SteamEntryControl({
         Steam entry
       </Button>
       {open && (
-        <SteamEntryDialog port={port} generation={generation} close={() => setOpen(false)} />
+        <SteamEntryDialog
+          port={port}
+          generation={generation}
+          installed={installed}
+          close={() => setOpen(false)}
+        />
       )}
     </>
   );
@@ -40,10 +47,12 @@ export function SteamEntryControl({
 export function SteamEntryDialog({
   port,
   generation,
+  installed,
   close,
 }: {
   port: PortDefinition;
   generation: number;
+  installed: boolean;
   close: () => void;
 }) {
   const [steamRoot, setSteamRoot] = useState("");
@@ -126,7 +135,9 @@ export function SteamEntryDialog({
           Manage Steam entry
         </DialogTitle>
         <DialogDescription id="steam-entry-description" className="mb-4 leading-relaxed">
-          Add, repair, or remove the selected Portcove game in one exact Steam profile.
+          {installed
+            ? "Add, repair, or remove the selected Portcove game in one exact Steam profile."
+            : "Remove a previously added Portcove shortcut from one exact Steam profile. The game is not installed here."}
         </DialogDescription>
         {!result && (
           <>
@@ -217,7 +228,7 @@ export function SteamEntryDialog({
             <>
               <Button
                 data-focusable
-                disabled={!selected || Boolean(pending)}
+                disabled={!installed || !selected || Boolean(pending)}
                 onClick={() => void loadReview("add_or_repair")}
               >
                 Review Add / Repair
@@ -322,9 +333,12 @@ function SteamEntryReviewDetails({ review }: { review: SteamEntryReview }) {
       )}
       {review.steam_client_state === "closed" && review.writes_required && (
         <p>
-          Steam appears closed. Final consent rechecks this process state, the installed game,
-          Portcove library, compatible CLI bytes, and exact reviewed profile before writing. A
-          concurrent change is rejected.
+          Steam appears closed. Final consent rechecks this process state, the Portcove library,
+          exact reviewed profile, and{" "}
+          {review.operation === "remove"
+            ? "owned shortcut"
+            : "installed game and compatible CLI bytes"}{" "}
+          before writing. A concurrent change is rejected.
         </p>
       )}
       <p>

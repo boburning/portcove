@@ -319,6 +319,13 @@ package implementation.
 [#292](https://github.com/boburning/portcove/issues/292) owns user-initiated Add,
 Repair, Update artwork, and Remove for selected installed games, including selected
 batch Add.
+The current Desktop shortcut review requires a live managed installation and a
+compatible standalone CLI for Add or Repair. Remove can review and delete a
+demonstrably Portcove-owned shortcut after the managed game has been uninstalled;
+it still binds the selected library, Steam installation/profile, exact shortcut
+contents, process state and final consent. Removing the shortcut never uninstalls
+the game or removes saved data. An unowned or changed shortcut is not eligible
+for removal through this route.
 It investigates current primary documentation and maintained mechanisms before
 choosing a writer; it must not invent an official API or conceal a reverse-
 engineered dependency. The user selects the exact Steam installation and profile,
@@ -409,15 +416,16 @@ overwriting data or calling the outcome a rollback.
 Current evidence is fixture-controlled binary parsing and durable local publication,
 including stale-state, parser-limit, AppID-collision, concurrent-edit,
 malformed-data and interrupted-journal cases. Desktop exposes a bounded
-single-installed-game consumer in the game's technical maintenance actions. The
+single-game consumer in the game's Technical details, including after uninstall. The
 user chooses a Steam installation folder and enters the exact numeric profile
 directory, then reviews the resolved shortcut file, library, standalone CLI and
 Add/Repair/Remove result before a separate confirmation. The host derives the
-installed port and durable library identities itself, observes the main Steam
+catalog port and durable library identities itself, observes the main Steam
 process, never closes it, and reconstructs the complete host context and plan
-after consent; an unknown or running process and any changed installed game,
-profile, library, runtime or selection fail closed. Remove remains available
-without a CLI only when the selected profile contains an exact owned entry.
+after consent; an unknown or running process and any changed reviewed profile,
+library, shortcut, runtime or selection fail closed. Add/Repair also rechecks the
+installed game. Remove remains available without an install or CLI only when the
+selected profile contains an exact owned entry.
 Add/Repair accepts only a standalone CLI whose passive embedded marker advertises
 this Portcove version's Steam `exec` contract, shows its SHA-256 in the review,
 binds that identity into the plan, and rehashes the same no-follow regular file
