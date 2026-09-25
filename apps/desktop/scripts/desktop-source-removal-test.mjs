@@ -4,6 +4,7 @@ import path from "node:path";
 import { mkdir, writeFile } from "node:fs/promises";
 import { fileIdentity } from "../../../scripts/development-evidence.mjs";
 import { By, Key, until } from "selenium-webdriver";
+import { installedPreservationWitness } from "./desktop-scenario-state.mjs";
 import {
   reviewControls,
   assertCompactReview,
@@ -23,12 +24,12 @@ export async function sourceRemovalScenario({
 }) {
   await scenario("native-reviewed-source-reference-removal", async () => {
     assert.equal(path.resolve(library), path.resolve(output, "library"));
-    const port = command(["catalog", "show", "opengoal-jak1"]);
+    const { portId, install } = installedPreservationWitness(command);
+    const port = command(["catalog", "show", portId]);
     const source = command(["source", "list"]).find(
       (item) => item.profile_id === port.source_profile,
     );
     assert.ok(source);
-    const install = command(["status", port.id]).active;
     const paths = command(["paths", port.id]);
     const relative = path.relative(library, paths.user_data_root);
     assert.ok(relative && !relative.startsWith("..") && !path.isAbsolute(relative));
@@ -143,7 +144,7 @@ export async function sourceRemovalScenario({
     await confirmNative("Confirm source removal", "Cancel", source.path, "source-native-cancelled");
     await browser.wait(async () => (await browser.findElements(dialog)).length === 0, 15_000);
     await openReview();
-    const replacement = path.join(output, "owned-replacement-jak1.iso");
+    const replacement = path.join(output, `owned-replacement-${port.id}.iso`);
     await writeFile(replacement, "changed owned source registration", {
       flag: "wx",
     });
@@ -201,7 +202,7 @@ export async function sourceRemovalScenario({
       await Promise.all(preserved.map((item) => fileIdentity(item.path))),
       preserved,
     );
-    assert.equal(command(["status", port.id]).active.id, install.id);
+    assert.deepEqual(command(["status", port.id]).active, install);
     assert.ok(command(["backup", "list", port.id]).backups.some((item) => item.id === backup.id));
     const result = path.join(output, "source-removal-result.json");
     await writeFile(

@@ -1,4 +1,4 @@
-// Read-only command handoff from the real native UI after the owned library move.
+// Read-only command handoff from the real native UI after owned move and restore.
 import assert from "node:assert/strict";
 import path from "node:path";
 import { realpath, writeFile } from "node:fs/promises";
@@ -22,7 +22,7 @@ export async function cliHandoffScenario({
     const bootstrap = (await invoke("get_bootstrap_status")).value;
     assert.equal(
       await realpath(bootstrap.library_root),
-      await realpath(path.join(output, "moved-library")),
+      await realpath(path.join(output, "restored-library")),
     );
     const context = await invoke("get_cli_command_context", {
       generation: bootstrap.generation,
@@ -90,7 +90,7 @@ export async function cliHandoffScenario({
       "zelda64-recomp",
       "--",
     ]);
-    assert.ok(shell.includes("--library") && shell.includes("moved-library"));
+    assert.ok(shell.includes("--library") && shell.includes("restored-library"));
     await assertCompactReview(browser, ".detail-panel");
     const report = path.join(output, "cli-handoff-accessibility.json");
     await captureAccessibilityReport(browser, report, artifacts);

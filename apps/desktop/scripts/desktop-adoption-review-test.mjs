@@ -4,6 +4,7 @@ import path from "node:path";
 import { copyFile, mkdir, readFile, realpath, writeFile } from "node:fs/promises";
 import { fileIdentity } from "../../../scripts/development-evidence.mjs";
 import { By, Key, until } from "selenium-webdriver";
+import { installedPreservationWitness } from "./desktop-scenario-state.mjs";
 import {
   reviewControls,
   assertCompactReview,
@@ -53,7 +54,8 @@ export async function adoptionReviewScenario({
         path.join(previous.path, port.executable_hints[host][0]),
       ].map(fileIdentity),
     );
-    const otherInstall = command(["status", "opengoal-jak1"]).active;
+    const { portId: otherInstallPortId, install: otherInstall } =
+      installedPreservationWitness(command);
     const sources = command(["source", "list"]);
     await browser.manage().window().setRect({ width: 1440, height: 1000 });
     await browser.navigate().refresh();
@@ -257,7 +259,7 @@ export async function adoptionReviewScenario({
       preserved,
     );
     assert.deepEqual(command(["source", "list"]), sources);
-    assert.equal(command(["status", "opengoal-jak1"]).active.id, otherInstall.id);
+    assert.equal(command(["status", otherInstallPortId]).active.id, otherInstall.id);
     assert.deepEqual(
       command(["backup", "list", port.id]).backups.map((item) => item.id),
       [backup.id],

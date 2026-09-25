@@ -4,6 +4,7 @@ import path from "node:path";
 import { readFile, readdir, stat, writeFile } from "node:fs/promises";
 import { fileIdentity } from "../../../scripts/development-evidence.mjs";
 import { By, Key, until } from "selenium-webdriver";
+import { installedPreservationWitness } from "./desktop-scenario-state.mjs";
 import {
   assertDestructiveReviewAction,
   captureAccessibilityReport,
@@ -27,7 +28,8 @@ export async function removalReviewScenario({
     const original = path.join(output, `owned-${port.id}`);
     const paths = command(["paths", port.id]);
     const save = path.join(paths.user_data_root, "owned-review-save.bin");
-    const otherInstall = command(["status", "opengoal-jak1"]).active;
+    const { portId: otherInstallPortId, install: otherInstall } =
+      installedPreservationWitness(command);
     const sources = command(["source", "list"]);
     const snapshots = command(["backup", "list", port.id]);
     const beforeSave = await readFile(save);
@@ -179,7 +181,7 @@ export async function removalReviewScenario({
       await Promise.all(preservedFiles.map((item) => fileIdentity(item.path))),
       preservedFiles,
     );
-    assert.deepEqual(command(["status", "opengoal-jak1"]).active, otherInstall);
+    assert.deepEqual(command(["status", otherInstallPortId]).active, otherInstall);
     const report = path.join(output, "removal-review-result.json");
     await writeFile(
       report,

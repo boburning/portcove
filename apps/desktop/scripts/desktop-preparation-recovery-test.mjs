@@ -233,11 +233,11 @@ export async function interruptedPreparationScenario({
     );
     await dismissApplicationUpdateChoice();
     const updatesNavigation = await browser.findElement(
-      By.xpath('//nav//button[contains(., "Updates")]'),
+      By.xpath('//nav//button[contains(., "Game updates")]'),
     );
     const navigationStatus = await browser.wait(
       until.elementLocated(
-        By.xpath('//nav//button[contains(., "Updates")]//*[contains(@class,"nav-status")]'),
+        By.xpath('//nav//button[contains(., "Game updates")]//*[contains(@class,"nav-status")]'),
       ),
       10_000,
     );
@@ -253,7 +253,7 @@ export async function interruptedPreparationScenario({
       until.elementLocated(By.xpath('//h1[normalize-space(.)="Settings"]')),
       15_000,
     );
-    await browser.findElement(By.xpath('//nav//button[contains(., "Updates")]')).click();
+    await browser.findElement(By.xpath('//nav//button[contains(., "Game updates")]')).click();
     const beforeRestart = await browser.wait(
       findInterruptedRow,
       15_000,
@@ -278,7 +278,7 @@ export async function interruptedPreparationScenario({
     await dismissApplicationUpdateChoice();
     const restartedNavigationStatus = await browser.wait(
       until.elementLocated(
-        By.xpath('//nav//button[contains(., "Updates")]//*[contains(@class,"nav-status")]'),
+        By.xpath('//nav//button[contains(., "Game updates")]//*[contains(@class,"nav-status")]'),
       ),
       10_000,
     );
@@ -286,7 +286,7 @@ export async function interruptedPreparationScenario({
       await restartedNavigationStatus.getAttribute("aria-label"),
       "Activity needs attention",
     );
-    await browser.findElement(By.xpath('//nav//button[contains(., "Updates")]')).click();
+    await browser.findElement(By.xpath('//nav//button[contains(., "Game updates")]')).click();
     const rows = await browser.wait(async () => {
       const candidates = await browser.findElements(interruptedRows);
       const matches = [];
@@ -552,7 +552,7 @@ export async function interruptedPreparationScenario({
     browser = await restartApplication("interrupted-preparation-recovery-after-cancel");
     controls = reviewControls(browser);
     await dismissApplicationUpdateChoice();
-    await browser.findElement(By.xpath('//nav//button[contains(., "Updates")]')).click();
+    await browser.findElement(By.xpath('//nav//button[contains(., "Game updates")]')).click();
 
     const recoveredReviewLocator = By.css(`[data-recovery-operation="${activity.id}"]`);
     let recoveredReview = await browser.wait(until.elementLocated(recoveredReviewLocator), 15_000);
@@ -640,7 +640,7 @@ export async function interruptedPreparationScenario({
     assert.deepEqual(command(["activity", "log", activity.id]), retained);
     controls = reviewControls(browser);
     await dismissApplicationUpdateChoice();
-    await browser.findElement(By.xpath('//nav//button[contains(., "Updates")]')).click();
+    await browser.findElement(By.xpath('//nav//button[contains(., "Game updates")]')).click();
     const journalOnlyReviewLocator = By.css(`[data-recovery-operation="${journalOnlyId}"]`);
     await browser.wait(until.elementLocated(journalOnlyReviewLocator), 15_000);
     await browser.wait(

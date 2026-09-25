@@ -506,6 +506,16 @@ export async function preparationScenarios({
     const updateControl = await browser.findElement(
       By.css('section[aria-label="Review game update"]'),
     );
+    await clickVisible(
+      browser,
+      await updateControl.findElement(By.css('[data-slot="select-trigger"]')),
+    );
+    await clickVisible(
+      browser,
+      await browser.findElement(
+        By.xpath('//*[@role="option" and normalize-space(.)="Stage for later"]'),
+      ),
+    );
     assert.ok((await updateControl.getText()).includes("Stage for later"));
     const before = await status(port.id);
     const activityBefore = (await invoke("get_activities")).value;
@@ -1103,7 +1113,7 @@ export async function preparationScenarios({
     open,
     confirmNative,
   });
-  await sourceDialogScenario({ browser, scenario, output, artifacts, command, open });
+  await sourceDialogScenario({ browser, scenario, output, artifacts, command });
   await primaryFilePickerScenario({
     browser,
     scenario,

@@ -7,25 +7,24 @@ import {
   assertCompactReview,
   assertPrimaryReviewAction,
   captureAccessibilityReport,
+  openCatalogPortAfterRefresh,
   reviewControls,
 } from "./desktop-review-controls.mjs";
 
-export async function sourceDialogScenario({
-  browser,
-  scenario,
-  output,
-  artifacts,
-  command,
-  open,
-}) {
+export async function sourceDialogScenario({ browser, scenario, output, artifacts, command }) {
   await scenario("native-source-intake-and-discovery-dialogs", async () => {
     const port = command(["catalog", "show", "opengoal-jak1"]);
     const profileLabel = port.presentation.source_requirements[0].label;
     const { button, click } = reviewControls(browser);
 
-    await open(port, false);
-    await click(By.css(".requirements-disclosure > .requirements-summary"));
+    await openCatalogPortAfterRefresh(browser, port);
+    const disclosure = await browser.findElement(By.css(".requirements-disclosure"));
+    if (!(await browser.executeScript((element) => element.open, disclosure))) {
+      await click(By.css(".requirements-disclosure > .requirements-summary"));
+    }
+    assert.equal(await browser.executeScript((element) => element.open, disclosure), true);
     const intakeTrigger = await browser.findElement(button("Check original game files"));
+    await browser.executeScript('arguments[0].scrollIntoView({ block: "center" });', intakeTrigger);
     await click(button("Check original game files"));
     const intakeDialog = By.css('[aria-labelledby="source-intake-title"]');
     await browser.wait(until.elementLocated(intakeDialog), 15_000);
@@ -58,6 +57,10 @@ export async function sourceDialogScenario({
     const discoveryTrigger = await browser.wait(
       until.elementLocated(button("Choose game files")),
       15_000,
+    );
+    await browser.executeScript(
+      'arguments[0].scrollIntoView({ block: "center" });',
+      discoveryTrigger,
     );
     await click(button("Choose game files"));
     const discoveryDialog = By.css('[aria-labelledby="source-discovery-title"]');
@@ -174,38 +177,51 @@ export async function sourceDialogScenario({
         item.status === "succeeded",
     );
     assert.ok(sourceRegistration, "Owned setup must record this source registration");
+    const sourceRegistrationIndex = activities.findIndex(
+      (item) => item.id === sourceRegistration.id,
+    );
+    const sourceActivityInRecentPreview = sourceRegistrationIndex < 8;
     await click(By.xpath('//nav//button[contains(., "Game updates")]'));
     const sourceActivity = By.xpath(
       `//div[contains(@class, "activity-row") and .//strong[normalize-space()="Game-file location update"]]//button[@aria-label=${JSON.stringify(`Open Game Files settings for ${profileLabel}`)}]`,
     );
-    await browser.wait(until.elementLocated(sourceActivity), 15_000);
-    await click(sourceActivity);
-    await browser.wait(until.elementLocated(By.id("settings-game-files-heading")), 5_000);
-    await browser.wait(
-      () =>
-        browser.executeScript(
-          () =>
-            document.activeElement?.closest('[data-settings-group="game-files"]') !== null &&
-            document.activeElement?.textContent?.includes("Verify sources"),
-        ),
-      5_000,
-      "Source activity did not focus the Game Files verification control",
+    await browser.wait(until.elementLocated(By.css(".activity-list")), 15_000);
+    if (sourceActivityInRecentPreview)
+      await browser.wait(until.elementLocated(sourceActivity), 15_000);
+    assert.equal(
+      (await browser.findElements(sourceActivity)).length,
+      sourceActivityInRecentPreview ? 1 : 0,
+      `source registration at history index ${sourceRegistrationIndex} must match the recent preview`,
     );
-    await browser.actions().sendKeys(Key.ARROW_DOWN).perform();
-    await browser.wait(
-      () =>
-        browser.executeScript(
-          () => document.activeElement?.closest('[data-settings-group="game-files"]') !== null,
-        ),
-      5_000,
-      "Directional navigation left Game Files settings",
-    );
-    const settingsScreenshot = path.join(output, "native-source-activity-settings.png");
-    await writeFile(settingsScreenshot, await browser.takeScreenshot(), {
-      encoding: "base64",
-      flag: "wx",
-    });
-    artifacts.push(settingsScreenshot);
+    if (sourceActivityInRecentPreview) {
+      await click(sourceActivity);
+      await browser.wait(until.elementLocated(By.id("settings-game-files-heading")), 5_000);
+      await browser.wait(
+        () =>
+          browser.executeScript(
+            () =>
+              document.activeElement?.closest('[data-settings-group="game-files"]') !== null &&
+              document.activeElement?.textContent?.includes("Verify sources"),
+          ),
+        5_000,
+        "Source activity did not focus the Game Files verification control",
+      );
+      await browser.actions().sendKeys(Key.ARROW_DOWN).perform();
+      await browser.wait(
+        () =>
+          browser.executeScript(
+            () => document.activeElement?.closest('[data-settings-group="game-files"]') !== null,
+          ),
+        5_000,
+        "Directional navigation left Game Files settings",
+      );
+      const settingsScreenshot = path.join(output, "native-source-activity-settings.png");
+      await writeFile(settingsScreenshot, await browser.takeScreenshot(), {
+        encoding: "base64",
+        flag: "wx",
+      });
+      artifacts.push(settingsScreenshot);
+    }
 
     await click(By.xpath('//nav//button[contains(., "Game updates")]'));
     const discoveryActivity = By.xpath(
@@ -243,11 +259,13 @@ export async function sourceDialogScenario({
           nested_select_escape_preserved_dialog: true,
           intake_escape_restored_focus: true,
           discovery_escape_restored_focus: true,
-          source_activity_opened_game_files_settings: true,
-          source_activity_settings_control_focused: true,
+          source_activity_history_index: sourceRegistrationIndex,
+          source_activity_in_recent_preview: sourceActivityInRecentPreview,
+          source_activity_opened_game_files_settings: sourceActivityInRecentPreview,
+          source_activity_settings_control_focused: sourceActivityInRecentPreview,
           library_discovery_activity_opened_game_files_settings: true,
           library_discovery_settings_control_focused: true,
-          directional_navigation_stayed_in_game_files: true,
+          directional_navigation_stayed_in_game_files: sourceActivityInRecentPreview,
           intake_action_styles: intakeStyles,
           search_action_styles: searchStyles,
           field_presentation: fieldPresentation,

@@ -1261,6 +1261,7 @@ try {
         };
       };
       return {
+        viewportWidth: window.innerWidth,
         updates: {
           content: rect('[data-settings-group="updates"] .settings-section-content'),
           application: rect('[data-settings-group="updates"] .application-update-settings'),
@@ -1279,8 +1280,14 @@ try {
     assert.ok(Math.abs(layout.updates.application.width - layout.updates.content.width) < 2);
     assert.ok(Math.abs(layout.updates.catalog.width - layout.updates.content.width) < 2);
     assert.ok(Math.abs(layout.updates.application.left - layout.updates.catalog.left) < 2);
-    assert.ok(Math.abs(layout.advanced.diagnostics.top - layout.advanced.privacy.top) < 2);
-    assert.ok(layout.advanced.diagnostics.right < layout.advanced.privacy.left);
+    if (layout.viewportWidth < 768) {
+      assert.ok(layout.advanced.diagnostics.bottom <= layout.advanced.privacy.top);
+      assert.ok(Math.abs(layout.advanced.diagnostics.width - layout.advanced.content.width) < 2);
+      assert.ok(Math.abs(layout.advanced.privacy.width - layout.advanced.content.width) < 2);
+    } else {
+      assert.ok(Math.abs(layout.advanced.diagnostics.top - layout.advanced.privacy.top) < 2);
+      assert.ok(layout.advanced.diagnostics.right < layout.advanced.privacy.left);
+    }
     assert.ok(layout.advanced.about.top >= layout.advanced.diagnostics.bottom);
     assert.ok(layout.advanced.about.top >= layout.advanced.privacy.bottom);
     assert.ok(Math.abs(layout.advanced.about.width - layout.advanced.content.width) < 2);

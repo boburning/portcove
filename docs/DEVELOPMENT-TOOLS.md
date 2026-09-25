@@ -473,8 +473,10 @@ serves only that artifact from an ephemeral loopback address, and records the ex
 request, cancellation, staging absence and successful fresh-review retry. The
 second synthetic port proves a committed install remains successful while immediate
 workspace reads are temporarily unavailable, retains the last view as explicitly
-stale, and retries only that read without repeating install review, download or
-mutation. The
+stale, and retries the workspace read without repeating install review, download
+or install mutation. A separate generation-bound orphan discovery can occur
+during the retry observation; the harness records it separately from the install.
+The
 qualification feature accepts only an absolute catalog file and loopback HTTP URL;
 default and shipping binaries ignore the fixture variable and continue to require
 HTTPS direct manifests. The fixture proves native progress/cancellation and safe
@@ -647,6 +649,12 @@ reference. It verifies unchanged original/replacement bytes, saves, backup conte
 other references and the installed game. The same run re-exercises backup and
 installed-game reviews through their shared presentation lifecycle. Native Windows
 confirmation evidence remains scoped separately from other physical platforms.
+
+The source-intake scenario verifies the registered source's Game Files activity
+link when that record is in the eight-item recent preview. In a long combined
+run, it asserts the older registration remains in durable activity history but
+outside the preview, then verifies the newly recorded discovery activity's Game
+Files link. The focused native run exercises the registration link directly.
 
 The owned adoption review scenario copies a harmless fixture through the real
 native UI. It verifies exact source/output/saved-data paths, dismissal and pending

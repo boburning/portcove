@@ -2,7 +2,24 @@
 import assert from "node:assert/strict";
 import { writeFile } from "node:fs/promises";
 import axe from "axe-core";
-import { By, until } from "selenium-webdriver";
+import { By, Key, until } from "selenium-webdriver";
+
+export async function openCatalogPortAfterRefresh(browser, port, query = "") {
+  const { click } = reviewControls(browser);
+  await browser.navigate().refresh();
+  await browser.wait(until.elementLocated(By.css('nav[aria-label="Primary navigation"]')), 15_000);
+  await click(By.xpath('//nav//button[contains(., "Port catalog")]'));
+  const search = await browser.findElement(By.id("port-search"));
+  await search.sendKeys(
+    Key.chord(process.platform === "darwin" ? Key.COMMAND : Key.CONTROL, "a"),
+    Key.BACK_SPACE,
+    query,
+  );
+  await click(
+    By.xpath('//div[@aria-label="Release channel filters"]//button[normalize-space(.)="All"]'),
+  );
+  await click(By.css(`[data-detail-origin="catalog:card:${port.id}"]`));
+}
 
 async function waitForEntrance(browser, element) {
   await browser.wait(
