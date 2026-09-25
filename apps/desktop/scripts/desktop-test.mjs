@@ -925,11 +925,25 @@ try {
     const selectedFilter = await browser.findElement(By.css('.filter-row [aria-pressed="true"]'));
     assert.equal(await selectedFilter.getAttribute("data-slot"), "button");
     assert.equal(await selectedFilter.getAttribute("data-variant"), "selected");
-    await search.sendKeys("64");
-    await browser.wait(async () => (await browser.findElements(By.css(".port-card"))).length > 2);
+    await search.clear();
+    const allChannels = await browser.findElement(
+      By.xpath('//div[@aria-label="Release channel filters"]//button[normalize-space(.)="All"]'),
+    );
+    await allChannels.click();
+    assert.equal(await allChannels.getAttribute("aria-pressed"), "true");
+    await browser.findElement(By.id("port-search")).sendKeys("Ghostship");
+    await browser.wait(
+      () =>
+        browser.executeScript(() =>
+          [...document.querySelectorAll(".port-card")].some((card) =>
+            card.textContent?.includes("Ghostship"),
+          ),
+        ),
+      15_000,
+    );
     const origin = await browser.executeScript(() => {
       const cards = [...document.querySelectorAll(".port-card")];
-      const card = cards[Math.min(3, cards.length - 1)];
+      const card = cards.find((item) => item.textContent?.includes("Ghostship"));
       if (!(card instanceof HTMLElement)) throw new Error("Catalog detail origin is missing");
       card.scrollIntoView({ block: "center", inline: "nearest" });
       card.focus();
@@ -975,6 +989,9 @@ try {
         return {
           duplicateReadiness: document.querySelectorAll(".readiness-card").length,
           horizontalOverflow: document.documentElement.scrollWidth > window.innerWidth + 1,
+          stateText: document.querySelector(".hero-state")?.textContent?.trim(),
+          reasonText: reason.textContent?.trim(),
+          actionText: action.textContent?.trim(),
           titleFits: title.scrollWidth <= title.clientWidth + 1,
           reasonFits: reason.scrollWidth <= reason.clientWidth + 1,
           reasonInHero:
@@ -985,6 +1002,12 @@ try {
       });
       assert.equal(hierarchy.duplicateReadiness, 0);
       assert.equal(hierarchy.horizontalOverflow, false);
+      assert.equal(hierarchy.stateText, "Original game files needed");
+      assert.match(
+        hierarchy.reasonText,
+        /Choose the required game files before reviewing installation/u,
+      );
+      assert.equal(hierarchy.actionText, "Choose game files");
       assert.equal(hierarchy.titleFits, true);
       assert.equal(hierarchy.reasonFits, true);
       assert.equal(hierarchy.reasonInHero, true);
@@ -1011,10 +1034,17 @@ try {
       focus: document.activeElement?.getAttribute("data-detail-origin"),
       scrollTop: document.querySelector("main")?.scrollTop,
     }));
-    assert.equal(restored.query, "64");
+    assert.equal(restored.query, "Ghostship");
     assert.equal(restored.focus, origin.originKey);
     assert.ok(Math.abs(restored.scrollTop - origin.scrollTop) <= 1);
     await captureScenarioScreenshot("game-details-workspace-return");
+    await browser
+      .findElement(By.id("port-search"))
+      .sendKeys(Key.chord(Key.CONTROL, "a"), Key.BACK_SPACE);
+    await browser.wait(
+      async () => (await browser.findElements(By.css(".port-card"))).length > 2,
+      15_000,
+    );
 
     const compactWindow = await browser.manage().window().getRect();
     try {
@@ -1035,6 +1065,7 @@ try {
         await browser.findElement(By.xpath('//nav//button[contains(., "Port catalog")]')).click();
         await browser.wait(
           async () => (await browser.findElements(By.css(".port-card"))).length > 2,
+          15_000,
         );
         const descriptions = await browser.executeScript(() => {
           const cards = [...document.querySelectorAll(".port-card-selectable")].slice(0, 3);

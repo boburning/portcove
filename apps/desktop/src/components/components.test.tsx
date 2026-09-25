@@ -2115,14 +2115,14 @@ describe("desktop components", () => {
       ([, content]) => content.replaceAll(/<[^>]+>/g, "").trim(),
     );
     expect(uninstalled).toContain("Choose game files");
-    expect(uninstalled.match(/Available to install/g)).toHaveLength(1);
+    expect(uninstalled.match(/Original game files needed/g)).toHaveLength(1);
     expect(uninstalled).not.toContain("readiness-card");
     expect(uninstalled.indexOf('class="hero-reason"')).toBeLessThan(
       uninstalled.indexOf("Choose game files"),
     );
-    expect(uninstalled.indexOf("Portcove will check required game files")).toBeLessThan(
-      uninstalled.indexOf("Choose game files"),
-    );
+    expect(
+      uninstalled.indexOf("Choose the required game files before reviewing installation"),
+    ).toBeLessThan(uninstalled.indexOf("Choose game files"));
     expect(uninstalled.indexOf("Choose game files")).toBeLessThan(
       uninstalled.indexOf(port.summary),
     );
@@ -2134,6 +2134,8 @@ describe("desktop components", () => {
       "Portcove uses this game file in place and never uploads or changes it.",
     );
     expect(sourceFree).toContain("Review install");
+    expect(sourceFree).toContain("Available to install");
+    expect(sourceFree).not.toContain("Original game files needed");
     expect(sourceFree).not.toContain("Choose game files");
     expect(sourceFree).not.toContain("Installation and version");
     expect(sourceFree).toContain('data-slot="button"');
@@ -2367,6 +2369,7 @@ describe("desktop components", () => {
     );
     expect(unselectedButtons.filter((label) => label === "Choose BIOS file")).toHaveLength(2);
     expect(unselected).toContain("Add the required BIOS file before installing");
+    expect(unselected).toContain("Required BIOS file needed");
 
     const selected = renderToStaticMarkup(
       <DetailPanel
@@ -2383,6 +2386,8 @@ describe("desktop components", () => {
       />,
     );
     expect(selected).toContain("scph1001.bin");
+    expect(selected).toContain("Available to install");
+    expect(selected).not.toContain("Required BIOS file needed");
     expect(selected).toContain(
       "Selected BIOS file has not been checked. Portcove validates it when you continue.",
     );
@@ -2409,6 +2414,7 @@ describe("desktop components", () => {
       />,
     );
     const primary = html.match(/<div class="actions primary-actions">(.*?)<\/div>/s)?.[1];
+    expect(html).toContain("Game files and BIOS needed");
     expect(primary).toContain("Choose game files and BIOS");
     expect(primary).toContain("Add all required game files and the BIOS file before installing");
   });

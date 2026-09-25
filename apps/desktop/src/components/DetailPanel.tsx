@@ -149,6 +149,8 @@ export function DetailPanel(props: DetailPanelProps) {
     biosPath,
   );
   const selectedRequirement = selectedSourceRequirement(source, sourcePath, bios, biosPath);
+  const missingRequirement: SelectedRequirement | undefined =
+    !sourceReady && !biosReady ? "both" : !sourceReady ? "game" : !biosReady ? "bios" : undefined;
   const runtimeUpdateAvailable = currentUpdateSnapshot(status)?.check.update_available === true;
   const installReviewVisible = Boolean(
     installPlan &&
@@ -175,6 +177,7 @@ export function DetailPanel(props: DetailPanelProps) {
           status?.readiness?.source,
           status?.readiness?.bios,
           selectedRequirement,
+          missingRequirement,
           Boolean(status?.readiness?.blockers.includes("invalid_installation")),
         );
   const sources: SourceControls = {
@@ -1811,6 +1814,7 @@ function detailState(
   sourceHealth?: SourceHealth | null,
   biosHealth?: SourceHealth | null,
   selectedRequirement?: "game" | "bios" | "both",
+  missingRequirement?: SelectedRequirement,
   invalidInstallation = false,
 ) {
   if (invalidInstallation)
@@ -1821,7 +1825,7 @@ function detailState(
       tone: "setup",
       icon: AlertTriangle,
     };
-  if (!installed) return availableInstallState(selectedRequirement);
+  if (!installed) return availableInstallState(selectedRequirement, missingRequirement);
   if (runtimeNeeded) return runtimeRequirementState(runtimeUpdateAvailable);
   const sourceIssue = sourceHealthState("game", sourceHealth);
   if (sourceIssue) return sourceIssue;
@@ -1887,7 +1891,30 @@ function selectedSourceRequirement(
   return undefined;
 }
 
-function availableInstallState(selectedRequirement?: SelectedRequirement) {
+function availableInstallState(
+  selectedRequirement?: SelectedRequirement,
+  missingRequirement?: SelectedRequirement,
+) {
+  if (missingRequirement) {
+    const requirement =
+      missingRequirement === "both"
+        ? "Game files and BIOS"
+        : missingRequirement === "bios"
+          ? "Required BIOS file"
+          : "Original game files";
+    const nextStep =
+      missingRequirement === "both"
+        ? "Choose the required game files, then the BIOS file"
+        : missingRequirement === "bios"
+          ? "Choose the required BIOS file"
+          : "Choose the required game files";
+    return {
+      title: `${requirement} needed`,
+      description: `${nextStep} before reviewing installation. Portcove checks selected files before activation.`,
+      tone: "setup",
+      icon: Wrench,
+    };
+  }
   let description =
     "Portcove will check required game files and verify the release before it becomes active.";
   if (selectedRequirement === "bios")
