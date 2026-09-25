@@ -610,6 +610,10 @@ try {
     );
     assert.equal(await browse.getAttribute("data-slot"), "button");
     assert.equal(await browse.getAttribute("data-variant"), "primary");
+    assert.match(
+      await browser.findElement(By.css(".empty-state")).getText(),
+      /Your library is empty[\s\S]*register a prepared runtime/,
+    );
     await captureScenarioScreenshot("empty-library-shared-controls");
     const search = await browser.findElement(By.id("port-search"));
     await search.sendKeys("unmatched title");
@@ -619,7 +623,7 @@ try {
     );
     assert.match(
       await browser.findElement(By.css(".empty-state")).getText(),
-      /This library has no installed ports yet/,
+      /This library has no ports yet/,
     );
     await captureScenarioScreenshot("filtered-empty-new-library");
     await clearSearch.click();

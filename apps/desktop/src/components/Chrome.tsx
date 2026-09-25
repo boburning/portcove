@@ -753,8 +753,8 @@ function SourceRequirements({
       <div className={`source-requirements${installedCount > 0 ? " complete" : ""}`}>
         <strong>
           {installedCount > 0
-            ? "Required game files have been added for your installed ports."
-            : "No ports installed yet. Game-file requirements for installed ports will appear here."}
+            ? "Required game files have been added for ports in your library."
+            : "No ports in your library yet. Game-file requirements will appear here after you add a port."}
         </strong>
       </div>
     );
@@ -766,7 +766,7 @@ function SourceRequirements({
           {requirements.length === 1 ? "requirement" : "requirements"}{" "}
           {requirements.length === 1 ? "needs" : "need"} attention
         </strong>
-        <small>Required by installed ports</small>
+        <small>Required by ports in your library</small>
       </div>
       {requirements.map((requirement) => (
         <div className="source-requirement" key={requirement.profile.id}>

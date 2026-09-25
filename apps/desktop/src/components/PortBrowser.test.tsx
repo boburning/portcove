@@ -113,8 +113,8 @@ describe("Library empty browsing context", () => {
     };
 
     await render("all", "unmatched title");
-    expect(host.textContent).toContain("No installed ports match your search and filters");
-    expect(host.textContent).toContain("This library has no installed ports yet");
+    expect(host.textContent).toContain("No ports in your library match your search and filters");
+    expect(host.textContent).toContain("This library has no ports yet");
     expect(host.textContent).not.toContain("Your installed ports are still in this library");
     await act(async () =>
       [...host.querySelectorAll("button")]
@@ -124,10 +124,11 @@ describe("Library empty browsing context", () => {
     expect(clearFilters).toHaveBeenCalledOnce();
 
     await render("ready", "");
-    expect(host.textContent).toContain("No installed ports match your search and filters");
+    expect(host.textContent).toContain("No ports in your library match your search and filters");
 
     await render("all", "   ");
-    expect(host.textContent).toContain("No installed ports yet");
+    expect(host.textContent).toContain("Your library is empty");
+    expect(host.textContent).toContain("register a prepared runtime");
     expect(host.textContent).not.toContain("Clear search and filters");
   });
 });

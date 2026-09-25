@@ -1938,7 +1938,7 @@ describe("desktop components", () => {
 
     expect(loading).toContain("Checking required game files");
     expect(loading).not.toContain("Required game files have been added");
-    expect(loading).not.toContain("No ports installed yet");
+    expect(loading).not.toContain("No ports in your library yet");
     expect(loading).not.toContain("No source files are registered yet");
     expect(loading.match(/<button\b([^>]*)>Choose game files<\/button>/)?.[1]).toContain(
       "disabled",
@@ -1948,7 +1948,7 @@ describe("desktop components", () => {
     expect(unavailable).toContain("Required game files could not be checked");
     expect(unavailable).toContain("Retry loading the library before changing saved locations");
     expect(unavailable).not.toContain("Required game files have been added");
-    expect(unavailable).not.toContain("No ports installed yet");
+    expect(unavailable).not.toContain("No ports in your library yet");
     expect(unavailable).not.toContain("No source files are registered yet");
     expect(unavailable.match(/<button\b([^>]*)>Choose game files<\/button>/)?.[1]).toContain(
       "disabled",
@@ -1956,10 +1956,10 @@ describe("desktop components", () => {
     expect(unavailable).not.toContain(requirement.profile.label);
     expect(unavailable).not.toContain(registeredSource.path);
     expect(noInstalledPorts).toContain(
-      "No ports installed yet. Game-file requirements for installed ports will appear here.",
+      "No ports in your library yet. Game-file requirements will appear here after you add a port.",
     );
     expect(noInstalledPorts).not.toContain("source-requirements complete");
-    expect(complete).toContain("Required game files have been added for your installed ports");
+    expect(complete).toContain("Required game files have been added for ports in your library");
     expect(complete).toContain("source-requirements complete");
     expect(complete).toContain("No source files are registered yet");
     expect(singular).toContain("1 game-file requirement needs attention");
@@ -2617,25 +2617,26 @@ describe("desktop components", () => {
     expect(empty).toContain("Clear search and filters");
     expect(emptyLibrary).toContain("/brand/mascot/portcove-mascot-v2-front.png");
     expect(emptyLibrary).toContain('aria-hidden="true"');
-    expect(emptyLibrary).toContain("No installed ports yet");
+    expect(emptyLibrary).toContain("Your library is empty");
+    expect(emptyLibrary).toContain("register a prepared runtime");
     expect(emptyLibrary).toContain("Browse port catalog");
     expect(emptyLibrary).not.toContain('aria-label="Library readiness"');
     expect(emptyLibrary).not.toContain('aria-label="Library filters"');
     expect(emptyLibrary).toContain("copy an existing supported installation");
     expect(emptyLibrary.toLowerCase()).not.toContain("adopt");
     expect(emptyLibrary).not.toContain("Clear search and filters");
-    expect(filteredEmptyLibrary).toContain("No installed ports match your search and filters");
+    expect(filteredEmptyLibrary).toContain(
+      "No ports in your library match your search and filters",
+    );
     expect(filteredEmptyLibrary).toContain('aria-label="Library readiness"');
     expect(filteredEmptyLibrary).toContain('aria-label="Library filters"');
     expect(filteredEmptyLibrary).toContain("Clear search and filters");
     expect(filteredEmptyLibrary).toContain("Clear the search or change the readiness filter.");
     expect(filteredEmptyLibrary).not.toContain("Your installed ports are still in this library.");
-    expect(filteredEmptyLibrary).not.toContain("No installed ports yet");
+    expect(filteredEmptyLibrary).not.toContain("Your library is empty");
     expect(loading).toContain("/brand/logo/portcove-logo-v2-transparent.png");
     expect(loading).toContain('alt="Portcove"');
-    expect(loading).toContain(
-      "Loading the catalog, added game files, and installed ports from this device.",
-    );
+    expect(loading).toContain("Loading the catalog, added game files, and ports in your library.");
     expect(loading).not.toContain("shared local catalog");
   });
 

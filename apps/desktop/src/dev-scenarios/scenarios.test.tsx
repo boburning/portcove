@@ -29,7 +29,7 @@ describe("static development scenarios", () => {
   it("uses current product presentation as positive controls", () => {
     expect(renderScenario("ready-game")).toContain("Play");
     expect(renderScenario("filtered-empty-library")).toContain(
-      "No installed ports match your search and filters",
+      "No ports in your library match your search and filters",
     );
     const unavailableLibrary = renderScenario("unavailable-library");
     expect(unavailableLibrary).toContain("Library information could not be loaded");
