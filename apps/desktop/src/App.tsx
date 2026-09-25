@@ -838,6 +838,10 @@ function CurrentView({
         void operations.perform("launch", () => desktopApi.launch(portId, ""));
       }}
       onBrowseCatalog={() => ui.setView("catalog")}
+      steamBatch={{
+        ports: installedSteamBatchPorts(data, model),
+        generation: bootstrap.generation,
+      }}
       clearFilters={() => {
         ui.setFilter("all");
         ui.setQuery("");
@@ -846,6 +850,10 @@ function CurrentView({
       nativeSourceDrag={nativeSourceDrag}
     />
   );
+}
+
+function installedSteamBatchPorts(data: DataState, model: ReturnType<typeof useAppModel>) {
+  return (data.catalog?.ports ?? []).filter((port) => model.statusMap.get(port.id)?.active);
 }
 
 function SelectedPortPanel({

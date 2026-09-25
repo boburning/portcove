@@ -440,8 +440,8 @@ export type ApplicationUpdateInstallEligibility =
   "eligible" | "package-managed-deb" | "package-managed-rpm" | "not-configured" | "unavailable";
 export type ApplicationUpdateRecoveryArea = "schedule" | "staging" | "apply";
 export type SteamEntryChangeKind = "add" | "repair" | "remove" | "unchanged";
-export type SteamEntryOperation = "add_or_repair" | "remove";
 export type SteamClientState = "closed" | "running" | "unknown";
+export type SteamEntryOperation = "add_or_repair" | "remove";
 
 export interface TransportOutputs {
   about: OutputAbout;
@@ -546,6 +546,7 @@ export interface TransportOutputs {
   desktop_preparation_cleanup_preview: OutputPreparationCleanupPreview;
   desktop_reconcile_outcome: OutputReconcileBatchOutcome;
   desktop_source_verification_outcome: OutputSourceBatchOutcome;
+  desktop_steam_batch_review: OutputDesktopSteamBatchReview;
   desktop_steam_entry_apply_result: OutputDesktopSteamEntryApplyResult;
   desktop_steam_entry_review: OutputDesktopSteamEntryReview;
   desktop_update_check_outcome: OutputCheckBatchOutcome;
@@ -2238,18 +2239,42 @@ export interface OutputDesktopLocalePreference {
   locale: string | null;
   [k: string]: unknown;
 }
-export interface OutputDesktopSteamEntryApplyResult {
-  backup_path: string | null;
+export interface OutputDesktopSteamBatchReview {
   changes: SteamEntryChange[];
-  plan_sha256: string;
+  cli_path: string;
+  cli_product_version: string;
+  cli_sha256: string;
+  library_root: string;
+  proposed_sha256: string;
+  review_sha256: string;
+  schema_version: number;
+  selected_games: SteamGameEntryTarget[];
   shortcuts_path: string;
-  wrote: boolean;
+  snapshot_sha256: string | null;
+  steam_client_state: SteamClientState;
+  steam_root: string;
+  steam_user_id: string;
+  writer_plan_sha256: string;
+  writes_required: boolean;
   [k: string]: unknown;
 }
 export interface SteamEntryChange {
   display_name: string | null;
   kind: SteamEntryChangeKind;
   port_id: string;
+  [k: string]: unknown;
+}
+export interface SteamGameEntryTarget {
+  display_name: string;
+  port_id: string;
+  [k: string]: unknown;
+}
+export interface OutputDesktopSteamEntryApplyResult {
+  backup_path: string | null;
+  changes: SteamEntryChange[];
+  plan_sha256: string;
+  shortcuts_path: string;
+  wrote: boolean;
   [k: string]: unknown;
 }
 export interface OutputDesktopSteamEntryReview {

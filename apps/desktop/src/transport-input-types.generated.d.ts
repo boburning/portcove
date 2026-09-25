@@ -29,6 +29,7 @@ export interface TransportInputs {
   desktop_application_update_production_decision: InputDesktopApplicationUpdateProductionDecision;
   desktop_application_update_recovery_area: InputDesktopApplicationUpdateRecoveryArea;
   desktop_install_input: InputDesktopInstallInput;
+  desktop_steam_batch_selection: InputDesktopSteamBatchSelection;
   desktop_steam_entry_selection: InputDesktopSteamEntrySelection;
 }
 export interface InputDefinitionCapabilityRequest {
@@ -82,6 +83,12 @@ export interface InputDesktopInstallInput {
   portId: string;
   source?: string | null;
   stage: boolean;
+  [k: string]: unknown;
+}
+export interface InputDesktopSteamBatchSelection {
+  portIds: string[];
+  steamRoot: string;
+  steamUserId: string;
   [k: string]: unknown;
 }
 export interface InputDesktopSteamEntrySelection {

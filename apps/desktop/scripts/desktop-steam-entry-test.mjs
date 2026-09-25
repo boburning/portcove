@@ -254,4 +254,137 @@ export async function steamEntryScenario(context) {
     );
     artifacts.push(report);
   });
+  await scenario("native-reviewed-steam-batch-add", async () => {
+    const first = await context.seed("opengoal-jak1", "success");
+    const second = await context.seed("opengoal-jak2", "success");
+    const steamRoot = path.join(output, "controlled batch Steam ü");
+    const steamUserId = "24680";
+    const shortcuts = path.join(steamRoot, "userdata", steamUserId, "config", "shortcuts.vdf");
+    await mkdir(path.dirname(shortcuts), { recursive: true });
+    const beforeSources = command(["source", "list"]);
+    const beforeBackups = [first, second].map(({ port }) => command(["backup", "list", port.id]));
+    await browser.navigate().refresh();
+    await browser.wait(
+      until.elementLocated(By.css('nav[aria-label="Primary navigation"]')),
+      15_000,
+    );
+    const { button, click } = reviewControls(browser);
+    await click(By.xpath('//nav//button[contains(., "Library")]'));
+    await click(button("Add selected games to Steam"));
+    const dialog = By.css('[aria-labelledby="steam-batch-title"]');
+    await browser.wait(until.elementLocated(dialog), 15_000);
+    const boxes = await browser.findElements(
+      By.css('[aria-labelledby="steam-batch-title"] input[type="checkbox"]'),
+    );
+    assert.ok(boxes.length >= 2, "fixture should offer both installed target games");
+    assert.equal(
+      await browser.findElement(button("Review selected Add / Repair")).isEnabled(),
+      false,
+    );
+    const firstBox = await browser.findElement(
+      By.xpath(
+        `//div[@aria-labelledby="steam-batch-title"]//label[normalize-space(.)="${first.port.name}"]/input[@type="checkbox"]`,
+      ),
+    );
+    const secondBox = await browser.findElement(
+      By.xpath(
+        `//div[@aria-labelledby="steam-batch-title"]//label[normalize-space(.)="${second.port.name}"]/input[@type="checkbox"]`,
+      ),
+    );
+    await firstBox.click();
+    assert.equal(
+      await browser.findElement(button("Review selected Add / Repair")).isEnabled(),
+      false,
+    );
+    await secondBox.click();
+    assert.equal(
+      (await Promise.all(boxes.map((box) => box.isSelected()))).filter(Boolean).length,
+      2,
+    );
+    await browser.findElement(By.id("steam-batch-installation")).sendKeys(steamRoot);
+    await browser.findElement(By.id("steam-batch-profile")).sendKeys(steamUserId);
+    await click(button("Review selected Add / Repair"));
+    await browser.wait(until.elementLocated(button("Apply reviewed batch Add / Repair")), 15_000);
+    const reviewText = await browser.findElement(dialog).getText();
+    for (const { port } of [first, second]) assert.ok(reviewText.includes(port.name));
+    assert.ok(reviewText.includes(shortcuts));
+    const screenshot = path.join(output, "native-steam-batch-add-review.png");
+    await writeFile(screenshot, await browser.takeScreenshot(), { encoding: "base64", flag: "wx" });
+    artifacts.push(screenshot);
+    const generation = (await invoke("get_bootstrap_status")).value.generation;
+    const request = {
+      portIds: [first.port.id, second.port.id],
+      steamRoot,
+      steamUserId,
+    };
+    const preview = await invoke("preview_steam_batch_add", { request, generation });
+    assert.equal(preview.ok, true, JSON.stringify(preview));
+    assert.deepEqual(
+      preview.value.selected_games.map((game) => game.port_id),
+      request.portIds,
+    );
+    assert.equal(preview.value.changes.length, 2);
+    assert.equal(preview.value.writes_required, true);
+    const changedSelection = await invoke("apply_steam_batch_add", {
+      request: { ...request, portIds: [...request.portIds].reverse() },
+      expectedReviewSha256: preview.value.review_sha256,
+      generation,
+    });
+    assert.equal(changedSelection.ok, false, "a changed batch selection must not open consent");
+    await assert.rejects(stat(shortcuts), { code: "ENOENT" });
+    await click(button("Apply reviewed batch Add / Repair"));
+    await confirmNative(
+      "Confirm Steam entry change",
+      "Cancel",
+      shortcuts,
+      "steam-batch-native-cancelled",
+    );
+    await assert.rejects(stat(shortcuts), { code: "ENOENT" });
+    await click(button("Apply reviewed batch Add / Repair"));
+    await confirmNative(
+      "Confirm Steam entry change",
+      "Apply reviewed batch Add / Repair",
+      shortcuts,
+      "steam-batch-native-confirmed",
+    );
+    await browser.wait(
+      until.elementLocated(By.xpath('//p[@role="status" and contains(., "was written")]')),
+      15_000,
+    );
+    const written = await fileIdentity(shortcuts);
+    const repeated = await invoke("preview_steam_batch_add", { request, generation });
+    assert.equal(repeated.ok, true, JSON.stringify(repeated));
+    assert.equal(repeated.value.writes_required, false);
+    assert.deepEqual(command(["source", "list"]), beforeSources);
+    assert.deepEqual(
+      [first, second].map(({ port }) => command(["backup", "list", port.id])),
+      beforeBackups,
+    );
+    for (const { port } of [first, second]) assert.ok(command(["status", port.id]).active);
+    const report = path.join(output, "steam-batch-result.json");
+    await writeFile(
+      report,
+      `${JSON.stringify(
+        {
+          selected_port_ids: request.portIds,
+          steam_root: steamRoot,
+          steam_user_id: steamUserId,
+          shortcuts,
+          review_sha256: preview.value.review_sha256,
+          writer_plan_sha256: preview.value.writer_plan_sha256,
+          written,
+          changed_selection_rejected: true,
+          native_cancel_preserved_original: true,
+          repeat_review_idempotent: true,
+          sources_backups_installs_preserved: true,
+          evidence:
+            "isolated actual Tauri and native consent with compile-time closed-process fixture; no production Steam or physical platform claim",
+        },
+        null,
+        2,
+      )}\n`,
+      { flag: "wx" },
+    );
+    artifacts.push(report);
+  });
 }

@@ -7,6 +7,8 @@ import type {
   SteamEntryApplyResult,
   SteamEntryOperation,
   SteamEntryReview,
+  SteamBatchReview,
+  SteamBatchSelection,
 } from "../types";
 import { errorText } from "../view-model";
 import { Icon } from "./ui";
@@ -69,13 +71,6 @@ export function SteamEntryDialog({
     setReview(undefined);
     setResult(undefined);
     setError(undefined);
-  };
-  const chooseSteam = async () => {
-    const selected = await pickSteamFolder(steamRoot);
-    if (selected) {
-      setSteamRoot(selected);
-      resetReview();
-    }
   };
   const loadReview = async (operation: SteamEntryOperation) => {
     if (pending) return;
@@ -140,79 +135,19 @@ export function SteamEntryDialog({
             : "Remove a previously added Portcove shortcut from one exact Steam profile. The game is not installed here."}
         </DialogDescription>
         {!result && (
-          <>
-            <label
-              className="mb-2 block text-xs font-bold text-pc-muted-foreground"
-              htmlFor="steam-installation"
-            >
-              Steam installation folder
-            </label>
-            <div className="path-entry">
-              <Input
-                data-focusable
-                id="steam-installation"
-                value={steamRoot}
-                onChange={(event) => {
-                  setSteamRoot(event.target.value);
-                  resetReview();
-                }}
-                placeholder="C:\\Program Files (x86)\\Steam"
-              />
-              <Button
-                data-focusable
-                variant="outline"
-                disabled={Boolean(pending)}
-                onClick={() => void chooseSteam()}
-              >
-                <Icon glyph={FolderOpen} />
-                Choose folder
-              </Button>
-            </div>
-            <label
-              className="mb-2 block text-xs font-bold text-pc-muted-foreground"
-              htmlFor="steam-profile"
-            >
-              Steam profile ID
-            </label>
-            <Input
-              data-focusable
-              id="steam-profile"
-              inputMode="numeric"
-              pattern="[0-9]+"
-              value={steamUserId}
-              onChange={(event) => {
-                setSteamUserId(event.target.value);
-                resetReview();
-              }}
-              placeholder="Numeric folder under Steam userdata"
-            />
-            <p>
-              Choose the Steam installation that contains <code>userdata</code>, then enter the
-              exact numeric profile folder. Portcove does not guess another account or library.
-            </p>
-          </>
+          <SteamProfileFields
+            idPrefix="steam"
+            steamRoot={steamRoot}
+            steamUserId={steamUserId}
+            pending={Boolean(pending)}
+            setSteamRoot={setSteamRoot}
+            setSteamUserId={setSteamUserId}
+            resetReview={resetReview}
+          />
         )}
         {pending === "review" && <p role="status">Inspecting the selected Steam profile…</p>}
         {review && <SteamEntryReviewDetails review={review} />}
-        {result && (
-          <section className="removal-review-details" aria-label="Steam entry result">
-            <p role="status">
-              <strong>
-                {result.wrote
-                  ? "The reviewed Steam entry change was written."
-                  : "No write was needed."}
-              </strong>
-            </p>
-            <p>
-              Shortcut file: <code>{result.shortcuts_path}</code>
-            </p>
-            {result.backup_path && (
-              <p>
-                Backup: <code>{result.backup_path}</code>
-              </p>
-            )}
-          </section>
-        )}
+        {result && <SteamEntryResult result={result} batch={false} />}
         {error && <p role="alert">{error}</p>}
         <DialogFooter className="mt-4">
           <Button
@@ -275,14 +210,298 @@ export function SteamEntryDialog({
   );
 }
 
-function SteamEntryReviewDetails({ review }: { review: SteamEntryReview }) {
+export function SteamBatchEntryDialog({
+  ports,
+  generation,
+  close,
+}: {
+  ports: PortDefinition[];
+  generation: number;
+  close: () => void;
+}) {
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [steamRoot, setSteamRoot] = useState("");
+  const [steamUserId, setSteamUserId] = useState("");
+  const [review, setReview] = useState<SteamBatchReview>();
+  const [reviewedSelection, setReviewedSelection] = useState<SteamBatchSelection>();
+  const [result, setResult] = useState<SteamEntryApplyResult>();
+  const [pending, setPending] = useState<"review" | "apply">();
+  const [error, setError] = useState<string>();
+  const resetReview = () => {
+    setReview(undefined);
+    setReviewedSelection(undefined);
+    setResult(undefined);
+    setError(undefined);
+  };
+  const dismiss = () => {
+    if (pending !== "apply") close();
+  };
+  const loadReview = async () => {
+    if (pending || selectedIds.length < 2) return;
+    const selection: SteamBatchSelection = {
+      portIds: selectedIds,
+      steamRoot,
+      steamUserId,
+    };
+    setPending("review");
+    resetReview();
+    try {
+      const next = await desktopApi.previewSteamBatchAdd(selection, generation);
+      setReview(next);
+      setReviewedSelection(selection);
+    } catch (value) {
+      setError(errorText(value));
+    } finally {
+      setPending(undefined);
+    }
+  };
+  const apply = async () => {
+    if (!review || !reviewedSelection || pending) return;
+    setPending("apply");
+    setError(undefined);
+    try {
+      const applied = await desktopApi.applySteamBatchAdd(
+        reviewedSelection,
+        review.review_sha256,
+        generation,
+      );
+      if (applied) {
+        setResult(applied);
+        setReview(undefined);
+      }
+    } catch (value) {
+      resetReview();
+      setError(errorText(value));
+    } finally {
+      setPending(undefined);
+    }
+  };
+  return (
+    <Dialog
+      open
+      onOpenChange={(open) => {
+        if (!open) dismiss();
+      }}
+    >
+      <DialogContent
+        showCloseButton={false}
+        className="max-h-[calc(100dvh-var(--space-8))] w-[min(680px,90vw)] max-w-none gap-0 overflow-y-auto overscroll-contain p-8 [scroll-padding-block:var(--space-4)] sm:max-w-none"
+        aria-describedby="steam-batch-description"
+      >
+        <DialogTitle id="steam-batch-title" className="mb-2 text-xl">
+          Add selected games to Steam
+        </DialogTitle>
+        <DialogDescription id="steam-batch-description" className="mb-4 leading-relaxed">
+          Select at least two installed games for one reviewed change to one exact Steam profile.
+        </DialogDescription>
+        {!result && (
+          <>
+            <fieldset disabled={Boolean(pending)} className="mb-4">
+              <legend className="mb-2 font-bold">Installed games</legend>
+              {ports.map((port) => (
+                <label key={port.id} className="flex items-center gap-2 py-1">
+                  <input
+                    data-focusable
+                    type="checkbox"
+                    checked={selectedIds.includes(port.id)}
+                    onChange={(event) => {
+                      setSelectedIds((current) =>
+                        event.target.checked
+                          ? [...current, port.id]
+                          : current.filter((id) => id !== port.id),
+                      );
+                      resetReview();
+                    }}
+                  />
+                  {port.name}
+                </label>
+              ))}
+            </fieldset>
+            <SteamProfileFields
+              idPrefix="steam-batch"
+              steamRoot={steamRoot}
+              steamUserId={steamUserId}
+              pending={Boolean(pending)}
+              setSteamRoot={setSteamRoot}
+              setSteamUserId={setSteamUserId}
+              resetReview={resetReview}
+            />
+          </>
+        )}
+        {pending === "review" && <p role="status">Inspecting selected games and Steam profile…</p>}
+        {review && <SteamEntryReviewDetails review={review} />}
+        {result && <SteamEntryResult result={result} batch />}
+        {error && <p role="alert">{error}</p>}
+        <DialogFooter className="mt-4">
+          <Button
+            data-autofocus
+            data-focusable
+            variant="outline"
+            disabled={pending === "apply"}
+            onClick={dismiss}
+          >
+            {result ? "Close" : "Cancel"}
+          </Button>
+          {!review && !result && (
+            <Button
+              data-focusable
+              disabled={
+                selectedIds.length < 2 ||
+                !steamRoot.trim() ||
+                !steamUserId.trim() ||
+                Boolean(pending)
+              }
+              onClick={() => void loadReview()}
+            >
+              Review selected Add / Repair
+            </Button>
+          )}
+          {review && (
+            <>
+              <Button
+                data-focusable
+                variant="outline"
+                disabled={Boolean(pending)}
+                onClick={() => void loadReview()}
+              >
+                Review current state again
+              </Button>
+              {review.writes_required && (
+                <Button
+                  data-focusable
+                  variant="primary"
+                  disabled={Boolean(pending) || review.steam_client_state !== "closed"}
+                  onClick={() => void apply()}
+                >
+                  {pending === "apply"
+                    ? "Applying reviewed batch…"
+                    : "Apply reviewed batch Add / Repair"}
+                </Button>
+              )}
+            </>
+          )}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function SteamProfileFields({
+  idPrefix,
+  steamRoot,
+  steamUserId,
+  pending,
+  setSteamRoot,
+  setSteamUserId,
+  resetReview,
+}: {
+  idPrefix: string;
+  steamRoot: string;
+  steamUserId: string;
+  pending: boolean;
+  setSteamRoot: (value: string) => void;
+  setSteamUserId: (value: string) => void;
+  resetReview: () => void;
+}) {
+  const chooseSteam = async () => {
+    const selected = await pickSteamFolder(steamRoot);
+    if (selected) {
+      setSteamRoot(selected);
+      resetReview();
+    }
+  };
+  return (
+    <>
+      <label
+        className="mb-2 block text-xs font-bold text-pc-muted-foreground"
+        htmlFor={`${idPrefix}-installation`}
+      >
+        Steam installation folder
+      </label>
+      <div className="path-entry">
+        <Input
+          data-focusable
+          id={`${idPrefix}-installation`}
+          value={steamRoot}
+          disabled={pending}
+          onChange={(event) => {
+            setSteamRoot(event.target.value);
+            resetReview();
+          }}
+          placeholder="C:\\Program Files (x86)\\Steam"
+        />
+        <Button
+          data-focusable
+          variant="outline"
+          disabled={pending}
+          onClick={() => void chooseSteam()}
+        >
+          <Icon glyph={FolderOpen} />
+          Choose folder
+        </Button>
+      </div>
+      <label
+        className="mb-2 block text-xs font-bold text-pc-muted-foreground"
+        htmlFor={`${idPrefix}-profile`}
+      >
+        Steam profile ID
+      </label>
+      <Input
+        data-focusable
+        id={`${idPrefix}-profile`}
+        inputMode="numeric"
+        pattern="[0-9]+"
+        value={steamUserId}
+        disabled={pending}
+        onChange={(event) => {
+          setSteamUserId(event.target.value);
+          resetReview();
+        }}
+        placeholder="Numeric folder under Steam userdata"
+      />
+      <p>
+        Choose the Steam installation containing <code>userdata</code> and enter the exact numeric
+        profile folder. Portcove does not guess another profile or library.
+      </p>
+    </>
+  );
+}
+
+function SteamEntryResult({ result, batch }: { result: SteamEntryApplyResult; batch: boolean }) {
+  return (
+    <section
+      className="removal-review-details"
+      aria-label={batch ? "Steam batch result" : "Steam entry result"}
+    >
+      <p role="status">
+        <strong>
+          {result.wrote
+            ? batch
+              ? "The reviewed Steam batch was written."
+              : "The reviewed Steam entry change was written."
+            : "No write was needed."}
+        </strong>
+      </p>
+      <p>
+        Shortcut file: <code>{result.shortcuts_path}</code>
+      </p>
+      {result.backup_path && (
+        <p>
+          Backup: <code>{result.backup_path}</code>
+        </p>
+      )}
+    </section>
+  );
+}
+
+function SteamEntryReviewDetails({ review }: { review: SteamEntryReview | SteamBatchReview }) {
   return (
     <section className="removal-review-details" aria-label="Reviewed Steam entry change">
       <p>
         <strong>
           {review.writes_required
             ? "Review the exact change before applying it."
-            : review.operation === "remove"
+            : "operation" in review && review.operation === "remove"
               ? "No Portcove-owned entry exists for this game in the selected profile."
               : "The Portcove-owned Steam entry is already current."}
         </strong>
@@ -314,6 +533,11 @@ function SteamEntryReviewDetails({ review }: { review: SteamEntryReview }) {
         )}
       </dl>
       <ul>
+        {("selected_games" in review ? (review as SteamBatchReview).selected_games : []).map(
+          (game) => (
+            <li key={game.port_id}>Selected: {game.display_name}</li>
+          ),
+        )}
         {review.changes.map((change) => (
           <li key={change.port_id}>
             {change.display_name ?? change.port_id}: {change.kind.replaceAll("_", " ")}
@@ -335,15 +559,16 @@ function SteamEntryReviewDetails({ review }: { review: SteamEntryReview }) {
         <p>
           Steam appears closed. Final consent rechecks this process state, the Portcove library,
           exact reviewed profile, and{" "}
-          {review.operation === "remove"
+          {"operation" in review && review.operation === "remove"
             ? "owned shortcut"
             : "installed game and compatible CLI bytes"}{" "}
           before writing. A concurrent change is rejected.
         </p>
       )}
       <p>
-        Remove affects only this Portcove-owned shortcut. It does not uninstall the game, delete
-        saves, or remove unrelated Steam entries and customization.
+        {"operation" in review && review.operation === "remove"
+          ? "Remove affects only this Portcove-owned shortcut. It does not uninstall the game, delete saves, or remove unrelated Steam entries and customization."
+          : "Add / Repair affects only the selected Portcove-owned shortcuts. It does not uninstall games, delete saves, or remove unrelated Steam entries and customization."}
       </p>
     </section>
   );

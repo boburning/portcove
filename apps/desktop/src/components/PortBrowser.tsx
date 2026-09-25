@@ -1,4 +1,4 @@
-import type { Dispatch, SetStateAction } from "react";
+import { useState, type Dispatch, type SetStateAction } from "react";
 import {
   ArrowRight,
   Boxes,
@@ -32,6 +32,7 @@ import { ArtworkImage } from "./Artwork";
 import { Button } from "./ui/button";
 import { Menu } from "@base-ui/react/menu";
 import { ChoiceSelect } from "./ChoiceSelect";
+import { SteamBatchEntryDialog } from "./SteamEntry";
 
 const catalogSortOptions: readonly { value: CatalogSort; label: string }[] = [
   { value: "catalog", label: "Catalog order" },
@@ -53,6 +54,7 @@ export function PortBrowser({
   onSelect,
   onContinue,
   onBrowseCatalog,
+  steamBatch,
   clearFilters,
   loading,
   nativeSourceDrag = { active: false, pathCount: 0 },
@@ -70,6 +72,7 @@ export function PortBrowser({
   onSelect: (portId: string, originKey?: string, destination?: DetailDestination) => void;
   onContinue?: (portId: string) => void;
   onBrowseCatalog?: () => void;
+  steamBatch?: { ports: PortDefinition[]; generation: number };
   clearFilters?: () => void;
   loading: boolean;
   nativeSourceDrag?: NativeSourceDragState;
@@ -93,6 +96,9 @@ export function PortBrowser({
         <ContinueCard recent={recent} launch={onContinue} details={onSelect} />
       )}
       {view === "library" && !firstUseEmpty && <LibrarySummary overview={overview} />}
+      {view === "library" && steamBatch && steamBatch.ports.length >= 2 && (
+        <SteamBatchLibraryAction {...steamBatch} />
+      )}
       {!firstUseEmpty && (
         <div
           className="filter-row"
@@ -141,6 +147,29 @@ export function PortBrowser({
         loading={loading}
         nativeSourceDrag={nativeSourceDrag}
       />
+    </>
+  );
+}
+
+function SteamBatchLibraryAction({
+  ports,
+  generation,
+}: {
+  ports: PortDefinition[];
+  generation: number;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <div className="mb-4 flex justify-end">
+        <Button data-focusable variant="outline" onClick={() => setOpen(true)}>
+          <Icon glyph={Gamepad2} />
+          Add selected games to Steam
+        </Button>
+      </div>
+      {open && (
+        <SteamBatchEntryDialog ports={ports} generation={generation} close={() => setOpen(false)} />
+      )}
     </>
   );
 }

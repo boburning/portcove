@@ -167,6 +167,15 @@ export const DESKTOP_SCENARIOS = Object.freeze([
     },
   ),
   scenario(
+    "native-reviewed-steam-batch-add",
+    "Selected installed games share one reviewed Steam profile write and native consent.",
+    {
+      prerequisites: ["desktop", "owned-fixture", "native-dialog", "steam-fixture"],
+      host_resources: [...nativeResources, "native-dialog"],
+      source: "desktop-steam-entry-test.mjs",
+    },
+  ),
+  scenario(
     "native-source-intake-and-discovery-dialogs",
     "One-off source intake and explicit-folder discovery preserve nested dismissal and source safety.",
     {
@@ -267,6 +276,7 @@ const ownedLifecycle = [
   "native-release-channel-selection-and-restart",
   "native-reviewed-backup-restore-and-delete",
   "native-reviewed-steam-entry-add-and-remove",
+  "native-reviewed-steam-batch-add",
   "native-source-intake-and-discovery-dialogs",
   "native-primary-file-pickers",
   "native-reviewed-installed-game-removal",

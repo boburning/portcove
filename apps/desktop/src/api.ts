@@ -82,6 +82,8 @@ import type {
   SteamEntryOperation,
   SteamEntryReview,
   SteamEntrySelection,
+  SteamBatchReview,
+  SteamBatchSelection,
   UpdateCheck,
   UpdateCheckOutcome,
   UpdatePolicy,
@@ -206,6 +208,18 @@ export const desktopApi = {
     invoke<SteamEntryApplyResult | null>("apply_steam_entry", {
       request: { portId, steamRoot, steamUserId, operation } satisfies SteamEntrySelection,
       expectedPlanSha256,
+      generation,
+    }),
+  previewSteamBatchAdd: (request: SteamBatchSelection, generation: number) =>
+    invoke<SteamBatchReview>("preview_steam_batch_add", { request, generation }),
+  applySteamBatchAdd: (
+    request: SteamBatchSelection,
+    expectedReviewSha256: string,
+    generation: number,
+  ) =>
+    invoke<SteamEntryApplyResult | null>("apply_steam_batch_add", {
+      request,
+      expectedReviewSha256,
       generation,
     }),
   catalogStatus: () => invoke<CatalogStatus>("get_catalog_status"),

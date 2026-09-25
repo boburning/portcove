@@ -157,6 +157,30 @@
     "title": "InstallInput",
     "type": "object"
   },
+  "steam_batch_selection": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "portIds": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      },
+      "steamRoot": {
+        "type": "string"
+      },
+      "steamUserId": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "portIds",
+      "steamRoot",
+      "steamUserId"
+    ],
+    "title": "SteamBatchSelection",
+    "type": "object"
+  },
   "steam_entry_selection": {
     "$defs": {
       "SteamEntryOperation": {
