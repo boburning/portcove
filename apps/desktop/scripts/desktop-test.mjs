@@ -929,7 +929,7 @@ try {
     await browser.wait(async () => (await browser.findElements(By.css(".port-card"))).length > 2);
     const origin = await browser.executeScript(() => {
       const cards = [...document.querySelectorAll(".port-card")];
-      const card = cards[Math.min(3, cards.length - 1)];
+      const card = cards.find((item) => item.textContent?.includes("Ghostship"));
       if (!(card instanceof HTMLElement)) throw new Error("Catalog detail origin is missing");
       card.scrollIntoView({ block: "center", inline: "nearest" });
       card.focus();
@@ -975,6 +975,9 @@ try {
         return {
           duplicateReadiness: document.querySelectorAll(".readiness-card").length,
           horizontalOverflow: document.documentElement.scrollWidth > window.innerWidth + 1,
+          stateText: document.querySelector(".hero-state")?.textContent?.trim(),
+          reasonText: reason.textContent?.trim(),
+          actionText: action.textContent?.trim(),
           titleFits: title.scrollWidth <= title.clientWidth + 1,
           reasonFits: reason.scrollWidth <= reason.clientWidth + 1,
           reasonInHero:
@@ -985,6 +988,12 @@ try {
       });
       assert.equal(hierarchy.duplicateReadiness, 0);
       assert.equal(hierarchy.horizontalOverflow, false);
+      assert.equal(hierarchy.stateText, "Original game files needed");
+      assert.match(
+        hierarchy.reasonText,
+        /Choose the required game files before reviewing installation/u,
+      );
+      assert.equal(hierarchy.actionText, "Choose game files");
       assert.equal(hierarchy.titleFits, true);
       assert.equal(hierarchy.reasonFits, true);
       assert.equal(hierarchy.reasonInHero, true);
