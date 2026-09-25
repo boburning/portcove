@@ -53,6 +53,21 @@ describe("core-owned failure presentation", () => {
     expect(html).not.toContain("<p>The operation was cancelled.</p>");
   });
 
+  it("announces a committed result ahead of a neutral cancellation tone", () => {
+    const error = failureReport();
+    error.code = "cancelled";
+    error.presentation.tone = "neutral";
+    error.presentation.mutation_state = "committed";
+    error.presentation.summary = "The operation was cancelled.";
+    const html = renderToStaticMarkup(<StatusLayer error={error} clearError={vi.fn()} />);
+    expect(html).toContain('role="alert"');
+    expect(html).toContain("Change saved; review the current state");
+    expect(html).toContain("The change was committed");
+    expect(html).toContain('aria-label="Dismiss error"');
+    expect(html).not.toContain("<strong>Operation cancelled</strong>");
+    expect(html).not.toContain("<p>The operation was cancelled.</p>");
+  });
+
   it.each(["future_outcome", "constructor", "__proto__"])(
     "retains safe copy and the original technical outcome for %s",
     (outcome) => {
