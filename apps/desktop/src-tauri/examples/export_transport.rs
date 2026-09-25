@@ -15,7 +15,9 @@ use portcove_desktop::application_update_status::{
     ApplicationUpdateRecoveryArea, ApplicationUpdateStatus,
 };
 use portcove_desktop::steam_entries::SteamEntryApplyResult;
-use portcove_desktop::steam_entry_commands::{SteamEntryReview, SteamEntrySelection};
+use portcove_desktop::steam_entry_commands::{
+    SteamBatchReview, SteamBatchSelection, SteamEntryReview, SteamEntrySelection,
+};
 use schemars::{JsonSchema, generate::SchemaSettings};
 use serde_json::{Value, json};
 use transport::{
@@ -72,6 +74,7 @@ fn main() {
                 "game_file_scan_snapshot": output::<Option<portcove_core::GameFileScanSnapshot>>(),
                 "preparation_cleanup_preview": output::<portcove_core::PreparationCleanupPreview>(),
                 "steam_entry_review": output::<SteamEntryReview>(),
+                "steam_batch_review": output::<SteamBatchReview>(),
                 "steam_entry_apply_result": output::<SteamEntryApplyResult>(),
             },
             "input": {
@@ -81,6 +84,7 @@ fn main() {
                 "application_update_recovery_area": schemars::schema_for!(ApplicationUpdateRecoveryArea),
                 "application_update_download_request": schemars::schema_for!(ApplicationUpdateDownloadRequest),
                 "steam_entry_selection": schemars::schema_for!(SteamEntrySelection),
+                "steam_batch_selection": schemars::schema_for!(SteamBatchSelection),
             },
             "events": events,
         })

@@ -2130,6 +2130,8 @@ pub fn run() {
             cli_context::get_cli_command_context,
             steam_entry_commands::preview_steam_entry,
             steam_entry_commands::apply_steam_entry,
+            steam_entry_commands::preview_steam_batch_add,
+            steam_entry_commands::apply_steam_batch_add,
             library_selection::get_library_identity,
             library_selection::get_default_library_root,
             library_selection::set_default_library,

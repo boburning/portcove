@@ -53,6 +53,7 @@ export function PortBrowser({
   onSelect,
   onContinue,
   onBrowseCatalog,
+  onSteamBatchAdd,
   clearFilters,
   loading,
   nativeSourceDrag = { active: false, pathCount: 0 },
@@ -70,6 +71,7 @@ export function PortBrowser({
   onSelect: (portId: string, originKey?: string, destination?: DetailDestination) => void;
   onContinue?: (portId: string) => void;
   onBrowseCatalog?: () => void;
+  onSteamBatchAdd?: () => void;
   clearFilters?: () => void;
   loading: boolean;
   nativeSourceDrag?: NativeSourceDragState;
@@ -93,6 +95,14 @@ export function PortBrowser({
         <ContinueCard recent={recent} launch={onContinue} details={onSelect} />
       )}
       {view === "library" && !firstUseEmpty && <LibrarySummary overview={overview} />}
+      {view === "library" && overview.installed >= 2 && onSteamBatchAdd && (
+        <div className="mb-4 flex justify-end">
+          <Button data-focusable variant="outline" onClick={onSteamBatchAdd}>
+            <Icon glyph={Gamepad2} />
+            Add selected games to Steam
+          </Button>
+        </div>
+      )}
       {!firstUseEmpty && (
         <div
           className="filter-row"

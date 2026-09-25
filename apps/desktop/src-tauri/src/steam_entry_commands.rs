@@ -34,6 +34,33 @@ pub struct SteamEntrySelection {
     pub operation: SteamEntryOperation,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct SteamBatchSelection {
+    pub port_ids: Vec<String>,
+    pub steam_root: PathBuf,
+    pub steam_user_id: String,
+}
+
+#[derive(Debug, Clone, Serialize, JsonSchema)]
+pub struct SteamBatchReview {
+    pub schema_version: u32,
+    pub selected_games: Vec<SteamGameEntryTarget>,
+    pub steam_root: PathBuf,
+    pub steam_user_id: String,
+    pub library_root: PathBuf,
+    pub cli_path: PathBuf,
+    pub cli_sha256: String,
+    pub cli_product_version: String,
+    pub shortcuts_path: PathBuf,
+    pub snapshot_sha256: Option<String>,
+    pub proposed_sha256: String,
+    pub plan_sha256: String,
+    pub changes: Vec<SteamEntryChange>,
+    pub steam_client_state: SteamClientState,
+    pub writes_required: bool,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, JsonSchema)]
 pub struct SteamEntryReview {
     pub schema_version: u32,
@@ -144,6 +171,174 @@ pub(crate) async fn apply_steam_entry(
             .map_err(steam_error)
     })
     .await
+}
+
+#[tauri::command]
+pub(crate) async fn preview_steam_batch_add(
+    state: tauri::State<'_, DesktopState>,
+    request: SteamBatchSelection,
+    generation: u64,
+) -> DesktopResult<SteamBatchReview> {
+    let state = state.inner().clone();
+    blocking_worker(move || {
+        let service = service_at_generation(&state, generation)?;
+        let contexts = batch_contexts(&service, &request.port_ids)?;
+        let plan = plan_batch(&contexts, &request).map_err(steam_error)?;
+        Ok(batch_review(&contexts, &plan, observe_steam_client()))
+    })
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn apply_steam_batch_add(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, DesktopState>,
+    request: SteamBatchSelection,
+    expected_plan_sha256: String,
+    generation: u64,
+) -> DesktopResult<Option<SteamEntryApplyResult>> {
+    let state_for_review = state.inner().clone();
+    let state_for_apply = state_for_review.clone();
+    let review_request = request.clone();
+    let (review, reviewed_plan) = blocking_worker(move || {
+        let service = service_at_generation(&state_for_review, generation)?;
+        let contexts = batch_contexts(&service, &review_request.port_ids)?;
+        let plan = plan_batch(&contexts, &review_request).map_err(steam_error)?;
+        if plan.plan_sha256 != expected_plan_sha256 {
+            return Err(DesktopError::from(PortcoveError::conflict(
+                "Steam batch state changed after preview; review the current plan again",
+            )));
+        }
+        Ok((batch_review(&contexts, &plan, observe_steam_client()), plan))
+    })
+    .await?;
+    let action = "Apply reviewed batch Add / Repair";
+    let games = review
+        .selected_games
+        .iter()
+        .map(|game| game.display_name.as_str())
+        .collect::<Vec<_>>()
+        .join(", ");
+    let message = format!(
+        "{action} for {games} in Steam profile {}?\n\nShortcut file: {}\nPortcove library: {}\n\nSteam must be closed. Portcove will recheck every selected install, the profile, process state, and the reviewed plan before writing.",
+        review.steam_user_id,
+        review.shortcuts_path.display(),
+        review.library_root.display(),
+    );
+    if !confirm_destructive(&app, "Confirm Steam entry change", message, action).await {
+        return Ok(None);
+    }
+    blocking_worker(move || {
+        let service = service_at_generation(&state_for_apply, generation)?;
+        let contexts = batch_contexts(&service, &request.port_ids)?;
+        let current = plan_batch(&contexts, &request).map_err(steam_error)?;
+        if current != reviewed_plan {
+            return Err(DesktopError::from(PortcoveError::conflict(
+                "a selected install, Portcove library, standalone CLI, Steam profile, or reviewed batch plan changed while consent was open",
+            )));
+        }
+        apply_steam_entry_plan(&current, observe_steam_client())
+            .map(Some)
+            .map_err(steam_error)
+    })
+    .await
+}
+
+fn batch_contexts(
+    service: &PortcoveService,
+    port_ids: &[String],
+) -> DesktopResult<Vec<SteamEntryContext>> {
+    if port_ids.len() < 2 {
+        return Err(DesktopError::from(PortcoveError::usage(
+            "select at least two installed games for a Steam batch",
+        )));
+    }
+    let mut seen = std::collections::HashSet::new();
+    if port_ids.iter().any(|id| !seen.insert(id)) {
+        return Err(DesktopError::from(PortcoveError::usage(
+            "a Steam batch cannot select the same game twice",
+        )));
+    }
+    let contexts = port_ids
+        .iter()
+        .map(|id| entry_context(service, id, SteamEntryOperation::AddOrRepair))
+        .collect::<DesktopResult<Vec<_>>>()?;
+    let first = &contexts[0];
+    if contexts.iter().any(|context| {
+        context.library_id != first.library_id
+            || context.library_root != first.library_root
+            || context.cli != first.cli
+    }) {
+        return Err(DesktopError::from(PortcoveError::conflict(
+            "the Portcove library or standalone CLI changed while planning the Steam batch",
+        )));
+    }
+    Ok(contexts)
+}
+
+fn plan_batch(
+    contexts: &[SteamEntryContext],
+    selection: &SteamBatchSelection,
+) -> Result<SteamEntryPlan, SteamEntryError> {
+    let first = &contexts[0];
+    let cli = first.cli.as_ref().ok_or_else(|| {
+        SteamEntryError::InvalidInput(
+            "a compatible standalone Portcove CLI is required for Steam batch Add".into(),
+        )
+    })?;
+    plan_steam_entries(SteamEntryPlanRequest::AddOrRepair {
+        steam_root: selection.steam_root.clone(),
+        steam_user_id: selection.steam_user_id.clone(),
+        library_id: first.library_id.clone(),
+        library_root: first.library_root.clone(),
+        cli: SteamCliIdentity {
+            path: cli.path.clone(),
+            sha256: cli.sha256.clone(),
+            product_version: cli.product_version.clone(),
+        },
+        games: contexts
+            .iter()
+            .map(|context| SteamGameEntryTarget {
+                port_id: context.port_id.clone(),
+                display_name: context.display_name.clone(),
+            })
+            .collect(),
+    })
+}
+
+fn batch_review(
+    contexts: &[SteamEntryContext],
+    plan: &SteamEntryPlan,
+    steam_client_state: SteamClientState,
+) -> SteamBatchReview {
+    let first = &contexts[0];
+    let cli = first
+        .cli
+        .as_ref()
+        .expect("batch planning requires CLI identity");
+    SteamBatchReview {
+        schema_version: 1,
+        selected_games: contexts
+            .iter()
+            .map(|context| SteamGameEntryTarget {
+                port_id: context.port_id.clone(),
+                display_name: context.display_name.clone(),
+            })
+            .collect(),
+        steam_root: plan.request.steam_root().to_path_buf(),
+        steam_user_id: plan.request.steam_user_id().to_owned(),
+        library_root: first.library_root.clone(),
+        cli_path: cli.path.clone(),
+        cli_sha256: cli.sha256.clone(),
+        cli_product_version: cli.product_version.clone(),
+        shortcuts_path: plan.shortcuts_path.clone(),
+        snapshot_sha256: plan.snapshot_sha256.clone(),
+        proposed_sha256: plan.proposed_sha256.clone(),
+        plan_sha256: plan.plan_sha256.clone(),
+        changes: plan.changes.clone(),
+        steam_client_state,
+        writes_required: plan.changes_required(),
+    }
 }
 
 fn entry_context(
@@ -517,6 +712,48 @@ mod tests {
             Err(SteamEntryError::Conflict(_))
         ));
         assert!(!reviewed.shortcuts_path.exists());
+    }
+
+    #[test]
+    fn batch_consumer_plans_two_games_in_one_profile_and_rejects_stale_context() {
+        let root = tempfile::tempdir().unwrap();
+        let steam_root = root.path().join("Steam ü");
+        std::fs::create_dir_all(steam_root.join("userdata/42/config")).unwrap();
+        let first = context(root.path());
+        let mut second = first.clone();
+        second.port_id = "another-port".into();
+        second.display_name = "Another Port".into();
+        let selection = SteamBatchSelection {
+            port_ids: vec![first.port_id.clone(), second.port_id.clone()],
+            steam_root,
+            steam_user_id: "42".into(),
+        };
+        let contexts = vec![first, second];
+        let plan = plan_batch(&contexts, &selection).unwrap();
+        let review = batch_review(&contexts, &plan, SteamClientState::Closed);
+        assert_eq!(review.selected_games.len(), 2);
+        assert_eq!(review.changes.len(), 2);
+        assert_eq!(review.plan_sha256, plan.plan_sha256);
+        assert!(review.writes_required);
+        assert!(!plan.shortcuts_path.exists());
+        let mut changed = contexts.clone();
+        changed[1].display_name = "Renamed Port".into();
+        assert_ne!(plan_batch(&changed, &selection).unwrap(), plan);
+    }
+
+    #[test]
+    fn batch_consumer_rejects_short_or_duplicate_selection_before_access() {
+        let root = tempfile::tempdir().unwrap();
+        let library = portcove_core::Library::open(root.path().join("library")).unwrap();
+        let service = PortcoveService::new(library).unwrap();
+        assert!(batch_contexts(&service, &[]).is_err());
+        assert!(batch_contexts(&service, &["opengoal-jak1".into()]).is_err());
+        assert!(
+            batch_contexts(&service, &["opengoal-jak1".into(), "opengoal-jak1".into()]).is_err()
+        );
+        assert!(
+            batch_contexts(&service, &["opengoal-jak1".into(), "opengoal-jak2".into()]).is_err()
+        );
     }
 
     #[test]

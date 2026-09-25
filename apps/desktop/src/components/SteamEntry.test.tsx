@@ -4,8 +4,8 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { desktopApi } from "../api";
 import { portDefinition } from "../test-fixtures";
-import type { SteamEntryReview } from "../types";
-import { SteamEntryDialog } from "./SteamEntry";
+import type { SteamBatchReview, SteamEntryReview } from "../types";
+import { SteamBatchEntryDialog, SteamEntryDialog } from "./SteamEntry";
 
 const port = portDefinition();
 const review: SteamEntryReview = {
@@ -178,4 +178,65 @@ it("offers owned-shortcut removal after uninstall without offering Add or Repair
   expect(preview).toHaveBeenCalledExactlyOnceWith(port.id, "C:\\Steam", "12345", "remove", 7);
   expect(document.body.textContent).toContain("owned shortcut before writing");
   expect(document.body.textContent).toContain("Not required for this removal review");
+});
+
+it("reviews an exact selected batch and applies only its frozen selection", async () => {
+  const second = { ...port, id: "another-port", name: "Another Port" };
+  const batchReview: SteamBatchReview = {
+    schema_version: 1,
+    selected_games: [
+      { port_id: port.id, display_name: port.name },
+      { port_id: second.id, display_name: second.name },
+    ],
+    steam_root: review.steam_root,
+    steam_user_id: review.steam_user_id,
+    library_root: review.library_root,
+    cli_path: review.cli_path!,
+    cli_sha256: review.cli_sha256!,
+    cli_product_version: review.cli_product_version!,
+    shortcuts_path: review.shortcuts_path,
+    snapshot_sha256: review.snapshot_sha256,
+    proposed_sha256: review.proposed_sha256,
+    plan_sha256: "batch-plan",
+    changes: [...review.changes, { port_id: second.id, display_name: second.name, kind: "add" }],
+    steam_client_state: "closed",
+    writes_required: true,
+  };
+  const preview = vi.spyOn(desktopApi, "previewSteamBatchAdd").mockResolvedValue(batchReview);
+  const apply = vi.spyOn(desktopApi, "applySteamBatchAdd").mockResolvedValue(null);
+  await act(async () =>
+    root.render(<SteamBatchEntryDialog ports={[port, second]} generation={7} close={vi.fn()} />),
+  );
+  const reviewButton = [...document.body.querySelectorAll("button")].find(
+    (candidate) => candidate.textContent === "Review selected Add / Repair",
+  );
+  expect(reviewButton?.disabled).toBe(true);
+  const boxes = [...document.body.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')];
+  await act(async () => boxes[0].click());
+  expect(reviewButton?.disabled).toBe(true);
+  await act(async () => boxes[1].click());
+  await input("Steam installation folder", review.steam_root);
+  await input("Steam profile ID", review.steam_user_id);
+  await click("Review selected Add / Repair");
+  expect(preview).toHaveBeenCalledExactlyOnceWith(
+    {
+      portIds: [port.id, second.id],
+      steamRoot: review.steam_root,
+      steamUserId: review.steam_user_id,
+    },
+    7,
+  );
+  expect(document.body.textContent).toContain("Selected: Another Port");
+  await click("Apply reviewed batch Add / Repair");
+  expect(apply).toHaveBeenCalledExactlyOnceWith(
+    {
+      portIds: [port.id, second.id],
+      steamRoot: review.steam_root,
+      steamUserId: review.steam_user_id,
+    },
+    "batch-plan",
+    7,
+  );
+  await act(async () => boxes[1].click());
+  expect(document.body.textContent).not.toContain(review.shortcuts_path);
 });

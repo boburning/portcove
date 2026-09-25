@@ -417,7 +417,14 @@ Current evidence is fixture-controlled binary parsing and durable local publicat
 including stale-state, parser-limit, AppID-collision, concurrent-edit,
 malformed-data and interrupted-journal cases. Desktop exposes a bounded
 single-game consumer in the game's Technical details, including after uninstall. The
-user chooses a Steam installation folder and enters the exact numeric profile
+Library also offers selected-batch Add/Repair for at least two installed games.
+The selection is explicit and one reviewed plan covers every selected game in
+one exact Steam profile. The host rejects duplicate, unknown, or uninstalled
+selection, rederives every game and the compatible CLI before and after native
+consent, and refuses the write if any selected identity or profile state changed.
+The durable writer applies the batch as one shortcut-file publication, retaining
+its original backup and journal recovery behavior.
+The user chooses a Steam installation folder and enters the exact numeric profile
 directory, then reviews the resolved shortcut file, library, standalone CLI and
 Add/Repair/Remove result before a separate confirmation. The host derives the
 catalog port and durable library identities itself, observes the main Steam
