@@ -261,8 +261,9 @@ export async function steamEntryScenario(context) {
     artifacts.push(report);
   });
   await scenario("native-reviewed-steam-batch-add", async () => {
-    const first = await context.seed("opengoal-jak1", "success");
-    const second = await context.seed("opengoal-jak2", "success");
+    // The preceding Remove scenario uninstalls Jak I; seed distinct installed games here.
+    const first = await context.seed("opengoal-jak2", "success");
+    const second = await context.seed("opengoal-jak3", "success");
     const steamRoot = path.join(output, "controlled batch Steam ü");
     const steamUserId = "24680";
     const shortcuts = path.join(steamRoot, "userdata", steamUserId, "config", "shortcuts.vdf");
