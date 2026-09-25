@@ -136,16 +136,16 @@ beforeEach(async () => {
   vi.stubGlobal("navigator", {
     getGamepads: () => [{ id: "Xbox", index: 0, mapping: "standard", axes: [0, 0], buttons }],
   });
-  vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(
-    function (this: HTMLElement) {
-      return new DOMRect(Number(this.dataset.x ?? 500), Number(this.dataset.y ?? 0), 100, 40);
-    },
-  );
-  vi.spyOn(HTMLElement.prototype, "getClientRects").mockImplementation(
-    function (this: HTMLElement) {
-      return [this.getBoundingClientRect()] as unknown as DOMRectList;
-    },
-  );
+  vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (
+    this: HTMLElement,
+  ) {
+    return new DOMRect(Number(this.dataset.x ?? 500), Number(this.dataset.y ?? 0), 100, 40);
+  });
+  vi.spyOn(HTMLElement.prototype, "getClientRects").mockImplementation(function (
+    this: HTMLElement,
+  ) {
+    return [this.getBoundingClientRect()] as unknown as DOMRectList;
+  });
   HTMLElement.prototype.scrollIntoView = vi.fn();
   const host = document.createElement("div");
   document.body.append(host);

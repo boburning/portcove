@@ -15,9 +15,9 @@
   "devDependencies": {
     "@taplo/cli": "0.7.0",
     "fallow": "^3.26.0",
-    "oxfmt": "0.67.0",
-    "oxlint": "1.82.0",
-    "oxlint-tsgolint": "7.0.2001"
+    "oxfmt": "0.70.0",
+    "oxlint": "1.85.0",
+    "oxlint-tsgolint": "7.0.2002"
   },
   "packageManager": "pnpm@12.4.2"
 }
