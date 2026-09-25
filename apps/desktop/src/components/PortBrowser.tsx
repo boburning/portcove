@@ -240,7 +240,7 @@ function LoadingState() {
       </div>
       <div>
         <strong>Loading your port library</strong>
-        <p>Loading the catalog, added game files, and installed ports from this device.</p>
+        <p>Loading the catalog, added game files, and ports in your library.</p>
       </div>
     </section>
   );
@@ -268,8 +268,8 @@ function BrowserEmptyState({
           </span>
         }
         eyebrow="EMPTY LIBRARY"
-        title="No installed ports yet"
-        description="Browse the catalog to install a supported port, or copy an existing supported installation without changing the original folder."
+        title="Your library is empty"
+        description="Browse the catalog to install a supported port or register a prepared runtime. You can also copy an existing supported installation without changing its original folder."
         action={
           <>
             <Button data-focusable variant="primary" size="lg" onClick={onBrowseCatalog}>
@@ -285,10 +285,10 @@ function BrowserEmptyState({
       <EmptyState
         icon={Settings2}
         eyebrow="NO MATCHES"
-        title="No installed ports match your search and filters"
+        title="No ports in your library match your search and filters"
         description={
           installedCount === 0
-            ? "This library has no installed ports yet. Clear the current search and readiness filters to return to the empty Library."
+            ? "This library has no ports yet. Clear the current search and readiness filters to return to the empty Library."
             : "Clear the search or change the readiness filter."
         }
         action={
