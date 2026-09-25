@@ -44,7 +44,6 @@ import {
 import { CommandPalette } from "./components/CommandPalette";
 import { DetailPanel } from "./components/DetailPanel";
 import { PortBrowser } from "./components/PortBrowser";
-import { SteamBatchEntryDialog } from "./components/SteamEntry";
 import { ArtworkProvider } from "./artwork";
 import { SourceIntakeDialog } from "./components/SourceIntake";
 import { UpdateCenter } from "./components/UpdateCenter";
@@ -693,7 +692,6 @@ function CurrentView({
   applicationUpdatePreferences: ReturnType<typeof useApplicationUpdateChoice>;
   openPortDetails: (portId: string, originKey?: string) => void;
 }) {
-  const [steamBatchOpen, setSteamBatchOpen] = useState(false);
   if (ui.view === "updates")
     return (
       <UpdateCenter
@@ -824,40 +822,38 @@ function CurrentView({
     );
   if (!data.catalog && data.refreshFailure) return null;
   return (
-    <>
-      <PortBrowser
-        view={ui.view}
-        ports={model.visible}
-        statuses={model.statusMap}
-        overview={model.overview}
-        recent={model.recent}
-        filter={ui.filter}
-        query={ui.query}
-        catalogSort={ui.catalogSort}
-        setCatalogSort={ui.setCatalogSort}
-        setFilter={ui.setFilter}
-        onSelect={openPortDetails}
-        onContinue={(portId) => {
-          void operations.perform("launch", () => desktopApi.launch(portId, ""));
-        }}
-        onBrowseCatalog={() => ui.setView("catalog")}
-        onSteamBatchAdd={() => setSteamBatchOpen(true)}
-        clearFilters={() => {
-          ui.setFilter("all");
-          ui.setQuery("");
-        }}
-        loading={!data.catalog}
-        nativeSourceDrag={nativeSourceDrag}
-      />
-      {steamBatchOpen && data.catalog && (
-        <SteamBatchEntryDialog
-          ports={data.catalog.ports.filter((port) => model.statusMap.get(port.id)?.active)}
-          generation={bootstrap.generation}
-          close={() => setSteamBatchOpen(false)}
-        />
-      )}
-    </>
+    <PortBrowser
+      view={ui.view}
+      ports={model.visible}
+      statuses={model.statusMap}
+      overview={model.overview}
+      recent={model.recent}
+      filter={ui.filter}
+      query={ui.query}
+      catalogSort={ui.catalogSort}
+      setCatalogSort={ui.setCatalogSort}
+      setFilter={ui.setFilter}
+      onSelect={openPortDetails}
+      onContinue={(portId) => {
+        void operations.perform("launch", () => desktopApi.launch(portId, ""));
+      }}
+      onBrowseCatalog={() => ui.setView("catalog")}
+      steamBatch={{
+        ports: installedSteamBatchPorts(data, model),
+        generation: bootstrap.generation,
+      }}
+      clearFilters={() => {
+        ui.setFilter("all");
+        ui.setQuery("");
+      }}
+      loading={!data.catalog}
+      nativeSourceDrag={nativeSourceDrag}
+    />
   );
+}
+
+function installedSteamBatchPorts(data: DataState, model: ReturnType<typeof useAppModel>) {
+  return (data.catalog?.ports ?? []).filter((port) => model.statusMap.get(port.id)?.active);
 }
 
 function SelectedPortPanel({
