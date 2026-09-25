@@ -453,20 +453,27 @@ function ApplicationUpdateNoticeBanner({
 
 function ErrorNotice({ error, clearError }: { error: unknown; clearError: () => void }) {
   const presentation = failurePresentation(error);
+  const committed = presentation?.mutation_state === "committed";
+  const neutral = presentation?.tone === "neutral" && !committed;
+  const summary = errorText(error);
   const code =
     typeof error === "object" && error && "code" in error ? String(error.code) : undefined;
   return (
-    <section className="error-banner" role={presentation?.tone === "neutral" ? "status" : "alert"}>
+    <section className="error-banner" role={neutral ? "status" : "alert"}>
       <span className="error-icon">
-        <Icon glyph={presentation?.tone === "neutral" ? CircleMinus : AlertTriangle} />
+        <Icon glyph={neutral ? CircleMinus : AlertTriangle} />
       </span>
       <div>
         <strong>
-          {presentation?.tone === "neutral"
-            ? "Operation cancelled"
-            : "Portcove couldn’t finish that action"}
+          {committed
+            ? "Change saved; review the current state"
+            : neutral
+              ? "Operation cancelled"
+              : "Portcove couldn’t finish that action"}
         </strong>
-        <p>{errorText(error)}</p>
+        {!((neutral || committed) && summary === "The operation was cancelled.") && (
+          <p>{summary}</p>
+        )}
         {presentation && <FailureDetails presentation={presentation} code={code} />}
       </div>
       <div className="error-actions">
@@ -474,7 +481,7 @@ function ErrorNotice({ error, clearError }: { error: unknown; clearError: () => 
           data-focusable
           variant="ghost"
           size="icon-sm"
-          aria-label="Dismiss error"
+          aria-label={neutral ? "Dismiss notice" : "Dismiss error"}
           onClick={clearError}
         >
           <Icon glyph={X} />

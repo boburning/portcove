@@ -392,7 +392,7 @@ function Scenario({ id }: { id: ScenarioId }) {
           scenarioId: "cancelled-operation",
           code: "cancelled",
           message: "Scenario operation cancelled.",
-          summary: "The operation was cancelled before it changed any files.",
+          summary: "The operation was cancelled.",
           technicalMessage: "Scenario operation cancelled before mutation.",
           tone: "neutral",
           mutationState: "no_changes",

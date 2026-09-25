@@ -19,6 +19,55 @@ afterEach(() => {
 });
 
 describe("core-owned failure presentation", () => {
+  it("names an authoritative commit without inviting a repeat mutation", () => {
+    const error = failureReport();
+    error.presentation.mutation_state = "committed";
+    error.presentation.summary = "The change was saved, but the view could not refresh.";
+    const html = renderToStaticMarkup(<StatusLayer error={error} clearError={vi.fn()} />);
+    expect(html).toContain("Change saved; review the current state");
+    expect(html).toContain(error.presentation.summary);
+    expect(html).toContain("The change was committed");
+    expect(html).not.toContain("Portcove couldn’t finish that action");
+    expect(html).not.toContain("No files were changed");
+  });
+
+  it("keeps unknown outcomes visibly uncertain", () => {
+    const error = failureReport();
+    error.presentation.mutation_state = "unknown";
+    const html = renderToStaticMarkup(<StatusLayer error={error} clearError={vi.fn()} />);
+    expect(html).toContain("Portcove couldn’t finish that action");
+    expect(html).toContain("The changes could not be confirmed");
+    expect(html).not.toContain("Change saved; review the current state");
+  });
+
+  it("announces a proven no-change cancellation once as a neutral notice", () => {
+    const error = failureReport();
+    error.presentation.tone = "neutral";
+    error.presentation.mutation_state = "no_changes";
+    error.presentation.summary = "The operation was cancelled.";
+    const html = renderToStaticMarkup(<StatusLayer error={error} clearError={vi.fn()} />);
+    expect(html).toContain('role="status"');
+    expect(html).toContain("Operation cancelled");
+    expect(html).toContain("No files were changed by this operation.");
+    expect(html).toContain('aria-label="Dismiss notice"');
+    expect(html).not.toContain("<p>The operation was cancelled.</p>");
+  });
+
+  it("announces a committed result ahead of a neutral cancellation tone", () => {
+    const error = failureReport();
+    error.code = "cancelled";
+    error.presentation.tone = "neutral";
+    error.presentation.mutation_state = "committed";
+    error.presentation.summary = "The operation was cancelled.";
+    const html = renderToStaticMarkup(<StatusLayer error={error} clearError={vi.fn()} />);
+    expect(html).toContain('role="alert"');
+    expect(html).toContain("Change saved; review the current state");
+    expect(html).toContain("The change was committed");
+    expect(html).toContain('aria-label="Dismiss error"');
+    expect(html).not.toContain("<strong>Operation cancelled</strong>");
+    expect(html).not.toContain("<p>The operation was cancelled.</p>");
+  });
+
   it.each(["future_outcome", "constructor", "__proto__"])(
     "retains safe copy and the original technical outcome for %s",
     (outcome) => {
