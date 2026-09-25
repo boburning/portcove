@@ -423,6 +423,9 @@ one exact Steam profile. The host rejects duplicate, unknown, or uninstalled
 selection, binds each active install ID into the batch review hash, rederives
 every game and the compatible CLI before and after native consent, and refuses
 the write if any selected install or profile state changed.
+The batch review exposes that authorization as `review_sha256` and separately
+exposes the writer's `writer_plan_sha256`; the apply result reports the latter
+as `plan_sha256`.
 The durable writer applies the batch as one shortcut-file publication, retaining
 its original backup and journal recovery behavior.
 The user chooses a Steam installation folder and enters the exact numeric profile

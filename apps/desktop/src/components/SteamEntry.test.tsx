@@ -197,7 +197,8 @@ it("reviews an exact selected batch and applies only its frozen selection", asyn
     shortcuts_path: review.shortcuts_path,
     snapshot_sha256: review.snapshot_sha256,
     proposed_sha256: review.proposed_sha256,
-    plan_sha256: "batch-plan",
+    review_sha256: "batch-review",
+    writer_plan_sha256: "batch-plan",
     changes: [...review.changes, { port_id: second.id, display_name: second.name, kind: "add" }],
     steam_client_state: "closed",
     writes_required: true,
@@ -234,7 +235,7 @@ it("reviews an exact selected batch and applies only its frozen selection", asyn
       steamRoot: review.steam_root,
       steamUserId: review.steam_user_id,
     },
-    "batch-plan",
+    "batch-review",
     7,
   );
   await act(async () => boxes[1].click());

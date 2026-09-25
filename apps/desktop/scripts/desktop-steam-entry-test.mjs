@@ -327,7 +327,7 @@ export async function steamEntryScenario(context) {
     assert.equal(preview.value.writes_required, true);
     const changedSelection = await invoke("apply_steam_batch_add", {
       request: { ...request, portIds: [...request.portIds].reverse() },
-      expectedPlanSha256: preview.value.plan_sha256,
+      expectedReviewSha256: preview.value.review_sha256,
       generation,
     });
     assert.equal(changedSelection.ok, false, "a changed batch selection must not open consent");
@@ -370,7 +370,8 @@ export async function steamEntryScenario(context) {
           steam_root: steamRoot,
           steam_user_id: steamUserId,
           shortcuts,
-          plan_sha256: preview.value.plan_sha256,
+          review_sha256: preview.value.review_sha256,
+          writer_plan_sha256: preview.value.writer_plan_sha256,
           written,
           changed_selection_rejected: true,
           native_cancel_preserved_original: true,

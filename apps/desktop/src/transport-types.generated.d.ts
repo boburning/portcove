@@ -2245,8 +2245,8 @@ export interface OutputDesktopSteamBatchReview {
   cli_product_version: string;
   cli_sha256: string;
   library_root: string;
-  plan_sha256: string;
   proposed_sha256: string;
+  review_sha256: string;
   schema_version: number;
   selected_games: SteamGameEntryTarget[];
   shortcuts_path: string;
@@ -2254,6 +2254,7 @@ export interface OutputDesktopSteamBatchReview {
   steam_client_state: SteamClientState;
   steam_root: string;
   steam_user_id: string;
+  writer_plan_sha256: string;
   writes_required: boolean;
   [k: string]: unknown;
 }

@@ -4163,10 +4163,10 @@
       "library_root": {
         "type": "string"
       },
-      "plan_sha256": {
+      "proposed_sha256": {
         "type": "string"
       },
-      "proposed_sha256": {
+      "review_sha256": {
         "type": "string"
       },
       "schema_version": {
@@ -4198,6 +4198,9 @@
       "steam_user_id": {
         "type": "string"
       },
+      "writer_plan_sha256": {
+        "type": "string"
+      },
       "writes_required": {
         "type": "boolean"
       }
@@ -4214,7 +4217,8 @@
       "shortcuts_path",
       "snapshot_sha256",
       "proposed_sha256",
-      "plan_sha256",
+      "review_sha256",
+      "writer_plan_sha256",
       "changes",
       "steam_client_state",
       "writes_required"

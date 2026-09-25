@@ -329,7 +329,7 @@ export function SteamBatchEntryDialog({
     try {
       const applied = await desktopApi.applySteamBatchAdd(
         reviewedSelection,
-        review.plan_sha256,
+        review.review_sha256,
         generation,
       );
       if (applied) {

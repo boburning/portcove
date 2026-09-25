@@ -214,12 +214,12 @@ export const desktopApi = {
     invoke<SteamBatchReview>("preview_steam_batch_add", { request, generation }),
   applySteamBatchAdd: (
     request: SteamBatchSelection,
-    expectedPlanSha256: string,
+    expectedReviewSha256: string,
     generation: number,
   ) =>
     invoke<SteamEntryApplyResult | null>("apply_steam_batch_add", {
       request,
-      expectedPlanSha256,
+      expectedReviewSha256,
       generation,
     }),
   catalogStatus: () => invoke<CatalogStatus>("get_catalog_status"),

@@ -56,7 +56,8 @@ pub struct SteamBatchReview {
     pub shortcuts_path: PathBuf,
     pub snapshot_sha256: Option<String>,
     pub proposed_sha256: String,
-    pub plan_sha256: String,
+    pub review_sha256: String,
+    pub writer_plan_sha256: String,
     pub changes: Vec<SteamEntryChange>,
     pub steam_client_state: SteamClientState,
     pub writes_required: bool,
@@ -196,7 +197,7 @@ pub(crate) async fn apply_steam_batch_add(
     app: tauri::AppHandle,
     state: tauri::State<'_, DesktopState>,
     request: SteamBatchSelection,
-    expected_plan_sha256: String,
+    expected_review_sha256: String,
     generation: u64,
 ) -> DesktopResult<Option<SteamEntryApplyResult>> {
     let state_for_review = state.inner().clone();
@@ -206,7 +207,7 @@ pub(crate) async fn apply_steam_batch_add(
         let service = service_at_generation(&state_for_review, generation)?;
         let contexts = batch_contexts(&service, &review_request.port_ids)?;
         let plan = plan_batch(&contexts, &review_request).map_err(steam_error)?;
-        if batch_review_hash(&plan, &contexts) != expected_plan_sha256 {
+        if batch_review_hash(&plan, &contexts) != expected_review_sha256 {
             return Err(DesktopError::from(PortcoveError::conflict(
                 "Steam batch state changed after preview; review the current plan again",
             )));
@@ -348,7 +349,8 @@ fn batch_review(
         shortcuts_path: plan.shortcuts_path.clone(),
         snapshot_sha256: plan.snapshot_sha256.clone(),
         proposed_sha256: plan.proposed_sha256.clone(),
-        plan_sha256: batch_review_hash(plan, contexts),
+        review_sha256: batch_review_hash(plan, contexts),
+        writer_plan_sha256: plan.plan_sha256.clone(),
         changes: plan.changes.clone(),
         steam_client_state,
         writes_required: plan.changes_required(),
@@ -773,7 +775,8 @@ mod tests {
         let review = batch_review(&contexts, &plan, SteamClientState::Closed);
         assert_eq!(review.selected_games.len(), 2);
         assert_eq!(review.changes.len(), 2);
-        assert_eq!(review.plan_sha256, batch_review_hash(&plan, &contexts));
+        assert_eq!(review.review_sha256, batch_review_hash(&plan, &contexts));
+        assert_eq!(review.writer_plan_sha256, plan.plan_sha256);
         assert!(review.writes_required);
         assert!(!plan.shortcuts_path.exists());
         let mut changed = contexts.clone();
@@ -782,7 +785,7 @@ mod tests {
         let mut replaced = contexts;
         replaced[1].active_install_id = Some("install-v2".into());
         assert_eq!(plan_batch(&replaced, &selection).unwrap(), plan);
-        assert_ne!(batch_review_hash(&plan, &replaced), review.plan_sha256);
+        assert_ne!(batch_review_hash(&plan, &replaced), review.review_sha256);
     }
 
     #[test]
