@@ -650,6 +650,12 @@ other references and the installed game. The same run re-exercises backup and
 installed-game reviews through their shared presentation lifecycle. Native Windows
 confirmation evidence remains scoped separately from other physical platforms.
 
+The source-intake scenario verifies the registered source's Game Files activity
+link when that record is in the eight-item recent preview. In a long combined
+run, it asserts the older registration remains in durable activity history but
+outside the preview, then verifies the newly recorded discovery activity's Game
+Files link. The focused native run exercises the registration link directly.
+
 The owned adoption review scenario copies a harmless fixture through the real
 native UI. It verifies exact source/output/saved-data paths, dismissal and pending
 or declined native consent, changed saved-data rejection and stale generation.
