@@ -149,12 +149,16 @@ export async function steamEntryScenario(context) {
     const sourcesBeforeUninstall = command(["source", "list"]);
     const backupsBeforeUninstall = command(["backup", "list", port.id]);
     const savedDataRoot = command(["paths", port.id]).user_data_root;
+    const savedData = path.join(savedDataRoot, "owned-steam-removal-save.bin");
+    await mkdir(savedDataRoot, { recursive: true });
+    await writeFile(savedData, "owned save must survive game and shortcut removal", { flag: "wx" });
+    const savedDataBefore = await fileIdentity(savedData);
     const removedInstall = command(["remove", port.id, "--yes"]);
     assert.ok(removedInstall.removed.length > 0);
     assert.equal(command(["status", port.id]).active, null);
     assert.deepEqual(command(["source", "list"]), sourcesBeforeUninstall);
     assert.deepEqual(command(["backup", "list", port.id]), backupsBeforeUninstall);
-    assert.ok((await stat(savedDataRoot)).isDirectory());
+    assert.deepEqual(await fileIdentity(savedData), savedDataBefore);
     assert.deepEqual(await fileIdentity(shortcuts), added);
     await browser.navigate().refresh();
     await browser.wait(
@@ -217,7 +221,7 @@ export async function steamEntryScenario(context) {
     assert.equal(command(["status", port.id]).active, null);
     assert.deepEqual(command(["source", "list"]), sourcesBeforeUninstall);
     assert.deepEqual(command(["backup", "list", port.id]), backupsBeforeUninstall);
-    assert.ok((await stat(savedDataRoot)).isDirectory());
+    assert.deepEqual(await fileIdentity(savedData), savedDataBefore);
     const report = path.join(output, "steam-entry-result.json");
     await writeFile(
       report,
