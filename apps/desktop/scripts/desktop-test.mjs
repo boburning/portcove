@@ -924,6 +924,47 @@ try {
     );
     await captureScenarioScreenshot("settings-compact-layout");
 
+    const gameUpdatesLink = await browser.findElement(
+      By.xpath(
+        '//*[@data-settings-group="updates"]//button[normalize-space(.)="Open Game updates"]',
+      ),
+    );
+    await browser.executeScript(
+      (element) => element.scrollIntoView({ block: "center" }),
+      gameUpdatesLink,
+    );
+    await captureScenarioScreenshot("settings-game-update-destination-link");
+    await gameUpdatesLink.click();
+    await browser.wait(until.elementLocated(By.css(".update-center")), 15_000);
+    assert.equal(await browser.findElement(By.css("main h1")).getText(), "Game updates & activity");
+    await browser.wait(
+      () => browser.executeScript(() => document.activeElement?.matches("main h1")),
+      5_000,
+      "Game updates heading did not receive focus",
+    );
+    const applicationUpdatesLink = await browser.findElement(
+      By.xpath('//button[normalize-space(.)="Open Portcove & catalog update settings"]'),
+    );
+    await browser.executeScript(
+      (element) => element.scrollIntoView({ block: "center" }),
+      applicationUpdatesLink,
+    );
+    await captureScenarioScreenshot("game-updates-settings-destination-link");
+    await applicationUpdatesLink.click();
+    const updateSettings = await browser.wait(
+      until.elementLocated(By.css('[data-settings-group="updates"]')),
+      15_000,
+    );
+    assert.ok((await updateSettings.getText()).includes("Portcove & catalog updates"));
+    await browser.wait(
+      () =>
+        browser.executeScript(() =>
+          document.activeElement?.matches('[data-settings-control="catalog-updates"]'),
+        ),
+      5_000,
+      "Catalog update settings did not receive focus",
+    );
+
     await browser.findElement(By.xpath('//nav//button[contains(., "Port catalog")]')).click();
     const search = await browser.wait(until.elementLocated(By.id("port-search")), 15_000);
     const selectedFilter = await browser.findElement(By.css('.filter-row [aria-pressed="true"]'));

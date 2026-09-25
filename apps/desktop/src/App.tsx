@@ -760,6 +760,14 @@ function CurrentView({
         sourceProfiles={data.catalog?.source_profiles ?? []}
         onSourceAdded={data.refreshAfterMutation}
         onCatalogChanged={data.refreshAfterMutation}
+        onOpenGameUpdates={() => {
+          ui.setView("updates");
+          window.requestAnimationFrame(() => {
+            const heading = document.querySelector<HTMLElement>("main h1");
+            heading?.scrollIntoView({ block: "start" });
+            heading?.focus({ preventScroll: true });
+          });
+        }}
         hostToolActions={hostToolActions}
         applicationUpdateNotice={applicationUpdateNotice}
         applicationUpdatePreferences={applicationUpdatePreferences}
