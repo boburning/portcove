@@ -596,6 +596,13 @@ try {
     const status = await invoke("get_statuses");
     assert.equal(status.ok, true);
     assert.equal(status.value.filter((item) => item.active).length, 0);
+    const firstCatalog = await browser.wait(
+      until.elementLocated(By.xpath('//h1[normalize-space(.)="Port catalog"]')),
+      15_000,
+    );
+    assert.equal(await firstCatalog.isDisplayed(), true);
+    assert.ok((await browser.findElements(By.css("button.port-card-selectable"))).length > 0);
+    await captureScenarioScreenshot("first-use-port-catalog");
     await browser.findElement(By.xpath('//nav//button[contains(., "Library")]')).click();
     const browse = await browser.wait(
       until.elementLocated(By.xpath('//button[normalize-space(.)="Browse port catalog"]')),
@@ -621,20 +628,7 @@ try {
       until.elementLocated(By.xpath('//button[normalize-space(.)="Browse port catalog"]')),
       5000,
     );
-    await browser
-      .findElement(
-        By.xpath('//div[contains(@class,"filter-row")]//button[normalize-space(.)="Ready"]'),
-      )
-      .click();
-    const clearReadiness = await browser.wait(
-      until.elementLocated(By.xpath('//button[normalize-space(.)="Clear search and filters"]')),
-      5000,
-    );
-    await clearReadiness.click();
-    await browser.wait(
-      until.elementLocated(By.xpath('//button[normalize-space(.)="Browse port catalog"]')),
-      5000,
-    );
+    assert.equal((await browser.findElements(By.css(".filter-row"))).length, 0);
   });
   await scenario("native-design-system-compatibility", async () => {
     const environment = await assertDesignCompatibility({ browser, By, Key, until });

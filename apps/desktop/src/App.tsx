@@ -298,6 +298,10 @@ function Workspace({
       switchLibrary,
       resetLibrary,
       ready: Boolean(data.catalog),
+      installedCount: data.catalog
+        ? data.statuses.filter((status) => status.active).length
+        : undefined,
+      catalogCount: data.catalog?.ports.length,
     });
   const { catalog, diagnosticRevision, diagnosticsStale, doctor, refreshDiagnostics } = data;
   useEffect(() => {
