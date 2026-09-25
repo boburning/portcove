@@ -1038,6 +1038,11 @@ try {
     assert.equal(restored.focus, origin.originKey);
     assert.ok(Math.abs(restored.scrollTop - origin.scrollTop) <= 1);
     await captureScenarioScreenshot("game-details-workspace-return");
+    await browser.findElement(By.id("port-search")).clear();
+    await browser.wait(
+      async () => (await browser.findElements(By.css(".port-card"))).length > 2,
+      15_000,
+    );
 
     const compactWindow = await browser.manage().window().getRect();
     try {
@@ -1058,6 +1063,7 @@ try {
         await browser.findElement(By.xpath('//nav//button[contains(., "Port catalog")]')).click();
         await browser.wait(
           async () => (await browser.findElements(By.css(".port-card"))).length > 2,
+          15_000,
         );
         const descriptions = await browser.executeScript(() => {
           const cards = [...document.querySelectorAll(".port-card-selectable")].slice(0, 3);
