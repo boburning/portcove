@@ -526,12 +526,13 @@ describe("desktop components", () => {
     );
 
     expect(ready).toContain("Ready to play");
-    expect(ready).not.toContain('class="readiness-card ready"');
+    expect(ready).not.toContain('class="hero-reason"');
     expect(ready.indexOf("Ready to play")).toBeLessThan(ready.indexOf("Play now"));
     expect(ready.indexOf("Play now")).toBeLessThan(ready.indexOf(port.summary));
     expect(ready.indexOf("Play now")).toBeLessThan(ready.indexOf("Change artwork"));
     expect(downloaded).toContain("Ready to play · update downloaded");
     expect(downloaded).toContain("Play the installed version or activate staged version 1.0.");
+    expect(downloaded).toContain('class="hero-reason"');
     expect(`${ready}${downloaded}`).not.toContain("Ready to launch");
     expect(`${ready}${downloaded}`).not.toContain("update staged");
     expect(`${ready}${downloaded}`).not.toContain("active version");
@@ -2114,6 +2115,11 @@ describe("desktop components", () => {
       ([, content]) => content.replaceAll(/<[^>]+>/g, "").trim(),
     );
     expect(uninstalled).toContain("Choose game files");
+    expect(uninstalled.match(/Available to install/g)).toHaveLength(1);
+    expect(uninstalled).not.toContain("readiness-card");
+    expect(uninstalled.indexOf('class="hero-reason"')).toBeLessThan(
+      uninstalled.indexOf("Choose game files"),
+    );
     expect(uninstalled.indexOf("Portcove will check required game files")).toBeLessThan(
       uninstalled.indexOf("Choose game files"),
     );
