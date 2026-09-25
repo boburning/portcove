@@ -437,6 +437,11 @@ after consent; an unknown or running process and any changed reviewed profile,
 library, shortcut, runtime or selection fail closed. Add/Repair also rechecks the
 installed game. Remove remains available without an install or CLI only when the
 selected profile contains an exact owned entry.
+The desktop calls this object a Steam shortcut, distinguishes setup from removal,
+and offers Check again after a running-client review so the player can close
+Steam and refresh the plan before applying it. A completed result says whether
+the shortcut changed or already matched; the full profile and file path remain
+available in the review and result.
 Add/Repair accepts only a standalone CLI whose passive embedded marker advertises
 this Portcove version's Steam `exec` contract, shows its SHA-256 in the review,
 binds that identity into the plan, and rehashes the same no-follow regular file
@@ -446,7 +451,7 @@ inspection merely by containing the scanner. Desktop does not execute or shell
 out to a discovered candidate, and this compatibility marker is not a
 publisher-signature claim.
 
-This consumer is not profile discovery, batch selection, artwork delivery, or an
+This consumer is not profile discovery, artwork delivery, or an
 actual Steam-client qualification. Controlled host and renderer tests prove the
 review/apply contract and isolated shortcut-file behavior. Native positive-path
 qualification may use the compile-time fixture that reports the client closed;

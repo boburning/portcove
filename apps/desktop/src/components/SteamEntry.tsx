@@ -32,7 +32,7 @@ export function SteamEntryControl({
     <>
       <Button data-focusable variant="outline" disabled={busy} onClick={() => setOpen(true)}>
         <Icon glyph={Gamepad2} />
-        Steam entry
+        Steam shortcut
       </Button>
       {open && (
         <SteamEntryDialog
@@ -127,12 +127,12 @@ export function SteamEntryDialog({
         aria-describedby="steam-entry-description"
       >
         <DialogTitle id="steam-entry-title" className="mb-2 text-xl">
-          Manage Steam entry
+          Manage Steam shortcut
         </DialogTitle>
         <DialogDescription id="steam-entry-description" className="mb-4 leading-relaxed">
           {installed
-            ? "Add, repair, or remove the selected Portcove game in one exact Steam profile."
-            : "Remove a previously added Portcove shortcut from one exact Steam profile. The game is not installed here."}
+            ? `Add, repair, or remove the Steam shortcut for ${port.name} in one selected local profile.`
+            : "Remove a previously added Portcove shortcut from one selected local Steam profile. The game is not installed here."}
         </DialogDescription>
         {!result && (
           <SteamProfileFields
@@ -166,7 +166,7 @@ export function SteamEntryDialog({
                 disabled={!installed || !selected || Boolean(pending)}
                 onClick={() => void loadReview("add_or_repair")}
               >
-                Review Add / Repair
+                Review shortcut setup
               </Button>
               <Button
                 data-focusable
@@ -174,7 +174,7 @@ export function SteamEntryDialog({
                 disabled={!selected || Boolean(pending)}
                 onClick={() => void loadReview("remove")}
               >
-                Review Remove
+                Review shortcut removal
               </Button>
             </>
           )}
@@ -186,7 +186,9 @@ export function SteamEntryDialog({
                 disabled={Boolean(pending)}
                 onClick={() => void loadReview(review.operation)}
               >
-                Review current state again
+                {review.steam_client_state === "running"
+                  ? "Check again"
+                  : "Review current state again"}
               </Button>
               {review.writes_required && (
                 <Button
@@ -198,8 +200,8 @@ export function SteamEntryDialog({
                   {pending === "apply"
                     ? "Applying reviewed change…"
                     : review.operation === "remove"
-                      ? "Remove reviewed entry"
-                      : "Apply reviewed Add / Repair"}
+                      ? "Remove shortcut"
+                      : "Add or repair shortcut"}
                 </Button>
               )}
             </>
@@ -292,7 +294,8 @@ export function SteamBatchEntryDialog({
           Add selected games to Steam
         </DialogTitle>
         <DialogDescription id="steam-batch-description" className="mb-4 leading-relaxed">
-          Select at least two installed games for one reviewed change to one exact Steam profile.
+          Select at least two installed games to add or repair their shortcuts in one selected local
+          Steam profile.
         </DialogDescription>
         {!result && (
           <>
@@ -353,7 +356,7 @@ export function SteamBatchEntryDialog({
               }
               onClick={() => void loadReview()}
             >
-              Review selected Add / Repair
+              Review selected shortcuts
             </Button>
           )}
           {review && (
@@ -364,7 +367,9 @@ export function SteamBatchEntryDialog({
                 disabled={Boolean(pending)}
                 onClick={() => void loadReview()}
               >
-                Review current state again
+                {review.steam_client_state === "running"
+                  ? "Check again"
+                  : "Review current state again"}
               </Button>
               {review.writes_required && (
                 <Button
@@ -375,7 +380,7 @@ export function SteamBatchEntryDialog({
                 >
                   {pending === "apply"
                     ? "Applying reviewed batch…"
-                    : "Apply reviewed batch Add / Repair"}
+                    : "Add or repair selected shortcuts"}
                 </Button>
               )}
             </>
@@ -468,19 +473,25 @@ function SteamProfileFields({
 }
 
 function SteamEntryResult({ result, batch }: { result: SteamEntryApplyResult; batch: boolean }) {
+  const removed = result.changes.every((change) => change.kind === "remove");
+  const message = result.wrote
+    ? removed
+      ? "Steam shortcut removed."
+      : batch
+        ? "Selected Steam shortcuts updated."
+        : "Steam shortcut updated."
+    : removed
+      ? "No Portcove shortcut was found for this game."
+      : batch
+        ? "The selected shortcuts already match this setup."
+        : "The shortcut already matches this setup.";
   return (
     <section
       className="removal-review-details"
-      aria-label={batch ? "Steam batch result" : "Steam entry result"}
+      aria-label={batch ? "Steam batch result" : "Steam shortcut result"}
     >
       <p role="status">
-        <strong>
-          {result.wrote
-            ? batch
-              ? "The reviewed Steam batch was written."
-              : "The reviewed Steam entry change was written."
-            : "No write was needed."}
-        </strong>
+        <strong>{message}</strong>
       </p>
       <p>
         Shortcut file: <code>{result.shortcuts_path}</code>
@@ -496,14 +507,14 @@ function SteamEntryResult({ result, batch }: { result: SteamEntryApplyResult; ba
 
 function SteamEntryReviewDetails({ review }: { review: SteamEntryReview | SteamBatchReview }) {
   return (
-    <section className="removal-review-details" aria-label="Reviewed Steam entry change">
+    <section className="removal-review-details" aria-label="Reviewed Steam shortcut change">
       <p>
         <strong>
           {review.writes_required
             ? "Review the exact change before applying it."
             : "operation" in review && review.operation === "remove"
-              ? "No Portcove-owned entry exists for this game in the selected profile."
-              : "The Portcove-owned Steam entry is already current."}
+              ? "No Portcove shortcut was found for this game in the selected profile."
+              : "The Portcove shortcut already matches this setup."}
         </strong>
       </p>
       <dl>
@@ -546,8 +557,7 @@ function SteamEntryReviewDetails({ review }: { review: SteamEntryReview | SteamB
       </ul>
       {review.steam_client_state === "running" && (
         <p role="alert">
-          Steam is running. Close it yourself, then review the current state again. Portcove will
-          never force Steam to close.
+          Close Steam, then choose Check again. Portcove will not close Steam for you.
         </p>
       )}
       {review.steam_client_state === "unknown" && (
@@ -557,18 +567,14 @@ function SteamEntryReviewDetails({ review }: { review: SteamEntryReview | SteamB
       )}
       {review.steam_client_state === "closed" && review.writes_required && (
         <p>
-          Steam appears closed. Final consent rechecks this process state, the Portcove library,
-          exact reviewed profile, and{" "}
-          {"operation" in review && review.operation === "remove"
-            ? "owned shortcut"
-            : "installed game and compatible CLI bytes"}{" "}
-          before writing. A concurrent change is rejected.
+          Keep Steam closed until this finishes. The selected profile and shortcut are checked again
+          before the change is made.
         </p>
       )}
       <p>
         {"operation" in review && review.operation === "remove"
-          ? "Remove affects only this Portcove-owned shortcut. It does not uninstall the game, delete saves, or remove unrelated Steam entries and customization."
-          : "Add / Repair affects only the selected Portcove-owned shortcuts. It does not uninstall games, delete saves, or remove unrelated Steam entries and customization."}
+          ? "Remove affects only this Portcove-owned shortcut. It does not uninstall the game, delete saves, or remove unrelated Steam shortcuts and customization."
+          : "Add / Repair affects only the selected Portcove-owned shortcuts. It does not uninstall games, delete saves, or remove unrelated Steam shortcuts and customization."}
       </p>
     </section>
   );

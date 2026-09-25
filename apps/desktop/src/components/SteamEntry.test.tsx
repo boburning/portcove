@@ -87,7 +87,7 @@ it("uses the selected installation and profile, shows exact consumer evidence, a
   expect(installationLabel?.className).toContain("text-pc-muted-foreground");
   await input("Steam installation folder", "C:\\Steam");
   await input("Steam profile ID", "12345");
-  await click("Review Add / Repair");
+  await click("Review shortcut setup");
   expect(preview).toHaveBeenCalledExactlyOnceWith(
     port.id,
     "C:\\Steam",
@@ -104,7 +104,7 @@ it("uses the selected installation and profile, shows exact consumer evidence, a
     "add",
   ])
     expect(document.body.textContent).toContain(value);
-  await click("Apply reviewed Add / Repair");
+  await click("Add or repair shortcut");
   expect(apply).toHaveBeenCalledExactlyOnceWith(
     port.id,
     review.steam_root,
@@ -113,7 +113,7 @@ it("uses the selected installation and profile, shows exact consumer evidence, a
     review.plan_sha256,
     7,
   );
-  expect(document.body.textContent).toContain("reviewed Steam entry change was written");
+  expect(document.body.textContent).toContain("Steam shortcut updated.");
   expect(document.body.textContent).toContain("shortcuts.vdf.portcove-backup");
 });
 
@@ -128,16 +128,26 @@ it("blocks apply while Steam is running and clears a review when the target chan
   );
   await input("Steam installation folder", "C:\\Steam");
   await input("Steam profile ID", "12345");
-  await click("Review Add / Repair");
-  expect(document.body.textContent).toContain("never force Steam to close");
+  await click("Review shortcut setup");
+  expect(document.body.textContent).toContain("Close Steam, then choose Check again.");
+  expect(document.body.textContent).toContain("Check again");
   const applyButton = [...document.body.querySelectorAll("button")].find(
-    (candidate) => candidate.textContent === "Apply reviewed Add / Repair",
+    (candidate) => candidate.textContent === "Add or repair shortcut",
   );
   expect(applyButton?.disabled).toBe(true);
+  preview.mockResolvedValue({ ...review, steam_client_state: "closed" });
+  await click("Check again");
+  expect(preview).toHaveBeenCalledTimes(2);
+  expect(document.body.textContent).toContain("Keep Steam closed until this finishes.");
+  expect(
+    [...document.body.querySelectorAll("button")].find(
+      (candidate) => candidate.textContent === "Add or repair shortcut",
+    )?.disabled,
+  ).toBe(false);
   await input("Steam profile ID", "54321");
   expect(document.body.textContent).not.toContain(review.shortcuts_path);
   expect(apply).not.toHaveBeenCalled();
-  expect(preview).toHaveBeenCalledOnce();
+  expect(preview).toHaveBeenCalledTimes(2);
 });
 
 it("keeps the reviewed plan visible when native consent is declined", async () => {
@@ -148,8 +158,8 @@ it("keeps the reviewed plan visible when native consent is declined", async () =
   );
   await input("Steam installation folder", "C:\\Steam");
   await input("Steam profile ID", "12345");
-  await click("Review Add / Repair");
-  await click("Apply reviewed Add / Repair");
+  await click("Review shortcut setup");
+  await click("Add or repair shortcut");
   expect(document.body.textContent).toContain(review.shortcuts_path);
   expect(document.body.querySelector('[role="alert"]')).toBeNull();
 });
@@ -170,13 +180,13 @@ it("offers owned-shortcut removal after uninstall without offering Add or Repair
   await input("Steam installation folder", "C:\\Steam");
   await input("Steam profile ID", "12345");
   const add = [...document.body.querySelectorAll("button")].find(
-    (candidate) => candidate.textContent === "Review Add / Repair",
+    (candidate) => candidate.textContent === "Review shortcut setup",
   );
   expect(add?.disabled).toBe(true);
   expect(document.body.textContent).toContain("game is not installed here");
-  await click("Review Remove");
+  await click("Review shortcut removal");
   expect(preview).toHaveBeenCalledExactlyOnceWith(port.id, "C:\\Steam", "12345", "remove", 7);
-  expect(document.body.textContent).toContain("owned shortcut before writing");
+  expect(document.body.textContent).toContain("selected profile and shortcut are checked");
   expect(document.body.textContent).toContain("Not required for this removal review");
 });
 
@@ -209,7 +219,7 @@ it("reviews an exact selected batch and applies only its frozen selection", asyn
     root.render(<SteamBatchEntryDialog ports={[port, second]} generation={7} close={vi.fn()} />),
   );
   const reviewButton = [...document.body.querySelectorAll("button")].find(
-    (candidate) => candidate.textContent === "Review selected Add / Repair",
+    (candidate) => candidate.textContent === "Review selected shortcuts",
   );
   expect(reviewButton?.disabled).toBe(true);
   const boxes = [...document.body.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')];
@@ -218,7 +228,7 @@ it("reviews an exact selected batch and applies only its frozen selection", asyn
   await act(async () => boxes[1].click());
   await input("Steam installation folder", review.steam_root);
   await input("Steam profile ID", review.steam_user_id);
-  await click("Review selected Add / Repair");
+  await click("Review selected shortcuts");
   expect(preview).toHaveBeenCalledExactlyOnceWith(
     {
       portIds: [port.id, second.id],
@@ -228,7 +238,7 @@ it("reviews an exact selected batch and applies only its frozen selection", asyn
     7,
   );
   expect(document.body.textContent).toContain("Selected: Another Port");
-  await click("Apply reviewed batch Add / Repair");
+  await click("Add or repair selected shortcuts");
   expect(apply).toHaveBeenCalledExactlyOnceWith(
     {
       portIds: [port.id, second.id],
