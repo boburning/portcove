@@ -1,6 +1,10 @@
 # Contributing
 
-Keep the core reusable, the catalog declarative, and the CLI stable for external frontends. Avoid game-specific branches in the CLI or React app; add catalog metadata or a family-level adapter instead.
+Keep shared acquisition, transactions, persistence and lifecycle behavior in
+core, the catalog declarative where possible, and the CLI stable for external
+frontends. A small title-specific core adapter is acceptable when catalog data
+or an existing shared adapter cannot express a useful bounded integration.
+Avoid game-specific policy in the CLI or React app.
 
 External clients integrate through the supported CLI rather than Portcove's
 database, private Rust APIs, or desktop state. Before proposing a frontend,
@@ -96,7 +100,11 @@ in [Quality](docs/QUALITY.md). Bootstrap only missing prerequisites reported by
 the exact frozen head, and release or packaged qualification runs only when its
 own acceptance contract requires it.
 
-Do not suppress deterministic findings without a narrow, reviewable reason. Treat structural findings as evidence rather than instructions for speculative refactors. Follow [AGENTS.md](AGENTS.md) and [docs/QUALITY.md](docs/QUALITY.md). Catalog changes must pass the live repository audit and must not add archived repositories.
+Do not suppress deterministic findings without a narrow, reviewable reason.
+Treat structural findings as evidence rather than instructions for speculative
+refactors. Follow [AGENTS.md](AGENTS.md) and [docs/QUALITY.md](docs/QUALITY.md).
+Catalog changes must pass the live repository audit and record upstream
+maintenance status without treating archival alone as an admission veto.
 
 Frontend work is checked by type-aware Oxlint, Oxfmt, and Stylelint. Python asset scripts,
 the shell bootstrap, GitHub Actions workflows and PowerShell scripts are checked

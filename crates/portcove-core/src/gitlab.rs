@@ -353,12 +353,10 @@ impl ReleaseProvider for GitlabReleaseProvider {
         }
         let project_url = self.project_url(&port.release.repository)?;
         let project: GitlabProject = self.get_json(&project_url).await?;
-        if project.archived.unwrap_or(false) {
-            return Err(PortcoveError::unsupported(format!(
-                "{} is archived upstream",
-                port.name
-            )));
-        }
+        // An archived project may still expose an exact usable release. Keep
+        // metadata validation before cache reuse, then apply the same asset
+        // identity and integrity rules as any other hosted project.
+        let _archived = project.archived;
         let key = ReleaseSelectionCacheKey::new(port, channel, platform);
         if let Some(release) = self.cached_release(&key).await {
             return Ok(release);
@@ -1217,7 +1215,8 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn gitlab_release_cache_revalidates_archive_state_and_fails_closed_offline() {
+    async fn gitlab_archived_upstream_keeps_exact_release_usable_but_metadata_failure_still_holds()
+    {
         let release_body = serde_json::to_string(&vec![gitlab_release(
             "https://downloads.example.invalid/extreme-g.zip",
         )])
@@ -1236,14 +1235,44 @@ mod tests {
             .resolve(port, ReleaseChannel::Stable, Platform::WindowsX86_64)
             .await
             .unwrap();
+        let cached = provider
+            .resolve(port, ReleaseChannel::Stable, Platform::WindowsX86_64)
+            .await
+            .unwrap();
+        server.join().unwrap();
+        assert_eq!(cached.asset.sha256, "a".repeat(64));
+        assert_eq!(requests.try_iter().count(), 3);
+
+        let responses = vec![
+            ok_json(r#"{"id":9,"archived":true}"#, ""),
+            ok_json(&release_body, ""),
+        ];
+        let (server_root, _, server) = serve_http(responses);
+        let provider =
+            GitlabReleaseProvider::with_api_root(format!("{server_root}/api/v4")).unwrap();
+        let archived = provider
+            .resolve(port, ReleaseChannel::Stable, Platform::WindowsX86_64)
+            .await
+            .unwrap();
+        server.join().unwrap();
+        assert_eq!(archived.asset.sha256, cached.asset.sha256);
+
+        let mut missing_digest = gitlab_release("https://downloads.example.invalid/extreme-g.zip");
+        missing_digest["description"] = serde_json::json!("");
+        let missing_digest_body = serde_json::to_string(&vec![missing_digest]).unwrap();
+        let responses = vec![
+            ok_json(r#"{"id":9,"archived":true}"#, ""),
+            ok_json(&missing_digest_body, ""),
+        ];
+        let (server_root, _, server) = serve_http(responses);
+        let provider =
+            GitlabReleaseProvider::with_api_root(format!("{server_root}/api/v4")).unwrap();
         let error = provider
             .resolve(port, ReleaseChannel::Stable, Platform::WindowsX86_64)
             .await
             .unwrap_err();
         server.join().unwrap();
-        assert_eq!(error.code, crate::ErrorCode::Unsupported);
-        assert!(error.message.contains("archived upstream"));
-        assert_eq!(requests.try_iter().count(), 3);
+        assert_eq!(error.code, crate::ErrorCode::Verification);
 
         let responses = vec![
             ok_json(r#"{"id":9,"archived":false}"#, ""),

@@ -767,12 +767,10 @@ impl ReleaseProvider for GithubReleaseProvider {
         }
         let repository_url = format!("{}/repos/{}", self.api_root, port.release.repository);
         let repository: GithubRepository = self.get_json(&repository_url).await?;
-        if repository.archived {
-            return Err(PortcoveError::unsupported(format!(
-                "{} is archived upstream",
-                port.name
-            )));
-        }
+        // Keep metadata validation before cached selection. Archive state is a
+        // maintenance fact; it neither revokes exact release authority nor
+        // replaces the artifact integrity checks below.
+        let _archived = repository.archived;
         let cache_key = ReleaseSelectionCacheKey::new(port, channel, platform);
         if let Some(release) = self.cached_release(&cache_key).await {
             return Ok(release);
@@ -3107,7 +3105,8 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn github_release_cache_revalidates_archive_state_and_fails_closed_offline() {
+    async fn github_archived_upstream_keeps_exact_release_usable_but_metadata_failure_still_holds()
+    {
         let release_body =
             serde_json::to_string(&vec![github_release("v1.0.0", false, "game-windows.zip")])
                 .unwrap();
@@ -3125,14 +3124,42 @@ mod tests {
             .resolve(port, ReleaseChannel::Stable, Platform::WindowsX86_64)
             .await
             .unwrap();
+        let cached = provider
+            .resolve(port, ReleaseChannel::Stable, Platform::WindowsX86_64)
+            .await
+            .unwrap();
+        server.join().unwrap();
+        assert_eq!(cached.asset.sha256, "a".repeat(64));
+        assert_eq!(requests.try_iter().count(), 3);
+
+        let responses = vec![
+            ok_json(r#"{"archived":true}"#, ""),
+            ok_json(&release_body, ""),
+        ];
+        let (api_root, _, server) = serve_http(responses);
+        let provider = GithubReleaseProvider::with_api_root(api_root).unwrap();
+        let archived = provider
+            .resolve(port, ReleaseChannel::Stable, Platform::WindowsX86_64)
+            .await
+            .unwrap();
+        server.join().unwrap();
+        assert_eq!(archived.asset.sha256, "a".repeat(64));
+
+        let mut missing_digest = github_release("v1.0.0", false, "game-windows.zip");
+        missing_digest["assets"][0]["digest"] = serde_json::Value::Null;
+        let missing_digest_body = serde_json::to_string(&vec![missing_digest]).unwrap();
+        let responses = vec![
+            ok_json(r#"{"archived":true}"#, ""),
+            ok_json(&missing_digest_body, ""),
+        ];
+        let (api_root, _, server) = serve_http(responses);
+        let provider = GithubReleaseProvider::with_api_root(api_root).unwrap();
         let error = provider
             .resolve(port, ReleaseChannel::Stable, Platform::WindowsX86_64)
             .await
             .unwrap_err();
         server.join().unwrap();
-        assert_eq!(error.code, crate::ErrorCode::Unsupported);
-        assert!(error.message.contains("archived upstream"));
-        assert_eq!(requests.try_iter().count(), 3);
+        assert_eq!(error.code, crate::ErrorCode::Verification);
 
         let responses = vec![
             ok_json(r#"{"archived":false}"#, ""),

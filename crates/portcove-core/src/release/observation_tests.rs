@@ -134,10 +134,16 @@ fn observations_reject_changed_bytes_scope_identity_and_invalid_clocks() -> Resu
             .contains("digest differs")
     );
     document["facts_sha256"] = json!(json_digest(&document["facts"])?);
-    assert!(
-        inspect(&port, &document)?.projections[0]
-            .hold_reasons
-            .contains(&"upstream-archived".into())
+    let archived = inspect(&port, &document)?;
+    assert_eq!(archived.facts_sha256, json_digest(&document["facts"])?);
+    assert!(archived.projections[0].hold_reasons.is_empty());
+    assert_eq!(
+        archived.projections[0]
+            .latest_eligible
+            .as_ref()
+            .unwrap()
+            .release_id,
+        1
     );
     document["facts"]["releases"][0]["assets"][0]["browser_download_url"] =
         json!("https://foreign.invalid/payload.exe");

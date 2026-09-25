@@ -230,9 +230,6 @@ fn project_channel(
     if !port.channels.contains(&channel) {
         output.hold_reasons.push("channel-not-offered".into());
     }
-    if facts["repository"]["archived"] == true {
-        output.hold_reasons.push("upstream-archived".into());
-    }
     let Some(candidate) = candidate else {
         output
             .hold_reasons

@@ -25,6 +25,7 @@ const gitlabHeaders = { "User-Agent": "Portcove-catalog-audit" };
 if (process.env.GITLAB_TOKEN) gitlabHeaders["PRIVATE-TOKEN"] = process.env.GITLAB_TOKEN;
 
 const failures = [];
+const archived = [];
 for (const { provider, repository } of repositories) {
   const url =
     provider === "gitlab"
@@ -38,11 +39,13 @@ for (const { provider, repository } of repositories) {
     continue;
   }
   const metadata = await response.json();
-  if (metadata.archived) failures.push(`${repository}: repository is archived`);
+  if (metadata.archived) archived.push(repository);
 }
 
 if (failures.length) {
   console.error(failures.join("\n"));
   process.exit(1);
 }
-console.log(`Verified ${repositories.length} active hosted catalog repositories.`);
+console.log(
+  `Verified ${repositories.length} reachable hosted catalog repositories (${archived.length} archived).`,
+);

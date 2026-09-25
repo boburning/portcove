@@ -1018,8 +1018,9 @@ function RetiredNotice({ port }: { port: PortDefinition }) {
     <p className="retired-notice">
       <Icon glyph={ArchiveX} />{" "}
       <span>
-        <strong>Retired upstream</strong>The upstream project is no longer maintained. Portcove can
-        still install its pinned release, but no new upstream fixes are expected.
+        <strong>Retired upstream</strong>The upstream project is no longer maintained. Portcove
+        checks available releases against its usual source and package requirements; no new upstream
+        fixes are expected.
       </span>
     </p>
   );
