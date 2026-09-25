@@ -19,6 +19,10 @@ let host: HTMLDivElement;
 let browsing: ReturnType<typeof useLibraryBrowsingContext>;
 let libraryRoot = "E:/first";
 let initial: LibraryBrowsingContext | undefined;
+let landingReady = false;
+let installedCount: number | undefined;
+let catalogCount: number | undefined;
+let selectionReturn: "switch" | "reset" | undefined;
 const remember = vi.fn<(root: string, context: LibraryBrowsingContext) => void>();
 const switchLibrary = vi.fn(async (_path: string) => {});
 const resetLibrary = vi.fn(async () => {});
@@ -30,6 +34,10 @@ function Fixture() {
     remember,
     switchLibrary,
     resetLibrary,
+    ready: landingReady,
+    installedCount,
+    catalogCount,
+    returnToSelection: selectionReturn,
   });
   return createElement(
     "main",
@@ -53,6 +61,11 @@ beforeEach(async () => {
   resetLibrary.mockClear();
   initial = undefined;
   libraryRoot = "E:/first";
+  landingReady = false;
+  installedCount = undefined;
+  catalogCount = undefined;
+  selectionReturn = undefined;
+  window.localStorage.clear();
   host = document.createElement("div");
   document.body.append(host);
   root = createRoot(host);
@@ -63,6 +76,55 @@ afterEach(async () => {
   await act(async () => root.unmount());
   host.remove();
   vi.unstubAllGlobals();
+  window.localStorage.clear();
+});
+
+async function acceptSnapshot(active: number, available: number) {
+  landingReady = true;
+  installedCount = active;
+  catalogCount = available;
+  await act(async () => root.render(createElement(Fixture)));
+}
+
+it("shows the populated catalog once for a fresh empty profile and keeps later Library choices", async () => {
+  await acceptSnapshot(0, 76);
+  expect(browsing.ui.view).toBe("catalog");
+  await act(async () => browsing.ui.setView("library"));
+  await remount();
+  expect(browsing.ui.view).toBe("library");
+});
+
+it("keeps an installed library and an explicit early destination", async () => {
+  await acceptSnapshot(1, 76);
+  expect(browsing.ui.view).toBe("library");
+
+  window.localStorage.clear();
+  landingReady = false;
+  await remount();
+  await act(async () => browsing.ui.setView("settings"));
+  await acceptSnapshot(0, 76);
+  expect(browsing.ui.view).toBe("settings");
+});
+
+it("does not redirect an interacted Library when its first snapshot arrives late", async () => {
+  document.dispatchEvent(new KeyboardEvent("keydown", { key: "s", bubbles: true }));
+  await act(async () => browsing.ui.setQuery("ship"));
+  await acceptSnapshot(0, 76);
+  expect(browsing.ui.view).toBe("library");
+  expect(browsing.ui.query).toBe("ship");
+  await remount();
+  expect(browsing.ui.view).toBe("library");
+});
+
+it("does not consume the first empty-profile landing during a library-selection return", async () => {
+  selectionReturn = "switch";
+  await remount();
+  await acceptSnapshot(0, 76);
+  expect(browsing.ui.view).toBe("settings");
+
+  selectionReturn = undefined;
+  await remount();
+  expect(browsing.ui.view).toBe("catalog");
 });
 
 it("captures browsing context for its own library and resets transient UI on another library", async () => {
