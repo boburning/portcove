@@ -18,6 +18,7 @@ import {
   parseNameStatus,
   requireFocusedArguments,
 } from "./local-validation.mjs";
+import { isExcludedOxfmtPath } from "./oxfmt-ownership.mjs";
 
 const allFilesExist = () => true;
 const change = (path, options = {}) => ({ status: "M", path, ...options });
@@ -107,6 +108,58 @@ test("documentation targets run the dynamic link contract", () => {
   assert.deepEqual([...selection.scopes].sort(), ["documentation", "tooling"]);
   assert.deepEqual([...selection.nodeTests], ["scripts/repository-skills.test.mjs"]);
   assert.deepEqual(ids(plan), ["diff-check", "oxfmt", "node-tests"]);
+});
+
+test("archived documents retain documentation checks without an excluded formatter target", () => {
+  for (const status of ["A", "M"]) {
+    const { selection, plan } = planFor([{ status, path: "docs/archive/2026-09-25-audit.md" }]);
+    assert.deepEqual([...selection.oxfmtFiles], []);
+    assert.deepEqual([...selection.nodeTests], ["scripts/repository-skills.test.mjs"]);
+    assert.deepEqual(ids(plan), ["diff-check", "node-tests"]);
+  }
+});
+
+test("active and archived Markdown changes format only the active document", () => {
+  const active = "docs/ARCHITECTURE.md";
+  assert.deepEqual([...planFor([active]).selection.oxfmtFiles], [active]);
+  const { selection, plan } = planFor([active, "docs/archive/2026-09-25-audit.md"]);
+  assert.deepEqual([...selection.oxfmtFiles], [active]);
+  const formatter = plan.find((entry) => entry.id === "oxfmt");
+  assert.ok(formatter);
+  assert.ok(formatter.args.some((argument) => argument.endsWith("ARCHITECTURE.md")));
+  assert.ok(
+    !formatter.args.some((argument) => argument.replaceAll("\\", "/").includes("docs/archive/")),
+  );
+});
+
+test("formatter exclusions cover numbered release evidence and generated or fixture files", () => {
+  const excluded = [
+    "docs/releases/2026.md",
+    "docs/releases/0.1.0-alpha.2-release-notes.md",
+    "crates/portcove-core/catalog/catalog.json",
+    "crates/portcove-core/tests/fixtures/legacy.json",
+    "scripts/example.generated.json",
+  ];
+  for (const file of excluded) assert.equal(isExcludedOxfmtPath(file), true, file);
+  const selection = classifyChanges(excluded.map(change), { fileExists: allFilesExist });
+  assert.deepEqual([...selection.oxfmtFiles], []);
+  assert.equal(isExcludedOxfmtPath("docs/ARCHITECTURE.md"), false);
+  assert.equal(isExcludedOxfmtPath("docs/releases/README.md"), false);
+});
+
+test("archive renames and deletions keep active formatter ownership precise", () => {
+  const toActive = planFor([
+    { status: "R100", previousPath: "docs/archive/old.md", path: "docs/new.md" },
+  ]);
+  assert.deepEqual([...toActive.selection.oxfmtFiles], ["docs/new.md"]);
+  const toArchive = planFor([
+    { status: "R100", previousPath: "docs/old.md", path: "docs/archive/new.md" },
+  ]);
+  assert.deepEqual([...toArchive.selection.oxfmtFiles], []);
+  assert.deepEqual(ids(toArchive.plan), ["diff-check", "node-tests"]);
+  const deletion = planFor([{ status: "D", path: "docs/archive/old.md" }]);
+  assert.deepEqual([...deletion.selection.oxfmtFiles], []);
+  assert.deepEqual(ids(deletion.plan), ["diff-check", "node-tests"]);
 });
 
 test("current and historical catalog authorities select their generator contracts", () => {
