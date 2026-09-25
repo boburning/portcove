@@ -261,8 +261,11 @@ export async function steamEntryScenario(context) {
     artifacts.push(report);
   });
   await scenario("native-reviewed-steam-batch-add", async () => {
-    // The preceding Remove scenario uninstalls Jak I; seed distinct installed games here.
-    const first = await context.seed("opengoal-jak2", "success");
+    // Remove uninstalls Jak I. A wider profile may have already seeded Jak II
+    // in a different preparation mode, so reuse its active install when present.
+    const first = command(["status", "opengoal-jak2"]).active
+      ? { port: command(["catalog", "show", "opengoal-jak2"]) }
+      : await context.seed("opengoal-jak2", "success");
     const second = await context.seed("opengoal-jak3", "success");
     const steamRoot = path.join(output, "controlled batch Steam ü");
     const steamUserId = "24680";
