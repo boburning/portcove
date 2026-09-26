@@ -1249,6 +1249,7 @@ export function SettingsView({
   github,
   busy,
   sources = [],
+  workspaceRefreshFailed = false,
   sourceNeeds = [],
   sourceRequirementsState = "loading",
   installedCount = 0,
@@ -1284,6 +1285,7 @@ export function SettingsView({
   github?: GithubSettingsActions;
   busy?: string;
   sources?: SourceRecord[];
+  workspaceRefreshFailed?: boolean;
   librarySelection?: LibrarySelection;
   chooseLibrary?: (currentPath: string) => Promise<string | null>;
   switchLibrary?: (path: string) => Promise<void>;
@@ -1392,6 +1394,7 @@ export function SettingsView({
           ports={ports}
           profiles={sourceProfiles}
           registeredSources={sources}
+          workspaceRefreshFailed={workspaceRefreshFailed}
           onAdded={onSourceAdded}
           onOpenPort={onOpenPort}
           setupSource={setupSource}

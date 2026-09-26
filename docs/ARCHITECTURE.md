@@ -1595,6 +1595,11 @@ explicit saved roots and snapshot, including unavailable paths and incomplete
 coverage. A player starts scans and separately reviews an exact candidate through
 the existing source-import plan; rendering a result never registers it. React
 cannot infer a current scan from saved roots or override core's freshness result.
+For an exact candidate, Settings compares profile ID, original path, and scanned
+SHA-256 with the current registered-source list. A match is labeled already added
+and can open each catalog port using that profile for its authoritative setup
+review; it does not imply that a port is installed or playable. A failed workspace
+refresh or stale completed scan disables that continuation.
 
 ## Install transaction
 
