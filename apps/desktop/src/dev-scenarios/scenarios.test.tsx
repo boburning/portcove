@@ -86,6 +86,30 @@ describe("static development scenarios", () => {
     expect(installationReview).toContain('class="detail-panel"');
     expect(installationReview).not.toContain('aria-label="Release channel filters"');
     expect(installationReview).not.toContain('class="port-grid"');
+    const spaceBlocked = renderScenario("installation-review-space-blocked");
+    expect(spaceBlocked).toContain("This download needs more free space");
+    expect(spaceBlocked).toContain("Free space required");
+    expect(spaceBlocked).toContain("Open Library &amp; Storage");
+    const spaceRoot = document.createElement("div");
+    spaceRoot.innerHTML = spaceBlocked;
+    expect(
+      [...spaceRoot.querySelectorAll<HTMLButtonElement>("button")].find((button) =>
+        button.textContent?.includes("Free space required"),
+      )?.disabled,
+    ).toBe(true);
+    const localUnverified = renderScenario("installation-review-local-unverified");
+    expect(localUnverified).toContain("Local copy needs checking");
+    expect(localUnverified).toContain("Verify or replace the local copy before installing");
+    const localRoot = document.createElement("div");
+    localRoot.innerHTML = localUnverified;
+    const localReview = localRoot.querySelector('[data-slot="dialog-content"]');
+    expect(localReview).not.toBeNull();
+    expect(localReview!.textContent).not.toContain("Install folder");
+    expect(
+      [...localReview!.querySelectorAll<HTMLButtonElement>("button")].find((button) =>
+        button.textContent?.includes("Verify or replace the local copy"),
+      )?.disabled,
+    ).toBe(true);
   });
 });
 
