@@ -2168,6 +2168,18 @@ describe("desktop components", () => {
         actions={actions}
       />,
     );
+    const missingBoth = renderToStaticMarkup(
+      <DetailPanel
+        port={{ ...port, bios_source_profile: psxBiosProfile.id }}
+        sourceProfile={{ ...sourceProfile(), id: port.source_profile!, label: "Sample cartridge" }}
+        biosProfile={psxBiosProfile}
+        sourcePath=""
+        setSourcePath={vi.fn()}
+        biosPath=""
+        setBiosPath={vi.fn()}
+        actions={actions}
+      />,
+    );
     const status: PortStatus = {
       ...portStatus(),
       port_id: port.id,
@@ -2221,6 +2233,20 @@ describe("desktop components", () => {
     expect(uninstalled).not.toContain("Installation and version");
     expect(uninstalled).toContain("Add all required game files before installing");
     expect(uninstalled).toContain("Choose the required game file");
+    expect(missingBoth).toContain(
+      "Required for setup: <strong>Sample cartridge · PlayStation SCPH-1001 BIOS</strong>",
+    );
+    expect(missingBoth.indexOf("Required for setup:")).toBeLessThan(
+      missingBoth.indexOf("Status and actions"),
+    );
+    expect(missingBoth).toMatch(/<details class="advanced-settings future-setup-disclosure">/u);
+    expect(missingBoth.match(/class="advanced-settings future-setup-disclosure"/gu)).toHaveLength(
+      2,
+    );
+    expect(missingBoth).toContain("Release and update choices for later");
+    expect(missingBoth).toContain("Folder for a future install");
+    expect(missingBoth).toContain("Release channel");
+    expect(missingBoth).toContain("Folder for future installs");
     expect(uninstalled).toContain(
       "Portcove uses this game file in place and never uploads or changes it.",
     );
@@ -2231,6 +2257,7 @@ describe("desktop components", () => {
     expect(sourceFree).not.toContain("Installation and version");
     expect(sourceFree).toContain('data-slot="button"');
     expect(sourceFree).toContain('data-variant="primary"');
+    expect(sourceFree).not.toContain("future-setup-disclosure");
     expect(installed).toContain("Play");
     expect(installed).toContain('class="requirements-disclosure"');
     expect(installed).not.toContain('class="requirements-disclosure" open=""');
@@ -2259,6 +2286,7 @@ describe("desktop components", () => {
     expect(installed).toContain("source.z64");
     expect(uninstalled).not.toContain('<details class="advanced-settings" open="">');
     expect(installed).not.toContain('<details class="advanced-settings" open="">');
+    expect(installed).not.toContain("future-setup-disclosure");
     expect(installed).toContain("Saves and settings folder");
     expect(installed).toContain("C:/Portcove/user/sample");
     expect(installed).toContain("No completed device test");
