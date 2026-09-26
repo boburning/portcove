@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
-import { stat, writeFile } from "node:fs/promises";
+import { copyFile, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { By, Key, until } from "selenium-webdriver";
+import { fileIdentity } from "../../../scripts/development-evidence.mjs";
 import {
   assertCompactReview,
   assertPrimaryReviewAction,
@@ -30,6 +31,7 @@ export async function installScenarios({
   library,
   output,
   artifacts,
+  inputs,
   fixture,
   restartApplication,
 }) {
@@ -414,12 +416,31 @@ export async function installScenarios({
     const firstVersion = before.active.version;
     const nextVersion = "2.0.0-fixture";
     let published;
+    const fixtureRevisions = [];
     browser = await restartApplication("native-staged-update-composition", async () => {
-      published = await fixture.publishRelease(port.id, {
-        version: nextVersion,
-        publishedAt: "2026-09-26T00:00:00Z",
-        seed: 0x43b9a607,
-      });
+      for (const [original, snapshot] of [
+        [fixture.artifactPath, path.join(output, "native-staged-update-initial-artifact.tar.gz")],
+        [fixture.catalogPath, path.join(output, "native-staged-update-initial-catalog.json")],
+      ]) {
+        await copyFile(original, snapshot);
+        const index = inputs.findIndex((item) => item.path === original);
+        assert.ok(index >= 0, `fixture input identity missing: ${original}`);
+        inputs[index] = await fileIdentity(snapshot);
+        fixtureRevisions.push(inputs[index]);
+      }
+      try {
+        published = await fixture.publishRelease(port.id, {
+          version: nextVersion,
+          publishedAt: "2026-09-26T00:00:00Z",
+          seed: 0x43b9a607,
+        });
+      } finally {
+        for (const file of [fixture.artifactPath, fixture.catalogPath]) {
+          const identity = await fileIdentity(file);
+          inputs.push(identity);
+          fixtureRevisions.push(identity);
+        }
+      }
     });
     const afterRestart = await invoke("get_statuses");
     assert.equal(afterRestart.ok, true);
@@ -457,8 +478,13 @@ export async function installScenarios({
     assert.equal(staged.active.version, firstVersion);
     assert.equal(staged.staged.artifact.sha256, published.sha256);
     assert.equal(staged.previous, null);
-    await browser.wait(until.elementLocated(button(`Activate update · ${nextVersion}`)), 15_000);
-    await browser.wait(until.elementLocated(button("Play now")), 15_000);
+    const activation = await browser.wait(
+      until.elementLocated(button(`Activate update · ${nextVersion}`)),
+      15_000,
+    );
+    const play = await browser.wait(until.elementLocated(button("Play now")), 15_000);
+    await browser.wait(until.elementIsEnabled(activation), 15_000);
+    await browser.wait(until.elementIsEnabled(play), 15_000);
     const originalWindow = await browser.manage().window().getRect();
     const layouts = [];
     try {
@@ -497,17 +523,28 @@ export async function installScenarios({
               return { left, right, top, bottom };
             };
             return {
-              play: play && rect(play),
-              activate: activate && rect(activate),
+              play: play && { ...rect(play), enabled: !play.disabled },
+              activate: activate && { ...rect(activate), enabled: !activate.disabled },
+              state: document.querySelector(".detail-hero .hero-state")?.textContent?.trim(),
+              reason: document.querySelector(".detail-hero .hero-reason")?.textContent?.trim(),
               documentOverflow:
                 document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
             };
           }, nextVersion);
           assert.ok(layout.play && layout.activate, JSON.stringify(layout));
+          assert.equal(layout.play.enabled, true, JSON.stringify(layout));
+          assert.equal(layout.activate.enabled, true, JSON.stringify(layout));
           assert.equal(layout.documentOverflow, false, JSON.stringify(layout));
+          assert.equal(layout.state, "Ready to play · update downloaded");
+          assert.equal(
+            layout.reason,
+            `Play the installed version or activate staged version ${nextVersion}.`,
+          );
           assert.ok(layout.activate.left >= 0 && layout.activate.right <= width + 1);
           assert.ok(layout.play.left >= 0 && layout.play.right <= width + 1);
-          assert.ok(layout.activate.top >= layout.play.top);
+          assert.ok(layout.play.top >= 0 && layout.play.bottom <= height);
+          assert.ok(layout.activate.top >= 0 && layout.activate.bottom <= height);
+          assert.ok(Math.abs(layout.activate.top - layout.play.top) <= 1);
           const screenshot = path.join(
             output,
             `native-staged-update-${theme}-${width}x${height}.png`,
@@ -531,7 +568,7 @@ export async function installScenarios({
     const report = path.join(output, "native-staged-update-composition.json");
     await writeFile(
       report,
-      `${JSON.stringify({ port_id: port.id, before, published, staged: finalStatus, layouts }, null, 2)}\n`,
+      `${JSON.stringify({ port_id: port.id, before, published, fixture_revisions: fixtureRevisions, staged: finalStatus, layouts }, null, 2)}\n`,
       { flag: "wx" },
     );
     artifacts.push(report);

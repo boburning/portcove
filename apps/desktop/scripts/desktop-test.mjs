@@ -1800,6 +1800,7 @@ try {
     library,
     output,
     artifacts,
+    inputs,
     fixture: installFixture,
     restartApplication,
   });
