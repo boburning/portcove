@@ -1558,8 +1558,12 @@ Core owns opt-in discovery requests, traversal and hashing budgets, candidate va
 
 Explicit saved game-file roots are a separate core-owned input authority. A
 catalog-wide foreground scan considers only currently available saved roots and
-records unavailable roots as incomplete coverage rather than deletion. After a
-successful scan, core atomically replaces one bounded versioned snapshot containing
+records unavailable roots as incomplete coverage rather than deletion. When a
+selected root contains the current Portcove library, the scan skips that tree
+before charging entry or hash budgets and records the omission as a path issue;
+a saved root inside the library is refused. External custom output locations are
+not yet covered by this exclusion. After a successful scan, core atomically
+replaces one bounded versioned snapshot containing
 the exact root identities and states, authoritative catalog digest, discovery report,
 limits and completion time. Current format 2 records the exact validated limits;
 legacy format-1 snapshots remain readable with unknown limits rather than invented
