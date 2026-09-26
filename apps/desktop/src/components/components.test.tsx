@@ -2935,7 +2935,7 @@ describe("desktop components", () => {
         }}
       />,
     );
-    expect(html).toContain("Installed version</small>1.1");
+    expect(html).toContain("<dt>Installed version</dt><dd>1.1</dd>");
     expect(html).toContain("No current check");
     expect(html).not.toContain("9.9-stale");
   });

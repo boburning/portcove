@@ -414,7 +414,12 @@ export async function preparationScenarios({
   });
   await scenario("native-ready-detail-composition", async () => {
     const port = command(["catalog", "show", "opengoal-jak1"]);
-    assert.equal((await status(port.id)).readiness.launchable, true);
+    const readyStatus = await status(port.id);
+    assert.equal(readyStatus.readiness.launchable, true);
+    assert.ok(readyStatus.active);
+    assert.equal(readyStatus.channel, "stable");
+    assert.equal(readyStatus.active.channel, "stable");
+    assert.ok(!readyStatus.last_update_check);
     const originalWindow = await browser.manage().window().getRect();
     try {
       for (const theme of ["dark", "light"]) {
@@ -492,6 +497,32 @@ export async function preparationScenarios({
               hierarchy.action.right <= hierarchy.viewport.width,
             `Play now must remain visible at ${actualWindow.width}x${actualWindow.height}: ${JSON.stringify(hierarchy)}`,
           );
+          const facts = await browser.executeScript(() => {
+            const strip = document.querySelector(".installation-facts");
+            strip?.scrollIntoView({ block: "center", behavior: "instant" });
+            return {
+              items: [...(strip?.querySelectorAll(":scope > div") ?? [])].map((item) => [
+                item.querySelector("dt")?.textContent?.trim(),
+                item.querySelector("dd")?.textContent?.trim(),
+              ]),
+              horizontalOverflow: Boolean(strip && strip.scrollWidth > strip.clientWidth + 1),
+            };
+          });
+          assert.deepEqual(facts.items, [
+            ["Installed version", readyStatus.active.version],
+            ["Selected channel", "Stable"],
+            ["Installed channel", "Stable"],
+            ["Latest eligible release", "No current check"],
+            ["Installed folder", readyStatus.active.path],
+          ]);
+          assert.equal(facts.horizontalOverflow, false);
+          const factsScreenshot = path.join(output, `game-details-facts-${theme}-${width}.png`);
+          await writeFile(factsScreenshot, await browser.takeScreenshot(), {
+            encoding: "base64",
+            flag: "wx",
+          });
+          artifacts.push(factsScreenshot);
+          await browser.executeScript(() => document.querySelector("main")?.scrollTo({ top: 0 }));
         }
       }
     } finally {

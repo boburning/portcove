@@ -746,38 +746,38 @@ function InstallationVersionSummary({
     checked?.release.version ??
     (status?.active ? "No current check" : "Version shown when you review installation.");
   return (
-    <div className="metadata" aria-label="Installation and release versions">
-      <span>
-        <small>Installed version</small>
-        {status?.active?.version ?? "Not installed"}
-      </span>
+    <dl className="installation-facts" aria-label="Installation and release versions">
+      <div>
+        <dt>Installed version</dt>
+        <dd>{status?.active?.version ?? "Not installed"}</dd>
+      </div>
+      <div>
+        <dt>Selected channel</dt>
+        <dd>{releaseChannelPresentation(selectedChannel).label}</dd>
+      </div>
       {status?.active && (
-        <span>
-          <small>Installed folder</small>
-          {status.active.path}
-        </span>
+        <div>
+          <dt>Installed channel</dt>
+          <dd>{releaseChannelPresentation(status.active.channel).label}</dd>
+        </div>
       )}
-      <span>
-        <small>Selected channel</small>
-        {releaseChannelPresentation(selectedChannel).label}
-      </span>
-      {status?.active && (
-        <span>
-          <small>Installed channel</small>
-          {releaseChannelPresentation(status.active.channel).label}
-        </span>
-      )}
-      <span>
-        <small>Latest eligible release</small>
-        {latestEligible}
-      </span>
+      <div>
+        <dt>Latest eligible release</dt>
+        <dd>{latestEligible}</dd>
+      </div>
       {status?.staged && (
-        <span>
-          <small>Staged version</small>
-          {status.staged.version}
-        </span>
+        <div>
+          <dt>Staged version</dt>
+          <dd>{status.staged.version}</dd>
+        </div>
       )}
-    </div>
+      {status?.active && (
+        <div className="installation-facts-location">
+          <dt>Installed folder</dt>
+          <dd>{status.active.path}</dd>
+        </div>
+      )}
+    </dl>
   );
 }
 
