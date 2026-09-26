@@ -3057,9 +3057,10 @@ describe("desktop components", () => {
     expect(html).toContain('<article class="port-card port-card-library"');
     expect(html).toContain(">Play</button>");
     expect(html).not.toMatch(/<button[^>]*class="port-card/u);
-    expect(html).toContain("Updates downloaded");
+    expect(html).toContain("All ready to play");
+    expect(html).not.toContain("updates downloaded");
     expect(html).toContain("Update available");
-    expect(html).toContain("setup and recovery options");
+    expect(html).not.toContain("need attention");
     expect(html).not.toContain("Launch ready");
     expect(html).not.toContain("Play options");
     expect(html).not.toContain("Staged updates");
@@ -3104,7 +3105,7 @@ describe("desktop components", () => {
     );
 
     expect(html).toContain("Update downloaded");
-    expect(html).toContain("Updates downloaded");
+    expect(html).toContain("1 update downloaded");
     expect(html).toContain("Review update");
     expect(html).not.toContain("Update staged");
     expect(html).not.toContain("Staged updates");

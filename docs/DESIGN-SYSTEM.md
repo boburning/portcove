@@ -298,6 +298,10 @@ readiness, and the next action; secondary facts are quiet metadata rather than
 equal-weight chips. Consistent 2:3 artwork may gain modest weight where responsive
 space permits, while cards stay compact desktop controls rather than storefront
 tiles. Important attention such as an available update remains visible.
+The Library readiness rollup appears only when installations exist. It stays a
+compact count and state line, shows setup and downloaded-update counts only when
+actionable, and leaves game cards and their Play or Details actions as the main
+visual targets.
 
 Keep the sidebar stable and quiet: identity plus Library, Port Catalog, Updates,
 and Settings are primary. Contextual Library actions such as copying an existing

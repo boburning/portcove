@@ -110,6 +110,14 @@ export const scenarios = [
       "The installed library and missing artwork are supplied fixtures; refresh and image decoding do not run.",
   },
   {
+    id: "library-reference-attention-narrow",
+    label: "Library reference · attention at narrow width",
+    theme: "dark",
+    viewport: "narrow",
+    limitation:
+      "Readiness and downloaded update states are supplied fixtures; setup, update and launch do not run.",
+  },
+  {
     id: "game-details-reference-narrow",
     label: "Game details reference · narrow",
     theme: "dark",
@@ -242,7 +250,11 @@ function scenarioError({
   };
 }
 
-function ReferenceWorkspace({ mode }: { mode: "library" | "details" | "installation-review" }) {
+function ReferenceWorkspace({
+  mode,
+}: {
+  mode: "library" | "library-attention" | "details" | "installation-review";
+}) {
   const port = {
     ...portDefinition(),
     name: "The Unreasonably Long Scenario Game Title: Definitive Portable Edition",
@@ -266,6 +278,19 @@ function ReferenceWorkspace({ mode }: { mode: "library" | "details" | "installat
     active: installed(secondPort.id),
     readiness: { launchable: true, blockers: [], pending_setup: false },
   };
+  const attention = mode === "library-attention";
+  const referenceStatus: PortStatus = attention
+    ? {
+        ...installedStatus,
+        staged: { ...installedStatus.active!, id: "reference-update", staged: true },
+      }
+    : installedStatus;
+  const companionStatus: PortStatus = attention
+    ? {
+        ...secondStatus,
+        readiness: { launchable: false, blockers: [], pending_setup: true },
+      }
+    : secondStatus;
   const reviewing = mode === "installation-review";
   const detailStatus: PortStatus = reviewing
     ? {
@@ -275,20 +300,26 @@ function ReferenceWorkspace({ mode }: { mode: "library" | "details" | "installat
     : installedStatus;
   return (
     <div className="scenario-workspace-reference">
-      {mode === "library" ? (
+      {mode === "library" || attention ? (
         <PortBrowser
           view="library"
           ports={[port, secondPort]}
           statuses={
             new Map([
-              [port.id, installedStatus],
-              [secondPort.id, secondStatus],
+              [port.id, referenceStatus],
+              [secondPort.id, companionStatus],
             ])
           }
-          overview={{ installed: 2, ready: 2, needsSetup: 0, staged: 0 }}
+          overview={{
+            installed: 2,
+            ready: attention ? 1 : 2,
+            needsSetup: attention ? 1 : 0,
+            staged: attention ? 1 : 0,
+          }}
           filter="all"
           setFilter={blockedScenarioAction}
           onSelect={blockedScenarioAction}
+          onContinue={blockedScenarioAction}
           loading={false}
         />
       ) : (
@@ -318,6 +349,8 @@ function ReferenceWorkspace({ mode }: { mode: "library" | "details" | "installat
 
 function Scenario({ id }: { id: ScenarioId }) {
   if (id === "library-reference-long-title") return <ReferenceWorkspace mode="library" />;
+  if (id === "library-reference-attention-narrow")
+    return <ReferenceWorkspace mode="library-attention" />;
   if (id === "game-details-reference-narrow") return <ReferenceWorkspace mode="details" />;
   if (id === "installation-review-reference")
     return <ReferenceWorkspace mode="installation-review" />;
