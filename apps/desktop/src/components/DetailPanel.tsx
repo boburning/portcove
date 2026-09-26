@@ -671,16 +671,13 @@ function UpdatesGroup({
   );
   return (
     <DetailGroup title="Updates">
-      {deferSetupChoices ? (
-        <FutureSetupDisclosure
-          title="Release and update choices for later"
-          description="Game files are still required before installation. These choices apply to a future managed install."
-        >
-          {preferences}
-        </FutureSetupDisclosure>
-      ) : (
-        preferences
-      )}
+      <FutureSetupDisclosure
+        deferred={deferSetupChoices}
+        title="Release and update choices for later"
+        description="Game files are still required before installation. These choices apply to a future managed install."
+      >
+        {preferences}
+      </FutureSetupDisclosure>
       {status?.staged && (
         <section aria-label="Activate staged update">
           <p>
@@ -751,16 +748,13 @@ function SavesStorageGroup({
       <TrustStrip status={status} />
       <SavesAndSettingsSummary port={port} />
       <StorageSummary status={status} />
-      {deferSetupChoices ? (
-        <FutureSetupDisclosure
-          title="Folder for a future install"
-          description="Game files are still required before installation. Choosing an output folder here does not move or install a game."
-        >
-          {outputLocation}
-        </FutureSetupDisclosure>
-      ) : (
-        outputLocation
-      )}
+      <FutureSetupDisclosure
+        deferred={deferSetupChoices}
+        title="Folder for a future install"
+        description="Game files are still required before installation. Choosing an output folder here does not move or install a game."
+      >
+        {outputLocation}
+      </FutureSetupDisclosure>
       {installed && <DataActions busy={busy} actions={actions} />}
       {hasBackupHistory && (
         <BackupHistory
@@ -779,22 +773,27 @@ function SavesStorageGroup({
 }
 
 function FutureSetupDisclosure({
+  deferred,
   title,
   description,
   children,
 }: {
+  deferred: boolean;
   title: string;
   description: string;
   children: React.ReactNode;
 }) {
   return (
-    <details className="advanced-settings future-setup-disclosure">
-      <summary data-focusable className="advanced-summary">
+    <details
+      className={`future-setup-disclosure${deferred ? " advanced-settings is-deferred" : ""}`}
+      open={!deferred}
+    >
+      <summary data-focusable={deferred ? true : undefined} className="advanced-summary">
         {title}
         <Icon glyph={ChevronDown} />
       </summary>
-      <div className="advanced-body detail-group-content">
-        <p>{description}</p>
+      <div className={`detail-group-content${deferred ? " advanced-body" : ""}`}>
+        {deferred && <p>{description}</p>}
         {children}
       </div>
     </details>

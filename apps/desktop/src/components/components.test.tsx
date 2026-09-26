@@ -2239,10 +2239,12 @@ describe("desktop components", () => {
     expect(missingBoth.indexOf("Required for setup:")).toBeLessThan(
       missingBoth.indexOf("Status and actions"),
     );
-    expect(missingBoth).toMatch(/<details class="advanced-settings future-setup-disclosure">/u);
-    expect(missingBoth.match(/class="advanced-settings future-setup-disclosure"/gu)).toHaveLength(
-      2,
+    expect(missingBoth).toMatch(
+      /<details class="future-setup-disclosure advanced-settings is-deferred">/u,
     );
+    expect(
+      missingBoth.match(/class="future-setup-disclosure advanced-settings is-deferred"/gu),
+    ).toHaveLength(2);
     expect(missingBoth).toContain("Release and update choices for later");
     expect(missingBoth).toContain("Folder for a future install");
     expect(missingBoth).toContain("Release channel");
@@ -2257,7 +2259,7 @@ describe("desktop components", () => {
     expect(sourceFree).not.toContain("Installation and version");
     expect(sourceFree).toContain('data-slot="button"');
     expect(sourceFree).toContain('data-variant="primary"');
-    expect(sourceFree).not.toContain("future-setup-disclosure");
+    expect(sourceFree).toMatch(/<details class="future-setup-disclosure" open="">/u);
     expect(installed).toContain("Play");
     expect(installed).toContain('class="requirements-disclosure"');
     expect(installed).not.toContain('class="requirements-disclosure" open=""');
@@ -2286,7 +2288,7 @@ describe("desktop components", () => {
     expect(installed).toContain("source.z64");
     expect(uninstalled).not.toContain('<details class="advanced-settings" open="">');
     expect(installed).not.toContain('<details class="advanced-settings" open="">');
-    expect(installed).not.toContain("future-setup-disclosure");
+    expect(installed).toMatch(/<details class="future-setup-disclosure" open="">/u);
     expect(installed).toContain("Saves and settings folder");
     expect(installed).toContain("C:/Portcove/user/sample");
     expect(installed).toContain("No completed device test");

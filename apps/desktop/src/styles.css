@@ -2025,6 +2025,9 @@ select {
   border-top: 1px solid var(--color-border);
   border-bottom: 1px solid var(--color-border);
 }
+.future-setup-disclosure:not(.is-deferred) > summary {
+  display: none;
+}
 
 .advanced-summary,
 .requirements-summary {
