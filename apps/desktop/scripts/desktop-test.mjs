@@ -1877,6 +1877,11 @@ try {
       15_000,
     );
     await rtlTrigger.click();
+    await browser.wait(
+      until.elementLocated(By.css('[data-slot="select-content"][data-open] [role="option"]')),
+      5_000,
+      "language choices did not open",
+    );
     await browser
       .findElement(By.xpath('//*[@role="option" and normalize-space(.)="English"]'))
       .click();
@@ -1909,6 +1914,11 @@ try {
     try {
       await writeFile(preferencePath, "not-json\n");
       await browser.findElement(By.css(".language-card button")).click();
+      await browser.wait(
+        until.elementLocated(By.css('[data-slot="select-content"][data-open] [role="option"]')),
+        5_000,
+        "language choices did not open",
+      );
       await browser
         .findElement(By.xpath('//*[@role="option" and contains(., "System default")]'))
         .click();
