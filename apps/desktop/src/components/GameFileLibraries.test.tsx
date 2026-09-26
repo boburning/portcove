@@ -95,6 +95,91 @@ it("scans only after a player asks and keeps exact results as reviewed candidate
   expect(desktopApi.importSource).not.toHaveBeenCalled();
 });
 
+it("marks matching registered candidates without claiming installation and keeps each port distinct", async () => {
+  const source = snapshot.report.candidates[0];
+  const onOpenPort = vi.fn();
+  const ports = [
+    { ...portDefinition(), id: "game-a", name: "Game A", source_profile: "game" },
+    { ...portDefinition(), id: "game-b", name: "Game B", bios_source_profile: "game" },
+  ];
+  vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue(snapshot);
+  await act(async () =>
+    root.render(
+      <GameFileLibraries
+        ports={ports}
+        profiles={[]}
+        registeredSources={[source]}
+        onOpenPort={onOpenPort}
+      />,
+    ),
+  );
+  await click("Scan saved folders");
+  expect(document.body.textContent).toContain("Already added");
+  expect(document.body.textContent).toContain("Review game requirements in details");
+  expect(document.body.textContent).not.toContain("Already installed");
+  await click("View Game B details");
+  expect(onOpenPort).toHaveBeenCalledWith("game-b", "game-file-libraries-setup");
+  expect(button("View Game A details")).toBeDefined();
+  expect(button("Review source")).toBeDefined();
+
+  const stale = { ...snapshot, freshness: "inputs_changed" as const };
+  vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue(stale);
+  await click("Refresh folders");
+  expect(button("View Game A details").disabled).toBe(true);
+  expect(button("Review source").disabled).toBe(true);
+});
+
+it("recognizes a registered source in streamed results but still reviews a different identity", async () => {
+  const source = snapshot.report.candidates[0];
+  let onEvent: ((event: OperationEvent) => void) | undefined;
+  vi.mocked(desktopApi.scanGameFileRoots).mockImplementation((_limits, callback) => {
+    onEvent = callback;
+    return new Promise<GameFileScanSnapshot>(() => {});
+  });
+  const onOpenPort = vi.fn();
+  await act(async () =>
+    root.render(
+      <GameFileLibraries
+        ports={[{ ...portDefinition(), id: "game-a", name: "Game A", source_profile: "game" }]}
+        profiles={[]}
+        registeredSources={[source]}
+        onOpenPort={onOpenPort}
+      />,
+    ),
+  );
+  await act(async () => button("Scan saved folders").click());
+  await act(async () =>
+    onEvent?.({
+      schema_version: 3,
+      operation_id: "scan-1",
+      parent_operation_id: null,
+      target: null,
+      sequence: 1,
+      timestamp_ms: 1,
+      operation: "discover_sources",
+      type: "source_candidate",
+      profile_id: source.profile_id,
+      path: source.path,
+      sha256: source.sha256,
+      size: source.size,
+    }),
+  );
+  expect(document.body.textContent).toContain("Already added");
+  await click("View Game A details");
+  expect(onOpenPort).toHaveBeenCalledWith("game-a", "game-file-libraries-setup");
+  await act(async () =>
+    root.render(
+      <GameFileLibraries
+        ports={[]}
+        profiles={[]}
+        registeredSources={[{ ...source, sha256: "c".repeat(64) }]}
+      />,
+    ),
+  );
+  expect(document.body.textContent).not.toContain("Already added");
+  expect(button("Review source now")).toBeDefined();
+});
+
 it("reviews a streamed match through a fresh core plan before the scan completes", async () => {
   vi.mocked(desktopApi.gameFileScanSnapshot)
     .mockResolvedValueOnce(null)

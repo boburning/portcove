@@ -2842,6 +2842,42 @@ select {
   background: var(--color-bg-inset);
 }
 
+.source-health-row[data-candidate-row] {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 18rem);
+}
+
+.source-candidate-actions {
+  justify-content: flex-end;
+  margin-top: 0;
+}
+
+.source-candidate-actions > span {
+  flex-basis: 100%;
+  color: var(--color-text-secondary);
+  text-align: end;
+}
+
+.source-candidate-action {
+  max-width: 100%;
+  height: auto;
+  min-height: var(--control-height-md);
+  overflow-wrap: anywhere;
+  text-align: center;
+  white-space: normal;
+}
+
+@media (max-width: 55rem) {
+  .source-health-row[data-candidate-row] {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .source-candidate-actions,
+  .source-candidate-actions > span {
+    justify-content: flex-start;
+    text-align: start;
+  }
+}
+
 .source-health-row[data-source-profile] {
   grid-template-columns: minmax(0, 1fr);
 }

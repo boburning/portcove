@@ -56,6 +56,79 @@ function CandidateIdentity({
   );
 }
 
+function CandidateAction({
+  candidate,
+  registeredSources,
+  ports,
+  onOpenPort,
+  busy,
+  registrationConfirmed,
+  stale = false,
+  review,
+  reviewLabel,
+}: {
+  candidate: Pick<SourceRecord, "profile_id" | "path" | "sha256">;
+  registeredSources: SourceRecord[];
+  ports: PortDefinition[];
+  onOpenPort?: (portId: string, originKey: string) => void;
+  busy: boolean;
+  registrationConfirmed: boolean;
+  stale?: boolean;
+  review: () => void;
+  reviewLabel: string;
+}) {
+  const alreadyAdded = registeredSources.some(
+    (source) =>
+      source.profile_id === candidate.profile_id &&
+      source.path === candidate.path &&
+      source.sha256 === candidate.sha256,
+  );
+  if (alreadyAdded) {
+    const matchingPorts = ports.filter(
+      (port) =>
+        port.source_profile === candidate.profile_id ||
+        port.bios_source_profile === candidate.profile_id,
+    );
+    return (
+      <div className="actions source-candidate-actions">
+        <span>
+          Already added ·{" "}
+          {registrationConfirmed
+            ? "Review game requirements in details"
+            : "Refresh the library before continuing to a game"}
+        </span>
+        {onOpenPort &&
+          matchingPorts.map((port) => (
+            <Button
+              key={port.id}
+              data-focusable
+              className="source-candidate-action"
+              variant="outline"
+              disabled={busy || stale || !registrationConfirmed}
+              onClick={() => onOpenPort(port.id, setupReturnOrigin)}
+            >
+              View {port.name} details
+            </Button>
+          ))}
+        <Button
+          data-focusable
+          className="source-candidate-action"
+          variant="outline"
+          disabled={busy || stale}
+          onClick={review}
+        >
+          {reviewLabel}
+        </Button>
+      </div>
+    );
+  }
+  return (
+    <Button data-focusable variant="outline" disabled={busy || stale} onClick={review}>
+      {reviewLabel}
+    </Button>
+  );
+}
+
 function ContinueToGame({
   registeredSource,
   sourceVisible,
@@ -124,6 +197,9 @@ function CompletedScan({
   roots,
   ports,
   profiles,
+  registeredSources,
+  registrationConfirmed,
+  onOpenPort,
   busy,
   review,
 }: {
@@ -131,6 +207,9 @@ function CompletedScan({
   roots?: GameFileRoot[];
   ports: PortDefinition[];
   profiles: SourceProfile[];
+  registeredSources: SourceRecord[];
+  registrationConfirmed: boolean;
+  onOpenPort?: (portId: string, originKey: string) => void;
   busy: boolean;
   review: (candidate: Pick<SourceRecord, "profile_id" | "path">) => void;
 }) {
@@ -170,6 +249,7 @@ function CompletedScan({
       {report.candidates.map((candidate) => (
         <div
           className="source-health-row"
+          data-candidate-row
           key={`${candidate.profile_id}:${candidate.path}`}
           data-completed-candidate
           data-profile-id={candidate.profile_id}
@@ -189,14 +269,17 @@ function CompletedScan({
                 .join(", ") || "No catalog port currently uses this profile"}
             </span>
           </div>
-          <Button
-            data-focusable
-            variant="outline"
-            disabled={busy || snapshot.freshness !== "inputs_match"}
-            onClick={() => review(candidate)}
-          >
-            Review source
-          </Button>
+          <CandidateAction
+            candidate={candidate}
+            registeredSources={registeredSources}
+            registrationConfirmed={registrationConfirmed}
+            ports={ports}
+            onOpenPort={onOpenPort}
+            busy={busy}
+            stale={snapshot.freshness !== "inputs_match"}
+            review={() => review(candidate)}
+            reviewLabel="Review source"
+          />
         </div>
       ))}
       {report.issues.map((issue, index) => (
@@ -600,6 +683,7 @@ export function GameFileLibraries({
           {liveCandidates.map((candidate) => (
             <div
               className="source-health-row"
+              data-candidate-row
               key={`${candidate.profile_id}:${candidate.path}`}
               data-live-candidate
               data-profile-id={candidate.profile_id}
@@ -608,14 +692,16 @@ export function GameFileLibraries({
               <div>
                 <CandidateIdentity candidate={candidate} profiles={profiles} />
               </div>
-              <Button
-                data-focusable
-                variant="outline"
-                disabled={Boolean(busy)}
-                onClick={() => void review(candidate)}
-              >
-                Review source now
-              </Button>
+              <CandidateAction
+                candidate={candidate}
+                registeredSources={registeredSources}
+                registrationConfirmed={refreshConfirmed}
+                ports={ports}
+                onOpenPort={onOpenPort}
+                busy={Boolean(busy)}
+                review={() => void review(candidate)}
+                reviewLabel="Review source now"
+              />
             </div>
           ))}
         </section>
@@ -627,6 +713,9 @@ export function GameFileLibraries({
         roots={roots}
         ports={ports}
         profiles={profiles}
+        registeredSources={registeredSources}
+        registrationConfirmed={refreshConfirmed}
+        onOpenPort={onOpenPort}
         busy={Boolean(busy)}
         review={(candidate) => void review(candidate)}
       />
