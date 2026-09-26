@@ -235,6 +235,153 @@ function stopDriver() {
     }
   }
 }
+async function verifySettingsRows() {
+  const bundleWarningVisible = await browser.executeScript(() => {
+    const card = document.querySelector('[data-settings-group="advanced"] .diagnostics-card');
+    const warning = [...(card?.querySelectorAll("p") ?? [])].find((element) =>
+      element.textContent?.includes("paths, file names, and other metadata may remain"),
+    );
+    return Boolean(
+      warning &&
+      !warning.closest("details") &&
+      warning.getBoundingClientRect().height > 0 &&
+      getComputedStyle(warning).visibility === "visible",
+    );
+  });
+  assert.ok(
+    bundleWarningVisible,
+    "support-bundle metadata warning must be visible before creation",
+  );
+  await browser
+    .findElement(
+      By.xpath(
+        '//*[@data-settings-group="advanced"]//button[normalize-space(.)="Create support bundle"]',
+      ),
+    )
+    .click();
+  const savedBundle = await browser.wait(
+    until.elementLocated(By.css('[data-settings-group="advanced"] .diagnostics-card code')),
+    15_000,
+  );
+  assert.match(await savedBundle.getText(), /support|bundle/iu);
+  const originalWindow = await browser.manage().window().getRect();
+  try {
+    for (const theme of ["dark", "light"]) {
+      await browser
+        .findElement(
+          By.xpath(
+            `//*[@role="group" and @aria-label="Color theme"]//button[normalize-space(.)="${theme === "dark" ? "Dark" : "Light"}"]`,
+          ),
+        )
+        .click();
+      await browser.wait(
+        async () =>
+          (await browser.executeScript(() => document.documentElement.dataset.theme)) === theme,
+        5_000,
+      );
+      for (const size of [
+        { width: 960, height: 640 },
+        { width: 1280, height: 800 },
+      ]) {
+        await browser.manage().window().setRect(size);
+        const actual = await browser.manage().window().getRect();
+        assert.deepEqual(
+          { width: actual.width, height: actual.height },
+          size,
+          `Settings window was clamped: ${JSON.stringify(actual)}`,
+        );
+        const rows = await browser.executeScript(() => {
+          const rect = (selector) => {
+            const element = document.querySelector(selector);
+            if (!(element instanceof HTMLElement)) throw new Error(`Missing ${selector}`);
+            const bounds = element.getBoundingClientRect();
+            return {
+              left: bounds.left,
+              top: bounds.top,
+              bottom: bounds.bottom,
+              width: bounds.width,
+            };
+          };
+          return {
+            viewportWidth: window.innerWidth,
+            updates: {
+              content: rect('[data-settings-group="updates"] .settings-section-content'),
+              application: rect('[data-settings-group="updates"] .application-update-settings'),
+              catalog: rect(
+                '[data-settings-group="updates"] .settings-card:not(.application-update-settings)',
+              ),
+            },
+            appearance: {
+              content: rect('[data-settings-group="appearance"] .settings-section-content'),
+              theme: rect('[data-settings-group="appearance"] .appearance-card'),
+              language: rect('[data-settings-group="appearance"] .language-card'),
+            },
+            advanced: {
+              content: rect('[data-settings-group="advanced"] .settings-section-content'),
+              diagnostics: rect('[data-settings-group="advanced"] .diagnostics-card'),
+              privacy: rect('[data-settings-group="advanced"] .privacy-card'),
+              about: rect('[data-settings-group="advanced"] .about-card'),
+            },
+            bundlePathFits: (() => {
+              const path = document.querySelector(
+                '[data-settings-group="advanced"] .diagnostics-card code',
+              );
+              if (!(path instanceof HTMLElement)) throw new Error("Saved bundle path is missing");
+              return path.scrollWidth <= path.clientWidth + 1;
+            })(),
+          };
+        });
+        assertSettingsRowGeometry(rows, size);
+        for (const group of ["appearance", "advanced"]) {
+          const section = await browser.findElement(By.css(`[data-settings-group="${group}"]`));
+          await browser.executeScript(
+            (element) => element.scrollIntoView({ block: "start", inline: "nearest" }),
+            section,
+          );
+          await captureScenarioScreenshot(
+            `settings-${group}-${theme}-${size.width}x${size.height}`,
+          );
+          if (group === "advanced" && size.width === 960) {
+            await browser.executeScript(() =>
+              document
+                .querySelector('[data-settings-group="advanced"] .diagnostics-card code')
+                ?.scrollIntoView({ block: "center", inline: "nearest" }),
+            );
+            await captureScenarioScreenshot(`settings-bundle-path-${theme}-960x640`);
+          }
+        }
+      }
+    }
+  } finally {
+    await browser.manage().window().setRect(originalWindow);
+    await browser
+      .findElement(
+        By.xpath(
+          '//*[@role="group" and @aria-label="Color theme"]//button[normalize-space(.)="System"]',
+        ),
+      )
+      .click();
+  }
+}
+
+function assertSettingsRowGeometry(rows, size) {
+  for (const group of [rows.appearance, rows.advanced]) {
+    for (const [key, row] of Object.entries(group)) {
+      if (key === "content") continue;
+      assert.ok(Math.abs(row.width - group.content.width) < 3, `${key} is not full width`);
+      assert.ok(Math.abs(row.left - group.content.left) < 3, `${key} is misaligned`);
+    }
+  }
+  assert.ok(rows.appearance.theme.bottom <= rows.appearance.language.top);
+  assert.ok(rows.advanced.diagnostics.bottom <= rows.advanced.privacy.top);
+  assert.ok(rows.advanced.privacy.bottom <= rows.advanced.about.top);
+  assert.ok(rows.viewportWidth <= size.width);
+  assert.equal(rows.bundlePathFits, true, "saved bundle path is clipped");
+  assert.ok(Math.abs(rows.updates.application.width - rows.updates.content.width) < 2);
+  assert.ok(Math.abs(rows.updates.catalog.width - rows.updates.content.width) < 2);
+  assert.ok(Math.abs(rows.updates.application.left - rows.updates.catalog.left) < 2);
+}
+
 async function verifyLongTitleCatalogDetail(theme) {
   await browser.executeScript(() => {
     const card = [...document.querySelectorAll(".port-card-selectable")].find((item) =>
@@ -982,7 +1129,7 @@ try {
           columns: getComputedStyle(content).gridTemplateColumns.split(" ").length,
         };
       }),
-      overflowing_cards: [...document.querySelectorAll(".settings-card")]
+      overflowing_cards: [...document.querySelectorAll(".settings-card, .settings-row")]
         .filter((card) => card.scrollWidth > card.clientWidth + 1)
         .map((card) => card.getAttribute("aria-labelledby") ?? card.className),
       legacy_buttons: [
@@ -1521,78 +1668,7 @@ try {
     );
     const report = path.join(output, "application-update-settings-accessibility.json");
     await captureAccessibilityReport(browser, report, artifacts);
-    const layout = await browser.executeScript(() => {
-      const rect = (selector) => {
-        const element = document.querySelector(selector);
-        if (!(element instanceof HTMLElement)) throw new Error(`Missing ${selector}`);
-        const bounds = element.getBoundingClientRect();
-        return {
-          left: bounds.left,
-          right: bounds.right,
-          top: bounds.top,
-          bottom: bounds.bottom,
-          width: bounds.width,
-        };
-      };
-      return {
-        viewportWidth: window.innerWidth,
-        updates: {
-          content: rect('[data-settings-group="updates"] .settings-section-content'),
-          application: rect('[data-settings-group="updates"] .application-update-settings'),
-          catalog: rect(
-            '[data-settings-group="updates"] .settings-card:not(.application-update-settings)',
-          ),
-        },
-        advanced: {
-          content: rect('[data-settings-group="advanced"] .settings-section-content'),
-          diagnostics: rect('[data-settings-group="advanced"] .diagnostics-card'),
-          privacy: rect('[data-settings-group="advanced"] .privacy-card'),
-          about: rect('[data-settings-group="advanced"] .about-card'),
-        },
-      };
-    });
-    assert.ok(Math.abs(layout.updates.application.width - layout.updates.content.width) < 2);
-    assert.ok(Math.abs(layout.updates.catalog.width - layout.updates.content.width) < 2);
-    assert.ok(Math.abs(layout.updates.application.left - layout.updates.catalog.left) < 2);
-    if (layout.viewportWidth < 768) {
-      assert.ok(layout.advanced.diagnostics.bottom <= layout.advanced.privacy.top);
-      assert.ok(Math.abs(layout.advanced.diagnostics.width - layout.advanced.content.width) < 2);
-      assert.ok(Math.abs(layout.advanced.privacy.width - layout.advanced.content.width) < 2);
-    } else {
-      assert.ok(Math.abs(layout.advanced.diagnostics.top - layout.advanced.privacy.top) < 2);
-      assert.ok(layout.advanced.diagnostics.right < layout.advanced.privacy.left);
-    }
-    assert.ok(layout.advanced.about.top >= layout.advanced.diagnostics.bottom);
-    assert.ok(layout.advanced.about.top >= layout.advanced.privacy.bottom);
-    assert.ok(Math.abs(layout.advanced.about.width - layout.advanced.content.width) < 2);
-    const bundleWarningVisible = await browser.executeScript(() => {
-      const card = document.querySelector('[data-settings-group="advanced"] .diagnostics-card');
-      const warning = [...(card?.querySelectorAll("p") ?? [])].find((element) =>
-        element.textContent?.includes("paths, file names, and other metadata may remain"),
-      );
-      return Boolean(
-        warning &&
-        !warning.closest("details") &&
-        warning.getBoundingClientRect().height > 0 &&
-        getComputedStyle(warning).visibility === "visible",
-      );
-    });
-    assert.ok(
-      bundleWarningVisible,
-      "support-bundle metadata warning must be visible before creation",
-    );
-    const updates = await browser.findElement(By.css('[data-settings-group="updates"]'));
-    await browser.executeScript(
-      (element) => element.scrollIntoView({ block: "start", inline: "nearest" }),
-      updates,
-    );
-    await captureScenarioScreenshot("settings-updates-group");
-    const advanced = await browser.findElement(By.css('[data-settings-group="advanced"]'));
-    await browser.executeScript(
-      (element) => element.scrollIntoView({ block: "start", inline: "nearest" }),
-      advanced,
-    );
-    await captureScenarioScreenshot("settings-lower-groups");
+    await verifySettingsRows();
   });
   await scenario("appearance-restart", async () => {
     await browser.findElement(By.xpath('//nav//button[contains(., "Settings")]')).click();

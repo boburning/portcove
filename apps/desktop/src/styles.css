@@ -2356,6 +2356,23 @@ select {
   grid-column: 1 / -1;
 }
 
+.settings-section-content-rows {
+  display: block;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-elevated);
+}
+
+.settings-row {
+  min-width: 0;
+  padding: var(--space-6);
+}
+
+.settings-row + .settings-row {
+  border-top: 1px solid var(--color-border);
+}
+
 .settings-section-heading {
   padding: var(--space-2) 0;
 }
@@ -2389,7 +2406,8 @@ select {
   scroll-margin-block: var(--space-2);
 }
 
-.settings-card p:last-child {
+.settings-card p:last-child,
+.settings-row p:last-child {
   color: var(--color-text-muted);
   line-height: var(--leading-relaxed);
 }
@@ -2558,6 +2576,11 @@ select {
   overflow: hidden;
 }
 
+.settings-row.about-card {
+  min-height: 0;
+  grid-template-columns: minmax(11rem, 0.45fr) minmax(0, 1fr);
+}
+
 .about-art {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
@@ -2630,7 +2653,8 @@ select {
   background: var(--color-bg-hover);
 }
 
-.settings-card code {
+.settings-card code,
+.settings-row code {
   display: block;
   overflow-wrap: anywhere;
   margin-bottom: 15px;
@@ -3948,6 +3972,9 @@ select:disabled {
   .about-card {
     grid-template-columns: 14rem minmax(0, 1fr);
   }
+  .settings-row.about-card {
+    grid-template-columns: minmax(10rem, 0.4fr) minmax(0, 1fr);
+  }
   .about-facts {
     grid-template-columns: 1fr;
   }
@@ -3967,6 +3994,9 @@ select:disabled {
 @media (max-width: 48rem) {
   .settings-section-content,
   .about-card {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .settings-row.about-card {
     grid-template-columns: minmax(0, 1fr);
   }
   .settings-card {
