@@ -68,17 +68,27 @@ pub(crate) fn run_tool(
         mut quiesced,
     } = observer;
     let capture = DiagnosticCapture::default();
-    let mut snapshot = |final_capture| {
+    let mut last_published = None;
+    let mut snapshot = |final_capture, force| {
         let (id, phase) = diagnostics
             .as_ref()
             .map_or(("", ""), |sink| (sink.activity_id, sink.phase));
-        let value = capture.snapshot(id, phase, final_capture)?;
-        if let Some(sink) = diagnostics.as_mut() {
-            (sink.record)(&value)?;
+        let projected = capture.snapshot_if_changed(
+            id,
+            phase,
+            final_capture,
+            if force { None } else { last_published.as_ref() },
+        )?;
+        if let Some((revision, value)) = projected {
+            if let Some(sink) = diagnostics.as_mut() {
+                (sink.record)(&value)?;
+            }
+            last_published = Some(revision);
+            return Ok::<_, PortcoveError>(Some(value));
         }
-        Ok::<_, PortcoveError>(value)
+        Ok(None)
     };
-    if let Err(error) = snapshot(false).and_then(|_| checkpoint()) {
+    if let Err(error) = snapshot(false, false).and_then(|_| checkpoint()) {
         if let Some(confirm) = quiesced.as_mut() {
             confirm()?;
         }
@@ -129,7 +139,7 @@ pub(crate) fn run_tool(
     let (result, process_quiesced) = loop {
         let observation = checkpoint().and_then(|()| {
             if last_snapshot.elapsed() >= Duration::from_millis(500) {
-                snapshot(false)?;
+                snapshot(false, false)?;
                 last_snapshot = Instant::now();
             }
             Ok(())
@@ -170,7 +180,8 @@ pub(crate) fn run_tool(
     }
     let diagnostic = (|| {
         let drained = drain_setup_output(&receiver);
-        let snapshot = snapshot(drained.is_ok())?;
+        let snapshot = snapshot(drained.is_ok(), true)?
+            .expect("the final diagnostic capture is always projected");
         drained?;
         Ok::<_, PortcoveError>(snapshot)
     })();

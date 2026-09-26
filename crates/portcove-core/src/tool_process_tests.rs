@@ -66,6 +66,9 @@ fn setup_fixture_child() {
             std::thread::sleep(Duration::from_secs(8));
             fs::write("setup-fixture-unexpected-completion", b"finished").unwrap();
         }
+        "idle" => {
+            std::thread::sleep(Duration::from_millis(2200));
+        }
         _ => panic!("unknown owned setup fixture"),
     }
 }
@@ -83,6 +86,42 @@ fn native_setup_captures_both_streams_and_preserves_exit_status() {
     let failure = fixture("failure");
     let output = run_fixture(failure.path(), &|| Ok(())).unwrap();
     assert_eq!(output.status.code(), Some(23));
+}
+
+#[test]
+fn idle_setup_does_not_republish_unchanged_diagnostics() {
+    let temporary = fixture("idle");
+    let root = temporary.path();
+    let mut snapshots = Vec::new();
+    let result = run_setup(
+        &std::env::current_exe().unwrap(),
+        &["--exact".into(), CHILD_TEST.into(), "--nocapture".into()],
+        &root.join("owned-fixture.iso"),
+        root,
+        &Default::default(),
+        &|| Ok(()),
+        ToolProcessObserver {
+            diagnostics: Some(ToolDiagnosticSink {
+                activity_id: "owned-idle-fixture",
+                phase: "preparation.setup",
+                record: &mut |snapshot| {
+                    snapshots.push(snapshot.clone());
+                    Ok(())
+                },
+            }),
+            quiesced: Some(&mut || Ok(())),
+        },
+    )
+    .unwrap();
+    assert!(result.status.success());
+    assert!(
+        snapshots.len() >= 2 && snapshots.len() <= 3,
+        "{snapshots:?}"
+    );
+    assert!(snapshots.last().unwrap().complete);
+    for pair in snapshots[..snapshots.len() - 1].windows(2) {
+        assert_ne!(pair[0].stdout.observed_bytes, pair[1].stdout.observed_bytes);
+    }
 }
 
 #[test]

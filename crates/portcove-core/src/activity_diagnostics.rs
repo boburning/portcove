@@ -1,4 +1,6 @@
 //! Bounded, redacted tool output owned by the existing activity ledger.
+#[cfg(test)]
+use std::cell::Cell;
 use std::sync::{Arc, Mutex};
 
 use rusqlite::params;
@@ -9,6 +11,29 @@ use crate::{Library, PortcoveError, Result, redact_diagnostic_text};
 
 const STREAM_LIMIT: usize = 2 * 1024 * 1024;
 const RETAINED_LIMIT: i64 = 64 * 1024 * 1024;
+
+#[cfg(test)]
+#[derive(Clone, Copy, Default, Debug, PartialEq, Eq)]
+struct DiagnosticWorkCounts {
+    capture_clones: usize,
+    redactions: usize,
+    serializations: usize,
+    database_writes: usize,
+}
+
+#[cfg(test)]
+thread_local! {
+    static DIAGNOSTIC_WORK: Cell<DiagnosticWorkCounts> = Cell::new(DiagnosticWorkCounts::default());
+}
+
+#[cfg(test)]
+fn count_work(update: impl FnOnce(&mut DiagnosticWorkCounts)) {
+    DIAGNOSTIC_WORK.with(|work| {
+        let mut counts = work.get();
+        update(&mut counts);
+        work.set(counts);
+    });
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct DiagnosticStream {
@@ -34,6 +59,20 @@ struct StreamBuffer {
     bytes: Vec<u8>,
     observed: u64,
     closed: bool,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+struct StreamRevision {
+    observed: u64,
+    retained: usize,
+    closed: bool,
+}
+
+#[derive(Clone, PartialEq, Eq)]
+pub(crate) struct DiagnosticRevision {
+    phase: String,
+    final_capture: bool,
+    streams: [StreamRevision; 2],
 }
 
 #[derive(Clone, Default)]
@@ -63,27 +102,65 @@ impl DiagnosticCapture {
         Ok(())
     }
 
+    #[cfg(test)]
     pub(crate) fn snapshot(
         &self,
         activity_id: &str,
         phase: &str,
         final_capture: bool,
     ) -> Result<ActivityDiagnostic> {
+        Ok(self
+            .snapshot_if_changed(activity_id, phase, final_capture, None)?
+            .expect("an unconditional diagnostic snapshot is always projected")
+            .1)
+    }
+
+    pub(crate) fn snapshot_if_changed(
+        &self,
+        activity_id: &str,
+        phase: &str,
+        final_capture: bool,
+        previous: Option<&DiagnosticRevision>,
+    ) -> Result<Option<(DiagnosticRevision, ActivityDiagnostic)>> {
         // Clone bounded bytes under the lock, then decode/redact outside it so
         // persistence and redaction cannot block the pipe readers.
-        let streams = self
+        let guard = self
             .0
             .lock()
-            .map_err(|_| PortcoveError::state("setup diagnostic capture is unavailable"))?
-            .clone();
+            .map_err(|_| PortcoveError::state("setup diagnostic capture is unavailable"))?;
+        let revisions = guard.each_ref().map(|stream| StreamRevision {
+            observed: stream.observed,
+            retained: stream.bytes.len(),
+            closed: stream.closed,
+        });
+        if previous.is_some_and(|prior| {
+            prior.phase == phase
+                && prior.final_capture == final_capture
+                && prior.streams == revisions
+        }) {
+            return Ok(None);
+        }
+        let streams = guard.clone();
+        drop(guard);
+        #[cfg(test)]
+        count_work(|counts| counts.capture_clones += 1);
         let project = |stream: &StreamBuffer| DiagnosticStream {
             // Re-project the entire retained stream on every snapshot. Markers,
             // quoted values and UTF-8 characters may cross arbitrary reads.
-            text: redact_diagnostic_text(&String::from_utf8_lossy(&stream.bytes)),
+            text: {
+                #[cfg(test)]
+                count_work(|counts| counts.redactions += 1);
+                redact_diagnostic_text(&String::from_utf8_lossy(&stream.bytes))
+            },
             observed_bytes: stream.observed,
             truncated: stream.observed > stream.bytes.len() as u64,
         };
-        Ok(ActivityDiagnostic {
+        let revision = DiagnosticRevision {
+            phase: phase.into(),
+            final_capture,
+            streams: revisions,
+        };
+        let snapshot = ActivityDiagnostic {
             activity_id: activity_id.into(),
             phase: phase.into(),
             stdout: project(&streams[0]),
@@ -91,7 +168,8 @@ impl DiagnosticCapture {
             complete: final_capture && streams.iter().all(|stream| stream.closed),
             updated_at: Library::now(),
             stream_limit_bytes: STREAM_LIMIT as u64,
-        })
+        };
+        Ok(Some((revision, snapshot)))
     }
 }
 
@@ -141,6 +219,8 @@ impl Library {
         retained_limit: i64,
     ) -> Result<()> {
         let payload = serde_json::to_string(capture)?;
+        #[cfg(test)]
+        count_work(|counts| counts.serializations += 1);
         let mut connection = self.connection()?;
         connection.busy_timeout(std::time::Duration::from_millis(250))?;
         let transaction =
@@ -151,6 +231,8 @@ impl Library {
              ON CONFLICT(activity_id,phase) DO UPDATE SET payload=excluded.payload,updated_at=excluded.updated_at,payload_bytes=excluded.payload_bytes",
             params![capture.activity_id, payload, capture.updated_at, payload.len() as i64, capture.phase],
         )?;
+        #[cfg(test)]
+        count_work(|counts| counts.database_writes += 1);
         if changed != 1 {
             return Err(PortcoveError::conflict(
                 "diagnostic capture requires its running preparation activity",
@@ -209,6 +291,107 @@ mod tests {
             )
             .unwrap()
             .id
+    }
+
+    #[test]
+    fn counted_idle_capture_skips_unchanged_work() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path()).unwrap();
+        let id = activity(&library);
+        let capture = DiagnosticCapture::default();
+        DIAGNOSTIC_WORK.with(|work| work.set(DiagnosticWorkCounts::default()));
+        let mut revision = None;
+        let mut skipped = 0;
+        let mut publish = |final_capture| {
+            if let Some((next, snapshot)) = capture
+                .snapshot_if_changed(&id, "preparation.setup", final_capture, revision.as_ref())
+                .unwrap()
+            {
+                library.record_activity_diagnostic(&snapshot).unwrap();
+                revision = Some(next);
+            } else {
+                skipped += 1;
+            }
+        };
+        publish(false);
+        for _ in 0..3 {
+            publish(false);
+        }
+        capture.record(0, b"progress\n").unwrap();
+        publish(false);
+        capture.close(0).unwrap();
+        capture.close(1).unwrap();
+        publish(true);
+        let counts = DIAGNOSTIC_WORK.with(Cell::get);
+        println!(
+            "revision-aware diagnostic work: {counts:?}; skipped: {skipped}; heartbeat_writes: 0"
+        );
+        assert_eq!(
+            counts,
+            DiagnosticWorkCounts {
+                capture_clones: 3,
+                redactions: 6,
+                serializations: 3,
+                database_writes: 3,
+            }
+        );
+        assert_eq!(skipped, 3);
+        assert!(library.activity_diagnostic(&id).unwrap()[0].complete);
+    }
+
+    #[test]
+    fn revision_covers_saturation_closure_phase_and_final_state() {
+        let capture = DiagnosticCapture::default();
+        capture.record(0, &vec![b'x'; STREAM_LIMIT]).unwrap();
+        let (mut revision, first) = capture
+            .snapshot_if_changed("owned", "preparation.setup", false, None)
+            .unwrap()
+            .unwrap();
+        assert!(!first.stdout.truncated);
+        assert!(
+            capture
+                .snapshot_if_changed("owned", "preparation.setup", false, Some(&revision))
+                .unwrap()
+                .is_none()
+        );
+
+        capture.record(0, b"beyond retained limit").unwrap();
+        let (next, saturated) = capture
+            .snapshot_if_changed("owned", "preparation.setup", false, Some(&revision))
+            .unwrap()
+            .unwrap();
+        assert!(saturated.stdout.truncated);
+        assert!(saturated.stdout.observed_bytes > first.stdout.observed_bytes);
+        revision = next;
+        capture.close(0).unwrap();
+        revision = capture
+            .snapshot_if_changed("owned", "preparation.setup", false, Some(&revision))
+            .unwrap()
+            .unwrap()
+            .0;
+        capture.close(1).unwrap();
+        let (next, closed) = capture
+            .snapshot_if_changed("owned", "preparation.setup", false, Some(&revision))
+            .unwrap()
+            .unwrap();
+        assert!(!closed.complete);
+        revision = next;
+        let (next, changed_phase) = capture
+            .snapshot_if_changed("owned", "preparation.extract", false, Some(&revision))
+            .unwrap()
+            .unwrap();
+        assert_eq!(changed_phase.phase, "preparation.extract");
+        let (final_revision, final_capture) = capture
+            .snapshot_if_changed("owned", "preparation.extract", true, Some(&next))
+            .unwrap()
+            .unwrap();
+        assert!(final_capture.complete);
+        assert!(
+            capture
+                .snapshot_if_changed("owned", "preparation.extract", true, Some(&final_revision))
+                .unwrap()
+                .is_none()
+        );
     }
 
     #[test]
