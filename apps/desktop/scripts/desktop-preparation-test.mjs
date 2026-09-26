@@ -405,6 +405,92 @@ export async function preparationScenarios({
       "Returning from overflow details must focus the originating card menu",
     );
   });
+  await scenario("native-ready-detail-composition", async () => {
+    const port = command(["catalog", "show", "opengoal-jak1"]);
+    assert.equal((await status(port.id)).readiness.launchable, true);
+    const originalWindow = await browser.manage().window().getRect();
+    try {
+      for (const theme of ["dark", "light"]) {
+        await browser.findElement(By.xpath('//nav//button[contains(., "Settings")]')).click();
+        await browser.findElement(button(theme === "dark" ? "Dark" : "Light")).click();
+        await open(port, false);
+        assert.equal(
+          await browser.executeScript(() => document.documentElement.dataset.theme),
+          theme,
+        );
+        const play = await browser.wait(until.elementLocated(button("Play now")), 15_000);
+        assert.equal(await play.isEnabled(), true);
+        assert.equal(await play.getAttribute("data-variant"), "primary");
+        await browser.wait(
+          () =>
+            browser.executeScript(
+              () =>
+                document.querySelector(".detail-cover.artwork-image > span")?.textContent === "OJ",
+            ),
+          15_000,
+          "The owned port cover fallback did not settle before visual capture",
+        );
+        for (const { width, height } of [
+          { width: 960, height: 640 },
+          { width: 1280, height: 800 },
+        ]) {
+          await browser.manage().window().setRect({ width, height });
+          const actualWindow = await browser.manage().window().getRect();
+          assert.deepEqual(
+            { width: actualWindow.width, height: actualWindow.height },
+            { width, height },
+            `Ready detail window was clamped: ${JSON.stringify(actualWindow)}`,
+          );
+          const hierarchy = await browser.executeScript((action) => {
+            const bounds = action.getBoundingClientRect();
+            const main = document.querySelector("main");
+            return {
+              title: document.querySelector("#port-detail-title")?.textContent?.trim(),
+              state: document.querySelector(".detail-hero .hero-state")?.textContent?.trim(),
+              groups: [...document.querySelectorAll(".detail-body .detail-group > h2")].map(
+                (heading) => heading.textContent?.trim(),
+              ),
+              action: {
+                top: bounds.top,
+                bottom: bounds.bottom,
+                left: bounds.left,
+                right: bounds.right,
+              },
+              viewport: { width: window.innerWidth, height: window.innerHeight },
+              horizontalOverflow: Boolean(main && main.scrollWidth > main.clientWidth + 1),
+            };
+          }, play);
+          const screenshot = path.join(output, `game-details-ready-${theme}-${width}.png`);
+          await writeFile(screenshot, await browser.takeScreenshot(), {
+            encoding: "base64",
+            flag: "wx",
+          });
+          artifacts.push(screenshot);
+          assert.equal(hierarchy.title, port.name);
+          assert.match(hierarchy.state, /Ready to play/);
+          assert.deepEqual(hierarchy.groups, [
+            "Status and actions",
+            "Requirements",
+            "Installation and version",
+            "Updates",
+            "Saves and storage",
+            "Compatibility and testing",
+            "Project and release",
+          ]);
+          assert.equal(hierarchy.horizontalOverflow, false);
+          assert.ok(
+            hierarchy.action.top >= 0 &&
+              hierarchy.action.bottom <= hierarchy.viewport.height &&
+              hierarchy.action.left >= 0 &&
+              hierarchy.action.right <= hierarchy.viewport.width,
+            `Play now must remain visible at ${actualWindow.width}x${actualWindow.height}: ${JSON.stringify(hierarchy)}`,
+          );
+        }
+      }
+    } finally {
+      await browser.manage().window().setRect(originalWindow);
+    }
+  });
   await scenario("native-game-return-continuity", async () => {
     const port = command(["catalog", "show", "opengoal-jak1"]);
     const before = await status(port.id);

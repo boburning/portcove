@@ -91,6 +91,15 @@ export const DESKTOP_SCENARIOS = Object.freeze([
     source: "desktop-preparation-test.mjs",
   }),
   scenario(
+    "native-ready-detail-composition",
+    "Ready game details keep Play and the information hierarchy visible in both themes at supported window sizes.",
+    {
+      prerequisites: ["desktop", "owned-fixture"],
+      dependencies: ["native-preparation-review-and-play"],
+      source: "desktop-preparation-test.mjs",
+    },
+  ),
+  scenario(
     "native-game-return-continuity",
     "Returning from an owned game process retains Library search, filter, scroll and Play focus.",
     {
@@ -266,6 +275,7 @@ const smoke = [
 const ownedLifecycle = [
   "native-external-cli-reconciliation",
   "native-preparation-review-and-play",
+  "native-ready-detail-composition",
   "native-game-return-continuity",
   "native-game-update-review",
   "native-missing-readiness-recovery",
