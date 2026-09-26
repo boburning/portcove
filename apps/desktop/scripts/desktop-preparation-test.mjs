@@ -283,11 +283,9 @@ export async function preparationScenarios({
       until.elementLocated(By.css('[aria-label="Library readiness"]')),
       15_000,
     );
-    assert.match(await readinessSummary.getText(), /\d+ in library[\s\S]*ready to play/iu);
-    assert.doesNotMatch(
-      await readinessSummary.getText(),
-      /0 (?:need attention|updates downloaded)/iu,
-    );
+    const readinessText = await readinessSummary.getText();
+    assert.match(readinessText, /^1 in library\s+All ready to play$/iu);
+    assert.doesNotMatch(readinessText, /0 (?:needs? attention|updates? downloaded)/iu);
     const card = await browser.wait(
       until.elementLocated(
         By.xpath(
