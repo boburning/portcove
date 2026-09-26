@@ -246,6 +246,37 @@ qualify interactions, focus, controllers, IPC, platform or packages; use the nat
 harness for those obligations. #924's cache and feature-boundary migrations remain
 separate work, not implied by these previews.
 
+#### Real-browser component verification
+
+After the frozen pnpm install, explicitly provision the pinned Playwright Chromium
+headless shell on the checkout volume:
+
+```powershell
+node scripts/dev-storage.mjs run -- corepack pnpm --dir apps/desktop browser:bootstrap
+node scripts/dev-storage.mjs run -- corepack pnpm --dir apps/desktop test:browser
+```
+
+`browser:bootstrap` installs only the reviewed Chromium shell and its companions
+under `work/browser-cache`, then launches it to verify the result. A warm invocation
+rechecks the same artifact. `test:browser` checks the existing binary and never
+downloads one. It runs one Vitest Browser Mode Chromium worker, with ten-second
+test bounds and Playwright traces retained only for failures in
+`work/browser-traces`. Failure screenshots remain in `apps/desktop/.vitest`; both
+locations are ignored by Git and retained for diagnosis. In CI, the fast and full
+frontend lanes run the explicit bootstrap before browser tests and upload failure
+artifacts. The intentional failure probe is
+`corepack pnpm --dir apps/desktop test:browser:trace-probe`; it exits nonzero and
+should be run only when validating trace retention.
+
+The initial browser composition mounts the shipped adoption modal, its review
+hook, shared controls, direction provider, styles, and a strict test-only Tauri
+transport. Unexpected commands and argument shapes fail, and no real library,
+filesystem, credentials, native picker, process, or mutation authority is present.
+Existing jsdom planning and pure-function tests stay in their cheaper suite;
+browser tests cover actual Chromium layout, focus, portals, and user events.
+The static scenario page remains inert. Browser results are not native Tauri,
+WebView, controller, operating-system, or package qualification.
+
 ## Skills
 
 Repository-local skills under `.agents/skills` progressively load task-specific

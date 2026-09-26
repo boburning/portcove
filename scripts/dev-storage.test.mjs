@@ -635,7 +635,12 @@ test("reports every heavy path that would write to the system drive", () => {
       target_directory: "C:\\temp\\target",
       output_root: "c:/temp/outputs",
       pnpm_store: "E:\\Portcove-Development\\work\\pnpm-store",
+      browser_cache: "C:\\temp\\browser-cache",
     }),
-    ["target_directory=C:\\temp\\target", "output_root=c:/temp/outputs"],
+    [
+      "target_directory=C:\\temp\\target",
+      "output_root=c:/temp/outputs",
+      "browser_cache=C:\\temp\\browser-cache",
+    ],
   );
 });

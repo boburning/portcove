@@ -297,6 +297,20 @@ jobs:
       - run: pnpm lint
       - run: pnpm build
       - run: pnpm test
+      - name: Provision reviewed Chromium for browser composition
+        run: pnpm browser:bootstrap
+      - name: Test browser composition
+        run: pnpm test:browser
+      - name: Retain failed browser traces
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: browser-traces-fast-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            work/browser-traces
+            apps/desktop/.vitest/attachments
+          retention-days: 7
+          if-no-files-found: warn
 
   fast_catalog:
     name: fast-catalog (linux-x86_64)
@@ -784,6 +798,20 @@ jobs:
           node apps/desktop/scripts/generate-transport-types.mjs
           node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/transport-types.test.mjs
       - run: pnpm test
+      - name: Provision reviewed Chromium for browser composition
+        run: pnpm browser:bootstrap
+      - name: Test browser composition
+        run: pnpm test:browser
+      - name: Retain failed browser traces
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: browser-traces-full-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            work/browser-traces
+            apps/desktop/.vitest/attachments
+          retention-days: 7
+          if-no-files-found: warn
       - name: Test application release records
         working-directory: .
         run: node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/select-release-channel.test.mjs scripts/release-coordinator.test.mjs scripts/reconstruct-application-update-records.test.mjs

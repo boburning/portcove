@@ -296,6 +296,24 @@ function classifyOnePath(selection, input, fileExists, options = {}) {
   const extension = path.posix.extname(file).toLowerCase();
   const includeFileChecks = options.includeFileChecks ?? true;
   let recognized = false;
+  if (
+    file.startsWith("apps/desktop/src/browser/") ||
+    file.startsWith("apps/desktop/src/components/ui/") ||
+    [
+      "apps/desktop/scripts/browser-runtime.mjs",
+      "apps/desktop/vitest.config.ts",
+      "apps/desktop/vitest.browser.config.ts",
+      "apps/desktop/vite.config.ts",
+      "apps/desktop/package.json",
+      "pnpm-lock.yaml",
+      "apps/desktop/src/components/AdoptionModal.tsx",
+      "apps/desktop/src/features/installation/use-installation-planning.ts",
+      "apps/desktop/src/api.ts",
+      "apps/desktop/src/styles.css",
+      "apps/desktop/src/test-fixtures.ts",
+    ].includes(file)
+  )
+    selection.browser = true;
 
   if (includeFileChecks && oxfmtExtensions.has(extension) && !isExcludedOxfmtPath(file)) {
     selection.oxfmtFiles.add(file);
@@ -346,7 +364,7 @@ function classifyOnePath(selection, input, fileExists, options = {}) {
     file.startsWith("apps/desktop/assets/") ||
     file.startsWith("apps/desktop/public/") ||
     file === "apps/desktop/.fallowrc.json" ||
-    /^apps\/desktop\/(?:(?:index|scenarios)\.html|(?:components|package)\.json|pnpm-lock\.yaml|tsconfig.*\.json|vite\.config\.[cm]?ts|i18next(?:\.invalid)?\.config\.ts|eslint\.config\.mjs|stylelint\.config\.mjs)$/.test(
+    /^apps\/desktop\/(?:(?:index|scenarios)\.html|(?:components|package)\.json|pnpm-lock\.yaml|tsconfig.*\.json|vite\.config\.[cm]?ts|vitest(?:\.browser)?\.config\.ts|i18next(?:\.invalid)?\.config\.ts|eslint\.config\.mjs|stylelint\.config\.mjs)$/.test(
       file,
     )
   ) {
@@ -622,6 +640,7 @@ export function classifyChanges(changes, options = {}) {
     rustfmt: false,
     workspaceRust: false,
     ui: false,
+    browser: false,
     uiFullTests: false,
     oxlint: false,
     stylelint: false,
@@ -973,6 +992,15 @@ export function buildPlan(selection, context = {}) {
       );
     else if (selection.uiRelatedFiles.size)
       commands.push(uiRelatedCommand(sorted(selection.uiRelatedFiles)), uiRelatedDurationCommand());
+    if (selection.browser)
+      commands.push(
+        corepackCommand(
+          "ui-browser-tests",
+          "run the reviewed browser composition when its fixture or production seams change",
+          ["pnpm", "run", "test:browser"],
+          { cwd: desktopRoot },
+        ),
+      );
     if (!selection.uiFullTests)
       commands.push(
         corepackCommand(
@@ -1202,7 +1230,8 @@ function localStageReusable(entry) {
     localStageDomains(entry).length > 0 &&
     entry.id !== "dependency-policy" &&
     entry.id !== "oxlint" &&
-    entry.id !== "ui-related-durations"
+    entry.id !== "ui-related-durations" &&
+    entry.id !== "ui-browser-tests"
   );
 }
 

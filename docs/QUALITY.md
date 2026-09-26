@@ -137,7 +137,17 @@ It runs affected Rust packages rather than the workspace, uses Vitest's import
 graph for UI sources, and maps repository scripts and workflows to their exact
 contract tests. Root Cargo/toolchain changes compile, lint, and test the complete
 workspace and run dependency policy. Combined changes use the union of their
-scopes. The shared hosted plan maps an unknown but
+scopes.
+
+The browser composition stage is selected when its tests, configuration, pinned
+packages, Tauri transport fixture, adoption review hook, or shared modal controls
+change. It is a separate Chromium-backed obligation after the selected jsdom tests.
+The browser shell must be provisioned explicitly with `browser:bootstrap`; local
+checks do not install it implicitly. The required fast and full frontend CI lanes
+provision the reviewed shell and run the browser stage. Browser traces are retained
+on failures and the stage never reuses a local success receipt.
+
+The shared hosted plan maps an unknown but
 syntactically safe path to the explicit all-fast-groups fallback on the primary
 host. The local selector reports the path and refuses to run until a tested
 focused rule owns it, so a broad local suite cannot silently replace that rule.

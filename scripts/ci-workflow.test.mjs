@@ -704,6 +704,22 @@ test("frontend keeps deterministic product gates and delegates vulnerability cha
   assert.match(dependencyReview, /fail-on-severity: high/);
 });
 
+test("both frontend lanes provision browser artifacts before running the bounded composition", () => {
+  for (const [name, job] of [
+    ["fast", fastFrontend],
+    ["full", frontend],
+  ]) {
+    const install = job.indexOf("pnpm install --frozen-lockfile");
+    const bootstrap = job.indexOf("pnpm browser:bootstrap");
+    const browserTest = job.indexOf("pnpm test:browser");
+    assert.ok(install >= 0 && bootstrap > install && browserTest > bootstrap, name);
+    assert.match(job, new RegExp(`browser-traces-${name}-`));
+    assert.match(job, /work\/browser-traces/);
+    assert.match(job, /apps\/desktop\/\.vitest\/attachments/);
+    assert.doesNotMatch(job, /pnpm test:browser:trace-probe/);
+  }
+});
+
 test("frontend tooling uses the pinned Oxc contracts without legacy quality layers", async () => {
   const desktopPackage = JSON.parse(
     await readFile(new URL("../apps/desktop/package.json", import.meta.url), "utf8"),
@@ -863,7 +879,12 @@ test("frontend tooling uses the pinned Oxc contracts without legacy quality laye
   );
   assert.deepEqual(fallow, {
     $schema: "../../node_modules/fallow/schema.json",
-    entry: ["i18next.invalid.config.ts", "src/i18next-contract.test-d.ts", "src/i18next.d.ts"],
+    entry: [
+      "i18next.invalid.config.ts",
+      "src/i18next-contract.test-d.ts",
+      "src/i18next.d.ts",
+      "vitest.browser.config.ts",
+    ],
     boundaries: {
       zones: [
         { name: "shared", patterns: ["src/shared/**"] },
