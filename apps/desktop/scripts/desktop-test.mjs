@@ -291,37 +291,38 @@ async function verifySettingsRows() {
           `Settings window was clamped: ${JSON.stringify(actual)}`,
         );
         const rows = await browser.executeScript(() => {
-          const rect = (selector) => {
-            const element = document.querySelector(selector);
-            if (!(element instanceof HTMLElement)) throw new Error(`Missing ${selector}`);
+          const rect = (element) => {
             const bounds = element.getBoundingClientRect();
             return {
               left: bounds.left,
               top: bounds.top,
               bottom: bounds.bottom,
               width: bounds.width,
+              fits: element.scrollWidth <= element.clientWidth + 1,
             };
           };
+          const groups = [
+            "appearance",
+            "library-storage",
+            "game-files",
+            "updates",
+            "integrations",
+            "advanced",
+          ];
           return {
             viewportWidth: window.innerWidth,
-            updates: {
-              content: rect('[data-settings-group="updates"] .settings-section-content'),
-              application: rect('[data-settings-group="updates"] .application-update-settings'),
-              catalog: rect(
-                '[data-settings-group="updates"] .settings-card:not(.application-update-settings)',
-              ),
-            },
-            appearance: {
-              content: rect('[data-settings-group="appearance"] .settings-section-content'),
-              theme: rect('[data-settings-group="appearance"] .appearance-card'),
-              language: rect('[data-settings-group="appearance"] .language-card'),
-            },
-            advanced: {
-              content: rect('[data-settings-group="advanced"] .settings-section-content'),
-              diagnostics: rect('[data-settings-group="advanced"] .diagnostics-card'),
-              privacy: rect('[data-settings-group="advanced"] .privacy-card'),
-              about: rect('[data-settings-group="advanced"] .about-card'),
-            },
+            groups: Object.fromEntries(
+              groups.map((group) => {
+                const content = document.querySelector(
+                  `[data-settings-group="${group}"] .settings-section-content`,
+                );
+                if (!(content instanceof HTMLElement)) throw new Error(`Missing ${group}`);
+                const children = [...content.children];
+                if (!children.every((child) => child.classList.contains("settings-row")))
+                  throw new Error(`${group} contains an unmigrated Settings card`);
+                return [group, { content: rect(content), rows: children.map(rect) }];
+              }),
+            ),
             bundlePathFits: (() => {
               const path = document.querySelector(
                 '[data-settings-group="advanced"] .diagnostics-card code',
@@ -329,10 +330,28 @@ async function verifySettingsRows() {
               if (!(path instanceof HTMLElement)) throw new Error("Saved bundle path is missing");
               return path.scrollWidth <= path.clientWidth + 1;
             })(),
+            recommendationFits: (() => {
+              const label = document.querySelector(
+                '[aria-label="Application update mode"] button small',
+              );
+              const button = label?.closest("button");
+              if (!(label instanceof HTMLElement) || !(button instanceof HTMLElement))
+                throw new Error("Recommended update-mode label is missing");
+              return (
+                label.getBoundingClientRect().bottom <= button.getBoundingClientRect().bottom - 2
+              );
+            })(),
           };
         });
         assertSettingsRowGeometry(rows, size);
-        for (const group of ["appearance", "advanced"]) {
+        for (const group of [
+          "appearance",
+          "library-storage",
+          "game-files",
+          "updates",
+          "integrations",
+          "advanced",
+        ]) {
           const section = await browser.findElement(By.css(`[data-settings-group="${group}"]`));
           await browser.executeScript(
             (element) => element.scrollIntoView({ block: "start", inline: "nearest" }),
@@ -365,21 +384,30 @@ async function verifySettingsRows() {
 }
 
 function assertSettingsRowGeometry(rows, size) {
-  for (const group of [rows.appearance, rows.advanced]) {
-    for (const [key, row] of Object.entries(group)) {
-      if (key === "content") continue;
-      assert.ok(Math.abs(row.width - group.content.width) < 3, `${key} is not full width`);
-      assert.ok(Math.abs(row.left - group.content.left) < 3, `${key} is misaligned`);
+  const expectedRows = {
+    appearance: 2,
+    "library-storage": 2,
+    "game-files": 2,
+    updates: 2,
+    integrations: 1,
+    advanced: 3,
+  };
+  for (const [name, group] of Object.entries(rows.groups)) {
+    assert.equal(group.rows.length, expectedRows[name], `${name} row count changed`);
+    for (const [index, row] of group.rows.entries()) {
+      assert.ok(
+        Math.abs(row.width - group.content.width) < 3,
+        `${name} row ${index} is not full width`,
+      );
+      assert.ok(Math.abs(row.left - group.content.left) < 3, `${name} row ${index} is misaligned`);
+      assert.ok(row.fits, `${name} row ${index} overflows horizontally`);
+      if (index > 0) assert.ok(group.rows[index - 1].bottom <= row.top, `${name} rows overlap`);
     }
+    assert.ok(group.content.fits, `${name} content overflows horizontally`);
   }
-  assert.ok(rows.appearance.theme.bottom <= rows.appearance.language.top);
-  assert.ok(rows.advanced.diagnostics.bottom <= rows.advanced.privacy.top);
-  assert.ok(rows.advanced.privacy.bottom <= rows.advanced.about.top);
   assert.ok(rows.viewportWidth <= size.width);
   assert.equal(rows.bundlePathFits, true, "saved bundle path is clipped");
-  assert.ok(Math.abs(rows.updates.application.width - rows.updates.content.width) < 2);
-  assert.ok(Math.abs(rows.updates.catalog.width - rows.updates.content.width) < 2);
-  assert.ok(Math.abs(rows.updates.application.left - rows.updates.catalog.left) < 2);
+  assert.equal(rows.recommendationFits, true, "recommended update mode label is clipped");
 }
 
 async function verifyLongTitleCatalogDetail(theme) {
@@ -1129,7 +1157,7 @@ try {
           columns: getComputedStyle(content).gridTemplateColumns.split(" ").length,
         };
       }),
-      overflowing_cards: [...document.querySelectorAll(".settings-card, .settings-row")]
+      overflowing_cards: [...document.querySelectorAll(".settings-row")]
         .filter((card) => card.scrollWidth > card.clientWidth + 1)
         .map((card) => card.getAttribute("aria-labelledby") ?? card.className),
       legacy_buttons: [

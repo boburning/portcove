@@ -866,7 +866,7 @@ export function ApplicationUpdateSettings({
 
   return (
     <article
-      className="settings-card application-update-settings"
+      className="settings-row application-update-settings"
       data-focus-group
       aria-labelledby="application-update-settings-title"
       aria-busy={Boolean(busy)}
