@@ -590,10 +590,11 @@ describe("workspace refresh recovery", () => {
   it.each([
     ["committed", "The change was committed"],
     ["recovery_required", "Retained work needs recovery review"],
+    ["future-outcome", "The changes could not be confirmed"],
   ] as const)("retains a consequential %s outcome on a failed refresh", async (state, message) => {
     await render();
     const error = failureReport();
-    error.presentation.mutation_state = state;
+    error.presentation.mutation_state = state as typeof error.presentation.mutation_state;
     vi.mocked(desktopApi.workspaceSnapshot).mockRejectedValueOnce(error);
     await act(async () => data.retryRefresh());
     expect(host.textContent).toContain(message);

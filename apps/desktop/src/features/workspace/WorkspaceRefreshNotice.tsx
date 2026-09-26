@@ -87,9 +87,11 @@ export function WorkspaceRefreshNotice({
     );
   const { error } = failure;
   const presentation = failurePresentation(error);
-  const consequentialOutcome =
-    presentation?.mutation_state === "committed" ||
-    presentation?.mutation_state === "recovery_required";
+  const showMutationSummary =
+    presentation !== undefined &&
+    presentation.mutation_state !== "not_started" &&
+    presentation.mutation_state !== "no_changes" &&
+    presentation.mutation_state !== "unknown";
   const code =
     typeof error === "object" && error && "code" in error ? String(error.code) : undefined;
   return (
@@ -113,7 +115,7 @@ export function WorkspaceRefreshNotice({
           <FailureDetails
             presentation={presentation}
             code={code}
-            showMutationSummary={consequentialOutcome}
+            showMutationSummary={showMutationSummary}
           />
         )}
         <p>
