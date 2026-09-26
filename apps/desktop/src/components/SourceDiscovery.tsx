@@ -121,6 +121,7 @@ export function SourceDiscoveryButton({
     <>
       <Button
         data-focusable
+        data-settings-control="discover-sources"
         variant="outline"
         disabled={disabled || profiles.length === 0}
         onClick={() => setOpen(true)}

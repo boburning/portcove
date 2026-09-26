@@ -251,6 +251,18 @@ describe("core-owned failure presentation", () => {
       failure: null,
       message: null,
     }));
+    activities.push({
+      id: "source-registration",
+      operation: "register_source",
+      target_kind: "source",
+      target_id: "sample-rom",
+      status: "succeeded",
+      started_at: now - 6,
+      finished_at: now - 6,
+      cancellation: null,
+      failure: null,
+      message: null,
+    });
     const host = document.createElement("div");
     const root = createRoot(host);
     try {
@@ -272,7 +284,7 @@ describe("core-owned failure presentation", () => {
         ),
       );
       const routes = [
-        ["Game-file search", "Game Files", "game-files"],
+        ["Game-file search", "Game Files", "discover-sources"],
         ["Library move", "Library & Storage", "move-library"],
         ["Library restore", "Library & Storage", "import-library"],
         ["Catalog update", "Catalog updates", "catalog-updates"],
@@ -289,8 +301,16 @@ describe("core-owned failure presentation", () => {
         await act(async () => button!.click());
         expect(onOpenSettings).toHaveBeenLastCalledWith(target);
       }
-      expect(onOpenSettings).toHaveBeenCalledTimes(4);
-      expect(host.querySelectorAll(".activity-row")).toHaveLength(5);
+      const sourceRow = [...host.querySelectorAll(".activity-row")].find(
+        (item) =>
+          item.querySelector(".activity-main strong")?.textContent === "Game-file location update",
+      );
+      await act(async () =>
+        sourceRow?.querySelector<HTMLButtonElement>(".activity-main button")?.click(),
+      );
+      expect(onOpenSettings).toHaveBeenLastCalledWith("source-profile", "sample-rom");
+      expect(onOpenSettings).toHaveBeenCalledTimes(5);
+      expect(host.querySelectorAll(".activity-row")).toHaveLength(6);
       const unrelated = [...host.querySelectorAll(".activity-row")].find(
         (item) => item.querySelector(".activity-main strong")?.textContent === "Update check",
       );
