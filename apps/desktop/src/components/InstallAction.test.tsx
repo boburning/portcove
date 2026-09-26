@@ -223,6 +223,77 @@ it("presents the reviewed installation in a dismissible dialog and restores trig
   expect(install).toHaveBeenCalledTimes(1);
 });
 
+it.each(["library_default", "port_setting"] as const)(
+  "routes a low-library-space review to Library & Storage for the default path saved as %s",
+  async (selectionSource) => {
+    const openLibraryStorage = vi.fn();
+    const shortPlan = {
+      ...plan,
+      storage: { ...plan.storage, volume_available_bytes: 32 * 1024 ** 2 },
+      output_location: { ...plan.output_location, selection_source: selectionSource },
+    };
+    function InsufficientSpaceHarness() {
+      const [reviewed, setReviewed] = useState<InstallPlan>();
+      return (
+        <InstallAction
+          ready
+          sourceReady
+          biosReady
+          plan={reviewed}
+          install={vi.fn()}
+          review={() => setReviewed(shortPlan)}
+          dismiss={() => setReviewed(undefined)}
+          openLibraryStorage={openLibraryStorage}
+        />
+      );
+    }
+    await act(async () => root.render(<InsufficientSpaceHarness />));
+    await click("Review install");
+    expect(button("Free space required").disabled).toBe(true);
+    expect(document.body.textContent).toContain("32.0 MiB available in library");
+    expect(document.body.textContent).toContain("more free space in the Portcove library");
+    expect(button("Open Library & Storage").disabled).toBe(false);
+    await click("Open Library & Storage");
+    expect(document.body.querySelector('[role="dialog"]')).toBeNull();
+    expect(openLibraryStorage).toHaveBeenCalledTimes(1);
+    await click("Review install");
+    await pressEscape();
+    expect(document.activeElement).toBe(button("Review install"));
+    expect(openLibraryStorage).toHaveBeenCalledTimes(1);
+  },
+);
+
+it("does not block an external-output install using the library volume's free space", async () => {
+  const externalPlan: InstallPlan = {
+    ...plan,
+    storage: { ...plan.storage, volume_available_bytes: 32 * 1024 ** 2 },
+    output_location: {
+      ...plan.output_location,
+      configured_output_directory: "F:/Games/sample",
+      effective_output_directory: "F:/Games/sample",
+      selection_source: "port_setting",
+    },
+  };
+  await act(async () =>
+    root.render(
+      <InstallAction
+        ready
+        sourceReady
+        biosReady
+        plan={externalPlan}
+        install={vi.fn()}
+        review={vi.fn()}
+        dismiss={vi.fn()}
+        openLibraryStorage={vi.fn()}
+      />,
+    ),
+  );
+  expect(button("Install · 64.0 MiB").disabled).toBe(false);
+  expect(document.body.textContent).toContain("Destination capacity checked at install");
+  expect(document.body.textContent).not.toContain("more free space in the Portcove library");
+  expect(document.body.textContent).not.toContain("Open Library & Storage");
+});
+
 it("does not dismiss the reviewed installation after installation starts", async () => {
   function BusyHarness() {
     const [reviewed, setReviewed] = useState<InstallPlan>();
@@ -324,7 +395,7 @@ it("exposes a failed install result outside the dismissed review before another 
 });
 
 it.each([
-  ["download", "Install · 64.0 MiB", "64.0 MiB", "512 GiB available"],
+  ["download", "Install · 64.0 MiB", "64.0 MiB", "512 GiB available in library"],
   ["use_staged", "Use ready release", "No download", "Required component included · 1.0 KiB"],
   ["reuse_retained", "Use previous release", "No download", "Local release already checked"],
 ] as const)(

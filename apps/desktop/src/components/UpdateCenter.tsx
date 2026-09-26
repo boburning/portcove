@@ -41,7 +41,7 @@ const initialActivityNowSeconds = Date.now() / 1000;
 const activityTargetButton =
   "-mx-1 h-auto min-h-6 min-w-0 max-w-full shrink justify-start overflow-hidden px-1 py-0 text-ellipsis text-xs font-normal text-pc-secondary-foreground no-underline hover:text-pc-primary hover:no-underline";
 const libraryActivitySettingsTargets: Partial<
-  Record<ActivityOperation, Exclude<ActivitySettingsTarget, "source-profile">>
+  Record<ActivityOperation, Exclude<ActivitySettingsTarget, "source-profile" | "library-storage">>
 > = {
   discover_sources: "discover-sources",
   move_library: "move-library",

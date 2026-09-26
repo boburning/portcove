@@ -111,6 +111,7 @@ interface DetailPanelProps {
   externalRuntimeChanged?: () => void;
   openSourceEvidence?: (evidenceId: string) => void;
   openHostTool?: (toolId: string) => void;
+  openLibraryStorage?: () => void;
   inspectSource?: (profile: SourceProfile) => void;
   actions: DetailActions;
 }
@@ -259,6 +260,7 @@ export function DetailPanel(props: DetailPanelProps) {
         externalRuntimeChanged={props.externalRuntimeChanged}
         outputApplying={setOutputApplying}
         actions={actions}
+        openLibraryStorage={props.openLibraryStorage}
       />
     </section>
   );
@@ -314,6 +316,7 @@ function DetailBody({
   externalRuntimeChanged,
   outputApplying,
   actions,
+  openLibraryStorage,
 }: {
   installCancellations?: ActivityRecord[];
   perform?: Perform;
@@ -341,6 +344,7 @@ function DetailBody({
   externalRuntimeChanged?: () => void;
   outputApplying: (applying: boolean) => void;
   actions: DetailActions;
+  openLibraryStorage?: () => void;
 }) {
   const managedPreparation = Boolean(
     installed && port.adapter === "upstream-managed-setup" && port.setup_output_paths.length,
@@ -365,6 +369,7 @@ function DetailBody({
         libraryGeneration={libraryGeneration}
         onChanged={externalRuntimeChanged}
         actions={actions}
+        openLibraryStorage={openLibraryStorage}
       />
       <RequirementsGroup
         key={port.id}
@@ -463,6 +468,7 @@ function StatusActionsGroup({
   libraryGeneration,
   onChanged,
   actions,
+  openLibraryStorage,
 }: {
   installCancellations?: ActivityRecord[];
   port: PortDefinition;
@@ -481,6 +487,7 @@ function StatusActionsGroup({
   libraryGeneration: number;
   onChanged?: () => void;
   actions: DetailActions;
+  openLibraryStorage?: () => void;
 }) {
   if (port.release.provider === "user-prepared" || status?.external_runtime) {
     return (
@@ -525,6 +532,7 @@ function StatusActionsGroup({
         plan={installPlan}
         busy={busy}
         actions={actions}
+        openLibraryStorage={openLibraryStorage}
       />
     </DetailGroup>
   );
@@ -1333,6 +1341,7 @@ function PrimaryActions({
   plan,
   busy,
   actions,
+  openLibraryStorage,
 }: {
   installCancellations?: ActivityRecord[];
   sources: SourceControls;
@@ -1349,6 +1358,7 @@ function PrimaryActions({
   plan?: InstallPlan;
   busy?: string;
   actions: DetailActions;
+  openLibraryStorage?: () => void;
 }) {
   if (invalidInstallation)
     return (
@@ -1406,6 +1416,7 @@ function PrimaryActions({
         install={actions.install}
         review={actions.reviewInstall}
         dismiss={actions.dismissInstallReview}
+        openLibraryStorage={openLibraryStorage}
       />
     );
   return (
@@ -1508,6 +1519,7 @@ export function InstallAction({
   install,
   review,
   dismiss,
+  openLibraryStorage,
   portaled = true,
 }: {
   cancellations?: ActivityRecord[];
@@ -1523,6 +1535,7 @@ export function InstallAction({
   install: AsyncAction;
   review: AsyncAction;
   dismiss: () => void;
+  openLibraryStorage?: () => void;
   portaled?: boolean;
 }) {
   const reviewButton = useRef<HTMLButtonElement>(null);
@@ -1620,7 +1633,26 @@ export function InstallAction({
                 state={activity.cancellation ?? undefined}
               />
             ))}
+            {librarySpaceBlocked(plan) && (
+              <p role="status" className="mt-3">
+                This download needs more free space in the Portcove library. Free space on its drive
+                or review the library location in Settings.
+              </p>
+            )}
             <DialogFooter className="mt-4">
+              {openLibraryStorage && librarySpaceBlocked(plan) && (
+                <Button
+                  data-focusable
+                  variant="outline"
+                  disabled={Boolean(busy)}
+                  onClick={() => {
+                    dismiss();
+                    openLibraryStorage();
+                  }}
+                >
+                  Open Library &amp; Storage
+                </Button>
+              )}
               {action ? (
                 <PlannedInstallButton plan={plan} busy={busy} install={install} />
               ) : (
@@ -1698,6 +1730,7 @@ function MissingInstallAction({
 
 function InstallPlanSummary({ plan }: { plan: InstallPlan }) {
   const download = plan.action === "download";
+  const libraryOutput = usesLibraryOutput(plan);
   const localState =
     plan.action === "blocked_unverified"
       ? "Local copy needs checking"
@@ -1717,7 +1750,11 @@ function InstallPlanSummary({ plan }: { plan: InstallPlan }) {
       <div>
         <strong>{download ? formatBytes(plan.download_bytes) : "No download"}</strong>
         <span>
-          {download ? `${formatBytes(plan.storage.volume_available_bytes)} available` : localState}
+          {download
+            ? libraryOutput
+              ? `${formatBytes(plan.storage.volume_available_bytes)} available in library`
+              : "Destination capacity checked at install"
+            : localState}
         </span>
       </div>
       {download && (
@@ -1740,8 +1777,7 @@ function PlannedInstallButton({
   install: AsyncAction;
 }) {
   const blocked = plan.action === "blocked_unverified";
-  const insufficientSpace =
-    plan.action === "download" && plan.download_bytes > plan.storage.volume_available_bytes;
+  const insufficientSpace = librarySpaceBlocked(plan);
   let label =
     plan.action === "download"
       ? `Install · ${formatBytes(plan.download_bytes)}`
@@ -1766,6 +1802,21 @@ function PlannedInstallButton({
       <Icon glyph={Download} />
       {label}
     </Button>
+  );
+}
+
+function librarySpaceBlocked(plan: InstallPlan) {
+  return (
+    plan.action === "download" &&
+    usesLibraryOutput(plan) &&
+    plan.download_bytes > plan.storage.volume_available_bytes
+  );
+}
+
+function usesLibraryOutput(plan: InstallPlan) {
+  return (
+    plan.output_location.effective_output_directory ===
+    plan.output_location.default_output_directory
   );
 }
 
