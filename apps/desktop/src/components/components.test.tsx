@@ -3405,8 +3405,10 @@ describe("desktop components", () => {
       "May have been interrupted",
       "In progress",
     ])
-      expect(html).toContain(`<span class="activity-status">${label}</span>`);
-    expect(html).not.toMatch(/activity-status">(?:succeeded|failed|cancelled|unfinished|running)</);
+      expect(html).toMatch(new RegExp(`<span class="activity-status [^"]*">${label}</span>`));
+    expect(html).not.toMatch(
+      /activity-status [^"]*">(?:succeeded|failed|cancelled|unfinished|running)</,
+    );
     expect(html).toContain("No completion reported");
     expect(html).toContain(
       '<p class="activity-details">This task has not reported completion. Review its details before retrying.</p>',

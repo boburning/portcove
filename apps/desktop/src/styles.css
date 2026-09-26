@@ -47,8 +47,18 @@
   --color-pc-accent-foreground: var(--color-interactive-text-strong);
   --color-pc-danger: var(--color-danger);
   --color-pc-danger-strong: var(--color-danger-strong);
+  --color-pc-danger-foreground: var(--color-danger-text);
   --color-pc-danger-subtle: var(--color-danger-subtle);
   --color-pc-danger-surface: var(--color-danger-surface);
+  --color-pc-success-foreground: var(--color-success-text);
+  --color-pc-success-subtle: var(--color-success-subtle);
+  --color-pc-warning-foreground: var(--color-warning-text);
+  --color-pc-warning-subtle: var(--color-warning-subtle);
+  --color-pc-info: var(--color-info);
+  --color-pc-info-foreground: var(--color-info-text);
+  --color-pc-info-subtle: var(--color-info-subtle);
+  --color-pc-loading: var(--color-loading);
+  --color-pc-interactive-foreground: var(--color-interactive-text);
   --color-pc-border: var(--color-border);
   --color-pc-input: var(--color-control-border);
   --color-pc-ring: var(--color-focus);
@@ -1307,54 +1317,7 @@ h2 {
 }
 
 .operation-bar {
-  display: grid;
   grid-template-columns: auto minmax(8rem, auto) minmax(12rem, 1fr);
-  gap: var(--space-3);
-  align-items: center;
-  margin-bottom: var(--space-4);
-  padding: var(--space-2) var(--space-3);
-  border: 1px solid var(--color-info);
-  border-radius: var(--radius-md);
-  color: var(--color-text-muted);
-  background: var(--color-info-subtle);
-  font-size: var(--text-xs);
-}
-
-.operation-icon {
-  color: var(--color-info-text);
-}
-.operation-icon .icon {
-  animation: spin 900ms linear infinite;
-}
-.operation-copy strong,
-.operation-copy span {
-  display: block;
-}
-.operation-copy strong {
-  color: var(--color-text);
-  font-weight: var(--font-weight-medium);
-}
-.operation-copy span {
-  margin-top: 0.1rem;
-}
-.operation-copy {
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
-
-.progress-track {
-  height: 5px;
-  overflow: hidden;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  background: var(--color-bg-inset);
-}
-
-.progress-track i {
-  height: 100%;
-  display: block;
-  background: var(--color-loading);
-  transition: width var(--duration-slow) var(--ease-standard);
 }
 
 .progress-track.indeterminate i {
@@ -3506,47 +3469,9 @@ select {
 }
 
 .activity-row {
-  min-height: 56px;
-  display: grid;
   grid-template-columns:
     1.5rem minmax(11.25rem, 1fr) minmax(7.5rem, auto)
     4.75rem;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 12px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  background: var(--color-bg-elevated);
-}
-
-.activity-indicator {
-  width: 1.5rem;
-  height: 1.5rem;
-  display: grid;
-  place-items: center;
-  border-radius: var(--radius-sm);
-  color: var(--color-text-muted);
-  background: var(--color-bg-raised);
-}
-
-.activity-row.succeeded .activity-indicator {
-  color: var(--color-success-text);
-  background: var(--color-success-subtle);
-}
-.activity-row.failed .activity-indicator {
-  color: var(--color-danger-text);
-  background: var(--color-danger-subtle);
-}
-.activity-row.running .activity-indicator {
-  color: var(--color-interactive-text);
-  background: var(--color-interactive-subtle);
-}
-.activity-row.unfinished .activity-indicator {
-  color: var(--color-warning-text);
-  background: var(--color-warning-subtle);
-}
-.activity-row.running .activity-indicator .icon {
-  animation: spin 900ms linear infinite;
 }
 .activity-main {
   min-width: 0;
@@ -3568,28 +3493,6 @@ select {
   color: var(--color-text-muted);
   font-size: var(--text-2xs);
   text-align: right;
-}
-
-.activity-status {
-  justify-self: end;
-  color: var(--color-text-muted);
-  font-size: var(--text-2xs);
-  font-weight: 800;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
-.activity-row.succeeded .activity-status {
-  color: var(--color-success-text);
-}
-.activity-row.failed .activity-status {
-  color: var(--color-danger-text);
-}
-.activity-row.running .activity-status {
-  color: var(--color-interactive-text);
-}
-.activity-row.unfinished .activity-status {
-  color: var(--color-warning-text);
 }
 
 .activity-details {
@@ -3813,8 +3716,6 @@ select:disabled {
     transition: none;
   }
   .loading-mark > .icon,
-  .operation-icon .icon,
-  .activity-row.running .activity-indicator .icon,
   .progress-track.indeterminate i,
   .detail-panel {
     animation: none;

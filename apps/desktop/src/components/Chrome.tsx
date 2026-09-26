@@ -499,18 +499,23 @@ function ErrorNotice({ error, clearError }: { error: unknown; clearError: () => 
 function OperationProgress({ operation, busy }: { operation?: OperationEvent; busy: string }) {
   const { label, detail, range } = progressPresentation(operation, busy);
   return (
-    <div className="operation-bar">
-      <span className="operation-icon">
+    <div className="operation-bar mb-4 grid items-center gap-3 rounded-pc-md border border-pc-info bg-pc-info-subtle px-3 py-2 text-xs text-pc-muted-foreground">
+      <span className="text-pc-info-foreground motion-safe:[&_.icon]:animate-spin">
         <Icon glyph={LoaderCircle} />
       </span>
-      <div className="operation-copy">
-        <strong role="status" aria-live="polite" aria-atomic="true">
+      <div className="min-w-0 break-words">
+        <strong
+          className="block font-medium text-pc-foreground"
+          role="status"
+          aria-live="polite"
+          aria-atomic="true"
+        >
           {label}
         </strong>
-        <span>{detail}</span>
+        <span className="mt-0.5 block">{detail}</span>
       </div>
       <div
-        className={`progress-track${range ? "" : " indeterminate"}`}
+        className={`progress-track h-[5px] overflow-hidden rounded-pc-md border border-pc-border bg-[var(--color-bg-inset)]${range ? "" : " indeterminate"}`}
         role="progressbar"
         aria-label={label}
         aria-valuemin={range ? 0 : undefined}
@@ -518,7 +523,10 @@ function OperationProgress({ operation, busy }: { operation?: OperationEvent; bu
         aria-valuenow={range?.current}
         aria-valuetext={detail}
       >
-        <i style={range ? { width: `${range.percent}%` } : undefined} />
+        <i
+          className="block h-full bg-pc-loading motion-safe:transition-[width] motion-safe:duration-300"
+          style={range ? { width: `${range.percent}%` } : undefined}
+        />
       </div>
     </div>
   );
