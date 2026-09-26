@@ -1730,7 +1730,7 @@ function MissingInstallAction({
 
 function InstallPlanSummary({ plan }: { plan: InstallPlan }) {
   const download = plan.action === "download";
-  const libraryOutput = plan.output_location.selection_source === "library_default";
+  const libraryOutput = usesLibraryOutput(plan);
   const localState =
     plan.action === "blocked_unverified"
       ? "Local copy needs checking"
@@ -1808,8 +1808,15 @@ function PlannedInstallButton({
 function librarySpaceBlocked(plan: InstallPlan) {
   return (
     plan.action === "download" &&
-    plan.output_location.selection_source === "library_default" &&
+    usesLibraryOutput(plan) &&
     plan.download_bytes > plan.storage.volume_available_bytes
+  );
+}
+
+function usesLibraryOutput(plan: InstallPlan) {
+  return (
+    plan.output_location.effective_output_directory ===
+    plan.output_location.default_output_directory
   );
 }
 

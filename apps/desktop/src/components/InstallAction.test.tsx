@@ -223,41 +223,45 @@ it("presents the reviewed installation in a dismissible dialog and restores trig
   expect(install).toHaveBeenCalledTimes(1);
 });
 
-it("routes a low-library-space review to Library & Storage for the default output", async () => {
-  const openLibraryStorage = vi.fn();
-  const shortPlan = {
-    ...plan,
-    storage: { ...plan.storage, volume_available_bytes: 32 * 1024 ** 2 },
-  };
-  function InsufficientSpaceHarness() {
-    const [reviewed, setReviewed] = useState<InstallPlan>();
-    return (
-      <InstallAction
-        ready
-        sourceReady
-        biosReady
-        plan={reviewed}
-        install={vi.fn()}
-        review={() => setReviewed(shortPlan)}
-        dismiss={() => setReviewed(undefined)}
-        openLibraryStorage={openLibraryStorage}
-      />
-    );
-  }
-  await act(async () => root.render(<InsufficientSpaceHarness />));
-  await click("Review install");
-  expect(button("Free space required").disabled).toBe(true);
-  expect(document.body.textContent).toContain("32.0 MiB available in library");
-  expect(document.body.textContent).toContain("more free space in the Portcove library");
-  expect(button("Open Library & Storage").disabled).toBe(false);
-  await click("Open Library & Storage");
-  expect(document.body.querySelector('[role="dialog"]')).toBeNull();
-  expect(openLibraryStorage).toHaveBeenCalledTimes(1);
-  await click("Review install");
-  await pressEscape();
-  expect(document.activeElement).toBe(button("Review install"));
-  expect(openLibraryStorage).toHaveBeenCalledTimes(1);
-});
+it.each(["library_default", "port_setting"] as const)(
+  "routes a low-library-space review to Library & Storage for the default path saved as %s",
+  async (selectionSource) => {
+    const openLibraryStorage = vi.fn();
+    const shortPlan = {
+      ...plan,
+      storage: { ...plan.storage, volume_available_bytes: 32 * 1024 ** 2 },
+      output_location: { ...plan.output_location, selection_source: selectionSource },
+    };
+    function InsufficientSpaceHarness() {
+      const [reviewed, setReviewed] = useState<InstallPlan>();
+      return (
+        <InstallAction
+          ready
+          sourceReady
+          biosReady
+          plan={reviewed}
+          install={vi.fn()}
+          review={() => setReviewed(shortPlan)}
+          dismiss={() => setReviewed(undefined)}
+          openLibraryStorage={openLibraryStorage}
+        />
+      );
+    }
+    await act(async () => root.render(<InsufficientSpaceHarness />));
+    await click("Review install");
+    expect(button("Free space required").disabled).toBe(true);
+    expect(document.body.textContent).toContain("32.0 MiB available in library");
+    expect(document.body.textContent).toContain("more free space in the Portcove library");
+    expect(button("Open Library & Storage").disabled).toBe(false);
+    await click("Open Library & Storage");
+    expect(document.body.querySelector('[role="dialog"]')).toBeNull();
+    expect(openLibraryStorage).toHaveBeenCalledTimes(1);
+    await click("Review install");
+    await pressEscape();
+    expect(document.activeElement).toBe(button("Review install"));
+    expect(openLibraryStorage).toHaveBeenCalledTimes(1);
+  },
+);
 
 it("does not block an external-output install using the library volume's free space", async () => {
   const externalPlan: InstallPlan = {
