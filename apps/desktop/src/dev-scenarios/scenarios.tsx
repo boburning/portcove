@@ -133,6 +133,22 @@ export const scenarios = [
     limitation:
       "The reviewed plan is a typed fixture; source validation, trust checks, download and installation do not run.",
   },
+  {
+    id: "installation-review-space-blocked",
+    label: "Installation review · library space blocked",
+    theme: "dark",
+    viewport: "narrow",
+    limitation:
+      "The insufficient library capacity is supplied; no volume probe, folder change or installation runs.",
+  },
+  {
+    id: "installation-review-local-unverified",
+    label: "Installation review · local copy needs checking",
+    theme: "light",
+    viewport: "wide",
+    limitation:
+      "The unverified local copy is supplied; no file verification, replacement or installation runs.",
+  },
 ] as const;
 
 type ScenarioId = (typeof scenarios)[number]["id"];
@@ -177,8 +193,11 @@ function installed(portId = "sample"): InstallRecord {
   };
 }
 
-function reviewedInstallPlan(port: PortDefinition): InstallPlan {
-  return {
+function reviewedInstallPlan(
+  port: PortDefinition,
+  state: "download" | "space-blocked" | "local-unverified" = "download",
+): InstallPlan {
+  const plan: InstallPlan = {
     bundled_runtime: null,
     port_id: port.id,
     channel: "stable",
@@ -212,6 +231,14 @@ function reviewedInstallPlan(port: PortDefinition): InstallPlan {
       user_data_root: `E:/Portcove/user/${port.id}`,
     },
   };
+  if (state === "space-blocked")
+    return {
+      ...plan,
+      storage: { ...plan.storage, volume_available_bytes: 16 * 1024 ** 2 },
+    };
+  if (state === "local-unverified")
+    return { ...plan, action: "blocked_unverified", download_bytes: 0 };
+  return plan;
 }
 
 function scenarioError({
@@ -252,8 +279,10 @@ function scenarioError({
 
 function ReferenceWorkspace({
   mode,
+  reviewState = "download",
 }: {
   mode: "library" | "library-attention" | "details" | "installation-review";
+  reviewState?: "download" | "space-blocked" | "local-unverified";
 }) {
   const port = {
     ...portDefinition(),
@@ -336,10 +365,11 @@ function ReferenceWorkspace({
           ready
           sourceReady
           biosReady
-          plan={reviewedInstallPlan(port)}
+          plan={reviewedInstallPlan(port, reviewState)}
           install={blockedScenarioAction}
           review={blockedScenarioAction}
           dismiss={blockedScenarioAction}
+          openLibraryStorage={blockedScenarioAction}
           portaled={false}
         />
       )}
@@ -354,6 +384,10 @@ function Scenario({ id }: { id: ScenarioId }) {
   if (id === "game-details-reference-narrow") return <ReferenceWorkspace mode="details" />;
   if (id === "installation-review-reference")
     return <ReferenceWorkspace mode="installation-review" />;
+  if (id === "installation-review-space-blocked")
+    return <ReferenceWorkspace mode="installation-review" reviewState="space-blocked" />;
+  if (id === "installation-review-local-unverified")
+    return <ReferenceWorkspace mode="installation-review" reviewState="local-unverified" />;
   const port = { ...portDefinition(), name: "Scenario game" };
   if (id === "empty-library")
     return (
