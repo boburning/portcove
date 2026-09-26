@@ -606,8 +606,7 @@ function RequirementsGroup({
         </summary>
         <div className="detail-group-content requirements-body">
           <RequirementsSummary port={port} />
-          <SourceFields mode="missing" controls={sources} />
-          <SourceFields mode="registered" controls={sources} />
+          <SourceFields controls={sources} />
           <SourceIntakeActions controls={sources} busy={Boolean(busy)} />
           {managedPreparation && pendingSetup && (
             <PreparationControl
@@ -1062,17 +1061,11 @@ type SourceControls = Pick<
   biosHealth?: SourceHealth | null;
 };
 
-function SourceFields({
-  mode,
-  controls,
-}: {
-  mode: "missing" | "registered";
-  controls: SourceControls;
-}) {
+function SourceFields({ controls }: { controls: SourceControls }) {
   return (
     <>
-      {originalSourceField(mode, controls)}
-      {biosSourceField(mode, controls)}
+      {originalSourceField(controls)}
+      {biosSourceField(controls)}
     </>
   );
 }
@@ -1109,9 +1102,9 @@ function SourceIntakeActions({ controls, busy }: { controls: SourceControls; bus
   );
 }
 
-function originalSourceField(mode: "missing" | "registered", controls: SourceControls) {
+function originalSourceField(controls: SourceControls) {
   const profileId = controls.port.source_profile;
-  if (!profileId || controls.sourceReady !== (mode === "registered")) return null;
+  if (!profileId) return null;
   return (
     <SourceField
       heading="Game files"
@@ -1130,15 +1123,9 @@ function originalSourceField(mode: "missing" | "registered", controls: SourceCon
   );
 }
 
-function biosSourceField(mode: "missing" | "registered", controls: SourceControls) {
+function biosSourceField(controls: SourceControls) {
   const profileId = controls.port.bios_source_profile;
-  if (
-    !profileId ||
-    !controls.biosProfile ||
-    !controls.setBiosPath ||
-    controls.biosReady !== (mode === "registered")
-  )
-    return null;
+  if (!profileId || !controls.biosProfile || !controls.setBiosPath) return null;
   return (
     <SourceField
       heading="Required BIOS"
