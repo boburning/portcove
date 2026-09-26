@@ -417,6 +417,32 @@ describe("source identity controls", () => {
     vi.unstubAllGlobals();
   });
 
+  it("offers the matching disc-tool route only when the source problem names a tool", async () => {
+    const openHostTool = vi.fn();
+    const missingTool = report("source_could_not_be_checked");
+    missingTool.problem = {
+      code: "source_invalid",
+      message: "The disc checker is unavailable.",
+      tool_id: "chdman",
+    };
+    await act(async () =>
+      root.render(<SourceIdentityPanel report={missingTool} openHostTool={openHostTool} />),
+    );
+    const link = [...host.querySelectorAll<HTMLButtonElement>("button")].find(
+      (button) => button.textContent === "Review disc tool settings",
+    );
+    expect(link).toBeDefined();
+    expect(focusableControls(host)).toContain(link);
+    await act(async () => link!.click());
+    expect(openHostTool).toHaveBeenCalledExactlyOnceWith("chdman");
+
+    missingTool.problem = { code: "source_invalid", message: "The file could not be read." };
+    await act(async () =>
+      root.render(<SourceIdentityPanel report={missingTool} openHostTool={openHostTool} />),
+    );
+    expect(host.textContent).not.toContain("Review disc tool settings");
+  });
+
   it("keeps copy and evidence controls named, keyboard reachable, and focused across a current report refresh", async () => {
     const open = vi.fn();
     await act(async () =>

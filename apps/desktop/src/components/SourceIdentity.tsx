@@ -23,9 +23,11 @@ import { Button } from "./ui/button";
 export function SourceIdentityPanel({
   report,
   openEvidence,
+  openHostTool,
 }: {
   report: SourceInspectionReport;
   openEvidence?: (evidenceId: string) => void;
+  openHostTool?: (toolId: string) => void;
 }) {
   const inspection = report.inspection;
   const recognized =
@@ -36,6 +38,7 @@ export function SourceIdentityPanel({
     (candidate) => candidate.id === recognized?.variant_id,
   );
   const state = sourceDisplayState(report);
+  const problemToolId = report.problem?.tool_id;
   return (
     <section
       className="source-identity"
@@ -63,6 +66,16 @@ export function SourceIdentityPanel({
           <Icon glyph={AlertTriangle} size="sm" />
           {report.problem.message}
         </p>
+      )}
+      {problemToolId && openHostTool && (
+        <Button
+          data-focusable
+          variant="outline"
+          size="sm"
+          onClick={() => openHostTool(problemToolId)}
+        >
+          Review disc tool settings
+        </Button>
       )}
       <p className="source-next">
         <strong>Next:</strong> {report.next_action}

@@ -22,6 +22,7 @@ import {
   type LibraryBrowsingContext,
 } from "./features/app-shell/use-library-browsing-context";
 import { useDetailWorkspaceNavigation } from "./features/app-shell/use-detail-workspace-navigation";
+import { focusDiscTool } from "./features/app-shell/focus-disc-tool";
 import {
   useLibrarySelectionLanding,
   useLibrarySelectionReturn,
@@ -363,9 +364,11 @@ function Workspace({
     invalidate: invalidatePortDetails,
     open: openPortDetails,
   } = useDetailWorkspaceNavigation(workspace, setSelectedId, availablePortIds);
+  const [pendingToolId, setPendingToolId] = useState<string>();
   const setPrimaryView = useCallback(
     (...args: Parameters<typeof setView>) => {
       const nextView = typeof args[0] === "function" ? args[0](ui.view) : args[0];
+      if (nextView !== "settings") setPendingToolId(undefined);
       const detailReturn = invalidatePortDetails();
       switchView(
         nextView,
@@ -381,6 +384,29 @@ function Workspace({
     },
     [invalidatePortDetails, setSelectedId, setView, switchView, ui.view],
   );
+  const openHostTool = (toolId: string) => {
+    setPendingToolId(toolId);
+    setPrimaryView("settings");
+    window.requestAnimationFrame(() => focusDiscTool());
+  };
+  useEffect(() => {
+    if (
+      !pendingToolId ||
+      ui.view !== "settings" ||
+      (!data.doctor && (!data.diagnosticFailure || data.diagnosticRefreshing))
+    )
+      return;
+    const frame = window.requestAnimationFrame(() => {
+      const heading = document.getElementById("disc-tools-heading");
+      if (document.activeElement !== heading && document.activeElement !== document.body) {
+        setPendingToolId(undefined);
+        return;
+      }
+      focusDiscTool(pendingToolId);
+      setPendingToolId(undefined);
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [data.diagnosticFailure, data.diagnosticRefreshing, data.doctor, pendingToolId, ui.view]);
   const commandSurface = useCommandSurface({
     recent: model.recent,
     installedCount: model.overview.installed,
@@ -520,6 +546,7 @@ function Workspace({
                 void data.refreshAfterMutation();
               }}
               openSourceIntake={openSourceIntake}
+              openHostTool={openHostTool}
               close={closePortDetails}
             />
           ) : (
@@ -878,6 +905,7 @@ function SelectedPortPanel({
   libraryGeneration,
   refreshAfterMutation,
   openSourceIntake,
+  openHostTool,
   close,
 }: {
   model: ReturnType<typeof useAppModel>;
@@ -890,6 +918,7 @@ function SelectedPortPanel({
   libraryGeneration: number;
   refreshAfterMutation: () => void;
   openSourceIntake: (portId: string, profileId: string, paths?: string[]) => void;
+  openHostTool: (toolId: string) => void;
   close: () => void;
 }) {
   if (!model.port) return null;
@@ -974,6 +1003,7 @@ function SelectedPortPanel({
         );
       }}
       inspectSource={(profile) => openSourceIntake(model.port.id, profile.id)}
+      openHostTool={openHostTool}
       actions={detailActions(
         model.port,
         model.status,

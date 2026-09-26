@@ -1430,6 +1430,8 @@ describe("desktop components", () => {
       />,
     );
     expect(html).toContain("Disc tools");
+    expect(html).toContain('id="disc-tools-heading"');
+    expect(html).toContain('data-host-tool-id="chdman"');
     expect(html).toContain("windows-x86-64");
     expect(html).toContain("61 ports · 10 installed · 9 sources");
     expect(html).toContain("Ready");
