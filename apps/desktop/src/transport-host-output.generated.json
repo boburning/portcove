@@ -4682,6 +4682,14 @@
     "title": "SteamEntryReview",
     "type": "object"
   },
+  "steam_profiles": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "items": {
+      "type": "string"
+    },
+    "title": "Array_of_string",
+    "type": "array"
+  },
   "update_check_outcome": {
     "$defs": {
       "ArtifactIdentity": {

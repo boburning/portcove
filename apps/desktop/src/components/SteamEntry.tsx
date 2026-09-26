@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Gamepad2, FolderOpen } from "lucide-react";
 import { desktopApi } from "../api";
 import { pickSteamFolder } from "../file-picker";
@@ -136,7 +136,9 @@ export function SteamEntryDialog({
         </DialogDescription>
         {!result && (
           <SteamProfileFields
+            key={generation}
             idPrefix="steam"
+            generation={generation}
             steamRoot={steamRoot}
             steamUserId={steamUserId}
             pending={Boolean(pending)}
@@ -321,7 +323,9 @@ export function SteamBatchEntryDialog({
               ))}
             </fieldset>
             <SteamProfileFields
+              key={generation}
               idPrefix="steam-batch"
+              generation={generation}
               steamRoot={steamRoot}
               steamUserId={steamUserId}
               pending={Boolean(pending)}
@@ -393,6 +397,7 @@ export function SteamBatchEntryDialog({
 
 function SteamProfileFields({
   idPrefix,
+  generation,
   steamRoot,
   steamUserId,
   pending,
@@ -401,6 +406,7 @@ function SteamProfileFields({
   resetReview,
 }: {
   idPrefix: string;
+  generation: number;
   steamRoot: string;
   steamUserId: string;
   pending: boolean;
@@ -408,11 +414,43 @@ function SteamProfileFields({
   setSteamUserId: (value: string) => void;
   resetReview: () => void;
 }) {
+  const [profiles, setProfiles] = useState<string[]>();
+  const [listing, setListing] = useState(false);
+  const [listError, setListError] = useState<string>();
+  const requestId = useRef(0);
+  useEffect(
+    () => () => {
+      requestId.current += 1;
+    },
+    [generation],
+  );
+  const changeRoot = (value: string) => {
+    requestId.current += 1;
+    setListing(false);
+    setProfiles(undefined);
+    setListError(undefined);
+    if (value !== steamRoot) setSteamUserId("");
+    setSteamRoot(value);
+    resetReview();
+  };
   const chooseSteam = async () => {
+    const currentRequest = requestId.current;
     const selected = await pickSteamFolder(steamRoot);
-    if (selected) {
-      setSteamRoot(selected);
-      resetReview();
+    if (selected && requestId.current === currentRequest) changeRoot(selected);
+  };
+  const findProfiles = async () => {
+    if (!steamRoot.trim() || listing) return;
+    const currentRequest = ++requestId.current;
+    setListing(true);
+    setProfiles(undefined);
+    setListError(undefined);
+    try {
+      const found = await desktopApi.listSteamProfiles(steamRoot, generation);
+      if (requestId.current === currentRequest) setProfiles(found);
+    } catch (value) {
+      if (requestId.current === currentRequest) setListError(errorText(value));
+    } finally {
+      if (requestId.current === currentRequest) setListing(false);
     }
   };
   return (
@@ -430,8 +468,7 @@ function SteamProfileFields({
           value={steamRoot}
           disabled={pending}
           onChange={(event) => {
-            setSteamRoot(event.target.value);
-            resetReview();
+            changeRoot(event.target.value);
           }}
           placeholder="C:\\Program Files (x86)\\Steam"
         />
@@ -445,6 +482,41 @@ function SteamProfileFields({
           Choose folder
         </Button>
       </div>
+      <Button
+        data-focusable
+        variant="outline"
+        disabled={pending || listing || !steamRoot.trim()}
+        onClick={() => void findProfiles()}
+      >
+        {listing ? "Finding profiles…" : "Find local profiles"}
+      </Button>
+      {listError && <p role="alert">{listError}</p>}
+      {profiles && (
+        <div role="group" aria-label="Local Steam profiles" className="mb-4">
+          {profiles.length === 0 ? (
+            <p>No local profiles found. Enter the numeric profile ID manually if you know it.</p>
+          ) : (
+            <>
+              <p className="mb-2">Select the exact local profile:</p>
+              {profiles.map((id) => (
+                <Button
+                  key={id}
+                  data-focusable
+                  variant={id === steamUserId ? "primary" : "outline"}
+                  disabled={pending}
+                  aria-pressed={id === steamUserId}
+                  onClick={() => {
+                    setSteamUserId(id);
+                    resetReview();
+                  }}
+                >
+                  {id}
+                </Button>
+              ))}
+            </>
+          )}
+        </div>
+      )}
       <label
         className="mb-2 block text-xs font-bold text-pc-muted-foreground"
         htmlFor={`${idPrefix}-profile`}
@@ -465,8 +537,9 @@ function SteamProfileFields({
         placeholder="Numeric folder under Steam userdata"
       />
       <p>
-        Choose the Steam installation containing <code>userdata</code> and enter the exact numeric
-        profile folder. Portcove does not guess another profile or library.
+        Choose the Steam installation containing <code>userdata</code>, then find and select the
+        exact local profile or enter its numeric folder ID. Portcove does not guess another profile
+        or library.
       </p>
     </>
   );

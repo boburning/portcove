@@ -435,9 +435,13 @@ exposes the writer's `writer_plan_sha256`; the apply result reports the latter
 as `plan_sha256`.
 The durable writer applies the batch as one shortcut-file publication, retaining
 its original backup and journal recovery behavior.
-The user chooses a Steam installation folder and enters the exact numeric profile
-directory, then reviews the resolved shortcut file, library, standalone CLI and
-Add/Repair/Remove result before a separate confirmation. The host derives the
+The user chooses a Steam installation folder, then explicitly selects a
+discovered local numeric profile folder or enters its ID manually. Discovery
+reads only bounded regular profile directories beneath that installation's
+`userdata`; it does not infer the active Steam account. Changing the installation
+clears the prior profile selection. The user then reviews the resolved shortcut
+file, library, standalone CLI and Add/Repair/Remove result before a separate
+confirmation. The host derives the
 catalog port and durable library identities itself, observes the main Steam
 process, never closes it, and reconstructs the complete host context and plan
 after consent; an unknown or running process and any changed reviewed profile,
@@ -458,8 +462,9 @@ inspection merely by containing the scanner. Desktop does not execute or shell
 out to a discovered candidate, and this compatibility marker is not a
 publisher-signature claim.
 
-This consumer is not profile discovery, artwork delivery, or an
-actual Steam-client qualification. Controlled host and renderer tests prove the
+Local folder discovery is a read-only aid to explicit profile selection. This
+consumer does not deliver artwork or qualify the actual Steam client. Controlled
+host and renderer tests prove the
 review/apply contract and isolated shortcut-file behavior. Native positive-path
 qualification may use the compile-time fixture that reports the client closed;
 that proves UI, consent, stale-plan and writer integration against an output-owned

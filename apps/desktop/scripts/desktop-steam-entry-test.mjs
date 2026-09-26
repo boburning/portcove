@@ -26,6 +26,16 @@ import {
  * @property {Function} confirmNative
  */
 
+async function selectLocalProfile(browser, click, profileId, fieldId) {
+  await click(By.xpath('//button[normalize-space(.)="Find local profiles"]'));
+  const choice = By.xpath(
+    `//div[@aria-label="Local Steam profiles"]//button[normalize-space(.)="${profileId}"]`,
+  );
+  await browser.wait(until.elementLocated(choice), 15_000);
+  await click(choice);
+  assert.equal(await browser.findElement(By.id(fieldId)).getAttribute("value"), profileId);
+}
+
 /** @param {SteamEntryContext} context */
 export async function steamEntryScenario(context) {
   assertSteamEntryContext(context);
@@ -90,7 +100,13 @@ export async function steamEntryScenario(context) {
     assert.notEqual(fieldPresentation.backgroundColor, fieldPresentation.dialogBackgroundColor);
     assert.ok(Number(fieldPresentation.labelFontWeight) >= 700, JSON.stringify(fieldPresentation));
     await browser.findElement(By.id("steam-installation")).sendKeys(steamRoot);
-    await browser.findElement(By.id("steam-profile")).sendKeys(steamUserId);
+    await selectLocalProfile(browser, click, steamUserId, "steam-profile");
+    const profileScreenshot = path.join(output, "native-steam-profile-selection.png");
+    await writeFile(profileScreenshot, await browser.takeScreenshot(), {
+      encoding: "base64",
+      flag: "wx",
+    });
+    artifacts.push(profileScreenshot);
     const preview = await invoke("preview_steam_entry", {
       request: { portId: port.id, steamRoot, steamUserId, operation: "add_or_repair" },
       generation: (await invoke("get_bootstrap_status")).value.generation,
@@ -168,7 +184,7 @@ export async function steamEntryScenario(context) {
     await click(button("Steam shortcut"));
     assert.ok((await browser.findElement(dialog).getText()).includes("game is not installed here"));
     await browser.findElement(By.id("steam-installation")).sendKeys(steamRoot);
-    await browser.findElement(By.id("steam-profile")).sendKeys(steamUserId);
+    await selectLocalProfile(browser, click, steamUserId, "steam-profile");
     assert.equal(await browser.findElement(button("Review shortcut setup")).isEnabled(), false);
     await click(button("Review shortcut removal"));
     await browser.wait(until.elementLocated(button("Remove shortcut")), 15_000);
@@ -292,7 +308,7 @@ export async function steamEntryScenario(context) {
       2,
     );
     await browser.findElement(By.id("steam-batch-installation")).sendKeys(steamRoot);
-    await browser.findElement(By.id("steam-batch-profile")).sendKeys(steamUserId);
+    await selectLocalProfile(browser, click, steamUserId, "steam-batch-profile");
     await click(button("Review selected shortcuts"));
     await browser.wait(until.elementLocated(button("Add or repair selected shortcuts")), 15_000);
     const reviewText = await browser.findElement(dialog).getText();

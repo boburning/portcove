@@ -7,7 +7,7 @@
 use crate::steam_entries::{
     SteamCliIdentity, SteamClientState, SteamEntryApplyResult, SteamEntryChange, SteamEntryError,
     SteamEntryPlan, SteamEntryPlanRequest, SteamGameEntryTarget, apply_steam_entry_plan,
-    plan_steam_entries,
+    local_steam_profiles, plan_steam_entries,
 };
 use crate::{
     DesktopError, DesktopResult, DesktopState, blocking_worker, cli_context, confirm_destructive,
@@ -92,6 +92,20 @@ struct SteamEntryContext {
     library_root: PathBuf,
     cli: Option<cli_context::CliExecutableIdentity>,
     active_install_id: Option<String>,
+}
+
+#[tauri::command]
+pub(crate) async fn list_steam_profiles(
+    state: tauri::State<'_, DesktopState>,
+    steam_root: PathBuf,
+    generation: u64,
+) -> DesktopResult<Vec<String>> {
+    let state = state.inner().clone();
+    blocking_worker(move || {
+        service_at_generation(&state, generation)?;
+        local_steam_profiles(&steam_root).map_err(steam_error)
+    })
+    .await
 }
 
 #[tauri::command]
