@@ -1,7 +1,7 @@
 use crate::{
     ActivityOperation, ActivityTargetKind, Catalog, GameFileRootAvailability,
     GameFileScanFreshness, GameFileScanSnapshot, PortcoveError, PortcoveService, Result,
-    SourceKind, SourceProfile, SourceRecord,
+    SourceProfile, SourceRecord,
     source_file::{HashBudget, read_identity},
 };
 
@@ -520,31 +520,25 @@ fn scan_with_events<'a>(
     }
     for id in request.profile_ids.iter().collect::<BTreeSet<_>>() {
         let profile = catalog.source_profile(id)?;
-        if profile.kind != SourceKind::File
-            || profile.accepted_extensions.is_empty()
-            || (profile.accepted_sha1.is_empty() && profile.accepted_sha256.is_empty())
-        {
-            discovery.issue(None, Some(profile.id.clone()), "This profile needs manual source selection; discovery supports exact-hash original files and cartridge ZIPs.".into());
+        let (raw_extensions, zip_extensions) =
+            crate::source_inspection::file_scan_extensions(catalog, profile);
+        if raw_extensions.is_empty() && zip_extensions.is_empty() {
+            discovery.issue(None, Some(profile.id.clone()), "This profile needs manual source selection; discovery supports exact-identity original files and cartridge ZIPs.".into());
         } else {
-            let mut extensions = profile
-                .accepted_extensions
-                .iter()
-                .map(|value| value.to_ascii_lowercase())
-                .collect::<Vec<_>>();
-            extensions.sort();
-            extensions.dedup();
-            for extension in &extensions {
+            for extension in &raw_extensions {
                 discovery
                     .raw_profiles_by_extension
                     .entry(extension.clone())
                     .or_default()
                     .push(profile);
             }
-            discovery
-                .zip_profile_groups
-                .entry(extensions)
-                .or_default()
-                .push(profile);
+            if !zip_extensions.is_empty() {
+                discovery
+                    .zip_profile_groups
+                    .entry(zip_extensions)
+                    .or_default()
+                    .push(profile);
+            }
             discovery.report.searched_profiles.push(profile.id.clone());
         }
     }
