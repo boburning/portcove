@@ -389,6 +389,7 @@ const contrastPairs = [
   ["signature action active label", "--color-text-on-dark", "--color-accent-active", 4.5],
   ["destructive hover label", "--color-text-on-dark", "--color-danger-surface", 4.5],
   ["highlight label", "--color-text-on-highlight", "--color-highlight", 4.5],
+  ["staged state on artwork", "--color-art-staged-text", "--color-art-blue", 4.5],
   ["success text", "--color-success-text", "--color-bg-elevated", 4.5],
   ["warning text", "--color-warning-text", "--color-bg-elevated", 4.5],
   ["danger text", "--color-danger-text", "--color-bg-elevated", 4.5],
