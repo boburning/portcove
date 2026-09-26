@@ -628,6 +628,22 @@ try {
       /Your library is empty[\s\S]*register a prepared runtime/,
     );
     await captureScenarioScreenshot("empty-library-shared-controls");
+    const updateChoice = await browser.wait(
+      until.elementLocated(By.css(".application-update-consent-notice")),
+      15_000,
+    );
+    assert.equal(await updateChoice.isDisplayed(), true);
+    await browser.manage().window().setRect({ width: 960, height: 640 });
+    const firstUseAction = await browser.executeScript((button) => {
+      const bounds = button.getBoundingClientRect();
+      return { top: bounds.top, bottom: bounds.bottom, viewportHeight: window.innerHeight };
+    }, browse);
+    await captureScenarioScreenshot("empty-library-compact-first-use", true);
+    assert.ok(
+      firstUseAction.top >= 0 && firstUseAction.bottom <= firstUseAction.viewportHeight,
+      `Browse port catalog must be visible without scrolling: ${JSON.stringify(firstUseAction)}`,
+    );
+    await browser.manage().window().setRect({ width: 1280, height: 800 });
     const search = await browser.findElement(By.id("port-search"));
     await search.sendKeys("unmatched title");
     const clearSearch = await browser.wait(
