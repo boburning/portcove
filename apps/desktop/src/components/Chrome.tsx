@@ -1073,7 +1073,7 @@ function AppearanceSettings({ appearance }: { appearance?: ThemeState }) {
       ? `Following system · currently ${resolvedLabel}`
       : `Always ${resolvedLabel}`;
   return (
-    <article className="settings-card appearance-card" data-focus-group>
+    <article className="settings-row appearance-card" data-focus-group>
       <p className="eyebrow">THEME</p>
       <h2>Color theme</h2>
       <div className="segmented appearance-options" role="group" aria-label="Color theme">
@@ -1093,7 +1093,7 @@ function AppearanceSettings({ appearance }: { appearance?: ThemeState }) {
 
 function AboutCard() {
   return (
-    <article className="settings-card about-card" data-focus-group>
+    <article className="settings-row about-card" data-focus-group>
       <div className="about-art">
         <BrandWordmark />
         <BrandMascot decorative />
@@ -1153,7 +1153,7 @@ function DiagnosticsCard({
     if (path) setBundlePath(path);
   };
   return (
-    <article className="settings-card diagnostics-card" data-focus-group>
+    <article className="settings-row diagnostics-card" data-focus-group>
       <p className="eyebrow">DIAGNOSTICS</p>
       <h2>
         <Icon glyph={ShieldCheck} />
@@ -1350,6 +1350,7 @@ export function SettingsView({
         eyebrow="DISPLAY"
         title="Appearance"
         description="Choose how Portcove looks on this device."
+        layout="rows"
       >
         <AppearanceSettings appearance={appearance} />
         <LanguageSettings />
@@ -1447,6 +1448,7 @@ export function SettingsView({
         eyebrow="ADVANCED"
         title="Advanced"
         description="Inspect diagnostics, support information, privacy boundaries, and application details."
+        layout="rows"
       >
         <DiagnosticsCard
           busy={busy}
@@ -1457,7 +1459,7 @@ export function SettingsView({
           refresh={refreshDiagnostics}
           hasSnapshot={Boolean(doctor)}
         />
-        <article className="settings-card privacy-card">
+        <article className="settings-row privacy-card">
           <p className="eyebrow">PRIVACY</p>
           <h2>Original game files stay local</h2>
           <p>
@@ -1487,7 +1489,7 @@ function SettingsSection({
   title: string;
   description: string;
   action?: ReactNode;
-  layout?: "grid" | "stacked";
+  layout?: "grid" | "stacked" | "rows";
   children: ReactNode;
 }) {
   const headingId = `settings-${id}-heading`;
@@ -1502,7 +1504,7 @@ function SettingsSection({
         {action}
       </div>
       <div
-        className={`settings-section-content${layout === "stacked" ? " settings-section-content-stacked" : ""}`}
+        className={`settings-section-content${layout === "stacked" ? " settings-section-content-stacked" : layout === "rows" ? " settings-section-content-rows" : ""}`}
       >
         {children}
       </div>

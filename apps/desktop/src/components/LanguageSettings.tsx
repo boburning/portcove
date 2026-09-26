@@ -26,7 +26,7 @@ export function LanguageSettings() {
   );
 
   return (
-    <article className="settings-card language-card" data-focus-group>
+    <article className="settings-row language-card" data-focus-group>
       <p className="eyebrow">{localization.t("language.eyebrow")}</p>
       <h2>{localization.t("language.title")}</h2>
       <p>{localization.t("language.description")}</p>

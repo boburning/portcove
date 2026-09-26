@@ -1665,6 +1665,28 @@ describe("desktop components", () => {
     expect(index).toContain("Portcove &amp; catalog updates");
   });
 
+  it("keeps Appearance and Advanced tasks in full-width rows with their actions and warnings", () => {
+    const html = renderToStaticMarkup(
+      <SettingsView createSupportBundle={vi.fn()} refreshDiagnostics={vi.fn()} />,
+    );
+    const appearance = html.slice(
+      html.indexOf('data-settings-group="appearance"'),
+      html.indexOf('data-settings-group="library-storage"'),
+    );
+    const advanced = html.slice(html.indexOf('data-settings-group="advanced"'));
+
+    expect(appearance).toContain('class="settings-section-content settings-section-content-rows"');
+    expect(appearance.match(/class="settings-row /gu)).toHaveLength(2);
+    expect(appearance.indexOf("Color theme")).toBeLessThan(appearance.indexOf("Language"));
+    expect(advanced).toContain('class="settings-section-content settings-section-content-rows"');
+    expect(advanced.match(/class="settings-row /gu)).toHaveLength(3);
+    expect(advanced.indexOf("metadata may remain")).toBeLessThan(
+      advanced.indexOf(">Create support bundle</button>"),
+    );
+    expect(advanced).toContain("Original game files stay local");
+    expect(advanced).toContain("Open project repository");
+  });
+
   it("hides unavailable device sign-in without exposing build configuration", () => {
     const html = renderToStaticMarkup(
       <SettingsView
