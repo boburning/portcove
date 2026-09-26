@@ -127,6 +127,46 @@ it("shows streamed exact matches during a scan and waits for the completed snaps
   expect(desktopApi.importSource).not.toHaveBeenCalled();
 });
 
+it("ignores delayed events from a completed scan while another scan runs", async () => {
+  const callbacks: ((event: OperationEvent) => void)[] = [];
+  const resolvers: ((value: GameFileScanSnapshot) => void)[] = [];
+  vi.mocked(desktopApi.scanGameFileRoots).mockImplementation((_limits, callback) => {
+    if (callback) callbacks.push(callback);
+    return new Promise<GameFileScanSnapshot>((resolve) => {
+      resolvers.push(resolve);
+    });
+  });
+  await act(async () => button("Scan saved folders").click());
+  await act(async () => resolvers[0](snapshot));
+  await act(async () => button("Scan saved folders").click());
+  const late = {
+    schema_version: 3,
+    operation_id: "old-scan",
+    parent_operation_id: null,
+    target: null,
+    sequence: 1,
+    timestamp_ms: 1,
+    operation: "discover_sources",
+    type: "source_candidate",
+    profile_id: "game",
+    path: "D:/Games/stale.z64",
+    sha256: "b".repeat(64),
+    size: 64,
+  } as const;
+  await act(async () => callbacks[0](late));
+  expect(document.body.querySelector('[aria-label="Matches found during scan"]')).toBeNull();
+  await act(async () =>
+    callbacks[1]({ ...late, operation_id: "new-scan", path: "D:/Games/new.z64" }),
+  );
+  expect(
+    document.body.querySelector('[aria-label="Matches found during scan"]')?.textContent,
+  ).toContain("new.z64");
+  expect(
+    document.body.querySelector('[aria-label="Matches found during scan"]')?.textContent,
+  ).not.toContain("stale.z64");
+  await act(async () => resolvers[1](snapshot));
+});
+
 it("preserves a saved root until removal is confirmed", async () => {
   const remove = vi.spyOn(desktopApi, "removeGameFileRoot").mockResolvedValue(true);
   await click("Remove");

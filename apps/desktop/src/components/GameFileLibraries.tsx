@@ -131,27 +131,33 @@ export function GameFileLibraries({
         setNotice("No saved folder is available. Reconnect or relink one, then scan again.");
         return;
       }
-      const scanned = await desktopApi.scanGameFileRoots(scanLimits, (event) => {
-        if (event.type === "started") setOperationId(event.operation_id);
-        if (event.schema_version === 3 && event.type === "source_candidate") {
-          setLiveCandidates((current) =>
-            current.some(
-              (candidate) =>
-                candidate.profile_id === event.profile_id && candidate.path === event.path,
-            )
-              ? current
-              : [
-                  ...current,
-                  {
-                    profile_id: event.profile_id,
-                    path: event.path,
-                    sha256: event.sha256,
-                    size: event.size,
-                  },
-                ].slice(0, scanLimits.max_candidates),
-          );
-        }
-      });
+      let acceptingEvents = true;
+      const scanned = await desktopApi
+        .scanGameFileRoots(scanLimits, (event) => {
+          if (!acceptingEvents) return;
+          if (event.type === "started") setOperationId(event.operation_id);
+          if (event.schema_version === 3 && event.type === "source_candidate") {
+            setLiveCandidates((current) =>
+              current.some(
+                (candidate) =>
+                  candidate.profile_id === event.profile_id && candidate.path === event.path,
+              )
+                ? current
+                : [
+                    ...current,
+                    {
+                      profile_id: event.profile_id,
+                      path: event.path,
+                      sha256: event.sha256,
+                      size: event.size,
+                    },
+                  ].slice(0, scanLimits.max_candidates),
+            );
+          }
+        })
+        .finally(() => {
+          acceptingEvents = false;
+        });
       setSnapshot(scanned);
       await refresh();
     }).finally(() => setLiveCandidates([]));
