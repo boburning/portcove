@@ -223,6 +223,51 @@ it("presents the reviewed installation in a dismissible dialog and restores trig
   expect(install).toHaveBeenCalledTimes(1);
 });
 
+it("routes an insufficient-space review to the same game's install folder", async () => {
+  HTMLElement.prototype.scrollIntoView = vi.fn();
+  const shortPlan = {
+    ...plan,
+    storage: { ...plan.storage, volume_available_bytes: 32 * 1024 ** 2 },
+  };
+  function InsufficientSpaceHarness() {
+    const [reviewed, setReviewed] = useState<InstallPlan>();
+    return (
+      <>
+        <InstallAction
+          ready
+          sourceReady
+          biosReady
+          plan={reviewed}
+          install={vi.fn()}
+          review={() => setReviewed(shortPlan)}
+          dismiss={() => setReviewed(undefined)}
+        />
+        <section className="output-location-control" tabIndex={-1}>
+          <input id="output-location-path-sample" aria-label="Folder for future installs" />
+        </section>
+        <input id="output-location-path-other" aria-label="Other game's folder" />
+      </>
+    );
+  }
+  await act(async () => root.render(<InsufficientSpaceHarness />));
+  await click("Review install");
+  expect(button("Free space required").disabled).toBe(true);
+  expect(button("Review install folder").disabled).toBe(false);
+  await click("Review install folder");
+  expect(document.body.querySelector('[role="dialog"]')).toBeNull();
+  expect(document.activeElement?.id).toBe("output-location-path-sample");
+  expect(HTMLElement.prototype.scrollIntoView).toHaveBeenCalled();
+  const folderField = document.getElementById("output-location-path-sample") as HTMLInputElement;
+  folderField.disabled = true;
+  await click("Review install");
+  await click("Review install folder");
+  expect(document.activeElement?.classList.contains("output-location-control")).toBe(true);
+  folderField.disabled = false;
+  await click("Review install");
+  await pressEscape();
+  expect(document.activeElement).toBe(button("Review install"));
+});
+
 it("does not dismiss the reviewed installation after installation starts", async () => {
   function BusyHarness() {
     const [reviewed, setReviewed] = useState<InstallPlan>();

@@ -1528,6 +1528,7 @@ export function InstallAction({
   const reviewButton = useRef<HTMLButtonElement>(null);
   const chooseButton = useRef<HTMLButtonElement>(null);
   const restoreFocus = useRef(false);
+  const returnToInstallLocation = useRef<string | undefined>(undefined);
   const [choosing, setChoosing] = useState(false);
   useEffect(() => {
     if (!choosing && restoreFocus.current) {
@@ -1576,6 +1577,7 @@ export function InstallAction({
           size="lg"
           disabled={Boolean(busy)}
           onClick={() => {
+            returnToInstallLocation.current = undefined;
             void review();
           }}
         >
@@ -1592,7 +1594,21 @@ export function InstallAction({
         >
           <DialogContent
             showCloseButton={false}
-            finalFocus={reviewButton}
+            finalFocus={() => {
+              if (returnToInstallLocation.current) {
+                const input = document.getElementById(
+                  `output-location-path-${returnToInstallLocation.current}`,
+                );
+                const location = input?.closest<HTMLElement>(".output-location-control");
+                const target =
+                  input instanceof HTMLInputElement && !input.disabled ? input : location;
+                if (target) {
+                  target.scrollIntoView({ block: "center" });
+                  return target;
+                }
+              }
+              return reviewButton.current;
+            }}
             portaled={portaled}
             className="max-h-[calc(100dvh-var(--space-8))] w-[min(680px,90vw)] max-w-none gap-0 overflow-y-auto overscroll-contain p-8 [scroll-padding-block:var(--space-4)] sm:max-w-none"
             aria-describedby="install-review-description"
@@ -1620,7 +1636,28 @@ export function InstallAction({
                 state={activity.cancellation ?? undefined}
               />
             ))}
+            {plan.action === "download" &&
+              plan.download_bytes > plan.storage.volume_available_bytes && (
+                <p role="status" className="mt-3">
+                  This folder needs more free space. Free space here, or review another folder for
+                  future installs. Review installation again after changing the folder.
+                </p>
+              )}
             <DialogFooter className="mt-4">
+              {plan.action === "download" &&
+                plan.download_bytes > plan.storage.volume_available_bytes && (
+                  <Button
+                    data-focusable
+                    variant="outline"
+                    disabled={Boolean(busy)}
+                    onClick={() => {
+                      returnToInstallLocation.current = plan.port_id;
+                      dismiss();
+                    }}
+                  >
+                    Review install folder
+                  </Button>
+                )}
               {action ? (
                 <PlannedInstallButton plan={plan} busy={busy} install={install} />
               ) : (
