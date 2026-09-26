@@ -100,7 +100,8 @@ impl PortcoveService {
             None,
         )?;
         emit(operation.started());
-        let result = self.finish_activity(activity, scan(self.catalog(), request, &operation));
+        let result =
+            self.finish_activity(activity, scan(self.catalog(), request, &operation, None));
         emit(operation.finished(crate::OperationResult::from_result(&result)));
         result
     }
@@ -187,7 +188,7 @@ fn build_game_file_scan(
             .collect(),
         limits: limits.clone(),
     };
-    let mut report = scan(catalog, &request, operation)?;
+    let mut report = scan(catalog, &request, operation, Some(library.root()))?;
     for root in roots
         .iter()
         .filter(|root| root.availability == GameFileRootAvailability::Unavailable)
@@ -296,14 +297,17 @@ struct Discovery<'a> {
     limits: &'a SourceDiscoveryLimits,
     reached: BTreeSet<SourceDiscoveryLimit>,
     budget: HashBudget,
+    excluded_library: Option<PathBuf>,
 }
 
 fn scan(
     catalog: &Catalog,
     request: &SourceDiscoveryRequest,
     operation: &crate::OperationCoordinator,
+    excluded_library: Option<&Path>,
 ) -> Result<SourceDiscoveryReport> {
     validate_request(request)?;
+    let excluded_library = excluded_library.map(fs::canonicalize).transpose()?;
     let mut roots = Vec::new();
     for root in &request.roots {
         operation.checkpoint()?;
@@ -312,6 +316,14 @@ fn scan(
         if !root.is_dir() {
             return Err(PortcoveError::usage(
                 "source discovery roots must be directories",
+            ));
+        }
+        if excluded_library
+            .as_ref()
+            .is_some_and(|library| root.starts_with(library))
+        {
+            return Err(PortcoveError::usage(
+                "saved game-file roots cannot be inside the Portcove library",
             ));
         }
         roots.push(root);
@@ -348,7 +360,21 @@ fn scan(
             hashed: 0,
             max_zip_entries: 4096,
         },
+        excluded_library,
     };
+    if let Some(library) = &discovery.excluded_library
+        && discovery
+            .report
+            .searched_roots
+            .iter()
+            .any(|root| library.starts_with(root))
+    {
+        discovery.issue(
+            Some(library.clone()),
+            None,
+            "Portcove's own library is excluded from game-file discovery.".into(),
+        );
+    }
     for id in request.profile_ids.iter().collect::<BTreeSet<_>>() {
         let profile = catalog.source_profile(id)?;
         if profile.kind != SourceKind::File
@@ -420,6 +446,14 @@ impl Discovery<'_> {
             for entry in entries {
                 if let Some(operation) = &self.budget.operation {
                     operation.checkpoint()?;
+                }
+                // Saved roots may contain the library itself. Skip its whole tree
+                // before it can consume the request's entry or hash budgets.
+                let owned_path = entry.as_ref().ok().map(|entry| entry.path());
+                if let (Some(library), Some(path)) = (&self.excluded_library, owned_path)
+                    && path == *library
+                {
+                    continue;
                 }
                 if self.report.entries_examined >= self.limits.max_entries {
                     self.reached.insert(SourceDiscoveryLimit::Entries);

@@ -5,6 +5,7 @@ fn scan(catalog: &Catalog, request: &SourceDiscoveryRequest) -> Result<SourceDis
         catalog,
         request,
         &crate::OperationCoordinator::new("test-source-discovery", None),
+        None,
     )
 }
 use crate::ErrorCode;
@@ -142,6 +143,104 @@ fn saved_roots_scan_the_catalog_and_persist_one_current_snapshot() {
             .freshness,
         GameFileScanFreshness::InputsChanged
     );
+}
+
+#[test]
+fn saved_root_excludes_its_nested_library_before_entry_and_hash_budgets() {
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path().join("selected");
+    fs::create_dir(&root).unwrap();
+    let payload = b"synthetic supported source";
+    fs::write(root.join("external.z64"), payload).unwrap();
+    let library = crate::Library::open(root.join("portcove-library")).unwrap();
+    fs::write(library.root().join("owned.z64"), payload).unwrap();
+    library.add_game_file_root(&root).unwrap();
+
+    let limits = SourceDiscoveryLimits {
+        max_entries: 1,
+        max_hash_bytes: payload.len() as u64,
+        ..SourceDiscoveryLimits::default()
+    };
+    let snapshot = super::build_game_file_scan(
+        &catalog(payload),
+        &library,
+        &limits,
+        &crate::OperationCoordinator::new("saved-root-owned-library", None),
+    )
+    .unwrap();
+    assert_eq!(snapshot.report.entries_examined, 1);
+    assert_eq!(snapshot.report.files_hashed, 1);
+    assert_eq!(snapshot.report.hash_bytes, payload.len() as u64);
+    assert_eq!(snapshot.report.candidates.len(), 2);
+    let expected = fs::canonicalize(root.join("external.z64")).unwrap();
+    assert!(
+        snapshot
+            .report
+            .candidates
+            .iter()
+            .all(|candidate| candidate.path == expected)
+    );
+    let canonical_library = fs::canonicalize(library.root()).unwrap();
+    assert!(snapshot.report.issues.iter().any(|issue| {
+        issue.path.as_deref() == Some(canonical_library.as_path())
+            && issue.message.contains("excluded from game-file discovery")
+    }));
+}
+
+#[test]
+fn saved_root_inside_the_library_is_refused_without_scanning_owned_files() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = crate::Library::open(temporary.path().join("library")).unwrap();
+    let owned = library.root().join("source-inbox");
+    fs::create_dir_all(&owned).unwrap();
+    library.add_game_file_root(&owned).unwrap();
+    let error = super::build_game_file_scan(
+        &catalog(b"synthetic supported source"),
+        &library,
+        &SourceDiscoveryLimits::default(),
+        &crate::OperationCoordinator::new("saved-root-inside-library", None),
+    )
+    .unwrap_err();
+    assert_eq!(error.code, ErrorCode::Usage);
+    assert!(
+        error
+            .message
+            .contains("cannot be inside the Portcove library")
+    );
+}
+
+#[test]
+fn saved_root_reports_the_owned_library_even_when_entry_limit_stops_early() {
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path().join("selected");
+    fs::create_dir(&root).unwrap();
+    fs::write(root.join("first.txt"), b"unrelated").unwrap();
+    fs::write(root.join("second.txt"), b"unrelated").unwrap();
+    let library = crate::Library::open(root.join("zzz-portcove-library")).unwrap();
+    library.add_game_file_root(&root).unwrap();
+    let limits = SourceDiscoveryLimits {
+        max_entries: 1,
+        ..SourceDiscoveryLimits::default()
+    };
+    let snapshot = super::build_game_file_scan(
+        &catalog(b"synthetic supported source"),
+        &library,
+        &limits,
+        &crate::OperationCoordinator::new("saved-root-early-entry-limit", None),
+    )
+    .unwrap();
+    assert_eq!(snapshot.report.entries_examined, 1);
+    assert!(
+        snapshot
+            .report
+            .limits_reached
+            .contains(&SourceDiscoveryLimit::Entries)
+    );
+    let canonical_library = fs::canonicalize(library.root()).unwrap();
+    assert!(snapshot.report.issues.iter().any(|issue| {
+        issue.path.as_deref() == Some(canonical_library.as_path())
+            && issue.message.contains("excluded from game-file discovery")
+    }));
 }
 
 #[test]
