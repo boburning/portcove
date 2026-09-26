@@ -1693,7 +1693,7 @@ function HostReadiness({
   return (
     <article className="settings-card host-readiness">
       <p className="eyebrow">HOST</p>
-      <h2>
+      <h2 id="disc-tools-heading" tabIndex={-1}>
         <Icon glyph={Wrench} />
         Disc tools
       </h2>
@@ -1788,7 +1788,7 @@ export function HostToolRow({
           ? "Host discovery"
           : "Not resolved";
   return (
-    <div className="host-tool-row" data-focus-group>
+    <div className="host-tool-row" data-focus-group data-host-tool-id={tool.id} tabIndex={-1}>
       <div className="host-tool-heading">
         <strong>{tool.display_name}</strong>
         <span className={`host-tool-state ${tool.state}`}>

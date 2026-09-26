@@ -110,6 +110,7 @@ interface DetailPanelProps {
   outputLocationChanged?: () => void;
   externalRuntimeChanged?: () => void;
   openSourceEvidence?: (evidenceId: string) => void;
+  openHostTool?: (toolId: string) => void;
   inspectSource?: (profile: SourceProfile) => void;
   actions: DetailActions;
 }
@@ -201,6 +202,7 @@ export function DetailPanel(props: DetailPanelProps) {
     sourceReady,
     biosReady,
     openSourceEvidence: props.openSourceEvidence,
+    openHostTool: props.openHostTool,
     inspectSource: props.inspectSource,
     sourceHealth: status?.readiness?.source,
     biosHealth: status?.readiness?.bios,
@@ -965,6 +967,7 @@ type SourceControls = Pick<
   | "setBiosPath"
   | "pickBios"
   | "openSourceEvidence"
+  | "openHostTool"
   | "inspectSource"
 > & {
   sourceReady: boolean;
@@ -1036,6 +1039,7 @@ function originalSourceField(mode: "missing" | "registered", controls: SourceCon
       pick={controls.pickSource}
       pickArchive={controls.pickSourceArchive}
       openEvidence={controls.openSourceEvidence}
+      openHostTool={controls.openHostTool}
     />
   );
 }
@@ -1061,6 +1065,7 @@ function biosSourceField(mode: "missing" | "registered", controls: SourceControl
       setPath={controls.setBiosPath}
       pick={controls.pickBios}
       openEvidence={controls.openSourceEvidence}
+      openHostTool={controls.openHostTool}
     />
   );
 }
@@ -1186,6 +1191,7 @@ function SourceField({
   pick,
   pickArchive,
   openEvidence,
+  openHostTool,
 }: {
   heading: string;
   profileId: string;
@@ -1198,6 +1204,7 @@ function SourceField({
   pick?: AsyncAction;
   pickArchive?: () => void;
   openEvidence?: (evidenceId: string) => void;
+  openHostTool?: (toolId: string) => void;
 }) {
   const bios = heading === "Required BIOS";
   const copy = sourceFieldCopy(profile, bios);
@@ -1242,7 +1249,11 @@ function SourceField({
         <small>{sourceHealthNote(health, bios)}</small>
       )}
       {!selectedOverride && inspection && (
-        <SourceIdentityPanel report={inspection} openEvidence={openEvidence} />
+        <SourceIdentityPanel
+          report={inspection}
+          openEvidence={openEvidence}
+          openHostTool={openHostTool}
+        />
       )}
     </div>
   );
