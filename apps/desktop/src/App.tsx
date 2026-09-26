@@ -541,6 +541,10 @@ function Workspace({
               }}
               openSourceIntake={openSourceIntake}
               openHostTool={openHostTool}
+              openLibraryStorage={() => {
+                setPrimaryView("settings");
+                window.requestAnimationFrame(() => focusSettingsTarget("library-storage"));
+              }}
               close={closePortDetails}
             />
           ) : (
@@ -882,6 +886,7 @@ function SelectedPortPanel({
   refreshAfterMutation,
   openSourceIntake,
   openHostTool,
+  openLibraryStorage,
   close,
 }: {
   model: ReturnType<typeof useAppModel>;
@@ -895,6 +900,7 @@ function SelectedPortPanel({
   refreshAfterMutation: () => void;
   openSourceIntake: (portId: string, profileId: string, paths?: string[]) => void;
   openHostTool: (toolId: string) => void;
+  openLibraryStorage: () => void;
   close: () => void;
 }) {
   if (!model.port) return null;
@@ -980,6 +986,7 @@ function SelectedPortPanel({
       }}
       inspectSource={(profile) => openSourceIntake(model.port.id, profile.id)}
       openHostTool={openHostTool}
+      openLibraryStorage={openLibraryStorage}
       actions={detailActions(
         model.port,
         model.status,

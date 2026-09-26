@@ -35,3 +35,15 @@ it("focuses the matching source action, requirement, or safe heading", () => {
   expect(document.activeElement?.getAttribute("data-source-profile")).toBe("owned");
   expect((document.activeElement as HTMLElement).tabIndex).toBe(0);
 });
+
+it("focuses Library & Storage when the library volume needs space", () => {
+  HTMLElement.prototype.scrollIntoView = vi.fn();
+  const section = document.createElement("section");
+  section.dataset.settingsGroup = "library-storage";
+  section.innerHTML =
+    '<h2 id="settings-library-storage-heading" tabindex="-1">Library & Storage</h2>';
+  document.body.append(section);
+  focusSettingsTarget("library-storage");
+  expect(document.activeElement?.id).toBe("settings-library-storage-heading");
+  expect((document.activeElement as HTMLElement).tabIndex).toBe(0);
+});

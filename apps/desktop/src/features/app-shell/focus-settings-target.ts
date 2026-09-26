@@ -5,6 +5,7 @@ export type ActivitySettingsTarget =
   | "discover-sources"
   | "move-library"
   | "import-library"
+  | "library-storage"
   | "catalog-updates";
 
 export function focusSettingsTarget(target: ActivitySettingsTarget, sourceProfileId?: string) {

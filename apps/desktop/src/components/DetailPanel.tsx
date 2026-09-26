@@ -111,6 +111,7 @@ interface DetailPanelProps {
   externalRuntimeChanged?: () => void;
   openSourceEvidence?: (evidenceId: string) => void;
   openHostTool?: (toolId: string) => void;
+  openLibraryStorage?: () => void;
   inspectSource?: (profile: SourceProfile) => void;
   actions: DetailActions;
 }
@@ -259,6 +260,7 @@ export function DetailPanel(props: DetailPanelProps) {
         externalRuntimeChanged={props.externalRuntimeChanged}
         outputApplying={setOutputApplying}
         actions={actions}
+        openLibraryStorage={props.openLibraryStorage}
       />
     </section>
   );
@@ -314,6 +316,7 @@ function DetailBody({
   externalRuntimeChanged,
   outputApplying,
   actions,
+  openLibraryStorage,
 }: {
   installCancellations?: ActivityRecord[];
   perform?: Perform;
@@ -341,6 +344,7 @@ function DetailBody({
   externalRuntimeChanged?: () => void;
   outputApplying: (applying: boolean) => void;
   actions: DetailActions;
+  openLibraryStorage?: () => void;
 }) {
   const managedPreparation = Boolean(
     installed && port.adapter === "upstream-managed-setup" && port.setup_output_paths.length,
@@ -365,6 +369,7 @@ function DetailBody({
         libraryGeneration={libraryGeneration}
         onChanged={externalRuntimeChanged}
         actions={actions}
+        openLibraryStorage={openLibraryStorage}
       />
       <RequirementsGroup
         key={port.id}
@@ -463,6 +468,7 @@ function StatusActionsGroup({
   libraryGeneration,
   onChanged,
   actions,
+  openLibraryStorage,
 }: {
   installCancellations?: ActivityRecord[];
   port: PortDefinition;
@@ -481,6 +487,7 @@ function StatusActionsGroup({
   libraryGeneration: number;
   onChanged?: () => void;
   actions: DetailActions;
+  openLibraryStorage?: () => void;
 }) {
   if (port.release.provider === "user-prepared" || status?.external_runtime) {
     return (
@@ -525,6 +532,7 @@ function StatusActionsGroup({
         plan={installPlan}
         busy={busy}
         actions={actions}
+        openLibraryStorage={openLibraryStorage}
       />
     </DetailGroup>
   );
@@ -1333,6 +1341,7 @@ function PrimaryActions({
   plan,
   busy,
   actions,
+  openLibraryStorage,
 }: {
   installCancellations?: ActivityRecord[];
   sources: SourceControls;
@@ -1349,6 +1358,7 @@ function PrimaryActions({
   plan?: InstallPlan;
   busy?: string;
   actions: DetailActions;
+  openLibraryStorage?: () => void;
 }) {
   if (invalidInstallation)
     return (
@@ -1406,6 +1416,7 @@ function PrimaryActions({
         install={actions.install}
         review={actions.reviewInstall}
         dismiss={actions.dismissInstallReview}
+        openLibraryStorage={openLibraryStorage}
       />
     );
   return (
@@ -1508,6 +1519,7 @@ export function InstallAction({
   install,
   review,
   dismiss,
+  openLibraryStorage,
   portaled = true,
 }: {
   cancellations?: ActivityRecord[];
@@ -1523,12 +1535,12 @@ export function InstallAction({
   install: AsyncAction;
   review: AsyncAction;
   dismiss: () => void;
+  openLibraryStorage?: () => void;
   portaled?: boolean;
 }) {
   const reviewButton = useRef<HTMLButtonElement>(null);
   const chooseButton = useRef<HTMLButtonElement>(null);
   const restoreFocus = useRef(false);
-  const returnToInstallLocation = useRef<string | undefined>(undefined);
   const [choosing, setChoosing] = useState(false);
   useEffect(() => {
     if (!choosing && restoreFocus.current) {
@@ -1577,7 +1589,6 @@ export function InstallAction({
           size="lg"
           disabled={Boolean(busy)}
           onClick={() => {
-            returnToInstallLocation.current = undefined;
             void review();
           }}
         >
@@ -1594,21 +1605,7 @@ export function InstallAction({
         >
           <DialogContent
             showCloseButton={false}
-            finalFocus={() => {
-              if (returnToInstallLocation.current) {
-                const input = document.getElementById(
-                  `output-location-path-${returnToInstallLocation.current}`,
-                );
-                const location = input?.closest<HTMLElement>(".output-location-control");
-                const target =
-                  input instanceof HTMLInputElement && !input.disabled ? input : location;
-                if (target) {
-                  target.scrollIntoView({ block: "center" });
-                  return target;
-                }
-              }
-              return reviewButton.current;
-            }}
+            finalFocus={reviewButton}
             portaled={portaled}
             className="max-h-[calc(100dvh-var(--space-8))] w-[min(680px,90vw)] max-w-none gap-0 overflow-y-auto overscroll-contain p-8 [scroll-padding-block:var(--space-4)] sm:max-w-none"
             aria-describedby="install-review-description"
@@ -1639,23 +1636,24 @@ export function InstallAction({
             {plan.action === "download" &&
               plan.download_bytes > plan.storage.volume_available_bytes && (
                 <p role="status" className="mt-3">
-                  This folder needs more free space. Free space here, or review another folder for
-                  future installs. Review installation again after changing the folder.
+                  This download needs more free space in the Portcove library. Free space on its
+                  drive or review the library location in Settings.
                 </p>
               )}
             <DialogFooter className="mt-4">
-              {plan.action === "download" &&
+              {openLibraryStorage &&
+                plan.action === "download" &&
                 plan.download_bytes > plan.storage.volume_available_bytes && (
                   <Button
                     data-focusable
                     variant="outline"
                     disabled={Boolean(busy)}
                     onClick={() => {
-                      returnToInstallLocation.current = plan.port_id;
                       dismiss();
+                      openLibraryStorage();
                     }}
                   >
-                    Review install folder
+                    Open Library &amp; Storage
                   </Button>
                 )}
               {action ? (
@@ -1754,7 +1752,9 @@ function InstallPlanSummary({ plan }: { plan: InstallPlan }) {
       <div>
         <strong>{download ? formatBytes(plan.download_bytes) : "No download"}</strong>
         <span>
-          {download ? `${formatBytes(plan.storage.volume_available_bytes)} available` : localState}
+          {download
+            ? `${formatBytes(plan.storage.volume_available_bytes)} available in library`
+            : localState}
         </span>
       </div>
       {download && (

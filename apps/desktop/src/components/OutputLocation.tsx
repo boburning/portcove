@@ -266,7 +266,6 @@ export function OutputLocationControl({
     <section
       className="output-location-control"
       data-focus-group
-      tabIndex={-1}
       aria-labelledby={`output-location-${portId}`}
     >
       <div className="output-location-heading">

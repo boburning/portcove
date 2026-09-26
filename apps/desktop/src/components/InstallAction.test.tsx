@@ -223,49 +223,41 @@ it("presents the reviewed installation in a dismissible dialog and restores trig
   expect(install).toHaveBeenCalledTimes(1);
 });
 
-it("routes an insufficient-space review to the same game's install folder", async () => {
-  HTMLElement.prototype.scrollIntoView = vi.fn();
+it("routes a low-library-space review to Library & Storage even with a separate output volume", async () => {
+  const openLibraryStorage = vi.fn();
   const shortPlan = {
     ...plan,
     storage: { ...plan.storage, volume_available_bytes: 32 * 1024 ** 2 },
+    output_location: { ...plan.output_location, effective_output_directory: "F:/Games/sample" },
   };
   function InsufficientSpaceHarness() {
     const [reviewed, setReviewed] = useState<InstallPlan>();
     return (
-      <>
-        <InstallAction
-          ready
-          sourceReady
-          biosReady
-          plan={reviewed}
-          install={vi.fn()}
-          review={() => setReviewed(shortPlan)}
-          dismiss={() => setReviewed(undefined)}
-        />
-        <section className="output-location-control" tabIndex={-1}>
-          <input id="output-location-path-sample" aria-label="Folder for future installs" />
-        </section>
-        <input id="output-location-path-other" aria-label="Other game's folder" />
-      </>
+      <InstallAction
+        ready
+        sourceReady
+        biosReady
+        plan={reviewed}
+        install={vi.fn()}
+        review={() => setReviewed(shortPlan)}
+        dismiss={() => setReviewed(undefined)}
+        openLibraryStorage={openLibraryStorage}
+      />
     );
   }
   await act(async () => root.render(<InsufficientSpaceHarness />));
   await click("Review install");
   expect(button("Free space required").disabled).toBe(true);
-  expect(button("Review install folder").disabled).toBe(false);
-  await click("Review install folder");
+  expect(document.body.textContent).toContain("32.0 MiB available in library");
+  expect(document.body.textContent).toContain("more free space in the Portcove library");
+  expect(button("Open Library & Storage").disabled).toBe(false);
+  await click("Open Library & Storage");
   expect(document.body.querySelector('[role="dialog"]')).toBeNull();
-  expect(document.activeElement?.id).toBe("output-location-path-sample");
-  expect(HTMLElement.prototype.scrollIntoView).toHaveBeenCalled();
-  const folderField = document.getElementById("output-location-path-sample") as HTMLInputElement;
-  folderField.disabled = true;
-  await click("Review install");
-  await click("Review install folder");
-  expect(document.activeElement?.classList.contains("output-location-control")).toBe(true);
-  folderField.disabled = false;
+  expect(openLibraryStorage).toHaveBeenCalledTimes(1);
   await click("Review install");
   await pressEscape();
   expect(document.activeElement).toBe(button("Review install"));
+  expect(openLibraryStorage).toHaveBeenCalledTimes(1);
 });
 
 it("does not dismiss the reviewed installation after installation starts", async () => {
@@ -369,7 +361,7 @@ it("exposes a failed install result outside the dismissed review before another 
 });
 
 it.each([
-  ["download", "Install · 64.0 MiB", "64.0 MiB", "512 GiB available"],
+  ["download", "Install · 64.0 MiB", "64.0 MiB", "512 GiB available in library"],
   ["use_staged", "Use ready release", "No download", "Required component included · 1.0 KiB"],
   ["reuse_retained", "Use previous release", "No download", "Local release already checked"],
 ] as const)(
