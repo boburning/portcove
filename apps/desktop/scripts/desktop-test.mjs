@@ -236,6 +236,29 @@ function stopDriver() {
   }
 }
 async function verifySettingsRows() {
+  const savedFolders = await browser.wait(
+    until.elementLocated(
+      By.xpath(
+        '//*[@data-settings-group="game-files"]//*[normalize-space(.)="No folders saved yet."]',
+      ),
+    ),
+    15_000,
+  );
+  assert.ok(
+    await savedFolders.isDisplayed(),
+    "saved game-file roots did not load from the native service",
+  );
+  assert.equal(
+    await browser
+      .findElement(
+        By.xpath(
+          '//*[@data-settings-group="game-files"]//button[normalize-space(.)="Scan saved folders"]',
+        ),
+      )
+      .isEnabled(),
+    false,
+    "an empty saved-root registry must not start a scan",
+  );
   const bundleWarningVisible = await browser.executeScript(() => {
     const card = document.querySelector('[data-settings-group="advanced"] .diagnostics-card');
     const warning = [...(card?.querySelectorAll("p") ?? [])].find((element) =>
@@ -387,7 +410,7 @@ function assertSettingsRowGeometry(rows, size) {
   const expectedRows = {
     appearance: 2,
     "library-storage": 2,
-    "game-files": 2,
+    "game-files": 3,
     updates: 2,
     integrations: 1,
     advanced: 3,

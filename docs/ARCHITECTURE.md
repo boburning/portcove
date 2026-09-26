@@ -1582,9 +1582,11 @@ intent, or permission to mutate or install anything.
 
 CLI and Tauri expose that same foreground scan, its normal operation events, and
 nullable snapshot readback. They accept only core's typed limits and do not add a
-second candidate store or freshness decision. React may later present this state,
-but it cannot infer a current scan from saved roots or register candidates as a
-side effect of viewing them.
+second candidate store or freshness decision. Desktop Settings presents the
+explicit saved roots and snapshot, including unavailable paths and incomplete
+coverage. A player starts scans and separately reviews an exact candidate through
+the existing source-import plan; rendering a result never registers it. React
+cannot infer a current scan from saved roots or override core's freshness result.
 
 ## Install transaction
 

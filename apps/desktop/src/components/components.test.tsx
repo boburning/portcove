@@ -1674,7 +1674,7 @@ describe("desktop components", () => {
     const groups = [
       ["appearance", "library-storage", 2],
       ["library-storage", "game-files", 2],
-      ["game-files", "updates", 2],
+      ["game-files", "updates", 3],
       ["updates", "integrations", 2],
       ["integrations", "advanced", 1],
       ["advanced", null, 3],
@@ -1690,6 +1690,9 @@ describe("desktop components", () => {
     const advanced = html.slice(html.indexOf('data-settings-group="advanced"'));
     expect(appearance.indexOf("Color theme")).toBeLessThan(appearance.indexOf("Language"));
     expect(html.indexOf("Library at startup")).toBeLessThan(html.indexOf("Files and capacity"));
+    expect(html.indexOf("Game-file libraries")).toBeLessThan(
+      html.indexOf("Game-file verification"),
+    );
     expect(html.indexOf("Game-file verification")).toBeLessThan(html.indexOf("Disc tools"));
     expect(html.indexOf("Choose how Portcove updates")).toBeLessThan(
       html.indexOf("Catalog updates"),
