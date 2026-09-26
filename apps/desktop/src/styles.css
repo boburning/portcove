@@ -765,8 +765,7 @@ h2 {
 }
 
 .search input,
-.detail-section input:not([data-slot="input"]),
-.modal input {
+.detail-section input:not([data-slot="input"]) {
   width: 100%;
   padding: 12px 2px;
   border: 0;
@@ -1709,7 +1708,6 @@ h2 {
 }
 
 .detail-section label,
-.modal label,
 .backup-history label {
   display: block;
   margin-bottom: 8px;
@@ -1719,7 +1717,6 @@ h2 {
 }
 
 .detail-section input:not([data-slot="input"]),
-.modal input,
 select {
   border: 1px solid var(--color-control-border);
   border-radius: var(--radius-md);
@@ -1728,8 +1725,7 @@ select {
   box-shadow: inset 0 1px 2px var(--color-bg);
 }
 
-.detail-section input:not([data-slot="input"]),
-.modal input {
+.detail-section input:not([data-slot="input"]) {
   padding: 11px;
 }
 .path-entry {
@@ -2266,41 +2262,6 @@ select {
   overflow-wrap: anywhere;
 }
 
-.modal {
-  width: min(500px, 90vw);
-  max-height: calc(100dvh - var(--space-8));
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  scroll-padding-block: var(--space-4);
-  align-self: center;
-  position: relative;
-  margin: auto;
-  padding: var(--space-8);
-  border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius-lg);
-  background: var(--color-bg-elevated);
-  box-shadow: var(--shadow-floating);
-}
-
-.wide-modal {
-  width: min(640px, 90vw);
-}
-
-.modal-icon {
-  width: 2.75rem;
-  height: 2.75rem;
-  display: grid;
-  place-items: center;
-  margin-bottom: var(--space-4);
-  border: 1px solid var(--color-interactive);
-  border-radius: var(--radius-lg);
-  color: var(--color-interactive-text);
-  background: var(--color-interactive-subtle);
-}
-.modal-description {
-  color: var(--color-text-muted);
-  line-height: var(--leading-relaxed);
-}
 .inline-assurance {
   display: flex;
   align-items: center;
