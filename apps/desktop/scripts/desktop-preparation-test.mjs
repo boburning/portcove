@@ -492,6 +492,33 @@ export async function preparationScenarios({
               hierarchy.action.right <= hierarchy.viewport.width,
             `Play now must remain visible at ${actualWindow.width}x${actualWindow.height}: ${JSON.stringify(hierarchy)}`,
           );
+          const facts = await browser.executeScript(() => {
+            const strip = document.querySelector(".installation-facts");
+            strip?.scrollIntoView({ block: "center", behavior: "instant" });
+            return {
+              labels: [...(strip?.querySelectorAll("dt") ?? [])].map((label) =>
+                label.textContent?.trim(),
+              ),
+              location: strip?.querySelector(".installation-facts-location dd")?.textContent,
+              horizontalOverflow: Boolean(strip && strip.scrollWidth > strip.clientWidth + 1),
+            };
+          });
+          assert.deepEqual(facts.labels, [
+            "Installed version",
+            "Selected channel",
+            "Installed channel",
+            "Latest eligible release",
+            "Installed folder",
+          ]);
+          assert.ok(facts.location?.length, "Installed folder must retain its exact path");
+          assert.equal(facts.horizontalOverflow, false);
+          const factsScreenshot = path.join(output, `game-details-facts-${theme}-${width}.png`);
+          await writeFile(factsScreenshot, await browser.takeScreenshot(), {
+            encoding: "base64",
+            flag: "wx",
+          });
+          artifacts.push(factsScreenshot);
+          await browser.executeScript(() => document.querySelector("main")?.scrollTo({ top: 0 }));
         }
       }
     } finally {
