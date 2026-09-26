@@ -16,6 +16,7 @@ import {
   SourceImportReview,
   sourceDiscoveryLimitLabel,
   sourceImportNotice,
+  sourceImportRefreshNotice,
 } from "./SourceDiscovery";
 import { Button } from "./ui/button";
 
@@ -57,10 +58,16 @@ function CandidateIdentity({
 
 function ContinueToGame({
   registeredSource,
+  sourceVisible,
+  busy,
+  retryRefresh,
   ports,
   onOpenPort,
 }: {
   registeredSource?: SourceRecord;
+  sourceVisible: boolean;
+  busy: boolean;
+  retryRefresh?: () => void;
   ports: PortDefinition[];
   onOpenPort?: (portId: string, originKey: string) => void;
 }) {
@@ -75,15 +82,22 @@ function ContinueToGame({
     <section className="source-discovery-results" aria-label="Continue to a game">
       <h3>Continue with a game</h3>
       <p>
-        The selected source is saved. Open a game to review its remaining requirements and available
-        setup actions.
+        {sourceVisible
+          ? "The selected source is saved. Open a game to review its remaining requirements and available setup actions."
+          : "The source was added, but this view has not refreshed. Use Retry refresh before continuing to a game."}
       </p>
+      {!sourceVisible && retryRefresh && (
+        <Button data-focusable variant="outline" disabled={busy} onClick={retryRefresh}>
+          Retry refresh
+        </Button>
+      )}
       <div className="actions">
         {matchingPorts.map((port) => (
           <Button
             key={port.id}
             data-focusable
             variant="outline"
+            disabled={!sourceVisible}
             onClick={() => onOpenPort(port.id, setupReturnOrigin)}
           >
             Open {port.name} details
@@ -225,6 +239,17 @@ export function GameFileLibraries({
     registeredSources,
     setupSource,
     setSetupSource,
+  );
+  const [refreshConfirmed, setRefreshConfirmed] = useState(true);
+  const sourceVisible = Boolean(
+    refreshConfirmed &&
+    registeredSource &&
+    registeredSources.some(
+      (source) =>
+        source.profile_id === registeredSource.profile_id &&
+        source.path === registeredSource.path &&
+        source.sha256 === registeredSource.sha256,
+    ),
   );
   const [liveCandidates, setLiveCandidates] = useState<
     { profile_id: string; path: string; sha256: string; size: number }[]
@@ -427,9 +452,25 @@ export function GameFileLibraries({
       focusAfterReview.current = true;
       setPlan(undefined);
       setNotice(sourceImportNotice(result));
-      await onAdded?.();
+      setRefreshConfirmed(false);
       setRegisteredSource(result.registered);
-      focusToSetup.current = true;
+      try {
+        await onAdded?.();
+        setRefreshConfirmed(true);
+        focusToSetup.current = true;
+      } catch {
+        setNotice(sourceImportRefreshNotice(result));
+      }
+    });
+  const retryRefresh = () =>
+    run("Refreshing library…", async () => {
+      try {
+        await onAdded?.();
+        setRefreshConfirmed(true);
+        setNotice("Library view refreshed. The source was already added.");
+      } catch {
+        setNotice("The source was added, but the view still could not refresh. Try again later.");
+      }
     });
   return (
     <article
@@ -598,7 +639,14 @@ export function GameFileLibraries({
         }}
         onApply={apply}
       />
-      <ContinueToGame registeredSource={registeredSource} ports={ports} onOpenPort={onOpenPort} />
+      <ContinueToGame
+        registeredSource={registeredSource}
+        sourceVisible={sourceVisible}
+        busy={Boolean(busy)}
+        retryRefresh={onAdded ? () => void retryRefresh() : undefined}
+        ports={ports}
+        onOpenPort={onOpenPort}
+      />
     </article>
   );
 }
