@@ -3416,14 +3416,15 @@ select {
   font-size: var(--text-2xs);
   text-transform: capitalize;
 }
+.update-version small {
+  font-size: var(--text-xs);
+}
 
 .update-version span {
-  overflow: hidden;
   margin-top: 3px;
   color: var(--color-text-secondary);
-  font-size: var(--text-xs);
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
 }
 
 .update-state {
@@ -3933,10 +3934,6 @@ select:disabled {
   .update-versions {
     grid-template-columns: minmax(0, 1fr);
     gap: var(--space-2);
-  }
-  .update-version span {
-    overflow-wrap: anywhere;
-    white-space: normal;
   }
   .activity-row {
     grid-template-columns: 1.5rem minmax(0, 1fr) 4.5rem;

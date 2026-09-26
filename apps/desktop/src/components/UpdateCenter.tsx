@@ -224,7 +224,7 @@ export function UpdateCenter({
                   </div>
                   <div className="update-version">
                     <small>Latest eligible</small>
-                    <span>{releaseLabel(effectiveCheck(port.id))}</span>
+                    <span>{releaseLabel(effectiveCheck(port.id), outcome)}</span>
                   </div>
                 </div>
                 <span className={`update-state ${state.tone}`}>{state.label}</span>
@@ -296,8 +296,8 @@ export function UpdateCenter({
   );
 }
 
-function releaseLabel(check?: UpdateCheck | null) {
-  if (!check) return "—";
+function releaseLabel(check?: UpdateCheck | null, outcome?: UpdateCheckOutcome) {
+  if (!check) return outcome ? (outcome.ok ? "Unavailable" : "Check failed") : "Not checked";
   const runtimeOnly =
     check.update_available &&
     check.installed_artifact?.sha256 === check.release.asset.sha256 &&
