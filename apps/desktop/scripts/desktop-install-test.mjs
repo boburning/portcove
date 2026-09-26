@@ -24,6 +24,26 @@ async function waitForFixture(predicate, message) {
   }
 }
 
+function readStagedLayout(version) {
+  const buttons = [...document.querySelectorAll(".primary-actions button")];
+  const play = buttons.find((item) => item.textContent?.trim() === "Play now");
+  const activate = buttons.find(
+    (item) => item.textContent?.trim() === `Activate update · ${version}`,
+  );
+  const rect = (element) => {
+    const { left, right, top, bottom } = element.getBoundingClientRect();
+    return { left, right, top, bottom };
+  };
+  return {
+    play: play && { ...rect(play), enabled: !play.disabled },
+    activate: activate && { ...rect(activate), enabled: !activate.disabled },
+    state: document.querySelector(".detail-hero .hero-state")?.textContent?.trim(),
+    reason: document.querySelector(".detail-hero .hero-reason")?.textContent?.trim(),
+    documentOverflow:
+      document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
+  };
+}
+
 export async function installScenarios({
   browser,
   invoke,
@@ -38,7 +58,12 @@ export async function installScenarios({
   const button = (label) => By.xpath(`//button[normalize-space(.)="${label}"]`);
   const buttonStarting = (label) =>
     By.xpath(`//button[starts-with(normalize-space(.),"${label}")]`);
-  const openFixture = async (port) => {
+  const selectTheme = async (theme) => {
+    await browser.findElement(By.xpath('//nav//button[contains(., "Settings")]')).click();
+    await browser.findElement(button(theme === "dark" ? "Dark" : "Light")).click();
+    assert.equal(await browser.executeScript(() => document.documentElement.dataset.theme), theme);
+  };
+  const openFixture = async (port, installed = false) => {
     await browser.findElement(By.xpath('//nav//button[contains(., "Port catalog")]')).click();
     const search = await browser.findElement(By.id("port-search"));
     await search.sendKeys(
@@ -51,7 +76,7 @@ export async function installScenarios({
     );
     await browser.wait(until.elementLocated(card), 15_000);
     await browser.findElement(card).click();
-    await browser.wait(until.elementLocated(button("Review install")), 15_000);
+    if (!installed) await browser.wait(until.elementLocated(button("Review install")), 15_000);
   };
   const reviewAndStart = async ({ inspect = false } = {}) => {
     const trigger = await browser.findElement(button("Review install"));
@@ -404,6 +429,51 @@ export async function installScenarios({
     }
   });
 
+  const captureStagedLayouts = async (port, version) => {
+    const originalWindow = await browser.manage().window().getRect();
+    const layouts = [];
+    try {
+      for (const theme of ["dark", "light"]) {
+        await selectTheme(theme);
+        await openFixture(port, true);
+        for (const { width, height } of [
+          { width: 960, height: 640 },
+          { width: 1280, height: 800 },
+        ]) {
+          await browser.manage().window().setRect({ width, height });
+          const layout = await browser.executeScript(readStagedLayout, version);
+          assert.ok(layout.play && layout.activate, JSON.stringify(layout));
+          assert.equal(layout.play.enabled, true, JSON.stringify(layout));
+          assert.equal(layout.activate.enabled, true, JSON.stringify(layout));
+          assert.equal(layout.documentOverflow, false, JSON.stringify(layout));
+          assert.equal(layout.state, "Ready to play · update downloaded");
+          assert.equal(
+            layout.reason,
+            `Play the installed version or activate staged version ${version}.`,
+          );
+          assert.ok(layout.activate.left >= 0 && layout.activate.right <= width + 1);
+          assert.ok(layout.play.left >= 0 && layout.play.right <= width + 1);
+          assert.ok(layout.play.top >= 0 && layout.play.bottom <= height);
+          assert.ok(layout.activate.top >= 0 && layout.activate.bottom <= height);
+          assert.ok(Math.abs(layout.activate.top - layout.play.top) <= 1);
+          const screenshot = path.join(
+            output,
+            `native-staged-update-${theme}-${width}x${height}.png`,
+          );
+          await writeFile(screenshot, await browser.takeScreenshot(), {
+            encoding: "base64",
+            flag: "wx",
+          });
+          artifacts.push(screenshot);
+          layouts.push({ theme, width, height, ...layout });
+        }
+      }
+    } finally {
+      await browser.manage().window().setRect(originalWindow);
+    }
+    return layouts;
+  };
+
   await scenario("native-staged-update-composition", async () => {
     assert.ok(fixture?.refreshPort, "isolated install fixture is required");
     assert.equal(typeof restartApplication, "function");
@@ -449,18 +519,7 @@ export async function installScenarios({
       before.active.id,
     );
 
-    await browser.findElement(By.xpath('//nav//button[contains(., "Port catalog")]')).click();
-    const search = await browser.findElement(By.id("port-search"));
-    await search.sendKeys(
-      Key.chord(process.platform === "darwin" ? Key.COMMAND : Key.CONTROL, "a"),
-      Key.BACK_SPACE,
-      port.name,
-    );
-    const card = By.xpath(
-      `//button[contains(@class,"port-card") and starts-with(@aria-label,"${port.name}.")]`,
-    );
-    await browser.wait(until.elementLocated(card), 15_000);
-    await browser.findElement(card).click();
+    await openFixture(port, true);
     const updateControl = By.css('section[aria-label="Review game update"]');
     await browser.wait(until.elementLocated(updateControl), 15_000);
     await browser.findElement(button("Review game update")).click();
@@ -485,81 +544,7 @@ export async function installScenarios({
     const play = await browser.wait(until.elementLocated(button("Play now")), 15_000);
     await browser.wait(until.elementIsEnabled(activation), 15_000);
     await browser.wait(until.elementIsEnabled(play), 15_000);
-    const originalWindow = await browser.manage().window().getRect();
-    const layouts = [];
-    try {
-      for (const theme of ["dark", "light"]) {
-        await browser.findElement(By.xpath('//nav//button[contains(., "Settings")]')).click();
-        await browser.findElement(button(theme === "dark" ? "Dark" : "Light")).click();
-        assert.equal(
-          await browser.executeScript(() => document.documentElement.dataset.theme),
-          theme,
-        );
-        await browser.findElement(By.xpath('//nav//button[contains(., "Port catalog")]')).click();
-        const cardAgain = By.xpath(
-          `//button[contains(@class,"port-card") and starts-with(@aria-label,"${port.name}.")]`,
-        );
-        const searchAgain = await browser.findElement(By.id("port-search"));
-        await searchAgain.sendKeys(
-          Key.chord(process.platform === "darwin" ? Key.COMMAND : Key.CONTROL, "a"),
-          Key.BACK_SPACE,
-          port.name,
-        );
-        await browser.wait(until.elementLocated(cardAgain), 15_000);
-        await browser.findElement(cardAgain).click();
-        for (const { width, height } of [
-          { width: 960, height: 640 },
-          { width: 1280, height: 800 },
-        ]) {
-          await browser.manage().window().setRect({ width, height });
-          const layout = await browser.executeScript((version) => {
-            const buttons = [...document.querySelectorAll(".primary-actions button")];
-            const play = buttons.find((item) => item.textContent?.trim() === "Play now");
-            const activate = buttons.find(
-              (item) => item.textContent?.trim() === `Activate update · ${version}`,
-            );
-            const rect = (element) => {
-              const { left, right, top, bottom } = element.getBoundingClientRect();
-              return { left, right, top, bottom };
-            };
-            return {
-              play: play && { ...rect(play), enabled: !play.disabled },
-              activate: activate && { ...rect(activate), enabled: !activate.disabled },
-              state: document.querySelector(".detail-hero .hero-state")?.textContent?.trim(),
-              reason: document.querySelector(".detail-hero .hero-reason")?.textContent?.trim(),
-              documentOverflow:
-                document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
-            };
-          }, nextVersion);
-          assert.ok(layout.play && layout.activate, JSON.stringify(layout));
-          assert.equal(layout.play.enabled, true, JSON.stringify(layout));
-          assert.equal(layout.activate.enabled, true, JSON.stringify(layout));
-          assert.equal(layout.documentOverflow, false, JSON.stringify(layout));
-          assert.equal(layout.state, "Ready to play · update downloaded");
-          assert.equal(
-            layout.reason,
-            `Play the installed version or activate staged version ${nextVersion}.`,
-          );
-          assert.ok(layout.activate.left >= 0 && layout.activate.right <= width + 1);
-          assert.ok(layout.play.left >= 0 && layout.play.right <= width + 1);
-          assert.ok(layout.play.top >= 0 && layout.play.bottom <= height);
-          assert.ok(layout.activate.top >= 0 && layout.activate.bottom <= height);
-          assert.ok(Math.abs(layout.activate.top - layout.play.top) <= 1);
-          const screenshot = path.join(
-            output,
-            `native-staged-update-${theme}-${width}x${height}.png`,
-          );
-          await writeFile(screenshot, await browser.takeScreenshot(), {
-            encoding: "base64",
-            flag: "wx",
-          });
-          artifacts.push(screenshot);
-          layouts.push({ theme, width, height, ...layout });
-        }
-      }
-    } finally {
-      await browser.manage().window().setRect(originalWindow);
-    }
+    const layouts = await captureStagedLayouts(port, nextVersion);
     const finalResult = await invoke("get_statuses");
     assert.equal(finalResult.ok, true);
     const finalStatus = finalResult.value.find((item) => item.port_id === port.id);
