@@ -268,10 +268,8 @@
   --color-art-green: var(--n64-green-700);
   --color-art-yellow: var(--n64-yellow-700);
   --color-art-indigo: var(--n64-controller-blue);
-  --color-art-detail: rgba(245, 243, 238, 0.16);
   --color-art-text: rgba(245, 243, 238, 0.9);
   --color-art-text-muted: var(--color-art-text);
-  --color-art-staged-text: var(--n64-blue-100);
   --color-motif-red: var(--n64-red-500);
   --color-motif-blue: var(--n64-blue-500);
   --color-motif-green: var(--n64-green-500);
@@ -1002,18 +1000,6 @@ h2 {
   line-height: var(--leading-compact);
 }
 
-.detail-hero::after {
-  content: "";
-  width: 150px;
-  height: 150px;
-  position: absolute;
-  right: -78px;
-  bottom: -74px;
-  z-index: -1;
-  border: 28px solid var(--color-art-detail);
-  border-radius: var(--radius-round);
-}
-
 .artwork-image > span {
   color: var(--color-art-text);
   font-size: var(--text-3xl);
@@ -1492,13 +1478,11 @@ h2 {
   display: flex;
   align-items: end;
   gap: var(--space-5);
-  position: relative;
-  isolation: isolate;
   overflow: hidden;
   padding: var(--space-8);
   border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-lg);
-  background: var(--color-art-blue);
+  background: var(--color-bg-elevated);
   box-shadow: var(--shadow-raised);
 }
 
@@ -1516,10 +1500,10 @@ h2 {
 .detail-title {
   margin-bottom: 0;
   font-size: var(--text-2xl);
-  color: var(--color-art-text);
+  color: var(--color-text);
 }
 .detail-hero .eyebrow {
-  color: var(--color-art-text-muted);
+  color: var(--color-text-secondary);
 }
 
 .detail-artwork {
@@ -1581,24 +1565,24 @@ h2 {
   align-items: center;
   gap: var(--space-2);
   margin-top: 10px;
-  color: var(--color-text-on-dark);
+  color: var(--color-text);
   font-size: var(--text-xs);
   font-weight: 750;
 }
 
 .hero-state.ready {
-  color: var(--color-success-strong);
+  color: var(--color-success-text-raised);
 }
 .hero-state.setup {
-  color: var(--color-warning-strong);
+  color: var(--color-warning-text);
 }
 .hero-state.staged {
-  color: var(--color-art-staged-text);
+  color: var(--color-interactive-text);
 }
 .hero-reason {
   max-width: 65ch;
   margin: var(--space-2) 0 0;
-  color: var(--color-art-text);
+  color: var(--color-text-secondary);
   font-size: var(--text-sm);
   line-height: var(--leading-normal);
 }

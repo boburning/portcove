@@ -270,7 +270,7 @@ type DetailState = ReturnType<typeof detailState>;
 
 function DetailHero({ port, state }: { port: PortDefinition; state: DetailState }) {
   return (
-    <div className={`detail-hero art-${port.support_tier}`}>
+    <div className="detail-hero">
       <ArtworkImage port={port} className="detail-cover" />
       <div>
         <p className="eyebrow">
