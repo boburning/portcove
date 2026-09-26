@@ -44,6 +44,104 @@ fn overlapping_catalog(bytes: &[u8], ocarina_bytes: &[u8]) -> Catalog {
     Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap()
 }
 
+fn schema2_catalog_with_current_n64(bytes: &[u8]) -> Catalog {
+    let mut document: serde_json::Value =
+        serde_json::from_str(include_str!("../catalog/catalog.json")).unwrap();
+    let sha1 = hex::encode(sha1::Sha1::digest(bytes));
+    let sha256 = hex::encode(Sha256::digest(bytes));
+    for (profile_id, variant_id) in [
+        ("ocarina-of-time", "usa-1-0"),
+        ("ghostship-source", "super-mario-64-us"),
+    ] {
+        let profile = document["source_catalog"]["identities"]
+            .as_array_mut()
+            .unwrap()
+            .iter_mut()
+            .find(|profile| profile["id"] == profile_id)
+            .unwrap();
+        let variant = profile["variants"]
+            .as_array_mut()
+            .unwrap()
+            .iter_mut()
+            .find(|variant| variant["id"] == variant_id)
+            .unwrap();
+        let identity = &mut variant["representations"][0]["identities"][0];
+        identity["sha1"] = sha1.clone().into();
+        identity["sha256"] = sha256.clone().into();
+    }
+    Catalog::from_json(&document.to_string()).unwrap()
+}
+
+#[test]
+fn current_schema2_file_identities_and_extensions_are_discoverable_without_legacy_digest() {
+    let temporary = tempfile::tempdir().unwrap();
+    let canonical = [0x80, 0x37, 0x12, 0x40, 1, 2, 3, 4, 5, 6, 7, 8];
+    fs::write(temporary.path().join("game.n64"), canonical).unwrap();
+    let catalog = schema2_catalog_with_current_n64(&canonical);
+    let ocarina = catalog.source_profile("ocarina-of-time").unwrap();
+    assert!(ocarina.accepted_sha1.is_empty() && ocarina.accepted_sha256.is_empty());
+    let ghostship = catalog.source_profile("ghostship-source").unwrap();
+    assert!(!ghostship.accepted_extensions.contains(&"n64".into()));
+    let mut selected = request(temporary.path());
+    selected.profile_ids = vec!["ocarina-of-time".into(), "ghostship-source".into()];
+    selected.limits.max_hash_bytes = canonical.len() as u64;
+
+    let report = scan(&catalog, &selected).unwrap();
+    assert_eq!(report.candidates.len(), 2);
+    assert_eq!(report.files_hashed, 1);
+    assert_eq!(report.hash_bytes, canonical.len() as u64);
+    assert!(report.limits_reached.is_empty());
+    assert_eq!(
+        report
+            .candidates
+            .iter()
+            .map(|candidate| candidate.profile_id.as_str())
+            .collect::<Vec<_>>(),
+        ["ghostship-source", "ocarina-of-time"]
+    );
+}
+
+#[test]
+fn current_schema2_cartridge_zip_uses_current_member_extensions_and_exact_admission() {
+    let temporary = tempfile::tempdir().unwrap();
+    let canonical = [0x80, 0x37, 0x12, 0x40, 1, 2, 3, 4, 5, 6, 7, 8];
+    let path = temporary.path().join("game.zip");
+    let mut archive = zip::ZipWriter::new(fs::File::create(&path).unwrap());
+    archive
+        .start_file("game.v64", zip::write::SimpleFileOptions::default())
+        .unwrap();
+    let mut byte_swapped = canonical;
+    for pair in byte_swapped.as_chunks_mut::<2>().0 {
+        pair.swap(0, 1);
+    }
+    archive.write_all(&byte_swapped).unwrap();
+    archive.finish().unwrap();
+    let catalog = schema2_catalog_with_current_n64(&canonical);
+    let mut selected = request(temporary.path());
+    selected.profile_ids = vec!["ocarina-of-time".into(), "ghostship-source".into()];
+    selected.limits.max_hash_bytes = fs::metadata(&path).unwrap().len() + canonical.len() as u64;
+
+    let report = scan(&catalog, &selected).unwrap();
+    assert_eq!(report.candidates.len(), 2);
+    assert_eq!(report.files_hashed, 1);
+    assert_eq!(report.hash_bytes, selected.limits.max_hash_bytes);
+    assert!(
+        report
+            .candidates
+            .iter()
+            .all(|candidate| candidate.storage_sha256 != candidate.sha256)
+    );
+
+    fs::write(
+        temporary.path().join("unrecognized.n64"),
+        [0x80, 0x37, 0x12, 0x40, 9, 9, 9, 9],
+    )
+    .unwrap();
+    selected.limits.max_hash_bytes += 8;
+    let report = scan(&catalog, &selected).unwrap();
+    assert_eq!(report.candidates.len(), 2);
+}
+
 fn request(root: &Path) -> SourceDiscoveryRequest {
     SourceDiscoveryRequest {
         roots: vec![root.into()],
@@ -895,30 +993,34 @@ fn zip_payload_and_container_hashing_are_both_budgeted_before_expansion() {
 }
 
 #[test]
-fn weak_profiles_are_reported_without_hashing_and_acceptance_revalidates_the_selected_digest() {
+fn informational_profiles_are_reported_without_hashing_and_acceptance_revalidates_the_selected_digest()
+ {
     let temporary = tempfile::tempdir().unwrap();
     fs::write(temporary.path().join("source.z64"), b"synthetic").unwrap();
     let mut selected = request(temporary.path());
-    selected.profile_ids = vec!["star-fox-64".into()];
+    selected.profile_ids = vec!["twilight-princess".into()];
     let report = scan(&Catalog::embedded().unwrap(), &selected).unwrap();
     assert!(report.candidates.is_empty());
     assert_eq!(report.hash_bytes, 0);
-    assert_eq!(report.issues[0].profile_id.as_deref(), Some("star-fox-64"));
+    assert_eq!(
+        report.issues[0].profile_id.as_deref(),
+        Some("twilight-princess")
+    );
     let service =
         PortcoveService::new(crate::Library::open(temporary.path().join("library")).unwrap())
             .unwrap();
-    let path = temporary.path().join("source.z64");
+    let path = temporary.path().join("source.iso");
     let expected = hex::encode(Sha256::digest(b"synthetic"));
     fs::write(&path, b"changed").unwrap();
     assert!(
         service
-            .register_source_with_digest("star-fox-64", &path, &expected)
+            .register_source_with_digest("twilight-princess", &path, &expected)
             .is_err()
     );
     assert!(service.library().sources().unwrap().is_empty());
     fs::write(&path, b"synthetic").unwrap();
     service
-        .register_source_with_digest("star-fox-64", &path, &expected)
+        .register_source_with_digest("twilight-princess", &path, &expected)
         .unwrap();
     assert_eq!(service.library().sources().unwrap().len(), 1);
 }

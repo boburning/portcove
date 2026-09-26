@@ -1,7 +1,7 @@
 use crate::{
     ActivityOperation, ActivityTargetKind, Catalog, GameFileRootAvailability,
     GameFileScanFreshness, GameFileScanSnapshot, PortcoveError, PortcoveService, Result,
-    SourceKind, SourceProfile, SourceRecord,
+    SourceKind, SourceProfile, SourceRecord, SourceRepresentationKind,
     source_file::{HashBudget, read_identity},
 };
 
@@ -520,31 +520,24 @@ fn scan_with_events<'a>(
     }
     for id in request.profile_ids.iter().collect::<BTreeSet<_>>() {
         let profile = catalog.source_profile(id)?;
-        if profile.kind != SourceKind::File
-            || profile.accepted_extensions.is_empty()
-            || (profile.accepted_sha1.is_empty() && profile.accepted_sha256.is_empty())
-        {
-            discovery.issue(None, Some(profile.id.clone()), "This profile needs manual source selection; discovery supports exact-hash original files and cartridge ZIPs.".into());
+        let (raw_extensions, zip_extensions) = file_scan_extensions(catalog, profile);
+        if raw_extensions.is_empty() && zip_extensions.is_empty() {
+            discovery.issue(None, Some(profile.id.clone()), "This profile needs manual source selection; discovery supports exact-identity original files and cartridge ZIPs.".into());
         } else {
-            let mut extensions = profile
-                .accepted_extensions
-                .iter()
-                .map(|value| value.to_ascii_lowercase())
-                .collect::<Vec<_>>();
-            extensions.sort();
-            extensions.dedup();
-            for extension in &extensions {
+            for extension in &raw_extensions {
                 discovery
                     .raw_profiles_by_extension
                     .entry(extension.clone())
                     .or_default()
                     .push(profile);
             }
-            discovery
-                .zip_profile_groups
-                .entry(extensions)
-                .or_default()
-                .push(profile);
+            if !zip_extensions.is_empty() {
+                discovery
+                    .zip_profile_groups
+                    .entry(zip_extensions)
+                    .or_default()
+                    .push(profile);
+            }
             discovery.report.searched_profiles.push(profile.id.clone());
         }
     }
@@ -557,6 +550,61 @@ fn scan_with_events<'a>(
         (&left.profile_id, &left.path).cmp(&(&right.profile_id, &right.path))
     });
     Ok(discovery.report)
+}
+
+fn file_scan_extensions(catalog: &Catalog, profile: &SourceProfile) -> (Vec<String>, Vec<String>) {
+    if profile.kind != SourceKind::File {
+        return (Vec::new(), Vec::new());
+    }
+    let mut raw = BTreeSet::new();
+    let mut zip_members = BTreeSet::new();
+    if let Some(source_catalog) = catalog.source_catalog() {
+        if let Some(identity) = source_catalog
+            .identities
+            .iter()
+            .find(|identity| identity.id == profile.id)
+        {
+            for representation in identity
+                .variants
+                .iter()
+                .filter(|variant| !variant.legacy_projection_only)
+                .flat_map(|variant| &variant.representations)
+            {
+                match &representation.kind {
+                    SourceRepresentationKind::RawFile { identities }
+                    | SourceRepresentationKind::CanonicalN64 { identities }
+                        if !identities.is_empty() =>
+                    {
+                        for extension in &representation.extensions {
+                            let extension = extension.to_ascii_lowercase();
+                            if extension != "zip" {
+                                raw.insert(extension.clone());
+                                zip_members.insert(extension);
+                            }
+                        }
+                    }
+                    SourceRepresentationKind::ArchiveMember {
+                        member_extensions,
+                        identities,
+                    } if !identities.is_empty() => {
+                        zip_members.extend(
+                            member_extensions
+                                .iter()
+                                .map(|extension| extension.to_ascii_lowercase()),
+                        );
+                    }
+                    _ => {}
+                }
+            }
+        }
+    } else if !profile.accepted_sha1.is_empty() || !profile.accepted_sha256.is_empty() {
+        for extension in &profile.accepted_extensions {
+            let extension = extension.to_ascii_lowercase();
+            raw.insert(extension.clone());
+            zip_members.insert(extension);
+        }
+    }
+    (raw.into_iter().collect(), zip_members.into_iter().collect())
 }
 
 impl Discovery<'_> {
