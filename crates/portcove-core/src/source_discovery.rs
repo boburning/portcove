@@ -17,6 +17,8 @@ use std::{
     path::{Path, PathBuf},
 };
 
+const CURRENT_SCAN_FORMAT_VERSION: u32 = 3;
+
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct SourceDiscoveryLimits {
     pub max_entries: u32,
@@ -251,7 +253,7 @@ fn build_game_file_scan_with_registry_events(
     }
     Ok((
         GameFileScanSnapshot {
-            format_version: 2,
+            format_version: CURRENT_SCAN_FORMAT_VERSION,
             catalog_sha256: catalog_sha256(catalog)?,
             roots,
             limits: Some(limits.clone()),
@@ -272,7 +274,7 @@ fn current_game_file_scan(
     };
     match snapshot.format_version {
         1 => snapshot.limits = None,
-        2 => {
+        2 | 3 => {
             let Some(limits) = snapshot.limits.as_ref() else {
                 return Err(PortcoveError::state(
                     "stored game-file scan snapshot is missing its scan limits",
@@ -291,12 +293,14 @@ fn current_game_file_scan(
         }
     }
     let current_roots = library.game_file_roots()?;
-    snapshot.freshness =
-        if snapshot.catalog_sha256 == catalog_sha256(catalog)? && snapshot.roots == current_roots {
-            GameFileScanFreshness::InputsMatch
-        } else {
-            GameFileScanFreshness::InputsChanged
-        };
+    snapshot.freshness = if snapshot.format_version == CURRENT_SCAN_FORMAT_VERSION
+        && snapshot.catalog_sha256 == catalog_sha256(catalog)?
+        && snapshot.roots == current_roots
+    {
+        GameFileScanFreshness::InputsMatch
+    } else {
+        GameFileScanFreshness::InputsChanged
+    };
     Ok(Some(snapshot))
 }
 

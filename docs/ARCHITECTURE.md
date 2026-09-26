@@ -1580,11 +1580,13 @@ scan cannot publish a snapshot; the final registry comparison and snapshot
 write share one database transaction. After a successful scan, core atomically
 replaces one bounded versioned snapshot containing
 the exact root identities and states, authoritative catalog digest, discovery report,
-limits and completion time. Current format 2 records the exact validated limits;
-legacy format-1 snapshots remain readable with unknown limits rather than invented
-coverage. Cancellation or failure preserves the prior snapshot.
-Reads report whether catalog bytes, roots, availability and relink state still match
-the recorded inputs. That does not claim the collection stayed byte-identical after
+limits and completion time. Current format 3 records the exact validated limits
+and the active schema-2 file-discovery rules. Earlier format-2 snapshots remain
+readable with their recorded limits, and format-1 snapshots remain readable with
+unknown limits rather than invented coverage. Both older formats are stale until
+a new scan runs; cancellation or failure preserves the prior snapshot.
+Reads report whether catalog bytes, roots, availability, relink state and scan
+rules still match the recorded inputs. That does not claim the collection stayed byte-identical after
 the scan; the snapshot is local evidence, not a watcher, source registration, setup
 intent, or permission to mutate or install anything.
 

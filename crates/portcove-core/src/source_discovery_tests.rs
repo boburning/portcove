@@ -244,7 +244,7 @@ fn saved_roots_scan_the_catalog_and_persist_one_current_snapshot() {
         &crate::OperationCoordinator::new("saved-root-scan", None),
     )
     .unwrap();
-    assert_eq!(snapshot.format_version, 2);
+    assert_eq!(snapshot.format_version, 3);
     assert_eq!(snapshot.limits.as_ref().unwrap().max_entries, 10_000);
     assert_eq!(snapshot.roots.len(), 1);
     assert_eq!(snapshot.report.files_hashed, 1);
@@ -881,6 +881,7 @@ fn stored_scan_snapshot_accepts_legacy_and_rejects_corrupt_and_future_formats() 
         .unwrap();
     assert_eq!(legacy.format_version, 1);
     assert!(legacy.limits.is_none());
+    assert_eq!(legacy.freshness, GameFileScanFreshness::InputsChanged);
 
     let mut legacy_without_limits = legacy_with_limits;
     legacy_without_limits
@@ -899,6 +900,33 @@ fn stored_scan_snapshot_accepts_legacy_and_rejects_corrupt_and_future_formats() 
         .unwrap()
         .unwrap();
     assert!(legacy.limits.is_none());
+    assert_eq!(legacy.freshness, GameFileScanFreshness::InputsChanged);
+
+    let format_two = GameFileScanSnapshot {
+        format_version: 2,
+        limits: Some(SourceDiscoveryLimits::default()),
+        ..legacy.clone()
+    };
+    library
+        .replace_game_file_scan_snapshot(&format_two)
+        .unwrap();
+    let previous = super::current_game_file_scan(&catalog, &library)
+        .unwrap()
+        .unwrap();
+    assert_eq!(previous.format_version, 2);
+    assert_eq!(previous.freshness, GameFileScanFreshness::InputsChanged);
+    assert_eq!(
+        previous.report.candidates.len(),
+        snapshot.report.candidates.len()
+    );
+    assert_eq!(
+        previous.report.candidates[0].sha256,
+        snapshot.report.candidates[0].sha256
+    );
+    assert_eq!(
+        previous.limits.unwrap().max_entries,
+        format_two.limits.unwrap().max_entries
+    );
 
     let format_two_without_limits = GameFileScanSnapshot {
         format_version: 2,
@@ -916,7 +944,7 @@ fn stored_scan_snapshot_accepts_legacy_and_rejects_corrupt_and_future_formats() 
     assert!(error.to_string().contains("invalid scan limits"));
 
     snapshot.limits = Some(SourceDiscoveryLimits::default());
-    snapshot.format_version = 3;
+    snapshot.format_version = 4;
     library.replace_game_file_scan_snapshot(&snapshot).unwrap();
 
     let error = super::current_game_file_scan(&catalog, &library).unwrap_err();

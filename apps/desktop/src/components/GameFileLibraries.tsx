@@ -232,7 +232,7 @@ function CompletedScan({
       <p>
         {snapshot.freshness === "inputs_match"
           ? "Saved roots and catalog match this snapshot. Files may have changed since the scan."
-          : "Saved roots, availability, or catalog changed. Scan again before using these results."}
+          : "Saved roots, availability, catalog, or search rules changed. Scan again before using these results."}
       </p>
       <p>
         Checked {report.entries_examined} entries in {report.searched_roots.length} available

@@ -661,6 +661,7 @@ it("does not offer review from a snapshot whose inputs changed", async () => {
     root.render(<GameFileLibraries key="other-library" ports={[]} profiles={[]} />),
   );
   expect(button("Review source").disabled).toBe(true);
+  expect(document.body.textContent).toContain("search rules changed");
   expect(document.body.textContent).toContain("Scan again before using these results");
 });
 
