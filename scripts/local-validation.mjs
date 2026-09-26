@@ -307,10 +307,13 @@ function classifyOnePath(selection, input, fileExists, options = {}) {
       "apps/desktop/package.json",
       "pnpm-lock.yaml",
       "apps/desktop/src/components/AdoptionModal.tsx",
+      "apps/desktop/src/components/ui.tsx",
       "apps/desktop/src/features/installation/use-installation-planning.ts",
+      "apps/desktop/src/shared/concurrency-state.ts",
       "apps/desktop/src/api.ts",
       "apps/desktop/src/styles.css",
       "apps/desktop/src/test-fixtures.ts",
+      "apps/desktop/src/view-model.ts",
     ].includes(file)
   )
     selection.browser = true;

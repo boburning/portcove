@@ -260,8 +260,9 @@ node scripts/dev-storage.mjs run -- corepack pnpm --dir apps/desktop test:browse
 under `work/browser-cache`, then launches it to verify the result. A warm invocation
 rechecks the same artifact. `test:browser` checks the existing binary and never
 downloads one. It runs one Vitest Browser Mode Chromium worker, with ten-second
-test bounds and Playwright traces retained only for failures in
-`work/browser-traces`. Failure screenshots remain in `apps/desktop/.vitest`; both
+test bounds and Playwright traces retained in a per-run directory under
+`work/browser-traces` when a run fails. Successful runs remove only their own raw
+trace directory. Failure screenshots remain in `apps/desktop/.vitest`; both
 locations are ignored by Git and retained for diagnosis. In CI, the fast and full
 frontend lanes run the explicit bootstrap before browser tests and upload failure
 artifacts. The intentional failure probe is

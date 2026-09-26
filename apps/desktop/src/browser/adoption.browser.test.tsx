@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogTitle } from "../components/ui/dialog";
 import { useAdoptionPlanning } from "../features/installation/use-installation-planning";
 import type { Perform } from "../features/operations/use-operation-state";
 import { portDefinition } from "../test-fixtures";
-import type { AdoptionPreview } from "../types";
+import type { AdoptionPreview, InstallRecord } from "../types";
 import "../styles.css";
 
 const port = { ...portDefinition(), id: "browser-port", name: "Browser Fixture Port" };
@@ -44,14 +44,37 @@ const preview: AdoptionPreview = {
   plan_sha256: "b".repeat(64),
 };
 
-type TransportCall = { command: string; args: Record<string, unknown> };
-const calls: TransportCall[] = [];
-const expected: { call: TransportCall; response: () => unknown }[] = [];
+type PreviewCall = {
+  command: "preview_adoption";
+  args: { path: string; generation: number; portId: string | null };
+};
+type AdoptCall = {
+  command: "adopt_port";
+  args: { path: string; generation: number; portId: string | null; planSha256: string };
+};
+type TransportCall = PreviewCall | AdoptCall;
+type TransportResponse = AdoptionPreview | InstallRecord | null;
+const calls: { command: string; args: Record<string, unknown> }[] = [];
+const expected: {
+  call: TransportCall;
+  response: () => TransportResponse | Promise<TransportResponse>;
+}[] = [];
 const transportViolations: string[] = [];
-function expectTransport(call: TransportCall, result: unknown) {
+function expectTransport(
+  call: PreviewCall,
+  result: AdoptionPreview | Promise<AdoptionPreview>,
+): void;
+function expectTransport(
+  call: AdoptCall,
+  result: InstallRecord | null | Promise<InstallRecord | null>,
+): void;
+function expectTransport(
+  call: TransportCall,
+  result: TransportResponse | Promise<TransportResponse>,
+) {
   expected.push({ call, response: () => result });
 }
-function expectTransportFailure(call: TransportCall, message: string) {
+function expectTransportFailure(call: AdoptCall, message: string) {
   expected.push({ call, response: () => Promise.reject(new Error(message)) });
 }
 function deferred<T>() {
@@ -130,6 +153,30 @@ function ExistingInstallReview() {
   );
 }
 
+function NestedPortalReview() {
+  const [outerOpen, setOuterOpen] = useState(true);
+  const [innerOpen, setInnerOpen] = useState(false);
+  return (
+    <DirectionProvider direction="ltr">
+      <Dialog open={outerOpen} onOpenChange={setOuterOpen}>
+        <DialogContent aria-describedby={undefined}>
+          <DialogTitle>Copy review shell</DialogTitle>
+          <button type="button" onClick={() => setInnerOpen(true)}>
+            Open nested safety details
+          </button>
+          {innerOpen && (
+            <Dialog open onOpenChange={setInnerOpen}>
+              <DialogContent aria-describedby={undefined}>
+                <DialogTitle>Nested safety details</DialogTitle>
+              </DialogContent>
+            </Dialog>
+          )}
+        </DialogContent>
+      </Dialog>
+    </DirectionProvider>
+  );
+}
+
 let root: Root;
 let host: HTMLElement;
 beforeEach(() => {
@@ -166,10 +213,13 @@ async function openReview() {
   await page.getByLabelText("Existing installation folder").fill("D:/Existing");
 }
 afterEach(() => {
-  assertTransportConsumed();
-  flushSync(() => root.unmount());
-  host.remove();
-  Reflect.deleteProperty(window, "__TAURI_INTERNALS__");
+  try {
+    flushSync(() => root.unmount());
+    assertTransportConsumed();
+  } finally {
+    host.remove();
+    Reflect.deleteProperty(window, "__TAURI_INTERNALS__");
+  }
 });
 
 it("reviews a real portaled copy composition using only an exact typed transport response", async () => {
@@ -211,6 +261,23 @@ it("dismisses the top shared portal before the underlying copy review", async ()
   await expect
     .element(page.getByRole("dialog", { name: "Add an existing installation to Portcove" }))
     .toBeVisible();
+  await userEvent.keyboard("{Escape}");
+  await expect.element(page.getByRole("dialog")).not.toBeInTheDocument();
+  expect(calls).toHaveLength(0);
+});
+
+it("opens a nested dialog through browser interaction and dismisses its portal first", async () => {
+  flushSync(() => root.render(<NestedPortalReview />));
+  await page.getByRole("button", { name: "Open nested safety details" }).click();
+  await expect.element(page.getByRole("dialog", { name: "Nested safety details" })).toBeVisible();
+  await userEvent.keyboard("{Escape}");
+  await expect
+    .element(page.getByRole("dialog", { name: "Nested safety details" }))
+    .not.toBeInTheDocument();
+  await expect.element(page.getByRole("dialog", { name: "Copy review shell" })).toBeVisible();
+  await expect
+    .element(page.getByRole("button", { name: "Open nested safety details" }))
+    .toHaveFocus();
   await userEvent.keyboard("{Escape}");
   await expect.element(page.getByRole("dialog")).not.toBeInTheDocument();
   expect(calls).toHaveLength(0);
@@ -385,6 +452,18 @@ it("keeps a long port identity and reviewed action reachable at the compact view
     { command: "preview_adoption", args: { path: "D:/Existing", generation: 1, portId: null } },
     preview,
   );
+  expectTransport(
+    {
+      command: "adopt_port",
+      args: {
+        path: "D:/Existing",
+        generation: 1,
+        portId: port.id,
+        planSha256: preview.plan_sha256,
+      },
+    },
+    null,
+  );
   await openReview();
   await page.getByRole("button", { name: "Review copy plan" }).click();
   await expect.element(page.getByText(port.name)).toBeVisible();
@@ -393,4 +472,6 @@ it("keeps a long port identity and reviewed action reachable at the compact view
   const dialog = document.querySelector<HTMLElement>('[role="dialog"]');
   expect(dialog?.getBoundingClientRect().width).toBeLessThanOrEqual(window.innerWidth);
   expect(dialog?.getBoundingClientRect().height).toBeLessThanOrEqual(window.innerHeight);
+  await action.click();
+  await expect.element(page.getByRole("dialog")).not.toBeInTheDocument();
 });

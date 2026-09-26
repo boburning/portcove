@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { resolvePhysicalPath, spawnCommand } from "../../../scripts/dev-storage.mjs";
@@ -64,6 +64,13 @@ if (process.argv[2] === "bootstrap") {
   } finally {
     await browser?.close();
   }
+  const traceRoot = path.join(root, "work", "browser-traces");
+  mkdirSync(traceRoot, { recursive: true });
+  const traceRun = mkdtempSync(path.join(traceRoot, "run-"));
+  if (path.dirname(resolvePhysicalPath(traceRun)) !== resolvePhysicalPath(traceRoot)) {
+    throw new Error(`Browser trace run resolves outside the trace root: ${traceRun}`);
+  }
+  process.env.PORTCOVE_BROWSER_TRACE_DIR = traceRun;
   const result = spawnCommand(
     process.execPath,
     [
@@ -77,6 +84,7 @@ if (process.argv[2] === "bootstrap") {
     ],
     { cwd: desktop, env: process.env, stdio: "inherit", windowsHide: true },
   );
+  if (result.status === 0) rmSync(traceRun, { recursive: true });
   process.exit(result.status ?? 1);
 } else {
   throw new Error("Usage: browser-runtime.mjs bootstrap|test [Vitest filters]|probe");
