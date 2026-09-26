@@ -23,6 +23,7 @@ import {
 } from "./features/app-shell/use-library-browsing-context";
 import { useDetailWorkspaceNavigation } from "./features/app-shell/use-detail-workspace-navigation";
 import { focusDiscTool } from "./features/app-shell/focus-disc-tool";
+import { focusSettingsTarget } from "./features/app-shell/focus-settings-target";
 import {
   useLibrarySelectionLanding,
   useLibrarySelectionReturn,
@@ -745,27 +746,9 @@ function CurrentView({
           void updates.checkAll();
         }}
         onSelect={openPortDetails}
-        onOpenSettings={(target) => {
-          const group =
-            target === "game-files"
-              ? "game-files"
-              : target === "catalog-updates"
-                ? "updates"
-                : "library-storage";
+        onOpenSettings={(target, sourceProfileId) => {
           ui.setView("settings");
-          window.requestAnimationFrame(() => {
-            const heading = document.getElementById(`settings-${group}-heading`);
-            heading?.scrollIntoView({ block: "start" });
-            const control = heading
-              ?.closest("[data-settings-group]")
-              ?.querySelector<HTMLElement>(
-                target === "game-files"
-                  ? "button:not(:disabled), a[href]"
-                  : `[data-settings-control="${target}"]:not(:disabled)`,
-              );
-            if (control) focusAndReveal(control);
-            else heading?.focus({ preventScroll: true });
-          });
+          window.requestAnimationFrame(() => focusSettingsTarget(target, sourceProfileId));
         }}
       />
     );

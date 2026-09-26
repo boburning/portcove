@@ -769,7 +769,12 @@ function SourceRequirements({
         <small>Required by ports in your library</small>
       </div>
       {requirements.map((requirement) => (
-        <div className="source-requirement" key={requirement.profile.id}>
+        <div
+          className="source-requirement"
+          data-source-profile={requirement.profile.id}
+          tabIndex={-1}
+          key={requirement.profile.id}
+        >
           <div>
             <strong>{requirement.profile.label}</strong>
             <small>
@@ -926,7 +931,7 @@ function SourceHealthRow({
   openEvidence?: (evidenceId: string) => void;
 }) {
   return (
-    <div className="source-health-row" data-source-profile={source.profile_id}>
+    <div className="source-health-row" data-source-profile={source.profile_id} tabIndex={-1}>
       <div>
         <strong>
           {report?.expected_identity?.label ??
@@ -940,6 +945,7 @@ function SourceHealthRow({
         {profile && (
           <Button
             data-focusable
+            data-settings-control="relink-source"
             variant="outline"
             size="sm"
             disabled={Boolean(busy)}

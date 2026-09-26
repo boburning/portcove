@@ -199,12 +199,15 @@ export async function sourceDialogScenario({ browser, scenario, output, artifact
       await browser.wait(
         () =>
           browser.executeScript(
-            () =>
-              document.activeElement?.closest('[data-settings-group="game-files"]') !== null &&
-              document.activeElement?.textContent?.includes("Verify sources"),
+            (profileId) =>
+              document.activeElement
+                ?.closest("[data-source-profile]")
+                ?.getAttribute("data-source-profile") === profileId &&
+              document.activeElement?.textContent?.includes("Relink source"),
+            port.source_profile,
           ),
         5_000,
-        "Source activity did not focus the Game Files verification control",
+        "Source activity did not focus its saved source control",
       );
       await browser.actions().sendKeys(Key.ARROW_DOWN).perform();
       await browser.wait(
@@ -233,11 +236,10 @@ export async function sourceDialogScenario({ browser, scenario, output, artifact
       () =>
         browser.executeScript(
           () =>
-            document.activeElement?.closest('[data-settings-group="game-files"]') !== null &&
-            document.activeElement?.textContent?.includes("Verify sources"),
+            document.activeElement?.getAttribute("data-settings-control") === "discover-sources",
         ),
       5_000,
-      "Library discovery activity did not focus the Game Files verification control",
+      "Library discovery activity did not focus game-file discovery",
     );
     const discoverySettingsScreenshot = path.join(output, "native-discovery-activity-settings.png");
     await writeFile(discoverySettingsScreenshot, await browser.takeScreenshot(), {

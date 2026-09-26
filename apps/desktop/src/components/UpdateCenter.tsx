@@ -35,13 +35,15 @@ import type {
 import { EmptyState, Icon } from "./ui";
 import { Button } from "./ui/button";
 import { useEffect, useState } from "react";
+import type { ActivitySettingsTarget } from "../features/app-shell/focus-settings-target";
 
 const initialActivityNowSeconds = Date.now() / 1000;
 const activityTargetButton =
   "-mx-1 h-auto min-h-6 min-w-0 max-w-full shrink justify-start overflow-hidden px-1 py-0 text-ellipsis text-xs font-normal text-pc-secondary-foreground no-underline hover:text-pc-primary hover:no-underline";
-type ActivitySettingsTarget = "game-files" | "move-library" | "import-library" | "catalog-updates";
-const libraryActivitySettingsTargets: Partial<Record<ActivityOperation, ActivitySettingsTarget>> = {
-  discover_sources: "game-files",
+const libraryActivitySettingsTargets: Partial<
+  Record<ActivityOperation, Exclude<ActivitySettingsTarget, "source-profile">>
+> = {
+  discover_sources: "discover-sources",
   move_library: "move-library",
   import_library: "import-library",
   update_catalog: "catalog-updates",
@@ -82,7 +84,7 @@ export function UpdateCenter({
   busy?: string;
   checkAll: () => void;
   onSelect: (portId: string, originKey?: string) => void;
-  onOpenSettings: (target: ActivitySettingsTarget) => void;
+  onOpenSettings: (target: ActivitySettingsTarget, sourceProfileId?: string) => void;
 }) {
   const [nowSeconds, setNowSeconds] = useState(initialActivityNowSeconds);
   useEffect(() => {
@@ -323,7 +325,7 @@ function ActivityHistory({
   activities: ActivityRecord[];
   activityFeed?: ActivityFeed;
   onSelect: (portId: string, originKey?: string) => void;
-  onOpenSettings: (target: ActivitySettingsTarget) => void;
+  onOpenSettings: (target: ActivitySettingsTarget, sourceProfileId?: string) => void;
 }) {
   const names = new Map(ports.map((port) => [port.id, port.name]));
   const sourceNames = new Map(sourceProfiles.map((profile) => [profile.id, profile.label]));
@@ -409,7 +411,7 @@ function ActivityRow({
   names: ReadonlyMap<string, string>;
   sourceNames: ReadonlyMap<string, string>;
   onSelect: (portId: string, originKey?: string) => void;
-  onOpenSettings: (target: ActivitySettingsTarget) => void;
+  onOpenSettings: (target: ActivitySettingsTarget, sourceProfileId?: string) => void;
 }) {
   const target = activityTarget(activity, names, sourceNames);
   const presentation = activityPresentation(activity, nowSeconds);
@@ -493,7 +495,7 @@ function ActivityTargetLink({
   activity: ActivityRecord;
   target: ReturnType<typeof activityTarget>;
   onSelect: (portId: string, originKey?: string) => void;
-  onOpenSettings: (target: ActivitySettingsTarget) => void;
+  onOpenSettings: (target: ActivitySettingsTarget, sourceProfileId?: string) => void;
 }) {
   if (target.portId)
     return (
@@ -516,7 +518,7 @@ function ActivityTargetLink({
         size="xs"
         className={activityTargetButton}
         aria-label={`Open Game Files settings for ${target.label}`}
-        onClick={() => onOpenSettings("game-files")}
+        onClick={() => onOpenSettings("source-profile", activity.target_id!)}
       >
         {target.label}
       </Button>
@@ -527,7 +529,7 @@ function ActivityTargetLink({
       : undefined;
   if (settingsTarget) {
     const destination = {
-      "game-files": "Game Files",
+      "discover-sources": "Game Files",
       "move-library": "Library & Storage",
       "import-library": "Library & Storage",
       "catalog-updates": "Catalog updates",
