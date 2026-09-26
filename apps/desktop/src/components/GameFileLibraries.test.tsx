@@ -22,11 +22,17 @@ const saved: GameFileRoot = {
   updated_at: 1,
 };
 const snapshot: GameFileScanSnapshot = {
-  format_version: 2,
+  format_version: 3,
   catalog_sha256: "a".repeat(64),
   completed_at: 1,
   freshness: "inputs_match",
-  limits: null,
+  limits: {
+    max_entries: 10_000,
+    max_depth: 6,
+    max_file_bytes: 2 * 1024 * 1024 * 1024,
+    max_hash_bytes: 16 * 1024 * 1024 * 1024,
+    max_candidates: 64,
+  },
   roots: [saved],
   report: {
     searched_roots: [saved.path],
@@ -661,6 +667,7 @@ it("does not offer review from a snapshot whose inputs changed", async () => {
     root.render(<GameFileLibraries key="other-library" ports={[]} profiles={[]} />),
   );
   expect(button("Review source").disabled).toBe(true);
+  expect(document.body.textContent).toContain("search rules changed");
   expect(document.body.textContent).toContain("Scan again before using these results");
 });
 
