@@ -114,8 +114,28 @@ describe("application update notice", () => {
     await act(async () =>
       buttons.find((button) => button.getAttribute("aria-label")?.startsWith("Dismiss"))!.click(),
     );
-    expect(review).toHaveBeenCalledOnce();
+    expect(review).toHaveBeenCalledExactlyOnceWith("check");
     expect(dismiss).toHaveBeenCalledOnce();
+  });
+
+  it("routes a staged notice to update activity", async () => {
+    const review = vi.fn();
+    const staged = notice(2, "0.2.0-beta.3").notice!;
+    await act(async () =>
+      root.render(
+        <StatusLayer
+          clearError={() => {}}
+          updateNotice={{ ...staged, result: { ...staged.result, staged: true } }}
+          reviewUpdate={review}
+        />,
+      ),
+    );
+    await act(async () =>
+      [...host.querySelectorAll("button")]
+        .find((button) => button.textContent === "Review update")
+        ?.click(),
+    );
+    expect(review).toHaveBeenCalledExactlyOnceWith("status");
   });
 
   it("reports dismissal failures without dropping the notice", async () => {
@@ -191,7 +211,7 @@ describe("application update notice", () => {
     expect(buttons.every((button) => button.hasAttribute("data-focusable"))).toBe(true);
     await act(async () => buttons[0].click());
     await act(async () => buttons[1].click());
-    expect(review).toHaveBeenCalledOnce();
+    expect(review).toHaveBeenCalledExactlyOnceWith("choice");
     expect(dismiss).toHaveBeenCalledOnce();
   });
 
