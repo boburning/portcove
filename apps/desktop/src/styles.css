@@ -1186,50 +1186,6 @@ h2 {
   justify-content: flex-end;
 }
 
-.empty-state,
-.loading-state {
-  min-height: 18.75rem;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-4);
-  padding: var(--space-10);
-  border: 1px dashed var(--color-border-strong);
-  border-radius: var(--radius-lg);
-  color: var(--color-text-muted);
-  background: var(--color-bg-subtle);
-  text-align: center;
-}
-
-.empty-state-icon,
-.loading-mark {
-  width: 3rem;
-  height: 3rem;
-  display: grid;
-  place-items: center;
-  position: relative;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  color: var(--color-interactive-text);
-  background: var(--color-bg-elevated);
-  box-shadow: var(--shadow-control);
-}
-
-.empty-state h2 {
-  margin-bottom: var(--space-2);
-  font-size: var(--text-lg);
-  color: var(--color-text);
-}
-.empty-state p:not(.eyebrow),
-.loading-state p {
-  max-width: 32rem;
-  margin: 0;
-  line-height: var(--leading-relaxed);
-}
-.empty-state-action {
-  margin-top: var(--space-2);
-}
 .empty-mascot-stage {
   width: 13rem;
   height: 10rem;
@@ -1247,25 +1203,6 @@ h2 {
   height: 100%;
 }
 
-.loading-state {
-  flex-direction: row;
-  text-align: left;
-}
-.loading-state strong {
-  display: block;
-  color: var(--color-text);
-}
-.loading-brand {
-  width: 12rem;
-  display: grid;
-  justify-items: center;
-  gap: var(--space-1);
-  flex: none;
-}
-.loading-brand .brand-wordmark {
-  width: 12rem;
-  height: 4.5rem;
-}
 .loading-mark .brand-motif {
   position: absolute;
   bottom: -0.35rem;

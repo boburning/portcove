@@ -48,14 +48,14 @@ export function EmptyState({
   action?: ReactNode;
 }) {
   return (
-    <section className="empty-state">
+    <section className="empty-state flex min-h-[18.75rem] flex-col items-center justify-center gap-4 rounded-pc-lg border border-dashed border-[var(--color-border-strong)] bg-[var(--color-bg-subtle)] p-10 text-center text-pc-muted-foreground">
       <EmptyVisual icon={icon} visual={visual} />
       <div>
         {eyebrow && <p className="eyebrow">{eyebrow}</p>}
-        <h2>{title}</h2>
-        <p>{description}</p>
+        <h2 className="mb-2 text-lg text-pc-foreground">{title}</h2>
+        <p className="m-0 max-w-[32rem] leading-[var(--leading-relaxed)]">{description}</p>
       </div>
-      {action && <div className="empty-state-action">{action}</div>}
+      {action && <div className="mt-2">{action}</div>}
     </section>
   );
 }
@@ -64,7 +64,7 @@ function EmptyVisual({ icon, visual }: { icon?: LucideIcon; visual?: ReactNode }
   if (visual) return visual;
   if (!icon) return null;
   return (
-    <span className="empty-state-icon">
+    <span className="relative grid size-12 place-items-center rounded-pc-lg border border-pc-border bg-pc-surface text-[var(--color-interactive-text)] shadow-[var(--shadow-control)]">
       <Icon glyph={icon} size="lg" />
     </span>
   );
