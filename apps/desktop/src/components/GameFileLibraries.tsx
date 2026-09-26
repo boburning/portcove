@@ -1,0 +1,309 @@
+import { useEffect, useState } from "react";
+import { desktopApi } from "../api";
+import { pickInstallFolder } from "../file-picker";
+import type {
+  GameFileRoot,
+  GameFileScanSnapshot,
+  PortDefinition,
+  SourceImportPlan,
+  SourceProfile,
+  SourceRecord,
+} from "../types";
+import { errorText, formatBytes, formatCountMessage, isCancellation } from "../view-model";
+import { OperationCancellation } from "./OperationCancellation";
+import {
+  SourceImportReview,
+  sourceDiscoveryLimitGuidance,
+  sourceDiscoveryLimitLabel,
+  sourceImportNotice,
+} from "./SourceDiscovery";
+import { Button } from "./ui/button";
+
+const scanLimits = {
+  max_entries: 10_000,
+  max_depth: 6,
+  max_file_bytes: 2 * 1024 * 1024 * 1024,
+  max_hash_bytes: 16 * 1024 * 1024 * 1024,
+  max_candidates: 64,
+};
+
+export function GameFileLibraries({
+  ports,
+  profiles,
+  onAdded,
+}: {
+  ports: PortDefinition[];
+  profiles: SourceProfile[];
+  onAdded?: () => Promise<unknown>;
+}) {
+  const [roots, setRoots] = useState<GameFileRoot[]>();
+  const [snapshot, setSnapshot] = useState<GameFileScanSnapshot | null>();
+  const [busy, setBusy] = useState("");
+  const [error, setError] = useState<string>();
+  const [notice, setNotice] = useState<string>();
+  const [operationId, setOperationId] = useState<string>();
+  const [removingId, setRemovingId] = useState<string>();
+  const [plan, setPlan] = useState<SourceImportPlan>();
+  useEffect(() => {
+    let active = true;
+    void Promise.all([desktopApi.gameFileRoots(), desktopApi.gameFileScanSnapshot()])
+      .then(([savedRoots, savedSnapshot]) => {
+        if (!active) return;
+        setRoots(savedRoots);
+        setSnapshot(savedSnapshot);
+      })
+      .catch((value: unknown) => {
+        if (active) setError(errorText(value));
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+  const run = (label: string, task: () => Promise<void>) => {
+    setBusy(label);
+    setError(undefined);
+    setNotice(undefined);
+    return task()
+      .catch((value: unknown) => {
+        if (isCancellation(value)) setNotice("Scan cancelled. The previous results were kept.");
+        else setError(errorText(value));
+      })
+      .finally(() => {
+        setBusy("");
+        setOperationId(undefined);
+      });
+  };
+  const refresh = async () => {
+    const [savedRoots, savedSnapshot] = await Promise.all([
+      desktopApi.gameFileRoots(),
+      desktopApi.gameFileScanSnapshot(),
+    ]);
+    setRoots(savedRoots);
+    setSnapshot(savedSnapshot);
+  };
+  const add = () =>
+    run("Choosing folder…", async () => {
+      const path = await pickInstallFolder("");
+      if (!path) return;
+      await desktopApi.addGameFileRoot(path);
+      await refresh();
+    });
+  const relink = (root: GameFileRoot) =>
+    run("Choosing replacement…", async () => {
+      const path = await pickInstallFolder(root.path);
+      if (!path) return;
+      await desktopApi.relinkGameFileRoot(root.id, path);
+      await refresh();
+    });
+  const remove = (root: GameFileRoot) =>
+    run("Removing folder…", async () => {
+      await desktopApi.removeGameFileRoot(root.id);
+      setRemovingId(undefined);
+      await refresh();
+    });
+  const scan = () =>
+    run("Scanning selected folders…", async () => {
+      const scanned = await desktopApi.scanGameFileRoots(scanLimits, (event) => {
+        if (event.type === "started") setOperationId(event.operation_id);
+      });
+      setSnapshot(scanned);
+      await refresh();
+    });
+  const review = (candidate: SourceRecord) =>
+    run("Checking the source…", async () => {
+      setPlan(
+        await desktopApi.planSourceImport(
+          candidate.profile_id,
+          candidate.path,
+          "use_current_location",
+        ),
+      );
+    });
+  const apply = () =>
+    run("Adding selected source…", async () => {
+      if (!plan) return;
+      const result = await desktopApi.importSource(
+        plan.profile_id,
+        plan.source.path,
+        plan.mode,
+        plan.plan_sha256,
+      );
+      if (!result) return;
+      setPlan(undefined);
+      setNotice(sourceImportNotice(result));
+      await onAdded?.();
+    });
+  const report = snapshot?.report;
+  const available = roots?.filter((root) => root.availability === "available") ?? [];
+  return (
+    <article className="settings-row source-health" data-focus-group>
+      <p className="eyebrow">SAVED FOLDERS</p>
+      <div className="settings-title">
+        <h2>Game-file libraries</h2>
+        <Button
+          data-focusable
+          variant="outline"
+          size="sm"
+          disabled={Boolean(busy)}
+          onClick={() => void add()}
+        >
+          Add folder
+        </Button>
+      </div>
+      <p>
+        Choose folders on this PC, a mounted network share, or a removable drive. Portcove searches
+        only saved folders. Scanning does not change the original files or add them as sources.
+      </p>
+      {roots === undefined ? (
+        <p role="status">Loading saved folders…</p>
+      ) : roots.length === 0 ? (
+        <p>No folders saved yet.</p>
+      ) : (
+        <div className="source-health-list">
+          {roots.map((root) => (
+            <div className="source-health-row" key={root.id}>
+              <div>
+                <code>{root.path}</code>
+                <span>
+                  {root.availability === "available"
+                    ? "Available"
+                    : "Unavailable — reconnect or relink this folder"}
+                </span>
+              </div>
+              <div className="actions">
+                <Button
+                  data-focusable
+                  variant="outline"
+                  disabled={Boolean(busy)}
+                  onClick={() => void relink(root)}
+                >
+                  Relink
+                </Button>
+                {removingId === root.id ? (
+                  <>
+                    <Button
+                      data-focusable
+                      variant="destructive"
+                      disabled={Boolean(busy)}
+                      onClick={() => void remove(root)}
+                    >
+                      Remove saved folder
+                    </Button>
+                    <Button
+                      data-focusable
+                      variant="outline"
+                      onClick={() => setRemovingId(undefined)}
+                    >
+                      Keep folder
+                    </Button>
+                  </>
+                ) : (
+                  <Button
+                    data-focusable
+                    variant="outline"
+                    disabled={Boolean(busy)}
+                    onClick={() => setRemovingId(root.id)}
+                  >
+                    Remove
+                  </Button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      <div className="actions">
+        <Button
+          data-focusable
+          variant="outline"
+          disabled={Boolean(busy) || available.length === 0}
+          onClick={() => void scan()}
+        >
+          Scan saved folders
+        </Button>
+      </div>
+      {busy && <p role="status">{busy}</p>}
+      {operationId && <OperationCancellation operationId={operationId} label="Cancel scan" />}
+      {error && <p role="alert">{error}</p>}
+      {notice && <p role="status">{notice}</p>}
+      {snapshot && report && (
+        <section className="source-discovery-results" aria-label="Saved folder scan results">
+          <h3>Last completed scan</h3>
+          <p>
+            {snapshot.freshness === "inputs_match"
+              ? "Saved roots and catalog match this snapshot. Files may have changed since the scan."
+              : "Saved roots, availability, or catalog changed. Scan again before using these results."}
+          </p>
+          <p>
+            Checked {report.entries_examined} entries in {report.searched_roots.length} available
+            folders.{" "}
+            {formatCountMessage(report.candidates.length, {
+              zero: "Found no exact matches.",
+              one: "Found 1 exact match.",
+              other: "Found {count} exact matches.",
+              unknown: "Exact match count is unavailable.",
+            })}{" "}
+            This scan does not assess every source format or establish gameplay support.
+          </p>
+          {roots?.some((root) => root.availability === "unavailable") && (
+            <p>Unavailable saved folders were not searched.</p>
+          )}
+          {report.limits_reached.length > 0 && (
+            <ul>
+              {report.limits_reached.map((limit) => (
+                <li key={limit}>
+                  {sourceDiscoveryLimitLabel(limit)}: {sourceDiscoveryLimitGuidance(limit)}
+                </li>
+              ))}
+            </ul>
+          )}
+          {report.candidates.map((candidate) => (
+            <div className="source-health-row" key={`${candidate.profile_id}:${candidate.path}`}>
+              <div>
+                <strong>
+                  {profiles.find((profile) => profile.id === candidate.profile_id)?.label ??
+                    candidate.profile_id}
+                </strong>
+                <code>{candidate.path}</code>
+                <span>{formatBytes(candidate.size)}</span>
+                <span>
+                  Catalog ports using this profile:{" "}
+                  {ports
+                    .filter(
+                      (port) =>
+                        port.source_profile === candidate.profile_id ||
+                        port.bios_source_profile === candidate.profile_id,
+                    )
+                    .map((port) => port.name)
+                    .join(", ") || "No catalog port currently uses this profile"}
+                </span>
+              </div>
+              <Button
+                data-focusable
+                variant="outline"
+                disabled={Boolean(busy) || snapshot.freshness !== "inputs_match"}
+                onClick={() => void review(candidate)}
+              >
+                Review source
+              </Button>
+            </div>
+          ))}
+          {report.issues.map((issue, index) => (
+            <p key={`${issue.path}:${index}`}>
+              {issue.message} {issue.path && <code>{issue.path}</code>}
+            </p>
+          ))}
+          {report.issues_omitted > 0 && (
+            <p>{report.issues_omitted} more scan issues were omitted.</p>
+          )}
+        </section>
+      )}
+      <SourceImportReview
+        plan={plan}
+        busy={Boolean(busy)}
+        onCancel={() => setPlan(undefined)}
+        onApply={apply}
+      />
+    </article>
+  );
+}

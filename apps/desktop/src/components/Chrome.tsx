@@ -61,6 +61,7 @@ import { ApplicationUpdateSettings } from "../features/application-update/Applic
 import type { ApplicationUpdateRoute } from "../features/application-update/focus-application-update-route";
 import type { ApplicationUpdatePreferencesState } from "../features/application-update/use-application-update-preferences";
 import { SourceDiscoveryButton } from "./SourceDiscovery";
+import { GameFileLibraries } from "./GameFileLibraries";
 import { SourceIdentityPanel } from "./SourceIdentity";
 import { Icon, NavigationHints, Shortcut } from "./ui";
 import { Button } from "./ui/button";
@@ -1380,6 +1381,12 @@ export function SettingsView({
         title="Game Files"
         description="Review local game-file sources and the optional disc tools used to verify or prepare them."
       >
+        <GameFileLibraries
+          key={librarySelection?.root ?? libraryRoot}
+          ports={ports}
+          profiles={sourceProfiles}
+          onAdded={onSourceAdded}
+        />
         <SourceHealth
           generation={generation}
           ports={ports}
