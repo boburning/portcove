@@ -18,10 +18,12 @@ export function FailureDetails({
   presentation,
   code,
   contextLabel,
+  showMutationSummary = true,
 }: {
   presentation: FailureDisplay;
   code?: string;
   contextLabel?: (key: string) => string | undefined;
+  showMutationSummary?: boolean;
 }) {
   const [copied, setCopied] = useState(false);
   const technical = JSON.stringify(
@@ -37,11 +39,13 @@ export function FailureDetails({
   );
   return (
     <div className="failure-details">
-      <p>
-        {Object.hasOwn(outcomes, presentation.mutation_state)
-          ? outcomes[presentation.mutation_state as Presentation["mutation_state"]]
-          : outcomes.unknown}
-      </p>
+      {showMutationSummary && (
+        <p>
+          {Object.hasOwn(outcomes, presentation.mutation_state)
+            ? outcomes[presentation.mutation_state as Presentation["mutation_state"]]
+            : outcomes.unknown}
+        </p>
+      )}
       <details>
         <summary data-focusable>View technical details</summary>
         {contextLabel ? (

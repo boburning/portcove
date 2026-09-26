@@ -34,6 +34,9 @@ describe("static development scenarios", () => {
     const unavailableLibrary = renderScenario("unavailable-library");
     expect(unavailableLibrary).toContain("Library information could not be loaded");
     expect(unavailableLibrary).toContain("Initial scenario library load failed");
+    expect(unavailableLibrary).toContain("Retry refresh loads the library information");
+    expect(unavailableLibrary).not.toContain("The changes could not be confirmed");
+    expect(unavailableLibrary).not.toContain("your last install");
     expect(unavailableLibrary).not.toContain("source changed since registration");
     const partialSuccess = renderScenario("partial-success");
     expect(partialSuccess).toContain("Change saved; review the current state");
@@ -58,7 +61,10 @@ describe("static development scenarios", () => {
     expect(interrupted.indexOf("Restart Portcove, then review doctor output.")).toBeLessThan(
       interrupted.indexOf("<details"),
     );
-    expect(renderScenario("refresh-failure")).toContain("Showing the last loaded information");
+    const refreshFailure = renderScenario("refresh-failure");
+    expect(refreshFailure).toContain("Showing the last loaded information");
+    expect(refreshFailure).toContain("It does not repeat your last install");
+    expect(refreshFailure).not.toContain("The changes could not be confirmed");
     expect(renderScenario("unavailable-provider")).toContain("Artwork is unavailable");
     const libraryReference = renderScenario("library-reference-long-title");
     expect(libraryReference).toContain("The Unreasonably Long Scenario Game Title");
