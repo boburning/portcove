@@ -3503,6 +3503,13 @@ describe("desktop components", () => {
     for (const [label, current, outcomes] of states)
       expect(render(current, outcomes)).toContain(`>${label}</span>`);
 
+    expect(render(status)).toContain("<small>Latest eligible</small><span>Not checked</span>");
+    expect(
+      render(status, [{ port_id: port.id, ok: false, error: failureReport(), result: null }]),
+    ).toContain("<small>Latest eligible</small><span>Check failed</span>");
+    expect(render(status, [{ port_id: port.id, ok: true, error: null, result: null }])).toContain(
+      "<small>Latest eligible</small><span>Unavailable</span>",
+    );
     expect(render(status)).toMatch(/<strong>Unknown<\/strong><span>Updates available<\/span>/u);
     expect(render(status, [{ port_id: port.id, ok: true, error: null, result }])).toMatch(
       /<strong>0<\/strong><span>Updates available<\/span>/u,
