@@ -75,7 +75,7 @@ export function GameFileLibraries({
     { profile_id: string; path: string; sha256: string; size: number }[]
   >([]);
   const heading = useRef<HTMLHeadingElement>(null);
-  const focusAfterScan = useRef<{ profile_id: string; path: string }>();
+  const focusAfterScan = useRef<{ profile_id: string; path: string } | undefined>(undefined);
   useEffect(() => {
     let active = true;
     void Promise.all([desktopApi.gameFileRoots(), desktopApi.gameFileScanSnapshot()])
