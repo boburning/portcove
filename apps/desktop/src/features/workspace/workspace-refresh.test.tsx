@@ -578,11 +578,27 @@ describe("workspace refresh recovery", () => {
     await act(async () => data.retryRefresh());
     expect(data.catalog).toEqual(snapshot.catalog);
     expect(host.textContent).toContain("Library information could not be refreshed");
+    expect(host.textContent).not.toContain("The changes could not be confirmed");
+    expect(host.textContent).toContain("View technical details");
     expect(
       [...host.querySelectorAll('button[data-slot="button"][data-variant="outline"]')].find(
         (button) => button.textContent === "Retry refresh",
       ),
     ).toBeDefined();
+  });
+
+  it.each([
+    ["committed", "The change was committed"],
+    ["recovery_required", "Retained work needs recovery review"],
+    ["future-outcome", "The changes could not be confirmed"],
+  ] as const)("retains a consequential %s outcome on a failed refresh", async (state, message) => {
+    await render();
+    const error = failureReport();
+    error.presentation.mutation_state = state as typeof error.presentation.mutation_state;
+    vi.mocked(desktopApi.workspaceSnapshot).mockRejectedValueOnce(error);
+    await act(async () => data.retryRefresh());
+    expect(host.textContent).toContain(message);
+    expect(host.textContent).toContain("View technical details");
   });
 
   it("keeps a committed operation successful when its workspace refresh fails", async () => {
@@ -602,6 +618,7 @@ describe("workspace refresh recovery", () => {
     expect(data.refreshFailure).toBeDefined();
     expect(host.textContent).toContain("Showing the last loaded information");
     expect(host.textContent).toContain("It does not repeat your last install");
+    expect(host.textContent).not.toContain("The changes could not be confirmed");
 
     await act(async () => data.retryRefresh());
     expect(install).toHaveBeenCalledOnce();

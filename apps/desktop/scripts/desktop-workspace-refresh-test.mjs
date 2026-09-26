@@ -95,9 +95,10 @@ export async function workspaceRefreshScenario({
         retry,
       );
       assert.match(observations.failure_text, /Showing the last loaded information/);
+      assert.match(observations.failure_text, /View technical details/);
       assert.doesNotMatch(
         observations.failure_text,
-        /No files were changed|synthetic-native-refresh-failure/,
+        /No files were changed|The changes could not be confirmed|synthetic-native-refresh-failure/,
       );
       assert.equal((await browser.findElements(By.css(".port-card"))).length, before.length);
       const accessibilityPath = path.join(output, "workspace-refresh-accessibility.json");

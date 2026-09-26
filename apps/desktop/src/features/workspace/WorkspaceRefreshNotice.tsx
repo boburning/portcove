@@ -87,6 +87,11 @@ export function WorkspaceRefreshNotice({
     );
   const { error } = failure;
   const presentation = failurePresentation(error);
+  const showMutationSummary =
+    presentation !== undefined &&
+    presentation.mutation_state !== "not_started" &&
+    presentation.mutation_state !== "no_changes" &&
+    presentation.mutation_state !== "unknown";
   const code =
     typeof error === "object" && error && "code" in error ? String(error.code) : undefined;
   return (
@@ -106,10 +111,17 @@ export function WorkspaceRefreshNotice({
             : "Portcove has not loaded the library information yet."}
         </p>
         <p>{errorText(error)}</p>
-        {presentation && <FailureDetails presentation={presentation} code={code} />}
+        {presentation && (
+          <FailureDetails
+            presentation={presentation}
+            code={code}
+            showMutationSummary={showMutationSummary}
+          />
+        )}
         <p>
-          Retry refresh loads the current information. It does not repeat your last install, move,
-          or other action.
+          {hasSnapshot
+            ? "Retry refresh loads the current information. It does not repeat your last install, move, or other action."
+            : "Retry refresh loads the library information. It does not install, move, or change a game."}
         </p>
         <Button
           ref={retryButton}
