@@ -298,8 +298,11 @@ async function captureScenarioDiagnostics(name, setup) {
   }
 }
 
-async function captureScenarioScreenshot(name) {
-  if (!browser) return;
+async function captureScenarioScreenshot(name, required = false) {
+  if (!browser) {
+    if (required) throw new Error(`Required screenshot ${name} has no browser session`);
+    return;
+  }
   const screenshot = path.join(output, `${name}.png`);
   try {
     await writeFile(screenshot, await browser.takeScreenshot(), {
@@ -307,7 +310,9 @@ async function captureScenarioScreenshot(name) {
       flag: "wx",
     });
     artifacts.push(screenshot);
-  } catch {
+  } catch (error) {
+    if (required)
+      throw new Error(`Required screenshot ${name} could not be captured`, { cause: error });
     /* The failed scenario remains recorded even if its window disappeared. */
   }
 }
@@ -1158,6 +1163,45 @@ try {
           ),
         );
         await captureScenarioScreenshot(`catalog-short-window-${theme}`);
+
+        const themedOrigin = await browser.executeScript(() => {
+          const card = [...document.querySelectorAll(".port-card")].find((item) =>
+            item.textContent?.includes("Ghostship"),
+          );
+          if (!(card instanceof HTMLElement)) throw new Error("Ghostship card is missing");
+          const originKey = card.getAttribute("data-detail-origin");
+          if (!originKey) throw new Error("Ghostship detail origin is missing");
+          card.scrollIntoView({ block: "center", inline: "nearest" });
+          card.click();
+          return originKey;
+        });
+        await browser.wait(until.elementLocated(By.css("[data-detail-workspace]")), 15_000);
+        for (const size of [
+          { width: 960, height: 640 },
+          { width: 1280, height: 800 },
+        ]) {
+          await browser.manage().window().setRect(size);
+          assert.equal(
+            await browser.executeScript(() => document.documentElement.dataset.theme),
+            theme,
+          );
+          await verifyDetailActionHierarchy();
+          await captureScenarioScreenshot(
+            `game-details-missing-source-${theme}-${size.width}`,
+            true,
+          );
+        }
+        await browser.findElement(By.css(".detail-back")).click();
+        await browser.wait(until.elementLocated(By.id("port-search")), 15_000);
+        await browser.wait(
+          async () =>
+            (await browser.executeScript(() =>
+              document.activeElement?.getAttribute("data-detail-origin"),
+            )) === themedOrigin,
+          15_000,
+          "Themed game details did not return focus to the catalog card",
+        );
+        await browser.manage().window().setRect({ width: 960, height: 640 });
       }
     } finally {
       await browser.manage().window().setRect(compactWindow);
