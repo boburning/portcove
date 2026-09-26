@@ -414,7 +414,12 @@ export async function preparationScenarios({
   });
   await scenario("native-ready-detail-composition", async () => {
     const port = command(["catalog", "show", "opengoal-jak1"]);
-    assert.equal((await status(port.id)).readiness.launchable, true);
+    const readyStatus = await status(port.id);
+    assert.equal(readyStatus.readiness.launchable, true);
+    assert.ok(readyStatus.active);
+    assert.equal(readyStatus.channel, "stable");
+    assert.equal(readyStatus.active.channel, "stable");
+    assert.ok(!readyStatus.last_update_check);
     const originalWindow = await browser.manage().window().getRect();
     try {
       for (const theme of ["dark", "light"]) {
@@ -496,21 +501,20 @@ export async function preparationScenarios({
             const strip = document.querySelector(".installation-facts");
             strip?.scrollIntoView({ block: "center", behavior: "instant" });
             return {
-              labels: [...(strip?.querySelectorAll("dt") ?? [])].map((label) =>
-                label.textContent?.trim(),
-              ),
-              location: strip?.querySelector(".installation-facts-location dd")?.textContent,
+              items: [...(strip?.querySelectorAll(":scope > div") ?? [])].map((item) => [
+                item.querySelector("dt")?.textContent?.trim(),
+                item.querySelector("dd")?.textContent?.trim(),
+              ]),
               horizontalOverflow: Boolean(strip && strip.scrollWidth > strip.clientWidth + 1),
             };
           });
-          assert.deepEqual(facts.labels, [
-            "Installed version",
-            "Selected channel",
-            "Installed channel",
-            "Latest eligible release",
-            "Installed folder",
+          assert.deepEqual(facts.items, [
+            ["Installed version", readyStatus.active.version],
+            ["Selected channel", "Stable"],
+            ["Installed channel", "Stable"],
+            ["Latest eligible release", "No current check"],
+            ["Installed folder", readyStatus.active.path],
           ]);
-          assert.ok(facts.location?.length, "Installed folder must retain its exact path");
           assert.equal(facts.horizontalOverflow, false);
           const factsScreenshot = path.join(output, `game-details-facts-${theme}-${width}.png`);
           await writeFile(factsScreenshot, await browser.takeScreenshot(), {
