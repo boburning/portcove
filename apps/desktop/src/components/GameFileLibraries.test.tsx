@@ -122,6 +122,31 @@ it("marks matching registered candidates without claiming installation and keeps
   expect(button("View Game A details")).toBeDefined();
   expect(button("Review source")).toBeDefined();
 
+  await act(async () =>
+    root.render(
+      <GameFileLibraries
+        ports={ports}
+        profiles={[]}
+        registeredSources={[source]}
+        workspaceRefreshFailed
+        onOpenPort={onOpenPort}
+      />,
+    ),
+  );
+  expect(document.body.textContent).toContain("Earlier library view listed this source");
+  expect(button("View Game A details").disabled).toBe(true);
+  expect(button("Review source").disabled).toBe(false);
+  await act(async () =>
+    root.render(
+      <GameFileLibraries
+        ports={ports}
+        profiles={[]}
+        registeredSources={[source]}
+        onOpenPort={onOpenPort}
+      />,
+    ),
+  );
+
   const stale = { ...snapshot, freshness: "inputs_changed" as const };
   vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue(stale);
   await click("Refresh folders");
@@ -428,6 +453,9 @@ it("offers only affected catalog ports after explicit source registration", asyn
     );
   }
   await act(async () => root.render(<SettingsAndDetails />));
+  await click("Review source");
+  await click("Cancel review");
+  expect(document.activeElement).toBe(button("Review source"));
   await click("Review source");
   expect(document.body.querySelector('[aria-label="Continue to a game"]')).toBeNull();
   await click("Use current location");

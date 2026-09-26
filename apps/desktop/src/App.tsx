@@ -767,6 +767,7 @@ function CurrentView({
         github={github}
         busy={operations.busy}
         sources={data.sources}
+        workspaceRefreshFailed={Boolean(data.refreshFailure)}
         appearance={appearance}
         librarySelection={bootstrap.selection ?? undefined}
         chooseLibrary={pickLibraryFolder}

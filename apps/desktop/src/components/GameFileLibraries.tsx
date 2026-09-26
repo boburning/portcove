@@ -63,6 +63,7 @@ function CandidateAction({
   onOpenPort,
   busy,
   registrationConfirmed,
+  workspaceRefreshFailed,
   stale = false,
   review,
   reviewLabel,
@@ -73,6 +74,7 @@ function CandidateAction({
   onOpenPort?: (portId: string, originKey: string) => void;
   busy: boolean;
   registrationConfirmed: boolean;
+  workspaceRefreshFailed: boolean;
   stale?: boolean;
   review: () => void;
   reviewLabel: string;
@@ -84,6 +86,11 @@ function CandidateAction({
       source.sha256 === candidate.sha256,
   );
   if (alreadyAdded) {
+    const status = workspaceRefreshFailed
+      ? "Earlier library view listed this source. Refresh the workspace before continuing."
+      : registrationConfirmed
+        ? "Already added. Review game requirements in details."
+        : "Already added. Refresh the library before continuing to a game.";
     const matchingPorts = ports.filter(
       (port) =>
         port.source_profile === candidate.profile_id ||
@@ -91,12 +98,7 @@ function CandidateAction({
     );
     return (
       <div className="actions source-candidate-actions">
-        <span>
-          Already added ·{" "}
-          {registrationConfirmed
-            ? "Review game requirements in details"
-            : "Refresh the library before continuing to a game"}
-        </span>
+        <span>{status}</span>
         {onOpenPort &&
           matchingPorts.map((port) => (
             <Button
@@ -112,6 +114,7 @@ function CandidateAction({
           ))}
         <Button
           data-focusable
+          data-candidate-review
           className="source-candidate-action"
           variant="outline"
           disabled={busy || stale}
@@ -123,7 +126,13 @@ function CandidateAction({
     );
   }
   return (
-    <Button data-focusable variant="outline" disabled={busy || stale} onClick={review}>
+    <Button
+      data-focusable
+      data-candidate-review
+      variant="outline"
+      disabled={busy || stale}
+      onClick={review}
+    >
       {reviewLabel}
     </Button>
   );
@@ -199,6 +208,7 @@ function CompletedScan({
   profiles,
   registeredSources,
   registrationConfirmed,
+  workspaceRefreshFailed,
   onOpenPort,
   busy,
   review,
@@ -209,6 +219,7 @@ function CompletedScan({
   profiles: SourceProfile[];
   registeredSources: SourceRecord[];
   registrationConfirmed: boolean;
+  workspaceRefreshFailed: boolean;
   onOpenPort?: (portId: string, originKey: string) => void;
   busy: boolean;
   review: (candidate: Pick<SourceRecord, "profile_id" | "path">) => void;
@@ -273,6 +284,7 @@ function CompletedScan({
             candidate={candidate}
             registeredSources={registeredSources}
             registrationConfirmed={registrationConfirmed}
+            workspaceRefreshFailed={workspaceRefreshFailed}
             ports={ports}
             onOpenPort={onOpenPort}
             busy={busy}
@@ -296,6 +308,7 @@ export function GameFileLibraries({
   ports,
   profiles,
   registeredSources = [],
+  workspaceRefreshFailed = false,
   onAdded,
   onOpenPort,
   setupSource,
@@ -304,6 +317,7 @@ export function GameFileLibraries({
   ports: PortDefinition[];
   profiles: SourceProfile[];
   registeredSources?: SourceRecord[];
+  workspaceRefreshFailed?: boolean;
   onAdded?: () => Promise<unknown>;
   onOpenPort?: (portId: string, originKey: string) => void;
   setupSource?: SourceRecord;
@@ -367,7 +381,10 @@ export function GameFileLibraries({
         element.dataset.profileId === candidate.profile_id &&
         element.dataset.path === candidate.path,
     );
-    (row?.querySelector<HTMLButtonElement>("button:not(:disabled)") ?? heading.current)?.focus();
+    (
+      row?.querySelector<HTMLButtonElement>("[data-candidate-review]:not(:disabled)") ??
+      heading.current
+    )?.focus();
   }, [scanning, snapshot]);
   useEffect(() => {
     if (!plan || busy) return;
@@ -397,7 +414,10 @@ export function GameFileLibraries({
         element.dataset.profileId === candidate?.profile_id &&
         element.dataset.path === candidate?.path,
     );
-    (row?.querySelector<HTMLButtonElement>("button:not(:disabled)") ?? heading.current)?.focus();
+    (
+      row?.querySelector<HTMLButtonElement>("[data-candidate-review]:not(:disabled)") ??
+      heading.current
+    )?.focus();
   }, [plan, busy, scanning, snapshot]);
   const run = (label: string, task: () => Promise<void>) => {
     setBusy(label);
@@ -695,7 +715,8 @@ export function GameFileLibraries({
               <CandidateAction
                 candidate={candidate}
                 registeredSources={registeredSources}
-                registrationConfirmed={refreshConfirmed}
+                registrationConfirmed={refreshConfirmed && !workspaceRefreshFailed}
+                workspaceRefreshFailed={workspaceRefreshFailed}
                 ports={ports}
                 onOpenPort={onOpenPort}
                 busy={Boolean(busy)}
@@ -714,7 +735,8 @@ export function GameFileLibraries({
         ports={ports}
         profiles={profiles}
         registeredSources={registeredSources}
-        registrationConfirmed={refreshConfirmed}
+        registrationConfirmed={refreshConfirmed && !workspaceRefreshFailed}
+        workspaceRefreshFailed={workspaceRefreshFailed}
         onOpenPort={onOpenPort}
         busy={Boolean(busy)}
         review={(candidate) => void review(candidate)}
