@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { desktopApi } from "../api";
 import { pickInstallFolder } from "../file-picker";
+import { useSetupSource } from "../features/app-shell/use-setup-source";
 import type {
   GameFileRoot,
   GameFileScanSnapshot,
@@ -54,28 +55,6 @@ function CandidateIdentity({
   );
 }
 
-function useRegisteredContinuation(registeredSources: SourceRecord[]) {
-  const [registeredSource, setRegisteredSource] = useState<SourceRecord>();
-  const observedRegistration = useRef(false);
-  useEffect(() => {
-    if (!registeredSource) {
-      observedRegistration.current = false;
-      return;
-    }
-    if (
-      registeredSources.some(
-        (source) =>
-          source.profile_id === registeredSource.profile_id &&
-          source.path === registeredSource.path &&
-          source.sha256 === registeredSource.sha256,
-      )
-    )
-      observedRegistration.current = true;
-    else if (observedRegistration.current) setRegisteredSource(undefined);
-  }, [registeredSource, registeredSources]);
-  return [registeredSource, setRegisteredSource] as const;
-}
-
 function ContinueToGame({
   registeredSource,
   ports,
@@ -115,18 +94,123 @@ function ContinueToGame({
   );
 }
 
+function useContinuationSource(
+  registeredSources: SourceRecord[],
+  setupSource?: SourceRecord,
+  setSetupSource?: (source?: SourceRecord) => void,
+) {
+  const [localSource, setLocalSource] = useSetupSource(registeredSources);
+  return setSetupSource
+    ? ([setupSource, setSetupSource] as const)
+    : ([localSource, setLocalSource] as const);
+}
+
+function CompletedScan({
+  snapshot,
+  roots,
+  ports,
+  profiles,
+  busy,
+  review,
+}: {
+  snapshot?: GameFileScanSnapshot | null;
+  roots?: GameFileRoot[];
+  ports: PortDefinition[];
+  profiles: SourceProfile[];
+  busy: boolean;
+  review: (candidate: Pick<SourceRecord, "profile_id" | "path">) => void;
+}) {
+  const report = snapshot?.report;
+  if (!snapshot || !report) return null;
+  return (
+    <section className="source-discovery-results" aria-label="Saved folder scan results">
+      <h3>Last completed scan</h3>
+      <p>
+        {snapshot.freshness === "inputs_match"
+          ? "Saved roots and catalog match this snapshot. Files may have changed since the scan."
+          : "Saved roots, availability, or catalog changed. Scan again before using these results."}
+      </p>
+      <p>
+        Checked {report.entries_examined} entries in {report.searched_roots.length} available
+        folders.{" "}
+        {formatCountMessage(report.candidates.length, {
+          zero: "Found no exact matches.",
+          one: "Found 1 exact match.",
+          other: "Found {count} exact matches.",
+          unknown: "Exact match count is unavailable.",
+        })}{" "}
+        This scan does not assess every source format or establish gameplay support.
+      </p>
+      {roots?.some((root) => root.availability === "unavailable") && (
+        <p>Unavailable saved folders were not searched.</p>
+      )}
+      {report.limits_reached.length > 0 && (
+        <ul>
+          {report.limits_reached.map((limit) => (
+            <li key={limit}>
+              {sourceDiscoveryLimitLabel(limit)}: {savedRootLimitGuidance(limit)}
+            </li>
+          ))}
+        </ul>
+      )}
+      {report.candidates.map((candidate) => (
+        <div
+          className="source-health-row"
+          key={`${candidate.profile_id}:${candidate.path}`}
+          data-completed-candidate
+          data-profile-id={candidate.profile_id}
+          data-path={candidate.path}
+        >
+          <div>
+            <CandidateIdentity candidate={candidate} profiles={profiles} />
+            <span>
+              Catalog ports using this profile:{" "}
+              {ports
+                .filter(
+                  (port) =>
+                    port.source_profile === candidate.profile_id ||
+                    port.bios_source_profile === candidate.profile_id,
+                )
+                .map((port) => port.name)
+                .join(", ") || "No catalog port currently uses this profile"}
+            </span>
+          </div>
+          <Button
+            data-focusable
+            variant="outline"
+            disabled={busy || snapshot.freshness !== "inputs_match"}
+            onClick={() => review(candidate)}
+          >
+            Review source
+          </Button>
+        </div>
+      ))}
+      {report.issues.map((issue, index) => (
+        <p key={`${issue.path}:${index}`}>
+          {issue.message} {issue.path && <code>{issue.path}</code>}
+        </p>
+      ))}
+      {report.issues_omitted > 0 && <p>{report.issues_omitted} more scan issues were omitted.</p>}
+    </section>
+  );
+}
+
 export function GameFileLibraries({
   ports,
   profiles,
   registeredSources = [],
   onAdded,
   onOpenPort,
+  setupSource,
+  setSetupSource,
 }: {
   ports: PortDefinition[];
   profiles: SourceProfile[];
   registeredSources?: SourceRecord[];
   onAdded?: () => Promise<unknown>;
   onOpenPort?: (portId: string, originKey: string) => void;
+  setupSource?: SourceRecord;
+  setSetupSource?: (source?: SourceRecord) => void;
 }) {
   const [roots, setRoots] = useState<GameFileRoot[]>();
   const [snapshot, setSnapshot] = useState<GameFileScanSnapshot | null>();
@@ -137,7 +221,11 @@ export function GameFileLibraries({
   const [operationId, setOperationId] = useState<string>();
   const [removingId, setRemovingId] = useState<string>();
   const [plan, setPlan] = useState<SourceImportPlan>();
-  const [registeredSource, setRegisteredSource] = useRegisteredContinuation(registeredSources);
+  const [registeredSource, setRegisteredSource] = useContinuationSource(
+    registeredSources,
+    setupSource,
+    setSetupSource,
+  );
   const [liveCandidates, setLiveCandidates] = useState<
     { profile_id: string; path: string; sha256: string; size: number }[]
   >([]);
@@ -343,7 +431,6 @@ export function GameFileLibraries({
       setRegisteredSource(result.registered);
       focusToSetup.current = true;
     });
-  const report = snapshot?.report;
   return (
     <article
       className="settings-row source-health"
@@ -494,79 +581,14 @@ export function GameFileLibraries({
       )}
       {error && <p role="alert">{error}</p>}
       {notice && <p role="status">{notice}</p>}
-      {snapshot && report && (
-        <section className="source-discovery-results" aria-label="Saved folder scan results">
-          <h3>Last completed scan</h3>
-          <p>
-            {snapshot.freshness === "inputs_match"
-              ? "Saved roots and catalog match this snapshot. Files may have changed since the scan."
-              : "Saved roots, availability, or catalog changed. Scan again before using these results."}
-          </p>
-          <p>
-            Checked {report.entries_examined} entries in {report.searched_roots.length} available
-            folders.{" "}
-            {formatCountMessage(report.candidates.length, {
-              zero: "Found no exact matches.",
-              one: "Found 1 exact match.",
-              other: "Found {count} exact matches.",
-              unknown: "Exact match count is unavailable.",
-            })}{" "}
-            This scan does not assess every source format or establish gameplay support.
-          </p>
-          {roots?.some((root) => root.availability === "unavailable") && (
-            <p>Unavailable saved folders were not searched.</p>
-          )}
-          {report.limits_reached.length > 0 && (
-            <ul>
-              {report.limits_reached.map((limit) => (
-                <li key={limit}>
-                  {sourceDiscoveryLimitLabel(limit)}: {savedRootLimitGuidance(limit)}
-                </li>
-              ))}
-            </ul>
-          )}
-          {report.candidates.map((candidate) => (
-            <div
-              className="source-health-row"
-              key={`${candidate.profile_id}:${candidate.path}`}
-              data-completed-candidate
-              data-profile-id={candidate.profile_id}
-              data-path={candidate.path}
-            >
-              <div>
-                <CandidateIdentity candidate={candidate} profiles={profiles} />
-                <span>
-                  Catalog ports using this profile:{" "}
-                  {ports
-                    .filter(
-                      (port) =>
-                        port.source_profile === candidate.profile_id ||
-                        port.bios_source_profile === candidate.profile_id,
-                    )
-                    .map((port) => port.name)
-                    .join(", ") || "No catalog port currently uses this profile"}
-                </span>
-              </div>
-              <Button
-                data-focusable
-                variant="outline"
-                disabled={Boolean(busy) || snapshot.freshness !== "inputs_match"}
-                onClick={() => void review(candidate)}
-              >
-                Review source
-              </Button>
-            </div>
-          ))}
-          {report.issues.map((issue, index) => (
-            <p key={`${issue.path}:${index}`}>
-              {issue.message} {issue.path && <code>{issue.path}</code>}
-            </p>
-          ))}
-          {report.issues_omitted > 0 && (
-            <p>{report.issues_omitted} more scan issues were omitted.</p>
-          )}
-        </section>
-      )}
+      <CompletedScan
+        snapshot={snapshot}
+        roots={roots}
+        ports={ports}
+        profiles={profiles}
+        busy={Boolean(busy)}
+        review={(candidate) => void review(candidate)}
+      />
       <SourceImportReview
         plan={plan}
         busy={Boolean(busy)}

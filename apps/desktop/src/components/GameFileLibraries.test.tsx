@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
-import { act } from "react";
+import { act, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { desktopApi } from "../api";
+import { useSetupSource } from "../features/app-shell/use-setup-source";
 import * as picker from "../file-picker";
 import { portDefinition } from "../test-fixtures";
 import type {
@@ -318,18 +319,30 @@ it("offers only affected catalog ports after explicit source registration", asyn
     { ...portDefinition(), id: "game-b", name: "Game B", bios_source_profile: "game" },
     { ...portDefinition(), id: "unrelated", name: "Unrelated", source_profile: "different" },
   ];
-  await act(async () =>
-    root.render(
+  let removeRegisteredSource: (() => void) | undefined;
+  function SettingsAndDetails() {
+    const [registeredSources, setRegisteredSources] = useState([source]);
+    const [setupSource, setSetupSource] = useSetupSource(registeredSources);
+    const [selectedPort, setSelectedPort] = useState<string>();
+    removeRegisteredSource = () => setRegisteredSources([]);
+    return selectedPort ? (
+      <button onClick={() => setSelectedPort(undefined)}>Back to settings</button>
+    ) : (
       <GameFileLibraries
-        key="setup-handoff"
         ports={ports}
         profiles={[]}
-        registeredSources={[source]}
+        registeredSources={registeredSources}
         onAdded={onAdded}
-        onOpenPort={onOpenPort}
-      />,
-    ),
-  );
+        onOpenPort={(portId, originKey) => {
+          onOpenPort(portId, originKey);
+          setSelectedPort(portId);
+        }}
+        setupSource={setupSource}
+        setSetupSource={setSetupSource}
+      />
+    );
+  }
+  await act(async () => root.render(<SettingsAndDetails />));
   await click("Review source");
   expect(document.body.querySelector('[aria-label="Continue to a game"]')).toBeNull();
   await click("Use current location");
@@ -347,21 +360,13 @@ it("offers only affected catalog ports after explicit source registration", asyn
   expect(document.activeElement).toBe(button("Open Game A details"));
   await click("Open Game B details");
   expect(onOpenPort).toHaveBeenCalledWith("game-b", "game-file-libraries-setup");
+  expect(document.body.querySelector('[aria-label="Continue to a game"]')).toBeNull();
+  await click("Back to settings");
+  expect(document.body.querySelector('[aria-label="Continue to a game"]')).not.toBeNull();
   expect(
     document.body.querySelector('[data-detail-origin="game-file-libraries-setup"]'),
   ).not.toBeNull();
-  await act(async () =>
-    root.render(
-      <GameFileLibraries
-        key="setup-handoff"
-        ports={ports}
-        profiles={[]}
-        registeredSources={[]}
-        onAdded={onAdded}
-        onOpenPort={onOpenPort}
-      />,
-    ),
-  );
+  await act(async () => removeRegisteredSource?.());
   expect(document.body.querySelector('[aria-label="Continue to a game"]')).toBeNull();
 });
 

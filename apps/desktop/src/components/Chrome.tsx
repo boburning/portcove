@@ -1263,6 +1263,8 @@ export function SettingsView({
   sourceProfiles = [],
   onSourceAdded,
   onOpenPort,
+  setupSource,
+  setSetupSource,
   onCatalogChanged,
   onOpenGameUpdates,
   hostToolActions,
@@ -1301,6 +1303,8 @@ export function SettingsView({
   sourceProfiles?: SourceProfile[];
   onSourceAdded?: () => Promise<unknown>;
   onOpenPort?: (portId: string, originKey: string) => void;
+  setupSource?: SourceRecord;
+  setSetupSource?: (source?: SourceRecord) => void;
   onCatalogChanged?: () => Promise<unknown>;
   onOpenGameUpdates?: () => void;
   hostToolActions?: HostToolActions;
@@ -1390,6 +1394,8 @@ export function SettingsView({
           registeredSources={sources}
           onAdded={onSourceAdded}
           onOpenPort={onOpenPort}
+          setupSource={setupSource}
+          setSetupSource={setSetupSource}
         />
         <SourceHealth
           generation={generation}
