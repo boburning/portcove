@@ -549,13 +549,17 @@ export function GameFileLibraries({
       heading.current
     )?.focus();
   }, [plan, busy, scanning, snapshot]);
-  const run = (label: string, task: () => Promise<void>) => {
+  const run = (
+    label: string,
+    task: () => Promise<void>,
+    cancellationNotice = "Action cancelled. Refresh folders to confirm the current state.",
+  ) => {
     setBusy(label);
     setError(undefined);
     setNotice(undefined);
     return task()
       .catch((value: unknown) => {
-        if (isCancellation(value)) setNotice("Scan cancelled. The previous results were kept.");
+        if (isCancellation(value)) setNotice(cancellationNotice);
         else setError(errorText(value));
       })
       .finally(() => {
@@ -660,41 +664,52 @@ export function GameFileLibraries({
       }
     })();
   const review = (candidate: Pick<SourceRecord, "profile_id" | "path">) =>
-    run("Checking the source…", async () => {
-      reviewedCandidate.current = candidate;
-      setRegisteredSource(undefined);
-      setPlan(undefined);
-      setPlan(
-        await desktopApi.planSourceImport(
-          candidate.profile_id,
-          candidate.path,
-          "use_current_location",
-        ),
-      );
-    });
+    run(
+      "Checking the source…",
+      async () => {
+        reviewedCandidate.current = candidate;
+        setRegisteredSource(undefined);
+        setPlan(undefined);
+        setPlan(
+          await desktopApi.planSourceImport(
+            candidate.profile_id,
+            candidate.path,
+            "use_current_location",
+          ),
+        );
+      },
+      "Source check cancelled. No source was added.",
+    );
   const apply = () =>
-    run("Adding selected source…", async () => {
-      if (!plan) return;
-      const result = await desktopApi.importSource(
-        plan.profile_id,
-        plan.source.path,
-        plan.mode,
-        plan.plan_sha256,
-      );
-      if (!result) return;
-      focusAfterReview.current = true;
-      setPlan(undefined);
-      setNotice(sourceImportNotice(result));
-      setRefreshConfirmed(false);
-      setRegisteredSource(result.registered);
-      try {
-        await onAdded?.();
-        setRefreshConfirmed(true);
-        focusToSetup.current = true;
-      } catch {
-        setNotice(sourceImportRefreshNotice(result));
-      }
-    });
+    run(
+      "Adding selected source…",
+      async () => {
+        if (!plan) return;
+        const result = await desktopApi.importSource(
+          plan.profile_id,
+          plan.source.path,
+          plan.mode,
+          plan.plan_sha256,
+        );
+        if (!result) {
+          setNotice("Source addition cancelled. Review the current state before trying again.");
+          return;
+        }
+        focusAfterReview.current = true;
+        setPlan(undefined);
+        setNotice(sourceImportNotice(result));
+        setRefreshConfirmed(false);
+        setRegisteredSource(result.registered);
+        try {
+          await onAdded?.();
+          setRefreshConfirmed(true);
+          focusToSetup.current = true;
+        } catch {
+          setNotice(sourceImportRefreshNotice(result));
+        }
+      },
+      "Source addition cancelled. Refresh the workspace to confirm the current state.",
+    );
   const retryRefresh = () =>
     run("Refreshing library…", async () => {
       try {

@@ -427,6 +427,46 @@ it("keeps a streamed match unregistered when fresh planning rejects changed byte
   await act(async () => finish?.(snapshot));
 });
 
+it("reports a cancelled source check without describing the saved scan as cancelled", async () => {
+  vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue(snapshot);
+  vi.spyOn(desktopApi, "planSourceImport").mockRejectedValue({ code: "cancelled" });
+  await click("Scan saved folders");
+  await click("Review source");
+  expect(document.body.textContent).toContain("Source check cancelled. No source was added.");
+  expect(document.body.textContent).toContain("D:/Games/game.z64");
+  expect(document.body.textContent).not.toContain("Scan cancelled");
+  expect(desktopApi.importSource).not.toHaveBeenCalled();
+});
+
+it("reports cancelled source addition while keeping its review and completed scan", async () => {
+  vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue(snapshot);
+  await click("Scan saved folders");
+  const source = snapshot.report.candidates[0];
+  vi.spyOn(desktopApi, "planSourceImport").mockResolvedValue({
+    schema_version: 1,
+    profile_id: "game",
+    mode: "use_current_location",
+    source,
+    admission_mode: "exact_identity",
+    destination: source.path,
+    destination_exists: true,
+    existing_registration: null,
+    reuse_existing: false,
+    required_bytes: 0,
+    source_guard_sha256: source.sha256,
+    plan_sha256: "c".repeat(64),
+  });
+  await click("Review source");
+  vi.mocked(desktopApi.importSource).mockRejectedValueOnce({ code: "cancelled" });
+  await click("Use current location");
+  expect(document.body.textContent).toContain(
+    "Source addition cancelled. Refresh the workspace to confirm the current state.",
+  );
+  expect(document.body.querySelector('[aria-label="Source import review"]')).not.toBeNull();
+  expect(document.body.textContent).toContain("D:/Games/game.z64");
+  expect(document.body.textContent).not.toContain("Scan cancelled");
+});
+
 it("offers only affected catalog ports after explicit source registration", async () => {
   vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue(snapshot);
   const source = snapshot.report.candidates[0];
