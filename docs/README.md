@@ -72,3 +72,5 @@ Representative historical starting points include the
 [September 3 prelaunch plan](archive/2026-09-03-prelaunch-feature-implementation-plan.md),
 [September 4 supported-source plan](archive/2026-09-04-supported-source-provenance-implementation-plan.md),
 and [September 4 UX audit](archive/2026-09-04-ux-copy-content-interaction-audit.md).
+The [September 25 desktop capability and state inventory](archive/2026-09-25-desktop-capability-state-inventory.md)
+maps the current #206 destinations and names the remaining evidence limits.
