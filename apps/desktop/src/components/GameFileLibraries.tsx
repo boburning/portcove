@@ -34,6 +34,25 @@ function savedRootLimitGuidance(limit: string) {
   return "Remove or relink saved folders to narrower subfolders, then scan again. You can also use Choose game files for one game.";
 }
 
+function CandidateIdentity({
+  candidate,
+  profiles,
+}: {
+  candidate: Pick<SourceRecord, "profile_id" | "path" | "size">;
+  profiles: SourceProfile[];
+}) {
+  return (
+    <>
+      <strong>
+        {profiles.find((profile) => profile.id === candidate.profile_id)?.label ??
+          candidate.profile_id}
+      </strong>
+      <code>{candidate.path}</code>
+      <span>{formatBytes(candidate.size)}</span>
+    </>
+  );
+}
+
 export function GameFileLibraries({
   ports,
   profiles,
@@ -300,12 +319,7 @@ export function GameFileLibraries({
           {liveCandidates.map((candidate) => (
             <div className="source-health-row" key={`${candidate.profile_id}:${candidate.path}`}>
               <div>
-                <strong>
-                  {profiles.find((profile) => profile.id === candidate.profile_id)?.label ??
-                    candidate.profile_id}
-                </strong>
-                <code>{candidate.path}</code>
-                <span>{formatBytes(candidate.size)}</span>
+                <CandidateIdentity candidate={candidate} profiles={profiles} />
               </div>
             </div>
           ))}
@@ -347,12 +361,7 @@ export function GameFileLibraries({
           {report.candidates.map((candidate) => (
             <div className="source-health-row" key={`${candidate.profile_id}:${candidate.path}`}>
               <div>
-                <strong>
-                  {profiles.find((profile) => profile.id === candidate.profile_id)?.label ??
-                    candidate.profile_id}
-                </strong>
-                <code>{candidate.path}</code>
-                <span>{formatBytes(candidate.size)}</span>
+                <CandidateIdentity candidate={candidate} profiles={profiles} />
                 <span>
                   Catalog ports using this profile:{" "}
                   {ports
