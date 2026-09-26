@@ -492,12 +492,12 @@ function SteamProfileFields({
       </Button>
       {listError && <p role="alert">{listError}</p>}
       {profiles && (
-        <div role="group" aria-label="Local Steam profiles">
+        <div role="group" aria-label="Local Steam profiles" className="mb-4">
           {profiles.length === 0 ? (
             <p>No local profiles found. Enter the numeric profile ID manually if you know it.</p>
           ) : (
             <>
-              <p>Select the exact local profile:</p>
+              <p className="mb-2">Select the exact local profile:</p>
               {profiles.map((id) => (
                 <Button
                   key={id}

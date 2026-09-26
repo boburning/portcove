@@ -462,8 +462,9 @@ inspection merely by containing the scanner. Desktop does not execute or shell
 out to a discovered candidate, and this compatibility marker is not a
 publisher-signature claim.
 
-This consumer is not profile discovery, artwork delivery, or an
-actual Steam-client qualification. Controlled host and renderer tests prove the
+Local folder discovery is a read-only aid to explicit profile selection. This
+consumer does not deliver artwork or qualify the actual Steam client. Controlled
+host and renderer tests prove the
 review/apply contract and isolated shortcut-file behavior. Native positive-path
 qualification may use the compile-time fixture that reports the client closed;
 that proves UI, consent, stale-plan and writer integration against an output-owned

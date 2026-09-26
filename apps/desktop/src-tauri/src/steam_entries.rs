@@ -75,7 +75,7 @@ pub(crate) fn local_steam_profiles(steam_root: &Path) -> Result<Vec<String>> {
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
         Err(source) => return Err(io_error("reading Steam userdata", source)),
     };
-    if metadata.file_type().is_symlink() || !metadata.is_dir() {
+    if !is_regular_profile_directory(&metadata) {
         return Err(SteamEntryError::InvalidInput(
             "Steam userdata is not a regular directory".into(),
         ));
@@ -95,10 +95,9 @@ pub(crate) fn local_steam_profiles(steam_root: &Path) -> Result<Vec<String>> {
         if id.is_empty() || !id.bytes().all(|byte| byte.is_ascii_digit()) {
             continue;
         }
-        let kind = entry
-            .file_type()
+        let profile_metadata = fs::symlink_metadata(entry.path())
             .map_err(|source| io_error("checking Steam profile", source))?;
-        if !kind.is_dir() || kind.is_symlink() {
+        if !is_regular_profile_directory(&profile_metadata) {
             continue;
         }
         let config = entry.path().join("config");
@@ -107,7 +106,7 @@ pub(crate) fn local_steam_profiles(steam_root: &Path) -> Result<Vec<String>> {
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,
             Err(source) => return Err(io_error("checking Steam profile config", source)),
         };
-        if config_metadata.is_dir() && !config_metadata.file_type().is_symlink() {
+        if is_regular_profile_directory(&config_metadata) {
             profiles.push(id.to_owned());
             if profiles.len() > MAX_LISTED_PROFILES {
                 return Err(SteamEntryError::InvalidInput(
@@ -118,6 +117,21 @@ pub(crate) fn local_steam_profiles(steam_root: &Path) -> Result<Vec<String>> {
     }
     profiles.sort();
     Ok(profiles)
+}
+
+fn is_regular_profile_directory(metadata: &fs::Metadata) -> bool {
+    if !metadata.is_dir() || metadata.file_type().is_symlink() {
+        return false;
+    }
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::MetadataExt;
+        use windows_sys::Win32::Storage::FileSystem::FILE_ATTRIBUTE_REPARSE_POINT;
+        if metadata.file_attributes() & FILE_ATTRIBUTE_REPARSE_POINT != 0 {
+            return false;
+        }
+    }
+    true
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -1579,6 +1593,23 @@ mod tests {
             local_steam_profiles(&fixture.steam_root),
             Err(SteamEntryError::InvalidInput(_))
         ));
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn local_profile_discovery_rejects_directory_reparse_points() {
+        let fixture = Fixture::new();
+        let userdata = fixture.steam_root.join("userdata");
+        let target = fixture.steam_root.join("redirected");
+        fs::create_dir_all(target.join("config")).unwrap();
+        let link = userdata.join("67890");
+        if std::os::windows::fs::symlink_dir(&target, &link).is_err() {
+            return; // Windows without symlink privilege still exercises the attribute guard in production.
+        }
+        assert_eq!(
+            local_steam_profiles(&fixture.steam_root).unwrap(),
+            vec!["12345"]
+        );
     }
 
     struct Fixture {
