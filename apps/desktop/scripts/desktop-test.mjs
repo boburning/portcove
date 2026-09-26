@@ -949,6 +949,22 @@ try {
       5000,
     );
     assert.equal((await browser.findElements(By.css(".filter-row"))).length, 0);
+    await browser
+      .findElement(By.xpath('//button[normalize-space(.)="Connect game-file folder"]'))
+      .click();
+    await browser.wait(
+      until.elementLocated(By.xpath('//h2[normalize-space(.)="Game Files"]')),
+      5000,
+    );
+    await browser.wait(
+      async () =>
+        browser.executeScript(() =>
+          document.activeElement?.matches('[data-settings-control="add-game-file-root"]'),
+        ),
+      10_000,
+    );
+    await captureScenarioScreenshot("empty-library-connect-game-files");
+    await browser.findElement(By.xpath('//nav//button[contains(., "Library")]')).click();
   });
   await scenario("native-design-system-compatibility", async () => {
     const environment = await assertDesignCompatibility({ browser, By, Key, until });

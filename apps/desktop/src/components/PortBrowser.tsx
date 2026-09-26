@@ -54,6 +54,7 @@ export function PortBrowser({
   onSelect,
   onContinue,
   onBrowseCatalog,
+  onConnectGameFiles,
   steamBatch,
   clearFilters,
   loading,
@@ -72,6 +73,7 @@ export function PortBrowser({
   onSelect: (portId: string, originKey?: string, destination?: DetailDestination) => void;
   onContinue?: (portId: string) => void;
   onBrowseCatalog?: () => void;
+  onConnectGameFiles?: () => void;
   steamBatch?: { ports: PortDefinition[]; generation: number };
   clearFilters?: () => void;
   loading: boolean;
@@ -143,6 +145,7 @@ export function PortBrowser({
         onSelect={onSelect}
         onLaunch={onContinue}
         onBrowseCatalog={onBrowseCatalog}
+        onConnectGameFiles={onConnectGameFiles}
         clearFilters={clearFilters}
         loading={loading}
         nativeSourceDrag={nativeSourceDrag}
@@ -183,6 +186,7 @@ function BrowserResults({
   onSelect,
   onLaunch,
   onBrowseCatalog,
+  onConnectGameFiles,
   clearFilters,
   loading,
   nativeSourceDrag,
@@ -195,6 +199,7 @@ function BrowserResults({
   onSelect: (portId: string, originKey?: string, destination?: DetailDestination) => void;
   onLaunch?: (portId: string) => void;
   onBrowseCatalog?: () => void;
+  onConnectGameFiles?: () => void;
   clearFilters?: () => void;
   loading: boolean;
   nativeSourceDrag: NativeSourceDragState;
@@ -208,6 +213,7 @@ function BrowserResults({
         constrained={constrained}
         clearFilters={clearFilters}
         onBrowseCatalog={onBrowseCatalog}
+        onConnectGameFiles={onConnectGameFiles}
       />
     );
   return (
@@ -252,12 +258,14 @@ function BrowserEmptyState({
   constrained,
   clearFilters,
   onBrowseCatalog,
+  onConnectGameFiles,
 }: {
   view: View;
   installedCount: number;
   constrained: boolean;
   clearFilters?: () => void;
   onBrowseCatalog?: () => void;
+  onConnectGameFiles?: () => void;
 }) {
   if (view === "library" && installedCount === 0 && !constrained)
     return (
@@ -276,6 +284,11 @@ function BrowserEmptyState({
               <Icon glyph={Boxes} />
               Browse port catalog
             </Button>
+            {onConnectGameFiles && (
+              <Button data-focusable variant="outline" size="lg" onClick={onConnectGameFiles}>
+                Connect game-file folder
+              </Button>
+            )}
           </>
         }
       />

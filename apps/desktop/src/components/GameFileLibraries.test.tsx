@@ -4,6 +4,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { desktopApi } from "../api";
 import * as picker from "../file-picker";
+import { portDefinition } from "../test-fixtures";
 import type {
   GameFileRoot,
   GameFileScanSnapshot,
@@ -278,6 +279,90 @@ it("keeps a streamed match unregistered when fresh planning rejects changed byte
   expect(document.body.querySelector('[aria-label="Source import review"]')).toBeNull();
   expect(desktopApi.importSource).not.toHaveBeenCalled();
   await act(async () => finish?.(snapshot));
+});
+
+it("offers only affected catalog ports after explicit source registration", async () => {
+  vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue(snapshot);
+  const source = snapshot.report.candidates[0];
+  const plan: SourceImportPlan = {
+    schema_version: 1,
+    profile_id: "game",
+    mode: "use_current_location",
+    source,
+    admission_mode: "exact_identity",
+    destination: source.path,
+    destination_exists: true,
+    existing_registration: null,
+    reuse_existing: false,
+    required_bytes: 0,
+    source_guard_sha256: "b".repeat(64),
+    plan_sha256: "c".repeat(64),
+  };
+  vi.spyOn(desktopApi, "planSourceImport").mockResolvedValue(plan);
+  vi.mocked(desktopApi.importSource).mockResolvedValue({
+    import_id: "import-1",
+    profile_id: "game",
+    mode: "use_current_location",
+    outcome: "registered_current_location",
+    registered: source,
+    copied: false,
+    original_deleted: false,
+    original_retained: true,
+    retained_original_path: source.path,
+    recovered: false,
+  });
+  const onAdded = vi.fn().mockResolvedValue(undefined);
+  const onOpenPort = vi.fn();
+  const ports = [
+    { ...portDefinition(), id: "game-a", name: "Game A", source_profile: "game" },
+    { ...portDefinition(), id: "game-b", name: "Game B", bios_source_profile: "game" },
+    { ...portDefinition(), id: "unrelated", name: "Unrelated", source_profile: "different" },
+  ];
+  await act(async () =>
+    root.render(
+      <GameFileLibraries
+        key="setup-handoff"
+        ports={ports}
+        profiles={[]}
+        registeredSources={[source]}
+        onAdded={onAdded}
+        onOpenPort={onOpenPort}
+      />,
+    ),
+  );
+  await click("Review source");
+  expect(document.body.querySelector('[aria-label="Continue to a game"]')).toBeNull();
+  await click("Use current location");
+  expect(desktopApi.importSource).toHaveBeenCalledWith(
+    "game",
+    source.path,
+    "use_current_location",
+    plan.plan_sha256,
+  );
+  expect(onAdded).toHaveBeenCalledOnce();
+  const handoff = document.body.querySelector('[aria-label="Continue to a game"]');
+  expect(handoff?.textContent).toContain("Open Game A details");
+  expect(handoff?.textContent).toContain("Open Game B details");
+  expect(handoff?.textContent).not.toContain("Unrelated");
+  expect(document.activeElement).toBe(button("Open Game A details"));
+  await click("Open Game B details");
+  expect(onOpenPort).toHaveBeenCalledWith("game-b", "game-file-libraries-setup");
+  expect(
+    document.body.querySelector('[data-detail-origin="game-file-libraries-setup"]'),
+  ).not.toBeNull();
+  await act(async () =>
+    root.render(
+      <GameFileLibraries
+        key="setup-handoff"
+        ports={ports}
+        profiles={[]}
+        registeredSources={[]}
+        onAdded={onAdded}
+        onOpenPort={onOpenPort}
+      />,
+    ),
+  );
+  expect(document.body.querySelector('[aria-label="Continue to a game"]')).toBeNull();
 });
 
 it("preserves a saved root until removal is confirmed", async () => {

@@ -766,6 +766,7 @@ function CurrentView({
         resetLibrary={resetLibrary}
         sourceProfiles={data.catalog?.source_profiles ?? []}
         onSourceAdded={data.refreshAfterMutation}
+        onOpenPort={openPortDetails}
         onCatalogChanged={data.refreshAfterMutation}
         onOpenGameUpdates={() => {
           ui.setView("updates");
@@ -856,6 +857,10 @@ function CurrentView({
         void operations.perform("launch", () => desktopApi.launch(portId, ""));
       }}
       onBrowseCatalog={() => ui.setView("catalog")}
+      onConnectGameFiles={() => {
+        ui.setView("settings");
+        window.requestAnimationFrame(() => focusSettingsTarget("add-game-file-root"));
+      }}
       steamBatch={{
         ports: installedSteamBatchPorts(data, model),
         generation: bootstrap.generation,

@@ -93,6 +93,7 @@ describe("Library empty browsing context", () => {
 
   it("offers clear filters for an empty library with an active search or filter", async () => {
     const clearFilters = vi.fn();
+    const connectGameFiles = vi.fn();
     const render = async (filter: "all" | "ready", query: string) => {
       await act(async () =>
         root.render(
@@ -106,6 +107,7 @@ describe("Library empty browsing context", () => {
             setFilter={vi.fn()}
             onSelect={vi.fn()}
             clearFilters={clearFilters}
+            onConnectGameFiles={connectGameFiles}
             loading={false}
           />,
         ),
@@ -130,6 +132,13 @@ describe("Library empty browsing context", () => {
     await render("all", "   ");
     expect(host.querySelector('[aria-label="Library readiness"]')).toBeNull();
     expect(host.textContent).toContain("Your library is empty");
+    expect(host.textContent).toContain("Connect game-file folder");
+    await act(async () =>
+      [...host.querySelectorAll("button")]
+        .find((button) => button.textContent?.includes("Connect game-file folder"))!
+        .click(),
+    );
+    expect(connectGameFiles).toHaveBeenCalledOnce();
     expect(host.textContent).toContain("register a prepared runtime");
     expect(host.textContent).not.toContain("Clear search and filters");
   });

@@ -1262,6 +1262,7 @@ export function SettingsView({
   exportMetadata,
   sourceProfiles = [],
   onSourceAdded,
+  onOpenPort,
   onCatalogChanged,
   onOpenGameUpdates,
   hostToolActions,
@@ -1299,6 +1300,7 @@ export function SettingsView({
   exportMetadata?: () => Promise<LibraryMetadataFile | undefined>;
   sourceProfiles?: SourceProfile[];
   onSourceAdded?: () => Promise<unknown>;
+  onOpenPort?: (portId: string, originKey: string) => void;
   onCatalogChanged?: () => Promise<unknown>;
   onOpenGameUpdates?: () => void;
   hostToolActions?: HostToolActions;
@@ -1385,7 +1387,9 @@ export function SettingsView({
           key={librarySelection?.root ?? libraryRoot}
           ports={ports}
           profiles={sourceProfiles}
+          registeredSources={sources}
           onAdded={onSourceAdded}
+          onOpenPort={onOpenPort}
         />
         <SourceHealth
           generation={generation}

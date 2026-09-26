@@ -26,6 +26,7 @@ const scanLimits = {
   max_candidates: 64,
 };
 const maxSavedRootsPerScan = 8;
+const setupReturnOrigin = "game-file-libraries-setup";
 
 function savedRootLimitGuidance(limit: string) {
   if (limit === "file_size")
@@ -53,14 +54,79 @@ function CandidateIdentity({
   );
 }
 
+function useRegisteredContinuation(registeredSources: SourceRecord[]) {
+  const [registeredSource, setRegisteredSource] = useState<SourceRecord>();
+  const observedRegistration = useRef(false);
+  useEffect(() => {
+    if (!registeredSource) {
+      observedRegistration.current = false;
+      return;
+    }
+    if (
+      registeredSources.some(
+        (source) =>
+          source.profile_id === registeredSource.profile_id &&
+          source.path === registeredSource.path &&
+          source.sha256 === registeredSource.sha256,
+      )
+    )
+      observedRegistration.current = true;
+    else if (observedRegistration.current) setRegisteredSource(undefined);
+  }, [registeredSource, registeredSources]);
+  return [registeredSource, setRegisteredSource] as const;
+}
+
+function ContinueToGame({
+  registeredSource,
+  ports,
+  onOpenPort,
+}: {
+  registeredSource?: SourceRecord;
+  ports: PortDefinition[];
+  onOpenPort?: (portId: string, originKey: string) => void;
+}) {
+  if (!registeredSource || !onOpenPort) return null;
+  const matchingPorts = ports.filter(
+    (port) =>
+      port.source_profile === registeredSource.profile_id ||
+      port.bios_source_profile === registeredSource.profile_id,
+  );
+  if (matchingPorts.length === 0) return null;
+  return (
+    <section className="source-discovery-results" aria-label="Continue to a game">
+      <h3>Continue with a game</h3>
+      <p>
+        The selected source is saved. Open a game to review its remaining requirements and available
+        setup actions.
+      </p>
+      <div className="actions">
+        {matchingPorts.map((port) => (
+          <Button
+            key={port.id}
+            data-focusable
+            variant="outline"
+            onClick={() => onOpenPort(port.id, setupReturnOrigin)}
+          >
+            Open {port.name} details
+          </Button>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 export function GameFileLibraries({
   ports,
   profiles,
+  registeredSources = [],
   onAdded,
+  onOpenPort,
 }: {
   ports: PortDefinition[];
   profiles: SourceProfile[];
+  registeredSources?: SourceRecord[];
   onAdded?: () => Promise<unknown>;
+  onOpenPort?: (portId: string, originKey: string) => void;
 }) {
   const [roots, setRoots] = useState<GameFileRoot[]>();
   const [snapshot, setSnapshot] = useState<GameFileScanSnapshot | null>();
@@ -71,6 +137,7 @@ export function GameFileLibraries({
   const [operationId, setOperationId] = useState<string>();
   const [removingId, setRemovingId] = useState<string>();
   const [plan, setPlan] = useState<SourceImportPlan>();
+  const [registeredSource, setRegisteredSource] = useRegisteredContinuation(registeredSources);
   const [liveCandidates, setLiveCandidates] = useState<
     { profile_id: string; path: string; sha256: string; size: number }[]
   >([]);
@@ -78,6 +145,7 @@ export function GameFileLibraries({
   const focusAfterScan = useRef<{ profile_id: string; path: string } | undefined>(undefined);
   const reviewedCandidate = useRef<{ profile_id: string; path: string } | undefined>(undefined);
   const focusAfterReview = useRef(false);
+  const focusToSetup = useRef(false);
   useEffect(() => {
     let active = true;
     void Promise.all([desktopApi.gameFileRoots(), desktopApi.gameFileScanSnapshot()])
@@ -114,6 +182,16 @@ export function GameFileLibraries({
   useEffect(() => {
     if (plan || busy || !focusAfterReview.current) return;
     focusAfterReview.current = false;
+    if (focusToSetup.current) {
+      focusToSetup.current = false;
+      const setup = document.querySelector<HTMLButtonElement>(
+        '[aria-label="Continue to a game"] button:not(:disabled)',
+      );
+      if (setup) {
+        setup.focus();
+        return;
+      }
+    }
     const candidate = reviewedCandidate.current;
     const rows = document.querySelectorAll<HTMLElement>(
       scanning ? "[data-live-candidate]" : "[data-completed-candidate]",
@@ -238,6 +316,7 @@ export function GameFileLibraries({
   const review = (candidate: Pick<SourceRecord, "profile_id" | "path">) =>
     run("Checking the source…", async () => {
       reviewedCandidate.current = candidate;
+      setRegisteredSource(undefined);
       setPlan(undefined);
       setPlan(
         await desktopApi.planSourceImport(
@@ -261,17 +340,26 @@ export function GameFileLibraries({
       setPlan(undefined);
       setNotice(sourceImportNotice(result));
       await onAdded?.();
+      setRegisteredSource(result.registered);
+      focusToSetup.current = true;
     });
   const report = snapshot?.report;
   return (
-    <article className="settings-row source-health" data-focus-group>
+    <article
+      className="settings-row source-health"
+      data-focus-group
+      data-detail-origin={setupReturnOrigin}
+      aria-labelledby="game-file-libraries-heading"
+      tabIndex={-1}
+    >
       <p className="eyebrow">SAVED FOLDERS</p>
       <div className="settings-title">
-        <h2 ref={heading} tabIndex={-1}>
+        <h2 ref={heading} id="game-file-libraries-heading" tabIndex={-1}>
           Game-file libraries
         </h2>
         <Button
           data-focusable
+          data-settings-control="add-game-file-root"
           variant="outline"
           size="sm"
           disabled={
@@ -488,6 +576,7 @@ export function GameFileLibraries({
         }}
         onApply={apply}
       />
+      <ContinueToGame registeredSource={registeredSource} ports={ports} onOpenPort={onOpenPort} />
     </article>
   );
 }

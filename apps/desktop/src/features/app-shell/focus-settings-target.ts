@@ -7,10 +7,11 @@ export type ActivitySettingsTarget =
   | "import-library"
   | "library-storage"
   | "catalog-updates";
+export type SettingsTarget = ActivitySettingsTarget | "add-game-file-root";
 
-export function focusSettingsTarget(target: ActivitySettingsTarget, sourceProfileId?: string) {
+export function focusSettingsTarget(target: SettingsTarget, sourceProfileId?: string) {
   const group =
-    target === "source-profile" || target === "discover-sources"
+    target === "source-profile" || target === "discover-sources" || target === "add-game-file-root"
       ? "game-files"
       : target === "catalog-updates"
         ? "updates"
@@ -42,4 +43,19 @@ export function focusSettingsTarget(target: ActivitySettingsTarget, sourceProfil
   fallback.tabIndex = 0;
   focusAndReveal(fallback);
   fallback.addEventListener("blur", () => (fallback.tabIndex = -1), { once: true });
+  if (target === "add-game-file-root") {
+    const addButton = section?.querySelector<HTMLButtonElement>(
+      '[data-settings-control="add-game-file-root"]',
+    );
+    if (!addButton?.disabled) return;
+    const observer = new MutationObserver(() => {
+      if (addButton.disabled || document.activeElement !== fallback || !addButton.isConnected)
+        return;
+      observer.disconnect();
+      window.clearTimeout(expiry);
+      focusAndReveal(addButton);
+    });
+    const expiry = window.setTimeout(() => observer.disconnect(), 5000);
+    observer.observe(addButton, { attributes: true, attributeFilter: ["disabled"] });
+  }
 }
