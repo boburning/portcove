@@ -1788,6 +1788,11 @@ try {
       15_000,
     );
     await languageTrigger.click();
+    await browser.wait(
+      until.elementLocated(By.css('[data-slot="select-content"][data-open] [role="option"]')),
+      5_000,
+      "language choices did not open",
+    );
     assert.deepEqual(
       await Promise.all(
         (await browser.findElements(By.css('[role="option"]'))).map((option) => option.getText()),
