@@ -298,8 +298,11 @@ async function captureScenarioDiagnostics(name, setup) {
   }
 }
 
-async function captureScenarioScreenshot(name) {
-  if (!browser) return;
+async function captureScenarioScreenshot(name, required = false) {
+  if (!browser) {
+    if (required) throw new Error(`Required screenshot ${name} has no browser session`);
+    return;
+  }
   const screenshot = path.join(output, `${name}.png`);
   try {
     await writeFile(screenshot, await browser.takeScreenshot(), {
@@ -307,7 +310,9 @@ async function captureScenarioScreenshot(name) {
       flag: "wx",
     });
     artifacts.push(screenshot);
-  } catch {
+  } catch (error) {
+    if (required)
+      throw new Error(`Required screenshot ${name} could not be captured`, { cause: error });
     /* The failed scenario remains recorded even if its window disappeared. */
   }
 }
@@ -1181,7 +1186,10 @@ try {
             theme,
           );
           await verifyDetailActionHierarchy();
-          await captureScenarioScreenshot(`game-details-missing-source-${theme}-${size.width}`);
+          await captureScenarioScreenshot(
+            `game-details-missing-source-${theme}-${size.width}`,
+            true,
+          );
         }
         await browser.findElement(By.css(".detail-back")).click();
         await browser.wait(until.elementLocated(By.id("port-search")), 15_000);
