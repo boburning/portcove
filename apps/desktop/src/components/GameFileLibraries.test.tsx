@@ -4,7 +4,12 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { desktopApi } from "../api";
 import * as picker from "../file-picker";
-import type { GameFileRoot, GameFileScanSnapshot, OperationEvent } from "../types";
+import type {
+  GameFileRoot,
+  GameFileScanSnapshot,
+  OperationEvent,
+  SourceImportPlan,
+} from "../types";
 import { GameFileLibraries } from "./GameFileLibraries";
 
 const saved: GameFileRoot = {
@@ -88,7 +93,7 @@ it("scans only after a player asks and keeps exact results as reviewed candidate
   expect(desktopApi.importSource).not.toHaveBeenCalled();
 });
 
-it("shows streamed exact matches during a scan and waits for the completed snapshot to offer review", async () => {
+it("reviews a streamed match through a fresh core plan before the scan completes", async () => {
   vi.mocked(desktopApi.gameFileScanSnapshot)
     .mockResolvedValueOnce(null)
     .mockResolvedValue(snapshot);
@@ -108,6 +113,18 @@ it("shows streamed exact matches during a scan and waits for the completed snaps
       operation_id: "scan-1",
       parent_operation_id: null,
       target: null,
+      sequence: 0,
+      timestamp_ms: 1,
+      operation: "discover_sources",
+      type: "started",
+    }),
+  );
+  await act(async () =>
+    onEvent?.({
+      schema_version: 3,
+      operation_id: "scan-1",
+      parent_operation_id: null,
+      target: null,
       sequence: 1,
       timestamp_ms: 1,
       operation: "discover_sources",
@@ -120,11 +137,71 @@ it("shows streamed exact matches during a scan and waits for the completed snaps
   );
   expect(document.body.textContent).toContain("Matches found so far");
   expect(document.body.textContent).toContain("D:/Games/game.z64");
-  expect(document.body.querySelector('[aria-label="Matches found during scan"] button')).toBeNull();
+  const plan: SourceImportPlan = {
+    schema_version: 1,
+    profile_id: "game",
+    mode: "use_current_location",
+    source: snapshot.report.candidates[0],
+    admission_mode: "exact_identity",
+    destination: "D:/Games/game.z64",
+    destination_exists: true,
+    existing_registration: null,
+    reuse_existing: false,
+    required_bytes: 0,
+    source_guard_sha256: "b".repeat(64),
+    plan_sha256: "c".repeat(64),
+  };
+  const review = vi.spyOn(desktopApi, "planSourceImport").mockResolvedValue(plan);
+  await click("Review source now");
+  expect(review).toHaveBeenCalledWith("game", "D:/Games/game.z64", "use_current_location");
+  expect(document.body.querySelector('[aria-label="Source import review"]')).not.toBeNull();
+  expect(document.activeElement?.textContent).toBe("Cancel review");
+  expect(document.body.textContent).toContain("Scanning selected folders…");
+  expect(button("Cancel scan")).toBeDefined();
+  expect(button("Scan saved folders").disabled).toBe(true);
+  expect(button("Relink").disabled).toBe(true);
+  expect(desktopApi.importSource).not.toHaveBeenCalled();
+  await click("Cancel review");
+  expect(document.activeElement).toBe(button("Review source now"));
   await act(async () => finish?.(snapshot));
   expect(document.body.textContent).not.toContain("Matches found so far");
+  expect(document.activeElement).toBe(button("Review source"));
   expect(button("Review source").disabled).toBe(false);
   expect(desktopApi.importSource).not.toHaveBeenCalled();
+});
+
+it("restores focus to a completed match when its live scan button disappears", async () => {
+  vi.mocked(desktopApi.gameFileScanSnapshot)
+    .mockResolvedValueOnce(null)
+    .mockResolvedValue(snapshot);
+  let onEvent: ((event: OperationEvent) => void) | undefined;
+  let finish: ((value: GameFileScanSnapshot) => void) | undefined;
+  vi.mocked(desktopApi.scanGameFileRoots).mockImplementation((_limits, callback) => {
+    onEvent = callback;
+    return new Promise<GameFileScanSnapshot>((resolve) => {
+      finish = resolve;
+    });
+  });
+  await click("Scan saved folders");
+  await act(async () =>
+    onEvent?.({
+      schema_version: 3,
+      operation_id: "scan-1",
+      parent_operation_id: null,
+      target: null,
+      sequence: 1,
+      timestamp_ms: 1,
+      operation: "discover_sources",
+      type: "source_candidate",
+      profile_id: "game",
+      path: "D:/Games/game.z64",
+      sha256: "b".repeat(64),
+      size: 64,
+    }),
+  );
+  button("Review source now").focus();
+  await act(async () => finish?.(snapshot));
+  expect(document.activeElement).toBe(button("Review source"));
 });
 
 it("ignores delayed events from a completed scan while another scan runs", async () => {
@@ -165,6 +242,42 @@ it("ignores delayed events from a completed scan while another scan runs", async
     document.body.querySelector('[aria-label="Matches found during scan"]')?.textContent,
   ).not.toContain("stale.z64");
   await act(async () => resolvers[1](snapshot));
+});
+
+it("keeps a streamed match unregistered when fresh planning rejects changed bytes", async () => {
+  let onEvent: ((event: OperationEvent) => void) | undefined;
+  let finish: ((value: GameFileScanSnapshot) => void) | undefined;
+  vi.mocked(desktopApi.scanGameFileRoots).mockImplementation((_limits, callback) => {
+    onEvent = callback;
+    return new Promise<GameFileScanSnapshot>((resolve) => {
+      finish = resolve;
+    });
+  });
+  vi.spyOn(desktopApi, "planSourceImport").mockRejectedValue(
+    new Error("Source changed during scan"),
+  );
+  await click("Scan saved folders");
+  await act(async () =>
+    onEvent?.({
+      schema_version: 3,
+      operation_id: "scan-1",
+      parent_operation_id: null,
+      target: null,
+      sequence: 1,
+      timestamp_ms: 1,
+      operation: "discover_sources",
+      type: "source_candidate",
+      profile_id: "game",
+      path: "D:/Games/game.z64",
+      sha256: "b".repeat(64),
+      size: 64,
+    }),
+  );
+  await click("Review source now");
+  expect(document.body.textContent).toContain("Source changed during scan");
+  expect(document.body.querySelector('[aria-label="Source import review"]')).toBeNull();
+  expect(desktopApi.importSource).not.toHaveBeenCalled();
+  await act(async () => finish?.(snapshot));
 });
 
 it("preserves a saved root until removal is confirmed", async () => {
