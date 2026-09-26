@@ -3524,6 +3524,37 @@ describe("desktop components", () => {
       ...status,
       last_update_check: { checked_at: 1_700_000_000, check: savedCheck },
     };
+    const restored = render(savedStatus);
+    expect(restored).toContain("Update results cover 1 of 1 installed games.");
+    expect(restored).toContain(">No update found at last check</span>");
+    expect(restored).toMatch(/<strong>0<\/strong><span>Updates available<\/span>/u);
+    expect(restored).toContain("Latest saved check:");
+    const savedAvailable = render({
+      ...savedStatus,
+      last_update_check: {
+        checked_at: 1_700_000_000,
+        check: {
+          ...savedCheck,
+          update_available: true,
+          release: { ...result.release, version: "2.0" },
+        },
+      },
+    });
+    expect(savedAvailable).toContain(">Update available at last check</span>");
+    expect(savedAvailable).toMatch(/<strong>1<\/strong><span>Updates available<\/span>/u);
+    expect(savedAvailable).toContain(">2.0</span>");
+    const changedInstall = render({ ...savedStatus, active: installRecord({ version: "2.0" }) });
+    expect(changedInstall).toContain("Update results cover 0 of 1 installed games.");
+    expect(changedInstall).toContain(">Not checked</span>");
+    expect(changedInstall).not.toContain("Latest saved check:");
+    const wrongPortCheck = render({
+      ...savedStatus,
+      last_update_check: {
+        checked_at: 1_700_000_000,
+        check: { ...savedCheck, port_id: "other-game" },
+      },
+    });
+    expect(wrongPortCheck).toContain("Update results cover 0 of 1 installed games.");
     for (const attempted of [
       { port_id: port.id, ok: false, error: failureReport(), result: null },
       { port_id: port.id, ok: true, error: null, result: null },
@@ -3531,6 +3562,8 @@ describe("desktop components", () => {
       const incomplete = render(savedStatus, [attempted]);
       expect(incomplete).toContain("Update results cover 0 of 1 installed games.");
       expect(incomplete).toContain("Latest saved check:");
+      expect(incomplete).toMatch(/<strong>Unknown<\/strong><span>Updates available<\/span>/u);
+      expect(incomplete).not.toContain(">No update found at last check</span>");
     }
 
     const second = { ...port, id: "second-game", name: "Second game" };

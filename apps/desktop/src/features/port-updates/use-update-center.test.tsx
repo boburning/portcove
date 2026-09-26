@@ -3,8 +3,9 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { desktopApi } from "../../api";
-import { portStatus } from "../../test-fixtures";
+import { failureReport, portDefinition, portStatus } from "../../test-fixtures";
 import type { InstallRecord, PortStatus, UpdateCheckOutcome } from "../../types";
+import { UpdateCenter } from "../../components/UpdateCenter";
 import { useUpdateCenter } from "./use-update-center";
 
 function deferred<T>() {
@@ -74,6 +75,7 @@ const outcome = (value: PortStatus): UpdateCheckOutcome => ({
 
 describe("port update read owner", () => {
   let root: Root;
+  let host: HTMLDivElement;
   let mounted: boolean;
   let state!: ReturnType<typeof useUpdateCenter>;
   const calls = vi.fn();
@@ -93,7 +95,8 @@ describe("port update read owner", () => {
 
   beforeEach(() => {
     vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
-    root = createRoot(document.createElement("div"));
+    host = document.createElement("div");
+    root = createRoot(host);
     mounted = true;
   });
 
@@ -104,21 +107,75 @@ describe("port update read owner", () => {
     calls.mockReset();
   });
 
-  it("uses current workspace snapshots and preserves the read-only refresh contract", async () => {
+  it("passes only fresh outcomes while preserving the read-only refresh contract", async () => {
     const current = status("alpha", "a".repeat(64));
     const checkInstalled = vi
       .spyOn(desktopApi, "checkInstalled")
       .mockResolvedValue([outcome(current)]);
     await act(async () => root.render(<Fixture statuses={[current]} />));
 
-    expect(state.outcomes).toEqual([outcome(current)]);
+    expect(state.outcomes).toEqual([]);
     await act(async () => state.checkAll());
+    expect(state.outcomes).toEqual([outcome(current)]);
 
     expect(calls).toHaveBeenCalledWith("check installed", expect.any(Function), {
       refresh: "workspace",
       invalidateDiagnostics: false,
     });
     expect(checkInstalled).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps fresh failures after workspace refresh and labels restored checks as saved", async () => {
+    const alpha = status("alpha", "a".repeat(64));
+    const beta = status("beta", "b".repeat(64));
+    const refreshedAlpha = {
+      ...alpha,
+      last_update_check: { ...alpha.last_update_check!, checked_at: 2 },
+    };
+    const ports = [
+      { ...portDefinition(), id: "alpha", name: "Alpha" },
+      { ...portDefinition(), id: "beta", name: "Beta" },
+    ];
+    const failed: UpdateCheckOutcome = {
+      port_id: "beta",
+      ok: false,
+      result: null,
+      error: failureReport(),
+    };
+    vi.spyOn(desktopApi, "checkInstalled").mockResolvedValue([outcome(alpha), failed]);
+    const refreshingPerform: typeof perform = async (_name, task) => {
+      const result = await task();
+      await act(async () => root.render(<CenterFixture statuses={[refreshedAlpha, beta]} />));
+      return result;
+    };
+    function CenterFixture({ statuses }: { statuses: PortStatus[] }) {
+      state = useUpdateCenter(refreshingPerform, statuses);
+      return (
+        <UpdateCenter
+          generation={1}
+          ports={ports}
+          statuses={new Map(statuses.map((item) => [item.port_id, item]))}
+          activities={[]}
+          outcomes={state.outcomes}
+          diagnosticsRefreshing={false}
+          diagnosticsStale={false}
+          refreshDiagnostics={vi.fn().mockResolvedValue(undefined)}
+          checkAll={() => void state.checkAll()}
+          onSelect={vi.fn()}
+          onOpenSettings={vi.fn()}
+        />
+      );
+    }
+    await act(async () => root.render(<CenterFixture statuses={[alpha, beta]} />));
+    expect(state.outcomes).toEqual([]);
+    expect(host.textContent).toContain("Update available at last check");
+    expect(host.textContent).toContain("Update results cover 2 of 2 installed games");
+
+    await act(async () => state.checkAll());
+    expect(state.outcomes).toEqual([outcome(alpha), failed]);
+    expect(host.textContent).toContain("Check failed");
+    expect(host.textContent).toContain("Update results cover 1 of 2 installed games");
+    expect(host.textContent).not.toContain("Update results cover 2 of 2 installed games");
   });
 
   it("keeps the newest result when overlapping checks complete out of order", async () => {
@@ -195,7 +252,7 @@ describe("port update read owner", () => {
       await run;
     });
 
-    expect(state.outcomes).toEqual([outcome(beta)]);
+    expect(state.outcomes).toEqual([]);
   });
 
   it("drops a retained result when an unsnapshotted installation changes", async () => {
@@ -247,7 +304,7 @@ describe("port update read owner", () => {
       await expect(run).resolves.toBeUndefined();
     });
 
-    expect(state.outcomes).toEqual([outcome(beta)]);
+    expect(state.outcomes).toEqual([]);
   });
 
   it("does not publish a completion after disposal", async () => {

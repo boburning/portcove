@@ -3355,6 +3355,14 @@ select {
   gap: 8px;
 }
 
+.external-update-section {
+  margin-top: var(--space-6);
+}
+.external-update-section h3 {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-base);
+}
+
 .update-row {
   width: 100%;
   display: grid;
@@ -3403,6 +3411,10 @@ select {
 .update-mark.available {
   color: var(--color-text-on-highlight);
   background: var(--color-highlight);
+}
+.update-mark.muted {
+  color: var(--color-text-secondary);
+  background: var(--color-bg-subtle-hover);
 }
 .update-mark.failed {
   color: var(--color-text-on-dark);

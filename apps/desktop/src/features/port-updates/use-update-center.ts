@@ -2,7 +2,6 @@ import { useCallback, useLayoutEffect, useRef, useState } from "react";
 import { desktopApi } from "../../api";
 import { LatestRequestGeneration } from "../../shared/concurrency-state";
 import type { PortStatus, UpdateCheckOutcome } from "../../types";
-import { currentUpdateSnapshot } from "../../view-model";
 
 type UpdateCheckOperation = <T>(
   name: string,
@@ -11,53 +10,37 @@ type UpdateCheckOperation = <T>(
 ) => Promise<T | undefined>;
 
 export function useUpdateCenter(perform: UpdateCheckOperation, statuses: PortStatus[]) {
-  const snapshots = statuses.flatMap((status) => {
-    const snapshot = currentUpdateSnapshot(status);
-    return snapshot
-      ? [
-          {
-            port_id: status.port_id,
-            ok: true,
-            error: null,
-            result: snapshot.check,
-          } satisfies UpdateCheckOutcome,
-        ]
-      : [];
-  });
-  const snapshotBaseline = JSON.stringify(
+  const installBaseline = JSON.stringify(
     statuses
       .filter((status) => status.active)
-      .map((status) => {
-        const snapshot = currentUpdateSnapshot(status);
-        return [
-          status.port_id,
-          status.channel,
-          status.active!.id,
-          status.active!.version,
-          status.active!.artifact.sha256,
-          status.active!.runtime,
-          snapshot?.checked_at,
-          snapshot?.check.release.asset.sha256,
-          snapshot?.check.required_runtime,
-        ] as const;
-      })
+      .map(
+        (status) =>
+          [
+            status.port_id,
+            status.channel,
+            status.active!.id,
+            status.active!.version,
+            status.active!.artifact.sha256,
+            status.active!.runtime,
+          ] as const,
+      )
       .sort((a, b) => a[0].localeCompare(b[0])),
   );
   const [checked, setChecked] = useState<{
-    baseline: string;
+    installBaseline: string;
     outcomes: UpdateCheckOutcome[];
   }>();
   const requests = useRef(new LatestRequestGeneration());
-  const currentBaseline = useRef(snapshotBaseline);
+  const currentBaseline = useRef(installBaseline);
   useLayoutEffect(() => {
     const generation = requests.current;
-    currentBaseline.current = snapshotBaseline;
+    currentBaseline.current = installBaseline;
     generation.begin();
     return () => {
       generation.begin();
     };
-  }, [snapshotBaseline]);
-  const outcomes = checked?.baseline === snapshotBaseline ? checked.outcomes : snapshots;
+  }, [installBaseline]);
+  const outcomes = checked?.installBaseline === installBaseline ? checked.outcomes : [];
   const checkAll = useCallback(async () => {
     const baseline = currentBaseline.current;
     const request = requests.current.begin();
@@ -79,7 +62,7 @@ export function useUpdateCenter(perform: UpdateCheckOperation, statuses: PortSta
       },
     );
     if (result && isCurrent()) {
-      setChecked({ baseline, outcomes: result });
+      setChecked({ installBaseline: baseline, outcomes: result });
     }
   }, [perform]);
   return { outcomes, checkAll };
