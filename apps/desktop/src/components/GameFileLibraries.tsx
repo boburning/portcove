@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { desktopApi } from "../api";
 import { pickInstallFolder } from "../file-picker";
 import type {
@@ -74,6 +74,8 @@ export function GameFileLibraries({
   const [liveCandidates, setLiveCandidates] = useState<
     { profile_id: string; path: string; sha256: string; size: number }[]
   >([]);
+  const heading = useRef<HTMLHeadingElement>(null);
+  const focusAfterScan = useRef<{ profile_id: string; path: string }>();
   useEffect(() => {
     let active = true;
     void Promise.all([desktopApi.gameFileRoots(), desktopApi.gameFileScanSnapshot()])
@@ -89,6 +91,24 @@ export function GameFileLibraries({
       active = false;
     };
   }, []);
+  useEffect(() => {
+    if (scanning || !focusAfterScan.current) return;
+    const candidate = focusAfterScan.current;
+    focusAfterScan.current = undefined;
+    if (document.activeElement !== document.body) return;
+    const row = [...document.querySelectorAll<HTMLElement>("[data-completed-candidate]")].find(
+      (element) =>
+        element.dataset.profileId === candidate.profile_id &&
+        element.dataset.path === candidate.path,
+    );
+    (row?.querySelector<HTMLButtonElement>("button:not(:disabled)") ?? heading.current)?.focus();
+  }, [scanning, snapshot]);
+  useEffect(() => {
+    if (!plan || busy) return;
+    document
+      .querySelector<HTMLButtonElement>('[aria-label="Source import review"] button:not(:disabled)')
+      ?.focus();
+  }, [plan, busy]);
   const run = (label: string, task: () => Promise<void>) => {
     setBusy(label);
     setError(undefined);
@@ -100,7 +120,6 @@ export function GameFileLibraries({
       })
       .finally(() => {
         setBusy("");
-        setOperationId(undefined);
       });
   };
   const refresh = async () => {
@@ -188,6 +207,13 @@ export function GameFileLibraries({
         if (isCancellation(value)) setNotice("Scan cancelled. The previous results were kept.");
         else setError(errorText(value));
       } finally {
+        const focusedRow = document.activeElement?.closest<HTMLElement>("[data-live-candidate]");
+        if (focusedRow?.dataset.profileId && focusedRow.dataset.path) {
+          focusAfterScan.current = {
+            profile_id: focusedRow.dataset.profileId,
+            path: focusedRow.dataset.path,
+          };
+        }
         setScanning(false);
         setOperationId(undefined);
         setLiveCandidates([]);
@@ -223,7 +249,9 @@ export function GameFileLibraries({
     <article className="settings-row source-health" data-focus-group>
       <p className="eyebrow">SAVED FOLDERS</p>
       <div className="settings-title">
-        <h2>Game-file libraries</h2>
+        <h2 ref={heading} tabIndex={-1}>
+          Game-file libraries
+        </h2>
         <Button
           data-focusable
           variant="outline"
@@ -336,7 +364,13 @@ export function GameFileLibraries({
             now; Portcove checks its current files again before adding it as a source.
           </p>
           {liveCandidates.map((candidate) => (
-            <div className="source-health-row" key={`${candidate.profile_id}:${candidate.path}`}>
+            <div
+              className="source-health-row"
+              key={`${candidate.profile_id}:${candidate.path}`}
+              data-live-candidate
+              data-profile-id={candidate.profile_id}
+              data-path={candidate.path}
+            >
               <div>
                 <CandidateIdentity candidate={candidate} profiles={profiles} />
               </div>
@@ -386,7 +420,13 @@ export function GameFileLibraries({
             </ul>
           )}
           {report.candidates.map((candidate) => (
-            <div className="source-health-row" key={`${candidate.profile_id}:${candidate.path}`}>
+            <div
+              className="source-health-row"
+              key={`${candidate.profile_id}:${candidate.path}`}
+              data-completed-candidate
+              data-profile-id={candidate.profile_id}
+              data-path={candidate.path}
+            >
               <div>
                 <CandidateIdentity candidate={candidate} profiles={profiles} />
                 <span>

@@ -113,6 +113,18 @@ it("reviews a streamed match through a fresh core plan before the scan completes
       operation_id: "scan-1",
       parent_operation_id: null,
       target: null,
+      sequence: 0,
+      timestamp_ms: 1,
+      operation: "discover_sources",
+      type: "started",
+    }),
+  );
+  await act(async () =>
+    onEvent?.({
+      schema_version: 3,
+      operation_id: "scan-1",
+      parent_operation_id: null,
+      target: null,
       sequence: 1,
       timestamp_ms: 1,
       operation: "discover_sources",
@@ -143,7 +155,9 @@ it("reviews a streamed match through a fresh core plan before the scan completes
   await click("Review source now");
   expect(review).toHaveBeenCalledWith("game", "D:/Games/game.z64", "use_current_location");
   expect(document.body.querySelector('[aria-label="Source import review"]')).not.toBeNull();
+  expect(document.activeElement?.textContent).toBe("Cancel review");
   expect(document.body.textContent).toContain("Scanning selected folders…");
+  expect(button("Cancel scan")).toBeDefined();
   expect(button("Scan saved folders").disabled).toBe(true);
   expect(button("Relink").disabled).toBe(true);
   expect(desktopApi.importSource).not.toHaveBeenCalled();
@@ -151,6 +165,40 @@ it("reviews a streamed match through a fresh core plan before the scan completes
   expect(document.body.textContent).not.toContain("Matches found so far");
   expect(button("Review source").disabled).toBe(false);
   expect(desktopApi.importSource).not.toHaveBeenCalled();
+});
+
+it("restores focus to a completed match when its live scan button disappears", async () => {
+  vi.mocked(desktopApi.gameFileScanSnapshot)
+    .mockResolvedValueOnce(null)
+    .mockResolvedValue(snapshot);
+  let onEvent: ((event: OperationEvent) => void) | undefined;
+  let finish: ((value: GameFileScanSnapshot) => void) | undefined;
+  vi.mocked(desktopApi.scanGameFileRoots).mockImplementation((_limits, callback) => {
+    onEvent = callback;
+    return new Promise<GameFileScanSnapshot>((resolve) => {
+      finish = resolve;
+    });
+  });
+  await click("Scan saved folders");
+  await act(async () =>
+    onEvent?.({
+      schema_version: 3,
+      operation_id: "scan-1",
+      parent_operation_id: null,
+      target: null,
+      sequence: 1,
+      timestamp_ms: 1,
+      operation: "discover_sources",
+      type: "source_candidate",
+      profile_id: "game",
+      path: "D:/Games/game.z64",
+      sha256: "b".repeat(64),
+      size: 64,
+    }),
+  );
+  button("Review source now").focus();
+  await act(async () => finish?.(snapshot));
+  expect(document.activeElement).toBe(button("Review source"));
 });
 
 it("ignores delayed events from a completed scan while another scan runs", async () => {
