@@ -1578,6 +1578,10 @@ impl Library {
 
     pub(crate) fn output_roots(&self) -> Result<Vec<OutputRootRecord>> {
         let connection = self.connection()?;
+        Self::output_roots_from(&connection)
+    }
+
+    pub(crate) fn output_roots_from(connection: &Connection) -> Result<Vec<OutputRootRecord>> {
         let mut statement = connection.prepare(
             "SELECT path, port_id, marker_id, volume_identity
              FROM output_roots ORDER BY path",

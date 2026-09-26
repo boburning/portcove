@@ -5,6 +5,7 @@ fn scan(catalog: &Catalog, request: &SourceDiscoveryRequest) -> Result<SourceDis
         catalog,
         request,
         &crate::OperationCoordinator::new("test-source-discovery", None),
+        vec![],
         None,
     )
 }
@@ -244,6 +245,247 @@ fn saved_root_reports_the_owned_library_even_when_entry_limit_stops_early() {
 }
 
 #[test]
+fn saved_root_excludes_claimed_external_output_without_hiding_other_files() {
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path().join("selected");
+    fs::create_dir(&root).unwrap();
+    let payload = b"synthetic supported source";
+    fs::write(root.join("external.z64"), payload).unwrap();
+    let library = crate::Library::open(temporary.path().join("library")).unwrap();
+    let output = root.join("managed-output");
+    crate::output_root::prepare_for_install(
+        &library,
+        "sample",
+        &output,
+        &uuid::Uuid::new_v4().to_string(),
+        0,
+    )
+    .unwrap();
+    fs::write(output.join("owned.z64"), payload).unwrap();
+    library.add_game_file_root(&root).unwrap();
+
+    let limits = SourceDiscoveryLimits {
+        max_entries: 1,
+        max_hash_bytes: payload.len() as u64,
+        ..SourceDiscoveryLimits::default()
+    };
+    let snapshot = super::build_game_file_scan(
+        &catalog(payload),
+        &library,
+        &limits,
+        &crate::OperationCoordinator::new("saved-root-managed-output", None),
+    )
+    .unwrap();
+    assert_eq!(snapshot.report.entries_examined, 1);
+    assert_eq!(snapshot.report.files_hashed, 1);
+    assert_eq!(snapshot.report.hash_bytes, payload.len() as u64);
+    assert_eq!(snapshot.report.candidates.len(), 2);
+    let expected = fs::canonicalize(root.join("external.z64")).unwrap();
+    assert!(
+        snapshot
+            .report
+            .candidates
+            .iter()
+            .all(|candidate| candidate.path == expected)
+    );
+    let canonical_output = fs::canonicalize(&output).unwrap();
+    assert!(snapshot.report.issues.iter().any(|issue| {
+        issue.path.as_deref() == Some(canonical_output.as_path())
+            && issue.message.contains("managed game output is excluded")
+    }));
+    assert_eq!(fs::read(output.join("owned.z64")).unwrap(), payload);
+}
+
+#[test]
+fn saved_root_inside_claimed_external_output_is_refused() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = crate::Library::open(temporary.path().join("library")).unwrap();
+    let output = temporary.path().join("managed-output");
+    crate::output_root::prepare_for_install(
+        &library,
+        "sample",
+        &output,
+        &uuid::Uuid::new_v4().to_string(),
+        0,
+    )
+    .unwrap();
+    let nested = output.join("selected");
+    fs::create_dir(&nested).unwrap();
+    library.add_game_file_root(&nested).unwrap();
+    let error = super::build_game_file_scan(
+        &catalog(b"synthetic supported source"),
+        &library,
+        &SourceDiscoveryLimits::default(),
+        &crate::OperationCoordinator::new("saved-root-inside-output", None),
+    )
+    .unwrap_err();
+    assert_eq!(error.code, ErrorCode::Usage);
+    assert!(error.message.contains("Portcove-managed game output"));
+}
+
+#[test]
+fn saved_root_detects_output_claimed_after_initial_exclusions() {
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path().join("selected");
+    fs::create_dir(&root).unwrap();
+    let payload = b"synthetic supported source";
+    let library = crate::Library::open(temporary.path().join("library")).unwrap();
+    let output = root.join("managed-output");
+    crate::output_root::prepare_for_install(
+        &library,
+        "sample",
+        &output,
+        &uuid::Uuid::new_v4().to_string(),
+        0,
+    )
+    .unwrap();
+    fs::write(output.join("owned.z64"), payload).unwrap();
+    fs::write(root.join("external.z64"), payload).unwrap();
+
+    // An empty exclusion list models a claim made after the scan's first read.
+    let report = super::scan(
+        &catalog(payload),
+        &SourceDiscoveryRequest {
+            roots: vec![root.clone()],
+            profile_ids: vec!["star-fox-64".into(), "ocarina-of-time".into()],
+            limits: SourceDiscoveryLimits {
+                max_entries: 1,
+                max_hash_bytes: payload.len() as u64,
+                ..SourceDiscoveryLimits::default()
+            },
+        },
+        &crate::OperationCoordinator::new("late-output-claim", None),
+        vec![],
+        Some(&library),
+    )
+    .unwrap();
+    assert_eq!(report.entries_examined, 1);
+    assert_eq!(report.files_hashed, 1);
+    assert_eq!(report.hash_bytes, payload.len() as u64);
+    assert!(report.candidates.iter().all(|candidate| {
+        candidate.path == fs::canonicalize(root.join("external.z64")).unwrap()
+    }));
+    assert!(report.issues.iter().any(|issue| {
+        issue.path.as_deref() == Some(fs::canonicalize(&output).unwrap().as_path())
+            && issue.message.contains("managed game output is excluded")
+    }));
+}
+
+#[test]
+fn saved_root_skips_registered_output_before_marker_is_written() {
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path().join("selected");
+    fs::create_dir(&root).unwrap();
+    let output = root.join("managed-output");
+    fs::create_dir(&output).unwrap();
+    let library = crate::Library::open(temporary.path().join("library")).unwrap();
+    library
+        .register_output_root(&crate::library::OutputRootRecord {
+            path: fs::canonicalize(&output).unwrap(),
+            port_id: "sample".into(),
+            marker_id: uuid::Uuid::new_v4().to_string(),
+            volume_identity: "pending".into(),
+        })
+        .unwrap();
+    let payload = b"synthetic supported source";
+    fs::write(root.join("external.z64"), payload).unwrap();
+    let report = super::scan(
+        &catalog(payload),
+        &SourceDiscoveryRequest {
+            roots: vec![root.clone()],
+            profile_ids: vec!["star-fox-64".into()],
+            limits: SourceDiscoveryLimits {
+                max_entries: 1,
+                max_hash_bytes: payload.len() as u64,
+                ..SourceDiscoveryLimits::default()
+            },
+        },
+        &crate::OperationCoordinator::new("claim-before-marker", None),
+        vec![],
+        Some(&library),
+    )
+    .unwrap();
+    assert_eq!(report.entries_examined, 1);
+    assert_eq!(report.files_hashed, 1);
+    assert_eq!(report.candidates.len(), 1);
+    assert!(report.issues.iter().any(|issue| {
+        issue.path.as_deref() == Some(fs::canonicalize(&output).unwrap().as_path())
+            && issue.message.contains("managed game output is excluded")
+    }));
+}
+
+#[cfg(windows)]
+#[test]
+fn saved_root_excludes_claimed_output_after_case_only_rename() {
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path().join("selected");
+    fs::create_dir(&root).unwrap();
+    let library = crate::Library::open(temporary.path().join("library")).unwrap();
+    let original = root.join("ManagedOutput");
+    crate::output_root::prepare_for_install(
+        &library,
+        "sample",
+        &original,
+        &uuid::Uuid::new_v4().to_string(),
+        0,
+    )
+    .unwrap();
+    let renamed = root.join("managedoutput");
+    fs::rename(&original, &renamed).unwrap();
+    let payload = b"synthetic supported source";
+    fs::write(renamed.join("owned.z64"), payload).unwrap();
+    fs::write(root.join("external.z64"), payload).unwrap();
+    library.add_game_file_root(&root).unwrap();
+    let snapshot = super::build_game_file_scan(
+        &catalog(payload),
+        &library,
+        &SourceDiscoveryLimits::default(),
+        &crate::OperationCoordinator::new("renamed-output", None),
+    )
+    .unwrap();
+    assert!(snapshot.report.candidates.iter().all(|candidate| {
+        candidate.path == fs::canonicalize(root.join("external.z64")).unwrap()
+    }));
+    assert!(
+        snapshot
+            .report
+            .issues
+            .iter()
+            .any(|issue| { issue.message.contains("managed game output is excluded") })
+    );
+}
+
+#[test]
+fn saved_root_refuses_more_owned_paths_than_can_be_reported() {
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path().join("selected");
+    fs::create_dir(&root).unwrap();
+    let library = crate::Library::open(temporary.path().join("library")).unwrap();
+    library.add_game_file_root(&root).unwrap();
+    for index in 0..65 {
+        library
+            .register_output_root(&crate::library::OutputRootRecord {
+                path: fs::canonicalize(&root)
+                    .unwrap()
+                    .join(format!("offline-{index}")),
+                port_id: "sample".into(),
+                marker_id: uuid::Uuid::new_v4().to_string(),
+                volume_identity: "offline".into(),
+            })
+            .unwrap();
+    }
+    let error = super::build_game_file_scan(
+        &catalog(b"synthetic supported source"),
+        &library,
+        &SourceDiscoveryLimits::default(),
+        &crate::OperationCoordinator::new("too-many-owned-paths", None),
+    )
+    .unwrap_err();
+    assert_eq!(error.code, ErrorCode::Usage);
+    assert!(error.message.contains("too many owned paths"));
+}
+
+#[test]
 fn unavailable_and_relinked_roots_keep_coverage_explicit_and_stale() {
     let temporary = tempfile::tempdir().unwrap();
     let available = temporary.path().join("available");
@@ -351,7 +593,12 @@ fn cancellation_before_snapshot_publication_preserves_the_previous_snapshot() {
         )
         .unwrap();
     service.request_cancellation(&activity.id).unwrap();
-    let result = super::publish_game_file_scan(service.library(), &operation, &replacement);
+    let result = super::publish_game_file_scan(
+        service.library(),
+        &operation,
+        &replacement,
+        &service.library().output_roots().unwrap(),
+    );
     assert_eq!(result.as_ref().unwrap_err().code, ErrorCode::Cancelled);
     assert_eq!(
         service.finish_activity(activity, result).unwrap_err().code,
@@ -363,6 +610,50 @@ fn cancellation_before_snapshot_publication_preserves_the_previous_snapshot() {
         .unwrap()
         .unwrap();
     assert_eq!(preserved.catalog_sha256, previous.catalog_sha256);
+}
+
+#[test]
+fn output_claim_after_traversal_refuses_snapshot_publication() {
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path().join("selected");
+    fs::create_dir(&root).unwrap();
+    let payload = b"synthetic supported source";
+    fs::write(root.join("source.z64"), payload).unwrap();
+    let library = crate::Library::open(temporary.path().join("library")).unwrap();
+    library.add_game_file_root(&root).unwrap();
+    let operation = crate::OperationCoordinator::new("ownership-publication", None);
+    let (mut snapshot, expected_outputs) = super::build_game_file_scan_with_registry(
+        &catalog(payload),
+        &library,
+        &SourceDiscoveryLimits::default(),
+        &operation,
+    )
+    .unwrap();
+    let mut previous = snapshot.clone();
+    previous.catalog_sha256 = "previous".into();
+    library.replace_game_file_scan_snapshot(&previous).unwrap();
+
+    crate::output_root::prepare_for_install(
+        &library,
+        "sample",
+        &root.join("new-managed-output"),
+        &uuid::Uuid::new_v4().to_string(),
+        0,
+    )
+    .unwrap();
+    snapshot.catalog_sha256 = "replacement".into();
+    let error = super::publish_game_file_scan(&library, &operation, &snapshot, &expected_outputs)
+        .unwrap_err();
+    assert_eq!(error.code, ErrorCode::Conflict);
+    assert!(error.message.contains("ownership changed"));
+    assert_eq!(
+        library
+            .stored_game_file_scan_snapshot()
+            .unwrap()
+            .unwrap()
+            .catalog_sha256,
+        "previous"
+    );
 }
 
 #[test]

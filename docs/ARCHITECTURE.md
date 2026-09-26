@@ -1561,8 +1561,15 @@ catalog-wide foreground scan considers only currently available saved roots and
 records unavailable roots as incomplete coverage rather than deletion. When a
 selected root contains the current Portcove library, the scan skips that tree
 before charging entry or hash budgets and records the omission as a path issue;
-a saved root inside the library is refused. External custom output locations are
-not yet covered by this exclusion. After a successful scan, core atomically
+a saved root inside the library is refused. The same rule applies to recorded
+Portcove-managed custom game-output roots, including their private staging, even
+if their volume is temporarily unavailable. The scan does not infer ownership
+from arbitrary similarly named directories. The scanner rechecks ownership
+before charging directory entries. If more than 64 owned paths
+would need omission issues, the scan fails and preserves the prior snapshot so
+none are silently omitted. If output ownership changes during traversal, the
+scan cannot publish a snapshot; the final registry comparison and snapshot
+write share one database transaction. After a successful scan, core atomically
 replaces one bounded versioned snapshot containing
 the exact root identities and states, authoritative catalog digest, discovery report,
 limits and completion time. Current format 2 records the exact validated limits;
