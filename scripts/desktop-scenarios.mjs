@@ -86,6 +86,16 @@ export const DESKTOP_SCENARIOS = Object.freeze([
       source: "desktop-install-test.mjs",
     },
   ),
+  scenario(
+    "native-staged-update-composition",
+    "A real staged update keeps the installed version playable and activation beside Play at compact and wide sizes.",
+    {
+      prerequisites: ["desktop", "install-fixture"],
+      dependencies: ["install-commit-refresh-recovery"],
+      source: "desktop-install-test.mjs",
+      qualification_only: true,
+    },
+  ),
   scenario("native-preparation-review-and-play", "Reviewed preparation completes before Play.", {
     prerequisites: ["desktop", "owned-fixture"],
     source: "desktop-preparation-test.mjs",

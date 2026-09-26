@@ -101,6 +101,13 @@ test("fixture-only reviews select without first-play while continuity keeps its 
   );
 });
 
+test("staged native composition installs its isolated fixture before review", () => {
+  const selection = resolveDesktopSelection({ scenarios: ["native-staged-update-composition"] });
+  assert.deepEqual(selection.selected_scenarios, ["native-staged-update-composition"]);
+  assert.deepEqual(selection.setup_scenarios, ["install-commit-refresh-recovery"]);
+  assert.ok(selection.prerequisites.includes("install-fixture"));
+});
+
 test("missing Steam review context fails without loading Selenium", () => {
   const context = {
     browser: {},

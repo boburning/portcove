@@ -1800,7 +1800,9 @@ try {
     library,
     output,
     artifacts,
+    inputs,
     fixture: installFixture,
+    restartApplication,
   });
   for (const gap of selection.known_gaps)
     checks.push({ scenario: gap.scenario, outcome: "not-run", reason: gap.reason });
