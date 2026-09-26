@@ -1361,28 +1361,42 @@ try {
         const hero = document.querySelector(".detail-hero");
         const title = document.querySelector(".detail-title");
         const reason = document.querySelector(".hero-reason");
+        const requirement = document.querySelector(".hero-requirement");
         const action = document.querySelector(".primary-actions button");
         if (
           !(hero instanceof HTMLElement) ||
           !(title instanceof HTMLElement) ||
           !(reason instanceof HTMLElement) ||
+          !(requirement instanceof HTMLElement) ||
           !(action instanceof HTMLElement)
         ) {
           throw new Error("Game detail hierarchy is incomplete");
         }
         const heroBounds = hero.getBoundingClientRect();
         const reasonBounds = reason.getBoundingClientRect();
+        const requirementBounds = requirement.getBoundingClientRect();
         const actionBounds = action.getBoundingClientRect();
+        const futureChoices = [...document.querySelectorAll(".future-setup-disclosure")];
         return {
           duplicateReadiness: document.querySelectorAll(".readiness-card").length,
           horizontalOverflow: document.documentElement.scrollWidth > window.innerWidth + 1,
           stateText: document.querySelector(".hero-state")?.textContent?.trim(),
           reasonText: reason.textContent?.trim(),
+          requirementText: requirement.textContent?.trim(),
           actionText: action.textContent?.trim(),
           titleFits: title.scrollWidth <= title.clientWidth + 1,
           reasonFits: reason.scrollWidth <= reason.clientWidth + 1,
+          requirementFits: requirement.scrollWidth <= requirement.clientWidth + 1,
           reasonInHero:
             reasonBounds.top >= heroBounds.top && reasonBounds.bottom <= heroBounds.bottom,
+          requirementInHero:
+            requirementBounds.top >= heroBounds.top &&
+            requirementBounds.bottom <= heroBounds.bottom,
+          requirementVisible: requirementBounds.bottom <= window.innerHeight,
+          futureChoices: futureChoices.map((choice) => ({
+            title: choice.querySelector("summary")?.textContent?.trim(),
+            open: choice.hasAttribute("open"),
+          })),
           actionGap: actionBounds.top - heroBounds.bottom,
           actionFits: actionBounds.left >= 0 && actionBounds.right <= window.innerWidth,
         };
@@ -1395,9 +1409,17 @@ try {
         /Choose the required game files before reviewing installation/u,
       );
       assert.equal(hierarchy.actionText, "Choose game files");
+      assert.match(hierarchy.requirementText, /Required for setup: Super Mario 64 \(US\) source/u);
       assert.equal(hierarchy.titleFits, true);
       assert.equal(hierarchy.reasonFits, true);
+      assert.equal(hierarchy.requirementFits, true);
       assert.equal(hierarchy.reasonInHero, true);
+      assert.equal(hierarchy.requirementInHero, true);
+      assert.equal(hierarchy.requirementVisible, true);
+      assert.deepEqual(hierarchy.futureChoices, [
+        { title: "Release and update choices for later", open: false },
+        { title: "Folder for a future install", open: false },
+      ]);
       assert.ok(hierarchy.actionGap >= 0 && hierarchy.actionGap < 160);
       assert.equal(hierarchy.actionFits, true);
     };
@@ -1406,6 +1428,63 @@ try {
     await browser.manage().window().setRect({ width: 960, height: 640 });
     await verifyDetailActionHierarchy();
     await captureScenarioScreenshot("game-details-action-hierarchy");
+    const updateChoices = await browser.findElement(By.css(".future-setup-disclosure > summary"));
+    await updateChoices.click();
+    assert.equal(
+      await browser.executeScript(() =>
+        document.querySelector(".future-setup-disclosure")?.hasAttribute("open"),
+      ),
+      true,
+    );
+    await updateChoices.sendKeys(Key.ENTER);
+    assert.equal(
+      await browser.executeScript(() =>
+        document.querySelector(".future-setup-disclosure")?.hasAttribute("open"),
+      ),
+      false,
+    );
+    const outputChoices = (
+      await browser.findElements(By.css(".future-setup-disclosure > summary"))
+    )[1];
+    assert.ok(outputChoices);
+    await outputChoices.click();
+    const outputDraft = await browser.wait(
+      until.elementLocated(By.css('[id^="output-location-path-"]')),
+      15_000,
+    );
+    await browser.wait(async () => await outputDraft.isEnabled(), 15_000);
+    const draftPath = "C:\\Portcove-fixture\\Future-install";
+    await outputDraft.sendKeys(Key.chord(Key.CONTROL, "a"), Key.BACK_SPACE, draftPath);
+    const sourceDraft = await browser.findElement(
+      By.css('.requirements-body input[id^="source-"]'),
+    );
+    await sourceDraft.sendKeys("C:\\Portcove-fixture\\candidate.z64");
+    await browser.wait(
+      async () =>
+        (await browser.executeScript(() =>
+          [...document.querySelectorAll(".future-setup-disclosure")].every(
+            (choice) => !choice.classList.contains("is-deferred"),
+          ),
+        )) === true,
+      5_000,
+      "future setup choices did not expand after selecting game files",
+    );
+    assert.equal(await outputDraft.getAttribute("value"), draftPath);
+    await sourceDraft.sendKeys(Key.chord(Key.CONTROL, "a"), Key.BACK_SPACE);
+    await browser.wait(
+      async () =>
+        (await browser.executeScript(() =>
+          [...document.querySelectorAll(".future-setup-disclosure")].every((choice) =>
+            choice.classList.contains("is-deferred"),
+          ),
+        )) === true,
+      5_000,
+      "future setup choices did not defer after removing the selected path",
+    );
+    await outputChoices.click();
+    assert.equal(await outputDraft.getAttribute("value"), draftPath);
+    await captureScenarioScreenshot("game-details-future-output-draft");
+    await outputChoices.click();
     await browser.manage().window().setRect({ width: 640, height: 640 });
     await browser.findElement(By.css(".detail-back")).click();
     await browser.wait(until.elementLocated(By.id("port-search")), 15_000);
@@ -1500,6 +1579,12 @@ try {
           { width: 1280, height: 800 },
         ]) {
           await browser.manage().window().setRect(size);
+          const actualWindow = await browser.manage().window().getRect();
+          assert.deepEqual(
+            { width: actualWindow.width, height: actualWindow.height },
+            size,
+            `Missing-source detail window was clamped: ${JSON.stringify(actualWindow)}`,
+          );
           assert.equal(
             await browser.executeScript(() => document.documentElement.dataset.theme),
             theme,

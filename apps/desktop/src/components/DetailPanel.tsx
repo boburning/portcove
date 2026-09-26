@@ -155,6 +155,10 @@ export function DetailPanel(props: DetailPanelProps) {
   const selectedRequirement = selectedSourceRequirement(source, sourcePath, bios, biosPath);
   const missingRequirement: SelectedRequirement | undefined =
     !sourceReady && !biosReady ? "both" : !sourceReady ? "game" : !biosReady ? "bios" : undefined;
+  const missingSourceLabels = [
+    !sourceReady && port.source_profile && (sourceProfile?.label ?? "Original game files"),
+    !biosReady && port.bios_source_profile && (biosProfile?.label ?? "Required BIOS file"),
+  ].filter((label): label is string => typeof label === "string");
   const runtimeUpdateAvailable = currentUpdateSnapshot(status)?.check.update_available === true;
   const installReviewVisible = Boolean(
     installPlan &&
@@ -221,7 +225,11 @@ export function DetailPanel(props: DetailPanelProps) {
         <Icon glyph={ArrowLeft} />
         Back
       </Button>
-      <DetailHero port={port} state={state} />
+      <DetailHero
+        port={port}
+        state={state}
+        missingSourceLabels={!installed ? missingSourceLabels : []}
+      />
       {props.cancellableActivities
         ?.filter((activity) => !(installReviewVisible && activity.operation === "install"))
         .map((activity) => (
@@ -242,6 +250,7 @@ export function DetailPanel(props: DetailPanelProps) {
         stagedVersion={status?.staged?.version}
         sources={sources}
         installed={installed}
+        deferSetupChoices={!installed && missingRequirement !== undefined}
         sourceReady={sourceReady}
         biosReady={biosReady}
         launchReady={launchReady}
@@ -268,7 +277,15 @@ export function DetailPanel(props: DetailPanelProps) {
 
 type DetailState = ReturnType<typeof detailState>;
 
-function DetailHero({ port, state }: { port: PortDefinition; state: DetailState }) {
+function DetailHero({
+  port,
+  state,
+  missingSourceLabels,
+}: {
+  port: PortDefinition;
+  state: DetailState;
+  missingSourceLabels: string[];
+}) {
   return (
     <div className="detail-hero">
       <ArtworkImage port={port} className="detail-cover" />
@@ -284,6 +301,11 @@ function DetailHero({ port, state }: { port: PortDefinition; state: DetailState 
           {state.title}
         </span>
         {state.tone !== "ready" && <p className="hero-reason">{state.description}</p>}
+        {missingSourceLabels.length > 0 && (
+          <p className="hero-requirement">
+            Required for setup: <strong>{missingSourceLabels.join(" · ")}</strong>
+          </p>
+        )}
       </div>
     </div>
   );
@@ -298,6 +320,7 @@ function DetailBody({
   stagedVersion,
   sources,
   installed,
+  deferSetupChoices,
   sourceReady,
   biosReady,
   launchReady,
@@ -326,6 +349,7 @@ function DetailBody({
   stagedVersion?: string;
   sources: SourceControls;
   installed: boolean;
+  deferSetupChoices: boolean;
   sourceReady: boolean;
   biosReady: boolean;
   launchReady: boolean;
@@ -398,6 +422,7 @@ function DetailBody({
           port={port}
           status={status}
           installed={installed}
+          deferSetupChoices={deferSetupChoices}
           selectedChannel={selectedChannel}
           policy={policy}
           libraryGeneration={libraryGeneration}
@@ -417,6 +442,7 @@ function DetailBody({
           port={port}
           status={status}
           installed={installed}
+          deferSetupChoices={deferSetupChoices}
           backups={backups}
           backupProblems={backupProblems}
           backupState={backupState}
@@ -580,8 +606,7 @@ function RequirementsGroup({
         </summary>
         <div className="detail-group-content requirements-body">
           <RequirementsSummary port={port} />
-          <SourceFields mode="missing" controls={sources} />
-          <SourceFields mode="registered" controls={sources} />
+          <SourceFields controls={sources} />
           <SourceIntakeActions controls={sources} busy={Boolean(busy)} />
           {managedPreparation && pendingSetup && (
             <PreparationControl
@@ -603,6 +628,7 @@ function UpdatesGroup({
   port,
   status,
   installed,
+  deferSetupChoices,
   selectedChannel,
   policy,
   libraryGeneration,
@@ -613,14 +639,15 @@ function UpdatesGroup({
   port: PortDefinition;
   status?: PortStatus;
   installed: boolean;
+  deferSetupChoices: boolean;
   selectedChannel: ReleaseChannel;
   policy: UpdatePolicy;
   libraryGeneration: number;
   busy?: string;
   actions: DetailActions;
 }) {
-  return (
-    <DetailGroup title="Updates">
+  const preferences = (
+    <>
       <div className="detail-section">
         <ReleaseChannelControl
           key={`${port.id}:${libraryGeneration}`}
@@ -639,6 +666,17 @@ function UpdatesGroup({
           save={actions.setPolicy}
         />
       </div>
+    </>
+  );
+  return (
+    <DetailGroup title="Updates">
+      <FutureSetupDisclosure
+        deferred={deferSetupChoices}
+        title="Release and update choices for later"
+        description="Game files are still required before installation. These choices apply to a future managed install."
+      >
+        {preferences}
+      </FutureSetupDisclosure>
       {status?.staged && (
         <section aria-label="Activate staged update">
           <p>
@@ -668,6 +706,7 @@ function SavesStorageGroup({
   port,
   status,
   installed,
+  deferSetupChoices,
   backups,
   backupProblems,
   backupState,
@@ -681,6 +720,7 @@ function SavesStorageGroup({
   port: PortDefinition;
   status?: PortStatus;
   installed: boolean;
+  deferSetupChoices: boolean;
   backups: BackupRecord[];
   backupProblems: BackupProblem[];
   backupState: BackupInventory["state"];
@@ -692,19 +732,28 @@ function SavesStorageGroup({
   actions: DetailActions;
 }) {
   const hasBackupHistory = installed || backups.length > 0 || backupProblems.length > 0;
+  const outputLocation = (
+    <OutputLocationControl
+      key={`${port.id}:${libraryGeneration}`}
+      portId={port.id}
+      generation={libraryGeneration}
+      busy={outputExternalBusy}
+      onChanged={outputLocationChanged}
+      onApplying={outputApplying}
+    />
+  );
   return (
     <DetailGroup title="Saves and storage">
       <TrustStrip status={status} />
       <SavesAndSettingsSummary port={port} />
       <StorageSummary status={status} />
-      <OutputLocationControl
-        key={`${port.id}:${libraryGeneration}`}
-        portId={port.id}
-        generation={libraryGeneration}
-        busy={outputExternalBusy}
-        onChanged={outputLocationChanged}
-        onApplying={outputApplying}
-      />
+      <FutureSetupDisclosure
+        deferred={deferSetupChoices}
+        title="Folder for a future install"
+        description="Game files are still required before installation. Choosing an output folder here does not move or install a game."
+      >
+        {outputLocation}
+      </FutureSetupDisclosure>
       {installed && <DataActions busy={busy} actions={actions} />}
       {hasBackupHistory && (
         <BackupHistory
@@ -719,6 +768,34 @@ function SavesStorageGroup({
         />
       )}
     </DetailGroup>
+  );
+}
+
+function FutureSetupDisclosure({
+  deferred,
+  title,
+  description,
+  children,
+}: {
+  deferred: boolean;
+  title: string;
+  description: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <details
+      className={`future-setup-disclosure${deferred ? " advanced-settings is-deferred" : ""}`}
+      open={!deferred}
+    >
+      <summary data-focusable={deferred ? true : undefined} className="advanced-summary">
+        {title}
+        <Icon glyph={ChevronDown} />
+      </summary>
+      <div className={`detail-group-content${deferred ? " advanced-body" : ""}`}>
+        {deferred && <p>{description}</p>}
+        {children}
+      </div>
+    </details>
   );
 }
 
@@ -984,17 +1061,11 @@ type SourceControls = Pick<
   biosHealth?: SourceHealth | null;
 };
 
-function SourceFields({
-  mode,
-  controls,
-}: {
-  mode: "missing" | "registered";
-  controls: SourceControls;
-}) {
+function SourceFields({ controls }: { controls: SourceControls }) {
   return (
     <>
-      {originalSourceField(mode, controls)}
-      {biosSourceField(mode, controls)}
+      {originalSourceField(controls)}
+      {biosSourceField(controls)}
     </>
   );
 }
@@ -1031,9 +1102,9 @@ function SourceIntakeActions({ controls, busy }: { controls: SourceControls; bus
   );
 }
 
-function originalSourceField(mode: "missing" | "registered", controls: SourceControls) {
+function originalSourceField(controls: SourceControls) {
   const profileId = controls.port.source_profile;
-  if (!profileId || controls.sourceReady !== (mode === "registered")) return null;
+  if (!profileId) return null;
   return (
     <SourceField
       heading="Game files"
@@ -1052,15 +1123,9 @@ function originalSourceField(mode: "missing" | "registered", controls: SourceCon
   );
 }
 
-function biosSourceField(mode: "missing" | "registered", controls: SourceControls) {
+function biosSourceField(controls: SourceControls) {
   const profileId = controls.port.bios_source_profile;
-  if (
-    !profileId ||
-    !controls.biosProfile ||
-    !controls.setBiosPath ||
-    controls.biosReady !== (mode === "registered")
-  )
-    return null;
+  if (!profileId || !controls.biosProfile || !controls.setBiosPath) return null;
   return (
     <SourceField
       heading="Required BIOS"
