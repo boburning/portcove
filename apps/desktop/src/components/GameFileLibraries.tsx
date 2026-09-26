@@ -304,6 +304,135 @@ function CompletedScan({
   );
 }
 
+function SavedRootRows({
+  roots,
+  busy,
+  scanning,
+  removingId,
+  setRemovingId,
+  relink,
+  remove,
+}: {
+  roots?: GameFileRoot[];
+  busy: boolean;
+  scanning: boolean;
+  removingId?: string;
+  setRemovingId: (id?: string) => void;
+  relink: (root: GameFileRoot) => void;
+  remove: (root: GameFileRoot) => void;
+}) {
+  if (roots === undefined) return <p role="status">Loading saved folders…</p>;
+  if (roots.length === 0) return <p>No folders saved yet.</p>;
+  return (
+    <div className="source-health-list">
+      {roots.map((root) => (
+        <div className="source-health-row" key={root.id}>
+          <div>
+            <code>{root.path}</code>
+            <span>
+              {root.availability === "available"
+                ? "Available"
+                : "Unavailable — reconnect or relink this folder"}
+            </span>
+          </div>
+          <div className="actions">
+            <Button
+              data-focusable
+              variant="outline"
+              disabled={busy || scanning}
+              onClick={() => relink(root)}
+            >
+              Relink
+            </Button>
+            {removingId === root.id ? (
+              <>
+                <Button
+                  data-focusable
+                  variant="destructive"
+                  disabled={busy || scanning}
+                  onClick={() => remove(root)}
+                >
+                  Remove saved folder
+                </Button>
+                <Button data-focusable variant="outline" onClick={() => setRemovingId(undefined)}>
+                  Keep folder
+                </Button>
+              </>
+            ) : (
+              <Button
+                data-focusable
+                variant="outline"
+                disabled={busy || scanning}
+                onClick={() => setRemovingId(root.id)}
+              >
+                Remove
+              </Button>
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function LiveScanResults({
+  candidates,
+  profiles,
+  registeredSources,
+  registrationConfirmed,
+  workspaceRefreshFailed,
+  ports,
+  onOpenPort,
+  busy,
+  review,
+}: {
+  candidates: Pick<SourceRecord, "profile_id" | "path" | "sha256" | "size">[];
+  profiles: SourceProfile[];
+  registeredSources: SourceRecord[];
+  registrationConfirmed: boolean;
+  workspaceRefreshFailed: boolean;
+  ports: PortDefinition[];
+  onOpenPort?: (portId: string, originKey: string) => void;
+  busy: boolean;
+  review: (candidate: Pick<SourceRecord, "profile_id" | "path">) => void;
+}) {
+  if (candidates.length === 0) return null;
+  return (
+    <section className="source-discovery-results" aria-label="Matches found during scan">
+      <h3>Matches found so far</h3>
+      <p>
+        These exact file matches are provisional while the scan continues. You can review one now;
+        Portcove checks its current files again before adding it as a source.
+      </p>
+      {candidates.map((candidate) => (
+        <div
+          className="source-health-row"
+          data-candidate-row
+          key={`${candidate.profile_id}:${candidate.path}`}
+          data-live-candidate
+          data-profile-id={candidate.profile_id}
+          data-path={candidate.path}
+        >
+          <div>
+            <CandidateIdentity candidate={candidate} profiles={profiles} />
+          </div>
+          <CandidateAction
+            candidate={candidate}
+            registeredSources={registeredSources}
+            registrationConfirmed={registrationConfirmed}
+            workspaceRefreshFailed={workspaceRefreshFailed}
+            ports={ports}
+            onOpenPort={onOpenPort}
+            busy={busy}
+            review={() => review(candidate)}
+            reviewLabel="Review source now"
+          />
+        </div>
+      ))}
+    </section>
+  );
+}
+
 export function GameFileLibraries({
   ports,
   profiles,
@@ -609,64 +738,15 @@ export function GameFileLibraries({
       {roots && roots.length >= maxSavedRootsPerScan && (
         <p>A scan supports at most eight saved folders. Remove one before adding another.</p>
       )}
-      {roots === undefined ? (
-        <p role="status">Loading saved folders…</p>
-      ) : roots.length === 0 ? (
-        <p>No folders saved yet.</p>
-      ) : (
-        <div className="source-health-list">
-          {roots.map((root) => (
-            <div className="source-health-row" key={root.id}>
-              <div>
-                <code>{root.path}</code>
-                <span>
-                  {root.availability === "available"
-                    ? "Available"
-                    : "Unavailable — reconnect or relink this folder"}
-                </span>
-              </div>
-              <div className="actions">
-                <Button
-                  data-focusable
-                  variant="outline"
-                  disabled={Boolean(busy) || scanning}
-                  onClick={() => void relink(root)}
-                >
-                  Relink
-                </Button>
-                {removingId === root.id ? (
-                  <>
-                    <Button
-                      data-focusable
-                      variant="destructive"
-                      disabled={Boolean(busy) || scanning}
-                      onClick={() => void remove(root)}
-                    >
-                      Remove saved folder
-                    </Button>
-                    <Button
-                      data-focusable
-                      variant="outline"
-                      onClick={() => setRemovingId(undefined)}
-                    >
-                      Keep folder
-                    </Button>
-                  </>
-                ) : (
-                  <Button
-                    data-focusable
-                    variant="outline"
-                    disabled={Boolean(busy) || scanning}
-                    onClick={() => setRemovingId(root.id)}
-                  >
-                    Remove
-                  </Button>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+      <SavedRootRows
+        roots={roots}
+        busy={Boolean(busy)}
+        scanning={scanning}
+        removingId={removingId}
+        setRemovingId={setRemovingId}
+        relink={(root) => void relink(root)}
+        remove={(root) => void remove(root)}
+      />
       <div className="actions">
         <Button
           data-focusable
@@ -694,39 +774,18 @@ export function GameFileLibraries({
       {busy && <p role="status">{busy}</p>}
       {scanning && <p role="status">Scanning selected folders…</p>}
       {operationId && <OperationCancellation operationId={operationId} label="Cancel scan" />}
-      {scanning && liveCandidates.length > 0 && (
-        <section className="source-discovery-results" aria-label="Matches found during scan">
-          <h3>Matches found so far</h3>
-          <p>
-            These exact file matches are provisional while the scan continues. You can review one
-            now; Portcove checks its current files again before adding it as a source.
-          </p>
-          {liveCandidates.map((candidate) => (
-            <div
-              className="source-health-row"
-              data-candidate-row
-              key={`${candidate.profile_id}:${candidate.path}`}
-              data-live-candidate
-              data-profile-id={candidate.profile_id}
-              data-path={candidate.path}
-            >
-              <div>
-                <CandidateIdentity candidate={candidate} profiles={profiles} />
-              </div>
-              <CandidateAction
-                candidate={candidate}
-                registeredSources={registeredSources}
-                registrationConfirmed={refreshConfirmed && !workspaceRefreshFailed}
-                workspaceRefreshFailed={workspaceRefreshFailed}
-                ports={ports}
-                onOpenPort={onOpenPort}
-                busy={Boolean(busy)}
-                review={() => void review(candidate)}
-                reviewLabel="Review source now"
-              />
-            </div>
-          ))}
-        </section>
+      {scanning && (
+        <LiveScanResults
+          candidates={liveCandidates}
+          profiles={profiles}
+          registeredSources={registeredSources}
+          registrationConfirmed={refreshConfirmed && !workspaceRefreshFailed}
+          workspaceRefreshFailed={workspaceRefreshFailed}
+          ports={ports}
+          onOpenPort={onOpenPort}
+          busy={Boolean(busy)}
+          review={(candidate) => void review(candidate)}
+        />
       )}
       {error && <p role="alert">{error}</p>}
       {notice && <p role="status">{notice}</p>}
