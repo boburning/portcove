@@ -333,6 +333,14 @@ export type OutputOperationEvent1 =
       [k: string]: unknown;
     }
   | {
+      path: string;
+      profile_id: string;
+      sha256: string;
+      size: number;
+      type: "source_candidate";
+      [k: string]: unknown;
+    }
+  | {
       completed: number;
       phase: string;
       total: number | null;

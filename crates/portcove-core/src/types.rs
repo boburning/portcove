@@ -1313,6 +1313,14 @@ pub struct OperationEvent {
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum OperationEventKind {
     Started,
+    /// Best-effort, exact source discovery evidence. Registration still requires
+    /// a fresh import plan and explicit acceptance.
+    SourceCandidate {
+        profile_id: String,
+        path: PathBuf,
+        sha256: String,
+        size: u64,
+    },
     Progress {
         phase: String,
         completed: u64,

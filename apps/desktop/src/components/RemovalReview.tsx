@@ -5,7 +5,8 @@ import type { PortDefinition } from "../types";
 import { useActionReview, type ReviewOutcome } from "../use-action-review";
 import { Icon } from "./ui";
 import { Button } from "./ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "./ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "./ui/dialog";
+import { ReviewedRemovalFooter } from "./ReviewedRemovalFooter";
 
 export type ApplyRemoval = (expectedPreview: string) => Promise<ReviewOutcome>;
 
@@ -122,40 +123,18 @@ export function RemovalReviewDialog({
           </section>
         )}
         {error && <p role="alert">{error}</p>}
-        <DialogFooter className="mt-4">
-          <Button
-            data-autofocus
-            data-focusable
-            variant="outline"
-            disabled={pending === "apply"}
-            onClick={dismiss}
-          >
-            Cancel
-          </Button>
-          {!preview && (
-            <Button
-              data-focusable
-              disabled={Boolean(pending)}
-              onClick={() => {
-                void review();
-              }}
-            >
-              Review removal again
-            </Button>
-          )}
-          {preview && (
-            <Button
-              data-focusable
-              variant="destructive"
-              disabled={Boolean(pending) || !preview.persistent_data_will_be_preserved}
-              onClick={() => {
-                void remove();
-              }}
-            >
-              {pending === "apply" ? "Uninstalling…" : "Uninstall all versions"}
-            </Button>
-          )}
-        </DialogFooter>
+        <ReviewedRemovalFooter
+          hasPreview={Boolean(preview)}
+          pending={pending}
+          dismiss={dismiss}
+          review={review}
+          apply={remove}
+          keepLabel="Cancel"
+          reviewLabel="Review removal again"
+          applyLabel="Uninstall all versions"
+          applyingLabel="Uninstalling…"
+          canApply={preview?.persistent_data_will_be_preserved}
+        />
       </DialogContent>
     </Dialog>
   );

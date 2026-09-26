@@ -2,8 +2,9 @@ import { useState } from "react";
 import { desktopApi } from "../api";
 import type { PortDefinition, SourceRecord, SourceRemovalPreview } from "../types";
 import { useActionReview } from "../use-action-review";
+import { ReviewedRemovalFooter } from "./ReviewedRemovalFooter";
 import { Button } from "./ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "./ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "./ui/dialog";
 
 export function SourceRemovalControl({
   source,
@@ -124,42 +125,17 @@ export function SourceRemovalDialog({
         {pending === "review" && <p role="status">Checking the source and affected games…</p>}
         {preview && <SourceRemovalDetails preview={preview} ports={ports} />}
         {error && <p role="alert">{error}</p>}
-        <DialogFooter className="mt-4">
-          <Button
-            data-autofocus
-            data-focusable
-            variant="outline"
-            disabled={pending === "apply"}
-            onClick={dismiss}
-          >
-            Keep source reference
-          </Button>
-          {!preview && (
-            <Button
-              data-focusable
-              disabled={Boolean(pending)}
-              onClick={() => {
-                void review();
-              }}
-            >
-              Review source removal again
-            </Button>
-          )}
-          {preview && (
-            <Button
-              data-focusable
-              variant="destructive"
-              disabled={Boolean(pending)}
-              onClick={() => {
-                void execute();
-              }}
-            >
-              {pending === "apply"
-                ? "Waiting for source removal…"
-                : "Continue to removal confirmation"}
-            </Button>
-          )}
-        </DialogFooter>
+        <ReviewedRemovalFooter
+          hasPreview={Boolean(preview)}
+          pending={pending}
+          dismiss={dismiss}
+          review={review}
+          apply={execute}
+          keepLabel="Keep source reference"
+          reviewLabel="Review source removal again"
+          applyLabel="Continue to removal confirmation"
+          applyingLabel="Waiting for source removal…"
+        />
       </DialogContent>
     </Dialog>
   );

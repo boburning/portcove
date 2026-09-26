@@ -22,7 +22,7 @@ use crate::{
     OperationTarget, OutputRelocationPlan, PortcoveError, Result, SourceImportPlan, database,
 };
 
-pub const OPERATION_EVENT_SCHEMA_VERSION: u32 = 2;
+pub const OPERATION_EVENT_SCHEMA_VERSION: u32 = 3;
 
 #[cfg(test)]
 pub(crate) fn reset_all_read_count() {
@@ -562,6 +562,15 @@ impl OperationCoordinator {
 
     pub fn started(&self) -> OperationEvent {
         self.event(OperationEventKind::Started)
+    }
+
+    pub fn source_candidate(&self, candidate: &crate::SourceRecord) -> OperationEvent {
+        self.event(OperationEventKind::SourceCandidate {
+            profile_id: candidate.profile_id.clone(),
+            path: candidate.path.clone(),
+            sha256: candidate.sha256.clone(),
+            size: candidate.size,
+        })
     }
 
     pub fn progress(

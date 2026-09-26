@@ -618,7 +618,7 @@ fn cancellation_from_another_cli_stops_discovery_with_a_durable_cancelled_result
     eprintln!("CLI cancellation: await started event");
     output.read_line(&mut started).unwrap();
     let started: Value = serde_json::from_str(&started).unwrap();
-    assert_eq!(started["schema_version"], 2);
+    assert_eq!(started["schema_version"], 3);
     assert_eq!(started["type"], "started");
     let id = started["operation_id"].as_str().unwrap();
     eprintln!("CLI cancellation: request cancellation");
@@ -1767,7 +1767,7 @@ fn capabilities_has_human_output_snapshot() {
     let capabilities = human_stdout(&portcove(root.path(), &["capabilities"])).to_owned();
     assert!(capabilities.starts_with("Portcove "));
     assert!(capabilities.contains(" capabilities\nSchema: 55"));
-    assert!(capabilities.contains("\nOperation event schema: 2"));
+    assert!(capabilities.contains("\nOperation event schema: 3"));
 }
 
 struct OutputFixture {
@@ -2073,7 +2073,7 @@ fn capabilities_are_one_clean_versioned_json_document() {
     assert_eq!(response["command"], "capabilities");
     assert!(response["error"].is_null());
     assert_eq!(response["data"]["schema_version"], 55);
-    assert_eq!(response["data"]["operation_event_schema_version"], 2);
+    assert_eq!(response["data"]["operation_event_schema_version"], 3);
     assert!(
         response["data"]["commands"]
             .as_array()

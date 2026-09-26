@@ -16,7 +16,7 @@ export function applyOperationEvent(
   current: OperationEventState,
   event: OperationEvent,
 ): OperationEventState {
-  if (event.schema_version !== 2) return current;
+  if (event.schema_version !== 2 && event.schema_version !== 3) return current;
   const existing = current.get(event.operation_id);
   if (existing && existing.sequence >= event.sequence) return current;
   if (existing?.type === "finished" && event.type !== "finished") return current;

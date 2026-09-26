@@ -559,7 +559,7 @@ namespace Portcove.ReferenceClient
             }
             if (Json.Number(record, "schema_version") != operationEventSchemaVersion)
                 throw new InvalidOperationException("Unsupported Portcove event schema. Refresh durable activity and update the client.");
-            ValidateEvent(record);
+            ValidateEvent(record, operationEventSchemaVersion);
             var id = Json.Text(record, "operation_id");
             if (id.Length == 0 || id.Length > 1024 || (!sequences.ContainsKey(id) && sequences.Count >= 1024))
                 throw new InvalidOperationException("The CLI event identities exceed the bounded reference-client contract. Refresh durable state.");
@@ -575,7 +575,7 @@ namespace Portcove.ReferenceClient
             progress?.Invoke(record);
         }
 
-        private static void ValidateEvent(Dictionary<string, object> record)
+        private static void ValidateEvent(Dictionary<string, object> record, long eventSchema)
         {
             var type = Json.Text(record, "type");
             Json.Number(record, "timestamp_ms");
@@ -595,6 +595,18 @@ namespace Portcove.ReferenceClient
             switch (type)
             {
                 case "started":
+                    return;
+                case "source_candidate":
+                    if (eventSchema != 3)
+                        throw new InvalidOperationException("Source candidates require Portcove event schema 3.");
+                    var profile = Json.Text(record, "profile_id");
+                    var path = Json.Text(record, "path");
+                    var digest = Json.Text(record, "sha256");
+                    var size = Json.Number(record, "size");
+                    if (profile.Length == 0 || profile.Length > 1024 || path.Length == 0 || path.Length > 32767 ||
+                        digest.Length != 64 || !digest.All(Uri.IsHexDigit) || size < 0)
+                        throw new InvalidOperationException("Invalid Portcove source candidate. Refresh durable source state.");
+                    PublicCli.RequireAbsolute(path);
                     return;
                 case "progress":
                     Json.Text(record, "phase");
@@ -681,7 +693,8 @@ namespace Portcove.ReferenceClient
                 var hasAdvertisedEventSchema = Json.Object(capabilities).TryGetValue("operation_event_schema_version", out advertised);
                 if (schema >= 50 || hasAdvertisedEventSchema)
                     operationEventSchemaVersion = Json.Number(capabilities, "operation_event_schema_version");
-                if (operationEventSchemaVersion != 2)
+                if ((schema < 50 && operationEventSchemaVersion != 2) ||
+                    (schema >= 50 && operationEventSchemaVersion != 2 && operationEventSchemaVersion != 3))
                     throw new InvalidOperationException("Unsupported Portcove event schema. Select a compatible CLI/client pair.");
             }
             return operationEventSchemaVersion;
