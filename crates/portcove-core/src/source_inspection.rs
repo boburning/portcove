@@ -1,7 +1,11 @@
 //! Read-only source inspection and schema-2 identity matching.
 
 use std::path::{Path, PathBuf};
-use std::{collections::HashSet, fs::File, io::Read};
+use std::{
+    collections::{BTreeSet, HashSet},
+    fs::File,
+    io::Read,
+};
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -11,8 +15,8 @@ use sha2::{Digest, Sha256};
 use crate::{
     Catalog, CompoundSourceFormat, DigestIdentity, DigestScope, Library, PortcoveError, Result,
     SourceAdmission, SourceAdmissionMode, SourceAssessment, SourceClassification,
-    SourceContractResult, SourceIdentity, SourceKind, SourceRecord, SourceRejectionReason,
-    SourceRepresentation, SourceRepresentationKind,
+    SourceContractResult, SourceIdentity, SourceKind, SourceProfile, SourceRecord,
+    SourceRejectionReason, SourceRepresentation, SourceRepresentationKind,
     adapter::{
         ObservedDiscSource, ObservedOpticalDisc, aggregate_sha256, observe_gamecube_disc_source,
         observe_psx_disc_source,
@@ -293,7 +297,21 @@ pub(crate) fn inspect_file(
     budget: &mut HashBudget,
 ) -> Result<SourceInspection> {
     let legacy = catalog.source_profile(profile_id)?;
-    let identity = read_identity(path, &legacy.accepted_extensions, maximum_size, budget)?;
+    let (raw_extensions, zip_extensions) = file_scan_extensions(catalog, legacy);
+    let mut accepted_extensions = legacy.accepted_extensions.clone();
+    let current_extensions = if path
+        .extension()
+        .and_then(|extension| extension.to_str())
+        .is_some_and(|extension| extension.eq_ignore_ascii_case("zip"))
+    {
+        zip_extensions
+    } else {
+        raw_extensions
+    };
+    accepted_extensions.extend(current_extensions);
+    accepted_extensions.sort_unstable();
+    accepted_extensions.dedup();
+    let identity = read_identity(path, &accepted_extensions, maximum_size, budget)?;
     let observed = observed_digests(&identity);
     let compound_format = matching_compound_format(catalog, profile_id, &identity, &observed);
     if let Some(CompoundSourceFormat::StfsLive) = compound_format {
@@ -305,6 +323,66 @@ pub(crate) fn inspect_file(
         })?;
     }
     inspect_file_identity_with_compound(catalog, profile_id, path, &identity, compound_format)
+}
+
+/// Extensions of exact file identities that discovery can safely inspect.
+/// The legacy projection remains separately available to explicit inspection.
+pub(crate) fn file_scan_extensions(
+    catalog: &Catalog,
+    profile: &SourceProfile,
+) -> (Vec<String>, Vec<String>) {
+    if profile.kind != SourceKind::File {
+        return (Vec::new(), Vec::new());
+    }
+    let mut raw = BTreeSet::new();
+    let mut zip_members = BTreeSet::new();
+    if let Some(source_catalog) = catalog.source_catalog() {
+        if let Some(identity) = source_catalog
+            .identities
+            .iter()
+            .find(|identity| identity.id == profile.id)
+        {
+            for representation in identity
+                .variants
+                .iter()
+                .filter(|variant| !variant.legacy_projection_only)
+                .flat_map(|variant| &variant.representations)
+            {
+                match &representation.kind {
+                    SourceRepresentationKind::RawFile { identities }
+                    | SourceRepresentationKind::CanonicalN64 { identities }
+                        if !identities.is_empty() =>
+                    {
+                        for extension in &representation.extensions {
+                            let extension = extension.to_ascii_lowercase();
+                            if extension != "zip" {
+                                raw.insert(extension.clone());
+                                zip_members.insert(extension);
+                            }
+                        }
+                    }
+                    SourceRepresentationKind::ArchiveMember {
+                        member_extensions,
+                        identities,
+                    } if !identities.is_empty() => {
+                        zip_members.extend(
+                            member_extensions
+                                .iter()
+                                .map(|extension| extension.to_ascii_lowercase()),
+                        );
+                    }
+                    _ => {}
+                }
+            }
+        }
+    } else if !profile.accepted_sha1.is_empty() || !profile.accepted_sha256.is_empty() {
+        for extension in &profile.accepted_extensions {
+            let extension = extension.to_ascii_lowercase();
+            raw.insert(extension.clone());
+            zip_members.insert(extension);
+        }
+    }
+    (raw.into_iter().collect(), zip_members.into_iter().collect())
 }
 
 pub(crate) fn inspect_pinned_validator(

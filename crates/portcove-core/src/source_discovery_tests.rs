@@ -99,6 +99,23 @@ fn current_schema2_file_identities_and_extensions_are_discoverable_without_legac
             .collect::<Vec<_>>(),
         ["ghostship-source", "ocarina-of-time"]
     );
+    let mut service =
+        PortcoveService::new(crate::Library::open(temporary.path().join("library")).unwrap())
+            .unwrap();
+    service.replace_catalog_for_test(catalog);
+    for candidate in &report.candidates {
+        let plan = service
+            .plan_source_import(
+                &candidate.profile_id,
+                &candidate.path,
+                crate::SourceImportMode::UseCurrentLocation,
+            )
+            .unwrap();
+        assert_eq!(
+            plan.admission_mode,
+            crate::SourceAdmissionMode::ExactIdentity
+        );
+    }
 }
 
 #[test]
@@ -131,6 +148,23 @@ fn current_schema2_cartridge_zip_uses_current_member_extensions_and_exact_admiss
             .iter()
             .all(|candidate| candidate.storage_sha256 != candidate.sha256)
     );
+    let mut service =
+        PortcoveService::new(crate::Library::open(temporary.path().join("library")).unwrap())
+            .unwrap();
+    service.replace_catalog_for_test(catalog.clone());
+    for candidate in &report.candidates {
+        let plan = service
+            .plan_source_import(
+                &candidate.profile_id,
+                &candidate.path,
+                crate::SourceImportMode::UseCurrentLocation,
+            )
+            .unwrap();
+        assert_eq!(
+            plan.admission_mode,
+            crate::SourceAdmissionMode::ExactIdentity
+        );
+    }
 
     fs::write(
         temporary.path().join("unrecognized.n64"),
