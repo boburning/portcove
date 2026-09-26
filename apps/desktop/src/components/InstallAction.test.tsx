@@ -223,12 +223,11 @@ it("presents the reviewed installation in a dismissible dialog and restores trig
   expect(install).toHaveBeenCalledTimes(1);
 });
 
-it("routes a low-library-space review to Library & Storage even with a separate output volume", async () => {
+it("routes a low-library-space review to Library & Storage for the default output", async () => {
   const openLibraryStorage = vi.fn();
   const shortPlan = {
     ...plan,
     storage: { ...plan.storage, volume_available_bytes: 32 * 1024 ** 2 },
-    output_location: { ...plan.output_location, effective_output_directory: "F:/Games/sample" },
   };
   function InsufficientSpaceHarness() {
     const [reviewed, setReviewed] = useState<InstallPlan>();
@@ -258,6 +257,37 @@ it("routes a low-library-space review to Library & Storage even with a separate 
   await pressEscape();
   expect(document.activeElement).toBe(button("Review install"));
   expect(openLibraryStorage).toHaveBeenCalledTimes(1);
+});
+
+it("does not block an external-output install using the library volume's free space", async () => {
+  const externalPlan: InstallPlan = {
+    ...plan,
+    storage: { ...plan.storage, volume_available_bytes: 32 * 1024 ** 2 },
+    output_location: {
+      ...plan.output_location,
+      configured_output_directory: "F:/Games/sample",
+      effective_output_directory: "F:/Games/sample",
+      selection_source: "port_setting",
+    },
+  };
+  await act(async () =>
+    root.render(
+      <InstallAction
+        ready
+        sourceReady
+        biosReady
+        plan={externalPlan}
+        install={vi.fn()}
+        review={vi.fn()}
+        dismiss={vi.fn()}
+        openLibraryStorage={vi.fn()}
+      />,
+    ),
+  );
+  expect(button("Install · 64.0 MiB").disabled).toBe(false);
+  expect(document.body.textContent).toContain("Destination capacity checked at install");
+  expect(document.body.textContent).not.toContain("more free space in the Portcove library");
+  expect(document.body.textContent).not.toContain("Open Library & Storage");
 });
 
 it("does not dismiss the reviewed installation after installation starts", async () => {

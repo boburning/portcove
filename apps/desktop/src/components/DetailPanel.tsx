@@ -1633,29 +1633,26 @@ export function InstallAction({
                 state={activity.cancellation ?? undefined}
               />
             ))}
-            {plan.action === "download" &&
-              plan.download_bytes > plan.storage.volume_available_bytes && (
-                <p role="status" className="mt-3">
-                  This download needs more free space in the Portcove library. Free space on its
-                  drive or review the library location in Settings.
-                </p>
-              )}
+            {librarySpaceBlocked(plan) && (
+              <p role="status" className="mt-3">
+                This download needs more free space in the Portcove library. Free space on its drive
+                or review the library location in Settings.
+              </p>
+            )}
             <DialogFooter className="mt-4">
-              {openLibraryStorage &&
-                plan.action === "download" &&
-                plan.download_bytes > plan.storage.volume_available_bytes && (
-                  <Button
-                    data-focusable
-                    variant="outline"
-                    disabled={Boolean(busy)}
-                    onClick={() => {
-                      dismiss();
-                      openLibraryStorage();
-                    }}
-                  >
-                    Open Library &amp; Storage
-                  </Button>
-                )}
+              {openLibraryStorage && librarySpaceBlocked(plan) && (
+                <Button
+                  data-focusable
+                  variant="outline"
+                  disabled={Boolean(busy)}
+                  onClick={() => {
+                    dismiss();
+                    openLibraryStorage();
+                  }}
+                >
+                  Open Library &amp; Storage
+                </Button>
+              )}
               {action ? (
                 <PlannedInstallButton plan={plan} busy={busy} install={install} />
               ) : (
@@ -1733,6 +1730,7 @@ function MissingInstallAction({
 
 function InstallPlanSummary({ plan }: { plan: InstallPlan }) {
   const download = plan.action === "download";
+  const libraryOutput = plan.output_location.selection_source === "library_default";
   const localState =
     plan.action === "blocked_unverified"
       ? "Local copy needs checking"
@@ -1753,7 +1751,9 @@ function InstallPlanSummary({ plan }: { plan: InstallPlan }) {
         <strong>{download ? formatBytes(plan.download_bytes) : "No download"}</strong>
         <span>
           {download
-            ? `${formatBytes(plan.storage.volume_available_bytes)} available in library`
+            ? libraryOutput
+              ? `${formatBytes(plan.storage.volume_available_bytes)} available in library`
+              : "Destination capacity checked at install"
             : localState}
         </span>
       </div>
@@ -1777,8 +1777,7 @@ function PlannedInstallButton({
   install: AsyncAction;
 }) {
   const blocked = plan.action === "blocked_unverified";
-  const insufficientSpace =
-    plan.action === "download" && plan.download_bytes > plan.storage.volume_available_bytes;
+  const insufficientSpace = librarySpaceBlocked(plan);
   let label =
     plan.action === "download"
       ? `Install · ${formatBytes(plan.download_bytes)}`
@@ -1803,6 +1802,14 @@ function PlannedInstallButton({
       <Icon glyph={Download} />
       {label}
     </Button>
+  );
+}
+
+function librarySpaceBlocked(plan: InstallPlan) {
+  return (
+    plan.action === "download" &&
+    plan.output_location.selection_source === "library_default" &&
+    plan.download_bytes > plan.storage.volume_available_bytes
   );
 }
 
