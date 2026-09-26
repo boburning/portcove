@@ -113,6 +113,7 @@ describe("Library empty browsing context", () => {
     };
 
     await render("all", "unmatched title");
+    expect(host.querySelector('[aria-label="Library readiness"]')).toBeNull();
     expect(host.textContent).toContain("No ports in your library match your search and filters");
     expect(host.textContent).toContain("This library has no ports yet");
     expect(host.textContent).not.toContain("Your installed ports are still in this library");
@@ -127,6 +128,7 @@ describe("Library empty browsing context", () => {
     expect(host.textContent).toContain("No ports in your library match your search and filters");
 
     await render("all", "   ");
+    expect(host.querySelector('[aria-label="Library readiness"]')).toBeNull();
     expect(host.textContent).toContain("Your library is empty");
     expect(host.textContent).toContain("register a prepared runtime");
     expect(host.textContent).not.toContain("Clear search and filters");

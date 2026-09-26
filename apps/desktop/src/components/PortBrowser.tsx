@@ -95,7 +95,7 @@ export function PortBrowser({
       {view === "library" && recent && onContinue && (
         <ContinueCard recent={recent} launch={onContinue} details={onSelect} />
       )}
-      {view === "library" && !firstUseEmpty && <LibrarySummary overview={overview} />}
+      {view === "library" && overview.installed > 0 && <LibrarySummary overview={overview} />}
       {view === "library" && steamBatch && steamBatch.ports.length >= 2 && (
         <SteamBatchLibraryAction {...steamBatch} />
       )}
@@ -375,37 +375,25 @@ function ContinueCard({
 function LibrarySummary({ overview }: { overview: LibraryOverview }) {
   return (
     <section className="library-summary" aria-label="Library readiness">
-      <div>
-        <span className="summary-icon ready">
-          <Icon glyph={CheckCircle2} />
+      <strong>{overview.installed} in library</strong>
+      <span className="library-summary-status ready">
+        <Icon glyph={CheckCircle2} size="sm" />
+        {overview.ready === overview.installed
+          ? "All ready to play"
+          : `${overview.ready} ready to play`}
+      </span>
+      {overview.needsSetup > 0 && (
+        <span className="library-summary-status attention">
+          <Icon glyph={Wrench} size="sm" />
+          {overview.needsSetup} {overview.needsSetup === 1 ? "needs" : "need"} attention
         </span>
-        <p>
-          <strong className="summary-value">{overview.ready}</strong>
-          <small>Ready to play</small>
-        </p>
-      </div>
-      <div>
-        <span className="summary-icon setup">
-          <Icon glyph={Wrench} />
+      )}
+      {overview.staged > 0 && (
+        <span className="library-summary-status update">
+          <Icon glyph={Download} size="sm" />
+          {overview.staged} {overview.staged === 1 ? "update" : "updates"} downloaded
         </span>
-        <p>
-          <strong className="summary-value">{overview.needsSetup}</strong>
-          <small>Need attention</small>
-        </p>
-      </div>
-      <div>
-        <span className="summary-icon staged">
-          <Icon glyph={Download} />
-        </span>
-        <p>
-          <strong className="summary-value">{overview.staged}</strong>
-          <small>Updates downloaded</small>
-        </p>
-      </div>
-      <p className="summary-note">
-        <strong>{overview.installed} in library</strong>
-        <span>View a game's details for setup and recovery options.</span>
-      </p>
+      )}
     </section>
   );
 }

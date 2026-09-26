@@ -279,6 +279,13 @@ export async function preparationScenarios({
     await browser.wait(async () => (await status(port.id)).successful_launches > 0, 15_000);
     assert.equal(await readFile(log, "utf8"), "setup must not run during desktop Play");
     await browser.findElement(By.css(".detail-back")).click();
+    const readinessSummary = await browser.wait(
+      until.elementLocated(By.css('[aria-label="Library readiness"]')),
+      15_000,
+    );
+    const readinessText = await readinessSummary.getText();
+    assert.match(readinessText, /^1 in library\s+All ready to play$/iu);
+    assert.doesNotMatch(readinessText, /0 (?:needs? attention|updates? downloaded)/iu);
     const card = await browser.wait(
       until.elementLocated(
         By.xpath(
