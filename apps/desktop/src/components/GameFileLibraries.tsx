@@ -65,6 +65,7 @@ export function GameFileLibraries({
   const [roots, setRoots] = useState<GameFileRoot[]>();
   const [snapshot, setSnapshot] = useState<GameFileScanSnapshot | null>();
   const [busy, setBusy] = useState("");
+  const [scanning, setScanning] = useState(false);
   const [error, setError] = useState<string>();
   const [notice, setNotice] = useState<string>();
   const [operationId, setOperationId] = useState<string>();
@@ -139,49 +140,62 @@ export function GameFileLibraries({
       await refresh();
     });
   const scan = () =>
-    run("Scanning selected folders…", async () => {
+    (async () => {
+      setScanning(true);
+      setError(undefined);
+      setNotice(undefined);
       setLiveCandidates([]);
-      const currentRoots = await refresh();
-      if (currentRoots.length > maxSavedRootsPerScan) {
-        setNotice("A scan supports at most eight saved folders. Remove a folder and scan again.");
-        return;
+      try {
+        const currentRoots = await refresh();
+        if (currentRoots.length > maxSavedRootsPerScan) {
+          setNotice("A scan supports at most eight saved folders. Remove a folder and scan again.");
+          return;
+        }
+        if (!currentRoots.some((root) => root.availability === "available")) {
+          setNotice("No saved folder is available. Reconnect or relink one, then scan again.");
+          return;
+        }
+        let acceptingEvents = true;
+        const scanned = await desktopApi
+          .scanGameFileRoots(scanLimits, (event) => {
+            if (!acceptingEvents) return;
+            if (event.type === "started") setOperationId(event.operation_id);
+            if (event.schema_version === 3 && event.type === "source_candidate") {
+              setLiveCandidates((current) =>
+                current.some(
+                  (candidate) =>
+                    candidate.profile_id === event.profile_id && candidate.path === event.path,
+                )
+                  ? current
+                  : [
+                      ...current,
+                      {
+                        profile_id: event.profile_id,
+                        path: event.path,
+                        sha256: event.sha256,
+                        size: event.size,
+                      },
+                    ].slice(0, scanLimits.max_candidates),
+              );
+            }
+          })
+          .finally(() => {
+            acceptingEvents = false;
+          });
+        setSnapshot(scanned);
+        await refresh();
+      } catch (value) {
+        if (isCancellation(value)) setNotice("Scan cancelled. The previous results were kept.");
+        else setError(errorText(value));
+      } finally {
+        setScanning(false);
+        setOperationId(undefined);
+        setLiveCandidates([]);
       }
-      if (!currentRoots.some((root) => root.availability === "available")) {
-        setNotice("No saved folder is available. Reconnect or relink one, then scan again.");
-        return;
-      }
-      let acceptingEvents = true;
-      const scanned = await desktopApi
-        .scanGameFileRoots(scanLimits, (event) => {
-          if (!acceptingEvents) return;
-          if (event.type === "started") setOperationId(event.operation_id);
-          if (event.schema_version === 3 && event.type === "source_candidate") {
-            setLiveCandidates((current) =>
-              current.some(
-                (candidate) =>
-                  candidate.profile_id === event.profile_id && candidate.path === event.path,
-              )
-                ? current
-                : [
-                    ...current,
-                    {
-                      profile_id: event.profile_id,
-                      path: event.path,
-                      sha256: event.sha256,
-                      size: event.size,
-                    },
-                  ].slice(0, scanLimits.max_candidates),
-            );
-          }
-        })
-        .finally(() => {
-          acceptingEvents = false;
-        });
-      setSnapshot(scanned);
-      await refresh();
-    }).finally(() => setLiveCandidates([]));
-  const review = (candidate: SourceRecord) =>
+    })();
+  const review = (candidate: Pick<SourceRecord, "profile_id" | "path">) =>
     run("Checking the source…", async () => {
+      setPlan(undefined);
       setPlan(
         await desktopApi.planSourceImport(
           candidate.profile_id,
@@ -214,7 +228,9 @@ export function GameFileLibraries({
           data-focusable
           variant="outline"
           size="sm"
-          disabled={Boolean(busy) || roots === undefined || roots.length >= maxSavedRootsPerScan}
+          disabled={
+            Boolean(busy) || scanning || roots === undefined || roots.length >= maxSavedRootsPerScan
+          }
           onClick={() => void add()}
         >
           Add folder
@@ -247,7 +263,7 @@ export function GameFileLibraries({
                 <Button
                   data-focusable
                   variant="outline"
-                  disabled={Boolean(busy)}
+                  disabled={Boolean(busy) || scanning}
                   onClick={() => void relink(root)}
                 >
                   Relink
@@ -257,7 +273,7 @@ export function GameFileLibraries({
                     <Button
                       data-focusable
                       variant="destructive"
-                      disabled={Boolean(busy)}
+                      disabled={Boolean(busy) || scanning}
                       onClick={() => void remove(root)}
                     >
                       Remove saved folder
@@ -274,7 +290,7 @@ export function GameFileLibraries({
                   <Button
                     data-focusable
                     variant="outline"
-                    disabled={Boolean(busy)}
+                    disabled={Boolean(busy) || scanning}
                     onClick={() => setRemovingId(root.id)}
                   >
                     Remove
@@ -289,7 +305,7 @@ export function GameFileLibraries({
         <Button
           data-focusable
           variant="outline"
-          disabled={Boolean(busy)}
+          disabled={Boolean(busy) || scanning}
           onClick={() =>
             void run("Refreshing folders…", async () => {
               await refresh();
@@ -301,26 +317,37 @@ export function GameFileLibraries({
         <Button
           data-focusable
           variant="outline"
-          disabled={Boolean(busy) || !roots?.length || roots.length > maxSavedRootsPerScan}
+          disabled={
+            Boolean(busy) || scanning || !roots?.length || roots.length > maxSavedRootsPerScan
+          }
           onClick={() => void scan()}
         >
           Scan saved folders
         </Button>
       </div>
       {busy && <p role="status">{busy}</p>}
+      {scanning && <p role="status">Scanning selected folders…</p>}
       {operationId && <OperationCancellation operationId={operationId} label="Cancel scan" />}
-      {busy === "Scanning selected folders…" && liveCandidates.length > 0 && (
+      {scanning && liveCandidates.length > 0 && (
         <section className="source-discovery-results" aria-label="Matches found during scan">
           <h3>Matches found so far</h3>
           <p>
-            These exact file matches are provisional while the scan continues. Review a match after
-            the completed scan appears below.
+            These exact file matches are provisional while the scan continues. You can review one
+            now; Portcove checks its current files again before adding it as a source.
           </p>
           {liveCandidates.map((candidate) => (
             <div className="source-health-row" key={`${candidate.profile_id}:${candidate.path}`}>
               <div>
                 <CandidateIdentity candidate={candidate} profiles={profiles} />
               </div>
+              <Button
+                data-focusable
+                variant="outline"
+                disabled={Boolean(busy)}
+                onClick={() => void review(candidate)}
+              >
+                Review source now
+              </Button>
             </div>
           ))}
         </section>
