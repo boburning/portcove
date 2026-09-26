@@ -152,6 +152,10 @@ export function sourceImportNotice(result: SourceImportResult) {
   }
 }
 
+export function sourceImportRefreshNotice(result: SourceImportResult) {
+  return `${sourceImportNotice(result)} The view could not refresh. Use Retry refresh to review the current state; this source was already added.`;
+}
+
 function useSourceDiscoveryWorkflow(onAdded?: () => Promise<unknown>) {
   const [root, setRoot] = useState("");
   const [profile, setProfile] = useState("");
@@ -251,7 +255,11 @@ function useSourceDiscoveryWorkflow(onAdded?: () => Promise<unknown>) {
       setRegistered(result.registered.path);
       setPlan(undefined);
       setNotice(sourceImportNotice(result));
-      await onAdded?.();
+      try {
+        await onAdded?.();
+      } catch {
+        setNotice(sourceImportRefreshNotice(result));
+      }
     });
   };
   return {

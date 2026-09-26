@@ -216,7 +216,7 @@ it("opens and scans the Inbox, then applies the exact reviewed import", async ()
         recovered: false,
       };
     });
-  const refresh = vi.fn().mockResolvedValue(undefined);
+  const refresh = vi.fn().mockRejectedValue(new Error("refresh failed after import"));
   const host = document.createElement("div");
   document.body.append(host);
   const root = createRoot(host);
@@ -330,6 +330,12 @@ it("opens and scans the Inbox, then applies the exact reviewed import", async ()
     );
     expect(refresh).toHaveBeenCalledOnce();
     expect(document.body.textContent).toContain("Source registered");
+    expect(document.body.textContent).toContain("The view could not refresh");
+    expect(document.body.textContent).toContain("this source was already added");
+    expect(
+      document.body.querySelector('[aria-labelledby="source-discovery-title"] [role="alert"]'),
+    ).toBeNull();
+    expect(document.body.querySelector('[aria-label="Source import review"]')).toBeNull();
   } finally {
     await act(async () => root.unmount());
     host.remove();
