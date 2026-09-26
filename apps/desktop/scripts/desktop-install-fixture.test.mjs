@@ -169,6 +169,7 @@ test("unselected install scenarios do not require an initialized fixture", async
   assert.deepEqual(registered, [
     "install-progress-cancellation",
     "install-commit-refresh-recovery",
+    "native-staged-update-composition",
   ]);
 });
 
