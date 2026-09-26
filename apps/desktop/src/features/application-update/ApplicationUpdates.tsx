@@ -354,7 +354,9 @@ function ApplicationUpdateStatusPanel({
     <section className="application-update-status" aria-labelledby="application-status-title">
       <div className="application-update-status-heading">
         <div>
-          <h3 id="application-status-title">Update activity</h3>
+          <h3 id="application-status-title" tabIndex={-1}>
+            Update activity
+          </h3>
           <p>See the download, restart request, and installer state.</p>
         </div>
         <Button
@@ -600,7 +602,9 @@ function ApplicationUpdateCheckPanel({
     >
       <div className="application-update-status-heading">
         <div>
-          <h3 id="application-check-title">Check for application updates</h3>
+          <h3 id="application-check-title" tabIndex={-1}>
+            Check for application updates
+          </h3>
           <p>
             Uses the saved channel and host-compiled signed repository. Manual checks never use a
             URL supplied by this screen.

@@ -24,6 +24,7 @@ import {
 import { useDetailWorkspaceNavigation } from "./features/app-shell/use-detail-workspace-navigation";
 import { focusDiscTool } from "./features/app-shell/focus-disc-tool";
 import { focusSettingsTarget } from "./features/app-shell/focus-settings-target";
+import { focusApplicationUpdateRoute } from "./features/application-update/focus-application-update-route";
 import {
   useLibrarySelectionLanding,
   useLibrarySelectionReturn,
@@ -64,7 +65,7 @@ import {
 import { desktopApi } from "./api";
 import { useThemePreference } from "./theme";
 import { useGamepadNavigation } from "./gamepad";
-import { focusAndReveal, focusRegion } from "./focus";
+import { focusRegion } from "./focus";
 import { overlayBackAction } from "./overlay-stack";
 import { useNativeSourceDrop } from "./native-source-drop";
 import { useCommandSurface } from "./use-command-surface";
@@ -455,17 +456,9 @@ function Workspace({
     recheck: async (toolId: string) => desktopApi.recheckHostTool(toolId),
     openOfficial: (toolId: string) => desktopApi.openHostToolOfficialSite(toolId),
   };
-  const reviewApplicationUpdate = () => {
+  const reviewApplicationUpdate = (route: Parameters<typeof focusApplicationUpdateRoute>[0]) => {
     setPrimaryView("settings");
-    window.requestAnimationFrame(() => {
-      const heading = document.getElementById("application-update-settings-title");
-      heading?.scrollIntoView({ block: "start" });
-      const control = heading
-        ?.closest(".application-update-settings")
-        ?.querySelector<HTMLElement>("button:not(:disabled), a[href]");
-      if (control) focusAndReveal(control);
-      else heading?.focus({ preventScroll: true });
-    });
+    window.requestAnimationFrame(() => focusApplicationUpdateRoute(route));
   };
   const dismissApplicationUpdateChoice = () => {
     applicationUpdateChoice.dismiss();

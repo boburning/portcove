@@ -58,6 +58,7 @@ import { LibraryMoveButton } from "./LibraryMove";
 import { LibraryImportButton } from "./LibraryImport";
 import { CatalogSettings } from "./CatalogUpdates";
 import { ApplicationUpdateSettings } from "../features/application-update/ApplicationUpdates";
+import type { ApplicationUpdateRoute } from "../features/application-update/focus-application-update-route";
 import type { ApplicationUpdatePreferencesState } from "../features/application-update/use-application-update-preferences";
 import { SourceDiscoveryButton } from "./SourceDiscovery";
 import { SourceIdentityPanel } from "./SourceIdentity";
@@ -279,7 +280,7 @@ export function StatusLayer({
   updateChoiceRequired?: boolean;
   productionTransitionRequired?: boolean;
   productionTransitionBusy?: boolean;
-  reviewUpdate?: () => void;
+  reviewUpdate?: (route: ApplicationUpdateRoute) => void;
   dismissUpdate?: () => Promise<void>;
   dismissUpdateChoice?: () => void;
   useStable?: () => void;
@@ -292,12 +293,15 @@ export function StatusLayer({
       {updateNotice && (
         <ApplicationUpdateNoticeBanner
           notice={updateNotice}
-          review={reviewUpdate}
+          review={() => reviewUpdate?.(updateNotice.result.staged ? "status" : "check")}
           dismiss={dismissUpdate}
         />
       )}
       {!updateNotice && updateChoiceRequired && (
-        <ApplicationUpdateChoiceBanner review={reviewUpdate} dismiss={dismissUpdateChoice} />
+        <ApplicationUpdateChoiceBanner
+          review={() => reviewUpdate?.("choice")}
+          dismiss={dismissUpdateChoice}
+        />
       )}
       {!updateNotice && !updateChoiceRequired && productionTransitionRequired && (
         <ApplicationUpdateProductionTransitionBanner
