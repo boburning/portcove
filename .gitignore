@@ -7,6 +7,7 @@
 .rscheck/
 /.codex-remote-attachments/
 /work/
+/apps/desktop/.vitest/
 /outputs/
 /release-assets/
 *.log

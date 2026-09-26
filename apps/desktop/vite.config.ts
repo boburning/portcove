@@ -13,7 +13,11 @@ export function assertScenarioExclusion(
 ) {
   for (const id of moduleIds) {
     const normalized = id.replaceAll("\\", "/").split("?", 1)[0];
-    if (normalized.includes("/src/dev-scenarios/") || normalized.endsWith("/src/test-fixtures.ts"))
+    if (
+      normalized.includes("/src/dev-scenarios/") ||
+      normalized.includes("/src/browser/") ||
+      normalized.endsWith("/src/test-fixtures.ts")
+    )
       throw new Error(`Development scenario module cannot ship: ${id}`);
     if (!allowCompatibilityFixture && normalized.includes("/src/design-compatibility/"))
       throw new Error(`Design compatibility fixture cannot ship: ${id}`);

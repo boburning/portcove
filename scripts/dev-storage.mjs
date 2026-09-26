@@ -68,6 +68,7 @@ export function getPaths() {
     temporary_directory: resolveConfiguredPath(process.env.PORTCOVE_TEMP_DIR, "work/temp"),
     output_root: resolveConfiguredPath(process.env.PORTCOVE_OUTPUT_DIR, "outputs"),
     pnpm_store: resolveConfiguredPath(process.env.PORTCOVE_PNPM_STORE_DIR, "work/pnpm-store"),
+    browser_cache: path.join(projectRoot, "work", "browser-cache"),
     frontend_dependencies: path.join(projectRoot, "node_modules"),
     desktop_dependencies: path.join(projectRoot, "apps/desktop/node_modules"),
     frontend_output: path.join(projectRoot, "apps/desktop/dist"),

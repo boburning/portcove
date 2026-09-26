@@ -324,6 +324,7 @@ test("UI sources build, lint, and run import-related tests", () => {
     "ui-oxlint",
     "ui-related-tests",
     "ui-related-durations",
+    "ui-browser-tests",
     "ui-theme-copy",
     "ui-copy",
     "fallow",
@@ -333,6 +334,31 @@ test("UI sources build, lint, and run import-related tests", () => {
   assert.equal(uiBuild.args[0], "pnpm");
   const durations = plan.find((entry) => entry.id === "ui-related-durations");
   assert.ok(durations.args.includes("--allow-empty"));
+});
+
+test("browser composition, transport, and config changes select the real-browser stage", () => {
+  for (const file of [
+    "apps/desktop/src/browser/adoption.browser.test.tsx",
+    "apps/desktop/src/components/AdoptionModal.tsx",
+    "apps/desktop/src/components/ui.tsx",
+    "apps/desktop/src/features/installation/use-installation-planning.ts",
+    "apps/desktop/src/shared/concurrency-state.ts",
+    "apps/desktop/src/components/ui/dialog.tsx",
+    "apps/desktop/src/api.ts",
+    "apps/desktop/src/view-model.ts",
+    "apps/desktop/vitest.browser.config.ts",
+    "apps/desktop/scripts/browser-runtime.mjs",
+    "apps/desktop/package.json",
+    "pnpm-lock.yaml",
+  ]) {
+    const { selection, plan } = planFor([file]);
+    assert.deepEqual([...selection.unknown], [], file);
+    assert.equal(selection.browser, true, file);
+    assert.ok(ids(plan).includes("ui-browser-tests"), file);
+  }
+  const { selection, plan } = planFor(["apps/desktop/src/artwork-cache.ts"]);
+  assert.equal(selection.browser, false);
+  assert.ok(!ids(plan).includes("ui-browser-tests"));
 });
 
 test("frontend configuration changes use the complete small UI suite", () => {
