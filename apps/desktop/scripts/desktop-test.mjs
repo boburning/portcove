@@ -548,8 +548,16 @@ async function verifyCompactSettingsJumps() {
       -1,
     );
     const next = await browser.executeScript(() => {
-      const bounds = document.activeElement?.getBoundingClientRect();
-      return { top: bounds?.top, bottom: bounds?.bottom };
+      const active = document.activeElement;
+      const bounds = active?.getBoundingClientRect();
+      return {
+        label: active?.getAttribute("aria-label") ?? active?.textContent?.trim().slice(0, 80),
+        top: bounds?.top,
+        bottom: bounds?.bottom,
+        viewportHeight: window.innerHeight,
+        documentHeight: document.documentElement.clientHeight,
+        visualViewportHeight: window.visualViewport?.height,
+      };
     });
     assert.ok(next.top >= 0 && next.bottom <= 640, JSON.stringify(next));
     await captureScenarioScreenshot("settings-section-advanced-next-control");
