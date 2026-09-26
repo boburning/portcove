@@ -112,7 +112,8 @@ describe("update destination links", () => {
       expect(host.textContent).toContain("Externally updated games");
       expect(host.textContent).toContain("Registered version1.0.2");
       expect(host.textContent).toContain("Updated externally");
-      expect(host.textContent).toContain("No installed ports to check");
+      expect(host.textContent).toContain("No managed installations to check");
+      expect(host.textContent).toContain("Registered runtimes are updated externally");
       expect(host.textContent).toContain("—Updates available");
       const checkButton = [...host.querySelectorAll<HTMLButtonElement>("button")].find((button) =>
         button.textContent?.includes("Check installed ports for updates"),

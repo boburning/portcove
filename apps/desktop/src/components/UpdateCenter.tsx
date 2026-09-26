@@ -184,8 +184,12 @@ export function UpdateCenter({
         <EmptyState
           icon={RefreshCw}
           eyebrow="UPDATE CENTER"
-          title="No installed ports to check"
-          description="Install a port or copy in an existing installation first. Portcove will then show its update channel, update setting, latest available release, and previous installed version here."
+          title="No managed installations to check"
+          description={
+            external.length > 0
+              ? "Registered runtimes are updated externally. Install a managed port or copy in an existing installation to check it for updates here."
+              : "Install a port or copy in an existing installation first. Portcove will then show its update channel, update setting, latest available release, and previous installed version here."
+          }
         />
       ) : (
         <div className="update-list" data-focus-group>
