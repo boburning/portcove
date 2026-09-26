@@ -13,7 +13,6 @@ import { errorText, formatBytes, formatCountMessage, isCancellation } from "../v
 import { OperationCancellation } from "./OperationCancellation";
 import {
   SourceImportReview,
-  sourceDiscoveryLimitGuidance,
   sourceDiscoveryLimitLabel,
   sourceImportNotice,
 } from "./SourceDiscovery";
@@ -26,6 +25,14 @@ const scanLimits = {
   max_hash_bytes: 16 * 1024 * 1024 * 1024,
   max_candidates: 64,
 };
+const maxSavedRootsPerScan = 8;
+
+function savedRootLimitGuidance(limit: string) {
+  if (limit === "file_size")
+    return `Files above ${formatBytes(scanLimits.max_file_bytes)} were skipped. Check a suspected file from its game details.`;
+  if (limit === "depth") return "Relink a saved folder to a deeper subfolder, then scan again.";
+  return "Remove or relink saved folders to narrower subfolders, then scan again. You can also use Choose game files for one game.";
+}
 
 export function GameFileLibraries({
   ports,
@@ -80,12 +87,18 @@ export function GameFileLibraries({
     ]);
     setRoots(savedRoots);
     setSnapshot(savedSnapshot);
+    return savedRoots;
   };
   const add = () =>
     run("Choosing folder…", async () => {
       const path = await pickInstallFolder("");
       if (!path) return;
+      if ((await refresh()).length >= maxSavedRootsPerScan) {
+        setNotice("A scan supports at most eight saved folders. Remove one before adding another.");
+        return;
+      }
       await desktopApi.addGameFileRoot(path);
+      setPlan(undefined);
       await refresh();
     });
   const relink = (root: GameFileRoot) =>
@@ -93,16 +106,27 @@ export function GameFileLibraries({
       const path = await pickInstallFolder(root.path);
       if (!path) return;
       await desktopApi.relinkGameFileRoot(root.id, path);
+      setPlan(undefined);
       await refresh();
     });
   const remove = (root: GameFileRoot) =>
     run("Removing folder…", async () => {
       await desktopApi.removeGameFileRoot(root.id);
       setRemovingId(undefined);
+      setPlan(undefined);
       await refresh();
     });
   const scan = () =>
     run("Scanning selected folders…", async () => {
+      const currentRoots = await refresh();
+      if (currentRoots.length > maxSavedRootsPerScan) {
+        setNotice("A scan supports at most eight saved folders. Remove a folder and scan again.");
+        return;
+      }
+      if (!currentRoots.some((root) => root.availability === "available")) {
+        setNotice("No saved folder is available. Reconnect or relink one, then scan again.");
+        return;
+      }
       const scanned = await desktopApi.scanGameFileRoots(scanLimits, (event) => {
         if (event.type === "started") setOperationId(event.operation_id);
       });
@@ -134,7 +158,6 @@ export function GameFileLibraries({
       await onAdded?.();
     });
   const report = snapshot?.report;
-  const available = roots?.filter((root) => root.availability === "available") ?? [];
   return (
     <article className="settings-row source-health" data-focus-group>
       <p className="eyebrow">SAVED FOLDERS</p>
@@ -144,7 +167,7 @@ export function GameFileLibraries({
           data-focusable
           variant="outline"
           size="sm"
-          disabled={Boolean(busy)}
+          disabled={Boolean(busy) || roots === undefined || roots.length >= maxSavedRootsPerScan}
           onClick={() => void add()}
         >
           Add folder
@@ -154,6 +177,9 @@ export function GameFileLibraries({
         Choose folders on this PC, a mounted network share, or a removable drive. Portcove searches
         only saved folders. Scanning does not change the original files or add them as sources.
       </p>
+      {roots && roots.length >= maxSavedRootsPerScan && (
+        <p>A scan supports at most eight saved folders. Remove one before adding another.</p>
+      )}
       {roots === undefined ? (
         <p role="status">Loading saved folders…</p>
       ) : roots.length === 0 ? (
@@ -216,7 +242,19 @@ export function GameFileLibraries({
         <Button
           data-focusable
           variant="outline"
-          disabled={Boolean(busy) || available.length === 0}
+          disabled={Boolean(busy)}
+          onClick={() =>
+            void run("Refreshing folders…", async () => {
+              await refresh();
+            })
+          }
+        >
+          Refresh folders
+        </Button>
+        <Button
+          data-focusable
+          variant="outline"
+          disabled={Boolean(busy) || !roots?.length || roots.length > maxSavedRootsPerScan}
           onClick={() => void scan()}
         >
           Scan saved folders
@@ -252,7 +290,7 @@ export function GameFileLibraries({
             <ul>
               {report.limits_reached.map((limit) => (
                 <li key={limit}>
-                  {sourceDiscoveryLimitLabel(limit)}: {sourceDiscoveryLimitGuidance(limit)}
+                  {sourceDiscoveryLimitLabel(limit)}: {savedRootLimitGuidance(limit)}
                 </li>
               ))}
             </ul>

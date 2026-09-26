@@ -84,6 +84,7 @@ it("scans only after a player asks and keeps exact results as reviewed candidate
   );
   expect(document.body.textContent).toContain("D:/Games/game.z64");
   expect(document.body.textContent).toContain("File and folder count");
+  expect(document.body.textContent).toContain("Remove or relink saved folders");
   expect(desktopApi.importSource).not.toHaveBeenCalled();
 });
 
@@ -124,4 +125,35 @@ it("does not offer review from a snapshot whose inputs changed", async () => {
   );
   expect(button("Review source").disabled).toBe(true);
   expect(document.body.textContent).toContain("Scan again before using these results");
+});
+
+it("caps saved roots at the core scan limit and explains the recovery", async () => {
+  const add = vi.spyOn(desktopApi, "addGameFileRoot");
+  vi.mocked(desktopApi.gameFileRoots).mockResolvedValue(
+    Array.from({ length: 8 }, (_, index) => ({
+      ...saved,
+      id: `root-${index}`,
+      path: `D:/Games-${index}`,
+    })),
+  );
+  await act(async () =>
+    root.render(<GameFileLibraries key="eight-roots" ports={[]} profiles={[]} />),
+  );
+  expect(button("Add folder").disabled).toBe(true);
+  expect(button("Scan saved folders").disabled).toBe(false);
+  expect(document.body.textContent).toContain("at most eight saved folders");
+  expect(add).not.toHaveBeenCalled();
+});
+
+it("rechecks availability when a previously unavailable root is scanned", async () => {
+  vi.mocked(desktopApi.gameFileRoots)
+    .mockResolvedValueOnce([{ ...saved, availability: "unavailable" }])
+    .mockResolvedValue([saved]);
+  await act(async () =>
+    root.render(<GameFileLibraries key="reconnected-root" ports={[]} profiles={[]} />),
+  );
+  expect(button("Scan saved folders").disabled).toBe(false);
+  await click("Scan saved folders");
+  expect(desktopApi.scanGameFileRoots).toHaveBeenCalledOnce();
+  expect(document.body.textContent).toContain("Available");
 });
