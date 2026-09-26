@@ -236,17 +236,22 @@ function BrowserResults({
 
 function LoadingState() {
   return (
-    <section className="loading-state" aria-live="polite">
-      <div className="loading-brand">
-        <BrandWordmark />
-        <span className="loading-mark">
+    <section
+      className="loading-state flex min-h-[18.75rem] items-center justify-center gap-4 rounded-pc-lg border border-dashed border-[var(--color-border-strong)] bg-[var(--color-bg-subtle)] p-10 text-left text-pc-muted-foreground"
+      aria-live="polite"
+    >
+      <div className="grid w-48 shrink-0 justify-items-center gap-1">
+        <BrandWordmark className="h-18 w-48" />
+        <span className="loading-mark relative grid size-12 place-items-center rounded-pc-lg border border-pc-border bg-pc-surface text-[var(--color-interactive-text)] shadow-[var(--shadow-control)]">
           <BrandMotif />
           <Icon glyph={LoaderCircle} size="lg" />
         </span>
       </div>
       <div>
-        <strong>Loading your port library</strong>
-        <p>Loading the catalog, added game files, and ports in your library.</p>
+        <strong className="block text-pc-foreground">Loading your port library</strong>
+        <p className="m-0 max-w-[32rem] leading-[var(--leading-relaxed)]">
+          Loading the catalog, added game files, and ports in your library.
+        </p>
       </div>
     </section>
   );
