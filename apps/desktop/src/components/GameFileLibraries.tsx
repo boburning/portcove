@@ -101,7 +101,7 @@ export function GameFileLibraries({
     const row = [...document.querySelectorAll<HTMLElement>("[data-completed-candidate]")].find(
       (element) =>
         element.dataset.profileId === candidate.profile_id &&
-        element.dataset.path === candidate.path,
+        element.dataset.path === candidate?.path,
     );
     (row?.querySelector<HTMLButtonElement>("button:not(:disabled)") ?? heading.current)?.focus();
   }, [scanning, snapshot]);
