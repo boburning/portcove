@@ -460,6 +460,14 @@ while launch-only and read-only library clients need not adopt an unused event
 channel. This adds no event authority to either adapter and does not couple API
 envelope evolution to operation-event evolution.
 
+Event schema 3 adds an exact `source_candidate` notification emitted while
+bounded source discovery hashes selected files. It is provisional, carries no
+registration authority, and cannot substitute for the completed report or
+saved-root snapshot. Desktop renders candidates during a scan, then replaces
+them with core's completed snapshot; source import still requires a fresh plan.
+The Playnite reference client negotiates event schemas 2 and 3 independently
+from API schema and validates candidate fields without changing lifecycle state.
+
 API schema 51 exposes one core-owned activity feed. Core reads every current,
 failed-needs-attention, and lifecycle-recovery-owned row from the same SQLite
 snapshot as a bounded newest-first terminal window, deduplicates by durable

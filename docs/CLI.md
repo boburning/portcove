@@ -340,9 +340,12 @@ other games remain readable. New installations retain their execution and
 persistence definitions in manifest schema 6, introduced with writer protocol 23.
 Protocol 25 now protects exact successor definition retention; older clients refuse
 to modify an upgraded library. The Playnite
-reference accepts API schemas 42 through 55 with event schema 2. Schema 50
-advertises that event version explicitly; the historical 42–49 window retains
-its documented event-2 contract. Schema 51 consumes the activity-feed
+reference accepts API schemas 42 through 55 with advertised event schema 2 or 3.
+Schema 50 advertises the independently versioned event contract; the historical
+42–49 window retains its documented event-2 contract. Event schema 3 adds a
+provisional exact `source_candidate` during discovery, carrying profile, path,
+SHA-256 and size. Clients still read the completed report or saved-root snapshot
+and request a fresh import plan before registration. Schema 51 consumes the activity-feed
 completeness and protected classifications for lifecycle management.
 
 API schema 22 adds the core-resolved per-game output location to install plans

@@ -51,6 +51,9 @@ export function GameFileLibraries({
   const [operationId, setOperationId] = useState<string>();
   const [removingId, setRemovingId] = useState<string>();
   const [plan, setPlan] = useState<SourceImportPlan>();
+  const [liveCandidates, setLiveCandidates] = useState<
+    { profile_id: string; path: string; sha256: string; size: number }[]
+  >([]);
   useEffect(() => {
     let active = true;
     void Promise.all([desktopApi.gameFileRoots(), desktopApi.gameFileScanSnapshot()])
@@ -118,6 +121,7 @@ export function GameFileLibraries({
     });
   const scan = () =>
     run("Scanning selected folders…", async () => {
+      setLiveCandidates([]);
       const currentRoots = await refresh();
       if (currentRoots.length > maxSavedRootsPerScan) {
         setNotice("A scan supports at most eight saved folders. Remove a folder and scan again.");
@@ -129,10 +133,28 @@ export function GameFileLibraries({
       }
       const scanned = await desktopApi.scanGameFileRoots(scanLimits, (event) => {
         if (event.type === "started") setOperationId(event.operation_id);
+        if (event.schema_version === 3 && event.type === "source_candidate") {
+          setLiveCandidates((current) =>
+            current.some(
+              (candidate) =>
+                candidate.profile_id === event.profile_id && candidate.path === event.path,
+            )
+              ? current
+              : [
+                  ...current,
+                  {
+                    profile_id: event.profile_id,
+                    path: event.path,
+                    sha256: event.sha256,
+                    size: event.size,
+                  },
+                ].slice(0, scanLimits.max_candidates),
+          );
+        }
       });
       setSnapshot(scanned);
       await refresh();
-    });
+    }).finally(() => setLiveCandidates([]));
   const review = (candidate: SourceRecord) =>
     run("Checking the source…", async () => {
       setPlan(
@@ -262,6 +284,27 @@ export function GameFileLibraries({
       </div>
       {busy && <p role="status">{busy}</p>}
       {operationId && <OperationCancellation operationId={operationId} label="Cancel scan" />}
+      {busy === "Scanning selected folders…" && liveCandidates.length > 0 && (
+        <section className="source-discovery-results" aria-label="Matches found during scan">
+          <h3>Matches found so far</h3>
+          <p>
+            These exact file matches are provisional while the scan continues. Review a match after
+            the completed scan appears below.
+          </p>
+          {liveCandidates.map((candidate) => (
+            <div className="source-health-row" key={`${candidate.profile_id}:${candidate.path}`}>
+              <div>
+                <strong>
+                  {profiles.find((profile) => profile.id === candidate.profile_id)?.label ??
+                    candidate.profile_id}
+                </strong>
+                <code>{candidate.path}</code>
+                <span>{formatBytes(candidate.size)}</span>
+              </div>
+            </div>
+          ))}
+        </section>
+      )}
       {error && <p role="alert">{error}</p>}
       {notice && <p role="status">{notice}</p>}
       {snapshot && report && (

@@ -24,6 +24,12 @@ function event(
 }
 
 describe("operation event state", () => {
+  it("accepts current event schema and ignores unknown future schema", () => {
+    const current = { ...event("scan", 1, 10), schema_version: 3 };
+    const state = applyOperationEvent(new Map(), current);
+    expect(state.get("scan")).toEqual(current);
+    expect(applyOperationEvent(state, { ...current, schema_version: 4, sequence: 2 })).toBe(state);
+  });
   it("keeps overlapping operations independent and rejects stale delivery", () => {
     let state = new Map<string, OperationEvent>();
     state = new Map(applyOperationEvent(state, event("first", 2, 20)));

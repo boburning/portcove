@@ -9843,6 +9843,37 @@
         "type": "object"
       },
       {
+        "description": "Best-effort, exact source discovery evidence. Registration still requires\na fresh import plan and explicit acceptance.",
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "profile_id": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "type": {
+            "const": "source_candidate",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "profile_id",
+          "path",
+          "sha256",
+          "size"
+        ],
+        "type": "object"
+      },
+      {
         "properties": {
           "completed": {
             "format": "uint64",

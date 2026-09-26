@@ -102,7 +102,7 @@ impl PortcoveService {
         emit(operation.started());
         let result = self.finish_activity(
             activity,
-            scan(self.catalog(), request, &operation, vec![], None),
+            scan_with_events(self.catalog(), request, &operation, vec![], None, &mut emit),
         );
         emit(operation.finished(crate::OperationResult::from_result(&result)));
         result
@@ -129,20 +129,19 @@ impl PortcoveService {
         emit(operation.started());
         let result = self.finish_activity(
             activity,
-            build_game_file_scan_with_registry(self.catalog(), self.library(), limits, &operation)
-                .and_then(|(snapshot, expected_outputs)| {
-                    publish_game_file_scan(
-                        self.library(),
-                        &operation,
-                        &snapshot,
-                        &expected_outputs,
-                    )?;
-                    current_game_file_scan(self.catalog(), self.library())?.ok_or_else(|| {
-                        PortcoveError::state(
-                            "game-file scan snapshot disappeared after publication",
-                        )
-                    })
-                }),
+            build_game_file_scan_with_registry_events(
+                self.catalog(),
+                self.library(),
+                limits,
+                &operation,
+                &mut emit,
+            )
+            .and_then(|(snapshot, expected_outputs)| {
+                publish_game_file_scan(self.library(), &operation, &snapshot, &expected_outputs)?;
+                current_game_file_scan(self.catalog(), self.library())?.ok_or_else(|| {
+                    PortcoveError::state("game-file scan snapshot disappeared after publication")
+                })
+            }),
         );
         emit(operation.finished(crate::OperationResult::from_result(&result)));
         result
@@ -174,11 +173,22 @@ fn build_game_file_scan(
         .map(|(snapshot, _)| snapshot)
 }
 
+#[cfg(test)]
 fn build_game_file_scan_with_registry(
     catalog: &Catalog,
     library: &crate::Library,
     limits: &SourceDiscoveryLimits,
     operation: &crate::OperationCoordinator,
+) -> Result<(GameFileScanSnapshot, Vec<crate::library::OutputRootRecord>)> {
+    build_game_file_scan_with_registry_events(catalog, library, limits, operation, &mut |_| {})
+}
+
+fn build_game_file_scan_with_registry_events(
+    catalog: &Catalog,
+    library: &crate::Library,
+    limits: &SourceDiscoveryLimits,
+    operation: &crate::OperationCoordinator,
+    emit: &mut dyn FnMut(crate::OperationEvent),
 ) -> Result<(GameFileScanSnapshot, Vec<crate::library::OutputRootRecord>)> {
     let roots = library.game_file_roots()?;
     if roots.len() > 8 {
@@ -217,7 +227,14 @@ fn build_game_file_scan_with_registry(
         path: fs::canonicalize(&record.path).unwrap_or_else(|_| record.path.clone()),
         kind: DiscoveryExclusionKind::ManagedOutput,
     }));
-    let mut report = scan(catalog, &request, operation, exclusions, Some(library))?;
+    let mut report = scan_with_events(
+        catalog,
+        &request,
+        operation,
+        exclusions,
+        Some(library),
+        emit,
+    )?;
     for root in roots
         .iter()
         .filter(|root| root.availability == GameFileRootAvailability::Unavailable)
@@ -331,6 +348,7 @@ struct Discovery<'a> {
     budget: HashBudget,
     exclusions: Vec<DiscoveryExclusion>,
     output_library: Option<&'a crate::Library>,
+    emit: &'a mut dyn FnMut(crate::OperationEvent),
 }
 
 struct DiscoveryExclusion {
@@ -399,12 +417,31 @@ impl DiscoveryExclusionKind {
     }
 }
 
+#[cfg(test)]
 fn scan(
     catalog: &Catalog,
     request: &SourceDiscoveryRequest,
     operation: &crate::OperationCoordinator,
     exclusions: Vec<DiscoveryExclusion>,
     output_library: Option<&crate::Library>,
+) -> Result<SourceDiscoveryReport> {
+    scan_with_events(
+        catalog,
+        request,
+        operation,
+        exclusions,
+        output_library,
+        &mut |_| {},
+    )
+}
+
+fn scan_with_events<'a>(
+    catalog: &'a Catalog,
+    request: &SourceDiscoveryRequest,
+    operation: &crate::OperationCoordinator,
+    exclusions: Vec<DiscoveryExclusion>,
+    output_library: Option<&'a crate::Library>,
+    emit: &'a mut dyn FnMut(crate::OperationEvent),
 ) -> Result<SourceDiscoveryReport> {
     validate_request(request)?;
     let mut roots = Vec::new();
@@ -459,6 +496,7 @@ fn scan(
         },
         exclusions,
         output_library,
+        emit,
     };
     let omitted_owned_paths = discovery
         .exclusions
@@ -757,6 +795,13 @@ impl Discovery<'_> {
                             }
                         ) && let Some(candidate) = inspection.record
                         {
+                            (self.emit)(
+                                self.budget
+                                    .operation
+                                    .as_ref()
+                                    .expect("discovery always owns an operation")
+                                    .source_candidate(&candidate),
+                            );
                             self.report.candidates.push(candidate);
                             if self.report.candidates.len() >= self.limits.max_candidates as usize {
                                 break;

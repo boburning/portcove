@@ -2418,6 +2418,11 @@ fn progress_renderer(mode: OutputMode) -> impl FnMut(OperationEvent) {
             serde_json::to_string(&event).expect("operation event is serializable")
         ),
         OutputMode::Human => match event.event {
+            OperationEventKind::SourceCandidate {
+                profile_id, path, ..
+            } => {
+                eprintln!("Exact candidate for {profile_id}: {}", path.display());
+            }
             OperationEventKind::Progress {
                 phase,
                 completed,

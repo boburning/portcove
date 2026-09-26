@@ -114,7 +114,7 @@ tool and preservation consequences. A stale plan needs renewed review. Source
 registration and install/update are separate observable mutations; a later
 failure does not imply earlier registration was undone.
 
-Event records have **event schema 2 at the root**; they are not nested in API
+Current event records have **event schema 3 at the root**; they are not nested in API
 envelopes. A final root record has `type: "result"` and a negotiated API
 schema within the client's 42–55 window. Some
 commands emit only the result. Track sequences per operation ID and parent IDs;
@@ -123,6 +123,13 @@ result and matching exit status establish the command response; refresh core
 state before claiming the requested installed state. Missing/reordered events,
 malformed output, a missing final result or exit disagreement require readback,
 never automatic mutation replay.
+
+Event schema 3 adds `source_candidate` during source discovery. It carries an
+exact matched `profile_id`, absolute `path`, SHA-256 digest, and byte `size`.
+The event is provisional progress evidence; a completed discovery report or
+saved-root scan snapshot and a fresh core import plan still govern registration.
+Event schema 2 remains valid for clients paired with older CLIs. Negotiate the
+advertised event version before consuming JSONL.
 
 `cancel <operation-id>` requests cancellation of a known operation. Wait for the
 core result; a request acknowledgment is not completion. Use `activity --limit

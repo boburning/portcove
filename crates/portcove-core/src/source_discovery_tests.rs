@@ -147,6 +147,56 @@ fn saved_roots_scan_the_catalog_and_persist_one_current_snapshot() {
 }
 
 #[test]
+fn exact_candidates_stream_before_the_saved_root_snapshot_is_published() {
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path().join("selected");
+    fs::create_dir(&root).unwrap();
+    let payload = b"synthetic supported source";
+    fs::write(root.join("renamed.z64"), payload).unwrap();
+    let catalog = overlapping_catalog(payload, payload);
+    let library = crate::Library::open(temporary.path().join("library")).unwrap();
+    library.add_game_file_root(&root).unwrap();
+    let operation = crate::OperationCoordinator::new("saved-root-scan", None);
+    let mut events = Vec::new();
+    let (snapshot, _) = super::build_game_file_scan_with_registry_events(
+        &catalog,
+        &library,
+        &SourceDiscoveryLimits::default(),
+        &operation,
+        &mut |event| {
+            assert!(library.stored_game_file_scan_snapshot().unwrap().is_none());
+            events.push(event);
+        },
+    )
+    .unwrap();
+    assert_eq!(events.len(), 2);
+    for event in &events {
+        assert_eq!(event.schema_version, 3);
+        if let crate::OperationEventKind::SourceCandidate {
+            profile_id,
+            path,
+            sha256,
+            size,
+        } = &event.event
+        {
+            let candidate = snapshot
+                .report
+                .candidates
+                .iter()
+                .find(|candidate| &candidate.profile_id == profile_id)
+                .unwrap();
+            assert_eq!(profile_id, &candidate.profile_id);
+            assert_eq!(path, &candidate.path);
+            assert_eq!(sha256, &candidate.sha256);
+            assert_eq!(size, &candidate.size);
+        } else {
+            panic!("expected exact source candidate event");
+        }
+    }
+    assert!(events[0].sequence < events[1].sequence);
+}
+
+#[test]
 fn saved_root_excludes_its_nested_library_before_entry_and_hash_budgets() {
     let temporary = tempfile::tempdir().unwrap();
     let root = temporary.path().join("selected");

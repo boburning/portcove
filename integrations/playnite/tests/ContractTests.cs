@@ -107,9 +107,14 @@ internal static class ContractTests
         Check(ProtocolStream.Negotiate(lifecycleOnly, ConsumerCapability.Lifecycle) == 2,
             "lifecycle negotiation consumes the advertised operation-event schema");
         var badEvent = Json.Object(Json.Parse(Json.Print(lifecycleOnly)));
-        badEvent["operation_event_schema_version"] = 3;
+        badEvent["operation_event_schema_version"] = 4;
         Reject(() => ProtocolStream.Negotiate(badEvent, ConsumerCapability.Lifecycle),
             "unknown lifecycle event schema rejected");
+        var currentEvent = Json.Object(Json.Parse(Json.Print(lifecycleOnly)));
+        currentEvent["schema_version"] = 55;
+        currentEvent["operation_event_schema_version"] = 3;
+        Check(ProtocolStream.Negotiate(currentEvent, ConsumerCapability.Lifecycle) == 3,
+            "current lifecycle negotiates event schema 3");
         var missingEvent = Json.Object(Json.Parse(Json.Print(lifecycleOnly)));
         missingEvent.Remove("operation_event_schema_version");
         Reject(() => ProtocolStream.Negotiate(missingEvent, ConsumerCapability.Lifecycle),
@@ -234,6 +239,27 @@ internal static class ContractTests
         Check(absent.Finish(0) == null, "absent launch remains unknown/null");
         var stream = new ProtocolStream("ensure"); stream.Line(Event(0)); stream.Line(Event(1)); stream.Line(Result("ensure", new { id = "owned" }));
         Check(Json.Text(stream.Finish(0), "id") == "owned" && !stream.EventGap, "events terminate in one verified result");
+        var candidate = Json.Object(Json.Parse(Event(0)));
+        candidate["schema_version"] = 3;
+        candidate["sequence"] = 1;
+        candidate["type"] = "source_candidate";
+        candidate["profile_id"] = "game";
+        candidate["path"] = @"C:\Games\game.z64";
+        candidate["sha256"] = new string('a', 64);
+        candidate["size"] = 64;
+        var currentStream = new ProtocolStream("ensure", operationEventSchemaVersion: 3);
+        var currentStarted = Json.Object(Json.Parse(Event(0)));
+        currentStarted["schema_version"] = 3;
+        currentStream.Line(Json.Print(currentStarted));
+        currentStream.Line(Json.Print(candidate));
+        currentStream.Line(Result("ensure", null));
+        currentStream.Finish(0);
+        Check(!currentStream.EventGap, "schema-3 exact candidate preserves sequence without changing lifecycle result");
+        Reject(() => new ProtocolStream("ensure").Line(Json.Print(candidate)), "schema-2 stream rejects schema-3 candidate");
+        var malformedCandidate = Json.Object(Json.Parse(Json.Print(candidate)));
+        malformedCandidate["sha256"] = "not-a-digest";
+        Reject(() => new ProtocolStream("ensure", operationEventSchemaVersion: 3).Line(Json.Print(malformedCandidate)),
+            "schema-3 candidate with malformed digest rejected");
         Reject(() => stream.Line(Result("ensure", null)), "duplicate terminal result rejected");
         var wrong = new ProtocolStream("status");
         Reject(() => wrong.Line(Result("ensure", null)), "wrong command result rejected");

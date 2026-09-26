@@ -4,7 +4,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { desktopApi } from "../api";
 import * as picker from "../file-picker";
-import type { GameFileRoot, GameFileScanSnapshot } from "../types";
+import type { GameFileRoot, GameFileScanSnapshot, OperationEvent } from "../types";
 import { GameFileLibraries } from "./GameFileLibraries";
 
 const saved: GameFileRoot = {
@@ -85,6 +85,45 @@ it("scans only after a player asks and keeps exact results as reviewed candidate
   expect(document.body.textContent).toContain("D:/Games/game.z64");
   expect(document.body.textContent).toContain("File and folder count");
   expect(document.body.textContent).toContain("Remove or relink saved folders");
+  expect(desktopApi.importSource).not.toHaveBeenCalled();
+});
+
+it("shows streamed exact matches during a scan and waits for the completed snapshot to offer review", async () => {
+  vi.mocked(desktopApi.gameFileScanSnapshot)
+    .mockResolvedValueOnce(null)
+    .mockResolvedValue(snapshot);
+  let onEvent: ((event: OperationEvent) => void) | undefined;
+  let finish: ((value: GameFileScanSnapshot) => void) | undefined;
+  vi.mocked(desktopApi.scanGameFileRoots).mockImplementation((_limits, callback) => {
+    onEvent = callback;
+    return new Promise<GameFileScanSnapshot>((resolve) => {
+      finish = resolve;
+    });
+  });
+  await act(async () => button("Scan saved folders").click());
+  expect(onEvent).toBeDefined();
+  await act(async () =>
+    onEvent?.({
+      schema_version: 3,
+      operation_id: "scan-1",
+      parent_operation_id: null,
+      target: null,
+      sequence: 1,
+      timestamp_ms: 1,
+      operation: "discover_sources",
+      type: "source_candidate",
+      profile_id: "game",
+      path: "D:/Games/game.z64",
+      sha256: "b".repeat(64),
+      size: 64,
+    }),
+  );
+  expect(document.body.textContent).toContain("Matches found so far");
+  expect(document.body.textContent).toContain("D:/Games/game.z64");
+  expect(document.body.querySelector('[aria-label="Matches found during scan"] button')).toBeNull();
+  await act(async () => finish?.(snapshot));
+  expect(document.body.textContent).not.toContain("Matches found so far");
+  expect(button("Review source").disabled).toBe(false);
   expect(desktopApi.importSource).not.toHaveBeenCalled();
 });
 
