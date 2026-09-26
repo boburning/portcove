@@ -150,6 +150,50 @@ it("blocks apply while Steam is running and clears a review when the target chan
   expect(preview).toHaveBeenCalledTimes(2);
 });
 
+it("selects an explicit discovered profile and clears it when the installation changes", async () => {
+  const list = vi.spyOn(desktopApi, "listSteamProfiles").mockResolvedValue(["12345", "987"]);
+  const preview = vi.spyOn(desktopApi, "previewSteamEntry").mockResolvedValue(review);
+  await act(async () =>
+    root.render(<SteamEntryDialog port={port} generation={7} installed close={vi.fn()} />),
+  );
+  await input("Steam installation folder", "C:\\Steam");
+  await click("Find local profiles");
+  expect(list).toHaveBeenCalledExactlyOnceWith("C:\\Steam", 7);
+  expect(document.body.querySelector<HTMLInputElement>("#steam-profile")?.value).toBe("");
+  await click("12345");
+  expect(document.body.querySelector<HTMLInputElement>("#steam-profile")?.value).toBe("12345");
+  await click("Review shortcut setup");
+  expect(preview).toHaveBeenCalledExactlyOnceWith(
+    port.id,
+    "C:\\Steam",
+    "12345",
+    "add_or_repair",
+    7,
+  );
+  await input("Steam installation folder", "D:\\Steam");
+  expect(document.body.querySelector<HTMLInputElement>("#steam-profile")?.value).toBe("");
+  expect(document.body.querySelector('[aria-label="Local Steam profiles"]')).toBeNull();
+  expect(document.body.textContent).not.toContain(review.shortcuts_path);
+});
+
+it("does not show discovery results after the installation changes", async () => {
+  let resolveProfiles: (profiles: string[]) => void = () => {};
+  vi.spyOn(desktopApi, "listSteamProfiles").mockImplementation(
+    () =>
+      new Promise((resolve) => {
+        resolveProfiles = resolve;
+      }),
+  );
+  await act(async () =>
+    root.render(<SteamEntryDialog port={port} generation={7} installed close={vi.fn()} />),
+  );
+  await input("Steam installation folder", "C:\\Steam");
+  await click("Find local profiles");
+  await input("Steam installation folder", "D:\\Steam");
+  await act(async () => resolveProfiles(["12345"]));
+  expect(document.body.querySelector('[aria-label="Local Steam profiles"]')).toBeNull();
+});
+
 it("keeps the reviewed plan visible when native consent is declined", async () => {
   vi.spyOn(desktopApi, "previewSteamEntry").mockResolvedValue(review);
   vi.spyOn(desktopApi, "applySteamEntry").mockResolvedValue(null);

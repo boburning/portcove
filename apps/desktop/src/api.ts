@@ -189,6 +189,8 @@ export const desktopApi = {
     invoke<CliCommandContext>("get_cli_command_context", { generation }),
   libraryIdentity: (generation: number) =>
     invoke<LibraryIdentity>("get_library_identity", { generation }),
+  listSteamProfiles: (steamRoot: string, generation: number) =>
+    invoke<string[]>("list_steam_profiles", { steamRoot, generation }),
   previewSteamEntry: (
     portId: string,
     steamRoot: string,

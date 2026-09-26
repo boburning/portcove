@@ -29,6 +29,8 @@ const JOURNAL_FILE: &str = "shortcuts.vdf.portcove-journal.json";
 const JOURNAL_TEMPORARY_FILE: &str = "shortcuts.vdf.portcove-journal.tmp";
 const REPLACEMENT_TEMPORARY_FILE: &str = "shortcuts.vdf.portcove-replace.tmp";
 const ORIGINAL_SWAP_FILE: &str = "shortcuts.vdf.portcove-original.tmp";
+const MAX_PROFILE_DIRECTORY_ENTRIES: usize = 4096;
+const MAX_LISTED_PROFILES: usize = 128;
 
 #[derive(Debug, Error)]
 pub enum SteamEntryError {
@@ -51,6 +53,72 @@ pub enum SteamEntryError {
 }
 
 type Result<T> = std::result::Result<T, SteamEntryError>;
+
+/// Read-only discovery of local userdata folders. A folder number is not an
+/// account identity; the player still selects the exact profile explicitly.
+pub(crate) fn local_steam_profiles(steam_root: &Path) -> Result<Vec<String>> {
+    if !steam_root.is_absolute() {
+        return Err(SteamEntryError::InvalidInput(
+            "Steam installation path must be absolute".into(),
+        ));
+    }
+    let root = fs::canonicalize(steam_root)
+        .map_err(|source| io_error("resolving the selected Steam installation", source))?;
+    if !root.is_dir() {
+        return Err(SteamEntryError::InvalidInput(
+            "selected Steam installation is not a directory".into(),
+        ));
+    }
+    let userdata = root.join("userdata");
+    let metadata = match fs::symlink_metadata(&userdata) {
+        Ok(metadata) => metadata,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
+        Err(source) => return Err(io_error("reading Steam userdata", source)),
+    };
+    if metadata.file_type().is_symlink() || !metadata.is_dir() {
+        return Err(SteamEntryError::InvalidInput(
+            "Steam userdata is not a regular directory".into(),
+        ));
+    }
+    let mut profiles = Vec::new();
+    let entries =
+        fs::read_dir(&userdata).map_err(|source| io_error("listing Steam userdata", source))?;
+    for (index, entry) in entries.enumerate() {
+        if index >= MAX_PROFILE_DIRECTORY_ENTRIES {
+            return Err(SteamEntryError::InvalidInput(
+                "Steam userdata has too many entries to list safely; enter the exact profile ID manually".into(),
+            ));
+        }
+        let entry = entry.map_err(|source| io_error("listing Steam userdata", source))?;
+        let id = entry.file_name();
+        let Some(id) = id.to_str() else { continue };
+        if id.is_empty() || !id.bytes().all(|byte| byte.is_ascii_digit()) {
+            continue;
+        }
+        let kind = entry
+            .file_type()
+            .map_err(|source| io_error("checking Steam profile", source))?;
+        if !kind.is_dir() || kind.is_symlink() {
+            continue;
+        }
+        let config = entry.path().join("config");
+        let config_metadata = match fs::symlink_metadata(&config) {
+            Ok(metadata) => metadata,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,
+            Err(source) => return Err(io_error("checking Steam profile config", source)),
+        };
+        if config_metadata.is_dir() && !config_metadata.file_type().is_symlink() {
+            profiles.push(id.to_owned());
+            if profiles.len() > MAX_LISTED_PROFILES {
+                return Err(SteamEntryError::InvalidInput(
+                    "Steam userdata has too many profiles to list safely; enter the exact profile ID manually".into(),
+                ));
+            }
+        }
+    }
+    profiles.sort();
+    Ok(profiles)
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct SteamGameEntryTarget {
@@ -1485,6 +1553,33 @@ fn io_error(context: impl Into<String>, source: std::io::Error) -> SteamEntryErr
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn local_profile_discovery_lists_only_numeric_regular_profiles() {
+        let fixture = Fixture::new();
+        let userdata = fixture.steam_root.join("userdata");
+        fs::create_dir_all(userdata.join("987/config")).unwrap();
+        fs::create_dir_all(userdata.join("nonnumeric/config")).unwrap();
+        fs::create_dir_all(userdata.join("42")).unwrap();
+        assert_eq!(
+            local_steam_profiles(&fixture.steam_root).unwrap(),
+            vec!["12345", "987"]
+        );
+        assert!(!fixture.config.join(SHORTCUTS_FILE).exists());
+    }
+
+    #[test]
+    fn local_profile_discovery_rejects_unbounded_userdata() {
+        let fixture = Fixture::new();
+        let userdata = fixture.steam_root.join("userdata");
+        for index in 0..MAX_PROFILE_DIRECTORY_ENTRIES {
+            fs::write(userdata.join(format!("other-{index}")), b"").unwrap();
+        }
+        assert!(matches!(
+            local_steam_profiles(&fixture.steam_root),
+            Err(SteamEntryError::InvalidInput(_))
+        ));
+    }
 
     struct Fixture {
         _root: tempfile::TempDir,

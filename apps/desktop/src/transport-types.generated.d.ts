@@ -477,6 +477,7 @@ export type ApplicationUpdateRecoveryArea = "schedule" | "staging" | "apply";
 export type SteamEntryChangeKind = "add" | "repair" | "remove" | "unchanged";
 export type SteamClientState = "closed" | "running" | "unknown";
 export type SteamEntryOperation = "add_or_repair" | "remove";
+export type OutputDesktopSteamProfiles = string[];
 
 export interface TransportOutputs {
   about: OutputAbout;
@@ -590,6 +591,7 @@ export interface TransportOutputs {
   desktop_steam_batch_review: OutputDesktopSteamBatchReview;
   desktop_steam_entry_apply_result: OutputDesktopSteamEntryApplyResult;
   desktop_steam_entry_review: OutputDesktopSteamEntryReview;
+  desktop_steam_profiles: OutputDesktopSteamProfiles;
   desktop_update_check_outcome: OutputCheckBatchOutcome;
   desktop_workspace_snapshot: OutputDesktopWorkspaceSnapshot;
 }

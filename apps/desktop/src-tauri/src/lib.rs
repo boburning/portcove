@@ -2129,6 +2129,7 @@ pub fn run() {
             application_update_status::get_application_update_status,
             application_update_status::recover_application_update_state,
             cli_context::get_cli_command_context,
+            steam_entry_commands::list_steam_profiles,
             steam_entry_commands::preview_steam_entry,
             steam_entry_commands::apply_steam_entry,
             steam_entry_commands::preview_steam_batch_add,

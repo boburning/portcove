@@ -77,6 +77,7 @@ fn main() {
                 "external_runtime_removal_preview": output::<portcove_core::ExternalRuntimeRemovalPreview>(),
                 "external_runtime_record": output::<portcove_core::ExternalRuntimeRecord>(),
                 "steam_entry_review": output::<SteamEntryReview>(),
+                "steam_profiles": output::<Vec<String>>(),
                 "steam_batch_review": output::<SteamBatchReview>(),
                 "steam_entry_apply_result": output::<SteamEntryApplyResult>(),
             },
