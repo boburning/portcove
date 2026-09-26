@@ -340,6 +340,7 @@ export function GameFileLibraries({
   const [refreshConfirmed, setRefreshConfirmed] = useState(true);
   const sourceVisible = Boolean(
     refreshConfirmed &&
+    !workspaceRefreshFailed &&
     registeredSource &&
     registeredSources.some(
       (source) =>

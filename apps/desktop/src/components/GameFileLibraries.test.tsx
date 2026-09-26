@@ -154,6 +154,41 @@ it("marks matching registered candidates without claiming installation and keeps
   expect(button("Review source").disabled).toBe(true);
 });
 
+it("holds a prior setup continuation when a later workspace refresh fails", async () => {
+  const source = snapshot.report.candidates[0];
+  const ports = [{ ...portDefinition(), id: "game-a", name: "Game A", source_profile: "game" }];
+  const onOpenPort = vi.fn();
+  await act(async () =>
+    root.render(
+      <GameFileLibraries
+        ports={ports}
+        profiles={[]}
+        registeredSources={[source]}
+        setupSource={source}
+        setSetupSource={() => {}}
+        onOpenPort={onOpenPort}
+      />,
+    ),
+  );
+  expect(button("Open Game A details").disabled).toBe(false);
+  await act(async () =>
+    root.render(
+      <GameFileLibraries
+        ports={ports}
+        profiles={[]}
+        registeredSources={[source]}
+        workspaceRefreshFailed
+        setupSource={source}
+        setSetupSource={() => {}}
+        onOpenPort={onOpenPort}
+      />,
+    ),
+  );
+  expect(button("Open Game A details").disabled).toBe(true);
+  expect(document.body.textContent).toContain("Use Retry refresh before continuing");
+  expect(onOpenPort).not.toHaveBeenCalled();
+});
+
 it("recognizes a registered source in streamed results but still reviews a different identity", async () => {
   const source = snapshot.report.candidates[0];
   let onEvent: ((event: OperationEvent) => void) | undefined;
