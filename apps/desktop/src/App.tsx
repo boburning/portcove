@@ -24,6 +24,7 @@ import {
 import { useDetailWorkspaceNavigation } from "./features/app-shell/use-detail-workspace-navigation";
 import { focusDiscTool } from "./features/app-shell/focus-disc-tool";
 import { focusSettingsTarget } from "./features/app-shell/focus-settings-target";
+import { useSetupSource } from "./features/app-shell/use-setup-source";
 import { focusApplicationUpdateRoute } from "./features/application-update/focus-application-update-route";
 import {
   useLibrarySelectionLanding,
@@ -285,6 +286,7 @@ function Workspace({
   consumeLibrarySelectionReturn: () => void;
 }) {
   const data = usePortcoveData(bootstrap.generation);
+  const [setupSource, setSetupSource] = useSetupSource(data.sources);
   const operations = useOperationState({
     refresh: data.retryRefresh,
     refreshActivities: data.refreshActivities,
@@ -565,6 +567,8 @@ function Workspace({
               applicationUpdateNotice={applicationUpdate.notice}
               applicationUpdatePreferences={applicationUpdateChoice}
               openPortDetails={openPortDetails}
+              setupSource={setupSource}
+              setSetupSource={setSetupSource}
             />
           )}
         </main>
@@ -702,6 +706,8 @@ function CurrentView({
   applicationUpdateNotice,
   applicationUpdatePreferences,
   openPortDetails,
+  setupSource,
+  setSetupSource,
 }: {
   data: DataState;
   ui: UiState;
@@ -719,6 +725,8 @@ function CurrentView({
   applicationUpdateNotice: ReturnType<typeof useApplicationUpdateNotice>["notice"];
   applicationUpdatePreferences: ReturnType<typeof useApplicationUpdateChoice>;
   openPortDetails: (portId: string, originKey?: string) => void;
+  setupSource?: SourceRecord;
+  setSetupSource: (source?: SourceRecord) => void;
 }) {
   if (ui.view === "updates")
     return (
@@ -766,6 +774,9 @@ function CurrentView({
         resetLibrary={resetLibrary}
         sourceProfiles={data.catalog?.source_profiles ?? []}
         onSourceAdded={data.refreshAfterMutation}
+        onOpenPort={openPortDetails}
+        setupSource={setupSource}
+        setSetupSource={setSetupSource}
         onCatalogChanged={data.refreshAfterMutation}
         onOpenGameUpdates={() => {
           ui.setView("updates");
@@ -856,6 +867,10 @@ function CurrentView({
         void operations.perform("launch", () => desktopApi.launch(portId, ""));
       }}
       onBrowseCatalog={() => ui.setView("catalog")}
+      onConnectGameFiles={() => {
+        ui.setView("settings");
+        window.requestAnimationFrame(() => focusSettingsTarget("add-game-file-root"));
+      }}
       steamBatch={{
         ports: installedSteamBatchPorts(data, model),
         generation: bootstrap.generation,
