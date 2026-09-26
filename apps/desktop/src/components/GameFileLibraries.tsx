@@ -76,6 +76,8 @@ export function GameFileLibraries({
   >([]);
   const heading = useRef<HTMLHeadingElement>(null);
   const focusAfterScan = useRef<{ profile_id: string; path: string } | undefined>(undefined);
+  const reviewedCandidate = useRef<{ profile_id: string; path: string } | undefined>(undefined);
+  const focusAfterReview = useRef(false);
   useEffect(() => {
     let active = true;
     void Promise.all([desktopApi.gameFileRoots(), desktopApi.gameFileScanSnapshot()])
@@ -109,6 +111,20 @@ export function GameFileLibraries({
       .querySelector<HTMLButtonElement>('[aria-label="Source import review"] button:not(:disabled)')
       ?.focus();
   }, [plan, busy]);
+  useEffect(() => {
+    if (plan || busy || !focusAfterReview.current) return;
+    focusAfterReview.current = false;
+    const candidate = reviewedCandidate.current;
+    const rows = document.querySelectorAll<HTMLElement>(
+      scanning ? "[data-live-candidate]" : "[data-completed-candidate]",
+    );
+    const row = [...rows].find(
+      (element) =>
+        element.dataset.profileId === candidate?.profile_id &&
+        element.dataset.path === candidate.path,
+    );
+    (row?.querySelector<HTMLButtonElement>("button:not(:disabled)") ?? heading.current)?.focus();
+  }, [plan, busy, scanning, snapshot]);
   const run = (label: string, task: () => Promise<void>) => {
     setBusy(label);
     setError(undefined);
@@ -221,6 +237,7 @@ export function GameFileLibraries({
     })();
   const review = (candidate: Pick<SourceRecord, "profile_id" | "path">) =>
     run("Checking the source…", async () => {
+      reviewedCandidate.current = candidate;
       setPlan(undefined);
       setPlan(
         await desktopApi.planSourceImport(
@@ -240,6 +257,7 @@ export function GameFileLibraries({
         plan.plan_sha256,
       );
       if (!result) return;
+      focusAfterReview.current = true;
       setPlan(undefined);
       setNotice(sourceImportNotice(result));
       await onAdded?.();
@@ -464,7 +482,10 @@ export function GameFileLibraries({
       <SourceImportReview
         plan={plan}
         busy={Boolean(busy)}
-        onCancel={() => setPlan(undefined)}
+        onCancel={() => {
+          focusAfterReview.current = true;
+          setPlan(undefined);
+        }}
         onApply={apply}
       />
     </article>

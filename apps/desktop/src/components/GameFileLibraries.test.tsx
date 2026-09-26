@@ -161,8 +161,11 @@ it("reviews a streamed match through a fresh core plan before the scan completes
   expect(button("Scan saved folders").disabled).toBe(true);
   expect(button("Relink").disabled).toBe(true);
   expect(desktopApi.importSource).not.toHaveBeenCalled();
+  await click("Cancel review");
+  expect(document.activeElement).toBe(button("Review source now"));
   await act(async () => finish?.(snapshot));
   expect(document.body.textContent).not.toContain("Matches found so far");
+  expect(document.activeElement).toBe(button("Review source"));
   expect(button("Review source").disabled).toBe(false);
   expect(desktopApi.importSource).not.toHaveBeenCalled();
 });
