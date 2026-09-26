@@ -1332,9 +1332,7 @@ describe("desktop components", () => {
       "Game updates and activity are in the Game updates workspace.",
     );
     expect(groupMarkup("updates")).toContain("Catalog updates");
-    expect(groupMarkup("updates")).toContain(
-      'class="settings-section-content settings-section-content-stacked"',
-    );
+    expect(groupMarkup("updates")).toContain('class="settings-section-content"');
     expect(groupMarkup("integrations")).toContain("GitHub connection");
     const advanced = groupMarkup("advanced");
     expect(advanced.indexOf("Create support bundle")).toBeLessThan(
@@ -1665,7 +1663,7 @@ describe("desktop components", () => {
     expect(index).toContain("Portcove &amp; catalog updates");
   });
 
-  it("keeps Appearance and Advanced tasks in full-width rows with their actions and warnings", () => {
+  it("keeps all Settings tasks in ordered full-width rows with their actions and warnings", () => {
     const html = renderToStaticMarkup(
       <SettingsView createSupportBundle={vi.fn()} refreshDiagnostics={vi.fn()} />,
     );
@@ -1673,13 +1671,29 @@ describe("desktop components", () => {
       html.indexOf('data-settings-group="appearance"'),
       html.indexOf('data-settings-group="library-storage"'),
     );
+    const groups = [
+      ["appearance", "library-storage", 2],
+      ["library-storage", "game-files", 2],
+      ["game-files", "updates", 2],
+      ["updates", "integrations", 2],
+      ["integrations", "advanced", 1],
+      ["advanced", null, 3],
+    ] as const;
+    for (const [id, next, rowCount] of groups) {
+      const start = html.indexOf(`data-settings-group="${id}"`);
+      const end = next ? html.indexOf(`data-settings-group="${next}"`) : html.length;
+      const section = html.slice(start, end);
+      expect(section).toContain('class="settings-section-content"');
+      expect(section.match(/class="settings-row(?: |")/gu)).toHaveLength(rowCount);
+      expect(section).not.toContain('class="settings-card');
+    }
     const advanced = html.slice(html.indexOf('data-settings-group="advanced"'));
-
-    expect(appearance).toContain('class="settings-section-content settings-section-content-rows"');
-    expect(appearance.match(/class="settings-row /gu)).toHaveLength(2);
     expect(appearance.indexOf("Color theme")).toBeLessThan(appearance.indexOf("Language"));
-    expect(advanced).toContain('class="settings-section-content settings-section-content-rows"');
-    expect(advanced.match(/class="settings-row /gu)).toHaveLength(3);
+    expect(html.indexOf("Library at startup")).toBeLessThan(html.indexOf("Files and capacity"));
+    expect(html.indexOf("Game-file verification")).toBeLessThan(html.indexOf("Disc tools"));
+    expect(html.indexOf("Choose how Portcove updates")).toBeLessThan(
+      html.indexOf("Catalog updates"),
+    );
     expect(advanced.indexOf("metadata may remain")).toBeLessThan(
       advanced.indexOf(">Create support bundle</button>"),
     );

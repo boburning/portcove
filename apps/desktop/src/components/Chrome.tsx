@@ -713,7 +713,7 @@ function GithubNotes({ status }: { status?: GithubAuthStatus }) {
 
 function GithubSettings({ github, busy }: { github?: GithubSettingsActions; busy?: string }) {
   return (
-    <article className="settings-card github-auth" data-focus-group>
+    <article className="settings-row github-auth" data-focus-group>
       <p className="eyebrow">GITHUB</p>
       <GithubConnection status={github?.status} />
       {github?.status?.device_login_available && <DeviceLogin login={github.deviceLogin} />}
@@ -849,7 +849,7 @@ function SourceHealth({
   const byProfile = new Map(outcomes.map((outcome) => [outcome.profile_id, outcome]));
   const profilesById = new Map(profiles.map((profile) => [profile.id, profile]));
   return (
-    <article className="settings-card source-health" data-focus-group>
+    <article className="settings-row source-health" data-focus-group>
       <p className="eyebrow">SOURCES</p>
       <div className="settings-title">
         <h2>Game-file verification</h2>
@@ -1350,7 +1350,6 @@ export function SettingsView({
         eyebrow="DISPLAY"
         title="Appearance"
         description="Choose how Portcove looks on this device."
-        layout="rows"
       >
         <AppearanceSettings appearance={appearance} />
         <LanguageSettings />
@@ -1420,7 +1419,6 @@ export function SettingsView({
             </Button>
           )
         }
-        layout="stacked"
       >
         <ApplicationUpdateSettings
           currentVersion={desktopPackage.version}
@@ -1448,7 +1446,6 @@ export function SettingsView({
         eyebrow="ADVANCED"
         title="Advanced"
         description="Inspect diagnostics, support information, privacy boundaries, and application details."
-        layout="rows"
       >
         <DiagnosticsCard
           busy={busy}
@@ -1481,7 +1478,6 @@ function SettingsSection({
   title,
   description,
   action,
-  layout = "grid",
   children,
 }: {
   id: string;
@@ -1489,7 +1485,6 @@ function SettingsSection({
   title: string;
   description: string;
   action?: ReactNode;
-  layout?: "grid" | "stacked" | "rows";
   children: ReactNode;
 }) {
   const headingId = `settings-${id}-heading`;
@@ -1503,11 +1498,7 @@ function SettingsSection({
         <p>{description}</p>
         {action}
       </div>
-      <div
-        className={`settings-section-content${layout === "stacked" ? " settings-section-content-stacked" : layout === "rows" ? " settings-section-content-rows" : ""}`}
-      >
-        {children}
-      </div>
+      <div className="settings-section-content">{children}</div>
     </section>
   );
 }
@@ -1586,7 +1577,7 @@ export function LibrarySelectionCard({
           ? "Default library"
           : "Selection unavailable";
   return (
-    <article className="settings-card" data-focus-group>
+    <article className="settings-row" data-focus-group>
       <p className="eyebrow">WHOLE PORTCOVE LIBRARY</p>
       <h2>Library at startup</h2>
       <code>{selection?.root ?? "Unavailable"}</code>
@@ -1703,7 +1694,7 @@ function HostReadiness({
   failure?: unknown;
 }) {
   return (
-    <article className="settings-card host-readiness">
+    <article className="settings-row host-readiness">
       <p className="eyebrow">HOST</p>
       <h2 id="disc-tools-heading" tabIndex={-1}>
         <Icon glyph={Wrench} />
@@ -1910,7 +1901,7 @@ function StorageCard({
     available >= 0 &&
     available <= total;
   return (
-    <article className="settings-card storage-card" data-focus-group>
+    <article className="settings-row storage-card" data-focus-group>
       <p className="eyebrow">CURRENT LIBRARY</p>
       <h2>
         <Icon glyph={HardDrive} />

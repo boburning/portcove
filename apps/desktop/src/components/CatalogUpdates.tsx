@@ -26,7 +26,7 @@ export function CatalogSettings({
 }) {
   const [open, setOpen] = useState(false);
   return (
-    <article className="settings-card" data-focus-group>
+    <article className="settings-row" data-focus-group>
       <p className="eyebrow">CATALOG</p>
       <h2>Catalog updates</h2>
       <CatalogOrigin provenance={provenance} />
