@@ -92,16 +92,29 @@ export function UpdateCenter({
     return () => window.clearInterval(interval);
   }, []);
   const installed = ports.filter((port) => statuses.get(port.id)?.active);
-  const byPort = new Map(outcomes.map((outcome) => [outcome.port_id, outcome]));
-  const checked = installed.filter((port) => {
-    const outcome = byPort.get(port.id);
-    return outcome?.ok && outcome.result?.port_id === port.id;
+  const external = ports.filter((port) => {
+    const status = statuses.get(port.id);
+    return !status?.active && status?.external_runtime;
   });
-  const available = checked.filter((port) => byPort.get(port.id)?.result?.update_available).length;
-  const complete = checked.length === installed.length;
+  const byPort = new Map(outcomes.map((outcome) => [outcome.port_id, outcome]));
+  const savedByPort = new Map(
+    installed.map((port) => {
+      const snapshot = currentUpdateSnapshot(statuses.get(port.id));
+      return [port.id, snapshot?.check.port_id === port.id ? snapshot : undefined] as const;
+    }),
+  );
+  const effectiveCheck = (portId: string) => {
+    const outcome = byPort.get(portId);
+    return outcome ? (outcome.ok ? outcome.result : null) : savedByPort.get(portId)?.check;
+  };
+  const checked = installed.filter((port) => {
+    return effectiveCheck(port.id)?.port_id === port.id;
+  });
+  const available = checked.filter((port) => effectiveCheck(port.id)?.update_available).length;
+  const complete = installed.length > 0 && checked.length === installed.length;
   const latestSavedCheck = Math.max(
     0,
-    ...installed.map((port) => currentUpdateSnapshot(statuses.get(port.id))?.checked_at ?? 0),
+    ...installed.map((port) => savedByPort.get(port.id)?.checked_at ?? 0),
   );
   const failed = outcomes.filter((outcome) => !outcome.ok).length;
   const staged = installed.filter((port) => statuses.get(port.id)?.staged).length;
@@ -112,7 +125,15 @@ export function UpdateCenter({
           <UpdateStat label="Installed" value={installed.length} icon={PackageCheck} />
           <UpdateStat
             label="Updates available"
-            value={complete ? available : available > 0 ? `${available}+` : "Unknown"}
+            value={
+              installed.length === 0
+                ? "—"
+                : complete
+                  ? available
+                  : available > 0
+                    ? `${available}+`
+                    : "Unknown"
+            }
             icon={Download}
             accent={available > 0}
           />
@@ -171,7 +192,8 @@ export function UpdateCenter({
           {installed.map((port) => {
             const status = statuses.get(port.id)!;
             const outcome = byPort.get(port.id);
-            const state = updateState(status, outcome);
+            const savedCheck = savedByPort.get(port.id)?.check;
+            const state = updateState(status, outcome, savedCheck);
             return (
               <button
                 data-focusable
@@ -198,7 +220,7 @@ export function UpdateCenter({
                   </div>
                   <div className="update-version">
                     <small>Latest eligible</small>
-                    <span>{releaseLabel(outcome?.result)}</span>
+                    <span>{releaseLabel(effectiveCheck(port.id))}</span>
                   </div>
                 </div>
                 <span className={`update-state ${state.tone}`}>{state.label}</span>
@@ -209,6 +231,42 @@ export function UpdateCenter({
             );
           })}
         </div>
+      )}
+      {external.length > 0 && (
+        <section className="external-update-section" aria-label="Externally updated games">
+          <h3>Externally updated games</h3>
+          <p className="update-explainer">
+            You prepare updates for these registered runtimes outside Portcove. Open a game to
+            review its registration and launch details.
+          </p>
+          <div className="update-list" data-focus-group>
+            {external.map((port) => {
+              const runtime = statuses.get(port.id)!.external_runtime!;
+              return (
+                <button
+                  data-focusable
+                  data-detail-origin={`updates:external:${port.id}`}
+                  className="update-row"
+                  key={port.id}
+                  onClick={() => onSelect(port.id, `updates:external:${port.id}`)}
+                >
+                  <div className="update-mark muted">{port.name.slice(0, 2).toUpperCase()}</div>
+                  <div className="update-title">
+                    <strong>{port.name}</strong>
+                    <small>Registered user-prepared runtime</small>
+                  </div>
+                  <div className="update-versions">
+                    <div className="update-version">
+                      <small>Registered version</small>
+                      <span>{runtime.version}</span>
+                    </div>
+                  </div>
+                  <span className="update-state muted">Updated externally</span>
+                </button>
+              );
+            })}
+          </div>
+        </section>
       )}
       <RecoveryReview
         generation={generation}
@@ -612,11 +670,14 @@ function policyLabel(policy: PortStatus["update_policy"]) {
   return Object.hasOwn(labels, policy) ? labels[policy] : "Update policy unavailable";
 }
 
-function updateState(status: PortStatus, outcome?: UpdateCheckOutcome) {
-  if (!outcome)
-    return status.staged
-      ? { label: "Update saved for later", tone: "staged" }
-      : { label: "Not checked", tone: "muted" };
+function updateState(status: PortStatus, outcome?: UpdateCheckOutcome, savedCheck?: UpdateCheck) {
+  if (!outcome) {
+    if (status.staged) return { label: "Update saved for later", tone: "staged" };
+    if (savedCheck?.update_available)
+      return { label: "Update available at last check", tone: "available" };
+    if (savedCheck) return { label: "No update found at last check", tone: "current" };
+    return { label: "Not checked", tone: "muted" };
+  }
   if (!outcome.ok) return { label: "Check failed", tone: "failed" };
   if (status.staged) return { label: "Update saved for later", tone: "staged" };
   if (!outcome.result) return { label: "Check result unavailable", tone: "muted" };

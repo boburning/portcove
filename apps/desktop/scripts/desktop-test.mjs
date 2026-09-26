@@ -937,6 +937,16 @@ try {
     await gameUpdatesLink.click();
     await browser.wait(until.elementLocated(By.css(".update-center")), 15_000);
     assert.equal(await browser.findElement(By.css("main h1")).getText(), "Game updates & activity");
+    assert.equal(
+      await browser.executeScript(() => {
+        const stat = [...document.querySelectorAll(".update-stat")].find(
+          (candidate) => candidate.querySelector("span")?.textContent === "Updates available",
+        );
+        return stat?.querySelector("strong")?.textContent;
+      }),
+      "—",
+      "An empty managed library must not report a completed zero-update check",
+    );
     await browser.wait(
       () => browser.executeScript(() => document.activeElement?.matches("main h1")),
       5_000,
