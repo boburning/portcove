@@ -1217,6 +1217,87 @@ try {
           15_000,
           "Themed game details did not return focus to the catalog card",
         );
+        await browser.executeScript(() => {
+          const card = [...document.querySelectorAll(".port-card-selectable")].find((item) =>
+            item.textContent?.includes("Castlevania: Legacy of Darkness Recompiled"),
+          );
+          if (!(card instanceof HTMLElement)) throw new Error("Long-title catalog card is missing");
+          card.scrollIntoView({ block: "center", inline: "nearest" });
+          card.click();
+        });
+        await browser.wait(until.elementLocated(By.css("[data-detail-workspace]")), 15_000);
+        await browser.wait(
+          () =>
+            browser.executeScript(() => {
+              const initials = document.querySelector(
+                ".detail-cover.artwork-image > span",
+              )?.textContent;
+              return Boolean(initials && initials !== "PC");
+            }),
+          15_000,
+          "Long-title cover fallback did not settle before visual capture",
+        );
+        for (const size of [
+          { width: 960, height: 640 },
+          { width: 1280, height: 800 },
+        ]) {
+          await browser.manage().window().setRect(size);
+          const actualWindow = await browser.manage().window().getRect();
+          assert.deepEqual(
+            { width: actualWindow.width, height: actualWindow.height },
+            size,
+            `Long-title window was clamped: ${JSON.stringify(actualWindow)}`,
+          );
+          const layout = await browser.executeScript(() => {
+            const title = document.querySelector("#port-detail-title");
+            const action = document.querySelector(
+              '.detail-body .primary-actions button[data-variant="primary"]',
+            );
+            if (!(title instanceof HTMLElement) || !(action instanceof HTMLElement))
+              throw new Error("Long-title detail title or primary action is missing");
+            const bounds = action.getBoundingClientRect();
+            const main = document.querySelector("main");
+            return {
+              title: title.textContent?.trim(),
+              titleClientWidth: title.clientWidth,
+              titleScrollWidth: title.scrollWidth,
+              titleClientHeight: title.clientHeight,
+              titleScrollHeight: title.scrollHeight,
+              // Chromium can count font ink just outside a fractional line box
+              // as scroll height even when the full heading is visible.
+              titleFits:
+                title.scrollWidth <= title.clientWidth + 1 &&
+                title.scrollHeight <= Math.ceil(title.getBoundingClientRect().height) + 2,
+              titleHeight: title.getBoundingClientRect().height,
+              lineHeight: Number.parseFloat(getComputedStyle(title).lineHeight),
+              action: {
+                label: action.textContent?.trim(),
+                top: bounds.top,
+                bottom: bounds.bottom,
+                left: bounds.left,
+                right: bounds.right,
+              },
+              viewport: { width: window.innerWidth, height: window.innerHeight },
+              horizontalOverflow: Boolean(main && main.scrollWidth > main.clientWidth + 1),
+            };
+          });
+          await captureScenarioScreenshot(`game-details-long-title-${theme}-${size.width}`, true);
+          assert.equal(layout.title, "Castlevania: Legacy of Darkness Recompiled");
+          assert.equal(layout.titleFits, true, JSON.stringify(layout));
+          if (size.width === 960)
+            assert.ok(layout.titleHeight > layout.lineHeight * 1.5, JSON.stringify(layout));
+          assert.equal(layout.action.label, "Choose game files");
+          assert.equal(layout.horizontalOverflow, false);
+          assert.ok(
+            layout.action.top >= 0 &&
+              layout.action.bottom <= layout.viewport.height &&
+              layout.action.left >= 0 &&
+              layout.action.right <= layout.viewport.width,
+            `Long-title primary action must remain visible: ${JSON.stringify(layout)}`,
+          );
+        }
+        await browser.findElement(By.css(".detail-back")).click();
+        await browser.wait(until.elementLocated(By.id("port-search")), 15_000);
         await browser.manage().window().setRect({ width: 960, height: 640 });
       }
     } finally {
