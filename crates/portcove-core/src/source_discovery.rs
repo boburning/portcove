@@ -100,8 +100,10 @@ impl PortcoveService {
             None,
         )?;
         emit(operation.started());
-        let result =
-            self.finish_activity(activity, scan(self.catalog(), request, &operation, None));
+        let result = self.finish_activity(
+            activity,
+            scan(self.catalog(), request, &operation, vec![], None),
+        );
         emit(operation.finished(crate::OperationResult::from_result(&result)));
         result
     }
@@ -127,16 +129,20 @@ impl PortcoveService {
         emit(operation.started());
         let result = self.finish_activity(
             activity,
-            build_game_file_scan(self.catalog(), self.library(), limits, &operation).and_then(
-                |snapshot| {
-                    publish_game_file_scan(self.library(), &operation, &snapshot)?;
+            build_game_file_scan_with_registry(self.catalog(), self.library(), limits, &operation)
+                .and_then(|(snapshot, expected_outputs)| {
+                    publish_game_file_scan(
+                        self.library(),
+                        &operation,
+                        &snapshot,
+                        &expected_outputs,
+                    )?;
                     current_game_file_scan(self.catalog(), self.library())?.ok_or_else(|| {
                         PortcoveError::state(
                             "game-file scan snapshot disappeared after publication",
                         )
                     })
-                },
-            ),
+                }),
         );
         emit(operation.finished(crate::OperationResult::from_result(&result)));
         result
@@ -151,17 +157,29 @@ fn publish_game_file_scan(
     library: &crate::Library,
     operation: &crate::OperationCoordinator,
     snapshot: &GameFileScanSnapshot,
+    expected_outputs: &[crate::library::OutputRootRecord],
 ) -> Result<()> {
     operation.begin_publication()?;
-    library.replace_game_file_scan_snapshot(snapshot)
+    library.replace_game_file_scan_snapshot_if_outputs_match(snapshot, expected_outputs)
 }
 
+#[cfg(test)]
 fn build_game_file_scan(
     catalog: &Catalog,
     library: &crate::Library,
     limits: &SourceDiscoveryLimits,
     operation: &crate::OperationCoordinator,
 ) -> Result<GameFileScanSnapshot> {
+    build_game_file_scan_with_registry(catalog, library, limits, operation)
+        .map(|(snapshot, _)| snapshot)
+}
+
+fn build_game_file_scan_with_registry(
+    catalog: &Catalog,
+    library: &crate::Library,
+    limits: &SourceDiscoveryLimits,
+    operation: &crate::OperationCoordinator,
+) -> Result<(GameFileScanSnapshot, Vec<crate::library::OutputRootRecord>)> {
     let roots = library.game_file_roots()?;
     if roots.len() > 8 {
         return Err(PortcoveError::usage(
@@ -188,7 +206,18 @@ fn build_game_file_scan(
             .collect(),
         limits: limits.clone(),
     };
-    let mut report = scan(catalog, &request, operation, Some(library.root()))?;
+    let mut exclusions = vec![DiscoveryExclusion {
+        path: fs::canonicalize(library.root())?,
+        kind: DiscoveryExclusionKind::Library,
+    }];
+    // Claimed custom roots are stored under their canonical identity. Retain
+    // the exclusion even when the volume is temporarily unavailable.
+    let expected_outputs = library.output_roots()?;
+    exclusions.extend(expected_outputs.iter().map(|record| DiscoveryExclusion {
+        path: fs::canonicalize(&record.path).unwrap_or_else(|_| record.path.clone()),
+        kind: DiscoveryExclusionKind::ManagedOutput,
+    }));
+    let mut report = scan(catalog, &request, operation, exclusions, Some(library))?;
     for root in roots
         .iter()
         .filter(|root| root.availability == GameFileRootAvailability::Unavailable)
@@ -203,15 +232,18 @@ fn build_game_file_scan(
             report.issues_omitted += 1;
         }
     }
-    Ok(GameFileScanSnapshot {
-        format_version: 2,
-        catalog_sha256: catalog_sha256(catalog)?,
-        roots,
-        limits: Some(limits.clone()),
-        report,
-        completed_at: crate::Library::now(),
-        freshness: GameFileScanFreshness::InputsMatch,
-    })
+    Ok((
+        GameFileScanSnapshot {
+            format_version: 2,
+            catalog_sha256: catalog_sha256(catalog)?,
+            roots,
+            limits: Some(limits.clone()),
+            report,
+            completed_at: crate::Library::now(),
+            freshness: GameFileScanFreshness::InputsMatch,
+        },
+        expected_outputs,
+    ))
 }
 
 fn current_game_file_scan(
@@ -297,17 +329,84 @@ struct Discovery<'a> {
     limits: &'a SourceDiscoveryLimits,
     reached: BTreeSet<SourceDiscoveryLimit>,
     budget: HashBudget,
-    excluded_library: Option<PathBuf>,
+    exclusions: Vec<DiscoveryExclusion>,
+    output_library: Option<&'a crate::Library>,
+}
+
+struct DiscoveryExclusion {
+    path: PathBuf,
+    kind: DiscoveryExclusionKind,
+}
+
+enum DiscoveryExclusionKind {
+    Library,
+    ManagedOutput,
+}
+
+fn path_within(path: &Path, parent: &Path) -> bool {
+    if path.starts_with(parent) {
+        return true;
+    }
+    #[cfg(windows)]
+    {
+        let path_depth = path.components().count();
+        let parent_depth = parent.components().count();
+        if path_depth < parent_depth {
+            return false;
+        }
+        let mut path_parts = path.components();
+        if !parent.components().all(|expected| {
+            path_parts.next().is_some_and(|actual| {
+                actual == expected
+                    || actual
+                        .as_os_str()
+                        .to_str()
+                        .zip(expected.as_os_str().to_str())
+                        .is_some_and(|(actual, expected)| {
+                            actual.to_lowercase() == expected.to_lowercase()
+                        })
+            })
+        }) {
+            return false;
+        }
+        path.ancestors()
+            .nth(path_depth - parent_depth)
+            .is_some_and(|ancestor| same_file::is_same_file(ancestor, parent).unwrap_or(false))
+    }
+    #[cfg(not(windows))]
+    {
+        false
+    }
+}
+
+impl DiscoveryExclusionKind {
+    fn root_error(&self) -> &'static str {
+        match self {
+            Self::Library => "saved game-file roots cannot be inside the Portcove library",
+            Self::ManagedOutput => {
+                "saved game-file roots cannot be inside a Portcove-managed game output"
+            }
+        }
+    }
+
+    fn omission(&self) -> &'static str {
+        match self {
+            Self::Library => "Portcove's own library is excluded from game-file discovery.",
+            Self::ManagedOutput => {
+                "Portcove-managed game output is excluded from game-file discovery."
+            }
+        }
+    }
 }
 
 fn scan(
     catalog: &Catalog,
     request: &SourceDiscoveryRequest,
     operation: &crate::OperationCoordinator,
-    excluded_library: Option<&Path>,
+    exclusions: Vec<DiscoveryExclusion>,
+    output_library: Option<&crate::Library>,
 ) -> Result<SourceDiscoveryReport> {
     validate_request(request)?;
-    let excluded_library = excluded_library.map(fs::canonicalize).transpose()?;
     let mut roots = Vec::new();
     for root in &request.roots {
         operation.checkpoint()?;
@@ -318,13 +417,11 @@ fn scan(
                 "source discovery roots must be directories",
             ));
         }
-        if excluded_library
-            .as_ref()
-            .is_some_and(|library| root.starts_with(library))
+        if let Some(exclusion) = exclusions
+            .iter()
+            .find(|item| path_within(&root, &item.path))
         {
-            return Err(PortcoveError::usage(
-                "saved game-file roots cannot be inside the Portcove library",
-            ));
+            return Err(PortcoveError::usage(exclusion.kind.root_error()));
         }
         roots.push(root);
     }
@@ -360,20 +457,28 @@ fn scan(
             hashed: 0,
             max_zip_entries: 4096,
         },
-        excluded_library,
+        exclusions,
+        output_library,
     };
-    if let Some(library) = &discovery.excluded_library
-        && discovery
-            .report
-            .searched_roots
-            .iter()
-            .any(|root| library.starts_with(root))
-    {
-        discovery.issue(
-            Some(library.clone()),
-            None,
-            "Portcove's own library is excluded from game-file discovery.".into(),
-        );
+    let omitted_owned_paths = discovery
+        .exclusions
+        .iter()
+        .filter(|item| {
+            discovery
+                .report
+                .searched_roots
+                .iter()
+                .any(|root| path_within(&item.path, root))
+        })
+        .map(|item| (item.path.clone(), item.kind.omission()))
+        .collect::<Vec<_>>();
+    for (path, message) in omitted_owned_paths {
+        if discovery.report.issues.len() >= 64 {
+            return Err(PortcoveError::usage(
+                "too many owned paths to report in one game-file scan; select a narrower root",
+            ));
+        }
+        discovery.issue(Some(path), None, message.into());
     }
     for id in request.profile_ids.iter().collect::<BTreeSet<_>>() {
         let profile = catalog.source_profile(id)?;
@@ -417,6 +522,63 @@ fn scan(
 }
 
 impl Discovery<'_> {
+    fn is_excluded(&self, path: &Path) -> bool {
+        self.exclusions
+            .iter()
+            .any(|excluded| path_within(path, &excluded.path))
+    }
+
+    fn refresh_output_exclusions(&mut self, path: &Path, is_directory: bool) -> Result<()> {
+        let Some(library) = self.output_library else {
+            return Ok(());
+        };
+        // A claim records its directory before writing the marker. Recheck the
+        // registry for directories before charging an entry; for files, the
+        // marker must already exist before the installer can write payloads.
+        let has_marker = path
+            .ancestors()
+            .any(|ancestor| ancestor.join(".portcove-game-output.json").is_file());
+        let records = if has_marker {
+            library.output_roots()?
+        } else if is_directory {
+            library.output_root(path)?.into_iter().collect()
+        } else {
+            return Ok(());
+        };
+        for record in records {
+            let current_path = fs::canonicalize(&record.path).unwrap_or(record.path);
+            if self.exclusions.iter().any(|excluded| {
+                matches!(excluded.kind, DiscoveryExclusionKind::ManagedOutput)
+                    && path_within(&current_path, &excluded.path)
+                    && path_within(&excluded.path, &current_path)
+            }) {
+                continue;
+            }
+            if self
+                .report
+                .searched_roots
+                .iter()
+                .any(|root| path_within(&current_path, root))
+            {
+                if self.report.issues.len() >= 64 {
+                    return Err(PortcoveError::usage(
+                        "too many owned paths to report in one game-file scan; select a narrower root",
+                    ));
+                }
+                self.issue(
+                    Some(current_path.clone()),
+                    None,
+                    DiscoveryExclusionKind::ManagedOutput.omission().into(),
+                );
+            }
+            self.exclusions.push(DiscoveryExclusion {
+                path: current_path,
+                kind: DiscoveryExclusionKind::ManagedOutput,
+            });
+        }
+        Ok(())
+    }
+
     fn walk(&mut self) -> Result<()> {
         let mut pending = self
             .report
@@ -425,6 +587,13 @@ impl Discovery<'_> {
             .map(|root| (root.clone(), 0))
             .collect::<VecDeque<_>>();
         while let Some((directory, depth)) = pending.pop_front() {
+            if self.is_excluded(&directory) {
+                continue;
+            }
+            self.refresh_output_exclusions(&directory, true)?;
+            if self.is_excluded(&directory) {
+                continue;
+            }
             let metadata = match fs::symlink_metadata(&directory) {
                 Ok(metadata) => metadata,
                 Err(error) => {
@@ -447,13 +616,22 @@ impl Discovery<'_> {
                 if let Some(operation) = &self.budget.operation {
                     operation.checkpoint()?;
                 }
-                // Saved roots may contain the library itself. Skip its whole tree
-                // before it can consume the request's entry or hash budgets.
+                // Saved roots may contain owned library or custom output trees.
+                // Skip each whole tree before charging entry or hash budgets.
                 let owned_path = entry.as_ref().ok().map(|entry| entry.path());
-                if let (Some(library), Some(path)) = (&self.excluded_library, owned_path)
-                    && path == *library
-                {
-                    continue;
+                if let Some(path) = owned_path.as_deref() {
+                    if self.is_excluded(path) {
+                        continue;
+                    }
+                    let is_directory = entry
+                        .as_ref()
+                        .ok()
+                        .and_then(|entry| entry.file_type().ok())
+                        .is_none_or(|kind| kind.is_dir());
+                    self.refresh_output_exclusions(path, is_directory)?;
+                    if self.is_excluded(path) {
+                        continue;
+                    }
                 }
                 if self.report.entries_examined >= self.limits.max_entries {
                     self.reached.insert(SourceDiscoveryLimit::Entries);
@@ -486,6 +664,9 @@ impl Discovery<'_> {
                         continue;
                     }
                 };
+                if self.is_excluded(&canonical) {
+                    continue;
+                }
                 if !self
                     .report
                     .searched_roots

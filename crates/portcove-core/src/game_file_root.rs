@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use rusqlite::{OptionalExtension, params};
+use rusqlite::{OptionalExtension, TransactionBehavior, params};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -174,6 +174,7 @@ impl Library {
             > 0)
     }
 
+    #[cfg(test)]
     pub(crate) fn replace_game_file_scan_snapshot(
         &self,
         snapshot: &GameFileScanSnapshot,
@@ -191,6 +192,35 @@ impl Library {
              ON CONFLICT(singleton) DO UPDATE SET snapshot_json=excluded.snapshot_json",
             [payload],
         )?;
+        Ok(())
+    }
+
+    pub(crate) fn replace_game_file_scan_snapshot_if_outputs_match(
+        &self,
+        snapshot: &GameFileScanSnapshot,
+        expected_outputs: &[crate::library::OutputRootRecord],
+    ) -> Result<()> {
+        let payload = serde_json::to_string(snapshot)?;
+        if payload.len() > MAX_SCAN_SNAPSHOT_BYTES {
+            return Err(
+                PortcoveError::state("game-file scan snapshot exceeds its storage limit")
+                    .detail("actual_bytes", payload.len().to_string())
+                    .detail("maximum_bytes", MAX_SCAN_SNAPSHOT_BYTES.to_string()),
+            );
+        }
+        let mut connection = self.connection()?;
+        let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+        if Self::output_roots_from(&transaction)? != expected_outputs {
+            return Err(PortcoveError::conflict(
+                "game-output ownership changed during the game-file scan; retry the scan",
+            ));
+        }
+        transaction.execute(
+            "INSERT INTO game_file_scan_state(singleton,snapshot_json) VALUES (1,?1)
+             ON CONFLICT(singleton) DO UPDATE SET snapshot_json=excluded.snapshot_json",
+            [payload],
+        )?;
+        transaction.commit()?;
         Ok(())
     }
 
