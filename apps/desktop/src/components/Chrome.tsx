@@ -200,7 +200,7 @@ export function PageHeader({
   return (
     <header>
       <div>
-        <h1>{copy.title}</h1>
+        <h1 tabIndex={-1}>{copy.title}</h1>
         {copy.description && <p className="page-description">{copy.description}</p>}
       </div>
       <div className="header-tools" data-focus-group>
@@ -1252,6 +1252,7 @@ export function SettingsView({
   sourceProfiles = [],
   onSourceAdded,
   onCatalogChanged,
+  onOpenGameUpdates,
   hostToolActions,
   openSourceEvidence,
   applicationUpdateNotice,
@@ -1288,6 +1289,7 @@ export function SettingsView({
   sourceProfiles?: SourceProfile[];
   onSourceAdded?: () => Promise<unknown>;
   onCatalogChanged?: () => Promise<unknown>;
+  onOpenGameUpdates?: () => void;
   hostToolActions?: HostToolActions;
   applicationUpdateNotice?: ApplicationUpdateNoticeSnapshot["notice"];
   applicationUpdatePreferences?: ApplicationUpdatePreferencesState;
@@ -1400,6 +1402,13 @@ export function SettingsView({
         eyebrow="UPDATES"
         title="Portcove & catalog updates"
         description="Manage verified Portcove application and catalog updates here. Game updates and activity are in the Game updates workspace."
+        action={
+          onOpenGameUpdates && (
+            <Button data-focusable variant="link" size="xs" onClick={onOpenGameUpdates}>
+              Open Game updates
+            </Button>
+          )
+        }
         layout="stacked"
       >
         <ApplicationUpdateSettings
@@ -1459,6 +1468,7 @@ function SettingsSection({
   eyebrow,
   title,
   description,
+  action,
   layout = "grid",
   children,
 }: {
@@ -1466,6 +1476,7 @@ function SettingsSection({
   eyebrow: string;
   title: string;
   description: string;
+  action?: ReactNode;
   layout?: "grid" | "stacked";
   children: ReactNode;
 }) {
@@ -1478,6 +1489,7 @@ function SettingsSection({
           {title}
         </h2>
         <p>{description}</p>
+        {action}
       </div>
       <div
         className={`settings-section-content${layout === "stacked" ? " settings-section-content-stacked" : ""}`}

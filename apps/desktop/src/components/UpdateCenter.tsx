@@ -142,6 +142,17 @@ export function UpdateCenter({
         Checking only looks for updates. Open a game below to review a download or installation.
         Saving its update settings runs no update.
       </p>
+      <p className="update-explainer">
+        Looking for Portcove or catalog updates?{" "}
+        <Button
+          data-focusable
+          variant="link"
+          size="xs"
+          onClick={() => onOpenSettings("catalog-updates")}
+        >
+          Open Portcove &amp; catalog update settings
+        </Button>
+      </p>
       {installed.length > 0 && (
         <p className="update-explainer">
           Update results cover {checked.length} of {installed.length} installed games.

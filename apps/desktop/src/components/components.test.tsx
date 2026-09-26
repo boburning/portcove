@@ -1121,14 +1121,14 @@ describe("desktop components", () => {
       <PageHeader view="settings" query="" setQuery={vi.fn()} />,
     );
 
-    expect(library).toContain("<h1>Your library</h1>");
+    expect(library).toContain('<h1 tabindex="-1">Your library</h1>');
     expect(emptyCatalog).toContain("Browse 0 native game ports.");
     expect(onePort).toContain("Browse 1 native game port.");
-    expect(catalog).toContain("<h1>Port catalog</h1>");
+    expect(catalog).toContain('<h1 tabindex="-1">Port catalog</h1>');
     expect(catalog).toContain("Browse 61 native game ports.");
     expect(catalog).toContain('id="port-search"');
-    expect(updates).toContain("<h1>Game updates &amp; activity</h1>");
-    expect(settings).toContain("<h1>Settings</h1>");
+    expect(updates).toContain('<h1 tabindex="-1">Game updates &amp; activity</h1>');
+    expect(settings).toContain('<h1 tabindex="-1">Settings</h1>');
     for (const header of [library, catalog, updates, settings]) {
       expect(header).not.toContain('class="eyebrow"');
       expect(header).toContain('aria-label="Open command palette"');
