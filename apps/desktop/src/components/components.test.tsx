@@ -1575,7 +1575,7 @@ describe("desktop components", () => {
     );
     expect(html).toContain("Connected as port-user");
     expect(html).toContain("GitHub connection");
-    expect(html).toContain("<summary>Connection details</summary>");
+    expect(html).toMatch(/<summary[^>]*>Connection details<\/summary>/u);
     expect(html).toContain("4,998 of 5,000 GitHub requests remaining");
     expect(html).toContain("Operating-system credential store");
     expect(html).not.toContain("Personal access token");
@@ -1619,8 +1619,8 @@ describe("desktop components", () => {
       />,
     );
     expect(anonymous).toContain("Use a token instead");
-    expect(anonymous).toContain(
-      '<label for="github-personal-access-token">Personal access token</label>',
+    expect(anonymous).toMatch(
+      /<label[^>]*for="github-personal-access-token"[^>]*>Personal access token<\/label>/u,
     );
     expect(anonymous).toContain('id="github-personal-access-token"');
     const tokenField = anonymous.match(/<input[^>]*id="github-personal-access-token"[^>]*>/)?.[0];
@@ -1736,8 +1736,8 @@ describe("desktop components", () => {
     expect(html).toContain("Not signed in. Signing in increases the limit for release checks.");
     expect(html).toContain("GitHub request limit unavailable");
     expect(html).toContain("Continue anonymously or use a personal access token");
-    expect(html).toContain(
-      '<label for="github-personal-access-token">Personal access token</label>',
+    expect(html).toMatch(
+      /<label[^>]*for="github-personal-access-token"[^>]*>Personal access token<\/label>/u,
     );
     expect(html).not.toContain("Use a token instead");
     expect(html).not.toContain("Sign in with GitHub");

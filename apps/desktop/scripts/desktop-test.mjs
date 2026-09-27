@@ -974,6 +974,19 @@ async function verifyCompactSettingsJumps() {
       if (paragraph) paragraph.textContent = copy;
     }, diagnosticCopy);
   }
+  const about = await browser.findElement(By.css(".about-card"));
+  const aboutLayout = await browser.executeScript((element) => {
+    element.scrollIntoView({ block: "start" });
+    const bounds = element.getBoundingClientRect();
+    return {
+      left: bounds.left,
+      right: bounds.right,
+      overflow: document.documentElement.scrollWidth > window.innerWidth + 1,
+    };
+  }, about);
+  assert.equal(aboutLayout.overflow, false);
+  assert.ok(aboutLayout.left >= 0 && aboutLayout.right <= 960);
+  await captureScenarioScreenshot("settings-about-card-compact");
 }
 
 async function verifySettingsIndexTheme(theme) {
