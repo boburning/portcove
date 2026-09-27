@@ -50,13 +50,13 @@ function expectSource(failures, condition, message) {
 function checkCssSource(css, failures) {
   expectSource(
     failures,
-    css.includes('@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));'),
-    "Tailwind dark variants must use the runtime data-theme marker",
+    css.includes("@custom-variant dark (:where(.dark) &);"),
+    "Tailwind dark variants must use the derived document class",
   );
   expectSource(
     failures,
-    !/@custom-variant\s+dark[^;]*\.dark/.test(css),
-    "Tailwind dark variants must not use .dark",
+    !/@custom-variant\s+dark[^;]*\[data-theme/.test(css),
+    "Tailwind dark variants must not depend on attribute selector invalidation",
   );
   expectSource(
     failures,
@@ -203,8 +203,8 @@ function checkProductionCss(builtCss, failures) {
   expectSource(failures, builtCss.length > 0, "production CSS output is empty");
   expectSource(
     failures,
-    builtCss.includes("[data-theme=dark]"),
-    "production CSS omits the data-theme dark variant",
+    builtCss.includes(":where(.dark) .dark\\:"),
+    "production CSS omits the document-class dark variant",
   );
   for (const selector of [
     ".bg-pc-signature",

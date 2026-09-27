@@ -142,8 +142,11 @@ The shared 30/36/42 pixel control scale exceeds WCAG 2.2's 24-by-24 CSS pixel
 minimum target size. Icon controls use the same assigned dimensions; compact
 placement must not shrink their interactive box below that scale.
 
-The runtime theme authority is `html[data-theme]`; Tailwind's `dark:` variant is
-bound to that marker rather than a parallel `.dark` class. The document `dir`
+The runtime theme authority is `html[data-theme]`. Theme application also projects
+that value to `html.dark` for Tailwind's `dark:` variant because macOS WKWebView
+does not reliably recalculate descendant attribute selectors after a theme switch.
+The class is derived in the same theme application function and is not a separate
+preference. The document `dir`
 attribute and Base UI `DirectionProvider` are the shared direction authority so
 portaled Dialog and Select content inherit the same direction. Portcove currently
 starts in `ltr`; locale selection and translated copy remain owned by #203/#1027.

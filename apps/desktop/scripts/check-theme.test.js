@@ -7,7 +7,7 @@ import {
 
 const validSources = {
   css: `
-    @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+    @custom-variant dark (:where(.dark) &);
     @theme inline { --color-pc-signature: var(--color-accent-surface); }
     :root { --font-ui: "Geist Variable", system-ui; --color-accent-surface: #a92b25; }
     .palette-command {}
@@ -31,7 +31,7 @@ const validSources = {
     const activityRowClass = "grid-cols-[1.5rem_minmax(0,1fr)_max-content_max-content] max-[65rem]:grid-cols-[1.5rem_minmax(0,1fr)_4.5rem]";
   `,
   builtCss:
-    ".bg-pc-signature{}.bg-pc-scrim{}.active\\:bg-pc-signature-active{}.hover\\:bg-pc-danger-surface{}.text-pc-danger-strong{}.focus-visible\\:ring-pc-ring{}[data-theme=dark]{}",
+    ".bg-pc-signature{}.bg-pc-scrim{}.active\\:bg-pc-signature-active{}.hover\\:bg-pc-danger-surface{}.text-pc-danger-strong{}.focus-visible\\:ring-pc-ring{}:where(.dark) .dark\\:opacity-50{}",
 };
 
 describe("theme foundation source contract", () => {
@@ -50,7 +50,10 @@ describe("theme foundation source contract", () => {
   });
 
   it.each([
-    ["runtime marker", { css: validSources.css.replace('[data-theme="dark"]', ".dark") }],
+    [
+      "runtime marker",
+      { css: validSources.css.replace(":where(.dark) &", ':where([data-theme="dark"]) &') },
+    ],
     ["raw shared-control color", { dialog: `${validSources.dialog} bg-[#000]` }],
     ["dynamic utility fragment", { select: "const classes = `pe-${size}`;" }],
     [

@@ -19,6 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import "./design-compatibility.css";
+import { applyWebTheme } from "@/theme";
 
 type Theme = "dark" | "light";
 type Direction = "ltr" | "rtl";
@@ -34,9 +35,13 @@ export function DesignCompatibilityFixture() {
   const [reduceMotion, setReduceMotion] = useState(false);
 
   useEffect(() => {
-    document.documentElement.dataset.theme = theme;
     document.documentElement.dir = direction;
-  }, [direction, theme]);
+  }, [direction]);
+
+  function changeTheme(nextTheme: Theme) {
+    applyWebTheme(nextTheme);
+    setTheme(nextTheme);
+  }
 
   return (
     <DirectionProvider direction={direction}>
@@ -48,9 +53,12 @@ export function DesignCompatibilityFixture() {
         data-dialog-open={dialogOpen}
         data-select-open={selectOpen}
       >
-        <span data-theme-variant-probe className="sr-only opacity-100 dark:opacity-50">
-          Runtime theme variant probe
-        </span>
+        <span
+          data-theme-variant-probe
+          aria-hidden="true"
+          className="inline-block size-2 rounded-full bg-pc-signature opacity-[var(--fixture-theme-opacity)]"
+        />
+        <span data-disabled-reference className="sr-only bg-pc-surface-muted" />
         <header className="design-compatibility-heading">
           <img
             src="/brand/icons/portcove-mascot-head-256.png"
@@ -74,7 +82,7 @@ export function DesignCompatibilityFixture() {
               id="fixture-theme-dark"
               variant={theme === "dark" ? "selected" : "outline"}
               aria-pressed={theme === "dark"}
-              onClick={() => setTheme("dark")}
+              onClick={() => changeTheme("dark")}
             >
               Dark theme
             </Button>
@@ -82,7 +90,7 @@ export function DesignCompatibilityFixture() {
               id="fixture-theme-light"
               variant={theme === "light" ? "selected" : "outline"}
               aria-pressed={theme === "light"}
-              onClick={() => setTheme("light")}
+              onClick={() => changeTheme("light")}
             >
               Light theme
             </Button>
@@ -94,6 +102,9 @@ export function DesignCompatibilityFixture() {
             onClick={() => setReduceMotion((value) => !value)}
           >
             {reduceMotion ? "Reduced motion preview on" : "Preview reduced motion"}
+          </Button>
+          <Button id="fixture-disabled-outline" variant="outline" disabled>
+            Unavailable
           </Button>
           <Button
             id="fixture-direction"

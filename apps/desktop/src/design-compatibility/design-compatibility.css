@@ -1,4 +1,5 @@
 .design-compatibility-fixture {
+  --fixture-theme-opacity: 0.5;
   min-height: 100vh;
   display: grid;
   align-content: center;
@@ -8,6 +9,10 @@
   color: var(--color-text);
   background: var(--color-bg);
   font-family: "Geist Variable", var(--font-ui);
+}
+
+.design-compatibility-fixture[data-theme="light"] {
+  --fixture-theme-opacity: 1;
 }
 
 .design-compatibility-heading {

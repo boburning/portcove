@@ -4,7 +4,7 @@
 @import "tw-animate-css";
 @import "@fontsource-variable/geist";
 
-@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+@custom-variant dark (:where(.dark) &);
 /* The foundation controls use only these variants from shadcn 4.21.0's
    tailwind.css. Keeping the reviewed subset here avoids installing the CLI in
    every production build while preserving its generated selectors exactly. */

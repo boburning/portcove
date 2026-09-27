@@ -111,6 +111,17 @@ try {
   console.log(`Native compatibility evidence: ${evidenceDirectory}`);
 } catch (error) {
   failure = error;
+  if (browser) {
+    try {
+      await writeFile(
+        path.join(evidenceDirectory, "design-compatibility-failed.png"),
+        await browser.takeScreenshot(),
+        "base64",
+      );
+    } catch {
+      // Preserve the original native failure when screenshot capture is unavailable.
+    }
+  }
   result = {
     ...result,
     error: error instanceof Error ? error.message : String(error),

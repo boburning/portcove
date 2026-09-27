@@ -39,22 +39,51 @@ export async function assertDesignCompatibility({ browser, By, Key, until }) {
     [],
   );
 
-  const darkColors = await browser.executeScript(() => {
-    const root = document.querySelector(".design-compatibility-fixture");
-    const probe = document.querySelector("[data-theme-variant-probe]");
-    if (!(root instanceof HTMLElement) || !(probe instanceof HTMLElement)) return null;
-    return {
-      background: getComputedStyle(root).backgroundColor,
-      variantOpacity: getComputedStyle(probe).opacity,
-      theme: root.dataset.theme,
-    };
-  });
+  let darkColors;
+  await browser
+    .wait(async () => {
+      darkColors = await browser.executeScript(() => {
+        const root = document.querySelector(".design-compatibility-fixture");
+        const probe = document.querySelector("[data-theme-variant-probe]");
+        if (!(root instanceof HTMLElement) || !(probe instanceof HTMLElement)) return null;
+        return {
+          background: getComputedStyle(root).backgroundColor,
+          variantOpacity: getComputedStyle(probe).opacity,
+          themeOpacity: getComputedStyle(root).getPropertyValue("--fixture-theme-opacity").trim(),
+          theme: root.dataset.theme,
+          darkClass: document.documentElement.classList.contains("dark"),
+        };
+      });
+      return darkColors?.variantOpacity === "0.5";
+    }, 5_000)
+    .catch((error) => {
+      if (error.name !== "TimeoutError") throw error;
+    });
   assert.equal(darkColors.theme, "dark");
-  assert.equal(darkColors.variantOpacity, "0.5");
+  assert.equal(darkColors.darkClass, true);
+  assert.equal(Number(darkColors.themeOpacity), 0.5);
+  assert.equal(darkColors.variantOpacity, "0.5", JSON.stringify(darkColors));
+  assert.equal(
+    await browser.executeScript(() => {
+      const button = document.querySelector("#fixture-disabled-outline");
+      const reference = document.querySelector("[data-disabled-reference]");
+      return (
+        button.disabled &&
+        getComputedStyle(button).backgroundColor === getComputedStyle(reference).backgroundColor
+      );
+    }),
+    true,
+    "dark outline buttons retain the shared disabled background",
+  );
   await browser.findElement(By.id("fixture-theme-light")).click();
   await browser.wait(async () => (await fixture.getAttribute("data-theme")) === "light", 15_000);
   await browser.wait(
-    async () => browser.executeScript(() => document.documentElement.dataset.theme === "light"),
+    async () =>
+      browser.executeScript(
+        () =>
+          document.documentElement.dataset.theme === "light" &&
+          !document.documentElement.classList.contains("dark"),
+      ),
     15_000,
     "the document theme follows the fixture before computed utility checks",
   );
@@ -65,21 +94,35 @@ export async function assertDesignCompatibility({ browser, By, Key, until }) {
     ),
     darkColors.background,
   );
-  const lightVariant = await browser.executeScript(() => {
-    const probe = document.querySelector("[data-theme-variant-probe]");
-    return {
-      opacity: getComputedStyle(probe).opacity,
-      documentTheme: document.documentElement.dataset.theme ?? null,
-      fixtureTheme: document.querySelector(".design-compatibility-fixture")?.dataset.theme ?? null,
-      darkAncestor: probe.closest('[data-theme="dark"]')?.tagName ?? null,
-    };
-  });
+  await browser.takeScreenshot();
+  let lightVariant;
+  await browser
+    .wait(async () => {
+      lightVariant = await browser.executeScript(() => {
+        const probe = document.querySelector("[data-theme-variant-probe]");
+        return {
+          opacity: getComputedStyle(probe).opacity,
+          themeOpacity: getComputedStyle(document.querySelector(".design-compatibility-fixture"))
+            .getPropertyValue("--fixture-theme-opacity")
+            .trim(),
+          documentTheme: document.documentElement.dataset.theme ?? null,
+          documentDarkClass: document.documentElement.classList.contains("dark"),
+          fixtureTheme:
+            document.querySelector(".design-compatibility-fixture")?.dataset.theme ?? null,
+        };
+      });
+      return lightVariant.opacity === "1";
+    }, 5_000)
+    .catch((error) => {
+      if (error.name !== "TimeoutError") throw error;
+    });
   assert.equal(
     lightVariant.opacity,
     "1",
-    "a generated dark: utility changes an actual computed control property under data-theme: " +
+    "a generated opacity utility follows the runtime theme variable: " +
       JSON.stringify(lightVariant),
   );
+  assert.equal(Number(lightVariant.themeOpacity), 1);
 
   await browser.findElement(By.id("fixture-direction")).click();
   await browser.wait(async () => (await fixture.getAttribute("data-direction")) === "rtl", 15_000);

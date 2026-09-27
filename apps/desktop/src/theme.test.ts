@@ -58,6 +58,7 @@ describe("theme preferences", () => {
     const meta = { setAttribute: vi.fn() };
     const documentElement = {
       dataset: {} as Record<string, string>,
+      classList: { toggle: vi.fn() },
       style: { colorScheme: "" },
     };
     vi.stubGlobal("document", {
@@ -66,8 +67,12 @@ describe("theme preferences", () => {
     });
     applyWebTheme("light");
     expect(documentElement.dataset.theme).toBe("light");
+    expect(documentElement.classList.toggle).toHaveBeenCalledWith("dark", false);
     expect(documentElement.style.colorScheme).toBe("light");
     expect(meta.setAttribute).toHaveBeenCalledWith("content", "#f5f3ee");
+    applyWebTheme("dark");
+    expect(documentElement.dataset.theme).toBe("dark");
+    expect(documentElement.classList.toggle).toHaveBeenCalledWith("dark", true);
   });
 
   it("tracks live system changes and removes its listener", () => {

@@ -4,7 +4,7 @@ import { DirectionProvider } from "@base-ui/react/direction-provider";
 import App from "./App";
 import { AppErrorBoundary } from "./ErrorBoundary";
 import { desktopApi } from "./api";
-import { initializeTheme } from "./theme";
+import { applyWebTheme, initializeTheme } from "./theme";
 import { initializeLocalization, LocalizationProvider } from "./localization";
 import "./styles.css";
 
@@ -12,6 +12,7 @@ const root = ReactDOM.createRoot(document.getElementById("root")!);
 document.documentElement.dir = "ltr";
 
 if (import.meta.env.VITE_PORTCOVE_DESIGN_COMPATIBILITY_FIXTURE === "1") {
+  applyWebTheme("dark");
   void import("./design-compatibility/DesignCompatibilityFixture").then(
     ({ DesignCompatibilityFixture }) => {
       root.render(
