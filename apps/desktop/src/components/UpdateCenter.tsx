@@ -40,6 +40,24 @@ import type { ActivitySettingsTarget } from "../features/app-shell/focus-setting
 const initialActivityNowSeconds = Date.now() / 1000;
 const activityTargetButton =
   "-mx-1 h-auto min-h-6 min-w-0 max-w-full shrink justify-start overflow-hidden px-1 py-0 text-ellipsis text-xs font-normal text-pc-secondary-foreground no-underline hover:text-pc-primary hover:no-underline";
+const activityTones: Record<string, { indicator: string; status: string }> = {
+  succeeded: {
+    indicator: "bg-pc-success-subtle text-pc-success-foreground",
+    status: "text-pc-success-foreground",
+  },
+  failed: {
+    indicator: "bg-pc-danger-subtle text-pc-danger-foreground",
+    status: "text-pc-danger-foreground",
+  },
+  running: {
+    indicator: "bg-pc-accent text-pc-interactive-foreground motion-safe:[&_.icon]:animate-spin",
+    status: "text-pc-interactive-foreground",
+  },
+  unfinished: {
+    indicator: "bg-pc-warning-subtle text-pc-warning-foreground",
+    status: "text-pc-warning-foreground",
+  },
+};
 const libraryActivitySettingsTargets: Partial<
   Record<ActivityOperation, Exclude<ActivitySettingsTarget, "source-profile" | "library-storage">>
 > = {
@@ -415,13 +433,17 @@ function ActivityRow({
 }) {
   const target = activityTarget(activity, names, sourceNames);
   const presentation = activityPresentation(activity, nowSeconds);
+  const tone = activityTones[presentation.state];
   return (
     <div
-      className={`activity-row ${presentation.state}`}
+      className={`activity-row ${presentation.state} grid min-h-14 items-center gap-3 rounded-pc-md border border-pc-border bg-pc-surface px-3 py-2.5`}
       title={activity.failure?.presentation.summary}
       data-focus-group
     >
-      <span className="activity-indicator" aria-hidden="true">
+      <span
+        className={`grid size-6 place-items-center rounded-pc-sm ${tone?.indicator ?? "bg-pc-secondary text-pc-muted-foreground"}`}
+        aria-hidden="true"
+      >
         <Icon glyph={presentation.icon} size="sm" />
       </span>
       <div className="activity-main">
@@ -441,7 +463,11 @@ function ActivityRow({
       >
         {presentation.time}
       </span>
-      <span className="activity-status">{presentation.label}</span>
+      <span
+        className={`activity-status justify-self-end text-[var(--text-2xs)] font-extrabold tracking-[0.06em] uppercase ${tone?.status ?? "text-pc-muted-foreground"}`}
+      >
+        {presentation.label}
+      </span>
       {presentation.state === "unfinished" && (
         <p className="activity-details">
           This task has not reported completion. Review its details before retrying.
