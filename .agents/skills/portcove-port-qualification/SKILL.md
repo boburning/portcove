@@ -54,4 +54,12 @@ Capture an initialized library with `node scripts/qualification-report.mjs --cli
 
 Report exact artifact, platform, source contract/variant/representation, check version, operation, outcome and evidence location. Preserve failed, not-run and unknown results. The report collects snapshots; it does not grant qualification. Keep isolated fixtures, packaged execution, physical-device results and human gameplay distinct.
 
+Choose the operator by what can establish the required claim. Agent-operated
+direct observation on the actual runtime and any input or device relevant to
+the claim can provide hands-on functional evidence; record the operator,
+method, artifact, environment,
+and limits. Do not label synthetic input as physical-device use, a launcher smoke
+as gameplay, or a packaged fixture as installed-application behavior. Reserve
+human-only acceptance for claims about human perception or comprehension.
+
 Finish with linked acceptance observations and unresolved resume conditions. Use existing quality/release checks appropriate to the change; do not substitute a download, launch, or raw catalog assertion for lifecycle evidence.
