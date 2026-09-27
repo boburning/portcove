@@ -364,7 +364,7 @@ describe("catalog view model", () => {
     expect(requirements).toHaveLength(1);
     expect(requirements[0].profile.id).toBe("shared-source");
     expect(requirements[0].requiredBy).toEqual([
-      { portId: "alpha", portName: "Alpha Port", role: "Game source" },
+      { portId: "alpha", portName: "Alpha Port", role: "Game files" },
       { portId: "beta", portName: "Beta Port", role: "BIOS" },
     ]);
   });

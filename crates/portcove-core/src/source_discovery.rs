@@ -527,7 +527,11 @@ fn scan_with_events<'a>(
         let (raw_extensions, zip_extensions) =
             crate::source_inspection::file_scan_extensions(catalog, profile);
         if raw_extensions.is_empty() && zip_extensions.is_empty() {
-            discovery.issue(None, Some(profile.id.clone()), "This profile needs manual source selection; discovery supports exact-identity original files and cartridge ZIPs.".into());
+            discovery.issue(
+                None,
+                Some(profile.id.clone()),
+                "Folder search can't find files for this requirement. Choose them directly.".into(),
+            );
         } else {
             for extension in &raw_extensions {
                 discovery

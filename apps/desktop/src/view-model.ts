@@ -225,7 +225,7 @@ export interface SourceRequirement {
   requiredBy: Array<{
     portId: string;
     portName: string;
-    role: "Game source" | "BIOS";
+    role: "Game files" | "BIOS";
   }>;
 }
 
@@ -365,7 +365,7 @@ export function requiredSourceNeeds(
     const status = statuses.get(candidate.id);
     return status?.active || status?.external_runtime;
   })) {
-    addSourceNeed(requirements, profilesById, registered, port, port.source_profile, "Game source");
+    addSourceNeed(requirements, profilesById, registered, port, port.source_profile, "Game files");
     addSourceNeed(requirements, profilesById, registered, port, port.bios_source_profile, "BIOS");
   }
   return [...requirements.values()].sort((left, right) =>
@@ -379,7 +379,7 @@ function addSourceNeed(
   registered: ReadonlySet<string>,
   port: PortDefinition,
   profileId: string | null | undefined,
-  role: "Game source" | "BIOS",
+  role: "Game files" | "BIOS",
 ) {
   if (!profileId || registered.has(profileId)) return;
   const profile = profiles.get(profileId);

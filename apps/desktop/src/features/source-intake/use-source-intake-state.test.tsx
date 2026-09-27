@@ -6,7 +6,7 @@ import { portDefinition, sourceProfile } from "../../test-fixtures";
 import type { CatalogDocument } from "../../types";
 import { useSourceIntakeState } from "./use-source-intake-state";
 
-const gameProfile = { ...sourceProfile(), id: "game", label: "Game source" };
+const gameProfile = { ...sourceProfile(), id: "game", label: "Game files" };
 const biosProfile = { ...sourceProfile(), id: "bios", label: "BIOS" };
 const port = {
   ...portDefinition(),

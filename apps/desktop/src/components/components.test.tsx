@@ -1921,7 +1921,7 @@ describe("desktop components", () => {
         kind: "file-set" as const,
         accepted_extensions: [],
       },
-      requiredBy: [{ portId: port.id, portName: port.name, role: "Game source" as const }],
+      requiredBy: [{ portId: port.id, portName: port.name, role: "Game files" as const }],
     };
     const registeredSource = {
       profile_id: requirement.profile.id,
@@ -2006,7 +2006,7 @@ describe("desktop components", () => {
     expect(singular).toContain("Portcove checks files locally and never uploads or changes them");
     expect(singular).toContain("confirms that the file is an exact match");
     expect(singular).toContain("Sample source set");
-    expect(singular).toContain("Sample Port · Game source");
+    expect(singular).toContain("Sample Port · Game files");
     expect(singular).toContain("Add game files");
     expect(singular).toContain("Add ZIP");
     expect(singular).toMatch(/<button[^>]*data-variant="outline"[^>]*>Add game files<\/button>/u);
