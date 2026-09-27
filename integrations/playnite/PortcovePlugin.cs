@@ -21,13 +21,20 @@ namespace Portcove.ReferenceClient
             Properties = new LibraryPluginProperties { HasSettings = true };
         }
         public override ISettings GetSettings(bool firstRunSettings) => settings;
-        public override UserControl GetSettingsView(bool firstRunSettings) => SettingsModel.View();
+        public override UserControl GetSettingsView(bool firstRunSettings) => settings.View();
+
+        internal string SelectExecutable() => PlayniteApi.Dialogs.SelectFile("Portcove CLI|portcove.exe|Applications|*.exe");
+        internal string SelectLibrary() => PlayniteApi.Dialogs.SelectFolder();
 
         internal async Task<PublicCli> Connect()
         {
             var accepted = settings.Active;
+            RuntimeSelection.RequireAccepted(accepted);
             var client = new PublicCli(accepted.Executable, accepted.LibraryRoot);
             await client.Connect().ConfigureAwait(false);
+            RuntimeSelection.RequireAccepted(accepted);
+            if (!string.Equals(client.LibraryId, accepted.LibraryId, StringComparison.Ordinal))
+                throw new InvalidOperationException("The selected library identity changed. Reconnect it in extension settings.");
             return client;
         }
 

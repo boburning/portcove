@@ -1,24 +1,23 @@
 using Playnite.SDK;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
 
 namespace Portcove.ReferenceClient
 {
-    public sealed class ClientSettings
-    {
-        public string Executable { get; set; } = "";
-        public string LibraryRoot { get; set; } = "";
-        // A reconnect pointer only. Core's retained record is the sole outcome authority.
-        public string LastLaunchGame { get; set; } = "";
-        public string LastLaunchRequest { get; set; } = "";
-    }
-
     public sealed class SettingsModel : ObservableObject, ISettings
     {
         private readonly PortcovePlugin plugin;
+        private RuntimeInspection inspection;
+        private string validationStatus = "Choose a CLI and library, inspect the CLI bytes, then explicitly connect.";
+        public string ValidationStatus
+        {
+            get => validationStatus;
+            private set { validationStatus = value; OnPropertyChanged(); }
+        }
         internal ClientSettings Active { get; private set; }
         private ClientSettings settings;
         public ClientSettings Settings
@@ -35,12 +34,16 @@ namespace Portcove.ReferenceClient
         private static ClientSettings Copy(ClientSettings value) => new ClientSettings
         {
             Executable = value.Executable, LibraryRoot = value.LibraryRoot,
+            CreateNewLibrary = value.CreateNewLibrary,
+            ApprovedExecutable = value.ApprovedExecutable, ApprovedLibraryRoot = value.ApprovedLibraryRoot,
+            ExecutableSha256 = value.ExecutableSha256, LibraryId = value.LibraryId,
             LastLaunchGame = value.LastLaunchGame, LastLaunchRequest = value.LastLaunchRequest
         };
-        public void BeginEdit() => Settings = Copy(Active);
-        public void CancelEdit() => Settings = Copy(Active);
+        public void BeginEdit() { inspection = null; Settings = Copy(Active); }
+        public void CancelEdit() { inspection = null; Settings = Copy(Active); }
         public void EndEdit()
         {
+            RuntimeSelection.RequireAccepted(Settings);
             var accepted = Copy(Settings);
             plugin.SavePluginSettings(accepted);
             Active = accepted;
@@ -56,28 +59,105 @@ namespace Portcove.ReferenceClient
         public bool VerifySettings(out List<string> errors)
         {
             errors = new List<string>();
-            try { new PublicCli(Settings.Executable, Settings.LibraryRoot); }
+            try { RuntimeSelection.RequireAccepted(Settings); }
             catch (Exception error) { errors.Add(error.Message); }
             return errors.Count == 0;
         }
-        internal static UserControl View()
+        internal UserControl View()
         {
             var panel = new StackPanel { Margin = new Thickness(12) };
             panel.Children.Add(new TextBlock
             {
-                Text = "Select a verified standalone Portcove CLI and the library to use. Connecting may initialize an empty library. The extension runs this executable with your account's permissions.",
+                Text = "Choose portcove.exe from a trusted standalone Windows CLI package and the exact library to use. Inspect its SHA-256 before authorizing Playnite to run it. Compatibility checking executes the selected program with your account's permissions.",
                 TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 12)
             });
-            AddPath(panel, "Portcove CLI (.exe)", "Executable");
-            AddPath(panel, "Portcove library folder", "LibraryRoot");
-            return new UserControl { Content = panel };
+            AddPath(panel, "Portcove CLI (.exe)", "Executable", () => plugin.SelectExecutable());
+            AddPath(panel, "Portcove library folder", "LibraryRoot", () => plugin.SelectLibrary());
+            var create = new CheckBox
+            {
+                Content = "Create a separate library in this empty folder",
+                Margin = new Thickness(0, 0, 0, 12)
+            };
+            create.SetBinding(CheckBox.IsCheckedProperty, new Binding("Settings.CreateNewLibrary")
+            {
+                UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged
+            });
+            panel.Children.Add(create);
+            var buttons = new WrapPanel();
+            var inspect = new Button { Content = "Inspect selected CLI", Margin = new Thickness(0, 0, 8, 8) };
+            inspect.Click += (sender, args) =>
+            {
+                try
+                {
+                    inspection = RuntimeSelection.Inspect(Settings);
+                    ValidationStatus = "Selected CLI SHA-256: " + inspection.Sha256 + "\nLibrary: " +
+                        inspection.LibraryRoot + (inspection.CreateNewLibrary ? " (new library, created only after Connect)" : " (existing library)") +
+                        "\nConfirm this is the CLI package you intended before connecting.";
+                }
+                catch (Exception error) { inspection = null; ValidationStatus = error.Message; }
+            };
+            buttons.Children.Add(inspect);
+            var connect = new Button { Content = "Connect this runtime", Margin = new Thickness(0, 0, 0, 8) };
+            connect.Click += async (sender, args) =>
+            {
+                connect.IsEnabled = false;
+                try { await ConnectSelection(); }
+                catch (Exception error) { ValidationStatus = error.Message; }
+                finally { connect.IsEnabled = true; }
+            };
+            buttons.Children.Add(connect);
+            panel.Children.Add(buttons);
+            var status = new TextBlock { TextWrapping = TextWrapping.Wrap };
+            status.SetBinding(TextBlock.TextProperty, new Binding("ValidationStatus"));
+            panel.Children.Add(status);
+            return new UserControl { Content = panel, DataContext = this };
         }
-        private static void AddPath(Panel panel, string label, string property)
+        private async System.Threading.Tasks.Task ConnectSelection()
+        {
+            var current = RuntimeSelection.Inspect(Settings);
+            if (inspection == null || !inspection.Matches(current))
+                throw new InvalidOperationException("The selected file or library changed. Inspect it again before connecting.");
+            var client = new PublicCli(current.Executable, current.LibraryRoot);
+            await client.Connect();
+            if (!string.Equals(RuntimeSelection.HashExecutable(current.Executable), current.Sha256, StringComparison.OrdinalIgnoreCase) ||
+                !File.Exists(Path.Combine(current.LibraryRoot, "portcove.sqlite3")) ||
+                !string.Equals(Path.GetFullPath(Settings.Executable), current.Executable, StringComparison.OrdinalIgnoreCase) ||
+                !string.Equals(Path.GetFullPath(Settings.LibraryRoot), current.LibraryRoot, StringComparison.OrdinalIgnoreCase) ||
+                Settings.CreateNewLibrary != current.CreateNewLibrary)
+                throw new InvalidOperationException("The selected runtime or library changed during connection. Inspect again; no success is assumed.");
+            var accepted = Copy(Settings);
+            accepted.Executable = accepted.ApprovedExecutable = current.Executable;
+            accepted.LibraryRoot = accepted.ApprovedLibraryRoot = current.LibraryRoot;
+            accepted.ExecutableSha256 = current.Sha256;
+            accepted.LibraryId = client.LibraryId;
+            accepted.CreateNewLibrary = false;
+            Settings = accepted;
+            inspection = null;
+            ValidationStatus = "Compatible Portcove CLI connected. Library identity: " + client.LibraryId +
+                ". Save these settings to use this exact runtime and library.";
+        }
+        private void AddPath(Panel panel, string label, string property, Func<string> browse)
         {
             panel.Children.Add(new TextBlock { Text = label });
-            var text = new TextBox { Margin = new Thickness(0, 4, 0, 12), MinWidth = 350 };
+            var row = new DockPanel { Margin = new Thickness(0, 4, 0, 12) };
+            var button = new Button { Content = "Browse…", Margin = new Thickness(8, 0, 0, 0) };
+            button.Click += (sender, args) =>
+            {
+                var path = browse();
+                if (string.IsNullOrWhiteSpace(path)) return;
+                var draft = Copy(Settings);
+                if (property == "Executable") draft.Executable = path;
+                else draft.LibraryRoot = path;
+                Settings = draft;
+                inspection = null;
+                ValidationStatus = "Selection changed. Inspect the selected CLI before connecting.";
+            };
+            DockPanel.SetDock(button, Dock.Right);
+            row.Children.Add(button);
+            var text = new TextBox { MinWidth = 280 };
             text.SetBinding(TextBox.TextProperty, new Binding("Settings." + property) { UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged });
-            panel.Children.Add(text);
+            row.Children.Add(text);
+            panel.Children.Add(row);
         }
     }
 }

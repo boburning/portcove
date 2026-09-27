@@ -63,6 +63,7 @@ internal static class ContractTests
     };
     private static async Task Run(string[] args)
     {
+        CheckRuntimeSelection();
         var managedStatus = Json.Parse("{\"active\":null}");
         Check(Json.OptionalObjectField(managedStatus, "external_runtime") == null,
             "absent external runtime is a valid managed status");
@@ -332,6 +333,46 @@ internal static class ContractTests
             Check(catalog.Length > 1 && statuses.Length == catalog.Length, "real standalone CLI discovery through reference consumer");
             Check(await real.Read("launch.show", "launch", "show", Guid.NewGuid().ToString("D")) == null, "real standalone CLI absent launch readback");
         }
+    }
+
+    private static void CheckRuntimeSelection()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "portcove-playnite-selection-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        try
+        {
+            var executable = Path.Combine(root, "portcove.exe");
+            File.Copy(Binary, executable);
+            var library = Path.Combine(root, "selected-library");
+            var draft = new ClientSettings { Executable = executable, LibraryRoot = library };
+            Reject(() => RuntimeSelection.Inspect(draft), "missing library cannot be initialized silently");
+            draft.CreateNewLibrary = true;
+            var newLibrary = RuntimeSelection.Inspect(draft);
+            Check(newLibrary.CreateNewLibrary && newLibrary.Sha256.Length == 64,
+                "explicit empty new-library selection inspects exact CLI bytes without executing them");
+            Directory.CreateDirectory(library);
+            File.WriteAllText(Path.Combine(library, "unrelated.txt"), "keep");
+            Reject(() => RuntimeSelection.Inspect(draft), "nonempty unrelated folder is not adopted as a new library");
+            File.Delete(Path.Combine(library, "unrelated.txt"));
+            File.WriteAllBytes(Path.Combine(library, "portcove.sqlite3"), new byte[0]);
+            draft.CreateNewLibrary = false;
+            var existing = RuntimeSelection.Inspect(draft);
+            draft.ApprovedExecutable = existing.Executable;
+            draft.ApprovedLibraryRoot = existing.LibraryRoot;
+            draft.ExecutableSha256 = existing.Sha256;
+            draft.LibraryId = "selected-library-id";
+            RuntimeSelection.RequireAccepted(draft);
+            Check(true, "accepted runtime binds exact executable bytes and existing library path");
+            draft.CreateNewLibrary = true;
+            Reject(() => RuntimeSelection.RequireAccepted(draft), "new-library choice cannot reuse a prior approval");
+            draft.CreateNewLibrary = false;
+            draft.LibraryRoot = Path.Combine(root, "another-library");
+            Reject(() => RuntimeSelection.RequireAccepted(draft), "changed library cannot reuse prior approval");
+            draft.LibraryRoot = library;
+            File.AppendAllText(executable, "changed");
+            Reject(() => RuntimeSelection.RequireAccepted(draft), "changed executable cannot reuse prior approval");
+        }
+        finally { Directory.Delete(root, true); }
     }
 
     private static async Task ConsumerMeasurements()

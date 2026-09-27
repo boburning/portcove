@@ -22,3 +22,6 @@ $output = @(Get-ChildItem -LiteralPath (Join-Path $projectRoot 'bin/Release') -F
 if (@($output | Where-Object { $_ -notin @('Portcove.Playnite.dll', 'extension.yaml') }).Count) {
     throw 'Unexpected files in plugin output. Do not ship SDK or private Playnite assemblies.'
 }
+$packageRoot = Join-Path (Join-Path $projectRoot '../../outputs/playnite') ([DateTime]::UtcNow.ToString('yyyyMMddTHHmmssfffZ') + '-' + [Guid]::NewGuid().ToString('N').Substring(0, 8))
+& (Join-Path $projectRoot 'pack.ps1') -OutputDirectory $packageRoot
+if ($LASTEXITCODE -ne 0) { throw 'Playnite package creation failed.' }
