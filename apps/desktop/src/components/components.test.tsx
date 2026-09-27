@@ -318,7 +318,7 @@ describe("desktop components", () => {
           onOpenSettings={vi.fn()}
         />,
       );
-      expect(html).toContain("<strong>Activity</strong>");
+      expect(html).toMatch(/<strong[^>]*>Activity<\/strong>/u);
       expect(html).toContain("Unknown channel");
       expect(html).toContain("Update policy unavailable");
       expect(html).not.toContain("· Notify");
@@ -3410,8 +3410,8 @@ describe("desktop components", () => {
       /activity-status [^"]*">(?:succeeded|failed|cancelled|unfinished|running)</,
     );
     expect(html).toContain("No completion reported");
-    expect(html).toContain(
-      '<p class="activity-details">This task has not reported completion. Review its details before retrying.</p>',
+    expect(html).toMatch(
+      /<p class="activity-details [^"]*">This task has not reported completion\. Review its details before retrying\.<\/p>/u,
     );
     expect(html).not.toContain('title="This task has not reported completion');
     expect(html).not.toContain("Needs review");
