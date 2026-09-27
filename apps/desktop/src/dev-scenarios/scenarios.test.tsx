@@ -79,14 +79,14 @@ describe("static development scenarios", () => {
     expect(libraryReference).toContain('aria-label="Library filters"');
     expect(libraryReference).toContain("All ready to play");
     expect(libraryReference).toContain(">Play</button>");
-    expect(libraryReference).not.toContain('class="detail-panel"');
+    expect(libraryReference).not.toContain('class="detail-panel ');
     const libraryAttention = renderScenario("library-reference-attention-narrow");
     expect(libraryAttention).toContain("1 needs attention");
     expect(libraryAttention).toContain("1 update downloaded");
     expect(libraryAttention).toContain(">Play</button>");
     const gameDetails = renderScenario("game-details-reference-narrow");
     expect(gameDetails).toContain("Play now");
-    expect(gameDetails).toContain('class="detail-panel"');
+    expect(gameDetails).toContain('class="detail-panel ');
     expect(gameDetails).not.toContain('aria-label="Library filters"');
     expect(gameDetails).not.toContain('class="port-grid"');
     expect(gameDetails).toContain('data-slot="button"');
@@ -97,7 +97,7 @@ describe("static development scenarios", () => {
     expect(installationReview).toContain("INSTALL PLAN");
     expect(installationReview).toContain("Install · 64.0 MiB");
     expect(installationReview).not.toContain("Installation and version");
-    expect(installationReview).toContain('class="detail-panel"');
+    expect(installationReview).toContain('class="detail-panel ');
     expect(installationReview).not.toContain('aria-label="Release channel filters"');
     expect(installationReview).not.toContain('class="port-grid"');
     const spaceBlocked = renderScenario("installation-review-space-blocked");
