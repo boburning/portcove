@@ -1252,14 +1252,6 @@ h2 {
   font-weight: 600;
   overflow-wrap: anywhere;
 }
-.detail-body {
-  padding: var(--space-7) var(--space-8) var(--space-10);
-}
-.summary {
-  color: var(--color-text-secondary);
-  line-height: var(--leading-relaxed);
-}
-
 .retired-notice {
   display: flex;
   align-items: flex-start;
@@ -1378,28 +1370,7 @@ select {
   color: var(--color-text-muted);
 }
 .installation-facts {
-  display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 9.25rem), 1fr));
-  margin: 0;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  background: var(--color-bg-subtle);
-}
-.installation-facts > div {
-  min-width: 0;
-  padding: 10px 12px;
-}
-.installation-facts dt {
-  color: var(--color-text-muted);
-  font-size: var(--text-xs);
-}
-.installation-facts dd {
-  margin: 4px 0 0;
-  overflow-wrap: anywhere;
-}
-.installation-facts-location {
-  grid-column: 1 / -1;
-  border-top: 1px solid var(--color-border);
 }
 .actions {
   display: flex;
@@ -1412,9 +1383,6 @@ select {
 }
 .primary-actions {
   margin-top: 16px;
-}
-.detail-inline-actions {
-  margin-top: 0;
 }
 .primary-actions .staged-action {
   border-color: var(--color-interactive-border);

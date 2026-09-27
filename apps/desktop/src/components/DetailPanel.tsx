@@ -381,7 +381,7 @@ function DetailBody({
     installed && port.adapter === "upstream-managed-setup" && port.setup_output_paths.length,
   );
   return (
-    <div className="detail-body">
+    <div className="detail-body px-8 pt-7 pb-10">
       <StatusActionsGroup
         installCancellations={installCancellations}
         port={port}
@@ -414,7 +414,9 @@ function DetailBody({
         busy={busy}
         prepare={prepare}
       />
-      <p className="summary">{port.summary}</p>
+      <p className="leading-[var(--leading-relaxed)] text-[var(--color-text-secondary)]">
+        {port.summary}
+      </p>
       <NavigationHints />
       <ArtworkControls key={`${port.id}:${libraryGeneration}`} port={port} />
       <DetailArtwork key={`${port.id}:${libraryGeneration}`} port={port} />
@@ -833,7 +835,10 @@ function InstallationVersionSummary({
     checked?.release.version ??
     (status?.active ? "No current check" : "Version shown when you review installation.");
   return (
-    <dl className="installation-facts" aria-label="Installation and release versions">
+    <dl
+      className="installation-facts m-0 grid rounded-pc-md border border-pc-border bg-[var(--color-bg-subtle)] [&>div]:min-w-0 [&>div]:px-3 [&>div]:py-2.5 [&_dt]:text-xs [&_dt]:text-pc-muted-foreground [&_dd]:m-0 [&_dd]:mt-1 [&_dd]:[overflow-wrap:anywhere]"
+      aria-label="Installation and release versions"
+    >
       <div>
         <dt>Installed version</dt>
         <dd>{status?.active?.version ?? "Not installed"}</dd>
@@ -859,7 +864,7 @@ function InstallationVersionSummary({
         </div>
       )}
       {status?.active && (
-        <div className="installation-facts-location">
+        <div className="col-span-full border-t border-pc-border">
           <dt>Installed folder</dt>
           <dd>{status.active.path}</dd>
         </div>
@@ -1949,7 +1954,7 @@ function MaintenanceActions({
 
 function DataActions({ busy, actions }: { busy?: string; actions: DetailActions }) {
   return (
-    <div className="actions detail-inline-actions">
+    <div className="flex flex-wrap gap-2">
       <Button
         data-focusable
         variant="outline"
@@ -1979,7 +1984,7 @@ function DataActions({ busy, actions }: { busy?: string; actions: DetailActions 
 
 function UpdateCheckAction({ busy, check }: { busy?: string; check: DetailActions["check"] }) {
   return (
-    <div className="actions detail-inline-actions">
+    <div className="flex flex-wrap gap-2">
       <Button
         data-focusable
         variant="outline"
