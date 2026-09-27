@@ -278,10 +278,6 @@ try {
             }
             $native.native_signing = "ad-hoc"
             $native.executable_permissions_verified = $true
-            if ($version -eq $candidateVersion) {
-                $consumerEvidence = Invoke-PackagedPayloadConsumer -Stage $stage -CandidateVersion $candidateVersion
-                $native.private_signing_inputs_absent = $consumerEvidence.private_signing_inputs_absent
-            }
         }
         $native | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $runRoot "$version-native.json") -Encoding utf8
         & git diff --binary -- Cargo.toml Cargo.lock apps/desktop/package.json apps/desktop/src-tauri/tauri.conf.json | Set-Content -LiteralPath (Join-Path $runRoot "$version-fixture.patch") -Encoding utf8
@@ -623,12 +619,18 @@ try {
         Move-RehearsalInput $bundleRoot $qualifiedBundleName
         $qualifiedApp = Join-Path $runRoot "$qualifiedBundleName/macos/Portcove.app"
         if (-not (Test-Path -LiteralPath $qualifiedApp -PathType Container)) { throw "The qualified predecessor macOS app was not retained" }
-        if ([IO.File]::Exists($privateKey)) { Remove-Item -LiteralPath $privateKey -Force }
         Remove-Item -LiteralPath (Join-Path $fixtureRoot "private") -Recurse -Force
+        Remove-Item -LiteralPath $tufConfigPath -Force
+        # The predecessor needs the same disposable updater key as the candidate.
+        # Only after both are signed may the consumer destroy private signing input.
+        $consumerEvidence = Invoke-PackagedPayloadConsumer -Stage $candidateStage -CandidateVersion $candidateVersion -TufPrivateRootPath (Join-Path $fixtureRoot "private")
+        $candidateNativePath = Join-Path $runRoot "$candidateVersion-native.json"
+        $candidateNative = Get-Content -LiteralPath $candidateNativePath -Raw | ConvertFrom-Json -AsHashtable
+        $candidateNative.private_signing_inputs_absent = $consumerEvidence.private_signing_inputs_absent
+        $candidateNative | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $candidateNativePath -Encoding utf8
         Remove-Item Env:TAURI_SIGNING_PRIVATE_KEY -ErrorAction SilentlyContinue
         Remove-Item Env:TAURI_SIGNING_PRIVATE_KEY_PATH -ErrorAction SilentlyContinue
         Remove-Item Env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD -ErrorAction SilentlyContinue
-        Remove-Item -LiteralPath $tufConfigPath -Force
         & (Join-Path $PSScriptRoot "test-macos-installed-selection.ps1") -QualifiedAppPath $qualifiedApp -CandidatePath (Join-Path $candidateStage $candidateInventory.updater.filename) -StateRoot (Join-Path $fixtureRoot "state") -EvidencePath (Join-Path $fixtureRoot "application-update-evidence.json") -PredecessorVersion $predecessorVersion -CandidateVersion $candidateVersion -PayloadPrivateKeyPath $privateKey -TufPrivateRootPath (Join-Path $fixtureRoot "private")
         if ($LASTEXITCODE -ne 0) { throw "macOS installed application selection qualification failed" }
     }

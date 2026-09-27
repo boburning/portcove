@@ -272,7 +272,11 @@ test("manual rehearsal retains the complete matrix without production credential
   );
   assert.match(rehearsal, /windows-payload-consumer\.json/);
   assert.match(rehearsal, /\$PlatformLabel-payload-consumer\.json/);
-  assert.match(rehearsal, /Invoke-PackagedPayloadConsumer -Stage \$stage/);
+  assert.match(
+    rehearsal,
+    /\$qualifiedApp = Join-Path \$runRoot[\s\S]*Invoke-PackagedPayloadConsumer -Stage \$candidateStage -CandidateVersion \$candidateVersion -TufPrivateRootPath[\s\S]*test-macos-installed-selection\.ps1/,
+  );
+  assert.doesNotMatch(rehearsal, /Invoke-PackagedPayloadConsumer -Stage \$stage/);
   assert.match(rehearsal, /verify_packaged_application_update/);
   assert.match(rehearsal, /name = "missing-signature"/);
   assert.match(
