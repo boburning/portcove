@@ -145,6 +145,23 @@ export async function assertDesignCompatibility({ browser, By, Key, until }) {
     "the dialog remains centered in right-to-left direction",
   );
   const selectTrigger = await browser.findElement(By.id("fixture-channel"));
+  await browser.executeScript(() => {
+    const trigger = document.querySelector("#fixture-channel");
+    window.__portcoveSelectActivationEvents = [];
+    for (const type of ["keydown", "keyup", "click"]) {
+      trigger?.addEventListener(
+        type,
+        (event) => {
+          window.__portcoveSelectActivationEvents.push({
+            type: event.type,
+            key: event instanceof KeyboardEvent ? event.key : null,
+            trusted: event.isTrusted,
+          });
+        },
+        { capture: true },
+      );
+    }
+  });
   await selectTrigger.sendKeys(Key.ENTER);
   try {
     await browser.wait(
@@ -163,15 +180,30 @@ export async function assertDesignCompatibility({ browser, By, Key, until }) {
             dialogOpen: document.querySelector(".design-compatibility-fixture")?.dataset.dialogOpen,
             triggerExpanded: trigger?.getAttribute("aria-expanded"),
             triggerDisabled: trigger?.getAttribute("aria-disabled"),
+            events: window.__portcoveSelectActivationEvents,
           };
         }),
       );
     } catch {
       // Preserve the activation failure if the driver can no longer inspect the page.
     }
-    throw new Error(`keyboard activation failed: ${String(error)}; state: ${state}`, {
-      cause: error,
-    });
+    let arrowOutcome = "unavailable";
+    try {
+      await selectTrigger.sendKeys(Key.ARROW_DOWN);
+      await browser.wait(
+        async () => (await fixture.getAttribute("data-select-open")) === "true",
+        2_000,
+      );
+      arrowOutcome = "opened";
+    } catch (arrowError) {
+      arrowOutcome = String(arrowError);
+    }
+    throw new Error(
+      `keyboard activation failed: ${String(error)}; state: ${state}; ArrowDown: ${arrowOutcome}`,
+      {
+        cause: error,
+      },
+    );
   }
   assert.equal(
     (await browser.findElements(dialogLocator)).length,
