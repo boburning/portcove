@@ -59,7 +59,7 @@ namespace Portcove.ReferenceClient
                 object status;
                 if (!statuses.TryGetValue(portId, out status)) throw new InvalidOperationException("The catalog changed during discovery. Refresh again.");
                 var active = Json.Field(status, "active");
-                var external = Json.Field(status, "external_runtime");
+                var external = Json.OptionalObjectField(status, "external_runtime");
                 result.Add(new GameMetadata
                 {
                     GameId = key, Name = Json.Text(port, "name"),
@@ -112,9 +112,7 @@ namespace Portcove.ReferenceClient
             try
             {
                 var status = plugin.ShowManagement(Game);
-                var active = status == null ? null : Json.Field(status, "active");
-                var external = status == null ? null : Json.Field(status, "external_runtime");
-                var installed = active ?? external;
+                var installed = StatusInstallation.Current(status);
                 if (installed != null) InvokeOnInstalled(new GameInstalledEventArgs
                 {
                     InstalledInfo = new GameInstallationData { InstallDirectory = Json.Text(installed, "path") }

@@ -36,6 +36,13 @@ namespace Portcove.ReferenceClient
 
         internal static bool TryField(object value, string key, out object result) => Object(value).TryGetValue(key, out result);
 
+        internal static object OptionalObjectField(object value, string key)
+        {
+            object result;
+            if (!TryField(value, key, out result) || result == null) return null;
+            return Object(result);
+        }
+
         internal static string Text(object value, string key)
         {
             var result = Field(value, key) as string;
@@ -71,6 +78,15 @@ namespace Portcove.ReferenceClient
             var text = result as string;
             if (text == null) throw new InvalidOperationException("Invalid Portcove text field: " + key);
             return text;
+        }
+    }
+
+    internal static class StatusInstallation
+    {
+        internal static object Current(object status)
+        {
+            if (status == null) return null;
+            return Json.Field(status, "active") ?? Json.OptionalObjectField(status, "external_runtime");
         }
     }
 
