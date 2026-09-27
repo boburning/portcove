@@ -573,6 +573,12 @@ function StatusActionsGroup({
   );
 }
 
+const disclosureSummaryStyle =
+  "flex cursor-pointer list-none items-center justify-between gap-3 px-0.5 py-[15px] text-xs font-bold hover:text-[var(--color-interactive-text-strong)]";
+const disclosureMetaStyle =
+  "ml-auto text-[length:var(--text-2xs)] font-medium text-pc-muted-foreground";
+const disclosureBodyStyle = "pt-0.5 pb-[22px]";
+
 function RequirementsGroup({
   port,
   status,
@@ -607,13 +613,17 @@ function RequirementsGroup({
   if (!port.source_profile && !port.bios_source_profile && !managedPreparation) return null;
   return (
     <DetailGroup title="Requirements">
-      <details ref={disclosure} className="requirements-disclosure" open={initiallyOpen}>
-        <summary data-focusable className="requirements-summary">
+      <details
+        ref={disclosure}
+        className="requirements-disclosure border-y border-pc-border"
+        open={initiallyOpen}
+      >
+        <summary data-focusable className={`requirements-summary ${disclosureSummaryStyle}`}>
           Game-file requirements and setup
-          <span className="requirements-summary-meta">File controls</span>
+          <span className={`requirements-summary-meta ${disclosureMetaStyle}`}>File controls</span>
           <Icon glyph={ChevronDown} />
         </summary>
-        <div className="requirements-body grid gap-4">
+        <div className={`requirements-body grid gap-4 ${disclosureBodyStyle}`}>
           <RequirementsSummary port={port} />
           <SourceFields controls={sources} />
           <SourceIntakeActions controls={sources} busy={Boolean(busy)} />
@@ -793,14 +803,17 @@ function FutureSetupDisclosure({
 }) {
   return (
     <details
-      className={`future-setup-disclosure${deferred ? " advanced-settings is-deferred" : ""}`}
+      className={`future-setup-disclosure${deferred ? " advanced-settings is-deferred border-y border-pc-border" : ""}`}
       open={!deferred}
     >
-      <summary data-focusable={deferred ? true : undefined} className="advanced-summary">
+      <summary
+        data-focusable={deferred ? true : undefined}
+        className={`advanced-summary ${disclosureSummaryStyle}`}
+      >
         {title}
         <Icon glyph={ChevronDown} />
       </summary>
-      <div className={`grid gap-4${deferred ? " advanced-body" : ""}`}>
+      <div className={`grid gap-4${deferred ? ` advanced-body ${disclosureBodyStyle}` : ""}`}>
         {deferred && <p>{description}</p>}
         {children}
       </div>
@@ -1198,12 +1211,15 @@ function TechnicalDetails({
     ),
   ].join(" · ");
   return (
-    <details className="advanced-settings">
-      <summary data-focusable className="advanced-summary">
-        Technical details <span className="advanced-summary-meta">Commands and maintenance</span>
+    <details className="advanced-settings border-y border-pc-border">
+      <summary data-focusable className={`advanced-summary ${disclosureSummaryStyle}`}>
+        Technical details{" "}
+        <span className={`advanced-summary-meta ${disclosureMetaStyle}`}>
+          Commands and maintenance
+        </span>
         <Icon glyph={ChevronDown} />
       </summary>
-      <div className="advanced-body">
+      <div className={`advanced-body ${disclosureBodyStyle}`}>
         <div className="metadata">
           <span title={persistentFiles}>
             <small>Saved data patterns</small>

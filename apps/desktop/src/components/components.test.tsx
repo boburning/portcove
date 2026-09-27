@@ -789,7 +789,7 @@ describe("desktop components", () => {
     expect(html).toContain("Files have changed since they were added");
     expect(html).toContain("Play unavailable");
     expect(html.indexOf("Requirements")).toBeLessThan(html.indexOf(port.summary));
-    expect(html).toContain('class="requirements-disclosure" open=""');
+    expect(html).toMatch(/<details class="requirements-disclosure[^"]*" open="">/u);
     expect(html).toContain("Installation and version");
     expect(html).not.toContain("Play now");
   });
@@ -2241,10 +2241,10 @@ describe("desktop components", () => {
       missingBoth.indexOf("Status and actions"),
     );
     expect(missingBoth).toMatch(
-      /<details class="future-setup-disclosure advanced-settings is-deferred">/u,
+      /<details class="future-setup-disclosure advanced-settings is-deferred[^"]*">/u,
     );
     expect(
-      missingBoth.match(/class="future-setup-disclosure advanced-settings is-deferred"/gu),
+      missingBoth.match(/class="future-setup-disclosure advanced-settings is-deferred[^"]*"/gu),
     ).toHaveLength(2);
     expect(missingBoth).toContain("Release and update choices for later");
     expect(missingBoth).toContain("Folder for a future install");
@@ -2262,8 +2262,8 @@ describe("desktop components", () => {
     expect(sourceFree).toContain('data-variant="primary"');
     expect(sourceFree).toMatch(/<details class="future-setup-disclosure" open="">/u);
     expect(installed).toContain("Play");
-    expect(installed).toContain('class="requirements-disclosure"');
-    expect(installed).not.toContain('class="requirements-disclosure" open=""');
+    expect(installed).toContain('class="requirements-disclosure');
+    expect(installed).not.toMatch(/<details class="requirements-disclosure[^"]*" open="">/u);
     expect(installed).toMatch(/<button[^>]*data-variant="primary"[^>]*>[^]*?Play now<\/button>/u);
     expect(installed).toMatch(/<button[^>]*data-variant="ghost"[^>]*>[^]*?Back<\/button>/u);
     expect(installed).toMatch(
@@ -2287,8 +2287,8 @@ describe("desktop components", () => {
     expect(installed).toContain("Delete");
     expect(installed).toContain("Uninstall Sample");
     expect(installed).toContain("source.z64");
-    expect(uninstalled).not.toContain('<details class="advanced-settings" open="">');
-    expect(installed).not.toContain('<details class="advanced-settings" open="">');
+    expect(uninstalled).not.toMatch(/<details class="advanced-settings[^"]*" open="">/u);
+    expect(installed).not.toMatch(/<details class="advanced-settings[^"]*" open="">/u);
     expect(installed).toMatch(/<details class="future-setup-disclosure" open="">/u);
     expect(installed).toContain("Saves and settings folder");
     expect(installed).toContain("C:/Portcove/user/sample");
