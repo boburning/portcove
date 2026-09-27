@@ -6,6 +6,9 @@ const cssPath = fileURLToPath(new URL("../src/styles.css", import.meta.url));
 const buttonPath = fileURLToPath(new URL("../src/components/ui/button.tsx", import.meta.url));
 const dialogPath = fileURLToPath(new URL("../src/components/ui/dialog.tsx", import.meta.url));
 const selectPath = fileURLToPath(new URL("../src/components/ui/select.tsx", import.meta.url));
+const updateCenterPath = fileURLToPath(
+  new URL("../src/components/UpdateCenter.tsx", import.meta.url),
+);
 const mainPath = fileURLToPath(new URL("../src/main.tsx", import.meta.url));
 const css = readFileSync(cssPath, "utf8");
 const foundationSources = {
@@ -13,6 +16,7 @@ const foundationSources = {
   dialog: readFileSync(dialogPath, "utf8"),
   main: readFileSync(mainPath, "utf8"),
   select: readFileSync(selectPath, "utf8"),
+  updateCenter: readFileSync(updateCenterPath, "utf8"),
 };
 const themeBlockPattern = /(:root|\[data-theme=(?:"light"|'light')\])\s*\{([\s\S]*?)\r?\n\}/g;
 const tokenBlocks = [...css.matchAll(themeBlockPattern)];
@@ -76,12 +80,27 @@ function checkCssSource(css, failures) {
       ".palette-command:active:not(:disabled) {",
       ".port-card {",
       ".port-card-selectable:active {",
-      ".update-row {",
-      ".update-row:active {",
     ].every((selector) => css.includes(selector)),
     "intentional composite buttons must retain explicit product-owned styles",
   );
   failures.push(...semanticReferenceFailures(parseTokens(css)));
+}
+
+function checkUpdateCenterSource(updateCenter, failures) {
+  for (const utility of [
+    "grid-cols-[42px_minmax(180px,1fr)_minmax(214px,284px)_90px]",
+    "max-[65rem]:grid-cols-[2.625rem_minmax(11rem,1fr)_minmax(8rem,1fr)_5.625rem]",
+    "active:translate-y-px",
+    "active:shadow-[var(--shadow-pressed)]",
+    "grid-cols-[1.5rem_minmax(0,1fr)_max-content_max-content]",
+    "max-[65rem]:grid-cols-[1.5rem_minmax(0,1fr)_4.5rem]",
+  ]) {
+    expectSource(
+      failures,
+      updateCenter.includes(utility),
+      `Game update and activity rows must retain ${utility}`,
+    );
+  }
 }
 
 function checkButtonSource(button, failures) {
@@ -203,12 +222,21 @@ function checkProductionCss(builtCss, failures) {
   }
 }
 
-export function foundationSourceFailures({ css, button, dialog, main, select, builtCss }) {
+export function foundationSourceFailures({
+  css,
+  button,
+  dialog,
+  main,
+  select,
+  updateCenter,
+  builtCss,
+}) {
   const sourceFailures = [];
   checkCssSource(css, sourceFailures);
   checkButtonSource(button, sourceFailures);
   checkDialogSource(dialog, sourceFailures);
   checkDirectionSources(main, select, sourceFailures);
+  checkUpdateCenterSource(updateCenter, sourceFailures);
   sourceFailures.push(
     ...[button, dialog, select].flatMap((source) => sharedControlSourceFailures(source)),
   );
@@ -486,6 +514,6 @@ if (failures.length > 0) {
     return `${theme.name}: text ${lowestText.toFixed(2)}:1, controls ${lowestControl.toFixed(2)}:1`;
   });
   console.log(
-    `N64 theme contract passed (${contrastPairs.length} pairs per theme; 5 foundation sources and ${sourceFiles.length} JSX sources${builtCss === undefined ? "" : " plus production CSS"}; ${summaries.join("; ")}).`,
+    `N64 theme contract passed (${contrastPairs.length} pairs per theme; 6 foundation sources and ${sourceFiles.length} JSX sources${builtCss === undefined ? "" : " plus production CSS"}; ${summaries.join("; ")}).`,
   );
 }
