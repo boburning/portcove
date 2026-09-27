@@ -461,7 +461,7 @@ function SteamProfileFields({
       >
         Steam installation folder
       </label>
-      <div className="path-entry">
+      <div className="flex items-stretch gap-2 [&_input]:min-w-0">
         <Input
           data-focusable
           id={`${idPrefix}-installation`}

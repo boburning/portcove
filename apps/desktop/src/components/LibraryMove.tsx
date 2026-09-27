@@ -86,7 +86,7 @@ function LibraryMoveDialog({ close }: { close: () => void }) {
         </DialogDescription>
         <NavigationHints />
         <label htmlFor="library-destination">New library folder</label>
-        <div className="path-entry">
+        <div className="flex items-stretch gap-2 [&_input]:min-w-0">
           <Input
             data-autofocus
             data-focusable

@@ -296,7 +296,7 @@ function PublisherTrust({ status, busy, run, changed }: CatalogActions) {
       >
         Publisher public key (64 hex characters)
       </label>
-      <div className="path-entry">
+      <div className="flex items-stretch gap-2 [&_input]:min-w-0">
         <Input
           data-focusable
           data-autofocus={status.trusted_keys.length === 0 || undefined}
@@ -374,7 +374,7 @@ function CatalogReview({
       >
         {kind === "file" ? "Signed catalog file" : "Signed catalog HTTPS address"}
       </label>
-      <div className="path-entry">
+      <div className="flex items-stretch gap-2 [&_input]:min-w-0">
         <Input
           data-focusable
           data-autofocus={status.trusted_keys.length > 0 || undefined}

@@ -324,7 +324,7 @@ export function OutputLocationControl({
       <label htmlFor={`output-location-path-${portId}`} className="text-xs font-bold">
         Folder for future installs
       </label>
-      <div className="path-entry">
+      <div className="flex items-stretch gap-2 [&_input]:min-w-0">
         <Input
           id={`output-location-path-${portId}`}
           data-focusable
