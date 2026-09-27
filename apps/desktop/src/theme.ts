@@ -62,6 +62,9 @@ export function applyWebTheme(theme: ResolvedTheme): void {
   if (typeof document === "undefined") return;
   document.documentElement.dataset.theme = theme;
   document.documentElement.style.colorScheme = theme;
+  // WKWebView can retain a mounted child's old dark: style after data-theme changes.
+  // Changing an inherited root property invalidates those descendant styles.
+  document.documentElement.style.setProperty("--portcove-theme-invalidation", theme);
   document
     .querySelector<HTMLMetaElement>('meta[name="theme-color"]')
     ?.setAttribute("content", THEME_COLORS[theme]);

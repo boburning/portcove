@@ -19,6 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import "./design-compatibility.css";
+import { applyWebTheme } from "@/theme";
 
 type Theme = "dark" | "light";
 type Direction = "ltr" | "rtl";
@@ -34,7 +35,7 @@ export function DesignCompatibilityFixture() {
   const [reduceMotion, setReduceMotion] = useState(false);
 
   useEffect(() => {
-    document.documentElement.dataset.theme = theme;
+    applyWebTheme(theme);
     document.documentElement.dir = direction;
   }, [direction, theme]);
 

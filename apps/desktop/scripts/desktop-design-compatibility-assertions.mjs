@@ -67,6 +67,24 @@ export async function assertDesignCompatibility({ browser, By, Key, until }) {
     "1",
     "a generated dark: utility changes an actual computed control property under data-theme",
   );
+  await browser.findElement(By.id("fixture-theme-dark")).click();
+  await browser.wait(async () => (await fixture.getAttribute("data-theme")) === "dark", 15_000);
+  assert.equal(
+    await browser.executeScript(
+      () => getComputedStyle(document.querySelector("[data-theme-variant-probe]")).opacity,
+    ),
+    "0.5",
+    "a mounted control regains its generated dark: style when returning to dark",
+  );
+  await browser.findElement(By.id("fixture-theme-light")).click();
+  await browser.wait(async () => (await fixture.getAttribute("data-theme")) === "light", 15_000);
+  assert.equal(
+    await browser.executeScript(
+      () => getComputedStyle(document.querySelector("[data-theme-variant-probe]")).opacity,
+    ),
+    "1",
+    "a mounted control returns to its light style on the next switch",
+  );
 
   await browser.findElement(By.id("fixture-direction")).click();
   await browser.wait(async () => (await fixture.getAttribute("data-direction")) === "rtl", 15_000);

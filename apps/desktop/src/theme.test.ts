@@ -58,7 +58,7 @@ describe("theme preferences", () => {
     const meta = { setAttribute: vi.fn() };
     const documentElement = {
       dataset: {} as Record<string, string>,
-      style: { colorScheme: "" },
+      style: { colorScheme: "", setProperty: vi.fn() },
     };
     vi.stubGlobal("document", {
       documentElement,
@@ -67,6 +67,10 @@ describe("theme preferences", () => {
     applyWebTheme("light");
     expect(documentElement.dataset.theme).toBe("light");
     expect(documentElement.style.colorScheme).toBe("light");
+    expect(documentElement.style.setProperty).toHaveBeenCalledWith(
+      "--portcove-theme-invalidation",
+      "light",
+    );
     expect(meta.setAttribute).toHaveBeenCalledWith("content", "#f5f3ee");
   });
 
