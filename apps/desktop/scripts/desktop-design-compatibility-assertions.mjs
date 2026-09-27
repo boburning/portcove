@@ -100,8 +100,14 @@ export async function assertDesignCompatibility({ browser, By, Key, until }) {
     .wait(async () => {
       lightVariant = await browser.executeScript(() => {
         const probe = document.querySelector("[data-theme-variant-probe]");
+        const freshProbe = probe.cloneNode(false);
+        freshProbe.removeAttribute("data-theme-variant-probe");
+        probe.after(freshProbe);
+        const freshOpacity = getComputedStyle(freshProbe).opacity;
+        freshProbe.remove();
         return {
           opacity: getComputedStyle(probe).opacity,
+          freshOpacity,
           themeOpacity: getComputedStyle(document.querySelector(".design-compatibility-fixture"))
             .getPropertyValue("--fixture-theme-opacity")
             .trim(),
