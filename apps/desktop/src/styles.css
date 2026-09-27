@@ -1974,25 +1974,6 @@ select {
   background: var(--color-bg-hover);
 }
 
-.settings-row code {
-  display: block;
-  overflow-wrap: anywhere;
-  margin-bottom: 15px;
-  padding: 10px;
-  border-radius: var(--radius-md);
-  color: var(--color-interactive-text);
-  background: var(--color-bg-inset);
-}
-
-/* Game-file and publisher rows override the remaining legacy Settings code block.
-   Remove this reset when the other Settings code paths move to semantic utilities. */
-.settings-row .source-health-row code {
-  margin: 4px 0 0;
-  padding: 0;
-  color: var(--color-text-muted);
-  background: transparent;
-}
-
 .github-auth {
   grid-column: 1 / -1;
 }
@@ -2004,23 +1985,6 @@ select {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-}
-
-.host-summary code,
-.host-tool-row code {
-  overflow: hidden;
-  margin: 0;
-  padding: 0;
-  color: var(--color-text-muted);
-  background: var(--color-transparent);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* The remaining unlayered Settings code block also affects nested tool paths.
-   Retire this margin reset with the Settings code block. */
-.host-tool-row .host-tool-details > code {
-  margin-top: var(--space-2);
 }
 
 .auth-state {

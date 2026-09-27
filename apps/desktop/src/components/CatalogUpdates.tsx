@@ -93,7 +93,7 @@ function CatalogFallbackReason({
         >
           Technical details
         </summary>
-        <code>{reason}</code>
+        <code className="[overflow-wrap:anywhere]">{reason}</code>
       </details>
     </div>
   );
@@ -448,7 +448,7 @@ function CatalogReview({
               <dd>Valid</dd>
               <dt>Publisher key</dt>
               <dd>
-                <code>{plan.key_id}</code>
+                <code className="[overflow-wrap:anywhere]">{plan.key_id}</code>
               </dd>
               <dt>Publisher trust</dt>
               <dd>Trusted</dd>
@@ -458,11 +458,13 @@ function CatalogReview({
               <dd>{new Date(plan.expires_at * 1000).toLocaleString()}</dd>
               <dt>Changed port IDs</dt>
               <dd>
-                <code>{plan.changed_ports.map((port) => port.id).join(", ") || "None"}</code>
+                <code className="[overflow-wrap:anywhere]">
+                  {plan.changed_ports.map((port) => port.id).join(", ") || "None"}
+                </code>
               </dd>
               <dt>Envelope SHA-256</dt>
               <dd>
-                <code>{plan.envelope_sha256}</code>
+                <code className="[overflow-wrap:anywhere]">{plan.envelope_sha256}</code>
               </dd>
             </dl>
           </details>
