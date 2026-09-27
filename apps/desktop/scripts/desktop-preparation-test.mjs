@@ -241,7 +241,7 @@ export async function preparationScenarios({
     const preparationText = await browser.findElement(preparationDialog).getText();
     for (const expected of [
       "Prepare game data",
-      "Selected original files",
+      "Selected game files",
       "of free space before the game generates output",
       "previous version remains available for rollback",
       "unfinished setup files kept for review",
@@ -1033,7 +1033,7 @@ export async function preparationScenarios({
     );
     const before = await status(port.id);
     const activities = await invoke("get_activities");
-    const policyTrigger = By.xpath('//button[contains(., "Saved update policy")]');
+    const policyTrigger = By.xpath('//button[contains(., "Game update behavior")]');
     await browser.findElement(policyTrigger).sendKeys(Key.ENTER);
     const policyPopup = By.css('[data-slot="select-content"][data-open]');
     await browser.wait(
@@ -1071,7 +1071,7 @@ export async function preparationScenarios({
     );
     await restoredPolicyTrigger.sendKeys(Key.ENTER);
     const automaticOption = By.xpath(
-      '//*[@role="option" and normalize-space(.)="Install when running updates"]',
+      '//*[@role="option" and normalize-space(.)="Install when I run updates"]',
     );
     await browser.wait(
       until.elementLocated(automaticOption),

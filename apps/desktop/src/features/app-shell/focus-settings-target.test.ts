@@ -12,7 +12,7 @@ it("focuses the matching source action, requirement, or safe heading", () => {
   const section = document.createElement("section");
   section.dataset.settingsGroup = "game-files";
   section.innerHTML = `
-    <h2 id="settings-game-files-heading" tabindex="-1">Game Files</h2>
+    <h2 id="settings-game-files-heading" tabindex="-1">Game files</h2>
     <button data-settings-control="add-game-file-root">Add folder</button>
     <button data-settings-control="discover-sources">Find required files</button>
     <div class="source-requirement" data-source-profile="needed" tabindex="-1"><button>Add game files</button></div>
@@ -39,23 +39,23 @@ it("focuses the matching source action, requirement, or safe heading", () => {
   expect((document.activeElement as HTMLElement).tabIndex).toBe(0);
 });
 
-it("focuses Library & Storage when the library volume needs space", () => {
+it("focuses Library and storage when the library volume needs space", () => {
   HTMLElement.prototype.scrollIntoView = vi.fn();
   const section = document.createElement("section");
   section.dataset.settingsGroup = "library-storage";
   section.innerHTML =
-    '<h2 id="settings-library-storage-heading" tabindex="-1">Library & Storage</h2>';
+    '<h2 id="settings-library-storage-heading" tabindex="-1">Library and storage</h2>';
   document.body.append(section);
   focusSettingsTarget("library-storage");
   expect(document.activeElement?.id).toBe("settings-library-storage-heading");
   expect((document.activeElement as HTMLElement).tabIndex).toBe(0);
 });
 
-it("focuses Add folder after saved folders load only while focus remains on Game Files", async () => {
+it("focuses Add folder after saved folders load only while focus remains on Game files", async () => {
   HTMLElement.prototype.scrollIntoView = vi.fn();
   const section = document.createElement("section");
   section.dataset.settingsGroup = "game-files";
-  section.innerHTML = `<h2 id="settings-game-files-heading" tabindex="-1">Game Files</h2>
+  section.innerHTML = `<h2 id="settings-game-files-heading" tabindex="-1">Game files</h2>
     <button data-settings-control="add-game-file-root" disabled>Add folder</button>
     <button>Another action</button>`;
   document.body.append(section);

@@ -284,9 +284,9 @@ describe("core-owned failure presentation", () => {
         ),
       );
       const routes = [
-        ["Game-file search", "Game Files", "discover-sources"],
-        ["Library move", "Library & Storage", "move-library"],
-        ["Library restore", "Library & Storage", "import-library"],
+        ["Game-file search", "Game files", "discover-sources"],
+        ["Library move", "Library and storage", "move-library"],
+        ["Library restore", "Library and storage", "import-library"],
         ["Catalog update", "Catalog updates", "catalog-updates"],
       ] as const;
       for (const [operation, destination, target] of routes) {

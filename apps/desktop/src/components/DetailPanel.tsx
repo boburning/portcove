@@ -1758,7 +1758,7 @@ export function InstallAction({
                     openLibraryStorage();
                   }}
                 >
-                  Open Library &amp; Storage
+                  Open Library and storage
                 </Button>
               )}
               {action ? (

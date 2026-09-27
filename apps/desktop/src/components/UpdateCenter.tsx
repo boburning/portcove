@@ -603,9 +603,9 @@ function ActivityTargetLink({
       : undefined;
   if (settingsTarget) {
     const destination = {
-      "discover-sources": "Game Files",
-      "move-library": "Library & Storage",
-      "import-library": "Library & Storage",
+      "discover-sources": "Game files",
+      "move-library": "Library and storage",
+      "import-library": "Library and storage",
       "catalog-updates": "Catalog updates",
     }[settingsTarget];
     return (

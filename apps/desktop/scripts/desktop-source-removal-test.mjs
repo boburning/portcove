@@ -60,7 +60,7 @@ export async function sourceRemovalScenario({
     }
     const { button, click } = reviewControls(browser);
     await click(By.xpath('//nav//button[contains(., "Settings")]'));
-    const row = By.css(`[data-source-profile="${source.profile_id}"]`);
+    const row = By.css(`.source-health-row[data-source-profile="${source.profile_id}"]`);
     const dialog = By.css('[aria-labelledby="source-removal-title"]');
     const trigger = By.xpath(
       `//*[@data-source-profile="${source.profile_id}"]//button[normalize-space(.)="Remove saved location"]`,

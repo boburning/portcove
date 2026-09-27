@@ -224,7 +224,7 @@ it("presents the reviewed installation in a dismissible dialog and restores trig
 });
 
 it.each(["library_default", "port_setting"] as const)(
-  "routes a low-library-space review to Library & Storage for the default path saved as %s",
+  "routes a low-library-space review to Library and storage for the default path saved as %s",
   async (selectionSource) => {
     const openLibraryStorage = vi.fn();
     const shortPlan = {
@@ -252,8 +252,8 @@ it.each(["library_default", "port_setting"] as const)(
     expect(button("Free space required").disabled).toBe(true);
     expect(document.body.textContent).toContain("32.0 MiB available in library");
     expect(document.body.textContent).toContain("more free space in the Portcove library");
-    expect(button("Open Library & Storage").disabled).toBe(false);
-    await click("Open Library & Storage");
+    expect(button("Open Library and storage").disabled).toBe(false);
+    await click("Open Library and storage");
     expect(document.body.querySelector('[role="dialog"]')).toBeNull();
     expect(openLibraryStorage).toHaveBeenCalledTimes(1);
     await click("Review installation");
@@ -291,7 +291,7 @@ it("does not block an external-output install using the library volume's free sp
   expect(button("Install · 64.0 MiB").disabled).toBe(false);
   expect(document.body.textContent).toContain("Destination capacity checked at install");
   expect(document.body.textContent).not.toContain("more free space in the Portcove library");
-  expect(document.body.textContent).not.toContain("Open Library & Storage");
+  expect(document.body.textContent).not.toContain("Open Library and storage");
 });
 
 it("does not dismiss the reviewed installation after installation starts", async () => {
