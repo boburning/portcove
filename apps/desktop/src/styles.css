@@ -964,41 +964,8 @@ h2 {
 .palette-5 {
   --art-color: var(--color-art-red);
 }
-.card-content {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  padding: 16px;
-}
-
-.port-card-library .card-content {
-  gap: var(--space-2);
-}
-
-.port-card-library .card-kicker {
-  margin-bottom: 0;
-}
-
 .port-card-library .card-status {
   justify-content: flex-end;
-}
-
-.card-secondary {
-  color: var(--color-text-secondary);
-  font-size: var(--text-xs);
-}
-
-.card-kicker,
-.card-title {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.card-kicker {
-  align-items: center;
-  margin-bottom: 10px;
 }
 
 .readiness {
@@ -1028,12 +995,6 @@ h2 {
 .readiness.staged {
   color: var(--color-interactive-text-strong);
 }
-.card-title h2 {
-  margin: 0;
-  font-size: var(--text-lg);
-  line-height: var(--leading-tight);
-}
-
 .badge {
   padding: 4px 7px;
   border-radius: var(--radius-round);
@@ -1058,42 +1019,14 @@ h2 {
   background: var(--color-bg-raised);
 }
 
-.card-flags {
-  min-height: 18px;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 5px;
-}
-
 .badge.update {
   color: var(--color-text-on-highlight);
   background: var(--color-highlight);
 }
 
+/* The unlayered global paragraph reset wins over layered spacing utilities. */
 .card-content > p {
-  min-height: 32px;
-  display: -webkit-box;
-  overflow: hidden;
-  margin: 9px 0 11px;
-  color: var(--color-text-secondary);
-  font-size: var(--text-xs);
-  line-height: var(--leading-normal);
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-}
-
-.platforms {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 5px;
-}
-
-.platforms span {
-  padding: 3px 6px;
-  border-radius: var(--radius-sm);
-  color: var(--color-text-secondary);
-  background: var(--color-bg-subtle-hover);
-  font-size: var(--text-2xs);
+  margin-top: 9px;
 }
 
 .card-status {

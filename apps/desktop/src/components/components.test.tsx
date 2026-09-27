@@ -2679,7 +2679,7 @@ describe("desktop components", () => {
     expect(cards).toContain("Available");
     expect(cards).toContain("Windows");
     expect(cards).toContain(port.summary);
-    expect(cards).toContain('<div class="platforms">');
+    expect(cards).toContain(">Windows</span>");
     expect(cards).not.toContain('<span class="badge stable">Stable</span>');
     expect(cards).not.toContain("staged-source-portable");
     expect(empty).toContain("No ports match these filters");
@@ -3083,7 +3083,7 @@ describe("desktop components", () => {
     expect(html).toContain('data-slot="button"');
     expect(html).toContain('data-variant="outline"');
     expect(html).toContain('data-variant="primary"');
-    expect(html).toContain('<small class="card-secondary">Release channel: Stable</small>');
+    expect(html).toMatch(/<small[^>]*>Release channel: Stable<\/small>/u);
     expect(html).toContain('<article class="port-card port-card-library"');
     expect(html).toContain(">Play</button>");
     expect(html).not.toMatch(/<button[^>]*class="port-card/u);
@@ -3099,9 +3099,9 @@ describe("desktop components", () => {
       /<article class="port-card port-card-library"[\s\S]*?<\/article>/u,
     )?.[0];
     expect(card).toBeDefined();
-    expect(card?.indexOf("<h2>")).toBeLessThan(card!.indexOf('class="card-kicker"'));
+    expect(card).toMatch(/<h2[^>]*>Sample Port<\/h2>[\s\S]*?Ready to play/u);
     expect(card).not.toContain(port.summary);
-    expect(card).not.toContain('<div class="platforms">');
+    expect(card).not.toContain(">Windows</span>");
     expect(card).not.toContain(install.version);
   });
 

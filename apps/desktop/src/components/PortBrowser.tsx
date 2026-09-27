@@ -501,12 +501,14 @@ function PortCardContents({
   detailOrigin: string;
 }) {
   const title = (
-    <div className="card-title">
-      <h2>{port.name}</h2>
+    <div className="flex items-start justify-between gap-2">
+      <h2 className="m-0 text-lg leading-[var(--leading-tight)]">{port.name}</h2>
     </div>
   );
   const stateLabel = (
-    <div className="card-kicker">
+    <div
+      className={`flex items-center justify-between gap-2 ${view === "catalog" ? "mb-2.5" : ""}`}
+    >
       <span className={`readiness ${state.tone}`}>
         <i />
         {state.label}
@@ -524,7 +526,9 @@ function PortCardContents({
         </span>
       )}
       <ArtworkImage port={port} className="card-art" />
-      <div className="card-content">
+      <div
+        className={`card-content flex min-w-0 flex-col p-4 ${view === "library" ? "gap-2" : ""}`}
+      >
         {view === "library" ? (
           <>
             {title}
@@ -537,10 +541,12 @@ function PortCardContents({
           </>
         )}
         {view === "library" && channel && (
-          <small className="card-secondary">Release channel: {channel.label}</small>
+          <small className="text-xs text-[var(--color-text-secondary)]">
+            Release channel: {channel.label}
+          </small>
         )}
         {(updateAvailable || port.upstream_status === "retired") && (
-          <div className="card-flags">
+          <div className="flex min-h-[18px] flex-wrap gap-[5px]">
             {updateAvailable && <span className="badge update">Update available</span>}
             {port.upstream_status === "retired" && (
               <span className="badge retired">Retired upstream</span>
@@ -549,10 +555,17 @@ function PortCardContents({
         )}
         {view === "catalog" && (
           <>
-            <p>{port.summary}</p>
-            <div className="platforms">
+            <p className="mb-[11px] line-clamp-2 min-h-8 text-xs leading-[var(--leading-normal)] text-[var(--color-text-secondary)]">
+              {port.summary}
+            </p>
+            <div className="flex flex-wrap gap-[5px]">
               {port.platforms.map((platform) => (
-                <span key={platform}>{platformLabel(platform)}</span>
+                <span
+                  key={platform}
+                  className="rounded-pc-sm bg-[var(--color-bg-subtle-hover)] px-[6px] py-[3px] text-[var(--text-2xs)] text-[var(--color-text-secondary)]"
+                >
+                  {platformLabel(platform)}
+                </span>
               ))}
             </div>
           </>
