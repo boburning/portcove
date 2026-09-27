@@ -655,6 +655,76 @@ async function captureApplicationUpdateSettingsComparison() {
   }
 }
 
+async function captureOutputDestinationReview(name) {
+  const outputControl = await browser.wait(
+    until.elementLocated(By.css(".output-location-control")),
+    15_000,
+  );
+  await browser.wait(
+    async () =>
+      (await outputControl.findElements(By.css('[aria-label="Current output destination"] dl')))
+        .length === 1,
+    15_000,
+  );
+  const outputLayout = await browser.executeScript(() => {
+    const control = document.querySelector(".output-location-control");
+    const current = control?.querySelector('[aria-label="Current output destination"]');
+    if (!(control instanceof HTMLElement) || !(current instanceof HTMLElement)) return null;
+    const facts = current.querySelector("dl");
+    const factValue = facts?.querySelector("dd");
+    if (!(facts instanceof HTMLElement) || !(factValue instanceof HTMLElement)) return null;
+    control.scrollIntoView({ block: "start", inline: "nearest" });
+    return {
+      controlDisplay: getComputedStyle(control).display,
+      currentDisplay: getComputedStyle(current).display,
+      factsTopMargin: getComputedStyle(facts).marginTop,
+      factValueLeftMargin: getComputedStyle(factValue).marginLeft,
+      horizontalOverflow: document.documentElement.scrollWidth > window.innerWidth + 1,
+      controlOverflow: control.scrollWidth > control.clientWidth + 1,
+    };
+  });
+  assert.deepEqual(outputLayout, {
+    controlDisplay: "grid",
+    currentDisplay: "grid",
+    factsTopMargin: "0px",
+    factValueLeftMargin: "0px",
+    horizontalOverflow: false,
+    controlOverflow: false,
+  });
+  await captureScenarioScreenshot(`${name}-current-output-destination`, true);
+  const reviewOutput = await outputControl.findElement(
+    By.xpath('.//button[normalize-space(.)="Review future folder"]'),
+  );
+  await reviewOutput.click();
+  const outputReview = await browser.wait(
+    until.elementLocated(By.css('[aria-label="Output destination review"]')),
+    15_000,
+  );
+  assert.equal(
+    await browser.executeScript((review) => {
+      const facts = review.querySelector("dl");
+      const value = facts?.querySelector("dd");
+      return (
+        getComputedStyle(review).display === "grid" &&
+        review.scrollWidth <= review.clientWidth + 1 &&
+        facts instanceof HTMLElement &&
+        value instanceof HTMLElement &&
+        getComputedStyle(facts).marginTop === "0px" &&
+        getComputedStyle(value).marginLeft === "0px"
+      );
+    }, outputReview),
+    true,
+  );
+  await captureScenarioScreenshot(`${name}-output-destination-review`, true);
+  await browser.findElement(By.xpath('//button[normalize-space(.)="Cancel review"]')).click();
+  await browser.wait(
+    async () =>
+      (await browser.executeScript(() => document.activeElement?.textContent?.trim())) ===
+      "Review future folder",
+    5_000,
+  );
+}
+
 async function scenario(name, action) {
   const target = scenarioTarget(name);
   if (!target) return;
@@ -1504,6 +1574,7 @@ try {
       15_000,
     );
     await browser.wait(async () => await outputDraft.isEnabled(), 15_000);
+    await captureOutputDestinationReview("game-details");
     const draftPath = "C:\\Portcove-fixture\\Future-install";
     await outputDraft.sendKeys(Key.chord(Key.CONTROL, "a"), Key.BACK_SPACE, draftPath);
     const sourceDraft = await browser.findElement(
@@ -1637,6 +1708,13 @@ try {
             `game-details-missing-source-${theme}-${size.width}`,
             true,
           );
+          const folderChoices = (
+            await browser.findElements(By.css(".future-setup-disclosure > summary"))
+          )[1];
+          assert.ok(folderChoices);
+          await folderChoices.click();
+          await captureOutputDestinationReview(`game-details-${theme}-${size.width}`);
+          await folderChoices.click();
         }
         await browser.findElement(By.css(".detail-back")).click();
         await browser.wait(until.elementLocated(By.id("port-search")), 15_000);
