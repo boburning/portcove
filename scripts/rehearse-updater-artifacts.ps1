@@ -93,7 +93,10 @@ function Set-FixtureVersion([string]$Version) {
     Invoke-Checked "node" @("scripts/check-release-metadata.mjs")
 }
 
-function Invoke-PackagedPayloadConsumer([string]$Stage, [string]$CandidateVersion) {
+function Invoke-PackagedPayloadConsumer([string]$Stage, [string]$CandidateVersion, [string]$TufPrivateRootPath = "") {
+    if ($TufPrivateRootPath -and [IO.Directory]::Exists($TufPrivateRootPath)) {
+        throw "Disposable TUF signing authority remained available before packaged payload consumer execution"
+    }
     $candidateInventoryPath = Join-Path $Stage "updater-inventory.json"
     $candidateInventory = Get-Content -LiteralPath $candidateInventoryPath -Raw | ConvertFrom-Json
     $candidate = Join-Path $Stage $candidateInventory.updater.filename
@@ -348,12 +351,12 @@ try {
         $env:PORTCOVE_APPLICATION_UPDATE_TARGETS_URL = ([Uri]::new($targetsDirectory.TrimEnd('/', '\') + '/')).AbsoluteUri
         Invoke-Checked "corepack" @($pnpmSpec, "--dir", "apps/desktop", "tauri", "build", "--bundles", "nsis", "--config", $configPath, "--ci", "--features", "application-update-qualification")
         $predecessor = Join-Path $bundleRoot "nsis/Portcove_$($predecessorVersion)_x64-setup.exe"
-        $consumerEvidence = Invoke-PackagedPayloadConsumer -Stage $candidateStage -CandidateVersion $candidateVersion
         Remove-Item -LiteralPath (Join-Path $fixtureRoot "private") -Recurse -Force
         Remove-Item -LiteralPath $tufConfigPath -Force
         $privateTufAbsent = -not [IO.Directory]::Exists((Join-Path $fixtureRoot "private"))
         if (-not $privateTufAbsent) { throw "Disposable TUF signing authority remained available" }
-        & (Join-Path $PSScriptRoot "test-windows-installer.ps1") -InstallerPath $candidate -UpgradeFromInstallerPath $predecessor -ExpectedExecutablePath (Join-Path $runRoot "windows-candidate-desktop.exe") -TestBase (Join-Path $runRoot "installer-test") -EvidencePath (Join-Path $runRoot "windows-installed-update.json") -InstallMode Passive -ExpectedVersion $candidateVersion -PayloadPrivateKeyPath $privateKey -RequireSigningAuthorityAbsent -InstalledUpdateTrustedRootPath $env:PORTCOVE_APPLICATION_UPDATE_BUNDLED_ROOT_FILE -InstalledUpdateMetadataPath $metadataDirectory -InstalledUpdateTargetsPath $targetsDirectory -InstalledUpdateCandidatePath $candidate -InstalledUpdatePredecessorVersion $predecessorVersion
+        $consumerEvidence = Invoke-PackagedPayloadConsumer -Stage $candidateStage -CandidateVersion $candidateVersion -TufPrivateRootPath (Join-Path $fixtureRoot "private")
+        & (Join-Path $PSScriptRoot "test-windows-installer.ps1") -InstallerPath $candidate -UpgradeFromInstallerPath $predecessor -ExpectedExecutablePath (Join-Path $runRoot "windows-candidate-desktop.exe") -TestBase (Join-Path $runRoot "installer-test") -EvidencePath (Join-Path $runRoot "windows-installed-update.json") -InstallMode Passive -ExpectedVersion $candidateVersion -PayloadPrivateKeyPath $privateKey -TufPrivateRootPath (Join-Path $fixtureRoot "private") -RequireSigningAuthorityAbsent -InstalledUpdateTrustedRootPath $env:PORTCOVE_APPLICATION_UPDATE_BUNDLED_ROOT_FILE -InstalledUpdateMetadataPath $metadataDirectory -InstalledUpdateTargetsPath $targetsDirectory -InstalledUpdateCandidatePath $candidate -InstalledUpdatePredecessorVersion $predecessorVersion
         if ($LASTEXITCODE -ne 0) { throw "Windows installed application update qualification failed" }
         if ((Get-FileHash -LiteralPath $env:PORTCOVE_PREFERENCES -Algorithm SHA256).Hash -ne $preferencesHash) { throw "Windows updater qualification changed isolated host preferences" }
         [ordered]@{ source_commit = $revision; candidate_version = $candidateVersion; private_signing_inputs_absent = $consumerEvidence.private_signing_inputs_absent; private_tuf_inputs_absent = $privateTufAbsent; installed_update_evidence = "windows-installed-update.json" } | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $runRoot "windows-installed-update-summary.json") -Encoding utf8

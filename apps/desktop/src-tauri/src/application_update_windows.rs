@@ -360,6 +360,7 @@ pub fn stage_windows_update_worker(
     serde_json::to_writer(&mut file, &manifest)
         .map_err(|error| WindowsApplicationUpdateError::InvalidPath(error.to_string()))?;
     file.sync_all()?;
+    drop(file);
     verify_windows_update_worker_at(apply, revision, &worker_path)?;
     Ok(worker_path)
 }
@@ -381,6 +382,20 @@ pub fn verify_windows_update_worker(
     revision: u64,
 ) -> Result<VerifiedWindowsUpdateWorker, WindowsApplicationUpdateError> {
     verify_windows_update_worker_at(apply, revision, &std::env::current_exe()?)
+}
+
+#[cfg(windows)]
+pub fn lock_windows_update_worker_for_spawn(
+    apply: &ApplicationUpdateApplyStore,
+    revision: u64,
+    executable: &Path,
+) -> Result<File, WindowsApplicationUpdateError> {
+    // A read-only handle with FILE_SHARE_READ prevents replacement between
+    // final verification and CreateProcess. The handle stays in the parent
+    // until spawn succeeds and is not inherited by the child.
+    let guard = open_locked_file(executable)?;
+    verify_windows_update_worker_at(apply, revision, executable)?;
+    Ok(guard)
 }
 
 #[cfg(windows)]
@@ -1185,7 +1200,16 @@ mod tests {
             installed_executable: fs::canonicalize(&installed).unwrap(),
             installed_sha256: hex::encode(Sha256::digest(b"MZpredecessor")),
         };
-        fs::write(&manifest_path, serde_json::to_vec(&manifest).unwrap()).unwrap();
+        let mut writer = OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&manifest_path)
+            .unwrap();
+        serde_json::to_writer(&mut writer, &manifest).unwrap();
+        writer.sync_all().unwrap();
+        assert!(read_worker_manifest(&manifest_path).is_err());
+        drop(writer);
+        assert_eq!(read_worker_manifest(&manifest_path).unwrap().revision, 42);
         assert_eq!(
             verify_worker_filesystem(root, 42, &worker)
                 .unwrap()

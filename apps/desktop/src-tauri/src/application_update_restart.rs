@@ -188,6 +188,10 @@ pub(crate) fn stage_qualification_worker(expected_revision: u64) -> i32 {
             0
         }
         Err(error) => {
+            if let Ok(apply) = ApplicationUpdateApplyStore::open_configured() {
+                let diagnostic = error.chars().take(2048).collect::<String>();
+                let _ = std::fs::write(apply.root().join("worker-stage-error.txt"), diagnostic);
+            }
             eprintln!("Portcove qualification worker staging failed: {error}");
             1
         }
@@ -197,9 +201,16 @@ pub(crate) fn stage_qualification_worker(expected_revision: u64) -> i32 {
 #[cfg(any(windows, target_os = "linux"))]
 fn spawn_update_helper(expected_revision: u64) -> DesktopResult<()> {
     #[cfg(windows)]
-    let executable = crate::application_update_windows::stage_windows_update_worker(
-        &ApplicationUpdateApplyStore::open_configured().map_err(apply_error)?,
+    let apply = ApplicationUpdateApplyStore::open_configured().map_err(apply_error)?;
+    #[cfg(windows)]
+    let executable =
+        crate::application_update_windows::stage_windows_update_worker(&apply, expected_revision)
+            .map_err(|error| DesktopError::from(PortcoveError::state(error.to_string())))?;
+    #[cfg(windows)]
+    let _worker_guard = crate::application_update_windows::lock_windows_update_worker_for_spawn(
+        &apply,
         expected_revision,
+        &executable,
     )
     .map_err(|error| DesktopError::from(PortcoveError::state(error.to_string())))?;
     #[cfg(target_os = "linux")]

@@ -15,6 +15,7 @@ param(
     [ValidateRange(1, 60)]
     [int]$CleanupTimeoutSeconds = 15,
     [string]$PayloadPrivateKeyPath,
+    [string]$TufPrivateRootPath,
     [switch]$RequireSigningAuthorityAbsent,
     [string]$InstalledUpdateTrustedRootPath,
     [string]$InstalledUpdateMetadataPath,
@@ -275,8 +276,12 @@ if ($RequireSigningAuthorityAbsent) {
     if ([string]::IsNullOrWhiteSpace($PayloadPrivateKeyPath)) {
         throw "PayloadPrivateKeyPath is required when signing authority must be absent"
     }
+    if ($installedUpdate -and [string]::IsNullOrWhiteSpace($TufPrivateRootPath)) {
+        throw "TufPrivateRootPath is required for installed application update qualification"
+    }
     $privateSigningInputsAbsent = [ordered]@{
         payload_private_key = -not [System.IO.File]::Exists([System.IO.Path]::GetFullPath($PayloadPrivateKeyPath))
+        tuf_private_root = -not $TufPrivateRootPath -or -not [System.IO.Directory]::Exists([System.IO.Path]::GetFullPath($TufPrivateRootPath))
         signing_private_key_environment = $null -eq [Environment]::GetEnvironmentVariable("TAURI_SIGNING_PRIVATE_KEY", "Process")
         signing_private_key_path_environment = $null -eq [Environment]::GetEnvironmentVariable("TAURI_SIGNING_PRIVATE_KEY_PATH", "Process")
         signing_password_environment = $null -eq [Environment]::GetEnvironmentVariable("TAURI_SIGNING_PRIVATE_KEY_PASSWORD", "Process")
@@ -584,7 +589,11 @@ try {
         $env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_STAGE = $qualificationStage
         Write-InstallerEvidence "installed_helper_starting" ([ordered]@{ prepared = $prepared; predecessor_executable_sha256 = $previousHash })
         $staging = Invoke-JournaledProcess -Role "installed_update_stage" -Executable $application -Arguments @("--portcove-stage-update-worker", [string]$prepared.apply_revision) -AllowedRelocationRoot $runRoot
-        if ($staging.ExitCode -ne 0) { throw "Installed predecessor could not stage its update worker (exit $($staging.ExitCode))" }
+        if ($staging.ExitCode -ne 0) {
+            $stageErrorPath = Join-Path $updateRoot "worker-stage-error.txt"
+            $stageError = if ([IO.File]::Exists($stageErrorPath)) { [IO.File]::ReadAllText($stageErrorPath) } else { "no stage diagnostic was recorded" }
+            throw "Installed predecessor could not stage its update worker (exit $($staging.ExitCode)): $stageError"
+        }
         $revisionRoot = Join-Path $updateRoot "workers\revision-$($prepared.apply_revision)"
         $attempts = @(Get-ChildItem -LiteralPath $revisionRoot -Directory -ErrorAction Stop)
         if ($attempts.Count -ne 1) { throw "Expected one revision-bound installed update worker attempt" }
