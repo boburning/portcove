@@ -78,18 +78,21 @@ try {
         throw "Installed macOS selection changed the running bundle"
     }
     $modeBefore = (& /usr/bin/stat -f %Lp $installedRoot | Out-String).Trim()
+    $modeBits = [Convert]::ToInt32($modeBefore, 8)
+    if (($modeBits -band 128) -eq 0) { throw "The installed bundle parent did not begin owner-writable" }
+    $expectedDenied = [Convert]::ToString(($modeBits -band (-bnot 128)), 8)
     try {
-        & /bin/chmod 555 $installedRoot
+        & /bin/chmod u-w $installedRoot
         if ($LASTEXITCODE -ne 0) { throw "Could not remove bundle-parent owner write permission" }
         $modeDenied = (& /usr/bin/stat -f %Lp $installedRoot | Out-String).Trim()
         $rejection = Invoke-BundleSelection $executable
     } finally {
-        & /bin/chmod 755 $installedRoot
+        & /bin/chmod $modeBefore $installedRoot
         if ($LASTEXITCODE -ne 0) { throw "Could not restore bundle-parent owner write permission" }
     }
     $modeRestored = (& /usr/bin/stat -f %Lp $installedRoot | Out-String).Trim()
     $after = (Get-FileHash -LiteralPath $executable -Algorithm SHA256).Hash.ToLowerInvariant()
-    if ($modeBefore -ne "755" -or $modeDenied -ne "555" -or $modeRestored -ne "755" -or
+    if ($modeDenied -ne $expectedDenied -or $modeRestored -ne $modeBefore -or
         $rejection.exit_code -ne 1 -or $rejection.stderr -notmatch 'not readable and writable by its owner' -or
         $after -ne $before) {
         throw "Installed macOS owner-write rejection or restoration was not established"

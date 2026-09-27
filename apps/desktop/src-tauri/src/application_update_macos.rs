@@ -8,9 +8,11 @@ use std::ffi::OsStr;
 use std::fs;
 use std::os::unix::fs::{MetadataExt, PermissionsExt};
 use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
+use std::process::Stdio;
 use std::thread;
 use std::time::{Duration, Instant};
+
+use portcove_core::{ChildProcessClass, ChildProcessPolicy};
 
 use crate::application_update::{
     APPLICATION_PRODUCT_ID, InstallOwner, InstalledApplicationContext,
@@ -89,11 +91,26 @@ fn require_owned_direct_path(
     Ok(())
 }
 
+fn require_unlinked_ancestors(path: &Path) -> Result<(), InstalledApplicationContextError> {
+    for ancestor in path.ancestors() {
+        let metadata =
+            fs::symlink_metadata(ancestor).map_err(|error| unavailable(error.to_string()))?;
+        if metadata.file_type().is_symlink() {
+            return Err(unavailable(
+                "the installed bundle path has a linked ancestor",
+            ));
+        }
+    }
+    Ok(())
+}
+
 fn fixed_tool(
     path: &str,
     arguments: &[&OsStr],
 ) -> Result<String, InstalledApplicationContextError> {
-    let mut child = Command::new(path)
+    let mut command = ChildProcessPolicy::native_command(ChildProcessClass::HostIntegration, path)
+        .map_err(|error| unavailable(error.to_string()))?;
+    let mut child = command
         .args(arguments)
         .env_clear()
         .env("LC_ALL", "C")
@@ -149,6 +166,7 @@ pub fn current_macos_installed_application_context()
     let parent = bundle
         .parent()
         .ok_or_else(|| unavailable("the installed bundle has no parent"))?;
+    require_unlinked_ancestors(parent)?;
     let contents = bundle.join("Contents");
     let macos = contents.join("MacOS");
     for path in [parent, bundle, &contents, &macos] {
@@ -271,5 +289,17 @@ mod tests {
             ))
             .is_err()
         );
+    }
+
+    #[test]
+    fn linked_install_ancestor_is_refused() {
+        let root = tempfile::tempdir().unwrap();
+        let direct = root.path().join("direct");
+        fs::create_dir(&direct).unwrap();
+        fs::create_dir(direct.join("Portcove.app")).unwrap();
+        let linked = root.path().join("linked");
+        std::os::unix::fs::symlink(&direct, &linked).unwrap();
+        assert!(require_unlinked_ancestors(&linked.join("Portcove.app")).is_err());
+        assert!(require_unlinked_ancestors(&direct).is_ok());
     }
 }
