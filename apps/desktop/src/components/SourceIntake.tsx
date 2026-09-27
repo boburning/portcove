@@ -235,7 +235,7 @@ function SourceIntakeSession({
     >
       <DialogContent
         showCloseButton={false}
-        className="source-intake max-h-[calc(100dvh-var(--space-8))] w-[min(760px,90vw)] max-w-none gap-0 overflow-y-auto overscroll-contain p-8 [scroll-padding-block:var(--space-4)] sm:max-w-none"
+        className="max-h-[min(90vh,58rem)] w-[min(760px,90vw)] max-w-none gap-0 overflow-y-auto overscroll-contain p-8 [scroll-padding-block:var(--space-4)] sm:max-w-none"
         aria-describedby="source-intake-description"
       >
         <p className="eyebrow">{copy.eyebrow}</p>
@@ -246,7 +246,7 @@ function SourceIntakeSession({
           {copy.description}
         </DialogDescription>
         <NavigationHints />
-        <div className="source-intake-picker">
+        <div className="flex items-center gap-3">
           <Button
             data-focusable
             data-autofocus
@@ -260,14 +260,14 @@ function SourceIntakeSession({
             <Icon glyph={FileSearch} />
             {copy.choose}
           </Button>
-          <small>{request.profile.label}</small>
+          <small className="text-pc-muted-foreground">{request.profile.label}</small>
         </div>
         {busy && <p role="status">{busy}</p>}
         {result && (
-          <section className="source-intake-result" aria-label={copy.resultLabel}>
+          <section className="grid gap-3" aria-label={copy.resultLabel}>
             {!result.report && (
               <>
-                <p className="source-intake-summary" role="status">
+                <p className="mb-0 font-bold" role="status">
                   {result.summary}
                 </p>
                 <p>{result.next_action}</p>
@@ -298,8 +298,11 @@ function SourceIntakeSession({
               </section>
             )}
             {candidate && !plan && (
-              <div className="source-intake-actions" aria-label={copy.addLabel}>
-                <p>
+              <div
+                className="grid gap-3 rounded-pc-md border border-[var(--color-success-border)] bg-pc-success-subtle p-4"
+                aria-label={copy.addLabel}
+              >
+                <p className="m-0">
                   {result.state_code === "recognized_exact"
                     ? copy.addExplanation
                     : result.next_action}

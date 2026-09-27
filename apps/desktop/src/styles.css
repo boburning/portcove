@@ -2462,42 +2462,11 @@ select {
   padding: 9px 13px;
   border-radius: var(--radius-md);
 }
-.source-intake {
-  max-height: min(90vh, 58rem);
-  overflow: auto;
-}
-.source-intake-picker {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-}
-.source-intake-picker small {
-  color: var(--color-text-muted);
-}
 .source-intake-shortcuts {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
   margin: var(--space-4) 0;
-}
-.source-intake-result {
-  display: grid;
-  gap: var(--space-3);
-}
-.source-intake-summary {
-  margin-bottom: 0;
-  font-weight: 700;
-}
-.source-intake-actions {
-  display: grid;
-  gap: var(--space-3);
-  padding: var(--space-4);
-  border: 1px solid var(--color-success-border);
-  border-radius: var(--radius-md);
-  background: var(--color-success-subtle);
-}
-.source-intake-actions p {
-  margin: 0;
 }
 .operation-cancellation {
   margin-block: var(--space-3);
@@ -2508,22 +2477,11 @@ select {
 .detail-panel > .operation-cancellation {
   margin-inline: var(--space-6);
 }
-.source-identity {
-  display: grid;
-  gap: var(--space-3);
-  margin-top: var(--space-3);
-  padding: var(--space-4);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  background: var(--color-bg-elevated);
-}
-
 .source-identity p {
   margin: 0;
   color: var(--color-text-muted);
   line-height: var(--leading-relaxed);
 }
-.source-identity-heading,
 .source-application > div:first-child,
 .source-evidence-list li {
   display: flex;
@@ -2531,21 +2489,8 @@ select {
   justify-content: space-between;
   gap: var(--space-3);
 }
-.source-identity-heading > div {
-  display: grid;
-  gap: 2px;
-}
-.source-identity-heading small,
 .source-application > small {
   color: var(--color-text-muted);
-}
-.source-result,
-.source-contract {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-  font-size: var(--text-xs);
-  font-weight: var(--font-weight-medium);
 }
 .source-result.success,
 .contract-supported {
@@ -2711,7 +2656,6 @@ select {
   .qualification-grid {
     grid-template-columns: 1fr;
   }
-  .source-identity-heading,
   .source-application > div:first-child,
   .source-evidence-list li {
     align-items: flex-start;
