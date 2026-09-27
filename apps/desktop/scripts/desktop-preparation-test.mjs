@@ -647,6 +647,11 @@ export async function preparationScenarios({
     await clickVisible(browser, trigger);
     const dialog = By.css('[aria-labelledby="game-update-review-title"]');
     const review = await browser.wait(until.elementLocated(dialog), 15_000);
+    await browser.wait(
+      async () => (await review.getText()).includes("Confirm the release"),
+      5_000,
+      "Game update review did not show its release confirmation",
+    );
     const reviewText = await review.getText();
     const bootstrap = await invoke("get_bootstrap_status");
     assert.equal(bootstrap.ok, true);
