@@ -1278,24 +1278,6 @@ h2 {
 .failure-details summary {
   cursor: pointer;
 }
-.activity-diagnostic {
-  grid-column: 2 / -1;
-  min-width: 0;
-  font-size: var(--text-xs);
-}
-.activity-diagnostic summary {
-  cursor: pointer;
-}
-.activity-diagnostic textarea {
-  width: 100%;
-  min-height: 5rem;
-  max-height: 24rem;
-  overflow: auto;
-  resize: vertical;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-  font: inherit;
-}
 .activity-details > .failure-details {
   display: block;
 }
@@ -3195,35 +3177,6 @@ select {
 .activity-row {
   grid-template-columns: 1.5rem minmax(0, 1fr) max-content max-content;
 }
-.activity-main {
-  min-width: 0;
-}
-.activity-main strong,
-.activity-main span {
-  display: block;
-}
-.activity-main strong {
-  font-size: var(--text-xs);
-}
-
-.activity-main span {
-  margin-top: 3px;
-  color: var(--color-text-muted);
-  font-size: var(--text-xs);
-}
-.activity-time {
-  color: var(--color-text-muted);
-  font-size: var(--text-2xs);
-  text-align: right;
-}
-
-.activity-details {
-  grid-column: 2 / -1;
-  min-width: 0;
-  margin-top: calc(var(--space-1) * -1);
-  font-size: var(--text-xs);
-}
-
 .activity-details summary {
   color: var(--color-danger-text);
   cursor: pointer;
@@ -3468,12 +3421,6 @@ select:disabled {
   }
   .activity-row {
     grid-template-columns: 1.5rem minmax(0, 1fr) 4.5rem;
-  }
-  .activity-time {
-    display: none;
-  }
-  .activity-details {
-    grid-column: 2 / -1;
   }
   .about-card {
     grid-template-columns: 14rem minmax(0, 1fr);

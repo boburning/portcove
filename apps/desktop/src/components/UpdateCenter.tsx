@@ -40,6 +40,7 @@ import type { ActivitySettingsTarget } from "../features/app-shell/focus-setting
 const initialActivityNowSeconds = Date.now() / 1000;
 const activityTargetButton =
   "-mx-1 h-auto min-h-6 min-w-0 max-w-full shrink justify-start overflow-hidden px-1 py-0 text-ellipsis text-xs font-normal text-pc-secondary-foreground no-underline hover:text-pc-interactive-foreground hover:no-underline";
+const activityDetailsClass = "activity-details col-[2/-1] -mt-1 min-w-0 text-xs";
 const activityTones: Record<string, { indicator: string; status: string }> = {
   succeeded: {
     indicator: "bg-pc-success-subtle text-pc-success-foreground",
@@ -493,8 +494,8 @@ function ActivityRow({
       >
         <Icon glyph={presentation.icon} size="sm" />
       </span>
-      <div className="activity-main">
-        <strong>{operationLabel(activity.operation)}</strong>
+      <div className="activity-main min-w-0">
+        <strong className="block text-xs">{operationLabel(activity.operation)}</strong>
         <ActivityTargetLink
           activity={activity}
           target={target}
@@ -503,7 +504,7 @@ function ActivityRow({
         />
       </div>
       <span
-        className="activity-time whitespace-nowrap"
+        className="activity-time whitespace-nowrap text-right text-[var(--text-2xs)] text-pc-muted-foreground max-[65rem]:hidden"
         title={
           activity.finished_at ? `Finished ${formatActivityTime(activity.finished_at)}` : undefined
         }
@@ -516,7 +517,7 @@ function ActivityRow({
         {presentation.label}
       </span>
       {presentation.state === "unfinished" && (
-        <p className="activity-details">
+        <p className={activityDetailsClass}>
           This task has not reported completion. Review its details before retrying.
         </p>
       )}
@@ -524,7 +525,7 @@ function ActivityRow({
         <OperationCancellation operationId={activity.id} state={activity.cancellation} />
       )}
       {activity.failure ? (
-        <div className="activity-details">
+        <div className={activityDetailsClass}>
           <p>{activity.failure.presentation.summary}</p>
           {activity.failure.presentation.recovery_actions.includes("review_preparation") &&
             target.portId && (
@@ -545,7 +546,7 @@ function ActivityRow({
         </div>
       ) : (
         activity.message && (
-          <p className="activity-details">More details may be available in a support bundle.</p>
+          <p className={activityDetailsClass}>More details may be available in a support bundle.</p>
         )
       )}
       {activity.operation === "prepare" && (
@@ -620,7 +621,7 @@ function ActivityTargetLink({
       </Button>
     );
   }
-  return <span>{target.label}</span>;
+  return <span className="mt-[3px] block text-xs text-pc-muted-foreground">{target.label}</span>;
 }
 
 function activityTarget(

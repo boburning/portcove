@@ -5,6 +5,9 @@ import type { ActivityDiagnostic as Diagnostic } from "../types";
 import { errorText, formatBytes } from "../view-model";
 import { Button } from "./ui/button";
 
+const diagnosticTextareaClass =
+  "min-h-20 max-h-96 w-full resize-y overflow-auto whitespace-pre-wrap [overflow-wrap:anywhere] [font:inherit]";
+
 export function ActivityDiagnostic({
   activityId,
   generation,
@@ -54,12 +57,14 @@ function ActivityDiagnosticSession({
   };
   return (
     <details
-      className="activity-diagnostic"
+      className="activity-diagnostic col-[2/-1] min-w-0 text-xs"
       onToggle={(event) => {
         if (event.currentTarget.open && capture === undefined && !pending) void load();
       }}
     >
-      <summary data-focusable>View preparation log</summary>
+      <summary data-focusable className="cursor-pointer">
+        View preparation log
+      </summary>
       {pending && <p role="status">Reading the retained log…</p>}
       {error && <p role="alert">{error}</p>}
       {capture?.length === 0 && (
@@ -92,12 +97,14 @@ function ActivityDiagnosticSession({
           <h4>Standard output</h4>
           <textarea
             readOnly
+            className={diagnosticTextareaClass}
             aria-label="Preparation standard output"
             value={phase.stdout.text || "No standard output was captured."}
           />
           <h4>Standard error</h4>
           <textarea
             readOnly
+            className={diagnosticTextareaClass}
             aria-label="Preparation standard error"
             value={phase.stderr.text || "No standard error was captured."}
           />
