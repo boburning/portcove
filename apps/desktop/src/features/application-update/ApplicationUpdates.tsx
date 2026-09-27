@@ -21,6 +21,17 @@ const recommendedChoice: ApplicationUpdateChoice = {
   paused: false,
 };
 
+const updatePanelClass = "application-update-status grid gap-3 border-t border-pc-border pt-4";
+const updatePanelHeadingClass =
+  "application-update-status-heading flex items-start justify-between gap-3 max-[65rem]:flex-col";
+const updateSurfaceClass = "rounded-pc-md border border-pc-border bg-[var(--color-bg-subtle)] p-3";
+const updateStatusItemClass = `application-update-status-item grid gap-1 ${updateSurfaceClass}`;
+const updateMutedCopyClass = "text-xs leading-[var(--leading-relaxed)] text-pc-muted-foreground";
+const updateDisclosureClass =
+  "application-update-disclosure rounded-pc-md border border-pc-border bg-[var(--color-bg-subtle)] p-3 text-xs";
+const updateChoiceClass = "application-update-choice grid gap-2";
+const updateChoiceButtonClass = "grid h-auto min-h-12 place-items-center gap-0.5 py-1";
+
 function choicesMatch(left: ApplicationUpdateChoice | null, right: ApplicationUpdateChoice) {
   return (
     left?.channel === right.channel && left.mode === right.mode && left.paused === right.paused
@@ -214,15 +225,20 @@ function ApplicationUpdateRecoveryItems({
   return recoveries.map((recovery) => {
     const copy = recoveryCopy[recovery.area];
     return (
-      <div className="application-update-recovery" role="alert" key={recovery.area}>
-        <div>
+      <div
+        className="application-update-recovery flex items-start justify-between gap-3 rounded-pc-md border border-[var(--color-danger-border)] bg-pc-danger-subtle p-3 max-[65rem]:flex-col"
+        role="alert"
+        key={recovery.area}
+      >
+        <div className="grid gap-1">
           <strong>{copy.title}</strong>
-          <p>{copy.description}</p>
+          <p className={updateMutedCopyClass}>{copy.description}</p>
         </div>
         <Button
           data-focusable
           variant="outline"
           size="sm"
+          className="shrink-0"
           disabled={disabled || busy}
           onClick={() => void onRecover(recovery.area)}
         >
@@ -279,11 +295,11 @@ function StagedApplicationUpdateItem({
   if (!status.staged) return null;
   const canRestart = restartIsAvailable(status);
   return (
-    <div className="application-update-status-item">
+    <div className={updateStatusItemClass}>
       <strong>
         {canRestart && !blocker ? "Update ready to install" : "Verified update downloaded"}
       </strong>
-      <p>
+      <p className={updateMutedCopyClass}>
         Portcove {status.staged.version} (
         {status.staged.channel === "preview" ? "Preview" : "Stable"},{" "}
         {formatBytes(status.staged.bytes)}) has been downloaded and verified.
@@ -315,7 +331,7 @@ function ApplicationUpdateScheduleSummary({
 }) {
   if (!schedule) return null;
   return (
-    <p className="application-update-schedule">
+    <p className={`application-update-schedule ${updateSurfaceClass} ${updateMutedCopyClass}`}>
       {schedule.last_success_unix_seconds
         ? `Last successful check: ${formatTimestamp(schedule.last_success_unix_seconds)}.`
         : "No successful application update check is recorded."}{" "}
@@ -351,18 +367,21 @@ function ApplicationUpdateStatusPanel({
   const applyCopy = status?.apply ? applicationUpdateApplyCopy(status) : undefined;
 
   return (
-    <section className="application-update-status" aria-labelledby="application-status-title">
-      <div className="application-update-status-heading">
-        <div>
+    <section className={updatePanelClass} aria-labelledby="application-status-title">
+      <div className={updatePanelHeadingClass}>
+        <div className="grid gap-1">
           <h3 id="application-status-title" tabIndex={-1}>
             Update activity
           </h3>
-          <p>See the download, restart request, and installer state.</p>
+          <p className={updateMutedCopyClass}>
+            See the download, restart request, and installer state.
+          </p>
         </div>
         <Button
           data-focusable
           variant="outline"
           size="sm"
+          className="shrink-0"
           disabled={disabled || Boolean(busy)}
           onClick={() => void onRefresh()}
         >
@@ -386,14 +405,16 @@ function ApplicationUpdateStatusPanel({
           />
 
           {applyCopy && (
-            <div className="application-update-status-item">
+            <div className={updateStatusItemClass}>
               <strong>{applyCopy.title}</strong>
-              <p>{applyCopy.description}</p>
+              <p className={updateMutedCopyClass}>{applyCopy.description}</p>
             </div>
           )}
 
           {!status.staged && !status.apply && status.recovery_required.length === 0 && (
-            <p className="application-update-idle">No verified application update is staged.</p>
+            <p className={`application-update-idle ${updateSurfaceClass} ${updateMutedCopyClass}`}>
+              No verified application update is staged.
+            </p>
           )}
 
           <ApplicationUpdateScheduleSummary schedule={status.schedule} />
@@ -553,9 +574,9 @@ function ApplicationUpdateCheckResultItem({
   const candidateCanDownload =
     result.kind === "update-available" && Boolean(result.candidate) && !result.staged;
   return (
-    <div className="application-update-status-item" role="status">
+    <div className={updateStatusItemClass} role="status">
       <strong>{copy.title}</strong>
-      <p>{copy.description}</p>
+      <p className={updateMutedCopyClass}>{copy.description}</p>
       {result.reasons.length > 0 && (
         <ul>
           {result.reasons.map((reason) => (
@@ -596,16 +617,16 @@ function ApplicationUpdateCheckPanel({
 
   return (
     <section
-      className="application-update-status"
+      className={updatePanelClass}
       aria-labelledby="application-check-title"
       aria-busy={operation.busy}
     >
-      <div className="application-update-status-heading">
-        <div>
+      <div className={updatePanelHeadingClass}>
+        <div className="grid gap-1">
           <h3 id="application-check-title" tabIndex={-1}>
             Check for application updates
           </h3>
-          <p>
+          <p className={updateMutedCopyClass}>
             Uses the saved channel and host-compiled signed repository. Manual checks never use a
             URL supplied by this screen.
           </p>
@@ -615,6 +636,7 @@ function ApplicationUpdateCheckPanel({
             data-focusable
             variant="outline"
             size="sm"
+            className="shrink-0"
             onClick={() => void operation.cancel()}
           >
             {operation.active === "download" ? "Cancel download" : "Cancel check"}
@@ -624,6 +646,7 @@ function ApplicationUpdateCheckPanel({
             data-focusable
             variant="outline"
             size="sm"
+            className="shrink-0"
             disabled={actionsDisabled}
             onClick={() => void operation.check()}
           >
@@ -634,7 +657,7 @@ function ApplicationUpdateCheckPanel({
       {operation.busy && operation.phase && (
         <p role="status">{checkProgressCopy[operation.phase]}</p>
       )}
-      {blocker && <p className="application-update-disclosure">{blocker}</p>}
+      {blocker && <p className={updateDisclosureClass}>{blocker}</p>}
       {operation.result && (
         <ApplicationUpdateCheckResultItem
           result={operation.result}
@@ -866,25 +889,25 @@ export function ApplicationUpdateSettings({
 
   return (
     <article
-      className="settings-row application-update-settings"
+      className="settings-row application-update-settings grid min-h-0 gap-5"
       data-focus-group
       aria-labelledby="application-update-settings-title"
       aria-busy={Boolean(busy)}
     >
-      <div className="application-update-heading">
+      <div className="application-update-heading flex items-start justify-between gap-4 max-[65rem]:flex-col">
         <div>
           <p className="eyebrow">APPLICATION UPDATES</p>
           <h2 id="application-update-settings-title" ref={headingRef} tabIndex={-1}>
             Choose how Portcove updates
           </h2>
         </div>
-        <p>
+        <p className="rounded-pc-md bg-[var(--color-bg-subtle)] px-3 py-2 text-xs text-[var(--color-text-secondary)] whitespace-nowrap max-[65rem]:whitespace-normal">
           Current version <strong>{currentVersion}</strong>
         </p>
       </div>
 
       {!preferences && !busy && (
-        <div className="actions compact">
+        <div className="flex flex-wrap gap-2">
           <Button
             data-focusable
             variant="outline"
@@ -911,22 +934,22 @@ export function ApplicationUpdateSettings({
       {preferences && (
         <>
           {!preferences.choice && (
-            <p className="application-update-consent">
+            <p className="application-update-consent rounded-pc-md border border-[var(--color-warning-border)] bg-pc-warning-subtle p-3 text-pc-warning-foreground">
               No application update choice is saved. Automatic checks remain off until you save one.
             </p>
           )}
 
-          <section
-            className="application-update-choice"
-            aria-labelledby="application-channel-label"
-          >
-            <h3 id="application-channel-label">Channel</h3>
+          <section className={updateChoiceClass} aria-labelledby="application-channel-label">
+            <h3 id="application-channel-label" className="text-sm">
+              Channel
+            </h3>
             <div className="segmented" role="group" aria-label="Application update channel">
               {(["preview", "stable"] as const).map((channel) => (
                 <Button
                   key={channel}
                   data-focusable
                   variant={draft.channel === channel ? "selected" : "ghost"}
+                  className={updateChoiceButtonClass}
                   aria-pressed={draft.channel === channel}
                   disabled={unavailable}
                   onClick={() => setDraft((value) => ({ ...value, channel }))}
@@ -935,15 +958,17 @@ export function ApplicationUpdateSettings({
                 </Button>
               ))}
             </div>
-            <p>
+            <p className={updateMutedCopyClass}>
               {draft.channel === "preview"
                 ? "Preview receives public test releases and later eligible final releases."
                 : "Stable waits for an eligible production release that is newer than your installed version; it never downgrades Portcove."}
             </p>
           </section>
 
-          <section className="application-update-choice" aria-labelledby="application-mode-label">
-            <h3 id="application-mode-label">Update mode</h3>
+          <section className={updateChoiceClass} aria-labelledby="application-mode-label">
+            <h3 id="application-mode-label" className="text-sm">
+              Update mode
+            </h3>
             <div className="segmented" role="group" aria-label="Application update mode">
               {(
                 [
@@ -956,16 +981,19 @@ export function ApplicationUpdateSettings({
                   key={mode}
                   data-focusable
                   variant={draft.mode === mode ? "selected" : "ghost"}
+                  className={updateChoiceButtonClass}
                   aria-pressed={draft.mode === mode}
                   disabled={unavailable}
                   onClick={() => setDraft((value) => ({ ...value, mode }))}
                 >
                   {label}
-                  {mode === "automatic" && <small>Recommended</small>}
+                  {mode === "automatic" && (
+                    <small className="text-[var(--text-2xs)] normal-case">Recommended</small>
+                  )}
                 </Button>
               ))}
             </div>
-            <p>
+            <p className={updateMutedCopyClass}>
               {draft.mode === "automatic"
                 ? "Allows Portcove to check and stage verified updates without asking for each release. Applying still waits for a safe exit or an explicit Restart to update action."
                 : draft.mode === "notify-only"
@@ -974,9 +1002,10 @@ export function ApplicationUpdateSettings({
             </p>
           </section>
 
-          <div className="application-update-pause">
+          <div className="application-update-pause flex cursor-pointer items-start gap-3 rounded-pc-md bg-[var(--color-bg-subtle)] p-3">
             <input
               data-focusable
+              className="mt-[3px] w-auto"
               id="pause-application-updates"
               type="checkbox"
               aria-describedby="pause-application-updates-description"
@@ -986,19 +1015,22 @@ export function ApplicationUpdateSettings({
                 setDraft((value) => ({ ...value, paused: event.target.checked }))
               }
             />
-            <span>
-              <label htmlFor="pause-application-updates">Pause application update activity</label>
-              <small id="pause-application-updates-description">
+            <span className="grid gap-0.5">
+              <label
+                htmlFor="pause-application-updates"
+                className="cursor-pointer font-bold text-pc-foreground"
+              >
+                Pause application update activity
+              </label>
+              <small id="pause-application-updates-description" className={updateMutedCopyClass}>
                 Stop automatic checks and all downloads until resumed. Manual checks remain
                 available.
               </small>
             </span>
           </div>
 
-          <p className="application-update-disclosure">
-            Saving these settings does not start an update.
-          </p>
-          <div className="actions compact">
+          <p className={updateDisclosureClass}>Saving these settings does not start an update.</p>
+          <div className="flex flex-wrap gap-2">
             <Button
               data-focusable
               variant="primary"
@@ -1027,7 +1059,7 @@ export function ApplicationUpdateSettings({
               Reset update preferences
             </Button>
           </div>
-          <p className="application-update-disclosure">
+          <p className={updateDisclosureClass}>
             Reset update preferences clears your saved choice and turns off automatic checks until
             you choose again.
           </p>

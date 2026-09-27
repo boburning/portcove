@@ -4,6 +4,8 @@ import { PortBrowser } from "../components/PortBrowser";
 import { BackupHistory } from "../components/BackupHistory";
 import { HostToolRow, StatusLayer } from "../components/Chrome";
 import { WorkspaceRefreshNotice } from "../features/workspace/WorkspaceRefreshNotice";
+import { ApplicationUpdateSettings } from "../features/application-update/ApplicationUpdates";
+import type { ApplicationUpdatePreferencesState } from "../features/application-update/use-application-update-preferences";
 import { failureReport, portDefinition, portStatus, sourceProfile } from "../test-fixtures";
 import type {
   DesktopError,
@@ -11,6 +13,7 @@ import type {
   InstallRecord,
   PortDefinition,
   PortStatus,
+  ApplicationUpdateChoice,
 } from "../types";
 
 export const scenarios = [
@@ -148,6 +151,22 @@ export const scenarios = [
     viewport: "wide",
     limitation:
       "The unverified local copy is supplied; no file verification, replacement or installation runs.",
+  },
+  {
+    id: "application-update-choice-narrow",
+    label: "Application update choice · narrow",
+    theme: "dark",
+    viewport: "narrow",
+    limitation:
+      "Preferences are supplied; status loading, saved choice, update checks and host recovery do not run.",
+  },
+  {
+    id: "application-update-saved",
+    label: "Application update preferences · saved",
+    theme: "light",
+    viewport: "wide",
+    limitation:
+      "The saved choice is supplied; no update check, download, host persistence or recovery runs.",
   },
 ] as const;
 
@@ -377,7 +396,27 @@ function ReferenceWorkspace({
   );
 }
 
-function Scenario({ id }: { id: ScenarioId }) {
+function referenceScenario(id: ScenarioId) {
+  if (id === "application-update-choice-narrow" || id === "application-update-saved") {
+    const choice: ApplicationUpdateChoice | null =
+      id === "application-update-saved"
+        ? { channel: "stable", mode: "manual", paused: true }
+        : null;
+    const preferencesState = {
+      preferences: { schema_version: 1, revision: choice ? 4 : 0, choice },
+      failure: undefined,
+      loading: false,
+      accept: blockedScenarioAction,
+      acceptRecovered: blockedScenarioAction,
+      refresh: blockedScenarioAction,
+    } satisfies ApplicationUpdatePreferencesState;
+    return (
+      <ApplicationUpdateSettings
+        currentVersion="0.1.0-alpha.2"
+        preferencesState={preferencesState}
+      />
+    );
+  }
   if (id === "library-reference-long-title") return <ReferenceWorkspace mode="library" />;
   if (id === "library-reference-attention-narrow")
     return <ReferenceWorkspace mode="library-attention" />;
@@ -388,6 +427,12 @@ function Scenario({ id }: { id: ScenarioId }) {
     return <ReferenceWorkspace mode="installation-review" reviewState="space-blocked" />;
   if (id === "installation-review-local-unverified")
     return <ReferenceWorkspace mode="installation-review" reviewState="local-unverified" />;
+  return null;
+}
+
+function Scenario({ id }: { id: ScenarioId }) {
+  const reference = referenceScenario(id);
+  if (reference) return reference;
   const port = { ...portDefinition(), name: "Scenario game" };
   if (id === "empty-library")
     return (

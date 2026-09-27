@@ -55,6 +55,14 @@ describe("static development scenarios", () => {
     expect(renderScenario("missing-source")).toContain("game files");
     expect(renderScenario("missing-tool")).toContain("Not found");
     expect(renderScenario("staged-update")).toContain("Activate staged");
+    const updateChoice = renderScenario("application-update-choice-narrow");
+    expect(updateChoice).toContain("No application update choice is saved");
+    expect(updateChoice).toContain("Automatic checks remain off");
+    expect(updateChoice).toContain('aria-label="Application update channel"');
+    const savedUpdate = renderScenario("application-update-saved");
+    expect(savedUpdate).toContain("Save application update settings");
+    expect(savedUpdate).toContain('aria-pressed="true"');
+    expect(savedUpdate).toContain("Pause application update activity");
     const interrupted = renderScenario("interrupted-operation");
     expect(interrupted).toContain("Backup recovery required");
     expect(interrupted).toContain("Backups need attention");
