@@ -666,7 +666,10 @@ try {
         $relaunchPid = [int]$stage.process_id
         if ($relaunchPid -le 0) { throw "Qualification stage omitted the candidate relaunch process ID" }
         $relaunch = try { [Diagnostics.Process]::GetProcessById($relaunchPid) } catch [ArgumentException] { $null }
-        $relaunchExit = [ordered]@{ pid = $relaunchPid; observed = $null; exit_code = $null }
+        # GetProcessById attaches after the helper spawned the candidate. An
+        # attached Process can observe a bounded exit but does not provide a
+        # reliable ExitCode; candidate_smoke below owns an exit-code assertion.
+        $relaunchExit = [ordered]@{ pid = $relaunchPid; observed = $null; exit_code = $null; observation = "not_present_at_attach" }
         if ($relaunch) {
             try {
                 $relaunch.Refresh()
@@ -681,19 +684,25 @@ try {
                             throw "Qualification relaunch PID does not identify the installed candidate process"
                         }
                         $relaunchExit.observed = $observedPath
-                        $relaunchDeadline = (Get-Date).AddSeconds(30)
-                        $remaining = [Math]::Max(0, [int]($relaunchDeadline - (Get-Date)).TotalMilliseconds)
-                        if (-not $relaunch.WaitForExit($remaining)) {
-                            Write-InstallerEvidence "installed_relaunch_exit_timeout" ([ordered]@{ prepared = $prepared; qualification_stage = $stage; relaunch = $relaunchExit })
-                            throw "Updated installed application did not exit after qualification reconciliation"
-                        }
+                    } elseif (-not $relaunch.HasExited) {
+                        throw "Qualification relaunch is still running but its image path could not be observed"
                     }
                 }
-                $relaunchExit.exit_code = $relaunch.ExitCode
-                if ($relaunch.ExitCode -ne 0) { throw "Updated installed application relaunch exited with code $($relaunch.ExitCode)" }
+                if ($relaunchExit.observed -and -not $relaunch.HasExited) {
+                    if (-not $relaunch.WaitForExit(30000)) {
+                        Write-InstallerEvidence "installed_relaunch_exit_timeout" ([ordered]@{ prepared = $prepared; qualification_stage = $stage; relaunch = $relaunchExit })
+                        throw "Updated installed application did not exit after qualification reconciliation"
+                    }
+                }
+                $relaunchExit.observation = if ($relaunchExit.observed) { "identified_process_exited" } else { "exited_before_identity_observation" }
             } finally { $relaunch.Dispose() }
         }
         Write-InstallerEvidence "installed_helper_reconciled" ([ordered]@{ prepared = $prepared; qualification_stage = $stage; apply_state = $applyState; relaunch = $relaunchExit })
+        # The next smoke is an ordinary interactive candidate launch. Keep the
+        # saved values for the outer finally, but do not let the qualification
+        # relaunch's immediate-exit mode suppress its window and close checks.
+        [Environment]::SetEnvironmentVariable("PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_EXIT", $null, "Process")
+        [Environment]::SetEnvironmentVariable("PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_STAGE", $null, "Process")
     } else {
         $installFlag = if ($InstallMode -eq "Passive") { "/P" } else { "/S" }
         # A predecessor establishes the registered destination. /UPDATE must
