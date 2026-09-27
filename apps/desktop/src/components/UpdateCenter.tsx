@@ -40,7 +40,7 @@ import type { ActivitySettingsTarget } from "../features/app-shell/focus-setting
 const initialActivityNowSeconds = Date.now() / 1000;
 const activityTargetButton =
   "-mx-1 h-auto min-h-6 min-w-0 max-w-full shrink justify-start overflow-hidden px-1 py-0 text-ellipsis text-xs font-normal text-pc-secondary-foreground no-underline hover:text-pc-interactive-foreground hover:no-underline";
-const activityDetailsClass = "activity-details col-[2/-1] -mt-1 min-w-0 text-xs";
+const activityDetailsClass = "activity-details col-[2/-1] min-w-0 text-xs";
 const activityTones: Record<string, { indicator: string; status: string }> = {
   succeeded: {
     indicator: "bg-pc-success-subtle text-pc-success-foreground",

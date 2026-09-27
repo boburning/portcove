@@ -3177,6 +3177,9 @@ select {
 .activity-row {
   grid-template-columns: 1.5rem minmax(0, 1fr) max-content max-content;
 }
+.activity-details {
+  margin-top: calc(var(--space-1) * -1);
+}
 .activity-details summary {
   color: var(--color-danger-text);
   cursor: pointer;
