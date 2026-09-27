@@ -71,6 +71,15 @@ jobs:
             work/updater-rehearsal/0.3.0-${{ matrix.label }}/**
             work/updater-rehearsal/1.0.0-rc.2-${{ matrix.label }}/**
             work/updater-rehearsal/1.0.0-${{ matrix.label }}/**
+            work/updater-rehearsal/windows-installed-update-qualification/TEST-ONLY
+            work/updater-rehearsal/windows-installed-update-qualification/inputs/*.json
+            work/updater-rehearsal/windows-installed-update-qualification/records/**
+            work/updater-rehearsal/windows-installed-update-qualification/repository/**
+            work/updater-rehearsal/windows-installed-update-qualification/trusted-root.json
+            work/updater-rehearsal/installer-test/run-*/installed-update-helper.*.log
+            work/updater-rehearsal/installer-test/run-*/application-update-qualification-stage.json
+            work/updater-rehearsal/installer-test/run-*/application-update/apply.json
+            work/updater-rehearsal/installer-test/run-*/application-update/staging.json
             work/updater-rehearsal/linux-appimage-qualification/TEST-ONLY
             work/updater-rehearsal/linux-appimage-qualification/application-update-evidence.json
             work/updater-rehearsal/linux-appimage-qualification/inputs/*.json

@@ -254,13 +254,23 @@ pub fn current_windows_installed_application_context()
         &current_executable,
         &registrations,
     )?;
+    windows_nsis_context_for_version(env!("CARGO_PKG_VERSION"))
+}
+
+/// Describes a controlled package fixture. This does not prove that the
+/// running process owns an NSIS installation; runtime callers must use
+/// `current_windows_installed_application_context` instead.
+#[cfg(windows)]
+pub fn windows_nsis_context_for_version(
+    current_version: &str,
+) -> Result<InstalledApplicationContext, WindowsApplicationUpdateError> {
     let os = windows_version::OsVersion::current();
     let catalog_format = portcove_core::Catalog::embedded()
         .map_err(|error| WindowsApplicationUpdateError::InstalledContext(error.to_string()))?
         .document()
         .schema_version;
     Ok(InstalledApplicationContext {
-        current_version: env!("CARGO_PKG_VERSION").into(),
+        current_version: current_version.into(),
         target: WINDOWS_TARGET.into(),
         os: "windows".into(),
         os_version: format!("{}.{}.{}", os.major, os.minor, os.build),

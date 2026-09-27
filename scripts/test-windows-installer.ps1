@@ -16,6 +16,11 @@ param(
     [int]$CleanupTimeoutSeconds = 15,
     [string]$PayloadPrivateKeyPath,
     [switch]$RequireSigningAuthorityAbsent,
+    [string]$InstalledUpdateTrustedRootPath,
+    [string]$InstalledUpdateMetadataPath,
+    [string]$InstalledUpdateTargetsPath,
+    [string]$InstalledUpdateCandidatePath,
+    [string]$InstalledUpdatePredecessorVersion,
     [ValidateSet("", "post-spawn-verification")]
     [string]$TestFault = ""
 )
@@ -183,6 +188,12 @@ $predecessor = if ($UpgradeFromInstallerPath) { (Resolve-Path -LiteralPath $Upgr
 if ($predecessor -and [System.IO.Path]::GetExtension($predecessor) -ne ".exe") {
     throw "Upgrade predecessor must be an executable"
 }
+$installedUpdate = -not [string]::IsNullOrWhiteSpace($InstalledUpdateTrustedRootPath)
+if ($installedUpdate -and (-not $predecessor -or -not $InstalledUpdateMetadataPath -or
+        -not $InstalledUpdateTargetsPath -or -not $InstalledUpdateCandidatePath -or
+        -not $InstalledUpdatePredecessorVersion -or -not $RequireSigningAuthorityAbsent)) {
+    throw "Installed update qualification requires a predecessor, complete signed repository paths, and absent signing authority"
+}
 $expected = if ($ExpectedExecutablePath) { Get-ExpectedBundledHash (Resolve-Path -LiteralPath $ExpectedExecutablePath).Path } else { $null }
 if (@(Get-UninstallEntries "").Count -ne 0) {
     throw "A Portcove installer registration already exists. Refusing to replace another installation during qualification."
@@ -322,7 +333,13 @@ function Start-JournaledProcess([string]$Role, [string]$Executable, [object[]]$A
     $requested = [DateTime]::UtcNow
     $run = [ordered]@{ id = [System.Guid]::NewGuid().ToString("N"); role = $Role; requested_at = $requested.ToString("o"); requested_at_filetime = $requested.ToFileTimeUtc(); executable_path = $exact; executable_sha256 = (Get-FileHash -LiteralPath $exact -Algorithm SHA256).Hash.ToLowerInvariant(); arguments = @($Arguments); status = "launch_pending"; pid = $null; start_time = $null; start_time_filetime = $null; exit_code = $null; exit_observation = $null }
     if ($evidence) { $evidence.process_runs += $run; Write-InstallerEvidence $evidence.phase }
-    $process = Start-Process -FilePath $exact -ArgumentList $Arguments -PassThru -WindowStyle Hidden
+    if ($Role -eq "installed_update_helper") {
+        $run.output_relative = "installed-update-helper.stdout.log"
+        $run.error_relative = "installed-update-helper.stderr.log"
+        $process = Start-Process -FilePath $exact -ArgumentList $Arguments -PassThru -WindowStyle Hidden -RedirectStandardOutput (Join-Path $runRoot $run.output_relative) -RedirectStandardError (Join-Path $runRoot $run.error_relative)
+    } else {
+        $process = Start-Process -FilePath $exact -ArgumentList $Arguments -PassThru -WindowStyle Hidden
+    }
     try {
         $run.pid = $process.Id; $run.start_time = $process.StartTime.ToUniversalTime().ToString("o"); $run.start_time_filetime = $process.StartTime.ToFileTimeUtc(); $run.status = "running"
         if ($evidence) { Write-InstallerEvidence $evidence.phase }
@@ -477,6 +494,19 @@ function Invoke-JournaledProcess([string]$Role, [string]$Executable, [object[]]$
 $completed = $false
 $previousLibrary = [System.Environment]::GetEnvironmentVariable("PORTCOVE_LIBRARY", "Process")
 $previousTemp = @{}
+$updateEnvironmentNames = @(
+    "PORTCOVE_APPLICATION_UPDATE_BUNDLED_ROOT_FILE",
+    "PORTCOVE_APPLICATION_UPDATE_METADATA_URL",
+    "PORTCOVE_APPLICATION_UPDATE_TARGETS_URL",
+    "PORTCOVE_APPLICATION_UPDATE_PREFERENCES",
+    "PORTCOVE_APPLICATION_UPDATE_STAGING",
+    "PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_EXIT",
+    "PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_STAGE"
+)
+$previousUpdateEnvironment = @{}
+foreach ($name in $updateEnvironmentNames) {
+    $previousUpdateEnvironment[$name] = [Environment]::GetEnvironmentVariable($name, "Process")
+}
 try {
     foreach ($name in @("TEMP", "TMP", "TMPDIR")) {
         $previousTemp[$name] = [System.Environment]::GetEnvironmentVariable($name, "Process")
@@ -519,14 +549,56 @@ try {
     [System.IO.File]::WriteAllText($sentinel, [System.Guid]::NewGuid().ToString("N"))
     $sentinelHash = (Get-FileHash -LiteralPath $sentinel -Algorithm SHA256).Hash
     Write-InstallerEvidence "candidate_installing"
-    $installFlag = if ($InstallMode -eq "Passive") { "/P" } else { "/S" }
-    # A predecessor establishes the exact registered destination. Exercise the
-    # same updater path used by the application instead of silently forcing a
-    # destination with /D, which could conceal relocation or ownership drift.
-    $candidateArguments = if ($predecessor) { @($installFlag, "/UPDATE") } else { @($installFlag, "/D=$installRoot") }
-    $install = Invoke-JournaledProcess -Role "candidate_installer" -Executable $installer -Arguments $candidateArguments -AllowedRelocationRoot $runRoot
-    if ($install.ExitCode -ne 0) {
-        throw "$InstallMode installer exited with code $($install.ExitCode)"
+    if ($installedUpdate) {
+        $updateRoot = Join-Path $runRoot "application-update"
+        $updatePreferences = Join-Path $runRoot "application-update-preferences.json"
+        $qualificationStage = Join-Path $runRoot "application-update-qualification-stage.json"
+        $trustedRoot = (Resolve-Path -LiteralPath $InstalledUpdateTrustedRootPath).Path
+        $metadata = (Resolve-Path -LiteralPath $InstalledUpdateMetadataPath).Path
+        $targets = (Resolve-Path -LiteralPath $InstalledUpdateTargetsPath).Path
+        $candidate = (Resolve-Path -LiteralPath $InstalledUpdateCandidatePath).Path
+        $preparedText = (& cargo run --locked --quiet -p portcove-desktop --example prepare_installed_update -- prepare $InstalledUpdatePredecessorVersion $trustedRoot $metadata $targets $candidate $updatePreferences $updateRoot $libraryRoot | Out-String).Trim()
+        if ($LASTEXITCODE -ne 0) { throw "Signed Windows application update fixture could not be prepared" }
+        $prepared = $preparedText | ConvertFrom-Json
+        if ($prepared.candidate_sha256 -ne $installerHash -or
+            [UInt64]$prepared.candidate_bytes -ne [UInt64](Get-Item -LiteralPath $installer).Length) {
+            throw "Prepared Windows application update differs from the exact candidate installer"
+        }
+        $env:PORTCOVE_APPLICATION_UPDATE_BUNDLED_ROOT_FILE = $trustedRoot
+        $env:PORTCOVE_APPLICATION_UPDATE_METADATA_URL = ([Uri]::new($metadata.TrimEnd('\', '/') + '/')).AbsoluteUri
+        $env:PORTCOVE_APPLICATION_UPDATE_TARGETS_URL = ([Uri]::new($targets.TrimEnd('\', '/') + '/')).AbsoluteUri
+        $env:PORTCOVE_APPLICATION_UPDATE_PREFERENCES = $updatePreferences
+        $env:PORTCOVE_APPLICATION_UPDATE_STAGING = $updateRoot
+        $env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_EXIT = "after-reconciliation"
+        $env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_STAGE = $qualificationStage
+        Write-InstallerEvidence "installed_helper_starting" ([ordered]@{ prepared = $prepared; predecessor_executable_sha256 = $previousHash })
+        $install = Invoke-JournaledProcess -Role "installed_update_helper" -Executable $application -Arguments @("--portcove-apply-update", [string]$prepared.apply_revision) -AllowedRelocationRoot $runRoot
+        if ($install.ExitCode -ne 0) { throw "Installed application update helper exited with code $($install.ExitCode)" }
+        $deadline = (Get-Date).AddSeconds(30)
+        do {
+            if ([IO.File]::Exists($qualificationStage)) {
+                $stage = Get-Content -LiteralPath $qualificationStage -Raw | ConvertFrom-Json
+                if ($stage.stage -eq "Tauri setup") { break }
+            }
+            Start-Sleep -Milliseconds 250
+        } while ((Get-Date) -lt $deadline)
+        if (-not $stage -or $stage.stage -ne "Tauri setup") {
+            throw "Updated installed application did not reach Tauri setup after helper relaunch"
+        }
+        do {
+            $applyState = Get-Content -LiteralPath (Join-Path $updateRoot "apply.json") -Raw | ConvertFrom-Json
+            if (-not $applyState.intent) { break }
+            Start-Sleep -Milliseconds 250
+        } while ((Get-Date) -lt $deadline)
+        if ($applyState.intent) { throw "Updated installed application did not reconcile its durable apply intent" }
+        Write-InstallerEvidence "installed_helper_reconciled" ([ordered]@{ prepared = $prepared; qualification_stage = $stage; apply_state = $applyState })
+    } else {
+        $installFlag = if ($InstallMode -eq "Passive") { "/P" } else { "/S" }
+        # A predecessor establishes the registered destination. /UPDATE must
+        # keep that identity without a caller-supplied destination.
+        $candidateArguments = if ($predecessor) { @($installFlag, "/UPDATE") } else { @($installFlag, "/D=$installRoot") }
+        $install = Invoke-JournaledProcess -Role "candidate_installer" -Executable $installer -Arguments $candidateArguments -AllowedRelocationRoot $runRoot
+        if ($install.ExitCode -ne 0) { throw "$InstallMode installer exited with code $($install.ExitCode)" }
     }
 
     if (-not [System.IO.File]::Exists($application)) {
@@ -628,7 +700,7 @@ try {
         signature_status = $signature.Status.ToString()
         install_exit_code = $install.ExitCode
         install_mode = $InstallMode
-        update_path = if ($predecessor) { "registered_nsis_update" } else { "explicit_bootstrap_destination" }
+        update_path = if ($installedUpdate) { "installed_app_helper" } elseif ($predecessor) { "registered_nsis_update" } else { "explicit_bootstrap_destination" }
         registered_version = $registryEntries[0].DisplayVersion
         registration_path = $registryEntries[0].PSPath
         installed_executable_sha256 = $installedHash
@@ -656,6 +728,9 @@ catch {
     throw
 }
 finally {
+    foreach ($name in $updateEnvironmentNames) {
+        [Environment]::SetEnvironmentVariable($name, $previousUpdateEnvironment[$name], "Process")
+    }
     foreach ($name in $previousTemp.Keys) {
         if ($null -eq $previousTemp[$name]) { Remove-Item -LiteralPath "Env:$name" -ErrorAction SilentlyContinue }
         else { [System.Environment]::SetEnvironmentVariable($name, $previousTemp[$name], "Process") }

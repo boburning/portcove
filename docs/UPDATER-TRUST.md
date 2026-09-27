@@ -329,6 +329,16 @@ retires only the matching staged candidate, preserves any newer candidate, and c
 the apply request last so an interruption can resume safely. Safe-exit apply remains
 inactive; only the explicit restart action dispatches the launch sequence.
 
+The on-demand Windows artifact rehearsal builds a disposable signed TUF
+repository and a predecessor NSIS package with its public root embedded. In an
+isolated current-user install, the fixture selects and stages the signed candidate,
+records a restart intent, and invokes the predecessor's installed helper. The
+qualification requires candidate relaunch, healthy startup reconciliation, exact
+registered version and executable bytes, and persistent-library preservation.
+The fixture prepares the selection and restart intent externally; this evidence
+does not establish in-app check, download, or the user's restart action, a clean
+non-administrator VM, production signing, or publication.
+
 The sibling `application_update_trust` module owns the durable host trust boundary.
 Under path-keyed process ownership and one OS file lock it supplies `tough` with the
 latest persisted root, safe expiration enforcement and bounded

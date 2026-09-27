@@ -217,7 +217,7 @@ try {
         if ($LASTEXITCODE -ne 0) { throw "Cannot select packaged CLI" }
         & (Join-Path $PSScriptRoot "smoke-test-cli-archive.ps1") -ArchivePath (Join-Path $cliRoot $cliName) -PlatformLabel $PlatformLabel -Version $version
         $tauriArguments = @($pnpmSpec, "--dir", "apps/desktop", "tauri", "build", "--bundles", $bundles, "--config", $configPath, "--ci")
-        if ($IsLinux) { $tauriArguments += @("--features", "application-update-qualification") }
+        if ($IsLinux -or $IsWindows) { $tauriArguments += @("--features", "application-update-qualification") }
         Invoke-Checked "corepack" $tauriArguments
         $stage = Join-Path $runRoot "$version-$PlatformLabel"
         Invoke-Checked "node" @("scripts/updater-artifact-inventory.mjs", "stage", "--output", $stage, "--label", $PlatformLabel, "--public-key", $publicKey, "--verifier", $verifier, "--revision", $revision)
@@ -232,11 +232,7 @@ try {
             $native.installer_product_version = (Get-Item -LiteralPath $installer).VersionInfo.ProductVersion
             if ($native.installer_product_version -notin @($version, "$version.0")) { throw "NSIS product version mismatch" }
             if ($version -eq $candidateVersion) {
-                $predecessor = Join-Path $runRoot "$predecessorVersion-$PlatformLabel/Portcove_$($predecessorVersion)_x64-setup.exe"
-                $consumerEvidence = Invoke-PackagedPayloadConsumer -Stage $stage -CandidateVersion $candidateVersion
-                $native.private_signing_inputs_absent = $consumerEvidence.private_signing_inputs_absent
-                & (Join-Path $PSScriptRoot "test-windows-installer.ps1") -InstallerPath $installer -UpgradeFromInstallerPath $predecessor -ExpectedExecutablePath (Join-Path $root "target/release/portcove-desktop.exe") -TestBase (Join-Path $runRoot "installer-test") -EvidencePath (Join-Path $runRoot "windows-passive-upgrade.json") -InstallMode Passive -ExpectedVersion $version -PayloadPrivateKeyPath $privateKey -RequireSigningAuthorityAbsent
-                if ((Get-FileHash -LiteralPath $env:PORTCOVE_PREFERENCES -Algorithm SHA256).Hash -ne $preferencesHash) { throw "Installer rehearsal changed isolated host preferences" }
+                Copy-Item -LiteralPath (Join-Path $root "target/release/portcove-desktop.exe") -Destination (Join-Path $runRoot "windows-candidate-desktop.exe")
             }
         } elseif ($IsLinux) {
             $native.deb_version = (& dpkg-deb --field (Join-Path $stage "Portcove_${version}_amd64.deb") Version | Out-String).Trim()
@@ -289,6 +285,79 @@ try {
         Move-RehearsalInput $bundleRoot "$version-bundles"
         Move-RehearsalInput $cliRoot "$version-cli-assets"
     }
+    if ($IsWindows) {
+        $fixtureRoot = Join-Path $runRoot "windows-installed-update-qualification"
+        Invoke-Checked "cargo" @("run", "--locked", "--quiet", "-p", "portcove-release-tools", "--example", "generate_test_updater_repository", "--", $fixtureRoot, $publicKey)
+        $inputs = Join-Path $fixtureRoot "inputs"
+        New-Item -ItemType Directory -Path $inputs | Out-Null
+        $candidateStage = Join-Path $runRoot "$candidateVersion-$PlatformLabel"
+        $candidateInventoryPath = Join-Path $candidateStage "updater-inventory.json"
+        $candidateInventory = Get-Content -LiteralPath $candidateInventoryPath -Raw | ConvertFrom-Json
+        $candidate = Join-Path $candidateStage $candidateInventory.updater.filename
+        Copy-Item -LiteralPath $candidateInventoryPath -Destination (Join-Path $inputs "updater-inventory.json")
+        Copy-Item -LiteralPath (Join-Path $candidateStage $candidateInventory.updater.signature.filename) -Destination (Join-Path $inputs "candidate.sig")
+        $contractText = (& cargo run --locked --quiet -p portcove-desktop --example prepare_installed_update -- describe $predecessorVersion | Out-String).Trim()
+        if ($LASTEXITCODE -ne 0) { throw "Could not derive the Windows updater fixture contract" }
+        $contract = $contractText | ConvertFrom-Json
+        $sourceTree = (& git rev-parse "HEAD^{tree}" | Out-String).Trim()
+        $runId = if ($env:GITHUB_RUN_ID -match '^\d+$' -and [UInt64]$env:GITHUB_RUN_ID -gt 0) { [UInt64]$env:GITHUB_RUN_ID } else { [UInt64]1 }
+        $attempt = if ($env:GITHUB_RUN_ATTEMPT -match '^\d+$' -and [UInt64]$env:GITHUB_RUN_ATTEMPT -gt 0) { [UInt64]$env:GITHUB_RUN_ATTEMPT } else { [UInt64]1 }
+        $descriptor = [ordered]@{
+            schema_version = 1
+            releases = @([ordered]@{
+                inventory = "updater-inventory.json"
+                signature = "candidate.sig"
+                source_tree = $sourceTree
+                qualified_run = [ordered]@{
+                    workflow = ".github/workflows/updater-artifact-rehearsal.yml"
+                    workflow_commit = $revision
+                    run_id = $runId
+                    attempt = $attempt
+                }
+                execution_context = "installed-current-user"
+                compatibility = $contract.compatibility
+                evidence_ids = @("updater-artifact-rehearsal-$runId-windows-x86_64")
+            })
+        }
+        $descriptorPath = Join-Path $inputs "descriptor.json"
+        $eligibilityPath = Join-Path $inputs "eligibility.json"
+        $descriptor | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $descriptorPath -Encoding utf8
+        $eligibility = [ordered]@{}
+        $eligibility["v$candidateVersion"] = [ordered]@{
+            version = $candidateVersion
+            preview_eligible = $true
+            production_eligible = $candidateProductionEligible
+            targets = @("windows-x86_64")
+        }
+        $eligibility | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $eligibilityPath -Encoding utf8
+        $records = Join-Path $fixtureRoot "records"
+        Invoke-Checked "node" @("scripts/reconstruct-application-update-records.mjs", "--input", $descriptorPath, "--eligibility", $eligibilityPath, "--output", $records)
+        $tufConfigPath = Join-Path $fixtureRoot "build-tuf.json"
+        $tufConfig = Get-Content -LiteralPath $tufConfigPath -Raw | ConvertFrom-Json -AsHashtable
+        $tufConfig.reconstructed_records = "records"
+        $tufConfig.output = "repository"
+        [IO.File]::WriteAllText($tufConfigPath, ($tufConfig | ConvertTo-Json -Depth 20))
+        Invoke-Checked "cargo" @("run", "--locked", "--quiet", "-p", "portcove-release-tools", "--", "build-tuf", $tufConfigPath)
+
+        Set-FixtureVersion $predecessorVersion
+        $env:PORTCOVE_APPLICATION_UPDATE_BUNDLED_ROOT_FILE = Join-Path $fixtureRoot "trusted-root.json"
+        $repository = Join-Path $fixtureRoot "repository"
+        $metadataDirectory = (Resolve-Path -LiteralPath (Join-Path $repository "metadata")).Path
+        $targetsDirectory = (Resolve-Path -LiteralPath (Join-Path $repository "targets")).Path
+        $env:PORTCOVE_APPLICATION_UPDATE_METADATA_URL = ([Uri]::new($metadataDirectory.TrimEnd('/', '\') + '/')).AbsoluteUri
+        $env:PORTCOVE_APPLICATION_UPDATE_TARGETS_URL = ([Uri]::new($targetsDirectory.TrimEnd('/', '\') + '/')).AbsoluteUri
+        Invoke-Checked "corepack" @($pnpmSpec, "--dir", "apps/desktop", "tauri", "build", "--bundles", "nsis", "--config", $configPath, "--ci", "--features", "application-update-qualification")
+        $predecessor = Join-Path $bundleRoot "nsis/Portcove_$($predecessorVersion)_x64-setup.exe"
+        $consumerEvidence = Invoke-PackagedPayloadConsumer -Stage $candidateStage -CandidateVersion $candidateVersion
+        Remove-Item -LiteralPath (Join-Path $fixtureRoot "private") -Recurse -Force
+        Remove-Item -LiteralPath $tufConfigPath -Force
+        $privateTufAbsent = -not [IO.Directory]::Exists((Join-Path $fixtureRoot "private"))
+        if (-not $privateTufAbsent) { throw "Disposable TUF signing authority remained available" }
+        & (Join-Path $PSScriptRoot "test-windows-installer.ps1") -InstallerPath $candidate -UpgradeFromInstallerPath $predecessor -ExpectedExecutablePath (Join-Path $runRoot "windows-candidate-desktop.exe") -TestBase (Join-Path $runRoot "installer-test") -EvidencePath (Join-Path $runRoot "windows-installed-update.json") -InstallMode Passive -ExpectedVersion $candidateVersion -PayloadPrivateKeyPath $privateKey -RequireSigningAuthorityAbsent -InstalledUpdateTrustedRootPath $env:PORTCOVE_APPLICATION_UPDATE_BUNDLED_ROOT_FILE -InstalledUpdateMetadataPath $metadataDirectory -InstalledUpdateTargetsPath $targetsDirectory -InstalledUpdateCandidatePath $candidate -InstalledUpdatePredecessorVersion $predecessorVersion
+        if ($LASTEXITCODE -ne 0) { throw "Windows installed application update qualification failed" }
+        if ((Get-FileHash -LiteralPath $env:PORTCOVE_PREFERENCES -Algorithm SHA256).Hash -ne $preferencesHash) { throw "Windows updater qualification changed isolated host preferences" }
+        [ordered]@{ source_commit = $revision; candidate_version = $candidateVersion; private_signing_inputs_absent = $consumerEvidence.private_signing_inputs_absent; private_tuf_inputs_absent = $privateTufAbsent; installed_update_evidence = "windows-installed-update.json" } | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $runRoot "windows-installed-update-summary.json") -Encoding utf8
+    }
     if ($IsLinux) {
         $fixtureRoot = Join-Path $runRoot "linux-appimage-qualification"
         Invoke-Checked "cargo" @("run", "--locked", "--quiet", "-p", "portcove-release-tools", "--example", "generate_test_updater_repository", "--", $fixtureRoot, $publicKey)
@@ -300,7 +369,7 @@ try {
         $candidateInventoryPath = Join-Path $candidateStage "updater-inventory.json"
         Copy-Item -LiteralPath $candidateInventoryPath -Destination (Join-Path $inputs "updater-inventory.json")
         Copy-Item -LiteralPath "$candidate.sig" -Destination (Join-Path $inputs "candidate.sig")
-        $contractText = (& cargo run --locked --quiet -p portcove-desktop --example prepare_appimage_update -- describe $predecessorVersion | Out-String).Trim()
+        $contractText = (& cargo run --locked --quiet -p portcove-desktop --example prepare_installed_update -- describe $predecessorVersion | Out-String).Trim()
         if ($LASTEXITCODE -ne 0) { throw "Could not derive the Linux updater fixture contract" }
         $contract = $contractText | ConvertFrom-Json
         $sourceTree = (& git rev-parse "HEAD^{tree}" | Out-String).Trim()
@@ -497,6 +566,8 @@ try {
     if ([IO.Directory]::Exists($wrongPrivateRoot)) { [IO.Directory]::Delete($wrongPrivateRoot, $true) }
     $fixturePrivate = Join-Path $runRoot "linux-appimage-qualification/private"
     if ([IO.Directory]::Exists($fixturePrivate)) { [IO.Directory]::Delete($fixturePrivate, $true) }
+    $windowsFixturePrivate = Join-Path $runRoot "windows-installed-update-qualification/private"
+    if ([IO.Directory]::Exists($windowsFixturePrivate)) { [IO.Directory]::Delete($windowsFixturePrivate, $true) }
 }
 [ordered]@{ source_commit = $revision; platform = $PlatformLabel; status = "passed"; transition_profile = $TransitionProfile; fixture_versions = $fixtureVersions; production_signing = $false } |
     ConvertTo-Json | Set-Content -LiteralPath (Join-Path $runRoot "rehearsal-result.json") -Encoding utf8
