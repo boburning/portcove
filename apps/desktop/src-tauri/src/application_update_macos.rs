@@ -25,6 +25,12 @@ const EXECUTION_CONTEXT: &str = "user-owned-app-bundle";
 const TOOL_TIMEOUT: Duration = Duration::from_secs(15);
 const MAX_TOOL_OUTPUT: usize = 4096;
 
+fn macos_absolute_path(components: &[&str]) -> PathBuf {
+    let mut path = PathBuf::from(std::path::MAIN_SEPARATOR.to_string());
+    path.extend(components);
+    path
+}
+
 fn unavailable(message: impl Into<String>) -> InstalledApplicationContextError {
     InstalledApplicationContextError::Unavailable(message.into())
 }
@@ -56,7 +62,7 @@ fn bundle_from_executable(executable: &Path) -> Result<&Path, InstalledApplicati
             "the translocated application must be moved to a writable installation before updating",
         ));
     }
-    if executable.starts_with("/Volumes") {
+    if executable.starts_with(macos_absolute_path(&["Volumes"])) {
         return Err(unavailable(
             "an application launched from a mounted volume needs a qualified permanent installation",
         ));
@@ -105,7 +111,7 @@ fn require_unlinked_ancestors(path: &Path) -> Result<(), InstalledApplicationCon
 }
 
 fn fixed_tool(
-    path: &str,
+    path: &Path,
     arguments: &[&OsStr],
 ) -> Result<String, InstalledApplicationContextError> {
     let mut command = ChildProcessPolicy::native_command(ChildProcessClass::HostIntegration, path)
@@ -187,7 +193,7 @@ pub fn current_macos_installed_application_context()
     let plist = bundle.join("Contents/Info.plist");
     require_owned_direct_path(&plist, false)?;
     let bundle_id = fixed_tool(
-        "/usr/libexec/PlistBuddy",
+        &macos_absolute_path(&["usr", "libexec", "PlistBuddy"]),
         &[
             OsStr::new("-c"),
             OsStr::new("Print CFBundleIdentifier"),
@@ -195,7 +201,7 @@ pub fn current_macos_installed_application_context()
         ],
     )?;
     let version = fixed_tool(
-        "/usr/libexec/PlistBuddy",
+        &macos_absolute_path(&["usr", "libexec", "PlistBuddy"]),
         &[
             OsStr::new("-c"),
             OsStr::new("Print CFBundleShortVersionString"),
@@ -208,7 +214,7 @@ pub fn current_macos_installed_application_context()
         ));
     }
     fixed_tool(
-        "/usr/bin/codesign",
+        &macos_absolute_path(&["usr", "bin", "codesign"]),
         &[
             OsStr::new("--verify"),
             OsStr::new("--deep"),
@@ -224,7 +230,10 @@ pub fn current_macos_installed_application_context()
 pub fn macos_bundle_context_for_version(
     version: &str,
 ) -> Result<InstalledApplicationContext, InstalledApplicationContextError> {
-    let os_version = fixed_tool("/usr/bin/sw_vers", &[OsStr::new("-productVersion")])?;
+    let os_version = fixed_tool(
+        &macos_absolute_path(&["usr", "bin", "sw_vers"]),
+        &[OsStr::new("-productVersion")],
+    )?;
     let architecture = std::env::consts::ARCH;
     let target = match architecture {
         "x86_64" => "darwin-x86_64",
