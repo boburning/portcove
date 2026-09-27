@@ -1477,26 +1477,8 @@ select {
   gap: var(--space-1);
 }
 
-.advanced-settings,
-.requirements-disclosure {
-  border-top: 1px solid var(--color-border);
-  border-bottom: 1px solid var(--color-border);
-}
 .future-setup-disclosure:not(.is-deferred) > summary {
   display: none;
-}
-
-.advanced-summary,
-.requirements-summary {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 15px 2px;
-  font-size: var(--text-xs);
-  font-weight: 700;
-  list-style: none;
-  cursor: pointer;
 }
 
 .advanced-summary::-webkit-details-marker,
@@ -1518,22 +1500,6 @@ select {
   transform: rotate(180deg);
 }
 
-.advanced-summary-meta,
-.requirements-summary-meta {
-  margin-left: auto;
-  color: var(--color-text-muted);
-  font-size: var(--text-2xs);
-  font-weight: 500;
-}
-
-.advanced-summary:hover,
-.requirements-summary:hover {
-  color: var(--color-interactive-text-strong);
-}
-.advanced-body,
-.requirements-body {
-  padding: 2px 0 22px;
-}
 .maintenance-actions {
   margin-top: 18px;
   padding-top: 18px;
