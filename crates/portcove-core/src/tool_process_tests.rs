@@ -93,6 +93,7 @@ fn idle_setup_does_not_republish_unchanged_diagnostics() {
     let temporary = fixture("idle");
     let root = temporary.path();
     let mut snapshots = Vec::new();
+    let started = Instant::now();
     let result = run_setup(
         &std::env::current_exe().unwrap(),
         &["--exact".into(), CHILD_TEST.into(), "--nocapture".into()],
@@ -105,7 +106,7 @@ fn idle_setup_does_not_republish_unchanged_diagnostics() {
                 activity_id: "owned-idle-fixture",
                 phase: "preparation.setup",
                 record: &mut |snapshot| {
-                    snapshots.push(snapshot.clone());
+                    snapshots.push((started.elapsed(), snapshot.clone()));
                     Ok(())
                 },
             }),
@@ -114,14 +115,37 @@ fn idle_setup_does_not_republish_unchanged_diagnostics() {
     )
     .unwrap();
     assert!(result.status.success());
+    // The child test harness may flush its text in any number of reads.
+    // Closing stdout and stderr can each publish one revision without new bytes.
+    assert!(snapshots.len() >= 2, "{snapshots:?}");
+    assert!(!snapshots.first().unwrap().1.complete);
+    assert!(snapshots.last().unwrap().1.complete);
+    assert!(result.output.contains("test result: ok"));
     assert!(
-        snapshots.len() >= 2 && snapshots.len() <= 3,
-        "{snapshots:?}"
+        snapshots
+            .last()
+            .unwrap()
+            .1
+            .stdout
+            .text
+            .contains("test result: ok")
     );
-    assert!(snapshots.last().unwrap().complete);
-    for pair in snapshots[..snapshots.len() - 1].windows(2) {
-        assert_ne!(pair[0].stdout.observed_bytes, pair[1].stdout.observed_bytes);
+    for pair in snapshots.windows(2) {
+        assert!(pair[0].1.stdout.observed_bytes <= pair[1].1.stdout.observed_bytes);
+        assert!(pair[0].1.stderr.observed_bytes <= pair[1].1.stderr.observed_bytes);
     }
+    let mut equal_byte_revisions = 0;
+    for pair in snapshots[..snapshots.len() - 1].windows(2) {
+        if pair[0].1.stdout.observed_bytes == pair[1].1.stdout.observed_bytes
+            && pair[0].1.stderr.observed_bytes == pair[1].1.stderr.observed_bytes
+        {
+            // The child sleeps for at least 2200 ms before either pipe can
+            // close. An earlier equal-byte revision is an idle republication.
+            assert!(pair[1].0 >= Duration::from_millis(2200), "{snapshots:?}");
+            equal_byte_revisions += 1;
+        }
+    }
+    assert!(equal_byte_revisions <= 2, "{snapshots:?}");
 }
 
 #[test]
