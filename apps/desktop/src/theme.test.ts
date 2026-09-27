@@ -56,9 +56,13 @@ describe("theme preferences", () => {
 
   it("applies the resolved theme and browser chrome color", () => {
     const meta = { setAttribute: vi.fn() };
+    const frames: FrameRequestCallback[] = [];
+    vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) =>
+      frames.push(callback),
+    );
     const documentElement = {
       dataset: {} as Record<string, string>,
-      style: { colorScheme: "", setProperty: vi.fn() },
+      style: { colorScheme: "", removeProperty: vi.fn(), setProperty: vi.fn() },
     };
     vi.stubGlobal("document", {
       documentElement,
@@ -67,6 +71,11 @@ describe("theme preferences", () => {
     applyWebTheme("light");
     expect(documentElement.dataset.theme).toBe("light");
     expect(documentElement.style.colorScheme).toBe("light");
+    expect(documentElement.style.removeProperty).toHaveBeenCalledWith(
+      "--portcove-theme-invalidation",
+    );
+    frames.shift()?.(0);
+    frames.shift()?.(0);
     expect(documentElement.style.setProperty).toHaveBeenCalledWith(
       "--portcove-theme-invalidation",
       "light",
