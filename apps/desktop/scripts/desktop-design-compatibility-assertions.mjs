@@ -53,6 +53,11 @@ export async function assertDesignCompatibility({ browser, By, Key, until }) {
   assert.equal(darkColors.variantOpacity, "0.5");
   await browser.findElement(By.id("fixture-theme-light")).click();
   await browser.wait(async () => (await fixture.getAttribute("data-theme")) === "light", 15_000);
+  await browser.wait(
+    async () => browser.executeScript(() => document.documentElement.dataset.theme === "light"),
+    15_000,
+    "the document theme follows the fixture before computed utility checks",
+  );
   assert.notEqual(
     await browser.executeScript(
       () =>
@@ -60,12 +65,20 @@ export async function assertDesignCompatibility({ browser, By, Key, until }) {
     ),
     darkColors.background,
   );
+  const lightVariant = await browser.executeScript(() => {
+    const probe = document.querySelector("[data-theme-variant-probe]");
+    return {
+      opacity: getComputedStyle(probe).opacity,
+      documentTheme: document.documentElement.dataset.theme ?? null,
+      fixtureTheme: document.querySelector(".design-compatibility-fixture")?.dataset.theme ?? null,
+      darkAncestor: probe.closest('[data-theme="dark"]')?.tagName ?? null,
+    };
+  });
   assert.equal(
-    await browser.executeScript(
-      () => getComputedStyle(document.querySelector("[data-theme-variant-probe]")).opacity,
-    ),
+    lightVariant.opacity,
     "1",
-    "a generated dark: utility changes an actual computed control property under data-theme",
+    "a generated dark: utility changes an actual computed control property under data-theme: " +
+      JSON.stringify(lightVariant),
   );
 
   await browser.findElement(By.id("fixture-direction")).click();
