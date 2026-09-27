@@ -1240,7 +1240,7 @@ function DiagnosticsCard({
       </Button>
       {bundlePath && (
         <p role="status">
-          Saved to <code>{bundlePath}</code>
+          Saved to <code className="[overflow-wrap:anywhere]">{bundlePath}</code>
         </p>
       )}
     </article>
@@ -1646,7 +1646,9 @@ export function LibrarySelectionCard({
     <article className="settings-row" data-focus-group>
       <p className="eyebrow">WHOLE PORTCOVE LIBRARY</p>
       <h2>Library at startup</h2>
-      <code>{selection?.root ?? "Unavailable"}</code>
+      <code className="mb-[15px] block rounded-pc-md bg-[var(--color-bg-inset)] p-2.5 text-[var(--color-interactive-text)] [overflow-wrap:anywhere]">
+        {selection?.root ?? "Unavailable"}
+      </code>
       <p>
         {source}. Opening another library does not move your files. The library you open uses its
         own game install folder settings.
@@ -1773,7 +1775,9 @@ function HostReadiness({
             <p role="status">Showing the last successful host check.</p>
           )}
           <p className="host-summary mb-3 flex items-center justify-between gap-3">
-            <code>{doctor.platform}</code>
+            <code className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-pc-muted-foreground">
+              {doctor.platform}
+            </code>
             <span className="text-right text-xs text-pc-muted-foreground">
               {doctor.catalog_port_count} ports · {doctor.installed_port_count} installed ·{" "}
               {doctor.registered_source_count} sources
@@ -1942,7 +1946,10 @@ export function HostToolRow({
         <summary className="cursor-pointer text-sm text-[var(--color-text-secondary)]">
           Tool details
         </summary>
-        <code className="mt-2 block" title={location}>
+        <code
+          className="mt-2 block min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-pc-muted-foreground"
+          title={location}
+        >
           {location}
         </code>
         <small className="mt-2 block text-[var(--color-text-secondary)]">
@@ -1950,7 +1957,7 @@ export function HostToolRow({
           {showTechnicalId && (
             <>
               {" "}
-              · Technical ID: <code>{tool.id}</code>
+              · Technical ID: <code className="text-pc-muted-foreground">{tool.id}</code>
             </>
           )}
         </small>
@@ -1990,7 +1997,9 @@ function StorageCard({
         <Icon glyph={HardDrive} />
         Files and capacity
       </h2>
-      <code>{libraryRoot || "Loading…"}</code>
+      <code className="mb-[15px] block rounded-pc-md bg-[var(--color-bg-inset)] p-2.5 text-[var(--color-interactive-text)] [overflow-wrap:anywhere]">
+        {libraryRoot || "Loading…"}
+      </code>
       {measurable ? (
         <div className="mb-[15px] grid gap-2">
           <div className="flex items-baseline justify-between gap-3">
@@ -2037,7 +2046,7 @@ function StorageCard({
       </p>
       {exported && (
         <p role="status">
-          Exported to <code>{exported.path}</code>
+          Exported to <code className="[overflow-wrap:anywhere]">{exported.path}</code>
         </p>
       )}
       <LibraryMoveButton disabled={Boolean(busy)} />
