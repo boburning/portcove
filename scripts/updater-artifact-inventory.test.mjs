@@ -245,7 +245,10 @@ test("manual rehearsal retains the complete matrix without production credential
     /\$native\.process_architecture -ne \$expectedProcessArchitecture[\s\S]*\$native\.executable_architecture = \(& lipo -archs \$executable \| Out-String\)\.Trim\(\)[\s\S]*\$native\.executable_architecture -ne \$expectedMachOArchitecture/,
   );
   assert.match(rehearsal, /test-linux-appimage-update\.ps1/);
-  assert.match(rehearsal, /Move-RehearsalInput \$bundleRoot "qualified-\$predecessorVersion-bundles"/);
+  assert.match(
+    rehearsal,
+    /\$qualifiedBundleName = "qualified-\$predecessorVersion-bundles"[\s\S]*Move-RehearsalInput \$bundleRoot \$qualifiedBundleName[\s\S]*\$predecessor = Join-Path \$runRoot[\s\S]*Invoke-Checked "dbus-run-session"/,
+  );
   assert.match(rehearsal, /ValidateSet\("legacy-skipped", "preview-final"\)/);
   assert.match(rehearsal, /"1\.0\.0-rc\.2"/);
   assert.match(rehearsal, /"1\.0\.0"/);

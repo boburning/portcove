@@ -536,6 +536,12 @@ try {
         foreach ($tufConfigPath in @((Join-Path $fixtureRoot "build-tuf.json")) + $tufVariantConfigs) {
             Remove-Item -LiteralPath $tufConfigPath -Force
         }
+        $qualifiedBundleName = "qualified-$predecessorVersion-bundles"
+        Move-RehearsalInput $bundleRoot $qualifiedBundleName
+        $predecessor = Join-Path $runRoot "$qualifiedBundleName/appimage/Portcove_$($predecessorVersion)_amd64.AppImage"
+        if (-not (Test-Path -LiteralPath $predecessor -PathType Leaf)) {
+            throw "The qualified predecessor AppImage was not retained before consumer execution"
+        }
         $linuxHarnessArguments = @(
             "-NoProfile", "-File", (Join-Path $PSScriptRoot "test-linux-appimage-update.ps1"),
             "-PredecessorPath", $predecessor,
@@ -555,7 +561,6 @@ try {
             "-CandidateVersion", $candidateVersion
         )
         Invoke-Checked "dbus-run-session" (@("--", "pwsh") + $linuxHarnessArguments)
-        Move-RehearsalInput $bundleRoot "qualified-$predecessorVersion-bundles"
     }
 } catch {
     [ordered]@{ source_commit = $revision; platform = $PlatformLabel; status = "failed"; transition_profile = $TransitionProfile; fixture_versions = $fixtureVersions; failure = $_.Exception.Message } |
