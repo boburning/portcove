@@ -78,6 +78,7 @@ jobs:
             work/updater-rehearsal/windows-installed-update-qualification/trusted-root.json
             work/updater-rehearsal/installer-test/run-*/installed-update-helper.*.log
             work/updater-rehearsal/installer-test/run-*/application-update/worker-stage-error.txt
+            work/updater-rehearsal/installer-test/run-*/application-update/workers/revision-*/attempt-*/worker.json
             work/updater-rehearsal/installer-test/run-*/application-update-qualification-stage.json
             work/updater-rehearsal/installer-test/run-*/application-update/apply.json
             work/updater-rehearsal/installer-test/run-*/application-update/staging.json

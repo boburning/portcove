@@ -78,6 +78,18 @@ function Assert-NoReparseAncestry([string]$Path) {
     }
 }
 
+function Get-ComparableWindowsPath([string]$Path) {
+    if ($Path.StartsWith('\\?\UNC\', [StringComparison]::OrdinalIgnoreCase)) {
+        $Path = '\\' + $Path.Substring(8)
+    } elseif ($Path.StartsWith('\\?\', [StringComparison]::OrdinalIgnoreCase)) {
+        $Path = $Path.Substring(4)
+    }
+    if (-not [IO.Path]::IsPathFullyQualified($Path)) {
+        throw "Worker binding path is not fully qualified"
+    }
+    [IO.Path]::GetFullPath($Path)
+}
+
 function Invoke-ApplicationSmoke([string]$Application, [string]$Role) {
     $launch = Start-JournaledProcess $Role $Application @()
     $process = $launch.process
@@ -606,12 +618,13 @@ try {
         }
         $workerHash = (Get-FileHash -LiteralPath $worker -Algorithm SHA256).Hash.ToLowerInvariant()
         $binding = Get-Content -LiteralPath $workerManifest -Raw | ConvertFrom-Json
-        if ($workerHash -ne $previousHash -or
-            $binding.installed_sha256 -ne $previousHash -or
-            $binding.revision -ne $prepared.apply_revision -or
-            -not ([IO.Path]::GetFullPath([string]$binding.installed_executable)).Equals(
-                [IO.Path]::GetFullPath($application), [StringComparison]::OrdinalIgnoreCase)) {
-            throw "Installed update worker does not match the registered predecessor and apply revision"
+        $workerHashMatches = $workerHash -eq $previousHash
+        $bindingHashMatches = $binding.installed_sha256 -eq $previousHash
+        $revisionMatches = $binding.revision -eq $prepared.apply_revision
+        $installedPathMatches = (Get-ComparableWindowsPath ([string]$binding.installed_executable)).Equals(
+            (Get-ComparableWindowsPath $application), [StringComparison]::OrdinalIgnoreCase)
+        if (-not ($workerHashMatches -and $bindingHashMatches -and $revisionMatches -and $installedPathMatches)) {
+            throw "Installed update worker binding mismatch: worker_hash=$workerHashMatches manifest_hash=$bindingHashMatches revision=$revisionMatches installed_path=$installedPathMatches"
         }
         Write-InstallerEvidence "installed_worker_verified" ([ordered]@{ worker_path = $worker; worker_sha256 = $workerHash; binding = $binding })
         $helperStart = [DateTime]::UtcNow
