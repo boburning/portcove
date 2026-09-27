@@ -74,7 +74,7 @@ export function PreparationControl({
     } catch (value) {
       if (request.current === current) {
         if (isCancellation(value))
-          setMessage("Preparation cancelled. Review its retained outcome in Recent activity.");
+          setMessage("Setup cancelled. Check Recent activity for unfinished work.");
         else setError(errorText(value));
       }
     } finally {
@@ -129,7 +129,7 @@ export function PreparationControl({
               <p>
                 <strong>Installed version · {plan.inputs.install.version}</strong>
               </p>
-              <p>Selected original files: {plan.inputs.source.path}</p>
+              <p>Selected game files: {plan.inputs.source.path}</p>
               <p>
                 Portcove needs at least{" "}
                 {formatBytes(plan.copy.total_bytes + plan.inputs.source.storage_size)} of free space

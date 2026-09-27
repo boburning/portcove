@@ -107,9 +107,9 @@ export function RemovalReviewDialog({
             </p>
             <p>{preview.persistent_data_path}</p>
             <p>
-              Your saved data, backups, and original game files are kept. Registered original game
-              sources and the original folders used for copied installations are also kept. Other
-              games are unaffected.
+              Your saved data, backups, and game files are kept. Saved game-file locations and the
+              original folders used for copied installations are also kept. Other games are
+              unaffected.
             </p>
             <p>
               The game must be stopped. To use this port again, reinstall it or copy an existing

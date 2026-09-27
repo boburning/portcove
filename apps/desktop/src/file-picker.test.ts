@@ -161,7 +161,7 @@ describe("native path pickers", () => {
     openMock.mockResolvedValue("D:/Sources/outrun.zip");
     await expect(pickSourceArchivePath("")).resolves.toBe("D:/Sources/outrun.zip");
     expect(openMock).toHaveBeenCalledWith({
-      title: "Choose game files",
+      title: "Choose ZIP file",
       multiple: false,
       directory: false,
       defaultPath: undefined,
@@ -173,7 +173,7 @@ describe("native path pickers", () => {
     openMock.mockResolvedValue("D:/Sources/bios.zip");
     await expect(pickSourceArchivePath("", "bios")).resolves.toBe("D:/Sources/bios.zip");
     expect(openMock).toHaveBeenCalledWith({
-      title: "Choose BIOS file",
+      title: "Choose ZIP file",
       multiple: false,
       directory: false,
       defaultPath: undefined,

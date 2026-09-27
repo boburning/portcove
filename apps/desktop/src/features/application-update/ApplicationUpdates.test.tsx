@@ -337,7 +337,7 @@ describe("ApplicationUpdateSettings", () => {
     await click("Check for updates");
 
     expect(check).toHaveBeenCalledOnce();
-    expect(host.textContent).toContain("Portcove 0.2.0-beta.3 has been downloaded and verified");
+    expect(host.textContent).toContain("Portcove 0.2.0-beta.3 has been downloaded and checked");
     expect(host.textContent).toContain("Manual checks never use a URL supplied by this screen.");
   });
 
@@ -428,7 +428,7 @@ describe("ApplicationUpdateSettings", () => {
       },
       expect.any(Function),
     );
-    expect(host.textContent).toContain("Portcove 0.2.0-beta.3 has been downloaded and verified");
+    expect(host.textContent).toContain("Portcove 0.2.0-beta.3 has been downloaded and checked");
   });
 
   it("uses a revision-bound automatic result without repeating its check", async () => {

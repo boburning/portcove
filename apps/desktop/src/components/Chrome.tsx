@@ -106,7 +106,6 @@ export function Sidebar({
         <BrandAvatar />
         <div>
           <strong>Portcove</strong>
-          <small>Native ports, kept current</small>
         </div>
       </div>
       <nav aria-label="Primary navigation">
@@ -346,7 +345,7 @@ function ApplicationUpdateProductionTransitionBanner({
         <Icon glyph={ShieldCheck} />
       </span>
       <div>
-        <strong>Choose your production channel</strong>
+        <strong>Choose an update channel</strong>
         <p>
           Stable is recommended and waits for an eligible production release newer than this
           installation; it never downgrades Portcove. Keep Preview to continue receiving eligible
@@ -729,8 +728,8 @@ function GithubNotes({ status }: { status?: GithubAuthStatus }) {
   if (status && !status.device_login_available && !status.authenticated)
     return (
       <small className={noteClass}>
-        This version of Portcove does not support GitHub device sign-in. Continue anonymously or use
-        a personal access token.
+        This version of Portcove does not support GitHub device sign-in. Continue without signing in
+        or use a personal access token.
       </small>
     );
   return null;
@@ -790,8 +789,8 @@ function SourceRequirements({
       >
         <strong>
           {installedCount > 0
-            ? "Required game files have been added for ports in your library."
-            : "No ports in your library yet. Game-file requirements will appear here after you add a port."}
+            ? "Required files have been added for ports in your library."
+            : "No ports in your library yet. File requirements will appear here after you add a port."}
         </strong>
       </div>
     );
@@ -828,7 +827,9 @@ function SourceRequirements({
               disabled={!!busy}
               onClick={() => add?.(requirement.profile, false)}
             >
-              Add source
+              {requirement.requiredBy.every((use) => use.role === "BIOS")
+                ? "Add BIOS file"
+                : "Add game files"}
             </Button>
             {requirement.profile.kind === "file-set" && (
               <Button
@@ -885,9 +886,9 @@ function SourceHealth({
   const profilesById = new Map(profiles.map((profile) => [profile.id, profile]));
   return (
     <article className="settings-row source-health col-span-full min-h-0" data-focus-group>
-      <p className="eyebrow">SOURCES</p>
+      <p className="eyebrow">SAVED FILES</p>
       <div className="settings-title">
-        <h2>Game-file verification</h2>
+        <h2>Game files and BIOS</h2>
         <Button
           data-focusable
           variant="outline"
@@ -895,7 +896,7 @@ function SourceHealth({
           disabled={!!busy || sources.length === 0}
           onClick={verify}
         >
-          Verify sources
+          Check saved files
         </Button>
       </div>
       <SourceRequirements
@@ -912,7 +913,7 @@ function SourceHealth({
       />
       {requirementsState === "available" &&
         (sources.length === 0 ? (
-          <p>No source files are registered yet.</p>
+          <p>No game files or BIOS files have been added yet.</p>
         ) : (
           <div className="source-health-list my-4 grid gap-2">
             {sources.map((source, index) => (
@@ -996,7 +997,7 @@ function SourceHealthRow({
             disabled={Boolean(busy)}
             onClick={() => replace?.(source)}
           >
-            Relink source
+            Update file location
           </Button>
         )}
         <SourceRemovalControl
@@ -1010,13 +1011,13 @@ function SourceHealthRow({
       {!profile && (
         <div className="min-w-0">
           <p>
-            This saved game-file requirement is no longer present in the current catalog. Update the
+            This saved file requirement is no longer present in the current catalog. Update the
             catalog or remove the saved location.
           </p>
           <details>
             <summary
               data-focusable
-              aria-label={`Technical details for saved game-file location ${source.path}, saved reference ${sourcePosition} of ${sourceCount}`}
+              aria-label={`Technical details for saved file location ${source.path}, saved reference ${sourcePosition} of ${sourceCount}`}
             >
               Technical details
             </summary>
@@ -1041,7 +1042,7 @@ function SourceHealthRow({
         </div>
       ) : profile ? (
         <p className="source-inspection-loading col-span-full" role="status">
-          Checking identity…
+          Checking file…
         </p>
       ) : null}
     </div>
@@ -1102,7 +1103,7 @@ function SourceState({
     return (
       <span className={verified}>
         <Icon glyph={Check} size="sm" />
-        Source check passed
+        File check passed
       </span>
     );
   return (
@@ -1150,10 +1151,10 @@ function AboutCard() {
       </div>
       <div className="self-center">
         <p className="eyebrow">ABOUT &amp; CREDITS</p>
-        <h2 className="mb-2 text-xl">One harbor for native ports</h2>
+        <h2 className="mb-2 text-xl">About Portcove</h2>
         <p className="leading-relaxed text-pc-muted-foreground">
-          Portcove keeps the desktop and CLI in sync across the catalog, game files, installed
-          versions, and recovery history.
+          Install, update, and play native game ports. Portcove keeps track of your library,
+          installed versions, saved file locations, and recovery information.
         </p>
         <dl className="my-5 grid grid-cols-3 gap-2 max-[65rem]:grid-cols-1">
           <div className="min-w-0 rounded-pc-md border border-pc-border bg-[var(--color-bg-inset)] p-3">
@@ -1238,7 +1239,7 @@ function DiagnosticsCard({
           ? "Checking current host and library diagnostics…"
           : failure
             ? hasSnapshot
-              ? "The last diagnostic snapshot is retained, but the current check failed."
+              ? "Couldn't refresh diagnostics. Showing the last results."
               : "Diagnostics could not be checked."
             : stale
               ? "Diagnostics may be out of date."
@@ -1382,8 +1383,8 @@ export function SettingsView({
 }) {
   const sections = [
     { id: "appearance", label: "Appearance" },
-    { id: "library-storage", label: "Library & Storage" },
-    { id: "game-files", label: "Game Files" },
+    { id: "library-storage", label: "Library and storage" },
+    { id: "game-files", label: "Game files" },
     { id: "updates", label: "Portcove & catalog updates" },
     { id: "integrations", label: "Integrations" },
     { id: "advanced", label: "Advanced" },
@@ -1430,7 +1431,7 @@ export function SettingsView({
       <SettingsSection
         id="library-storage"
         eyebrow="STORAGE LOCATIONS"
-        title="Library & Storage"
+        title="Library and storage"
         description="Choose which Portcove library opens at startup. Each game’s install folder is reviewed separately from its game page."
       >
         <LibrarySelectionCard
@@ -1450,8 +1451,8 @@ export function SettingsView({
       <SettingsSection
         id="game-files"
         eyebrow="GAME FILES"
-        title="Game Files"
-        description="Review local game-file sources and the optional disc tools used to verify or prepare them."
+        title="Game files"
+        description="Review saved file locations and the optional disc tools used to check or prepare files."
       >
         <GameFileLibraries
           key={librarySelection?.root ?? libraryRoot}
@@ -1522,7 +1523,7 @@ export function SettingsView({
         id="integrations"
         eyebrow="INTEGRATIONS"
         title="Integrations"
-        description="Connect optional services without changing ordinary local play."
+        description="Connect optional services. You don't need an account to play."
       >
         <GithubSettings github={github} busy={busy} />
       </SettingsSection>
@@ -1530,7 +1531,7 @@ export function SettingsView({
         id="advanced"
         eyebrow="ADVANCED"
         title="Advanced"
-        description="Inspect diagnostics, support information, privacy boundaries, and application details."
+        description="Find diagnostic tools, privacy information, and details about Portcove."
       >
         <DiagnosticsCard
           busy={busy}
@@ -1545,10 +1546,10 @@ export function SettingsView({
           <p className="eyebrow">PRIVACY</p>
           <h2>Original game files stay local</h2>
           <p>
-            Portcove checks original game files locally and does not upload them or collect
-            telemetry. Use their current location, copy them into Portcove, or explicitly move them
-            after reviewing the consequences. A completed move removes the original after its
-            verified copy is registered.
+            Portcove checks game files locally and does not upload them or collect telemetry. Use
+            their current location, copy them into Portcove, or explicitly move them after reviewing
+            the consequences. A completed move removes the original after its verified copy is
+            registered.
           </p>
         </article>
         <AboutCard />
@@ -1725,9 +1726,7 @@ export function LibrarySelectionCard({
             aria-describedby="library-selection-review-description"
           >
             <DialogTitle id="library-selection-review-title" className="mb-2 text-xl">
-              {review.kind === "switch"
-                ? "Switch whole Portcove library"
-                : "Open the default library?"}
+              {review.kind === "switch" ? "Switch libraries?" : "Open the default library?"}
             </DialogTitle>
             <DialogDescription
               id="library-selection-review-description"
@@ -1750,7 +1749,7 @@ export function LibrarySelectionCard({
                 {pending
                   ? "Switching…"
                   : review.kind === "switch"
-                    ? "Switch whole library"
+                    ? "Switch library"
                     : "Open default library"}
               </Button>
               <Button
@@ -2068,8 +2067,8 @@ function StorageCard({
         Export metadata
       </Button>
       <p>
-        Export saved game-file locations and installed-version settings. Game files, saves, backups,
-        toolchains, and credentials are not included.
+        Export saved file locations and installed-version settings. Game files, BIOS files, saves,
+        backups, toolchains, and credentials are not included.
       </p>
       {exported && (
         <p role="status">

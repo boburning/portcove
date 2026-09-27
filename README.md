@@ -5,7 +5,7 @@
 <h1 align="center">Portcove</h1>
 
 <p align="center">
-  Install and manage decompilations, recompilations, and other native game ports from one local library.
+  Install, update, and play native game ports.
 </p>
 
 <p align="center">
@@ -16,16 +16,17 @@
   <a href="https://github.com/users/boburning/projects/1">Roadmap</a>
 </p>
 
-Portcove helps you install, launch, and update native game ports from one local
-library. Add the original game files each port needs, then manage installed
-versions and backups in the desktop app or CLI.
+Portcove brings native game ports into one local library. Choose a port, add the
+game files it needs, and use the desktop app or command-line tool to manage
+supported installations, updates, and backups. Some ports use an existing
+installation rather than installing or updating files through Portcove.
 
 Existing Alpha 1 libraries can be carried forward with the documented
 [upgrade and recovery procedure](docs/UPGRADING.md).
 
 > [!NOTE]
 > Portcove does not include or download ROMs, disc images, BIOS files, or other
-> copyrighted game data. It checks original game files locally and does not
+> copyrighted game data. It checks game files locally and does not
 > upload them. You can use their current location, copy them into Portcove, or
 > explicitly move them after reviewing the consequences. A completed Move
 > removes the original only after a verified managed copy is registered.
@@ -33,15 +34,15 @@ Existing Alpha 1 libraries can be carried forward with the documented
 ## What Portcove does
 
 - Browse a catalog of native ports and manage them as one library.
-- Check original game files locally. A saved game-file location can point to the
-  current file; a Source Inbox Copy leaves the original in place, while Move
+- Check game files locally. A saved location can point to the
+  current file; copying into Portcove leaves the original in place, while Move
   requires separate authorization. Portcove checks known exact identities and
   records a local baseline to detect later changes.
-- Refuse acquired release bytes that do not match an accepted expected SHA-256.
+- Check downloaded files against the expected checksum before installing them.
   Current hosted releases use provider digests or checksum sidecars; accepted
   direct manifests pin exact artifacts. Catalog-curated acquisition is planned
   under [#315](https://github.com/boburning/portcove/issues/315).
-- Keep installed versions side by side so updates can be staged, activated, verified, or rolled back.
+- Keep managed versions side by side so updates can be saved for later, installed, checked, or rolled back.
 - Keep the saved data declared for a port, such as its known save, settings, and
   mod locations, separately from installed versions; back up and restore that
   managed data. This does not establish save compatibility across game versions.

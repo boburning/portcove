@@ -9,9 +9,9 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } f
 type Repair = DoctorReport["repair"];
 type Item = Repair["items"][number];
 const labels: Record<Item["kind"], string> = {
-  retained_preparation: "Retained preparation files",
+  retained_preparation: "Unfinished setup files",
   partial_operation: "Unfinished operation",
-  cleanup_pending: "Retained files need review",
+  cleanup_pending: "Unfinished files need review",
   orphaned_final_directory: "Unregistered game folder",
   missing_registered_path: "Registered game folder is missing",
   degraded_backup: "Backup needs attention",
@@ -62,17 +62,17 @@ export function RecoveryReview({
         "recovery-review mt-6 flex min-w-0 flex-col gap-2 " +
         (quiet ? "py-2" : "rounded-pc-lg border border-pc-border bg-pc-surface p-4")
       }
-      aria-label="Retained work and repairs"
+      aria-label="Unfinished work and recovery"
       data-diagnostic-state={state}
     >
       <h2 className={quiet ? "m-0 text-sm font-medium text-pc-muted-foreground" : "m-0 text-lg"}>
-        Retained work and repairs
+        Unfinished work and recovery
       </h2>
       {refreshing && (
         <p className="mb-0 text-sm text-pc-secondary-foreground" role="status">
           {repair
             ? "Refreshing recovery information. The last completed check remains visible."
-            : "Checking the library for retained work and repairs…"}
+            : "Checking the library for unfinished work…"}
         </p>
       )}
       {!refreshing && Boolean(failure) && (
@@ -107,8 +107,8 @@ export function RecoveryReview({
       {!!repair?.items.length && (
         <>
           <p className="mb-0 text-sm text-pc-secondary-foreground">
-            Open an item to review its recorded location and recovery guidance. Opening these
-            details does not change files.
+            Open an item to review its saved location and suggested next step. Opening these details
+            does not change files.
           </p>
           <div className="recovery-review-list grid gap-3" data-focus-group>
             {repair.items.map((item, index) => (
@@ -132,7 +132,7 @@ export function RecoveryReview({
                       "No location was recorded."
                     )}
                   </dd>
-                  <dt>Recorded guidance</dt>
+                  <dt>Suggested next step</dt>
                   <dd className="mt-1 mb-3">
                     {item.proposed_action || "No recovery guidance was recorded."}
                   </dd>
@@ -224,7 +224,7 @@ function PreparationCleanupDialog({
             ? "No setup working files remain. Clear the unfinished setup record and its recorded path if present."
             : "Delete the private working files left by this unfinished setup. Review the affected folder and preserved locations first."}
         </DialogDescription>
-        {pending === "review" && <p role="status">Reading the retained private folder…</p>}
+        {pending === "review" && <p role="status">Checking unfinished setup files…</p>}
         {preview && <PreparationCleanupDetails preview={preview} />}
         {error && <p role="alert">{error}</p>}
         <DialogFooter className="mt-4">
@@ -235,7 +235,7 @@ function PreparationCleanupDialog({
             disabled={pending === "apply"}
             onClick={dismiss}
           >
-            {emptyReview ? "Cancel" : "Keep retained files"}
+            {emptyReview ? "Cancel" : "Keep files"}
           </Button>
           {!preview && (
             <Button data-focusable disabled={Boolean(pending)} onClick={() => void review()}>

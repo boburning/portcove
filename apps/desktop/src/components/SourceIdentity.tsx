@@ -38,23 +38,30 @@ export function SourceIdentityPanel({
     (candidate) => candidate.id === recognized?.variant_id,
   );
   const state = sourceDisplayState(report);
+  const checkLabel =
+    report.applications.length > 0 &&
+    report.applications.every((application) => application.role === "bios")
+      ? "BIOS check"
+      : report.applications.some((application) => application.role === "bios")
+        ? "File check"
+        : "Game-file check";
   const problemToolId = report.problem?.tool_id;
   return (
     <section
       className="source-identity mt-3 grid gap-3 rounded-pc-lg border border-pc-border bg-pc-surface p-4"
-      aria-label={`Game-file check for ${report.expected_identity?.label ?? report.profile_id}`}
+      aria-label={`${checkLabel} for ${report.expected_identity?.label ?? report.profile_id}`}
     >
       <p className="sr-only" role="status">
-        Game-file check result: {state.label}. {report.summary}
+        {checkLabel} result: {state.label}. {report.summary}
       </p>
       <div className="flex items-center justify-between gap-3 max-[760px]:flex-col max-[760px]:items-start">
         <div className="grid gap-0.5">
-          <small className="text-pc-muted-foreground">Game-file check</small>
+          <small className="text-pc-muted-foreground">{checkLabel}</small>
           <strong>{report.expected_identity?.label ?? report.profile_id}</strong>
         </div>
         <span
           className={`source-result inline-flex items-center gap-1 text-xs font-medium ${state.tone}`}
-          aria-label={`Game-file check result: ${state.label}`}
+          aria-label={`${checkLabel} result: ${state.label}`}
         >
           <Icon glyph={state.icon} size="sm" />
           {state.label}
@@ -84,12 +91,12 @@ export function SourceIdentityPanel({
         <div>
           <dt>Selected</dt>
           <dd>
-            <code>{inspection?.path ?? report.registered?.path ?? "No file is registered"}</code>
+            <code>{inspection?.path ?? report.registered?.path ?? "No file location saved"}</code>
           </dd>
         </div>
         <div>
           <dt>Format</dt>
-          <dd>{formatLabel(report.expected_identity?.kind ?? "Not recorded")}</dd>
+          <dd>{identityKindLabel(report.expected_identity?.kind)}</dd>
         </div>
         <div>
           <dt>Edition</dt>
@@ -100,6 +107,8 @@ export function SourceIdentityPanel({
         <ApplicationResult
           key={`${application.port_id}:${application.role}`}
           application={application}
+          selectedVariantId={recognized?.variant_id}
+          selectedRepresentationId={recognized?.representation_id}
         />
       ))}
       <details className="source-technical border-t border-pc-border">
@@ -156,8 +165,12 @@ export function SourceIdentityPanel({
 
 function ApplicationResult({
   application,
+  selectedVariantId,
+  selectedRepresentationId,
 }: {
   application: SourceInspectionReport["applications"][number];
+  selectedVariantId?: string;
+  selectedRepresentationId?: string;
 }) {
   const result = contractLabel(application.contract_result.state);
   const applicability = applicabilityLabel(
@@ -169,6 +182,14 @@ function ApplicationResult({
   );
   const exactHandsOn = application.qualification.exact_records.filter(
     (record) => record.kind === "hands_on",
+  );
+  const selectedHandsOn = exactHandsOn.filter(
+    (record) =>
+      selectedVariantId &&
+      selectedRepresentationId &&
+      record.scope.variant.state === "exact" &&
+      record.scope.variant.identity.variant_id === selectedVariantId &&
+      record.scope.variant.identity.representation_id === selectedRepresentationId,
   );
   return (
     <section
@@ -191,25 +212,31 @@ function ApplicationResult({
           <dd>{applicability}</dd>
         </div>
       </dl>
-      {exactHandsOn.length === 0 && (
-        <p>Missing gameplay evidence does not block an otherwise admitted source.</p>
+      {selectedVariantId && selectedHandsOn.length === 0 && (
+        <p>No hands-on test is recorded for this edition and file format.</p>
+      )}
+      {selectedHandsOn.length > 0 && (
+        <p>
+          Hands-on results for this edition and file format:{" "}
+          {selectedHandsOn.map((record) => evidenceOutcome(record.outcome)).join(", ")}.
+        </p>
       )}
       <details className="source-technical border-t border-pc-border">
         <summary
           data-focusable
           className="cursor-pointer py-3 font-medium text-pc-interactive-foreground"
         >
-          Test results and source authority
+          File details and test results
         </summary>
         <small>{application.contract.authority_ref}</small>
         <dl>
           <div>
-            <dt>Exact automated evidence</dt>
-            <dd>{evidencePlatforms(exactAutomated) || "Not recorded"}</dd>
+            <dt>Recorded automated results</dt>
+            <dd>{evidenceDetails(exactAutomated, "No automated test recorded")}</dd>
           </div>
           <div>
-            <dt>Exact hands-on evidence</dt>
-            <dd>{evidencePlatforms(exactHandsOn) || "Not recorded"}</dd>
+            <dt>Recorded hands-on results</dt>
+            <dd>{evidenceDetails(exactHandsOn, "No hands-on test recorded")}</dd>
           </div>
         </dl>
       </details>
@@ -263,7 +290,7 @@ function ExpectedRepresentation({ representation }: { representation: SourceRepr
   return (
     <div className="expected-representation">
       <span>
-        {formatLabel(representation.kind)} ·{" "}
+        {representationKindLabel(representation.kind)} ·{" "}
         {representation.extensions.length
           ? representation.extensions.join(", ")
           : "No filename extension"}
@@ -339,7 +366,7 @@ function ObservedComponent({
         {result.label}
       </span>
       <DigestList
-        label={`${formatLabel(component.kind)} · ${component.id}${detail ? ` · ${detail}` : ""}`}
+        label={`${componentKindLabel(component.kind)} · ${component.id}${detail ? ` · ${detail}` : ""}`}
         digests={component.digests}
         calculated
       />
@@ -389,7 +416,7 @@ function DigestValue({
     return (
       <p className="digest-value missing">
         <strong>
-          {label} · {formatLabel(scope)}
+          {label} · {digestScopeLabel(scope)}
         </strong>
         <span>Missing from reviewed evidence</span>
       </p>
@@ -405,14 +432,14 @@ function DigestValue({
   return (
     <div className="digest-value">
       <strong>
-        {label} · {formatLabel(scope)}
+        {label} · {digestScopeLabel(scope)}
       </strong>
       <code>{value}</code>
       <Button
         data-focusable
         variant="ghost"
         size="icon-sm"
-        aria-label={`Copy ${label} for ${formatLabel(scope)}`}
+        aria-label={`Copy ${label} for ${digestScopeLabel(scope)}`}
         onClick={copy}
       >
         <Icon glyph={copied ? ClipboardCheck : Clipboard} size="sm" />
@@ -623,7 +650,8 @@ function classificationLabel(report: SourceInspectionReport) {
 function admissionLabel(report: SourceInspectionReport) {
   const admission = report.inspection?.assessment.admission;
   if (!admission || admission.state === "not_evaluated") return "Not evaluated";
-  if (admission.state === "rejected") return `Refused · ${formatLabel(admission.reason)}`;
+  if (admission.state === "rejected")
+    return `File not accepted · ${rejectionReason(admission.reason)}`;
   if (admission.state !== "admitted") return "Not evaluated";
   const labels = {
     exact_identity: "Admitted · exact identity",
@@ -670,16 +698,108 @@ function variantLabel(
   return `${variant.title}${details.length ? ` · ${details.join(" · ")}` : ""}`;
 }
 
-function evidencePlatforms(
+function evidenceDetails(
   records: SourceInspectionReport["applications"][number]["qualification"]["exact_records"],
+  emptyLabel: string,
 ) {
-  return [...new Set(records.map((record) => platformLabel(record.scope.platform)))].join(" · ");
+  if (records.length === 0) return emptyLabel;
+  return (
+    <ul>
+      {records.map((record, index) => (
+        <li key={`${record.scope.platform}:${record.observed_at}:${index}`}>
+          {evidenceOutcome(record.outcome)} · {platformLabel(record.scope.platform)} ·{" "}
+          {record.scope.variant.state === "exact"
+            ? `Edition ${record.scope.variant.identity.variant_id}, format ${record.scope.variant.identity.representation_id}`
+            : "Edition not recorded"}
+          {record.scope.upstream_ref && ` · Release ${record.scope.upstream_ref}`}
+          {record.scope.check_version && ` · Check version ${record.scope.check_version}`}
+          {record.scope.artifact_sha256 && (
+            <>
+              {" · Release artifact SHA-256 "}
+              <code>{record.scope.artifact_sha256}</code>
+            </>
+          )}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function evidenceOutcome(outcome: string) {
+  const labels: Record<string, string> = {
+    passed: "Passed",
+    failed: "Failed",
+    not_run: "Not run",
+    unknown: "Outcome unknown",
+  };
+  return Object.hasOwn(labels, outcome) ? labels[outcome] : "Outcome unavailable";
 }
 
 function platformList(platforms: Set<string>) {
   return [...platforms].map((platform) => platformLabel(platform)).join(" · ");
 }
 
-function formatLabel(value: string) {
-  return value.replaceAll("_", " ").replaceAll("-", " ");
+function identityKindLabel(value?: string) {
+  const labels: Record<string, string> = {
+    file: "File",
+    "file-set": "Set of files",
+    "optical-disc": "Disc",
+    "multi-disc-set": "Set of discs",
+    compound: "Combined file",
+  };
+  return value && Object.hasOwn(labels, value) ? labels[value] : "Format not recorded";
+}
+
+function representationKindLabel(value: string) {
+  const labels: Record<string, string> = {
+    "raw-file": "Original file",
+    "canonical-n64": "Normalized N64 file",
+    "archive-member": "File inside archive",
+    "file-set": "Set of files",
+    "gamecube-normalized-iso": "Normalized GameCube disc",
+    "optical-track-set": "Disc tracks",
+    "multi-disc-set": "Set of discs",
+    "volume-id": "Disc volume ID",
+    "pinned-validator": "Reviewed file check",
+    compound: "Combined file",
+    "informational-extension": "File extension information",
+  };
+  return Object.hasOwn(labels, value) ? labels[value] : "File format unavailable";
+}
+
+function componentKindLabel(value: string) {
+  const labels: Record<string, string> = {
+    file_set_member: "File in set",
+    optical_disc: "Disc",
+  };
+  return Object.hasOwn(labels, value) ? labels[value] : "File component unavailable";
+}
+
+function digestScopeLabel(value: string) {
+  const labels: Record<string, string> = {
+    "original-file": "original file",
+    "original-container": "original container",
+    "normalized-content": "normalized content",
+    "canonical-n64-big-endian": "normalized N64 content",
+    "archive-member": "file inside archive",
+    "gamecube-normalized-iso": "normalized GameCube disc",
+    "psx-normalized-track-set": "normalized PlayStation disc tracks",
+    "file-set-member": "file in set",
+    "disc-set-member": "disc in set",
+  };
+  return Object.hasOwn(labels, value) ? labels[value] : "file scope unavailable";
+}
+
+function rejectionReason(reason: string) {
+  const messages: Record<string, string> = {
+    missing: "file not found",
+    unreadable: "file couldn't be read",
+    changed: "file changed since it was added",
+    known_mismatch: "file does not match the required edition",
+    ambiguous_identity: "edition could not be identified",
+    missing_tool: "required checking tool is unavailable",
+    check_failed: "required file check failed",
+    consent_required: "review and consent required",
+  };
+  return Object.hasOwn(messages, reason) ? messages[reason] : "see file details";
 }

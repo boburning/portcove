@@ -301,12 +301,9 @@ export async function preparationScenarios({
     assert.equal(prepared.previous.id, install.id);
     const log = path.join(prepared.active.path, "data/log/setup.log");
     await writeFile(log, "setup must not run during desktop Play");
-    await browser.wait(until.elementLocated(button("Play now")), 15_000);
-    await browser.wait(
-      until.elementIsEnabled(await browser.findElement(button("Play now"))),
-      15_000,
-    );
-    await browser.findElement(button("Play now")).click();
+    await browser.wait(until.elementLocated(button("Play")), 15_000);
+    await browser.wait(until.elementIsEnabled(await browser.findElement(button("Play"))), 15_000);
+    await browser.findElement(button("Play")).click();
     await browser.wait(async () => (await status(port.id)).successful_launches > 0, 15_000);
     assert.equal(await readFile(log, "utf8"), "setup must not run during desktop Play");
     await browser.findElement(By.css(".detail-back")).click();
@@ -461,7 +458,7 @@ export async function preparationScenarios({
           await browser.executeScript(() => document.documentElement.dataset.theme),
           theme,
         );
-        const play = await browser.wait(until.elementLocated(button("Play now")), 15_000);
+        const play = await browser.wait(until.elementLocated(button("Play")), 15_000);
         assert.equal(await play.isEnabled(), true);
         assert.equal(await play.getAttribute("data-variant"), "primary");
         await browser.wait(
@@ -526,7 +523,7 @@ export async function preparationScenarios({
               hierarchy.action.bottom <= hierarchy.viewport.height &&
               hierarchy.action.left >= 0 &&
               hierarchy.action.right <= hierarchy.viewport.width,
-            `Play now must remain visible at ${actualWindow.width}x${actualWindow.height}: ${JSON.stringify(hierarchy)}`,
+            `Play must remain visible at ${actualWindow.width}x${actualWindow.height}: ${JSON.stringify(hierarchy)}`,
           );
           const facts = await browser.executeScript(() => {
             const strip = document.querySelector(".installation-facts");
@@ -816,7 +813,7 @@ export async function preparationScenarios({
         until.elementLocated(By.xpath('//*[normalize-space(.)="Installation needs repair"]')),
         15_000,
       );
-      assert.equal((await browser.findElements(button("Play now"))).length, 0);
+      assert.equal((await browser.findElements(button("Play"))).length, 0);
       assert.equal((await browser.findElements(button("Choose required source"))).length, 0);
       const verify = await browser.findElement(By.css(".primary-actions button"));
       assert.equal(await verify.getText(), "Verify installation");
@@ -941,7 +938,7 @@ export async function preparationScenarios({
       15_000,
     );
     const row = await browser.findElement(By.css(".activity-row.cancelled"));
-    assert.match(await row.getText(), /Retained work needs recovery review/);
+    assert.match(await row.getText(), /An earlier attempt left unfinished work/);
     assert.doesNotMatch(await row.getText(), /No files were changed/);
     await row.findElement(By.css("summary")).click();
     const generation = (await invoke("get_bootstrap_status")).value.generation;

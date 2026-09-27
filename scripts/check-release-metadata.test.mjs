@@ -61,7 +61,7 @@ function validMetadata() {
           "icons/icon.ico",
         ],
         homepage: "https://github.com/boburning/portcove",
-        shortDescription: "Native ports, kept current.",
+        shortDescription: "Install, update, and play native game ports.",
         longDescription: "A local-first native port manager.",
         licenseFile: "../../../LICENSE-MIT",
       },

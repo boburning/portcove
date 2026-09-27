@@ -156,7 +156,7 @@ export function DetailPanel(props: DetailPanelProps) {
   const missingRequirement: SelectedRequirement | undefined =
     !sourceReady && !biosReady ? "both" : !sourceReady ? "game" : !biosReady ? "bios" : undefined;
   const missingSourceLabels = [
-    !sourceReady && port.source_profile && (sourceProfile?.label ?? "Original game files"),
+    !sourceReady && port.source_profile && (sourceProfile?.label ?? "Game files"),
     !biosReady && port.bios_source_profile && (biosProfile?.label ?? "Required BIOS file"),
   ].filter((label): label is string => typeof label === "string");
   const runtimeUpdateAvailable = currentUpdateSnapshot(status)?.check.update_available === true;
@@ -697,10 +697,10 @@ function UpdatesGroup({
         {preferences}
       </FutureSetupDisclosure>
       {status?.staged && (
-        <section aria-label="Activate staged update">
+        <section aria-label="Use update saved for later">
           <p>
-            Staged update: <strong>{status.staged.version}</strong>. Activation uses this verified
-            local copy without downloading and keeps the current version for rollback.
+            Update saved for later: <strong>{status.staged.version}</strong>. Using this checked
+            local copy does not download it again, and keeps the current version for rollback.
           </p>
         </section>
       )}
@@ -867,12 +867,12 @@ function InstallationVersionSummary({
         </div>
       )}
       <div>
-        <dt>Latest eligible release</dt>
+        <dt>Latest available for your settings</dt>
         <dd>{latestEligible}</dd>
       </div>
       {status?.staged && (
         <div>
-          <dt>Staged version</dt>
+          <dt>Update saved for later</dt>
           <dd>{status.staged.version}</dd>
         </div>
       )}
@@ -909,15 +909,19 @@ function CompatibilitySummary({ port }: { port: PortDefinition }) {
         {installationMethodLabel(port)}
       </span>
       <span>
-        <small>Automated testing</small>
-        {testingCoverageLabel(port.platforms, port.automated_tested_platforms, "Not yet tested")}
+        <small>Recorded automated tests</small>
+        {testingCoverageLabel(
+          port.platforms,
+          port.automated_tested_platforms,
+          "No automated test recorded",
+        )}
       </span>
       <span>
-        <small>Physical device testing</small>
+        <small>Recorded hands-on tests</small>
         {testingCoverageLabel(
           port.platforms,
           port.manually_validated_platforms,
-          "No completed device test",
+          "No hands-on test recorded",
         )}
       </span>
     </div>
@@ -948,7 +952,7 @@ function ProjectReleaseSummary({ port }: { port: PortDefinition }) {
           {upstreamStatusPresentation[port.upstream_status]}
         </span>
         <span>
-          <small>Portcove support</small>
+          <small>Catalog designation (not a test result)</small>
           {supportTierPresentation[port.support_tier]}
         </span>
         <span>
@@ -1111,7 +1115,7 @@ function SourceIntakeActions({ controls, busy }: { controls: SourceControls; bus
           onClick={() => controls.inspectSource?.(controls.sourceProfile!)}
         >
           <Icon glyph={FileSearch} />
-          Check original game files
+          Check game files
         </Button>
       )}
       {controls.biosProfile && (
@@ -1576,7 +1580,7 @@ function InstalledPlayActions({
             ? "Play unavailable"
             : pendingSetup
               ? "Complete setup and play"
-              : "Play now"}
+              : "Play"}
       </Button>
       <StagedActivation version={stagedVersion} busy={busy} activate={actions.activate} />
     </div>
@@ -1604,7 +1608,7 @@ function StagedActivation({
         void activate();
       }}
     >
-      Activate update · {version}
+      Use update · {version}
     </Button>
   );
 }
@@ -1697,7 +1701,7 @@ export function InstallAction({
           }}
         >
           <Icon glyph={ShieldCheck} />
-          {busy === "review install" ? "Checking release…" : "Review install"}
+          {busy === "review install" ? "Checking release…" : "Review installation"}
         </Button>
       </div>
       {plan && (
@@ -1768,7 +1772,7 @@ export function InstallAction({
                     void review();
                   }}
                 >
-                  Review install again
+                  Review installation again
                 </Button>
               )}
               <Button data-focusable variant="outline" disabled={Boolean(busy)} onClick={dismiss}>
@@ -2083,8 +2087,8 @@ function detailState(
     };
   if (stagedVersion)
     return {
-      title: "Ready to play · update downloaded",
-      description: `Play the installed version or activate staged version ${stagedVersion}.`,
+      title: "Installed · update saved for later",
+      description: `Play the installed version or use the saved update ${stagedVersion}.`,
       tone: "staged",
       icon: RefreshCw,
     };
@@ -2124,7 +2128,7 @@ function availableInstallState(
         ? "Game files and BIOS"
         : missingRequirement === "bios"
           ? "Required BIOS file"
-          : "Original game files";
+          : "Game files";
     const nextStep =
       missingRequirement === "both"
         ? "Choose the required game files, then the BIOS file"

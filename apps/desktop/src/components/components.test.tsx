@@ -277,9 +277,7 @@ describe("desktop components", () => {
       />,
     );
     expect(registered).toContain("Ready to play");
-    expect(registered).toContain(
-      "Portcove launches it without owning or managing the external files",
-    );
+    expect(registered).toContain("It does not copy, update, back up, or delete these files");
   });
   it.each(["future_state", "constructor", "__proto__"])(
     "keeps unknown activity and policy labels neutral for %s",
@@ -457,7 +455,7 @@ describe("desktop components", () => {
     expect(html).toContain("Install the available update that includes the required component");
     expect(html).toContain("Review game update");
     expect(html).not.toContain("Verified runtime required");
-    expect(html).not.toContain("Play now");
+    expect(html).not.toContain(">Play</button>");
     expect(html).not.toContain("Choose required source");
   });
 
@@ -482,7 +480,7 @@ describe("desktop components", () => {
     );
     expect(html).not.toContain("Update required before playing");
     expect(html).not.toContain("Install the available update");
-    expect(html).not.toContain("Play now");
+    expect(html).not.toContain(">Play</button>");
   });
 
   it("names managed first-run preparation as required game files", () => {
@@ -576,11 +574,11 @@ describe("desktop components", () => {
 
     expect(ready).toContain("Ready to play");
     expect(ready).not.toContain('class="hero-reason"');
-    expect(ready.indexOf("Ready to play")).toBeLessThan(ready.indexOf("Play now"));
-    expect(ready.indexOf("Play now")).toBeLessThan(ready.indexOf(port.summary));
-    expect(ready.indexOf("Play now")).toBeLessThan(ready.indexOf("Change artwork"));
-    expect(downloaded).toContain("Ready to play · update downloaded");
-    expect(downloaded).toContain("Play the installed version or activate staged version 1.0.");
+    expect(ready.indexOf("Ready to play")).toBeLessThan(ready.indexOf("Play"));
+    expect(ready.indexOf("Play")).toBeLessThan(ready.indexOf(port.summary));
+    expect(ready.indexOf("Play")).toBeLessThan(ready.indexOf("Change artwork"));
+    expect(downloaded).toContain("Installed · update saved for later");
+    expect(downloaded).toContain("Play the installed version or use the saved update 1.0.");
     expect(downloaded).toContain('class="hero-reason"');
     expect(`${ready}${downloaded}`).not.toContain("Ready to launch");
     expect(`${ready}${downloaded}`).not.toContain("update staged");
@@ -611,7 +609,7 @@ describe("desktop components", () => {
     expect(html).toMatch(
       /<div class="actions primary-actions"><button[^>]*>.*Verify installation<\/button><\/div>/s,
     );
-    expect(html).not.toContain("Play now");
+    expect(html).not.toContain(">Play</button>");
     expect(html).not.toContain("Choose required source");
     expect(html).not.toContain("Verify the game files below");
 
@@ -791,7 +789,7 @@ describe("desktop components", () => {
     expect(html.indexOf("Requirements")).toBeLessThan(html.indexOf(port.summary));
     expect(html).toMatch(/<details class="requirements-disclosure[^"]*" open="">/u);
     expect(html).toContain("Installation and version");
-    expect(html).not.toContain("Play now");
+    expect(html).not.toContain(">Play</button>");
   });
 
   it("uses player-facing BIOS recovery copy before playing", () => {
@@ -836,7 +834,7 @@ describe("desktop components", () => {
     expect(html).toContain("Choose and add the required BIOS file again before playing.");
     expect(html).toContain("BIOS file has changed since it was added");
     expect(html).toContain("Play unavailable");
-    expect(html).not.toContain("Play now");
+    expect(html).not.toContain(">Play</button>");
   });
 
   it("keeps older backups reachable without expanding the detail panel by default", () => {
@@ -1073,9 +1071,7 @@ describe("desktop components", () => {
     expect(html).toContain("width:50%");
     expect(html).toContain("/brand/icons/portcove-mascot-head-256.png");
     expect(html).toContain("ABOUT &amp; CREDITS");
-    expect(html).toContain(
-      "Portcove keeps the desktop and CLI in sync across the catalog, game files, installed versions, and recovery history.",
-    );
+    expect(html).toContain("Install, update, and play native game ports.");
     expect(html).toContain("/brand/logo/portcove-logo-v2-transparent.png");
   });
 
@@ -1324,7 +1320,7 @@ describe("desktop components", () => {
     expect(groupMarkup("appearance")).toContain("Color theme");
     expect(groupMarkup("library-storage")).toContain("Library at startup");
     expect(groupMarkup("library-storage")).toContain("Files and capacity");
-    expect(groupMarkup("game-files")).toContain("Game-file verification");
+    expect(groupMarkup("game-files")).toContain("Game files and BIOS");
     expect(groupMarkup("game-files")).toContain("Disc tools");
     expect(groupMarkup("updates")).toContain("Choose how Portcove updates");
     expect(groupMarkup("updates")).toContain("Portcove &amp; catalog updates");
@@ -1340,7 +1336,7 @@ describe("desktop components", () => {
       advanced.indexOf("Original game files stay local"),
     );
     expect(advanced.indexOf("Original game files stay local")).toBeLessThan(
-      advanced.indexOf("One harbor for native ports"),
+      advanced.indexOf("About Portcove"),
     );
     expect(html).not.toContain("<nav");
   });
@@ -1362,7 +1358,7 @@ describe("desktop components", () => {
     expect(html).toContain('aria-label="Available capacity on the library volume"');
     expect(html).toContain("width:50%");
     expect(html).toContain("Installed application files are kept separate from saves and settings");
-    expect(html).toContain("Export saved game-file locations and installed-version settings");
+    expect(html).toContain("Export saved file locations and installed-version settings");
     expect(html).toMatch(/<button[^>]*data-variant="outline"[^>]*>Export metadata<\/button>/u);
     expect(html).not.toContain("recovery-safe");
   });
@@ -1660,7 +1656,7 @@ describe("desktop components", () => {
       expect(html).toContain(`id="settings-${id}-heading"`);
     }
     expect(index?.match(/data-slot="button"/gu)).toHaveLength(6);
-    expect(index).toContain("Library &amp; Storage");
+    expect(index).toContain("Library and storage");
     expect(index).toContain("Portcove &amp; catalog updates");
   });
 
@@ -1691,10 +1687,8 @@ describe("desktop components", () => {
     const advanced = html.slice(html.indexOf('data-settings-group="advanced"'));
     expect(appearance.indexOf("Color theme")).toBeLessThan(appearance.indexOf("Language"));
     expect(html.indexOf("Library at startup")).toBeLessThan(html.indexOf("Files and capacity"));
-    expect(html.indexOf("Game-file libraries")).toBeLessThan(
-      html.indexOf("Game-file verification"),
-    );
-    expect(html.indexOf("Game-file verification")).toBeLessThan(html.indexOf("Disc tools"));
+    expect(html.indexOf("Game-file libraries")).toBeLessThan(html.indexOf("Game files and BIOS"));
+    expect(html.indexOf("Game files and BIOS")).toBeLessThan(html.indexOf("Disc tools"));
     expect(html.indexOf("Choose how Portcove updates")).toBeLessThan(
       html.indexOf("Catalog updates"),
     );
@@ -1735,7 +1729,7 @@ describe("desktop components", () => {
 
     expect(html).toContain("Not signed in. Signing in increases the limit for release checks.");
     expect(html).toContain("GitHub request limit unavailable");
-    expect(html).toContain("Continue anonymously or use a personal access token");
+    expect(html).toContain("Continue without signing in or use a personal access token");
     expect(html).toMatch(
       /<label[^>]*for="github-personal-access-token"[^>]*>Personal access token<\/label>/u,
     );
@@ -1811,8 +1805,10 @@ describe("desktop components", () => {
     expect(verified).not.toContain("Saved game-file requirement unavailable");
     expect(verified).toContain("Full identity and evidence");
     expect(verified).toContain("D:/ROMs/sample.z64");
-    expect(verified).toContain("Relink source");
-    expect(verified).toMatch(/<button[^>]*data-variant="outline"[^>]*>Relink source<\/button>/u);
+    expect(verified).toContain("Update file location");
+    expect(verified).toMatch(
+      /<button[^>]*data-variant="outline"[^>]*>Update file location<\/button>/u,
+    );
     expect(failed).toContain("Needs attention");
     expect(failed).toContain("source changed since registration");
   });
@@ -1843,21 +1839,21 @@ describe("desktop components", () => {
 
     expect(html).toContain("Saved game-file requirement unavailable");
     expect(html).toContain(
-      "This saved game-file requirement is no longer present in the current catalog.",
+      "This saved file requirement is no longer present in the current catalog.",
     );
     expect(html).toContain("Update the catalog or remove the saved location.");
     expect(html).toContain("Catalog profile ID:");
     expect(html).toContain('class="source-profile-id');
     expect(html).toContain(`>${source.profile_id}</code>`);
     expect(html).toContain(
-      `aria-label="Technical details for saved game-file location ${source.path}, saved reference 1 of 2"`,
+      `aria-label="Technical details for saved file location ${source.path}, saved reference 1 of 2"`,
     );
     expect(html).toContain(
-      `aria-label="Technical details for saved game-file location ${otherSource.path}, saved reference 2 of 2"`,
+      `aria-label="Technical details for saved file location ${otherSource.path}, saved reference 2 of 2"`,
     );
     expect(html).not.toContain(`<strong>${source.profile_id}</strong>`);
-    expect(html).not.toContain(">Relink source</button>");
-    expect(html).toContain("Remove reference");
+    expect(html).not.toContain(">Update file location</button>");
+    expect(html).toContain("Remove saved location");
     expect(html).toContain("Needs attention");
     expect(html).not.toContain("Checking identity");
   });
@@ -1979,41 +1975,41 @@ describe("desktop components", () => {
     );
 
     expect(loading).toContain("Checking required game files");
-    expect(loading).not.toContain("Required game files have been added");
+    expect(loading).not.toContain("Required files have been added");
     expect(loading).not.toContain("No ports in your library yet");
-    expect(loading).not.toContain("No source files are registered yet");
-    expect(loading.match(/<button\b([^>]*)>Choose game files<\/button>/)?.[1]).toContain(
+    expect(loading).not.toContain("No game files or BIOS files have been added yet");
+    expect(loading.match(/<button\b([^>]*)>Find required files<\/button>/)?.[1]).toContain(
       "disabled",
     );
     expect(loading).not.toContain(requirement.profile.label);
     expect(loading).not.toContain(registeredSource.path);
     expect(unavailable).toContain("Required game files could not be checked");
     expect(unavailable).toContain("Retry loading the library before changing saved locations");
-    expect(unavailable).not.toContain("Required game files have been added");
+    expect(unavailable).not.toContain("Required files have been added");
     expect(unavailable).not.toContain("No ports in your library yet");
-    expect(unavailable).not.toContain("No source files are registered yet");
-    expect(unavailable.match(/<button\b([^>]*)>Choose game files<\/button>/)?.[1]).toContain(
+    expect(unavailable).not.toContain("No game files or BIOS files have been added yet");
+    expect(unavailable.match(/<button\b([^>]*)>Find required files<\/button>/)?.[1]).toContain(
       "disabled",
     );
     expect(unavailable).not.toContain(requirement.profile.label);
     expect(unavailable).not.toContain(registeredSource.path);
     expect(noInstalledPorts).toContain(
-      "No ports in your library yet. Game-file requirements will appear here after you add a port.",
+      "No ports in your library yet. File requirements will appear here after you add a port.",
     );
     expect(noInstalledPorts).not.toMatch(/class="[^"]*source-requirements[^"]*\bcomplete\b/u);
-    expect(complete).toContain("Required game files have been added for ports in your library");
+    expect(complete).toContain("Required files have been added for ports in your library");
     expect(complete).toMatch(/class="[^"]*source-requirements[^"]*\bcomplete\b/u);
-    expect(complete).toContain("No source files are registered yet");
+    expect(complete).toContain("No game files or BIOS files have been added yet");
     expect(singular).toContain("1 game-file requirement needs attention");
     expect(plural).toContain("2 game-file requirements need attention");
-    expect(singular).toContain("Game-file verification");
+    expect(singular).toContain("Game files and BIOS");
     expect(singular).toContain("Portcove checks files locally and never uploads or changes them");
     expect(singular).toContain("confirms that the file is an exact match");
     expect(singular).toContain("Sample source set");
     expect(singular).toContain("Sample Port · Game source");
-    expect(singular).toContain("Add source");
+    expect(singular).toContain("Add game files");
     expect(singular).toContain("Add ZIP");
-    expect(singular).toMatch(/<button[^>]*data-variant="outline"[^>]*>Add source<\/button>/u);
+    expect(singular).toMatch(/<button[^>]*data-variant="outline"[^>]*>Add game files<\/button>/u);
     expect(singular).not.toContain("source requirement needs attention");
   });
 
@@ -2076,7 +2072,7 @@ describe("desktop components", () => {
     expect(html).toContain("Selected game files have not been checked");
     expect(html).toContain("Selected path has not been checked");
     const review = html
-      .match(/<button[^>]*>[^]*?Review install<\/button>/g)
+      .match(/<button[^>]*>[^]*?Review installation<\/button>/g)
       ?.at(-1)
       ?.split("<button")
       .at(-1);
@@ -2148,7 +2144,7 @@ describe("desktop components", () => {
     expect(html).toContain("Selected path has not been checked");
     expect(html).not.toContain("Current registered bytes checked");
     expect(html).not.toContain("Ready to launch");
-    expect(html).toContain("Play now");
+    expect(html).toContain(">Play</button>");
   });
 
   it("renders installed and uninstalled detail actions", () => {
@@ -2219,7 +2215,7 @@ describe("desktop components", () => {
       ([, content]) => content.replaceAll(/<[^>]+>/g, "").trim(),
     );
     expect(uninstalled).toContain("Choose game files");
-    expect(uninstalled.match(/Original game files needed/g)).toHaveLength(1);
+    expect(uninstalled.match(/Game files needed/g)).toHaveLength(1);
     expect(uninstalled).not.toContain("readiness-card");
     expect(uninstalled.indexOf('class="hero-reason"')).toBeLessThan(
       uninstalled.indexOf("Choose game files"),
@@ -2253,18 +2249,18 @@ describe("desktop components", () => {
     expect(uninstalled).toContain(
       "Portcove uses this game file in place and never uploads or changes it.",
     );
-    expect(sourceFree).toContain("Review install");
+    expect(sourceFree).toContain("Review installation");
     expect(sourceFree).toContain("Available to install");
-    expect(sourceFree).not.toContain("Original game files needed");
+    expect(sourceFree).not.toContain("Game files needed");
     expect(sourceFree).not.toContain("Choose game files");
     expect(sourceFree).not.toContain("Installation and version");
     expect(sourceFree).toContain('data-slot="button"');
     expect(sourceFree).toContain('data-variant="primary"');
     expect(sourceFree).toMatch(/<details class="future-setup-disclosure" open="">/u);
-    expect(installed).toContain("Play");
+    expect(installed).toContain(">Play</button>");
     expect(installed).toContain('class="requirements-disclosure');
     expect(installed).not.toMatch(/<details class="requirements-disclosure[^"]*" open="">/u);
-    expect(installed).toMatch(/<button[^>]*data-variant="primary"[^>]*>[^]*?Play now<\/button>/u);
+    expect(installed).toMatch(/<button[^>]*data-variant="primary"[^>]*>[^]*?Play<\/button>/u);
     expect(installed).toMatch(/<button[^>]*data-variant="ghost"[^>]*>[^]*?Back<\/button>/u);
     expect(installed).toMatch(
       /<button[^>]*data-variant="outline"[^>]*>[^]*?Check for updates<\/button>/u,
@@ -2292,7 +2288,7 @@ describe("desktop components", () => {
     expect(installed).toMatch(/<details class="future-setup-disclosure" open="">/u);
     expect(installed).toContain("Saves and settings folder");
     expect(installed).toContain("C:/Portcove/user/sample");
-    expect(installed).toContain("No completed device test");
+    expect(installed).toContain("No hands-on test recorded");
     expect(installed).toContain("Launch from another app");
     expect(installed).toContain("Finding the command-line app");
     expect(installed).not.toContain("portcove exec sample --");
@@ -2323,8 +2319,8 @@ describe("desktop components", () => {
     const details = renderToStaticMarkup(
       <DetailPanel port={untestedPort} sourcePath="" setSourcePath={vi.fn()} actions={actions} />,
     );
-    expect(details).toContain("Not yet tested");
-    expect(details).toContain("No completed device test");
+    expect(details).toContain("No automated test recorded");
+    expect(details).toContain("No hands-on test recorded");
   });
 
   it("scopes mixed testing evidence by platform", () => {
@@ -2561,12 +2557,12 @@ describe("desktop components", () => {
         actions={actions}
       />,
     );
-    expect(html).toContain("Play the installed version or activate staged version 2.0.");
-    expect(html).toContain("Activate update · 2.0");
-    expect(html.indexOf("Play now")).toBeLessThan(html.indexOf("Activate update · 2.0"));
-    expect(html.indexOf("Activate update · 2.0")).toBeLessThan(html.indexOf(port.summary));
+    expect(html).toContain("Play the installed version or use the saved update 2.0.");
+    expect(html).toContain("Use update · 2.0");
+    expect(html.indexOf("Play")).toBeLessThan(html.indexOf("Use update · 2.0"));
+    expect(html.indexOf("Use update · 2.0")).toBeLessThan(html.indexOf(port.summary));
     expect(html).toContain("keeps the current version for rollback");
-    expect(html.match(/Activate update · 2\.0/g)).toHaveLength(1);
+    expect(html.match(/Use update · 2\.0/g)).toHaveLength(1);
     const busyHtml = renderToStaticMarkup(
       <DetailPanel
         port={{ ...port, source_profile: null }}
@@ -2578,7 +2574,7 @@ describe("desktop components", () => {
       />,
     );
     expect(busyHtml).toMatch(
-      /<button(?=[^>]*staged-action)(?=[^>]*disabled="")[^>]*>Activate update · 2\.0<\/button>/,
+      /<button(?=[^>]*staged-action)(?=[^>]*disabled="")[^>]*>Use update · 2\.0<\/button>/,
     );
   });
 
@@ -2604,9 +2600,9 @@ describe("desktop components", () => {
       expect(html).toContain(
         blocker === "missing_runtime" ? "Check for updates" : "Verify installation",
       );
-      expect(html).toContain("Activate update · 2.0");
-      expect(html.indexOf("Activate update · 2.0")).toBeLessThan(html.indexOf(port.summary));
-      expect(html.match(/Activate update · 2\.0/g)).toHaveLength(1);
+      expect(html).toContain("Use update · 2.0");
+      expect(html.indexOf("Use update · 2.0")).toBeLessThan(html.indexOf(port.summary));
+      expect(html.match(/Use update · 2\.0/g)).toHaveLength(1);
     },
   );
 
@@ -2690,11 +2686,11 @@ describe("desktop components", () => {
     expect(emptyLibrary).toContain("/brand/mascot/portcove-mascot-v2-front.png");
     expect(emptyLibrary).toContain('aria-hidden="true"');
     expect(emptyLibrary).toContain("Your library is empty");
-    expect(emptyLibrary).toContain("register a prepared runtime");
+    expect(emptyLibrary).toContain("use an existing installation");
     expect(emptyLibrary).toContain("Browse port catalog");
     expect(emptyLibrary).not.toContain('aria-label="Library readiness"');
     expect(emptyLibrary).not.toContain('aria-label="Library filters"');
-    expect(emptyLibrary).toContain("copy an existing supported installation");
+    expect(emptyLibrary).toContain("copy a supported installation");
     expect(emptyLibrary.toLowerCase()).not.toContain("adopt");
     expect(emptyLibrary).not.toContain("Clear search and filters");
     expect(filteredEmptyLibrary).toContain(
@@ -2783,7 +2779,7 @@ describe("desktop components", () => {
     expect(html).toContain("The upstream project is no longer maintained");
     expect(html).toContain("Portcove checks available releases against its usual source");
     expect(html).toContain("no new upstream fixes are expected");
-    expect(html).toContain("<small>Portcove support</small>Stable");
+    expect(html).toContain("<small>Catalog designation (not a test result)</small>Stable");
     expect(html).toContain("<small>Available release channels</small>Stable");
     expect(html).toContain("Portcove uses the pinned release recorded in the catalog");
     expect(html).not.toContain("no upstream fixes or support");
@@ -2876,7 +2872,7 @@ describe("desktop components", () => {
     expect(html.indexOf("Requirements")).toBeLessThan(html.indexOf(port.summary));
     expect(html).toContain("Installed folder");
     expect(html).toContain(install.path);
-    expect(html).toContain("Latest eligible release");
+    expect(html).toContain("Latest available for your settings");
     expect(html).toContain("2.0");
     expect(html).toContain("E:/Portcove/user/sample");
     expect(html.indexOf("Back up data")).toBeLessThan(html.indexOf("Technical details"));
@@ -3024,7 +3020,7 @@ describe("desktop components", () => {
         actions={actions}
       />,
     );
-    expect(details).toContain("Check original game files");
+    expect(details).toContain("Check game files");
   });
 
   it("summarizes an installed library around play readiness", () => {
@@ -3419,7 +3415,7 @@ describe("desktop components", () => {
     expect(html).toMatch(
       /<button[^>]*data-variant="link"[^>]*data-focusable="true"[^>]*>Sample cartridge<\/button>/u,
     );
-    expect(html).toContain('aria-label="Open Game Files settings for Sample cartridge"');
+    expect(html).toContain('aria-label="Open Game files settings for Sample cartridge"');
     expect(html).not.toMatch(/>sample-rom<\/button>/u);
     expect(html).toMatch(
       /<button[^>]*data-variant="link"[^>]*data-focusable="true"[^>]*>removed-profile<\/button>/u,
@@ -3533,7 +3529,7 @@ describe("desktop components", () => {
     for (const [policy, label] of [
       ["notify", "Notify me"],
       ["stage", "Download for later"],
-      ["automatic", "Install when running updates"],
+      ["automatic", "Install when I run updates"],
     ] as const) {
       expect(render({ ...status, update_policy: policy })).toContain(`Stable · ${label}`);
     }

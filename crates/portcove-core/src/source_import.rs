@@ -123,13 +123,13 @@ impl PortcoveService {
             let inbox_root = fs::canonicalize(self.library().source_inbox_dir())?;
             if source_path.starts_with(&inbox_root) {
                 return Err(PortcoveError::conflict(
-                    "a Source Inbox path cannot be copied or moved as another Inbox import; use its current location",
+                    "the selected files are already in Portcove's game-file folder; use them where they are",
                 )
                 .detail("profile_id", profile_id));
             }
             if inbox_root.starts_with(&source_path) {
                 return Err(PortcoveError::conflict(
-                    "the selected source contains the Source Inbox destination",
+                    "the selected folder contains Portcove's game-file folder; choose a narrower folder",
                 )
                 .detail("profile_id", profile_id));
             }
@@ -1303,7 +1303,7 @@ fn source_fingerprint(
 fn require_expected_plan(plan: &SourceImportPlan, expected: &str) -> Result<()> {
     if plan.plan_sha256 != expected {
         return Err(PortcoveError::conflict(
-            "source, registration, or Source Inbox destination changed after import review",
+            "the selected files, saved location, or Portcove game-file folder changed after review; review the import again",
         ));
     }
     Ok(())

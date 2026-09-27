@@ -282,7 +282,7 @@ function BrowserEmptyState({
         }
         eyebrow="EMPTY LIBRARY"
         title="Your library is empty"
-        description="Browse the catalog to install a supported port or register a prepared runtime. You can also copy an existing supported installation without changing its original folder."
+        description="Browse the catalog to install a supported port or use an existing installation. You can also copy a supported installation without changing its original folder."
         action={
           <>
             <Button data-focusable variant="primary" size="lg" onClick={onBrowseCatalog}>
@@ -607,7 +607,7 @@ function PortCardStatus({
             : status?.external_runtime
               ? `External ${status.external_runtime.version}`
               : port.release.provider === "user-prepared"
-                ? "Prepare runtime"
+                ? "Prepare game"
                 : "Not installed"}
         </strong>
       )}
@@ -692,7 +692,7 @@ function readinessPresentation(readiness: PortReadiness) {
       tone: "available",
     },
     ready: { label: "Ready to play", action: "View details", tone: "ready" },
-    source: { label: "Source required", action: "Finish setup", tone: "setup" },
+    source: { label: "Game files needed", action: "Finish setup", tone: "setup" },
     repair: {
       label: "Installation needs repair",
       action: "Review game",

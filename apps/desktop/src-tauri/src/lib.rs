@@ -1044,11 +1044,11 @@ async fn import_source(
         }
         if !confirm_destructive(
             &app,
-            "Move original source",
+            "Move game files?",
             format!(
-                "Move the original source for {profile_id} into its Source Inbox?\n\nPortcove removes the original only after the Inbox copy is verified and registered."
+                "Move the game files for {profile_id} into Portcove's game-file folder?\n\nPortcove deletes the original only after its copy is checked and the new location is saved."
             ),
-            "Move source",
+            "Move game files",
         )
         .await
         {

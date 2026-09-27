@@ -309,6 +309,14 @@ describe("source identity presentation", () => {
     expect(html).toContain("CONSTRUCTOR"); // The raw algorithm remains only in technical evidence.
   });
 
+  it("names BIOS checks without calling them game-file checks", () => {
+    const value = report();
+    value.applications[0].role = "bios";
+    const html = renderToStaticMarkup(<SourceIdentityPanel report={value} />);
+    expect(html).toContain("BIOS check result: Exact match");
+    expect(html).not.toContain("Game-file check result:");
+  });
+
   it.each([
     ["recognized_exact", "Exact match"],
     ["accepted_identity_unknown", "Edition unknown · review check details"],
@@ -356,11 +364,40 @@ describe("source identity presentation", () => {
     expect(primary).toContain("Exact match");
     expect(primary).toContain("Next:");
     expect(primary).not.toContain("Admission");
-    expect(primary).not.toContain("Exact automated evidence");
+    expect(primary).not.toContain("Recorded automated results");
     expect(primary).not.toContain("catalog row");
     expect(html.slice(firstDisclosure)).toContain("Admission");
-    expect(html.slice(firstDisclosure)).toContain("Test results and source authority");
-    expect(html.slice(firstDisclosure)).toContain("Exact automated evidence");
+    expect(html.slice(firstDisclosure)).toContain("File details and test results");
+    expect(html.slice(firstDisclosure)).toContain("Recorded automated results");
+  });
+
+  it("keeps failed, unrun, and other-edition evidence distinct from a passed test", () => {
+    const value = report();
+    const automated = value.applications[0].qualification.exact_records[0];
+    automated.outcome = "failed";
+    const unrun = structuredClone(automated);
+    unrun.outcome = "not_run";
+    unrun.kind = "hands_on";
+    const otherEdition = structuredClone(unrun);
+    otherEdition.outcome = "passed";
+    if (otherEdition.scope.variant.state === "exact")
+      otherEdition.scope.variant.identity.variant_id = "other";
+    const otherFormat = structuredClone(unrun);
+    otherFormat.outcome = "passed";
+    if (otherFormat.scope.variant.state === "exact")
+      otherFormat.scope.variant.identity.representation_id = "other-format";
+    value.applications[0].qualification.exact_records.push(unrun, otherEdition, otherFormat);
+
+    const html = renderToStaticMarkup(<SourceIdentityPanel report={value} />);
+    expect(html).toContain("Failed · Linux · Edition edition, format raw");
+    expect(html).toContain("Not run · Linux · Edition edition, format raw");
+    expect(html).toContain("Passed · Linux · Edition other, format raw");
+    expect(html).toContain("Passed · Linux · Edition edition, format other-format");
+    expect(html).toContain("Hands-on results for this edition and file format: Not run.");
+    expect(html).not.toContain("Hands-on results for this edition and file format: Passed");
+    expect(html).toContain("Release v1");
+    expect(html).toContain("Check version 1");
+    expect(html).toContain(`Release artifact SHA-256 <code>${"f".repeat(64)}</code>`);
   });
 
   it("labels a legacy row without structured observations as not evaluated", () => {
@@ -370,6 +407,19 @@ describe("source identity presentation", () => {
     const html = renderToStaticMarkup(<SourceIdentityPanel report={legacy} />);
     expect(html).toContain("Legacy registration · not evaluated");
     expect(html).not.toContain("Exact match");
+  });
+
+  it("explains a known file rejection and keeps an unknown reason noncommittal", () => {
+    const known = report("known_mismatch");
+    expect(renderToStaticMarkup(<SourceIdentityPanel report={known} />)).toContain(
+      "File not accepted · file does not match the required edition",
+    );
+    const unknown = report("known_mismatch");
+    const admission = unknown.inspection?.assessment.admission;
+    if (admission?.state === "rejected") admission.reason = "future_reason" as never;
+    const html = renderToStaticMarkup(<SourceIdentityPanel report={unknown} />);
+    expect(html).toContain("File not accepted · see file details");
+    expect(html).not.toContain("future_reason");
   });
 
   it("shows full scoped hashes, compound members, missing expectations, evidence classes, and the non-mutation boundary", () => {
@@ -387,10 +437,10 @@ describe("source identity presentation", () => {
       "Exact member match",
       "Expected identity missing",
       "Missing from reviewed evidence",
-      "Exact automated evidence",
-      "Exact hands-on evidence",
+      "Recorded automated results",
+      "Recorded hands-on results",
       "Legacy port-wide automated",
-      "Missing gameplay evidence does not block",
+      "No hands-on test is recorded for this edition and file format",
       "did not modify, normalize, move, or upload",
     ])
       expect(html).toContain(text);

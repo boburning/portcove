@@ -14,8 +14,8 @@ it("focuses the matching source action, requirement, or safe heading", () => {
   section.innerHTML = `
     <h2 id="settings-game-files-heading" tabindex="-1">Game Files</h2>
     <button data-settings-control="add-game-file-root">Add folder</button>
-    <button data-settings-control="discover-sources">Choose game files</button>
-    <div class="source-requirement" data-source-profile="needed" tabindex="-1"><button>Add source</button></div>
+    <button data-settings-control="discover-sources">Find required files</button>
+    <div class="source-requirement" data-source-profile="needed" tabindex="-1"><button>Add game files</button></div>
     <div class="source-health-row" data-source-profile="other" tabindex="-1"><button data-settings-control="relink-source">Relink other</button></div>
     <div class="source-health-row" data-source-profile="owned" tabindex="-1"><button data-settings-control="relink-source">Relink owned</button><button>Remove owned</button></div>`;
   document.body.append(section);
@@ -23,12 +23,12 @@ it("focuses the matching source action, requirement, or safe heading", () => {
   focusSettingsTarget("source-profile", "owned");
   expect(document.activeElement?.textContent).toBe("Relink owned");
   focusSettingsTarget("source-profile", "needed");
-  expect(document.activeElement?.textContent).toBe("Add source");
+  expect(document.activeElement?.textContent).toBe("Add game files");
   focusSettingsTarget("source-profile", "missing");
   expect(document.activeElement?.id).toBe("settings-game-files-heading");
   expect((document.activeElement as HTMLElement).tabIndex).toBe(0);
   focusSettingsTarget("discover-sources");
-  expect(document.activeElement?.textContent).toBe("Choose game files");
+  expect(document.activeElement?.textContent).toBe("Find required files");
   focusSettingsTarget("add-game-file-root");
   expect(document.activeElement?.textContent).toBe("Add folder");
   expect(section.querySelector("h2")?.tabIndex).toBe(-1);

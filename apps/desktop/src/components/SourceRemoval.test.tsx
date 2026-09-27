@@ -75,14 +75,14 @@ it("shows the original path, installed impact and all dependents without removin
     preview.source.path,
     "Installed game",
     "Another compatible game",
-    "Only this library's reference",
+    "Only this library's location",
     "will not move or delete files at",
     "If interrupted, reopen Settings",
   ])
     expect(dialog().textContent).toContain(text);
   expect(dialog().textContent).not.toContain("will stay at");
-  expect(dialog().querySelector("[data-autofocus]")?.textContent).toBe("Keep source reference");
-  await click("Keep source reference");
+  expect(dialog().querySelector("[data-autofocus]")?.textContent).toBe("Keep location");
+  await click("Keep location");
   expect(close).toHaveBeenCalledOnce();
   expect(remove).not.toHaveBeenCalled();
 });
@@ -140,7 +140,7 @@ it("blocks duplicate submissions within one event batch and requires fresh inten
     submit.click();
     submit.click();
   });
-  await click("Keep source reference");
+  await click("Keep location");
   expect(remove).toHaveBeenCalledOnce();
   expect(close).not.toHaveBeenCalled();
   await act(async () => reject(new Error("Source or dependents changed")));
@@ -148,7 +148,7 @@ it("blocks duplicate submissions within one event batch and requires fresh inten
     "Source or dependents changed",
   );
   expect(dialog().textContent).not.toContain("Continue to removal confirmation");
-  await click("Review source removal again");
+  await click("Check saved location again");
   expect(read).toHaveBeenCalledTimes(2);
   await click("Continue to removal confirmation");
   expect(removed).toHaveBeenCalledOnce();
@@ -221,13 +221,13 @@ it("retries only the list refresh after a completed removal has a refresh failur
       />,
     ),
   );
-  await click("Remove reference");
+  await click("Remove saved location");
   await click("Continue to removal confirmation");
   expect(container.querySelector('[role="status"]')?.textContent).toContain(
-    "The reference was removed",
+    "The saved location was removed",
   );
   expect(document.body.querySelector('[role="dialog"]')).toBeNull();
-  await click("Refresh source list");
+  await click("Refresh saved-file list");
   expect(remove).toHaveBeenCalledOnce();
   expect(refresh).toHaveBeenCalledTimes(2);
   expect(container.querySelector('[role="status"]')).toBeNull();

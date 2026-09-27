@@ -82,12 +82,12 @@ it("reviews an exact player-owned folder before registering it", async () => {
       />,
     ),
   );
-  await click("Choose existing runtime");
+  await click("Choose game folder");
   expect(document.body.textContent).toContain("Create an empty portable.txt");
   expect(preview).toHaveBeenCalledExactlyOnceWith(port.id, record.path, 7);
   expect(document.body.textContent).toContain(record.executable);
   expect(register).not.toHaveBeenCalled();
-  await click("Register runtime");
+  await click("Use this installation");
   expect(register).toHaveBeenCalledExactlyOnceWith(port.id, record.path, "reviewed-external", 7);
   expect(changed).toHaveBeenCalledOnce();
 });
@@ -114,9 +114,9 @@ it("removes only the external registration through the separate reviewed action"
       />,
     ),
   );
-  await click("Remove registration");
-  expect(document.body.textContent).toContain("Every external game, setting, and save file");
-  await click("Remove registration");
+  await click("Stop using this installation");
+  expect(document.body.textContent).toContain("The files stay where they are, including");
+  await click("Stop using this installation");
   expect(remove).toHaveBeenCalledExactlyOnceWith(port.id, "reviewed-removal", 7);
   expect(managedUninstall).not.toHaveBeenCalled();
   expect(changed).toHaveBeenCalledOnce();
@@ -144,7 +144,36 @@ it("explains a held external registration before opening a folder picker", async
       />,
     ),
   );
-  expect(document.body.textContent).toContain("Registration held: publisher revoked");
+  expect(document.body.textContent).toContain(
+    "Setup is on hold. The catalog publisher was revoked.",
+  );
   expect(document.body.querySelector("button")?.disabled).toBe(true);
   expect(picker).not.toHaveBeenCalled();
+});
+
+it("does not invent a cause for an unknown external route hold", async () => {
+  await act(async () =>
+    root.render(
+      <ExternalRuntimeControl
+        port={port}
+        status={{
+          ...portStatus(),
+          port_actions: [
+            {
+              action: "register_external",
+              availability: "held",
+              reason: "definition_ineligible",
+              definition: { outcome: "hold", reason: "future_reason" as never },
+            },
+          ],
+        }}
+        generation={7}
+        busy={false}
+      />,
+    ),
+  );
+  expect(document.body.textContent).toContain(
+    "Setup is on hold. Check this port's current requirements.",
+  );
+  expect(document.body.textContent).not.toContain("future_reason");
 });

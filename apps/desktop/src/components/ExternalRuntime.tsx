@@ -16,6 +16,34 @@ function ReviewCancelButton({ pending, dismiss }: { pending: boolean; dismiss: (
   );
 }
 
+function externalSetupReason(availability?: string, reason?: string, definitionReason?: string) {
+  if (availability === "not_offered" && reason === "unsupported_platform")
+    return "This installation route is unavailable on this platform.";
+  if (reason === "definition_ineligible") {
+    const reasons: Record<string, string> = {
+      publisher_revoked: "The catalog publisher was revoked.",
+      unknown_safety_semantics:
+        "This definition has safety requirements Portcove cannot interpret.",
+      publisher_scope_required: "This publisher is not approved for this port.",
+      engine_capability_required: "This version of Portcove cannot use this route.",
+      ownership_migration_required: "An existing installation needs ownership review.",
+      metadata_replay: "The catalog update is older than the accepted version.",
+      refresh_incomplete: "The catalog update did not finish.",
+      metadata_stale: "The catalog information needs refreshing.",
+      recorded_identity_changed: "The accepted file identity changed.",
+      authenticated_integrity_required: "The required file integrity evidence is missing.",
+      local_integrity_failed: "A required local file check failed.",
+      mandatory_check_failed: "A required check failed.",
+      source_identity_mismatch: "The game files do not match the required edition.",
+      required_source_missing: "Required game files are missing.",
+    };
+    return `Setup is on hold. ${definitionReason && Object.hasOwn(reasons, definitionReason) ? reasons[definitionReason] : "Check this port's current requirements."}`;
+  }
+  if (reason === "already_registered") return "This installation is already in your library.";
+  if (reason === "review_required") return "Choose a folder to review before using it.";
+  return "This installation route is unavailable. Check the port details for current requirements.";
+}
+
 export function ExternalRuntimeControl({
   port,
   status,
@@ -38,7 +66,6 @@ export function ExternalRuntimeControl({
   const canRegister =
     !registration ||
     (registration.availability === "waiting" && registration.reason === "review_required");
-  const registrationReason = registration?.definition?.reason ?? registration?.reason;
   const select = async () => {
     const path = await pickInstallFolder("");
     if (typeof path === "string") setReview({ kind: "register", path });
@@ -48,8 +75,8 @@ export function ExternalRuntimeControl({
       {registered ? (
         <div>
           <p>
-            Version {registered.version} is registered at <code>{registered.path}</code>. Portcove
-            launches it without owning or managing the external files.
+            Portcove uses version {registered.version} in place at <code>{registered.path}</code>.
+            It does not copy, update, back up, or delete these files.
           </p>
           <Button
             data-focusable
@@ -57,30 +84,36 @@ export function ExternalRuntimeControl({
             disabled={busy}
             onClick={() => setReview({ kind: "remove" })}
           >
-            Remove registration
+            Stop using this installation
           </Button>
         </div>
       ) : (
         <div>
           <p>
-            Prepare the accepted runtime yourself, then choose its extracted folder. Portcove checks
-            its exact files before registration and every launch. The folder and game-owned data
-            stay yours.
+            Prepare the required version, then choose the folder containing the game. Portcove
+            checks the required files before using the folder and at every launch. It does not copy,
+            update, back up, or delete these files.
           </p>
           {port.presentation?.manual_preparation && <p>{port.presentation.manual_preparation}</p>}
           <ul>
             {Object.entries(port.release.user_prepared).map(([platform, required]) => (
               <li key={platform}>
-                {platform}: {required.archive_name} version {required.version}; archive SHA-256{" "}
-                <code>{required.archive_sha256}</code>. Choose the folder containing{" "}
-                <code>{required.executable}</code> after your own preparation.
+                {platform}: Prepare {required.archive_name} version {required.version}, then choose
+                the folder containing <code>{required.executable}</code>.{" "}
+                <details>
+                  <summary>File details</summary>Archive SHA-256:{" "}
+                  <code>{required.archive_sha256}</code>
+                </details>
               </li>
             ))}
           </ul>
-          {!canRegister && registrationReason && (
+          {!canRegister && registration?.reason && (
             <p role="status">
-              Registration {registration?.availability.replaceAll("_", " ")}:{" "}
-              {registrationReason.replaceAll("_", " ")}.
+              {externalSetupReason(
+                registration.availability,
+                registration.reason,
+                registration.definition?.reason,
+              )}
             </p>
           )}
           <Button
@@ -90,7 +123,7 @@ export function ExternalRuntimeControl({
             onClick={() => void select()}
           >
             <Icon glyph={FolderOpen} />
-            Choose existing runtime
+            Choose game folder
           </Button>
         </div>
       )}
@@ -144,7 +177,8 @@ function RegisterExternalDialog({
       return record ? true : "cancelled";
     },
     close,
-    failureMessage: "Registration did not complete. Review the current runtime before retrying.",
+    failureMessage:
+      "Portcove couldn't use this installation. Check the folder before trying again.",
   });
   return (
     <Dialog
@@ -154,10 +188,10 @@ function RegisterExternalDialog({
       }}
     >
       <DialogContent showCloseButton={false} aria-describedby="external-register-description">
-        <DialogTitle>Register {port.name} runtime?</DialogTitle>
+        <DialogTitle>Use this {port.name} installation?</DialogTitle>
         <DialogDescription id="external-register-description">
-          Portcove will save this location and launch only the accepted runtime. It will not copy,
-          replace, clean up, back up, or delete the external folder.
+          Portcove will save this location and check the required files before each launch. It will
+          not copy, update, back up, or delete the external folder.
         </DialogDescription>
         {pending === "review" && <p role="status">Checking runtime files…</p>}
         {preview && (
@@ -190,7 +224,7 @@ function RegisterExternalDialog({
           )}
           {preview && (
             <Button data-focusable disabled={Boolean(pending)} onClick={() => void execute()}>
-              {pending === "apply" ? "Registering…" : "Register runtime"}
+              {pending === "apply" ? "Saving location…" : "Use this installation"}
             </Button>
           )}
         </DialogFooter>
@@ -223,7 +257,8 @@ function RemoveExternalDialog({
       return record ? true : "cancelled";
     },
     close,
-    failureMessage: "Registration removal did not complete. Review it again before retrying.",
+    failureMessage:
+      "Portcove couldn't stop using this installation. Check its current state before trying again.",
   });
   return (
     <Dialog
@@ -233,15 +268,15 @@ function RemoveExternalDialog({
       }}
     >
       <DialogContent showCloseButton={false} aria-describedby="external-remove-description">
-        <DialogTitle>Remove {port.name} registration?</DialogTitle>
+        <DialogTitle>Stop using this {port.name} installation?</DialogTitle>
         <DialogDescription id="external-remove-description">
-          This removes only Portcove's saved reference. Every external game, setting, and save file
-          remains in place.
+          This removes only Portcove's saved location. The files stay where they are, including
+          settings and saves.
         </DialogDescription>
-        {pending === "review" && <p role="status">Checking registration…</p>}
+        {pending === "review" && <p role="status">Checking saved location…</p>}
         {preview && (
           <p>
-            External folder preserved: <code>{preview.path}</code>
+            Files will stay in: <code>{preview.path}</code>
           </p>
         )}
         {error && <p role="alert">{error}</p>}
@@ -259,7 +294,7 @@ function RemoveExternalDialog({
               disabled={Boolean(pending) || !preview.external_files_will_be_preserved}
               onClick={() => void execute()}
             >
-              {pending === "apply" ? "Removing…" : "Remove registration"}
+              {pending === "apply" ? "Removing saved location…" : "Stop using this installation"}
             </Button>
           )}
         </DialogFooter>

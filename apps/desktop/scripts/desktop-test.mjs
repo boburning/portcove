@@ -882,7 +882,7 @@ async function verifyCompactSettingsJumps() {
   assert.equal((await index.findElements(By.css('button[data-slot="button"]'))).length, 6);
   await browser.executeScript((element) => element.scrollIntoView({ block: "start" }), index);
   await captureScenarioScreenshot("settings-section-index-compact");
-  await index.findElement(By.xpath('.//button[normalize-space(.)="Game Files"]')).click();
+  await index.findElement(By.xpath('.//button[normalize-space(.)="Game files"]')).click();
   const jump = await browser.executeScript(() => {
     const active = document.activeElement;
     if (!(active instanceof HTMLElement)) return null;
@@ -1044,7 +1044,7 @@ try {
     assert.equal(await browse.getAttribute("data-variant"), "primary");
     assert.match(
       await browser.findElement(By.css(".empty-state")).getText(),
-      /Your library is empty[\s\S]*register a prepared runtime/,
+      /Your library is empty[\s\S]*use an existing installation/,
     );
     await captureScenarioScreenshot("empty-library-shared-controls");
     const updateChoice = await browser.wait(
@@ -1085,7 +1085,7 @@ try {
       .findElement(By.xpath('//button[normalize-space(.)="Connect game-file folder"]'))
       .click();
     await browser.wait(
-      until.elementLocated(By.xpath('//h2[normalize-space(.)="Game Files"]')),
+      until.elementLocated(By.xpath('//h2[normalize-space(.)="Game files"]')),
       5000,
     );
     await browser.wait(
@@ -1535,7 +1535,7 @@ try {
       });
       assert.equal(hierarchy.duplicateReadiness, 0);
       assert.equal(hierarchy.horizontalOverflow, false);
-      assert.equal(hierarchy.stateText, "Original game files needed");
+      assert.equal(hierarchy.stateText, "Game files needed");
       assert.match(
         hierarchy.reasonText,
         /Choose the required game files before reviewing installation/u,
@@ -1656,7 +1656,7 @@ try {
         const gameFileCards = await browser.findElements(
           By.css('[data-settings-group="game-files"] article.source-health'),
         );
-        assert.equal(gameFileCards.length, 2, "Game Files Settings cards are incomplete");
+        assert.equal(gameFileCards.length, 2, "Game files settings cards are incomplete");
         const settingsCards = [
           { name: "saved-folders", card: gameFileCards[0], group: "game-files" },
           { name: "verification", card: gameFileCards[1], group: "game-files" },

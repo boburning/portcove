@@ -756,8 +756,8 @@ function OutputRelocationReview({
                 {[
                   item.active && "active",
                   item.previous && "previous",
-                  item.staged && "staged",
-                  item.retained && "retained",
+                  item.staged && "saved for later",
+                  item.retained && "kept for recovery",
                 ]
                   .filter(Boolean)
                   .join(" · ")}

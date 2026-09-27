@@ -9,9 +9,11 @@ type Presentation = DesktopError["presentation"];
 const outcomes: Record<Presentation["mutation_state"], string> = {
   not_started: "This operation did not start.",
   no_changes: "No files were changed by this operation.",
-  committed: "The change was committed. Review the current state before another operation.",
-  recovery_required: "Retained work needs recovery review before another attempt.",
-  unknown: "The changes could not be confirmed. Review the current state before another attempt.",
+  committed: "The change was saved. Check the result before trying again.",
+  recovery_required:
+    "An earlier attempt left unfinished work. Review recovery options before trying again.",
+  unknown:
+    "Portcove couldn't confirm whether anything changed. Check the result before trying again.",
 };
 
 export function FailureDetails({

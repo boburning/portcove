@@ -143,7 +143,7 @@ it("opens the missing game picker, then the BIOS picker, and restores focus afte
   expect(document.activeElement).toBe(button("Choose BIOS file"));
   await click("Choose BIOS file");
   expect(pickBios).toHaveBeenCalledTimes(1);
-  expect(document.activeElement).toBe(button("Review install"));
+  expect(document.activeElement).toBe(button("Review installation"));
 });
 
 it("returns focus after a canceled picker and focuses the matching field without a picker", async () => {
@@ -204,7 +204,7 @@ function ReviewHarness({ install = () => undefined }: { install?: () => void }) 
 it("presents the reviewed installation in a dismissible dialog and restores trigger focus", async () => {
   const install = vi.fn();
   await act(async () => root.render(<ReviewHarness install={install} />));
-  await click("Review install");
+  await click("Review installation");
   expect(document.body.querySelector('[role="dialog"]')).not.toBeNull();
   expect(document.body.textContent).toContain("2.0");
   expect(document.body.textContent).toContain("64.0 MiB");
@@ -216,9 +216,9 @@ it("presents the reviewed installation in a dismissible dialog and restores trig
   expect(document.activeElement?.textContent).toContain("Install · 64.0 MiB");
   await pressEscape();
   expect(document.body.querySelector('[role="dialog"]')).toBeNull();
-  expect(document.activeElement?.textContent).toContain("Review install");
+  expect(document.activeElement?.textContent).toContain("Review installation");
 
-  await click("Review install");
+  await click("Review installation");
   await click("Install · 64.0 MiB");
   expect(install).toHaveBeenCalledTimes(1);
 });
@@ -248,7 +248,7 @@ it.each(["library_default", "port_setting"] as const)(
       );
     }
     await act(async () => root.render(<InsufficientSpaceHarness />));
-    await click("Review install");
+    await click("Review installation");
     expect(button("Free space required").disabled).toBe(true);
     expect(document.body.textContent).toContain("32.0 MiB available in library");
     expect(document.body.textContent).toContain("more free space in the Portcove library");
@@ -256,9 +256,9 @@ it.each(["library_default", "port_setting"] as const)(
     await click("Open Library & Storage");
     expect(document.body.querySelector('[role="dialog"]')).toBeNull();
     expect(openLibraryStorage).toHaveBeenCalledTimes(1);
-    await click("Review install");
+    await click("Review installation");
     await pressEscape();
-    expect(document.activeElement).toBe(button("Review install"));
+    expect(document.activeElement).toBe(button("Review installation"));
     expect(openLibraryStorage).toHaveBeenCalledTimes(1);
   },
 );
@@ -313,7 +313,7 @@ it("does not dismiss the reviewed installation after installation starts", async
   }
 
   await act(async () => root.render(<BusyHarness />));
-  await click("Review install");
+  await click("Review installation");
   await click("Install · 64.0 MiB");
   await pressEscape();
   expect(document.body.querySelector('[role="dialog"]')).not.toBeNull();
@@ -385,13 +385,13 @@ it("exposes a failed install result outside the dismissed review before another 
     );
   }
   await act(async () => root.render(<FailureHarness />));
-  await click("Review install");
+  await click("Review installation");
   await click("Install · 64.0 MiB");
   expect(document.body.querySelector('[role="dialog"]')).toBeNull();
   expect(document.body.querySelector('[role="alert"]')?.textContent).toContain(
     "Artifact unavailable",
   );
-  expect(document.activeElement?.textContent).toContain("Review install");
+  expect(document.activeElement?.textContent).toContain("Review installation");
 });
 
 it.each([
@@ -473,8 +473,8 @@ it.each(["future_action", "constructor", "__proto__"])(
       "cannot display the installation plan",
     );
     expect(document.body.textContent).not.toContain("INSTALL PLAN");
-    expect(button("Review install again").disabled).toBe(false);
-    await click("Review install again");
+    expect(button("Review installation again").disabled).toBe(false);
+    await click("Review installation again");
     expect(review).toHaveBeenCalledTimes(1);
   },
 );

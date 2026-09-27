@@ -33,26 +33,26 @@ const setupReturnOrigin = "game-file-libraries-setup";
 
 function portSetupLabel(status?: PortStatus) {
   if (!status) return "Readiness unavailable; refresh the workspace";
-  if (status.active || status.external_runtime) return "Already installed or registered";
+  if (status.active || status.external_runtime) return "Already in your library";
   const install = status.port_actions?.find((action) => action.action === "install");
   const external = status.port_actions?.find((action) => action.action === "register_external");
   const action = install?.reason === "route_not_offered" ? external : install;
   if (!action) return "Readiness unavailable; refresh the workspace";
   if (action.reason === "unsupported_platform") return "Unavailable on this platform";
-  if (action.reason === "missing_bios") return "BIOS source needed";
-  if (action.reason === "missing_source") return "Game-file source needed";
+  if (action.reason === "missing_bios") return "BIOS file needed";
+  if (action.reason === "missing_source") return "Game files needed";
   if (action.reason === "definition_ineligible") return "Setup on hold";
   if (action.availability === "allowed") return "Ready for setup review";
   if (action.action === "register_external" && action.reason === "review_required")
-    return "External runtime review required";
+    return "Choose an existing installation";
   return "Review setup requirements in game details";
 }
 
 function savedRootLimitGuidance(limit: string) {
   if (limit === "file_size")
     return `Files above ${formatBytes(scanLimits.max_file_bytes)} were skipped. Check a suspected file from its game details.`;
-  if (limit === "depth") return "Relink a saved folder to a deeper subfolder, then scan again.";
-  return "Remove or relink saved folders to narrower subfolders, then scan again. You can also use Choose game files for one game.";
+  if (limit === "depth") return "Update a saved folder to a deeper subfolder, then search again.";
+  return "Remove or update saved folders to narrower subfolders, then search again. You can also use Find required files for one game.";
 }
 
 function CandidateIdentity({
@@ -109,7 +109,7 @@ function CandidateAction({
   );
   if (alreadyAdded) {
     const status = workspaceRefreshFailed
-      ? "Earlier library view listed this source. Refresh the workspace before continuing."
+      ? "An earlier library view listed these game files. Refresh the workspace before continuing."
       : registrationConfirmed
         ? "Already added. Review game requirements in details."
         : "Already added. Refresh the library before continuing to a game.";
@@ -199,8 +199,8 @@ function ContinueToGame({
       <h3>Continue with a game</h3>
       <p>
         {sourceVisible
-          ? "The selected source is saved. Open a game to review its remaining requirements and available setup actions."
-          : "The source was added, but this view has not refreshed. Use Retry refresh before continuing to a game."}
+          ? "The game-file location is saved. Open a game to review its remaining requirements and setup options."
+          : "The game files were added, but this view has not refreshed. Use Retry refresh before continuing to a game."}
       </p>
       {!sourceVisible && retryRefresh && (
         <Button data-focusable variant="outline" disabled={busy} onClick={retryRefresh}>
@@ -327,7 +327,7 @@ function CompletedScan({
             busy={busy}
             stale={snapshot.freshness !== "inputs_match"}
             review={() => review(candidate)}
-            reviewLabel="Review source"
+            reviewLabel="Review game files"
           />
         </div>
       ))}
@@ -473,7 +473,7 @@ function LiveScanResults({
             onOpenPort={onOpenPort}
             busy={busy}
             review={() => review(candidate)}
-            reviewLabel="Review source now"
+            reviewLabel="Review game files now"
           />
         </div>
       ))}
@@ -715,7 +715,7 @@ export function GameFileLibraries({
     })();
   const review = (candidate: Pick<SourceRecord, "profile_id" | "path">) =>
     run(
-      "Checking the source…",
+      "Checking game files…",
       async () => {
         reviewedCandidate.current = candidate;
         setRegisteredSource(undefined);
@@ -728,11 +728,11 @@ export function GameFileLibraries({
           ),
         );
       },
-      "Source check cancelled. No source was added.",
+      "Game-file check cancelled. No location was saved.",
     );
   const apply = () =>
     run(
-      "Adding selected source…",
+      "Saving game-file location…",
       async () => {
         if (!plan) return;
         const result = await desktopApi.importSource(
@@ -742,7 +742,9 @@ export function GameFileLibraries({
           plan.plan_sha256,
         );
         if (!result) {
-          setNotice("Source addition cancelled. Review the current state before trying again.");
+          setNotice(
+            "Adding game files was cancelled. Check the current state before trying again.",
+          );
           return;
         }
         focusAfterReview.current = true;
@@ -758,16 +760,18 @@ export function GameFileLibraries({
           setNotice(sourceImportRefreshNotice(result));
         }
       },
-      "Source addition cancelled. Refresh the workspace to confirm the current state.",
+      "Adding game files was cancelled. Refresh the workspace to confirm the current state.",
     );
   const retryRefresh = () =>
     run("Refreshing library…", async () => {
       try {
         await onAdded?.();
         setRefreshConfirmed(true);
-        setNotice("Library view refreshed. The source was already added.");
+        setNotice("Library view refreshed. The game files were already added.");
       } catch {
-        setNotice("The source was added, but the view still could not refresh. Try again later.");
+        setNotice(
+          "The game files were added, but the view still couldn't refresh. Try again later.",
+        );
       }
     });
   return (
@@ -798,7 +802,7 @@ export function GameFileLibraries({
       </div>
       <p>
         Choose folders on this PC, a mounted network share, or a removable drive. Portcove searches
-        only saved folders. Scanning does not change the original files or add them as sources.
+        only saved folders. Searching does not change the game files or save their locations.
       </p>
       {roots && roots.length >= maxSavedRootsPerScan && (
         <p>A scan supports at most eight saved folders. Remove one before adding another.</p>

@@ -164,7 +164,7 @@ function operationPresentation(value: string): OperationPresentation {
 function emptyProgressDetail(unit: ProgressUnit | undefined) {
   if (unit === "bytes") return "No bytes reported yet.";
   if (unit === "ports") return "No ports reported yet.";
-  return "No work reported yet.";
+  return "";
 }
 
 function progressDetail(completed: number, total: number, unit: ProgressUnit | undefined) {

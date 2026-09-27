@@ -66,7 +66,7 @@ it.each(["future_mode", "constructor", "__proto__"])(
     expect(sourceImportModePresentation(mode).known).toBe(false);
     expect(JSON.stringify(review)).toBe(original);
     const unknown = sourceImportNotice(result(mode as SourceImportResult["outcome"]));
-    expect(unknown).toContain("Source import outcome is unavailable");
+    expect(unknown).toContain("couldn't confirm how the files were added");
     expect(unknown).not.toMatch(/verified|original was retained|original was removed/);
   },
 );
@@ -100,6 +100,21 @@ it.each(["copy", "move", "use_current_location"] as const)(
     }
   },
 );
+
+it("describes a BIOS import without calling it a game file", () => {
+  const biosPlan = {
+    ...plan("use_current_location"),
+    source: { ...source, path: "D:/Firmware/bios.bin" },
+    existing_registration: source,
+  };
+  const html = renderToStaticMarkup(
+    <SourceImportReview plan={biosPlan} busy={false} onApply={vi.fn()} onCancel={vi.fn()} />,
+  );
+  expect(html).toContain("Selected location:");
+  expect(html).toContain("expected files again");
+  expect(html).not.toContain("Game file:");
+  expect(html).not.toContain("expected game files");
+});
 
 it.each([
   ["copied", "Portcove's copy was checked and added; the original was kept."],

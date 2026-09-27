@@ -38,8 +38,8 @@
     "publisher": "Portcove",
     "homepage": "https://github.com/boburning/portcove",
     "copyright": "Copyright © 2026 Portcove contributors",
-    "shortDescription": "Native ports, kept current.",
-    "longDescription": "A local-first manager for decompilations, recompilations, and native PC ports with verified releases, safe updates, rollback, and an automation-friendly CLI.",
+    "shortDescription": "Install, update, and play native game ports.",
+    "longDescription": "Browse native game ports, add the game files they need, and manage supported installations and updates in a local library.",
     "licenseFile": "../../../LICENSE-MIT"
   }
 }

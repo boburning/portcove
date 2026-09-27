@@ -127,7 +127,7 @@ impl PortcoveError {
             {
                 (
                     "preparation_interrupted",
-                    "Game preparation stopped before its outcome could be recorded. Review the retained work before starting a new preparation.",
+                    "Game preparation stopped before Portcove could confirm the result. Review the unfinished work before trying again.",
                 )
             }
             ErrorCode::State => (

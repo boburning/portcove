@@ -35,14 +35,14 @@ describe("static development scenarios", () => {
     expect(unavailableLibrary).toContain("Library information could not be loaded");
     expect(unavailableLibrary).toContain("Initial scenario library load failed");
     expect(unavailableLibrary).toContain("Retry refresh loads the library information");
-    expect(unavailableLibrary).not.toContain("The changes could not be confirmed");
+    expect(unavailableLibrary).not.toContain("Portcove couldn't confirm whether anything changed");
     expect(unavailableLibrary).not.toContain("your last install");
     expect(unavailableLibrary).not.toContain("source changed since registration");
     const partialSuccess = renderScenario("partial-success");
     expect(partialSuccess).toContain("Change saved; review the current state");
     expect(partialSuccess).not.toContain("Portcove couldn’t finish that action");
     expect(partialSuccess).toContain("The change was saved");
-    expect(partialSuccess).toContain("The change was committed");
+    expect(partialSuccess).toContain("The change was saved");
     expect(partialSuccess).toContain("Scenario refresh failed after the change was committed");
     expect(partialSuccess).not.toContain("source changed since registration");
     const cancellation = renderScenario("cancelled-operation");
@@ -54,7 +54,7 @@ describe("static development scenarios", () => {
     expect(cancellation).not.toContain("source changed since registration");
     expect(renderScenario("missing-source")).toContain("game files");
     expect(renderScenario("missing-tool")).toContain("Not found");
-    expect(renderScenario("staged-update")).toContain("Activate staged");
+    expect(renderScenario("staged-update")).toContain("Use update");
     const updateChoice = renderScenario("application-update-choice-narrow");
     expect(updateChoice).toContain("No application update choice is saved");
     expect(updateChoice).toContain("Automatic checks remain off");
@@ -72,7 +72,7 @@ describe("static development scenarios", () => {
     const refreshFailure = renderScenario("refresh-failure");
     expect(refreshFailure).toContain("Showing the last loaded information");
     expect(refreshFailure).toContain("It does not repeat your last install");
-    expect(refreshFailure).not.toContain("The changes could not be confirmed");
+    expect(refreshFailure).not.toContain("Portcove couldn't confirm whether anything changed");
     expect(renderScenario("unavailable-provider")).toContain("Artwork is unavailable");
     const libraryReference = renderScenario("library-reference-long-title");
     expect(libraryReference).toContain("The Unreasonably Long Scenario Game Title");
@@ -85,7 +85,7 @@ describe("static development scenarios", () => {
     expect(libraryAttention).toContain("1 update downloaded");
     expect(libraryAttention).toContain(">Play</button>");
     const gameDetails = renderScenario("game-details-reference-narrow");
-    expect(gameDetails).toContain("Play now");
+    expect(gameDetails).toContain("Play");
     expect(gameDetails).toContain('class="detail-panel ');
     expect(gameDetails).not.toContain('aria-label="Library filters"');
     expect(gameDetails).not.toContain('class="port-grid"');
@@ -162,7 +162,7 @@ describe("development browser entry", () => {
     expect(preview.inert).toBe(true);
     select.value = "staged-update";
     select.dispatchEvent(new Event("change"));
-    expect(preview.innerHTML).toContain("Activate staged");
+    expect(preview.innerHTML).toContain("Use update");
     for (const button of preview.querySelectorAll("button")) button.click();
     expect(invoke).not.toHaveBeenCalled();
     expect(document.querySelector("#scenario-limitation")!.textContent).toContain(

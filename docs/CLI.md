@@ -13,10 +13,10 @@ use the [reference below](#automation-and-integration-reference).
 1. Browse available ports with `portcove catalog list`, then read a port's game
    file and BIOS requirements with `portcove catalog show PORT_ID`. Use
    `portcove plan PORT_ID` to review what an installation would do.
-2. If that port needs your game files, register the catalog's required source
-   profile with `portcove source add PROFILE_ID PATH`. This validates and records
-   a reference to the selected file; it does not copy or alter the original.
-   Use `portcove source list` to check registered sources.
+2. If that port needs your game files, save the required file location with
+   `portcove source add PROFILE_ID PATH`. Portcove checks the expected file and
+   saves its location; it does not copy, move, or upload it. Use
+   `portcove source list` to check saved locations.
 3. Run `portcove install PORT_ID` after reviewing the plan. Installation can
    download and activate a managed version, subject to its source and host
    requirements. `portcove status PORT_ID` reports the resulting state. To reuse
@@ -33,7 +33,7 @@ use the [reference below](#automation-and-integration-reference).
    policy in `portcove status PORT_ID` before changing anything.
 6. For managed saved data, run `portcove backup create PORT_ID`, then
    `portcove backup list PORT_ID` to inspect verified backups and any problems.
-   A backup is not a copy of the original game files. Review backup and restore
+   A backup is not a copy of the game files. Review backup and restore
    consequences in `portcove backup --help` before deleting or restoring one.
 
 An official port that offers a user-prepared runtime uses a separate route:
@@ -60,7 +60,7 @@ outside the supported timestamp range is labeled unknown. `--json` and
 
 ## Automation and integration reference
 
-Without a machine-output flag, Portcove renders concise human output. Catalog, status, source, backup, activity, storage, doctor, plan, paths, authentication-status, and capability reads use labeled summaries or tables; other results use a control-character-safe labeled document rather than exposing transport JSON. `portcove about` remains the one branded command and prints a compact product name, version, tagline, repository, and license without opening the library. Repeated operational commands never print banners or raster/ASCII artwork.
+Without a machine-output flag, Portcove renders concise human output. Catalog, status, source, backup, activity, storage, doctor, plan, paths, authentication-status, and capability reads use labeled summaries or tables; other results use a control-character-safe labeled document rather than exposing transport JSON. `portcove about` prints a compact product name, version, functional description, repository, and license without opening the library. Repeated operational commands never print banners or raster/ASCII artwork.
 
 `--json` and `--jsonl` remain the stable automation surfaces and are byte-shape independent from human rendering. Use `--json catalog export` and `--json schema export` when consuming their full documents programmatically.
 
@@ -563,7 +563,7 @@ portcove --library <path> --json source relink <profile-id> <new-path>
 portcove --library <path> --json source relink <profile-id> <new-path> --apply --expected-plan <preview_sha256>
 ```
 
-The preview validates the new path against the current catalog profile and the registered content hash and size; the old path may be offline. It returns the original record, validated replacement, and `preview_sha256` without changing either file or the registry. Apply takes the profile and dependent-port locks, revalidates the replacement, and rejects a stale plan if registration, catalog rules, location, or validated bytes changed. A different container is allowed only when its normalized content is identical. Settings → Sources → Relink source uses the same core operation. Registration, relinking, and removal fail with a conflict while a dependent port is running or another source writer holds the profile lock.
+The preview validates the new path against the current catalog profile and the registered content hash and size; the old path may be offline. It returns the original record, validated replacement, and `preview_sha256` without changing either file or the registry. Apply takes the profile and dependent-port locks, revalidates the replacement, and rejects a stale plan if registration, catalog rules, location, or validated bytes changed. A different container is allowed only when its normalized content is identical. Settings → Game files → Update file location uses the same core operation. Registration, relinking, and removal fail with a conflict while a dependent port is running or another source writer holds the profile lock.
 
 ### Opt-in source discovery
 

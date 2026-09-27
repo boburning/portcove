@@ -23,9 +23,9 @@ export async function sourceDialogScenario({ browser, scenario, output, artifact
       await click(By.css(".requirements-disclosure > .requirements-summary"));
     }
     assert.equal(await browser.executeScript((element) => element.open, disclosure), true);
-    const intakeTrigger = await browser.findElement(button("Check original game files"));
+    const intakeTrigger = await browser.findElement(button("Check game files"));
     await browser.executeScript('arguments[0].scrollIntoView({ block: "center" });', intakeTrigger);
-    await click(button("Check original game files"));
+    await click(button("Check game files"));
     const intakeDialog = By.css('[aria-labelledby="source-intake-title"]');
     await browser.wait(until.elementLocated(intakeDialog), 15_000);
     assert.ok(
@@ -55,19 +55,19 @@ export async function sourceDialogScenario({ browser, scenario, output, artifact
 
     await click(By.xpath('//nav//button[contains(., "Settings")]'));
     const discoveryTrigger = await browser.wait(
-      until.elementLocated(button("Choose game files")),
+      until.elementLocated(button("Find required files")),
       15_000,
     );
     await browser.executeScript(
       'arguments[0].scrollIntoView({ block: "center" });',
       discoveryTrigger,
     );
-    await click(button("Choose game files"));
+    await click(button("Find required files"));
     const discoveryDialog = By.css('[aria-labelledby="source-discovery-title"]');
     await browser.wait(until.elementLocated(discoveryDialog), 15_000);
     assert.ok(
       (await browser.findElement(discoveryDialog).getText()).includes(
-        "Source Inbox is Portcove's game-file folder.",
+        "Portcove's game-file folder",
       ),
     );
     const searchField = await browser.findElement(By.id("source-search-root"));
@@ -102,7 +102,7 @@ export async function sourceDialogScenario({ browser, scenario, output, artifact
     assert.notEqual(fieldPresentation.backgroundColor, fieldPresentation.dialogBackgroundColor);
     assert.ok(Number(fieldPresentation.labelFontWeight) >= 700, JSON.stringify(fieldPresentation));
     const selectTrigger = await browser.findElement(
-      By.xpath('//button[contains(., "Required game files")]'),
+      By.xpath('//button[contains(., "Required files")]'),
     );
     await selectTrigger.sendKeys(Key.ENTER);
     const openSelect = By.css('[data-slot="select-content"][data-open]');
@@ -183,7 +183,7 @@ export async function sourceDialogScenario({ browser, scenario, output, artifact
     const sourceActivityInRecentPreview = sourceRegistrationIndex < 8;
     await click(By.xpath('//nav//button[contains(., "Game updates")]'));
     const sourceActivity = By.xpath(
-      `//div[contains(@class, "activity-row") and .//strong[normalize-space()="Game-file location update"]]//button[@aria-label=${JSON.stringify(`Open Game Files settings for ${profileLabel}`)}]`,
+      `//div[contains(@class, "activity-row") and .//strong[normalize-space()="Game-file location update"]]//button[@aria-label=${JSON.stringify(`Open Game files settings for ${profileLabel}`)}]`,
     );
     await browser.wait(until.elementLocated(By.css(".activity-list")), 15_000);
     if (sourceActivityInRecentPreview)
@@ -203,7 +203,7 @@ export async function sourceDialogScenario({ browser, scenario, output, artifact
               document.activeElement
                 ?.closest("[data-source-profile]")
                 ?.getAttribute("data-source-profile") === profileId &&
-              document.activeElement?.textContent?.includes("Relink source"),
+              document.activeElement?.textContent?.includes("Update file location"),
             port.source_profile,
           ),
         5_000,
@@ -216,7 +216,7 @@ export async function sourceDialogScenario({ browser, scenario, output, artifact
             () => document.activeElement?.closest('[data-settings-group="game-files"]') !== null,
           ),
         5_000,
-        "Directional navigation left Game Files settings",
+        "Directional navigation left Game files settings",
       );
       const settingsScreenshot = path.join(output, "native-source-activity-settings.png");
       await writeFile(settingsScreenshot, await browser.takeScreenshot(), {
@@ -228,7 +228,7 @@ export async function sourceDialogScenario({ browser, scenario, output, artifact
 
     await click(By.xpath('//nav//button[contains(., "Game updates")]'));
     const discoveryActivity = By.xpath(
-      '//div[contains(@class, "activity-row") and .//strong[normalize-space()="Game-file search"]]//button[@aria-label="Open Game Files settings for Portcove library"]',
+      '//div[contains(@class, "activity-row") and .//strong[normalize-space()="Game-file search"]]//button[@aria-label="Open Game files settings for Portcove library"]',
     );
     await browser.wait(until.elementLocated(discoveryActivity), 15_000);
     await click(discoveryActivity);

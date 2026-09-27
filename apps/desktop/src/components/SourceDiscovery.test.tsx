@@ -7,10 +7,19 @@ import * as picker from "../file-picker";
 import type { SourceDiscoveryReport, SourceImportPlan, SourceProfile } from "../types";
 import {
   SourceDiscoveryButton,
+  inboxStateMessage,
   sourceDiscoveryLimitGuidance,
   sourceDiscoveryLimitLabel,
   sourceDiscoveryResultSummary,
 } from "./SourceDiscovery";
+
+it("describes known folder-search states and leaves unknown states unexplained", () => {
+  expect(inboxStateMessage("exact_match")).toBe("An exact match is available.");
+  expect(inboxStateMessage("approval_required")).toBe("A possible match needs your review.");
+  expect(inboxStateMessage("future_state" as Parameters<typeof inboxStateMessage>[0])).toBe(
+    "Search result unavailable.",
+  );
+});
 
 it("presents source discovery counts and limits in player-facing language", () => {
   expect(sourceDiscoveryResultSummary(0, 0, 0)).toBe(
@@ -236,7 +245,7 @@ it("opens and scans the Inbox, then applies the exact reviewed import", async ()
         <SourceDiscoveryButton profiles={[profile]} disabled={false} onAdded={refresh} />,
       ),
     );
-    await click("Choose game files");
+    await click("Find required files");
     const searchField = document.body.querySelector<HTMLInputElement>("#source-search-root");
     const searchLabel = document.body.querySelector<HTMLLabelElement>(
       'label[for="source-search-root"]',
@@ -246,9 +255,9 @@ it("opens and scans the Inbox, then applies the exact reviewed import", async ()
     expect(searchField?.className).toContain("bg-[var(--color-bg-inset)]");
     expect(searchLabel?.className).toContain("text-pc-muted-foreground");
     expect(document.body.textContent).toContain(
-      "Portcove searches only the folders you choose, checks possible matches, and lets you add an exact match. Nothing is uploaded or moved.",
+      "Searching does not upload or move your files. After finding a match, choose whether to use it where it is, copy it into Portcove, or move it.",
     );
-    await click("Required game files");
+    await click("Required files");
     const openPopup = document.body.querySelector<HTMLElement>(
       '[data-slot="select-content"][data-open]',
     );
@@ -263,17 +272,17 @@ it("opens and scans the Inbox, then applies the exact reviewed import", async ()
     await click("Choose folder");
     expect(control("Search this folder").disabled).toBe(true);
     await click("Choose folder");
-    await click("Required game files");
+    await click("Required files");
     await click("Owned game source");
-    await click("Open Source Inbox");
+    await click("Open game-file folder");
     expect(openInbox).toHaveBeenCalledWith(profile.id);
-    await click("Scan Source Inbox");
+    await click("Search game-file folder");
     expect(scanInbox).toHaveBeenCalledWith(
       profile.id,
       expect.objectContaining({ max_entries: 10_000, max_candidates: 64 }),
       expect.any(Function),
     );
-    expect(document.body.textContent).toContain("Inbox state: incomplete");
+    expect(document.body.textContent).toContain("The search could not check every file.");
     expect(document.body.textContent).toContain(
       "Some files weren't checked because this scan reached a limit.",
     );
@@ -329,9 +338,9 @@ it("opens and scans the Inbox, then applies the exact reviewed import", async ()
       expect.any(Function),
     );
     expect(refresh).toHaveBeenCalledOnce();
-    expect(document.body.textContent).toContain("Source registered");
-    expect(document.body.textContent).toContain("The view could not refresh");
-    expect(document.body.textContent).toContain("this source was already added");
+    expect(document.body.textContent).toContain("File location saved");
+    expect(document.body.textContent).toContain("The view couldn't refresh");
+    expect(document.body.textContent).toContain("the files were already added");
     expect(
       document.body.querySelector('[aria-labelledby="source-discovery-title"] [role="alert"]'),
     ).toBeNull();
@@ -394,9 +403,9 @@ it("keeps cancellation tied to the emitted durable operation", async () => {
     await act(async () =>
       root.render(<SourceDiscoveryButton profiles={[profile]} disabled={false} />),
     );
-    await click("Choose game files");
+    await click("Find required files");
     await click("Choose folder");
-    await click("Required game files");
+    await click("Required files");
     await click("Owned game source");
     await click("Search this folder");
     await click("Cancel operation");

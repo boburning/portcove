@@ -96,8 +96,12 @@ export async function libraryHandoffScenario({
     assert.ok(plan.includes(destination) && plan.includes(source));
     assert.ok(plan.includes(portId) && plan.includes(active.version));
     assert.ok(plan.includes("Saved game-file locations"));
-    assert.ok(plan.includes("1 saved game-file location will stay unchanged."));
-    assert.ok(plan.includes("Copying Source Inbox files does not redirect these saved locations."));
+    assert.ok(plan.includes("1 saved file location will stay unchanged."));
+    assert.ok(
+      plan.includes(
+        "Copying Portcove game-file folder contents does not redirect these saved locations.",
+      ),
+    );
     assert.ok(plan.includes("this dialog cannot cancel it"));
     await click(
       By.xpath(

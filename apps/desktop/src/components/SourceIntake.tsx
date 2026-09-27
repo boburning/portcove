@@ -158,7 +158,7 @@ function SourceIntakeSession({
   const review = async (mode: SourceImportMode) => {
     if (!result?.report?.inspection?.record || selectedPaths.length !== 1) return;
     const current = ++intent.current;
-    setBusy("Checking the source and destination…");
+    setBusy(`Checking ${request.purpose === "bios" ? "BIOS file" : "game files"} and destination…`);
     setError(undefined);
     setNotice(undefined);
     try {
@@ -190,7 +190,7 @@ function SourceIntakeSession({
       if (intent.current !== current) return;
       setPlan(undefined);
       if (!imported)
-        setNotice("Move cancelled. The original and registration were left unchanged.");
+        setNotice("Move cancelled. The original files and saved location were left unchanged.");
       else {
         setNotice(sourceImportNotice(imported));
         await onAdded?.();

@@ -429,7 +429,7 @@ impl PortcoveService {
                 {
                     "restart Portcove to retry the accepted private cleanup; review the retained files again if cleanup remains blocked"
                 } else if private_preparation {
-                    "review the current activity; an interrupted private attempt cannot be resumed, so review retained work and current inputs before starting a new preparation"
+                    "review the current activity; this interrupted setup cannot resume, so review its unfinished work and current requirements before trying again"
                 } else {
                     "retry the recorded idempotent recovery step"
                 }.into(),
@@ -2658,7 +2658,7 @@ impl PortcoveService {
                 .map_err(|error| {
                     if error.code == crate::ErrorCode::NotFound {
                         PortcoveError::source(format!(
-                            "{} requires source profile {profile_id}; place it in the Source Inbox, pass --source, or register it first",
+                            "{} needs game files for profile {profile_id}; add them in Portcove's game-file folder, use --source, or save the file location first",
                             port.name
                         ))
                         .detail("profile_id", profile_id)

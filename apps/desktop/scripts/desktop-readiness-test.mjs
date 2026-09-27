@@ -154,7 +154,7 @@ export async function readinessScenario({ browser, scenario, output, artifacts, 
     await browser.wait(
       async () =>
         (await browser.findElement(By.css(".detail-panel .primary-actions button")).getText()) ===
-        "Play now",
+        "Play",
       10_000,
     );
     assert.equal(

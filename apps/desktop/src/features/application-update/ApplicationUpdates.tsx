@@ -93,14 +93,14 @@ const nativeLaunchCopy = {
   },
   "installer-failed": {
     title: "Installer did not complete",
-    description: "The installer exited unsuccessfully.",
+    description: "The installer couldn't finish the update.",
   },
 } as const;
 
 const checkProgressCopy: Record<ApplicationUpdateCheckPhase, string> = {
-  checking: "Checking signed application update metadata…",
+  checking: "Checking for Portcove updates…",
   "acquiring-and-verifying": "Downloading and verifying the application update…",
-  staged: "The verified application update is staged.",
+  staged: "The Portcove update is downloaded and checked. It has not been installed.",
   complete: "Application update check complete.",
 };
 
@@ -111,7 +111,7 @@ function applicationUpdateCheckCopy(result: ApplicationUpdateCheckResult) {
       return result.staged
         ? {
             title: "Update downloaded and verified",
-            description: `Portcove ${version ?? "update"} has been downloaded and verified. Restart eligibility is checked before installation.`,
+            description: `Portcove ${version ?? "update"} has been downloaded and checked. Installation conditions will be checked again when you restart or close Portcove.`,
           }
         : {
             title: "Update check complete",
@@ -201,7 +201,7 @@ function applicationUpdateApplyCopy(status: ApplicationUpdateStatus) {
       apply.request === "restart-to-apply" ? "Restart request saved" : "Safe-exit request saved",
     description: apply.termination
       ? `Portcove recorded ${apply.termination.replaceAll("-", " ")}. The installer has not been confirmed to start.`
-      : "The request is saved. The installer has not started; Portcove checks eligibility again before replacement.",
+      : "The request is saved. The installer has not started; Portcove checks installation conditions again before replacing the app.",
   };
 }
 

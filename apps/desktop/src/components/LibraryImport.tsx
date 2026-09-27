@@ -94,7 +94,7 @@ function LibraryImportDialog({ libraryRoot, close }: { libraryRoot: string; clos
         </DialogDescription>
         <p>
           <strong>Use an export you trust.</strong> Review its source, destination, required space,
-          installed versions, saved game-file locations, and copied files before restoring it.
+          installed versions, saved file locations, and copied files before restoring it.
         </p>
         <p>
           Destination: <code>{libraryRoot}</code>

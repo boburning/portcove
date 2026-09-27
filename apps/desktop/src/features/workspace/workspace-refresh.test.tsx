@@ -578,7 +578,7 @@ describe("workspace refresh recovery", () => {
     await act(async () => data.retryRefresh());
     expect(data.catalog).toEqual(snapshot.catalog);
     expect(host.textContent).toContain("Library information could not be refreshed");
-    expect(host.textContent).not.toContain("The changes could not be confirmed");
+    expect(host.textContent).not.toContain("Portcove couldn't confirm whether anything changed");
     expect(host.textContent).toContain("View technical details");
     expect(
       [...host.querySelectorAll('button[data-slot="button"][data-variant="outline"]')].find(
@@ -588,9 +588,9 @@ describe("workspace refresh recovery", () => {
   });
 
   it.each([
-    ["committed", "The change was committed"],
-    ["recovery_required", "Retained work needs recovery review"],
-    ["future-outcome", "The changes could not be confirmed"],
+    ["committed", "The change was saved"],
+    ["recovery_required", "An earlier attempt left unfinished work"],
+    ["future-outcome", "Portcove couldn't confirm whether anything changed"],
   ] as const)("retains a consequential %s outcome on a failed refresh", async (state, message) => {
     await render();
     const error = failureReport();
@@ -618,7 +618,7 @@ describe("workspace refresh recovery", () => {
     expect(data.refreshFailure).toBeDefined();
     expect(host.textContent).toContain("Showing the last loaded information");
     expect(host.textContent).toContain("It does not repeat your last install");
-    expect(host.textContent).not.toContain("The changes could not be confirmed");
+    expect(host.textContent).not.toContain("Portcove couldn't confirm whether anything changed");
 
     await act(async () => data.retryRefresh());
     expect(install).toHaveBeenCalledOnce();

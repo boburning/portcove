@@ -101,7 +101,7 @@ it("reviews without executing and binds explicit confirmation to the returned pl
   expect(document.body.querySelector('[role="dialog"] .preparation-plan')).not.toBeNull();
   expect(document.body.textContent).toContain("E:/owned.iso");
   expect(document.body.textContent).toContain("Prepare game data");
-  expect(document.body.textContent).toContain("Selected original files");
+  expect(document.body.textContent).toContain("Selected game files");
   expect(document.body.textContent).toContain("of free space before the game generates output");
   expect(document.body.textContent).toContain("previous version remains available for rollback");
   expect(document.body.textContent).toContain("unfinished setup files kept for review");

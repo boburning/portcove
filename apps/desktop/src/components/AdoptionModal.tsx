@@ -198,7 +198,7 @@ export function AdoptionModal({
             </p>
             {preview.destination && <AdoptionConsequences destination={preview.destination} />}
             <p>
-              The original folder, registered sources, existing backups and other games remain
+              The original folder, saved file locations, existing backups and other games remain
               unchanged.
             </p>
             <p>

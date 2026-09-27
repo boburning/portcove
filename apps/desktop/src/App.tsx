@@ -1095,13 +1095,13 @@ async function replaceRegisteredSource(
   setError: (error?: string) => void,
 ) {
   if (!profile) {
-    setError("The selected file’s source requirements are missing from the current catalog.");
+    setError("The selected file’s requirements are missing from the current catalog.");
     return;
   }
   try {
     const path = await pickSourcePath(profile, source.path, purpose);
     if (path)
-      await perform("relink source", async () => {
+      await perform("update game-file location", async () => {
         const plan = await desktopApi.planSourceRelink(profile.id, path);
         return desktopApi.relinkSource(profile.id, path, plan.preview_sha256);
       });
@@ -1121,7 +1121,7 @@ async function addRequiredSource(
     const path = await (archive
       ? pickSourceArchivePath("", purpose)
       : pickSourcePath(profile, "", purpose));
-    if (path) await perform("add source", () => desktopApi.addSource(profile.id, path));
+    if (path) await perform("add game files", () => desktopApi.addSource(profile.id, path));
   } catch (value) {
     setError(errorText(value));
   }

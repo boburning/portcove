@@ -285,8 +285,8 @@ export function LibraryCopySummary({
       {plan.metadata.application_versions.length > 0 ? (
         <>
           <p>
-            Active, previous, and staged versions keep their identities. These installation paths
-            are relative to the library folder.
+            Current, previous, and saved-for-later versions keep their identities. These
+            installation paths are relative to the library folder.
           </p>
           <ul>
             {plan.metadata.application_versions.map((install) => (
@@ -309,13 +309,13 @@ export function LibraryCopySummary({
       {plan.content.map((tree) => (
         <LibraryCopyTree key={tree.relative_path} tree={tree} />
       ))}
-      <h3>Saved game-file locations</h3>
+      <h3>Saved file locations</h3>
       <p>
         {formatCountMessage(plan.metadata.source_references.length, {
-          zero: "No saved game-file locations are included.",
-          one: "1 saved game-file location will stay unchanged.",
-          other: "{count} saved game-file locations will stay unchanged.",
-          unknown: "Saved game-file location count is unavailable.",
+          zero: "No saved file locations are included.",
+          one: "1 saved file location will stay unchanged.",
+          other: "{count} saved file locations will stay unchanged.",
+          unknown: "Saved file location count is unavailable.",
         })}
       </p>
       {plan.metadata.source_references.length > 0 && (
@@ -333,8 +333,8 @@ export function LibraryCopySummary({
         </details>
       )}
       <p>
-        Copying Source Inbox files does not redirect these saved locations. Keep the original game
-        files available until you explicitly add another location.
+        Copying Portcove game-file folder contents does not redirect these saved locations. Keep the
+        original game files available until you explicitly add another location.
       </p>
       <p>
         Original game files, saves, backups and artwork remain in place. Later saves and settings
@@ -354,7 +354,7 @@ function LibraryCopyTree({ tree }: { tree: LibraryMovePlan["content"][number] })
   const labels: Record<typeof tree.kind, string> = {
     application_versions: "Game versions",
     user_data: "Saved data",
-    source_inbox: "Source Inbox",
+    source_inbox: "Portcove game-file folder",
     backups: "Backups",
     toolchains: "Preparation tools",
     local_artwork: "Local artwork",

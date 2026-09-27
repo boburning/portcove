@@ -26,7 +26,7 @@ describe("core-owned failure presentation", () => {
     const html = renderToStaticMarkup(<StatusLayer error={error} clearError={vi.fn()} />);
     expect(html).toContain("Change saved; review the current state");
     expect(html).toContain(error.presentation.summary);
-    expect(html).toContain("The change was committed");
+    expect(html).toContain("The change was saved");
     expect(html).not.toContain("Portcove couldn’t finish that action");
     expect(html).not.toContain("No files were changed");
   });
@@ -36,7 +36,7 @@ describe("core-owned failure presentation", () => {
     error.presentation.mutation_state = "unknown";
     const html = renderToStaticMarkup(<StatusLayer error={error} clearError={vi.fn()} />);
     expect(html).toContain("Portcove couldn’t finish that action");
-    expect(html).toContain("The changes could not be confirmed");
+    expect(html).toContain("confirm whether anything changed");
     expect(html).not.toContain("Change saved; review the current state");
   });
 
@@ -62,7 +62,7 @@ describe("core-owned failure presentation", () => {
     const html = renderToStaticMarkup(<StatusLayer error={error} clearError={vi.fn()} />);
     expect(html).toContain('role="alert"');
     expect(html).toContain("Change saved; review the current state");
-    expect(html).toContain("The change was committed");
+    expect(html).toContain("The change was saved");
     expect(html).toContain('aria-label="Dismiss error"');
     expect(html).not.toContain("<strong>Operation cancelled</strong>");
     expect(html).not.toContain("<p>The operation was cancelled.</p>");
@@ -82,7 +82,7 @@ describe("core-owned failure presentation", () => {
       ]) {
         const html = renderToStaticMarkup(view);
         expect(html).toContain(error.presentation.summary);
-        expect(html).toContain("The changes could not be confirmed");
+        expect(html).toContain("confirm whether anything changed");
         expect(html).toContain(outcome);
         expect(html).not.toContain("No files were changed");
         expect(html).not.toContain("raw-machine-secret");
