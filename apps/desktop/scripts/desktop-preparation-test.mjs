@@ -41,6 +41,25 @@ function contrastRatio(foreground, background) {
   return (values[0] + 0.05) / (values[1] + 0.05);
 }
 
+async function assertActivityLabelSeparation(browser, width) {
+  const gap = await browser.executeScript((compact) => {
+    const activity = document.querySelector(".activity-row");
+    const previous = activity?.querySelector(compact ? ".activity-main" : ".activity-time");
+    const status = activity?.querySelector(".activity-status");
+    if (!previous || !status) return null;
+    const textBounds = (element) => {
+      const range = document.createRange();
+      range.selectNodeContents(element);
+      return range.getBoundingClientRect();
+    };
+    const precedingRight = compact
+      ? previous.getBoundingClientRect().right
+      : textBounds(previous).right;
+    return textBounds(status).left - precedingRight;
+  }, width === 960);
+  assert.ok(gap !== null && gap >= 8, "Activity outcome overlaps preceding content");
+}
+
 export async function preparationScenarios({
   browser,
   invoke,
@@ -745,21 +764,7 @@ export async function preparationScenarios({
           assert.ok(comparison.blocks.every(({ visible, value }) => visible && value));
           if (width === 960) assert.ok(comparison.blocks[0].bottom <= comparison.blocks[1].top + 1);
           else assert.ok(comparison.blocks[0].right <= comparison.blocks[1].left + 1);
-          if (width === 1280) {
-            const activityGap = await browser.executeScript(() => {
-              const activity = document.querySelector(".activity-row");
-              const time = activity?.querySelector(".activity-time");
-              const status = activity?.querySelector(".activity-status");
-              if (!time || !status) return null;
-              const textBounds = (element) => {
-                const range = document.createRange();
-                range.selectNodeContents(element);
-                return range.getBoundingClientRect();
-              };
-              return textBounds(status).left - textBounds(time).right;
-            });
-            assert.ok(activityGap !== null && activityGap >= 8, "Activity time overlaps status");
-          }
+          await assertActivityLabelSeparation(browser, width);
           const comparisonScreenshot = path.join(
             output,
             `native-game-update-comparison-${theme}-${width}x${height}.png`,
