@@ -9,6 +9,8 @@ pub mod application_update_helper;
 pub mod application_update_host;
 #[cfg(any(target_os = "linux", test))]
 pub mod application_update_linux;
+#[cfg(target_os = "macos")]
+pub mod application_update_macos;
 mod application_update_network;
 pub mod application_update_operation;
 pub mod application_update_payload;
@@ -1460,10 +1462,13 @@ pub fn run_hidden_helper() -> Option<i32> {
         Some(mode) if application_update_recovery::is_mode(mode) => {
             Some(application_update_recovery::run(arguments))
         }
-        #[cfg(all(target_os = "linux", feature = "application-update-qualification"))]
+        #[cfg(all(
+            any(target_os = "linux", target_os = "macos"),
+            feature = "application-update-qualification"
+        ))]
         Some(mode) if mode == "--portcove-qualify-update-selection" => {
             Some(if arguments.next().is_none() {
-                qualify_installed_appimage_selection()
+                qualify_installed_application_selection()
             } else {
                 2
             })
@@ -1520,8 +1525,11 @@ pub fn run_hidden_helper() -> Option<i32> {
 /// Exercise the packaged binary's own installed-context and compiled trust
 /// provider. This test-only entrypoint never downloads, stages, or applies a
 /// candidate; the production renderer cannot select its repository or identity.
-#[cfg(all(target_os = "linux", feature = "application-update-qualification"))]
-fn qualify_installed_appimage_selection() -> i32 {
+#[cfg(all(
+    any(target_os = "linux", target_os = "macos"),
+    feature = "application-update-qualification"
+))]
+fn qualify_installed_application_selection() -> i32 {
     use application_update::ApplicationChannel;
     use application_update_coordinator::ApplicationUpdateChecker;
     use application_update_host::ApplicationUpdateHostProvider;
@@ -1550,7 +1558,7 @@ fn qualify_installed_appimage_selection() -> i32 {
             0
         }
         Err(error) => {
-            eprintln!("installed AppImage update selection failed: {error}");
+            eprintln!("installed application update selection failed: {error}");
             1
         }
     }

@@ -213,6 +213,12 @@ test("manual rehearsal retains the complete matrix without production credential
   assert.doesNotMatch(workflow, /updater-rehearsal\/\*\*|\.key\b/);
   assert.match(workflow, /linux-appimage-qualification\/application-update-evidence\.json/);
   assert.match(workflow, /qualified-\*-bundles\/appimage\/\*\*/);
+  assert.match(workflow, /qualified-\*-bundles\/macos\/Portcove\.app\/\*\*/);
+  assert.match(
+    workflow,
+    /macos-installed-selection-qualification\/application-update-evidence\.json/,
+  );
+  assert.doesNotMatch(workflow, /macos-installed-selection-qualification\/private\/\*\*/);
   assert.match(workflow, /state\/update-state\/\*\.json/);
   assert.match(workflow, /state\/library\/logs\/portcove-desktop\.jsonl\*/);
   assert.doesNotMatch(workflow, /linux-appimage-qualification\/(?:private|state)\/\*\*/);
@@ -245,6 +251,10 @@ test("manual rehearsal retains the complete matrix without production credential
     /\$native\.process_architecture -ne \$expectedProcessArchitecture[\s\S]*\$native\.executable_architecture = \(& lipo -archs \$executable \| Out-String\)\.Trim\(\)[\s\S]*\$native\.executable_architecture -ne \$expectedMachOArchitecture/,
   );
   assert.match(rehearsal, /test-linux-appimage-update\.ps1/);
+  assert.match(
+    rehearsal,
+    /Move-RehearsalInput \$bundleRoot \$qualifiedBundleName[\s\S]*\$qualifiedApp = Join-Path \$runRoot[\s\S]*test-macos-installed-selection\.ps1/,
+  );
   assert.match(
     rehearsal,
     /\$qualifiedBundleName = "qualified-\$predecessorVersion-bundles"[\s\S]*Move-RehearsalInput \$bundleRoot \$qualifiedBundleName[\s\S]*\$predecessor = Join-Path \$runRoot[\s\S]*Invoke-Checked "dbus-run-session"/,
