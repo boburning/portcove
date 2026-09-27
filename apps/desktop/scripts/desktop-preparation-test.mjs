@@ -52,12 +52,12 @@ async function assertActivityLabelSeparation(browser, width) {
       range.selectNodeContents(element);
       return range.getBoundingClientRect();
     };
-    const precedingRight = compact
-      ? previous.getBoundingClientRect().right
-      : textBounds(previous).right;
-    return textBounds(status).left - precedingRight;
+    return textBounds(status).left - textBounds(previous).right;
   }, width === 960);
-  assert.ok(gap !== null && gap >= 8, "Activity outcome overlaps preceding content");
+  assert.ok(
+    gap !== null && gap >= 8,
+    `Activity outcome overlaps preceding content at ${width}px (gap ${gap}px)`,
+  );
 }
 
 export async function preparationScenarios({
