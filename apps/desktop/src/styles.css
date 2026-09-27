@@ -1921,22 +1921,6 @@ select {
 .source-application > p {
   font-size: var(--text-xs);
 }
-.source-technical {
-  border-top: 1px solid var(--color-border);
-}
-.source-technical > summary {
-  padding-block: var(--space-3);
-  color: var(--color-interactive-text);
-  cursor: pointer;
-  font-weight: var(--font-weight-medium);
-}
-.source-technical-body {
-  display: grid;
-  gap: var(--space-4);
-}
-.source-technical-body h4 {
-  margin: var(--space-3) 0 var(--space-2);
-}
 .digest-group,
 .expected-variant,
 .expected-representation {

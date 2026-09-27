@@ -677,7 +677,7 @@ describe("desktop components", () => {
     expect(html).toContain(note.replaceAll("'", "&#x27;"));
     expect(html).not.toContain("Registered game files");
     expect(html).toMatch(
-      /<details class="source-technical"><summary[^>]*>File details<\/summary>/u,
+      /<details class="source-technical[^"]*"><summary[^>]*>File details<\/summary>/u,
     );
     expect(html).toContain(`Saved SHA-256</strong><code>${source.sha256}</code>`);
   });

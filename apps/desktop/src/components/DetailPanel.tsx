@@ -1366,8 +1366,13 @@ function SourceField({
 function SourceFileDetails({ source }: { source?: SourceRecord }) {
   if (!source) return null;
   return (
-    <details className="source-technical">
-      <summary data-focusable>File details</summary>
+    <details className="source-technical border-t border-pc-border">
+      <summary
+        data-focusable
+        className="cursor-pointer py-3 font-medium text-pc-interactive-foreground"
+      >
+        File details
+      </summary>
       <div className="digest-value">
         <strong>Saved SHA-256</strong>
         <code>{source.sha256 || "Not recorded"}</code>
