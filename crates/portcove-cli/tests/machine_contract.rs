@@ -31,7 +31,7 @@ fn cli_binary() -> std::path::PathBuf {
 fn consequential_help_explains_actions_and_review_arguments() {
     for (args, expected) in [
         (&["ensure", "--help"][..], "required runtime is present"),
-        (&["reconcile", "--help"][..], "saved update policy"),
+        (&["reconcile", "--help"][..], "game update settings"),
         (&["activate", "--help"][..], "staged release"),
         (
             &["rollback", "--help"][..],
@@ -1717,7 +1717,7 @@ fn empty_library_lists_has_human_output_snapshot() {
     let root = tempfile::tempdir().unwrap();
     assert_eq!(
         human_stdout(&portcove(root.path(), &["source", "list"])),
-        "No registered sources.\n",
+        "No saved game-file or BIOS locations yet.\n",
     );
     assert_eq!(
         human_stdout(&portcove(root.path(), &["backup", "list", "lighthouse"])),
@@ -2186,7 +2186,7 @@ fn about_is_branded_for_people_and_structured_for_automation_without_opening_a_l
     assert!(!human_library.exists());
     let human_stdout = std::str::from_utf8(&human.stdout).unwrap();
     assert!(human_stdout.starts_with("Portcove "));
-    assert!(human_stdout.contains("Native ports, kept current."));
+    assert!(human_stdout.contains("Install, update, and play native game ports."));
 
     let machine_library = root.path().join("machine-library");
     let machine = portcove(&machine_library, &["--json", "about"]);

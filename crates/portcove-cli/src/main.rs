@@ -40,8 +40,7 @@ static PORTCOVE_CLI_STEAM_EXEC_IDENTITY: &[u8] = concat!(
 #[command(
     name = "portcove",
     version,
-    about = "Curated native PC port manager",
-    after_help = "Native ports. Verified releases. Local sources."
+    about = "Install, update, and play native game ports."
 )]
 struct Cli {
     /// Include redacted technical error and activity details in human-readable output.
@@ -134,7 +133,7 @@ enum Commands {
         port_id: String,
     },
     Check(UpdateTargetArgs),
-    /// Check installed ports and follow each port's saved update policy.
+    /// Check installed ports and follow each port's game update settings.
     Reconcile(UpdateTargetArgs),
     Install(InstallArgs),
     Adopt(AdoptArgs),
@@ -381,7 +380,7 @@ enum PreparationCommand {
 enum SourceCommand {
     /// Search only explicitly selected folders and profiles; never registers a candidate.
     Discover(SourceDiscoveryArgs),
-    /// Inspect and manage the profile-scoped Source Inbox.
+    /// Open and search Portcove's game-file folder for a file profile.
     Inbox {
         #[command(subcommand)]
         command: SourceInboxCommand,
@@ -1275,7 +1274,7 @@ async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
                     let authorization = if import_mode == SourceImportMode::Move {
                         require_confirmation(
                             &format!(
-                                "Move the original source for {profile_id} into its Source Inbox? The original is removed only after the verified Inbox copy is registered."
+                                "Move the game files for {profile_id} into Portcove's game-file folder? The original is deleted only after the copy is checked and its new location is saved."
                             ),
                             yes,
                             cli.non_interactive,
@@ -1458,12 +1457,14 @@ async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
                 "No installed port currently depends on it.".to_owned()
             } else {
                 format!(
-                    "Installed ports will lose this registered source dependency: {}.",
+                    "These installed ports may need their game-file location added again: {}.",
                     preview.installed_dependent_port_ids.join(", ")
                 )
             };
             require_confirmation(
-                &format!("Remove registered source {profile_id}? {impact}"),
+                &format!(
+                    "Remove saved location for {profile_id}? The game files stay where they are. {impact}"
+                ),
                 yes,
                 cli.non_interactive,
             )?;
@@ -1927,7 +1928,7 @@ async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
                 }
                 require_confirmation(
                     &format!(
-                        "Register {} as a player-owned runtime? Portcove will launch it but never remove its files.",
+                        "Use the installation at {}? Portcove will use it in place. It will not copy, update, back up, or delete its files.",
                         preview.path.display()
                     ),
                     yes,
@@ -1948,7 +1949,7 @@ async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
                 }
                 require_confirmation(
                     &format!(
-                        "Remove only Portcove's registration for {port_id}? {} and all other external files will stay untouched.",
+                        "Stop using this installation for {port_id}? The files at {} and all other external files will stay where they are.",
                         preview.path.display()
                     ),
                     yes,
@@ -2256,13 +2257,13 @@ fn render_about(mode: OutputMode) -> Result<()> {
     let about = AboutDocument {
         product: "Portcove".into(),
         version: env!("CARGO_PKG_VERSION").into(),
-        description: "Native ports, kept current.".into(),
+        description: "Install, update, and play native game ports.".into(),
         repository: env!("CARGO_PKG_REPOSITORY").into(),
         license: env!("CARGO_PKG_LICENSE").into(),
     };
     if mode == OutputMode::Human {
         println!(
-            "Portcove {}\nNative ports, kept current.\n{}\nLicense: {}",
+            "Portcove {}\nInstall, update, and play native game ports.\n{}\nLicense: {}",
             about.version, about.repository, about.license
         );
         Ok(())
@@ -2405,7 +2406,7 @@ fn open_cli_directory(path: &std::path::Path) -> Result<()> {
         .spawn()
         .map_err(|error| {
             PortcoveError::state(format!(
-                "could not open the Source Inbox with the system file manager: {error}"
+                "couldn't open Portcove's game-file folder with the system file manager: {error}"
             ))
         })?;
     Ok(())

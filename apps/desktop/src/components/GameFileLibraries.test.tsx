@@ -97,7 +97,7 @@ it("scans only after a player asks and keeps exact results as reviewed candidate
   );
   expect(document.body.textContent).toContain("D:/Games/game.z64");
   expect(document.body.textContent).toContain("File and folder count");
-  expect(document.body.textContent).toContain("Remove or relink saved folders");
+  expect(document.body.textContent).toContain("Remove or update saved folders");
   expect(desktopApi.importSource).not.toHaveBeenCalled();
 });
 
@@ -153,12 +153,12 @@ it("marks matching registered candidates without claiming installation and keeps
   await click("Scan saved folders");
   expect(document.body.textContent).toContain("Already added");
   expect(document.body.textContent).toContain("Game A: Ready for setup review");
-  expect(document.body.textContent).toContain("Game B: Game-file source needed");
+  expect(document.body.textContent).toContain("Game B: Game files needed");
   expect(document.body.textContent).not.toContain("Already installed");
   await click("View Game B details");
   expect(onOpenPort).toHaveBeenCalledWith("game-b", "game-file-libraries-setup");
   expect(button("View Game A details")).toBeDefined();
-  expect(button("Review source")).toBeDefined();
+  expect(button("Review game files")).toBeDefined();
 
   await act(async () =>
     root.render(
@@ -172,10 +172,10 @@ it("marks matching registered candidates without claiming installation and keeps
       />,
     ),
   );
-  expect(document.body.textContent).toContain("Earlier library view listed this source");
+  expect(document.body.textContent).toContain("An earlier library view listed these game files");
   expect(document.body.textContent).not.toContain("Ready for setup review");
   expect(button("View Game A details").disabled).toBe(true);
-  expect(button("Review source").disabled).toBe(false);
+  expect(button("Review game files").disabled).toBe(false);
   await act(async () =>
     root.render(
       <GameFileLibraries
@@ -192,7 +192,7 @@ it("marks matching registered candidates without claiming installation and keeps
   vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue(stale);
   await click("Refresh folders");
   expect(button("View Game A details").disabled).toBe(true);
-  expect(button("Review source").disabled).toBe(true);
+  expect(button("Review game files").disabled).toBe(true);
 });
 
 it("uses core action reasons and installation state for each registered match", async () => {
@@ -217,13 +217,13 @@ it("uses core action reasons and installation state for each registered match", 
     );
   await renderStatus({ ...status, port_actions: [action("missing_bios")] });
   await click("Scan saved folders");
-  expect(document.body.textContent).toContain("Game A: BIOS source needed");
+  expect(document.body.textContent).toContain("Game A: BIOS file needed");
   await renderStatus({ ...status, port_actions: [action("unsupported_platform")] });
   expect(document.body.textContent).toContain("Game A: Unavailable on this platform");
   await renderStatus({ ...status, port_actions: [action("definition_ineligible")] });
   expect(document.body.textContent).toContain("Game A: Setup on hold");
   await renderStatus({ ...status, active: { id: "installed" } as typeof status.active });
-  expect(document.body.textContent).toContain("Game A: Already installed or registered");
+  expect(document.body.textContent).toContain("Game A: Already in your library");
 });
 
 it("holds a prior setup continuation when a later workspace refresh fails", async () => {
@@ -323,7 +323,7 @@ it("recognizes a registered source in streamed results but still reviews a diffe
   );
   expect(document.body.textContent).not.toContain("Already added");
   expect(document.body.textContent).not.toContain("Ready for setup review");
-  expect(button("Review source now")).toBeDefined();
+  expect(button("Review game files now")).toBeDefined();
 });
 
 it("reviews a streamed match through a fresh core plan before the scan completes", async () => {
@@ -385,7 +385,7 @@ it("reviews a streamed match through a fresh core plan before the scan completes
     plan_sha256: "c".repeat(64),
   };
   const review = vi.spyOn(desktopApi, "planSourceImport").mockResolvedValue(plan);
-  await click("Review source now");
+  await click("Review game files now");
   expect(review).toHaveBeenCalledWith("game", "D:/Games/game.z64", "use_current_location");
   expect(document.body.querySelector('[aria-label="Source import review"]')).not.toBeNull();
   expect(document.activeElement?.textContent).toBe("Cancel review");
@@ -395,11 +395,11 @@ it("reviews a streamed match through a fresh core plan before the scan completes
   expect(button("Relink").disabled).toBe(true);
   expect(desktopApi.importSource).not.toHaveBeenCalled();
   await click("Cancel review");
-  expect(document.activeElement).toBe(button("Review source now"));
+  expect(document.activeElement).toBe(button("Review game files now"));
   await act(async () => finish?.(snapshot));
   expect(document.body.textContent).not.toContain("Matches found so far");
-  expect(document.activeElement).toBe(button("Review source"));
-  expect(button("Review source").disabled).toBe(false);
+  expect(document.activeElement).toBe(button("Review game files"));
+  expect(button("Review game files").disabled).toBe(false);
   expect(desktopApi.importSource).not.toHaveBeenCalled();
 });
 
@@ -432,9 +432,9 @@ it("restores focus to a completed match when its live scan button disappears", a
       size: 64,
     }),
   );
-  button("Review source now").focus();
+  button("Review game files now").focus();
   await act(async () => finish?.(snapshot));
-  expect(document.activeElement).toBe(button("Review source"));
+  expect(document.activeElement).toBe(button("Review game files"));
 });
 
 it("ignores delayed events from a completed scan while another scan runs", async () => {
@@ -506,7 +506,7 @@ it("keeps a streamed match unregistered when fresh planning rejects changed byte
       size: 64,
     }),
   );
-  await click("Review source now");
+  await click("Review game files now");
   expect(document.body.textContent).toContain("Source changed during scan");
   expect(document.body.querySelector('[aria-label="Source import review"]')).toBeNull();
   expect(desktopApi.importSource).not.toHaveBeenCalled();
@@ -517,8 +517,8 @@ it("reports a cancelled source check without describing the saved scan as cancel
   vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue(snapshot);
   vi.spyOn(desktopApi, "planSourceImport").mockRejectedValue({ code: "cancelled" });
   await click("Scan saved folders");
-  await click("Review source");
-  expect(document.body.textContent).toContain("Source check cancelled. No source was added.");
+  await click("Review game files");
+  expect(document.body.textContent).toContain("Game-file check cancelled. No location was saved.");
   expect(document.body.textContent).toContain("D:/Games/game.z64");
   expect(document.body.textContent).not.toContain("Scan cancelled");
   expect(desktopApi.importSource).not.toHaveBeenCalled();
@@ -542,11 +542,11 @@ it("reports cancelled source addition while keeping its review and completed sca
     source_guard_sha256: source.sha256,
     plan_sha256: "c".repeat(64),
   });
-  await click("Review source");
+  await click("Review game files");
   vi.mocked(desktopApi.importSource).mockRejectedValueOnce({ code: "cancelled" });
   await click("Use current location");
   expect(document.body.textContent).toContain(
-    "Source addition cancelled. Refresh the workspace to confirm the current state.",
+    "Adding game files was cancelled. Refresh the workspace to confirm the current state.",
   );
   expect(document.body.querySelector('[aria-label="Source import review"]')).not.toBeNull();
   expect(document.body.textContent).toContain("D:/Games/game.z64");
@@ -614,10 +614,10 @@ it("offers only affected catalog ports after explicit source registration", asyn
     );
   }
   await act(async () => root.render(<SettingsAndDetails />));
-  await click("Review source");
+  await click("Review game files");
   await click("Cancel review");
-  expect(document.activeElement).toBe(button("Review source"));
-  await click("Review source");
+  expect(document.activeElement).toBe(button("Review game files"));
+  await click("Review game files");
   expect(document.body.querySelector('[aria-label="Continue to a game"]')).toBeNull();
   await click("Use current location");
   expect(desktopApi.importSource).toHaveBeenCalledWith(
@@ -692,12 +692,12 @@ it("keeps a committed source visible but holds setup until a failed refresh reco
     );
   }
   await act(async () => root.render(<Settings />));
-  await click("Review source");
+  await click("Review game files");
   await click("Use current location");
   expect(desktopApi.importSource).toHaveBeenCalledOnce();
   expect(onAdded).toHaveBeenCalledOnce();
-  expect(document.body.textContent).toContain("The view could not refresh");
-  expect(document.body.textContent).toContain("this source was already added");
+  expect(document.body.textContent).toContain("The view couldn't refresh");
+  expect(document.body.textContent).toContain("the files were already added");
   expect(document.body.textContent).toContain("before continuing to a game");
   expect(document.body.querySelector('[aria-label="Source import review"]')).toBeNull();
   expect(button("Open Game A details").disabled).toBe(true);
@@ -746,7 +746,7 @@ it("does not offer review from a snapshot whose inputs changed", async () => {
   await act(async () =>
     root.render(<GameFileLibraries key="other-library" ports={[]} profiles={[]} />),
   );
-  expect(button("Review source").disabled).toBe(true);
+  expect(button("Review game files").disabled).toBe(true);
   expect(document.body.textContent).toContain("search rules changed");
   expect(document.body.textContent).toContain("Scan again before using these results");
 });

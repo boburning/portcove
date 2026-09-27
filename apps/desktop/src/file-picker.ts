@@ -51,7 +51,7 @@ export async function pickSourcePath(
 
 export function pickSourceArchivePath(currentPath: string, purpose: SourcePickerPurpose = "game") {
   return open({
-    title: purpose === "bios" ? "Choose BIOS file" : "Choose game files",
+    title: "Choose ZIP file",
     multiple: false,
     directory: false,
     defaultPath: currentPath || undefined,

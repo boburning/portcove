@@ -648,7 +648,7 @@ export async function interruptedPreparationScenario({
         (
           await browser.findElements(
             By.xpath(
-              '//section[@aria-label="Retained work and repairs"]//p[@role="status" and starts-with(normalize-space(.), "Refreshing recovery information")]',
+              '//section[@aria-label="Unfinished work and recovery"]//p[@role="status" and starts-with(normalize-space(.), "Refreshing recovery information")]',
             ),
           )
         ).length === 0,

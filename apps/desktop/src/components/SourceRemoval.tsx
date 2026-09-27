@@ -38,12 +38,12 @@ export function SourceRemovalControl({
         disabled={disabled}
         onClick={() => setOpen(true)}
       >
-        Remove reference
+        Remove saved location
       </Button>
       {refreshError && (
         <div>
           <p role="status">
-            The reference was removed. Refresh the list to see the current sources.
+            The saved location was removed. Refresh the list to see the current files.
           </p>
           <Button
             data-focusable
@@ -53,7 +53,7 @@ export function SourceRemovalControl({
               void completed();
             }}
           >
-            Refresh source list
+            Refresh saved-file list
           </Button>
         </div>
       )}
@@ -94,7 +94,7 @@ export function SourceRemovalDialog({
     },
     close,
     failureMessage:
-      "The reference was not removed. Review the current source and affected games before trying again.",
+      "The saved location was not removed. Check the current location and affected games before trying again.",
   });
   return (
     <Dialog
@@ -109,20 +109,22 @@ export function SourceRemovalDialog({
         aria-describedby="source-removal-description"
       >
         <DialogTitle id="source-removal-title" className="mb-2 text-xl">
-          Remove this saved game-file location?
+          Remove this saved file location?
         </DialogTitle>
         <DialogDescription id="source-removal-description" className="mb-4 leading-relaxed">
           {preview ? (
             <>
               Removing this saved location will not move or delete files at{" "}
-              <code className="break-all">{preview.source.path}</code>. Games that need these
-              originals may ask you to add their location again.
+              <code className="break-all">{preview.source.path}</code>. Games that need these files
+              may ask you to add their location again.
             </>
           ) : (
             "Portcove will check the saved location and affected games before removal."
           )}
         </DialogDescription>
-        {pending === "review" && <p role="status">Checking the source and affected games…</p>}
+        {pending === "review" && (
+          <p role="status">Checking the saved location and affected games…</p>
+        )}
         {preview && <SourceRemovalDetails preview={preview} ports={ports} />}
         {error && <p role="alert">{error}</p>}
         <ReviewedRemovalFooter
@@ -131,10 +133,10 @@ export function SourceRemovalDialog({
           dismiss={dismiss}
           review={review}
           apply={execute}
-          keepLabel="Keep source reference"
-          reviewLabel="Review source removal again"
+          keepLabel="Keep location"
+          reviewLabel="Check saved location again"
           applyLabel="Continue to removal confirmation"
-          applyingLabel="Waiting for source removal…"
+          applyingLabel="Waiting for saved-location removal…"
         />
       </DialogContent>
     </Dialog>
@@ -152,13 +154,12 @@ function SourceRemovalDetails({
   return (
     <section className="source-removal-details" aria-label="Affected games and preserved files">
       <p>
-        <strong>Reference to remove:</strong> {preview.source.profile_id}
+        <strong>Saved location to remove:</strong> {preview.source.profile_id}
       </p>
       <p>{preview.source.path}</p>
       <p>
-        Removing this reference does not move or delete files at the path above, installed game
-        versions, saves, backups, or other source references. Only this library's reference is
-        removed.
+        Removing this location does not move or delete files at the path above, installed game
+        versions, saves, backups, or other saved locations. Only this library's location is removed.
       </p>
       <h3>Installed games affected</h3>
       {preview.installed_dependent_port_ids.length ? (
@@ -168,10 +169,10 @@ function SourceRemovalDetails({
           ))}
         </ul>
       ) : (
-        <p>No installed game currently depends on this reference.</p>
+        <p>No installed game currently depends on this location.</p>
       )}
       <details>
-        <summary>All catalog games using this source ({preview.dependent_port_ids.length})</summary>
+        <summary>All catalog games using these files ({preview.dependent_port_ids.length})</summary>
         <ul>
           {preview.dependent_port_ids.map((id) => (
             <li key={id}>{name(id)}</li>
@@ -179,7 +180,7 @@ function SourceRemovalDetails({
         </ul>
       </details>
       <p>
-        If interrupted, reopen Settings and check whether the reference remains before trying again.
+        If interrupted, reopen Settings and check whether the location remains before trying again.
       </p>
     </section>
   );

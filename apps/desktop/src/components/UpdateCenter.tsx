@@ -297,7 +297,7 @@ export function UpdateCenter({
           <h3 className="mb-2 text-base">Externally updated games</h3>
           <p className="update-explainer mb-4 text-xs leading-[var(--leading-comfortable)] text-pc-muted-foreground">
             You prepare updates for these registered runtimes outside Portcove. Open a game to
-            review its registration and launch details.
+            review its saved location and launch details.
           </p>
           <div className="update-list grid gap-2" data-focus-group>
             {external.map((port) => {
@@ -591,7 +591,7 @@ function ActivityTargetLink({
         variant="link"
         size="xs"
         className={activityTargetButton}
-        aria-label={`Open Game Files settings for ${target.label}`}
+        aria-label={`Open Game files settings for ${target.label}`}
         onClick={() => onOpenSettings("source-profile", activity.target_id!)}
       >
         {target.label}
@@ -603,9 +603,9 @@ function ActivityTargetLink({
       : undefined;
   if (settingsTarget) {
     const destination = {
-      "discover-sources": "Game Files",
-      "move-library": "Library & Storage",
-      "import-library": "Library & Storage",
+      "discover-sources": "Game files",
+      "move-library": "Library and storage",
+      "import-library": "Library and storage",
       "catalog-updates": "Catalog updates",
     }[settingsTarget];
     return (
@@ -644,8 +644,8 @@ function operationLabel(operation: ActivityOperation) {
   const labels: Record<ActivityOperation, string> = {
     prepare: "Game-data setup",
     launch: "Game launch",
-    register_external: "External runtime registration",
-    remove_external: "External registration removal",
+    register_external: "Use an existing installation",
+    remove_external: "Stop using an existing installation",
     check_update: "Update check",
     backup: "Backup",
     restore: "Backup restore",
@@ -749,7 +749,7 @@ function UpdateStat({
 
 function policyLabel(policy: PortStatus["update_policy"]) {
   const labels = {
-    automatic: "Install when running updates",
+    automatic: "Install when I run updates",
     stage: "Download for later",
     notify: "Notify me",
   };

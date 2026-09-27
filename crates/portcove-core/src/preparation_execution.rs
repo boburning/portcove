@@ -692,7 +692,7 @@ pub(crate) fn recover(
     if journal.phase == LifecyclePhase::Preparing {
         let _activity_guard = service.library().try_lock_activity(&journal.id)?;
         let mut error = PortcoveError::state(
-            "private preparation cannot be resumed; review its retained work and current inputs before starting a new preparation",
+            "this interrupted setup cannot resume; review its unfinished work and current requirements before trying again",
         )
         .with_mutation_state(MutationState::RecoveryRequired)
         .during("preparation.interrupted")

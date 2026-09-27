@@ -50,8 +50,14 @@ export function CliContinuity({
       current = false;
     };
   }, [generation, attempt]);
-  const title = status?.active ? "Launch from another app" : "Set up from the command line";
-  const copyLabel = status?.active ? "Copy launch command" : "Copy setup command";
+  const installed = Boolean(status?.active || status?.external_runtime);
+  const useInPlace = !installed && port.release.provider === "user-prepared";
+  const title = installed ? "Launch from another app" : "Set up from the command line";
+  const copyLabel = installed
+    ? "Copy launch command"
+    : useInPlace
+      ? "Copy folder-check command"
+      : "Copy setup command";
   if (!context)
     return (
       <section className="cli-continuity" aria-label={title}>
@@ -109,10 +115,25 @@ export function CliContinuity({
         value={command.shell}
         label={command.missing.length ? "Copy command template" : copyLabel}
       />
+      {command.followUp && (
+        <>
+          <p>
+            After the folder check passes, review and save this installation. Its files stay where
+            they are.
+          </p>
+          <CopyField
+            key={command.followUp.shell}
+            value={command.followUp.shell}
+            label="Copy use-in-place command template"
+          />
+        </>
+      )}
       <p>
-        {status?.active
+        {installed
           ? "The CLI checks this installation before launching it. This does not install or update the game."
-          : "Running this command can download and install the selected release. Required original files are checked before use."}
+          : useInPlace
+            ? "Prepare the required version yourself. Replace game-folder with its folder path, check it, then save the location after review. Portcove does not download, copy, update, back up, or delete these files."
+            : "Running this command can download and install the selected release. Required game files are checked before use."}
       </p>
       <details>
         <summary data-focusable>Separate program and arguments</summary>

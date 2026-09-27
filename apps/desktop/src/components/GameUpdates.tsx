@@ -42,7 +42,7 @@ export function UpdatePolicyControl({
   return (
     <section aria-label="Game update settings">
       <ChoiceSelect
-        label="Saved update policy"
+        label="Game update behavior"
         value={draft}
         disabled={busy || pending}
         onChange={(value) => {
@@ -51,8 +51,8 @@ export function UpdatePolicyControl({
         }}
         options={[
           { value: "notify", label: "Notify me" },
-          { value: "stage", label: "Download for later" },
-          { value: "automatic", label: "Install when running updates" },
+          { value: "stage", label: "Keep update for later" },
+          { value: "automatic", label: "Install when I run updates" },
         ]}
       />
       <p>
@@ -135,7 +135,7 @@ export function GameUpdateControl({
           result
             ? plan.activate
               ? "Update installed. Your previous version remains available."
-              : "Update staged for later. Your active version is unchanged."
+              : "Update saved for later. Your current version is unchanged."
             : "Update did not complete. Review the current state before retrying.",
         );
     } catch (error) {
@@ -161,7 +161,7 @@ export function GameUpdateControl({
           setMessage(undefined);
         }}
         options={[
-          { value: "stage", label: "Stage for later" },
+          { value: "stage", label: "Keep update for later" },
           { value: "activate", label: "Install update" },
         ]}
       />
@@ -255,8 +255,8 @@ export function GameUpdateControl({
 function gameUpdateActionLabel(plan: GameUpdatePlan) {
   const labels: Record<GameUpdatePlan["plan"]["action"], string | undefined> = {
     download: plan.activate ? "Download and install update" : "Download update for later",
-    use_staged: plan.activate ? "Install verified update" : "Stage verified update for later",
-    reuse_retained: plan.activate ? "Install verified update" : "Stage verified update for later",
+    use_staged: plan.activate ? "Use saved update" : "Keep saved update for later",
+    reuse_retained: plan.activate ? "Use saved update" : "Keep saved update for later",
     already_active: undefined,
     blocked_unverified: undefined,
   };
@@ -290,7 +290,7 @@ function GameUpdateReview({ plan }: { plan: GameUpdatePlan }) {
         <p>
           {plan.activate
             ? "The verified update becomes active and the current version remains available for rollback."
-            : "This will stage the verified update for later. Your active version stays unchanged."}{" "}
+            : "This keeps the verified update for later. Your current version stays unchanged."}{" "}
           Saved update settings are unchanged.
         </p>
       )}

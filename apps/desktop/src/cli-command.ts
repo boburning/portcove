@@ -14,8 +14,25 @@ export function primaryCliCommand(
   const executable = context.executable ?? "<portcove-executable>";
   const missing: string[] = context.executable ? [] : ["Portcove CLI executable"];
   const args = ["--library", context.library_root];
-  if (status?.active) args.push("exec", port.id, "--");
-  else {
+  let followUp: { args: string[]; shell: string } | undefined;
+  if (status?.active || status?.external_runtime) args.push("exec", port.id, "--");
+  else if (port.release.provider === "user-prepared") {
+    const folder = "<game-folder>";
+    missing.push("game-folder");
+    args.push("external", "preview", port.id, folder);
+    const registrationArgs = [
+      "--library",
+      context.library_root,
+      "external",
+      "register",
+      port.id,
+      folder,
+    ];
+    followUp = {
+      args: registrationArgs,
+      shell: shellCommand(executable, registrationArgs, interpreter),
+    };
+  } else {
     args.push("--json", "--non-interactive", "ensure", port.id, "--channel", channel);
     for (const [required, flag, value, label] of [
       [port.source_profile, "--source", sourcePath, "source-path"],
@@ -32,6 +49,7 @@ export function primaryCliCommand(
     missing,
     interpreter,
     shell: shellCommand(executable, args, interpreter),
+    followUp,
   };
 }
 

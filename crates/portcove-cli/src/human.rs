@@ -70,14 +70,12 @@ pub(crate) fn failure(error: &portcove_core::FailureReport, technical: bool) -> 
     let outcome = match presentation.mutation_state {
         MutationState::NotStarted => "This operation did not start.",
         MutationState::NoChanges => "No files were changed by this operation.",
-        MutationState::Committed => {
-            "The change was committed. Review the current state before another operation."
-        }
+        MutationState::Committed => "The change was saved. Check the result before trying again.",
         MutationState::RecoveryRequired => {
-            "Retained work needs recovery review before another attempt."
+            "An earlier attempt left unfinished work. Review recovery options before trying again."
         }
         MutationState::Unknown => {
-            "The changes could not be confirmed. Review the current state before another attempt."
+            "Portcove couldn't confirm whether anything changed. Check the result before trying again."
         }
     };
     let mut output = format!("{tone}: {}\n{outcome}", presentation.summary);
@@ -292,7 +290,7 @@ fn backup_problem_kind(kind: BackupProblemKind) -> &'static str {
 
 pub(crate) fn source_list(sources: &[SourceRecord]) -> String {
     if sources.is_empty() {
-        return "No registered sources.".into();
+        return "No saved game-file or BIOS locations yet.".into();
     }
     let rows = sources
         .iter()
@@ -306,7 +304,7 @@ pub(crate) fn source_list(sources: &[SourceRecord]) -> String {
         })
         .collect();
     format!(
-        "Registered sources ({})\n{}",
+        "Saved game-file and BIOS locations ({})\n{}",
         sources.len(),
         table(&["PROFILE", "SIZE", "UPDATED (UTC)", "PATH"], rows)
     )
@@ -1554,7 +1552,7 @@ mod tests {
             (
                 PortcoveError::state(record.message.clone().unwrap()),
                 ActivityStatus::Failed,
-                "The changes could not be confirmed.",
+                "Portcove couldn't confirm whether anything changed.",
             ),
             (
                 PortcoveError::new(ErrorCode::Cancelled, "token=owned-secret")

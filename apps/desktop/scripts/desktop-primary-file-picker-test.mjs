@@ -53,13 +53,13 @@ export async function primaryFilePickerScenario({
     );
     await click(primary());
     await confirmNative("Choose BIOS file", "Open", "File name:", "primary-bios-open", biosFile);
-    const review = await browser.wait(until.elementLocated(button("Review install")), 10_000);
+    const review = await browser.wait(until.elementLocated(button("Review installation")), 10_000);
     await browser.wait(
       async () =>
         (await review.isEnabled()) &&
         (await browser.executeScript((element) => document.activeElement === element, review)),
       10_000,
-      "BIOS selection did not focus Review install",
+      "BIOS selection did not focus Review installation",
     );
     const screenshot = path.join(output, "native-primary-file-pickers.png");
     await writeFile(screenshot, await browser.takeScreenshot(), { encoding: "base64", flag: "wx" });

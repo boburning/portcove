@@ -16,6 +16,16 @@ import { Button } from "./ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "./ui/dialog";
 import { Input } from "./ui/input";
 
+function steamChangeLabel(kind: SteamEntryReview["changes"][number]["kind"]) {
+  const labels: Record<SteamEntryReview["changes"][number]["kind"], string> = {
+    add: "Add shortcut",
+    repair: "Repair shortcut",
+    remove: "Remove shortcut",
+    unchanged: "No shortcut change",
+  };
+  return Object.hasOwn(labels, kind) ? labels[kind] : "Shortcut change unavailable";
+}
+
 export function SteamEntryControl({
   port,
   generation,
@@ -624,7 +634,7 @@ function SteamEntryReviewDetails({ review }: { review: SteamEntryReview | SteamB
         )}
         {review.changes.map((change) => (
           <li key={change.port_id}>
-            {change.display_name ?? change.port_id}: {change.kind.replaceAll("_", " ")}
+            {change.display_name ?? change.port_id}: {steamChangeLabel(change.kind)}
           </li>
         ))}
       </ul>

@@ -30,25 +30,25 @@ pub(crate) async fn remove_source(
     let preview = preview_source_removal(state.clone(), profile_id.clone(), generation).await?;
     if preview.preview_sha256 != preview_sha256 {
         return Err(PortcoveError::conflict(
-            "the source or its installed dependents changed after the removal preview",
+            "the saved file location or affected games changed after review",
         )
         .into());
     }
     let impact = if preview.installed_dependent_port_ids.is_empty() {
-        "No installed port currently depends on it.".to_owned()
+        "No installed game currently needs this saved location.".to_owned()
     } else {
         format!(
-            "Installed ports will lose this source dependency: {}.",
+            "These installed games may need their file location added again: {}.",
             preview.installed_dependent_port_ids.join(", ")
         )
     };
     if !confirm_destructive(
         &app,
-        "Confirm source removal",
+        "Remove saved location?",
         format!(
-            "Remove registered source {profile_id}?\n\nSource: {}\n\n{impact} The source file itself will not be deleted.", preview.source.path.display()
+            "Remove the saved location for {profile_id}?\n\nSaved location: {}\n\n{impact} The files will stay where they are.", preview.source.path.display()
         ),
-        "Remove source reference",
+        "Remove saved location",
     )
     .await
     {

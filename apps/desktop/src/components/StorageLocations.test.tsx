@@ -104,7 +104,7 @@ describe("Storage locations", () => {
     await act(async () => root.render(<RemountFixture />));
     const oldSwitchTrigger = button("Choose another library");
     await click("Choose another library");
-    await click("Switch whole library");
+    await click("Switch library");
     const newSwitchTrigger = button("Choose another library");
     expect(newSwitchTrigger).not.toBe(oldSwitchTrigger);
     expect(document.activeElement).toBe(newSwitchTrigger);
@@ -134,13 +134,13 @@ describe("Storage locations", () => {
     });
 
     await click("Choose another library");
-    expect(container.textContent).not.toContain("Switch whole Portcove library");
+    expect(container.textContent).not.toContain("Switch libraries?");
     expect(switchLibrary).not.toHaveBeenCalled();
 
     const trigger = button("Choose another library");
     await click("Choose another library");
     expect(document.body.querySelector('[role="dialog"]')).not.toBeNull();
-    expect(document.body.textContent).toContain("Switch whole Portcove library");
+    expect(document.body.textContent).toContain("Switch libraries?");
     expect(document.body.textContent).toContain("F:/Other Portcove");
     expect(document.body.textContent).toContain(
       "The library you open uses its own game install folder settings",
@@ -152,7 +152,7 @@ describe("Storage locations", () => {
 
     choose.mockResolvedValueOnce("F:/Other Portcove");
     await click("Choose another library");
-    await click("Switch whole library");
+    await click("Switch library");
     expect(switchLibrary).toHaveBeenCalledWith("F:/Other Portcove");
     expect(reset).not.toHaveBeenCalled();
     expect(document.activeElement).toBe(trigger);
@@ -253,7 +253,7 @@ describe("Storage locations", () => {
     });
     const trigger = button("Choose another library");
     await click("Choose another library");
-    await click("Switch whole library");
+    await click("Switch library");
     expect(button("Switching…").disabled).toBe(true);
     await act(async () => {
       document.body.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));

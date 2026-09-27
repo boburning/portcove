@@ -77,23 +77,35 @@ export function sourceDiscoveryLimitLabel(limit: string, source: "folder" | "inb
 export function sourceDiscoveryLimitGuidance(limit: string, source: "folder" | "inbox" = "folder") {
   if (limit === "entries")
     return source === "inbox"
-      ? "Open Source Inbox and temporarily move some files outside it. Scan the files left there, then swap batches and scan again."
+      ? "Open Portcove's game-file folder and temporarily move some files outside it. Search the files left there, then swap batches and search again."
       : "Choose a smaller folder and search again.";
   if (limit === "depth")
     return source === "inbox"
-      ? "Open Source Inbox and move deeply nested files closer to its root, then scan again."
+      ? "Open Portcove's game-file folder and move deeply nested files closer to its root, then search again."
       : "Choose a deeper folder as the search root and search again.";
   if (limit === "file_size")
     return `This scan skips files over ${formatBytes(scanLimits.max_file_bytes)}. The result does not identify which file hit this limit; check a suspected file from its game details.`;
   if (limit === "hash_bytes")
     return source === "inbox"
-      ? `This scan reached its ${formatBytes(scanLimits.max_hash_bytes)} verification-work budget. Open Source Inbox and temporarily move some files outside it. Scan the files left there, then swap batches; a single file over the budget still cannot be checked.`
+      ? `This search reached its ${formatBytes(scanLimits.max_hash_bytes)} checking limit. Open Portcove's game-file folder and temporarily move some files outside it. Search the files left there, then swap batches; a single file over the limit still cannot be checked.`
       : `This scan reached its ${formatBytes(scanLimits.max_hash_bytes)} verification-work budget. Search separate subfolders; a single file over the budget still cannot be checked.`;
   if (limit === "candidates")
     return source === "inbox"
-      ? "Review the possible matches shown. Open Source Inbox and temporarily move some files outside it. Scan the files left there, then swap batches to check the rest."
+      ? "Review the possible matches shown. Open Portcove's game-file folder and temporarily move some files outside it. Search the files left there, then swap batches to check the rest."
       : "Search a smaller folder to check more exact matches.";
   return "Review the search limits and try a narrower search.";
+}
+
+export function inboxStateMessage(state: SourceInboxResolution["state"]) {
+  const messages: Record<SourceInboxResolution["state"], string> = {
+    registered: "Required files already added.",
+    exact_match: "An exact match is available.",
+    approval_required: "A possible match needs your review.",
+    unresolved: "No matching files found.",
+    conflict: "More than one match needs review.",
+    incomplete: "The search could not check every file.",
+  };
+  return Object.hasOwn(messages, state) ? messages[state] : "Search result unavailable.";
 }
 
 export function sourceImportModePresentation(mode: string) {
@@ -102,7 +114,7 @@ export function sourceImportModePresentation(mode: string) {
     : {
         label: "Import method unavailable",
         explanation:
-          "This source import method is unavailable in this version. Cancel this review before choosing another method.",
+          "This way of adding files is unavailable in this version. Cancel this review before choosing another method.",
         known: false,
       };
 }
@@ -126,7 +138,7 @@ export function SourceDiscoveryButton({
         disabled={disabled || profiles.length === 0}
         onClick={() => setOpen(true)}
       >
-        Choose game files
+        Find required files
       </Button>
       {open && (
         <SourceDiscoveryDialog profiles={profiles} onAdded={onAdded} close={() => setOpen(false)} />
@@ -148,12 +160,22 @@ export function sourceImportNotice(result: SourceImportResult) {
     case "reused_existing":
       return "The existing Portcove copy was checked and added; the original was kept.";
     default:
-      return "Source import outcome is unavailable in this version. Review the current registration before another attempt.";
+      return "Portcove couldn't confirm how the files were added. Check their saved location before trying again.";
   }
 }
 
 export function sourceImportRefreshNotice(result: SourceImportResult) {
-  return `${sourceImportNotice(result)} The view could not refresh. Use Retry refresh to review the current state; this source was already added.`;
+  if (
+    ![
+      "copied_original_retained",
+      "moved",
+      "registered_current_location",
+      "copied",
+      "reused_existing",
+    ].includes(result.outcome)
+  )
+    return "Portcove couldn't confirm how the files were added, and the view couldn't refresh. Use Retry refresh to check the saved location before trying again.";
+  return `${sourceImportNotice(result)} The view couldn't refresh. Use Retry refresh to check the current state; the files were already added.`;
 }
 
 function useSourceDiscoveryWorkflow(onAdded?: () => Promise<unknown>) {
@@ -207,13 +229,13 @@ function useSourceDiscoveryWorkflow(onAdded?: () => Promise<unknown>) {
       if (selected) updateRoot(selected);
     });
   const openInbox = () =>
-    run("Opening Source Inbox…", async () => {
+    run("Opening Portcove game-file folder…", async () => {
       const paths = await desktopApi.openSourceInbox(profile);
       setNotice(`Opened ${paths.profile ?? paths.root}`);
     });
   const scanInbox = () => {
     clearResults();
-    return run("Scanning Source Inbox…", async () =>
+    return run("Searching Portcove game-file folder…", async () =>
       setInbox(await desktopApi.scanSourceInbox(profile, scanLimits, trackStart)),
     );
   };
@@ -229,7 +251,7 @@ function useSourceDiscoveryWorkflow(onAdded?: () => Promise<unknown>) {
     );
   };
   const reviewImport = (candidate: SourceRecord, mode: SourceImportMode) =>
-    run("Checking the source and destination…", async () => {
+    run("Checking the selected file and destination…", async () => {
       setPlan(await desktopApi.planSourceImport(profile, candidate.path, mode));
       setNotice(undefined);
     });
@@ -249,7 +271,7 @@ function useSourceDiscoveryWorkflow(onAdded?: () => Promise<unknown>) {
         trackStart,
       );
       if (!result) {
-        setNotice("Move cancelled. The original and registration were left unchanged.");
+        setNotice("Move cancelled. The original files and saved location were left unchanged.");
         return;
       }
       setRegistered(result.registered.path);
@@ -302,7 +324,7 @@ function DiscoveryResults({ workflow }: { workflow: Workflow }) {
   const limitSource = report ? "folder" : "inbox";
   if (!report && !inbox) return null;
   return (
-    <section className="source-discovery-results" aria-label="Source search results">
+    <section className="source-discovery-results" aria-label="File search results">
       {limits.length > 0 && (
         <>
           <p>Some files weren't checked because this scan reached a limit.</p>
@@ -397,7 +419,7 @@ export function SourceImportReview({
       <h3>{presentation.label}</h3>
       <p>{presentation.explanation}</p>
       <p>
-        Source:{" "}
+        Selected location:{" "}
         <code className="whitespace-normal [overflow-wrap:anywhere]">{plan.source.path}</code>
       </p>
       <p>
@@ -405,7 +427,7 @@ export function SourceImportReview({
         : <code className="whitespace-normal [overflow-wrap:anywhere]">{plan.destination}</code>
       </p>
       {plan.existing_registration && (
-        <p>This replaces the current registration after the selected source is rechecked.</p>
+        <p>This updates the saved location after Portcove checks the expected files again.</p>
       )}
       <div className="actions">
         <Button data-focusable variant="outline" disabled={busy} onClick={onCancel}>
@@ -447,7 +469,7 @@ function SourceDiscoveryDialog({
     if (!busy) close();
   };
   const choices = [
-    { value: "", label: "Choose the game files you need" },
+    { value: "", label: "Choose the required files" },
     ...[...profiles]
       .sort((left, right) => left.label.localeCompare(right.label))
       .map((item) => ({ value: item.id, label: item.label })),
@@ -479,22 +501,21 @@ function SourceDiscoveryDialog({
         className="max-h-[calc(100dvh-var(--space-8))] w-[min(760px,90vw)] max-w-none gap-0 overflow-y-auto overscroll-contain p-8 [scroll-padding-block:var(--space-4)] sm:max-w-none"
         aria-describedby="source-discovery-description"
       >
-        <p className="eyebrow">LOCAL SOURCES</p>
+        <p className="eyebrow">REQUIRED FILES</p>
         <DialogTitle id="source-discovery-title" className="mb-2 text-xl">
-          Choose game files
+          Find required files
         </DialogTitle>
         <DialogDescription id="source-discovery-description" className="mb-2 leading-relaxed">
-          Portcove searches only the folders you choose, checks possible matches, and lets you add
-          an exact match. Nothing is uploaded or moved.
+          Searching does not upload or move your files. After finding a match, choose whether to use
+          it where it is, copy it into Portcove, or move it.
         </DialogDescription>
         <p className="mb-4 text-sm leading-relaxed text-pc-muted-foreground">
-          Source Inbox is Portcove's game-file folder. After a match is found, review whether to
-          copy it there, move it there, or keep using its current location.
+          Portcove's game-file folder can hold files you choose to copy or move into your library.
         </p>
         <NavigationHints />
         <ChoiceSelect
           triggerId="source-profile-select"
-          label="Required game files"
+          label="Required files"
           value={profile}
           options={choices}
           disabled={Boolean(busy)}
@@ -526,7 +547,7 @@ function SourceDiscoveryDialog({
               void workflow.openInbox();
             }}
           >
-            Open Source Inbox
+            Open game-file folder
           </Button>
           <Button
             data-focusable
@@ -536,7 +557,7 @@ function SourceDiscoveryDialog({
               void workflow.scanInbox();
             }}
           >
-            Scan Source Inbox
+            Search game-file folder
           </Button>
         </div>
         <label
@@ -552,7 +573,7 @@ function SourceDiscoveryDialog({
             value={root}
             disabled={Boolean(busy)}
             onChange={(event) => workflow.updateRoot(event.target.value)}
-            placeholder="Folder containing your original game files"
+            placeholder="Folder containing the required files"
           />
           <Button
             data-focusable
@@ -584,9 +605,9 @@ function SourceDiscoveryDialog({
           </p>
         )}
         {inbox && (
-          <section aria-label="Source Inbox scan result">
+          <section aria-label="Game-file folder search result">
             <p>
-              Inbox state: {inbox.state.replaceAll("_", " ")}.{" "}
+              {inboxStateMessage(inbox.state)}{" "}
               {formatCountMessage(inbox.stats.entries_examined, {
                 zero: "Checked no files or folders",
                 one: "Checked 1 file or folder",
@@ -597,7 +618,7 @@ function SourceDiscoveryDialog({
             </p>
             {inbox.selected && (
               <p>
-                Registered source: <code>{inbox.selected.path}</code>
+                Saved file location: <code>{inbox.selected.path}</code>
               </p>
             )}
           </section>
@@ -611,7 +632,7 @@ function SourceDiscoveryDialog({
         />
         {registered && (
           <p role="status">
-            Source registered: <code>{registered}</code>
+            File location saved: <code>{registered}</code>
           </p>
         )}
         {error && <p role="alert">{error}</p>}

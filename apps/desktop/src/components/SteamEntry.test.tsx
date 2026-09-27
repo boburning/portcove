@@ -101,7 +101,7 @@ it("uses the selected installation and profile, shows exact consumer evidence, a
     review.cli_path!,
     review.cli_sha256!,
     review.cli_product_version!,
-    "add",
+    "Add shortcut",
   ])
     expect(document.body.textContent).toContain(value);
   await click("Add or repair shortcut");

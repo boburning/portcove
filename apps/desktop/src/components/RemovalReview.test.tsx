@@ -60,7 +60,7 @@ it("lists every affected path, removed settings and preserved data before explic
     `all installed versions of ${port.name} managed by Portcove`,
     "release-channel and update-policy settings",
     "original folders",
-    "Your saved data, backups, and original game files are kept",
+    "Your saved data, backups, and game files are kept",
     "reinstall it or copy an existing installation",
     "retains a recovery journal",
     "interrupted deletion may finish",

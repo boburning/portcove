@@ -1066,7 +1066,7 @@ fn interrupted_private_preparation_gets_a_truthful_terminal_report_after_reconne
             .iter()
             .find(|item| item.operation_id.as_deref() == Some(journal.id.as_str()))
             .unwrap();
-        assert!(item.proposed_action.contains("cannot be resumed"));
+        assert!(item.proposed_action.contains("cannot resume"));
         assert!(!item.proposed_action.contains("idempotent"));
         assert_eq!(item.path.as_ref(), Some(private));
         assert_ne!(item.path, journal.paths.final_path);

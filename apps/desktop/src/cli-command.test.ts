@@ -73,6 +73,39 @@ describe("GUI to CLI continuity", () => {
     expect(command.shell).toContain("'<portcove-executable>'");
   });
 
+  it("uses the exact external folder preview and registration route for a user-prepared port", () => {
+    const prepared = {
+      ...port,
+      release: { ...port.release, provider: "user-prepared" as const },
+    };
+    const command = primaryCliCommand(context, prepared, undefined, "stable");
+    expect(command.args).toEqual([
+      "--library",
+      "E:/My Library",
+      "external",
+      "preview",
+      "sample-port",
+      "<game-folder>",
+    ]);
+    expect(command.followUp?.args).toEqual([
+      "--library",
+      "E:/My Library",
+      "external",
+      "register",
+      "sample-port",
+      "<game-folder>",
+    ]);
+    expect(command.missing).toContain("game-folder");
+    expect(command.args).not.toContain("ensure");
+    const registered = primaryCliCommand(
+      context,
+      prepared,
+      { ...portStatus(), external_runtime: { id: "external" } } as PortStatus,
+      "stable",
+    );
+    expect(registered.args).toEqual(["--library", "E:/My Library", "exec", "sample-port", "--"]);
+  });
+
   it("rejects null characters instead of producing truncated arguments", () => {
     expect(() => quoteCliArg("bad\0path", "posix")).toThrow(/null/);
   });

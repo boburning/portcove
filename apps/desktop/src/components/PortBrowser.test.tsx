@@ -139,7 +139,7 @@ describe("Library empty browsing context", () => {
         .click(),
     );
     expect(connectGameFiles).toHaveBeenCalledOnce();
-    expect(host.textContent).toContain("register a prepared runtime");
+    expect(host.textContent).toContain("use an existing installation");
     expect(host.textContent).not.toContain("Clear search and filters");
   });
 });

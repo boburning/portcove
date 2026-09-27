@@ -26,7 +26,7 @@ async function waitForFixture(predicate, message) {
 
 function readStagedLayout(version) {
   const buttons = [...document.querySelectorAll(".primary-actions button")];
-  const play = buttons.find((item) => item.textContent?.trim() === "Play now");
+  const play = buttons.find((item) => item.textContent?.trim() === "Play");
   const activate = buttons.find(
     (item) => item.textContent?.trim() === `Activate update · ${version}`,
   );
@@ -76,10 +76,10 @@ export async function installScenarios({
     );
     await browser.wait(until.elementLocated(card), 15_000);
     await browser.findElement(card).click();
-    if (!installed) await browser.wait(until.elementLocated(button("Review install")), 15_000);
+    if (!installed) await browser.wait(until.elementLocated(button("Review installation")), 15_000);
   };
   const reviewAndStart = async ({ inspect = false } = {}) => {
-    const trigger = await browser.findElement(button("Review install"));
+    const trigger = await browser.findElement(button("Review installation"));
     await trigger.click();
     const dialog = By.css('[aria-labelledby="install-review-title"]');
     await browser.wait(until.elementLocated(dialog), 15_000);
@@ -125,12 +125,12 @@ export async function installScenarios({
       await browser.wait(
         () =>
           browser.executeScript(
-            'return document.activeElement?.textContent?.trim() === "Review install";',
+            'return document.activeElement?.textContent?.trim() === "Review installation";',
           ),
         5_000,
         "Install review trigger did not regain focus after Escape",
       );
-      await browser.findElement(button("Review install")).click();
+      await browser.findElement(button("Review installation")).click();
       await browser.wait(until.elementLocated(dialog), 15_000);
       await browser.wait(until.elementIsEnabled(await browser.findElement(install)), 15_000);
     }
@@ -541,7 +541,7 @@ export async function installScenarios({
       until.elementLocated(button(`Activate update · ${nextVersion}`)),
       15_000,
     );
-    const play = await browser.wait(until.elementLocated(button("Play now")), 15_000);
+    const play = await browser.wait(until.elementLocated(button("Play")), 15_000);
     await browser.wait(until.elementIsEnabled(activation), 15_000);
     await browser.wait(until.elementIsEnabled(play), 15_000);
     const layouts = await captureStagedLayouts(port, nextVersion);

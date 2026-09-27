@@ -60,10 +60,10 @@ export async function sourceRemovalScenario({
     }
     const { button, click } = reviewControls(browser);
     await click(By.xpath('//nav//button[contains(., "Settings")]'));
-    const row = By.css(`[data-source-profile="${source.profile_id}"]`);
+    const row = By.css(`.source-health-row[data-source-profile="${source.profile_id}"]`);
     const dialog = By.css('[aria-labelledby="source-removal-title"]');
     const trigger = By.xpath(
-      `//*[@data-source-profile="${source.profile_id}"]//button[normalize-space(.)="Remove reference"]`,
+      `//*[@data-source-profile="${source.profile_id}"]//button[normalize-space(.)="Remove saved location"]`,
     );
     await browser.wait(until.elementLocated(row), 15_000);
     const rowLayout = await browser.executeScript(
@@ -115,7 +115,7 @@ export async function sourceRemovalScenario({
     const destructiveStyles = await assertDestructiveReviewAction(
       browser,
       await browser.findElement(button("Continue to removal confirmation")),
-      await browser.findElement(button("Keep source reference")),
+      await browser.findElement(button("Keep location")),
     );
     let text = await browser.findElement(dialog).getText();
     assert.ok(
@@ -124,7 +124,7 @@ export async function sourceRemovalScenario({
         text.includes("will not move or delete files at") &&
         text.includes("If interrupted, reopen Settings"),
     );
-    await click(button("Keep source reference"));
+    await click(button("Keep location"));
     assert.deepEqual(
       command(["source", "list"]).find((item) => item.profile_id === source.profile_id),
       source,
@@ -132,7 +132,7 @@ export async function sourceRemovalScenario({
     await openReview();
     await click(button("Continue to removal confirmation"));
     await confirmNative(
-      "Confirm source removal",
+      "Remove saved location?",
       "__observe__",
       source.path,
       "source-native-before-consent",
@@ -141,7 +141,7 @@ export async function sourceRemovalScenario({
       command(["source", "list"]).find((item) => item.profile_id === source.profile_id),
       source,
     );
-    await confirmNative("Confirm source removal", "Cancel", source.path, "source-native-cancelled");
+    await confirmNative("Remove saved location?", "Cancel", source.path, "source-native-cancelled");
     await browser.wait(async () => (await browser.findElements(dialog)).length === 0, 15_000);
     await openReview();
     const replacement = path.join(output, `owned-replacement-${port.id}.iso`);
@@ -151,7 +151,7 @@ export async function sourceRemovalScenario({
     command(["source", "add", source.profile_id, replacement]);
     preserved.push(await fileIdentity(replacement));
     await click(button("Continue to removal confirmation"));
-    await browser.wait(until.elementLocated(button("Review source removal again")), 15_000);
+    await browser.wait(until.elementLocated(button("Check saved location again")), 15_000);
     const generation = (await invoke("get_bootstrap_status")).value.generation;
     const reviewed = await invoke("preview_source_removal", {
       profileId: source.profile_id,
@@ -165,7 +165,7 @@ export async function sourceRemovalScenario({
     });
     assert.equal(stale.ok, false);
     assert.equal(stale.error.code, "conflict");
-    await click(button("Review source removal again"));
+    await click(button("Check saved location again"));
     await browser.wait(until.elementLocated(button("Continue to removal confirmation")), 15_000);
     text = await browser.findElement(dialog).getText();
     assert.ok(text.includes(replacement));
@@ -190,8 +190,8 @@ export async function sourceRemovalScenario({
     artifacts.push(compact);
     await click(button("Continue to removal confirmation"));
     await confirmNative(
-      "Confirm source removal",
-      "Remove source reference",
+      "Remove saved location?",
+      "Remove saved location",
       replacement,
       "source-native-confirmed",
     );

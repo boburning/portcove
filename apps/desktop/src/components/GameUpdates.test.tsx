@@ -102,8 +102,8 @@ it("edits locally until Save and never reviews or runs an update when saving", a
   await act(async () =>
     root.render(<UpdatePolicyControl policy="notify" busy={false} save={save} />),
   );
-  await click("Saved update policy", true);
-  await click("Install when running updates");
+  await click("Game update behavior", true);
+  await click("Install when I run updates");
   expect(save).not.toHaveBeenCalled();
   await click("Save update settings");
   expect(save).toHaveBeenCalledExactlyOnceWith("automatic");
@@ -117,8 +117,8 @@ it("does not report a settings save as successful after failure", async () => {
   await act(async () =>
     root.render(<UpdatePolicyControl policy="notify" busy={false} save={save} />),
   );
-  await click("Saved update policy", true);
-  await click("Download for later");
+  await click("Game update behavior", true);
+  await click("Keep update for later");
   await click("Save update settings");
   expect(container.textContent).toContain("Library changed");
   expect(container.textContent).not.toContain("settings saved");
@@ -142,7 +142,7 @@ it("reviews without execution and submits the exact download-only plan on confir
   expect(apply).not.toHaveBeenCalled();
   expect(desktopApi.planGameUpdate).toHaveBeenCalledExactlyOnceWith("sample", false, 9);
   expect(dialog()?.textContent).toContain("to download");
-  expect(dialog()?.textContent).toContain("active version stays unchanged");
+  expect(dialog()?.textContent).toContain("current version stays unchanged");
   expect(document.activeElement?.textContent).toBe("Download update for later");
   await click("Download update for later");
   expect(apply).toHaveBeenCalledExactlyOnceWith(
@@ -154,7 +154,7 @@ it("reviews without execution and submits the exact download-only plan on confir
   );
   expect(container.textContent).toContain("Review game update");
   expect(container.textContent).toContain(
-    "Update staged for later. Your active version is unchanged.",
+    "Update saved for later. Your current version is unchanged.",
   );
   expect(container.textContent).not.toContain("Update downloaded for later");
 });
@@ -380,8 +380,8 @@ it.each(["use_staged", "reuse_retained"] as const)(
     await click("Review game update");
     expect(apply).not.toHaveBeenCalled();
     expect(dialog()?.textContent).toContain("No download; use the verified local release.");
-    expect(dialog()?.textContent).toContain("This will stage the verified update for later.");
-    await click("Stage verified update for later");
+    expect(dialog()?.textContent).toContain("This keeps the verified update for later.");
+    await click("Keep saved update for later");
     expect(apply).toHaveBeenCalledExactlyOnceWith(
       "sample",
       false,
@@ -390,7 +390,7 @@ it.each(["use_staged", "reuse_retained"] as const)(
       expect.any(Function),
     );
     expect(container.textContent).toContain(
-      "Update staged for later. Your active version is unchanged.",
+      "Update saved for later. Your current version is unchanged.",
     );
     expect(container.textContent).not.toContain("Update downloaded for later");
   },

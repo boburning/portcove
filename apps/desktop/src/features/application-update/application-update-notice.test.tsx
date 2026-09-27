@@ -318,7 +318,7 @@ describe("application update notice", () => {
 
     const status = host.querySelector<HTMLElement>('[role="status"]')!;
     expect(status.getAttribute("aria-live")).toBe("polite");
-    expect(status.textContent).toContain("Choose your production channel");
+    expect(status.textContent).toContain("Choose an update channel");
     expect(status.textContent).toContain("it never downgrades Portcove");
     expect(status.textContent).toContain("update mode and pause setting stay unchanged");
     const buttons = [...status.querySelectorAll<HTMLButtonElement>("button")];
@@ -382,6 +382,6 @@ describe("application update notice", () => {
       ),
     );
     expect(host.textContent).toContain("Portcove 1.0.1 is available");
-    expect(host.textContent).not.toContain("Choose your production channel");
+    expect(host.textContent).not.toContain("Choose an update channel");
   });
 });

@@ -58,7 +58,7 @@ Vite's `es2021`, `chrome105`, and `safari13` transform targets remain unchanged 
 - A specific Base UI control may be replaced when a reproducible Tauri, controller, accessibility, or supported-platform failure remains after bounded repair. Preserve the shared API, semantics, and theme where practical, record the evidence, and review the replacement independently; one incompatible control does not reopen the selected system.
 - Controls use the shared 30, 36, and 42-pixel-equivalent height tokens and modest radius scale. Pills are reserved for compact status badges.
 - Ordinary buttons are neutral by default. Signature-red Play, Install, or Apply emphasis is an explicit variant; destructive actions have distinct semantics, wording, placement, and confirmation behavior. Focus remains gold and visibly distinct from both selection and destructive intent, including the combined selected-and-focused state.
-- Buttons name the result: `Review install`, `Play now`, `Verify sources`, and `Remove managed files`. Avoid `Submit`, `Proceed`, `Execute`, `Yes`, and `No` when the action can be named.
+- Buttons name the action or review: `Review installation`, `Play`, `Check game files`, and `Remove managed files`. Avoid `Submit`, `Proceed`, `Execute`, `Yes`, and `No` when the action can be named.
 - Every control needs deliberate default, hover, focus, pressed, selected, disabled, and loading treatment where those states apply. Geometry must remain stable across those states, transitions must name intentional properties rather than use `transition-all`, and forced-colors presentation must retain visible system-compatible outlines, borders, and meaning.
 - Icons come from Lucide through the shared `Icon` wrapper. An icon-only control must have an accessible name. Status never relies on icon or color alone.
 - Dialogs trap focus, close with Escape, restore the initiating focus target, use a named heading, and reserve confirmations for destructive or difficult-to-reverse actions.
@@ -130,8 +130,15 @@ GUI labels should match the CLI concepts. A GUI action that external tools may a
 
 ### Public beta writing and terminology
 
-Use **original game files** for user-supplied input; name a ROM, disc image,
-or BIOS when its format matters. A **saved game-file location** is a remembered
+Show Portcove's name without a promotional sidebar subtitle. Use **About Portcove**
+for the About heading. When a functional description helps, use “Install, update,
+and play native game ports.” Do not use harbor-themed slogans for Portcove.
+Describe individual installation routes and limitations at their own controls;
+the product description does not promise every port automatic installation,
+updates, or backups.
+
+Use **game files** for user-supplied original input; name a ROM, disc image,
+or BIOS when its format matters. A **saved location** is a remembered
 external reference, the **Portcove library** holds managed content, and an
 **install folder** is future placement for installed versions. Use **saved data**
 for the port's managed saves, settings, and other persistent files, with that
@@ -164,7 +171,7 @@ that every check completed.
 When a game-file search reaches a safety limit, name the limit and give a next
 step that fits it. Show the submitted size and verification-work caps, and state when the
 report does not identify the affected file.
-In Game Files settings, distinguish a library with no installed ports from
+In Game files settings, distinguish a library with no installed ports from
 installed ports with no missing game-file requirements; neither state proves a
 fresh file verification or launch readiness.
 Use the saved update-policy choice verbatim in summaries. Separate an unchecked
@@ -325,7 +332,7 @@ roughly 36–40rem surface on large displays or a restrained sticky primary acti
 but focus, controller navigation, compact layouts, and safety information must
 remain intact. Infrequent maintenance and technical controls use progressive
 disclosure without becoming hidden safety state. Settings grows through clear
-Appearance, Library & Storage, Game Files, Updates, Integrations, and Advanced
+Appearance, Library and storage, Game files, Updates, Integrations, and Advanced
 grouping using the smallest scalable structure, not an automatic second sidebar.
 In GitHub settings, lead with connection purpose and signed-in state; keep
 credential provenance and request accounting in Connection details. Token entry
