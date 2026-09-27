@@ -103,7 +103,7 @@ describe("static development scenarios", () => {
     const spaceBlocked = renderScenario("installation-review-space-blocked");
     expect(spaceBlocked).toContain("This download needs more free space");
     expect(spaceBlocked).toContain("Free space required");
-    expect(spaceBlocked).toContain("Open Library &amp; Storage");
+    expect(spaceBlocked).toContain("Open Library and storage");
     const spaceRoot = document.createElement("div");
     spaceRoot.innerHTML = spaceBlocked;
     expect(
