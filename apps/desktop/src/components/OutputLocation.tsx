@@ -19,20 +19,21 @@ const outputReviewClass =
   "output-location-review grid gap-3 rounded-pc-md border border-pc-border bg-[var(--color-bg-inset)] p-4";
 const outputReviewTitleClass =
   "output-review-title flex flex-wrap items-start justify-between gap-3";
-const outputFactsClass = "grid grid-cols-2 gap-2 max-[48rem]:grid-cols-1";
+const outputFactsClass = "m-0 grid grid-cols-2 gap-2 max-[48rem]:grid-cols-1";
 const outputCodeClass =
   "block [overflow-wrap:anywhere] rounded-pc-md bg-[var(--color-bg-inset)] p-2 text-[var(--color-interactive-text)]";
 const outputReviewCodeClass =
   "block [overflow-wrap:anywhere] rounded-pc-md bg-[var(--color-bg-subtle)] p-2 text-[var(--color-interactive-text)]";
-const outputReviewCopyClass = "flex items-center gap-2 text-xs text-[var(--color-text-secondary)]";
+const outputReviewCopyClass =
+  "m-0 flex items-center gap-2 text-xs text-[var(--color-text-secondary)]";
 const outputProblemClass =
-  "output-location-error flex items-start gap-2 text-pc-warning-foreground";
+  "output-location-error m-0 flex items-start gap-2 text-xs leading-[var(--leading-relaxed)] text-pc-warning-foreground";
 
 function OutputFact({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="min-w-0">
       <dt className="text-[var(--text-2xs)] text-pc-muted-foreground uppercase">{label}</dt>
-      <dd className="mt-1 [overflow-wrap:anywhere] text-xs text-[var(--color-text-secondary)]">
+      <dd className="m-0 mt-1 [overflow-wrap:anywhere] text-xs text-[var(--color-text-secondary)]">
         {children}
       </dd>
     </div>
@@ -477,7 +478,7 @@ function OutputLocationStatus({
     <>
       {result && (
         <p
-          className="output-location-success flex items-start gap-2 text-pc-success-foreground"
+          className="output-location-success m-0 flex items-start gap-2 text-xs leading-[var(--leading-relaxed)] text-pc-success-foreground"
           role="status"
         >
           <Icon glyph={ShieldCheck} size="sm" />

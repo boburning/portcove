@@ -1515,10 +1515,15 @@ try {
       const control = document.querySelector(".output-location-control");
       const current = control?.querySelector('[aria-label="Current output destination"]');
       if (!(control instanceof HTMLElement) || !(current instanceof HTMLElement)) return null;
+      const facts = current.querySelector("dl");
+      const factValue = facts?.querySelector("dd");
+      if (!(facts instanceof HTMLElement) || !(factValue instanceof HTMLElement)) return null;
       control.scrollIntoView({ block: "start", inline: "nearest" });
       return {
         controlDisplay: getComputedStyle(control).display,
         currentDisplay: getComputedStyle(current).display,
+        factsTopMargin: getComputedStyle(facts).marginTop,
+        factValueLeftMargin: getComputedStyle(factValue).marginLeft,
         horizontalOverflow: document.documentElement.scrollWidth > window.innerWidth + 1,
         controlOverflow: control.scrollWidth > control.clientWidth + 1,
       };
@@ -1526,6 +1531,8 @@ try {
     assert.deepEqual(outputLayout, {
       controlDisplay: "grid",
       currentDisplay: "grid",
+      factsTopMargin: "0px",
+      factValueLeftMargin: "0px",
       horizontalOverflow: false,
       controlOverflow: false,
     });
@@ -1539,12 +1546,18 @@ try {
       15_000,
     );
     assert.equal(
-      await browser.executeScript(
-        (review) =>
+      await browser.executeScript((review) => {
+        const facts = review.querySelector("dl");
+        const value = facts?.querySelector("dd");
+        return (
           getComputedStyle(review).display === "grid" &&
-          review.scrollWidth <= review.clientWidth + 1,
-        outputReview,
-      ),
+          review.scrollWidth <= review.clientWidth + 1 &&
+          facts instanceof HTMLElement &&
+          value instanceof HTMLElement &&
+          getComputedStyle(facts).marginTop === "0px" &&
+          getComputedStyle(value).marginLeft === "0px"
+        );
+      }, outputReview),
       true,
     );
     await captureScenarioScreenshot("game-details-output-destination-review", true);
