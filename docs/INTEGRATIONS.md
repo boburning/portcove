@@ -35,11 +35,11 @@ promise.
 [#30](https://github.com/boburning/portcove/issues/30) owns demonstrated public
 contract gaps and compatibility policy, while
 [#243](https://github.com/boburning/portcove/issues/243) owns the bounded real
-consumer proof and integration-author experience. The current Playnite client is
-developer-loaded; [#910](https://github.com/boburning/portcove/issues/910) owns its
-separate normally installable, user-ready lifecycle product. Planned behavior
-remains planned until its canonical owner contains matching implementation and
-evidence.
+consumer proof and integration-author experience. The Playnite source now builds
+a local `.pext` candidate with explicit CLI/library selection and connection;
+[#910](https://github.com/boburning/portcove/issues/910) owns its remaining
+user-ready lifecycle product and acceptance. Planned behavior remains planned
+until its canonical owner contains matching implementation and evidence.
 
 ## Capability and support claims
 
@@ -191,9 +191,10 @@ handhelds, or upstream-build commitments.
 
 ## User-ready Playnite lifecycle
 
-[#910](https://github.com/boburning/portcove/issues/910) owns a normally
-installable `.pext`; building C# and enabling external-extension loading are not
-the consumer path. First use guides the player to a verified compatible Portcove
+[#910](https://github.com/boburning/portcove/issues/910) now has a locally built
+`.pext` candidate and an explicit runtime/library selection flow. The candidate
+does not include a standalone CLI or establish marketplace or complete Public
+beta support. First use guides the player to a compatible selected Portcove
 runtime and an explicit existing or intentionally separate library. A missing or
 incompatible runtime gets an understandable install, upgrade or repair path, but
 the integration does not invent a backend installer, require Desktop to remain

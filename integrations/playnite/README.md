@@ -6,15 +6,14 @@ readiness, downloads, trust, installation, persistence and recovery. The client
 has no per-port branches, SQLite access, Rust dependency or private Playnite
 assembly reference.
 
-This is a developer-loaded reference, not a marketplace release or a claim of
-completed Public beta qualification. [#243](https://github.com/boburning/portcove/issues/243)
-retains the exact frontend, lifecycle, independent-consumer and human evidence.
-[Issue #910](https://github.com/boburning/portcove/issues/910) separately owns the
-planned normally installable `.pext` product, guided runtime/library onboarding,
-personal-library import, state-driven setup, ordinary lifecycle operations,
-fullscreen/controller use, and user-facing support boundaries. Those capabilities
-are a Required Public beta commitment, but they are not shipped by this developer
-loading procedure or established by the reference evidence below.
+This source builds a locally installable `.pext` candidate. It is not a
+marketplace release or a claim of completed Public beta qualification.
+[#243](https://github.com/boburning/portcove/issues/243) retains the separate
+frontend, lifecycle, independent-consumer and human evidence. [Issue
+#910](https://github.com/boburning/portcove/issues/910) also owns personal-library
+import, state-driven setup, ordinary lifecycle operations, fullscreen/controller
+use, and user-facing support boundaries. Those capabilities still require their
+own implementation and acceptance.
 
 ## Build and load
 
@@ -34,13 +33,30 @@ Playnite SDK or private application assemblies into it. The reference builds
 against Playnite SDK 6.15.0. Playnite documents compatibility within one SDK
 major version; this is not qualification of every Playnite release.
 
-For a local session, follow Playnite's supported
+The check also writes a `.pext` archive under `outputs/playnite/<run-id>/`. The
+archive contains exactly the two files above at its root. For ordinary Playnite
+installation, open that local `.pext` in Playnite and use its extension installer;
+the end user does not need MSBuild or external-extension developer mode. This
+package does not contain the Portcove CLI. Supply a separately obtained,
+trusted standalone Windows CLI package and choose its `portcove.exe` in the
+extension settings. Package creation does not grant publication authority or
+attest the CLI publisher.
+
+In settings, choose the exact executable and library folder. An existing library
+must contain `portcove.sqlite3`; creating a separate library requires an
+explicit checkbox and an empty folder. **Inspect selected CLI** checks the file
+name and bytes, shows its SHA-256, and does not execute it. Compare that hash to
+the trusted CLI package you intended. **Connect this runtime** then executes the
+selected file to negotiate API capabilities and read the library identity. Save
+the settings to approve that exact executable hash, path, and library identity.
+Changed executable bytes or a changed library path require a new inspection and
+connection; a different library identity also blocks use. The hash is an
+identity check for the selected bytes, not a signature or authenticity proof.
+
+For developer loading of the unpackaged output, follow Playnite's supported
 [external-extension loading instructions](https://api.playnite.link/docs/tutorials/extensions/plugins.html):
 add that build-output directory in Settings → For developers → External
-extensions, then restart Playnite. In the extension settings select the absolute
-path of a verified standalone `portcove.exe` and an explicit library folder.
-Selecting an executable grants it your ordinary account permissions; file
-discovery and capability negotiation do not attest its authenticity.
+extensions, then restart Playnite.
 
 For isolated qualification, start Playnite with its documented
 [`--userdatadir` option](https://api.playnite.link/docs/manual/advanced/cmdlineArguments.html)
