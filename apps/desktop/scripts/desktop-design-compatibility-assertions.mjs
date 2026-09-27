@@ -52,7 +52,14 @@ export async function assertDesignCompatibility({ browser, By, Key, until }) {
   assert.equal(darkColors.theme, "dark");
   assert.equal(darkColors.variantOpacity, "0.5");
   await browser.findElement(By.id("fixture-theme-light")).click();
-  await browser.wait(async () => (await fixture.getAttribute("data-theme")) === "light", 15_000);
+  await browser.wait(
+    async () =>
+      (await fixture.getAttribute("data-theme")) === "light" &&
+      (await browser.executeScript(() =>
+        document.documentElement.style.getPropertyValue("--portcove-theme-invalidation"),
+      )) === "light",
+    15_000,
+  );
   assert.notEqual(
     await browser.executeScript(
       () =>
@@ -68,7 +75,14 @@ export async function assertDesignCompatibility({ browser, By, Key, until }) {
     "a generated dark: utility changes an actual computed control property under data-theme",
   );
   await browser.findElement(By.id("fixture-theme-dark")).click();
-  await browser.wait(async () => (await fixture.getAttribute("data-theme")) === "dark", 15_000);
+  await browser.wait(
+    async () =>
+      (await fixture.getAttribute("data-theme")) === "dark" &&
+      (await browser.executeScript(() =>
+        document.documentElement.style.getPropertyValue("--portcove-theme-invalidation"),
+      )) === "dark",
+    15_000,
+  );
   assert.equal(
     await browser.executeScript(
       () => getComputedStyle(document.querySelector("[data-theme-variant-probe]")).opacity,
@@ -77,7 +91,14 @@ export async function assertDesignCompatibility({ browser, By, Key, until }) {
     "a mounted control regains its generated dark: style when returning to dark",
   );
   await browser.findElement(By.id("fixture-theme-light")).click();
-  await browser.wait(async () => (await fixture.getAttribute("data-theme")) === "light", 15_000);
+  await browser.wait(
+    async () =>
+      (await fixture.getAttribute("data-theme")) === "light" &&
+      (await browser.executeScript(() =>
+        document.documentElement.style.getPropertyValue("--portcove-theme-invalidation"),
+      )) === "light",
+    15_000,
+  );
   assert.equal(
     await browser.executeScript(
       () => getComputedStyle(document.querySelector("[data-theme-variant-probe]")).opacity,

@@ -39,6 +39,11 @@ export function DesignCompatibilityFixture() {
     document.documentElement.dir = direction;
   }, [direction, theme]);
 
+  function changeTheme(nextTheme: Theme) {
+    applyWebTheme(nextTheme);
+    setTheme(nextTheme);
+  }
+
   return (
     <DirectionProvider direction={direction}>
       <main
@@ -75,7 +80,7 @@ export function DesignCompatibilityFixture() {
               id="fixture-theme-dark"
               variant={theme === "dark" ? "selected" : "outline"}
               aria-pressed={theme === "dark"}
-              onClick={() => setTheme("dark")}
+              onClick={() => changeTheme("dark")}
             >
               Dark theme
             </Button>
@@ -83,7 +88,7 @@ export function DesignCompatibilityFixture() {
               id="fixture-theme-light"
               variant={theme === "light" ? "selected" : "outline"}
               aria-pressed={theme === "light"}
-              onClick={() => setTheme("light")}
+              onClick={() => changeTheme("light")}
             >
               Light theme
             </Button>
