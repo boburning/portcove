@@ -146,11 +146,24 @@ export async function assertDesignCompatibility({ browser, By, Key, until }) {
   );
   const selectTrigger = await browser.findElement(By.id("fixture-channel"));
   await selectTrigger.sendKeys(Key.ENTER);
-  await browser.wait(
-    async () => (await fixture.getAttribute("data-select-open")) === "true",
-    15_000,
-    "keyboard activation opens the nested select",
-  );
+  try {
+    await browser.wait(
+      async () => (await fixture.getAttribute("data-select-open")) === "true",
+      15_000,
+      "keyboard activation opens the nested select",
+    );
+  } catch (error) {
+    const state = await browser.executeScript(() => {
+      const trigger = document.querySelector("#fixture-channel");
+      return {
+        activeElement: document.activeElement?.id ?? null,
+        dialogOpen: document.querySelector(".design-compatibility-fixture")?.dataset.dialogOpen,
+        triggerExpanded: trigger?.getAttribute("aria-expanded"),
+        triggerDisabled: trigger?.getAttribute("aria-disabled"),
+      };
+    });
+    throw new Error(`keyboard activation state: ${JSON.stringify(state)}`, { cause: error });
+  }
   assert.equal(
     (await browser.findElements(dialogLocator)).length,
     1,
