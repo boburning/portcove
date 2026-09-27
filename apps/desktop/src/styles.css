@@ -2250,7 +2250,7 @@ select {
 .application-update-settings :is(h2, h3, p) {
   margin: 0;
 }
-.application-update-heading > p {
+.application-update-settings .application-update-heading > p {
   color: var(--color-text-secondary);
 }
 .application-update-consent {
