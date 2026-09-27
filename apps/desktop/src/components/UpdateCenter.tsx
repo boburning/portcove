@@ -731,11 +731,11 @@ function UpdateStat({
 }) {
   return (
     <div className="update-stat grid min-w-[82px] grid-cols-[auto_1fr] items-center gap-x-2 rounded-pc-lg border border-pc-border bg-pc-surface px-3.5 py-3">
-      <span
+      <div
         className={`row-span-2 ${warning ? "text-pc-danger-foreground" : accent ? "text-pc-interactive-foreground" : "text-pc-muted-foreground"}`}
       >
         <Icon glyph={icon} />
-      </span>
+      </div>
       <strong
         className={`block text-xl leading-none ${warning ? "text-pc-danger-foreground" : accent ? "text-pc-interactive-foreground" : ""}`}
       >
