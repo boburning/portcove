@@ -187,6 +187,12 @@ $evidence = [ordered]@{
         stable_preserved = $false
         staging_absent = $false
         owner_write_rejection = $false
+        owner_write_rejection_exit_code = $null
+        owner_write_rejection_error = $null
+        mode_before_rejection = $null
+        mode_without_owner_write = $null
+        mode_after_restore = $null
+        sha256_after_rejection = $null
     }
     payload_signature_failures = [ordered]@{
         wrong_disposable_public_key_sha256 = $WrongPayloadPublicKeySha256
@@ -490,18 +496,41 @@ try {
     if (-not $evidence.packaged_selection.staging_absent) {
         throw "Installed AppImage selection staged or applied a candidate"
     }
+    $evidence.packaged_selection.mode_before_rejection = (& stat -c '%a' -- $stable | Out-String).Trim()
+    if ($LASTEXITCODE -ne 0) { throw "Could not inspect installed AppImage mode before selection rejection" }
     & chmod u-w -- $stable
     if ($LASTEXITCODE -ne 0) { throw "Could not remove owner write permission for installed selection rejection" }
     try {
+        $evidence.packaged_selection.mode_without_owner_write = (& stat -c '%a' -- $stable | Out-String).Trim()
+        if ($LASTEXITCODE -ne 0 -or
+            ([Convert]::ToInt32($evidence.packaged_selection.mode_without_owner_write, 8) -band 128) -ne 0) {
+            throw "Installed AppImage retained owner write permission in rejection fixture"
+        }
         $unwritableSelectionOutput = & $stable --portcove-qualify-update-selection 2>&1 | Out-String
+        $evidence.packaged_selection.owner_write_rejection_exit_code = $LASTEXITCODE
+        $evidence.packaged_selection.owner_write_rejection_error = $unwritableSelectionOutput.Trim()
+        if ($evidence.packaged_selection.owner_write_rejection_error.Length -gt 512) {
+            throw "Installed AppImage selection rejection output exceeded its evidence bound"
+        }
         $evidence.packaged_selection.owner_write_rejection =
-            $LASTEXITCODE -ne 0 -and $unwritableSelectionOutput -match "not readable, executable and writable by its owner"
+            $evidence.packaged_selection.owner_write_rejection_exit_code -ne 0 -and
+            $evidence.packaged_selection.owner_write_rejection_error -match "not readable, executable and writable by its owner"
     } finally {
         & chmod u+w -- $stable
         if ($LASTEXITCODE -ne 0) { throw "Could not restore owner write permission after selection rejection" }
+        $evidence.packaged_selection.mode_after_restore = (& stat -c '%a' -- $stable | Out-String).Trim()
+        if ($LASTEXITCODE -ne 0 -or
+            $evidence.packaged_selection.mode_after_restore -ne $evidence.packaged_selection.mode_before_rejection) {
+            throw "Installed AppImage permission mode was not restored after rejection"
+        }
     }
+    $evidence.packaged_selection.sha256_after_rejection =
+        (Get-FileHash -LiteralPath $stable -Algorithm SHA256).Hash.ToLowerInvariant()
     if (-not $evidence.packaged_selection.owner_write_rejection) {
         throw "Installed AppImage selected an update without owner write permission"
+    }
+    if ($evidence.packaged_selection.sha256_after_rejection -ne $predecessorHash) {
+        throw "Installed AppImage selection rejection changed the stable executable"
     }
     Remove-Item Env:PORTCOVE_APPLICATION_UPDATE_STAGING
     Write-Evidence "packaged-selection-complete"
