@@ -41,6 +41,37 @@ function contrastRatio(foreground, background) {
   return (values[0] + 0.05) / (values[1] + 0.05);
 }
 
+async function assertActivityLabelSeparation(browser, width) {
+  const gap = await browser.executeScript((compact) => {
+    const activity = document.querySelector(".activity-row");
+    const previous = activity?.querySelector(compact ? ".activity-main" : ".activity-time");
+    const status = activity?.querySelector(".activity-status");
+    if (!previous || !status) return null;
+    const textBounds = (element) => {
+      const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+      let left = Infinity;
+      let right = -Infinity;
+      for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+        if (!node.textContent?.trim()) continue;
+        const range = document.createRange();
+        range.selectNodeContents(node);
+        const rect = range.getBoundingClientRect();
+        left = Math.min(left, rect.left);
+        right = Math.max(right, rect.right);
+      }
+      return { left, right };
+    };
+    const preceding = textBounds(previous);
+    const outcome = textBounds(status);
+    if (!Number.isFinite(preceding.right) || !Number.isFinite(outcome.left)) return null;
+    return outcome.left - preceding.right;
+  }, width === 960);
+  assert.ok(
+    gap !== null && gap >= 8,
+    `Activity outcome overlaps preceding content at ${width}px (gap ${gap}px)`,
+  );
+}
+
 export async function preparationScenarios({
   browser,
   invoke,
@@ -745,6 +776,7 @@ export async function preparationScenarios({
           assert.ok(comparison.blocks.every(({ visible, value }) => visible && value));
           if (width === 960) assert.ok(comparison.blocks[0].bottom <= comparison.blocks[1].top + 1);
           else assert.ok(comparison.blocks[0].right <= comparison.blocks[1].left + 1);
+          await assertActivityLabelSeparation(browser, width);
           const comparisonScreenshot = path.join(
             output,
             `native-game-update-comparison-${theme}-${width}x${height}.png`,
