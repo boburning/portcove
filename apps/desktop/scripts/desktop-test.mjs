@@ -290,29 +290,12 @@ async function verifySettingsRows() {
   const originalWindow = await browser.manage().window().getRect();
   try {
     for (const theme of ["dark", "light"]) {
-      await browser
-        .findElement(
-          By.xpath(
-            `//*[@role="group" and @aria-label="Color theme"]//button[normalize-space(.)="${theme === "dark" ? "Dark" : "Light"}"]`,
-          ),
-        )
-        .click();
-      await browser.wait(
-        async () =>
-          (await browser.executeScript(() => document.documentElement.dataset.theme)) === theme,
-        5_000,
-      );
+      await selectSettingsTheme(theme);
       for (const size of [
         { width: 960, height: 640 },
         { width: 1280, height: 800 },
       ]) {
-        await browser.manage().window().setRect(size);
-        const actual = await browser.manage().window().getRect();
-        assert.deepEqual(
-          { width: actual.width, height: actual.height },
-          size,
-          `Settings window was clamped: ${JSON.stringify(actual)}`,
-        );
+        await setVerifiedWindowSize(size, "Settings");
         const rows = await browser.executeScript(() => {
           const rect = (element) => {
             const bounds = element.getBoundingClientRect();
@@ -601,6 +584,74 @@ async function captureScenarioScreenshot(name, required = false) {
     if (required)
       throw new Error(`Required screenshot ${name} could not be captured`, { cause: error });
     /* The failed scenario remains recorded even if its window disappeared. */
+  }
+}
+
+async function selectSettingsTheme(theme) {
+  await browser
+    .findElement(
+      By.xpath(
+        `//*[@role="group" and @aria-label="Color theme"]//button[normalize-space(.)="${theme === "dark" ? "Dark" : "Light"}"]`,
+      ),
+    )
+    .click();
+  await browser.wait(
+    async () =>
+      (await browser.executeScript(() => document.documentElement.dataset.theme)) === theme,
+    5_000,
+  );
+}
+
+async function setVerifiedWindowSize(size, context) {
+  await browser.manage().window().setRect(size);
+  const actual = await browser.manage().window().getRect();
+  assert.deepEqual(
+    { width: actual.width, height: actual.height },
+    size,
+    `${context} window was clamped: ${JSON.stringify(actual)}`,
+  );
+}
+
+async function captureApplicationUpdateSettingsComparison() {
+  const originalWindow = await browser.manage().window().getRect();
+  try {
+    for (const theme of ["dark", "light"]) {
+      await selectSettingsTheme(theme);
+      for (const size of [
+        { width: 960, height: 640 },
+        { width: 1280, height: 800 },
+      ]) {
+        await setVerifiedWindowSize(size, "Application update settings");
+        const geometry = await browser.executeScript(() => {
+          const card = document.querySelector(".application-update-settings");
+          if (!(card instanceof HTMLElement)) return null;
+          card.scrollIntoView({ block: "start", inline: "nearest" });
+          const versionBadge = card.querySelector(".application-update-heading > p");
+          const secondaryColorProbe = document.createElement("span");
+          secondaryColorProbe.style.color = "var(--color-text-secondary)";
+          card.append(secondaryColorProbe);
+          const badgeColorMatchesSecondary =
+            versionBadge instanceof HTMLElement &&
+            getComputedStyle(versionBadge).color === getComputedStyle(secondaryColorProbe).color;
+          secondaryColorProbe.remove();
+          return {
+            display: getComputedStyle(card).display,
+            badgeColorMatchesSecondary,
+            documentOverflow: document.documentElement.scrollWidth > window.innerWidth + 1,
+            cardOverflow: card.scrollWidth > card.clientWidth + 1,
+          };
+        });
+        assert.deepEqual(geometry, {
+          display: "grid",
+          badgeColorMatchesSecondary: true,
+          documentOverflow: false,
+          cardOverflow: false,
+        });
+        await captureScenarioScreenshot(`application-update-settings-${theme}-${size.width}`, true);
+      }
+    }
+  } finally {
+    await browser.manage().window().setRect(originalWindow);
   }
 }
 
@@ -1518,15 +1569,7 @@ try {
       await verifySidebarLabels();
       for (const theme of ["dark", "light"]) {
         await browser.findElement(By.xpath('//nav//button[contains(., "Settings")]')).click();
-        await browser
-          .findElement(
-            By.xpath(`//button[normalize-space(.)="${theme === "dark" ? "Dark" : "Light"}"]`),
-          )
-          .click();
-        assert.equal(
-          await browser.executeScript(() => document.documentElement.dataset.theme),
-          theme,
-        );
+        await selectSettingsTheme(theme);
         await verifySettingsIndexTheme(theme);
         await browser.findElement(By.xpath('//nav//button[contains(., "Port catalog")]')).click();
         await browser.wait(
@@ -1732,6 +1775,8 @@ try {
     );
     assert.equal(await browser.findElement(By.id("pause-application-updates")).isSelected(), true);
 
+    await captureApplicationUpdateSettingsComparison();
+
     await writeFile(path.join(output, "application-update-schedule.json"), "not-json\n", {
       flag: "wx",
     });
@@ -1746,6 +1791,10 @@ try {
       (await invoke("get_application_update_status")).value.recovery_required[0].area,
       "schedule",
     );
+    await browser.executeScript(() =>
+      document.querySelector(".application-update-recovery")?.scrollIntoView({ block: "center" }),
+    );
+    await captureScenarioScreenshot("application-update-recovery-light", true);
     await browser
       .findElement(By.xpath('//button[normalize-space(.)="Reset update-check history"]'))
       .click();
