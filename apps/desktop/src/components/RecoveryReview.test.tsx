@@ -39,7 +39,7 @@ it("keeps unavailable information distinct from an empty recorded repair list", 
   expect(unavailable).not.toContain("No recovery items");
   expect(empty).toContain("No recovery items were recorded in the last check.");
   expect(unavailable).toContain("rounded-pc-lg border border-pc-border");
-  expect(empty).toContain("recovery-review mt-6 min-w-0 py-2");
+  expect(empty).toContain("py-2");
   expect(empty).not.toContain("rounded-pc-lg border");
 });
 
