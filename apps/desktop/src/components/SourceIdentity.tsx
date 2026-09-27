@@ -41,19 +41,19 @@ export function SourceIdentityPanel({
   const problemToolId = report.problem?.tool_id;
   return (
     <section
-      className="source-identity"
+      className="source-identity mt-3 grid gap-3 rounded-pc-lg border border-pc-border bg-pc-surface p-4"
       aria-label={`Game-file check for ${report.expected_identity?.label ?? report.profile_id}`}
     >
       <p className="sr-only" role="status">
         Game-file check result: {state.label}. {report.summary}
       </p>
-      <div className="source-identity-heading">
-        <div>
-          <small>Game-file check</small>
+      <div className="flex items-center justify-between gap-3 max-[760px]:flex-col max-[760px]:items-start">
+        <div className="grid gap-0.5">
+          <small className="text-pc-muted-foreground">Game-file check</small>
           <strong>{report.expected_identity?.label ?? report.profile_id}</strong>
         </div>
         <span
-          className={`source-result ${state.tone}`}
+          className={`source-result inline-flex items-center gap-1 text-xs font-medium ${state.tone}`}
           aria-label={`Game-file check result: ${state.label}`}
         >
           <Icon glyph={state.icon} size="sm" />
@@ -174,7 +174,9 @@ function ApplicationResult({
         <strong>
           {application.port_name} · {application.role === "bios" ? "BIOS" : "Game file"}
         </strong>
-        <span className={`source-contract contract-${application.contract_result.state}`}>
+        <span
+          className={`source-contract inline-flex items-center gap-1 text-xs font-medium contract-${application.contract_result.state}`}
+        >
           {result}
         </span>
       </div>
@@ -321,7 +323,11 @@ function ObservedComponent({
   const result = componentMatch(component, expected);
   return (
     <div className="observed-component">
-      <span className={`source-contract ${result.tone}`}>{result.label}</span>
+      <span
+        className={`source-contract inline-flex items-center gap-1 text-xs font-medium ${result.tone}`}
+      >
+        {result.label}
+      </span>
       <DigestList
         label={`${formatLabel(component.kind)} · ${component.id}${detail ? ` · ${detail}` : ""}`}
         digests={component.digests}
