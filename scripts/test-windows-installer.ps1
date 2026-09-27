@@ -346,9 +346,17 @@ function Start-JournaledProcess([string]$Role, [string]$Executable, [object[]]$A
         if ($TestFault -eq "post-spawn-verification") {
             throw "$Role injected post-spawn verification failure"
         }
-        $launchedPath = [System.IO.Path]::GetFullPath($process.StartInfo.FileName)
-        if (-not $launchedPath.Equals($exact, [System.StringComparison]::OrdinalIgnoreCase)) {
-            throw "$Role retained handle does not identify the exact requested launch path"
+        $startInfoPath = $process.StartInfo.FileName
+        if ([string]::IsNullOrWhiteSpace($startInfoPath)) {
+            if ($Role -ne "installed_update_helper") {
+                throw "$Role retained handle omitted the requested launch path"
+            }
+            $run.start_info_observation = "Start-Process omitted StartInfo.FileName with redirected qualification output; live process image verification is required"
+        } else {
+            $launchedPath = [System.IO.Path]::GetFullPath($startInfoPath)
+            if (-not $launchedPath.Equals($exact, [System.StringComparison]::OrdinalIgnoreCase)) {
+                throw "$Role retained handle does not identify the exact requested launch path"
+            }
         }
         $imageDeadline = (Get-Date).AddSeconds(2)
         $observedPath = $null
@@ -364,6 +372,9 @@ function Start-JournaledProcess([string]$Role, [string]$Executable, [object[]]$A
         } while ((Get-Date) -lt $imageDeadline)
         if ([string]::IsNullOrWhiteSpace($observedPath)) {
             if (-not $process.HasExited) { throw "$Role stable executable image path could not be observed while it was running" }
+            if ($Role -eq "installed_update_helper") {
+                throw "Installed update helper exited before its executable image could be verified"
+            }
             $run.image_observation = "Process exited before a stable executable image path was observable; StartInfo and the retained handle identify the exact hash-journaled launch"
             if ($evidence) { Write-InstallerEvidence $evidence.phase }
         } else {
