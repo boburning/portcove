@@ -391,7 +391,10 @@ remains fail-closed behind the general manual-recovery guidance. The query grant
 replacement authority and writes no package state. The GUI-independent `eligibility`
 inspection uses that same observation and sanitized guidance; the focused ownership
 rehearsal installs the real DEB through Ubuntu and the real RPM through Fedora, then
-proves inspection leaves each executable unchanged. After the shared post-exit
+proves inspection leaves each executable unchanged. A qualification-only hidden
+command in the installed AppImage invokes this compiled provider against the
+disposable signed repository and records the exact selected candidate identity.
+It does not download, stage, restart, or establish renderer behavior. After the shared post-exit
 revalidation lease is held, the Linux adapter rehashes an exact direct x86_64 Type 2 AppImage
 payload into a synchronized sibling file and atomically exchanges it with the stable
 AppImage source. The apply journal records the exact prior bytes and retained backup
