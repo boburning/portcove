@@ -213,10 +213,14 @@ export function DetailPanel(props: DetailPanelProps) {
     biosHealth: status?.readiness?.bios,
   };
   return (
-    <section className="detail-panel" aria-labelledby="port-detail-title" data-detail-workspace>
+    <section
+      className="detail-panel relative w-full min-w-0"
+      aria-labelledby="port-detail-title"
+      data-detail-workspace
+    >
       <Button
         data-focusable
-        className="detail-back"
+        className="detail-back mb-4"
         variant="ghost"
         size="sm"
         aria-label="Back to previous workspace"
@@ -287,9 +291,12 @@ function DetailHero({
   missingSourceLabels: string[];
 }) {
   return (
-    <div className="detail-hero">
-      <ArtworkImage port={port} className="detail-cover" />
-      <div>
+    <div className="detail-hero flex min-h-[175px] items-end gap-5 overflow-hidden rounded-pc-lg border border-[var(--color-border-strong)] bg-pc-surface p-8 shadow-[var(--shadow-raised)]">
+      <ArtworkImage
+        port={port}
+        className="detail-cover aspect-[2/3] w-24 flex-none rounded-pc-md bg-[var(--art-color)]"
+      />
+      <div className="min-w-0">
         <p className="eyebrow">
           {port.platforms.map((platform) => platformLabel(platform)).join(" · ")}
         </p>
