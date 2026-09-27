@@ -773,20 +773,17 @@ h2 {
   margin-left: var(--space-1);
 }
 
-.search input,
-.detail-section input:not([data-slot="input"]) {
+.search input {
   width: 100%;
+  height: 100%;
+  min-height: 0;
   padding: 12px 2px;
+  padding-block: 0;
   border: 0;
   color: var(--color-text);
   background: var(--color-transparent);
 }
 
-.search input {
-  height: 100%;
-  min-height: 0;
-  padding-block: 0;
-}
 .search input:focus-visible,
 :root[data-input-mode="controller"] .search input:focus {
   outline: none;
@@ -1275,7 +1272,6 @@ h2 {
   color: var(--color-text);
 }
 
-.detail-section label,
 .backup-history label {
   display: block;
   margin-bottom: 8px;
@@ -1284,30 +1280,14 @@ h2 {
   font-weight: 700;
 }
 
-.detail-section input:not([data-slot="input"]),
 select {
+  width: 100%;
+  padding: 11px;
   border: 1px solid var(--color-control-border);
   border-radius: var(--radius-md);
   color: var(--color-text);
   background: var(--color-bg-inset);
   box-shadow: inset 0 1px 2px var(--color-bg);
-}
-
-.detail-section input:not([data-slot="input"]) {
-  padding: 11px;
-}
-.path-entry {
-  display: flex;
-  align-items: stretch;
-  gap: 8px;
-}
-.path-entry input {
-  min-width: 0;
-}
-.detail-section small {
-  display: block;
-  margin-top: 7px;
-  color: var(--color-text-muted);
 }
 
 .output-location-heading .eyebrow {
@@ -1344,10 +1324,6 @@ select {
   background: var(--color-bg-inset);
 }
 
-select {
-  width: 100%;
-  padding: 11px;
-}
 .metadata {
   display: grid;
   grid-template-columns: 1fr 1fr;

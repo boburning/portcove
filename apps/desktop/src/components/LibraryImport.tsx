@@ -101,7 +101,7 @@ function LibraryImportDialog({ libraryRoot, close }: { libraryRoot: string; clos
         </p>
         <NavigationHints />
         <label htmlFor="import-metadata">Library metadata file</label>
-        <div className="path-entry">
+        <div className="flex items-stretch gap-2 [&_input]:min-w-0">
           <Input
             data-autofocus
             data-focusable
@@ -126,7 +126,7 @@ function LibraryImportDialog({ libraryRoot, close }: { libraryRoot: string; clos
           </Button>
         </div>
         <label htmlFor="import-content">Copy of the original library folder</label>
-        <div className="path-entry">
+        <div className="flex items-stretch gap-2 [&_input]:min-w-0">
           <Input
             data-focusable
             id="import-content"

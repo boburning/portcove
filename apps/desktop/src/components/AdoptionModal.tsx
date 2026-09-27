@@ -91,7 +91,7 @@ export function AdoptionModal({
         </p>
         <NavigationHints />
         <label htmlFor="adopt-path">Existing installation folder</label>
-        <div className="path-entry">
+        <div className="flex items-stretch gap-2 [&_input]:min-w-0">
           <Input
             data-autofocus
             data-focusable

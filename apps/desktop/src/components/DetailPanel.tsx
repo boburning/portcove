@@ -667,7 +667,7 @@ function UpdatesGroup({
 }) {
   const preferences = (
     <>
-      <div className="detail-section">
+      <div>
         <ReleaseChannelControl
           key={`${port.id}:${libraryGeneration}`}
           channels={port.channels}
@@ -677,7 +677,7 @@ function UpdatesGroup({
           refresh={actions.check}
         />
       </div>
-      <div className="detail-section">
+      <div>
         <UpdatePolicyControl
           key={port.id}
           policy={policy}
@@ -1322,11 +1322,14 @@ function SourceField({
       : copy.note;
   const inputId = `source-${profileId}`;
   return (
-    <div className="detail-section">
-      <label htmlFor={inputId}>
+    <div className="[&_small]:mt-[7px] [&_small]:block [&_small]:text-pc-muted-foreground">
+      <label
+        htmlFor={inputId}
+        className="mb-2 block text-xs font-bold text-[color:var(--color-text-secondary)]"
+      >
         {heading} · {profile?.label ?? profileId}
       </label>
-      <div className="path-entry">
+      <div className="flex items-stretch gap-2 [&_input]:min-w-0">
         <Input
           data-focusable
           id={inputId}
