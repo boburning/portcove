@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { foundationSourceFailures, semanticReferenceFailures } from "./check-theme.mjs";
+import {
+  ambiguousTextSizeFailures,
+  foundationSourceFailures,
+  semanticReferenceFailures,
+} from "./check-theme.mjs";
 
 const validSources = {
   css: `
@@ -29,6 +33,16 @@ const validSources = {
 };
 
 describe("theme foundation source contract", () => {
+  it("rejects an ambiguous token utility that Tailwind emits as text color", () => {
+    const ambiguous = ["text-[", "var(--text-2xs)]"].join("");
+    expect(ambiguousTextSizeFailures(`className="${ambiguous}"`, "Card.tsx")).toEqual([
+      `Card.tsx:1: ${ambiguous} compiles as a color; use an explicit length type`,
+    ]);
+    expect(
+      ambiguousTextSizeFailures('className="text-[length:var(--text-2xs)]"', "Card.tsx"),
+    ).toEqual([]);
+  });
+
   it("accepts the reviewed semantic, theme, direction, and production mappings", () => {
     expect(foundationSourceFailures(validSources)).toEqual([]);
   });

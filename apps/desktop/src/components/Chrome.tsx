@@ -788,7 +788,7 @@ function SourceRequirements({
           {requirements.length === 1 ? "requirement" : "requirements"}{" "}
           {requirements.length === 1 ? "needs" : "need"} attention
         </strong>
-        <small className="text-[var(--text-2xs)] tracking-[0.06em] text-pc-warning-foreground uppercase">
+        <small className="text-[length:var(--text-2xs)] tracking-[0.06em] text-pc-warning-foreground uppercase">
           Required by ports in your library
         </small>
       </div>
@@ -801,7 +801,7 @@ function SourceRequirements({
         >
           <div className="min-w-0">
             <strong className="block">{requirement.profile.label}</strong>
-            <small className="mt-1 block overflow-hidden text-ellipsis whitespace-nowrap text-[var(--text-2xs)] text-pc-muted-foreground">
+            <small className="mt-1 block overflow-hidden text-ellipsis whitespace-nowrap text-[length:var(--text-2xs)] text-pc-muted-foreground">
               {requirement.requiredBy.map((use) => `${use.portName} · ${use.role}`).join("  /  ")}
             </small>
           </div>
@@ -1986,7 +1986,7 @@ function StorageCard({
         <div className="mb-[15px] grid gap-2">
           <div className="flex items-baseline justify-between gap-3">
             <strong className="text-xs">{formatBytes(available)} available</strong>
-            <span className="text-[var(--text-2xs)] text-pc-muted-foreground">
+            <span className="text-[length:var(--text-2xs)] text-pc-muted-foreground">
               {formatBytes(total)} total storage capacity
             </span>
           </div>
