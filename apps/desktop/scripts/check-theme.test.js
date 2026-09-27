@@ -14,8 +14,6 @@ const validSources = {
     .palette-command:active:not(:disabled) {}
     .port-card {}
     .port-card-selectable:active {}
-    .update-row {}
-    .update-row:active {}
   `,
   button: `
     const variants = {
@@ -28,6 +26,10 @@ const validSources = {
   dialog: `const classes = "bg-pc-scrim left-1/2 end-2 max-h-[calc(100dvh-2rem)] overflow-y-auto";`,
   main: `document.documentElement.dir = "ltr"; <DirectionProvider direction="ltr" />;`,
   select: `const classes = "pe-2 ps-2 end-2";`,
+  updateCenter: `
+    const updateRowClass = "grid-cols-[42px_minmax(180px,1fr)_minmax(214px,284px)_90px] max-[65rem]:grid-cols-[2.625rem_minmax(11rem,1fr)_minmax(8rem,1fr)_5.625rem] active:translate-y-px active:shadow-[var(--shadow-pressed)]";
+    const activityRowClass = "grid-cols-[1.5rem_minmax(0,1fr)_max-content_max-content] max-[65rem]:grid-cols-[1.5rem_minmax(0,1fr)_4.5rem]";
+  `,
   builtCss:
     ".bg-pc-signature{}.bg-pc-scrim{}.active\\:bg-pc-signature-active{}.hover\\:bg-pc-danger-surface{}.text-pc-danger-strong{}.focus-visible\\:ring-pc-ring{}[data-theme=dark]{}",
 };
@@ -55,7 +57,15 @@ describe("theme foundation source contract", () => {
       "legacy raw-button fallback",
       { css: `${validSources.css} button:not([data-slot="button"]) { color: inherit; }` },
     ],
-    ["missing specialized owner", { css: validSources.css.replace(".update-row {}", "") }],
+    [
+      "missing specialized owner",
+      {
+        updateCenter: validSources.updateCenter.replace(
+          "active:shadow-[var(--shadow-pressed)]",
+          "",
+        ),
+      },
+    ],
     [
       "missing specialized pressed state",
       { css: validSources.css.replace(".palette-command:active:not(:disabled) {}", "") },
