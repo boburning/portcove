@@ -153,16 +153,25 @@ export async function assertDesignCompatibility({ browser, By, Key, until }) {
       "keyboard activation opens the nested select",
     );
   } catch (error) {
-    const state = await browser.executeScript(() => {
-      const trigger = document.querySelector("#fixture-channel");
-      return {
-        activeElement: document.activeElement?.id ?? null,
-        dialogOpen: document.querySelector(".design-compatibility-fixture")?.dataset.dialogOpen,
-        triggerExpanded: trigger?.getAttribute("aria-expanded"),
-        triggerDisabled: trigger?.getAttribute("aria-disabled"),
-      };
+    let state = "unavailable";
+    try {
+      state = JSON.stringify(
+        await browser.executeScript(() => {
+          const trigger = document.querySelector("#fixture-channel");
+          return {
+            activeElement: document.activeElement?.id ?? null,
+            dialogOpen: document.querySelector(".design-compatibility-fixture")?.dataset.dialogOpen,
+            triggerExpanded: trigger?.getAttribute("aria-expanded"),
+            triggerDisabled: trigger?.getAttribute("aria-disabled"),
+          };
+        }),
+      );
+    } catch {
+      // Preserve the activation failure if the driver can no longer inspect the page.
+    }
+    throw new Error(`keyboard activation failed: ${String(error)}; state: ${state}`, {
+      cause: error,
     });
-    throw new Error(`keyboard activation state: ${JSON.stringify(state)}`, { cause: error });
   }
   assert.equal(
     (await browser.findElements(dialogLocator)).length,
