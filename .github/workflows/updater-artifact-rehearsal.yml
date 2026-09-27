@@ -71,6 +71,7 @@ jobs:
             work/updater-rehearsal/0.3.0-${{ matrix.label }}/**
             work/updater-rehearsal/1.0.0-rc.2-${{ matrix.label }}/**
             work/updater-rehearsal/1.0.0-${{ matrix.label }}/**
+            work/updater-rehearsal/qualified-*-bundles/appimage/**
             work/updater-rehearsal/windows-installed-update-qualification/TEST-ONLY
             work/updater-rehearsal/windows-installed-update-qualification/inputs/*.json
             work/updater-rehearsal/windows-installed-update-qualification/records/**

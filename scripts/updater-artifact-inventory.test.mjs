@@ -212,6 +212,7 @@ test("manual rehearsal retains the complete matrix without production credential
   assert.match(workflow, /retention-days: 1/);
   assert.doesNotMatch(workflow, /updater-rehearsal\/\*\*|\.key\b/);
   assert.match(workflow, /linux-appimage-qualification\/application-update-evidence\.json/);
+  assert.match(workflow, /qualified-\*-bundles\/appimage\/\*\*/);
   assert.match(workflow, /state\/update-state\/\*\.json/);
   assert.match(workflow, /state\/library\/logs\/portcove-desktop\.jsonl\*/);
   assert.doesNotMatch(workflow, /linux-appimage-qualification\/(?:private|state)\/\*\*/);
@@ -244,6 +245,7 @@ test("manual rehearsal retains the complete matrix without production credential
     /\$native\.process_architecture -ne \$expectedProcessArchitecture[\s\S]*\$native\.executable_architecture = \(& lipo -archs \$executable \| Out-String\)\.Trim\(\)[\s\S]*\$native\.executable_architecture -ne \$expectedMachOArchitecture/,
   );
   assert.match(rehearsal, /test-linux-appimage-update\.ps1/);
+  assert.match(rehearsal, /Move-RehearsalInput \$bundleRoot "qualified-\$predecessorVersion-bundles"/);
   assert.match(rehearsal, /ValidateSet\("legacy-skipped", "preview-final"\)/);
   assert.match(rehearsal, /"1\.0\.0-rc\.2"/);
   assert.match(rehearsal, /"1\.0\.0"/);
