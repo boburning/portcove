@@ -59,7 +59,7 @@ export function RecoveryReview({
   return (
     <section
       className={
-        "recovery-review mt-6 min-w-0 " +
+        "recovery-review mt-6 flex min-w-0 flex-col gap-2 " +
         (quiet ? "py-2" : "rounded-pc-lg border border-pc-border bg-pc-surface p-4")
       }
       aria-label="Retained work and repairs"
@@ -69,27 +69,27 @@ export function RecoveryReview({
         Retained work and repairs
       </h2>
       {refreshing && (
-        <p className="mt-1 mb-0 text-sm text-pc-secondary-foreground" role="status">
+        <p className="mb-0 text-sm text-pc-secondary-foreground" role="status">
           {repair
             ? "Refreshing recovery information. The last completed check remains visible."
             : "Checking the library for retained work and repairs…"}
         </p>
       )}
       {!refreshing && Boolean(failure) && (
-        <p className="mt-1 mb-0 text-sm text-pc-danger-foreground" role="alert">
+        <p className="mb-0 text-sm text-pc-danger-foreground" role="alert">
           Recovery information could not be refreshed: {errorText(failure)}
           {repair ? " The last completed check remains visible." : ""}
         </p>
       )}
       {!refreshing && !failure && stale && (
-        <p className="mt-1 mb-0 text-sm text-pc-warning-foreground" role="status">
+        <p className="mb-0 text-sm text-pc-warning-foreground" role="status">
           {repair
             ? "Recovery information is out of date. The last completed check remains visible."
             : "Recovery information has not been checked for the current library state."}
         </p>
       )}
       {(!stale || repair) && (
-        <p className="mt-1 mb-0 text-sm text-pc-muted-foreground">
+        <p className="mb-0 text-sm text-pc-muted-foreground">
           {formatCountMessage(repair?.items.length, countMessages)}
         </p>
       )}
@@ -98,7 +98,7 @@ export function RecoveryReview({
           data-focusable
           variant="outline"
           size="sm"
-          className="mt-3"
+          className="self-start"
           onClick={() => void refresh()}
         >
           Refresh recovery information
@@ -106,11 +106,11 @@ export function RecoveryReview({
       )}
       {!!repair?.items.length && (
         <>
-          <p className="mt-3 mb-0 text-sm text-pc-secondary-foreground">
+          <p className="mb-0 text-sm text-pc-secondary-foreground">
             Open an item to review its recorded location and recovery guidance. Opening these
             details does not change files.
           </p>
-          <div className="recovery-review-list mt-3 grid gap-3" data-focus-group>
+          <div className="recovery-review-list grid gap-3" data-focus-group>
             {repair.items.map((item, index) => (
               <details
                 className="min-w-0 rounded-pc-md bg-[var(--color-bg-inset)] p-3 break-words"

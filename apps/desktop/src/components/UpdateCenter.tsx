@@ -366,7 +366,7 @@ function ActivityHistory({
       <div className="activity-heading mb-3 flex items-end justify-between gap-4">
         <div>
           <p className="eyebrow">ACTIVITY HISTORY</p>
-          <h2 className="mt-1 mb-0 text-lg">Recent activity</h2>
+          <h2 className="mb-0 text-lg">Recent activity</h2>
         </div>
         <small className="text-xs text-pc-muted-foreground">
           {activityFeed ? (
