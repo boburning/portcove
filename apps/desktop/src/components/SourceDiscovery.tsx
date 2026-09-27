@@ -320,9 +320,14 @@ function DiscoveryResults({ workflow }: { workflow: Workflow }) {
         </>
       )}
       {candidates.map((candidate) => (
-        <div className="source-health-row" key={`${candidate.profile_id}:${candidate.path}`}>
-          <div>
-            <code>{candidate.path}</code>
+        <div
+          className="source-health-row grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 rounded-pc-md border border-pc-border bg-[var(--color-bg-inset)] p-3"
+          key={`${candidate.profile_id}:${candidate.path}`}
+        >
+          <div className="min-w-0">
+            <code className="mt-1 block overflow-hidden bg-transparent p-0 text-ellipsis whitespace-normal text-pc-muted-foreground [overflow-wrap:anywhere]">
+              {candidate.path}
+            </code>
             <span>{formatBytes(candidate.size)}</span>
           </div>
           <div className="actions">
@@ -365,7 +370,7 @@ function DiscoveryResults({ workflow }: { workflow: Workflow }) {
           {issue.path && (
             <>
               {" "}
-              <code>{issue.path}</code>
+              <code className="whitespace-normal [overflow-wrap:anywhere]">{issue.path}</code>
             </>
           )}
         </p>
@@ -392,11 +397,12 @@ export function SourceImportReview({
       <h3>{presentation.label}</h3>
       <p>{presentation.explanation}</p>
       <p>
-        Source: <code>{plan.source.path}</code>
+        Source:{" "}
+        <code className="whitespace-normal [overflow-wrap:anywhere]">{plan.source.path}</code>
       </p>
       <p>
         {plan.mode === "use_current_location" ? "Saved file location" : "Portcove game-file folder"}
-        : <code>{plan.destination}</code>
+        : <code className="whitespace-normal [overflow-wrap:anywhere]">{plan.destination}</code>
       </p>
       {plan.existing_registration && (
         <p>This replaces the current registration after the selected source is rechecked.</p>

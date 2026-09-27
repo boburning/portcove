@@ -1900,8 +1900,7 @@ select {
 }
 
 .settings-title,
-.backup-heading,
-.source-requirements-heading {
+.backup-heading {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -2237,6 +2236,15 @@ select {
   background: var(--color-bg-inset);
 }
 
+/* Game-file and publisher rows override the remaining legacy Settings code block.
+   Remove this reset when the other Settings code paths move to semantic utilities. */
+.settings-row .source-health-row code {
+  margin: 4px 0 0;
+  padding: 0;
+  color: var(--color-text-muted);
+  background: transparent;
+}
+
 .storage-capacity {
   display: grid;
   gap: 8px;
@@ -2270,8 +2278,7 @@ select {
   border-radius: inherit;
   background: var(--color-success);
 }
-.github-auth,
-.source-health {
+.github-auth {
   grid-column: 1 / -1;
 }
 .settings-title h2 {
@@ -2451,107 +2458,9 @@ select {
   margin-top: 10px;
   color: var(--color-text-muted);
 }
-.source-health {
-  min-height: 0;
-}
 .small-control {
   padding: 9px 13px;
   border-radius: var(--radius-md);
-}
-.source-health-list {
-  display: grid;
-  gap: 8px;
-  margin: 16px 0;
-}
-
-.source-health-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 4px 12px;
-  padding: 11px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  background: var(--color-bg-inset);
-}
-
-.source-health-row[data-candidate-row] {
-  grid-template-columns: minmax(0, 1fr) minmax(0, 18rem);
-}
-
-.source-candidate-actions {
-  justify-content: flex-end;
-  margin-top: 0;
-}
-
-.source-candidate-actions > span {
-  flex-basis: 100%;
-  color: var(--color-text-secondary);
-  text-align: end;
-}
-
-.source-candidate-action {
-  max-width: 100%;
-  height: auto;
-  min-height: var(--control-height-md);
-  overflow-wrap: anywhere;
-  text-align: center;
-  white-space: normal;
-}
-
-@media (max-width: 55rem) {
-  .source-health-row[data-candidate-row] {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .source-candidate-actions,
-  .source-candidate-actions > span {
-    justify-content: flex-start;
-    text-align: start;
-  }
-}
-
-.source-health-row[data-source-profile] {
-  grid-template-columns: minmax(0, 1fr);
-}
-
-.source-health-row[data-source-profile] > .source-health-actions {
-  flex-wrap: wrap;
-}
-
-.source-health-row > div {
-  min-width: 0;
-}
-
-.source-health-row code {
-  display: block;
-  overflow: hidden;
-  margin: 4px 0 0;
-  padding: 0;
-  color: var(--color-text-muted);
-  background: var(--color-transparent);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.source-health-row code.source-profile-id {
-  overflow: visible;
-  text-overflow: clip;
-  white-space: normal;
-  overflow-wrap: anywhere;
-}
-
-.source-health-row > small {
-  grid-column: 1 / -1;
-  color: var(--color-danger-text);
-}
-.source-health-row > .source-identity,
-.source-health-row > .source-inspection-loading {
-  grid-column: 1 / -1;
-}
-.source-discovery-results code {
-  white-space: normal;
-  overflow-wrap: anywhere;
 }
 .source-intake {
   max-height: min(90vh, 58rem);
@@ -2599,25 +2508,6 @@ select {
 .detail-panel > .operation-cancellation {
   margin-inline: var(--space-6);
 }
-.source-health-actions {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-.source-state {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-  color: var(--color-text-muted);
-  font-size: var(--text-xs);
-}
-.source-state.verified {
-  color: var(--color-success-text);
-}
-.source-state.failed {
-  color: var(--color-danger-text);
-}
-
 .source-identity {
   display: grid;
   gap: var(--space-3);
@@ -2827,58 +2717,6 @@ select {
     align-items: flex-start;
     flex-direction: column;
   }
-}
-
-.source-requirements {
-  display: grid;
-  gap: 8px;
-  margin: 16px 0 20px;
-  padding: 14px;
-  border: 1px solid var(--color-warning-border);
-  border-radius: var(--radius-lg);
-  background: var(--color-warning-subtle);
-}
-
-.source-requirements-heading small {
-  color: var(--color-warning-text);
-  font-size: var(--text-2xs);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
-.source-requirements.complete {
-  display: block;
-  border-color: var(--color-success-border);
-  color: var(--color-success-text);
-  background: var(--color-success-subtle);
-  font-size: var(--text-xs);
-}
-
-.source-requirement {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 10px;
-  border-radius: var(--radius-md);
-  background: var(--color-bg-elevated);
-}
-
-.source-requirement > div:first-child {
-  min-width: 0;
-}
-.source-requirement strong,
-.source-requirement small {
-  display: block;
-}
-
-.source-requirement small {
-  overflow: hidden;
-  margin-top: 4px;
-  color: var(--color-text-muted);
-  font-size: var(--text-2xs);
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .update-row {

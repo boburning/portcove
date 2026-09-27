@@ -735,6 +735,8 @@ function GithubSettings({ github, busy }: { github?: GithubSettingsActions; busy
 }
 
 type SourceRequirementsState = "loading" | "available" | "unavailable";
+const sourceRequirementsBase = "source-requirements mt-4 mb-5 rounded-pc-lg border p-3.5";
+const sourceRequirementsClass = `${sourceRequirementsBase} grid gap-2 border-[var(--color-warning-border)] bg-pc-warning-subtle`;
 
 function SourceRequirements({
   requirements,
@@ -751,20 +753,26 @@ function SourceRequirements({
 }) {
   if (state === "loading")
     return (
-      <div className="source-requirements">
+      <div className={sourceRequirementsClass}>
         <strong>Checking required game files…</strong>
       </div>
     );
   if (state === "unavailable")
     return (
-      <div className="source-requirements">
+      <div className={sourceRequirementsClass}>
         <strong>Required game files could not be checked.</strong>
         <small>Retry loading the library before changing saved locations.</small>
       </div>
     );
   if (requirements.length === 0)
     return (
-      <div className={`source-requirements${installedCount > 0 ? " complete" : ""}`}>
+      <div
+        className={
+          installedCount > 0
+            ? `${sourceRequirementsBase} complete block border-[var(--color-success-border)] bg-pc-success-subtle text-xs text-pc-success-foreground`
+            : sourceRequirementsClass
+        }
+      >
         <strong>
           {installedCount > 0
             ? "Required game files have been added for ports in your library."
@@ -773,29 +781,31 @@ function SourceRequirements({
       </div>
     );
   return (
-    <div className="source-requirements">
-      <div className="source-requirements-heading">
+    <div className={sourceRequirementsClass}>
+      <div className="source-requirements-heading flex items-center justify-between gap-3">
         <strong>
           {requirements.length} game-file{" "}
           {requirements.length === 1 ? "requirement" : "requirements"}{" "}
           {requirements.length === 1 ? "needs" : "need"} attention
         </strong>
-        <small>Required by ports in your library</small>
+        <small className="text-[var(--text-2xs)] tracking-[0.06em] text-pc-warning-foreground uppercase">
+          Required by ports in your library
+        </small>
       </div>
       {requirements.map((requirement) => (
         <div
-          className="source-requirement"
+          className="source-requirement flex items-center justify-between gap-4 rounded-pc-md bg-pc-surface p-2.5"
           data-source-profile={requirement.profile.id}
           tabIndex={-1}
           key={requirement.profile.id}
         >
-          <div>
-            <strong>{requirement.profile.label}</strong>
-            <small>
+          <div className="min-w-0">
+            <strong className="block">{requirement.profile.label}</strong>
+            <small className="mt-1 block overflow-hidden text-ellipsis whitespace-nowrap text-[var(--text-2xs)] text-pc-muted-foreground">
               {requirement.requiredBy.map((use) => `${use.portName} · ${use.role}`).join("  /  ")}
             </small>
           </div>
-          <div className="source-health-actions">
+          <div className="source-health-actions flex flex-wrap items-center gap-2.5">
             <Button
               data-focusable
               variant="outline"
@@ -859,7 +869,7 @@ function SourceHealth({
   const byProfile = new Map(outcomes.map((outcome) => [outcome.profile_id, outcome]));
   const profilesById = new Map(profiles.map((profile) => [profile.id, profile]));
   return (
-    <article className="settings-row source-health" data-focus-group>
+    <article className="settings-row source-health col-span-full min-h-0" data-focus-group>
       <p className="eyebrow">SOURCES</p>
       <div className="settings-title">
         <h2>Game-file verification</h2>
@@ -889,7 +899,7 @@ function SourceHealth({
         (sources.length === 0 ? (
           <p>No source files are registered yet.</p>
         ) : (
-          <div className="source-health-list">
+          <div className="source-health-list my-4 grid gap-2">
             {sources.map((source, index) => (
               <SourceHealthRow
                 key={`${source.profile_id}:${generation}`}
@@ -945,16 +955,22 @@ function SourceHealthRow({
   openEvidence?: (evidenceId: string) => void;
 }) {
   return (
-    <div className="source-health-row" data-source-profile={source.profile_id} tabIndex={-1}>
-      <div>
+    <div
+      className="source-health-row grid grid-cols-[minmax(0,1fr)] items-center gap-x-3 gap-y-1 rounded-pc-md border border-pc-border bg-[var(--color-bg-inset)] p-3"
+      data-source-profile={source.profile_id}
+      tabIndex={-1}
+    >
+      <div className="min-w-0">
         <strong>
           {report?.expected_identity?.label ??
             profile?.label ??
             "Saved game-file requirement unavailable"}
         </strong>
-        <code>{source.path}</code>
+        <code className="mt-1 block overflow-hidden bg-transparent p-0 text-ellipsis whitespace-nowrap text-pc-muted-foreground">
+          {source.path}
+        </code>
       </div>
-      <div className="source-health-actions">
+      <div className="source-health-actions flex flex-wrap items-center gap-2.5">
         <SourceState report={report} outcome={outcome} profileAvailable={Boolean(profile)} />
         {profile && (
           <Button
@@ -977,7 +993,7 @@ function SourceHealthRow({
         />
       </div>
       {!profile && (
-        <div>
+        <div className="min-w-0">
           <p>
             This saved game-file requirement is no longer present in the current catalog. Update the
             catalog or remove the saved location.
@@ -990,21 +1006,26 @@ function SourceHealthRow({
               Technical details
             </summary>
             <small>
-              Catalog profile ID: <code className="source-profile-id">{source.profile_id}</code>
+              Catalog profile ID:{" "}
+              <code className="source-profile-id mt-1 block bg-transparent p-0 text-pc-muted-foreground [overflow-wrap:anywhere]">
+                {source.profile_id}
+              </code>
             </small>
           </details>
         </div>
       )}
       {outcome?.error && (
-        <div>
-          <p>{errorText(outcome.error)}</p>
+        <div className="min-w-0">
+          <p className="text-pc-danger-foreground">{errorText(outcome.error)}</p>
           <FailureDetails presentation={outcome.error.presentation} code={outcome.error.code} />
         </div>
       )}
       {report ? (
-        <SourceIdentityPanel report={report} openEvidence={openEvidence} />
+        <div className="col-span-full min-w-0">
+          <SourceIdentityPanel report={report} openEvidence={openEvidence} />
+        </div>
       ) : profile ? (
-        <p className="source-inspection-loading" role="status">
+        <p className="source-inspection-loading col-span-full" role="status">
           Checking identity…
         </p>
       ) : null}
@@ -1021,9 +1042,13 @@ function SourceState({
   outcome?: SourceVerificationOutcome;
   profileAvailable?: boolean;
 }) {
+  const base = "source-state inline-flex items-center gap-1 text-xs";
+  const neutral = `${base} text-pc-muted-foreground`;
+  const verified = `${base} verified text-pc-success-foreground`;
+  const failed = `${base} failed text-pc-danger-foreground`;
   if (!profileAvailable)
     return (
-      <span className="source-state failed">
+      <span className={failed}>
         <Icon glyph={AlertTriangle} size="sm" />
         Needs attention
       </span>
@@ -1031,7 +1056,7 @@ function SourceState({
   if (report) {
     if (report.state_code === "recognized_exact")
       return (
-        <span className="source-state verified">
+        <span className={verified}>
           <Icon glyph={Check} size="sm" />
           Exact match
         </span>
@@ -1045,28 +1070,28 @@ function SourceState({
       ].includes(report.state_code)
     )
       return (
-        <span className="source-state failed">
+        <span className={failed}>
           <Icon glyph={AlertTriangle} size="sm" />
           Needs attention
         </span>
       );
     return (
-      <span className="source-state">
+      <span className={neutral}>
         <Icon glyph={CircleMinus} size="sm" />
         {report.summary}
       </span>
     );
   }
-  if (!outcome) return <span className="source-state">Not checked</span>;
+  if (!outcome) return <span className={neutral}>Not checked</span>;
   if (outcome.ok)
     return (
-      <span className="source-state verified">
+      <span className={verified}>
         <Icon glyph={Check} size="sm" />
         Source check passed
       </span>
     );
   return (
-    <span className="source-state failed">
+    <span className={failed}>
       <Icon glyph={AlertTriangle} size="sm" />
       Needs attention
     </span>

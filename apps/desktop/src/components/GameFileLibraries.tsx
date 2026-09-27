@@ -68,7 +68,9 @@ function CandidateIdentity({
         {profiles.find((profile) => profile.id === candidate.profile_id)?.label ??
           candidate.profile_id}
       </strong>
-      <code>{candidate.path}</code>
+      <code className="mt-1 block overflow-hidden bg-transparent p-0 text-ellipsis whitespace-nowrap text-pc-muted-foreground">
+        {candidate.path}
+      </code>
       <span>{formatBytes(candidate.size)}</span>
     </>
   );
@@ -117,12 +119,17 @@ function CandidateAction({
         port.bios_source_profile === candidate.profile_id,
     );
     return (
-      <div className="actions source-candidate-actions">
-        <span>{status}</span>
+      <div className="source-candidate-actions flex min-w-0 flex-wrap justify-end gap-2 max-[55rem]:justify-start">
+        <span className="basis-full text-right text-pc-muted-foreground max-[55rem]:text-left">
+          {status}
+        </span>
         {registrationConfirmed &&
           !workspaceRefreshFailed &&
           matchingPorts.map((port) => (
-            <span key={`${port.id}-readiness`}>
+            <span
+              className="basis-full text-right text-pc-muted-foreground max-[55rem]:text-left"
+              key={`${port.id}-readiness`}
+            >
               {port.name}: {portSetupLabel(statuses.get(port.id))}
             </span>
           ))}
@@ -131,7 +138,7 @@ function CandidateAction({
             <Button
               key={port.id}
               data-focusable
-              className="source-candidate-action"
+              className="source-candidate-action h-auto min-h-(--control-height-md) max-w-full whitespace-normal text-center [overflow-wrap:anywhere]"
               variant="outline"
               disabled={busy || stale || !registrationConfirmed}
               onClick={() => onOpenPort(port.id, setupReturnOrigin)}
@@ -142,7 +149,7 @@ function CandidateAction({
         <Button
           data-focusable
           data-candidate-review
-          className="source-candidate-action"
+          className="source-candidate-action h-auto min-h-(--control-height-md) max-w-full whitespace-normal text-center [overflow-wrap:anywhere]"
           variant="outline"
           disabled={busy || stale}
           onClick={review}
@@ -288,14 +295,14 @@ function CompletedScan({
       )}
       {report.candidates.map((candidate) => (
         <div
-          className="source-health-row"
+          className="source-health-row grid grid-cols-[minmax(0,1fr)_minmax(0,18rem)] items-center gap-x-3 gap-y-1 rounded-pc-md border border-pc-border bg-[var(--color-bg-inset)] p-3 max-[55rem]:grid-cols-[minmax(0,1fr)]"
           data-candidate-row
           key={`${candidate.profile_id}:${candidate.path}`}
           data-completed-candidate
           data-profile-id={candidate.profile_id}
           data-path={candidate.path}
         >
-          <div>
+          <div className="min-w-0">
             <CandidateIdentity candidate={candidate} profiles={profiles} />
             <span>
               Catalog ports using this profile:{" "}
@@ -326,7 +333,10 @@ function CompletedScan({
       ))}
       {report.issues.map((issue, index) => (
         <p key={`${issue.path}:${index}`}>
-          {issue.message} {issue.path && <code>{issue.path}</code>}
+          {issue.message}{" "}
+          {issue.path && (
+            <code className="whitespace-normal [overflow-wrap:anywhere]">{issue.path}</code>
+          )}
         </p>
       ))}
       {report.issues_omitted > 0 && <p>{report.issues_omitted} more scan issues were omitted.</p>}
@@ -354,11 +364,16 @@ function SavedRootRows({
   if (roots === undefined) return <p role="status">Loading saved folders…</p>;
   if (roots.length === 0) return <p>No folders saved yet.</p>;
   return (
-    <div className="source-health-list">
+    <div className="source-health-list my-4 grid gap-2">
       {roots.map((root) => (
-        <div className="source-health-row" key={root.id}>
-          <div>
-            <code>{root.path}</code>
+        <div
+          className="source-health-row grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 rounded-pc-md border border-pc-border bg-[var(--color-bg-inset)] p-3"
+          key={root.id}
+        >
+          <div className="min-w-0">
+            <code className="mt-1 block overflow-hidden bg-transparent p-0 text-ellipsis whitespace-nowrap text-pc-muted-foreground">
+              {root.path}
+            </code>
             <span>
               {root.availability === "available"
                 ? "Available"
@@ -438,14 +453,14 @@ function LiveScanResults({
       </p>
       {candidates.map((candidate) => (
         <div
-          className="source-health-row"
+          className="source-health-row grid grid-cols-[minmax(0,1fr)_minmax(0,18rem)] items-center gap-x-3 gap-y-1 rounded-pc-md border border-pc-border bg-[var(--color-bg-inset)] p-3 max-[55rem]:grid-cols-[minmax(0,1fr)]"
           data-candidate-row
           key={`${candidate.profile_id}:${candidate.path}`}
           data-live-candidate
           data-profile-id={candidate.profile_id}
           data-path={candidate.path}
         >
-          <div>
+          <div className="min-w-0">
             <CandidateIdentity candidate={candidate} profiles={profiles} />
           </div>
           <CandidateAction
@@ -757,7 +772,7 @@ export function GameFileLibraries({
     });
   return (
     <article
-      className="settings-row source-health"
+      className="settings-row source-health col-span-full min-h-0"
       data-focus-group
       data-detail-origin={setupReturnOrigin}
       aria-labelledby="game-file-libraries-heading"

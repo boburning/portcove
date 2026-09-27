@@ -1845,9 +1845,9 @@ describe("desktop components", () => {
       "This saved game-file requirement is no longer present in the current catalog.",
     );
     expect(html).toContain("Update the catalog or remove the saved location.");
-    expect(html).toContain(
-      `Catalog profile ID: <code class="source-profile-id">${source.profile_id}</code>`,
-    );
+    expect(html).toContain("Catalog profile ID:");
+    expect(html).toContain('class="source-profile-id');
+    expect(html).toContain(`>${source.profile_id}</code>`);
     expect(html).toContain(
       `aria-label="Technical details for saved game-file location ${source.path}, saved reference 1 of 2"`,
     );
@@ -1999,9 +1999,9 @@ describe("desktop components", () => {
     expect(noInstalledPorts).toContain(
       "No ports in your library yet. Game-file requirements will appear here after you add a port.",
     );
-    expect(noInstalledPorts).not.toContain("source-requirements complete");
+    expect(noInstalledPorts).not.toMatch(/class="[^"]*source-requirements[^"]*\bcomplete\b/u);
     expect(complete).toContain("Required game files have been added for ports in your library");
-    expect(complete).toContain("source-requirements complete");
+    expect(complete).toMatch(/class="[^"]*source-requirements[^"]*\bcomplete\b/u);
     expect(complete).toContain("No source files are registered yet");
     expect(singular).toContain("1 game-file requirement needs attention");
     expect(plural).toContain("2 game-file requirements need attention");
