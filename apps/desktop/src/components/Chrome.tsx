@@ -1370,20 +1370,21 @@ export function SettingsView({
     heading.addEventListener("blur", () => (heading.tabIndex = -1), { once: true });
   };
   return (
-    <section className="settings-grid">
+    <section className="settings-grid grid gap-8">
       <div
-        className="settings-section-index"
+        className="settings-section-index flex flex-wrap items-center gap-2"
         role="group"
         aria-label="Settings sections"
         data-focus-group
       >
-        <span>Jump to</span>
+        <span className="me-1 text-sm text-pc-muted-foreground">Jump to</span>
         {sections.map(({ id, label }) => (
           <Button
             key={id}
             data-focusable
             variant="outline"
             size="sm"
+            className="max-w-full whitespace-normal text-center"
             onClick={() => jumpToSection(id)}
           >
             {label}
@@ -1546,16 +1547,24 @@ function SettingsSection({
 }) {
   const headingId = `settings-${id}-heading`;
   return (
-    <section className="settings-section" data-settings-group={id} aria-labelledby={headingId}>
-      <div className="settings-section-heading">
+    <section
+      className="settings-section grid gap-[15px]"
+      data-settings-group={id}
+      aria-labelledby={headingId}
+    >
+      <div className="settings-section-heading py-2">
         <p className="eyebrow">{eyebrow}</p>
-        <h2 id={headingId} tabIndex={-1}>
+        <h2 id={headingId} tabIndex={-1} className="mb-1 scroll-mt-3 text-[length:var(--text-xl)]">
           {title}
         </h2>
-        <p>{description}</p>
+        <p className="settings-section-description m-0 max-w-[52rem] leading-[var(--leading-relaxed)] text-pc-muted-foreground">
+          {description}
+        </p>
         {action}
       </div>
-      <div className="settings-section-content">{children}</div>
+      <div className="settings-section-content overflow-hidden rounded-pc-lg border border-pc-border bg-pc-surface">
+        {children}
+      </div>
     </section>
   );
 }
