@@ -1751,9 +1751,9 @@ function HostReadiness({
   failure?: unknown;
 }) {
   return (
-    <article className="settings-row host-readiness">
+    <article className="settings-row col-span-full min-h-0">
       <p className="eyebrow">HOST</p>
-      <h2 id="disc-tools-heading" tabIndex={-1}>
+      <h2 className="flex items-center gap-2" id="disc-tools-heading" tabIndex={-1}>
         <Icon glyph={Wrench} />
         Disc tools
       </h2>
@@ -1763,14 +1763,14 @@ function HostReadiness({
           {(stale || Boolean(failure)) && (
             <p role="status">Showing the last successful host check.</p>
           )}
-          <p className="host-summary">
+          <p className="host-summary mb-3 flex items-center justify-between gap-3">
             <code>{doctor.platform}</code>
-            <span>
+            <span className="text-right text-xs text-pc-muted-foreground">
               {doctor.catalog_port_count} ports · {doctor.installed_port_count} installed ·{" "}
               {doctor.registered_source_count} sources
             </span>
           </p>
-          <div className="host-tool-list">
+          <div className="mb-4 grid grid-cols-2 gap-2">
             {doctor.host_tools.map((tool) => (
               <HostToolRow key={tool.id} tool={tool} busy={Boolean(busy)} actions={actions} />
             ))}
@@ -1848,15 +1848,28 @@ export function HostToolRow({
           ? "Host discovery"
           : "Not resolved";
   return (
-    <div className="host-tool-row" data-focus-group data-host-tool-id={tool.id} tabIndex={-1}>
-      <div className="host-tool-heading">
+    <div
+      className="host-tool-row grid min-w-0 gap-1 rounded-pc-md border border-pc-border bg-[var(--color-bg-inset)] p-3"
+      data-focus-group
+      data-host-tool-id={tool.id}
+      tabIndex={-1}
+    >
+      <div className="flex items-center justify-between gap-3">
         <strong>{tool.display_name}</strong>
-        <span className={`host-tool-state ${tool.state}`}>
+        <span
+          className={`inline-flex items-center gap-1 text-xs whitespace-nowrap ${
+            tool.state === "available"
+              ? "text-pc-success-foreground"
+              : tool.state === "misconfigured"
+                ? "text-pc-danger-foreground"
+                : "text-pc-muted-foreground"
+          }`}
+        >
           <Icon glyph={state.icon} size="sm" />
           {state.label}
         </span>
       </div>
-      <small>{tool.purpose}</small>
+      <small className="text-[var(--color-text-secondary)]">{tool.purpose}</small>
       {tool.state === "missing" && (
         <p>{tool.display_name} was not found. Choose its executable to continue.</p>
       )}
@@ -1916,10 +1929,14 @@ export function HostToolRow({
           </Button>
         )}
       </div>
-      <details className="host-tool-details">
-        <summary>Tool details</summary>
-        <code title={location}>{location}</code>
-        <small>
+      <details className="host-tool-details mt-1 min-w-0">
+        <summary className="cursor-pointer text-sm text-[var(--color-text-secondary)]">
+          Tool details
+        </summary>
+        <code className="mt-2 block" title={location}>
+          {location}
+        </code>
+        <small className="mt-2 block text-[var(--color-text-secondary)]">
           {source}
           {showTechnicalId && (
             <>
@@ -1966,20 +1983,25 @@ function StorageCard({
       </h2>
       <code>{libraryRoot || "Loading…"}</code>
       {measurable ? (
-        <div className="storage-capacity">
-          <div>
-            <strong>{formatBytes(available)} available</strong>
-            <span>{formatBytes(total)} total storage capacity</span>
+        <div className="mb-[15px] grid gap-2">
+          <div className="flex items-baseline justify-between gap-3">
+            <strong className="text-xs">{formatBytes(available)} available</strong>
+            <span className="text-[var(--text-2xs)] text-pc-muted-foreground">
+              {formatBytes(total)} total storage capacity
+            </span>
           </div>
           <div
-            className="storage-meter"
+            className="h-[6px] overflow-hidden rounded-[var(--radius-round)] border border-pc-border bg-[var(--color-bg-inset)]"
             role="meter"
             aria-label="Available capacity on the library volume"
             aria-valuemin={0}
             aria-valuemax={total}
             aria-valuenow={available}
           >
-            <i style={{ width: `${(available / total) * 100}%` }} />
+            <i
+              className="block h-full rounded-[inherit] bg-[var(--color-success)]"
+              style={{ width: `${(available / total) * 100}%` }}
+            />
           </div>
         </div>
       ) : (
