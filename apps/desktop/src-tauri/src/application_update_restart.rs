@@ -171,8 +171,38 @@ pub(crate) fn is_helper_mode(value: &OsStr) -> bool {
     value == HELPER_MODE
 }
 
+#[cfg(all(windows, feature = "application-update-qualification"))]
+pub(crate) fn stage_qualification_worker(expected_revision: u64) -> i32 {
+    let result = ApplicationUpdateApplyStore::open_configured()
+        .map_err(|error| error.to_string())
+        .and_then(|apply| {
+            crate::application_update_windows::stage_windows_update_worker(
+                &apply,
+                expected_revision,
+            )
+            .map_err(|error| error.to_string())
+        });
+    match result {
+        Ok(path) => {
+            println!("{}", path.display());
+            0
+        }
+        Err(error) => {
+            eprintln!("Portcove qualification worker staging failed: {error}");
+            1
+        }
+    }
+}
+
 #[cfg(any(windows, target_os = "linux"))]
 fn spawn_update_helper(expected_revision: u64) -> DesktopResult<()> {
+    #[cfg(windows)]
+    let executable = crate::application_update_windows::stage_windows_update_worker(
+        &ApplicationUpdateApplyStore::open_configured().map_err(apply_error)?,
+        expected_revision,
+    )
+    .map_err(|error| DesktopError::from(PortcoveError::state(error.to_string())))?;
+    #[cfg(target_os = "linux")]
     let executable = std::env::current_exe().map_err(PortcoveError::from)?;
     let mut command = update_helper_command(&executable, expected_revision)?;
     command.spawn().map_err(|_| {
@@ -203,9 +233,26 @@ fn update_helper_command(
 
 #[cfg(windows)]
 pub(crate) fn run_update_helper(expected_revision: u64) -> i32 {
-    let outcome = run_update_helper_inner(expected_revision);
+    let apply = match ApplicationUpdateApplyStore::open_configured() {
+        Ok(apply) => apply,
+        Err(error) => {
+            report_qualification_helper_failure("worker", &error.to_string());
+            return 1;
+        }
+    };
+    let worker = match crate::application_update_windows::verify_windows_update_worker(
+        &apply,
+        expected_revision,
+    ) {
+        Ok(worker) => worker,
+        Err(error) => {
+            report_qualification_helper_failure("worker", &error.to_string());
+            return 1;
+        }
+    };
+    let outcome = run_update_helper_inner(expected_revision, &worker);
     let restart_result = if outcome != UpdateHelperOutcome::Ambiguous {
-        restart_desktop_if_runtime_available()
+        restart_executable_if_runtime_available(worker.installed_executable(), false)
     } else {
         Err(())
     };
@@ -255,20 +302,35 @@ enum UpdateHelperOutcome {
 }
 
 #[cfg(windows)]
-fn run_update_helper_inner(expected_revision: u64) -> UpdateHelperOutcome {
-    let admission = match prepare_update_admission(expected_revision) {
+fn run_update_helper_inner(
+    expected_revision: u64,
+    worker: &crate::application_update_windows::VerifiedWindowsUpdateWorker,
+) -> UpdateHelperOutcome {
+    let admission = match prepare_update_admission(expected_revision, worker) {
         Ok(admission) => admission,
         Err(error) => {
             report_qualification_helper_failure("revalidation", &error);
             return UpdateHelperOutcome::FailedSafe;
         }
     };
-    classify_launch_result(admission.launch())
+    let result = admission.launch();
+    if let Err(error) = &result {
+        report_qualification_helper_failure("installer", &error.to_string());
+    }
+    classify_launch_result(result)
 }
 
 #[cfg(target_os = "linux")]
 fn run_linux_update_helper_inner(expected_revision: u64) -> UpdateHelperOutcome {
-    let lease = match prepare_revalidation_lease(expected_revision) {
+    let provider = match ApplicationUpdateHostProvider::compiled() {
+        Ok(Some(provider)) => provider,
+        Ok(None) => return UpdateHelperOutcome::FailedSafe,
+        Err(error) => {
+            report_qualification_helper_failure("configuration", &error.to_string());
+            return UpdateHelperOutcome::FailedSafe;
+        }
+    };
+    let lease = match prepare_revalidation_lease(expected_revision, &provider) {
         Ok(lease) => lease,
         Err(error) => {
             report_qualification_helper_failure("revalidation", &error);
@@ -290,21 +352,27 @@ fn run_linux_update_helper_inner(expected_revision: u64) -> UpdateHelperOutcome 
 }
 
 #[cfg(windows)]
-fn prepare_update_admission(expected_revision: u64) -> Result<WindowsNsisUpdateAdmission, String> {
-    let lease = prepare_revalidation_lease(expected_revision)?;
-    crate::application_update_windows::admit_windows_nsis_update(lease)
+fn prepare_update_admission(
+    expected_revision: u64,
+    worker: &crate::application_update_windows::VerifiedWindowsUpdateWorker,
+) -> Result<WindowsNsisUpdateAdmission, String> {
+    let provider = ApplicationUpdateHostProvider::compiled_for_installed_source(
+        std::sync::Arc::new(worker.clone()),
+    )
+    .map_err(|error| error.to_string())?
+    .ok_or_else(|| "application update host configuration is unavailable".to_owned())?;
+    let lease = prepare_revalidation_lease(expected_revision, &provider)?;
+    crate::application_update_windows::admit_windows_nsis_update(lease, worker)
         .map_err(|error| error.to_string())
 }
 
 #[cfg(any(windows, target_os = "linux"))]
 fn prepare_revalidation_lease(
     expected_revision: u64,
+    provider: &ApplicationUpdateHostProvider,
 ) -> Result<ApplicationUpdateRevalidationLease, String> {
     let request = ApplicationUpdateHelperRequest::new(expected_revision)
         .map_err(|error| error.to_string())?;
-    let provider = ApplicationUpdateHostProvider::compiled()
-        .map_err(|error| error.to_string())?
-        .ok_or_else(|| "application update host configuration is unavailable".to_owned())?;
     let apply =
         ApplicationUpdateApplyStore::open_configured().map_err(|error| error.to_string())?;
     let preferences =
@@ -316,7 +384,7 @@ fn prepare_revalidation_lease(
     tauri::async_runtime::block_on(revalidate_application_update_after_parent_exit(
         request,
         &BoundedApplicationUpdateRuntimeWaiter::default(),
-        &provider,
+        provider,
         &apply,
         &preferences,
         &staging,
@@ -358,12 +426,6 @@ fn classify_linux_launch_result(
         Err(LinuxApplicationUpdateError::Ambiguous(_)) => UpdateHelperOutcome::Ambiguous,
         Err(_) => UpdateHelperOutcome::FailedSafe,
     }
-}
-
-#[cfg(windows)]
-fn restart_desktop_if_runtime_available() -> Result<(), ()> {
-    let executable = std::env::current_exe().map_err(|_| ())?;
-    restart_executable_if_runtime_available(&executable, false)
 }
 
 #[cfg(target_os = "linux")]

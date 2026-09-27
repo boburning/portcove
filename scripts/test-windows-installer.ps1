@@ -583,8 +583,30 @@ try {
         $env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_EXIT = "after-reconciliation"
         $env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_STAGE = $qualificationStage
         Write-InstallerEvidence "installed_helper_starting" ([ordered]@{ prepared = $prepared; predecessor_executable_sha256 = $previousHash })
+        $staging = Invoke-JournaledProcess -Role "installed_update_stage" -Executable $application -Arguments @("--portcove-stage-update-worker", [string]$prepared.apply_revision) -AllowedRelocationRoot $runRoot
+        if ($staging.ExitCode -ne 0) { throw "Installed predecessor could not stage its update worker (exit $($staging.ExitCode))" }
+        $revisionRoot = Join-Path $updateRoot "workers\revision-$($prepared.apply_revision)"
+        $attempts = @(Get-ChildItem -LiteralPath $revisionRoot -Directory -ErrorAction Stop)
+        if ($attempts.Count -ne 1) { throw "Expected one revision-bound installed update worker attempt" }
+        $worker = Join-Path $attempts[0].FullName "portcove-update-worker.exe"
+        $workerManifest = Join-Path $attempts[0].FullName "worker.json"
+        Assert-NoReparseAncestry $worker
+        Assert-NoReparseAncestry $workerManifest
+        if (-not [IO.File]::Exists($worker) -or -not [IO.File]::Exists($workerManifest)) {
+            throw "Installed update worker or its binding was not published"
+        }
+        $workerHash = (Get-FileHash -LiteralPath $worker -Algorithm SHA256).Hash.ToLowerInvariant()
+        $binding = Get-Content -LiteralPath $workerManifest -Raw | ConvertFrom-Json
+        if ($workerHash -ne $previousHash -or
+            $binding.installed_sha256 -ne $previousHash -or
+            $binding.revision -ne $prepared.apply_revision -or
+            -not ([IO.Path]::GetFullPath([string]$binding.installed_executable)).Equals(
+                [IO.Path]::GetFullPath($application), [StringComparison]::OrdinalIgnoreCase)) {
+            throw "Installed update worker does not match the registered predecessor and apply revision"
+        }
+        Write-InstallerEvidence "installed_worker_verified" ([ordered]@{ worker_path = $worker; worker_sha256 = $workerHash; binding = $binding })
         $helperStart = [DateTime]::UtcNow
-        $install = Invoke-JournaledProcess -Role "installed_update_helper" -Executable $application -Arguments @("--portcove-apply-update", [string]$prepared.apply_revision) -AllowedRelocationRoot $runRoot
+        $install = Invoke-JournaledProcess -Role "installed_update_helper" -Executable $worker -Arguments @("--portcove-apply-update", [string]$prepared.apply_revision) -AllowedRelocationRoot $runRoot
         if ($install.ExitCode -ne 0) { throw "Installed application update helper exited with code $($install.ExitCode)" }
         $deadline = (Get-Date).AddSeconds(30)
         $stageReadError = $null

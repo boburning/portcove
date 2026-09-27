@@ -165,6 +165,14 @@ impl ApplicationUpdateHostProvider {
             .map(|repository| Self::new(repository, Arc::new(CurrentInstalledApplicationContext))))
     }
 
+    #[cfg(windows)]
+    pub fn compiled_for_installed_source(
+        installed: Arc<dyn InstalledApplicationContextSource>,
+    ) -> Result<Option<Self>, ApplicationUpdateHostConfigurationError> {
+        Ok(ApplicationUpdateRepositoryConfiguration::compiled()?
+            .map(|repository| Self::new(repository, installed)))
+    }
+
     async fn select_fresh(
         &self,
         choice: &crate::application_update_preferences::ApplicationUpdateChoice,
