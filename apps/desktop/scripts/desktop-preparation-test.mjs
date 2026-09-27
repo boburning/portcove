@@ -48,11 +48,23 @@ async function assertActivityLabelSeparation(browser, width) {
     const status = activity?.querySelector(".activity-status");
     if (!previous || !status) return null;
     const textBounds = (element) => {
-      const range = document.createRange();
-      range.selectNodeContents(element);
-      return range.getBoundingClientRect();
+      const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+      let left = Infinity;
+      let right = -Infinity;
+      for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+        if (!node.textContent?.trim()) continue;
+        const range = document.createRange();
+        range.selectNodeContents(node);
+        const rect = range.getBoundingClientRect();
+        left = Math.min(left, rect.left);
+        right = Math.max(right, rect.right);
+      }
+      return { left, right };
     };
-    return textBounds(status).left - textBounds(previous).right;
+    const preceding = textBounds(previous);
+    const outcome = textBounds(status);
+    if (!Number.isFinite(preceding.right) || !Number.isFinite(outcome.left)) return null;
+    return outcome.left - preceding.right;
   }, width === 960);
   assert.ok(
     gap !== null && gap >= 8,
