@@ -362,13 +362,13 @@ function ActivityHistory({
       !protectedIds.has(activity.id),
   ).length;
   return (
-    <section className="activity-history">
-      <div className="activity-heading">
+    <section className="activity-history mt-7 border-t border-pc-border pt-6">
+      <div className="activity-heading mb-3 flex items-end justify-between gap-4">
         <div>
           <p className="eyebrow">ACTIVITY HISTORY</p>
-          <h2>Recent activity</h2>
+          <h2 className="mt-1 mb-0 text-lg">Recent activity</h2>
         </div>
-        <small>
+        <small className="text-xs text-pc-muted-foreground">
           {activityFeed ? (
             <>
               Showing {visibleFinishedCount} recent finished tasks, plus tasks in progress and items
@@ -384,18 +384,20 @@ function ActivityHistory({
         </small>
       </div>
       {activities.length === 0 ? (
-        <div className="activity-empty">
-          <Icon glyph={History} />
+        <div className="activity-empty flex items-center gap-3 p-4 text-left text-xs text-pc-muted-foreground">
+          <span className="text-pc-interactive-foreground">
+            <Icon glyph={History} />
+          </span>
           <div>
-            <strong>No activity yet</strong>
-            <span>
+            <strong className="block text-pc-secondary-foreground">No activity yet</strong>
+            <span className="mt-1 block">
               Installs, updates, verification, restored versions, copied installations, and failures
               will appear here.
             </span>
           </div>
         </div>
       ) : (
-        <div className="activity-list">
+        <div className="activity-list grid gap-1.5">
           {visibleActivities.map((activity) => (
             <ActivityRow
               activity={activity}

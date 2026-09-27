@@ -55,67 +55,92 @@ export function RecoveryReview({
           : repair
             ? "fresh"
             : "never-loaded";
+  const quiet = state === "fresh" && repair?.items.length === 0;
   return (
     <section
-      className="recovery-review"
+      className={
+        "recovery-review mt-6 min-w-0 " +
+        (quiet ? "py-2" : "rounded-pc-lg border border-pc-border bg-pc-surface p-4")
+      }
       aria-label="Retained work and repairs"
       data-diagnostic-state={state}
     >
-      <h2>Retained work and repairs</h2>
+      <h2 className={quiet ? "m-0 text-sm font-medium text-pc-muted-foreground" : "m-0 text-lg"}>
+        Retained work and repairs
+      </h2>
       {refreshing && (
-        <p role="status">
+        <p className="mt-1 mb-0 text-sm text-pc-secondary-foreground" role="status">
           {repair
             ? "Refreshing recovery information. The last completed check remains visible."
             : "Checking the library for retained work and repairs…"}
         </p>
       )}
       {!refreshing && Boolean(failure) && (
-        <p role="alert">
+        <p className="mt-1 mb-0 text-sm text-pc-danger-foreground" role="alert">
           Recovery information could not be refreshed: {errorText(failure)}
           {repair ? " The last completed check remains visible." : ""}
         </p>
       )}
       {!refreshing && !failure && stale && (
-        <p role="status">
+        <p className="mt-1 mb-0 text-sm text-pc-warning-foreground" role="status">
           {repair
             ? "Recovery information is out of date. The last completed check remains visible."
             : "Recovery information has not been checked for the current library state."}
         </p>
       )}
-      {(!stale || repair) && <p>{formatCountMessage(repair?.items.length, countMessages)}</p>}
+      {(!stale || repair) && (
+        <p className="mt-1 mb-0 text-sm text-pc-muted-foreground">
+          {formatCountMessage(repair?.items.length, countMessages)}
+        </p>
+      )}
       {(stale || Boolean(failure)) && !refreshing && (
-        <Button data-focusable variant="outline" size="sm" onClick={() => void refresh()}>
+        <Button
+          data-focusable
+          variant="outline"
+          size="sm"
+          className="mt-3"
+          onClick={() => void refresh()}
+        >
           Refresh recovery information
         </Button>
       )}
       {!!repair?.items.length && (
         <>
-          <p>
+          <p className="mt-3 mb-0 text-sm text-pc-secondary-foreground">
             Open an item to review its recorded location and recovery guidance. Opening these
             details does not change files.
           </p>
-          <div className="recovery-review-list" data-focus-group>
+          <div className="recovery-review-list mt-3 grid gap-3" data-focus-group>
             {repair.items.map((item, index) => (
               <details
+                className="min-w-0 rounded-pc-md bg-[var(--color-bg-inset)] p-3 break-words"
                 key={`${item.operation_id ?? item.port_id ?? "library"}:${item.kind}:${item.path}:${index}`}
                 data-recovery-operation={item.operation_id ?? undefined}
               >
-                <summary data-focusable>
+                <summary className="cursor-pointer" data-focusable>
                   {item.port_id ? (names.get(item.port_id) ?? item.port_id) : "Library"} ·{" "}
                   {Object.hasOwn(labels, item.kind)
                     ? labels[item.kind]
                     : "Recovery information needs review"}
                 </summary>
-                <dl>
+                <dl className="text-xs">
                   <dt>Recorded location</dt>
-                  <dd>{item.path ? <code>{item.path}</code> : "No location was recorded."}</dd>
+                  <dd className="mt-1 mb-3">
+                    {item.path ? (
+                      <code className="whitespace-normal">{item.path}</code>
+                    ) : (
+                      "No location was recorded."
+                    )}
+                  </dd>
                   <dt>Recorded guidance</dt>
-                  <dd>{item.proposed_action || "No recovery guidance was recorded."}</dd>
+                  <dd className="mt-1 mb-3">
+                    {item.proposed_action || "No recovery guidance was recorded."}
+                  </dd>
                   {item.operation_id && (
                     <>
                       <dt>Operation reference</dt>
-                      <dd>
-                        <code>{item.operation_id}</code>
+                      <dd className="mt-1 mb-3">
+                        <code className="whitespace-normal">{item.operation_id}</code>
                       </dd>
                     </>
                   )}
