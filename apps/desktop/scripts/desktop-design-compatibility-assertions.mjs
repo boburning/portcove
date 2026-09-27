@@ -122,6 +122,25 @@ export async function assertDesignCompatibility({ browser, By, Key, until }) {
     .catch((error) => {
       if (error.name !== "TimeoutError") throw error;
     });
+  if (lightVariant.opacity !== "1") {
+    lightVariant.invalidation = await browser.executeScript(() => {
+      const fixture = document.querySelector(".design-compatibility-fixture");
+      const probe = document.querySelector("[data-theme-variant-probe]");
+      const opacity = () => getComputedStyle(probe).opacity;
+      document.documentElement.style.setProperty("--portcove-theme-recalc-probe", "light");
+      const documentProperty = opacity();
+      document.documentElement.style.removeProperty("--portcove-theme-recalc-probe");
+      if (documentProperty === "1") return { documentProperty };
+      fixture.style.setProperty("--portcove-theme-recalc-probe", "light");
+      const fixtureProperty = opacity();
+      fixture.style.removeProperty("--portcove-theme-recalc-probe");
+      if (fixtureProperty === "1") return { documentProperty, fixtureProperty };
+      fixture.style.display = "none";
+      void fixture.offsetHeight;
+      fixture.style.removeProperty("display");
+      return { documentProperty, fixtureProperty, displayToggle: opacity() };
+    });
+  }
   assert.equal(
     lightVariant.opacity,
     "1",
