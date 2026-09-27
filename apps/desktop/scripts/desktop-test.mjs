@@ -1642,6 +1642,39 @@ try {
         await browser.findElement(By.xpath('//nav//button[contains(., "Settings")]')).click();
         await selectSettingsTheme(theme);
         await verifySettingsIndexTheme(theme);
+        const gameFileCards = await browser.findElements(
+          By.css('[data-settings-group="game-files"] article.source-health'),
+        );
+        assert.equal(gameFileCards.length, 2, "Game Files Settings cards are incomplete");
+        for (const size of [
+          { width: 960, height: 640 },
+          { width: 1280, height: 800 },
+        ]) {
+          await browser.manage().window().setRect(size);
+          const actualWindow = await browser.manage().window().getRect();
+          assert.deepEqual(
+            { width: actualWindow.width, height: actualWindow.height },
+            size,
+            `Game Files Settings window was clamped: ${JSON.stringify(actualWindow)}`,
+          );
+          for (const [index, name] of ["saved-folders", "verification"].entries()) {
+            const card = gameFileCards[index];
+            await browser.executeScript(
+              (element) => element.scrollIntoView({ block: "start", inline: "nearest" }),
+              card,
+            );
+            const overflow = await browser.executeScript(
+              (element) => element.scrollWidth > element.clientWidth + 1,
+              card,
+            );
+            assert.equal(overflow, false, `${name} overflows at ${size.width}px in ${theme}`);
+            await captureScenarioScreenshot(
+              `settings-game-files-${name}-${theme}-${size.width}`,
+              true,
+            );
+          }
+        }
+        await browser.manage().window().setRect({ width: 960, height: 640 });
         await browser.findElement(By.xpath('//nav//button[contains(., "Port catalog")]')).click();
         await browser.wait(
           async () => (await browser.findElements(By.css(".port-card"))).length > 2,

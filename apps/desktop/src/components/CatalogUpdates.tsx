@@ -266,10 +266,15 @@ function PublisherTrust({ status, busy, run, changed }: CatalogActions) {
       </p>
       {status.trusted_keys.length === 0 && <p>No trusted publishers.</p>}
       {status.trusted_keys.map((key) => (
-        <div className="source-health-row" key={key.key_id}>
-          <div>
+        <div
+          className="source-health-row grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 rounded-pc-md border border-pc-border bg-[var(--color-bg-inset)] p-3"
+          key={key.key_id}
+        >
+          <div className="min-w-0">
             <span>Publisher fingerprint</span>
-            <code>{key.key_id}</code>
+            <code className="mt-1 block overflow-hidden bg-transparent p-0 text-ellipsis whitespace-nowrap text-pc-muted-foreground">
+              {key.key_id}
+            </code>
           </div>
           <Button
             data-focusable
