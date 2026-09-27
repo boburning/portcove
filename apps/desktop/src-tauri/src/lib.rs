@@ -1492,6 +1492,19 @@ pub fn run_hidden_helper() -> Option<i32> {
                 _ => 2,
             })
         }
+        #[cfg(all(windows, feature = "application-update-qualification"))]
+        Some(mode) if mode == "--portcove-stage-update-worker" => {
+            let revision = arguments
+                .next()
+                .as_deref()
+                .and_then(application_update_restart::helper_revision);
+            Some(match revision {
+                Some(revision) if arguments.next().is_none() => {
+                    application_update_restart::stage_qualification_worker(revision)
+                }
+                _ => 2,
+            })
+        }
         _ => None,
     }
 }

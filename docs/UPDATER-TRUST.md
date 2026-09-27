@@ -312,10 +312,15 @@ generation to host-owned preferences, verified staging, installed context and li
 root. While the desktop library-selection mutex prevents a new library command from
 entering, it closes backend-worker and manual-check admission, refuses workers already
 in flight, and preflights the durable activity and launch-session idle conditions. It
-then dispatches a detached helper carrying only the apply-journal revision.
-That helper waits for every Portcove process to release the user runtime, repeats the
+then copies the registered predecessor executable under the owned updater state
+root with a distinct worker filename and dispatches that copy carrying only the
+apply-journal revision. The worker checks its own bytes and the registered
+predecessor against the revision-bound path and digest recorded before dispatch.
+NSIS can close the installed executable by name while this worker retains the
+updater locks and observes the installer exit. The worker waits for every Portcove
+process to release the user runtime, repeats the
 fresh authenticated and durable checks, launches the admitted passive NSIS payload,
-and reopens Portcove only after success or a failure proven to have no live installer
+and reopens the registered Portcove executable only after success or a failure proven to have no live installer
 and no Portcove runtime peer. A child-observation failure stays ambiguous and starts no
 peer process. A later
 Windows process crosses that health boundary only after acquiring
@@ -328,6 +333,17 @@ executable and uninstaller. Under the existing apply-before-staging lock order i
 retires only the matching staged candidate, preserves any newer candidate, and clears
 the apply request last so an interruption can resume safely. Safe-exit apply remains
 inactive; only the explicit restart action dispatches the launch sequence.
+
+The on-demand Windows artifact rehearsal builds a disposable signed TUF
+repository and a predecessor NSIS package with its public root embedded. In an
+isolated current-user install, the fixture selects and stages the signed candidate,
+records a restart intent, invokes the predecessor's qualification-only worker
+staging mode, and runs the revision-bound worker. The
+qualification requires candidate relaunch, healthy startup reconciliation, exact
+registered version and executable bytes, and persistent-library preservation.
+The fixture prepares the selection and restart intent externally; this evidence
+does not establish in-app check, download, or the user's restart action, a clean
+non-administrator VM, production signing, or publication.
 
 The sibling `application_update_trust` module owns the durable host trust boundary.
 Under path-keyed process ownership and one OS file lock it supplies `tough` with the

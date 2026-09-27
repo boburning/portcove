@@ -45,7 +45,7 @@ struct PreparedUpdate {
 }
 
 fn usage() -> &'static str {
-    "usage: prepare_appimage_update describe CURRENT_VERSION\n       prepare_appimage_update prepare CURRENT_VERSION ROOT METADATA TARGETS CANDIDATE PREFERENCES STAGING LIBRARY"
+    "usage: prepare_installed_update describe CURRENT_VERSION\n       prepare_installed_update prepare CURRENT_VERSION ROOT METADATA TARGETS CANDIDATE PREFERENCES STAGING LIBRARY"
 }
 
 #[cfg(target_os = "linux")]
@@ -54,9 +54,15 @@ fn installed_context(current_version: &str) -> Result<InstalledApplicationContex
         .map_err(|error| error.to_string())
 }
 
-#[cfg(not(target_os = "linux"))]
+#[cfg(windows)]
+fn installed_context(current_version: &str) -> Result<InstalledApplicationContext, String> {
+    portcove_desktop::application_update_windows::windows_nsis_context_for_version(current_version)
+        .map_err(|error| error.to_string())
+}
+
+#[cfg(not(any(windows, target_os = "linux")))]
 fn installed_context(_current_version: &str) -> Result<InstalledApplicationContext, String> {
-    Err("the AppImage qualification fixture requires Linux".into())
+    Err("the installed application update qualification fixture requires Windows or Linux".into())
 }
 
 fn fixture_contract(current_version: &str) -> Result<FixtureContract, String> {

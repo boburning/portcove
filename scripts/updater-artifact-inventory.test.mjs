@@ -251,7 +251,10 @@ test("manual rehearsal retains the complete matrix without production credential
   assert.match(rehearsal, /-CandidateVersion/);
   assert.match(rehearsal, /application-update-qualification/);
   assert.match(rehearsal, /private_signing_inputs_absent/);
-  assert.match(rehearsal, /-PayloadPrivateKeyPath \$privateKey -RequireSigningAuthorityAbsent/);
+  assert.match(
+    rehearsal,
+    /-PayloadPrivateKeyPath \$privateKey -TufPrivateRootPath \(Join-Path \$fixtureRoot "private"\) -RequireSigningAuthorityAbsent/,
+  );
   assert.match(rehearsal, /windows-payload-consumer\.json/);
   assert.match(rehearsal, /\$PlatformLabel-payload-consumer\.json/);
   assert.match(rehearsal, /Invoke-PackagedPayloadConsumer -Stage \$stage/);
@@ -678,7 +681,9 @@ test(
     t.after(() => rm(root, { recursive: true, force: true }));
     const privateKey = path.join(root, "private.key");
     const removedPrivateKey = path.join(root, "removed-private.key");
+    const tufPrivateRoot = path.join(root, "tuf-private");
     await writeFile(privateKey, "disposable private key fixture");
+    await mkdir(tufPrivateRoot);
     const installer = path.join(process.env.SystemRoot, "System32", "where.exe");
 
     const environment = (signingAuthorityPresent, pathOnly = false) => {
@@ -703,7 +708,7 @@ test(
 
     const runHarness = async (
       label,
-      { requireAbsent, signingAuthorityPresent, pathOnly = false },
+      { requireAbsent, signingAuthorityPresent, pathOnly = false, tufAuthorityPresent = false },
     ) => {
       const caseRoot = path.join(root, label);
       const evidencePath = path.join(caseRoot, "evidence.json");
@@ -724,6 +729,8 @@ test(
         args.push(
           "-PayloadPrivateKeyPath",
           signingAuthorityPresent && !pathOnly ? privateKey : removedPrivateKey,
+          "-TufPrivateRootPath",
+          tufAuthorityPresent ? tufPrivateRoot : path.join(root, "removed-tuf-private"),
           "-RequireSigningAuthorityAbsent",
         );
       const result = runPowerShellScript("./test-windows-installer.ps1", args, {
@@ -744,6 +751,7 @@ test(
     assert.equal(rejected.evidence.phase, "signing_authority_checked");
     assert.deepEqual(rejected.evidence.private_signing_inputs_absent, {
       payload_private_key: false,
+      tuf_private_root: true,
       signing_private_key_environment: false,
       signing_private_key_path_environment: false,
       signing_password_environment: false,
@@ -762,11 +770,21 @@ test(
     );
     assert.deepEqual(pathOnlyRejected.evidence.private_signing_inputs_absent, {
       payload_private_key: true,
+      tuf_private_root: true,
       signing_private_key_environment: true,
       signing_private_key_path_environment: false,
       signing_password_environment: true,
     });
     assert.deepEqual(pathOnlyRejected.evidence.process_runs, []);
+
+    const tufRejected = await runHarness("tuf-root-rejected", {
+      requireAbsent: true,
+      signingAuthorityPresent: false,
+      tufAuthorityPresent: true,
+    });
+    assert.equal(tufRejected.result.status, 1);
+    assert.equal(tufRejected.evidence.private_signing_inputs_absent.tuf_private_root, false);
+    assert.deepEqual(tufRejected.evidence.process_runs, []);
 
     const accepted = await runHarness("accepted-positive-control", {
       requireAbsent: true,
@@ -776,6 +794,7 @@ test(
     assert.doesNotMatch(accepted.result.stderr, /signing authority/i);
     assert.deepEqual(accepted.evidence.private_signing_inputs_absent, {
       payload_private_key: true,
+      tuf_private_root: true,
       signing_private_key_environment: true,
       signing_private_key_path_environment: true,
       signing_password_environment: true,

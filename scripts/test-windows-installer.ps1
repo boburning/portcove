@@ -15,7 +15,13 @@ param(
     [ValidateRange(1, 60)]
     [int]$CleanupTimeoutSeconds = 15,
     [string]$PayloadPrivateKeyPath,
+    [string]$TufPrivateRootPath,
     [switch]$RequireSigningAuthorityAbsent,
+    [string]$InstalledUpdateTrustedRootPath,
+    [string]$InstalledUpdateMetadataPath,
+    [string]$InstalledUpdateTargetsPath,
+    [string]$InstalledUpdateCandidatePath,
+    [string]$InstalledUpdatePredecessorVersion,
     [ValidateSet("", "post-spawn-verification")]
     [string]$TestFault = ""
 )
@@ -70,6 +76,18 @@ function Assert-NoReparseAncestry([string]$Path) {
         if (-not $parent -or $parent -eq $cursor) { break }
         $cursor = $parent
     }
+}
+
+function Get-ComparableWindowsPath([string]$Path) {
+    if ($Path.StartsWith('\\?\UNC\', [StringComparison]::OrdinalIgnoreCase)) {
+        $Path = '\\' + $Path.Substring(8)
+    } elseif ($Path.StartsWith('\\?\', [StringComparison]::OrdinalIgnoreCase)) {
+        $Path = $Path.Substring(4)
+    }
+    if (-not [IO.Path]::IsPathFullyQualified($Path)) {
+        throw "Worker binding path is not fully qualified"
+    }
+    [IO.Path]::GetFullPath($Path)
 }
 
 function Invoke-ApplicationSmoke([string]$Application, [string]$Role) {
@@ -183,6 +201,12 @@ $predecessor = if ($UpgradeFromInstallerPath) { (Resolve-Path -LiteralPath $Upgr
 if ($predecessor -and [System.IO.Path]::GetExtension($predecessor) -ne ".exe") {
     throw "Upgrade predecessor must be an executable"
 }
+$installedUpdate = -not [string]::IsNullOrWhiteSpace($InstalledUpdateTrustedRootPath)
+if ($installedUpdate -and (-not $predecessor -or -not $InstalledUpdateMetadataPath -or
+        -not $InstalledUpdateTargetsPath -or -not $InstalledUpdateCandidatePath -or
+        -not $InstalledUpdatePredecessorVersion -or -not $RequireSigningAuthorityAbsent)) {
+    throw "Installed update qualification requires a predecessor, complete signed repository paths, and absent signing authority"
+}
 $expected = if ($ExpectedExecutablePath) { Get-ExpectedBundledHash (Resolve-Path -LiteralPath $ExpectedExecutablePath).Path } else { $null }
 if (@(Get-UninstallEntries "").Count -ne 0) {
     throw "A Portcove installer registration already exists. Refusing to replace another installation during qualification."
@@ -264,8 +288,12 @@ if ($RequireSigningAuthorityAbsent) {
     if ([string]::IsNullOrWhiteSpace($PayloadPrivateKeyPath)) {
         throw "PayloadPrivateKeyPath is required when signing authority must be absent"
     }
+    if ($installedUpdate -and [string]::IsNullOrWhiteSpace($TufPrivateRootPath)) {
+        throw "TufPrivateRootPath is required for installed application update qualification"
+    }
     $privateSigningInputsAbsent = [ordered]@{
         payload_private_key = -not [System.IO.File]::Exists([System.IO.Path]::GetFullPath($PayloadPrivateKeyPath))
+        tuf_private_root = -not $TufPrivateRootPath -or -not [System.IO.Directory]::Exists([System.IO.Path]::GetFullPath($TufPrivateRootPath))
         signing_private_key_environment = $null -eq [Environment]::GetEnvironmentVariable("TAURI_SIGNING_PRIVATE_KEY", "Process")
         signing_private_key_path_environment = $null -eq [Environment]::GetEnvironmentVariable("TAURI_SIGNING_PRIVATE_KEY_PATH", "Process")
         signing_password_environment = $null -eq [Environment]::GetEnvironmentVariable("TAURI_SIGNING_PRIVATE_KEY_PASSWORD", "Process")
@@ -322,16 +350,30 @@ function Start-JournaledProcess([string]$Role, [string]$Executable, [object[]]$A
     $requested = [DateTime]::UtcNow
     $run = [ordered]@{ id = [System.Guid]::NewGuid().ToString("N"); role = $Role; requested_at = $requested.ToString("o"); requested_at_filetime = $requested.ToFileTimeUtc(); executable_path = $exact; executable_sha256 = (Get-FileHash -LiteralPath $exact -Algorithm SHA256).Hash.ToLowerInvariant(); arguments = @($Arguments); status = "launch_pending"; pid = $null; start_time = $null; start_time_filetime = $null; exit_code = $null; exit_observation = $null }
     if ($evidence) { $evidence.process_runs += $run; Write-InstallerEvidence $evidence.phase }
-    $process = Start-Process -FilePath $exact -ArgumentList $Arguments -PassThru -WindowStyle Hidden
+    if ($Role -eq "installed_update_helper") {
+        $run.output_relative = "installed-update-helper.stdout.log"
+        $run.error_relative = "installed-update-helper.stderr.log"
+        $process = Start-Process -FilePath $exact -ArgumentList $Arguments -PassThru -WindowStyle Hidden -RedirectStandardOutput (Join-Path $runRoot $run.output_relative) -RedirectStandardError (Join-Path $runRoot $run.error_relative)
+    } else {
+        $process = Start-Process -FilePath $exact -ArgumentList $Arguments -PassThru -WindowStyle Hidden
+    }
     try {
         $run.pid = $process.Id; $run.start_time = $process.StartTime.ToUniversalTime().ToString("o"); $run.start_time_filetime = $process.StartTime.ToFileTimeUtc(); $run.status = "running"
         if ($evidence) { Write-InstallerEvidence $evidence.phase }
         if ($TestFault -eq "post-spawn-verification") {
             throw "$Role injected post-spawn verification failure"
         }
-        $launchedPath = [System.IO.Path]::GetFullPath($process.StartInfo.FileName)
-        if (-not $launchedPath.Equals($exact, [System.StringComparison]::OrdinalIgnoreCase)) {
-            throw "$Role retained handle does not identify the exact requested launch path"
+        $startInfoPath = $process.StartInfo.FileName
+        if ([string]::IsNullOrWhiteSpace($startInfoPath)) {
+            if ($Role -ne "installed_update_helper") {
+                throw "$Role retained handle omitted the requested launch path"
+            }
+            $run.start_info_observation = "Start-Process omitted StartInfo.FileName with redirected qualification output; live process image verification is required"
+        } else {
+            $launchedPath = [System.IO.Path]::GetFullPath($startInfoPath)
+            if (-not $launchedPath.Equals($exact, [System.StringComparison]::OrdinalIgnoreCase)) {
+                throw "$Role retained handle does not identify the exact requested launch path"
+            }
         }
         $imageDeadline = (Get-Date).AddSeconds(2)
         $observedPath = $null
@@ -347,6 +389,9 @@ function Start-JournaledProcess([string]$Role, [string]$Executable, [object[]]$A
         } while ((Get-Date) -lt $imageDeadline)
         if ([string]::IsNullOrWhiteSpace($observedPath)) {
             if (-not $process.HasExited) { throw "$Role stable executable image path could not be observed while it was running" }
+            if ($Role -eq "installed_update_helper") {
+                throw "Installed update helper exited before its executable image could be verified"
+            }
             $run.image_observation = "Process exited before a stable executable image path was observable; StartInfo and the retained handle identify the exact hash-journaled launch"
             if ($evidence) { Write-InstallerEvidence $evidence.phase }
         } else {
@@ -477,6 +522,19 @@ function Invoke-JournaledProcess([string]$Role, [string]$Executable, [object[]]$
 $completed = $false
 $previousLibrary = [System.Environment]::GetEnvironmentVariable("PORTCOVE_LIBRARY", "Process")
 $previousTemp = @{}
+$updateEnvironmentNames = @(
+    "PORTCOVE_APPLICATION_UPDATE_BUNDLED_ROOT_FILE",
+    "PORTCOVE_APPLICATION_UPDATE_METADATA_URL",
+    "PORTCOVE_APPLICATION_UPDATE_TARGETS_URL",
+    "PORTCOVE_APPLICATION_UPDATE_PREFERENCES",
+    "PORTCOVE_APPLICATION_UPDATE_STAGING",
+    "PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_EXIT",
+    "PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_STAGE"
+)
+$previousUpdateEnvironment = @{}
+foreach ($name in $updateEnvironmentNames) {
+    $previousUpdateEnvironment[$name] = [Environment]::GetEnvironmentVariable($name, "Process")
+}
 try {
     foreach ($name in @("TEMP", "TMP", "TMPDIR")) {
         $previousTemp[$name] = [System.Environment]::GetEnvironmentVariable($name, "Process")
@@ -519,14 +577,139 @@ try {
     [System.IO.File]::WriteAllText($sentinel, [System.Guid]::NewGuid().ToString("N"))
     $sentinelHash = (Get-FileHash -LiteralPath $sentinel -Algorithm SHA256).Hash
     Write-InstallerEvidence "candidate_installing"
-    $installFlag = if ($InstallMode -eq "Passive") { "/P" } else { "/S" }
-    # A predecessor establishes the exact registered destination. Exercise the
-    # same updater path used by the application instead of silently forcing a
-    # destination with /D, which could conceal relocation or ownership drift.
-    $candidateArguments = if ($predecessor) { @($installFlag, "/UPDATE") } else { @($installFlag, "/D=$installRoot") }
-    $install = Invoke-JournaledProcess -Role "candidate_installer" -Executable $installer -Arguments $candidateArguments -AllowedRelocationRoot $runRoot
-    if ($install.ExitCode -ne 0) {
-        throw "$InstallMode installer exited with code $($install.ExitCode)"
+    if ($installedUpdate) {
+        $updateRoot = Join-Path $runRoot "application-update"
+        $updatePreferences = Join-Path $runRoot "application-update-preferences.json"
+        $qualificationStage = Join-Path $runRoot "application-update-qualification-stage.json"
+        $trustedRoot = (Resolve-Path -LiteralPath $InstalledUpdateTrustedRootPath).Path
+        $metadata = (Resolve-Path -LiteralPath $InstalledUpdateMetadataPath).Path
+        $targets = (Resolve-Path -LiteralPath $InstalledUpdateTargetsPath).Path
+        $candidate = (Resolve-Path -LiteralPath $InstalledUpdateCandidatePath).Path
+        $preparedText = (& cargo run --locked --quiet -p portcove-desktop --example prepare_installed_update -- prepare $InstalledUpdatePredecessorVersion $trustedRoot $metadata $targets $candidate $updatePreferences $updateRoot $libraryRoot | Out-String).Trim()
+        if ($LASTEXITCODE -ne 0) { throw "Signed Windows application update fixture could not be prepared" }
+        $prepared = $preparedText | ConvertFrom-Json
+        if ($prepared.candidate_sha256 -ne $installerHash -or
+            [UInt64]$prepared.candidate_bytes -ne [UInt64](Get-Item -LiteralPath $installer).Length) {
+            throw "Prepared Windows application update differs from the exact candidate installer"
+        }
+        $env:PORTCOVE_APPLICATION_UPDATE_BUNDLED_ROOT_FILE = $trustedRoot
+        $env:PORTCOVE_APPLICATION_UPDATE_METADATA_URL = ([Uri]::new($metadata.TrimEnd('\', '/') + '/')).AbsoluteUri
+        $env:PORTCOVE_APPLICATION_UPDATE_TARGETS_URL = ([Uri]::new($targets.TrimEnd('\', '/') + '/')).AbsoluteUri
+        $env:PORTCOVE_APPLICATION_UPDATE_PREFERENCES = $updatePreferences
+        $env:PORTCOVE_APPLICATION_UPDATE_STAGING = $updateRoot
+        $env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_EXIT = "after-reconciliation"
+        $env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_STAGE = $qualificationStage
+        Write-InstallerEvidence "installed_helper_starting" ([ordered]@{ prepared = $prepared; predecessor_executable_sha256 = $previousHash })
+        $staging = Invoke-JournaledProcess -Role "installed_update_stage" -Executable $application -Arguments @("--portcove-stage-update-worker", [string]$prepared.apply_revision) -AllowedRelocationRoot $runRoot
+        if ($staging.ExitCode -ne 0) {
+            $stageErrorPath = Join-Path $updateRoot "worker-stage-error.txt"
+            $stageError = if ([IO.File]::Exists($stageErrorPath)) { [IO.File]::ReadAllText($stageErrorPath) } else { "no stage diagnostic was recorded" }
+            throw "Installed predecessor could not stage its update worker (exit $($staging.ExitCode)): $stageError"
+        }
+        $revisionRoot = Join-Path $updateRoot "workers\revision-$($prepared.apply_revision)"
+        $attempts = @(Get-ChildItem -LiteralPath $revisionRoot -Directory -ErrorAction Stop)
+        if ($attempts.Count -ne 1) { throw "Expected one revision-bound installed update worker attempt" }
+        $worker = Join-Path $attempts[0].FullName "portcove-update-worker.exe"
+        $workerManifest = Join-Path $attempts[0].FullName "worker.json"
+        Assert-NoReparseAncestry $worker
+        Assert-NoReparseAncestry $workerManifest
+        if (-not [IO.File]::Exists($worker) -or -not [IO.File]::Exists($workerManifest)) {
+            throw "Installed update worker or its binding was not published"
+        }
+        $workerHash = (Get-FileHash -LiteralPath $worker -Algorithm SHA256).Hash.ToLowerInvariant()
+        $binding = Get-Content -LiteralPath $workerManifest -Raw | ConvertFrom-Json
+        $workerHashMatches = $workerHash -eq $previousHash
+        $bindingHashMatches = $binding.installed_sha256 -eq $previousHash
+        $revisionMatches = $binding.revision -eq $prepared.apply_revision
+        $installedPathMatches = (Get-ComparableWindowsPath ([string]$binding.installed_executable)).Equals(
+            (Get-ComparableWindowsPath $application), [StringComparison]::OrdinalIgnoreCase)
+        if (-not ($workerHashMatches -and $bindingHashMatches -and $revisionMatches -and $installedPathMatches)) {
+            throw "Installed update worker binding mismatch: worker_hash=$workerHashMatches manifest_hash=$bindingHashMatches revision=$revisionMatches installed_path=$installedPathMatches"
+        }
+        Write-InstallerEvidence "installed_worker_verified" ([ordered]@{ worker_path = $worker; worker_sha256 = $workerHash; binding = $binding })
+        $helperStart = [DateTime]::UtcNow
+        $install = Invoke-JournaledProcess -Role "installed_update_helper" -Executable $worker -Arguments @("--portcove-apply-update", [string]$prepared.apply_revision) -AllowedRelocationRoot $runRoot
+        if ($install.ExitCode -ne 0) { throw "Installed application update helper exited with code $($install.ExitCode)" }
+        $deadline = (Get-Date).AddSeconds(30)
+        $stageReadError = $null
+        do {
+            if ([IO.File]::Exists($qualificationStage)) {
+                try {
+                    $stage = Get-Content -LiteralPath $qualificationStage -Raw | ConvertFrom-Json
+                    $stageReadError = $null
+                    if ($stage.stage -eq "Tauri setup") { break }
+                } catch {
+                    $stage = $null
+                    $stageReadError = $_.Exception.Message
+                }
+            }
+            Start-Sleep -Milliseconds 250
+        } while ((Get-Date) -lt $deadline)
+        if (-not $stage -or $stage.stage -ne "Tauri setup") {
+            throw "Updated installed application did not reach Tauri setup after helper relaunch; last stage read error: $stageReadError"
+        }
+        $applyReadError = $null
+        do {
+            try {
+                $applyState = Get-Content -LiteralPath (Join-Path $updateRoot "apply.json") -Raw | ConvertFrom-Json
+                $applyReadError = $null
+                if (-not $applyState.intent) { break }
+            } catch {
+                $applyState = $null
+                $applyReadError = $_.Exception.Message
+            }
+            Start-Sleep -Milliseconds 250
+        } while ((Get-Date) -lt $deadline)
+        if (-not $applyState -or $applyState.intent) {
+            throw "Updated installed application did not reconcile its durable apply intent; last state read error: $applyReadError"
+        }
+        $relaunchPid = [int]$stage.process_id
+        if ($relaunchPid -le 0) { throw "Qualification stage omitted the candidate relaunch process ID" }
+        $relaunch = try { [Diagnostics.Process]::GetProcessById($relaunchPid) } catch [ArgumentException] { $null }
+        # GetProcessById attaches after the helper spawned the candidate. An
+        # attached Process can observe a bounded exit but does not provide a
+        # reliable ExitCode; candidate_smoke below owns an exit-code assertion.
+        $relaunchExit = [ordered]@{ pid = $relaunchPid; observed = $null; exit_code = $null; observation = "not_present_at_attach" }
+        if ($relaunch) {
+            try {
+                $relaunch.Refresh()
+                if (-not $relaunch.HasExited) {
+                    $observedPath = try { $relaunch.Path } catch {
+                        if ($relaunch.HasExited) { $null } else { throw }
+                    }
+                    if ($observedPath) {
+                        $observedPath = [IO.Path]::GetFullPath($observedPath)
+                        if (-not $observedPath.Equals($application, [StringComparison]::OrdinalIgnoreCase) -or
+                            $relaunch.StartTime.ToUniversalTime() -lt $helperStart.AddSeconds(-2)) {
+                            throw "Qualification relaunch PID does not identify the installed candidate process"
+                        }
+                        $relaunchExit.observed = $observedPath
+                    } elseif (-not $relaunch.HasExited) {
+                        throw "Qualification relaunch is still running but its image path could not be observed"
+                    }
+                }
+                if ($relaunchExit.observed -and -not $relaunch.HasExited) {
+                    if (-not $relaunch.WaitForExit(30000)) {
+                        Write-InstallerEvidence "installed_relaunch_exit_timeout" ([ordered]@{ prepared = $prepared; qualification_stage = $stage; relaunch = $relaunchExit })
+                        throw "Updated installed application did not exit after qualification reconciliation"
+                    }
+                }
+                $relaunchExit.observation = if ($relaunchExit.observed) { "identified_process_exited" } else { "exited_before_identity_observation" }
+            } finally { $relaunch.Dispose() }
+        }
+        Write-InstallerEvidence "installed_helper_reconciled" ([ordered]@{ prepared = $prepared; qualification_stage = $stage; apply_state = $applyState; relaunch = $relaunchExit })
+        # The next smoke is an ordinary interactive candidate launch. Keep the
+        # saved values for the outer finally, but do not let the qualification
+        # relaunch's immediate-exit mode suppress its window and close checks.
+        [Environment]::SetEnvironmentVariable("PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_EXIT", $null, "Process")
+        [Environment]::SetEnvironmentVariable("PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_STAGE", $null, "Process")
+    } else {
+        $installFlag = if ($InstallMode -eq "Passive") { "/P" } else { "/S" }
+        # A predecessor establishes the registered destination. /UPDATE must
+        # keep that identity without a caller-supplied destination.
+        $candidateArguments = if ($predecessor) { @($installFlag, "/UPDATE") } else { @($installFlag, "/D=$installRoot") }
+        $install = Invoke-JournaledProcess -Role "candidate_installer" -Executable $installer -Arguments $candidateArguments -AllowedRelocationRoot $runRoot
+        if ($install.ExitCode -ne 0) { throw "$InstallMode installer exited with code $($install.ExitCode)" }
     }
 
     if (-not [System.IO.File]::Exists($application)) {
@@ -628,7 +811,7 @@ try {
         signature_status = $signature.Status.ToString()
         install_exit_code = $install.ExitCode
         install_mode = $InstallMode
-        update_path = if ($predecessor) { "registered_nsis_update" } else { "explicit_bootstrap_destination" }
+        update_path = if ($installedUpdate) { "installed_app_helper" } elseif ($predecessor) { "registered_nsis_update" } else { "explicit_bootstrap_destination" }
         registered_version = $registryEntries[0].DisplayVersion
         registration_path = $registryEntries[0].PSPath
         installed_executable_sha256 = $installedHash
@@ -656,6 +839,9 @@ catch {
     throw
 }
 finally {
+    foreach ($name in $updateEnvironmentNames) {
+        [Environment]::SetEnvironmentVariable($name, $previousUpdateEnvironment[$name], "Process")
+    }
     foreach ($name in $previousTemp.Keys) {
         if ($null -eq $previousTemp[$name]) { Remove-Item -LiteralPath "Env:$name" -ErrorAction SilentlyContinue }
         else { [System.Environment]::SetEnvironmentVariable($name, $previousTemp[$name], "Process") }

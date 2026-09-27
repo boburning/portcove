@@ -303,7 +303,7 @@ function Test-PayloadSignatureFailure(
     $casePreferences = Join-Path $caseRoot "preferences.json"
     $caseUpdateRoot = Join-Path $caseRoot "update-state"
     Write-Evidence "$Label-preparing"
-    $failureOutput = & cargo run --locked --quiet -p portcove-desktop --example prepare_appimage_update -- prepare $PredecessorVersion $trustedRoot $InvalidMetadata $InvalidTargets $candidate $casePreferences $caseUpdateRoot $libraryRoot 2>&1 | Out-String
+    $failureOutput = & cargo run --locked --quiet -p portcove-desktop --example prepare_installed_update -- prepare $PredecessorVersion $trustedRoot $InvalidMetadata $InvalidTargets $candidate $casePreferences $caseUpdateRoot $libraryRoot 2>&1 | Out-String
     $Result.exit_code = $LASTEXITCODE
     if ($Result.exit_code -eq 0 -or $failureOutput -notmatch $ExpectedError) {
         throw "$Label did not fail through the expected actual-consumer signature path"
@@ -320,7 +320,7 @@ function Test-PayloadSignatureFailure(
     $Result.data_preserved = $true
     Write-Evidence "$Label-rejected"
 
-    $recoveryOutput = & cargo run --locked --quiet -p portcove-desktop --example prepare_appimage_update -- prepare $PredecessorVersion $trustedRoot $recoveryMetadata $recoveryTargets $candidate $casePreferences $caseUpdateRoot $libraryRoot 2>&1 | Out-String
+    $recoveryOutput = & cargo run --locked --quiet -p portcove-desktop --example prepare_installed_update -- prepare $PredecessorVersion $trustedRoot $recoveryMetadata $recoveryTargets $candidate $casePreferences $caseUpdateRoot $libraryRoot 2>&1 | Out-String
     if ($LASTEXITCODE -ne 0) { throw "$Label did not recover through the valid version-2 repository: $recoveryOutput" }
     $recovered = $recoveryOutput.Trim() | ConvertFrom-Json
     if ($recovered.candidate_version -ne $CandidateVersion -or
@@ -471,7 +471,7 @@ try {
     $evidence.truncated_payload_expected_bytes = $candidateBytes
     $evidence.truncated_payload_bytes = $truncatedBytes
 
-    $truncatedOutput = & cargo run --locked --quiet -p portcove-desktop --example prepare_appimage_update -- prepare $PredecessorVersion $trustedRoot $metadata $targets $truncatedCandidate $updatePreferences $updateRoot $libraryRoot 2>&1 | Out-String
+    $truncatedOutput = & cargo run --locked --quiet -p portcove-desktop --example prepare_installed_update -- prepare $PredecessorVersion $trustedRoot $metadata $targets $truncatedCandidate $updatePreferences $updateRoot $libraryRoot 2>&1 | Out-String
     $evidence.truncated_payload_exit_code = $LASTEXITCODE
     Remove-Item -LiteralPath $truncatedCandidate -Force
     if ($evidence.truncated_payload_exit_code -eq 0 -or $truncatedOutput -notmatch "payload length mismatch") {
@@ -501,7 +501,7 @@ try {
     $evidence.truncated_payload_data_preserved = $true
     Write-Evidence "truncated-payload-rejected"
 
-    $prepareOutput = & cargo run --locked --quiet -p portcove-desktop --example prepare_appimage_update -- prepare $PredecessorVersion $trustedRoot $metadata $targets $candidate $updatePreferences $updateRoot $libraryRoot | Out-String
+    $prepareOutput = & cargo run --locked --quiet -p portcove-desktop --example prepare_installed_update -- prepare $PredecessorVersion $trustedRoot $metadata $targets $candidate $updatePreferences $updateRoot $libraryRoot | Out-String
     if ($LASTEXITCODE -ne 0) { throw "Application update state preparation failed" }
     $prepared = $prepareOutput.Trim() | ConvertFrom-Json
     if ($prepared.candidate_version -ne $CandidateVersion -or $prepared.candidate_sha256 -ne $candidateHash) {
@@ -561,7 +561,7 @@ try {
     $evidence.interruption_stable_preserved = $true
     Write-Evidence "interruption-recovered"
 
-    $retryOutput = & cargo run --locked --quiet -p portcove-desktop --example prepare_appimage_update -- prepare $PredecessorVersion $trustedRoot $metadata $targets $candidate $updatePreferences $updateRoot $libraryRoot | Out-String
+    $retryOutput = & cargo run --locked --quiet -p portcove-desktop --example prepare_installed_update -- prepare $PredecessorVersion $trustedRoot $metadata $targets $candidate $updatePreferences $updateRoot $libraryRoot | Out-String
     if ($LASTEXITCODE -ne 0) { throw "Application update retry preparation failed" }
     $prepared = $retryOutput.Trim() | ConvertFrom-Json
     if ($prepared.candidate_version -ne $CandidateVersion -or $prepared.candidate_sha256 -ne $candidateHash) {
@@ -833,7 +833,7 @@ try {
         $evidence.full_appimage_filesystem_staging_preserved = $true
         Write-Evidence "full-appimage-filesystem-preserved"
 
-        $fullAppImageRetryOutput = & cargo run --locked --quiet -p portcove-desktop --example prepare_appimage_update -- prepare $PredecessorVersion $trustedRoot $metadata $targets $candidate $updatePreferences $fullAppImageState $libraryRoot | Out-String
+        $fullAppImageRetryOutput = & cargo run --locked --quiet -p portcove-desktop --example prepare_installed_update -- prepare $PredecessorVersion $trustedRoot $metadata $targets $candidate $updatePreferences $fullAppImageState $libraryRoot | Out-String
         if ($LASTEXITCODE -ne 0) { throw "Full-AppImage-filesystem explicit retry preparation failed" }
         $fullAppImageRetry = $fullAppImageRetryOutput.Trim() | ConvertFrom-Json
         $fullAppImageRetryApply = Get-Content -LiteralPath $fullAppImageApplyPath -Raw | ConvertFrom-Json

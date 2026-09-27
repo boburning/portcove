@@ -13,6 +13,8 @@ use std::path::{Path, PathBuf};
 #[cfg(windows)]
 use std::collections::BTreeSet;
 
+#[cfg(windows)]
+use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
 use crate::application_update::{
@@ -27,6 +29,10 @@ use crate::application_update_staging::StagedApplicationUpdate;
 
 const PRODUCT_NAME: &str = "Portcove";
 const APPLICATION_FILENAME: &str = "portcove-desktop.exe";
+#[cfg(windows)]
+const UPDATE_WORKER_FILENAME: &str = "portcove-update-worker.exe";
+#[cfg(windows)]
+const UPDATE_WORKER_MANIFEST: &str = "worker.json";
 const UNINSTALLER_FILENAME: &str = "uninstall.exe";
 const WINDOWS_TARGET: &str = "windows-x86_64";
 const WINDOWS_EXECUTION_CONTEXT: &str = "installed-current-user";
@@ -125,6 +131,65 @@ pub struct WindowsNsisUpdateAdmission {
     plan: WindowsNsisUpdatePlan,
 }
 
+#[cfg(windows)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct WindowsUpdateWorkerManifest {
+    revision: u64,
+    installed_executable: PathBuf,
+    installed_sha256: String,
+}
+
+/// The worker is an exact copy of the registered predecessor, under the
+/// updater's owned state root. NSIS can close the installed app by name without
+/// killing this process while it holds the apply lease and observes the child.
+#[cfg(windows)]
+#[derive(Debug, Clone)]
+pub struct VerifiedWindowsUpdateWorker {
+    installed_executable: PathBuf,
+    installed_sha256: String,
+}
+
+#[cfg(windows)]
+impl VerifiedWindowsUpdateWorker {
+    pub fn installed_executable(&self) -> &Path {
+        &self.installed_executable
+    }
+}
+
+#[cfg(windows)]
+impl crate::application_update_host::InstalledApplicationContextSource
+    for VerifiedWindowsUpdateWorker
+{
+    fn observe(
+        &self,
+    ) -> Result<
+        InstalledApplicationContext,
+        crate::application_update::InstalledApplicationContextError,
+    > {
+        let registrations = inventory_portcove_registrations().map_err(|error| {
+            crate::application_update::InstalledApplicationContextError::Unavailable(
+                error.to_string(),
+            )
+        })?;
+        evaluate_windows_nsis_installation(
+            env!("CARGO_PKG_VERSION"),
+            &self.installed_executable,
+            &registrations,
+        )
+        .map_err(|error| {
+            crate::application_update::InstalledApplicationContextError::Unavailable(
+                error.to_string(),
+            )
+        })?;
+        windows_nsis_context_for_version(env!("CARGO_PKG_VERSION")).map_err(|error| {
+            crate::application_update::InstalledApplicationContextError::Unavailable(
+                error.to_string(),
+            )
+        })
+    }
+}
+
 impl WindowsNsisUpdateAdmission {
     pub fn installer(&self) -> &Path {
         &self.plan.installer
@@ -192,8 +257,9 @@ impl WindowsNsisUpdateAdmission {
 #[cfg(windows)]
 pub fn admit_windows_nsis_update(
     lease: ApplicationUpdateRevalidationLease,
+    worker: &VerifiedWindowsUpdateWorker,
 ) -> Result<WindowsNsisUpdateAdmission, WindowsApplicationUpdateError> {
-    let current_executable = std::env::current_exe()?;
+    let current_executable = worker.installed_executable();
     let registrations = inventory_portcove_registrations()?;
     let intent = lease.state().intent.as_ref().ok_or_else(|| {
         WindowsApplicationUpdateError::UnsupportedInstallation(
@@ -203,14 +269,257 @@ pub fn admit_windows_nsis_update(
     let plan = evaluate_windows_nsis_update(
         lease.staged(),
         &intent.installed,
-        &current_executable,
+        current_executable,
         &registrations,
     )?;
+    // The fresh-selection source and admission must both describe the same
+    // registered predecessor. A changed registration or source file stops here.
+    verify_installed_worker_source(worker, &plan.current_executable)?;
     probe_install_root_write(&plan.install_root)?;
     Ok(WindowsNsisUpdateAdmission {
         _lease: lease,
         plan,
     })
+}
+
+#[cfg(windows)]
+fn worker_directory(root: &Path, revision: u64) -> PathBuf {
+    root.join("workers").join(format!("revision-{revision}"))
+}
+
+#[cfg(windows)]
+fn create_worker_attempt_directory(
+    revision_directory: &Path,
+) -> Result<PathBuf, WindowsApplicationUpdateError> {
+    let stamp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_err(|error| WindowsApplicationUpdateError::InvalidPath(error.to_string()))?
+        .as_nanos();
+    for index in 0..16_u8 {
+        let attempt =
+            revision_directory.join(format!("attempt-{}-{stamp}-{index}", std::process::id()));
+        match fs::create_dir(&attempt) {
+            Ok(()) => return canonical_direct_directory(&attempt),
+            Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => continue,
+            Err(error) => return Err(error.into()),
+        }
+    }
+    Err(WindowsApplicationUpdateError::InvalidPath(
+        "worker attempt directory names are occupied".into(),
+    ))
+}
+
+#[cfg(windows)]
+pub fn stage_windows_update_worker(
+    apply: &ApplicationUpdateApplyStore,
+    revision: u64,
+) -> Result<PathBuf, WindowsApplicationUpdateError> {
+    let state = apply.load()?;
+    if state.revision != revision || !state.may_attempt_revalidation() {
+        return Err(WindowsApplicationUpdateError::UnsupportedInstallation(
+            "the worker revision is not a pending terminated update request".into(),
+        ));
+    }
+    let executable = std::env::current_exe()?;
+    let registrations = inventory_portcove_registrations()?;
+    let installation =
+        evaluate_windows_nsis_installation(env!("CARGO_PKG_VERSION"), &executable, &registrations)?;
+    let source = open_locked_file(&installation.current_executable)?;
+    let source_sha256 = sha256_reader(source)?;
+    let workers = apply.root().join("workers");
+    create_direct_directory(&workers)?;
+    let revision_directory = worker_directory(apply.root(), revision);
+    create_direct_directory(&revision_directory)?;
+    // Each attempt gets a fresh directory. An interrupted copy stays available
+    // for diagnosis while the same journal revision can be dispatched again.
+    let directory = create_worker_attempt_directory(&revision_directory)?;
+    let worker_path = directory.join(UPDATE_WORKER_FILENAME);
+    let manifest_path = directory.join(UPDATE_WORKER_MANIFEST);
+    let mut destination = OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&worker_path)?;
+    let mut source = open_locked_file(&installation.current_executable)?;
+    std::io::copy(&mut source, &mut destination)?;
+    destination.sync_all()?;
+    drop(destination);
+    if sha256_reader(open_locked_file(&worker_path)?)? != source_sha256 {
+        return Err(WindowsApplicationUpdateError::InvalidPath(
+            "the updater worker copy changed during staging".into(),
+        ));
+    }
+    let manifest = WindowsUpdateWorkerManifest {
+        revision,
+        installed_executable: installation.current_executable,
+        installed_sha256: source_sha256,
+    };
+    let mut file = OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&manifest_path)?;
+    serde_json::to_writer(&mut file, &manifest)
+        .map_err(|error| WindowsApplicationUpdateError::InvalidPath(error.to_string()))?;
+    file.sync_all()?;
+    drop(file);
+    verify_windows_update_worker_at(apply, revision, &worker_path)?;
+    Ok(worker_path)
+}
+
+#[cfg(windows)]
+fn create_direct_directory(path: &Path) -> Result<(), WindowsApplicationUpdateError> {
+    match fs::create_dir(path) {
+        Ok(()) => {}
+        Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {}
+        Err(error) => return Err(error.into()),
+    }
+    canonical_direct_directory(path)?;
+    Ok(())
+}
+
+#[cfg(windows)]
+pub fn verify_windows_update_worker(
+    apply: &ApplicationUpdateApplyStore,
+    revision: u64,
+) -> Result<VerifiedWindowsUpdateWorker, WindowsApplicationUpdateError> {
+    verify_windows_update_worker_at(apply, revision, &std::env::current_exe()?)
+}
+
+#[cfg(windows)]
+pub fn lock_windows_update_worker_for_spawn(
+    apply: &ApplicationUpdateApplyStore,
+    revision: u64,
+    executable: &Path,
+) -> Result<File, WindowsApplicationUpdateError> {
+    // A read-only handle with FILE_SHARE_READ prevents replacement between
+    // final verification and CreateProcess. The handle stays in the parent
+    // until spawn succeeds and is not inherited by the child.
+    let guard = open_locked_file(executable)?;
+    verify_windows_update_worker_at(apply, revision, executable)?;
+    Ok(guard)
+}
+
+#[cfg(windows)]
+fn verify_windows_update_worker_at(
+    apply: &ApplicationUpdateApplyStore,
+    revision: u64,
+    executable: &Path,
+) -> Result<VerifiedWindowsUpdateWorker, WindowsApplicationUpdateError> {
+    let worker = verify_worker_filesystem(apply.root(), revision, executable)?;
+    let registrations = inventory_portcove_registrations()?;
+    evaluate_windows_nsis_installation(
+        env!("CARGO_PKG_VERSION"),
+        &worker.installed_executable,
+        &registrations,
+    )?;
+    Ok(worker)
+}
+
+#[cfg(windows)]
+fn verify_worker_filesystem(
+    root: &Path,
+    revision: u64,
+    executable: &Path,
+) -> Result<VerifiedWindowsUpdateWorker, WindowsApplicationUpdateError> {
+    let revision_directory = canonical_direct_directory(&worker_directory(root, revision))?;
+    let directory = canonical_direct_directory(executable.parent().ok_or_else(|| {
+        WindowsApplicationUpdateError::InvalidPath("worker has no attempt directory".into())
+    })?)?;
+    if directory.parent() != Some(revision_directory.as_path())
+        || directory
+            .file_name()
+            .and_then(|name| name.to_str())
+            .is_none_or(|name| !name.starts_with("attempt-"))
+    {
+        return Err(WindowsApplicationUpdateError::InvalidPath(
+            "worker attempt is outside its journal revision".into(),
+        ));
+    }
+    let expected = canonical_direct_file(
+        &directory.join(UPDATE_WORKER_FILENAME),
+        UPDATE_WORKER_FILENAME,
+    )?;
+    let actual = canonical_direct_file(executable, UPDATE_WORKER_FILENAME)?;
+    if actual != expected {
+        return Err(WindowsApplicationUpdateError::InvalidPath(
+            "helper is not the worker owned by this journal revision".into(),
+        ));
+    }
+    let manifest_path = canonical_direct_file(
+        &directory.join(UPDATE_WORKER_MANIFEST),
+        UPDATE_WORKER_MANIFEST,
+    )?;
+    let manifest = read_worker_manifest(&manifest_path)?;
+    if manifest.revision != revision || !manifest.installed_executable.is_absolute() {
+        return Err(WindowsApplicationUpdateError::InvalidPath(
+            "worker binding does not match the journal revision".into(),
+        ));
+    }
+    let installed = canonical_direct_file(&manifest.installed_executable, APPLICATION_FILENAME)?;
+    if installed != manifest.installed_executable {
+        return Err(WindowsApplicationUpdateError::InvalidPath(
+            "installed executable moved after worker dispatch".into(),
+        ));
+    }
+    if sha256_reader(open_locked_file(&actual)?)? != manifest.installed_sha256
+        || sha256_reader(open_locked_file(&installed)?)? != manifest.installed_sha256
+    {
+        return Err(WindowsApplicationUpdateError::InvalidPath(
+            "worker or installed predecessor no longer matches the dispatch binding".into(),
+        ));
+    }
+    Ok(VerifiedWindowsUpdateWorker {
+        installed_executable: installed,
+        installed_sha256: manifest.installed_sha256,
+    })
+}
+
+#[cfg(windows)]
+fn read_worker_manifest(
+    path: &Path,
+) -> Result<WindowsUpdateWorkerManifest, WindowsApplicationUpdateError> {
+    let mut manifest_bytes = Vec::new();
+    open_locked_file(path)?
+        .take(8193)
+        .read_to_end(&mut manifest_bytes)?;
+    if manifest_bytes.is_empty() || manifest_bytes.len() > 8192 {
+        return Err(WindowsApplicationUpdateError::InvalidPath(
+            "worker binding is empty or oversized".into(),
+        ));
+    }
+    serde_json::from_slice(&manifest_bytes)
+        .map_err(|error| WindowsApplicationUpdateError::InvalidPath(error.to_string()))
+}
+
+#[cfg(windows)]
+fn verify_installed_worker_source(
+    worker: &VerifiedWindowsUpdateWorker,
+    installed_executable: &Path,
+) -> Result<(), WindowsApplicationUpdateError> {
+    if worker.installed_executable != installed_executable {
+        return Err(WindowsApplicationUpdateError::InvalidPath(
+            "installer admission moved to another registered installation".into(),
+        ));
+    }
+    if sha256_reader(open_locked_file(installed_executable)?)? != worker.installed_sha256 {
+        return Err(WindowsApplicationUpdateError::InvalidPath(
+            "installed predecessor changed after worker revalidation".into(),
+        ));
+    }
+    Ok(())
+}
+
+#[cfg(windows)]
+fn sha256_reader(mut file: File) -> Result<String, WindowsApplicationUpdateError> {
+    let mut digest = Sha256::new();
+    let mut buffer = [0_u8; 64 * 1024];
+    loop {
+        let count = file.read(&mut buffer)?;
+        if count == 0 {
+            break;
+        }
+        digest.update(&buffer[..count]);
+    }
+    Ok(hex::encode(digest.finalize()))
 }
 
 /// Reconciles a native attempt only after the new desktop has acquired its
@@ -254,13 +563,23 @@ pub fn current_windows_installed_application_context()
         &current_executable,
         &registrations,
     )?;
+    windows_nsis_context_for_version(env!("CARGO_PKG_VERSION"))
+}
+
+/// Describes a controlled package fixture. This does not prove that the
+/// running process owns an NSIS installation; runtime callers must use
+/// `current_windows_installed_application_context` instead.
+#[cfg(windows)]
+pub fn windows_nsis_context_for_version(
+    current_version: &str,
+) -> Result<InstalledApplicationContext, WindowsApplicationUpdateError> {
     let os = windows_version::OsVersion::current();
     let catalog_format = portcove_core::Catalog::embedded()
         .map_err(|error| WindowsApplicationUpdateError::InstalledContext(error.to_string()))?
         .document()
         .schema_version;
     Ok(InstalledApplicationContext {
-        current_version: env!("CARGO_PKG_VERSION").into(),
+        current_version: current_version.into(),
         target: WINDOWS_TARGET.into(),
         os: "windows".into(),
         os_version: format!("{}.{}.{}", os.major, os.minor, os.build),
@@ -856,6 +1175,57 @@ mod tests {
     };
 
     use super::*;
+
+    #[cfg(windows)]
+    #[test]
+    fn worker_attempts_preserve_partial_evidence_and_reject_tamper() {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path();
+        let installation = root.join("installation");
+        fs::create_dir(&installation).unwrap();
+        let installed = installation.join(APPLICATION_FILENAME);
+        fs::write(&installed, b"MZpredecessor").unwrap();
+        let revision_directory = worker_directory(root, 42);
+        fs::create_dir_all(&revision_directory).unwrap();
+        let interrupted = create_worker_attempt_directory(&revision_directory).unwrap();
+        fs::write(interrupted.join(UPDATE_WORKER_FILENAME), b"MZpartial").unwrap();
+        let attempt = create_worker_attempt_directory(&revision_directory).unwrap();
+        assert_ne!(attempt, interrupted);
+        assert!(interrupted.join(UPDATE_WORKER_FILENAME).exists());
+        let worker = attempt.join(UPDATE_WORKER_FILENAME);
+        fs::copy(&installed, &worker).unwrap();
+        let manifest_path = attempt.join(UPDATE_WORKER_MANIFEST);
+        let manifest = WindowsUpdateWorkerManifest {
+            revision: 42,
+            installed_executable: fs::canonicalize(&installed).unwrap(),
+            installed_sha256: hex::encode(Sha256::digest(b"MZpredecessor")),
+        };
+        let mut writer = OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&manifest_path)
+            .unwrap();
+        serde_json::to_writer(&mut writer, &manifest).unwrap();
+        writer.sync_all().unwrap();
+        assert!(read_worker_manifest(&manifest_path).is_err());
+        drop(writer);
+        assert_eq!(read_worker_manifest(&manifest_path).unwrap().revision, 42);
+        assert_eq!(
+            verify_worker_filesystem(root, 42, &worker)
+                .unwrap()
+                .installed_executable,
+            manifest.installed_executable
+        );
+        assert!(verify_worker_filesystem(root, 43, &worker).is_err());
+        fs::write(&worker, b"MZtampered").unwrap();
+        assert!(verify_worker_filesystem(root, 42, &worker).is_err());
+        fs::copy(&installed, &worker).unwrap();
+        fs::write(&manifest_path, vec![b'x'; 64 * 1024]).unwrap();
+        assert!(read_worker_manifest(&manifest_path).is_err());
+        fs::write(&manifest_path, serde_json::to_vec(&manifest).unwrap()).unwrap();
+        fs::write(&installed, b"MZdrifted").unwrap();
+        assert!(verify_worker_filesystem(root, 42, &worker).is_err());
+    }
 
     fn installed(version: &str) -> InstalledApplicationContext {
         InstalledApplicationContext {
