@@ -103,7 +103,7 @@ export function PortBrowser({
       )}
       {!firstUseEmpty && (
         <div
-          className="filter-row"
+          className="filter-row mb-[18px] flex items-center gap-[7px]"
           data-focus-group
           role="group"
           aria-label={view === "library" ? "Library filters" : "Release channel filters"}
@@ -121,7 +121,7 @@ export function PortBrowser({
               {filterLabel(item)}
             </Button>
           ))}
-          <span>
+          <span className="ml-auto text-xs text-pc-muted-foreground">
             {ports.length} {ports.length === 1 ? "port" : "ports"}
           </span>
         </div>
@@ -346,7 +346,7 @@ function ContinueCard({
   const launchable = status.readiness?.launchable === true;
   return (
     <section
-      className="continue-card"
+      className="continue-card mb-[13px] grid min-h-[92px] items-center gap-[17px] rounded-pc-lg border border-[var(--color-interactive-active)] bg-pc-surface p-3 shadow-[var(--shadow-raised)]"
       data-focus-group
       data-successful-launches={status.successful_launches}
       aria-label={`Continue ${port.name}`}
@@ -354,16 +354,16 @@ function ContinueCard({
       <ArtworkImage port={port} className="continue-art" />
       <div>
         <p className="eyebrow">CONTINUE</p>
-        <h2>{port.name}</h2>
+        <h2 className="m-0 text-lg">{port.name}</h2>
         {(status.active || status.external_runtime) && (
-          <p className="continue-meta">
+          <p className="m-0 mt-[5px] text-xs text-pc-muted-foreground">
             {status.active
               ? `Version ${status.active.version}`
               : `External version ${status.external_runtime?.version}`}
           </p>
         )}
       </div>
-      <div className="continue-actions">
+      <div className="continue-actions flex gap-2">
         <Button
           data-focusable
           variant="outline"
@@ -392,22 +392,25 @@ function ContinueCard({
 
 function LibrarySummary({ overview }: { overview: LibraryOverview }) {
   return (
-    <section className="library-summary" aria-label="Library readiness">
-      <strong>{overview.installed} in library</strong>
-      <span className="library-summary-status ready">
+    <section
+      className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-pc-border pb-3 text-xs"
+      aria-label="Library readiness"
+    >
+      <strong className="text-pc-foreground">{overview.installed} in library</strong>
+      <span className="inline-flex items-center gap-1 text-[var(--color-success-text-raised)]">
         <Icon glyph={CheckCircle2} size="sm" />
         {overview.ready === overview.installed
           ? "All ready to play"
           : `${overview.ready} ready to play`}
       </span>
       {overview.needsSetup > 0 && (
-        <span className="library-summary-status attention">
+        <span className="inline-flex items-center gap-1 text-pc-warning-foreground">
           <Icon glyph={Wrench} size="sm" />
           {overview.needsSetup} {overview.needsSetup === 1 ? "needs" : "need"} attention
         </span>
       )}
       {overview.staged > 0 && (
-        <span className="library-summary-status update">
+        <span className="inline-flex items-center gap-1 text-pc-interactive-foreground">
           <Icon glyph={Download} size="sm" />
           {overview.staged} {overview.staged === 1 ? "update" : "updates"} downloaded
         </span>
