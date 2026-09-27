@@ -611,7 +611,7 @@ function RequirementsGroup({
           <span className="requirements-summary-meta">File controls</span>
           <Icon glyph={ChevronDown} />
         </summary>
-        <div className="detail-group-content requirements-body">
+        <div className="requirements-body grid gap-4">
           <RequirementsSummary port={port} />
           <SourceFields controls={sources} />
           <SourceIntakeActions controls={sources} busy={Boolean(busy)} />
@@ -798,7 +798,7 @@ function FutureSetupDisclosure({
         {title}
         <Icon glyph={ChevronDown} />
       </summary>
-      <div className={`detail-group-content${deferred ? " advanced-body" : ""}`}>
+      <div className={`grid gap-4${deferred ? " advanced-body" : ""}`}>
         {deferred && <p>{description}</p>}
         {children}
       </div>
@@ -809,11 +809,14 @@ function FutureSetupDisclosure({
 function DetailGroup({ title, children }: { title: string; children: React.ReactNode }) {
   const headingId = `detail-${title.toLowerCase().replaceAll(" ", "-")}`;
   return (
-    <section className="detail-group" aria-labelledby={headingId}>
-      <h2 id={headingId} tabIndex={-1}>
+    <section
+      className="detail-group mt-7 grid gap-4 border-t border-pc-border pt-6 first:mt-0 first:border-t-0 first:pt-0"
+      aria-labelledby={headingId}
+    >
+      <h2 id={headingId} tabIndex={-1} className="m-0 text-base">
         {title}
       </h2>
-      <div className="detail-group-content">{children}</div>
+      <div className="grid gap-4">{children}</div>
     </section>
   );
 }
