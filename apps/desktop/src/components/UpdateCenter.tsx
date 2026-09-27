@@ -75,7 +75,7 @@ const updateStateTones: Record<UpdateTone, string> = {
   staged: "bg-[var(--color-interactive-subtle)] text-pc-interactive-foreground",
 };
 const updateRowClass =
-  "update-row grid w-full cursor-pointer items-center gap-3.5 rounded-pc-lg border border-pc-border bg-pc-surface p-3 text-left text-pc-foreground shadow-[var(--shadow-control)] transition-[color,background-color,border-color,box-shadow,transform] duration-(--duration-normal) ease-(--ease-standard) hover:border-pc-primary hover:bg-pc-secondary active:bg-pc-surface-muted";
+  "update-row grid w-full grid-cols-[42px_minmax(180px,1fr)_minmax(214px,284px)_90px] cursor-pointer items-center gap-3.5 rounded-pc-lg border border-pc-border bg-pc-surface p-3 text-left text-pc-foreground shadow-[var(--shadow-control)] transition-[color,background-color,border-color,box-shadow,transform] duration-(--duration-normal) ease-(--ease-standard) hover:border-pc-primary hover:bg-pc-secondary active:translate-y-px active:bg-pc-surface-muted active:shadow-[var(--shadow-pressed)] max-[65rem]:grid-cols-[2.625rem_minmax(11rem,1fr)_minmax(8rem,1fr)_5.625rem]";
 const updateMarkClass = "grid size-[42px] place-items-center rounded-pc-md text-xs font-black";
 const updateStateClass =
   "justify-self-end rounded-full px-2 py-[5px] text-[length:var(--text-2xs)] font-extrabold tracking-[0.06em] uppercase";
@@ -484,7 +484,7 @@ function ActivityRow({
   const tone = activityTones[presentation.state];
   return (
     <div
-      className={`activity-row ${presentation.state} grid min-h-14 items-center gap-3 rounded-pc-md border border-pc-border bg-pc-surface px-3 py-2.5`}
+      className={`activity-row ${presentation.state} grid min-h-14 grid-cols-[1.5rem_minmax(0,1fr)_max-content_max-content] items-center gap-3 rounded-pc-md border border-pc-border bg-pc-surface px-3 py-2.5 max-[65rem]:grid-cols-[1.5rem_minmax(0,1fr)_4.5rem]`}
       title={activity.failure?.presentation.summary}
       data-focus-group
     >

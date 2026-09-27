@@ -2360,15 +2360,6 @@ select {
   }
 }
 
-.update-row {
-  grid-template-columns: 42px minmax(180px, 1fr) minmax(214px, 284px) 90px;
-}
-
-.update-row:active {
-  box-shadow: var(--shadow-pressed);
-  transform: translateY(1px);
-}
-
 .preparation-cleanup-details p,
 .preparation-cleanup-details dd,
 .cleanup-entry-list li {
@@ -2389,9 +2380,6 @@ select {
   font-size: var(--text-xs);
 }
 
-.activity-row {
-  grid-template-columns: 1.5rem minmax(0, 1fr) max-content max-content;
-}
 .activity-details {
   margin-top: calc(var(--space-1) * -1);
 }
@@ -2633,12 +2621,6 @@ select:disabled {
   .continue-actions {
     grid-column: 1 / -1;
     justify-content: flex-end;
-  }
-  .update-row {
-    grid-template-columns: 2.625rem minmax(11rem, 1fr) minmax(8rem, 1fr) 5.625rem;
-  }
-  .activity-row {
-    grid-template-columns: 1.5rem minmax(0, 1fr) 4.5rem;
   }
   .about-card {
     grid-template-columns: 14rem minmax(0, 1fr);
