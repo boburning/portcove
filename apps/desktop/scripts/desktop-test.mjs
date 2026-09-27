@@ -439,13 +439,7 @@ async function verifyLongTitleCatalogDetail(theme) {
     { width: 960, height: 640 },
     { width: 1280, height: 800 },
   ]) {
-    await browser.manage().window().setRect(size);
-    const actualWindow = await browser.manage().window().getRect();
-    assert.deepEqual(
-      { width: actualWindow.width, height: actualWindow.height },
-      size,
-      `Long-title window was clamped: ${JSON.stringify(actualWindow)}`,
-    );
+    await setVerifiedWindowSize(size, "Long-title");
     const layout = await browser.executeScript(() => {
       const title = document.querySelector("#port-detail-title");
       const action = document.querySelector(
@@ -1646,19 +1640,30 @@ try {
           By.css('[data-settings-group="game-files"] article.source-health'),
         );
         assert.equal(gameFileCards.length, 2, "Game Files Settings cards are incomplete");
+        const settingsCards = [
+          { name: "saved-folders", card: gameFileCards[0], group: "game-files" },
+          { name: "verification", card: gameFileCards[1], group: "game-files" },
+          {
+            name: "capacity",
+            card: await browser.findElement(
+              By.css('[data-settings-group="library-storage"] article.storage-card'),
+            ),
+            group: "storage",
+          },
+          {
+            name: "disc-tools",
+            card: await browser.findElement(
+              By.xpath('//h2[@id="disc-tools-heading"]/ancestor::article[1]'),
+            ),
+            group: "game-files",
+          },
+        ];
         for (const size of [
           { width: 960, height: 640 },
           { width: 1280, height: 800 },
         ]) {
-          await browser.manage().window().setRect(size);
-          const actualWindow = await browser.manage().window().getRect();
-          assert.deepEqual(
-            { width: actualWindow.width, height: actualWindow.height },
-            size,
-            `Game Files Settings window was clamped: ${JSON.stringify(actualWindow)}`,
-          );
-          for (const [index, name] of ["saved-folders", "verification"].entries()) {
-            const card = gameFileCards[index];
+          await setVerifiedWindowSize(size, "Settings");
+          for (const { name, card, group } of settingsCards) {
             await browser.executeScript(
               (element) => element.scrollIntoView({ block: "start", inline: "nearest" }),
               card,
@@ -1669,7 +1674,7 @@ try {
             );
             assert.equal(overflow, false, `${name} overflows at ${size.width}px in ${theme}`);
             await captureScenarioScreenshot(
-              `settings-game-files-${name}-${theme}-${size.width}`,
+              `settings-${group}-${name}-${theme}-${size.width}`,
               true,
             );
           }
@@ -1725,13 +1730,7 @@ try {
           { width: 960, height: 640 },
           { width: 1280, height: 800 },
         ]) {
-          await browser.manage().window().setRect(size);
-          const actualWindow = await browser.manage().window().getRect();
-          assert.deepEqual(
-            { width: actualWindow.width, height: actualWindow.height },
-            size,
-            `Missing-source detail window was clamped: ${JSON.stringify(actualWindow)}`,
-          );
+          await setVerifiedWindowSize(size, "Missing-source detail");
           assert.equal(
             await browser.executeScript(() => document.documentElement.dataset.theme),
             theme,
