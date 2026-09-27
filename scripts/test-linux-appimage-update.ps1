@@ -22,7 +22,7 @@ param(
 )
 
 $evidenceContract = [ordered]@{
-    schema_version = 13
+    schema_version = 14
     predecessor_version = $PredecessorVersion
     candidate_version = $CandidateVersion
 }
@@ -178,6 +178,15 @@ $evidence = [ordered]@{
         tuf_private_root = $true
         signing_private_key_environment = $signingPrivateKeyEnvironmentAbsent
         signing_password_environment = $signingPasswordEnvironmentAbsent
+    }
+    packaged_selection = [ordered]@{
+        exit_code = $null
+        state = $null
+        version = $null
+        sha256 = $null
+        stable_preserved = $false
+        staging_absent = $false
+        owner_write_rejection = $false
     }
     payload_signature_failures = [ordered]@{
         wrong_disposable_public_key_sha256 = $WrongPayloadPublicKeySha256
@@ -455,6 +464,48 @@ $fullAppImageState = Join-Path $state "full-appimage-update-state"
 $fullAppImageMounted = $false
 $truncatedCandidate = Join-Path $state "truncated-candidate.AppImage"
 try {
+    Remove-Item Env:APPIMAGE_EXTRACT_AND_RUN -ErrorAction SilentlyContinue
+    $selectionState = Join-Path $state "packaged-selection-state"
+    $env:PORTCOVE_APPLICATION_UPDATE_STAGING = $selectionState
+    $packagedSelectionOutput = & $stable --portcove-qualify-update-selection 2>&1 | Out-String
+    $evidence.packaged_selection.exit_code = $LASTEXITCODE
+    if ($LASTEXITCODE -ne 0) { throw "Installed AppImage selection failed: $packagedSelectionOutput" }
+    $packagedSelection = $packagedSelectionOutput.Trim() | ConvertFrom-Json
+    if ($packagedSelection.state -ne "update-available" -or
+        $packagedSelection.version -ne $CandidateVersion -or
+        $packagedSelection.sha256 -ne $candidateHash) {
+        throw "Installed AppImage did not select the exact signed candidate"
+    }
+    $evidence.packaged_selection.state = $packagedSelection.state
+    $evidence.packaged_selection.version = $packagedSelection.version
+    $evidence.packaged_selection.sha256 = $packagedSelection.sha256
+    $evidence.packaged_selection.stable_preserved =
+        (Get-FileHash -LiteralPath $stable -Algorithm SHA256).Hash.ToLowerInvariant() -eq $predecessorHash
+    if (-not $evidence.packaged_selection.stable_preserved) {
+        throw "Installed AppImage selection changed the stable executable"
+    }
+    $evidence.packaged_selection.staging_absent =
+        -not (Test-Path -LiteralPath (Join-Path $selectionState "candidate.payload")) -and
+        -not (Test-Path -LiteralPath (Join-Path $selectionState "apply.json"))
+    if (-not $evidence.packaged_selection.staging_absent) {
+        throw "Installed AppImage selection staged or applied a candidate"
+    }
+    & chmod u-w -- $stable
+    if ($LASTEXITCODE -ne 0) { throw "Could not remove owner write permission for installed selection rejection" }
+    try {
+        $unwritableSelectionOutput = & $stable --portcove-qualify-update-selection 2>&1 | Out-String
+        $evidence.packaged_selection.owner_write_rejection =
+            $LASTEXITCODE -ne 0 -and $unwritableSelectionOutput -match "not readable, executable and writable by its owner"
+    } finally {
+        & chmod u+w -- $stable
+        if ($LASTEXITCODE -ne 0) { throw "Could not restore owner write permission after selection rejection" }
+    }
+    if (-not $evidence.packaged_selection.owner_write_rejection) {
+        throw "Installed AppImage selected an update without owner write permission"
+    }
+    Remove-Item Env:PORTCOVE_APPLICATION_UPDATE_STAGING
+    Write-Evidence "packaged-selection-complete"
+
     Test-PayloadSignatureFailure "missing-payload-signature" $missingSignatureMetadata $missingSignatureTargets "authenticated update record is malformed:.*tauri_signature" $evidence.payload_signature_failures.missing
     Test-PayloadSignatureFailure "wrong-key-payload-signature" $wrongSignatureMetadata $wrongSignatureTargets "payload verification material is invalid: signature does not use the selected key or streaming format" $evidence.payload_signature_failures.wrong_key
 
