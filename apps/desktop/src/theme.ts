@@ -12,6 +12,7 @@ const THEME_COLORS: Record<ResolvedTheme, string> = {
   dark: "#191a1d",
   light: "#f5f3ee",
 };
+let themeApplicationGeneration = 0;
 
 function isThemePreference(value: string | null): value is ThemePreference {
   return value === "system" || value === "dark" || value === "light";
@@ -60,8 +61,20 @@ export function resolveThemePreference(
 
 export function applyWebTheme(theme: ResolvedTheme): void {
   if (typeof document === "undefined") return;
-  document.documentElement.dataset.theme = theme;
-  document.documentElement.style.colorScheme = theme;
+  const root = document.documentElement;
+  const generation = ++themeApplicationGeneration;
+  root.dataset.theme = theme;
+  root.style.colorScheme = theme;
+  // Let WKWebView resolve the new selector before invalidating mounted descendants.
+  // A same-task root property change can be coalesced with the data-theme mutation.
+  root.style.removeProperty("--portcove-theme-invalidation");
+  requestAnimationFrame(() =>
+    requestAnimationFrame(() => {
+      if (generation === themeApplicationGeneration && root.dataset.theme === theme) {
+        root.style.setProperty("--portcove-theme-invalidation", theme);
+      }
+    }),
+  );
   document
     .querySelector<HTMLMetaElement>('meta[name="theme-color"]')
     ?.setAttribute("content", THEME_COLORS[theme]);

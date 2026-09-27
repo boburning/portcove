@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
 
-export async function assertDesignCompatibility({ browser, By, Key, until }) {
+export async function assertDesignCompatibility({
+  browser,
+  By,
+  Key,
+  until,
+  embeddedMacKeyboard = false,
+}) {
   const fixtureLocator = By.css(".design-compatibility-fixture");
   await browser.wait(until.elementLocated(fixtureLocator), 15_000);
   const fixture = await browser.findElement(fixtureLocator);
@@ -52,7 +58,14 @@ export async function assertDesignCompatibility({ browser, By, Key, until }) {
   assert.equal(darkColors.theme, "dark");
   assert.equal(darkColors.variantOpacity, "0.5");
   await browser.findElement(By.id("fixture-theme-light")).click();
-  await browser.wait(async () => (await fixture.getAttribute("data-theme")) === "light", 15_000);
+  await browser.wait(
+    async () =>
+      (await fixture.getAttribute("data-theme")) === "light" &&
+      (await browser.executeScript(() =>
+        document.documentElement.style.getPropertyValue("--portcove-theme-invalidation"),
+      )) === "light",
+    15_000,
+  );
   assert.notEqual(
     await browser.executeScript(
       () =>
@@ -66,6 +79,38 @@ export async function assertDesignCompatibility({ browser, By, Key, until }) {
     ),
     "1",
     "a generated dark: utility changes an actual computed control property under data-theme",
+  );
+  await browser.findElement(By.id("fixture-theme-dark")).click();
+  await browser.wait(
+    async () =>
+      (await fixture.getAttribute("data-theme")) === "dark" &&
+      (await browser.executeScript(() =>
+        document.documentElement.style.getPropertyValue("--portcove-theme-invalidation"),
+      )) === "dark",
+    15_000,
+  );
+  assert.equal(
+    await browser.executeScript(
+      () => getComputedStyle(document.querySelector("[data-theme-variant-probe]")).opacity,
+    ),
+    "0.5",
+    "a mounted control regains its generated dark: style when returning to dark",
+  );
+  await browser.findElement(By.id("fixture-theme-light")).click();
+  await browser.wait(
+    async () =>
+      (await fixture.getAttribute("data-theme")) === "light" &&
+      (await browser.executeScript(() =>
+        document.documentElement.style.getPropertyValue("--portcove-theme-invalidation"),
+      )) === "light",
+    15_000,
+  );
+  assert.equal(
+    await browser.executeScript(
+      () => getComputedStyle(document.querySelector("[data-theme-variant-probe]")).opacity,
+    ),
+    "1",
+    "a mounted control returns to its light style on the next switch",
   );
 
   await browser.findElement(By.id("fixture-direction")).click();
@@ -106,12 +151,44 @@ export async function assertDesignCompatibility({ browser, By, Key, until }) {
     "the dialog remains centered in right-to-left direction",
   );
   const selectTrigger = await browser.findElement(By.id("fixture-channel"));
-  await selectTrigger.sendKeys(Key.ENTER);
-  await browser.wait(
-    async () => (await fixture.getAttribute("data-select-open")) === "true",
-    15_000,
-    "keyboard activation opens the nested select",
-  );
+  const sendEscape = embeddedMacKeyboard
+    ? () => browser.actions().sendKeys(Key.ESCAPE).perform()
+    : () => selectTrigger.sendKeys(Key.ESCAPE);
+  if (embeddedMacKeyboard) {
+    // The qualification-only embedded driver focuses buttons for element sendKeys
+    // but dispatches key events through WebDriver actions.
+    await selectTrigger.sendKeys(Key.ARROW_DOWN);
+    await browser.actions().sendKeys(Key.ARROW_DOWN).perform();
+  } else {
+    await selectTrigger.sendKeys(Key.ENTER);
+  }
+  try {
+    await browser.wait(
+      async () => (await fixture.getAttribute("data-select-open")) === "true",
+      15_000,
+      "keyboard activation opens the nested select",
+    );
+  } catch (error) {
+    let state = "unavailable";
+    try {
+      state = JSON.stringify(
+        await browser.executeScript(() => {
+          const trigger = document.querySelector("#fixture-channel");
+          return {
+            activeElement: document.activeElement?.id ?? null,
+            dialogOpen: document.querySelector(".design-compatibility-fixture")?.dataset.dialogOpen,
+            triggerExpanded: trigger?.getAttribute("aria-expanded"),
+            triggerDisabled: trigger?.getAttribute("aria-disabled"),
+          };
+        }),
+      );
+    } catch {
+      // Preserve the activation failure if the driver can no longer inspect the page.
+    }
+    throw new Error(`keyboard activation failed: ${String(error)}; state: ${state}`, {
+      cause: error,
+    });
+  }
   assert.equal(
     (await browser.findElements(dialogLocator)).length,
     1,
@@ -131,7 +208,7 @@ export async function assertDesignCompatibility({ browser, By, Key, until }) {
     "rtl",
     "portaled select content inherits the active direction",
   );
-  await selectTrigger.sendKeys(Key.ESCAPE);
+  await sendEscape();
   await browser.wait(
     async () => (await fixture.getAttribute("data-select-open")) === "false",
     15_000,
@@ -148,7 +225,7 @@ export async function assertDesignCompatibility({ browser, By, Key, until }) {
     15_000,
     "closing the nested select restores focus to its trigger",
   );
-  await selectTrigger.sendKeys(Key.ESCAPE);
+  await sendEscape();
   await browser.wait(
     async () => (await fixture.getAttribute("data-dialog-open")) === "false",
     15_000,

@@ -19,6 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import "./design-compatibility.css";
+import { applyWebTheme } from "@/theme";
 
 type Theme = "dark" | "light";
 type Direction = "ltr" | "rtl";
@@ -34,9 +35,14 @@ export function DesignCompatibilityFixture() {
   const [reduceMotion, setReduceMotion] = useState(false);
 
   useEffect(() => {
-    document.documentElement.dataset.theme = theme;
+    applyWebTheme(theme);
     document.documentElement.dir = direction;
   }, [direction, theme]);
+
+  function changeTheme(nextTheme: Theme) {
+    applyWebTheme(nextTheme);
+    setTheme(nextTheme);
+  }
 
   return (
     <DirectionProvider direction={direction}>
@@ -74,7 +80,7 @@ export function DesignCompatibilityFixture() {
               id="fixture-theme-dark"
               variant={theme === "dark" ? "selected" : "outline"}
               aria-pressed={theme === "dark"}
-              onClick={() => setTheme("dark")}
+              onClick={() => changeTheme("dark")}
             >
               Dark theme
             </Button>
@@ -82,7 +88,7 @@ export function DesignCompatibilityFixture() {
               id="fixture-theme-light"
               variant={theme === "light" ? "selected" : "outline"}
               aria-pressed={theme === "light"}
-              onClick={() => setTheme("light")}
+              onClick={() => changeTheme("light")}
             >
               Light theme
             </Button>
