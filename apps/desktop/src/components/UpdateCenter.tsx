@@ -39,7 +39,7 @@ import type { ActivitySettingsTarget } from "../features/app-shell/focus-setting
 
 const initialActivityNowSeconds = Date.now() / 1000;
 const activityTargetButton =
-  "-mx-1 h-auto min-h-6 min-w-0 max-w-full shrink justify-start overflow-hidden px-1 py-0 text-ellipsis text-xs font-normal text-pc-secondary-foreground no-underline hover:text-pc-primary hover:no-underline";
+  "-mx-1 h-auto min-h-6 min-w-0 max-w-full shrink justify-start overflow-hidden px-1 py-0 text-ellipsis text-xs font-normal text-pc-secondary-foreground no-underline hover:text-pc-interactive-foreground hover:no-underline";
 const activityTones: Record<string, { indicator: string; status: string }> = {
   succeeded: {
     indicator: "bg-pc-success-subtle text-pc-success-foreground",
@@ -362,13 +362,13 @@ function ActivityHistory({
       !protectedIds.has(activity.id),
   ).length;
   return (
-    <section className="activity-history">
-      <div className="activity-heading">
+    <section className="activity-history mt-7 border-t border-pc-border pt-6">
+      <div className="activity-heading mb-3 flex items-end justify-between gap-4">
         <div>
           <p className="eyebrow">ACTIVITY HISTORY</p>
-          <h2>Recent activity</h2>
+          <h2 className="mb-0 text-lg">Recent activity</h2>
         </div>
-        <small>
+        <small className="text-xs text-pc-muted-foreground">
           {activityFeed ? (
             <>
               Showing {visibleFinishedCount} recent finished tasks, plus tasks in progress and items
@@ -384,18 +384,20 @@ function ActivityHistory({
         </small>
       </div>
       {activities.length === 0 ? (
-        <div className="activity-empty">
-          <Icon glyph={History} />
+        <div className="activity-empty flex items-center gap-3 p-4 text-left text-xs text-pc-muted-foreground">
+          <span className="text-pc-interactive-foreground">
+            <Icon glyph={History} />
+          </span>
           <div>
-            <strong>No activity yet</strong>
-            <span>
+            <strong className="block text-pc-secondary-foreground">No activity yet</strong>
+            <span className="mt-1 block">
               Installs, updates, verification, restored versions, copied installations, and failures
               will appear here.
             </span>
           </div>
         </div>
       ) : (
-        <div className="activity-list">
+        <div className="activity-list grid gap-1.5">
           {visibleActivities.map((activity) => (
             <ActivityRow
               activity={activity}

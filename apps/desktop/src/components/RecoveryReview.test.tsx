@@ -38,6 +38,9 @@ it("keeps unavailable information distinct from an empty recorded repair list", 
   expect(unavailable).toContain("has not been checked for the current library state");
   expect(unavailable).not.toContain("No recovery items");
   expect(empty).toContain("No recovery items were recorded in the last check.");
+  expect(unavailable).toContain("rounded-pc-lg border border-pc-border");
+  expect(empty).toContain("py-2");
+  expect(empty).not.toContain("rounded-pc-lg border");
 });
 
 it("puts paths behind a collapsed review and omits raw errors and execution controls", async () => {
@@ -51,6 +54,7 @@ it("puts paths behind a collapsed review and omits raw errors and execution cont
       root.render(<RecoveryReview {...freshDiagnostics} repair={repair} ports={[port]} />),
     );
     expect(host.textContent).toContain("1 recorded item needs review.");
+    expect(host.querySelector(".recovery-review")?.className).toContain("rounded-pc-lg border");
     expect(host.querySelector("summary")?.textContent).toContain(port.name);
     const details = host.querySelector("details")!;
     expect(details.open).toBe(false);
