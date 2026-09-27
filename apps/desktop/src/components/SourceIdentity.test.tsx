@@ -349,7 +349,8 @@ describe("source identity presentation", () => {
 
   it("leads with result and next action while keeping authority and test counts in disclosures", () => {
     const html = renderToStaticMarkup(<SourceIdentityPanel report={report()} />);
-    const firstDisclosure = html.indexOf('<details class="source-technical">');
+    const firstDisclosure = html.indexOf('<details class="source-technical ');
+    expect(firstDisclosure).toBeGreaterThan(-1);
     const primary = html.slice(0, firstDisclosure);
     expect(primary).toContain("Game-file check");
     expect(primary).toContain("Exact match");

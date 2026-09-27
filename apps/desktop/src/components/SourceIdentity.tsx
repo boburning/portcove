@@ -102,9 +102,14 @@ export function SourceIdentityPanel({
           application={application}
         />
       ))}
-      <details className="source-technical">
-        <summary data-focusable>Full identity and evidence</summary>
-        <div className="source-technical-body">
+      <details className="source-technical border-t border-pc-border">
+        <summary
+          data-focusable
+          className="cursor-pointer py-3 font-medium text-pc-interactive-foreground"
+        >
+          Full identity and evidence
+        </summary>
+        <div className="grid gap-4 [&_h4]:mb-2 [&_h4]:mt-3">
           <dl className="source-identity-summary">
             <div>
               <dt>Admission</dt>
@@ -189,8 +194,13 @@ function ApplicationResult({
       {exactHandsOn.length === 0 && (
         <p>Missing gameplay evidence does not block an otherwise admitted source.</p>
       )}
-      <details className="source-technical">
-        <summary data-focusable>Test results and source authority</summary>
+      <details className="source-technical border-t border-pc-border">
+        <summary
+          data-focusable
+          className="cursor-pointer py-3 font-medium text-pc-interactive-foreground"
+        >
+          Test results and source authority
+        </summary>
         <small>{application.contract.authority_ref}</small>
         <dl>
           <div>
