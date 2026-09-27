@@ -81,6 +81,17 @@ describe("theme preferences", () => {
       "light",
     );
     expect(meta.setAttribute).toHaveBeenCalledWith("content", "#f5f3ee");
+
+    documentElement.style.setProperty.mockClear();
+    applyWebTheme("dark");
+    applyWebTheme("light");
+    applyWebTheme("dark");
+    while (frames.length > 0) frames.shift()?.(0);
+    expect(documentElement.style.setProperty).toHaveBeenCalledTimes(1);
+    expect(documentElement.style.setProperty).toHaveBeenCalledWith(
+      "--portcove-theme-invalidation",
+      "dark",
+    );
   });
 
   it("tracks live system changes and removes its listener", () => {
