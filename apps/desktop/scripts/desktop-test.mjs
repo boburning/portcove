@@ -981,12 +981,16 @@ async function verifyCompactSettingsJumps() {
     return {
       left: bounds.left,
       right: bounds.right,
+      viewportWidth: window.innerWidth,
       overflow: document.documentElement.scrollWidth > window.innerWidth + 1,
     };
   }, about);
   assert.equal(aboutLayout.overflow, false);
-  assert.ok(aboutLayout.left >= 0 && aboutLayout.right <= 960);
-  await captureScenarioScreenshot("settings-about-card-compact");
+  assert.ok(
+    aboutLayout.left >= 0 && aboutLayout.right <= aboutLayout.viewportWidth,
+    JSON.stringify(aboutLayout),
+  );
+  await captureScenarioScreenshot("settings-about-card-compact", true);
 }
 
 async function verifySettingsIndexTheme(theme) {
