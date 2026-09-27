@@ -31,8 +31,14 @@ produce an updater package.
 The manual **Updater artifact rehearsal** workflow generates disposable keys on
 each runner and builds every required Windows, Linux, Intel Mac and Apple Silicon
 package at fixture versions 0.1.0 and 0.3.0. It checks native package versions and
-executable permissions; Windows also runs the existing isolated installer harness
-through a passive skipped-version upgrade and uninstall with data preservation.
+executable permissions. Windows builds a disposable test-signed TUF repository,
+embeds its public trust and local repository URLs in a qualification-only
+predecessor NSIS package, and uses the isolated installer harness to stage the
+signed candidate, invoke the installed application's passive update helper,
+observe candidate relaunch and reconciliation, then uninstall with data
+preservation. The fixture prepares selection and restart intent externally;
+in-app check, download, and restart, a non-administrator VM prompt sequence,
+production signing, and publication require separate evidence.
 Linux builds a disposable test-signed TUF repository, embeds its public trust and
 local repository URLs in a qualification-only 0.1.0 AppImage, and exercises the
 packaged helper through an interrupted candidate copy, GUI-independent command

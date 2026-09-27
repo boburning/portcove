@@ -572,26 +572,73 @@ try {
         $env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_EXIT = "after-reconciliation"
         $env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_STAGE = $qualificationStage
         Write-InstallerEvidence "installed_helper_starting" ([ordered]@{ prepared = $prepared; predecessor_executable_sha256 = $previousHash })
+        $helperStart = [DateTime]::UtcNow
         $install = Invoke-JournaledProcess -Role "installed_update_helper" -Executable $application -Arguments @("--portcove-apply-update", [string]$prepared.apply_revision) -AllowedRelocationRoot $runRoot
         if ($install.ExitCode -ne 0) { throw "Installed application update helper exited with code $($install.ExitCode)" }
         $deadline = (Get-Date).AddSeconds(30)
+        $stageReadError = $null
         do {
             if ([IO.File]::Exists($qualificationStage)) {
-                $stage = Get-Content -LiteralPath $qualificationStage -Raw | ConvertFrom-Json
-                if ($stage.stage -eq "Tauri setup") { break }
+                try {
+                    $stage = Get-Content -LiteralPath $qualificationStage -Raw | ConvertFrom-Json
+                    $stageReadError = $null
+                    if ($stage.stage -eq "Tauri setup") { break }
+                } catch {
+                    $stage = $null
+                    $stageReadError = $_.Exception.Message
+                }
             }
             Start-Sleep -Milliseconds 250
         } while ((Get-Date) -lt $deadline)
         if (-not $stage -or $stage.stage -ne "Tauri setup") {
-            throw "Updated installed application did not reach Tauri setup after helper relaunch"
+            throw "Updated installed application did not reach Tauri setup after helper relaunch; last stage read error: $stageReadError"
         }
+        $applyReadError = $null
         do {
-            $applyState = Get-Content -LiteralPath (Join-Path $updateRoot "apply.json") -Raw | ConvertFrom-Json
-            if (-not $applyState.intent) { break }
+            try {
+                $applyState = Get-Content -LiteralPath (Join-Path $updateRoot "apply.json") -Raw | ConvertFrom-Json
+                $applyReadError = $null
+                if (-not $applyState.intent) { break }
+            } catch {
+                $applyState = $null
+                $applyReadError = $_.Exception.Message
+            }
             Start-Sleep -Milliseconds 250
         } while ((Get-Date) -lt $deadline)
-        if ($applyState.intent) { throw "Updated installed application did not reconcile its durable apply intent" }
-        Write-InstallerEvidence "installed_helper_reconciled" ([ordered]@{ prepared = $prepared; qualification_stage = $stage; apply_state = $applyState })
+        if (-not $applyState -or $applyState.intent) {
+            throw "Updated installed application did not reconcile its durable apply intent; last state read error: $applyReadError"
+        }
+        $relaunchPid = [int]$stage.process_id
+        if ($relaunchPid -le 0) { throw "Qualification stage omitted the candidate relaunch process ID" }
+        $relaunch = try { [Diagnostics.Process]::GetProcessById($relaunchPid) } catch [ArgumentException] { $null }
+        $relaunchExit = [ordered]@{ pid = $relaunchPid; observed = $null; exit_code = $null }
+        if ($relaunch) {
+            try {
+                $relaunch.Refresh()
+                if (-not $relaunch.HasExited) {
+                    $observedPath = try { $relaunch.Path } catch {
+                        if ($relaunch.HasExited) { $null } else { throw }
+                    }
+                    if ($observedPath) {
+                        $observedPath = [IO.Path]::GetFullPath($observedPath)
+                        if (-not $observedPath.Equals($application, [StringComparison]::OrdinalIgnoreCase) -or
+                            $relaunch.StartTime.ToUniversalTime() -lt $helperStart.AddSeconds(-2)) {
+                            throw "Qualification relaunch PID does not identify the installed candidate process"
+                        }
+                        $relaunchExit.observed = $observedPath
+                        $relaunchDeadline = (Get-Date).AddSeconds(30)
+                        $remaining = [Math]::Max(0, [int]($relaunchDeadline - (Get-Date)).TotalMilliseconds)
+                        if (-not $relaunch.WaitForExit($remaining)) {
+                            Write-InstallerEvidence "installed_relaunch_exit_timeout" ([ordered]@{ prepared = $prepared; qualification_stage = $stage; relaunch = $relaunchExit })
+                            throw "Updated installed application did not exit after qualification reconciliation"
+                        }
+                    }
+                }
+                $relaunchExit.exit_code = $relaunch.ExitCode
+                if ($relaunch.ExitCode -ne 0) { throw "Updated installed application relaunch exited with code $($relaunch.ExitCode)" }
+            } finally { $relaunch.Dispose() }
+        }
+        Write-InstallerEvidence "installed_helper_reconciled" ([ordered]@{ prepared = $prepared; qualification_stage = $stage; apply_state = $applyState; relaunch = $relaunchExit })
     } else {
         $installFlag = if ($InstallMode -eq "Passive") { "/P" } else { "/S" }
         # A predecessor establishes the registered destination. /UPDATE must
