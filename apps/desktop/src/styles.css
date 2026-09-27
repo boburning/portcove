@@ -3193,9 +3193,7 @@ select {
 }
 
 .activity-row {
-  grid-template-columns:
-    1.5rem minmax(11.25rem, 1fr) minmax(7.5rem, auto)
-    4.75rem;
+  grid-template-columns: 1.5rem minmax(0, 1fr) max-content max-content;
 }
 .activity-main {
   min-width: 0;

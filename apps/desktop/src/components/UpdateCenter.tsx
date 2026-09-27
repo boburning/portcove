@@ -503,7 +503,7 @@ function ActivityRow({
         />
       </div>
       <span
-        className="activity-time"
+        className="activity-time whitespace-nowrap"
         title={
           activity.finished_at ? `Finished ${formatActivityTime(activity.finished_at)}` : undefined
         }
@@ -511,7 +511,7 @@ function ActivityRow({
         {presentation.time}
       </span>
       <span
-        className={`activity-status justify-self-end text-[var(--text-2xs)] font-extrabold tracking-[0.06em] uppercase ${tone?.status ?? "text-pc-muted-foreground"}`}
+        className={`activity-status justify-self-end whitespace-nowrap text-[var(--text-2xs)] font-extrabold tracking-[0.06em] uppercase ${tone?.status ?? "text-pc-muted-foreground"}`}
       >
         {presentation.label}
       </span>
