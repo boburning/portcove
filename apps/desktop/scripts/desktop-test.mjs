@@ -626,14 +626,24 @@ async function captureApplicationUpdateSettingsComparison() {
           const card = document.querySelector(".application-update-settings");
           if (!(card instanceof HTMLElement)) return null;
           card.scrollIntoView({ block: "start", inline: "nearest" });
+          const versionBadge = card.querySelector(".application-update-heading > p");
+          const secondaryColorProbe = document.createElement("span");
+          secondaryColorProbe.style.color = "var(--color-text-secondary)";
+          card.append(secondaryColorProbe);
+          const badgeColorMatchesSecondary =
+            versionBadge instanceof HTMLElement &&
+            getComputedStyle(versionBadge).color === getComputedStyle(secondaryColorProbe).color;
+          secondaryColorProbe.remove();
           return {
             display: getComputedStyle(card).display,
+            badgeColorMatchesSecondary,
             documentOverflow: document.documentElement.scrollWidth > window.innerWidth + 1,
             cardOverflow: card.scrollWidth > card.clientWidth + 1,
           };
         });
         assert.deepEqual(geometry, {
           display: "grid",
+          badgeColorMatchesSecondary: true,
           documentOverflow: false,
           cardOverflow: false,
         });
