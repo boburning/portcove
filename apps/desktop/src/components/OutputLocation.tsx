@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { AlertTriangle, FolderOpen, HardDrive, RotateCcw, ShieldCheck } from "lucide-react";
 import { desktopApi } from "../api";
 import { pickGameOutputFolder } from "../file-picker";
@@ -14,6 +14,30 @@ import { Icon } from "./ui";
 import { Button } from "./ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "./ui/dialog";
 import { Input } from "./ui/input";
+
+const outputReviewClass =
+  "output-location-review grid gap-3 rounded-pc-md border border-pc-border bg-[var(--color-bg-inset)] p-4";
+const outputReviewTitleClass =
+  "output-review-title flex flex-wrap items-start justify-between gap-3";
+const outputFactsClass = "grid grid-cols-2 gap-2 max-[48rem]:grid-cols-1";
+const outputCodeClass =
+  "block [overflow-wrap:anywhere] rounded-pc-md bg-[var(--color-bg-inset)] p-2 text-[var(--color-interactive-text)]";
+const outputReviewCodeClass =
+  "block [overflow-wrap:anywhere] rounded-pc-md bg-[var(--color-bg-subtle)] p-2 text-[var(--color-interactive-text)]";
+const outputReviewCopyClass = "flex items-center gap-2 text-xs text-[var(--color-text-secondary)]";
+const outputProblemClass =
+  "output-location-error flex items-start gap-2 text-pc-warning-foreground";
+
+function OutputFact({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="min-w-0">
+      <dt className="text-[var(--text-2xs)] text-pc-muted-foreground uppercase">{label}</dt>
+      <dd className="mt-1 [overflow-wrap:anywhere] text-xs text-[var(--color-text-secondary)]">
+        {children}
+      </dd>
+    </div>
+  );
+}
 
 export function OutputLocationControl({
   portId,
@@ -264,25 +288,25 @@ export function OutputLocationControl({
   const source = location ? outputSourceLabel(location.selection_source) : "Location not loaded";
   return (
     <section
-      className="output-location-control"
+      className="output-location-control my-5 grid gap-3 rounded-pc-lg border border-pc-border bg-[var(--color-bg-subtle)] p-4"
       data-focus-group
       aria-labelledby={`output-location-${portId}`}
     >
-      <div className="output-location-heading">
+      <div className="output-location-heading flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="eyebrow">STORAGE LOCATION</p>
-          <h3 id={`output-location-${portId}`}>
+          <h3 id={`output-location-${portId}`} className="m-0 flex items-center gap-2 text-base">
             <Icon glyph={HardDrive} />
             Install folder
           </h3>
         </div>
         <span
-          className={`output-location-source ${location?.selection_source === "port_setting" ? "custom" : "inherited"}`}
+          className={`output-location-source rounded-full px-2 py-1 text-[var(--text-2xs)] font-bold ${location?.selection_source === "port_setting" ? "custom bg-[var(--color-interactive-subtle)] text-pc-interactive-foreground" : "inherited bg-[var(--color-bg-inset)] text-[var(--color-text-secondary)]"}`}
         >
           {source}
         </span>
       </div>
-      <code title={location?.effective_output_directory}>
+      <code className={outputCodeClass} title={location?.effective_output_directory}>
         {location?.effective_output_directory ?? "Loading current folder…"}
       </code>
       {location && (
@@ -292,11 +316,13 @@ export function OutputLocationControl({
           error={currentPreviewError}
         />
       )}
-      <p>
+      <p className="m-0 text-xs leading-[var(--leading-relaxed)] text-pc-muted-foreground">
         Future installs use this folder by default. Existing versions will not move. Relocation is a
         separate reviewed action.
       </p>
-      <label htmlFor={`output-location-path-${portId}`}>Folder for future installs</label>
+      <label htmlFor={`output-location-path-${portId}`} className="text-xs font-bold">
+        Folder for future installs
+      </label>
       <div className="path-entry">
         <Input
           id={`output-location-path-${portId}`}
@@ -390,13 +416,13 @@ function CurrentOutputDestination({
   const stateClass = safe ? "safe" : blocked ? "blocked" : "";
   return (
     <div
-      className={`output-location-review current-output-destination ${stateClass}`}
+      className={`${outputReviewClass} current-output-destination ${stateClass} ${safe ? "border-[var(--color-success-border)]" : blocked ? "border-[var(--color-warning-border)] bg-pc-warning-subtle" : ""}`}
       role="group"
       aria-label="Current output destination"
     >
-      <div className="output-review-title" aria-live="polite">
+      <div className={outputReviewTitleClass} aria-live="polite">
         <strong>Current destination</strong>
-        <span>
+        <span className="text-xs font-bold text-[var(--color-text-secondary)]">
           {pending
             ? "Checking availability…"
             : preview
@@ -405,33 +431,30 @@ function CurrentOutputDestination({
         </span>
       </div>
       {preview && (
-        <dl>
-          <div>
-            <dt>Capacity</dt>
-            <dd>{outputCapacityLabel(preview)}</dd>
-          </div>
-          <div>
-            <dt>Ownership</dt>
-            <dd>{outputOwnershipLabel(preview.ownership)}</dd>
-          </div>
+        <dl className={outputFactsClass}>
+          <OutputFact label="Capacity">{outputCapacityLabel(preview)}</OutputFact>
+          <OutputFact label="Ownership">{outputOwnershipLabel(preview.ownership)}</OutputFact>
         </dl>
       )}
       {preview && preview.validation_errors.length > 0 && (
-        <ul className="output-validation-errors" aria-label="Current destination problems">
+        <ul
+          className="output-validation-errors m-0 pl-5 text-xs text-pc-warning-foreground"
+          aria-label="Current destination problems"
+        >
           {preview.validation_errors.map((message) => (
             <li key={message}>{message}</li>
           ))}
         </ul>
       )}
       {blocked && (
-        <p>
+        <p className={outputReviewCopyClass}>
           <Icon glyph={AlertTriangle} size="sm" />
           This destination stays selected. Choose an available folder below and review the change
           before applying it.
         </p>
       )}
       {error && (
-        <p className="output-location-error" role="status">
+        <p className={outputProblemClass} role="status">
           <Icon glyph={AlertTriangle} size="sm" />
           Current availability could not be checked: {error}. You can still review this folder or
           choose another one below.
@@ -453,7 +476,10 @@ function OutputLocationStatus({
   return (
     <>
       {result && (
-        <p className="output-location-success" role="status">
+        <p
+          className="output-location-success flex items-start gap-2 text-pc-success-foreground"
+          role="status"
+        >
           <Icon glyph={ShieldCheck} size="sm" />
           {result.cleanup_pending
             ? formatCountMessage(result.old_paths_retained.length, retainedFolderMessages)
@@ -461,13 +487,13 @@ function OutputLocationStatus({
         </p>
       )}
       {status && (
-        <p className="output-location-error" role="status">
+        <p className={outputProblemClass} role="status">
           <Icon glyph={AlertTriangle} size="sm" />
           {formatCountMessage(status.cleanup_pending_paths.length, pendingCleanupMessages)}
         </p>
       )}
       {error && (
-        <p className="output-location-error" role="alert">
+        <p className={outputProblemClass} role="alert">
           <Icon glyph={AlertTriangle} size="sm" />
           {error}
         </p>
@@ -563,44 +589,42 @@ function OutputLocationReview({
           Confirm the destination for future installs without moving any existing version.
         </DialogDescription>
         <div
-          className={`output-location-review ${safe ? "safe" : "blocked"}`}
+          className={`${outputReviewClass} ${safe ? "safe border-[var(--color-success-border)]" : "blocked border-[var(--color-warning-border)] bg-pc-warning-subtle"}`}
           aria-label="Output destination review"
         >
-          <div className="output-review-title" aria-live="polite">
+          <div className={outputReviewTitleClass} aria-live="polite">
             <strong>Destination checks</strong>
-            <span>{availability}</span>
+            <span className="text-xs font-bold text-[var(--color-text-secondary)]">
+              {availability}
+            </span>
           </div>
-          <code title={preview.proposed.effective_output_directory}>
+          <code
+            className={outputReviewCodeClass}
+            title={preview.proposed.effective_output_directory}
+          >
             {preview.proposed.effective_output_directory}
           </code>
-          <dl>
-            <div>
-              <dt>Source</dt>
-              <dd>{outputSourceLabel(preview.proposed.selection_source)}</dd>
-            </div>
-            <div>
-              <dt>Capacity</dt>
-              <dd>{capacity}</dd>
-            </div>
-            <div>
-              <dt>Ownership</dt>
-              <dd>{ownership}</dd>
-            </div>
-            <div>
-              <dt>Existing installs</dt>
-              <dd>
-                {preview.affected_installs.length === 0
-                  ? "None"
-                  : `${preview.affected_installs.length} remain at their recorded locations`}
-              </dd>
-            </div>
+          <dl className={outputFactsClass}>
+            <OutputFact label="Source">
+              {outputSourceLabel(preview.proposed.selection_source)}
+            </OutputFact>
+            <OutputFact label="Capacity">{capacity}</OutputFact>
+            <OutputFact label="Ownership">{ownership}</OutputFact>
+            <OutputFact label="Existing installs">
+              {preview.affected_installs.length === 0
+                ? "None"
+                : `${preview.affected_installs.length} remain at their recorded locations`}
+            </OutputFact>
           </dl>
-          <p>
+          <p className={outputReviewCopyClass}>
             <Icon glyph={ShieldCheck} size="sm" />
             Future placement only; this review does not move an existing installation.
           </p>
           {preview.validation_errors.length > 0 && (
-            <ul className="output-validation-errors" aria-label="Destination problems">
+            <ul
+              className="output-validation-errors m-0 pl-5 text-xs text-pc-warning-foreground"
+              aria-label="Destination problems"
+            >
               {preview.validation_errors.map((message) => (
                 <li key={message}>{message}</li>
               ))}
@@ -686,55 +710,48 @@ function OutputRelocationReview({
         Copy and verify the reviewed application versions before changing their recorded locations.
       </DialogDescription>
       <div
-        className={`output-location-review ${safe ? "safe" : "blocked"}`}
+        className={`${outputReviewClass} ${safe ? "safe border-[var(--color-success-border)]" : "blocked border-[var(--color-warning-border)] bg-pc-warning-subtle"}`}
         aria-label="Existing version relocation review"
       >
-        <div className="output-review-title" aria-live="polite">
+        <div className={outputReviewTitleClass} aria-live="polite">
           <strong>Versions and preserved data</strong>
-          <span>
+          <span className="text-xs font-bold text-[var(--color-text-secondary)]">
             {plan.installs.length} version{plan.installs.length === 1 ? "" : "s"}
           </span>
         </div>
-        <code title={plan.destination_root}>{plan.destination_root}</code>
-        <dl>
-          <div>
-            <dt>Copy required</dt>
-            <dd>{formatBytes(plan.required_bytes)}</dd>
-          </div>
-          <div>
-            <dt>Capacity</dt>
-            <dd>
-              {plan.available_bytes == null
-                ? "Capacity unavailable"
-                : `${formatBytes(plan.available_bytes)} available`}
-            </dd>
-          </div>
-          <div>
-            <dt>Ownership</dt>
-            <dd>{outputOwnershipLabel(plan.ownership)}</dd>
-          </div>
-          <div>
-            <dt>Sources</dt>
-            <dd>
-              {plan.sources_will_move
-                ? "Unexpected move requested"
-                : "Stay in the central source library"}
-            </dd>
-          </div>
-          <div>
-            <dt>Saves and backups</dt>
-            <dd>
-              {plan.user_data_will_move || plan.backups_will_move
-                ? "Unexpected move requested"
-                : "Stay in their current folders"}
-            </dd>
-          </div>
+        <code className={outputReviewCodeClass} title={plan.destination_root}>
+          {plan.destination_root}
+        </code>
+        <dl className={outputFactsClass}>
+          <OutputFact label="Copy required">{formatBytes(plan.required_bytes)}</OutputFact>
+          <OutputFact label="Capacity">
+            {plan.available_bytes == null
+              ? "Capacity unavailable"
+              : `${formatBytes(plan.available_bytes)} available`}
+          </OutputFact>
+          <OutputFact label="Ownership">{outputOwnershipLabel(plan.ownership)}</OutputFact>
+          <OutputFact label="Sources">
+            {plan.sources_will_move
+              ? "Unexpected move requested"
+              : "Stay in the central source library"}
+          </OutputFact>
+          <OutputFact label="Saves and backups">
+            {plan.user_data_will_move || plan.backups_will_move
+              ? "Unexpected move requested"
+              : "Stay in their current folders"}
+          </OutputFact>
         </dl>
-        <ul className="output-relocation-installs" aria-label="Versions to move">
+        <ul
+          className="output-relocation-installs m-0 grid max-h-[210px] list-none gap-2 overflow-auto p-0"
+          aria-label="Versions to move"
+        >
           {plan.installs.map((item) => (
-            <li key={item.install.id}>
+            <li
+              key={item.install.id}
+              className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-1 rounded-pc-sm bg-[var(--color-bg-subtle)] p-2"
+            >
               <strong>{item.install.version}</strong>
-              <span>
+              <span className="text-[var(--text-2xs)] text-pc-muted-foreground">
                 {[
                   item.active && "active",
                   item.previous && "previous",
@@ -744,17 +761,25 @@ function OutputRelocationReview({
                   .filter(Boolean)
                   .join(" · ")}
               </span>
-              <code title={item.install.path}>{item.install.path}</code>
+              <code
+                className="col-span-full [overflow-wrap:anywhere] text-[var(--text-2xs)] text-[var(--color-text-secondary)]"
+                title={item.install.path}
+              >
+                {item.install.path}
+              </code>
             </li>
           ))}
         </ul>
-        <p>
+        <p className={outputReviewCopyClass}>
           <Icon glyph={ShieldCheck} size="sm" />
           Portcove copies and verifies every recorded version before atomically changing its
           records. Old folders are removed only when their reviewed contents are unchanged.
         </p>
         {plan.validation_errors.length > 0 && (
-          <ul className="output-validation-errors" aria-label="Relocation problems">
+          <ul
+            className="output-validation-errors m-0 pl-5 text-xs text-pc-warning-foreground"
+            aria-label="Relocation problems"
+          >
             {plan.validation_errors.map((message) => (
               <li key={message}>{message}</li>
             ))}

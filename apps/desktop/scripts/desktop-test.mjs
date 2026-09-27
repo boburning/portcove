@@ -1504,6 +1504,57 @@ try {
       15_000,
     );
     await browser.wait(async () => await outputDraft.isEnabled(), 15_000);
+    const outputControl = await browser.findElement(By.css(".output-location-control"));
+    await browser.wait(
+      async () =>
+        (await outputControl.findElements(By.css('[aria-label="Current output destination"] dl')))
+          .length === 1,
+      15_000,
+    );
+    const outputLayout = await browser.executeScript(() => {
+      const control = document.querySelector(".output-location-control");
+      const current = control?.querySelector('[aria-label="Current output destination"]');
+      if (!(control instanceof HTMLElement) || !(current instanceof HTMLElement)) return null;
+      control.scrollIntoView({ block: "start", inline: "nearest" });
+      return {
+        controlDisplay: getComputedStyle(control).display,
+        currentDisplay: getComputedStyle(current).display,
+        horizontalOverflow: document.documentElement.scrollWidth > window.innerWidth + 1,
+        controlOverflow: control.scrollWidth > control.clientWidth + 1,
+      };
+    });
+    assert.deepEqual(outputLayout, {
+      controlDisplay: "grid",
+      currentDisplay: "grid",
+      horizontalOverflow: false,
+      controlOverflow: false,
+    });
+    await captureScenarioScreenshot("game-details-current-output-destination", true);
+    const reviewOutput = await outputControl.findElement(
+      By.xpath('.//button[normalize-space(.)="Review future folder"]'),
+    );
+    await reviewOutput.click();
+    const outputReview = await browser.wait(
+      until.elementLocated(By.css('[aria-label="Output destination review"]')),
+      15_000,
+    );
+    assert.equal(
+      await browser.executeScript(
+        (review) =>
+          getComputedStyle(review).display === "grid" &&
+          review.scrollWidth <= review.clientWidth + 1,
+        outputReview,
+      ),
+      true,
+    );
+    await captureScenarioScreenshot("game-details-output-destination-review", true);
+    await browser.findElement(By.xpath('//button[normalize-space(.)="Cancel review"]')).click();
+    await browser.wait(
+      async () =>
+        (await browser.executeScript(() => document.activeElement?.textContent?.trim())) ===
+        "Review future folder",
+      5_000,
+    );
     const draftPath = "C:\\Portcove-fixture\\Future-install";
     await outputDraft.sendKeys(Key.chord(Key.CONTROL, "a"), Key.BACK_SPACE, draftPath);
     const sourceDraft = await browser.findElement(
