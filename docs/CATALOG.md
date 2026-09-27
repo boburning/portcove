@@ -175,6 +175,16 @@ qualification belongs in the scoped collection. Never promote synthetic tests,
 a clean process exit, or generated files into hands-on evidence. Qualify each
 declared platform independently.
 
+For scoped records, `hands_on` describes direct observation of the specific
+claimed behavior with the real runtime and any input or device relevant to that
+claim; it does not encode the operator's identity. An agent can operate and
+record that session.
+Synthetic game data can establish bounded host lifecycle behavior but does not
+establish gameplay, a physical-controller path, or a platform not exercised.
+Retain the historical `automated_tested_platforms` and
+`manually_validated_platforms` field names and their existing recorded claims;
+this clarification creates no new qualification record or platform support.
+
 Legacy Project `Port stage = Supported` means that at least one declared
 platform is present in both historical arrays. That historical claim is limited
 to the port/platform intersection and does not become an unconditional claim

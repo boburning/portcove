@@ -65,7 +65,10 @@ channel, catalog maturity, or Project Status:
   required hands-on evidence.
 - **Manual qualification:** automated evidence exists and hands-on
   qualification is the active next or partially completed gate. This workflow
-  stage does not itself assert a recorded hands-on pass.
+  stage does not itself assert a recorded hands-on pass. The stage name is
+  historical; it does not require a human operator when an agent can directly
+  observe the same behavior on the runtime and any input or device relevant to
+  the claim.
 - **Supported:** historical entries require at least one declared platform in
   both legacy qualification arrays. New exact claims require matching scoped
   automated and hands-on records for the artifact, source contract, variant,
@@ -225,13 +228,17 @@ to the issue using a closing keyword when appropriate.
 Done means the acceptance criteria have matching evidence. Codex owns feasible
 acceptance execution, failure investigation, bounded repair, a separate review
 pass, and exact evidence; the owner is not a standing manual validation queue.
-Acceptance names the observation, scope, and environment rather than a human
-actor unless participation is intrinsic. Code without passing evidence is not
-Done. Gameplay comprehension and other intrinsically human observations cannot
-be closed with synthetic tests; physical-device automation is device evidence,
-not automatically human gameplay evidence. Close or merge only after required
-evidence exists; keep unresolved intrinsic human or external work Blocked or
-Deferred with an exact resume condition.
+Acceptance names the behavior, exact artifact, environment, input, and retained
+evidence rather than a human operator unless participation itself is the claim.
+Direct agent-operated application or device observation can establish the same
+functional claim as a person operating it. A fixture, browser preview, compiled
+bundle, or injected input establishes only the behavior it actually exercises;
+none becomes game-specific gameplay, installed-application, physical-device, or
+human-subject evidence by relabeling. Code without passing evidence is not Done.
+Human comprehension research needs actual participants and remains distinct
+from functional acceptance. Close or merge only after required evidence exists;
+keep unresolved intrinsic human or external work Blocked or Deferred with an
+exact resume condition.
 
 Completion applies to the work promised. A port integration can be Done with
 unknown gameplay evidence when its promised operations and required checks are
