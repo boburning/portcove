@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
 
-export async function assertDesignCompatibility({ browser, By, Key, until }) {
+export async function assertDesignCompatibility({
+  browser,
+  By,
+  Key,
+  until,
+  embeddedMacKeyboard = false,
+}) {
   const fixtureLocator = By.css(".design-compatibility-fixture");
   await browser.wait(until.elementLocated(fixtureLocator), 15_000);
   const fixture = await browser.findElement(fixtureLocator);
@@ -145,24 +151,17 @@ export async function assertDesignCompatibility({ browser, By, Key, until }) {
     "the dialog remains centered in right-to-left direction",
   );
   const selectTrigger = await browser.findElement(By.id("fixture-channel"));
-  await browser.executeScript(() => {
-    const trigger = document.querySelector("#fixture-channel");
-    window.__portcoveSelectActivationEvents = [];
-    for (const type of ["keydown", "keyup", "click"]) {
-      trigger?.addEventListener(
-        type,
-        (event) => {
-          window.__portcoveSelectActivationEvents.push({
-            type: event.type,
-            key: event instanceof KeyboardEvent ? event.key : null,
-            trusted: event.isTrusted,
-          });
-        },
-        { capture: true },
-      );
-    }
-  });
-  await selectTrigger.sendKeys(Key.ENTER);
+  const sendEscape = embeddedMacKeyboard
+    ? () => browser.actions().sendKeys(Key.ESCAPE).perform()
+    : () => selectTrigger.sendKeys(Key.ESCAPE);
+  if (embeddedMacKeyboard) {
+    // The qualification-only embedded driver focuses buttons for element sendKeys
+    // but dispatches key events through WebDriver actions.
+    await selectTrigger.sendKeys(Key.ARROW_DOWN);
+    await browser.actions().sendKeys(Key.ARROW_DOWN).perform();
+  } else {
+    await selectTrigger.sendKeys(Key.ENTER);
+  }
   try {
     await browser.wait(
       async () => (await fixture.getAttribute("data-select-open")) === "true",
@@ -180,30 +179,15 @@ export async function assertDesignCompatibility({ browser, By, Key, until }) {
             dialogOpen: document.querySelector(".design-compatibility-fixture")?.dataset.dialogOpen,
             triggerExpanded: trigger?.getAttribute("aria-expanded"),
             triggerDisabled: trigger?.getAttribute("aria-disabled"),
-            events: window.__portcoveSelectActivationEvents,
           };
         }),
       );
     } catch {
       // Preserve the activation failure if the driver can no longer inspect the page.
     }
-    let arrowOutcome = "unavailable";
-    try {
-      await selectTrigger.sendKeys(Key.ARROW_DOWN);
-      await browser.wait(
-        async () => (await fixture.getAttribute("data-select-open")) === "true",
-        2_000,
-      );
-      arrowOutcome = "opened";
-    } catch (arrowError) {
-      arrowOutcome = String(arrowError);
-    }
-    throw new Error(
-      `keyboard activation failed: ${String(error)}; state: ${state}; ArrowDown: ${arrowOutcome}`,
-      {
-        cause: error,
-      },
-    );
+    throw new Error(`keyboard activation failed: ${String(error)}; state: ${state}`, {
+      cause: error,
+    });
   }
   assert.equal(
     (await browser.findElements(dialogLocator)).length,
@@ -224,7 +208,7 @@ export async function assertDesignCompatibility({ browser, By, Key, until }) {
     "rtl",
     "portaled select content inherits the active direction",
   );
-  await selectTrigger.sendKeys(Key.ESCAPE);
+  await sendEscape();
   await browser.wait(
     async () => (await fixture.getAttribute("data-select-open")) === "false",
     15_000,
@@ -241,7 +225,7 @@ export async function assertDesignCompatibility({ browser, By, Key, until }) {
     15_000,
     "closing the nested select restores focus to its trigger",
   );
-  await selectTrigger.sendKeys(Key.ESCAPE);
+  await sendEscape();
   await browser.wait(
     async () => (await fixture.getAttribute("data-dialog-open")) === "false",
     15_000,

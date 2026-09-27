@@ -87,7 +87,13 @@ try {
     .usingServer(`http://127.0.0.1:${port}`)
     .withCapabilities({ browserName: "tauri" })
     .build();
-  const environment = await assertDesignCompatibility({ browser, By, Key, until });
+  const environment = await assertDesignCompatibility({
+    browser,
+    By,
+    Key,
+    until,
+    embeddedMacKeyboard: true,
+  });
   await writeFile(
     path.join(evidenceDirectory, "design-compatibility-environment.json"),
     `${JSON.stringify(
