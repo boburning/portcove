@@ -58,6 +58,26 @@ const activityTones: Record<string, { indicator: string; status: string }> = {
     status: "text-pc-warning-foreground",
   },
 };
+type UpdateTone = "available" | "current" | "failed" | "muted" | "staged";
+const updateMarkTones: Record<UpdateTone, string> = {
+  available: "bg-pc-warning-subtle text-pc-warning-foreground",
+  current: "bg-pc-success-subtle text-pc-success-foreground",
+  failed: "bg-pc-danger-surface text-[var(--color-text-on-dark)]",
+  muted: "bg-[var(--color-bg-subtle-hover)] text-[var(--color-text-secondary)]",
+  staged: "bg-pc-primary text-pc-primary-foreground",
+};
+const updateStateTones: Record<UpdateTone, string> = {
+  available: "bg-pc-warning-subtle text-pc-warning-foreground",
+  current: "bg-pc-success-subtle text-pc-success-foreground",
+  failed: "bg-pc-danger-subtle text-pc-danger-foreground",
+  muted: "bg-[var(--color-bg-subtle-hover)] text-[var(--color-text-secondary)]",
+  staged: "bg-[var(--color-interactive-subtle)] text-pc-interactive-foreground",
+};
+const updateRowClass =
+  "update-row grid w-full cursor-pointer items-center gap-3.5 rounded-pc-lg border border-pc-border bg-pc-surface p-3 text-left text-pc-foreground shadow-[var(--shadow-control)] transition-[color,background-color,border-color,box-shadow,transform] duration-(--duration-normal) ease-(--ease-standard) hover:border-pc-primary hover:bg-pc-secondary active:bg-pc-surface-muted";
+const updateMarkClass = "grid size-[42px] place-items-center rounded-pc-md text-xs font-black";
+const updateStateClass =
+  "justify-self-end rounded-full px-2 py-[5px] text-[var(--text-2xs)] font-extrabold tracking-[0.06em] uppercase";
 const libraryActivitySettingsTargets: Partial<
   Record<ActivityOperation, Exclude<ActivitySettingsTarget, "source-profile" | "library-storage">>
 > = {
@@ -140,8 +160,11 @@ export function UpdateCenter({
   const staged = installed.filter((port) => statuses.get(port.id)?.staged).length;
   return (
     <section className="update-center">
-      <div className="update-toolbar" data-focus-group>
-        <div className="update-stats">
+      <div
+        className="update-toolbar mb-3.5 flex flex-wrap items-stretch justify-between gap-5 max-[75rem]:flex-col max-[75rem]:items-start"
+        data-focus-group
+      >
+        <div className="update-stats grid grid-cols-[repeat(4,minmax(78px,1fr))] gap-2">
           <UpdateStat label="Installed" value={installed.length} icon={PackageCheck} />
           <UpdateStat
             label="Updates available"
@@ -165,7 +188,7 @@ export function UpdateCenter({
           />
           <UpdateStat label="Failed" value={failed} icon={AlertTriangle} warning={failed > 0} />
         </div>
-        <div className="update-buttons">
+        <div className="update-buttons flex items-center gap-2">
           <Button
             data-focusable
             variant="outline"
@@ -179,11 +202,11 @@ export function UpdateCenter({
           </Button>
         </div>
       </div>
-      <p className="update-explainer">
+      <p className="update-explainer mb-4 text-xs leading-[var(--leading-comfortable)] text-pc-muted-foreground">
         Checking only looks for updates. Open a game below to review a download or installation.
         Saving its update settings runs no update.
       </p>
-      <p className="update-explainer">
+      <p className="update-explainer mb-4 text-xs leading-[var(--leading-comfortable)] text-pc-muted-foreground">
         Looking for Portcove or catalog updates?{" "}
         <Button
           data-focusable
@@ -195,7 +218,7 @@ export function UpdateCenter({
         </Button>
       </p>
       {installed.length > 0 && (
-        <p className="update-explainer">
+        <p className="update-explainer mb-4 text-xs leading-[var(--leading-comfortable)] text-pc-muted-foreground">
           Update results cover {checked.length} of {installed.length} installed games.
           {latestSavedCheck > 0 && ` Latest saved check: ${formatActivityTime(latestSavedCheck)}.`}
         </p>
@@ -212,7 +235,7 @@ export function UpdateCenter({
           }
         />
       ) : (
-        <div className="update-list" data-focus-group>
+        <div className="update-list grid gap-2" data-focus-group>
           {installed.map((port) => {
             const status = statuses.get(port.id)!;
             const outcome = byPort.get(port.id);
@@ -222,34 +245,46 @@ export function UpdateCenter({
               <button
                 data-focusable
                 data-detail-origin={`updates:installed:${port.id}`}
-                className="update-row"
+                className={updateRowClass}
                 key={port.id}
                 title={outcome?.error ? errorText(outcome.error) : undefined}
                 onClick={() => onSelect(port.id, `updates:installed:${port.id}`)}
               >
-                <div className={`update-mark ${state.tone}`}>
+                <div className={`${updateMarkClass} ${updateMarkTones[state.tone]}`}>
                   {port.name.slice(0, 2).toUpperCase()}
                 </div>
-                <div className="update-title">
-                  <strong>{port.name}</strong>
-                  <small>
+                <div className="update-title min-w-0">
+                  <strong className="block text-sm">{port.name}</strong>
+                  <small className="mt-1 block text-[var(--text-2xs)] text-[var(--color-text-secondary)] capitalize">
                     {releaseChannelPresentation(status.channel).label} ·{" "}
                     {policyLabel(status.update_policy)}
                   </small>
                 </div>
-                <div className="update-versions">
-                  <div className="update-version">
-                    <small>Installed</small>
-                    <span>{status.active?.version}</span>
+                <div className="update-versions grid min-w-0 grid-cols-2 gap-3.5 max-[65rem]:grid-cols-1 max-[65rem]:gap-2">
+                  <div className="update-version min-w-0">
+                    <small className="mt-1 block text-xs text-[var(--color-text-secondary)] capitalize">
+                      Installed
+                    </small>
+                    <span className="mt-[3px] block text-sm text-[var(--color-text-secondary)] [overflow-wrap:anywhere]">
+                      {status.active?.version}
+                    </span>
                   </div>
-                  <div className="update-version">
-                    <small>Latest eligible</small>
-                    <span>{releaseLabel(effectiveCheck(port.id), outcome)}</span>
+                  <div className="update-version min-w-0">
+                    <small className="mt-1 block text-xs text-[var(--color-text-secondary)] capitalize">
+                      Latest eligible
+                    </small>
+                    <span className="mt-[3px] block text-sm text-[var(--color-text-secondary)] [overflow-wrap:anywhere]">
+                      {releaseLabel(effectiveCheck(port.id), outcome)}
+                    </span>
                   </div>
                 </div>
-                <span className={`update-state ${state.tone}`}>{state.label}</span>
+                <span className={`${updateStateClass} ${updateStateTones[state.tone]}`}>
+                  {state.label}
+                </span>
                 {outcome?.error && (
-                  <small className="update-error">{errorText(outcome.error)}</small>
+                  <small className="update-error col-[2/-1] overflow-hidden text-ellipsis whitespace-nowrap text-pc-danger-foreground">
+                    {errorText(outcome.error)}
+                  </small>
                 )}
               </button>
             );
@@ -257,35 +292,45 @@ export function UpdateCenter({
         </div>
       )}
       {external.length > 0 && (
-        <section className="external-update-section" aria-label="Externally updated games">
-          <h3>Externally updated games</h3>
-          <p className="update-explainer">
+        <section className="external-update-section mt-6" aria-label="Externally updated games">
+          <h3 className="mb-2 text-base">Externally updated games</h3>
+          <p className="update-explainer mb-4 text-xs leading-[var(--leading-comfortable)] text-pc-muted-foreground">
             You prepare updates for these registered runtimes outside Portcove. Open a game to
             review its registration and launch details.
           </p>
-          <div className="update-list" data-focus-group>
+          <div className="update-list grid gap-2" data-focus-group>
             {external.map((port) => {
               const runtime = statuses.get(port.id)!.external_runtime!;
               return (
                 <button
                   data-focusable
                   data-detail-origin={`updates:external:${port.id}`}
-                  className="update-row"
+                  className={updateRowClass}
                   key={port.id}
                   onClick={() => onSelect(port.id, `updates:external:${port.id}`)}
                 >
-                  <div className="update-mark muted">{port.name.slice(0, 2).toUpperCase()}</div>
-                  <div className="update-title">
-                    <strong>{port.name}</strong>
-                    <small>Registered user-prepared runtime</small>
+                  <div className={`${updateMarkClass} ${updateMarkTones.muted}`}>
+                    {port.name.slice(0, 2).toUpperCase()}
                   </div>
-                  <div className="update-versions">
-                    <div className="update-version">
-                      <small>Registered version</small>
-                      <span>{runtime.version}</span>
+                  <div className="update-title min-w-0">
+                    <strong className="block text-sm">{port.name}</strong>
+                    <small className="mt-1 block text-[var(--text-2xs)] text-[var(--color-text-secondary)] capitalize">
+                      Registered user-prepared runtime
+                    </small>
+                  </div>
+                  <div className="update-versions grid min-w-0 grid-cols-2 gap-3.5 max-[65rem]:grid-cols-1 max-[65rem]:gap-2">
+                    <div className="update-version min-w-0">
+                      <small className="mt-1 block text-xs text-[var(--color-text-secondary)] capitalize">
+                        Registered version
+                      </small>
+                      <span className="mt-[3px] block text-sm text-[var(--color-text-secondary)] [overflow-wrap:anywhere]">
+                        {runtime.version}
+                      </span>
                     </div>
                   </div>
-                  <span className="update-state muted">Updated externally</span>
+                  <span className={`${updateStateClass} ${updateStateTones.muted}`}>
+                    Updated externally
+                  </span>
                 </button>
               );
             })}
@@ -685,12 +730,18 @@ function UpdateStat({
   warning?: boolean;
 }) {
   return (
-    <div
-      className={warning ? "update-stat warning" : accent ? "update-stat accent" : "update-stat"}
-    >
-      <Icon glyph={icon} />
-      <strong>{value}</strong>
-      <span>{label}</span>
+    <div className="update-stat grid min-w-[82px] grid-cols-[auto_1fr] items-center gap-x-2 rounded-pc-lg border border-pc-border bg-pc-surface px-3.5 py-3">
+      <span
+        className={`row-span-2 ${warning ? "text-pc-danger-foreground" : accent ? "text-pc-interactive-foreground" : "text-pc-muted-foreground"}`}
+      >
+        <Icon glyph={icon} />
+      </span>
+      <strong
+        className={`block text-xl leading-none ${warning ? "text-pc-danger-foreground" : accent ? "text-pc-interactive-foreground" : ""}`}
+      >
+        {value}
+      </strong>
+      <span className="text-xs tracking-[0.08em] text-pc-muted-foreground uppercase">{label}</span>
     </div>
   );
 }
@@ -704,7 +755,11 @@ function policyLabel(policy: PortStatus["update_policy"]) {
   return Object.hasOwn(labels, policy) ? labels[policy] : "Update policy unavailable";
 }
 
-function updateState(status: PortStatus, outcome?: UpdateCheckOutcome, savedCheck?: UpdateCheck) {
+function updateState(
+  status: PortStatus,
+  outcome?: UpdateCheckOutcome,
+  savedCheck?: UpdateCheck,
+): { label: string; tone: UpdateTone } {
   if (!outcome) {
     if (status.staged) return { label: "Update saved for later", tone: "staged" };
     if (savedCheck?.update_available)

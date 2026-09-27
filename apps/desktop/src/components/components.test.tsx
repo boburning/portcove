@@ -3575,16 +3575,20 @@ describe("desktop components", () => {
     for (const [label, current, outcomes] of states)
       expect(render(current, outcomes)).toContain(`>${label}</span>`);
 
-    expect(render(status)).toContain("<small>Latest eligible</small><span>Not checked</span>");
+    expect(render(status)).toMatch(
+      /<small[^>]*>Latest eligible<\/small><span[^>]*>Not checked<\/span>/u,
+    );
     expect(
       render(status, [{ port_id: port.id, ok: false, error: failureReport(), result: null }]),
-    ).toContain("<small>Latest eligible</small><span>Check failed</span>");
-    expect(render(status, [{ port_id: port.id, ok: true, error: null, result: null }])).toContain(
-      "<small>Latest eligible</small><span>Unavailable</span>",
+    ).toMatch(/<small[^>]*>Latest eligible<\/small><span[^>]*>Check failed<\/span>/u);
+    expect(render(status, [{ port_id: port.id, ok: true, error: null, result: null }])).toMatch(
+      /<small[^>]*>Latest eligible<\/small><span[^>]*>Unavailable<\/span>/u,
     );
-    expect(render(status)).toMatch(/<strong>Unknown<\/strong><span>Updates available<\/span>/u);
+    expect(render(status)).toMatch(
+      /<strong[^>]*>Unknown<\/strong><span[^>]*>Updates available<\/span>/u,
+    );
     expect(render(status, [{ port_id: port.id, ok: true, error: null, result }])).toMatch(
-      /<strong>0<\/strong><span>Updates available<\/span>/u,
+      /<strong[^>]*>0<\/strong><span[^>]*>Updates available<\/span>/u,
     );
     expect(
       render(status, [{ port_id: port.id, ok: false, error: failureReport(), result: null }]),
@@ -3608,7 +3612,7 @@ describe("desktop components", () => {
     const restored = render(savedStatus);
     expect(restored).toContain("Update results cover 1 of 1 installed games.");
     expect(restored).toContain(">No update found at last check</span>");
-    expect(restored).toMatch(/<strong>0<\/strong><span>Updates available<\/span>/u);
+    expect(restored).toMatch(/<strong[^>]*>0<\/strong><span[^>]*>Updates available<\/span>/u);
     expect(restored).toContain("Latest saved check:");
     const savedAvailable = render({
       ...savedStatus,
@@ -3622,7 +3626,7 @@ describe("desktop components", () => {
       },
     });
     expect(savedAvailable).toContain(">Update available at last check</span>");
-    expect(savedAvailable).toMatch(/<strong>1<\/strong><span>Updates available<\/span>/u);
+    expect(savedAvailable).toMatch(/<strong[^>]*>1<\/strong><span[^>]*>Updates available<\/span>/u);
     expect(savedAvailable).toContain(">2.0</span>");
     const changedInstall = render({ ...savedStatus, active: installRecord({ version: "2.0" }) });
     expect(changedInstall).toContain("Update results cover 0 of 1 installed games.");
@@ -3643,7 +3647,9 @@ describe("desktop components", () => {
       const incomplete = render(savedStatus, [attempted]);
       expect(incomplete).toContain("Update results cover 0 of 1 installed games.");
       expect(incomplete).toContain("Latest saved check:");
-      expect(incomplete).toMatch(/<strong>Unknown<\/strong><span>Updates available<\/span>/u);
+      expect(incomplete).toMatch(
+        /<strong[^>]*>Unknown<\/strong><span[^>]*>Updates available<\/span>/u,
+      );
       expect(incomplete).not.toContain(">No update found at last check</span>");
     }
 
@@ -3675,7 +3681,7 @@ describe("desktop components", () => {
         onOpenSettings={vi.fn()}
       />,
     );
-    expect(partial).toMatch(/<strong>1\+<\/strong><span>Updates available<\/span>/u);
+    expect(partial).toMatch(/<strong[^>]*>1\+<\/strong><span[^>]*>Updates available<\/span>/u);
     expect(partial).toContain("Update results cover 1 of 2 installed games.");
   });
 
