@@ -216,6 +216,21 @@ export function foundationSourceFailures({ css, button, dialog, main, select, bu
   return sourceFailures;
 }
 
+export function ambiguousTextSizeFailures(source, filename) {
+  return [...source.matchAll(/text-\[var\(--text-[a-z0-9-]+\)\]/gu)].map((match) => {
+    const line = source.slice(0, match.index).split(/\r?\n/u).length;
+    return `${filename}:${line}: ${match[0]} compiles as a color; use an explicit length type`;
+  });
+}
+
+function jsxSources(directory) {
+  return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    const filename = path.join(directory, entry.name);
+    if (entry.isDirectory()) return jsxSources(filename);
+    return entry.name.endsWith(".tsx") && !entry.name.endsWith(".test.tsx") ? [filename] : [];
+  });
+}
+
 const distAssets = fileURLToPath(new URL("../dist/assets", import.meta.url));
 let builtCss;
 try {
@@ -227,6 +242,17 @@ try {
   // A standalone source check remains useful before a production build exists.
 }
 failures.push(...foundationSourceFailures({ css, ...foundationSources, builtCss }));
+const sourceRoot = fileURLToPath(new URL("../src", import.meta.url));
+const sourceFiles = jsxSources(sourceRoot);
+expectSource(failures, sourceFiles.length > 0, "no desktop JSX sources were checked");
+for (const filename of sourceFiles) {
+  failures.push(
+    ...ambiguousTextSizeFailures(
+      readFileSync(filename, "utf8"),
+      path.relative(sourceRoot, filename),
+    ),
+  );
+}
 const requiredAliases = [
   "--color-bg",
   "--color-bg-elevated",
@@ -460,6 +486,6 @@ if (failures.length > 0) {
     return `${theme.name}: text ${lowestText.toFixed(2)}:1, controls ${lowestControl.toFixed(2)}:1`;
   });
   console.log(
-    `N64 theme contract passed (${contrastPairs.length} pairs per theme; 5 foundation sources${builtCss === undefined ? "" : " plus production CSS"}; ${summaries.join("; ")}).`,
+    `N64 theme contract passed (${contrastPairs.length} pairs per theme; 5 foundation sources and ${sourceFiles.length} JSX sources${builtCss === undefined ? "" : " plus production CSS"}; ${summaries.join("; ")}).`,
   );
 }

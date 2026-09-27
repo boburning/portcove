@@ -32,7 +32,7 @@ const outputProblemClass =
 function OutputFact({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="min-w-0">
-      <dt className="text-[var(--text-2xs)] text-pc-muted-foreground uppercase">{label}</dt>
+      <dt className="text-[length:var(--text-2xs)] text-pc-muted-foreground uppercase">{label}</dt>
       <dd className="m-0 mt-1 [overflow-wrap:anywhere] text-xs text-[var(--color-text-secondary)]">
         {children}
       </dd>
@@ -302,7 +302,7 @@ export function OutputLocationControl({
           </h3>
         </div>
         <span
-          className={`output-location-source rounded-full px-2 py-1 text-[var(--text-2xs)] font-bold ${location?.selection_source === "port_setting" ? "custom bg-[var(--color-interactive-subtle)] text-pc-interactive-foreground" : "inherited bg-[var(--color-bg-inset)] text-[var(--color-text-secondary)]"}`}
+          className={`output-location-source rounded-full px-2 py-1 text-[length:var(--text-2xs)] font-bold ${location?.selection_source === "port_setting" ? "custom bg-[var(--color-interactive-subtle)] text-pc-interactive-foreground" : "inherited bg-[var(--color-bg-inset)] text-[var(--color-text-secondary)]"}`}
         >
           {source}
         </span>
@@ -752,7 +752,7 @@ function OutputRelocationReview({
               className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-1 rounded-pc-sm bg-[var(--color-bg-subtle)] p-2"
             >
               <strong>{item.install.version}</strong>
-              <span className="text-[var(--text-2xs)] text-pc-muted-foreground">
+              <span className="text-[length:var(--text-2xs)] text-pc-muted-foreground">
                 {[
                   item.active && "active",
                   item.previous && "previous",
@@ -763,7 +763,7 @@ function OutputRelocationReview({
                   .join(" · ")}
               </span>
               <code
-                className="col-span-full [overflow-wrap:anywhere] text-[var(--text-2xs)] text-[var(--color-text-secondary)]"
+                className="col-span-full [overflow-wrap:anywhere] text-[length:var(--text-2xs)] text-[var(--color-text-secondary)]"
                 title={item.install.path}
               >
                 {item.install.path}

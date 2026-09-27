@@ -78,7 +78,7 @@ const updateRowClass =
   "update-row grid w-full cursor-pointer items-center gap-3.5 rounded-pc-lg border border-pc-border bg-pc-surface p-3 text-left text-pc-foreground shadow-[var(--shadow-control)] transition-[color,background-color,border-color,box-shadow,transform] duration-(--duration-normal) ease-(--ease-standard) hover:border-pc-primary hover:bg-pc-secondary active:bg-pc-surface-muted";
 const updateMarkClass = "grid size-[42px] place-items-center rounded-pc-md text-xs font-black";
 const updateStateClass =
-  "justify-self-end rounded-full px-2 py-[5px] text-[var(--text-2xs)] font-extrabold tracking-[0.06em] uppercase";
+  "justify-self-end rounded-full px-2 py-[5px] text-[length:var(--text-2xs)] font-extrabold tracking-[0.06em] uppercase";
 const libraryActivitySettingsTargets: Partial<
   Record<ActivityOperation, Exclude<ActivitySettingsTarget, "source-profile" | "library-storage">>
 > = {
@@ -256,7 +256,7 @@ export function UpdateCenter({
                 </div>
                 <div className="update-title min-w-0">
                   <strong className="block text-sm">{port.name}</strong>
-                  <small className="mt-1 block text-[var(--text-2xs)] text-[var(--color-text-secondary)] capitalize">
+                  <small className="mt-1 block text-[length:var(--text-2xs)] text-[var(--color-text-secondary)] capitalize">
                     {releaseChannelPresentation(status.channel).label} ·{" "}
                     {policyLabel(status.update_policy)}
                   </small>
@@ -315,7 +315,7 @@ export function UpdateCenter({
                   </div>
                   <div className="update-title min-w-0">
                     <strong className="block text-sm">{port.name}</strong>
-                    <small className="mt-1 block text-[var(--text-2xs)] text-[var(--color-text-secondary)] capitalize">
+                    <small className="mt-1 block text-[length:var(--text-2xs)] text-[var(--color-text-secondary)] capitalize">
                       Registered user-prepared runtime
                     </small>
                   </div>
@@ -504,7 +504,7 @@ function ActivityRow({
         />
       </div>
       <span
-        className="activity-time whitespace-nowrap text-right text-[var(--text-2xs)] text-pc-muted-foreground max-[65rem]:hidden"
+        className="activity-time whitespace-nowrap text-right text-[length:var(--text-2xs)] text-pc-muted-foreground max-[65rem]:hidden"
         title={
           activity.finished_at ? `Finished ${formatActivityTime(activity.finished_at)}` : undefined
         }
@@ -512,7 +512,7 @@ function ActivityRow({
         {presentation.time}
       </span>
       <span
-        className={`activity-status justify-self-end whitespace-nowrap text-[var(--text-2xs)] font-extrabold tracking-[0.06em] uppercase max-[65rem]:whitespace-normal ${tone?.status ?? "text-pc-muted-foreground"}`}
+        className={`activity-status justify-self-end whitespace-nowrap text-[length:var(--text-2xs)] font-extrabold tracking-[0.06em] uppercase max-[65rem]:whitespace-normal ${tone?.status ?? "text-pc-muted-foreground"}`}
       >
         {presentation.label}
       </span>

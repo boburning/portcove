@@ -988,7 +988,7 @@ export function ApplicationUpdateSettings({
                 >
                   {label}
                   {mode === "automatic" && (
-                    <small className="text-[var(--text-2xs)] normal-case">Recommended</small>
+                    <small className="text-[length:var(--text-2xs)] normal-case">Recommended</small>
                   )}
                 </Button>
               ))}
