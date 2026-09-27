@@ -508,8 +508,10 @@ try {
         }
         $unwritableSelectionOutput = & $stable --portcove-qualify-update-selection 2>&1 | Out-String
         $evidence.packaged_selection.owner_write_rejection_exit_code = $LASTEXITCODE
-        $evidence.packaged_selection.owner_write_rejection_error = $unwritableSelectionOutput.Trim()
-        if ($evidence.packaged_selection.owner_write_rejection_error.Length -gt 512) {
+        $rejectionError = $unwritableSelectionOutput.Trim()
+        $evidence.packaged_selection.owner_write_rejection_error =
+            $rejectionError.Substring(0, [Math]::Min($rejectionError.Length, 512))
+        if ($rejectionError.Length -gt 512) {
             throw "Installed AppImage selection rejection output exceeded its evidence bound"
         }
         $evidence.packaged_selection.owner_write_rejection =
