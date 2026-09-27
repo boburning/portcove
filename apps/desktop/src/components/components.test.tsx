@@ -1332,7 +1332,8 @@ describe("desktop components", () => {
       "Game updates and activity are in the Game updates workspace.",
     );
     expect(groupMarkup("updates")).toContain("Catalog updates");
-    expect(groupMarkup("updates")).toContain('class="settings-section-content"');
+    expect(groupMarkup("updates")).toContain('class="settings-section-description ');
+    expect(groupMarkup("updates")).toContain('class="settings-section-content ');
     expect(groupMarkup("integrations")).toContain("GitHub connection");
     const advanced = groupMarkup("advanced");
     expect(advanced.indexOf("Create support bundle")).toBeLessThan(
@@ -1683,7 +1684,7 @@ describe("desktop components", () => {
       const start = html.indexOf(`data-settings-group="${id}"`);
       const end = next ? html.indexOf(`data-settings-group="${next}"`) : html.length;
       const section = html.slice(start, end);
-      expect(section).toContain('class="settings-section-content"');
+      expect(section).toContain('class="settings-section-content ');
       expect(section.match(/class="settings-row(?: |")/gu)).toHaveLength(rowCount);
       expect(section).not.toContain('class="settings-card');
     }
