@@ -480,6 +480,9 @@ function PortCard({
   );
 }
 
+const cardBadgeClass =
+  "rounded-full bg-[var(--color-bg-subtle-hover)] px-[7px] py-1 text-[length:var(--text-2xs)] tracking-[0.08em] text-[var(--color-text-secondary)] uppercase";
+
 function PortCardContents({
   port,
   status,
@@ -509,12 +512,14 @@ function PortCardContents({
     <div
       className={`flex items-center justify-between gap-2 ${view === "catalog" ? "mb-2.5" : ""}`}
     >
-      <span className={`readiness ${state.tone}`}>
-        <i />
+      <span
+        className={`readiness ${state.tone} inline-flex items-center gap-[6px] text-[length:var(--text-2xs)] font-[750] tracking-[0.025em] text-[var(--color-text-secondary)]`}
+      >
+        <i className="size-[6px] rounded-full border border-current bg-current" />
         {state.label}
       </span>
       {view === "catalog" && channel && (
-        <span className={`badge ${channel.tone}`}>{channel.label}</span>
+        <span className={`badge ${channel.tone} ${cardBadgeClass}`}>{channel.label}</span>
       )}
     </div>
   );
@@ -547,9 +552,11 @@ function PortCardContents({
         )}
         {(updateAvailable || port.upstream_status === "retired") && (
           <div className="flex min-h-[18px] flex-wrap gap-[5px]">
-            {updateAvailable && <span className="badge update">Update available</span>}
+            {updateAvailable && (
+              <span className={`badge update ${cardBadgeClass}`}>Update available</span>
+            )}
             {port.upstream_status === "retired" && (
-              <span className="badge retired">Retired upstream</span>
+              <span className={`badge retired self-start ${cardBadgeClass}`}>Retired upstream</span>
             )}
           </div>
         )}
@@ -562,7 +569,7 @@ function PortCardContents({
               {port.platforms.map((platform) => (
                 <span
                   key={platform}
-                  className="rounded-pc-sm bg-[var(--color-bg-subtle-hover)] px-[6px] py-[3px] text-[var(--text-2xs)] text-[var(--color-text-secondary)]"
+                  className="rounded-pc-sm bg-[var(--color-bg-subtle-hover)] px-[6px] py-[3px] text-[length:var(--text-2xs)] text-[var(--color-text-secondary)]"
                 >
                   {platformLabel(platform)}
                 </span>
@@ -590,9 +597,11 @@ function PortCardStatus({
 }) {
   const overflowOrigin = `library:card-more:${port.id}`;
   return (
-    <div className="card-status">
+    <div
+      className={`mt-auto flex items-center gap-[10px] border-t border-pc-border pt-3 text-xs ${view === "library" ? "justify-end" : "justify-between"}`}
+    >
       {view === "catalog" && (
-        <strong>
+        <strong className="font-semibold text-[var(--color-text-secondary)]">
           {status?.active
             ? status.active.version
             : status?.external_runtime
@@ -603,7 +612,7 @@ function PortCardStatus({
         </strong>
       )}
       {view === "library" ? (
-        <span className="card-actions">
+        <span className="inline-flex flex-wrap items-center justify-end gap-1 text-[var(--color-interactive-text-strong)]">
           <Button
             data-focusable
             variant="outline"
@@ -659,7 +668,7 @@ function PortCardStatus({
           </Menu.Root>
         </span>
       ) : (
-        <span>
+        <span className="inline-flex items-center gap-1 text-[var(--color-interactive-text-strong)]">
           {state.action}
           <Icon glyph={ArrowRight} size="sm" />
         </span>
