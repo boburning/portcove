@@ -6,6 +6,7 @@ import type {
   GameFileRoot,
   GameFileScanSnapshot,
   PortDefinition,
+  PortStatus,
   SourceImportPlan,
   SourceProfile,
   SourceRecord,
@@ -29,6 +30,23 @@ const scanLimits = {
 };
 const maxSavedRootsPerScan = 8;
 const setupReturnOrigin = "game-file-libraries-setup";
+
+function portSetupLabel(status?: PortStatus) {
+  if (!status) return "Readiness unavailable; refresh the workspace";
+  if (status.active || status.external_runtime) return "Already installed or registered";
+  const install = status.port_actions?.find((action) => action.action === "install");
+  const external = status.port_actions?.find((action) => action.action === "register_external");
+  const action = install?.reason === "route_not_offered" ? external : install;
+  if (!action) return "Readiness unavailable; refresh the workspace";
+  if (action.reason === "unsupported_platform") return "Unavailable on this platform";
+  if (action.reason === "missing_bios") return "BIOS source needed";
+  if (action.reason === "missing_source") return "Game-file source needed";
+  if (action.reason === "definition_ineligible") return "Setup on hold";
+  if (action.availability === "allowed") return "Ready for setup review";
+  if (action.action === "register_external" && action.reason === "review_required")
+    return "External runtime review required";
+  return "Review setup requirements in game details";
+}
 
 function savedRootLimitGuidance(limit: string) {
   if (limit === "file_size")
@@ -59,6 +77,7 @@ function CandidateIdentity({
 function CandidateAction({
   candidate,
   registeredSources,
+  statuses,
   ports,
   onOpenPort,
   busy,
@@ -70,6 +89,7 @@ function CandidateAction({
 }: {
   candidate: Pick<SourceRecord, "profile_id" | "path" | "sha256">;
   registeredSources: SourceRecord[];
+  statuses: ReadonlyMap<string, PortStatus>;
   ports: PortDefinition[];
   onOpenPort?: (portId: string, originKey: string) => void;
   busy: boolean;
@@ -99,6 +119,13 @@ function CandidateAction({
     return (
       <div className="actions source-candidate-actions">
         <span>{status}</span>
+        {registrationConfirmed &&
+          !workspaceRefreshFailed &&
+          matchingPorts.map((port) => (
+            <span key={`${port.id}-readiness`}>
+              {port.name}: {portSetupLabel(statuses.get(port.id))}
+            </span>
+          ))}
         {onOpenPort &&
           matchingPorts.map((port) => (
             <Button
@@ -207,6 +234,7 @@ function CompletedScan({
   ports,
   profiles,
   registeredSources,
+  statuses,
   registrationConfirmed,
   workspaceRefreshFailed,
   onOpenPort,
@@ -218,6 +246,7 @@ function CompletedScan({
   ports: PortDefinition[];
   profiles: SourceProfile[];
   registeredSources: SourceRecord[];
+  statuses: ReadonlyMap<string, PortStatus>;
   registrationConfirmed: boolean;
   workspaceRefreshFailed: boolean;
   onOpenPort?: (portId: string, originKey: string) => void;
@@ -283,6 +312,7 @@ function CompletedScan({
           <CandidateAction
             candidate={candidate}
             registeredSources={registeredSources}
+            statuses={statuses}
             registrationConfirmed={registrationConfirmed}
             workspaceRefreshFailed={workspaceRefreshFailed}
             ports={ports}
@@ -379,6 +409,7 @@ function LiveScanResults({
   candidates,
   profiles,
   registeredSources,
+  statuses,
   registrationConfirmed,
   workspaceRefreshFailed,
   ports,
@@ -389,6 +420,7 @@ function LiveScanResults({
   candidates: Pick<SourceRecord, "profile_id" | "path" | "sha256" | "size">[];
   profiles: SourceProfile[];
   registeredSources: SourceRecord[];
+  statuses: ReadonlyMap<string, PortStatus>;
   registrationConfirmed: boolean;
   workspaceRefreshFailed: boolean;
   ports: PortDefinition[];
@@ -419,6 +451,7 @@ function LiveScanResults({
           <CandidateAction
             candidate={candidate}
             registeredSources={registeredSources}
+            statuses={statuses}
             registrationConfirmed={registrationConfirmed}
             workspaceRefreshFailed={workspaceRefreshFailed}
             ports={ports}
@@ -437,6 +470,7 @@ export function GameFileLibraries({
   ports,
   profiles,
   registeredSources = [],
+  statuses = new Map(),
   workspaceRefreshFailed = false,
   onAdded,
   onOpenPort,
@@ -446,6 +480,7 @@ export function GameFileLibraries({
   ports: PortDefinition[];
   profiles: SourceProfile[];
   registeredSources?: SourceRecord[];
+  statuses?: ReadonlyMap<string, PortStatus>;
   workspaceRefreshFailed?: boolean;
   onAdded?: () => Promise<unknown>;
   onOpenPort?: (portId: string, originKey: string) => void;
@@ -794,6 +829,7 @@ export function GameFileLibraries({
           candidates={liveCandidates}
           profiles={profiles}
           registeredSources={registeredSources}
+          statuses={statuses}
           registrationConfirmed={refreshConfirmed && !workspaceRefreshFailed}
           workspaceRefreshFailed={workspaceRefreshFailed}
           ports={ports}
@@ -810,6 +846,7 @@ export function GameFileLibraries({
         ports={ports}
         profiles={profiles}
         registeredSources={registeredSources}
+        statuses={statuses}
         registrationConfirmed={refreshConfirmed && !workspaceRefreshFailed}
         workspaceRefreshFailed={workspaceRefreshFailed}
         onOpenPort={onOpenPort}

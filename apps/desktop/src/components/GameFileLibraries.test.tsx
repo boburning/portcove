@@ -5,7 +5,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { desktopApi } from "../api";
 import { useSetupSource } from "../features/app-shell/use-setup-source";
 import * as picker from "../file-picker";
-import { portDefinition } from "../test-fixtures";
+import { portDefinition, portStatus } from "../test-fixtures";
 import type {
   GameFileRoot,
   GameFileScanSnapshot,
@@ -108,6 +108,36 @@ it("marks matching registered candidates without claiming installation and keeps
     { ...portDefinition(), id: "game-a", name: "Game A", source_profile: "game" },
     { ...portDefinition(), id: "game-b", name: "Game B", bios_source_profile: "game" },
   ];
+  const statuses = new Map([
+    [
+      "game-a",
+      {
+        ...portStatus(),
+        port_id: "game-a",
+        port_actions: [
+          {
+            action: "install" as const,
+            availability: "allowed" as const,
+            reason: "available" as const,
+          },
+        ],
+      },
+    ],
+    [
+      "game-b",
+      {
+        ...portStatus(),
+        port_id: "game-b",
+        port_actions: [
+          {
+            action: "install" as const,
+            availability: "waiting" as const,
+            reason: "missing_source" as const,
+          },
+        ],
+      },
+    ],
+  ]);
   vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue(snapshot);
   await act(async () =>
     root.render(
@@ -115,13 +145,15 @@ it("marks matching registered candidates without claiming installation and keeps
         ports={ports}
         profiles={[]}
         registeredSources={[source]}
+        statuses={statuses}
         onOpenPort={onOpenPort}
       />,
     ),
   );
   await click("Scan saved folders");
   expect(document.body.textContent).toContain("Already added");
-  expect(document.body.textContent).toContain("Review game requirements in details");
+  expect(document.body.textContent).toContain("Game A: Ready for setup review");
+  expect(document.body.textContent).toContain("Game B: Game-file source needed");
   expect(document.body.textContent).not.toContain("Already installed");
   await click("View Game B details");
   expect(onOpenPort).toHaveBeenCalledWith("game-b", "game-file-libraries-setup");
@@ -134,12 +166,14 @@ it("marks matching registered candidates without claiming installation and keeps
         ports={ports}
         profiles={[]}
         registeredSources={[source]}
+        statuses={statuses}
         workspaceRefreshFailed
         onOpenPort={onOpenPort}
       />,
     ),
   );
   expect(document.body.textContent).toContain("Earlier library view listed this source");
+  expect(document.body.textContent).not.toContain("Ready for setup review");
   expect(button("View Game A details").disabled).toBe(true);
   expect(button("Review source").disabled).toBe(false);
   await act(async () =>
@@ -148,6 +182,7 @@ it("marks matching registered candidates without claiming installation and keeps
         ports={ports}
         profiles={[]}
         registeredSources={[source]}
+        statuses={statuses}
         onOpenPort={onOpenPort}
       />,
     ),
@@ -158,6 +193,37 @@ it("marks matching registered candidates without claiming installation and keeps
   await click("Refresh folders");
   expect(button("View Game A details").disabled).toBe(true);
   expect(button("Review source").disabled).toBe(true);
+});
+
+it("uses core action reasons and installation state for each registered match", async () => {
+  vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue(snapshot);
+  const port = { ...portDefinition(), id: "game-a", name: "Game A", source_profile: "game" };
+  const status = portStatus();
+  const action = (reason: "missing_bios" | "unsupported_platform" | "definition_ineligible") => ({
+    action: "install" as const,
+    availability: "waiting" as const,
+    reason,
+  });
+  const renderStatus = async (value: typeof status) =>
+    act(async () =>
+      root.render(
+        <GameFileLibraries
+          ports={[port]}
+          profiles={[]}
+          registeredSources={snapshot.report.candidates}
+          statuses={new Map([[port.id, value]])}
+        />,
+      ),
+    );
+  await renderStatus({ ...status, port_actions: [action("missing_bios")] });
+  await click("Scan saved folders");
+  expect(document.body.textContent).toContain("Game A: BIOS source needed");
+  await renderStatus({ ...status, port_actions: [action("unsupported_platform")] });
+  expect(document.body.textContent).toContain("Game A: Unavailable on this platform");
+  await renderStatus({ ...status, port_actions: [action("definition_ineligible")] });
+  expect(document.body.textContent).toContain("Game A: Setup on hold");
+  await renderStatus({ ...status, active: { id: "installed" } as typeof status.active });
+  expect(document.body.textContent).toContain("Game A: Already installed or registered");
 });
 
 it("holds a prior setup continuation when a later workspace refresh fails", async () => {
@@ -209,6 +275,18 @@ it("recognizes a registered source in streamed results but still reviews a diffe
         ports={[{ ...portDefinition(), id: "game-a", name: "Game A", source_profile: "game" }]}
         profiles={[]}
         registeredSources={[source]}
+        statuses={
+          new Map([
+            [
+              "game-a",
+              {
+                ...portStatus(),
+                port_id: "game-a",
+                port_actions: [{ action: "install", availability: "allowed", reason: "available" }],
+              },
+            ],
+          ])
+        }
         onOpenPort={onOpenPort}
       />,
     ),
@@ -231,6 +309,7 @@ it("recognizes a registered source in streamed results but still reviews a diffe
     }),
   );
   expect(document.body.textContent).toContain("Already added");
+  expect(document.body.textContent).toContain("Game A: Ready for setup review");
   await click("View Game A details");
   expect(onOpenPort).toHaveBeenCalledWith("game-a", "game-file-libraries-setup");
   await act(async () =>
@@ -243,6 +322,7 @@ it("recognizes a registered source in streamed results but still reviews a diffe
     ),
   );
   expect(document.body.textContent).not.toContain("Already added");
+  expect(document.body.textContent).not.toContain("Ready for setup review");
   expect(button("Review source now")).toBeDefined();
 });
 
