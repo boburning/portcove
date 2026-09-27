@@ -569,12 +569,16 @@ function GithubConnection({ status }: { status?: GithubAuthStatus }) {
         ? `Connected as ${status.login}`
         : "Connected to GitHub"
       : "Not signed in";
-  const stateClass = connected ? "auth-state connected" : "auth-state";
+  const stateClass = `inline-flex items-center gap-1 rounded-full border px-[9px] py-[5px] text-xs ${
+    connected
+      ? "border-[var(--color-success-border)] bg-pc-success-subtle text-pc-success-foreground"
+      : "border-[var(--color-border-strong)] text-pc-muted-foreground"
+  }`;
   const StateIcon = connected ? CheckCircle2 : CircleUserRound;
   return (
     <>
       <div className="settings-title">
-        <h2>GitHub connection</h2>
+        <h2 className="m-0 flex items-center gap-2">GitHub connection</h2>
         <span className={stateClass}>
           <Icon glyph={StateIcon} size="sm" />
           {connectionStatus}
@@ -585,11 +589,11 @@ function GithubConnection({ status }: { status?: GithubAuthStatus }) {
       ) : (
         !connected && <p>Not signed in. Signing in increases the limit for release checks.</p>
       )}
-      <details className="github-connection-details">
-        <summary>Connection details</summary>
-        <p>Sign-in source: {source}.</p>
-        <p>{githubQuota(status)}.</p>
-        <p>
+      <details className="mt-3 text-sm text-pc-muted-foreground">
+        <summary className="cursor-pointer font-semibold">Connection details</summary>
+        <p className="mt-2 mb-0">Sign-in source: {source}.</p>
+        <p className="mt-2 mb-0">{githubQuota(status)}.</p>
+        <p className="mt-2 mb-0">
           Repeated checks for an unchanged GitHub release may not use the primary request limit.
         </p>
       </details>
@@ -605,12 +609,20 @@ function githubQuota(status?: GithubAuthStatus) {
 function DeviceLogin({ login }: { login?: GithubDeviceLogin }) {
   if (!login) return null;
   return (
-    <div className="device-login">
-      <strong>Enter {login.user_code}</strong>
-      <span>
-        at <ExternalLink href={login.verification_uri}>{login.verification_uri}</ExternalLink>
+    <div className="flex items-center gap-3 rounded-pc-md border border-[var(--color-warning-border)] bg-pc-warning-subtle p-3">
+      <strong className="text-pc-warning-foreground tracking-[0.12em]">
+        Enter {login.user_code}
+      </strong>
+      <span className="text-pc-muted-foreground">
+        at{" "}
+        <ExternalLink
+          className="text-[var(--color-interactive-text)] hover:text-[var(--color-interactive-text-strong)]"
+          href={login.verification_uri}
+        >
+          {login.verification_uri}
+        </ExternalLink>
       </span>
-      <small>Portcove is waiting for GitHub.</small>
+      <small className="ml-auto text-pc-muted-foreground">Portcove is waiting for GitHub.</small>
     </div>
   );
 }
@@ -619,10 +631,12 @@ function TokenEntry({ github, busy }: { github?: GithubSettingsActions; busy: bo
   if (!github?.status || github.status.authenticated || github.status.source === "environment")
     return null;
   return (
-    <div className="token-entry-group">
-      {github?.status?.device_login_available && <p>Use a token instead</p>}
-      <label htmlFor="github-personal-access-token">Personal access token</label>
-      <div className="token-entry">
+    <div className="mt-4">
+      {github?.status?.device_login_available && <p className="mt-0 mb-2">Use a token instead</p>}
+      <label className="block font-semibold" htmlFor="github-personal-access-token">
+        Personal access token
+      </label>
+      <div className="mt-2 flex gap-2">
         <Input
           id="github-personal-access-token"
           data-focusable
@@ -696,9 +710,10 @@ function GithubActions({ github, busy }: { github?: GithubSettingsActions; busy:
 }
 
 function GithubNotes({ status }: { status?: GithubAuthStatus }) {
+  const noteClass = "mt-2.5 block text-pc-muted-foreground";
   if (status?.source === "environment")
     return (
-      <small>
+      <small className={noteClass}>
         {status.authenticated
           ? "The active token is managed outside Portcove through an environment variable."
           : "GitHub rejected the environment token. Replace or remove it outside Portcove, then restart Portcove."}
@@ -706,14 +721,14 @@ function GithubNotes({ status }: { status?: GithubAuthStatus }) {
     );
   if (status?.source === "credential_store" && !status.authenticated)
     return (
-      <small>
+      <small className={noteClass}>
         GitHub no longer accepts the saved sign-in. Sign in again, or sign out to continue
         anonymously.
       </small>
     );
   if (status && !status.device_login_available && !status.authenticated)
     return (
-      <small>
+      <small className={noteClass}>
         This version of Portcove does not support GitHub device sign-in. Continue anonymously or use
         a personal access token.
       </small>
@@ -723,7 +738,7 @@ function GithubNotes({ status }: { status?: GithubAuthStatus }) {
 
 function GithubSettings({ github, busy }: { github?: GithubSettingsActions; busy?: string }) {
   return (
-    <article className="settings-row github-auth" data-focus-group>
+    <article className="settings-row col-span-full" data-focus-group>
       <p className="eyebrow">GITHUB</p>
       <GithubConnection status={github?.status} />
       {github?.status?.device_login_available && <DeviceLogin login={github.deviceLogin} />}
@@ -1133,29 +1148,41 @@ function AboutCard() {
         <BrandWordmark />
         <BrandMascot decorative />
       </div>
-      <div className="about-copy">
+      <div className="self-center">
         <p className="eyebrow">ABOUT &amp; CREDITS</p>
-        <h2>One harbor for native ports</h2>
-        <p>
+        <h2 className="mb-2 text-xl">One harbor for native ports</h2>
+        <p className="leading-relaxed text-pc-muted-foreground">
           Portcove keeps the desktop and CLI in sync across the catalog, game files, installed
           versions, and recovery history.
         </p>
-        <dl className="about-facts">
-          <div>
-            <dt>Version</dt>
-            <dd>{desktopPackage.version}</dd>
+        <dl className="my-5 grid grid-cols-3 gap-2 max-[65rem]:grid-cols-1">
+          <div className="min-w-0 rounded-pc-md border border-pc-border bg-[var(--color-bg-inset)] p-3">
+            <dt className="text-[length:var(--text-2xs)] tracking-[0.06em] text-pc-muted-foreground uppercase">
+              Version
+            </dt>
+            <dd className="mt-1 mr-0 mb-0 ml-0 text-xs text-[var(--color-text-secondary)] [overflow-wrap:anywhere]">
+              {desktopPackage.version}
+            </dd>
           </div>
-          <div>
-            <dt>Built with</dt>
-            <dd>Tauri 2 · Rust · React</dd>
+          <div className="min-w-0 rounded-pc-md border border-pc-border bg-[var(--color-bg-inset)] p-3">
+            <dt className="text-[length:var(--text-2xs)] tracking-[0.06em] text-pc-muted-foreground uppercase">
+              Built with
+            </dt>
+            <dd className="mt-1 mr-0 mb-0 ml-0 text-xs text-[var(--color-text-secondary)] [overflow-wrap:anywhere]">
+              Tauri 2 · Rust · React
+            </dd>
           </div>
-          <div>
-            <dt>License</dt>
-            <dd>MIT or Apache-2.0</dd>
+          <div className="min-w-0 rounded-pc-md border border-pc-border bg-[var(--color-bg-inset)] p-3">
+            <dt className="text-[length:var(--text-2xs)] tracking-[0.06em] text-pc-muted-foreground uppercase">
+              License
+            </dt>
+            <dd className="mt-1 mr-0 mb-0 ml-0 text-xs text-[var(--color-text-secondary)] [overflow-wrap:anywhere]">
+              MIT or Apache-2.0
+            </dd>
           </div>
         </dl>
         <ExternalLink
-          className="small-control button-link"
+          className="button-link rounded-pc-md px-[13px] py-[9px]"
           href="https://github.com/boburning/portcove"
         >
           Open project repository

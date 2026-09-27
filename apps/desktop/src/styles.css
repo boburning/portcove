@@ -1924,45 +1924,6 @@ select {
   min-height: 0;
   max-height: 13rem;
 }
-.about-copy {
-  align-self: center;
-}
-.about-copy h2 {
-  margin-bottom: var(--space-2);
-  font-size: var(--text-xl);
-}
-.about-copy > p:not(.eyebrow) {
-  color: var(--color-text-muted);
-  line-height: var(--leading-relaxed);
-}
-
-.about-facts {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--space-2);
-  margin: var(--space-5) 0;
-}
-
-.about-facts div {
-  min-width: 0;
-  padding: var(--space-3);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  background: var(--color-bg-inset);
-}
-
-.about-facts dt {
-  color: var(--color-text-muted);
-  font-size: var(--text-2xs);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-.about-facts dd {
-  overflow-wrap: anywhere;
-  margin: var(--space-1) 0 0;
-  color: var(--color-text-secondary);
-  font-size: var(--text-xs);
-}
 .button-link {
   display: inline-flex;
   align-items: center;
@@ -1972,10 +1933,6 @@ select {
 .button-link:hover {
   color: var(--color-text);
   background: var(--color-bg-hover);
-}
-
-.github-auth {
-  grid-column: 1 / -1;
 }
 .settings-title h2 {
   margin: 0;
@@ -1987,89 +1944,8 @@ select {
   gap: var(--space-2);
 }
 
-.auth-state {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-  padding: 5px 9px;
-  border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius-round);
-  color: var(--color-text-muted);
-  font-size: var(--text-xs);
-}
-
-.auth-state.connected {
-  border-color: var(--color-success-border);
-  color: var(--color-success-text);
-  background: var(--color-success-subtle);
-}
-
-.github-connection-details {
-  margin-top: var(--space-3);
-  color: var(--color-text-muted);
-  font-size: var(--text-sm);
-}
-.github-connection-details summary {
-  cursor: pointer;
-  font-weight: 600;
-}
-.github-connection-details p {
-  margin: var(--space-2) 0 0;
-}
-.token-entry-group {
-  margin-top: var(--space-4);
-}
-.token-entry-group > p {
-  margin: 0 0 var(--space-2);
-}
-.token-entry-group > label {
-  display: block;
-  font-weight: 600;
-}
-.token-entry {
-  display: flex;
-  gap: 8px;
-  margin-top: var(--space-2);
-}
-
-.device-login {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px;
-  border: 1px solid var(--color-warning-border);
-  border-radius: var(--radius-md);
-  background: var(--color-warning-subtle);
-}
-
-.device-login strong {
-  color: var(--color-warning-text);
-  letter-spacing: 0.12em;
-}
-.device-login span,
-.device-login small {
-  color: var(--color-text-muted);
-}
-.device-login a {
-  color: var(--color-interactive-text);
-}
-.device-login a:hover {
-  color: var(--color-interactive-text-strong);
-}
-.device-login small {
-  margin-left: auto;
-}
 .actions.compact {
   margin-top: 14px;
-}
-.github-auth > small {
-  display: block;
-  margin-top: 10px;
-  color: var(--color-text-muted);
-}
-.small-control {
-  padding: 9px 13px;
-  border-radius: var(--radius-md);
 }
 .source-intake-shortcuts {
   display: flex;
@@ -2539,9 +2415,6 @@ select:disabled {
   }
   .settings-row.about-card {
     grid-template-columns: minmax(10rem, 0.4fr) minmax(0, 1fr);
-  }
-  .about-facts {
-    grid-template-columns: 1fr;
   }
   .about-art .brand-wordmark {
     max-height: 4.5rem;
