@@ -156,7 +156,7 @@ namespace Portcove.ReferenceClient
             if (detached) return;
             retainedCleanupAvailable = repairs.Length != 0;
             var active = Json.Field(status, "active");
-            var external = Json.Field(status, "external_runtime");
+            var external = Json.OptionalObjectField(status, "external_runtime");
             externalRoute = external != null || Json.Text(Json.Field(catalog, "release"), "provider") == "user-prepared";
             var readiness = Json.Field(status, "readiness");
             var blockers = readiness == null ? "Readiness unknown" : string.Join(", ", Json.Array(Json.Field(readiness, "blockers")).Select(value => Convert.ToString(value).Replace('_', ' ')));

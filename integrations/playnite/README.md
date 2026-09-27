@@ -127,10 +127,12 @@ launch lock. Refresh retained activity before deciding on another launch.
 ## Validation and support boundaries
 
 The tested host is Playnite **10.56.0.23531** with runtime SDK **6.16.0.0** on
-Windows x64. The [dated native evidence](../../docs/archive/2026-09-09-playnite-reference-validation.md)
-covers isolated import/refresh, reviewed synthetic preparation, supervised
-launch and retained results after restart. Other Playnite versions, real-game
-playability and the full management failure matrix are not qualified by it.
+Windows x64. The [initial native evidence](../../docs/archive/2026-09-09-playnite-reference-validation.md)
+and [current acceptance checkpoint](../../docs/archive/2026-09-27-playnite-reference-acceptance.md)
+cover isolated import/refresh, reviewed synthetic preparation, supervised
+launch, retained readback and a mapped negative-path matrix. Other Playnite
+versions, real-game playability and the full native failure matrix remain
+unqualified.
 
 `tests/ContractTests.cs` is a redistributable synthetic CLI/process fixture, not
 a retail source, game artifact or port-admission bypass. It checks literal argv,
@@ -146,7 +148,7 @@ existing isolated, checksum-pinned install fixture. That real-core check correla
 activity row to its exact streamed operation identity and drives install, update,
 progress, readiness and failures through both `n64-recomp-portable` and
 `libultraship-portable` fixture shapes without a client branch. It also covers a
-busy port, cancellation, bad checksum and missing-artifact preservation, positive
+busy library read, busy port, cancellation, bad checksum and missing-artifact preservation, positive
 recovery, and a real selected-definition publisher revocation that the client
 consumes as a core-owned retained launch hold and launch refusal. After lifecycle
 qualification it stops the fixture artifact server and records a

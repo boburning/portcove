@@ -156,6 +156,7 @@ async function main() {
         },
       );
 
+    await phase("qualification-library-busy", INSTALL_REFRESH_FIXTURE_PORT_ID);
     await phase("qualification-concurrency", INSTALL_REFRESH_FIXTURE_PORT_ID);
     await phase("qualification-install", INSTALL_REFRESH_FIXTURE_PORT_ID, "1.0.0-fixture");
     await editRelease(fixture.catalogPath, INSTALL_REFRESH_FIXTURE_PORT_ID, {
@@ -229,6 +230,7 @@ async function main() {
         compiled_client_used_real_cli: true,
         stable_identity_across_install_and_updates: true,
         progress_and_durable_activity_observed: true,
+        busy_library_read_failed_closed: true,
         busy_port_and_cancellation_fail_closed: true,
         checksum_and_missing_artifact_preserved_active_version: true,
         recovery_updates_succeeded: true,

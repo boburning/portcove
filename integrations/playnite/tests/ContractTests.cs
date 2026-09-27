@@ -63,6 +63,23 @@ internal static class ContractTests
     };
     private static async Task Run(string[] args)
     {
+        var managedStatus = Json.Parse("{\"active\":null}");
+        Check(Json.OptionalObjectField(managedStatus, "external_runtime") == null,
+            "absent external runtime is a valid managed status");
+        Check(Json.OptionalObjectField(Json.Parse("{\"external_runtime\":null}"), "external_runtime") == null,
+            "null external runtime is a valid managed status");
+        Check(Json.OptionalObjectField(Json.Parse("{\"external_runtime\":{}}"), "external_runtime") != null,
+            "external runtime object remains available to the client");
+        Reject(() => Json.OptionalObjectField(Json.Parse("{\"external_runtime\":true}"), "external_runtime"),
+            "malformed external runtime fails closed");
+        var managedInstalled = StatusInstallation.Current(Json.Parse("{\"active\":{\"path\":\"C:/managed\"}}"));
+        Check(Json.Text(managedInstalled, "path") == "C:/managed",
+            "install controller reports a managed installation without an external runtime field");
+        var externalInstalled = StatusInstallation.Current(Json.Parse("{\"active\":null,\"external_runtime\":{\"path\":\"C:/external\"}}"));
+        Check(Json.Text(externalInstalled, "path") == "C:/external",
+            "install controller reports an external installation");
+        Check(StatusInstallation.Current(Json.Parse("{\"active\":null}")) == null,
+            "install controller leaves an uninstalled managed entry uninstalled");
         var id = Identity.Game("library/a:% 雪", "port/b:% 雪");
         Check(Identity.Port(id, "library/a:% 雪") == "port/b:% 雪", "opaque library/port identity round trip");
         Reject(() => Identity.Port(id, "other"), "stale library identity rejected");
@@ -406,6 +423,27 @@ internal static class ContractTests
         await client.Connect();
         connect.Stop();
         var port = args[3];
+
+        if (mode == "qualification-library-busy")
+        {
+            var leasePath = Path.Combine(args[2], "locks", "library.lock");
+            using (var lease = new FileStream(leasePath, FileMode.Open, FileAccess.ReadWrite, FileShare.ReadWrite))
+            {
+                lease.Lock(0, 1);
+                try
+                {
+                    await ExpectFailure(client.Read("status", "status", port), "conflict:",
+                        "an exclusively held library refuses the compiled client's read with an actionable conflict");
+                }
+                finally { lease.Unlock(0, 1); }
+            }
+            await client.AssertIdentity();
+            var status = await Status(client, port);
+            Check(status != null, "the same library remains readable after its exclusive lease is released");
+            Check(Json.OptionalObjectField(status, "external_runtime") == null,
+                "managed status without an external runtime remains readable by the Playnite client");
+            return;
+        }
 
         if (mode == "qualification-concurrency")
         {
