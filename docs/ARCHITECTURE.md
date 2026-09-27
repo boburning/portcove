@@ -1602,6 +1602,12 @@ SHA-256 with the current registered-source list. A match is labeled already adde
 and can open each catalog port using that profile for its authoritative setup
 review; it does not imply that a port is installed or playable. A failed workspace
 refresh or stale completed scan disables that continuation.
+For an exact match already registered with the same profile, original path, and
+scanned digest, Settings shows each related port's current setup state from the
+core-owned workspace status and action assessments. A missing or failed workspace
+read leaves readiness unavailable; a match alone cannot imply that a source is
+registered, a port is installed, or installation will succeed. The player still
+enters the existing source or game setup review before any mutation.
 
 ## Install transaction
 

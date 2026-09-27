@@ -25,6 +25,7 @@ import type { ThemeState, ThemePreference } from "../theme";
 import type {
   ActivityRecord,
   PortDefinition,
+  PortStatus,
   ApplicationUpdateNoticeSnapshot,
   DoctorReport,
   GithubAuthStatus,
@@ -1247,6 +1248,7 @@ function ThemeOption({
 export function SettingsView({
   generation = 0,
   ports = [],
+  statuses = new Map(),
   libraryRoot = "",
   librarySelection,
   chooseLibrary,
@@ -1287,6 +1289,7 @@ export function SettingsView({
 }: {
   generation?: number;
   ports?: PortDefinition[];
+  statuses?: ReadonlyMap<string, PortStatus>;
   libraryRoot?: string;
   doctor?: DoctorReport;
   storage?: StorageSummary;
@@ -1400,6 +1403,7 @@ export function SettingsView({
         <GameFileLibraries
           key={librarySelection?.root ?? libraryRoot}
           ports={ports}
+          statuses={statuses}
           profiles={sourceProfiles}
           registeredSources={sources}
           workspaceRefreshFailed={workspaceRefreshFailed}

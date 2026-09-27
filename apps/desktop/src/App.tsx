@@ -762,6 +762,7 @@ function CurrentView({
       <SettingsView
         generation={bootstrap.generation}
         ports={data.catalog?.ports ?? []}
+        statuses={model.statusMap}
         doctor={data.doctor}
         storage={data.storage}
         github={github}
