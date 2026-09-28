@@ -64,6 +64,7 @@ internal static class ContractTests
     private static async Task Run(string[] args)
     {
         CheckRuntimeSelection();
+        CheckPersonalLibrary();
         var managedStatus = Json.Parse("{\"active\":null}");
         Check(Json.OptionalObjectField(managedStatus, "external_runtime") == null,
             "absent external runtime is a valid managed status");
@@ -373,6 +374,29 @@ internal static class ContractTests
             Reject(() => RuntimeSelection.RequireAccepted(draft), "changed executable cannot reuse prior approval");
         }
         finally { Directory.Delete(root, true); }
+    }
+
+    private static void CheckPersonalLibrary()
+    {
+        var catalog = Json.Array(Json.Parse("[" +
+            "{\"id\":\"shape-a\",\"name\":\"Same Game\",\"summary\":\"First\",\"platforms\":[\"windows-x86-64\"]}," +
+            "{\"id\":\"shape-b\",\"name\":\"Same Game\",\"summary\":\"Second\",\"platforms\":[\"windows-x86-64\"]}," +
+            "{\"id\":\"other-os\",\"name\":\"Other\",\"summary\":\"Third\",\"platforms\":[\"linux-x86-64\"]}]"));
+        var statuses = Json.Array(Json.Parse("[" +
+            "{\"port_id\":\"shape-a\",\"active\":{\"path\":\"C:\\\\owned\",\"version\":\"1.0\"}}," +
+            "{\"port_id\":\"shape-b\",\"active\":null}," +
+            "{\"port_id\":\"other-os\",\"active\":null}]"));
+        var available = PersonalLibrary.Read(catalog, statuses, "library-a");
+        Check(available.Count == 2 && available[0].GameId != available[1].GameId,
+            "compatible implementations retain distinct stable identities despite matching titles");
+        var initial = PersonalLibrary.Default(available, Array.Empty<string>());
+        Check(initial.Count == 1 && initial[0].PortId == "shape-a" && initial[0].Metadata().IsInstalled,
+            "personal default imports installed games without dumping the compatible catalog");
+        var chosen = PersonalLibrary.Default(available, new[] { "shape-b", "unknown" });
+        Check(chosen.Count == 2 && chosen[1].PortId == "shape-b" && !chosen[1].Metadata().IsInstalled,
+            "explicit compatible selection adds one uninstalled port without inventing an installation");
+        Reject(() => PersonalLibrary.Read(catalog, statuses.Take(1).ToArray(), "library-a"),
+            "partial status response cannot silently change personal-library discovery");
     }
 
     private static async Task ConsumerMeasurements()

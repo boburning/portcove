@@ -2,6 +2,7 @@ using Playnite.SDK;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
@@ -37,6 +38,7 @@ namespace Portcove.ReferenceClient
             CreateNewLibrary = value.CreateNewLibrary,
             ApprovedExecutable = value.ApprovedExecutable, ApprovedLibraryRoot = value.ApprovedLibraryRoot,
             ExecutableSha256 = value.ExecutableSha256, LibraryId = value.LibraryId,
+            SelectedPortIds = new List<string>(value.SelectedPortIds ?? new List<string>()),
             LastLaunchGame = value.LastLaunchGame, LastLaunchRequest = value.LastLaunchRequest
         };
         public void BeginEdit() { inspection = null; Settings = Copy(Active); }
@@ -55,6 +57,16 @@ namespace Portcove.ReferenceClient
             remembered.LastLaunchGame = game; remembered.LastLaunchRequest = request;
             plugin.SavePluginSettings(remembered);
             Active = remembered;
+        }
+        internal void RememberSelection(IEnumerable<string> portIds, string libraryId)
+        {
+            if (!string.Equals(Active.LibraryId, libraryId, StringComparison.Ordinal))
+                throw new InvalidOperationException("The selected library changed. Reconnect it before adding games.");
+            var next = Copy(Active);
+            next.SelectedPortIds = next.SelectedPortIds.Concat(portIds).Distinct(StringComparer.Ordinal).ToList();
+            plugin.SavePluginSettings(next);
+            Active = next;
+            Settings = Copy(next);
         }
         public bool VerifySettings(out List<string> errors)
         {
@@ -129,6 +141,8 @@ namespace Portcove.ReferenceClient
             accepted.Executable = accepted.ApprovedExecutable = current.Executable;
             accepted.LibraryRoot = accepted.ApprovedLibraryRoot = current.LibraryRoot;
             accepted.ExecutableSha256 = current.Sha256;
+            if (!string.Equals(accepted.LibraryId, client.LibraryId, StringComparison.Ordinal))
+                accepted.SelectedPortIds = new List<string>();
             accepted.LibraryId = client.LibraryId;
             accepted.CreateNewLibrary = false;
             Settings = accepted;

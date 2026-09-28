@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Linq;
+using System.Collections.Generic;
 using System.Security.Cryptography;
 
 namespace Portcove.ReferenceClient
@@ -14,6 +15,7 @@ namespace Portcove.ReferenceClient
         public string ApprovedLibraryRoot { get; set; } = "";
         public string ExecutableSha256 { get; set; } = "";
         public string LibraryId { get; set; } = "";
+        public List<string> SelectedPortIds { get; set; } = new List<string>();
         // A reconnect pointer only. Core's retained record is the sole outcome authority.
         public string LastLaunchGame { get; set; } = "";
         public string LastLaunchRequest { get; set; } = "";

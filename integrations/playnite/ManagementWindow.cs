@@ -19,6 +19,7 @@ namespace Portcove.ReferenceClient
         private readonly TextBox bios = new TextBox();
         private readonly TextBox technical = new TextBox { IsReadOnly = true, TextWrapping = TextWrapping.Wrap, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, MaxHeight = 220 };
         private readonly List<Button> actions = new List<Button>();
+        private readonly List<Button> pathButtons = new List<Button>();
         private readonly Button cancel = new Button { Content = "Request cancellation", IsEnabled = false, Margin = new Thickness(4), Padding = new Thickness(10, 6, 10, 6) };
         private Button cleanupAction;
         private Button installAction;
@@ -57,8 +58,8 @@ namespace Portcove.ReferenceClient
                 Text = "Original game files stay yours. Supply a source or BIOS path only when needed; blank fields use Portcove's registered files. Portcove checks requirements and trusted downloads.",
                 TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 12)
             });
-            AddPath(panel, "Original game file or folder", source);
-            AddPath(panel, "BIOS file (when required)", bios);
+            AddPath(panel, "Original game file or folder", source, true);
+            AddPath(panel, "BIOS file (when required)", bios, false);
             var buttons = new WrapPanel();
             panel.Children.Add(buttons);
             AddAction(buttons, "Refresh readiness and activity", Refresh);
@@ -102,11 +103,33 @@ namespace Portcove.ReferenceClient
             };
         }
 
-        private static void AddPath(Panel panel, string label, TextBox field)
+        private void AddPath(Panel panel, string label, TextBox field, bool allowFolder)
         {
             panel.Children.Add(new TextBlock { Text = label });
-            field.Margin = new Thickness(0, 4, 0, 10);
-            panel.Children.Add(field);
+            var row = new DockPanel { Margin = new Thickness(0, 4, 0, 10) };
+            var browse = new Button { Content = "Choose file…", Margin = new Thickness(8, 0, 0, 0) };
+            browse.Click += (sender, args) =>
+            {
+                var path = plugin.PlayniteApi.Dialogs.SelectFile("Game files|*.*");
+                if (!string.IsNullOrWhiteSpace(path)) field.Text = path;
+            };
+            pathButtons.Add(browse);
+            DockPanel.SetDock(browse, Dock.Right);
+            row.Children.Add(browse);
+            if (allowFolder)
+            {
+                var folder = new Button { Content = "Choose folder…", Margin = new Thickness(8, 0, 0, 0) };
+                folder.Click += (sender, args) =>
+                {
+                    var path = plugin.PlayniteApi.Dialogs.SelectFolder();
+                    if (!string.IsNullOrWhiteSpace(path)) field.Text = path;
+                };
+                pathButtons.Add(folder);
+                DockPanel.SetDock(folder, Dock.Right);
+                row.Children.Add(folder);
+            }
+            row.Children.Add(field);
+            panel.Children.Add(row);
         }
 
         private Button AddAction(Panel panel, string label, Func<Task> action)
@@ -123,6 +146,7 @@ namespace Portcove.ReferenceClient
             if (busy) return;
             busy = true; operationId = null; cancellationRequested = false;
             actions.ForEach(button => button.IsEnabled = false);
+            pathButtons.ForEach(button => button.IsEnabled = false);
             source.IsEnabled = bios.IsEnabled = false;
             try { await action(); }
             catch (Exception error) { progress.Text = error.Message; CurrentStatus = null; }
@@ -130,6 +154,7 @@ namespace Portcove.ReferenceClient
             {
                 busy = false; cancel.IsEnabled = false;
                 source.IsEnabled = bios.IsEnabled = true;
+                pathButtons.ForEach(button => button.IsEnabled = true);
                 actions.ForEach(button => button.IsEnabled = cli != null && port != null);
                 if (cleanupAction != null) cleanupAction.IsEnabled = cleanupAction.IsEnabled && retainedCleanupAvailable;
                 if (externalRoute)

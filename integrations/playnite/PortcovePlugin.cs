@@ -46,37 +46,55 @@ namespace Portcove.ReferenceClient
         internal string RecentLaunch(string game) => PlayniteApi.MainView.UIDispatcher.Invoke(() =>
             settings.Active.LastLaunchGame == game ? settings.Active.LastLaunchRequest : null);
 
-        public override IEnumerable<GameMetadata> GetGames(LibraryGetGamesArgs args) => Discover().GetAwaiter().GetResult();
+        public override IEnumerable<GameMetadata> GetGames(LibraryGetGamesArgs args)
+        {
+            // Playnite refreshes a newly installed extension before first-use settings can be saved.
+            if (string.IsNullOrEmpty(settings.Active.LibraryId)) return Array.Empty<GameMetadata>();
+            return Discover().GetAwaiter().GetResult();
+        }
 
         private async Task<IEnumerable<GameMetadata>> Discover()
         {
+            var catalog = await ReadCatalog().ConfigureAwait(false);
+            return PersonalLibrary.Default(catalog, settings.Active.SelectedPortIds).Select(game => game.Metadata()).ToArray();
+        }
+
+        private async Task<IReadOnlyList<PortcoveCatalogGame>> ReadCatalog()
+        {
             var cli = await Connect().ConfigureAwait(false);
             var catalog = Json.Array(await cli.Read("catalog.list", "catalog", "list").ConfigureAwait(false));
-            var statuses = Json.Array(await cli.Read("status", "status").ConfigureAwait(false))
-                .ToDictionary(status => Json.Text(status, "port_id"), StringComparer.Ordinal);
+            var statuses = Json.Array(await cli.Read("status", "status").ConfigureAwait(false));
             await cli.AssertIdentity().ConfigureAwait(false);
-            var result = new List<GameMetadata>();
-            var seen = new HashSet<string>(StringComparer.Ordinal);
-            foreach (var port in catalog)
+            return PersonalLibrary.Read(catalog, statuses, cli.LibraryId);
+        }
+
+        public override IEnumerable<MainMenuItem> GetMainMenuItems(GetMainMenuItemsArgs args)
+        {
+            yield return new MainMenuItem
             {
-                if (!Json.Array(Json.Field(port, "platforms")).Contains("windows-x86-64")) continue;
-                var portId = Json.Text(port, "id");
-                var key = Identity.Game(cli.LibraryId, portId);
-                if (!seen.Add(key)) throw new InvalidOperationException("The catalog repeats a port identity. Refresh after repairing the catalog.");
-                object status;
-                if (!statuses.TryGetValue(portId, out status)) throw new InvalidOperationException("The catalog changed during discovery. Refresh again.");
-                var active = Json.Field(status, "active");
-                var external = Json.OptionalObjectField(status, "external_runtime");
-                result.Add(new GameMetadata
+                MenuSection = "Portcove",
+                Description = "Browse and add compatible games…",
+                Action = action => AddGames()
+            };
+        }
+
+        private async void AddGames()
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(settings.Active.LibraryId))
+                    throw new InvalidOperationException("Connect a Portcove CLI and library in extension settings before adding games.");
+                var catalog = await ReadCatalog();
+                var chosen = CatalogBrowser.Choose(PlayniteApi, catalog, settings.Active.SelectedPortIds);
+                if (chosen.Count == 0) return;
+                settings.RememberSelection(chosen.Select(game => game.PortId), chosen[0].LibraryId);
+                foreach (var game in chosen)
                 {
-                    GameId = key, Name = Json.Text(port, "name"),
-                    Description = System.Net.WebUtility.HtmlEncode(Json.Text(port, "summary")),
-                    IsInstalled = active != null || external != null,
-                    InstallDirectory = active != null ? Json.Text(active, "path") : external == null ? null : Json.Text(external, "path"),
-                    Version = active != null ? Json.Text(active, "version") : external == null ? null : Json.Text(external, "version")
-                });
+                    if (PlayniteApi.Database.Games.Any(existing => existing.PluginId == Id && existing.GameId == game.GameId)) continue;
+                    PlayniteApi.Database.ImportGame(game.Metadata(), this);
+                }
             }
-            return result;
+            catch (Exception error) { Error(error); }
         }
 
         public override IEnumerable<PlayController> GetPlayActions(GetPlayActionsArgs args)
