@@ -217,7 +217,8 @@ fn spawn_update_helper(expected_revision: u64) -> DesktopResult<()> {
     )
     .map_err(|error| DesktopError::from(PortcoveError::state(error.to_string())))?;
     #[cfg(target_os = "linux")]
-    let executable = std::env::current_exe().map_err(PortcoveError::from)?;
+    let executable = crate::application_update_linux::current_linux_appimage_source()
+        .map_err(|_| unsupported_installation())?;
     let mut command = update_helper_command(&executable, expected_revision)?;
     let child = command.spawn().map_err(|_| {
         DesktopError::from(PortcoveError::launch(
@@ -275,6 +276,8 @@ fn update_helper_command(
         .stdin(Stdio::null())
         .stdout(Stdio::null())
         .stderr(Stdio::null());
+    #[cfg(target_os = "linux")]
+    command.env_remove("APPDIR").env_remove("APPIMAGE");
     configure_independent_process(&mut command);
     Ok(command)
 }
@@ -698,6 +701,17 @@ mod tests {
             arguments,
             [OsStr::new("--portcove-apply-update"), OsStr::new("42")]
         );
+        #[cfg(target_os = "linux")]
+        {
+            assert_eq!(command.get_program(), executable.as_os_str());
+            for name in ["APPDIR", "APPIMAGE"] {
+                assert!(
+                    command
+                        .get_envs()
+                        .any(|(key, value)| key == name && value.is_none())
+                );
+            }
+        }
     }
 
     #[test]
