@@ -91,7 +91,7 @@ function markedProcessCommand(mode, args) {
     execFileSync("pwsh", ["-NoProfile", "-File", markedProcess, "-Mode", mode, ...args], {
       encoding: "utf8",
       windowsHide: true,
-      timeout: 15_000,
+      timeout: 25_000,
     }),
   );
 }
@@ -106,17 +106,20 @@ async function cleanupMarkedProcess(markerPath, label) {
     assert.match(relative, /^workers\/revision-\d+\/attempt-[^/]+\/portcove-update-worker\.exe$/iu);
   }
   const identityPath = path.join(values.output, `${label}-process-identity.json`);
-  const capture = markedProcessCommand("Capture", [
-    "-MarkerPath",
-    markerPath,
-    "-IdentityPath",
-    identityPath,
-    "-ExpectedPath",
-    expected,
-    "-EarliestStart",
-    restartStarted,
-    ...(label === "helper" ? ["-Helper"] : []),
-  ]);
+  const capturedEarlier = await readJson(identityPath).catch(() => null);
+  const capture = capturedEarlier
+    ? { status: "captured", pid: capturedEarlier.pid }
+    : markedProcessCommand("Capture", [
+        "-MarkerPath",
+        markerPath,
+        "-IdentityPath",
+        identityPath,
+        "-ExpectedPath",
+        expected,
+        "-EarliestStart",
+        restartStarted,
+        ...(label === "helper" ? ["-Helper"] : []),
+      ]);
   return {
     capture,
     stop:
@@ -124,6 +127,27 @@ async function cleanupMarkedProcess(markerPath, label) {
         ? markedProcessCommand("Stop", ["-IdentityPath", identityPath])
         : null,
   };
+}
+async function awaitMarkedProcessExit(markerPath, label) {
+  const marker = await readJson(markerPath);
+  const identityPath = path.join(values.output, `${label}-process-identity.json`);
+  const capture = markedProcessCommand("Capture", [
+    "-MarkerPath",
+    markerPath,
+    "-IdentityPath",
+    identityPath,
+    "-ExpectedPath",
+    label === "candidate" ? values.app : marker.executable,
+    "-EarliestStart",
+    restartStarted,
+    ...(label === "helper" ? ["-Helper"] : []),
+  ]);
+  const exit =
+    capture.status === "captured"
+      ? markedProcessCommand("Wait", ["-IdentityPath", identityPath])
+      : capture;
+  assert.ok(["exited", "prior-process-exited"].includes(exit.status));
+  return { capture, exit };
 }
 
 try {
@@ -205,6 +229,19 @@ try {
     "renderer-driven installed NSIS restart and reconciliation",
     90_000,
   );
+  const helperResult = await waitFor(
+    () => readJson(path.join(path.dirname(values["helper-process-marker"]), "helper-result.json")),
+    "revision-bound helper result marker",
+    20_000,
+  );
+  assert.equal(helperResult.schema_version, 1);
+  assert.equal(helperResult.process_id, helper.process_id);
+  assert.equal(helperResult.exit_code, 0);
+  report.helper_result = helperResult;
+  report.natural_process_exit = {
+    candidate: await awaitMarkedProcessExit(values["relaunch-process-marker"], "candidate"),
+    helper: await awaitMarkedProcessExit(values["helper-process-marker"], "helper"),
+  };
   report.actions.push("candidate-restarted-and-reconciled");
   report.phase = "complete";
 } catch (error) {
@@ -230,8 +267,20 @@ try {
       ["candidate", values["relaunch-process-marker"]],
       ["helper", values["helper-process-marker"]],
     ]) {
+      if (report.natural_process_exit?.[label]) {
+        report.updater_process_cleanup[label] = "exited naturally before cleanup";
+        continue;
+      }
       try {
         report.updater_process_cleanup[label] = await cleanupMarkedProcess(markerPath, label);
+        if (
+          report.phase === "complete" &&
+          report.updater_process_cleanup[label].stop?.status === "stopped"
+        ) {
+          report.phase = "failed";
+          report.failure = `${label} process required forced cleanup after reported success`;
+          process.exitCode = 1;
+        }
       } catch (error) {
         report.updater_process_cleanup[label] = `uncertain: ${String(error.message).slice(0, 300)}`;
         report.phase = "failed";

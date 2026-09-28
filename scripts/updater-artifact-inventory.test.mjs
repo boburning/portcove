@@ -248,7 +248,10 @@ test("manual rehearsal retains the complete matrix without production credential
   assert.match(lifecycle, /desktop-windows-update-test\.mjs/);
   assert.match(lifecycle, /installed_renderer_reconciled/);
   assert.match(lifecycle, /PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_RELAUNCH_EXIT = "1"/);
-  assert.match(lifecycle, /Copy-Item -LiteralPath \$rendererEvidence -Destination \$retainedRendererEvidence -Recurse/);
+  assert.match(
+    lifecycle,
+    /Copy-Item -LiteralPath \$rendererEvidence -Destination \$retainedRendererEvidence -Recurse/,
+  );
   assert.match(lifecycle, /installed_update_selection_stage/);
   assert.match(lifecycle, /--portcove-qualify-update-stage/);
   assert.match(lifecycle, /-- prepare-staged \$InstalledUpdatePredecessorVersion/);

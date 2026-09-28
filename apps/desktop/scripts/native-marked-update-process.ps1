@@ -1,5 +1,5 @@
 param(
-    [Parameter(Mandatory)][ValidateSet('Capture', 'Stop')][string]$Mode,
+    [Parameter(Mandatory)][ValidateSet('Capture', 'Wait', 'Stop')][string]$Mode,
     [Parameter(Mandatory)][string]$IdentityPath,
     [string]$MarkerPath,
     [string]$ExpectedPath,
@@ -54,6 +54,28 @@ if ($Mode -eq 'Capture') {
     exit
 }
 $identity = Get-Content -LiteralPath $IdentityPath -Raw | ConvertFrom-Json
+if ($Mode -eq 'Wait') {
+    $deadline = [Diagnostics.Stopwatch]::StartNew()
+    while ($deadline.ElapsedMilliseconds -lt 20000) {
+        $observed = try { [Diagnostics.Process]::GetProcessById([int]$identity.pid) } catch [ArgumentException] { $null }
+        if (-not $observed) {
+            [pscustomobject]@{ status = 'exited'; pid = [int]$identity.pid } | ConvertTo-Json -Compress
+            exit
+        }
+        try {
+            if ($observed.StartTime.ToFileTimeUtc().ToString([Globalization.CultureInfo]::InvariantCulture) -ne $identity.started_filetime) {
+                [pscustomobject]@{ status = 'prior-process-exited'; pid = [int]$identity.pid } | ConvertTo-Json -Compress
+                exit
+            }
+        } catch [InvalidOperationException] {
+            if (-not $observed.HasExited) { throw }
+            [pscustomobject]@{ status = 'exited'; pid = [int]$identity.pid } | ConvertTo-Json -Compress
+            exit
+        } finally { $observed.Dispose() }
+        Start-Sleep -Milliseconds 200
+    }
+    throw 'Marked updater process did not exit naturally within twenty seconds.'
+}
 $process = try { [Diagnostics.Process]::GetProcessById([int]$identity.pid) } catch [ArgumentException] { $null }
 if (-not $process) {
     [pscustomobject]@{ status = 'exited'; pid = [int]$identity.pid } | ConvertTo-Json -Compress
