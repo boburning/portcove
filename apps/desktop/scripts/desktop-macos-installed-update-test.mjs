@@ -333,9 +333,25 @@ try {
   throw error;
 } finally {
   await writeFile(path.join(values.output, "application.log"), output);
-  const unmarkedHelper =
-    !report.helper && Number.isInteger(application.pid)
-      ? childPids(application.pid)
+  let unmarkedHelper = null;
+  if (application.exitCode === null && application.signalCode === null) {
+    try {
+      const identity = processIdentity(application.pid, "candidate");
+      const identityChanged =
+        identity &&
+        report.predecessor_identity &&
+        identity.started !== report.predecessor_identity.started;
+      if (identityChanged) {
+        report.cleanup_failure = "Predecessor identity changed before cleanup";
+        report.phase = "failed";
+      } else if (identity) {
+        process.kill(application.pid, "SIGSTOP");
+        await waitFor(
+          () => processIdentity(application.pid, "candidate")?.state.includes("T"),
+          "owned predecessor stopped",
+          5000,
+        );
+        unmarkedHelper = childPids(application.pid)
           .map((pid) => {
             try {
               return processIdentity(pid, "helper");
@@ -343,14 +359,14 @@ try {
               return null;
             }
           })
-          .find(Boolean)
-      : null;
-  if (application.exitCode === null && application.signalCode === null) {
-    application.kill();
-    await bounded(applicationExit, "owned predecessor cleanup", 5000).catch((error) => {
+          .find(Boolean);
+        process.kill(application.pid, "SIGKILL");
+      }
+      if (!identityChanged) await bounded(applicationExit, "owned predecessor cleanup", 5000);
+    } catch (error) {
       report.cleanup_failure = String(error);
       report.phase = "failed";
-    });
+    }
   }
   const helper =
     report.helper ??
@@ -383,11 +399,11 @@ try {
     try {
       await stopOwned(marker, "candidate");
       if (marker && processIdentity(marker.process_id, "candidate"))
-        throw new Error("Candidate remained live after owned cleanup");
+        report.cleanup_failure = "Candidate remained live after owned cleanup";
     } catch (error) {
       report.cleanup_failure = String(error);
-      report.phase = "failed";
     }
+    if (report.cleanup_failure) report.phase = "failed";
   }
   await save();
   // The browser session belongs to the exited predecessor. Quitting it after
