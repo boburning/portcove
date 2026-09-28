@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { execFileSync, spawn } from "node:child_process";
-import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
+import { mkdir, stat, writeFile } from "node:fs/promises";
+import { createServer } from "node:net";
 import path from "node:path";
 import { parseArgs } from "node:util";
 import { Builder, By } from "selenium-webdriver";
@@ -60,7 +61,88 @@ const report = {
   actions: [],
 };
 const save = () => writeFile(evidencePath, `${JSON.stringify(report, null, 2)}\n`);
-const port = 4445;
+async function availablePort() {
+  const server = createServer();
+  await new Promise((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", resolve);
+  });
+  const port = server.address().port;
+  await new Promise((resolve, reject) =>
+    server.close((error) => (error ? reject(error) : resolve())),
+  );
+  return port;
+}
+function psField(pid, field) {
+  try {
+    return execFileSync("/bin/ps", ["-ww", "-p", String(pid), "-o", `${field}=`], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
+  } catch (error) {
+    if (error.status === 1) return null;
+    throw error;
+  }
+}
+function processIdentity(pid, role) {
+  if (!Number.isInteger(pid) || pid <= 0) throw new Error("Invalid owned process marker PID");
+  const started = psField(pid, "lstart");
+  if (!started) return null;
+  const command = psField(pid, "command");
+  const state = psField(pid, "stat");
+  if (!command || !state || state.startsWith("Z") || psField(pid, "lstart") !== started)
+    return null;
+  const expected = role === "helper" ? `${values.app} --portcove-apply-update ` : values.app;
+  if (role === "helper" ? !command.startsWith(expected) : command !== expected)
+    throw new Error(`Marked ${role} PID does not run the owned installed executable`);
+  return { pid, started, command, state };
+}
+function listenerPid(port) {
+  try {
+    const value = execFileSync("/usr/sbin/lsof", ["-nP", `-iTCP:${port}`, "-sTCP:LISTEN", "-t"], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
+    return /^\d+$/u.test(value) ? Number(value) : null;
+  } catch (error) {
+    if (error.status === 1) return null;
+    throw error;
+  }
+}
+async function naturalExit(marker, role) {
+  const original = processIdentity(marker.process_id, role);
+  await waitFor(
+    () => {
+      const current = processIdentity(marker.process_id, role);
+      return !current || (original && current.started !== original.started) ? true : null;
+    },
+    `${role} natural exit`,
+    30_000,
+  );
+  return { observed_live: original, no_owned_process_remaining: true };
+}
+async function stopOwned(marker, role) {
+  if (!marker || marker.executable !== values.app || marker.schema_version !== 1) return;
+  const original = processIdentity(marker.process_id, role);
+  if (!original) return;
+  process.kill(marker.process_id, "SIGTERM");
+  try {
+    await waitFor(
+      () => {
+        const current = processIdentity(marker.process_id, role);
+        return !current || current.started !== original.started ? true : null;
+      },
+      `${role} cleanup`,
+      5000,
+    );
+  } catch {
+    const current = processIdentity(marker.process_id, role);
+    if (current?.started === original.started) process.kill(marker.process_id, "SIGKILL");
+    await waitFor(() => !processIdentity(marker.process_id, role), `${role} forced cleanup`, 5000);
+  }
+}
+const port = await availablePort();
+report.webdriver_port = port;
 const application = spawn(values.app, [], {
   env: { ...process.env, TAURI_WEBDRIVER_PORT: String(port) },
   stdio: ["ignore", "pipe", "pipe"],
@@ -91,6 +173,7 @@ for (const stream of [application.stdout, application.stderr]) {
 application.on("error", (error) => {
   output += `\nspawn: ${error.message}`;
 });
+report.predecessor_process_id = application.pid;
 let browser;
 try {
   await waitFor(
@@ -99,16 +182,30 @@ try {
       const response = await fetch(`http://127.0.0.1:${port}/status`, {
         signal: AbortSignal.timeout(1000),
       });
-      return response.ok;
+      if (!response.ok) return false;
+      const owner = listenerPid(port);
+      if (owner !== application.pid)
+        throw new Error("Embedded WebDriver listener does not belong to the installed predecessor");
+      return true;
     },
     "installed predecessor embedded WebDriver",
     60_000,
   );
-  browser = await new Builder()
-    .usingServer(`http://127.0.0.1:${port}`)
-    .withCapabilities({ browserName: "tauri" })
-    .build();
-  await driveInstalledUpdateToRestart(browser, report.actions);
+  browser = await bounded(
+    new Builder()
+      .usingServer(`http://127.0.0.1:${port}`)
+      .withCapabilities({ browserName: "tauri" })
+      .build(),
+    "embedded WebDriver session",
+    20_000,
+  );
+  report.predecessor_identity = processIdentity(application.pid, "candidate");
+  assert.ok(report.predecessor_identity, "Installed predecessor identity was not observed");
+  await bounded(
+    driveInstalledUpdateToRestart(browser, report.actions),
+    "installed renderer journey",
+    180_000,
+  );
   report.staged = await verifyInstalledUpdateStaging({
     stagingRoot: values.staging,
     payloadName: "candidate.payload",
@@ -120,7 +217,7 @@ try {
   report.actions.push("installed-renderer-verified-candidate");
   await writeFile(
     path.join(values.output, "before-restart.png"),
-    await browser.takeScreenshot(),
+    await bounded(browser.takeScreenshot(), "pre-restart screenshot", 20_000),
     "base64",
   );
   await save();
@@ -146,6 +243,7 @@ try {
   assert.equal(report.helper.schema_version, 1);
   assert.equal(report.helper.executable, values.app);
   assert.ok(Number.isInteger(report.helper.process_id) && report.helper.process_id > 0);
+  report.helper_identity = processIdentity(report.helper.process_id, "helper");
   report.relaunch = await waitFor(
     () => readJson(values["relaunch-marker"]),
     "automatic relaunch marker",
@@ -154,6 +252,7 @@ try {
   assert.equal(report.relaunch.schema_version, 1);
   assert.equal(report.relaunch.executable, values.app);
   assert.ok(Number.isInteger(report.relaunch.process_id) && report.relaunch.process_id > 0);
+  report.relaunch_identity = processIdentity(report.relaunch.process_id, "candidate");
   report.startup = await waitFor(
     async () => {
       const marker = await readJson(values["stage-marker"]);
@@ -174,6 +273,8 @@ try {
   assert.equal((await hashFile(values.app)).sha256, values["candidate-sha"]);
   assert.equal((await hashFile(values["library-marker"])).sha256, librarySha);
   await assert.rejects(stat(path.join(values.staging, "candidate.payload")), { code: "ENOENT" });
+  report.helper_exit = await naturalExit(report.helper, "helper");
+  report.relaunch_exit = await naturalExit(report.relaunch, "candidate");
   report.actions.push("installed-helper-relaunched-candidate-and-reconciled");
   report.phase = "complete";
 } catch (error) {
@@ -189,8 +290,21 @@ try {
       report.phase = "failed";
     });
   }
+  const cleanupMarkers = [
+    [report.relaunch ?? (await readJson(values["relaunch-marker"]).catch(() => null)), "candidate"],
+    [report.helper ?? (await readJson(values["helper-marker"]).catch(() => null)), "helper"],
+  ];
+  for (const [marker, role] of cleanupMarkers) {
+    try {
+      await stopOwned(marker, role);
+    } catch (error) {
+      report.cleanup_failure = String(error);
+      report.phase = "failed";
+    }
+  }
   await save();
   // The browser session belongs to the exited predecessor. Quitting it after
   // restart can race the helper, so the process exit is the cleanup proof.
   void browser;
 }
+if (report.phase !== "complete") throw new Error(report.cleanup_failure ?? report.failure);
