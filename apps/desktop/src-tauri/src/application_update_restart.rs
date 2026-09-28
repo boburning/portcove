@@ -61,7 +61,10 @@ const DESKTOP_UPDATE_PROCESS_ENVIRONMENT: &[&str] = &[
     "PORTCOVE_APPLICATION_UPDATE_METADATA_URL",
     "PORTCOVE_APPLICATION_UPDATE_PREFERENCES",
     "PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_EXIT",
+    "PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_HELPER_PROCESS",
     "PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_INTERRUPT",
+    "PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_RELAUNCH_EXIT",
+    "PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_RELAUNCH_PROCESS",
     "PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_STAGE",
     "PORTCOVE_APPLICATION_UPDATE_SCHEDULE",
     "PORTCOVE_APPLICATION_UPDATE_STAGING",
@@ -214,13 +217,53 @@ fn spawn_update_helper(expected_revision: u64) -> DesktopResult<()> {
     )
     .map_err(|error| DesktopError::from(PortcoveError::state(error.to_string())))?;
     #[cfg(target_os = "linux")]
+    let (source, mount) =
+        crate::application_update_linux::current_linux_appimage_helper_environment()
+            .map_err(|_| unsupported_installation())?;
+    #[cfg(target_os = "linux")]
     let executable = std::env::current_exe().map_err(PortcoveError::from)?;
     let mut command = update_helper_command(&executable, expected_revision)?;
-    command.spawn().map_err(|_| {
+    #[cfg(target_os = "linux")]
+    bind_verified_linux_appimage_execution(&mut command, &source, &mount);
+    let child = command.spawn().map_err(|_| {
         DesktopError::from(PortcoveError::launch(
             "Could not start the application update helper. Portcove stayed open and kept the verified update for retry.",
         ))
     })?;
+    #[cfg(all(target_os = "linux", feature = "application-update-qualification"))]
+    {
+        let mut child = child;
+        if let Some(path) =
+            std::env::var_os("PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_HELPER_PROCESS")
+        {
+            let recorded = (|| -> std::io::Result<()> {
+                let mut file = std::fs::OpenOptions::new()
+                    .write(true)
+                    .create_new(true)
+                    .open(path)?;
+                serde_json::to_writer_pretty(
+                    &mut file,
+                    &serde_json::json!({
+                        "schema_version": 1,
+                        "process_id": child.id(),
+                        "executable": executable.to_string_lossy(),
+                    }),
+                )
+                .map_err(std::io::Error::other)?;
+                file.sync_all()
+            })();
+            if recorded.is_err() {
+                let _ = child.kill();
+                let _ = child.wait();
+                return Err(PortcoveError::state(
+                    "Could not retain the qualification helper process identity; Portcove kept the staged update for retry.",
+                )
+                .into());
+            }
+        }
+    }
+    #[cfg(not(all(target_os = "linux", feature = "application-update-qualification")))]
+    drop(child);
     Ok(())
 }
 
@@ -238,8 +281,19 @@ fn update_helper_command(
         .stdin(Stdio::null())
         .stdout(Stdio::null())
         .stderr(Stdio::null());
+    #[cfg(target_os = "linux")]
+    command.env_remove("APPDIR").env_remove("APPIMAGE");
     configure_independent_process(&mut command);
     Ok(command)
+}
+
+#[cfg(target_os = "linux")]
+fn bind_verified_linux_appimage_execution(
+    command: &mut std::process::Command,
+    source: &std::path::Path,
+    mount: &std::path::Path,
+) {
+    command.env("APPIMAGE", source).env("APPDIR", mount);
 }
 
 #[cfg(windows)]
@@ -407,9 +461,24 @@ fn prepare_revalidation_lease(
 #[cfg(any(windows, target_os = "linux"))]
 fn report_qualification_helper_failure(stage: &str, error: &str) {
     #[cfg(feature = "application-update-qualification")]
-    if std::env::var_os("PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_EXIT").as_deref()
-        == Some(OsStr::new("after-reconciliation"))
     {
+        if let Some(path) =
+            std::env::var_os("PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_HELPER_PROCESS")
+        {
+            let diagnostic = serde_json::json!({
+                "stage": stage,
+                "error": error.chars().take(2048).collect::<String>(),
+            });
+            let _ = std::fs::write(
+                std::path::PathBuf::from(path).with_file_name("helper-failure.json"),
+                diagnostic.to_string(),
+            );
+        }
+        if std::env::var_os("PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_EXIT").as_deref()
+            != Some(OsStr::new("after-reconciliation"))
+        {
+            return;
+        }
         eprintln!(
             "Portcove application-update qualification helper failed during {stage}: {error}"
         );
@@ -456,6 +525,15 @@ fn restart_executable_if_runtime_available(
         ChildProcessPolicy::native_command(ChildProcessClass::HostIntegration, executable)
             .map_err(|_| ())?;
     copy_desktop_update_environment(&mut command, std::env::vars_os());
+    #[cfg(feature = "application-update-qualification")]
+    if std::env::var_os("PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_RELAUNCH_EXIT").as_deref()
+        == Some(OsStr::new("1"))
+    {
+        command.env(
+            "PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_EXIT",
+            "after-reconciliation",
+        );
+    }
     command.stdin(Stdio::null());
     #[cfg(feature = "application-update-qualification")]
     let retain_qualification_output =
@@ -473,7 +551,39 @@ fn restart_executable_if_runtime_available(
     }
     configure_independent_process(&mut command);
     drop(runtime);
-    command.spawn().map(|_| ()).map_err(|_| ())
+    let child = command.spawn().map_err(|_| ())?;
+    #[cfg(all(target_os = "linux", feature = "application-update-qualification"))]
+    {
+        let mut child = child;
+        if let Some(path) =
+            std::env::var_os("PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_RELAUNCH_PROCESS")
+        {
+            let recorded = (|| -> std::io::Result<()> {
+                let mut file = std::fs::OpenOptions::new()
+                    .write(true)
+                    .create_new(true)
+                    .open(path)?;
+                serde_json::to_writer_pretty(
+                    &mut file,
+                    &serde_json::json!({
+                        "schema_version": 1,
+                        "process_id": child.id(),
+                        "executable": executable.to_string_lossy(),
+                    }),
+                )
+                .map_err(std::io::Error::other)?;
+                file.sync_all()
+            })();
+            if recorded.is_err() {
+                let _ = child.kill();
+                let _ = child.wait();
+                return Err(());
+            }
+        }
+    }
+    #[cfg(not(all(target_os = "linux", feature = "application-update-qualification")))]
+    drop(child);
+    Ok(())
 }
 
 #[cfg(any(windows, target_os = "linux", test))]
@@ -605,6 +715,37 @@ mod tests {
             arguments,
             [OsStr::new("--portcove-apply-update"), OsStr::new("42")]
         );
+        #[cfg(target_os = "linux")]
+        {
+            assert_eq!(command.get_program(), executable.as_os_str());
+            for name in ["APPDIR", "APPIMAGE"] {
+                assert!(
+                    command
+                        .get_envs()
+                        .all(|(key, value)| key != name || value.is_none())
+                );
+            }
+            let mut command = command;
+            bind_verified_linux_appimage_execution(
+                &mut command,
+                std::path::Path::new("verified/Portcove.AppImage"),
+                std::path::Path::new("mount/verified"),
+            );
+            assert_eq!(
+                command
+                    .get_envs()
+                    .find(|(key, _)| *key == OsStr::new("APPIMAGE"))
+                    .map(|(_, value)| value),
+                Some(Some(OsStr::new("verified/Portcove.AppImage")))
+            );
+            assert_eq!(
+                command
+                    .get_envs()
+                    .find(|(key, _)| *key == OsStr::new("APPDIR"))
+                    .map(|(_, value)| value),
+                Some(Some(OsStr::new("mount/verified")))
+            );
+        }
     }
 
     #[test]
@@ -630,6 +771,14 @@ mod tests {
                 (
                     OsString::from("PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_STAGE"),
                     OsString::from("stage"),
+                ),
+                (
+                    OsString::from("PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_RELAUNCH_EXIT"),
+                    OsString::from("1"),
+                ),
+                (
+                    OsString::from("PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_RELAUNCH_PROCESS"),
+                    OsString::from("process.json"),
                 ),
                 (
                     OsString::from("PORTCOVE_GITHUB_TOKEN"),
@@ -674,6 +823,18 @@ mod tests {
                 .get("PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_STAGE")
                 .map(String::as_str),
             Some("stage")
+        );
+        assert_eq!(
+            environment
+                .get("PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_RELAUNCH_EXIT")
+                .map(String::as_str),
+            Some("1")
+        );
+        assert_eq!(
+            environment
+                .get("PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_RELAUNCH_PROCESS")
+                .map(String::as_str),
+            Some("process.json")
         );
         assert!(!environment.contains_key("PORTCOVE_GITHUB_TOKEN"));
         assert!(!environment.contains_key("PORTCOVE_PORT_ID"));

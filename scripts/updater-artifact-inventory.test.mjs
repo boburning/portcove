@@ -212,6 +212,13 @@ test("manual rehearsal retains the complete matrix without production credential
   assert.match(workflow, /retention-days: 1/);
   assert.doesNotMatch(workflow, /updater-rehearsal\/\*\*|\.key\b/);
   assert.match(workflow, /linux-appimage-qualification\/application-update-evidence\.json/);
+  assert.match(
+    workflow,
+    /install-linux-desktop-prerequisites\.sh --include-rpm --include-appimage-runtime --include-webdriver/,
+  );
+  assert.match(workflow, /cargo install tauri-driver --locked --version "\$version"/);
+  assert.match(workflow, /renderer-qualification\/evidence\/\*\.json/);
+  assert.doesNotMatch(workflow, /renderer-qualification\/\*\*/);
   assert.match(workflow, /qualified-\*-bundles\/appimage\/\*\*/);
   assert.match(workflow, /qualified-\*-bundles\/macos\/Portcove\.app\/\*\*/);
   assert.match(
@@ -257,6 +264,8 @@ test("manual rehearsal retains the complete matrix without production credential
     /\$native\.process_architecture -ne \$expectedProcessArchitecture[\s\S]*\$native\.executable_architecture = \(& lipo -archs \$executable \| Out-String\)\.Trim\(\)[\s\S]*\$native\.executable_architecture -ne \$expectedMachOArchitecture/,
   );
   assert.match(rehearsal, /test-linux-appimage-update\.ps1/);
+  assert.match(rehearsal, /desktop-appimage-update-test\.mjs/);
+  assert.match(rehearsal, /PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_PAYLOAD = \$candidate/);
   const macInstalled = await readFile(
     new URL("./test-macos-installed-selection.ps1", import.meta.url),
     "utf8",

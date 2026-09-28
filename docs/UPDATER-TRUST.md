@@ -401,8 +401,19 @@ disposable signed repository and records the exact selected candidate identity.
 A second qualification-only command uses the production check-and-stage operation
 with fixture-supplied local payload bytes. The installed binary authenticates the
 selection and verifies the staged bytes; the fixture cannot select a candidate or
-grant apply authority. This does not establish normal renderer acquisition or restart
-behavior. After the shared post-exit
+grant apply authority. A separate Linux-only updater-qualification build lets the
+ordinary renderer check and download commands read one absolute, direct local
+fixture payload. The same production operation authenticates the selection and
+staged bytes; ordinary builds still use the fixed GitHub release-asset transport.
+The hosted WebKitWebDriver path drives the visible check, download and restart
+controls on an installed AppImage, then records the exact stable path and
+healthy-startup journal. Its local byte source does not prove a production
+network transfer. The GUI starts the revision-bound Linux helper from the
+already-mounted executable, retaining the running code identity while passing
+only the AppImage source and mount values verified from that native execution.
+The host's general child-process policy removes mount variables, so the helper
+must receive those exact validated values before it revalidates its context.
+After the shared post-exit
 revalidation lease is held, the Linux adapter rehashes an exact direct x86_64 Type 2 AppImage
 payload into a synchronized sibling file and atomically exchanges it with the stable
 AppImage source. The apply journal records the exact prior bytes and retained backup

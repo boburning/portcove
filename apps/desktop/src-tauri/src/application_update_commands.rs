@@ -28,7 +28,7 @@ use crate::application_update_host::{
 use crate::application_update_operation::{
     ApplicationUpdateDownloadExpectation, ApplicationUpdateOperation,
     ApplicationUpdateOperationError, ApplicationUpdateOperationOutcome,
-    ApplicationUpdateOperationPhase, ApplicationUpdateProgressSink,
+    ApplicationUpdateOperationPhase, ApplicationUpdatePayloadSource, ApplicationUpdateProgressSink,
     ApplicationUpdateSelectionSummary, GithubApplicationUpdatePayloadSource,
 };
 use crate::application_update_repository::{CandidateLoadError, CandidateLoadFailureKind};
@@ -114,6 +114,7 @@ trait ApplicationUpdateCommandRunner: Send + Sync {
 struct ConfiguredApplicationUpdateCommandRunner {
     operation: ApplicationUpdateOperation,
     provider: ApplicationUpdateHostProvider,
+    payload_source: Arc<dyn ApplicationUpdatePayloadSource>,
 }
 
 #[async_trait]
@@ -130,7 +131,7 @@ impl ApplicationUpdateCommandRunner for ConfiguredApplicationUpdateCommandRunner
                     .check_and_stage(
                         environment,
                         &self.provider,
-                        &GithubApplicationUpdatePayloadSource,
+                        self.payload_source.as_ref(),
                         progress,
                         cancellation,
                     )
@@ -142,7 +143,7 @@ impl ApplicationUpdateCommandRunner for ConfiguredApplicationUpdateCommandRunner
                     .download_expected(
                         environment,
                         &self.provider,
-                        &GithubApplicationUpdatePayloadSource,
+                        self.payload_source.as_ref(),
                         progress,
                         cancellation,
                         ApplicationUpdateDownloadExpectation {
@@ -414,7 +415,28 @@ fn configure_runner() -> DesktopResult<Option<Arc<dyn ApplicationUpdateCommandRu
     Ok(Some(Arc::new(ConfiguredApplicationUpdateCommandRunner {
         operation: ApplicationUpdateOperation::new(coordinator, staging),
         provider,
+        payload_source: configured_payload_source()?,
     })))
+}
+
+fn configured_payload_source() -> DesktopResult<Arc<dyn ApplicationUpdatePayloadSource>> {
+    #[cfg(all(target_os = "linux", feature = "application-update-qualification"))]
+    if let Some(path) = std::env::var_os("PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_PAYLOAD") {
+        let path = std::path::PathBuf::from(path);
+        let metadata = std::fs::symlink_metadata(&path).map_err(|_| {
+            DesktopError::from(portcove_core::PortcoveError::state(
+                "The controlled application update payload is unavailable.",
+            ))
+        })?;
+        if !path.is_absolute() || !metadata.is_file() || metadata.file_type().is_symlink() {
+            return Err(portcove_core::PortcoveError::state(
+                "The controlled application update payload must be a direct absolute file.",
+            )
+            .into());
+        }
+        return Ok(Arc::new(crate::QualificationPayloadSource(path)));
+    }
+    Ok(Arc::new(GithubApplicationUpdatePayloadSource))
 }
 
 struct ActiveApplicationUpdateCheck {

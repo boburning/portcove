@@ -1584,7 +1584,7 @@ fn qualify_installed_application_selection() -> i32 {
     any(windows, target_os = "linux", target_os = "macos"),
     feature = "application-update-qualification"
 ))]
-struct QualificationPayloadSource(PathBuf);
+pub(crate) struct QualificationPayloadSource(pub(crate) PathBuf);
 
 #[cfg(all(
     any(windows, target_os = "linux", target_os = "macos"),

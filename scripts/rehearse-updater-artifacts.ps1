@@ -563,6 +563,82 @@ try {
             "-CandidateVersion", $candidateVersion
         )
         Invoke-Checked "dbus-run-session" (@("--", "pwsh") + $linuxHarnessArguments)
+
+        $rendererRoot = Join-Path $fixtureRoot "renderer-qualification"
+        $rendererInstall = Join-Path $rendererRoot "Applications/Portcove"
+        $rendererLibrary = Join-Path $rendererRoot "library"
+        New-Item -ItemType Directory -Path $rendererInstall, $rendererLibrary | Out-Null
+        $rendererStable = Join-Path $rendererInstall "Portcove.AppImage"
+        Invoke-Checked "/usr/bin/cp" @("--preserve=mode,timestamps", "--", $predecessor, $rendererStable)
+        Invoke-Checked "/usr/bin/chmod" @("u+rwx,go+rx", "--", $rendererStable)
+        $rendererSentinel = Join-Path $rendererLibrary "update-preservation-marker.txt"
+        [IO.File]::WriteAllText($rendererSentinel, "Installed AppImage renderer update preservation`n")
+        $rendererSentinelHash = (Get-FileHash -LiteralPath $rendererSentinel -Algorithm SHA256).Hash
+        $rendererEnvironmentNames = @(
+            "APPIMAGE_EXTRACT_AND_RUN", "PORTCOVE_APPLICATION_RUNTIME_LOCK",
+            "PORTCOVE_APPLICATION_UPDATE_PREFERENCES", "PORTCOVE_APPLICATION_UPDATE_SCHEDULE",
+            "PORTCOVE_APPLICATION_UPDATE_STAGING", "PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_PAYLOAD",
+            "PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_HELPER_PROCESS",
+            "PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_RELAUNCH_EXIT",
+            "PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_RELAUNCH_PROCESS",
+            "PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_STAGE", "PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_EXIT",
+            "PORTCOVE_LIBRARY", "PORTCOVE_PREFERENCES"
+        )
+        $rendererPreviousEnvironment = @{}
+        foreach ($name in $rendererEnvironmentNames) {
+            $rendererPreviousEnvironment[$name] = [Environment]::GetEnvironmentVariable($name, "Process")
+        }
+        try {
+            Remove-Item Env:APPIMAGE_EXTRACT_AND_RUN -ErrorAction SilentlyContinue
+            Remove-Item Env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_EXIT -ErrorAction SilentlyContinue
+            $env:PORTCOVE_APPLICATION_RUNTIME_LOCK = Join-Path $rendererRoot "application-runtime.lock"
+            $env:PORTCOVE_APPLICATION_UPDATE_PREFERENCES = Join-Path $rendererRoot "application-update-preferences.json"
+            $env:PORTCOVE_APPLICATION_UPDATE_SCHEDULE = Join-Path $rendererRoot "application-update-schedule.json"
+            $env:PORTCOVE_APPLICATION_UPDATE_STAGING = Join-Path $rendererRoot "update-state"
+            $env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_PAYLOAD = $candidate
+            $env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_HELPER_PROCESS = Join-Path $rendererRoot "helper-process.json"
+            $env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_RELAUNCH_EXIT = "1"
+            $env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_RELAUNCH_PROCESS = Join-Path $rendererRoot "relaunch-process.json"
+            $env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_STAGE = Join-Path $rendererRoot "candidate-startup.json"
+            $env:PORTCOVE_LIBRARY = $rendererLibrary
+            $env:PORTCOVE_PREFERENCES = Join-Path $rendererRoot "host-preferences.json"
+            $rendererArguments = @(
+                "-a", "dbus-run-session", "--", "node",
+                (Join-Path $root "apps/desktop/scripts/desktop-appimage-update-test.mjs"),
+                "--app", $rendererStable,
+                "--driver", (Get-Command tauri-driver -ErrorAction Stop).Source,
+                "--native-driver", (Get-Command WebKitWebDriver -ErrorAction Stop).Source,
+                "--output", (Join-Path $rendererRoot "evidence"),
+                "--staging", $env:PORTCOVE_APPLICATION_UPDATE_STAGING,
+                "--stage-marker", $env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_STAGE,
+                "--relaunch-process-marker", $env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_RELAUNCH_PROCESS,
+                "--helper-process-marker", $env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_HELPER_PROCESS,
+                "--candidate-sha", $candidateHash,
+                "--candidate-version", $candidateVersion
+            )
+            Invoke-Checked "xvfb-run" $rendererArguments
+            $rendererReport = Get-Content -LiteralPath (Join-Path $rendererRoot "evidence/renderer-update-evidence.json") -Raw | ConvertFrom-Json
+            if ($rendererReport.phase -ne "complete" -or $rendererReport.source_commit -ne $revision -or
+                $rendererReport.restart.stable_sha256 -ne $candidateHash -or
+                (Get-FileHash -LiteralPath $rendererStable -Algorithm SHA256).Hash.ToLowerInvariant() -ne $candidateHash -or
+                (Get-FileHash -LiteralPath $rendererSentinel -Algorithm SHA256).Hash -ne $rendererSentinelHash) {
+                throw "Renderer-driven installed AppImage update did not preserve exact source and user data"
+            }
+            [ordered]@{
+                source_commit = $revision
+                predecessor_version = $predecessorVersion
+                candidate_version = $candidateVersion
+                candidate_sha256 = $candidateHash
+                stable_path = $rendererStable
+                stable_sha256 = (Get-FileHash -LiteralPath $rendererStable -Algorithm SHA256).Hash.ToLowerInvariant()
+                library_marker_sha256_before = $rendererSentinelHash.ToLowerInvariant()
+                library_marker_sha256_after = (Get-FileHash -LiteralPath $rendererSentinel -Algorithm SHA256).Hash.ToLowerInvariant()
+            } | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $rendererRoot "preservation.json") -Encoding utf8
+        } finally {
+            foreach ($name in $rendererEnvironmentNames) {
+                [Environment]::SetEnvironmentVariable($name, $rendererPreviousEnvironment[$name], "Process")
+            }
+        }
     }
     if ($IsMacOS) {
         $fixtureRoot = Join-Path $runRoot "macos-installed-selection-qualification"
