@@ -39,6 +39,16 @@ namespace Portcove.ReferenceClient
     {
         private const long MaximumExecutableBytes = 512L * 1024 * 1024;
 
+        internal static bool SameConnection(ClientSettings left, ClientSettings right) =>
+            left != null && right != null &&
+            string.Equals(left.Executable, right.Executable, StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(left.LibraryRoot, right.LibraryRoot, StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(left.ApprovedExecutable, right.ApprovedExecutable, StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(left.ApprovedLibraryRoot, right.ApprovedLibraryRoot, StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(left.ExecutableSha256, right.ExecutableSha256, StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(left.LibraryId, right.LibraryId, StringComparison.Ordinal) &&
+            left.CreateNewLibrary == right.CreateNewLibrary;
+
         internal static RuntimeInspection Inspect(ClientSettings draft)
         {
             PublicCli.RequireAbsolute(draft.Executable);

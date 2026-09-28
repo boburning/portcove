@@ -34,7 +34,7 @@ namespace Portcove.ReferenceClient
             var client = new PublicCli(accepted.Executable, accepted.LibraryRoot);
             await client.Connect().ConfigureAwait(false);
             RuntimeSelection.RequireAccepted(accepted);
-            if (!ReferenceEquals(settings.Active, accepted))
+            if (!RuntimeSelection.SameConnection(settings.Active, accepted))
                 throw new InvalidOperationException("The Portcove runtime or library selection changed. Refresh again.");
             if (!string.Equals(client.LibraryId, accepted.LibraryId, StringComparison.Ordinal))
                 throw new InvalidOperationException("The selected library identity changed. Reconnect it in extension settings.");
@@ -59,10 +59,11 @@ namespace Portcove.ReferenceClient
         private async Task<IEnumerable<GameMetadata>> Discover()
         {
             var accepted = settings.Active;
+            var selected = (accepted.SelectedPortIds ?? new List<string>()).ToArray();
             var catalog = await ReadCatalog(accepted).ConfigureAwait(false);
-            if (!ReferenceEquals(settings.Active, accepted))
+            if (!RuntimeSelection.SameConnection(settings.Active, accepted))
                 throw new InvalidOperationException("The Portcove library selection changed during refresh. Refresh again.");
-            return PersonalLibrary.Default(catalog, accepted.SelectedPortIds).Select(game => game.Metadata()).ToArray();
+            return PersonalLibrary.Default(catalog, selected).Select(game => game.Metadata()).ToArray();
         }
 
         private async Task<IReadOnlyList<PortcoveCatalogGame>> ReadCatalog(ClientSettings accepted)
@@ -71,7 +72,7 @@ namespace Portcove.ReferenceClient
             var catalog = Json.Array(await cli.Read("catalog.list", "catalog", "list").ConfigureAwait(false));
             var statuses = Json.Array(await cli.Read("status", "status").ConfigureAwait(false));
             await cli.AssertIdentity().ConfigureAwait(false);
-            if (!ReferenceEquals(settings.Active, accepted))
+            if (!RuntimeSelection.SameConnection(settings.Active, accepted))
                 throw new InvalidOperationException("The Portcove library selection changed during discovery. Refresh again.");
             return PersonalLibrary.Read(catalog, statuses, cli.LibraryId);
         }
@@ -102,7 +103,7 @@ namespace Portcove.ReferenceClient
                 var catalog = await ReadCatalog(accepted);
                 var chosen = CatalogBrowser.Choose(PlayniteApi, catalog, accepted.SelectedPortIds);
                 if (chosen.Count == 0) return;
-                if (!ReferenceEquals(settings.Active, accepted))
+                if (!RuntimeSelection.SameConnection(settings.Active, accepted))
                     throw new InvalidOperationException("The Portcove library changed while choosing games. Refresh the catalog and choose again.");
                 foreach (var game in chosen)
                 {
@@ -125,7 +126,7 @@ namespace Portcove.ReferenceClient
                 var chosen = LegacyEntriesWindow.Choose(PlayniteApi, candidates);
                 if (chosen.Count == 0) return;
                 var latest = await ReadCatalog(accepted);
-                var stillCurrent = new HashSet<string>(PersonalLibrary.Default(latest, accepted.SelectedPortIds)
+                var stillCurrent = new HashSet<string>(PersonalLibrary.Default(latest, settings.Active.SelectedPortIds)
                     .Select(game => game.GameId), StringComparer.Ordinal);
                 foreach (var game in chosen)
                 {

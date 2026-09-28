@@ -365,6 +365,18 @@ internal static class ContractTests
             draft.LibraryId = "selected-library-id";
             RuntimeSelection.RequireAccepted(draft);
             Check(true, "accepted runtime binds exact executable bytes and existing library path");
+            var activityOnly = new ClientSettings
+            {
+                Executable = draft.Executable, LibraryRoot = draft.LibraryRoot,
+                ApprovedExecutable = draft.ApprovedExecutable, ApprovedLibraryRoot = draft.ApprovedLibraryRoot,
+                ExecutableSha256 = draft.ExecutableSha256, LibraryId = draft.LibraryId,
+                LastLaunchRequest = "new-launch", SelectedPortIds = new List<string> { "shape-a" }
+            };
+            Check(RuntimeSelection.SameConnection(draft, activityOnly),
+                "launch pointers and personal selections do not invalidate the approved connection");
+            activityOnly.LibraryId = "different-library";
+            Check(!RuntimeSelection.SameConnection(draft, activityOnly),
+                "a changed library identity invalidates an in-flight refresh");
             draft.CreateNewLibrary = true;
             Reject(() => RuntimeSelection.RequireAccepted(draft), "new-library choice cannot reuse a prior approval");
             draft.CreateNewLibrary = false;
