@@ -63,6 +63,7 @@ const report = {
 };
 const evidencePath = path.join(values.output, "renderer-update-evidence.json");
 const snapshotPath = path.join(values.output, "native-processes-before-restart.json");
+const driverOnlySnapshotPath = path.join(values.output, "native-driver-at-failure.json");
 const nativeSession = fileURLToPath(new URL("./native-session.ps1", import.meta.url));
 const markedProcess = fileURLToPath(new URL("./native-marked-update-process.ps1", import.meta.url));
 const webviewProfile = path.join(values.output, "webview2-profile");
@@ -70,15 +71,18 @@ let driver;
 let browser;
 let driverSession;
 let snapshot;
+let activeSnapshotPath = snapshotPath;
 let restartStarted;
 
 async function save() {
   await writeFile(evidencePath, `${JSON.stringify(report, null, 2)}\n`);
 }
 function nativeSessionCommand(mode) {
-  const args = ["-NoProfile", "-File", nativeSession, "-Mode", mode, "-SnapshotPath", snapshotPath];
-  if (mode === "Snapshot")
-    args.push("-DriverProcessId", String(driver.pid), "-ApplicationPath", values.app);
+  const target = mode === "SnapshotDriver" ? driverOnlySnapshotPath : activeSnapshotPath;
+  const args = ["-NoProfile", "-File", nativeSession, "-Mode", mode, "-SnapshotPath", target];
+  if (mode === "Snapshot" || mode === "SnapshotDriver")
+    args.push("-DriverProcessId", String(driver.pid));
+  if (mode === "Snapshot") args.push("-ApplicationPath", values.app);
   return JSON.parse(
     execFileSync("pwsh", args, {
       encoding: "utf8",
@@ -257,6 +261,7 @@ try {
       report.native_snapshot_failure = String(error.message).slice(0, 300);
       try {
         snapshot = nativeSessionCommand("SnapshotDriver");
+        activeSnapshotPath = driverOnlySnapshotPath;
         report.driver_only_snapshot = snapshot;
       } catch (driverError) {
         report.driver_snapshot_failure = String(driverError.message).slice(0, 300);
