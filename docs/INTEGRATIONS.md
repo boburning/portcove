@@ -206,6 +206,9 @@ catalog, scan whole drives by default, infer ownership from compatibility, or
 fuzzy-merge a native port with an emulated/original-game entry. Stable library and
 port identities prevent duplication across refresh, rename, update, rollback and
 supported relocation while preserving user-selected metadata and organization.
+Entries already imported by an earlier candidate remain in Playnite until the
+player reviews which to hide; ordinary refresh does not silently delete or hide
+personalized entries.
 
 The primary action is state-driven—Install, Choose original files, Finish setup,
 Play, or Review problem—with an eligible update offered separately from Play.

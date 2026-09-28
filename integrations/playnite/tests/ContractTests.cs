@@ -1,4 +1,5 @@
 using Portcove.ReferenceClient;
+using Playnite.SDK.Models;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -397,6 +398,14 @@ internal static class ContractTests
             "explicit compatible selection adds one uninstalled port without inventing an installation");
         Reject(() => PersonalLibrary.Read(catalog, statuses.Take(1).ToArray(), "library-a"),
             "partial status response cannot silently change personal-library discovery");
+        var plugin = Guid.NewGuid();
+        var prior = new Game("Prior catalog entry") { PluginId = plugin, GameId = "old-library/shape-b" };
+        var foreign = new Game("Other library") { PluginId = Guid.NewGuid(), GameId = "old-library/shape-b" };
+        var currentGame = new Game("Current installation") { PluginId = plugin, GameId = initial[0].GameId };
+        var hidden = new Game("Already hidden") { PluginId = plugin, GameId = "old-library/shape-c", Hidden = true };
+        var review = PersonalLibrary.PriorVisibleEntries(new[] { prior, foreign, currentGame, hidden }, plugin, initial);
+        Check(review.Count == 1 && review[0].GameId == prior.GameId && !review[0].Hidden,
+            "migration review identifies only visible prior Portcove entries and preserves current and foreign games");
     }
 
     private static async Task ConsumerMeasurements()

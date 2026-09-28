@@ -26,13 +26,16 @@ namespace Portcove.ReferenceClient
         internal string SelectExecutable() => PlayniteApi.Dialogs.SelectFile("Portcove CLI|portcove.exe|Applications|*.exe");
         internal string SelectLibrary() => PlayniteApi.Dialogs.SelectFolder();
 
-        internal async Task<PublicCli> Connect()
+        internal Task<PublicCli> Connect() => Connect(settings.Active);
+
+        private async Task<PublicCli> Connect(ClientSettings accepted)
         {
-            var accepted = settings.Active;
             RuntimeSelection.RequireAccepted(accepted);
             var client = new PublicCli(accepted.Executable, accepted.LibraryRoot);
             await client.Connect().ConfigureAwait(false);
             RuntimeSelection.RequireAccepted(accepted);
+            if (!ReferenceEquals(settings.Active, accepted))
+                throw new InvalidOperationException("The Portcove runtime or library selection changed. Refresh again.");
             if (!string.Equals(client.LibraryId, accepted.LibraryId, StringComparison.Ordinal))
                 throw new InvalidOperationException("The selected library identity changed. Reconnect it in extension settings.");
             return client;
@@ -55,16 +58,21 @@ namespace Portcove.ReferenceClient
 
         private async Task<IEnumerable<GameMetadata>> Discover()
         {
-            var catalog = await ReadCatalog().ConfigureAwait(false);
-            return PersonalLibrary.Default(catalog, settings.Active.SelectedPortIds).Select(game => game.Metadata()).ToArray();
+            var accepted = settings.Active;
+            var catalog = await ReadCatalog(accepted).ConfigureAwait(false);
+            if (!ReferenceEquals(settings.Active, accepted))
+                throw new InvalidOperationException("The Portcove library selection changed during refresh. Refresh again.");
+            return PersonalLibrary.Default(catalog, accepted.SelectedPortIds).Select(game => game.Metadata()).ToArray();
         }
 
-        private async Task<IReadOnlyList<PortcoveCatalogGame>> ReadCatalog()
+        private async Task<IReadOnlyList<PortcoveCatalogGame>> ReadCatalog(ClientSettings accepted)
         {
-            var cli = await Connect().ConfigureAwait(false);
+            var cli = await Connect(accepted).ConfigureAwait(false);
             var catalog = Json.Array(await cli.Read("catalog.list", "catalog", "list").ConfigureAwait(false));
             var statuses = Json.Array(await cli.Read("status", "status").ConfigureAwait(false));
             await cli.AssertIdentity().ConfigureAwait(false);
+            if (!ReferenceEquals(settings.Active, accepted))
+                throw new InvalidOperationException("The Portcove library selection changed during discovery. Refresh again.");
             return PersonalLibrary.Read(catalog, statuses, cli.LibraryId);
         }
 
@@ -76,22 +84,56 @@ namespace Portcove.ReferenceClient
                 Description = "Browse and add compatible games…",
                 Action = action => AddGames()
             };
+            yield return new MainMenuItem
+            {
+                MenuSection = "Portcove",
+                Description = "Review prior library entries…",
+                Action = action => ReviewPriorEntries()
+            };
         }
 
         private async void AddGames()
         {
             try
             {
-                if (string.IsNullOrEmpty(settings.Active.LibraryId))
+                var accepted = settings.Active;
+                if (string.IsNullOrEmpty(accepted.LibraryId))
                     throw new InvalidOperationException("Connect a Portcove CLI and library in extension settings before adding games.");
-                var catalog = await ReadCatalog();
-                var chosen = CatalogBrowser.Choose(PlayniteApi, catalog, settings.Active.SelectedPortIds);
+                var catalog = await ReadCatalog(accepted);
+                var chosen = CatalogBrowser.Choose(PlayniteApi, catalog, accepted.SelectedPortIds);
                 if (chosen.Count == 0) return;
-                settings.RememberSelection(chosen.Select(game => game.PortId), chosen[0].LibraryId);
+                if (!ReferenceEquals(settings.Active, accepted))
+                    throw new InvalidOperationException("The Portcove library changed while choosing games. Refresh the catalog and choose again.");
                 foreach (var game in chosen)
                 {
-                    if (PlayniteApi.Database.Games.Any(existing => existing.PluginId == Id && existing.GameId == game.GameId)) continue;
-                    PlayniteApi.Database.ImportGame(game.Metadata(), this);
+                    if (!PlayniteApi.Database.Games.Any(existing => existing.PluginId == Id && existing.GameId == game.GameId))
+                        PlayniteApi.Database.ImportGame(game.Metadata(), this);
+                    settings.RememberSelection(new[] { game.PortId }, game.LibraryId);
+                }
+            }
+            catch (Exception error) { Error(error); }
+        }
+
+        private async void ReviewPriorEntries()
+        {
+            try
+            {
+                var accepted = settings.Active;
+                var catalog = await ReadCatalog(accepted);
+                var current = PersonalLibrary.Default(catalog, accepted.SelectedPortIds);
+                var candidates = PersonalLibrary.PriorVisibleEntries(PlayniteApi.Database.Games, Id, current);
+                var chosen = LegacyEntriesWindow.Choose(PlayniteApi, candidates);
+                if (chosen.Count == 0) return;
+                var latest = await ReadCatalog(accepted);
+                var stillCurrent = new HashSet<string>(PersonalLibrary.Default(latest, accepted.SelectedPortIds)
+                    .Select(game => game.GameId), StringComparer.Ordinal);
+                foreach (var game in chosen)
+                {
+                    var live = PlayniteApi.Database.Games.Get(game.Id);
+                    if (live == null || live.PluginId != Id || live.GameId != game.GameId ||
+                        live.Hidden || stillCurrent.Contains(live.GameId)) continue;
+                    live.Hidden = true;
+                    PlayniteApi.Database.Games.Update(live);
                 }
             }
             catch (Exception error) { Error(error); }

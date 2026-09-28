@@ -59,5 +59,13 @@ namespace Portcove.ReferenceClient
             var selected = new HashSet<string>(selectedPortIds ?? Enumerable.Empty<string>(), StringComparer.Ordinal);
             return catalog.Where(game => game.IsInstalled || selected.Contains(game.PortId)).ToArray();
         }
+
+        internal static IReadOnlyList<Game> PriorVisibleEntries(
+            IEnumerable<Game> playniteGames, Guid pluginId, IReadOnlyList<PortcoveCatalogGame> current)
+        {
+            var currentIds = new HashSet<string>(current.Select(game => game.GameId), StringComparer.Ordinal);
+            return playniteGames.Where(game => game.PluginId == pluginId && !game.Hidden &&
+                !currentIds.Contains(game.GameId)).ToArray();
+        }
     }
 }

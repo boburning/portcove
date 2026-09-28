@@ -118,7 +118,14 @@ the key `(opaque library ID, port ID)`. Use the Portcove main-menu command
 **Browse and add compatible games** to search and select additional entries. This
 does not install a game, infer ownership of original files, or scan drives.
 Changing to a different Portcove library clears the prior library's explicit
-selection. Version/path changes do not alter a game's identity. Installation
+selection. Playnite keeps entries it imported before a plugin update or library
+change. If you used the earlier broad-import `0.1.0` candidate, open the Portcove
+main-menu command **Review prior library entries** after connecting the new
+runtime/library. It lists visible entries outside the current installed/selected
+set and lets you deliberately hide individual entries. Hiding retains Playnite
+metadata and never uninstalls a Portcove game or removes files. Playnite's Hidden
+filter can show them again. The plugin does not silently delete or hide entries.
+Version/path changes do not alter a game's identity. Installation
 state comes from core; gameplay qualification is distinct from launch readiness.
 Right-click one
 Portcove game → Portcove → Manage and review activity opens the optional
