@@ -652,6 +652,15 @@ pub fn current_linux_appimage_source() -> Result<PathBuf, LinuxApplicationUpdate
     Ok(current_linux_appimage_execution()?.source)
 }
 
+/// Values from the already-mounted, native AppImage execution. A helper that
+/// reexecutes this mount needs these exact values to revalidate its own context.
+#[cfg(target_os = "linux")]
+pub(crate) fn current_linux_appimage_helper_environment()
+-> Result<(PathBuf, PathBuf), LinuxApplicationUpdateError> {
+    let execution = current_linux_appimage_execution()?;
+    Ok((execution.source, execution.mount))
+}
+
 #[cfg(target_os = "linux")]
 fn evaluate_linux_appimage_update(
     staged: &StagedApplicationUpdate,

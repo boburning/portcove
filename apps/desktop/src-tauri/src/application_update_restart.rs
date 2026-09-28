@@ -217,9 +217,14 @@ fn spawn_update_helper(expected_revision: u64) -> DesktopResult<()> {
     )
     .map_err(|error| DesktopError::from(PortcoveError::state(error.to_string())))?;
     #[cfg(target_os = "linux")]
-    let executable = crate::application_update_linux::current_linux_appimage_source()
-        .map_err(|_| unsupported_installation())?;
+    let (source, mount) =
+        crate::application_update_linux::current_linux_appimage_helper_environment()
+            .map_err(|_| unsupported_installation())?;
+    #[cfg(target_os = "linux")]
+    let executable = std::env::current_exe().map_err(PortcoveError::from)?;
     let mut command = update_helper_command(&executable, expected_revision)?;
+    #[cfg(target_os = "linux")]
+    bind_verified_linux_appimage_execution(&mut command, &source, &mount);
     let child = command.spawn().map_err(|_| {
         DesktopError::from(PortcoveError::launch(
             "Could not start the application update helper. Portcove stayed open and kept the verified update for retry.",
@@ -280,6 +285,15 @@ fn update_helper_command(
     command.env_remove("APPDIR").env_remove("APPIMAGE");
     configure_independent_process(&mut command);
     Ok(command)
+}
+
+#[cfg(target_os = "linux")]
+fn bind_verified_linux_appimage_execution(
+    command: &mut std::process::Command,
+    source: &std::path::Path,
+    mount: &std::path::Path,
+) {
+    command.env("APPIMAGE", source).env("APPDIR", mount);
 }
 
 #[cfg(windows)]
@@ -711,6 +725,26 @@ mod tests {
                         .any(|(key, value)| key == name && value.is_none())
                 );
             }
+            let mut command = command;
+            bind_verified_linux_appimage_execution(
+                &mut command,
+                std::path::Path::new("/verified/Portcove.AppImage"),
+                std::path::Path::new("/tmp/.mount_verified"),
+            );
+            assert_eq!(
+                command
+                    .get_envs()
+                    .find(|(key, _)| *key == OsStr::new("APPIMAGE"))
+                    .map(|(_, value)| value),
+                Some(Some(OsStr::new("/verified/Portcove.AppImage")))
+            );
+            assert_eq!(
+                command
+                    .get_envs()
+                    .find(|(key, _)| *key == OsStr::new("APPDIR"))
+                    .map(|(_, value)| value),
+                Some(Some(OsStr::new("/tmp/.mount_verified")))
+            );
         }
     }
 

@@ -408,10 +408,11 @@ staged bytes; ordinary builds still use the fixed GitHub release-asset transport
 The hosted WebKitWebDriver path drives the visible check, download and restart
 controls on an installed AppImage, then records the exact stable path and
 healthy-startup journal. Its local byte source does not prove a production
-network transfer. The GUI starts the revision-bound Linux helper through the
-verified outer installed AppImage, so the helper has its own native AppImage
-runtime identity; launching the extracted executable would lose that identity
-when the host's child-process environment policy removes mount variables.
+network transfer. The GUI starts the revision-bound Linux helper from the
+already-mounted executable, retaining the running code identity while passing
+only the AppImage source and mount values verified from that native execution.
+The host's general child-process policy removes mount variables, so the helper
+must receive those exact validated values before it revalidates its context.
 After the shared post-exit
 revalidation lease is held, the Linux adapter rehashes an exact direct x86_64 Type 2 AppImage
 payload into a synchronized sibling file and atomically exchanges it with the stable
