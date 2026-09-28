@@ -85,6 +85,14 @@ function psField(pid, field) {
   }
 }
 function processIdentity(pid, role) {
+  const identity = readProcessIdentity(pid);
+  if (!identity) return null;
+  const expected = role === "helper" ? `${values.app} --portcove-apply-update ` : values.app;
+  if (role === "helper" ? !identity.command.startsWith(expected) : identity.command !== expected)
+    throw new Error(`Marked ${role} PID does not run the owned installed executable`);
+  return identity;
+}
+function readProcessIdentity(pid) {
   if (!Number.isInteger(pid) || pid <= 0) throw new Error("Invalid owned process marker PID");
   const started = psField(pid, "lstart");
   if (!started) return null;
@@ -92,9 +100,6 @@ function processIdentity(pid, role) {
   const state = psField(pid, "stat");
   if (!command || !state || state.startsWith("Z") || psField(pid, "lstart") !== started)
     return null;
-  const expected = role === "helper" ? `${values.app} --portcove-apply-update ` : values.app;
-  if (role === "helper" ? !command.startsWith(expected) : command !== expected)
-    throw new Error(`Marked ${role} PID does not run the owned installed executable`);
   return { pid, started, command, state };
 }
 function matchingChildIdentity(pid, role) {

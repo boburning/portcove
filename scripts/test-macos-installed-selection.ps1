@@ -272,7 +272,7 @@ try {
     $env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_STAGE = Join-Path $guiState "candidate-startup-stage.json"
     Remove-Item Env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_EXIT -ErrorAction SilentlyContinue
     $guiEvidence = Join-Path (Split-Path -Parent $EvidencePath) "renderer-qualification"
-    & node apps/desktop/scripts/desktop-macos-installed-update-test.mjs --app $guiExecutable --output $guiEvidence --staging $guiState --candidate-sha $expectedExecutableHash --candidate-archive-sha $candidate --candidate-version $CandidateVersion --helper-marker $env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_HELPER_PROCESS --relaunch-marker $env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_RELAUNCH_PROCESS --stage-marker $env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_STAGE --library-marker $guiLibraryMarker
+    & corepack pnpm --dir apps/desktop test:macos-installed-update --app $guiExecutable --output $guiEvidence --staging $guiState --candidate-sha $expectedExecutableHash --candidate-archive-sha $candidate --candidate-version $CandidateVersion --helper-marker $env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_HELPER_PROCESS --relaunch-marker $env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_RELAUNCH_PROCESS --stage-marker $env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_STAGE --library-marker $guiLibraryMarker
     if ($LASTEXITCODE -ne 0) { throw "Installed macOS renderer restart qualification failed" }
     & /usr/bin/codesign --verify --deep --strict $guiApp
     if ($LASTEXITCODE -ne 0) { throw "The GUI-updated bundle signature failed verification" }
