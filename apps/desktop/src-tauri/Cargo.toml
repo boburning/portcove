@@ -69,6 +69,7 @@ libc.workspace = true
 [target.'cfg(target_os = "macos")'.dependencies]
 flate2.workspace = true
 rustix.workspace = true
+tempfile.workspace = true
 
 [target.'cfg(target_os = "linux")'.dependencies]
 rustix.workspace = true

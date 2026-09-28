@@ -577,6 +577,14 @@ fn sync_parent(path: &Path) -> Result<(), MacosApplicationUpdateError> {
     Ok(())
 }
 
+fn bundle_directory_identity(path: &Path) -> Result<(u64, u64), MacosApplicationUpdateError> {
+    let metadata = fs::symlink_metadata(path)?;
+    if !metadata.is_dir() || metadata.file_type().is_symlink() {
+        return Err(macos_error("the bundle directory identity is unavailable"));
+    }
+    Ok((metadata.dev(), metadata.ino()))
+}
+
 impl MacosBundleUpdateAdmission {
     /// Atomically exchanges the fully verified candidate with the installed
     /// bundle. The former installed bundle stays in the journaled backup slot
@@ -629,12 +637,14 @@ impl MacosBundleUpdateAdmission {
                 };
             }
         };
+        let source_directory = bundle_directory_identity(&source)?;
+        let backup_directory = bundle_directory_identity(&backup)?;
         if let Err(error) = renameat_with(CWD, &source, CWD, &backup, RenameFlags::EXCHANGE) {
-            if executable_identity(&source).ok() != Some((previous_bytes, previous_sha256.clone()))
-                || executable_identity(&backup).ok() != Some(candidate_identity.clone())
+            if bundle_directory_identity(&source).ok() != Some(source_directory)
+                || bundle_directory_identity(&backup).ok() != Some(backup_directory)
             {
                 return Err(MacosApplicationUpdateError::Ambiguous(format!(
-                    "atomic bundle exchange returned an error and unchanged bundle identities could not be proven: {error}"
+                    "atomic bundle exchange returned an error and unchanged directory identities could not be proven: {error}"
                 )));
             }
             return match launch.record_failed() {
@@ -657,8 +667,20 @@ impl MacosBundleUpdateAdmission {
                 "the bundle exchanged but predecessor identity is unavailable: {error}"
             ))
         })?;
+        let observed_source_directory = bundle_directory_identity(&source).map_err(|error| {
+            MacosApplicationUpdateError::Ambiguous(format!(
+                "the bundle exchanged but the installed directory identity is unavailable: {error}"
+            ))
+        })?;
+        let observed_backup_directory = bundle_directory_identity(&backup).map_err(|error| {
+            MacosApplicationUpdateError::Ambiguous(format!(
+                "the bundle exchanged but the backup directory identity is unavailable: {error}"
+            ))
+        })?;
         if observed_candidate != candidate_identity
             || observed_predecessor != (previous_bytes, previous_sha256)
+            || observed_source_directory != backup_directory
+            || observed_backup_directory != source_directory
         {
             return Err(MacosApplicationUpdateError::Ambiguous(
                 "the atomic bundle exchange completed but its retained executable identities differ".into(),
