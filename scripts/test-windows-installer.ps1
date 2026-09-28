@@ -22,6 +22,7 @@ param(
     [string]$InstalledUpdateTargetsPath,
     [string]$InstalledUpdateCandidatePath,
     [string]$InstalledUpdatePredecessorVersion,
+    [switch]$RendererUpdate,
     [ValidateSet("", "post-spawn-verification")]
     [string]$TestFault = ""
 )
@@ -202,6 +203,9 @@ if ($predecessor -and [System.IO.Path]::GetExtension($predecessor) -ne ".exe") {
     throw "Upgrade predecessor must be an executable"
 }
 $installedUpdate = -not [string]::IsNullOrWhiteSpace($InstalledUpdateTrustedRootPath)
+if ($RendererUpdate -and -not $installedUpdate) {
+    throw "Renderer update qualification requires an installed application update"
+}
 if ($installedUpdate -and (-not $predecessor -or -not $InstalledUpdateMetadataPath -or
         -not $InstalledUpdateTargetsPath -or -not $InstalledUpdateCandidatePath -or
         -not $InstalledUpdatePredecessorVersion -or -not $ExpectedVersion -or -not $RequireSigningAuthorityAbsent)) {
@@ -530,6 +534,10 @@ $updateEnvironmentNames = @(
     "PORTCOVE_APPLICATION_UPDATE_PREFERENCES",
     "PORTCOVE_APPLICATION_UPDATE_SCHEDULE",
     "PORTCOVE_APPLICATION_UPDATE_STAGING",
+    "PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_PAYLOAD",
+    "PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_HELPER_PROCESS",
+    "PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_RELAUNCH_EXIT",
+    "PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_RELAUNCH_PROCESS",
     "PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_EXIT",
     "PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_STAGE"
 )
@@ -571,6 +579,13 @@ try {
             predecessor_smoke = $previousSmoke
         }
         Write-InstallerEvidence "predecessor_verified" $upgrade
+
+        if ($RendererUpdate) {
+            $driverPreflight = Join-Path $runRoot "driver-preflight-baseline"
+            & node (Join-Path $PSScriptRoot "../apps/desktop/scripts/desktop-test.mjs") --app $application --output $driverPreflight --scenario empty-library --port 45870
+            if ($LASTEXITCODE -ne 0) { throw "Installed predecessor WebDriver baseline preflight failed" }
+            if ($evidence) { $evidence.driver_preflight_baseline = "passed"; Write-InstallerEvidence "driver_preflight_baseline_passed" }
+        }
     }
     # This is a qualification marker, not a fabricated game save.
     $sentinelRoot = Join-Path $libraryRoot "user\installer-qualification"
@@ -593,8 +608,13 @@ try {
         $env:PORTCOVE_APPLICATION_UPDATE_PREFERENCES = $updatePreferences
         $env:PORTCOVE_APPLICATION_UPDATE_SCHEDULE = Join-Path $runRoot "application-update-schedule.json"
         $env:PORTCOVE_APPLICATION_UPDATE_STAGING = $updateRoot
-        $env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_EXIT = "after-reconciliation"
         $env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_STAGE = $qualificationStage
+        if ($RendererUpdate) {
+            [Environment]::SetEnvironmentVariable("PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_EXIT", $null, "Process")
+            $env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_RELAUNCH_EXIT = "1"
+        } else {
+            $env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_EXIT = "after-reconciliation"
+        }
 
         $candidateBytes = [UInt64](Get-Item -LiteralPath $candidate).Length
         if ($candidateBytes -le 1) { throw "Signed candidate installer is too small for truncation qualification" }
@@ -622,6 +642,51 @@ try {
         if ($evidence) { $evidence.installed_truncated_stage = [ordered]@{ exit_code = $truncated.ExitCode; staging_empty = $true; predecessor_preserved = $true; sentinel_preserved = $true } }
         Write-InstallerEvidence "installed_truncated_stage_rejected"
 
+        if ($RendererUpdate) {
+            $rendererRoot = Join-Path $runRoot "renderer-qualification"
+            $rendererEvidence = Join-Path $rendererRoot "evidence"
+            [IO.Directory]::CreateDirectory($rendererRoot) | Out-Null
+            $helperMarker = Join-Path $rendererRoot "helper-process.json"
+            $relaunchMarker = Join-Path $rendererRoot "relaunch-process.json"
+            $env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_PAYLOAD = $candidate
+            $env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_HELPER_PROCESS = $helperMarker
+            $env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_RELAUNCH_PROCESS = $relaunchMarker
+            $driverPreflight = Join-Path $runRoot "driver-preflight-fixture-env"
+            & node (Join-Path $PSScriptRoot "../apps/desktop/scripts/desktop-test.mjs") --app $application --output $driverPreflight --scenario empty-library --port 45872
+            if ($LASTEXITCODE -ne 0) { throw "Installed predecessor WebDriver fixture-environment preflight failed" }
+            if ($evidence) { $evidence.driver_preflight_fixture_env = "passed"; Write-InstallerEvidence "driver_preflight_fixture_env_passed" }
+            $candidateExecutableHash = (Get-FileHash -LiteralPath $ExpectedExecutablePath -Algorithm SHA256).Hash.ToLowerInvariant()
+            $rendererArguments = @(
+                (Join-Path $PSScriptRoot "../apps/desktop/scripts/desktop-windows-update-test.mjs"),
+                "--app", $application,
+                "--output", $rendererEvidence,
+                "--staging", $updateRoot,
+                "--stage-marker", $qualificationStage,
+                "--helper-process-marker", $helperMarker,
+                "--relaunch-process-marker", $relaunchMarker,
+                "--candidate-installer-sha", $installerHash,
+                "--candidate-executable-sha", $candidateExecutableHash,
+                "--candidate-version", $ExpectedVersion
+            )
+            & node @rendererArguments
+            if ($LASTEXITCODE -ne 0) { throw "Installed Windows renderer update qualification failed" }
+            $rendererReport = Get-Content -LiteralPath (Join-Path $rendererEvidence "renderer-update-evidence.json") -Raw | ConvertFrom-Json
+            if ($rendererReport.phase -ne "complete" -or $rendererReport.staged.sha256 -ne $installerHash -or
+                $rendererReport.restart.installed_executable_sha256 -ne $candidateExecutableHash -or
+                (Get-FileHash -LiteralPath $sentinel -Algorithm SHA256).Hash -ne $sentinelHash) {
+                throw "Renderer-driven Windows update did not preserve exact package, executable and user data"
+            }
+            if ($evidence) {
+                $evidence.installed_stage = [ordered]@{
+                    version = $ExpectedVersion
+                    sha256 = $rendererReport.staged.sha256
+                    bytes = $rendererReport.staged.bytes
+                    predecessor_preserved = $true
+                    renderer_evidence = "renderer-qualification/evidence/renderer-update-evidence.json"
+                }
+            }
+            Write-InstallerEvidence "installed_renderer_reconciled" ([ordered]@{ renderer = $rendererReport; sentinel_preserved = $true })
+        } else {
         $selectionStage = Invoke-JournaledProcess -Role "installed_update_selection_stage" -Executable $application -Arguments @("--portcove-qualify-update-stage", ('"' + $candidate + '"')) -AllowedRelocationRoot $runRoot
         if ($selectionStage.ExitCode -ne 0) {
             $stageError = [IO.File]::ReadAllText((Join-Path $runRoot "installed-update-selection-stage.stderr.log"))
@@ -742,6 +807,7 @@ try {
             } finally { $relaunch.Dispose() }
         }
         Write-InstallerEvidence "installed_helper_reconciled" ([ordered]@{ prepared = $prepared; qualification_stage = $stage; apply_state = $applyState; relaunch = $relaunchExit })
+        }
         # The next smoke is an ordinary interactive candidate launch. Keep the
         # saved values for the outer finally, but do not let the qualification
         # relaunch's immediate-exit mode suppress its window and close checks.
@@ -848,14 +914,26 @@ try {
         throw "Uninstall changed the recursive isolated-library manifest"
     }
 
+    if ($RendererUpdate) {
+        if (-not $evidence) { throw "Renderer update qualification requires an external EvidencePath" }
+        $retainedRendererEvidence = Join-Path $evidenceParent "windows-renderer-evidence"
+        if ($evidenceParent.StartsWith($runRoot + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase) -or
+            [IO.Directory]::Exists($retainedRendererEvidence)) {
+            throw "Renderer evidence destination must be new and outside the disposable installer run"
+        }
+        Copy-Item -LiteralPath $rendererEvidence -Destination $retainedRendererEvidence -Recurse
+        if (-not [IO.File]::Exists((Join-Path $retainedRendererEvidence "renderer-update-evidence.json"))) {
+            throw "Renderer evidence was not retained outside the disposable installer run"
+        }
+    }
     $completed = $true
     $result = [pscustomobject]@{
         installer = $installer
         installer_sha256 = $installerHash
         signature_status = $signature.Status.ToString()
-        install_exit_code = $install.ExitCode
+        install_exit_code = if ($RendererUpdate) { $null } else { $install.ExitCode }
         install_mode = $InstallMode
-        update_path = if ($installedUpdate) { "installed_app_helper" } elseif ($predecessor) { "registered_nsis_update" } else { "explicit_bootstrap_destination" }
+        update_path = if ($RendererUpdate) { "installed_app_renderer" } elseif ($installedUpdate) { "installed_app_helper" } elseif ($predecessor) { "registered_nsis_update" } else { "explicit_bootstrap_destination" }
         registered_version = $registryEntries[0].DisplayVersion
         registration_path = $registryEntries[0].PSPath
         installed_executable_sha256 = $installedHash

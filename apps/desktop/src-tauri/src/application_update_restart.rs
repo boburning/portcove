@@ -230,7 +230,10 @@ fn spawn_update_helper(expected_revision: u64) -> DesktopResult<()> {
             "Could not start the application update helper. Portcove stayed open and kept the verified update for retry.",
         ))
     })?;
-    #[cfg(all(target_os = "linux", feature = "application-update-qualification"))]
+    #[cfg(all(
+        any(windows, target_os = "linux"),
+        feature = "application-update-qualification"
+    ))]
     {
         let mut child = child;
         if let Some(path) =
@@ -262,7 +265,10 @@ fn spawn_update_helper(expected_revision: u64) -> DesktopResult<()> {
             }
         }
     }
-    #[cfg(not(all(target_os = "linux", feature = "application-update-qualification")))]
+    #[cfg(not(all(
+        any(windows, target_os = "linux"),
+        feature = "application-update-qualification"
+    )))]
     drop(child);
     Ok(())
 }
@@ -298,6 +304,29 @@ fn bind_verified_linux_appimage_execution(
 
 #[cfg(windows)]
 pub(crate) fn run_update_helper(expected_revision: u64) -> i32 {
+    let result = run_windows_update_helper(expected_revision);
+    #[cfg(feature = "application-update-qualification")]
+    if let Some(path) = std::env::var_os("PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_HELPER_PROCESS")
+    {
+        let marker = std::path::PathBuf::from(path).with_file_name("helper-result.json");
+        let _ = (|| -> std::io::Result<()> {
+            let mut file = std::fs::OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .open(marker)?;
+            serde_json::to_writer_pretty(
+                &mut file,
+                &serde_json::json!({ "schema_version": 1, "process_id": std::process::id(), "exit_code": result }),
+            )
+            .map_err(std::io::Error::other)?;
+            file.sync_all()
+        })();
+    }
+    result
+}
+
+#[cfg(windows)]
+fn run_windows_update_helper(expected_revision: u64) -> i32 {
     let apply = match ApplicationUpdateApplyStore::open_configured() {
         Ok(apply) => apply,
         Err(error) => {
@@ -552,7 +581,10 @@ fn restart_executable_if_runtime_available(
     configure_independent_process(&mut command);
     drop(runtime);
     let child = command.spawn().map_err(|_| ())?;
-    #[cfg(all(target_os = "linux", feature = "application-update-qualification"))]
+    #[cfg(all(
+        any(windows, target_os = "linux"),
+        feature = "application-update-qualification"
+    ))]
     {
         let mut child = child;
         if let Some(path) =
@@ -581,7 +613,10 @@ fn restart_executable_if_runtime_available(
             }
         }
     }
-    #[cfg(not(all(target_os = "linux", feature = "application-update-qualification")))]
+    #[cfg(not(all(
+        any(windows, target_os = "linux"),
+        feature = "application-update-qualification"
+    )))]
     drop(child);
     Ok(())
 }

@@ -214,8 +214,22 @@ try {
     Move-RehearsalInput $cliRoot "previous-cli-assets"
     foreach ($version in $fixtureVersions) {
         Set-FixtureVersion $version
-        Invoke-Checked "cargo" @("build", "--release", "-p", "portcove-cli", "-p", "portcove-release-tools")
-        & (Join-Path $PSScriptRoot "package-cli.ps1") -PlatformLabel $PlatformLabel
+        $cliTargetRoot = Join-Path $root "target"
+        $cliBuildArguments = @("build", "--release", "-p", "portcove-cli", "-p", "portcove-release-tools")
+        if ($IsWindows) {
+            $cliTargetRoot = Join-Path $root "target/updater-rehearsal-cli-$version"
+            $cliBuildArguments += @("--target-dir", $cliTargetRoot)
+        }
+        Invoke-Checked "cargo" $cliBuildArguments
+        if ($IsWindows) {
+            $cliExecutable = Join-Path $cliTargetRoot "release/portcove.exe"
+            $builtVersion = (& $cliExecutable --version | Out-String).Trim()
+            if ($LASTEXITCODE -ne 0 -or $builtVersion -cne "portcove $version") {
+                throw "Built CLI version differs from requested fixture ${version}: $builtVersion"
+            }
+            $verifier = Join-Path $cliTargetRoot "release/portcove-release-tools.exe"
+        }
+        & (Join-Path $PSScriptRoot "package-cli.ps1") -PlatformLabel $PlatformLabel -TargetRoot $cliTargetRoot
         $cliName = (& node scripts/release-package-policy.mjs --platform $PlatformLabel --interface cli --version $version | Out-String).Trim()
         if ($LASTEXITCODE -ne 0) { throw "Cannot select packaged CLI" }
         & (Join-Path $PSScriptRoot "smoke-test-cli-archive.ps1") -ArchivePath (Join-Path $cliRoot $cliName) -PlatformLabel $PlatformLabel -Version $version
@@ -241,7 +255,12 @@ try {
             $native.installer_product_version = (Get-Item -LiteralPath $installer).VersionInfo.ProductVersion
             if ($native.installer_product_version -notin @($version, "$version.0")) { throw "NSIS product version mismatch" }
             if ($version -eq $candidateVersion) {
-                Copy-Item -LiteralPath (Join-Path $root "target/release/portcove-desktop.exe") -Destination (Join-Path $runRoot "windows-candidate-desktop.exe")
+                $extractedCandidate = Join-Path $runRoot "windows-candidate-installer-extracted"
+                New-Item -ItemType Directory -Path $extractedCandidate | Out-Null
+                Invoke-Checked "7z" @("e", "-y", "-o$extractedCandidate", $installer, "portcove-desktop.exe") | Out-Null
+                $packagedExecutable = Join-Path $extractedCandidate "portcove-desktop.exe"
+                if (-not [IO.File]::Exists($packagedExecutable)) { throw "Candidate NSIS installer omitted its executable" }
+                Copy-Item -LiteralPath $packagedExecutable -Destination (Join-Path $runRoot "windows-candidate-desktop.exe")
             }
         } elseif ($IsLinux) {
             $native.deb_version = (& dpkg-deb --field (Join-Path $stage "Portcove_${version}_amd64.deb") Version | Out-String).Trim()
@@ -358,7 +377,7 @@ try {
         $privateTufAbsent = -not [IO.Directory]::Exists((Join-Path $fixtureRoot "private"))
         if (-not $privateTufAbsent) { throw "Disposable TUF signing authority remained available" }
         $consumerEvidence = Invoke-PackagedPayloadConsumer -Stage $candidateStage -CandidateVersion $candidateVersion -TufPrivateRootPath (Join-Path $fixtureRoot "private")
-        & (Join-Path $PSScriptRoot "test-windows-installer.ps1") -InstallerPath $candidate -UpgradeFromInstallerPath $predecessor -ExpectedExecutablePath (Join-Path $runRoot "windows-candidate-desktop.exe") -TestBase (Join-Path $runRoot "installer-test") -EvidencePath (Join-Path $runRoot "windows-installed-update.json") -InstallMode Passive -ExpectedVersion $candidateVersion -PayloadPrivateKeyPath $privateKey -TufPrivateRootPath (Join-Path $fixtureRoot "private") -RequireSigningAuthorityAbsent -InstalledUpdateTrustedRootPath $env:PORTCOVE_APPLICATION_UPDATE_BUNDLED_ROOT_FILE -InstalledUpdateMetadataPath $metadataDirectory -InstalledUpdateTargetsPath $targetsDirectory -InstalledUpdateCandidatePath $candidate -InstalledUpdatePredecessorVersion $predecessorVersion
+        & (Join-Path $PSScriptRoot "test-windows-installer.ps1") -InstallerPath $candidate -UpgradeFromInstallerPath $predecessor -ExpectedExecutablePath (Join-Path $runRoot "windows-candidate-desktop.exe") -TestBase (Join-Path $runRoot "installer-test") -EvidencePath (Join-Path $runRoot "windows-installed-update.json") -InstallMode Passive -ExpectedVersion $candidateVersion -PayloadPrivateKeyPath $privateKey -TufPrivateRootPath (Join-Path $fixtureRoot "private") -RequireSigningAuthorityAbsent -InstalledUpdateTrustedRootPath $env:PORTCOVE_APPLICATION_UPDATE_BUNDLED_ROOT_FILE -InstalledUpdateMetadataPath $metadataDirectory -InstalledUpdateTargetsPath $targetsDirectory -InstalledUpdateCandidatePath $candidate -InstalledUpdatePredecessorVersion $predecessorVersion -RendererUpdate
         if ($LASTEXITCODE -ne 0) { throw "Windows installed application update qualification failed" }
         if ((Get-FileHash -LiteralPath $env:PORTCOVE_PREFERENCES -Algorithm SHA256).Hash -ne $preferencesHash) { throw "Windows updater qualification changed isolated host preferences" }
         [ordered]@{ source_commit = $revision; candidate_version = $candidateVersion; private_signing_inputs_absent = $consumerEvidence.private_signing_inputs_absent; private_tuf_inputs_absent = $privateTufAbsent; installed_update_evidence = "windows-installed-update.json" } | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $runRoot "windows-installed-update-summary.json") -Encoding utf8

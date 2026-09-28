@@ -1,11 +1,20 @@
 import assert from "node:assert/strict";
-import { spawn, execFileSync } from "node:child_process";
-import { createHash } from "node:crypto";
-import { createReadStream } from "node:fs";
+import { execFileSync } from "node:child_process";
 import { readFile, writeFile, mkdir, stat } from "node:fs/promises";
 import path from "node:path";
 import { parseArgs } from "node:util";
-import { Builder, By, until } from "selenium-webdriver";
+import { By } from "selenium-webdriver";
+import { driveInstalledUpdateToRestart } from "./desktop-application-update-journey.mjs";
+import {
+  awaitInstalledUpdateDriver,
+  connectInstalledUpdateDriver,
+  hashFile,
+  readJson,
+  recordInstalledUpdateFailure,
+  startInstalledUpdateDriver,
+  verifyInstalledUpdateStaging,
+  waitFor,
+} from "./desktop-installed-update-harness.mjs";
 
 const { values } = parseArgs({
   options: Object.fromEntries(
@@ -52,23 +61,6 @@ const report = {
 const evidencePath = path.join(output, "renderer-update-evidence.json");
 async function save() {
   await writeFile(evidencePath, `${JSON.stringify(report, null, 2)}\n`);
-}
-async function hashFile(file) {
-  const hash = createHash("sha256");
-  for await (const chunk of createReadStream(file)) hash.update(chunk);
-  return { sha256: hash.digest("hex"), bytes: (await stat(file)).size };
-}
-async function waitFor(predicate, label, deadlineMs = 60_000) {
-  const untilMs = Date.now() + deadlineMs;
-  while (Date.now() < untilMs) {
-    const result = await predicate().catch(() => null);
-    if (result) return result;
-    await new Promise((resolve) => setTimeout(resolve, 200));
-  }
-  throw new Error(`${label} did not complete within ${deadlineMs} ms`);
-}
-async function readJson(file) {
-  return JSON.parse(await readFile(file, "utf8"));
 }
 async function procIdentity(pid) {
   try {
@@ -201,89 +193,27 @@ async function ownedProcessTree(rootPid) {
 }
 let driver;
 let browser;
-let driverLog = "";
+let driverSession;
 try {
   report.initial_sha256 = (await hashFile(values.app)).sha256;
-  driver = spawn(
-    values.driver,
-    ["--port", "45770", "--native-port", "45771", "--native-driver", values["native-driver"]],
-    { detached: true, stdio: ["ignore", "pipe", "pipe"], env: process.env },
-  );
-  driver.on("error", (error) => {
-    driverLog += `\nspawn: ${error.message}`;
+  driverSession = startInstalledUpdateDriver(values.driver, values["native-driver"], {
+    detached: true,
+    env: process.env,
   });
-  for (const stream of [driver.stdout, driver.stderr])
-    stream.on("data", (chunk) => {
-      driverLog = (driverLog + chunk).slice(-1024 * 1024);
-    });
-  report.driver = await waitFor(
-    async () => {
-      if (driver.exitCode !== null) throw new Error(`tauri-driver exited ${driver.exitCode}`);
-      const response = await fetch("http://127.0.0.1:45770/status", {
-        signal: AbortSignal.timeout(500),
-      });
-      return response.ok ? procIdentity(driver.pid) : null;
-    },
-    "tauri-driver startup",
-    10_000,
-  );
+  driver = driverSession.driver;
+  report.driver = await awaitInstalledUpdateDriver(driver, procIdentity);
   assert.ok(report.driver);
-  browser = await new Builder()
-    .disableEnvironmentOverrides()
-    .usingServer("http://127.0.0.1:45770")
-    .withCapabilities({ browserName: "wry", "tauri:options": { application: values.app } })
-    .build();
-  await browser.manage().setTimeouts({ script: 15_000 });
-  await browser.wait(until.elementLocated(By.css('nav[aria-label="Primary navigation"]')), 30_000);
-  report.actions.push("installed-gui-opened");
-  await browser.findElement(By.xpath('//button[normalize-space(.)="Review options"]')).click();
-  await browser.wait(
-    until.elementLocated(By.css('article[aria-labelledby="application-update-settings-title"]')),
-    15_000,
-  );
-  await browser
-    .findElement(
-      By.xpath(
-        '//*[@aria-label="Application update channel"]//button[normalize-space(.)="Preview"]',
-      ),
-    )
-    .click();
-  await browser
-    .findElement(
-      By.xpath('//*[@aria-label="Application update mode"]//button[normalize-space(.)="Manual"]'),
-    )
-    .click();
-  await browser
-    .findElement(By.xpath('//button[normalize-space(.)="Save application update settings"]'))
-    .click();
-  await browser.wait(
-    until.elementLocated(
-      By.xpath('//button[normalize-space(.)="Check for updates" and not(@disabled)]'),
-    ),
-    15_000,
-  );
-  report.actions.push("preview-manual-settings-saved");
-  await browser.findElement(By.xpath('//button[normalize-space(.)="Check for updates"]')).click();
-  await browser.wait(
-    until.elementLocated(By.xpath('//button[normalize-space(.)="Download and verify update"]')),
-    45_000,
-  );
-  report.actions.push("signed-candidate-presented");
-  await browser
-    .findElement(By.xpath('//button[normalize-space(.)="Download and verify update"]'))
-    .click();
-  await browser.wait(
-    until.elementLocated(By.xpath('//button[normalize-space(.)="Restart to update"]')),
-    60_000,
-  );
+  browser = await connectInstalledUpdateDriver(values.app);
+  await driveInstalledUpdateToRestart(browser, report.actions);
   const stagedPayload = path.join(values.staging, "candidate.payload");
-  const staged = await hashFile(stagedPayload);
-  const staging = await readJson(path.join(values.staging, "staging.json"));
-  assert.equal(staging.phase, "verified");
-  assert.equal(staged.sha256, values["candidate-sha"]);
-  assert.equal(staged.bytes, staging.candidate.release.artifact.bytes);
-  assert.equal(staging.candidate.release.version, values["candidate-version"]);
-  assert.equal((await hashFile(values.app)).sha256, report.initial_sha256);
+  const staged = await verifyInstalledUpdateStaging({
+    stagingRoot: values.staging,
+    payloadName: "candidate.payload",
+    candidateSha: values["candidate-sha"],
+    candidateVersion: values["candidate-version"],
+    application: values.app,
+    initialSha: report.initial_sha256,
+  });
   report.staged = staged;
   report.actions.push("renderer-downloaded-and-verified");
   await writeFile(path.join(output, "before-restart.png"), await browser.takeScreenshot(), {
@@ -344,11 +274,7 @@ try {
   report.actions.push("candidate-restarted-and-reconciled");
   report.phase = "complete";
 } catch (error) {
-  report.phase = "failed";
-  report.failure = String(error.stack ?? error);
-  report.helper_failure = await readJson(
-    path.join(path.dirname(values["helper-process-marker"]), "helper-failure.json"),
-  ).catch(() => null);
+  await recordInstalledUpdateFailure(report, error, values["helper-process-marker"]);
   if (report.processes_before_restart) {
     const initialApplication = report.processes_before_restart.find((entry) =>
       entry.command.includes("portcove-desktop"),
@@ -429,7 +355,7 @@ try {
       process.exitCode = 1;
     }
   }
-  await writeFile(path.join(output, "driver.log"), driverLog);
+  await writeFile(path.join(output, "driver.log"), driverSession?.log ?? "");
   await save();
 }
 if (report.phase !== "complete")

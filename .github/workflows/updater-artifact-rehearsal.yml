@@ -56,6 +56,10 @@ jobs:
           version=$(node -p "require('./.config/tool-bootstrap.json').desktop.tauri_driver")
           cargo install tauri-driver --locked --version "$version"
       - run: pnpm install --frozen-lockfile
+      - name: Install pinned Windows native driver for installed NSIS renderer qualification
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./scripts/bootstrap-quality-tools.ps1 -Desktop
       - name: Test signature rejection and inventory identity
         run: |
           cargo test --locked -p portcove-release-tools
@@ -90,6 +94,18 @@ jobs:
             work/updater-rehearsal/installer-test/run-*/application-update-qualification-stage.json
             work/updater-rehearsal/installer-test/run-*/application-update/apply.json
             work/updater-rehearsal/installer-test/run-*/application-update/staging.json
+            work/updater-rehearsal/installer-test/run-*/renderer-qualification/evidence/*.json
+            work/updater-rehearsal/installer-test/run-*/renderer-qualification/evidence/*.png
+            work/updater-rehearsal/installer-test/run-*/renderer-qualification/evidence/failure.html
+            work/updater-rehearsal/installer-test/run-*/renderer-qualification/evidence/*.log
+            work/updater-rehearsal/installer-test/run-*/driver-preflight-*/evidence.json
+            work/updater-rehearsal/installer-test/run-*/driver-preflight-*/driver.log
+            work/updater-rehearsal/installer-test/run-*/driver-preflight-*/*.png
+            work/updater-rehearsal/installer-test/run-*/library/logs/portcove-desktop.jsonl*
+            work/updater-rehearsal/installer-test/run-*/renderer-qualification/*.json
+            work/updater-rehearsal/windows-renderer-evidence/*.json
+            work/updater-rehearsal/windows-renderer-evidence/*.png
+            work/updater-rehearsal/windows-renderer-evidence/*.log
             work/updater-rehearsal/linux-appimage-qualification/TEST-ONLY
             work/updater-rehearsal/linux-appimage-qualification/application-update-evidence.json
             work/updater-rehearsal/linux-appimage-qualification/inputs/*.json
