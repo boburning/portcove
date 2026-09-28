@@ -1474,7 +1474,7 @@ pub fn run_hidden_helper() -> Option<i32> {
             })
         }
         #[cfg(all(
-            any(windows, target_os = "linux"),
+            any(windows, target_os = "linux", target_os = "macos"),
             feature = "application-update-qualification"
         ))]
         Some(mode) if mode == "--portcove-qualify-update-stage" => {
@@ -1581,13 +1581,13 @@ fn qualify_installed_application_selection() -> i32 {
 /// the candidate from its compiled repository and verifies these bytes through
 /// the same operation used by the normal desktop commands.
 #[cfg(all(
-    any(windows, target_os = "linux"),
+    any(windows, target_os = "linux", target_os = "macos"),
     feature = "application-update-qualification"
 ))]
 struct QualificationPayloadSource(PathBuf);
 
 #[cfg(all(
-    any(windows, target_os = "linux"),
+    any(windows, target_os = "linux", target_os = "macos"),
     feature = "application-update-qualification"
 ))]
 #[async_trait::async_trait]
@@ -1607,7 +1607,7 @@ impl application_update_operation::ApplicationUpdatePayloadSource for Qualificat
 }
 
 #[cfg(all(
-    any(windows, target_os = "linux"),
+    any(windows, target_os = "linux", target_os = "macos"),
     feature = "application-update-qualification"
 ))]
 fn qualify_installed_application_stage(payload: &Path) -> i32 {

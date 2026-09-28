@@ -448,12 +448,14 @@ with the expected bundle identifier and version, a verified bundle signature,
 matching process architecture, direct user-owned launch path, and owner-write
 permission on its containing directory. Disk-image volume paths, translocated
 launches, linked bundle components, and unsupported architectures are refused.
-The qualification-only hidden command exercises installed-bundle selection
-against a disposable signed repository on separate hosted Intel and Apple Silicon
-runners and retains the exact updater-enabled bundle and a write-refusal result.
-This establishes candidate selection only. Native macOS bundle extraction,
-replacement, relaunch, and recovery are not yet wired; the earlier packaged
-signature/staging consumer is separate evidence, and neither path establishes
+Qualification-only hidden commands exercise installed-bundle selection and
+verified archive staging against a disposable signed repository on separate
+hosted Intel and Apple Silicon runners. A one-byte truncation must leave an
+empty staging journal and the predecessor unchanged. Exact signed archive bytes
+must then be staged by the installed application's production check-and-stage
+operation while the installed bundle remains unchanged. Native macOS bundle
+extraction, replacement, relaunch, and recovery are not yet wired; the earlier
+packaged signature consumer is separate evidence, and neither path establishes
 normal Gatekeeper prompts or minimum-version support.
 
 The sibling `application_update_download` boundary accepts only an authenticated,
