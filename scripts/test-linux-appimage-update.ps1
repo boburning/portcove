@@ -22,7 +22,7 @@ param(
 )
 
 $evidenceContract = [ordered]@{
-    schema_version = 14
+    schema_version = 15
     predecessor_version = $PredecessorVersion
     candidate_version = $CandidateVersion
 }
@@ -553,7 +553,10 @@ try {
     $evidence.truncated_payload_expected_bytes = $candidateBytes
     $evidence.truncated_payload_bytes = $truncatedBytes
 
-    $truncatedOutput = & cargo run --locked --quiet -p portcove-desktop --example prepare_installed_update -- prepare $PredecessorVersion $trustedRoot $metadata $targets $truncatedCandidate $updatePreferences $updateRoot $libraryRoot 2>&1 | Out-String
+    $env:PORTCOVE_APPLICATION_UPDATE_PREFERENCES = $updatePreferences
+    $env:PORTCOVE_APPLICATION_UPDATE_SCHEDULE = Join-Path $state "application-update-schedule.json"
+    $env:PORTCOVE_APPLICATION_UPDATE_STAGING = $updateRoot
+    $truncatedOutput = & $stable --portcove-qualify-update-stage $truncatedCandidate 2>&1 | Out-String
     $evidence.truncated_payload_exit_code = $LASTEXITCODE
     Remove-Item -LiteralPath $truncatedCandidate -Force
     if ($evidence.truncated_payload_exit_code -eq 0 -or $truncatedOutput -notmatch "payload length mismatch") {
@@ -583,7 +586,26 @@ try {
     $evidence.truncated_payload_data_preserved = $true
     Write-Evidence "truncated-payload-rejected"
 
-    $prepareOutput = & cargo run --locked --quiet -p portcove-desktop --example prepare_installed_update -- prepare $PredecessorVersion $trustedRoot $metadata $targets $candidate $updatePreferences $updateRoot $libraryRoot | Out-String
+    $stageOutput = & $stable --portcove-qualify-update-stage $candidate 2>&1 | Out-String
+    if ($LASTEXITCODE -ne 0) { throw "Installed AppImage staging failed: $stageOutput" }
+    $installedStage = $stageOutput.Trim() | ConvertFrom-Json
+    if ($installedStage.version -ne $CandidateVersion -or $installedStage.sha256 -ne $candidateHash -or
+        $installedStage.bytes -ne $candidateBytes) {
+        throw "Installed AppImage did not stage the exact authenticated candidate"
+    }
+    $evidence.installed_staging = [ordered]@{
+        version = $installedStage.version
+        sha256 = $installedStage.sha256
+        bytes = $installedStage.bytes
+        staged_payload_sha256 = (Get-FileHash -LiteralPath (Join-Path $updateRoot "candidate.payload") -Algorithm SHA256).Hash.ToLowerInvariant()
+        stable_preserved = (Get-FileHash -LiteralPath $stable -Algorithm SHA256).Hash.ToLowerInvariant() -eq $predecessorHash
+    }
+    if ($evidence.installed_staging.staged_payload_sha256 -ne $candidateHash -or
+        -not $evidence.installed_staging.stable_preserved) {
+        throw "Installed staging did not preserve the expected payload or stable executable"
+    }
+    Write-Evidence "installed-staged"
+    $prepareOutput = & cargo run --locked --quiet -p portcove-desktop --example prepare_installed_update -- prepare-staged $PredecessorVersion $updatePreferences $updateRoot $libraryRoot | Out-String
     if ($LASTEXITCODE -ne 0) { throw "Application update state preparation failed" }
     $prepared = $prepareOutput.Trim() | ConvertFrom-Json
     if ($prepared.candidate_version -ne $CandidateVersion -or $prepared.candidate_sha256 -ne $candidateHash) {
