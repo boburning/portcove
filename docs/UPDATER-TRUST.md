@@ -467,10 +467,16 @@ verified archive staging against a disposable signed repository on separate
 hosted Intel and Apple Silicon runners. A one-byte truncation must leave an
 empty staging journal and the predecessor unchanged. Exact signed archive bytes
 must then be staged by the installed application's production check-and-stage
-operation while the installed bundle remains unchanged. Native macOS bundle
-extraction, replacement, relaunch, and recovery are not yet wired; the earlier
-packaged signature consumer is separate evidence, and neither path establishes
-normal Gatekeeper prompts or minimum-version support.
+operation while the installed bundle remains unchanged. For a direct user-owned
+installation, post-exit apply revalidates the staged archive, extracts a bounded
+bundle beside the installed app, verifies its identity and code signature, and
+atomically exchanges the two bundles. The apply journal retains the predecessor
+until the installed candidate completes healthy startup. An interrupted exchange
+can reconcile from the installed candidate; a verified pre-exchange extraction
+can be retired from the predecessor. Ambiguous or altered state is retained for
+explicit recovery. The hosted installed-app rehearsal exercises an interrupted
+exchange and candidate startup with disposable signing, but does not establish
+normal Gatekeeper prompts, minimum-version support, or human observation.
 
 The sibling `application_update_download` boundary accepts only an authenticated,
 selected candidate. It requires the exact Portcove `github.com` repository and

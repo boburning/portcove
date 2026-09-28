@@ -174,7 +174,7 @@ struct ApplicationUpdateNoticeState {
 enum ApplicationUpdateCommandActivity {
     Idle,
     Checking(CancellationToken),
-    #[cfg(any(windows, target_os = "linux", test))]
+    #[cfg(any(windows, target_os = "linux", target_os = "macos", test))]
     RestartPending,
 }
 
@@ -421,7 +421,7 @@ fn configure_runner() -> DesktopResult<Option<Arc<dyn ApplicationUpdateCommandRu
 
 fn configured_payload_source() -> DesktopResult<Arc<dyn ApplicationUpdatePayloadSource>> {
     #[cfg(all(
-        any(windows, target_os = "linux"),
+        any(windows, target_os = "linux", target_os = "macos"),
         feature = "application-update-qualification"
     ))]
     if let Some(path) = std::env::var_os("PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_PAYLOAD") {
@@ -446,20 +446,20 @@ struct ActiveApplicationUpdateCheck {
     activity: Arc<Mutex<ApplicationUpdateCommandActivity>>,
 }
 
-#[cfg(any(windows, target_os = "linux", test))]
+#[cfg(any(windows, target_os = "linux", target_os = "macos", test))]
 pub(crate) struct ApplicationUpdateCheckRestartGuard {
     activity: Arc<Mutex<ApplicationUpdateCommandActivity>>,
     committed: bool,
 }
 
-#[cfg(any(windows, target_os = "linux", test))]
+#[cfg(any(windows, target_os = "linux", target_os = "macos", test))]
 impl ApplicationUpdateCheckRestartGuard {
     pub(crate) fn commit(mut self) {
         self.committed = true;
     }
 }
 
-#[cfg(any(windows, target_os = "linux", test))]
+#[cfg(any(windows, target_os = "linux", target_os = "macos", test))]
 impl Drop for ApplicationUpdateCheckRestartGuard {
     fn drop(&mut self) {
         if !self.committed
@@ -534,7 +534,7 @@ impl ApplicationUpdateCommandState {
         Ok(true)
     }
 
-    #[cfg(any(windows, target_os = "linux", test))]
+    #[cfg(any(windows, target_os = "linux", target_os = "macos", test))]
     pub(crate) fn block_for_restart(&self) -> DesktopResult<ApplicationUpdateCheckRestartGuard> {
         let mut activity = self.activity.lock().map_err(|_| {
             DesktopError::from(portcove_core::PortcoveError::state(

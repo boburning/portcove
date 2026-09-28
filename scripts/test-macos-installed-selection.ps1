@@ -1,6 +1,7 @@
 param(
     [Parameter(Mandatory = $true)][string]$QualifiedAppPath,
     [Parameter(Mandatory = $true)][string]$CandidatePath,
+    [Parameter(Mandatory = $true)][string]$ExpectedCandidateAppPath,
     [Parameter(Mandatory = $true)][string]$StateRoot,
     [Parameter(Mandatory = $true)][string]$EvidencePath,
     [Parameter(Mandatory = $true)][string]$PredecessorVersion,
@@ -49,6 +50,33 @@ function Invoke-BundleSelection([string]$Executable, [string]$Payload = "") {
             stdout = $stdout.Result.Trim()
             stderr = $stderr.Result.Trim()
         }
+    } finally {
+        $process.Dispose()
+    }
+}
+
+function Invoke-InstalledProcess([string]$Executable, [string[]]$Arguments = @(), [int]$TimeoutMilliseconds = 90000) {
+    $start = [Diagnostics.ProcessStartInfo]::new()
+    $start.FileName = $Executable
+    foreach ($argument in $Arguments) { $start.ArgumentList.Add($argument) }
+    $start.UseShellExecute = $false
+    $start.RedirectStandardOutput = $true
+    $start.RedirectStandardError = $true
+    $process = [Diagnostics.Process]::new()
+    $process.StartInfo = $start
+    if (-not $process.Start()) { throw "Could not start the installed macOS application process" }
+    try {
+        $stdout = $process.StandardOutput.ReadToEndAsync()
+        $stderr = $process.StandardError.ReadToEndAsync()
+        if (-not $process.WaitForExit($TimeoutMilliseconds)) {
+            if (-not $process.HasExited) { $process.Kill($true) }
+            if (-not $process.WaitForExit(5000)) { throw "Installed macOS process timed out without confirmed exit" }
+            throw "Installed macOS process timed out"
+        }
+        if ($stdout.Result.Length -gt 8192 -or $stderr.Result.Length -gt 8192) {
+            throw "Installed macOS process output was oversized"
+        }
+        return [ordered]@{ exit_code = $process.ExitCode; stdout = $stdout.Result.Trim(); stderr = $stderr.Result.Trim() }
     } finally {
         $process.Dispose()
     }
@@ -144,7 +172,6 @@ try {
         $after -ne $before) {
         throw "Installed macOS owner-write rejection or restoration was not established"
     }
-    $state.phase = "complete"
     $state.predecessor = [ordered]@{
         version = $PredecessorVersion
         retained_bundle = $QualifiedAppPath
@@ -155,6 +182,70 @@ try {
     $state.candidate = [ordered]@{ version = $CandidateVersion; path = $CandidatePath; sha256 = $candidate }
     $state.selection = [ordered]@{ exit_code = $selection.exit_code; state = $selected.state; version = $selected.version; sha256 = $selected.sha256; installed_executable_preserved = $true }
     $state.owner_write_rejection = [ordered]@{ exit_code = $rejection.exit_code; error = $rejection.stderr; mode_before = $modeBefore; mode_denied = $modeDenied; mode_restored = $modeRestored; executable_sha256_after_restore = $after }
+    $expectedCandidateExecutable = Join-Path $ExpectedCandidateAppPath "Contents/MacOS/portcove-desktop"
+    if (-not (Test-Path -LiteralPath $expectedCandidateExecutable -PathType Leaf)) { throw "The retained candidate bundle executable is unavailable" }
+    $expectedExecutableHash = (Get-FileHash -LiteralPath $expectedCandidateExecutable -Algorithm SHA256).Hash.ToLowerInvariant()
+    $libraryRoot = Join-Path $StateRoot "library"
+    $libraryMarker = Join-Path $libraryRoot "user/installer-qualification/preserve.txt"
+    New-Item -ItemType Directory -Path (Split-Path -Parent $libraryMarker) -Force | Out-Null
+    [IO.File]::WriteAllText($libraryMarker, "macOS installed-bundle preservation", [Text.UTF8Encoding]::new($false))
+    $libraryMarkerHash = (Get-FileHash -LiteralPath $libraryMarker -Algorithm SHA256).Hash.ToLowerInvariant()
+    $env:PORTCOVE_LIBRARY = $libraryRoot
+    $env:PORTCOVE_PREFERENCES = Join-Path $StateRoot "host-preferences.json"
+    $env:PORTCOVE_APPLICATION_RUNTIME_LOCK = Join-Path $StateRoot "application-runtime.lock"
+    $env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_EXIT = "after-reconciliation"
+    $env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_STAGE = Join-Path $StateRoot "candidate-startup-stage.json"
+    $env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_RELAUNCH_PROCESS = Join-Path $StateRoot "candidate-relaunch-process.json"
+    $preparedText = (& cargo run --locked --quiet -p portcove-desktop --example prepare_installed_update -- prepare-staged $PredecessorVersion $env:PORTCOVE_APPLICATION_UPDATE_PREFERENCES $StateRoot $libraryRoot | Out-String).Trim()
+    if ($LASTEXITCODE -ne 0) { throw "Could not prepare the macOS installed-bundle apply intent" }
+    $prepared = $preparedText | ConvertFrom-Json
+    if ($prepared.candidate_version -ne $CandidateVersion -or $prepared.candidate_sha256 -ne $candidate) {
+        throw "Prepared macOS apply identity differed from the authenticated staged candidate"
+    }
+    $applyPath = Join-Path $StateRoot "apply.json"
+    $env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_INTERRUPT = "after-bundle-swap"
+    try {
+        $interrupted = Invoke-InstalledProcess $executable @("--portcove-apply-update", [string]$prepared.apply_revision)
+    } finally {
+        Remove-Item Env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_INTERRUPT -ErrorAction SilentlyContinue
+    }
+    $backupApp = Join-Path $installedRoot ".portcove-update-$($candidate.Substring(0, 16))/Portcove.app"
+    $backupExecutable = Join-Path $backupApp "Contents/MacOS/portcove-desktop"
+    $applyAfterInterrupt = Get-Content -LiteralPath $applyPath -Raw | ConvertFrom-Json
+    $installedCandidateHash = (Get-FileHash -LiteralPath $executable -Algorithm SHA256).Hash.ToLowerInvariant()
+    $backupHash = if (Test-Path -LiteralPath $backupExecutable -PathType Leaf) { (Get-FileHash -LiteralPath $backupExecutable -Algorithm SHA256).Hash.ToLowerInvariant() } else { $null }
+    if ($interrupted.exit_code -ne 86 -or $applyAfterInterrupt.native_launch -ne "starting" -or
+        $installedCandidateHash -ne $expectedExecutableHash -or $backupHash -ne $before -or
+        (Get-FileHash -LiteralPath $libraryMarker -Algorithm SHA256).Hash.ToLowerInvariant() -ne $libraryMarkerHash) {
+        throw "Interrupted macOS bundle exchange did not retain the exact candidate, predecessor, journal and library"
+    }
+    $state.interrupted_apply = [ordered]@{
+        helper_exit_code = $interrupted.exit_code
+        candidate_executable_sha256 = $installedCandidateHash
+        predecessor_backup_executable_sha256 = $backupHash
+        journal_state = $applyAfterInterrupt.native_launch
+        library_marker_sha256 = $libraryMarkerHash
+    }
+    & /usr/bin/codesign --verify --deep --strict $installedApp
+    if ($LASTEXITCODE -ne 0) { throw "The exchanged candidate bundle signature failed verification" }
+    $candidateStartup = Invoke-InstalledProcess $executable @()
+    $applyAfterStartup = Get-Content -LiteralPath $applyPath -Raw | ConvertFrom-Json
+    $installedVersion = (& /usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' (Join-Path $installedApp 'Contents/Info.plist') | Out-String).Trim()
+    if ($candidateStartup.exit_code -ne 0 -or $installedVersion -ne $CandidateVersion -or
+        $null -ne $applyAfterStartup.intent -or $null -ne $applyAfterStartup.native_launch -or
+        (Test-Path -LiteralPath $backupApp) -or
+        (Get-FileHash -LiteralPath $executable -Algorithm SHA256).Hash.ToLowerInvariant() -ne $expectedExecutableHash -or
+        (Get-FileHash -LiteralPath $libraryMarker -Algorithm SHA256).Hash.ToLowerInvariant() -ne $libraryMarkerHash) {
+        throw "The installed macOS candidate did not reconcile after healthy startup"
+    }
+    $state.installed_apply = [ordered]@{
+        candidate_startup_exit_code = $candidateStartup.exit_code
+        installed_version = $installedVersion
+        installed_executable_sha256 = $expectedExecutableHash
+        backup_removed_after_healthy_startup = $true
+        library_marker_preserved = $true
+    }
+    $state.phase = "complete"
     $state.private_signing_inputs_absent = $true
 } catch {
     $state.phase = "failed"
@@ -163,4 +254,7 @@ try {
 } finally {
     $state | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $EvidencePath -Encoding utf8
     Remove-Item Env:PORTCOVE_APPLICATION_UPDATE_STAGING -ErrorAction SilentlyContinue
+    foreach ($name in @("PORTCOVE_LIBRARY", "PORTCOVE_PREFERENCES", "PORTCOVE_APPLICATION_RUNTIME_LOCK", "PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_EXIT", "PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_STAGE", "PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_RELAUNCH_PROCESS", "PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_INTERRUPT")) {
+        Remove-Item "Env:$name" -ErrorAction SilentlyContinue
+    }
 }

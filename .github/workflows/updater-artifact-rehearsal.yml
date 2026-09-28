@@ -135,5 +135,7 @@ jobs:
             work/updater-rehearsal/macos-installed-selection-qualification/trusted-root.json
             work/updater-rehearsal/macos-installed-selection-qualification/state/trust/*.json
             work/updater-rehearsal/macos-installed-selection-qualification/state/*.json
+            work/updater-rehearsal/macos-installed-selection-qualification/state/library/user/installer-qualification/preserve.txt
+            work/updater-rehearsal/macos-installed-selection-qualification/state/library/logs/portcove-desktop.jsonl*
           if-no-files-found: error
           retention-days: 1
