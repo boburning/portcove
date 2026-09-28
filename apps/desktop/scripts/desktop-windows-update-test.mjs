@@ -249,12 +249,18 @@ try {
   await recordInstalledUpdateFailure(report, error, values["helper-process-marker"]);
   process.exitCode = 1;
 } finally {
-  if (!snapshot && browser && driver?.exitCode === null) {
+  if (!snapshot && driver?.exitCode === null) {
     try {
       snapshot = nativeSessionCommand("Snapshot");
       report.native_processes_at_failure = snapshot;
     } catch (error) {
       report.native_snapshot_failure = String(error.message).slice(0, 300);
+      try {
+        snapshot = nativeSessionCommand("SnapshotDriver");
+        report.driver_only_snapshot = snapshot;
+      } catch (driverError) {
+        report.driver_snapshot_failure = String(driverError.message).slice(0, 300);
+      }
     }
   }
   if (browser)

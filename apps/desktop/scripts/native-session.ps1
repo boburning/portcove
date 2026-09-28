@@ -1,13 +1,19 @@
 param(
-    [Parameter(Mandatory)][ValidateSet('Snapshot', 'StopDriver', 'Wait')][string]$Mode,
+    [Parameter(Mandatory)][ValidateSet('Snapshot', 'SnapshotDriver', 'StopDriver', 'Wait')][string]$Mode,
     [int]$DriverProcessId,
     [string]$ApplicationPath,
     [Parameter(Mandatory)][string]$SnapshotPath
 )
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'native-process-tree.ps1')
-if ($Mode -eq 'Snapshot') {
-    $tree = Get-OwnedNativeProcessTree $DriverProcessId $ApplicationPath
+if ($Mode -eq 'Snapshot' -or $Mode -eq 'SnapshotDriver') {
+    $tree = if ($Mode -eq 'Snapshot') {
+        Get-OwnedNativeProcessTree $DriverProcessId $ApplicationPath
+    } else {
+        $entry = Get-CimInstance Win32_Process -Filter "ProcessId = $DriverProcessId"
+        if (-not $entry) { throw 'Owned driver is no longer running.' }
+        [pscustomobject]@{ driver = $entry; application = $null; processes = @() }
+    }
     $driverProcess = try { [Diagnostics.Process]::GetProcessById([int]$tree.driver.ProcessId) } catch [ArgumentException] { $null }
     if (-not $driverProcess) { throw 'Owned driver exited during snapshot.' }
     try {
@@ -29,7 +35,8 @@ if ($Mode -eq 'Snapshot') {
             } finally { $process.Dispose() }
         }
     })
-    $snapshot = [pscustomobject]@{ captured_at = [DateTime]::UtcNow.ToString('o'); driver = $driverRecord; application_pid = $tree.application.ProcessId; processes = $records }
+    $applicationPid = if ($tree.application) { $tree.application.ProcessId } else { $null }
+    $snapshot = [pscustomobject]@{ captured_at = [DateTime]::UtcNow.ToString('o'); driver = $driverRecord; application_pid = $applicationPid; processes = $records }
     $stream = [IO.File]::Open($SnapshotPath, [IO.FileMode]::CreateNew, [IO.FileAccess]::Write, [IO.FileShare]::None)
     try {
         $bytes = [Text.Encoding]::UTF8.GetBytes(($snapshot | ConvertTo-Json -Depth 4))

@@ -579,6 +579,13 @@ try {
             predecessor_smoke = $previousSmoke
         }
         Write-InstallerEvidence "predecessor_verified" $upgrade
+
+        if ($RendererUpdate) {
+            $driverPreflight = Join-Path $runRoot "driver-preflight-baseline"
+            & node (Join-Path $PSScriptRoot "../apps/desktop/scripts/desktop-test.mjs") --app $application --output $driverPreflight --scenario empty-library --port 45870
+            if ($LASTEXITCODE -ne 0) { throw "Installed predecessor WebDriver baseline preflight failed" }
+            if ($evidence) { $evidence.driver_preflight_baseline = "passed"; Write-InstallerEvidence "driver_preflight_baseline_passed" }
+        }
     }
     # This is a qualification marker, not a fabricated game save.
     $sentinelRoot = Join-Path $libraryRoot "user\installer-qualification"
@@ -644,6 +651,10 @@ try {
             $env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_PAYLOAD = $candidate
             $env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_HELPER_PROCESS = $helperMarker
             $env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_RELAUNCH_PROCESS = $relaunchMarker
+            $driverPreflight = Join-Path $runRoot "driver-preflight-update-env"
+            & node (Join-Path $PSScriptRoot "../apps/desktop/scripts/desktop-test.mjs") --app $application --output $driverPreflight --scenario empty-library --port 45872
+            if ($LASTEXITCODE -ne 0) { throw "Installed predecessor WebDriver update-environment preflight failed" }
+            if ($evidence) { $evidence.driver_preflight_update_env = "passed"; Write-InstallerEvidence "driver_preflight_update_env_passed" }
             $candidateExecutableHash = (Get-FileHash -LiteralPath $ExpectedExecutablePath -Algorithm SHA256).Hash.ToLowerInvariant()
             $rendererArguments = @(
                 (Join-Path $PSScriptRoot "../apps/desktop/scripts/desktop-windows-update-test.mjs"),
