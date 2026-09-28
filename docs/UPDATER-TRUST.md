@@ -435,6 +435,19 @@ supplies no production root or origin. In an updater-enabled
 build, the fixed manual check and explicit restart helper are the only commands that
 activate this provider; no automatic startup schedule or safe-exit hook does so.
 
+On macOS, the compiled provider observes only a directly launched `Portcove.app`
+with the expected bundle identifier and version, a verified bundle signature,
+matching process architecture, direct user-owned launch path, and owner-write
+permission on its containing directory. Disk-image volume paths, translocated
+launches, linked bundle components, and unsupported architectures are refused.
+The qualification-only hidden command exercises installed-bundle selection
+against a disposable signed repository on separate hosted Intel and Apple Silicon
+runners and retains the exact updater-enabled bundle and a write-refusal result.
+This establishes candidate selection only. Native macOS bundle extraction,
+replacement, relaunch, and recovery are not yet wired; the earlier packaged
+signature/staging consumer is separate evidence, and neither path establishes
+normal Gatekeeper prompts or minimum-version support.
+
 The sibling `application_update_download` boundary accepts only an authenticated,
 selected candidate. It requires the exact Portcove `github.com` repository and
 release-version path, then manually follows at most five redirects through

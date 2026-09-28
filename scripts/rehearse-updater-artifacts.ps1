@@ -221,6 +221,12 @@ try {
         & (Join-Path $PSScriptRoot "smoke-test-cli-archive.ps1") -ArchivePath (Join-Path $cliRoot $cliName) -PlatformLabel $PlatformLabel -Version $version
         $tauriArguments = @($pnpmSpec, "--dir", "apps/desktop", "tauri", "build", "--bundles", $bundles, "--config", $configPath, "--ci")
         if ($IsLinux -or $IsWindows) { $tauriArguments += @("--features", "application-update-qualification") }
+        if ($IsMacOS -and $version -eq $candidateVersion) {
+            # Preserve the native cause if the second DMG build fails on a hosted runner.
+            Invoke-Checked "df" @("-h", $root)
+            Invoke-Checked "hdiutil" @("info")
+            $tauriArguments += "--verbose"
+        }
         Invoke-Checked "corepack" $tauriArguments
         $stage = Join-Path $runRoot "$version-$PlatformLabel"
         Invoke-Checked "node" @("scripts/updater-artifact-inventory.mjs", "stage", "--output", $stage, "--label", $PlatformLabel, "--public-key", $publicKey, "--verifier", $verifier, "--revision", $revision)
@@ -278,10 +284,6 @@ try {
             }
             $native.native_signing = "ad-hoc"
             $native.executable_permissions_verified = $true
-            if ($version -eq $candidateVersion) {
-                $consumerEvidence = Invoke-PackagedPayloadConsumer -Stage $stage -CandidateVersion $candidateVersion
-                $native.private_signing_inputs_absent = $consumerEvidence.private_signing_inputs_absent
-            }
         }
         $native | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $runRoot "$version-native.json") -Encoding utf8
         & git diff --binary -- Cargo.toml Cargo.lock apps/desktop/package.json apps/desktop/src-tauri/tauri.conf.json | Set-Content -LiteralPath (Join-Path $runRoot "$version-fixture.patch") -Encoding utf8
@@ -528,7 +530,7 @@ try {
         $env:PORTCOVE_APPLICATION_UPDATE_TARGETS_URL = ([Uri]::new($targetsDirectory.TrimEnd('/') + '/')).AbsoluteUri
         Invoke-Checked "corepack" @($pnpmSpec, "--dir", "apps/desktop", "tauri", "build", "--bundles", "appimage", "--config", $configPath, "--ci", "--features", "application-update-qualification")
         $predecessor = Join-Path $bundleRoot "appimage/Portcove_$($predecessorVersion)_amd64.AppImage"
-        Remove-Item -LiteralPath $privateKey -Force
+        if ([IO.File]::Exists($privateKey)) { Remove-Item -LiteralPath $privateKey -Force }
         Remove-Item -LiteralPath (Join-Path $fixtureRoot "private") -Recurse -Force
         Remove-Item Env:TAURI_SIGNING_PRIVATE_KEY -ErrorAction SilentlyContinue
         Remove-Item Env:TAURI_SIGNING_PRIVATE_KEY_PATH -ErrorAction SilentlyContinue
@@ -562,6 +564,82 @@ try {
         )
         Invoke-Checked "dbus-run-session" (@("--", "pwsh") + $linuxHarnessArguments)
     }
+    if ($IsMacOS) {
+        $fixtureRoot = Join-Path $runRoot "macos-installed-selection-qualification"
+        Invoke-Checked "cargo" @("run", "--locked", "--quiet", "-p", "portcove-release-tools", "--example", "generate_test_updater_repository", "--", $fixtureRoot, $publicKey)
+        $inputs = Join-Path $fixtureRoot "inputs"
+        New-Item -ItemType Directory -Path $inputs | Out-Null
+        $candidateStage = Join-Path $runRoot "$candidateVersion-$PlatformLabel"
+        $candidateInventoryPath = Join-Path $candidateStage "updater-inventory.json"
+        $candidateInventory = Get-Content -LiteralPath $candidateInventoryPath -Raw | ConvertFrom-Json
+        Copy-Item -LiteralPath $candidateInventoryPath -Destination (Join-Path $inputs "updater-inventory.json")
+        Copy-Item -LiteralPath (Join-Path $candidateStage $candidateInventory.updater.signature.filename) -Destination (Join-Path $inputs "candidate.sig")
+        $contractText = (& cargo run --locked --quiet -p portcove-desktop --example prepare_installed_update -- describe $predecessorVersion | Out-String).Trim()
+        if ($LASTEXITCODE -ne 0) { throw "Could not derive the macOS updater fixture contract" }
+        $contract = $contractText | ConvertFrom-Json
+        $sourceTree = (& git rev-parse "HEAD^{tree}" | Out-String).Trim()
+        $runId = if ($env:GITHUB_RUN_ID -match '^\d+$' -and [UInt64]$env:GITHUB_RUN_ID -gt 0) { [UInt64]$env:GITHUB_RUN_ID } else { [UInt64]1 }
+        $attempt = if ($env:GITHUB_RUN_ATTEMPT -match '^\d+$' -and [UInt64]$env:GITHUB_RUN_ATTEMPT -gt 0) { [UInt64]$env:GITHUB_RUN_ATTEMPT } else { [UInt64]1 }
+        $descriptor = [ordered]@{
+            schema_version = 1
+            releases = @([ordered]@{
+                inventory = "updater-inventory.json"
+                signature = "candidate.sig"
+                source_tree = $sourceTree
+                qualified_run = [ordered]@{
+                    workflow = ".github/workflows/updater-artifact-rehearsal.yml"
+                    workflow_commit = $revision
+                    run_id = $runId
+                    attempt = $attempt
+                }
+                execution_context = "user-owned-app-bundle"
+                compatibility = $contract.compatibility
+                evidence_ids = @("updater-artifact-rehearsal-$runId-$PlatformLabel")
+            })
+        }
+        $descriptorPath = Join-Path $inputs "descriptor.json"
+        $eligibilityPath = Join-Path $inputs "eligibility.json"
+        $descriptor | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $descriptorPath -Encoding utf8
+        $eligibility = [ordered]@{}
+        $eligibility["v$candidateVersion"] = [ordered]@{
+            version = $candidateVersion
+            preview_eligible = $true
+            production_eligible = $candidateProductionEligible
+            targets = @($PlatformLabel)
+        }
+        $eligibility | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $eligibilityPath -Encoding utf8
+        $records = Join-Path $fixtureRoot "records"
+        Invoke-Checked "node" @("scripts/reconstruct-application-update-records.mjs", "--input", $descriptorPath, "--eligibility", $eligibilityPath, "--output", $records)
+        $tufConfigPath = Join-Path $fixtureRoot "build-tuf.json"
+        Invoke-Checked "cargo" @("run", "--locked", "--quiet", "-p", "portcove-release-tools", "--", "build-tuf", $tufConfigPath)
+
+        Set-FixtureVersion $predecessorVersion
+        $env:PORTCOVE_APPLICATION_UPDATE_BUNDLED_ROOT_FILE = Join-Path $fixtureRoot "trusted-root.json"
+        $repository = Join-Path $fixtureRoot "repository"
+        $metadataDirectory = (Resolve-Path -LiteralPath (Join-Path $repository "metadata")).Path
+        $targetsDirectory = (Resolve-Path -LiteralPath (Join-Path $repository "targets")).Path
+        $env:PORTCOVE_APPLICATION_UPDATE_METADATA_URL = ([Uri]::new($metadataDirectory.TrimEnd('/') + '/')).AbsoluteUri
+        $env:PORTCOVE_APPLICATION_UPDATE_TARGETS_URL = ([Uri]::new($targetsDirectory.TrimEnd('/') + '/')).AbsoluteUri
+        Invoke-Checked "corepack" @($pnpmSpec, "--dir", "apps/desktop", "tauri", "build", "--bundles", "app", "--config", $configPath, "--ci", "--features", "application-update-qualification")
+        $qualifiedBundleName = "qualified-$predecessorVersion-bundles"
+        Move-RehearsalInput $bundleRoot $qualifiedBundleName
+        $qualifiedApp = Join-Path $runRoot "$qualifiedBundleName/macos/Portcove.app"
+        if (-not (Test-Path -LiteralPath $qualifiedApp -PathType Container)) { throw "The qualified predecessor macOS app was not retained" }
+        Remove-Item -LiteralPath (Join-Path $fixtureRoot "private") -Recurse -Force
+        Remove-Item -LiteralPath $tufConfigPath -Force
+        # The predecessor needs the same disposable updater key as the candidate.
+        # Only after both are signed may the consumer destroy private signing input.
+        $consumerEvidence = Invoke-PackagedPayloadConsumer -Stage $candidateStage -CandidateVersion $candidateVersion -TufPrivateRootPath (Join-Path $fixtureRoot "private")
+        $candidateNativePath = Join-Path $runRoot "$candidateVersion-native.json"
+        $candidateNative = Get-Content -LiteralPath $candidateNativePath -Raw | ConvertFrom-Json -AsHashtable
+        $candidateNative.private_signing_inputs_absent = $consumerEvidence.private_signing_inputs_absent
+        $candidateNative | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $candidateNativePath -Encoding utf8
+        Remove-Item Env:TAURI_SIGNING_PRIVATE_KEY -ErrorAction SilentlyContinue
+        Remove-Item Env:TAURI_SIGNING_PRIVATE_KEY_PATH -ErrorAction SilentlyContinue
+        Remove-Item Env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD -ErrorAction SilentlyContinue
+        & (Join-Path $PSScriptRoot "test-macos-installed-selection.ps1") -QualifiedAppPath $qualifiedApp -CandidatePath (Join-Path $candidateStage $candidateInventory.updater.filename) -StateRoot (Join-Path $fixtureRoot "state") -EvidencePath (Join-Path $fixtureRoot "application-update-evidence.json") -PredecessorVersion $predecessorVersion -CandidateVersion $candidateVersion -PayloadPrivateKeyPath $privateKey -TufPrivateRootPath (Join-Path $fixtureRoot "private")
+        if ($LASTEXITCODE -ne 0) { throw "macOS installed application selection qualification failed" }
+    }
 } catch {
     [ordered]@{ source_commit = $revision; platform = $PlatformLabel; status = "failed"; transition_profile = $TransitionProfile; fixture_versions = $fixtureVersions; failure = $_.Exception.Message } |
         ConvertTo-Json | Set-Content -LiteralPath (Join-Path $runRoot "rehearsal-result.json") -Encoding utf8
@@ -576,6 +654,8 @@ try {
     if ([IO.Directory]::Exists($fixturePrivate)) { [IO.Directory]::Delete($fixturePrivate, $true) }
     $windowsFixturePrivate = Join-Path $runRoot "windows-installed-update-qualification/private"
     if ([IO.Directory]::Exists($windowsFixturePrivate)) { [IO.Directory]::Delete($windowsFixturePrivate, $true) }
+    $macosFixturePrivate = Join-Path $runRoot "macos-installed-selection-qualification/private"
+    if ([IO.Directory]::Exists($macosFixturePrivate)) { [IO.Directory]::Delete($macosFixturePrivate, $true) }
 }
 [ordered]@{ source_commit = $revision; platform = $PlatformLabel; status = "passed"; transition_profile = $TransitionProfile; fixture_versions = $fixtureVersions; production_signing = $false } |
     ConvertTo-Json | Set-Content -LiteralPath (Join-Path $runRoot "rehearsal-result.json") -Encoding utf8

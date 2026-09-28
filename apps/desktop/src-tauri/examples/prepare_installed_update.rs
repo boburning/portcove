@@ -60,9 +60,18 @@ fn installed_context(current_version: &str) -> Result<InstalledApplicationContex
         .map_err(|error| error.to_string())
 }
 
-#[cfg(not(any(windows, target_os = "linux")))]
+#[cfg(target_os = "macos")]
+fn installed_context(current_version: &str) -> Result<InstalledApplicationContext, String> {
+    portcove_desktop::application_update_macos::macos_bundle_context_for_version(current_version)
+        .map_err(|error| error.to_string())
+}
+
+#[cfg(not(any(windows, target_os = "linux", target_os = "macos")))]
 fn installed_context(_current_version: &str) -> Result<InstalledApplicationContext, String> {
-    Err("the installed application update qualification fixture requires Windows or Linux".into())
+    Err(
+        "the installed application update qualification fixture requires Windows, Linux or macOS"
+            .into(),
+    )
 }
 
 fn fixture_contract(current_version: &str) -> Result<FixtureContract, String> {

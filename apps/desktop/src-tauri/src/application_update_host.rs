@@ -134,7 +134,11 @@ impl InstalledApplicationContextSource for CurrentInstalledApplicationContext {
         {
             crate::application_update_linux::current_linux_installed_application_context()
         }
-        #[cfg(not(any(windows, target_os = "linux")))]
+        #[cfg(target_os = "macos")]
+        {
+            crate::application_update_macos::current_macos_installed_application_context()
+        }
+        #[cfg(not(any(windows, target_os = "linux", target_os = "macos")))]
         {
             Err(InstalledApplicationContextError::Unavailable(
                 "this build has no installed application update adapter".into(),

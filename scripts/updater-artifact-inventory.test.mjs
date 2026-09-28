@@ -213,6 +213,12 @@ test("manual rehearsal retains the complete matrix without production credential
   assert.doesNotMatch(workflow, /updater-rehearsal\/\*\*|\.key\b/);
   assert.match(workflow, /linux-appimage-qualification\/application-update-evidence\.json/);
   assert.match(workflow, /qualified-\*-bundles\/appimage\/\*\*/);
+  assert.match(workflow, /qualified-\*-bundles\/macos\/Portcove\.app\/\*\*/);
+  assert.match(
+    workflow,
+    /macos-installed-selection-qualification\/application-update-evidence\.json/,
+  );
+  assert.doesNotMatch(workflow, /macos-installed-selection-qualification\/private\/\*\*/);
   assert.match(workflow, /state\/update-state\/\*\.json/);
   assert.match(workflow, /state\/library\/logs\/portcove-desktop\.jsonl\*/);
   assert.doesNotMatch(workflow, /linux-appimage-qualification\/(?:private|state)\/\*\*/);
@@ -247,6 +253,10 @@ test("manual rehearsal retains the complete matrix without production credential
   assert.match(rehearsal, /test-linux-appimage-update\.ps1/);
   assert.match(
     rehearsal,
+    /Move-RehearsalInput \$bundleRoot \$qualifiedBundleName[\s\S]*\$qualifiedApp = Join-Path \$runRoot[\s\S]*test-macos-installed-selection\.ps1/,
+  );
+  assert.match(
+    rehearsal,
     /\$qualifiedBundleName = "qualified-\$predecessorVersion-bundles"[\s\S]*Move-RehearsalInput \$bundleRoot \$qualifiedBundleName[\s\S]*\$predecessor = Join-Path \$runRoot[\s\S]*Invoke-Checked "dbus-run-session"/,
   );
   assert.match(rehearsal, /ValidateSet\("legacy-skipped", "preview-final"\)/);
@@ -262,7 +272,11 @@ test("manual rehearsal retains the complete matrix without production credential
   );
   assert.match(rehearsal, /windows-payload-consumer\.json/);
   assert.match(rehearsal, /\$PlatformLabel-payload-consumer\.json/);
-  assert.match(rehearsal, /Invoke-PackagedPayloadConsumer -Stage \$stage/);
+  assert.match(
+    rehearsal,
+    /\$qualifiedApp = Join-Path \$runRoot[\s\S]*Invoke-PackagedPayloadConsumer -Stage \$candidateStage -CandidateVersion \$candidateVersion -TufPrivateRootPath[\s\S]*test-macos-installed-selection\.ps1/,
+  );
+  assert.doesNotMatch(rehearsal, /Invoke-PackagedPayloadConsumer -Stage \$stage/);
   assert.match(rehearsal, /verify_packaged_application_update/);
   assert.match(rehearsal, /name = "missing-signature"/);
   assert.match(
