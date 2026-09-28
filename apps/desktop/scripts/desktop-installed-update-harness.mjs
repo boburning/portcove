@@ -61,7 +61,10 @@ export async function connectInstalledUpdateDriver(application) {
   return new Builder()
     .disableEnvironmentOverrides()
     .usingServer("http://127.0.0.1:45770")
-    .withCapabilities({ browserName: "wry", "tauri:options": { application } })
+    .withCapabilities({
+      browserName: process.platform === "win32" ? "webview2" : "wry",
+      "tauri:options": { application },
+    })
     .build();
 }
 
