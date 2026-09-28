@@ -547,6 +547,8 @@ pub fn admit_macos_bundle_update(
             "an earlier candidate extraction is retained; inspect it before retry".into(),
         ));
     }
+    let target_version = candidate.version.clone();
+    let target_architecture = candidate.architecture.clone();
     Ok(MacosBundleUpdateAdmission {
         lease,
         source,
@@ -555,8 +557,8 @@ pub fn admit_macos_bundle_update(
         archive,
         previous_bytes,
         previous_sha256,
-        target_version: candidate.version.clone(),
-        target_architecture: candidate.architecture.clone(),
+        target_version,
+        target_architecture,
     })
 }
 
@@ -653,6 +655,12 @@ impl MacosBundleUpdateAdmission {
                 "the bundle exchanged but its containing directory could not be synchronized: {error}"
             ))
         })?;
+        #[cfg(feature = "application-update-qualification")]
+        if std::env::var_os("PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_INTERRUPT").as_deref()
+            == Some(OsStr::new("after-bundle-swap"))
+        {
+            std::process::exit(86);
+        }
         launch.record_succeeded().map_err(|error| {
             MacosApplicationUpdateError::Ambiguous(format!(
                 "the bundle exchanged but success could not be recorded: {error}"
@@ -727,6 +735,10 @@ pub fn reconcile_macos_application_update(
             "the retained predecessor bundle identity changed".into(),
         ));
     }
+    // Retire the apply journal before deleting the only retained predecessor.
+    // An interruption here leaves a recoverable extra bundle, not an intent
+    // that names a predecessor already removed from disk.
+    apply.reconcile_installed_application(state.revision, env!("CARGO_PKG_VERSION"), staging)?;
     fs::remove_dir_all(&replacement.backup_path)?;
     fs::remove_dir(
         replacement
@@ -735,7 +747,6 @@ pub fn reconcile_macos_application_update(
             .ok_or_else(|| macos_error("backup has no parent"))?,
     )?;
     sync_parent(&source)?;
-    apply.reconcile_installed_application(state.revision, env!("CARGO_PKG_VERSION"), staging)?;
     Ok(MacosApplicationUpdateReconciliation::Reconciled)
 }
 

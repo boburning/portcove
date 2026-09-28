@@ -234,7 +234,7 @@ try {
         if ($LASTEXITCODE -ne 0) { throw "Cannot select packaged CLI" }
         & (Join-Path $PSScriptRoot "smoke-test-cli-archive.ps1") -ArchivePath (Join-Path $cliRoot $cliName) -PlatformLabel $PlatformLabel -Version $version
         $tauriArguments = @($pnpmSpec, "--dir", "apps/desktop", "tauri", "build", "--bundles", $bundles, "--config", $configPath, "--ci")
-        if ($IsLinux -or $IsWindows) { $tauriArguments += @("--features", "application-update-qualification") }
+        if ($IsLinux -or $IsWindows -or $IsMacOS) { $tauriArguments += @("--features", "application-update-qualification") }
         if ($IsMacOS -and $version -eq $candidateVersion) {
             # Preserve the native cause if the second DMG build fails on a hosted runner.
             Invoke-Checked "df" @("-h", $root)
@@ -732,7 +732,7 @@ try {
         Remove-Item Env:TAURI_SIGNING_PRIVATE_KEY -ErrorAction SilentlyContinue
         Remove-Item Env:TAURI_SIGNING_PRIVATE_KEY_PATH -ErrorAction SilentlyContinue
         Remove-Item Env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD -ErrorAction SilentlyContinue
-        & (Join-Path $PSScriptRoot "test-macos-installed-selection.ps1") -QualifiedAppPath $qualifiedApp -CandidatePath (Join-Path $candidateStage $candidateInventory.updater.filename) -StateRoot (Join-Path $fixtureRoot "state") -EvidencePath (Join-Path $fixtureRoot "application-update-evidence.json") -PredecessorVersion $predecessorVersion -CandidateVersion $candidateVersion -PayloadPrivateKeyPath $privateKey -TufPrivateRootPath (Join-Path $fixtureRoot "private")
+        & (Join-Path $PSScriptRoot "test-macos-installed-selection.ps1") -QualifiedAppPath $qualifiedApp -CandidatePath (Join-Path $candidateStage $candidateInventory.updater.filename) -ExpectedCandidateAppPath (Join-Path $runRoot "$candidateVersion-bundles/macos/Portcove.app") -StateRoot (Join-Path $fixtureRoot "state") -EvidencePath (Join-Path $fixtureRoot "application-update-evidence.json") -PredecessorVersion $predecessorVersion -CandidateVersion $candidateVersion -PayloadPrivateKeyPath $privateKey -TufPrivateRootPath (Join-Path $fixtureRoot "private")
         if ($LASTEXITCODE -ne 0) { throw "macOS installed application selection qualification failed" }
     }
 } catch {
