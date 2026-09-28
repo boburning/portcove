@@ -1473,6 +1473,16 @@ pub fn run_hidden_helper() -> Option<i32> {
                 2
             })
         }
+        #[cfg(all(target_os = "linux", feature = "application-update-qualification"))]
+        Some(mode) if mode == "--portcove-qualify-update-stage" => {
+            let payload = arguments.next().map(PathBuf::from);
+            Some(match payload {
+                Some(payload) if arguments.next().is_none() => {
+                    qualify_installed_application_stage(&payload)
+                }
+                _ => 2,
+            })
+        }
         Some(mode) if mode == "--portcove-supervise" => {
             let request = arguments.next().map(PathBuf::from);
             Some(match request {
@@ -1559,6 +1569,105 @@ fn qualify_installed_application_selection() -> i32 {
         }
         Err(error) => {
             eprintln!("installed application update selection failed: {error}");
+            1
+        }
+    }
+}
+
+/// Qualification-only local payload source. The installed binary still selects
+/// the candidate from its compiled repository and verifies these bytes through
+/// the same operation used by the normal desktop commands.
+#[cfg(all(target_os = "linux", feature = "application-update-qualification"))]
+struct QualificationPayloadSource(PathBuf);
+
+#[cfg(all(target_os = "linux", feature = "application-update-qualification"))]
+#[async_trait::async_trait]
+impl application_update_operation::ApplicationUpdatePayloadSource for QualificationPayloadSource {
+    async fn open(
+        &self,
+        _candidate: &application_update::SelectedCandidate,
+    ) -> Result<
+        application_update_operation::ApplicationUpdatePayloadReader,
+        application_update_download::PayloadDownloadError,
+    > {
+        let file = tokio::fs::File::open(&self.0).await.map_err(|error| {
+            application_update_download::PayloadDownloadError::InvalidSource(error.to_string())
+        })?;
+        Ok(Box::new(file))
+    }
+}
+
+#[cfg(all(target_os = "linux", feature = "application-update-qualification"))]
+fn qualify_installed_application_stage(payload: &Path) -> i32 {
+    use application_update::ApplicationChannel;
+    use application_update_coordinator::{
+        ApplicationUpdateCheckEnvironment, ApplicationUpdateCoordinator,
+    };
+    use application_update_host::ApplicationUpdateHostProvider;
+    use application_update_operation::{
+        ApplicationUpdateOperation, ApplicationUpdateOperationOutcome,
+        NoopApplicationUpdateProgressSink,
+    };
+    use application_update_preferences::{
+        ApplicationUpdateChoice, ApplicationUpdateMode, ApplicationUpdatePreferenceStore,
+    };
+    use application_update_schedule::{
+        ApplicationUpdateCheckRequest, MeteredConnection, NetworkAvailability,
+    };
+    use application_update_staging::ApplicationUpdateStagingStore;
+
+    let result = (|| -> Result<_, Box<dyn std::error::Error>> {
+        let provider = ApplicationUpdateHostProvider::compiled()?
+            .ok_or("the packaged update provider is not configured")?;
+        let preferences = ApplicationUpdatePreferenceStore::open_configured()?;
+        let current = preferences.load()?;
+        preferences.save_choice(
+            current.revision,
+            ApplicationUpdateChoice {
+                channel: ApplicationChannel::Preview,
+                mode: ApplicationUpdateMode::Automatic,
+                paused: false,
+            },
+        )?;
+        let staging = ApplicationUpdateStagingStore::open_configured()?;
+        let operation = ApplicationUpdateOperation::new(
+            ApplicationUpdateCoordinator::open_configured()?,
+            staging.clone(),
+        );
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()?;
+        let outcome = runtime.block_on(operation.check_and_stage(
+            ApplicationUpdateCheckEnvironment {
+                request: ApplicationUpdateCheckRequest::Manual,
+                startup_unix_seconds: 0,
+                network: NetworkAvailability::Unknown,
+                metered: MeteredConnection::Unknown,
+            },
+            &provider,
+            &QualificationPayloadSource(payload.to_path_buf()),
+            &NoopApplicationUpdateProgressSink,
+            &tokio_util::sync::CancellationToken::new(),
+        ))?;
+        let ApplicationUpdateOperationOutcome::Checked { staged: true, .. } = outcome else {
+            return Err("installed application did not stage an authenticated candidate".into());
+        };
+        let staged = runtime
+            .block_on(staging.reconcile())?
+            .ok_or("installed application staging did not retain a verified candidate")?;
+        Ok(serde_json::json!({
+            "version": staged.candidate.release.version,
+            "sha256": staged.candidate.release.artifact.sha256,
+            "bytes": staged.candidate.release.artifact.bytes,
+        }))
+    })();
+    match result {
+        Ok(result) => {
+            println!("{result}");
+            0
+        }
+        Err(error) => {
+            eprintln!("installed application update staging failed: {error}");
             1
         }
     }

@@ -400,7 +400,10 @@ test("manual rehearsal retains the complete matrix without production credential
   assert.doesNotMatch(linuxHarness, /WEBKIT_DISABLE_COMPOSITING_MODE/);
   assert.match(linuxHarness, /PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_STAGE/);
   assert.match(linuxHarness, /PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_INTERRUPT/);
-  assert.match(linuxHarness, /schema_version = 14/);
+  assert.match(linuxHarness, /schema_version = 15/);
+  assert.match(linuxHarness, /& \$stable --portcove-qualify-update-stage \$truncatedCandidate/);
+  assert.match(linuxHarness, /& \$stable --portcove-qualify-update-stage \$candidate/);
+  assert.match(linuxHarness, /-- prepare-staged \$PredecessorVersion/);
   assert.match(linuxHarness, /\$PredecessorVersion = "0\.1\.0"/);
   assert.match(linuxHarness, /\$CandidateVersion = "0\.3\.0"/);
   assert.match(rehearsal, /wrong-disposable\.key/);
@@ -686,7 +689,7 @@ test("packaged transition and evidence contracts execute exact profile semantics
   ]);
   assert.equal(evidence.status, 0, evidence.stderr);
   assert.deepEqual(JSON.parse(evidence.stdout), {
-    schema_version: 14,
+    schema_version: 15,
     predecessor_version: "1.0.0-rc.2",
     candidate_version: "1.0.0",
   });

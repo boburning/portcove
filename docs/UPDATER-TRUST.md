@@ -394,7 +394,11 @@ rehearsal installs the real DEB through Ubuntu and the real RPM through Fedora, 
 proves inspection leaves each executable unchanged. A qualification-only hidden
 command in the installed AppImage invokes this compiled provider against the
 disposable signed repository and records the exact selected candidate identity.
-It does not download, stage, restart, or establish renderer behavior. After the shared post-exit
+A second qualification-only command uses the production check-and-stage operation
+with fixture-supplied local payload bytes. The installed binary authenticates the
+selection and verifies the staged bytes; the fixture cannot select a candidate or
+grant apply authority. This does not establish normal renderer acquisition or restart
+behavior. After the shared post-exit
 revalidation lease is held, the Linux adapter rehashes an exact direct x86_64 Type 2 AppImage
 payload into a synchronized sibling file and atomically exchanges it with the stable
 AppImage source. The apply journal records the exact prior bytes and retained backup

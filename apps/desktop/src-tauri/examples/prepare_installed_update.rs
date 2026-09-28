@@ -45,7 +45,7 @@ struct PreparedUpdate {
 }
 
 fn usage() -> &'static str {
-    "usage: prepare_installed_update describe CURRENT_VERSION\n       prepare_installed_update prepare CURRENT_VERSION ROOT METADATA TARGETS CANDIDATE PREFERENCES STAGING LIBRARY"
+    "usage: prepare_installed_update describe CURRENT_VERSION\n       prepare_installed_update prepare CURRENT_VERSION ROOT METADATA TARGETS CANDIDATE PREFERENCES STAGING LIBRARY\n       prepare_installed_update prepare-staged CURRENT_VERSION PREFERENCES STAGING LIBRARY"
 }
 
 #[cfg(target_os = "linux")]
@@ -204,6 +204,58 @@ async fn prepare(arguments: &[String]) -> Result<PreparedUpdate, String> {
     })
 }
 
+/// Prepare only the apply intent after the installed AppImage has selected and
+/// staged the authenticated payload itself. This fixture never selects a
+/// repository candidate or supplies payload bytes.
+async fn prepare_staged(arguments: &[String]) -> Result<PreparedUpdate, String> {
+    let [
+        current_version,
+        preferences_path,
+        staging_root,
+        library_root,
+    ] = arguments
+    else {
+        return Err(usage().into());
+    };
+    let installed = installed_context(current_version)?;
+    let preferences = ApplicationUpdatePreferenceStore::new(PathBuf::from(preferences_path))
+        .map_err(|error| error.to_string())?
+        .load()
+        .map_err(|error| error.to_string())?;
+    let staging_root = PathBuf::from(staging_root);
+    let staged = ApplicationUpdateStagingStore::new(staging_root.clone())
+        .map_err(|error| error.to_string())?
+        .reconcile()
+        .await
+        .map_err(|error| error.to_string())?
+        .ok_or_else(|| {
+            "installed AppImage did not retain a verified staged candidate".to_owned()
+        })?;
+    let library_root = PathBuf::from(library_root);
+    std::fs::create_dir_all(&library_root).map_err(|error| error.to_string())?;
+    let library = portcove_core::Library::open(&library_root).map_err(|error| error.to_string())?;
+    let library_root = library.root().to_path_buf();
+    drop(library);
+    let apply =
+        ApplicationUpdateApplyStore::new(staging_root).map_err(|error| error.to_string())?;
+    let prepared = apply
+        .prepare_explicit_restart(&preferences, &staged, &installed, &library_root)
+        .map_err(|error| error.to_string())?;
+    let terminated = apply
+        .record_termination(
+            prepared.revision,
+            ApplicationTerminationKind::RestartToApply,
+        )
+        .map_err(|error| error.to_string())?;
+    Ok(PreparedUpdate {
+        apply_revision: terminated.revision,
+        candidate_version: staged.candidate.release.version.clone(),
+        candidate_sha256: staged.candidate.release.artifact.sha256.clone(),
+        candidate_bytes: staged.candidate.release.artifact.bytes,
+        installed,
+    })
+}
+
 #[tokio::main]
 async fn main() {
     let arguments = std::env::args().skip(1).collect::<Vec<_>>();
@@ -215,6 +267,11 @@ async fn main() {
         [command, rest @ ..] if command == "prepare" => prepare(rest).await.and_then(|prepared| {
             serde_json::to_string(&prepared).map_err(|error| error.to_string())
         }),
+        [command, rest @ ..] if command == "prepare-staged" => {
+            prepare_staged(rest).await.and_then(|prepared| {
+                serde_json::to_string(&prepared).map_err(|error| error.to_string())
+            })
+        }
         _ => Err(usage().into()),
     };
     match result {

@@ -43,8 +43,11 @@ Linux builds a disposable test-signed TUF repository, embeds its public trust an
 local repository URLs in a qualification-only 0.1.0 AppImage, and exercises the
 packaged helper through an interrupted candidate copy, GUI-independent command
 recovery without a display server, and retrying 0.1.0-to-0.3.0 replacement under
-Xvfb. Before granting staged or apply authority, the harness removes one byte from
-the authenticated candidate, requires an exact length-mismatch failure, and proves
+Xvfb. The installed predecessor selects the candidate with its compiled provider
+and stages fixture-supplied bytes through the desktop check-and-stage operation;
+the external fixture prepares only the later apply intent. Before granting staged
+or apply authority, the harness removes one byte from the authenticated candidate,
+requires an exact length-mismatch failure, and proves
 the stable AppImage, empty staging state, and library sentinel remain unchanged.
 It then retries the exact candidate and continues the normal sequence. Before
 replacement, the harness presents an unsupported future apply-journal
@@ -91,10 +94,11 @@ The script requires a clean tracked checkout, records the exact source commit an
 version-only source patch, restores metadata, and deletes its disposable private
 key. Prior build outputs are preserved under its new evidence directory.
 
-The Linux packaged run is Ubuntu-hosted AppImage evidence with disposable keys. It
-does not establish production signing, universal distribution compatibility, Steam
-Deck behavior, every interruption phase, or the remaining distro evidence tracked by
-the live roadmap issue.
+The Linux packaged run is Ubuntu-hosted AppImage evidence with disposable keys.
+Fixture payload acquisition and external apply-intent preparation do not establish
+the normal desktop download and restart interaction, production signing, universal
+distribution compatibility, Steam Deck behavior, every interruption phase, or the
+remaining distro evidence tracked by the live roadmap issue.
 
 The manual **Linux package ownership rehearsal** is the smaller DEB/RPM companion.
 It builds only those two native packages on Ubuntu 22.04, then verifies DEB through
