@@ -1081,21 +1081,23 @@ mod tests {
 
     #[test]
     fn macos_nested_bundle_backup_has_one_strict_journal_shape() {
+        let root = tempfile::tempdir().unwrap();
         let mut replacement = ApplicationUpdateNativeReplacement {
-            source_path: PathBuf::from("/Users/test/Applications/Portcove.app"),
-            backup_path: PathBuf::from(
-                "/Users/test/Applications/.portcove-update-0123456789abcdef/Portcove.app",
-            ),
+            source_path: root.path().join("Portcove.app"),
+            backup_path: root
+                .path()
+                .join(".portcove-update-0123456789abcdef/Portcove.app"),
             previous_bytes: 42,
             previous_sha256: "a".repeat(64),
         };
         assert!(validate_native_replacement(&replacement).is_ok());
-        replacement.backup_path =
-            PathBuf::from("/Users/test/Applications/.portcove-update-0123456789abcdef/Other.app");
+        replacement.backup_path = root
+            .path()
+            .join(".portcove-update-0123456789abcdef/Other.app");
         assert!(validate_native_replacement(&replacement).is_err());
-        replacement.backup_path = PathBuf::from(
-            "/Users/test/Applications/.portcove-update-0123456789abcdeg/Portcove.app",
-        );
+        replacement.backup_path = root
+            .path()
+            .join(".portcove-update-0123456789abcdeg/Portcove.app");
         assert!(validate_native_replacement(&replacement).is_err());
     }
 
