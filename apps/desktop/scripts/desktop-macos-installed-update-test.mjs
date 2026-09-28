@@ -109,6 +109,21 @@ function listenerPid(port) {
     throw error;
   }
 }
+function childPids(pid) {
+  try {
+    const output = execFileSync("/usr/bin/pgrep", ["-P", String(pid)], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
+    return output
+      .split(/\s+/u)
+      .map(Number)
+      .filter((child) => Number.isInteger(child) && child > 0);
+  } catch (error) {
+    if (error.status === 1) return [];
+    throw error;
+  }
+}
 async function naturalExit(marker, role) {
   const original = processIdentity(marker.process_id, role);
   await waitFor(
@@ -140,6 +155,41 @@ async function stopOwned(marker, role) {
     if (current?.started === original.started) process.kill(marker.process_id, "SIGKILL");
     await waitFor(() => !processIdentity(marker.process_id, role), `${role} forced cleanup`, 5000);
   }
+}
+async function stopHelper(marker) {
+  if (!marker || marker.executable !== values.app || marker.schema_version !== 1) return [];
+  const original = processIdentity(marker.process_id, "helper");
+  if (!original) return [];
+  try {
+    await waitFor(
+      () => !processIdentity(marker.process_id, "helper"),
+      "helper natural cleanup",
+      30_000,
+    );
+    return [];
+  } catch {
+    // Freeze this exact helper before reading its children. It cannot spawn a
+    // candidate between that read and the forced helper exit.
+  }
+  const current = processIdentity(marker.process_id, "helper");
+  if (!current || current.started !== original.started) return [];
+  process.kill(marker.process_id, "SIGSTOP");
+  await waitFor(
+    () => processIdentity(marker.process_id, "helper")?.state.includes("T"),
+    "owned helper stopped",
+    5000,
+  );
+  const candidates = childPids(marker.process_id)
+    .map((pid) => processIdentity(pid, "candidate"))
+    .filter(Boolean);
+  if (processIdentity(marker.process_id, "helper")?.started === original.started)
+    process.kill(marker.process_id, "SIGKILL");
+  await waitFor(
+    () => !processIdentity(marker.process_id, "helper"),
+    "owned helper forced exit",
+    5000,
+  );
+  return candidates;
 }
 const port = await availablePort();
 report.webdriver_port = port;
@@ -283,6 +333,18 @@ try {
   throw error;
 } finally {
   await writeFile(path.join(values.output, "application.log"), output);
+  const unmarkedHelper =
+    !report.helper && Number.isInteger(application.pid)
+      ? childPids(application.pid)
+          .map((pid) => {
+            try {
+              return processIdentity(pid, "helper");
+            } catch {
+              return null;
+            }
+          })
+          .find(Boolean)
+      : null;
   if (application.exitCode === null && application.signalCode === null) {
     application.kill();
     await bounded(applicationExit, "owned predecessor cleanup", 5000).catch((error) => {
@@ -290,17 +352,38 @@ try {
       report.phase = "failed";
     });
   }
-  // A live helper may create the relaunch marker while cleanup runs. Stop it
-  // first, then read the candidate marker after helper exit.
-  for (const role of ["helper", "candidate"]) {
-    const marker =
-      role === "helper"
-        ? (report.helper ?? (await readJson(values["helper-marker"]).catch(() => null)))
-        : (report.relaunch ?? (await readJson(values["relaunch-marker"]).catch(() => null)));
+  const helper =
+    report.helper ??
+    (await readJson(values["helper-marker"]).catch(() => null)) ??
+    (unmarkedHelper && {
+      schema_version: 1,
+      process_id: unmarkedHelper.pid,
+      executable: values.app,
+    });
+  let unmarkedCandidates = [];
+  try {
+    unmarkedCandidates = await stopHelper(helper);
+  } catch (error) {
+    report.cleanup_failure = String(error);
+    report.phase = "failed";
+  }
+  // The helper is now gone, so it cannot create another candidate after this
+  // marker read. Include a child captured while an unresponsive helper was stopped.
+  const candidate =
+    report.relaunch ?? (await readJson(values["relaunch-marker"]).catch(() => null));
+  const candidateMarkers = [
+    candidate,
+    ...unmarkedCandidates.map((identity) => ({
+      schema_version: 1,
+      process_id: identity.pid,
+      executable: values.app,
+    })),
+  ];
+  for (const marker of candidateMarkers) {
     try {
-      await stopOwned(marker, role);
-      if (marker && processIdentity(marker.process_id, role))
-        throw new Error(`${role} remained live after owned cleanup`);
+      await stopOwned(marker, "candidate");
+      if (marker && processIdentity(marker.process_id, "candidate"))
+        throw new Error("Candidate remained live after owned cleanup");
     } catch (error) {
       report.cleanup_failure = String(error);
       report.phase = "failed";
