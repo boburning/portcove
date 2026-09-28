@@ -16,10 +16,15 @@ if ([IO.File]::Exists($PayloadPrivateKeyPath) -or [IO.Directory]::Exists($TufPri
     throw "Disposable signing authority remained available before installed application selection"
 }
 
-function Invoke-BundleSelection([string]$Executable) {
+function Invoke-BundleSelection([string]$Executable, [string]$Payload = "") {
     $start = [Diagnostics.ProcessStartInfo]::new()
     $start.FileName = $Executable
-    $start.ArgumentList.Add("--portcove-qualify-update-selection")
+    if ($Payload) {
+        $start.ArgumentList.Add("--portcove-qualify-update-stage")
+        $start.ArgumentList.Add($Payload)
+    } else {
+        $start.ArgumentList.Add("--portcove-qualify-update-selection")
+    }
     $start.UseShellExecute = $false
     $start.RedirectStandardOutput = $true
     $start.RedirectStandardError = $true
@@ -30,11 +35,14 @@ function Invoke-BundleSelection([string]$Executable) {
         $stdout = $process.StandardOutput.ReadToEndAsync()
         $stderr = $process.StandardError.ReadToEndAsync()
         if (-not $process.WaitForExit(60000)) {
-            $process.Kill($true)
-            throw "Installed macOS application selection timed out"
+            if (-not $process.HasExited) { $process.Kill($true) }
+            if (-not $process.WaitForExit(5000)) {
+                throw "Installed macOS application update qualification timed out and process exit was not confirmed"
+            }
+            throw "Installed macOS application update qualification timed out"
         }
         if ($stdout.Result.Length -gt 4096 -or $stderr.Result.Length -gt 4096) {
-            throw "Installed macOS application selection output was oversized"
+            throw "Installed macOS application update qualification output was oversized"
         }
         return [ordered]@{
             exit_code = $process.ExitCode
@@ -77,6 +85,45 @@ try {
     if ((Get-FileHash -LiteralPath $executable -Algorithm SHA256).Hash.ToLowerInvariant() -ne $before) {
         throw "Installed macOS selection changed the running bundle"
     }
+    $env:PORTCOVE_APPLICATION_UPDATE_PREFERENCES = Join-Path $StateRoot "application-update-preferences.json"
+    $env:PORTCOVE_APPLICATION_UPDATE_SCHEDULE = Join-Path $StateRoot "application-update-schedule.json"
+    $truncatedCandidate = Join-Path $StateRoot "truncated-candidate.app.tar.gz"
+    Copy-Item -LiteralPath $CandidatePath -Destination $truncatedCandidate
+    $truncatedFile = [IO.File]::OpenWrite($truncatedCandidate)
+    try { $truncatedFile.SetLength($truncatedFile.Length - 1) } finally { $truncatedFile.Dispose() }
+    $truncated = Invoke-BundleSelection $executable $truncatedCandidate
+    $stagingJournal = Join-Path $StateRoot "staging.json"
+    if ($truncated.exit_code -eq 0 -or $truncated.stderr -notmatch "payload length mismatch" -or
+        -not (Test-Path -LiteralPath $stagingJournal -PathType Leaf)) {
+        throw "Installed macOS truncated archive was not rejected by the staging verifier"
+    }
+    $empty = Get-Content -LiteralPath $stagingJournal -Raw | ConvertFrom-Json
+    if ($empty.phase -ne "empty" -or $null -ne $empty.candidate -or $null -ne $empty.previous_candidate -or
+        (Test-Path -LiteralPath (Join-Path $StateRoot "candidate.payload")) -or
+        (Test-Path -LiteralPath (Join-Path $StateRoot ".candidate.payload.incoming")) -or
+        (Test-Path -LiteralPath (Join-Path $StateRoot "apply.json")) -or
+        (Get-FileHash -LiteralPath $executable -Algorithm SHA256).Hash.ToLowerInvariant() -ne $before) {
+        throw "Truncated macOS archive left staging authority or changed the installed predecessor"
+    }
+    $state.truncated_stage = [ordered]@{ exit_code = $truncated.exit_code; staging_empty = $true; predecessor_preserved = $true }
+    $staged = Invoke-BundleSelection $executable $CandidatePath
+    if ($staged.exit_code -ne 0) { throw "Installed macOS staging failed: $($staged.stderr)" }
+    $stagedIdentity = $staged.stdout | ConvertFrom-Json
+    $stagedPayload = Join-Path $StateRoot "candidate.payload"
+    if (-not (Test-Path -LiteralPath $stagedPayload -PathType Leaf)) {
+        throw "Installed macOS staging did not retain the authenticated archive"
+    }
+    $stagedPayloadBytes = (Get-Item -LiteralPath $stagedPayload).Length
+    $stagedPayloadHash = (Get-FileHash -LiteralPath $stagedPayload -Algorithm SHA256).Hash.ToLowerInvariant()
+    if ($stagedIdentity.version -ne $CandidateVersion -or $stagedIdentity.sha256 -ne $candidate -or
+        $stagedIdentity.bytes -ne (Get-Item -LiteralPath $CandidatePath).Length -or
+        $stagedPayloadBytes -ne $stagedIdentity.bytes -or $stagedPayloadHash -ne $candidate -or
+        (Get-FileHash -LiteralPath $executable -Algorithm SHA256).Hash.ToLowerInvariant() -ne $before -or
+        (Test-Path -LiteralPath (Join-Path $StateRoot ".candidate.payload.incoming")) -or
+        (Test-Path -LiteralPath (Join-Path $StateRoot "apply.json"))) {
+        throw "Installed macOS staging did not retain exactly the authenticated archive"
+    }
+    $state.installed_stage = [ordered]@{ version = $stagedIdentity.version; sha256 = $stagedIdentity.sha256; bytes = $stagedIdentity.bytes; staged_payload_sha256 = $stagedPayloadHash; staged_payload_bytes = $stagedPayloadBytes; predecessor_preserved = $true }
     $modeBefore = (& /usr/bin/stat -f %Lp $installedRoot | Out-String).Trim()
     $modeBits = [Convert]::ToInt32($modeBefore, 8)
     if (($modeBits -band 128) -eq 0) { throw "The installed bundle parent did not begin owner-writable" }
