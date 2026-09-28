@@ -691,6 +691,11 @@ impl MacosBundleUpdateAdmission {
                 "the bundle exchanged but its containing directory could not be synchronized: {error}"
             ))
         })?;
+        sync_parent(&backup).map_err(|error| {
+            MacosApplicationUpdateError::Ambiguous(format!(
+                "the bundle exchanged but its backup directory could not be synchronized: {error}"
+            ))
+        })?;
         #[cfg(feature = "application-update-qualification")]
         if std::env::var_os("PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_INTERRUPT").as_deref()
             == Some(OsStr::new("after-bundle-swap"))
