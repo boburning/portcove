@@ -62,6 +62,7 @@ const DESKTOP_UPDATE_PROCESS_ENVIRONMENT: &[&str] = &[
     "PORTCOVE_APPLICATION_UPDATE_PREFERENCES",
     "PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_EXIT",
     "PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_INTERRUPT",
+    "PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_RELAUNCH_EXIT",
     "PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_STAGE",
     "PORTCOVE_APPLICATION_UPDATE_SCHEDULE",
     "PORTCOVE_APPLICATION_UPDATE_STAGING",
@@ -456,6 +457,15 @@ fn restart_executable_if_runtime_available(
         ChildProcessPolicy::native_command(ChildProcessClass::HostIntegration, executable)
             .map_err(|_| ())?;
     copy_desktop_update_environment(&mut command, std::env::vars_os());
+    #[cfg(feature = "application-update-qualification")]
+    if std::env::var_os("PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_RELAUNCH_EXIT").as_deref()
+        == Some(OsStr::new("1"))
+    {
+        command.env(
+            "PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_EXIT",
+            "after-reconciliation",
+        );
+    }
     command.stdin(Stdio::null());
     #[cfg(feature = "application-update-qualification")]
     let retain_qualification_output =
@@ -632,6 +642,10 @@ mod tests {
                     OsString::from("stage"),
                 ),
                 (
+                    OsString::from("PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_RELAUNCH_EXIT"),
+                    OsString::from("1"),
+                ),
+                (
                     OsString::from("PORTCOVE_GITHUB_TOKEN"),
                     OsString::from("secret"),
                 ),
@@ -674,6 +688,12 @@ mod tests {
                 .get("PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_STAGE")
                 .map(String::as_str),
             Some("stage")
+        );
+        assert_eq!(
+            environment
+                .get("PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_RELAUNCH_EXIT")
+                .map(String::as_str),
+            Some("1")
         );
         assert!(!environment.contains_key("PORTCOVE_GITHUB_TOKEN"));
         assert!(!environment.contains_key("PORTCOVE_PORT_ID"));
