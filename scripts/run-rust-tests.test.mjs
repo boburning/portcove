@@ -626,14 +626,14 @@ test("runner retains ownership when Unix cleanup reports failure", async () => {
 
 test(
   "Windows Job Object supervisor kills a detached grandchild when its root exits",
-  { skip: process.platform !== "win32" },
+  { skip: process.platform !== "win32", timeout: 90_000 },
   async () => {
     const tempRoot = await mkdtemp(path.join(os.tmpdir(), "portcove-job-supervisor-"));
     const supervisor = path.join(tempRoot, "supervisor.exe");
     const gatePath = path.join(tempRoot, "registered.gate");
     const pidFile = path.join(tempRoot, "descendant.pid");
     try {
-      const compiled = spawnSync(
+      const compiled = spawn(
         "rustc",
         [
           "--edition=2024",
@@ -645,7 +645,11 @@ test(
         ],
         { stdio: "inherit", windowsHide: true },
       );
-      assert.equal(compiled.status, 0);
+      const compileStatus = await new Promise((resolve, reject) => {
+        compiled.once("error", reject);
+        compiled.once("close", resolve);
+      });
+      assert.equal(compileStatus, 0);
       const rootScript = [
         'const { spawn } = require("node:child_process")',
         'const { writeFileSync } = require("node:fs")',
