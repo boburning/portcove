@@ -65,6 +65,7 @@ const evidencePath = path.join(values.output, "renderer-update-evidence.json");
 const snapshotPath = path.join(values.output, "native-processes-before-restart.json");
 const nativeSession = fileURLToPath(new URL("./native-session.ps1", import.meta.url));
 const markedProcess = fileURLToPath(new URL("./native-marked-update-process.ps1", import.meta.url));
+const webviewProfile = path.join(values.output, "webview2-profile");
 let driver;
 let browser;
 let driverSession;
@@ -156,12 +157,12 @@ try {
     windowsHide: true,
     env: {
       ...process.env,
-      WEBVIEW2_USER_DATA_FOLDER: path.join(values.output, "webview2-profile"),
+      WEBVIEW2_USER_DATA_FOLDER: webviewProfile,
     },
   });
   driver = driverSession.driver;
   await awaitInstalledUpdateDriver(driver);
-  browser = await connectInstalledUpdateDriver(values.app);
+  browser = await connectInstalledUpdateDriver(values.app, webviewProfile);
   await driveInstalledUpdateToRestart(browser, report.actions);
   const staged = await verifyInstalledUpdateStaging({
     stagingRoot: values.staging,

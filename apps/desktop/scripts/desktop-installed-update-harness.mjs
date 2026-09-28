@@ -57,13 +57,18 @@ export async function awaitInstalledUpdateDriver(driver, identify = () => true) 
   );
 }
 
-export async function connectInstalledUpdateDriver(application) {
+export async function connectInstalledUpdateDriver(application, profile) {
+  if (process.platform === "win32")
+    assert.ok(profile && path.isAbsolute(profile), "Windows WebView2 profile must be absolute");
   return new Builder()
     .disableEnvironmentOverrides()
     .usingServer("http://127.0.0.1:45770")
     .withCapabilities({
       browserName: process.platform === "win32" ? "webview2" : "wry",
-      "tauri:options": { application },
+      "tauri:options": {
+        application,
+        ...(process.platform === "win32" ? { webviewOptions: { userDataFolder: profile } } : {}),
+      },
     })
     .build();
 }
