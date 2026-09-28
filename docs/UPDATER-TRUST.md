@@ -336,14 +336,17 @@ inactive; only the explicit restart action dispatches the launch sequence.
 
 The on-demand Windows artifact rehearsal builds a disposable signed TUF
 repository and a predecessor NSIS package with its public root embedded. In an
-isolated current-user install, the fixture selects and stages the signed candidate,
-records a restart intent, invokes the predecessor's qualification-only worker
-staging mode, and runs the revision-bound worker. The
-qualification requires candidate relaunch, healthy startup reconciliation, exact
-registered version and executable bytes, and persistent-library preservation.
-The fixture prepares the selection and restart intent externally; this evidence
-does not establish in-app check, download, or the user's restart action, a clean
-non-administrator VM, production signing, or publication.
+isolated current-user install, the installed application first rejects a truncated
+signed candidate with empty staging. Its ordinary renderer then selects the signed
+candidate, downloads and verifies fixture-supplied local installer bytes, and
+dispatches the explicit Restart to update action. The production Windows worker
+binding and revision-bound helper perform replacement. Qualification requires
+candidate relaunch, healthy startup reconciliation, exact registered version and
+executable bytes, and persistent-library preservation. The local byte source and
+process markers are available only in updater qualification builds; ordinary builds
+keep the fixed GitHub payload transport. This controlled path does not establish a
+production network transfer, a clean non-administrator VM, production signing, or
+publication.
 
 The sibling `application_update_trust` module owns the durable host trust boundary.
 Under path-keyed process ownership and one OS file lock it supplies `tough` with the
@@ -377,10 +380,10 @@ same exact current-user NSIS registration used by replacement admission, then ad
 the compiled target, API, catalog, library reader/writer and lock compatibility
 identity plus the actual Windows version. The provider implements both the regular
 authenticated checker and the helper's fresh post-exit selection boundary. The
-qualification-only installed Windows command selects through this compiled provider
-and verifies fixture-supplied local installer bytes through the production
-check-and-stage operation. The fixture prepares the subsequent apply intent;
-this does not establish the normal renderer download and restart interaction. The
+qualification-only installed Windows command and renderer select through this
+compiled provider and verify fixture-supplied local installer bytes through the
+production check-and-stage operation. Only the renderer's explicit restart action
+prepares and dispatches the apply intent in the installed GUI journey. The
 Linux provider accepts only an absolute, direct AppImage source with owner read,
 write and execute bits whose running executable is inside the native read-only FUSE
 `APPDIR` mount recorded by the Linux kernel. It reports the shared compiled

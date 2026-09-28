@@ -217,6 +217,8 @@ test("manual rehearsal retains the complete matrix without production credential
     /install-linux-desktop-prerequisites\.sh --include-rpm --include-appimage-runtime --include-webdriver/,
   );
   assert.match(workflow, /cargo install tauri-driver --locked --version "\$version"/);
+  assert.match(workflow, /bootstrap-quality-tools\.ps1 -Desktop/);
+  assert.match(workflow, /installer-test\/run-\*\/renderer-qualification\/evidence\/\*\.json/);
   assert.match(workflow, /renderer-qualification\/evidence\/\*\.json/);
   assert.doesNotMatch(workflow, /renderer-qualification\/\*\*/);
   assert.match(workflow, /qualified-\*-bundles\/appimage\/\*\*/);
@@ -241,6 +243,8 @@ test("manual rehearsal retains the complete matrix without production credential
   assert.match(lifecycle, /HKEY_CURRENT_USER/);
   assert.match(lifecycle, /installed_update_truncated_stage/);
   assert.match(lifecycle, /installed_truncated_stage_rejected/);
+  assert.match(lifecycle, /desktop-windows-update-test\.mjs/);
+  assert.match(lifecycle, /installed_renderer_reconciled/);
   assert.match(lifecycle, /installed_update_selection_stage/);
   assert.match(lifecycle, /--portcove-qualify-update-stage/);
   assert.match(lifecycle, /-- prepare-staged \$InstalledUpdatePredecessorVersion/);
@@ -265,6 +269,10 @@ test("manual rehearsal retains the complete matrix without production credential
   );
   assert.match(rehearsal, /test-linux-appimage-update\.ps1/);
   assert.match(rehearsal, /desktop-appimage-update-test\.mjs/);
+  assert.match(
+    rehearsal,
+    /-InstalledUpdatePredecessorVersion \$predecessorVersion -RendererUpdate/,
+  );
   assert.match(rehearsal, /PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_PAYLOAD = \$candidate/);
   const macInstalled = await readFile(
     new URL("./test-macos-installed-selection.ps1", import.meta.url),

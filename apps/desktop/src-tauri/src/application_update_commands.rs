@@ -420,7 +420,10 @@ fn configure_runner() -> DesktopResult<Option<Arc<dyn ApplicationUpdateCommandRu
 }
 
 fn configured_payload_source() -> DesktopResult<Arc<dyn ApplicationUpdatePayloadSource>> {
-    #[cfg(all(target_os = "linux", feature = "application-update-qualification"))]
+    #[cfg(all(
+        any(windows, target_os = "linux"),
+        feature = "application-update-qualification"
+    ))]
     if let Some(path) = std::env::var_os("PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_PAYLOAD") {
         let path = std::path::PathBuf::from(path);
         let metadata = std::fs::symlink_metadata(&path).map_err(|_| {
