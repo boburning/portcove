@@ -214,20 +214,22 @@ try {
     Move-RehearsalInput $cliRoot "previous-cli-assets"
     foreach ($version in $fixtureVersions) {
         Set-FixtureVersion $version
+        $cliTargetRoot = Join-Path $root "target"
+        $cliBuildArguments = @("build", "--release", "-p", "portcove-cli", "-p", "portcove-release-tools")
         if ($IsWindows) {
-            $cliExecutable = Join-Path $root "target/release/portcove.exe"
-            if ([IO.File]::Exists($cliExecutable)) {
-                Move-Item -LiteralPath $cliExecutable -Destination (Join-Path $runRoot "$version-previous-portcove.exe")
-            }
+            $cliTargetRoot = Join-Path $root "target/updater-rehearsal-cli-$version"
+            $cliBuildArguments += @("--target-dir", $cliTargetRoot)
         }
-        Invoke-Checked "cargo" @("build", "--release", "-p", "portcove-cli", "-p", "portcove-release-tools")
+        Invoke-Checked "cargo" $cliBuildArguments
         if ($IsWindows) {
+            $cliExecutable = Join-Path $cliTargetRoot "release/portcove.exe"
             $builtVersion = (& $cliExecutable --version | Out-String).Trim()
             if ($LASTEXITCODE -ne 0 -or $builtVersion -cne "portcove $version") {
                 throw "Built CLI version differs from requested fixture ${version}: $builtVersion"
             }
+            $verifier = Join-Path $cliTargetRoot "release/portcove-release-tools.exe"
         }
-        & (Join-Path $PSScriptRoot "package-cli.ps1") -PlatformLabel $PlatformLabel
+        & (Join-Path $PSScriptRoot "package-cli.ps1") -PlatformLabel $PlatformLabel -TargetRoot $cliTargetRoot
         $cliName = (& node scripts/release-package-policy.mjs --platform $PlatformLabel --interface cli --version $version | Out-String).Trim()
         if ($LASTEXITCODE -ne 0) { throw "Cannot select packaged CLI" }
         & (Join-Path $PSScriptRoot "smoke-test-cli-archive.ps1") -ArchivePath (Join-Path $cliRoot $cliName) -PlatformLabel $PlatformLabel -Version $version
