@@ -34,6 +34,8 @@ When one executable performs both setup or source generation and ordinary play, 
 
 For exact sources that are copied, normalized, extracted, or otherwise materialized, test identity after materialization and every supported persistence transition. Alter or restore the staged destination while retaining reusable metadata and prove the next launch fails closed or deterministically recreates exact bytes. A marker bound only to the original source object does not authenticate a persistent staged destination.
 
+For a compressed source that is expanded before setup, trace the selected source-kind record fields through inspection and execution. Budget any copied input, peak materialized source, and generated setup output separately with checked arithmetic; state which amounts are estimates and which are enforced bounds. Exercise a compressed input and arithmetic overflow in focused tests. A compressed size field does not establish the peak expanded-space need or bound arbitrary upstream output.
+
 Create persistence probes through the active runtime coordinate system during an owned live session. Close normally, wait for the Portcove supervisor or CLI to finish collection, and verify both active and canonical copies before update, rollback, removal, reinstall, or restore. An out-of-band write to the canonical root does not model application-owned persistence and may be superseded by active-tree reconciliation; state adapter-specific copy direction explicitly.
 
 Use an explicitly isolated library and authorized source files. Exercise the

@@ -12,7 +12,11 @@ Treat the interactive desktop, keyboard/pointer input, browser profile, installe
 
 Choose scenarios matching the change: onboarding, unavailable sources, operation progress/cancellation, error recovery, settings persistence, focus order and scaled layouts. Capture the exact executable hash, revision, platform, scenario results, screenshots and logs. Failed and skipped scenarios must remain visible.
 
+For a native visual claim, wait for the semantic settled signal, frame the changed control in the viewport, retain the relevant state, and inspect the image itself. Interaction assertions do not establish visual coverage. For size-specific layouts, read back actual outer window dimensions after resizing and measure the client viewport; label evidence with verified dimensions, not requested sizes.
+
 For one known behavior, use one exact scenario. Repeat `--scenario` for a tightly related series; use `presentation`, `restart`, `artwork`, or `owned-lifecycle` for those boundaries and `full` only for cross-cutting completion evidence. Setup scenarios needed to create isolated fixture state are not selected-test passes. Size any aggregate watchdog from the selected scenario inventory while retaining bounded per-interaction limits, and record the selection and outer deadline. Use `--require-clean` for final evidence. Do not add native verification to routine local checks, CI, schedules, or background work.
+
+Before asserting that an artifact survives a native mutation, establish a known owned pre-state and record its identity. When a scenario overwrites an input fixture after launch, retain immutable before copies and separate after identities; rehash the retained files against the evidence manifest. Check these preconditions before a costly native build. If a qualification-only fixture changes renderer or boot mode, run it separately from normal-app scenarios unless the harness explicitly restores normal mode; retain any incompatible combined run as fixture-bound evidence.
 
 Size disposable interactive-fixture lifetimes for the evidence collection itself, including screenshots, accessibility refreshes, process-tree capture, and durable-state queries. Prefer an explicit external release signal with a bounded but comfortable deadline. If a fixture expires, retain the run as a negative fixture outcome and prepare a new positive-control install; do not relabel it as a product failure, increase a product watchdog, or overwrite a managed executable to extend the window.
 
@@ -36,10 +40,14 @@ If an isolated scenario passes but the combined sequence fails, retain and repro
 
 Classify UI-runner evidence before choosing a framework. Browser-mode automation may improve renderer iteration but does not replace the actual Tauri application, platform WebView, IPC, restart, native-dialog, isolation, or evidence contracts. Preserve the native runner until a candidate demonstrates parity; label complementary browser lanes non-native and avoid duplicate lifecycle authority.
 
+For semantic CSS migrations, inspect computed WebView styles on representative element types and states when a property moves between cascade layers. For ambiguous arbitrary-value utilities, check the generated production CSS declaration or computed property and use an explicit type hint when needed. Compare native screenshots with the prior composition; a passing build or a present class name does not prove the rendered property.
+
 Use existing browser/computer-use tools for visual inspection where available, following their skills. Automated accessibility checks supplement keyboard and visual inspection; they cannot establish novice comprehension, physical controller ergonomics or human gameplay.
 
 Use focused UI tests and `just local-check` for an ordinary change. Run `just check-ui` or `just check` only when the acceptance scope, a broad investigation, or the aggregate-command rules in [quality](../../../docs/QUALITY.md) require them. Report scenario coverage and gaps explicitly; do not close intrinsic human requirements with screenshots or synthetic input alone.
 
 When adding another native WebDriver transport for the same interactions, share one transport-neutral behavioral assertion module. Keep executable identity and hashing, host identity, launch/driver connection, process ownership, bounded positive exit proof, screenshots, and logs in each transport adapter. Check that every supported transport actually invokes the shared assertions; adding a transport alone does not broaden platform or minimum-version qualification.
+
+For the qualification-only embedded Mac WebDriver transport, check the driver's input semantics before attributing a non-input element `sendKeys` failure to the product. Use WebDriver actions for supported keyboard paths and retain the failed transport run. Hosted generated keyboard events do not establish physical keyboard behavior or minimum OS support.
 
 For focus acceptance after a stateful action, inspect whether success replaces the opener, ancestor, route, or whole workspace. Test the successful replacement path separately from Escape or cancellation and verify focus on the new authoritative control. If the native fixture cannot safely perform the mutation, state that native limit and use a focused remount integration test; a native dismissal pass does not prove focus after replacement.
