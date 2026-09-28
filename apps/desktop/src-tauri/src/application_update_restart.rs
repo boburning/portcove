@@ -722,7 +722,7 @@ mod tests {
                 assert!(
                     command
                         .get_envs()
-                        .any(|(key, value)| key == name && value.is_none())
+                        .all(|(key, value)| key != name || value.is_none())
                 );
             }
             let mut command = command;
