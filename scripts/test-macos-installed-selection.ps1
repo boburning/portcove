@@ -245,6 +245,50 @@ try {
         backup_removed_after_healthy_startup = $true
         library_marker_preserved = $true
     }
+    # A separate installed copy drives the ordinary renderer and lets its
+    # post-exit helper finish without the interruption used above.
+    $guiRoot = Join-Path (Split-Path -Parent $EvidencePath) "gui-user-home/Applications"
+    New-Item -ItemType Directory -Path $guiRoot -Force | Out-Null
+    $guiApp = Join-Path $guiRoot "Portcove.app"
+    if (Test-Path -LiteralPath $guiApp) { throw "The GUI qualification installation must be new" }
+    Copy-Item -LiteralPath $QualifiedAppPath -Destination $guiApp -Recurse
+    $guiExecutable = Join-Path $guiApp "Contents/MacOS/portcove-desktop"
+    & /usr/bin/codesign --verify --deep --strict $guiApp
+    if ($LASTEXITCODE -ne 0) { throw "The GUI qualification predecessor signature failed verification" }
+    $guiState = Join-Path (Split-Path -Parent $EvidencePath) "gui-update-state"
+    New-Item -ItemType Directory -Path $guiState -Force | Out-Null
+    $guiLibraryMarker = Join-Path $guiState "library/user/installer-qualification/preserve.txt"
+    New-Item -ItemType Directory -Path (Split-Path -Parent $guiLibraryMarker) -Force | Out-Null
+    [IO.File]::WriteAllText($guiLibraryMarker, "macOS renderer update preservation", [Text.UTF8Encoding]::new($false))
+    $env:PORTCOVE_APPLICATION_UPDATE_STAGING = $guiState
+    $env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_PAYLOAD = $CandidatePath
+    $env:PORTCOVE_APPLICATION_UPDATE_PREFERENCES = Join-Path $guiState "application-update-preferences.json"
+    $env:PORTCOVE_APPLICATION_UPDATE_SCHEDULE = Join-Path $guiState "application-update-schedule.json"
+    $env:PORTCOVE_LIBRARY = Join-Path $guiState "library"
+    $env:PORTCOVE_PREFERENCES = Join-Path $guiState "host-preferences.json"
+    $env:PORTCOVE_APPLICATION_RUNTIME_LOCK = Join-Path $guiState "application-runtime.lock"
+    $env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_RELAUNCH_EXIT = "1"
+    $env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_HELPER_PROCESS = Join-Path $guiState "helper-process.json"
+    $env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_RELAUNCH_PROCESS = Join-Path $guiState "relaunch-process.json"
+    $env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_STAGE = Join-Path $guiState "candidate-startup-stage.json"
+    Remove-Item Env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_EXIT -ErrorAction SilentlyContinue
+    $guiEvidence = Join-Path (Split-Path -Parent $EvidencePath) "renderer-qualification"
+    & corepack pnpm --dir apps/desktop test:macos-installed-update --app $guiExecutable --output $guiEvidence --staging $guiState --candidate-sha $expectedExecutableHash --candidate-archive-sha $candidate --candidate-version $CandidateVersion --helper-marker $env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_HELPER_PROCESS --relaunch-marker $env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_RELAUNCH_PROCESS --stage-marker $env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_STAGE --library-marker $guiLibraryMarker
+    if ($LASTEXITCODE -ne 0) { throw "Installed macOS renderer restart qualification failed" }
+    & /usr/bin/codesign --verify --deep --strict $guiApp
+    if ($LASTEXITCODE -ne 0) { throw "The GUI-updated bundle signature failed verification" }
+    $guiInstalledVersion = (& /usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' (Join-Path $guiApp 'Contents/Info.plist') | Out-String).Trim()
+    $guiBackup = Join-Path $guiRoot ".portcove-update-$($candidate.Substring(0, 16))/Portcove.app"
+    if ($guiInstalledVersion -ne $CandidateVersion -or (Test-Path -LiteralPath $guiBackup)) {
+        throw "Installed macOS renderer restart did not retain only the healthy candidate"
+    }
+    $state.renderer_restart = [ordered]@{
+        evidence = $guiEvidence
+        installed_version = $guiInstalledVersion
+        candidate_executable_sha256 = (Get-FileHash -LiteralPath $guiExecutable -Algorithm SHA256).Hash.ToLowerInvariant()
+        signature_verified = $true
+        backup_removed_after_healthy_startup = $true
+    }
     $state.phase = "complete"
     $state.private_signing_inputs_absent = $true
 } catch {
@@ -254,7 +298,7 @@ try {
 } finally {
     $state | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $EvidencePath -Encoding utf8
     Remove-Item Env:PORTCOVE_APPLICATION_UPDATE_STAGING -ErrorAction SilentlyContinue
-    foreach ($name in @("PORTCOVE_LIBRARY", "PORTCOVE_PREFERENCES", "PORTCOVE_APPLICATION_RUNTIME_LOCK", "PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_EXIT", "PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_STAGE", "PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_RELAUNCH_PROCESS", "PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_INTERRUPT")) {
+    foreach ($name in @("PORTCOVE_LIBRARY", "PORTCOVE_PREFERENCES", "PORTCOVE_APPLICATION_RUNTIME_LOCK", "PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_PAYLOAD", "PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_EXIT", "PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_STAGE", "PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_RELAUNCH_PROCESS", "PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_HELPER_PROCESS", "PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_RELAUNCH_EXIT", "PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_INTERRUPT")) {
         Remove-Item "Env:$name" -ErrorAction SilentlyContinue
     }
 }
