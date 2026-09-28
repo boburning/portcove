@@ -97,6 +97,14 @@ function processIdentity(pid, role) {
     throw new Error(`Marked ${role} PID does not run the owned installed executable`);
   return { pid, started, command, state };
 }
+function matchingChildIdentity(pid, role) {
+  const command = psField(pid, "command");
+  if (!command) return null;
+  const expected = role === "helper" ? `${values.app} --portcove-apply-update ` : values.app;
+  if (role === "helper" ? !command.startsWith(expected) : command !== expected) return null;
+  // A matching child is re-read with its start identity; ambiguity fails.
+  return processIdentity(pid, role);
+}
 function listenerPid(port) {
   try {
     const value = execFileSync("/usr/sbin/lsof", ["-nP", `-iTCP:${port}`, "-sTCP:LISTEN", "-t"], {
@@ -169,7 +177,7 @@ async function freezeCaptureAndStop(pid, role, childRole) {
       5000,
     );
     children = childPids(pid)
-      .map((child) => processIdentity(child, childRole))
+      .map((child) => matchingChildIdentity(child, childRole))
       .filter(Boolean);
   } catch (error) {
     failure = error;
