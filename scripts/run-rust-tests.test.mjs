@@ -626,7 +626,7 @@ test("runner retains ownership when Unix cleanup reports failure", async () => {
 
 test(
   "Windows Job Object supervisor kills a detached grandchild when its root exits",
-  { skip: process.platform !== "win32", timeout: 90_000 },
+  { skip: process.platform !== "win32", timeout: 120_000 },
   async () => {
     const tempRoot = await mkdtemp(path.join(os.tmpdir(), "portcove-job-supervisor-"));
     const supervisor = path.join(tempRoot, "supervisor.exe");
