@@ -79,8 +79,9 @@ async function procIdentity(pid) {
       .replaceAll("\0", " ")
       .slice(0, 400);
     return rest[0] !== "Z" && rest[19] ? { pid, start_ticks: rest[19], command } : null;
-  } catch {
-    return null;
+  } catch (error) {
+    if (error.code === "ENOENT" || error.code === "ESRCH") return null;
+    throw error;
   }
 }
 async function verifiedRelaunchIdentity(marker) {
@@ -93,7 +94,20 @@ async function verifiedRelaunchIdentity(marker) {
     throw new Error("Relaunch process marker did not bind the installed AppImage");
   const identity = await procIdentity(marker.process_id);
   if (!identity) return null;
-  const environment = (await readFile(`/proc/${marker.process_id}/environ`, "utf8")).split("\0");
+  let environment;
+  try {
+    environment = (await readFile(`/proc/${marker.process_id}/environ`, "utf8")).split("\0");
+  } catch (error) {
+    const after = await procIdentity(marker.process_id);
+    if (!after) return null;
+    if (after.start_ticks !== identity.start_ticks)
+      throw new Error("Relaunched process identity changed while reading its environment");
+    throw error;
+  }
+  const after = await procIdentity(marker.process_id);
+  if (!after) return null;
+  if (after.start_ticks !== identity.start_ticks)
+    throw new Error("Relaunched process identity changed while verifying its environment");
   for (const expected of [
     `PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_STAGE=${values["stage-marker"]}`,
     `PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_RELAUNCH_PROCESS=${values["relaunch-process-marker"]}`,
@@ -101,7 +115,35 @@ async function verifiedRelaunchIdentity(marker) {
   ])
     if (!environment.includes(expected))
       throw new Error("Relaunched process did not retain the exact qualification identity");
-  return identity;
+  return after;
+}
+async function cleanupRelaunch() {
+  const marker =
+    report.relaunch_process_marker ?? (await readJson(values["relaunch-process-marker"]));
+  const live = await verifiedRelaunchIdentity(marker);
+  if (live && report.relaunch_identity && live.start_ticks !== report.relaunch_identity.start_ticks)
+    throw new Error("Relaunched process identity changed before cleanup");
+  if (live) {
+    try {
+      process.kill(live.pid, "SIGTERM");
+    } catch {
+      /* already exited */
+    }
+    await waitFor(async () => !(await procIdentity(live.pid)), "owned candidate exit", 5_000).catch(
+      async () => {
+        if ((await procIdentity(live.pid))?.start_ticks === live.start_ticks)
+          try {
+            process.kill(live.pid, "SIGKILL");
+          } catch {
+            /* already exited */
+          }
+      },
+    );
+  }
+  const remaining = await procIdentity(marker.process_id);
+  if (live && remaining?.start_ticks === live.start_ticks)
+    throw new Error("Relaunched candidate did not exit after identity-bound cleanup");
+  return "candidate-exited";
 }
 async function ownedProcessTree(rootPid) {
   const rows = execFileSync("ps", ["-eo", "pid=,ppid="], { encoding: "utf8" })
@@ -308,41 +350,7 @@ try {
   }
   if (report.restart_action_attempted) {
     try {
-      const marker =
-        report.relaunch_process_marker ?? (await readJson(values["relaunch-process-marker"]));
-      const live = await verifiedRelaunchIdentity(marker);
-      if (
-        live &&
-        report.relaunch_identity &&
-        live.start_ticks !== report.relaunch_identity.start_ticks
-      )
-        throw new Error("Relaunched process identity changed before cleanup");
-      if (live) {
-        try {
-          process.kill(live.pid, "SIGTERM");
-        } catch {
-          /* already exited */
-        }
-        await waitFor(
-          async () => !(await procIdentity(live.pid)),
-          "owned candidate exit",
-          5_000,
-        ).catch(async () => {
-          if ((await procIdentity(live.pid))?.start_ticks === live.start_ticks)
-            try {
-              process.kill(live.pid, "SIGKILL");
-            } catch {
-              /* already exited */
-            }
-        });
-      }
-      const remaining = await procIdentity(marker.process_id);
-      report.relaunch_cleanup =
-        remaining?.start_ticks === live?.start_ticks && live
-          ? "uncertain-process-still-present"
-          : "candidate-exited";
-      if (report.relaunch_cleanup !== "candidate-exited")
-        throw new Error("Relaunched candidate did not exit after identity-bound cleanup");
+      report.relaunch_cleanup = await cleanupRelaunch();
     } catch (error) {
       report.phase = "failed";
       report.relaunch_cleanup = `uncertain: ${String(error.message).slice(0, 300)}`;
