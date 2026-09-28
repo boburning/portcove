@@ -61,6 +61,7 @@ const DESKTOP_UPDATE_PROCESS_ENVIRONMENT: &[&str] = &[
     "PORTCOVE_APPLICATION_UPDATE_METADATA_URL",
     "PORTCOVE_APPLICATION_UPDATE_PREFERENCES",
     "PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_EXIT",
+    "PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_HELPER_PROCESS",
     "PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_INTERRUPT",
     "PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_RELAUNCH_EXIT",
     "PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_RELAUNCH_PROCESS",
@@ -218,11 +219,45 @@ fn spawn_update_helper(expected_revision: u64) -> DesktopResult<()> {
     #[cfg(target_os = "linux")]
     let executable = std::env::current_exe().map_err(PortcoveError::from)?;
     let mut command = update_helper_command(&executable, expected_revision)?;
-    command.spawn().map_err(|_| {
+    let child = command.spawn().map_err(|_| {
         DesktopError::from(PortcoveError::launch(
             "Could not start the application update helper. Portcove stayed open and kept the verified update for retry.",
         ))
     })?;
+    #[cfg(all(target_os = "linux", feature = "application-update-qualification"))]
+    {
+        let mut child = child;
+        if let Some(path) =
+            std::env::var_os("PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_HELPER_PROCESS")
+        {
+            let recorded = (|| -> std::io::Result<()> {
+                let mut file = std::fs::OpenOptions::new()
+                    .write(true)
+                    .create_new(true)
+                    .open(path)?;
+                serde_json::to_writer_pretty(
+                    &mut file,
+                    &serde_json::json!({
+                        "schema_version": 1,
+                        "process_id": child.id(),
+                        "executable": executable.to_string_lossy(),
+                    }),
+                )
+                .map_err(std::io::Error::other)?;
+                file.sync_all()
+            })();
+            if recorded.is_err() {
+                let _ = child.kill();
+                let _ = child.wait();
+                return Err(PortcoveError::state(
+                    "Could not retain the qualification helper process identity; Portcove kept the staged update for retry.",
+                )
+                .into());
+            }
+        }
+    }
+    #[cfg(not(all(target_os = "linux", feature = "application-update-qualification")))]
+    drop(child);
     Ok(())
 }
 
@@ -409,9 +444,24 @@ fn prepare_revalidation_lease(
 #[cfg(any(windows, target_os = "linux"))]
 fn report_qualification_helper_failure(stage: &str, error: &str) {
     #[cfg(feature = "application-update-qualification")]
-    if std::env::var_os("PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_EXIT").as_deref()
-        == Some(OsStr::new("after-reconciliation"))
     {
+        if let Some(path) =
+            std::env::var_os("PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_HELPER_PROCESS")
+        {
+            let diagnostic = serde_json::json!({
+                "stage": stage,
+                "error": error.chars().take(2048).collect::<String>(),
+            });
+            let _ = std::fs::write(
+                std::path::PathBuf::from(path).with_file_name("helper-failure.json"),
+                diagnostic.to_string(),
+            );
+        }
+        if std::env::var_os("PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_EXIT").as_deref()
+            != Some(OsStr::new("after-reconciliation"))
+        {
+            return;
+        }
         eprintln!(
             "Portcove application-update qualification helper failed during {stage}: {error}"
         );

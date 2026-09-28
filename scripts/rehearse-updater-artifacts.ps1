@@ -578,6 +578,7 @@ try {
             "APPIMAGE_EXTRACT_AND_RUN", "PORTCOVE_APPLICATION_RUNTIME_LOCK",
             "PORTCOVE_APPLICATION_UPDATE_PREFERENCES", "PORTCOVE_APPLICATION_UPDATE_SCHEDULE",
             "PORTCOVE_APPLICATION_UPDATE_STAGING", "PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_PAYLOAD",
+            "PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_HELPER_PROCESS",
             "PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_RELAUNCH_EXIT",
             "PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_RELAUNCH_PROCESS",
             "PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_STAGE", "PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_EXIT",
@@ -595,6 +596,7 @@ try {
             $env:PORTCOVE_APPLICATION_UPDATE_SCHEDULE = Join-Path $rendererRoot "application-update-schedule.json"
             $env:PORTCOVE_APPLICATION_UPDATE_STAGING = Join-Path $rendererRoot "update-state"
             $env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_PAYLOAD = $candidate
+            $env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_HELPER_PROCESS = Join-Path $rendererRoot "helper-process.json"
             $env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_RELAUNCH_EXIT = "1"
             $env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_RELAUNCH_PROCESS = Join-Path $rendererRoot "relaunch-process.json"
             $env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_STAGE = Join-Path $rendererRoot "candidate-startup.json"
@@ -610,6 +612,7 @@ try {
                 "--staging", $env:PORTCOVE_APPLICATION_UPDATE_STAGING,
                 "--stage-marker", $env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_STAGE,
                 "--relaunch-process-marker", $env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_RELAUNCH_PROCESS,
+                "--helper-process-marker", $env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_HELPER_PROCESS,
                 "--candidate-sha", $candidateHash,
                 "--candidate-version", $candidateVersion
             )

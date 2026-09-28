@@ -17,6 +17,7 @@ const { values } = parseArgs({
       "staging",
       "stage-marker",
       "relaunch-process-marker",
+      "helper-process-marker",
       "candidate-sha",
       "candidate-version",
     ].map((name) => [name, { type: "string" }]),
@@ -30,6 +31,7 @@ for (const name of [
   "staging",
   "stage-marker",
   "relaunch-process-marker",
+  "helper-process-marker",
 ])
   assert.ok(values[name] && path.isAbsolute(values[name]), `--${name} must be absolute`);
 assert.match(values["candidate-sha"] ?? "", /^[0-9a-f]{64}$/u);
@@ -120,22 +122,39 @@ function assertRelaunchEnvironment(environment) {
     if (!environment.includes(expected))
       throw new Error("Relaunched process did not retain the exact qualification identity");
 }
-async function terminateRelaunchedCandidate(live) {
+async function verifiedHelperIdentity(marker) {
+  assert.equal(marker?.schema_version, 1, "Helper process marker schema changed");
+  assert.ok(Number.isInteger(marker.process_id) && marker.process_id > 0);
+  const identity = await procIdentity(marker.process_id);
+  if (!identity) return null;
+  const environment = await readRelaunchEnvironment(identity);
+  if (!environment) return null;
+  const after = await procIdentity(marker.process_id);
+  if (!after) return null;
+  assert.equal(after.start_ticks, identity.start_ticks, "Helper process identity changed");
+  assert.ok(after.command.includes("--portcove-apply-update"), "Marked process is not the helper");
+  assert.ok(
+    environment.includes(
+      `PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_HELPER_PROCESS=${values["helper-process-marker"]}`,
+    ),
+    "Helper process lost its qualification identity",
+  );
+  return after;
+}
+async function terminateVerifiedProcess(live, label) {
   try {
     process.kill(live.pid, "SIGTERM");
   } catch {
     /* already exited */
   }
-  await waitFor(async () => !(await procIdentity(live.pid)), "owned candidate exit", 5_000).catch(
-    async () => {
-      if ((await procIdentity(live.pid))?.start_ticks === live.start_ticks)
-        try {
-          process.kill(live.pid, "SIGKILL");
-        } catch {
-          /* already exited */
-        }
-    },
-  );
+  await waitFor(async () => !(await procIdentity(live.pid)), label, 5_000).catch(async () => {
+    if ((await procIdentity(live.pid))?.start_ticks === live.start_ticks)
+      try {
+        process.kill(live.pid, "SIGKILL");
+      } catch {
+        /* already exited */
+      }
+  });
 }
 async function cleanupRelaunch() {
   const marker =
@@ -144,12 +163,25 @@ async function cleanupRelaunch() {
   if (live) {
     if (report.relaunch_identity && live.start_ticks !== report.relaunch_identity.start_ticks)
       throw new Error("Relaunched process identity changed before cleanup");
-    await terminateRelaunchedCandidate(live);
+    await terminateVerifiedProcess(live, "owned candidate exit");
   }
   const remaining = await procIdentity(marker.process_id);
   if (live && remaining?.start_ticks === live.start_ticks)
     throw new Error("Relaunched candidate did not exit after identity-bound cleanup");
   return "candidate-exited";
+}
+async function cleanupHelper() {
+  const marker = report.helper_process_marker ?? (await readJson(values["helper-process-marker"]));
+  const live = await verifiedHelperIdentity(marker);
+  if (live) {
+    if (report.helper_identity && live.start_ticks !== report.helper_identity.start_ticks)
+      throw new Error("Helper process identity changed before cleanup");
+    await terminateVerifiedProcess(live, "owned helper exit");
+  }
+  const remaining = await procIdentity(marker.process_id);
+  if (live && remaining?.start_ticks === live.start_ticks)
+    throw new Error("Helper process did not exit after identity-bound cleanup");
+  return "helper-exited";
 }
 async function ownedProcessTree(rootPid) {
   const rows = execFileSync("ps", ["-eo", "pid=,ppid="], { encoding: "utf8" })
@@ -266,6 +298,18 @@ try {
   } catch (error) {
     report.restart_click = `session-ended: ${String(error.message).slice(0, 300)}`;
   }
+  report.helper_process_marker = await waitFor(
+    () => readJson(values["helper-process-marker"]),
+    "parent-owned helper process marker",
+    15_000,
+  );
+  report.helper_identity = await verifiedHelperIdentity(report.helper_process_marker);
+  const initialApplication = report.processes_before_restart.find((entry) =>
+    entry.command.includes("portcove-desktop"),
+  );
+  report.initial_application_after_helper_spawn = initialApplication
+    ? await procIdentity(initialApplication.pid)
+    : null;
   report.relaunch_process_marker = await waitFor(
     () => readJson(values["relaunch-process-marker"]),
     "helper-owned candidate process marker",
@@ -302,8 +346,29 @@ try {
 } catch (error) {
   report.phase = "failed";
   report.failure = String(error.stack ?? error);
+  report.helper_failure = await readJson(
+    path.join(path.dirname(values["helper-process-marker"]), "helper-failure.json"),
+  ).catch(() => null);
+  if (report.processes_before_restart) {
+    const initialApplication = report.processes_before_restart.find((entry) =>
+      entry.command.includes("portcove-desktop"),
+    );
+    report.initial_application_at_failure = initialApplication
+      ? await procIdentity(initialApplication.pid)
+      : null;
+  }
   process.exitCode = 1;
 } finally {
+  if (report.restart_action_attempted) {
+    try {
+      report.helper_cleanup = await cleanupHelper();
+    } catch (error) {
+      report.phase = "failed";
+      report.helper_cleanup = `uncertain: ${String(error.message).slice(0, 300)}`;
+      report.failure = `${report.failure ?? "Qualification failed"}; ${report.helper_cleanup}`;
+      process.exitCode = 1;
+    }
+  }
   if (driver && !report.processes_before_restart)
     report.processes_before_restart = await ownedProcessTree(driver.pid).catch(() => []);
   if (browser)
