@@ -214,7 +214,19 @@ try {
     Move-RehearsalInput $cliRoot "previous-cli-assets"
     foreach ($version in $fixtureVersions) {
         Set-FixtureVersion $version
+        if ($IsWindows) {
+            $cliExecutable = Join-Path $root "target/release/portcove.exe"
+            if ([IO.File]::Exists($cliExecutable)) {
+                Move-Item -LiteralPath $cliExecutable -Destination (Join-Path $runRoot "$version-previous-portcove.exe")
+            }
+        }
         Invoke-Checked "cargo" @("build", "--release", "-p", "portcove-cli", "-p", "portcove-release-tools")
+        if ($IsWindows) {
+            $builtVersion = (& $cliExecutable --version | Out-String).Trim()
+            if ($LASTEXITCODE -ne 0 -or $builtVersion -cne "portcove $version") {
+                throw "Built CLI version differs from requested fixture $version: $builtVersion"
+            }
+        }
         & (Join-Path $PSScriptRoot "package-cli.ps1") -PlatformLabel $PlatformLabel
         $cliName = (& node scripts/release-package-policy.mjs --platform $PlatformLabel --interface cli --version $version | Out-String).Trim()
         if ($LASTEXITCODE -ne 0) { throw "Cannot select packaged CLI" }
