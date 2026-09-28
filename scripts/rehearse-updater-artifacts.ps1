@@ -715,7 +715,13 @@ try {
         $targetsDirectory = (Resolve-Path -LiteralPath (Join-Path $repository "targets")).Path
         $env:PORTCOVE_APPLICATION_UPDATE_METADATA_URL = ([Uri]::new($metadataDirectory.TrimEnd('/') + '/')).AbsoluteUri
         $env:PORTCOVE_APPLICATION_UPDATE_TARGETS_URL = ([Uri]::new($targetsDirectory.TrimEnd('/') + '/')).AbsoluteUri
-        Invoke-Checked "corepack" @($pnpmSpec, "--dir", "apps/desktop", "tauri", "build", "--bundles", "app", "--config", $configPath, "--ci", "--features", "application-update-qualification")
+        # The disposable predecessor also exposes the embedded Mac WebDriver so
+        # the installed renderer can drive its own check, stage and restart.
+        # The candidate archive above was built without this qualification port.
+        $nativeCompatibility = Get-Content (Join-Path $root "apps/desktop/src-tauri/tauri.native-compatibility.conf.json") -Raw | ConvertFrom-Json -AsHashtable
+        $configuration.app = @{ security = @{ capabilities = $nativeCompatibility.app.security.capabilities } }
+        $configuration | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $configPath -Encoding utf8
+        Invoke-Checked "corepack" @($pnpmSpec, "--dir", "apps/desktop", "tauri", "build", "--bundles", "app", "--config", $configPath, "--ci", "--features", "application-update-qualification,native-compatibility-qualification")
         $qualifiedBundleName = "qualified-$predecessorVersion-bundles"
         Move-RehearsalInput $bundleRoot $qualifiedBundleName
         $qualifiedApp = Join-Path $runRoot "$qualifiedBundleName/macos/Portcove.app"

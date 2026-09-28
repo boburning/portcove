@@ -475,8 +475,14 @@ until the installed candidate completes healthy startup. An interrupted exchange
 can reconcile from the installed candidate; a verified pre-exchange extraction
 can be retired from the predecessor. Ambiguous or altered state is retained for
 explicit recovery. The hosted installed-app rehearsal exercises an interrupted
-exchange and candidate startup with disposable signing, but does not establish
-normal Gatekeeper prompts, minimum-version support, or human observation.
+exchange and candidate startup. A separate disposable installed predecessor
+exposes a qualification-only embedded WebDriver to drive the ordinary renderer
+check, download, and Restart to update controls. Its post-exit helper must
+relaunch the installed candidate, clear the apply journal and backup after
+healthy startup, and preserve the library marker. The candidate remains the
+ordinary packaged application without the embedded driver. Both routes use
+disposable signing; they do not establish normal Gatekeeper prompts,
+minimum-version support, or human observation.
 
 The sibling `application_update_download` boundary accepts only an authenticated,
 selected candidate. It requires the exact Portcove `github.com` repository and

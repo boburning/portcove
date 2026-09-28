@@ -137,5 +137,12 @@ jobs:
             work/updater-rehearsal/macos-installed-selection-qualification/state/*.json
             work/updater-rehearsal/macos-installed-selection-qualification/state/library/user/installer-qualification/preserve.txt
             work/updater-rehearsal/macos-installed-selection-qualification/state/library/logs/portcove-desktop.jsonl*
+            work/updater-rehearsal/macos-installed-selection-qualification/renderer-qualification/*.json
+            work/updater-rehearsal/macos-installed-selection-qualification/renderer-qualification/*.png
+            work/updater-rehearsal/macos-installed-selection-qualification/renderer-qualification/*.log
+            work/updater-rehearsal/macos-installed-selection-qualification/gui-update-state/*.json
+            work/updater-rehearsal/macos-installed-selection-qualification/gui-update-state/trust/*.json
+            work/updater-rehearsal/macos-installed-selection-qualification/gui-update-state/library/user/installer-qualification/preserve.txt
+            work/updater-rehearsal/macos-installed-selection-qualification/gui-update-state/library/logs/portcove-desktop.jsonl*
           if-no-files-found: error
           retention-days: 1
