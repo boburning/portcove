@@ -728,22 +728,22 @@ mod tests {
             let mut command = command;
             bind_verified_linux_appimage_execution(
                 &mut command,
-                std::path::Path::new("/verified/Portcove.AppImage"),
-                std::path::Path::new("/tmp/.mount_verified"),
+                std::path::Path::new("verified/Portcove.AppImage"),
+                std::path::Path::new("mount/verified"),
             );
             assert_eq!(
                 command
                     .get_envs()
                     .find(|(key, _)| *key == OsStr::new("APPIMAGE"))
                     .map(|(_, value)| value),
-                Some(Some(OsStr::new("/verified/Portcove.AppImage")))
+                Some(Some(OsStr::new("verified/Portcove.AppImage")))
             );
             assert_eq!(
                 command
                     .get_envs()
                     .find(|(key, _)| *key == OsStr::new("APPDIR"))
                     .map(|(_, value)| value),
-                Some(Some(OsStr::new("/tmp/.mount_verified")))
+                Some(Some(OsStr::new("mount/verified")))
             );
         }
     }
