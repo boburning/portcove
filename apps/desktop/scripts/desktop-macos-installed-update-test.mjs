@@ -290,13 +290,17 @@ try {
       report.phase = "failed";
     });
   }
-  const cleanupMarkers = [
-    [report.relaunch ?? (await readJson(values["relaunch-marker"]).catch(() => null)), "candidate"],
-    [report.helper ?? (await readJson(values["helper-marker"]).catch(() => null)), "helper"],
-  ];
-  for (const [marker, role] of cleanupMarkers) {
+  // A live helper may create the relaunch marker while cleanup runs. Stop it
+  // first, then read the candidate marker after helper exit.
+  for (const role of ["helper", "candidate"]) {
+    const marker =
+      role === "helper"
+        ? (report.helper ?? (await readJson(values["helper-marker"]).catch(() => null)))
+        : (report.relaunch ?? (await readJson(values["relaunch-marker"]).catch(() => null)));
     try {
       await stopOwned(marker, role);
+      if (marker && processIdentity(marker.process_id, role))
+        throw new Error(`${role} remained live after owned cleanup`);
     } catch (error) {
       report.cleanup_failure = String(error);
       report.phase = "failed";
