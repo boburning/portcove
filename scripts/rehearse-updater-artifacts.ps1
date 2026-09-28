@@ -224,7 +224,7 @@ try {
         if ($IsWindows) {
             $builtVersion = (& $cliExecutable --version | Out-String).Trim()
             if ($LASTEXITCODE -ne 0 -or $builtVersion -cne "portcove $version") {
-                throw "Built CLI version differs from requested fixture $version: $builtVersion"
+                throw "Built CLI version differs from requested fixture ${version}: $builtVersion"
             }
         }
         & (Join-Path $PSScriptRoot "package-cli.ps1") -PlatformLabel $PlatformLabel
