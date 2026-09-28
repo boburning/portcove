@@ -16,6 +16,7 @@
     "test:adapter-conformance": "vitest run scripts/adapter-conformance.test.mjs && node scripts/adapter-conformance.mjs",
     "release:prepare": "node scripts/prepare-release-version.mjs",
     "test:desktop": "node scripts/desktop-test.mjs",
+    "test:appimage-update": "node scripts/desktop-appimage-update-test.mjs",
     "browser:bootstrap": "node scripts/browser-runtime.mjs bootstrap",
     "test:browser": "node scripts/browser-runtime.mjs test",
     "test:browser:trace-probe": "node scripts/browser-runtime.mjs probe",

@@ -85,29 +85,33 @@ async function procIdentity(pid) {
   }
 }
 async function verifiedRelaunchIdentity(marker) {
-  if (
-    marker?.schema_version !== 1 ||
-    !Number.isInteger(marker.process_id) ||
-    marker.process_id <= 0 ||
-    marker.executable !== values.app
-  )
-    throw new Error("Relaunch process marker did not bind the installed AppImage");
+  assert.equal(marker?.schema_version, 1, "Relaunch process marker schema changed");
+  assert.ok(Number.isInteger(marker.process_id) && marker.process_id > 0);
+  assert.equal(marker.executable, values.app, "Relaunch process marker executable changed");
   const identity = await procIdentity(marker.process_id);
   if (!identity) return null;
+  const environment = await readRelaunchEnvironment(identity);
+  if (!environment) return null;
+  const after = await procIdentity(marker.process_id);
+  if (!after) return null;
+  assert.equal(after.start_ticks, identity.start_ticks, "Relaunched process identity changed");
+  assertRelaunchEnvironment(environment);
+  return after;
+}
+async function readRelaunchEnvironment(identity) {
   let environment;
   try {
-    environment = (await readFile(`/proc/${marker.process_id}/environ`, "utf8")).split("\0");
+    environment = (await readFile(`/proc/${identity.pid}/environ`, "utf8")).split("\0");
   } catch (error) {
-    const after = await procIdentity(marker.process_id);
+    const after = await procIdentity(identity.pid);
     if (!after) return null;
     if (after.start_ticks !== identity.start_ticks)
       throw new Error("Relaunched process identity changed while reading its environment");
     throw error;
   }
-  const after = await procIdentity(marker.process_id);
-  if (!after) return null;
-  if (after.start_ticks !== identity.start_ticks)
-    throw new Error("Relaunched process identity changed while verifying its environment");
+  return environment;
+}
+function assertRelaunchEnvironment(environment) {
   for (const expected of [
     `PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_STAGE=${values["stage-marker"]}`,
     `PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_RELAUNCH_PROCESS=${values["relaunch-process-marker"]}`,
@@ -115,30 +119,32 @@ async function verifiedRelaunchIdentity(marker) {
   ])
     if (!environment.includes(expected))
       throw new Error("Relaunched process did not retain the exact qualification identity");
-  return after;
+}
+async function terminateRelaunchedCandidate(live) {
+  try {
+    process.kill(live.pid, "SIGTERM");
+  } catch {
+    /* already exited */
+  }
+  await waitFor(async () => !(await procIdentity(live.pid)), "owned candidate exit", 5_000).catch(
+    async () => {
+      if ((await procIdentity(live.pid))?.start_ticks === live.start_ticks)
+        try {
+          process.kill(live.pid, "SIGKILL");
+        } catch {
+          /* already exited */
+        }
+    },
+  );
 }
 async function cleanupRelaunch() {
   const marker =
     report.relaunch_process_marker ?? (await readJson(values["relaunch-process-marker"]));
   const live = await verifiedRelaunchIdentity(marker);
-  if (live && report.relaunch_identity && live.start_ticks !== report.relaunch_identity.start_ticks)
-    throw new Error("Relaunched process identity changed before cleanup");
   if (live) {
-    try {
-      process.kill(live.pid, "SIGTERM");
-    } catch {
-      /* already exited */
-    }
-    await waitFor(async () => !(await procIdentity(live.pid)), "owned candidate exit", 5_000).catch(
-      async () => {
-        if ((await procIdentity(live.pid))?.start_ticks === live.start_ticks)
-          try {
-            process.kill(live.pid, "SIGKILL");
-          } catch {
-            /* already exited */
-          }
-      },
-    );
+    if (report.relaunch_identity && live.start_ticks !== report.relaunch_identity.start_ticks)
+      throw new Error("Relaunched process identity changed before cleanup");
+    await terminateRelaunchedCandidate(live);
   }
   const remaining = await procIdentity(marker.process_id);
   if (live && remaining?.start_ticks === live.start_ticks)
