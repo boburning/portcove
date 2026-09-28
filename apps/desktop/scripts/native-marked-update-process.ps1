@@ -7,10 +7,18 @@ param(
     [switch]$Helper
 )
 $ErrorActionPreference = 'Stop'
+function Get-ComparableProcessPath([string]$Path) {
+    $full = [IO.Path]::GetFullPath($Path)
+    if ($full -match '^\\\\\?\\([A-Za-z]:\\.*)$') { return $Matches[1] }
+    if ($full.StartsWith('\\?\', [StringComparison]::Ordinal)) {
+        throw 'Unsupported marked updater process path namespace.'
+    }
+    return $full
+}
 if ($Mode -eq 'Capture') {
     $marker = Get-Content -LiteralPath $MarkerPath -Raw | ConvertFrom-Json
     if ($marker.schema_version -ne 1 -or [int]$marker.process_id -le 0 -or
-        -not [string]::Equals([IO.Path]::GetFullPath($marker.executable), [IO.Path]::GetFullPath($ExpectedPath), [StringComparison]::OrdinalIgnoreCase)) {
+        -not [string]::Equals((Get-ComparableProcessPath $marker.executable), (Get-ComparableProcessPath $ExpectedPath), [StringComparison]::OrdinalIgnoreCase)) {
         throw 'Marked updater process identity did not match the expected executable.'
     }
     $entry = Get-CimInstance Win32_Process -Filter "ProcessId = $([int]$marker.process_id)"
@@ -22,7 +30,7 @@ if ($Mode -eq 'Capture') {
     $earliest = [DateTime]::Parse($EarliestStart).ToUniversalTime().AddSeconds(-2)
     $latest = (Get-Item -LiteralPath $MarkerPath).LastWriteTimeUtc.AddSeconds(2)
     if ($started -lt $earliest -or $started -gt $latest -or
-        -not [string]::Equals($entry.ExecutablePath, $ExpectedPath, [StringComparison]::OrdinalIgnoreCase) -or
+        -not [string]::Equals((Get-ComparableProcessPath $entry.ExecutablePath), (Get-ComparableProcessPath $ExpectedPath), [StringComparison]::OrdinalIgnoreCase) -or
         ($Helper -and $entry.CommandLine -notmatch '--portcove-apply-update')) {
         throw 'Marked updater PID was not the process spawned during this renderer action.'
     }
@@ -33,7 +41,7 @@ if ($Mode -eq 'Capture') {
     }
     try {
         if ([Math]::Abs(($process.StartTime.ToUniversalTime() - $started).TotalMilliseconds) -gt 1 -or
-            -not [string]::Equals($process.MainModule.FileName, $ExpectedPath, [StringComparison]::OrdinalIgnoreCase)) {
+            -not [string]::Equals((Get-ComparableProcessPath $process.MainModule.FileName), (Get-ComparableProcessPath $ExpectedPath), [StringComparison]::OrdinalIgnoreCase)) {
             throw 'Marked updater process changed during identity capture.'
         }
         $identity = [pscustomobject]@{
@@ -83,7 +91,7 @@ if (-not $process) {
 }
 try {
     if ($process.StartTime.ToFileTimeUtc().ToString([Globalization.CultureInfo]::InvariantCulture) -ne $identity.started_filetime -or
-        -not [string]::Equals($process.MainModule.FileName, $identity.path, [StringComparison]::OrdinalIgnoreCase)) {
+        -not [string]::Equals((Get-ComparableProcessPath $process.MainModule.FileName), (Get-ComparableProcessPath $identity.path), [StringComparison]::OrdinalIgnoreCase)) {
         [pscustomobject]@{ status = 'prior-process-exited'; pid = [int]$identity.pid } | ConvertTo-Json -Compress
         exit
     }

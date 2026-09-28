@@ -100,6 +100,11 @@ function markedProcessCommand(mode, args) {
     }),
   );
 }
+function workerRelativePath(executable) {
+  return path.win32
+    .relative(path.win32.toNamespacedPath(values.staging), path.win32.toNamespacedPath(executable))
+    .replaceAll("\\", "/");
+}
 async function cleanupMarkedProcess(markerPath, label) {
   const marker = await readJson(markerPath).catch(() => null);
   if (!marker) return { status: "marker-absent" };
@@ -107,7 +112,7 @@ async function cleanupMarkedProcess(markerPath, label) {
   assert.ok(Number.isInteger(marker.process_id) && marker.process_id > 0);
   const expected = label === "candidate" ? values.app : marker.executable;
   if (label === "helper") {
-    const relative = path.relative(values.staging, expected).replaceAll("\\", "/");
+    const relative = workerRelativePath(expected);
     assert.match(relative, /^workers\/revision-\d+\/attempt-[^/]+\/portcove-update-worker\.exe$/iu);
   }
   const identityPath = path.join(values.output, `${label}-process-identity.json`);
@@ -183,6 +188,38 @@ try {
   });
   snapshot = nativeSessionCommand("Snapshot");
   report.native_processes_before_restart = snapshot;
+  report.bootstrap_before_restart = JSON.parse(
+    await browser.executeAsyncScript((done) => {
+      window.__TAURI_INTERNALS__.invoke("get_bootstrap_status").then(
+        (value) => done(JSON.stringify({ ok: true, value })),
+        (error) => done(JSON.stringify({ ok: false, error })),
+      );
+    }),
+  );
+  await browser.executeScript(() => {
+    const internals = window.__TAURI_INTERNALS__;
+    const original = internals.invoke.bind(internals);
+    window.__portcoveRestartResult = null;
+    internals.invoke = (command, args, options) => {
+      const result = original(command, args, options);
+      if (command === "restart_to_apply_application_update") {
+        result.then(
+          () => {
+            window.__portcoveRestartResult = { ok: true };
+          },
+          (error) => {
+            window.__portcoveRestartResult = {
+              ok: false,
+              code: error?.code,
+              message: error?.message,
+              details: error?.details,
+            };
+          },
+        );
+      }
+      return result;
+    };
+  });
   await save();
   try {
     report.restart_action_attempted = true;
@@ -199,7 +236,7 @@ try {
   );
   assert.equal(helper.schema_version, 1);
   assert.ok(Number.isInteger(helper.process_id) && helper.process_id > 0);
-  const workerRelative = path.relative(values.staging, helper.executable).replaceAll("\\", "/");
+  const workerRelative = workerRelativePath(helper.executable);
   assert.match(
     workerRelative,
     /^workers\/revision-\d+\/attempt-[^/]+\/portcove-update-worker\.exe$/iu,
@@ -214,8 +251,8 @@ try {
   assert.equal(relaunch.schema_version, 1);
   assert.ok(Number.isInteger(relaunch.process_id) && relaunch.process_id > 0);
   assert.equal(
-    path.win32.normalize(relaunch.executable).toLowerCase(),
-    path.win32.normalize(values.app).toLowerCase(),
+    path.win32.toNamespacedPath(relaunch.executable).toLowerCase(),
+    path.win32.toNamespacedPath(values.app).toLowerCase(),
   );
   report.relaunch_process_marker = relaunch;
   report.restart = await waitFor(
@@ -250,6 +287,28 @@ try {
   report.actions.push("candidate-restarted-and-reconciled");
   report.phase = "complete";
 } catch (error) {
+  if (browser) {
+    try {
+      report.restart_command = await browser.executeScript(() => window.__portcoveRestartResult);
+      await Promise.race([
+        Promise.all([
+          browser
+            .takeScreenshot()
+            .then((png) =>
+              writeFile(path.join(values.output, "failure.png"), png, { encoding: "base64" }),
+            ),
+          browser
+            .getPageSource()
+            .then((html) => writeFile(path.join(values.output, "failure.html"), html)),
+        ]),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error("failure capture timed out")), 5_000),
+        ),
+      ]);
+    } catch (captureError) {
+      report.failure_capture = String(captureError.message).slice(0, 300);
+    }
+  }
   await recordInstalledUpdateFailure(report, error, values["helper-process-marker"]);
   process.exitCode = 1;
 } finally {

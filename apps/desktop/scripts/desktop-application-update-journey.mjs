@@ -5,11 +5,24 @@ export async function driveInstalledUpdateToRestart(browser, actions) {
   await browser.manage().setTimeouts({ script: 15_000 });
   await browser.wait(until.elementLocated(By.css('nav[aria-label="Primary navigation"]')), 30_000);
   actions.push("installed-gui-opened");
-  await browser.findElement(By.xpath('//button[normalize-space(.)="Review options"]')).click();
+  await browser
+    .findElement(
+      By.xpath(
+        '//nav[@aria-label="Primary navigation"]//button[.//span[normalize-space(.)="Settings"]]',
+      ),
+    )
+    .click();
   await browser.wait(
     until.elementLocated(By.css('article[aria-labelledby="application-update-settings-title"]')),
     15_000,
   );
+  await browser
+    .findElement(
+      By.xpath(
+        '//*[@aria-label="Settings sections"]//button[normalize-space(.)="Portcove & catalog updates"]',
+      ),
+    )
+    .click();
   await browser
     .findElement(
       By.xpath(

@@ -241,7 +241,12 @@ try {
             $native.installer_product_version = (Get-Item -LiteralPath $installer).VersionInfo.ProductVersion
             if ($native.installer_product_version -notin @($version, "$version.0")) { throw "NSIS product version mismatch" }
             if ($version -eq $candidateVersion) {
-                Copy-Item -LiteralPath (Join-Path $root "target/release/portcove-desktop.exe") -Destination (Join-Path $runRoot "windows-candidate-desktop.exe")
+                $extractedCandidate = Join-Path $runRoot "windows-candidate-installer-extracted"
+                New-Item -ItemType Directory -Path $extractedCandidate | Out-Null
+                Invoke-Checked "7z" @("e", "-y", "-o$extractedCandidate", $installer, "portcove-desktop.exe") | Out-Null
+                $packagedExecutable = Join-Path $extractedCandidate "portcove-desktop.exe"
+                if (-not [IO.File]::Exists($packagedExecutable)) { throw "Candidate NSIS installer omitted its executable" }
+                Copy-Item -LiteralPath $packagedExecutable -Destination (Join-Path $runRoot "windows-candidate-desktop.exe")
             }
         } elseif ($IsLinux) {
             $native.deb_version = (& dpkg-deb --field (Join-Path $stage "Portcove_${version}_amd64.deb") Version | Out-String).Trim()

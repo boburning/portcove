@@ -96,6 +96,7 @@ jobs:
             work/updater-rehearsal/installer-test/run-*/application-update/staging.json
             work/updater-rehearsal/installer-test/run-*/renderer-qualification/evidence/*.json
             work/updater-rehearsal/installer-test/run-*/renderer-qualification/evidence/*.png
+            work/updater-rehearsal/installer-test/run-*/renderer-qualification/evidence/failure.html
             work/updater-rehearsal/installer-test/run-*/renderer-qualification/evidence/*.log
             work/updater-rehearsal/installer-test/run-*/driver-preflight-*/evidence.json
             work/updater-rehearsal/installer-test/run-*/driver-preflight-*/driver.log
