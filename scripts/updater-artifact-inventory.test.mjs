@@ -219,6 +219,8 @@ test("manual rehearsal retains the complete matrix without production credential
   assert.match(workflow, /cargo install tauri-driver --locked --version "\$version"/);
   assert.match(workflow, /bootstrap-quality-tools\.ps1 -Desktop/);
   assert.match(workflow, /installer-test\/run-\*\/renderer-qualification\/evidence\/\*\.json/);
+  assert.match(workflow, /windows-renderer-evidence\/\*\.json/);
+  assert.match(workflow, /windows-renderer-evidence\/\*\.png/);
   assert.match(workflow, /renderer-qualification\/evidence\/\*\.json/);
   assert.doesNotMatch(workflow, /renderer-qualification\/\*\*/);
   assert.match(workflow, /qualified-\*-bundles\/appimage\/\*\*/);
@@ -245,6 +247,8 @@ test("manual rehearsal retains the complete matrix without production credential
   assert.match(lifecycle, /installed_truncated_stage_rejected/);
   assert.match(lifecycle, /desktop-windows-update-test\.mjs/);
   assert.match(lifecycle, /installed_renderer_reconciled/);
+  assert.match(lifecycle, /PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_RELAUNCH_EXIT = "1"/);
+  assert.match(lifecycle, /Copy-Item -LiteralPath \$rendererEvidence -Destination \$retainedRendererEvidence -Recurse/);
   assert.match(lifecycle, /installed_update_selection_stage/);
   assert.match(lifecycle, /--portcove-qualify-update-stage/);
   assert.match(lifecycle, /-- prepare-staged \$InstalledUpdatePredecessorVersion/);

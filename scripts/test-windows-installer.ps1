@@ -536,6 +536,7 @@ $updateEnvironmentNames = @(
     "PORTCOVE_APPLICATION_UPDATE_STAGING",
     "PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_PAYLOAD",
     "PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_HELPER_PROCESS",
+    "PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_RELAUNCH_EXIT",
     "PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_RELAUNCH_PROCESS",
     "PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_EXIT",
     "PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_STAGE"
@@ -600,8 +601,13 @@ try {
         $env:PORTCOVE_APPLICATION_UPDATE_PREFERENCES = $updatePreferences
         $env:PORTCOVE_APPLICATION_UPDATE_SCHEDULE = Join-Path $runRoot "application-update-schedule.json"
         $env:PORTCOVE_APPLICATION_UPDATE_STAGING = $updateRoot
-        $env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_EXIT = "after-reconciliation"
         $env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_STAGE = $qualificationStage
+        if ($RendererUpdate) {
+            [Environment]::SetEnvironmentVariable("PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_EXIT", $null, "Process")
+            $env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_RELAUNCH_EXIT = "1"
+        } else {
+            $env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_EXIT = "after-reconciliation"
+        }
 
         $candidateBytes = [UInt64](Get-Item -LiteralPath $candidate).Length
         if ($candidateBytes -le 1) { throw "Signed candidate installer is too small for truncation qualification" }
@@ -897,6 +903,18 @@ try {
         throw "Uninstall changed the recursive isolated-library manifest"
     }
 
+    if ($RendererUpdate) {
+        if (-not $evidence) { throw "Renderer update qualification requires an external EvidencePath" }
+        $retainedRendererEvidence = Join-Path $evidenceParent "windows-renderer-evidence"
+        if ($evidenceParent.StartsWith($runRoot + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase) -or
+            [IO.Directory]::Exists($retainedRendererEvidence)) {
+            throw "Renderer evidence destination must be new and outside the disposable installer run"
+        }
+        Copy-Item -LiteralPath $rendererEvidence -Destination $retainedRendererEvidence -Recurse
+        if (-not [IO.File]::Exists((Join-Path $retainedRendererEvidence "renderer-update-evidence.json"))) {
+            throw "Renderer evidence was not retained outside the disposable installer run"
+        }
+    }
     $completed = $true
     $result = [pscustomobject]@{
         installer = $installer

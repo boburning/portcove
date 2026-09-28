@@ -98,6 +98,9 @@ jobs:
             work/updater-rehearsal/installer-test/run-*/renderer-qualification/evidence/*.png
             work/updater-rehearsal/installer-test/run-*/renderer-qualification/evidence/*.log
             work/updater-rehearsal/installer-test/run-*/renderer-qualification/*.json
+            work/updater-rehearsal/windows-renderer-evidence/*.json
+            work/updater-rehearsal/windows-renderer-evidence/*.png
+            work/updater-rehearsal/windows-renderer-evidence/*.log
             work/updater-rehearsal/linux-appimage-qualification/TEST-ONLY
             work/updater-rehearsal/linux-appimage-qualification/application-update-evidence.json
             work/updater-rehearsal/linux-appimage-qualification/inputs/*.json

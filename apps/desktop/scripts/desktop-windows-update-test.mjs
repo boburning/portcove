@@ -64,10 +64,12 @@ const report = {
 const evidencePath = path.join(values.output, "renderer-update-evidence.json");
 const snapshotPath = path.join(values.output, "native-processes-before-restart.json");
 const nativeSession = fileURLToPath(new URL("./native-session.ps1", import.meta.url));
+const markedProcess = fileURLToPath(new URL("./native-marked-update-process.ps1", import.meta.url));
 let driver;
 let browser;
 let driverSession;
 let snapshot;
+let restartStarted;
 
 async function save() {
   await writeFile(evidencePath, `${JSON.stringify(report, null, 2)}\n`);
@@ -83,6 +85,45 @@ function nativeSessionCommand(mode) {
       timeout: 20_000,
     }),
   );
+}
+function markedProcessCommand(mode, args) {
+  return JSON.parse(
+    execFileSync("pwsh", ["-NoProfile", "-File", markedProcess, "-Mode", mode, ...args], {
+      encoding: "utf8",
+      windowsHide: true,
+      timeout: 15_000,
+    }),
+  );
+}
+async function cleanupMarkedProcess(markerPath, label) {
+  const marker = await readJson(markerPath).catch(() => null);
+  if (!marker) return { status: "marker-absent" };
+  assert.equal(marker.schema_version, 1);
+  assert.ok(Number.isInteger(marker.process_id) && marker.process_id > 0);
+  const expected = label === "candidate" ? values.app : marker.executable;
+  if (label === "helper") {
+    const relative = path.relative(values.staging, expected).replaceAll("\\", "/");
+    assert.match(relative, /^workers\/revision-\d+\/attempt-[^/]+\/portcove-update-worker\.exe$/iu);
+  }
+  const identityPath = path.join(values.output, `${label}-process-identity.json`);
+  const capture = markedProcessCommand("Capture", [
+    "-MarkerPath",
+    markerPath,
+    "-IdentityPath",
+    identityPath,
+    "-ExpectedPath",
+    expected,
+    "-EarliestStart",
+    restartStarted,
+    ...(label === "helper" ? ["-Helper"] : []),
+  ]);
+  return {
+    capture,
+    stop:
+      capture.status === "captured"
+        ? markedProcessCommand("Stop", ["-IdentityPath", identityPath])
+        : null,
+  };
 }
 
 try {
@@ -116,6 +157,7 @@ try {
   await save();
   try {
     report.restart_action_attempted = true;
+    restartStarted = new Date().toISOString();
     await browser.findElement(By.xpath('//button[normalize-space(.)="Restart to update"]')).click();
     report.restart_click = "returned";
   } catch (error) {
@@ -182,6 +224,22 @@ try {
       browser.quit().catch(() => {}),
       new Promise((resolve) => setTimeout(resolve, 5_000)),
     ]);
+  if (restartStarted) {
+    report.updater_process_cleanup = {};
+    for (const [label, markerPath] of [
+      ["candidate", values["relaunch-process-marker"]],
+      ["helper", values["helper-process-marker"]],
+    ]) {
+      try {
+        report.updater_process_cleanup[label] = await cleanupMarkedProcess(markerPath, label);
+      } catch (error) {
+        report.updater_process_cleanup[label] = `uncertain: ${String(error.message).slice(0, 300)}`;
+        report.phase = "failed";
+        report.failure = `${report.failure ?? "Qualification failed"}; ${label} process cleanup uncertain`;
+        process.exitCode = 1;
+      }
+    }
+  }
   if (snapshot) {
     try {
       report.driver_cleanup =
