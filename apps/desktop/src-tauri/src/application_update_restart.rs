@@ -63,6 +63,7 @@ const DESKTOP_UPDATE_PROCESS_ENVIRONMENT: &[&str] = &[
     "PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_EXIT",
     "PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_INTERRUPT",
     "PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_RELAUNCH_EXIT",
+    "PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_RELAUNCH_PROCESS",
     "PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_STAGE",
     "PORTCOVE_APPLICATION_UPDATE_SCHEDULE",
     "PORTCOVE_APPLICATION_UPDATE_STAGING",
@@ -483,7 +484,39 @@ fn restart_executable_if_runtime_available(
     }
     configure_independent_process(&mut command);
     drop(runtime);
-    command.spawn().map(|_| ()).map_err(|_| ())
+    let child = command.spawn().map_err(|_| ())?;
+    #[cfg(all(target_os = "linux", feature = "application-update-qualification"))]
+    {
+        let mut child = child;
+        if let Some(path) =
+            std::env::var_os("PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_RELAUNCH_PROCESS")
+        {
+            let recorded = (|| -> std::io::Result<()> {
+                let mut file = std::fs::OpenOptions::new()
+                    .write(true)
+                    .create_new(true)
+                    .open(path)?;
+                serde_json::to_writer_pretty(
+                    &mut file,
+                    &serde_json::json!({
+                        "schema_version": 1,
+                        "process_id": child.id(),
+                        "executable": executable.to_string_lossy(),
+                    }),
+                )
+                .map_err(std::io::Error::other)?;
+                file.sync_all()
+            })();
+            if recorded.is_err() {
+                let _ = child.kill();
+                let _ = child.wait();
+                return Err(());
+            }
+        }
+    }
+    #[cfg(not(all(target_os = "linux", feature = "application-update-qualification")))]
+    drop(child);
+    Ok(())
 }
 
 #[cfg(any(windows, target_os = "linux", test))]
@@ -646,6 +679,10 @@ mod tests {
                     OsString::from("1"),
                 ),
                 (
+                    OsString::from("PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_RELAUNCH_PROCESS"),
+                    OsString::from("process.json"),
+                ),
+                (
                     OsString::from("PORTCOVE_GITHUB_TOKEN"),
                     OsString::from("secret"),
                 ),
@@ -694,6 +731,12 @@ mod tests {
                 .get("PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_RELAUNCH_EXIT")
                 .map(String::as_str),
             Some("1")
+        );
+        assert_eq!(
+            environment
+                .get("PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_RELAUNCH_PROCESS")
+                .map(String::as_str),
+            Some("process.json")
         );
         assert!(!environment.contains_key("PORTCOVE_GITHUB_TOKEN"));
         assert!(!environment.contains_key("PORTCOVE_PORT_ID"));

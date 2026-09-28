@@ -102,6 +102,7 @@ jobs:
             work/updater-rehearsal/linux-appimage-qualification/renderer-qualification/evidence/*.png
             work/updater-rehearsal/linux-appimage-qualification/renderer-qualification/evidence/*.log
             work/updater-rehearsal/linux-appimage-qualification/renderer-qualification/*startup.json
+            work/updater-rehearsal/linux-appimage-qualification/renderer-qualification/relaunch-process.json
             work/updater-rehearsal/linux-appimage-qualification/renderer-qualification/preservation.json
             work/updater-rehearsal/linux-appimage-qualification/renderer-qualification/update-state/*.json
             work/updater-rehearsal/linux-appimage-qualification/renderer-qualification/update-state/trust/*.json

@@ -16,12 +16,21 @@ const { values } = parseArgs({
       "output",
       "staging",
       "stage-marker",
+      "relaunch-process-marker",
       "candidate-sha",
       "candidate-version",
     ].map((name) => [name, { type: "string" }]),
   ),
 });
-for (const name of ["app", "driver", "native-driver", "output", "staging", "stage-marker"])
+for (const name of [
+  "app",
+  "driver",
+  "native-driver",
+  "output",
+  "staging",
+  "stage-marker",
+  "relaunch-process-marker",
+])
   assert.ok(values[name] && path.isAbsolute(values[name]), `--${name} must be absolute`);
 assert.match(values["candidate-sha"] ?? "", /^[0-9a-f]{64}$/u);
 assert.ok(values["candidate-version"]);
@@ -69,10 +78,30 @@ async function procIdentity(pid) {
     const command = (await readFile(`/proc/${pid}/cmdline`, "utf8"))
       .replaceAll("\0", " ")
       .slice(0, 400);
-    return rest[19] ? { pid, start_ticks: rest[19], command } : null;
+    return rest[0] !== "Z" && rest[19] ? { pid, start_ticks: rest[19], command } : null;
   } catch {
     return null;
   }
+}
+async function verifiedRelaunchIdentity(marker) {
+  if (
+    marker?.schema_version !== 1 ||
+    !Number.isInteger(marker.process_id) ||
+    marker.process_id <= 0 ||
+    marker.executable !== values.app
+  )
+    throw new Error("Relaunch process marker did not bind the installed AppImage");
+  const identity = await procIdentity(marker.process_id);
+  if (!identity) return null;
+  const environment = (await readFile(`/proc/${marker.process_id}/environ`, "utf8")).split("\0");
+  for (const expected of [
+    `PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_STAGE=${values["stage-marker"]}`,
+    `PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_RELAUNCH_PROCESS=${values["relaunch-process-marker"]}`,
+    "PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_EXIT=after-reconciliation",
+  ])
+    if (!environment.includes(expected))
+      throw new Error("Relaunched process did not retain the exact qualification identity");
+  return identity;
 }
 async function ownedProcessTree(rootPid) {
   const rows = execFileSync("ps", ["-eo", "pid=,ppid="], { encoding: "utf8" })
@@ -183,11 +212,18 @@ try {
   report.processes_before_restart = await ownedProcessTree(driver.pid);
   await save();
   try {
+    report.restart_action_attempted = true;
     await browser.findElement(By.xpath('//button[normalize-space(.)="Restart to update"]')).click();
     report.restart_click = "returned";
   } catch (error) {
     report.restart_click = `session-ended: ${String(error.message).slice(0, 300)}`;
   }
+  report.relaunch_process_marker = await waitFor(
+    () => readJson(values["relaunch-process-marker"]),
+    "helper-owned candidate process marker",
+    60_000,
+  );
+  report.relaunch_identity = await verifiedRelaunchIdentity(report.relaunch_process_marker);
   const restart = await waitFor(
     async () => {
       const marker = await readJson(values["stage-marker"]);
@@ -229,7 +265,7 @@ try {
     ]);
   if (driver) {
     const current = await procIdentity(driver.pid);
-    if (current?.start_ticks === report.driver?.start_ticks) {
+    if (current && report.driver && current.start_ticks === report.driver.start_ticks) {
       try {
         process.kill(-driver.pid, "SIGTERM");
       } catch {
@@ -266,7 +302,51 @@ try {
     );
     if (report.processes_after_driver_stop.length) {
       report.phase = "failed";
-      report.failure = "Owned WebDriver or application processes remained after bounded cleanup";
+      report.failure = `${report.failure ?? "Qualification failed"}; owned WebDriver or application processes remained after bounded cleanup`;
+      process.exitCode = 1;
+    }
+  }
+  if (report.restart_action_attempted) {
+    try {
+      const marker =
+        report.relaunch_process_marker ?? (await readJson(values["relaunch-process-marker"]));
+      const live = await verifiedRelaunchIdentity(marker);
+      if (
+        live &&
+        report.relaunch_identity &&
+        live.start_ticks !== report.relaunch_identity.start_ticks
+      )
+        throw new Error("Relaunched process identity changed before cleanup");
+      if (live) {
+        try {
+          process.kill(live.pid, "SIGTERM");
+        } catch {
+          /* already exited */
+        }
+        await waitFor(
+          async () => !(await procIdentity(live.pid)),
+          "owned candidate exit",
+          5_000,
+        ).catch(async () => {
+          if ((await procIdentity(live.pid))?.start_ticks === live.start_ticks)
+            try {
+              process.kill(live.pid, "SIGKILL");
+            } catch {
+              /* already exited */
+            }
+        });
+      }
+      const remaining = await procIdentity(marker.process_id);
+      report.relaunch_cleanup =
+        remaining?.start_ticks === live?.start_ticks && live
+          ? "uncertain-process-still-present"
+          : "candidate-exited";
+      if (report.relaunch_cleanup !== "candidate-exited")
+        throw new Error("Relaunched candidate did not exit after identity-bound cleanup");
+    } catch (error) {
+      report.phase = "failed";
+      report.relaunch_cleanup = `uncertain: ${String(error.message).slice(0, 300)}`;
+      report.failure = `${report.failure ?? "Qualification failed"}; ${report.relaunch_cleanup}`;
       process.exitCode = 1;
     }
   }
