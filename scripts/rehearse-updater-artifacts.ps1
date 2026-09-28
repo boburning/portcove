@@ -221,6 +221,12 @@ try {
         & (Join-Path $PSScriptRoot "smoke-test-cli-archive.ps1") -ArchivePath (Join-Path $cliRoot $cliName) -PlatformLabel $PlatformLabel -Version $version
         $tauriArguments = @($pnpmSpec, "--dir", "apps/desktop", "tauri", "build", "--bundles", $bundles, "--config", $configPath, "--ci")
         if ($IsLinux -or $IsWindows) { $tauriArguments += @("--features", "application-update-qualification") }
+        if ($IsMacOS -and $version -eq $candidateVersion) {
+            # Preserve the native cause if the second DMG build fails on a hosted runner.
+            Invoke-Checked "df" @("-h", $root)
+            Invoke-Checked "hdiutil" @("info")
+            $tauriArguments += "--verbose"
+        }
         Invoke-Checked "corepack" $tauriArguments
         $stage = Join-Path $runRoot "$version-$PlatformLabel"
         Invoke-Checked "node" @("scripts/updater-artifact-inventory.mjs", "stage", "--output", $stage, "--label", $PlatformLabel, "--public-key", $publicKey, "--verifier", $verifier, "--revision", $revision)
