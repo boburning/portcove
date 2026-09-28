@@ -156,6 +156,34 @@ async function stopOwned(marker, role) {
     await waitFor(() => !processIdentity(marker.process_id, role), `${role} forced cleanup`, 5000);
   }
 }
+async function freezeCaptureAndStop(pid, role, childRole) {
+  const original = processIdentity(pid, role);
+  if (!original) return [];
+  let children = [];
+  let failure;
+  try {
+    process.kill(pid, "SIGSTOP");
+    await waitFor(
+      () => processIdentity(pid, role)?.state.includes("T"),
+      `${role} stopped for child capture`,
+      5000,
+    );
+    children = childPids(pid)
+      .map((child) => processIdentity(child, childRole))
+      .filter(Boolean);
+  } catch (error) {
+    failure = error;
+  } finally {
+    try {
+      if (processIdentity(pid, role)?.started === original.started) process.kill(pid, "SIGKILL");
+      await waitFor(() => !processIdentity(pid, role), `${role} forced exit`, 5000);
+    } catch (error) {
+      failure ??= error;
+    }
+  }
+  if (failure) throw failure;
+  return children;
+}
 async function stopHelper(marker) {
   if (!marker || marker.executable !== values.app || marker.schema_version !== 1) return [];
   const original = processIdentity(marker.process_id, "helper");
@@ -173,23 +201,7 @@ async function stopHelper(marker) {
   }
   const current = processIdentity(marker.process_id, "helper");
   if (!current || current.started !== original.started) return [];
-  process.kill(marker.process_id, "SIGSTOP");
-  await waitFor(
-    () => processIdentity(marker.process_id, "helper")?.state.includes("T"),
-    "owned helper stopped",
-    5000,
-  );
-  const candidates = childPids(marker.process_id)
-    .map((pid) => processIdentity(pid, "candidate"))
-    .filter(Boolean);
-  if (processIdentity(marker.process_id, "helper")?.started === original.started)
-    process.kill(marker.process_id, "SIGKILL");
-  await waitFor(
-    () => !processIdentity(marker.process_id, "helper"),
-    "owned helper forced exit",
-    5000,
-  );
-  return candidates;
+  return freezeCaptureAndStop(marker.process_id, "helper", "candidate");
 }
 const port = await availablePort();
 report.webdriver_port = port;
@@ -345,22 +357,7 @@ try {
         report.cleanup_failure = "Predecessor identity changed before cleanup";
         report.phase = "failed";
       } else if (identity) {
-        process.kill(application.pid, "SIGSTOP");
-        await waitFor(
-          () => processIdentity(application.pid, "candidate")?.state.includes("T"),
-          "owned predecessor stopped",
-          5000,
-        );
-        unmarkedHelper = childPids(application.pid)
-          .map((pid) => {
-            try {
-              return processIdentity(pid, "helper");
-            } catch {
-              return null;
-            }
-          })
-          .find(Boolean);
-        process.kill(application.pid, "SIGKILL");
+        unmarkedHelper = (await freezeCaptureAndStop(application.pid, "candidate", "helper"))[0];
       }
       if (!identityChanged) await bounded(applicationExit, "owned predecessor cleanup", 5000);
     } catch (error) {
