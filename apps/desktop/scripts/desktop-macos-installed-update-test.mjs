@@ -140,7 +140,7 @@ function childPids(pid) {
 async function naturalExit(marker, role) {
   const original = processIdentity(marker.process_id, role);
   await waitFor(
-    () => {
+    async () => {
       const current = processIdentity(marker.process_id, role);
       return !current || (original && current.started !== original.started) ? true : null;
     },
@@ -156,7 +156,7 @@ async function stopOwned(marker, role) {
   process.kill(marker.process_id, "SIGTERM");
   try {
     await waitFor(
-      () => {
+      async () => {
         const current = processIdentity(marker.process_id, role);
         return !current || current.started !== original.started ? true : null;
       },
@@ -166,7 +166,11 @@ async function stopOwned(marker, role) {
   } catch {
     const current = processIdentity(marker.process_id, role);
     if (current?.started === original.started) process.kill(marker.process_id, "SIGKILL");
-    await waitFor(() => !processIdentity(marker.process_id, role), `${role} forced cleanup`, 5000);
+    await waitFor(
+      async () => !processIdentity(marker.process_id, role),
+      `${role} forced cleanup`,
+      5000,
+    );
   }
 }
 async function freezeCaptureAndStop(pid, role, childRole) {
@@ -177,7 +181,7 @@ async function freezeCaptureAndStop(pid, role, childRole) {
   try {
     process.kill(pid, "SIGSTOP");
     await waitFor(
-      () => processIdentity(pid, role)?.state.includes("T"),
+      async () => processIdentity(pid, role)?.state.includes("T"),
       `${role} stopped for child capture`,
       5000,
     );
@@ -189,7 +193,7 @@ async function freezeCaptureAndStop(pid, role, childRole) {
   } finally {
     try {
       if (processIdentity(pid, role)?.started === original.started) process.kill(pid, "SIGKILL");
-      await waitFor(() => !processIdentity(pid, role), `${role} forced exit`, 5000);
+      await waitFor(async () => !processIdentity(pid, role), `${role} forced exit`, 5000);
     } catch (error) {
       failure ??= error;
     }
@@ -203,7 +207,7 @@ async function stopHelper(marker) {
   if (!original) return [];
   try {
     await waitFor(
-      () => !processIdentity(marker.process_id, "helper"),
+      async () => !processIdentity(marker.process_id, "helper"),
       "helper natural cleanup",
       30_000,
     );
@@ -236,6 +240,43 @@ async function bounded(promise, label, timeoutMs) {
     ]);
   } finally {
     clearTimeout(timer);
+  }
+}
+async function captureFailureState(browser) {
+  if (!browser) return;
+  try {
+    const state = await bounded(
+      browser.executeScript(() => ({
+        title: document.title,
+        main_text: document.querySelector("main")?.textContent?.slice(0, 8000),
+        navigation: [
+          ...document.querySelectorAll('nav[aria-label="Primary navigation"] button'),
+        ].map((button) => ({
+          text: button.textContent,
+          current: button.getAttribute("aria-current"),
+        })),
+        update_article_count: document.querySelectorAll(
+          'article[aria-labelledby="application-update-settings-title"]',
+        ).length,
+      })),
+      "failure DOM capture",
+      10_000,
+    );
+    await writeFile(
+      path.join(values.output, "failure-state.json"),
+      `${JSON.stringify(state, null, 2)}\n`,
+    );
+  } catch (error) {
+    report.failure_dom_capture = String(error);
+  }
+  try {
+    await writeFile(
+      path.join(values.output, "failure-state.png"),
+      await bounded(browser.takeScreenshot(), "failure screenshot", 10_000),
+      "base64",
+    );
+  } catch (error) {
+    report.failure_screenshot = String(error);
   }
 }
 let output = "";
@@ -355,6 +396,7 @@ try {
 } catch (error) {
   report.phase = "failed";
   report.failure = String(error.stack ?? error);
+  await captureFailureState(browser);
   throw error;
 } finally {
   await writeFile(path.join(values.output, "application.log"), output);
