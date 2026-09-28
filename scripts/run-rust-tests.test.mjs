@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { spawn, spawnSync } from "node:child_process";
+import { spawn } from "node:child_process";
 import { EventEmitter } from "node:events";
 import { existsSync } from "node:fs";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
@@ -626,14 +626,14 @@ test("runner retains ownership when Unix cleanup reports failure", async () => {
 
 test(
   "Windows Job Object supervisor kills a detached grandchild when its root exits",
-  { skip: process.platform !== "win32" },
+  { skip: process.platform !== "win32", timeout: 120_000 },
   async () => {
     const tempRoot = await mkdtemp(path.join(os.tmpdir(), "portcove-job-supervisor-"));
     const supervisor = path.join(tempRoot, "supervisor.exe");
     const gatePath = path.join(tempRoot, "registered.gate");
     const pidFile = path.join(tempRoot, "descendant.pid");
     try {
-      const compiled = spawnSync(
+      const compiled = spawn(
         "rustc",
         [
           "--edition=2024",
@@ -643,9 +643,17 @@ test(
           "-o",
           supervisor,
         ],
-        { stdio: "inherit", windowsHide: true },
+        { stdio: "inherit", windowsHide: true, timeout: 80_000, killSignal: "SIGKILL" },
       );
-      assert.equal(compiled.status, 0);
+      const compileStatus = await new Promise((resolve, reject) => {
+        compiled.once("error", reject);
+        compiled.once("close", (code, signal) => {
+          if (signal)
+            reject(new Error(`rustc was terminated after its compile deadline: ${signal}`));
+          else resolve(code);
+        });
+      });
+      assert.equal(compileStatus, 0);
       const rootScript = [
         'const { spawn } = require("node:child_process")',
         'const { writeFileSync } = require("node:fs")',

@@ -377,6 +377,10 @@ same exact current-user NSIS registration used by replacement admission, then ad
 the compiled target, API, catalog, library reader/writer and lock compatibility
 identity plus the actual Windows version. The provider implements both the regular
 authenticated checker and the helper's fresh post-exit selection boundary. The
+qualification-only installed Windows command selects through this compiled provider
+and verifies fixture-supplied local installer bytes through the production
+check-and-stage operation. The fixture prepares the subsequent apply intent;
+this does not establish the normal renderer download and restart interaction. The
 Linux provider accepts only an absolute, direct AppImage source with owner read,
 write and execute bits whose running executable is inside the native read-only FUSE
 `APPDIR` mount recorded by the Linux kernel. It reports the shared compiled

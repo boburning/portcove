@@ -1473,7 +1473,10 @@ pub fn run_hidden_helper() -> Option<i32> {
                 2
             })
         }
-        #[cfg(all(target_os = "linux", feature = "application-update-qualification"))]
+        #[cfg(all(
+            any(windows, target_os = "linux"),
+            feature = "application-update-qualification"
+        ))]
         Some(mode) if mode == "--portcove-qualify-update-stage" => {
             let payload = arguments.next().map(PathBuf::from);
             Some(match payload {
@@ -1577,10 +1580,16 @@ fn qualify_installed_application_selection() -> i32 {
 /// Qualification-only local payload source. The installed binary still selects
 /// the candidate from its compiled repository and verifies these bytes through
 /// the same operation used by the normal desktop commands.
-#[cfg(all(target_os = "linux", feature = "application-update-qualification"))]
+#[cfg(all(
+    any(windows, target_os = "linux"),
+    feature = "application-update-qualification"
+))]
 struct QualificationPayloadSource(PathBuf);
 
-#[cfg(all(target_os = "linux", feature = "application-update-qualification"))]
+#[cfg(all(
+    any(windows, target_os = "linux"),
+    feature = "application-update-qualification"
+))]
 #[async_trait::async_trait]
 impl application_update_operation::ApplicationUpdatePayloadSource for QualificationPayloadSource {
     async fn open(
@@ -1597,7 +1606,10 @@ impl application_update_operation::ApplicationUpdatePayloadSource for Qualificat
     }
 }
 
-#[cfg(all(target_os = "linux", feature = "application-update-qualification"))]
+#[cfg(all(
+    any(windows, target_os = "linux"),
+    feature = "application-update-qualification"
+))]
 fn qualify_installed_application_stage(payload: &Path) -> i32 {
     use application_update::ApplicationChannel;
     use application_update_coordinator::{
