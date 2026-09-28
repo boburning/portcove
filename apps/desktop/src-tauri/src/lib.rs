@@ -11,6 +11,8 @@ pub mod application_update_host;
 pub mod application_update_linux;
 #[cfg(target_os = "macos")]
 pub mod application_update_macos;
+#[cfg(any(target_os = "macos", test))]
+mod application_update_macos_archive;
 mod application_update_network;
 pub mod application_update_operation;
 pub mod application_update_payload;
@@ -105,7 +107,7 @@ struct DesktopState {
 
 type DesktopResult<T> = std::result::Result<T, DesktopError>;
 
-#[cfg(any(windows, target_os = "linux"))]
+#[cfg(any(windows, target_os = "linux", target_os = "macos"))]
 fn report_application_update_qualification_failure(stage: &str, error: &str) {
     #[cfg(feature = "application-update-qualification")]
     if std::env::var_os("PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_EXIT").as_deref()
@@ -118,7 +120,7 @@ fn report_application_update_qualification_failure(stage: &str, error: &str) {
     let _ = (stage, error);
 }
 
-#[cfg(any(windows, target_os = "linux"))]
+#[cfg(any(windows, target_os = "linux", target_os = "macos"))]
 fn report_application_update_qualification_stage(stage: &str) {
     #[cfg(feature = "application-update-qualification")]
     if std::env::var_os("PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_EXIT").as_deref()
@@ -158,7 +160,7 @@ impl BlockingWorkerState {
         self.active = self.active.saturating_sub(1);
     }
 
-    #[cfg(any(windows, target_os = "linux", test))]
+    #[cfg(any(windows, target_os = "linux", target_os = "macos", test))]
     fn begin_restart(&mut self) -> Result<(), ()> {
         if self.active != 0 || self.restart_pending {
             return Err(());
@@ -195,19 +197,19 @@ impl Drop for ActiveBlockingWorker {
     }
 }
 
-#[cfg(any(windows, target_os = "linux"))]
+#[cfg(any(windows, target_os = "linux", target_os = "macos"))]
 struct BlockingWorkerRestartGuard {
     committed: bool,
 }
 
-#[cfg(any(windows, target_os = "linux"))]
+#[cfg(any(windows, target_os = "linux", target_os = "macos"))]
 impl BlockingWorkerRestartGuard {
     fn commit(mut self) {
         self.committed = true;
     }
 }
 
-#[cfg(any(windows, target_os = "linux"))]
+#[cfg(any(windows, target_os = "linux", target_os = "macos"))]
 impl Drop for BlockingWorkerRestartGuard {
     fn drop(&mut self) {
         if !self.committed
@@ -218,7 +220,7 @@ impl Drop for BlockingWorkerRestartGuard {
     }
 }
 
-#[cfg(any(windows, target_os = "linux"))]
+#[cfg(any(windows, target_os = "linux", target_os = "macos"))]
 fn block_workers_for_restart() -> DesktopResult<BlockingWorkerRestartGuard> {
     let mut state = BLOCKING_WORKERS.lock().map_err(|_| {
         DesktopError::from(PortcoveError::state("Desktop worker state is unavailable."))
@@ -2134,6 +2136,35 @@ fn recover_application_update_after_interrupted_replacement(runtime: &Applicatio
     }
 }
 
+#[cfg(target_os = "macos")]
+fn recover_application_update_after_interrupted_replacement(runtime: &ApplicationRuntimeGuard) {
+    use application_update_macos::MacosApplicationUpdateRecovery;
+
+    let result = (|| {
+        let apply = application_update_apply::ApplicationUpdateApplyStore::open_configured()
+            .map_err(application_update_macos::MacosApplicationUpdateError::from)?;
+        application_update_macos::recover_macos_application_update_before_startup(runtime, &apply)
+    })();
+    match result {
+        Ok(MacosApplicationUpdateRecovery::RecoveredPreActivation) => tracing::warn!(
+            operation_id = "application-update-recovery",
+            "recovered an interrupted macOS bundle extraction before activation"
+        ),
+        Ok(
+            MacosApplicationUpdateRecovery::NoAttempt
+            | MacosApplicationUpdateRecovery::CandidateInstalled,
+        ) => {}
+        Err(error) => {
+            report_application_update_qualification_failure("startup recovery", &error.to_string());
+            tracing::warn!(
+                operation_id = "application-update-recovery",
+                error = %error,
+                "retained the interrupted macOS bundle replacement for explicit recovery"
+            );
+        }
+    }
+}
+
 #[cfg(windows)]
 fn reconcile_application_update_after_healthy_startup() {
     use application_update_windows::WindowsApplicationUpdateReconciliation;
@@ -2212,6 +2243,45 @@ fn reconcile_application_update_after_healthy_startup() {
     }
 }
 
+#[cfg(target_os = "macos")]
+fn reconcile_application_update_after_healthy_startup() {
+    use application_update_macos::MacosApplicationUpdateReconciliation;
+
+    let result = (|| {
+        let apply = application_update_apply::ApplicationUpdateApplyStore::open_configured()
+            .map_err(application_update_macos::MacosApplicationUpdateError::from)?;
+        let staging = application_update_staging::ApplicationUpdateStagingStore::open_configured()
+            .map_err(application_update_apply::ApplicationUpdateApplyError::from)
+            .map_err(application_update_macos::MacosApplicationUpdateError::from)?;
+        application_update_macos::reconcile_macos_application_update(&apply, &staging)
+    })();
+    match result {
+        Ok(MacosApplicationUpdateReconciliation::Reconciled) => tracing::info!(
+            operation_id = "application-update-reconciliation",
+            "confirmed the running macOS installed-bundle update"
+        ),
+        Ok(MacosApplicationUpdateReconciliation::CandidateNotInstalled) => {
+            report_application_update_qualification_failure(
+                "reconciliation",
+                "the candidate version is not running",
+            );
+            tracing::warn!(
+                operation_id = "application-update-reconciliation",
+                "retained the macOS bundle update request because the candidate is not running"
+            );
+        }
+        Ok(MacosApplicationUpdateReconciliation::NoAttempt) => {}
+        Err(error) => {
+            report_application_update_qualification_failure("reconciliation", &error.to_string());
+            tracing::warn!(
+                operation_id = "application-update-reconciliation",
+                error = %error,
+                "retained the macOS bundle update request because startup reconciliation failed"
+            );
+        }
+    }
+}
+
 const MAIN_WINDOW_INVOKE_REJECTION: &str =
     "Portcove commands are available only to the main window";
 
@@ -2244,7 +2314,7 @@ where
 }
 
 pub fn run() {
-    #[cfg(any(windows, target_os = "linux"))]
+    #[cfg(any(windows, target_os = "linux", target_os = "macos"))]
     report_application_update_qualification_stage("process entry");
     let preferences = host_preference_store();
     let application_runtime = preferences.as_ref().map_err(Clone::clone).and_then(|_| {
@@ -2262,9 +2332,9 @@ pub fn run() {
             return;
         }
     };
-    #[cfg(any(windows, target_os = "linux"))]
+    #[cfg(any(windows, target_os = "linux", target_os = "macos"))]
     report_application_update_qualification_stage("runtime lease");
-    #[cfg(target_os = "linux")]
+    #[cfg(any(target_os = "linux", target_os = "macos"))]
     recover_application_update_after_interrupted_replacement(&_application_runtime);
     let configured_root = std::env::var_os("PORTCOVE_LIBRARY")
         .filter(|path| !path.is_empty())
@@ -2276,7 +2346,7 @@ pub fn run() {
     let initialization = std::sync::Arc::new(std::sync::Mutex::new(
         initialization_result.and_then(|state| {
             diagnostics::initialize(&state.library.logs_dir()).map_err(DesktopError::from)?;
-            #[cfg(any(windows, target_os = "linux"))]
+            #[cfg(any(windows, target_os = "linux", target_os = "macos"))]
             report_application_update_qualification_stage("desktop initialization");
             tracing::info!(
                 operation_id = "desktop-startup",
@@ -2431,7 +2501,7 @@ pub fn run() {
             report_frontend_error,
         ]))
         .setup(|app| {
-            #[cfg(any(windows, target_os = "linux"))]
+            #[cfg(any(windows, target_os = "linux", target_os = "macos"))]
             report_application_update_qualification_stage("Tauri setup");
             if let Some(window) = app.get_webview_window("main") {
                 window.set_focus()?;
@@ -2448,15 +2518,15 @@ pub fn run() {
                         )
                         .map_err(|error| std::io::Error::other(error.message))?;
                     }
-                    #[cfg(any(windows, target_os = "linux"))]
+                    #[cfg(any(windows, target_os = "linux", target_os = "macos"))]
                     reconcile_application_update_after_healthy_startup();
                 }
-                #[cfg(any(windows, target_os = "linux"))]
+                #[cfg(any(windows, target_os = "linux", target_os = "macos"))]
                 Err(error) => report_application_update_qualification_failure(
                     "desktop initialization",
                     &error.message,
                 ),
-                #[cfg(not(any(windows, target_os = "linux")))]
+                #[cfg(not(any(windows, target_os = "linux", target_os = "macos")))]
                 Err(_) => {}
             }
             #[cfg(feature = "application-update-qualification")]

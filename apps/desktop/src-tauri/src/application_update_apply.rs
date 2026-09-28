@@ -630,7 +630,7 @@ impl ApplicationUpdateApplyStore {
     /// Records a Linux replacement helper that disappeared before activation.
     /// The host adapter must first prove that the predecessor still owns the
     /// stable path and that any candidate swap is absent or safely removed.
-    #[cfg(any(target_os = "linux", test))]
+    #[cfg(any(target_os = "linux", target_os = "macos", test))]
     pub(crate) fn record_interrupted_native_replacement_failed(
         &self,
         expected_revision: u64,
@@ -657,7 +657,7 @@ impl ApplicationUpdateApplyStore {
     /// Clears a recorded native attempt only after a trusted host adapter has
     /// observed the candidate version running past its application-health
     /// boundary. Exact installed identity remains the adapter's responsibility.
-    #[cfg(any(windows, target_os = "linux", test))]
+    #[cfg(any(windows, target_os = "linux", target_os = "macos", test))]
     pub(crate) fn reconcile_installed_application(
         &self,
         expected_revision: u64,

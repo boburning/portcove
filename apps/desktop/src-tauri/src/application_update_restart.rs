@@ -5,45 +5,47 @@
 //! library state, then starts a helper carrying only the journal revision.
 
 use std::ffi::OsStr;
-#[cfg(any(windows, target_os = "linux", test))]
+#[cfg(any(windows, target_os = "linux", target_os = "macos", test))]
 use std::ffi::OsString;
-#[cfg(any(windows, target_os = "linux", test))]
+#[cfg(any(windows, target_os = "linux", target_os = "macos", test))]
 use std::process::Stdio;
 
-#[cfg(any(windows, target_os = "linux"))]
+#[cfg(any(windows, target_os = "linux", target_os = "macos"))]
 use portcove_core::HostPreferenceStore;
 use portcove_core::PortcoveError;
-#[cfg(any(windows, target_os = "linux", test))]
+#[cfg(any(windows, target_os = "linux", target_os = "macos", test))]
 use portcove_core::{ChildProcessClass, ChildProcessPolicy};
 
-#[cfg(any(windows, target_os = "linux"))]
+#[cfg(any(windows, target_os = "linux", target_os = "macos"))]
 use crate::DesktopError;
-#[cfg(any(windows, target_os = "linux"))]
+#[cfg(any(windows, target_os = "linux", target_os = "macos"))]
 use crate::application_update_apply::{
     ApplicationTerminationKind, ApplicationUpdateApplyError, ApplicationUpdateApplyStore,
     ApplicationUpdateRevalidationLease,
 };
-#[cfg(any(windows, target_os = "linux"))]
+#[cfg(any(windows, target_os = "linux", target_os = "macos"))]
 use crate::application_update_helper::{
     ApplicationUpdateHelperRequest, BoundedApplicationUpdateRuntimeWaiter,
     revalidate_application_update_after_parent_exit,
 };
-#[cfg(any(windows, target_os = "linux"))]
+#[cfg(any(windows, target_os = "linux", target_os = "macos"))]
 use crate::application_update_host::{
     ApplicationUpdateHostProvider, CurrentInstalledApplicationContext,
     InstalledApplicationContextSource,
 };
 #[cfg(any(target_os = "linux", test))]
 use crate::application_update_linux::LinuxApplicationUpdateError;
-#[cfg(any(windows, target_os = "linux"))]
+#[cfg(target_os = "macos")]
+use crate::application_update_macos::MacosApplicationUpdateError;
+#[cfg(any(windows, target_os = "linux", target_os = "macos"))]
 use crate::application_update_preferences::ApplicationUpdatePreferenceStore;
-#[cfg(any(windows, target_os = "linux"))]
+#[cfg(any(windows, target_os = "linux", target_os = "macos"))]
 use crate::application_update_staging::ApplicationUpdateStagingStore;
 #[cfg(any(windows, test))]
 use crate::application_update_windows::WindowsApplicationUpdateError;
 #[cfg(windows)]
 use crate::application_update_windows::WindowsNsisUpdateAdmission;
-#[cfg(any(windows, target_os = "linux", test))]
+#[cfg(any(windows, target_os = "linux", target_os = "macos", test))]
 use crate::configure_independent_process;
 use crate::{DesktopResult, DesktopState};
 
@@ -54,7 +56,7 @@ const HELPER_MODE: &str = "--portcove-apply-update";
 /// general child-process policy intentionally carries only host session state,
 /// so keep this overlay exact rather than admitting arbitrary `PORTCOVE_*`
 /// variables.
-#[cfg(any(windows, target_os = "linux", test))]
+#[cfg(any(windows, target_os = "linux", target_os = "macos", test))]
 const DESKTOP_UPDATE_PROCESS_ENVIRONMENT: &[&str] = &[
     "PORTCOVE_APPLICATION_RUNTIME_LOCK",
     "PORTCOVE_APPLICATION_UPDATE_BUNDLED_ROOT_FILE",
@@ -87,7 +89,7 @@ pub(crate) async fn restart_to_apply_application_update(
     >,
     generation: u64,
 ) -> DesktopResult<()> {
-    #[cfg(not(any(windows, target_os = "linux")))]
+    #[cfg(not(any(windows, target_os = "linux", target_os = "macos")))]
     {
         let _ = (app, state, update_state, generation);
         Err(PortcoveError::unsupported(
@@ -96,7 +98,7 @@ pub(crate) async fn restart_to_apply_application_update(
         .into())
     }
 
-    #[cfg(any(windows, target_os = "linux"))]
+    #[cfg(any(windows, target_os = "linux", target_os = "macos"))]
     {
         crate::require_library_generation(crate::state_generation(&state), generation)?;
         if ApplicationUpdateHostProvider::compiled()
@@ -201,7 +203,7 @@ pub(crate) fn stage_qualification_worker(expected_revision: u64) -> i32 {
     }
 }
 
-#[cfg(any(windows, target_os = "linux"))]
+#[cfg(any(windows, target_os = "linux", target_os = "macos"))]
 fn spawn_update_helper(expected_revision: u64) -> DesktopResult<()> {
     #[cfg(windows)]
     let apply = ApplicationUpdateApplyStore::open_configured().map_err(apply_error)?;
@@ -222,6 +224,8 @@ fn spawn_update_helper(expected_revision: u64) -> DesktopResult<()> {
             .map_err(|_| unsupported_installation())?;
     #[cfg(target_os = "linux")]
     let executable = std::env::current_exe().map_err(PortcoveError::from)?;
+    #[cfg(target_os = "macos")]
+    let executable = std::env::current_exe().map_err(PortcoveError::from)?;
     let mut command = update_helper_command(&executable, expected_revision)?;
     #[cfg(target_os = "linux")]
     bind_verified_linux_appimage_execution(&mut command, &source, &mount);
@@ -231,7 +235,7 @@ fn spawn_update_helper(expected_revision: u64) -> DesktopResult<()> {
         ))
     })?;
     #[cfg(all(
-        any(windows, target_os = "linux"),
+        any(windows, target_os = "linux", target_os = "macos"),
         feature = "application-update-qualification"
     ))]
     {
@@ -266,14 +270,14 @@ fn spawn_update_helper(expected_revision: u64) -> DesktopResult<()> {
         }
     }
     #[cfg(not(all(
-        any(windows, target_os = "linux"),
+        any(windows, target_os = "linux", target_os = "macos"),
         feature = "application-update-qualification"
     )))]
     drop(child);
     Ok(())
 }
 
-#[cfg(any(windows, target_os = "linux", test))]
+#[cfg(any(windows, target_os = "linux", target_os = "macos", test))]
 fn update_helper_command(
     executable: &std::path::Path,
     expected_revision: u64,
@@ -382,13 +386,35 @@ pub(crate) fn run_update_helper(expected_revision: u64) -> i32 {
     }
 }
 
-#[cfg(not(any(windows, target_os = "linux")))]
+#[cfg(target_os = "macos")]
+pub(crate) fn run_update_helper(expected_revision: u64) -> i32 {
+    let executable = std::env::current_exe().ok();
+    let outcome = run_macos_update_helper_inner(expected_revision);
+    let restart_result = if outcome != UpdateHelperOutcome::Ambiguous {
+        executable
+            .as_deref()
+            .ok_or(())
+            .and_then(|path| restart_executable_if_runtime_available(path, false))
+    } else {
+        Err(())
+    };
+    if outcome == UpdateHelperOutcome::Succeeded && restart_result.is_err() {
+        report_qualification_helper_failure("relaunch", "the updated macOS bundle could not start");
+    }
+    if outcome == UpdateHelperOutcome::Succeeded && restart_result.is_ok() {
+        0
+    } else {
+        1
+    }
+}
+
+#[cfg(not(any(windows, target_os = "linux", target_os = "macos")))]
 pub(crate) fn run_update_helper(_expected_revision: u64) -> i32 {
     1
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[cfg(any(windows, target_os = "linux", test))]
+#[cfg(any(windows, target_os = "linux", target_os = "macos", test))]
 enum UpdateHelperOutcome {
     Succeeded,
     FailedSafe,
@@ -445,6 +471,41 @@ fn run_linux_update_helper_inner(expected_revision: u64) -> UpdateHelperOutcome 
     classify_linux_launch_result(result)
 }
 
+#[cfg(target_os = "macos")]
+fn run_macos_update_helper_inner(expected_revision: u64) -> UpdateHelperOutcome {
+    let provider = match ApplicationUpdateHostProvider::compiled() {
+        Ok(Some(provider)) => provider,
+        Ok(None) => return UpdateHelperOutcome::FailedSafe,
+        Err(error) => {
+            report_qualification_helper_failure("configuration", &error.to_string());
+            return UpdateHelperOutcome::FailedSafe;
+        }
+    };
+    let lease = match prepare_revalidation_lease(expected_revision, &provider) {
+        Ok(lease) => lease,
+        Err(error) => {
+            report_qualification_helper_failure("revalidation", &error);
+            return UpdateHelperOutcome::FailedSafe;
+        }
+    };
+    let admission = match crate::application_update_macos::admit_macos_bundle_update(lease) {
+        Ok(admission) => admission,
+        Err(error) => {
+            report_qualification_helper_failure("admission", &error.to_string());
+            return UpdateHelperOutcome::FailedSafe;
+        }
+    };
+    let result = admission.launch();
+    if let Err(error) = &result {
+        report_qualification_helper_failure("replacement", &error.to_string());
+    }
+    match result {
+        Ok(()) => UpdateHelperOutcome::Succeeded,
+        Err(MacosApplicationUpdateError::Ambiguous(_)) => UpdateHelperOutcome::Ambiguous,
+        Err(_) => UpdateHelperOutcome::FailedSafe,
+    }
+}
+
 #[cfg(windows)]
 fn prepare_update_admission(
     expected_revision: u64,
@@ -460,7 +521,7 @@ fn prepare_update_admission(
         .map_err(|error| error.to_string())
 }
 
-#[cfg(any(windows, target_os = "linux"))]
+#[cfg(any(windows, target_os = "linux", target_os = "macos"))]
 fn prepare_revalidation_lease(
     expected_revision: u64,
     provider: &ApplicationUpdateHostProvider,
@@ -487,7 +548,7 @@ fn prepare_revalidation_lease(
     .map_err(|error| error.to_string())
 }
 
-#[cfg(any(windows, target_os = "linux"))]
+#[cfg(any(windows, target_os = "linux", target_os = "macos"))]
 fn report_qualification_helper_failure(stage: &str, error: &str) {
     #[cfg(feature = "application-update-qualification")]
     {
@@ -542,7 +603,7 @@ fn restart_linux_appimage_if_runtime_available(executable: &std::path::Path) -> 
     restart_executable_if_runtime_available(executable, true)
 }
 
-#[cfg(any(windows, target_os = "linux"))]
+#[cfg(any(windows, target_os = "linux", target_os = "macos"))]
 fn restart_executable_if_runtime_available(
     executable: &std::path::Path,
     clear_appimage_environment: bool,
@@ -582,7 +643,7 @@ fn restart_executable_if_runtime_available(
     drop(runtime);
     let child = command.spawn().map_err(|_| ())?;
     #[cfg(all(
-        any(windows, target_os = "linux"),
+        any(windows, target_os = "linux", target_os = "macos"),
         feature = "application-update-qualification"
     ))]
     {
@@ -614,14 +675,14 @@ fn restart_executable_if_runtime_available(
         }
     }
     #[cfg(not(all(
-        any(windows, target_os = "linux"),
+        any(windows, target_os = "linux", target_os = "macos"),
         feature = "application-update-qualification"
     )))]
     drop(child);
     Ok(())
 }
 
-#[cfg(any(windows, target_os = "linux", test))]
+#[cfg(any(windows, target_os = "linux", target_os = "macos", test))]
 fn copy_desktop_update_environment(
     command: &mut std::process::Command,
     environment: impl IntoIterator<Item = (OsString, OsString)>,
@@ -635,7 +696,7 @@ fn copy_desktop_update_environment(
     }));
 }
 
-#[cfg(any(windows, target_os = "linux"))]
+#[cfg(any(windows, target_os = "linux", target_os = "macos"))]
 fn unsupported_installation() -> DesktopError {
     PortcoveError::unsupported(
         "This Portcove installation cannot be updated in place. Use the documented manual recovery path.",
@@ -643,7 +704,7 @@ fn unsupported_installation() -> DesktopError {
     .into()
 }
 
-#[cfg(any(windows, target_os = "linux"))]
+#[cfg(any(windows, target_os = "linux", target_os = "macos"))]
 fn library_busy_error() -> DesktopError {
     PortcoveError::conflict(
         "Portcove is using the current library. Finish or recover active work before restarting to update.",
@@ -651,7 +712,7 @@ fn library_busy_error() -> DesktopError {
     .into()
 }
 
-#[cfg(any(windows, target_os = "linux"))]
+#[cfg(any(windows, target_os = "linux", target_os = "macos"))]
 fn configuration_error() -> DesktopError {
     PortcoveError::state(
         "Application update configuration is unavailable. Reinstall Portcove or use the documented manual recovery path.",
@@ -659,7 +720,7 @@ fn configuration_error() -> DesktopError {
     .into()
 }
 
-#[cfg(any(windows, target_os = "linux"))]
+#[cfg(any(windows, target_os = "linux", target_os = "macos"))]
 fn preference_error(
     error: crate::application_update_preferences::ApplicationUpdatePreferenceError,
 ) -> DesktopError {
@@ -681,7 +742,7 @@ fn preference_error(
     }
 }
 
-#[cfg(any(windows, target_os = "linux"))]
+#[cfg(any(windows, target_os = "linux", target_os = "macos"))]
 fn staging_error(
     error: crate::application_update_staging::ApplicationUpdateStagingError,
 ) -> DesktopError {
@@ -701,7 +762,7 @@ fn staging_error(
     }
 }
 
-#[cfg(any(windows, target_os = "linux"))]
+#[cfg(any(windows, target_os = "linux", target_os = "macos"))]
 fn apply_error(error: ApplicationUpdateApplyError) -> DesktopError {
     if matches!(
         error,
