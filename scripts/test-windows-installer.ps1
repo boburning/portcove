@@ -204,7 +204,7 @@ if ($predecessor -and [System.IO.Path]::GetExtension($predecessor) -ne ".exe") {
 $installedUpdate = -not [string]::IsNullOrWhiteSpace($InstalledUpdateTrustedRootPath)
 if ($installedUpdate -and (-not $predecessor -or -not $InstalledUpdateMetadataPath -or
         -not $InstalledUpdateTargetsPath -or -not $InstalledUpdateCandidatePath -or
-        -not $InstalledUpdatePredecessorVersion -or -not $RequireSigningAuthorityAbsent)) {
+        -not $InstalledUpdatePredecessorVersion -or -not $ExpectedVersion -or -not $RequireSigningAuthorityAbsent)) {
     throw "Installed update qualification requires a predecessor, complete signed repository paths, and absent signing authority"
 }
 $expected = if ($ExpectedExecutablePath) { Get-ExpectedBundledHash (Resolve-Path -LiteralPath $ExpectedExecutablePath).Path } else { $null }
@@ -350,9 +350,10 @@ function Start-JournaledProcess([string]$Role, [string]$Executable, [object[]]$A
     $requested = [DateTime]::UtcNow
     $run = [ordered]@{ id = [System.Guid]::NewGuid().ToString("N"); role = $Role; requested_at = $requested.ToString("o"); requested_at_filetime = $requested.ToFileTimeUtc(); executable_path = $exact; executable_sha256 = (Get-FileHash -LiteralPath $exact -Algorithm SHA256).Hash.ToLowerInvariant(); arguments = @($Arguments); status = "launch_pending"; pid = $null; start_time = $null; start_time_filetime = $null; exit_code = $null; exit_observation = $null }
     if ($evidence) { $evidence.process_runs += $run; Write-InstallerEvidence $evidence.phase }
-    if ($Role -eq "installed_update_helper") {
-        $run.output_relative = "installed-update-helper.stdout.log"
-        $run.error_relative = "installed-update-helper.stderr.log"
+    if ($Role -in @("installed_update_helper", "installed_update_selection_stage", "installed_update_truncated_stage")) {
+        $outputName = if ($Role -eq "installed_update_helper") { "installed-update-helper" } else { $Role.Replace('_', '-') }
+        $run.output_relative = "$outputName.stdout.log"
+        $run.error_relative = "$outputName.stderr.log"
         $process = Start-Process -FilePath $exact -ArgumentList $Arguments -PassThru -WindowStyle Hidden -RedirectStandardOutput (Join-Path $runRoot $run.output_relative) -RedirectStandardError (Join-Path $runRoot $run.error_relative)
     } else {
         $process = Start-Process -FilePath $exact -ArgumentList $Arguments -PassThru -WindowStyle Hidden
@@ -365,7 +366,7 @@ function Start-JournaledProcess([string]$Role, [string]$Executable, [object[]]$A
         }
         $startInfoPath = $process.StartInfo.FileName
         if ([string]::IsNullOrWhiteSpace($startInfoPath)) {
-            if ($Role -ne "installed_update_helper") {
+            if ($Role -notin @("installed_update_helper", "installed_update_selection_stage", "installed_update_truncated_stage")) {
                 throw "$Role retained handle omitted the requested launch path"
             }
             $run.start_info_observation = "Start-Process omitted StartInfo.FileName with redirected qualification output; live process image verification is required"
@@ -527,6 +528,7 @@ $updateEnvironmentNames = @(
     "PORTCOVE_APPLICATION_UPDATE_METADATA_URL",
     "PORTCOVE_APPLICATION_UPDATE_TARGETS_URL",
     "PORTCOVE_APPLICATION_UPDATE_PREFERENCES",
+    "PORTCOVE_APPLICATION_UPDATE_SCHEDULE",
     "PORTCOVE_APPLICATION_UPDATE_STAGING",
     "PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_EXIT",
     "PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_STAGE"
@@ -585,20 +587,62 @@ try {
         $metadata = (Resolve-Path -LiteralPath $InstalledUpdateMetadataPath).Path
         $targets = (Resolve-Path -LiteralPath $InstalledUpdateTargetsPath).Path
         $candidate = (Resolve-Path -LiteralPath $InstalledUpdateCandidatePath).Path
-        $preparedText = (& cargo run --locked --quiet -p portcove-desktop --example prepare_installed_update -- prepare $InstalledUpdatePredecessorVersion $trustedRoot $metadata $targets $candidate $updatePreferences $updateRoot $libraryRoot | Out-String).Trim()
-        if ($LASTEXITCODE -ne 0) { throw "Signed Windows application update fixture could not be prepared" }
-        $prepared = $preparedText | ConvertFrom-Json
-        if ($prepared.candidate_sha256 -ne $installerHash -or
-            [UInt64]$prepared.candidate_bytes -ne [UInt64](Get-Item -LiteralPath $installer).Length) {
-            throw "Prepared Windows application update differs from the exact candidate installer"
-        }
         $env:PORTCOVE_APPLICATION_UPDATE_BUNDLED_ROOT_FILE = $trustedRoot
         $env:PORTCOVE_APPLICATION_UPDATE_METADATA_URL = ([Uri]::new($metadata.TrimEnd('\', '/') + '/')).AbsoluteUri
         $env:PORTCOVE_APPLICATION_UPDATE_TARGETS_URL = ([Uri]::new($targets.TrimEnd('\', '/') + '/')).AbsoluteUri
         $env:PORTCOVE_APPLICATION_UPDATE_PREFERENCES = $updatePreferences
+        $env:PORTCOVE_APPLICATION_UPDATE_SCHEDULE = Join-Path $runRoot "application-update-schedule.json"
         $env:PORTCOVE_APPLICATION_UPDATE_STAGING = $updateRoot
         $env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_EXIT = "after-reconciliation"
         $env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_STAGE = $qualificationStage
+
+        $candidateBytes = [UInt64](Get-Item -LiteralPath $candidate).Length
+        if ($candidateBytes -le 1) { throw "Signed candidate installer is too small for truncation qualification" }
+        $truncatedCandidate = Join-Path $runRoot "truncated-candidate.exe"
+        Copy-Item -LiteralPath $candidate -Destination $truncatedCandidate
+        $truncatedFile = [IO.File]::Open($truncatedCandidate, [IO.FileMode]::Open, [IO.FileAccess]::Write, [IO.FileShare]::None)
+        try { $truncatedFile.SetLength($candidateBytes - 1) } finally { $truncatedFile.Dispose() }
+        $truncated = Invoke-JournaledProcess -Role "installed_update_truncated_stage" -Executable $application -Arguments @("--portcove-qualify-update-stage", ('"' + $truncatedCandidate + '"')) -AllowedRelocationRoot $runRoot
+        $truncatedError = [IO.File]::ReadAllText((Join-Path $runRoot "installed-update-truncated-stage.stderr.log"))
+        if ($truncated.ExitCode -eq 0 -or $truncatedError -notmatch "payload length mismatch") {
+            throw "Installed predecessor did not reject the truncated signed candidate: $truncatedError"
+        }
+        $stagingPath = Join-Path $updateRoot "staging.json"
+        $stagedPayloadPath = Join-Path $updateRoot "candidate-installer.exe"
+        if (-not [IO.File]::Exists($stagingPath)) { throw "Truncated installed stage did not retain an empty staging journal" }
+        $emptyStaging = Get-Content -LiteralPath $stagingPath -Raw | ConvertFrom-Json
+        if ($emptyStaging.phase -ne "empty" -or $emptyStaging.candidate -or $emptyStaging.previous_candidate -or
+            [IO.File]::Exists($stagedPayloadPath) -or
+            [IO.File]::Exists((Join-Path $updateRoot ".candidate.payload.incoming")) -or
+            [IO.File]::Exists((Join-Path $updateRoot "apply.json")) -or
+            (Get-FileHash -LiteralPath $application -Algorithm SHA256).Hash.ToLowerInvariant() -ne $previousHash -or
+            (Get-FileHash -LiteralPath $sentinel -Algorithm SHA256).Hash -ne $sentinelHash) {
+            throw "Truncated installed stage changed staging, predecessor, or library sentinel"
+        }
+        if ($evidence) { $evidence.installed_truncated_stage = [ordered]@{ exit_code = $truncated.ExitCode; staging_empty = $true; predecessor_preserved = $true; sentinel_preserved = $true } }
+        Write-InstallerEvidence "installed_truncated_stage_rejected"
+
+        $selectionStage = Invoke-JournaledProcess -Role "installed_update_selection_stage" -Executable $application -Arguments @("--portcove-qualify-update-stage", ('"' + $candidate + '"')) -AllowedRelocationRoot $runRoot
+        if ($selectionStage.ExitCode -ne 0) {
+            $stageError = [IO.File]::ReadAllText((Join-Path $runRoot "installed-update-selection-stage.stderr.log"))
+            throw "Installed predecessor could not select and stage its signed candidate: $stageError"
+        }
+        $installedStage = Get-Content -LiteralPath (Join-Path $runRoot "installed-update-selection-stage.stdout.log") -Raw | ConvertFrom-Json
+        $stagedHash = (Get-FileHash -LiteralPath $stagedPayloadPath -Algorithm SHA256).Hash.ToLowerInvariant()
+        if ($installedStage.version -ne $ExpectedVersion -or $installedStage.sha256 -ne $installerHash -or $stagedHash -ne $installerHash -or
+            [UInt64]$installedStage.bytes -ne $candidateBytes -or
+            (Get-FileHash -LiteralPath $application -Algorithm SHA256).Hash.ToLowerInvariant() -ne $previousHash) {
+            throw "Installed predecessor did not stage the exact authenticated installer while preserving itself"
+        }
+        if ($evidence) { $evidence.installed_stage = [ordered]@{ version = $installedStage.version; sha256 = $installedStage.sha256; bytes = $installedStage.bytes; staged_payload_sha256 = $stagedHash; predecessor_preserved = $true } }
+        Write-InstallerEvidence "installed_candidate_staged"
+        $preparedText = (& cargo run --locked --quiet -p portcove-desktop --example prepare_installed_update -- prepare-staged $InstalledUpdatePredecessorVersion $updatePreferences $updateRoot $libraryRoot | Out-String).Trim()
+        if ($LASTEXITCODE -ne 0) { throw "Signed Windows application update intent could not be prepared from installed staging" }
+        $prepared = $preparedText | ConvertFrom-Json
+        if ($prepared.candidate_version -ne $ExpectedVersion -or $prepared.candidate_sha256 -ne $installerHash -or
+            [UInt64]$prepared.candidate_bytes -ne $candidateBytes) {
+            throw "Prepared Windows application update differs from the installed staged installer"
+        }
         Write-InstallerEvidence "installed_helper_starting" ([ordered]@{ prepared = $prepared; predecessor_executable_sha256 = $previousHash })
         $staging = Invoke-JournaledProcess -Role "installed_update_stage" -Executable $application -Arguments @("--portcove-stage-update-worker", [string]$prepared.apply_revision) -AllowedRelocationRoot $runRoot
         if ($staging.ExitCode -ne 0) {

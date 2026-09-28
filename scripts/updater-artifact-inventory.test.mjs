@@ -231,6 +231,11 @@ test("manual rehearsal retains the complete matrix without production credential
   assert.doesNotMatch(lifecycle, /@\(\$installFlag, "\/D=\$installRoot"\).*candidate_installer/);
   assert.match(lifecycle, /DisplayVersion -ne \$ExpectedVersion/);
   assert.match(lifecycle, /HKEY_CURRENT_USER/);
+  assert.match(lifecycle, /installed_update_truncated_stage/);
+  assert.match(lifecycle, /installed_truncated_stage_rejected/);
+  assert.match(lifecycle, /installed_update_selection_stage/);
+  assert.match(lifecycle, /--portcove-qualify-update-stage/);
+  assert.match(lifecycle, /-- prepare-staged \$InstalledUpdatePredecessorVersion/);
   const rehearsal = await readFile(
     new URL("./rehearse-updater-artifacts.ps1", import.meta.url),
     "utf8",

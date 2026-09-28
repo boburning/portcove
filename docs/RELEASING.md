@@ -33,11 +33,14 @@ each runner and builds every required Windows, Linux, Intel Mac and Apple Silico
 package at fixture versions 0.1.0 and 0.3.0. It checks native package versions and
 executable permissions. Windows builds a disposable test-signed TUF repository,
 embeds its public trust and local repository URLs in a qualification-only
-predecessor NSIS package, and uses the isolated installer harness to stage the
-signed candidate, invoke the installed application's passive update helper,
+predecessor NSIS package, and uses the installed predecessor to select the signed
+candidate and stage fixture-supplied installer bytes through the desktop
+check-and-stage operation. The harness first requires a one-byte truncated
+installer to fail with empty staging, then invokes the installed application's
+passive update helper,
 observe candidate relaunch and reconciliation, then uninstall with data
-preservation. The fixture prepares selection and restart intent externally;
-in-app check, download, and restart, a non-administrator VM prompt sequence,
+preservation. The fixture prepares only the later apply intent externally;
+normal renderer download and restart, a non-administrator VM prompt sequence,
 production signing, and publication require separate evidence.
 Linux builds a disposable test-signed TUF repository, embeds its public trust and
 local repository URLs in a qualification-only 0.1.0 AppImage, and exercises the

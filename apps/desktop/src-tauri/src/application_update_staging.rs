@@ -1137,10 +1137,11 @@ mod tests {
         let temporary = tempfile::tempdir().unwrap();
         let path = temporary.path().join("partial");
         let mut file = tokio::fs::File::create(&path).await.unwrap();
-        let mut writer = ControlledStagingWriter::new(&mut file, 2);
-        let error = writer.write_all(b"test").await.unwrap_err();
-        assert_eq!(error.kind(), std::io::ErrorKind::StorageFull);
-        drop(writer);
+        {
+            let mut writer = ControlledStagingWriter::new(&mut file, 2);
+            let error = writer.write_all(b"test").await.unwrap_err();
+            assert_eq!(error.kind(), std::io::ErrorKind::StorageFull);
+        }
         file.flush().await.unwrap();
         drop(file);
         assert_eq!(fs::read(path).unwrap(), b"te");
