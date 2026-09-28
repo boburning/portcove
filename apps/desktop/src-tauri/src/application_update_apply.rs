@@ -941,11 +941,34 @@ fn validate_native_replacement(
             )));
         }
     }
+    let direct_siblings = replacement.source_path.parent() == replacement.backup_path.parent();
+    let macos_nested_backup = replacement.source_path.file_name()
+        == Some(std::ffi::OsStr::new("Portcove.app"))
+        && replacement.backup_path.file_name() == replacement.source_path.file_name()
+        && replacement
+            .backup_path
+            .parent()
+            .and_then(std::path::Path::file_name)
+            .and_then(std::ffi::OsStr::to_str)
+            .is_some_and(|name| {
+                name.strip_prefix(".portcove-update-")
+                    .is_some_and(|suffix| {
+                        suffix.len() == 16
+                            && suffix
+                                .bytes()
+                                .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+                    })
+            })
+        && replacement
+            .backup_path
+            .parent()
+            .and_then(std::path::Path::parent)
+            == replacement.source_path.parent();
     if replacement.source_path == replacement.backup_path
-        || replacement.source_path.parent() != replacement.backup_path.parent()
+        || !(direct_siblings || macos_nested_backup)
     {
         return Err(ApplicationUpdateApplyError::InvalidState(
-            "native replacement source and backup must be distinct siblings".into(),
+            "native replacement source and backup have an invalid relationship".into(),
         ));
     }
     if replacement.previous_bytes == 0
@@ -1055,6 +1078,26 @@ mod tests {
     use crate::application_update_payload::PayloadVerificationKey;
     use crate::application_update_preferences::ApplicationUpdatePreferenceStore;
     use crate::application_update_staging::ApplicationUpdateStagingStore;
+
+    #[test]
+    fn macos_nested_bundle_backup_has_one_strict_journal_shape() {
+        let mut replacement = ApplicationUpdateNativeReplacement {
+            source_path: PathBuf::from("/Users/test/Applications/Portcove.app"),
+            backup_path: PathBuf::from(
+                "/Users/test/Applications/.portcove-update-0123456789abcdef/Portcove.app",
+            ),
+            previous_bytes: 42,
+            previous_sha256: "a".repeat(64),
+        };
+        assert!(validate_native_replacement(&replacement).is_ok());
+        replacement.backup_path =
+            PathBuf::from("/Users/test/Applications/.portcove-update-0123456789abcdef/Other.app");
+        assert!(validate_native_replacement(&replacement).is_err());
+        replacement.backup_path = PathBuf::from(
+            "/Users/test/Applications/.portcove-update-0123456789abcdeg/Portcove.app",
+        );
+        assert!(validate_native_replacement(&replacement).is_err());
+    }
 
     const PUBLIC_KEY: &str = "untrusted comment: minisign public key E7620F1842B4E81F\nRWQf6LRCGA9i53mlYecO4IzT51TGPpvWucNSCh1CBM0QTaLn73Y7GFO3\n";
     const PREHASHED_SIGNATURE: &str = "untrusted comment: signature from minisign secret key\nRUQf6LRCGA9i559r3g7V1qNyJDApGip8MfqcadIgT9CuhV3EMhHoN1mGTkUidF/z7SrlQgXdy8ofjb7bNJJylDOocrCo8KLzZwo=\ntrusted comment: timestamp:1556193335\tfile:test\ny/rUw2y8/hOUYjZU71eHp/Wo1KZ40fGy2VJEDl34XMJM+TX48Ss/17u3IvIfbVR1FkZZSNCisQbuQY+bHwhEBg==\n";

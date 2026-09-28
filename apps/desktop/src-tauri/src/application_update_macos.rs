@@ -5,7 +5,7 @@
 use std::collections::BTreeSet;
 use std::ffi::OsStr;
 use std::fs::{self, File, OpenOptions};
-use std::io::{Read, Seek, SeekFrom};
+use std::io::{Read, Seek, SeekFrom, Write};
 use std::os::unix::ffi::OsStrExt;
 use std::os::unix::fs::OpenOptionsExt;
 use std::os::unix::fs::{MetadataExt, PermissionsExt};
@@ -469,6 +469,9 @@ fn verified_archive(
     {
         return Err(macos_error("the staged archive identity changed"));
     }
+    // The staging file can change after admission. Extract only the private,
+    // unlinked snapshot whose exact bytes were hashed in this copy operation.
+    let mut snapshot = tempfile::tempfile()?;
     let mut digest = Sha256::new();
     let mut bytes = 0_u64;
     let mut buffer = [0_u8; 64 * 1024];
@@ -480,13 +483,17 @@ fn verified_archive(
         bytes = bytes
             .checked_add(count as u64)
             .ok_or_else(|| macos_error("archive length overflow"))?;
+        if bytes > expected_bytes {
+            return Err(macos_error("the staged archive length changed"));
+        }
         digest.update(&buffer[..count]);
+        snapshot.write_all(&buffer[..count])?;
     }
     if bytes != expected_bytes || hex::encode(digest.finalize()) != expected_sha256 {
         return Err(macos_error("the staged archive hash changed"));
     }
-    file.seek(SeekFrom::Start(0))?;
-    Ok(file)
+    snapshot.seek(SeekFrom::Start(0))?;
+    Ok(snapshot)
 }
 
 /// Adds user-owned bundle and exact staged archive authority to the shared
@@ -623,6 +630,13 @@ impl MacosBundleUpdateAdmission {
             }
         };
         if let Err(error) = renameat_with(CWD, &source, CWD, &backup, RenameFlags::EXCHANGE) {
+            if executable_identity(&source).ok() != Some((previous_bytes, previous_sha256.clone()))
+                || executable_identity(&backup).ok() != Some(candidate_identity.clone())
+            {
+                return Err(MacosApplicationUpdateError::Ambiguous(format!(
+                    "atomic bundle exchange returned an error and unchanged bundle identities could not be proven: {error}"
+                )));
+            }
             return match launch.record_failed() {
                 Ok(_) => Err(macos_error(format!(
                     "atomic bundle exchange was refused: {error}"

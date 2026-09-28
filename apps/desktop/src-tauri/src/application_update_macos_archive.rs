@@ -142,7 +142,7 @@ pub(crate) fn extract_verified_macos_bundle_file(
     }
     let mut input = GzDecoder::new(archive);
     let mut decoded = 0_u64;
-    let mut paths = BTreeSet::new();
+    let mut paths: BTreeSet<PathBuf> = BTreeSet::new();
     let mut entries = 0_usize;
     loop {
         let header = read_block(&mut input, &mut decoded)?;
@@ -172,6 +172,20 @@ pub(crate) fn extract_verified_macos_bundle_file(
                     .is_file()
             {
                 return Err(invalid("macOS updater bundle is incomplete"));
+            }
+            // Persist descendant names and final modes before the caller may
+            // publish the bundle through the atomic name exchange.
+            #[cfg(unix)]
+            {
+                let mut directories = paths
+                    .iter()
+                    .filter(|path| output.join(path).is_dir())
+                    .collect::<Vec<_>>();
+                directories.sort_by_key(|path| std::cmp::Reverse(path.components().count()));
+                for directory in directories {
+                    File::open(output.join(directory))?.sync_all()?;
+                }
+                File::open(output)?.sync_all()?;
             }
             return Ok(bundle);
         }
@@ -223,8 +237,8 @@ pub(crate) fn extract_verified_macos_bundle_file(
             if copied != size {
                 return Err(invalid("truncated tar file payload"));
             }
-            file.sync_all()?;
             set_mode(&target, mode, false)?;
+            file.sync_all()?;
         }
         let padding = padded - size;
         if padding != 0 {
