@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { spawn, spawnSync } from "node:child_process";
+import { spawn } from "node:child_process";
 import { EventEmitter } from "node:events";
 import { existsSync } from "node:fs";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
@@ -643,11 +643,15 @@ test(
           "-o",
           supervisor,
         ],
-        { stdio: "inherit", windowsHide: true },
+        { stdio: "inherit", windowsHide: true, timeout: 80_000, killSignal: "SIGKILL" },
       );
       const compileStatus = await new Promise((resolve, reject) => {
         compiled.once("error", reject);
-        compiled.once("close", resolve);
+        compiled.once("close", (code, signal) => {
+          if (signal)
+            reject(new Error(`rustc was terminated after its compile deadline: ${signal}`));
+          else resolve(code);
+        });
       });
       assert.equal(compileStatus, 0);
       const rootScript = [
