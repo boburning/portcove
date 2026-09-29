@@ -13,6 +13,11 @@ on:
         type: choice
         default: legacy-skipped
         options: [legacy-skipped, preview-final]
+      linux_runner:
+        description: Ubuntu baseline for the installed AppImage rehearsal
+        type: choice
+        default: ubuntu-22.04
+        options: [ubuntu-22.04, ubuntu-24.04]
 
 permissions:
   contents: read
@@ -30,7 +35,7 @@ jobs:
       fail-fast: false
       matrix:
         label: ${{ fromJSON('{"all":["windows-x86_64","linux-x86_64","macos-x86_64","macos-aarch64"],"windows-x86_64":["windows-x86_64"],"linux-x86_64":["linux-x86_64"],"macos-x86_64":["macos-x86_64"],"macos-aarch64":["macos-aarch64"]}')[inputs.platform || 'all'] }}
-    runs-on: ${{ fromJSON('{"windows-x86_64":"windows-latest","linux-x86_64":"ubuntu-22.04","macos-x86_64":"macos-15-intel","macos-aarch64":"macos-14"}')[matrix.label] }}
+    runs-on: ${{ matrix.label == 'linux-x86_64' && inputs.linux_runner || fromJSON('{"windows-x86_64":"windows-latest","macos-x86_64":"macos-15-intel","macos-aarch64":"macos-14"}')[matrix.label] }}
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -67,6 +72,18 @@ jobs:
       - name: Build and verify disposable signed packages and selected version transition
         shell: pwsh
         run: ./scripts/rehearse-updater-artifacts.ps1 -PlatformLabel '${{ matrix.label }}' -TransitionProfile '${{ inputs.transition_profile }}'
+      - name: Record Linux host baseline
+        if: always() && runner.os == 'Linux'
+        shell: bash
+        run: |
+          mkdir -p work/updater-rehearsal
+          {
+            cat /etc/os-release
+            uname -a
+            ldd --version | head -n 1
+            pkg-config --modversion webkit2gtk-4.1 || true
+            dpkg-query -W -f='${Package} ${Version}\n' libfuse2 libfuse2t64 2>/dev/null || true
+          } > work/updater-rehearsal/linux-host-baseline.txt
       - name: Retain bounded rehearsal evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -76,6 +93,7 @@ jobs:
             work/updater-rehearsal/*.json
             work/updater-rehearsal/*.patch
             work/updater-rehearsal/*.pub
+            work/updater-rehearsal/linux-host-baseline.txt
             work/updater-rehearsal/0.1.0-${{ matrix.label }}/**
             work/updater-rehearsal/0.3.0-${{ matrix.label }}/**
             work/updater-rehearsal/1.0.0-rc.2-${{ matrix.label }}/**

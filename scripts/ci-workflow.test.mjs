@@ -260,6 +260,15 @@ test("Linux desktop prerequisite installation is shared, bounded, and retrying",
     /timeout-minutes: 15\r?\n\s+run: \.\/scripts\/install-linux-desktop-prerequisites\.sh --include-rpm --include-appimage-runtime/,
   );
   assert.match(
+    updaterRehearsal,
+    /linux_runner:\r?\n\s+description: [^\r\n]+\r?\n\s+type: choice\r?\n\s+default: ubuntu-22\.04\r?\n\s+options: \[ubuntu-22\.04, ubuntu-24\.04\]/,
+  );
+  assert.match(
+    updaterRehearsal,
+    /runs-on: \$\{\{ matrix\.label == 'linux-x86_64' && inputs\.linux_runner \|\| fromJSON\('[^']+'\)\[matrix\.label\] \}\}/,
+  );
+  assert.match(updaterRehearsal, /work\/updater-rehearsal\/linux-host-baseline\.txt/g);
+  assert.match(
     packageOwnershipRehearsal,
     /timeout-minutes: 15\r?\n\s+run: \.\/scripts\/install-linux-desktop-prerequisites\.sh --include-rpm/,
   );
@@ -303,6 +312,8 @@ test("Linux desktop prerequisite installation is shared, bounded, and retrying",
       installer.indexOf("archive.ubuntu.com/ubuntu"),
   );
   assert.match(installer, /--include-rpm\) packages\+=\(rpm\)/);
+  assert.match(installer, /VERSION_ID:-} == 24\.04[\s\S]*fuse_package=libfuse2t64/);
+  assert.match(installer, /--include-appimage-runtime\) packages\+=\("\$fuse_package"/);
   assert.match(installer, /usage: \$0 \[--include-rpm\]/);
 });
 
