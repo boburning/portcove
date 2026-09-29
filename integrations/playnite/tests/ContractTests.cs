@@ -437,10 +437,10 @@ internal static class ContractTests
         var available = Json.Parse("{\"active\":null,\"external_runtime\":null,\"readiness\":{\"launchable\":false,\"pending_setup\":false,\"blockers\":[]},\"port_actions\":[{\"action\":\"install\",\"availability\":\"allowed\",\"reason\":\"available\"}]}");
         Check(GuidedSetup.Choose(available, catalog, "", "").Kind == GuidedStepKind.Install,
             "core-allowed uninstalled game can proceed to reviewed install");
-        var held = Json.Parse("{\"active\":null,\"external_runtime\":null,\"readiness\":{\"launchable\":false,\"pending_setup\":false,\"blockers\":[]},\"port_actions\":[{\"action\":\"install\",\"availability\":\"held\",\"reason\":\"unsupported_platform\"}]}");
+        var held = Json.Parse("{\"active\":null,\"external_runtime\":null,\"readiness\":{\"launchable\":false,\"pending_setup\":false,\"blockers\":[]},\"port_actions\":[{\"action\":\"install\",\"availability\":\"held\",\"reason\":\"definition_ineligible\",\"definition\":{\"outcome\":\"hold\",\"reason\":\"publisher_revoked\"}}]}");
         Check(GuidedSetup.Choose(held, catalog, "", "").Kind == GuidedStepKind.ReviewProblem,
             "a held core install cannot become the primary mutation");
-        var heldWithMissingSource = Json.Parse("{\"active\":null,\"external_runtime\":null,\"readiness\":{\"launchable\":false,\"pending_setup\":false,\"blockers\":[\"missing_source\"]},\"port_actions\":[{\"action\":\"install\",\"availability\":\"held\",\"reason\":\"unsupported_platform\"}]}");
+        var heldWithMissingSource = Json.Parse("{\"active\":null,\"external_runtime\":null,\"readiness\":{\"launchable\":false,\"pending_setup\":false,\"blockers\":[\"missing_source\"]},\"port_actions\":[{\"action\":\"install\",\"availability\":\"held\",\"reason\":\"definition_ineligible\",\"definition\":{\"outcome\":\"hold\",\"reason\":\"publisher_revoked\"}}]}");
         Check(GuidedSetup.Choose(heldWithMissingSource, catalog, "", "").Kind == GuidedStepKind.ReviewProblem,
             "a held install does not request new source registration");
         Check(GuidedSetup.Choose(heldWithMissingSource, catalog, @"C:\owned\game.rom", "").Kind == GuidedStepKind.ReviewProblem,
@@ -457,6 +457,9 @@ internal static class ContractTests
         var launchHeld = Json.Parse("{\"active\":{\"version\":\"1\"},\"external_runtime\":null,\"readiness\":{\"launchable\":true,\"pending_setup\":false,\"blockers\":[]},\"port_actions\":[{\"action\":\"launch\",\"availability\":\"held\",\"reason\":\"invalid_installation\"}]}");
         Check(GuidedSetup.Choose(launchHeld, catalog, "", "").Kind == GuidedStepKind.ReviewProblem,
             "a held core launch cannot be advertised as Play even when readiness is otherwise launchable");
+        var launchHeldWithMissingSource = Json.Parse("{\"active\":{\"version\":\"1\"},\"external_runtime\":null,\"readiness\":{\"launchable\":false,\"pending_setup\":false,\"blockers\":[\"missing_source\"]},\"port_actions\":[{\"action\":\"launch\",\"availability\":\"held\",\"reason\":\"definition_ineligible\",\"definition\":{\"outcome\":\"hold\",\"reason\":\"publisher_revoked\"}}]}");
+        Check(GuidedSetup.Choose(launchHeldWithMissingSource, catalog, @"C:\owned\game.rom", "").Kind == GuidedStepKind.ReviewProblem,
+            "a selected source cannot override an installed game's held launch");
         var external = Json.Parse("{\"source_profile\":null,\"bios_source_profile\":null,\"release\":{\"provider\":\"user-prepared\"}}");
         Check(GuidedSetup.Choose(missing, external, "", "").Kind == GuidedStepKind.ReviewProblem,
             "user-prepared runtime keeps its separate registration handoff");

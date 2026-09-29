@@ -229,12 +229,9 @@ namespace Portcove.ReferenceClient
                 case GuidedStepKind.Play:
                     // Let a pending Playnite install controller publish its installed event
                     // after the dialog returns before requesting the ordinary play action.
-                    var installation = StatusInstallation.Current(CurrentStatus);
-                    if (installation == null) throw new InvalidOperationException("Portcove no longer reports an installation. Refresh readiness.");
-                    var installPath = Json.Text(installation, "path");
                     window.Close();
                     if (detached)
-                        _ = window.Dispatcher.BeginInvoke(new Action(() => StartReadyGame(installPath)), DispatcherPriority.ApplicationIdle);
+                        _ = window.Dispatcher.BeginInvoke(new Action(() => { _ = StartReadyGame(); }), DispatcherPriority.ApplicationIdle);
                     break;
                 default:
                     MessageBox.Show(window, nextStep.Detail + "\n\n" + state.Text,
@@ -243,10 +240,23 @@ namespace Portcove.ReferenceClient
             }
         }
 
-        private void StartReadyGame(string installPath)
+        private async Task StartReadyGame()
         {
             try
             {
+                await cli.AssertIdentity();
+                var fresh = await cli.Read("status", "status", port);
+                await cli.AssertIdentity();
+                if (Json.Text(fresh, "port_id") != port)
+                    throw new InvalidOperationException("Portcove returned another game's status. Refresh before playing.");
+                DefinitionOperations.RequireEligible(fresh, "launch");
+                var readiness = Json.Field(fresh, "readiness");
+                var launch = PortActions.Read(fresh).FirstOrDefault(value => value.Action == "launch");
+                var installation = StatusInstallation.Current(fresh);
+                if (installation == null || readiness == null || !Json.Boolean(readiness, "launchable") ||
+                    (launch != null && launch.Availability != "allowed"))
+                    throw new InvalidOperationException("Portcove no longer reports a playable installation. Refresh readiness before playing.");
+                var installPath = Json.Text(installation, "path");
                 var live = plugin.PlayniteApi.Database.Games.Get(game.Id);
                 if (live == null || live.PluginId != plugin.Id || live.GameId != game.GameId)
                     throw new InvalidOperationException("The selected Playnite game changed. Refresh the library before playing.");
@@ -254,6 +264,8 @@ namespace Portcove.ReferenceClient
                 // Sync only the installed flag and directory that core already reported.
                 if (!live.IsInstalled)
                 {
+                    if (live.OverrideInstallState)
+                        throw new InvalidOperationException("Playnite marks this game uninstalled by your manual override. Remove that override before playing.");
                     live.IsInstalled = true;
                     live.InstallDirectory = installPath;
                     plugin.PlayniteApi.Database.Games.Update(live);

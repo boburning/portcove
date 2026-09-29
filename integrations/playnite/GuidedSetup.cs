@@ -42,6 +42,9 @@ namespace Portcove.ReferenceClient
             if (!installed && install != null && install.Availability == "held")
                 return Step(GuidedStepKind.ReviewProblem, "Review installation hold",
                     "Portcove has held installation. Review the action reason above before registering more files or retrying.");
+            if (installed && launch != null && launch.Availability == "held")
+                return Step(GuidedStepKind.ReviewProblem, "Review launch hold",
+                    "This game is registered, but Portcove has held launch. Review the action reason above before registering more files or retrying.");
             if (!string.IsNullOrWhiteSpace(sourcePath) || !string.IsNullOrWhiteSpace(biosPath))
             {
                 if ((!string.IsNullOrWhiteSpace(sourcePath) && sourceProfile == null) ||
