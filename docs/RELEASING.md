@@ -31,7 +31,12 @@ produce an updater package.
 The manual **Updater artifact rehearsal** workflow generates disposable keys on
 each runner and builds every required Windows, Linux, Intel Mac and Apple Silicon
 package at fixture versions 0.1.0 and 0.3.0. It checks native package versions and
-executable permissions. Windows builds a disposable test-signed TUF repository,
+executable permissions. The Linux job defaults to Ubuntu 22.04; the dispatch-only
+`linux_runner` choice can run the same installed AppImage path on Ubuntu 24.04.
+Its retained host baseline records the actual OS, kernel, glibc, WebKitGTK and
+FUSE package versions. This choice does not change the production Linux support
+floor or establish Steam Deck compatibility. Windows builds a disposable
+test-signed TUF repository,
 embeds its public trust and local repository URLs in a qualification-only
 predecessor NSIS package, and uses the installed predecessor to select the signed
 candidate and stage fixture-supplied installer bytes through the desktop

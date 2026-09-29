@@ -7,10 +7,18 @@ packages=(
   librsvg2-dev
   patchelf
 )
+fuse_package=libfuse2
+if [[ -f /etc/os-release ]]; then
+  # Ubuntu 24.04 renamed the FUSE 2 runtime package for its time64 transition.
+  source /etc/os-release
+  if [[ ${ID:-} == ubuntu && ${VERSION_ID:-} == 24.04 ]]; then
+    fuse_package=libfuse2t64
+  fi
+fi
 for option in "$@"; do
   case "$option" in
     --include-rpm) packages+=(rpm) ;;
-    --include-appimage-runtime) packages+=(libfuse2 xvfb dbus-x11 at-spi2-core util-linux) ;;
+    --include-appimage-runtime) packages+=("$fuse_package" xvfb dbus-x11 at-spi2-core util-linux) ;;
     --include-webdriver) packages+=(webkit2gtk-driver xvfb dbus-x11) ;;
     *)
       echo "usage: $0 [--include-rpm] [--include-appimage-runtime] [--include-webdriver]" >&2
