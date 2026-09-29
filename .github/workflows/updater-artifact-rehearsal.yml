@@ -118,6 +118,8 @@ jobs:
             work/updater-rehearsal/installer-test/run-*/renderer-qualification/evidence/*.log
             work/updater-rehearsal/installer-test/run-*/driver-preflight-*/evidence.json
             work/updater-rehearsal/installer-test/run-*/driver-preflight-*/driver.log
+            work/updater-rehearsal/installer-test/run-*/driver-preflight-*/session-startup-*.jsonl
+            work/updater-rehearsal/installer-test/run-*/driver-preflight-*/session-startup-*.log
             work/updater-rehearsal/installer-test/run-*/driver-preflight-*/*.png
             work/updater-rehearsal/installer-test/run-*/library/logs/portcove-desktop.jsonl*
             work/updater-rehearsal/installer-test/run-*/renderer-qualification/*.json

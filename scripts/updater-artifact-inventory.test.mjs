@@ -211,6 +211,26 @@ test("manual rehearsal retains the complete matrix without production credential
   for (const label of releaseLabels(policy)) assert.deepEqual(matrix[label], [label]);
   assert.match(workflow, /retention-days: 1/);
   assert.doesNotMatch(workflow, /updater-rehearsal\/\*\*|\.key\b/);
+  const retainedPaths = workflow
+    .match(
+      /name: Retain bounded rehearsal evidence[\s\S]*?path: \|\r?\n([\s\S]*?)\s+if-no-files-found:/,
+    )[1]
+    .trim()
+    .split(/\r?\n/)
+    .map((entry) => entry.trim());
+  const retained = (file) => retainedPaths.some((pattern) => path.posix.matchesGlob(file, pattern));
+  for (const preflight of ["baseline", "fixture-env"]) {
+    const directory = `work/updater-rehearsal/installer-test/run-owned/driver-preflight-${preflight}`;
+    for (const artifact of [
+      "session-startup-0.jsonl",
+      "session-startup-0.log",
+      "session-startup-1.jsonl",
+      "session-startup-1.log",
+    ])
+      assert.ok(retained(`${directory}/${artifact}`), `${preflight} loses ${artifact}`);
+    assert.equal(retained(`${directory}/session-startup-0.stop`), false);
+    assert.equal(retained(`${directory}/private.key`), false);
+  }
   assert.match(workflow, /linux-appimage-qualification\/application-update-evidence\.json/);
   assert.match(
     workflow,
