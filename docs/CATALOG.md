@@ -351,6 +351,24 @@ or platform qualification. The paths come from the tagged
 its pinned [logger](https://github.com/Kenix3/libultraship/blob/6b861a64d29d9fe95d100be228eb6d190231cc0d/src/ship/log/Logger.cpp),
 and [Torch cache writer](https://github.com/HarbourMasters/Torch/blob/106621f0f0f9731b8739bec95227c2c5887492df/src/Companion.cpp).
 
+2Ship2Harkinian 5.0.1 writes `imgui.ini` and `logs/2 Ship 2 Harkinian.log`
+beside its Windows executable during a native session. The former is a player
+preference; the latter is disposable diagnostic output. The pinned engine's
+[rotating logger](https://github.com/Kenix3/libultraship/blob/7cb10226e7875ec48ceec2f841d00afd84eef964/src/ship/Context.cpp)
+can also write ten numbered versions of that log. The optional
+[time-splits save action](https://github.com/2ship2harkinian/2ship2harkinian/blob/8a24047fbce8915993804e7819f4df4fa591551f/mm/2s2h/Enhancements/Trackers/TimeSplits/TimeSplitsActions.cpp)
+writes `2S2HTimeSplitData.json` in the same directory. The catalog owns the two
+configuration files as persistent and the eleven exact log names as disposable
+runtime output, matching the selected upstream
+[generated-file exclusions](https://github.com/2ship2harkinian/2ship2harkinian/blob/8a24047fbce8915993804e7819f4df4fa591551f/.gitignore).
+This qualifies new installs against those bounded files while retaining
+immutable checks for recorded files, other log files and launch-sensitive
+companions.
+An installation created under the earlier catalog retains its original
+definition and can still fail pre-launch integrity after these files appear;
+the new catalog does not silently rewrite its admitted manifest. Preserve that
+install and its data until a reviewed recovery or clean reinstall is completed.
+
 The procedure below describes the current repository workflow. The completed
 [#245](https://github.com/boburning/portcove/issues/245) design is a foundation;
 future protected publication remains owned by

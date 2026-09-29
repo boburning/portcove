@@ -1405,6 +1405,16 @@ mod tests {
         ghostship
             .runtime_mutable_paths
             .extend((1..=10).map(|index| format!("logs/Ghostship.{index}.log")));
+        let two_ship = expected_ports
+            .iter_mut()
+            .find(|port| port.id == "2ship2harkinian")
+            .unwrap();
+        two_ship
+            .persistent_paths
+            .extend(["imgui.ini".into(), "2S2HTimeSplitData.json".into()]);
+        two_ship.runtime_mutable_paths = std::iter::once("logs/2 Ship 2 Harkinian.log".into())
+            .chain((1..=10).map(|index| format!("logs/2 Ship 2 Harkinian.{index}.log")))
+            .collect();
         let ygofm = expected_ports
             .iter_mut()
             .find(|port| port.id == "yu-gi-oh-forbidden-memories-recompiled")
@@ -3116,12 +3126,25 @@ mod tests {
     fn two_ship_persists_generated_assets_and_settings() {
         let catalog = Catalog::embedded().expect("catalog should load");
         let port = catalog.port("2ship2harkinian").unwrap();
-        for path in ["mm.o2r", "2ship2harkinian.json", "saves", "presets"] {
+        for path in [
+            "mm.o2r",
+            "2ship2harkinian.json",
+            "imgui.ini",
+            "2S2HTimeSplitData.json",
+            "saves",
+            "presets",
+        ] {
             assert!(
                 port.persistent_paths.iter().any(|value| value == path),
                 "2Ship persistence contract is missing {path}"
             );
         }
+        assert_eq!(
+            port.runtime_mutable_paths,
+            std::iter::once("logs/2 Ship 2 Harkinian.log".into())
+                .chain((1..=10).map(|index| format!("logs/2 Ship 2 Harkinian.{index}.log")))
+                .collect::<Vec<_>>()
+        );
     }
 
     #[test]
