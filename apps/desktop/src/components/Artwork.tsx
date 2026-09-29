@@ -4,6 +4,7 @@ import { pickArtworkPath } from "../file-picker";
 import type { ArtworkSlot, ArtworkState, PortDefinition } from "../types";
 import { errorText, formatBytes } from "../view-model";
 import { Button } from "./ui/button";
+import { ExternalLink } from "./ExternalLink";
 
 export function ArtworkImage({
   port,
@@ -23,7 +24,7 @@ export function ArtworkImage({
     <div
       ref={element}
       className={`artwork-image ${className}${palette}`}
-      data-artwork-source={image ? "local_import" : "generated_fallback"}
+      data-artwork-source={image ? display.state?.resolved_source.kind : "generated_fallback"}
       aria-hidden="true"
     >
       {image ? (
@@ -33,6 +34,9 @@ export function ArtworkImage({
       )}
       {(display.error || display.state?.availability === "unavailable") && (
         <small className="artwork-image-note">Image unavailable</small>
+      )}
+      {image && display.state?.resolved_source.kind === "igdb_cover" && (
+        <small className="artwork-image-provider">IGDB</small>
       )}
     </div>
   );
@@ -180,7 +184,9 @@ function ArtworkSlotControl({ port, slot }: { port: PortDefinition; slot: Artwor
         <summary data-focusable>View source / author information</summary>
         <ArtworkSource
           state={display.state}
-          renderedSource={display.image ? "local_import" : "generated_fallback"}
+          renderedSource={
+            display.image ? display.state?.resolved_source.kind : "generated_fallback"
+          }
         />
       </details>
     </section>
@@ -192,8 +198,34 @@ function ArtworkSource({
   renderedSource,
 }: {
   state?: ArtworkState;
-  renderedSource: "local_import" | "generated_fallback";
+  renderedSource: "local_import" | "igdb_cover" | "generated_fallback" | undefined;
 }) {
+  if (state?.resolved_source.kind === "igdb_cover") {
+    const mapping = state.resolved_source.artwork;
+    return (
+      <dl>
+        <dt>Source</dt>
+        <dd>
+          <ExternalLink href={`https://www.igdb.com/games/${mapping.game_slug}`}>
+            IGDB game and cover
+          </ExternalLink>
+          {mapping.match_kind === "underlying-game" ? " · underlying game" : " · port"}
+        </dd>
+        <dt>IGDB IDs</dt>
+        <dd>
+          Game {mapping.game_id} · cover {mapping.cover_id} · image {mapping.image_id}
+        </dd>
+        <dt>Author and license</dt>
+        <dd>Not provided with this catalog mapping; see the linked source.</dd>
+        {renderedSource === "generated_fallback" && (
+          <>
+            <dt>Displayed artwork</dt>
+            <dd>Generated fallback; the IGDB cover is unavailable.</dd>
+          </>
+        )}
+      </dl>
+    );
+  }
   const asset = state?.selection;
   if (!asset)
     return state ? (

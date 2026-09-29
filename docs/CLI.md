@@ -684,8 +684,9 @@ describe integrity, not rights or authenticity; copyright permission for imports
 remains unknown. Artwork errors do not block normal catalog or game lifecycle operations.
 The [architecture limits](ARCHITECTURE.md#local-artwork-ownership) apply to both
 encoded input and decoding. Clear-cache affects only disposable thumbnails, which
-are rebuilt when requested by a client. These commands activate no catalog artwork
-default or online provider.
+are rebuilt when requested by a client. A reviewed catalog cover can resolve
+as the default for a mapped cover slot through the fixed IGDB image CDN path.
+The CLI does not search IGDB through these local-choice commands.
 
 ### Library metadata
 

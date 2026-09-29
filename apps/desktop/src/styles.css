@@ -934,6 +934,16 @@ h2 {
   line-height: var(--leading-compact);
 }
 
+.artwork-image-provider {
+  position: absolute;
+  inset: auto var(--space-2) var(--space-2) auto;
+  padding: 0 var(--space-1);
+  background: var(--color-bg-overlay);
+  color: var(--color-art-text);
+  font-size: var(--text-2xs);
+  line-height: var(--leading-compact);
+}
+
 .artwork-image > span {
   color: var(--color-art-text);
   font-size: var(--text-3xl);

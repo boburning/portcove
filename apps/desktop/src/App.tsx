@@ -478,8 +478,11 @@ function Workspace({
     window.requestAnimationFrame(() => focusRegion("workspace"));
   };
 
+  const catalogArtworkKey = JSON.stringify(
+    data.catalog?.ports.map((port) => [port.id, port.presentation?.artwork]) ?? [],
+  );
   return (
-    <ArtworkProvider generation={bootstrap.generation}>
+    <ArtworkProvider generation={bootstrap.generation} catalogArtworkKey={catalogArtworkKey}>
       <div className="app-shell">
         <Sidebar
           view={ui.view}

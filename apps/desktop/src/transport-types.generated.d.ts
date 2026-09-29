@@ -118,7 +118,7 @@ export type ArtworkSlot = "cover" | "detail";
 /**
  * The source core resolves for one slot before a client attempts to transport
  * or render it. A client can still display the generated fallback if a
- * resolved local import cannot be decoded or presented safely.
+ * resolved image cannot be retrieved, decoded or presented safely.
  */
 export type ArtworkResolvedSource =
   | {
@@ -127,9 +127,16 @@ export type ArtworkResolvedSource =
       [k: string]: unknown;
     }
   | {
+      artwork: IgdbArtwork;
+      cache_id: string;
+      kind: "igdb_cover";
+      [k: string]: unknown;
+    }
+  | {
       kind: "generated_fallback";
       [k: string]: unknown;
     };
+export type IgdbArtworkMatch = "port" | "underlying-game";
 /**
  * Public reviewed backup actions; persisted manifests remain an implementation detail.
  *
@@ -938,6 +945,18 @@ export interface GeneratedArtworkFallback {
   palette_index: number;
   style_version: number;
 }
+/**
+ * Maintainer-reviewed catalog mapping. These public IDs never contain Twitch
+ * credentials; the image CDN can serve the mapped cover without an API token.
+ */
+export interface IgdbArtwork {
+  cover_id: number;
+  game_id: number;
+  game_slug: string;
+  image_id: string;
+  image_sha256: string;
+  match_kind: IgdbArtworkMatch;
+}
 export interface OutputArtworkThumbnail {
   asset_sha256: string;
   choice_revision: number;
@@ -1089,6 +1108,7 @@ export interface PersistentFilePattern {
  * documents may omit this object; current embedded definitions provide it.
  */
 export interface PortPresentation {
+  artwork?: IgdbArtwork | null;
   installation_method: InstallationMethod;
   manual_preparation?: string | null;
   saves_and_settings: SavesAndSettingsBehavior;

@@ -7021,6 +7021,14 @@
       ],
       "presentation": {
         "installation_method": "portable-package",
+        "artwork": {
+          "game_id": 194694,
+          "cover_id": 287780,
+          "image_id": "co661w",
+          "image_sha256": "492fff6439fce93b7162316c98f034c346b1328ac4ca43eb441479c33b757050",
+          "game_slug": "ship-of-harkinian",
+          "match_kind": "port"
+        },
         "source_requirements": [
           {
             "role": "game",

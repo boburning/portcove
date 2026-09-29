@@ -17,12 +17,17 @@ const unavailable: ArtworkDisplay = { loading: false };
 
 export function ArtworkProvider({
   generation,
+  catalogArtworkKey = "",
   children,
 }: {
   generation: number;
+  catalogArtworkKey?: string;
   children: ReactNode;
 }) {
-  const cache = useMemo(() => new ArtworkCache(generation), [generation]);
+  const cache = useMemo(
+    () => new ArtworkCache(generation, catalogArtworkKey),
+    [generation, catalogArtworkKey],
+  );
   return <ArtworkContext.Provider value={cache}>{children}</ArtworkContext.Provider>;
 }
 

@@ -10,7 +10,7 @@ import { ArtworkControls, ArtworkImage } from "./Artwork";
 
 let container: HTMLDivElement, root: Root;
 
-async function render(portId = "sample", generation = 7) {
+async function render(portId = "sample", generation = 7, catalogArtworkKey = "") {
   const port = {
     ...portDefinition(),
     id: portId,
@@ -18,7 +18,7 @@ async function render(portId = "sample", generation = 7) {
   };
   await act(async () =>
     root.render(
-      <ArtworkProvider generation={generation}>
+      <ArtworkProvider generation={generation} catalogArtworkKey={catalogArtworkKey}>
         <h2>{port.name}</h2>
         <ArtworkImage port={port} />
         <ArtworkControls key={`${portId}:${generation}`} port={port} />
@@ -69,6 +69,55 @@ afterEach(async () => {
 });
 
 describe("local artwork controls", () => {
+  it("refreshes artwork when the catalog mapping changes in the same library", async () => {
+    await render("sample", 7, "old-cover");
+    const before = vi.mocked(desktopApi.artwork).mock.calls.length;
+    await render("sample", 7, "corrected-cover");
+    expect(vi.mocked(desktopApi.artwork).mock.calls.length).toBeGreaterThan(before);
+  });
+
+  it("renders the mapped IGDB cover and its source on a clean profile", async () => {
+    vi.mocked(desktopApi.artwork).mockImplementation(async (port, slot) =>
+      slot === "detail"
+        ? artworkState(port, slot)
+        : {
+            ...artworkState(port, slot),
+            availability: "available",
+            resolved_source: {
+              kind: "igdb_cover",
+              cache_id: "b".repeat(64),
+              artwork: {
+                game_id: 194694,
+                cover_id: 287780,
+                image_id: "co661w",
+                image_sha256: "4".repeat(64),
+                game_slug: "ship-of-harkinian",
+                match_kind: "port",
+              },
+            },
+          },
+    );
+    vi.mocked(desktopApi.artworkThumbnail).mockImplementation(async (_port, _slot, revision) => ({
+      asset_sha256: "b".repeat(64),
+      choice_revision: revision,
+      png_base64: "iVBORw==",
+    }));
+    await render();
+    await open();
+    await vi.waitFor(() =>
+      expect(container.querySelector<HTMLElement>(".artwork-image")?.dataset.artworkSource).toBe(
+        "igdb_cover",
+      ),
+    );
+    expect(container.querySelector(".artwork-image img")).not.toBeNull();
+    expect(container.querySelector(".artwork-image-provider")?.textContent).toBe("IGDB");
+    expect(container.querySelector<HTMLAnchorElement>(".artwork-source a")?.href).toBe(
+      "https://www.igdb.com/games/ship-of-harkinian",
+    );
+    expect(container.textContent).toContain("Not provided with this catalog mapping");
+    expect(button("cover", "Reset to default").disabled).toBe(true);
+  });
+
   it("selects and resets each slot through core and exposes local source information", async () => {
     const choose = vi.spyOn(picker, "pickArtworkPath").mockResolvedValue("E:/owned.png");
     const change = vi
