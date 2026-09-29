@@ -1,5 +1,5 @@
 use std::{
-    io::{self, Read, Write},
+    io::{self, IsTerminal, Read, Write},
     path::PathBuf,
     process::ExitCode,
 };
@@ -2496,37 +2496,119 @@ fn open_cli_directory(path: &std::path::Path) -> Result<()> {
 }
 
 fn progress_renderer(mode: OutputMode) -> impl FnMut(OperationEvent) {
+    let mut human_progress = HumanProgress::new(io::stderr().is_terminal());
     move |event| match mode {
         OutputMode::Jsonl => println!(
             "{}",
             serde_json::to_string(&event).expect("operation event is serializable")
         ),
-        OutputMode::Human => match event.event {
-            OperationEventKind::SourceCandidate {
-                profile_id, path, ..
-            } => {
-                eprintln!("Exact candidate for {profile_id}: {}", path.display());
-            }
+        OutputMode::Human => eprint!("{}", human_progress.render(&event)),
+        OutputMode::Json => {}
+    }
+}
+
+struct HumanProgress {
+    interactive: bool,
+    phase: Option<String>,
+    latest: Option<(u64, Option<u64>)>,
+    completed_line: bool,
+    inline_line: bool,
+}
+
+impl HumanProgress {
+    fn new(interactive: bool) -> Self {
+        Self {
+            interactive,
+            phase: None,
+            latest: None,
+            completed_line: false,
+            inline_line: false,
+        }
+    }
+
+    fn render(&mut self, event: &OperationEvent) -> String {
+        let mut output = String::new();
+        match &event.event {
             OperationEventKind::Progress {
                 phase,
                 completed,
                 total,
             } => {
-                if let Some(total) = total {
-                    eprint!("\r{phase}: {completed}/{total} bytes");
+                if self.phase.as_deref() != Some(phase) {
+                    output.push_str(&self.end_phase());
+                    self.phase = Some(phase.clone());
+                    self.completed_line = false;
+                    if !self.interactive {
+                        output.push_str(&format!("{phase}: started\n"));
+                    }
+                }
+                self.latest = Some((*completed, *total));
+                if self.interactive {
+                    if let Some(total) = total {
+                        output.push_str(&format!("\r{phase}: {completed}/{total} bytes"));
+                        self.inline_line = true;
+                    }
+                } else if total.is_some_and(|total| *completed >= total) && !self.completed_line {
+                    output.push_str(&format!("{phase}: {completed}/{} bytes\n", total.unwrap()));
+                    self.completed_line = true;
                 }
             }
-            OperationEventKind::Message { message, .. } => eprintln!("{message}"),
-            OperationEventKind::Finished { .. } => eprintln!(),
-            OperationEventKind::Started => {
-                eprintln!(
-                    "{} {}",
-                    event.operation,
-                    event.target.map(|target| target.id).unwrap_or_default()
-                )
+            OperationEventKind::Finished { .. } => output.push_str(&self.end_phase()),
+            OperationEventKind::SourceCandidate {
+                profile_id, path, ..
+            } => {
+                output.push_str(&self.break_inline_line());
+                output.push_str(&format!(
+                    "Exact candidate for {profile_id}: {}\n",
+                    path.display()
+                ));
             }
-        },
-        OutputMode::Json => {}
+            OperationEventKind::Message { message, .. } => {
+                output.push_str(&self.break_inline_line());
+                output.push_str(message);
+                output.push('\n');
+            }
+            OperationEventKind::Started => {
+                output.push_str(&self.break_inline_line());
+                output.push_str(&format!(
+                    "{} {}\n",
+                    event.operation,
+                    event
+                        .target
+                        .as_ref()
+                        .map(|target| target.id.as_str())
+                        .unwrap_or_default()
+                ));
+            }
+        }
+        output
+    }
+
+    fn break_inline_line(&mut self) -> String {
+        if self.inline_line {
+            self.inline_line = false;
+            "\n".into()
+        } else {
+            String::new()
+        }
+    }
+
+    fn end_phase(&mut self) -> String {
+        let mut output = self.break_inline_line();
+        if !self.interactive
+            && !self.completed_line
+            && let (Some(phase), Some((completed, total))) = (&self.phase, self.latest)
+        {
+            match total {
+                Some(total) => {
+                    output.push_str(&format!("{phase}: {completed}/{total} bytes\n"));
+                }
+                None => output.push_str(&format!("{phase}: {completed} bytes\n")),
+            }
+        }
+        self.phase = None;
+        self.latest = None;
+        output
     }
 }
 
@@ -2821,10 +2903,82 @@ mod tests {
 
     use super::{
         AuthCommand, BackupCommand, CapabilityDocument, CatalogCommand, ChannelArg, Cli, Commands,
-        GameFileRootCommand, GameFileRootScanArgs, OutputCommand, PreparationCommand,
-        SourceCommand, normalize_process_exit,
+        GameFileRootCommand, GameFileRootScanArgs, HumanProgress, OperationEvent,
+        OperationEventKind, OutputCommand, PreparationCommand, SourceCommand,
+        normalize_process_exit,
     };
     use clap::Parser;
+
+    fn progress_event(event: OperationEventKind) -> OperationEvent {
+        OperationEvent {
+            schema_version: 2,
+            operation_id: "operation-id".into(),
+            parent_operation_id: None,
+            sequence: 1,
+            timestamp_ms: 0,
+            operation: "install".into(),
+            target: None,
+            event,
+        }
+    }
+
+    #[test]
+    fn redirected_human_progress_uses_bounded_complete_lines() {
+        let mut renderer = HumanProgress::new(false);
+        let mut output = String::new();
+        for event in [
+            OperationEventKind::Progress {
+                phase: "download".into(),
+                completed: 0,
+                total: Some(100),
+            },
+            OperationEventKind::Progress {
+                phase: "download".into(),
+                completed: 10,
+                total: Some(100),
+            },
+            OperationEventKind::Progress {
+                phase: "download".into(),
+                completed: 100,
+                total: Some(100),
+            },
+            OperationEventKind::Progress {
+                phase: "verify".into(),
+                completed: 5,
+                total: Some(10),
+            },
+            OperationEventKind::Finished {
+                result: portcove_core::OperationResult::Failed,
+            },
+        ] {
+            output.push_str(&renderer.render(&progress_event(event)));
+        }
+        assert_eq!(
+            output,
+            "download: started\ndownload: 100/100 bytes\nverify: started\nverify: 5/10 bytes\n"
+        );
+        assert!(!output.contains('\r'));
+    }
+
+    #[test]
+    fn interactive_human_progress_keeps_inline_updates_but_ends_the_line() {
+        let mut renderer = HumanProgress::new(true);
+        let first = renderer.render(&progress_event(OperationEventKind::Progress {
+            phase: "download".into(),
+            completed: 10,
+            total: Some(100),
+        }));
+        let message = renderer.render(&progress_event(OperationEventKind::Message {
+            level: "info".into(),
+            message: "Checking file".into(),
+        }));
+        let last = renderer.render(&progress_event(OperationEventKind::Finished {
+            result: portcove_core::OperationResult::Succeeded,
+        }));
+        assert_eq!(first, "\rdownload: 10/100 bytes");
+        assert_eq!(message, "\nChecking file\n");
+        assert!(last.is_empty());
+    }
 
     #[test]
     fn process_crashes_never_look_successful_to_callers() {
