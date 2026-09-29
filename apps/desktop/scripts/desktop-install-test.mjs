@@ -27,9 +27,7 @@ async function waitForFixture(predicate, message) {
 function readStagedLayout(version) {
   const buttons = [...document.querySelectorAll(".primary-actions button")];
   const play = buttons.find((item) => item.textContent?.trim() === "Play");
-  const activate = buttons.find(
-    (item) => item.textContent?.trim() === `Activate update · ${version}`,
-  );
+  const activate = buttons.find((item) => item.textContent?.trim() === `Use update · ${version}`);
   const rect = (element) => {
     const { left, right, top, bottom } = element.getBoundingClientRect();
     return { left, right, top, bottom };
@@ -446,10 +444,10 @@ export async function installScenarios({
           assert.equal(layout.play.enabled, true, JSON.stringify(layout));
           assert.equal(layout.activate.enabled, true, JSON.stringify(layout));
           assert.equal(layout.documentOverflow, false, JSON.stringify(layout));
-          assert.equal(layout.state, "Ready to play · update downloaded");
+          assert.equal(layout.state, "Installed · update saved for later");
           assert.equal(
             layout.reason,
-            `Play the installed version or activate staged version ${version}.`,
+            `Play the installed version or use the saved update ${version}.`,
           );
           assert.ok(layout.activate.left >= 0 && layout.activate.right <= width + 1);
           assert.ok(layout.play.left >= 0 && layout.play.right <= width + 1);
@@ -525,7 +523,7 @@ export async function installScenarios({
     await browser.findElement(button("Review game update")).click();
     const review = By.css('[aria-labelledby="game-update-review-title"]');
     await browser.wait(until.elementLocated(review), 15_000);
-    assert.match(await browser.findElement(review).getText(), /active version stays unchanged/i);
+    assert.match(await browser.findElement(review).getText(), /current version stays unchanged/i);
     await browser.findElement(button("Download update for later")).click();
     const staged = await browser.wait(async () => {
       const result = await invoke("get_statuses");
@@ -538,7 +536,7 @@ export async function installScenarios({
     assert.equal(staged.staged.artifact.sha256, published.sha256);
     assert.equal(staged.previous, null);
     const activation = await browser.wait(
-      until.elementLocated(button(`Activate update · ${nextVersion}`)),
+      until.elementLocated(button(`Use update · ${nextVersion}`)),
       15_000,
     );
     const play = await browser.wait(until.elementLocated(button("Play")), 15_000);

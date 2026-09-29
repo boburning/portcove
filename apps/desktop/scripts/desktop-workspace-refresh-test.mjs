@@ -264,11 +264,11 @@ export async function workspaceRefreshScenario({
       assert.equal(activityBefore.ok, true);
       const policyStarted = Date.now();
       command(["policy", "set", port.id, "automatic"]);
-      const policyControl = By.xpath('//button[contains(., "Saved update policy")]');
+      const policyControl = By.xpath('//button[contains(., "Game update behavior")]');
       await browser.wait(
         async () =>
           (await browser.findElement(policyControl).getText()).includes(
-            "Install when running updates",
+            "Install when I run updates",
           ),
         15_000,
       );
