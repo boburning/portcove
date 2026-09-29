@@ -1487,6 +1487,12 @@ mod tests {
         .into_iter()
         .map(|path| format!("Dr. Mario 64 Recompiled x64-Release/{path}"))
         .collect();
+        let two_ship = expected_ports
+            .iter_mut()
+            .find(|port| port.id == "2ship2harkinian")
+            .unwrap();
+        two_ship.project_url = "https://github.com/2ship2harkinian/2ship2harkinian".into();
+        two_ship.release.repository = "2ship2harkinian/2ship2harkinian".into();
         for (id, hint) in [
             ("zelda64-recomp", "Linux-X64.zip"),
             ("banjo-recomp", "Linux-X64."),

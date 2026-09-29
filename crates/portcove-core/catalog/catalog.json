@@ -7036,7 +7036,7 @@
       "id": "2ship2harkinian",
       "name": "2Ship2Harkinian",
       "summary": "Native Majora's Mask port from HarbourMasters.",
-      "project_url": "https://github.com/HarbourMasters/2ship2harkinian",
+      "project_url": "https://github.com/2ship2harkinian/2ship2harkinian",
       "support_tier": "stable",
       "channels": [
         "stable"
@@ -7055,7 +7055,7 @@
         "windows-x86-64"
       ],
       "release": {
-        "repository": "HarbourMasters/2ship2harkinian"
+        "repository": "2ship2harkinian/2ship2harkinian"
       },
       "source_profile": "majoras-mask",
       "executable_hints": {

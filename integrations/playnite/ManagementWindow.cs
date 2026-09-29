@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Threading;
 
 namespace Portcove.ReferenceClient
 {
@@ -15,6 +16,7 @@ namespace Portcove.ReferenceClient
         private readonly Window window;
         private readonly TextBlock state = new TextBlock { TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 8, 0, 8) };
         private readonly TextBlock progress = new TextBlock { TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 8, 0, 8) };
+        private readonly TextBlock nextDetail = new TextBlock { TextWrapping = TextWrapping.Wrap, Margin = new Thickness(4, 2, 4, 10) };
         private readonly TextBox source = new TextBox();
         private readonly TextBox bios = new TextBox();
         private readonly TextBox technical = new TextBox { IsReadOnly = true, TextWrapping = TextWrapping.Wrap, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, MaxHeight = 220 };
@@ -25,6 +27,9 @@ namespace Portcove.ReferenceClient
         private Button installAction;
         private Button updateAction;
         private Button prepareAction;
+        private Button primaryAction;
+        private GuidedSetup nextStep;
+        private object currentCatalog;
         private bool externalRoute;
         private PublicCli cli;
         private string port;
@@ -60,15 +65,21 @@ namespace Portcove.ReferenceClient
             });
             AddPath(panel, "Original game file or folder", source, true);
             AddPath(panel, "BIOS file (when required)", bios, false);
+            primaryAction = new Button { Content = "Checking next step…", Margin = new Thickness(4), Padding = new Thickness(16, 9, 16, 9), IsEnabled = false };
+            primaryAction.Click += async (sender, args) => await RunPrimary();
+            panel.Children.Add(primaryAction);
+            panel.Children.Add(nextDetail);
+            updateAction = AddAction(panel, "Check and update", () => Manage("update"));
             var buttons = new WrapPanel();
-            panel.Children.Add(buttons);
             AddAction(buttons, "Refresh readiness and activity", Refresh);
             AddAction(buttons, "Register supplied files", RegisterSources);
             installAction = AddAction(buttons, "Install / use existing", () => Manage("ensure"));
-            updateAction = AddAction(buttons, "Check and update", () => Manage("update"));
             prepareAction = AddAction(buttons, "Review preparation", Prepare);
             cleanupAction = AddAction(buttons, "Review retained cleanup", CleanupPreparation);
             cleanupAction.IsEnabled = false;
+            panel.Children.Add(new Expander { Header = "Other Portcove actions", Content = buttons });
+            source.TextChanged += (sender, args) => UpdatePrimary();
+            bios.TextChanged += (sender, args) => UpdatePrimary();
             cancel.Click += async (sender, args) =>
             {
                 cancel.IsEnabled = false;
@@ -163,7 +174,113 @@ namespace Portcove.ReferenceClient
                     updateAction.IsEnabled = false;
                     prepareAction.IsEnabled = false;
                 }
+                if (updateAction != null)
+                    updateAction.IsEnabled = !externalRoute && CurrentStatus != null && Json.Field(CurrentStatus, "active") != null;
+                UpdatePrimary();
             }
+        }
+
+        private void UpdatePrimary()
+        {
+            if (primaryAction == null || CurrentStatus == null || currentCatalog == null)
+            {
+                nextStep = null;
+                if (primaryAction != null) primaryAction.IsEnabled = false;
+                return;
+            }
+            try
+            {
+                nextStep = GuidedSetup.Choose(CurrentStatus, currentCatalog, source.Text.Trim(), bios.Text.Trim());
+                primaryAction.Content = nextStep.Label;
+                primaryAction.IsEnabled = !busy;
+                nextDetail.Text = nextStep.Detail;
+            }
+            catch (Exception error)
+            {
+                nextStep = null;
+                primaryAction.Content = "Review readiness";
+                primaryAction.IsEnabled = false;
+                nextDetail.Text = error.Message;
+            }
+        }
+
+        private async Task RunPrimary()
+        {
+            if (busy || nextStep == null) return;
+            switch (nextStep.Kind)
+            {
+                case GuidedStepKind.ChooseSource:
+                    var selectedSource = plugin.PlayniteApi.Dialogs.SelectFile("Game files|*.*");
+                    if (!string.IsNullOrWhiteSpace(selectedSource)) source.Text = selectedSource;
+                    break;
+                case GuidedStepKind.ChooseBios:
+                    var selectedBios = plugin.PlayniteApi.Dialogs.SelectFile("BIOS files|*.*");
+                    if (!string.IsNullOrWhiteSpace(selectedBios)) bios.Text = selectedBios;
+                    break;
+                case GuidedStepKind.ValidateSources:
+                    await Execute(RegisterSources);
+                    break;
+                case GuidedStepKind.Install:
+                    await Execute(() => Manage("ensure"));
+                    break;
+                case GuidedStepKind.FinishSetup:
+                    await Execute(Prepare);
+                    break;
+                case GuidedStepKind.Play:
+                    // Let a pending Playnite install controller publish its installed event
+                    // after the dialog returns before requesting the ordinary play action.
+                    window.Close();
+                    if (detached)
+                        _ = window.Dispatcher.BeginInvoke(new Action(() => { _ = StartReadyGame(); }), DispatcherPriority.ApplicationIdle);
+                    break;
+                default:
+                    MessageBox.Show(window, nextStep.Detail + "\n\n" + state.Text,
+                        "Portcove readiness", MessageBoxButton.OK, MessageBoxImage.Information);
+                    break;
+            }
+        }
+
+        private async Task StartReadyGame()
+        {
+            try
+            {
+                await cli.AssertIdentity();
+                var fresh = await cli.Read("status", "status", port);
+                await cli.AssertIdentity();
+                if (Json.Text(fresh, "port_id") != port)
+                    throw new InvalidOperationException("Portcove returned another game's status. Refresh before playing.");
+                DefinitionOperations.RequireEligible(fresh, "launch");
+                var readiness = Json.Field(fresh, "readiness");
+                var launch = PortActions.Read(fresh).FirstOrDefault(value => value.Action == "launch");
+                var installation = StatusInstallation.Current(fresh);
+                if (installation == null || readiness == null || !Json.Boolean(readiness, "launchable") ||
+                    (launch != null && launch.Availability != "allowed"))
+                    throw new InvalidOperationException("Portcove no longer reports a playable installation. Refresh readiness before playing.");
+                var installPath = Json.Text(installation, "path");
+                // The modal is closed while the reads await. Check the currently accepted
+                // connection after the final await, before changing Playnite metadata.
+                var current = await plugin.Connect();
+                if (current.LibraryId != cli.LibraryId ||
+                    !string.Equals(current.LibraryRoot, cli.LibraryRoot, StringComparison.OrdinalIgnoreCase) ||
+                    !string.Equals(current.Executable, cli.Executable, StringComparison.OrdinalIgnoreCase) ||
+                    Identity.Port(game.GameId, current.LibraryId) != port)
+                    throw new InvalidOperationException("The selected Portcove runtime or library changed. Refresh before playing.");
+                var live = plugin.PlayniteApi.Database.Games.Get(game.Id);
+                if (live == null || live.PluginId != plugin.Id || live.GameId != game.GameId)
+                    throw new InvalidOperationException("The selected Playnite game changed. Refresh the library before playing.");
+                // A game-menu management session has no pending InstallController event.
+                // Sync only the installed flag and directory that core already reported.
+                if (!live.IsInstalled)
+                {
+                    if (live.OverrideInstallState)
+                        throw new InvalidOperationException("Playnite marks this game uninstalled by your manual override. Remove that override before playing.");
+                    live.IsInstalled = true;
+                    live.InstallDirectory = installPath;
+                    plugin.PlayniteApi.Database.Games.Update(live);
+                }
+                plugin.PlayniteApi.StartGame(game.Id);
+            }
+            catch (Exception error) { plugin.Error(error); }
         }
 
         private async Task Refresh()
@@ -202,7 +319,7 @@ namespace Portcove.ReferenceClient
                 8);
             progress.Text = entries.Length == 0 ?
                 (activityFeed.TerminalHistoryComplete ? "No retained activity for this game." :
-                    activityFeed.ActiveAndActionableComplete ? "No retained activity for this game in the bounded completed-history window; current and actionable work is complete." :
+                    activityFeed.ActiveAndActionableComplete ? "No activity for this game appears in the available history. In-progress tasks and items needing attention remain covered by this feed." :
                     "No retained activity for this game in the bounded legacy window; older current or actionable work may be absent.") :
                 string.Join("\n", entries.Select(item => Json.Text(item, "operation").Replace('_', ' ') + ": " + Json.Text(item, "status") +
                     (Json.Field(item, "message") == null ? "" : " — " + Json.Field(item, "message"))));
@@ -219,6 +336,8 @@ namespace Portcove.ReferenceClient
                     Json.Text(launch, "phase") + ", " + (Json.Field(launch, "outcome") ?? "unresolved")) + ".";
             }
             CurrentStatus = status;
+            currentCatalog = catalog;
+            UpdatePrimary();
         }
 
         private async Task RegisterSources()
@@ -236,9 +355,13 @@ namespace Portcove.ReferenceClient
             if (MessageBox.Show(window, "Register these original paths under this game's catalog profiles? Portcove validates their identity. Original files stay in place. Each registration is separate; a later failure does not undo an earlier registration.\n\n" +
                 string.Join("\n", paths.Where(path => path.Length != 0)), "Register original files", MessageBoxButton.OKCancel, MessageBoxImage.Question) != MessageBoxResult.OK) return;
             CurrentStatus = null;
+            var selectedCount = paths.Count(path => path.Length != 0);
             for (var index = 0; index < paths.Length; index++)
                 if (paths[index].Length != 0) await cli.Manage("source.add", new[] { "source", "add", profiles[index], paths[index] }, OnProgress);
             await Refresh();
+            source.Clear(); bios.Clear();
+            progress.Text = "Portcove validated and registered " + selectedCount +
+                " selected original input(s). Current readiness is shown above.\n" + progress.Text;
         }
 
         private async Task Manage(string command)

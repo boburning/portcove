@@ -129,12 +129,16 @@ Version/path changes do not alter a game's identity. Installation
 state comes from core; gameplay qualification is distinct from launch readiness.
 Right-click one
 Portcove game → Portcove → Manage and review activity opens the optional
-management view. Its file/folder buttons choose original files or a BIOS without
-requiring a typed path. Inputs still follow catalog source profiles.
-Registration leaves original files in place. Install uses an existing active
-version or installs one; Check and update explicitly resolves the channel at
-execution time. Preparation uses core's reviewed fingerprint and original
-registered inputs. Nothing installs or updates as a side effect of Play.
+management view. Its primary button follows Portcove's current status: choose
+original files or BIOS, validate the selected files, review installation or
+private preparation, or Play when core reports a launchable installation.
+File/folder buttons remain available for original files without requiring a typed
+path. Validation registers only catalog-requested inputs and reports the result;
+original files stay in place. A held or unknown action leads to a review message,
+not an attempted mutation. **Check and update** stays separate from Play and
+resolves the selected channel at execution time. Other manual actions are under
+**Other Portcove actions**. Installation and preparation retain their exact
+review and core validation. Nothing installs or updates as a side effect of Play.
 
 Progress is best-effort and a single final response must agree with the process
 exit status. The view reads the latest 200 durable activities and displays up to
