@@ -10,15 +10,33 @@ import { ArtworkControls, ArtworkImage } from "./Artwork";
 
 let container: HTMLDivElement, root: Root;
 
-async function render(portId = "sample", generation = 7, catalogArtworkKey = "") {
+async function render(portId = "sample", generation = 7, imageId = "") {
   const port = {
     ...portDefinition(),
     id: portId,
     name: "An unusually long game title that stays separate from its cover",
   };
+  const catalog = {
+    schema_version: 2,
+    ports: [
+      {
+        ...port,
+        presentation: {
+          artwork: {
+            game_id: 194694,
+            cover_id: 287780,
+            image_id: imageId,
+            image_sha256: "a".repeat(64),
+            game_slug: "ship-of-harkinian",
+            match_kind: "port",
+          },
+        } as typeof port.presentation,
+      },
+    ],
+  };
   await act(async () =>
     root.render(
-      <ArtworkProvider generation={generation} catalogArtworkKey={catalogArtworkKey}>
+      <ArtworkProvider generation={generation} catalog={catalog}>
         <h2>{port.name}</h2>
         <ArtworkImage port={port} />
         <ArtworkControls key={`${portId}:${generation}`} port={port} />
