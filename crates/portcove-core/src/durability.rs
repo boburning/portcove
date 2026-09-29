@@ -92,12 +92,23 @@ fn rename_noreplace_os(staging: &Path, destination: &Path) -> std::io::Result<()
         // destination buffer. Use the extended namespace for both operands.
         // Keep UTF-16 units intact so a non-ASCII path is never round-tripped
         // through a lossy display string.
+        let extended_prefix = || {
+            vec![
+                u16::from(b'\\'),
+                u16::from(b'\\'),
+                u16::from(b'?'),
+                u16::from(b'\\'),
+            ]
+        };
         let mut prefix = match path.components().next() {
             Some(Component::Prefix(component)) => match component.kind() {
-                Prefix::Disk(_) => r"\\?\".encode_utf16().collect::<Vec<_>>(),
+                Prefix::Disk(_) => extended_prefix(),
                 Prefix::UNC(_, _) => {
                     value.drain(..2);
-                    r"\\?\UNC\".encode_utf16().collect::<Vec<_>>()
+                    let mut prefix = extended_prefix();
+                    prefix.extend("UNC".encode_utf16());
+                    prefix.push(u16::from(b'\\'));
+                    prefix
                 }
                 Prefix::VerbatimDisk(_) | Prefix::VerbatimUNC(_, _) => Vec::new(),
                 _ => {

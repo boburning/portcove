@@ -209,7 +209,7 @@ for exactly identified external candidate bytes. None of these headless checks
 substitutes for Playnite frontend interaction, packaged execution, gameplay,
 intrinsic human observation or a fresh independent author.
 
-The client deliberately omits artwork acquisition, shortcuts, uninstall,
+The client deliberately omits artwork acquisition, shortcuts,
 destructive backup actions, catalog trust changes, application updates, automatic
 recovery and broad launcher feature parity. Use Portcove's supported UI/CLI for
 the specific recovery action it reports. Shutdown during management may leave
@@ -217,7 +217,7 @@ durable incomplete work; never infer safe cleanup from a closed window.
 
 Portcove maintains this bounded reference and its public-contract regressions.
 Report the client commit, CLI capability/schema versions, Playnite/SDK version,
-operation, platform and a redacted reproducer on #243 or a linked bug. Do not
+operation, platform and a redacted reproducer on #910 or a linked bug. Do not
 attach original game files, credentials, raw tool output or unreviewed library
 paths. A public-contract failure belongs to Portcove; launcher presentation belongs
 to this extension; upstream game/source qualification keeps its catalog owner.
