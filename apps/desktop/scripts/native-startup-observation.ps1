@@ -21,6 +21,8 @@ try {
     for ($sample = 0; $sample -lt $Samples; $sample++) {
         $inventoryError = $null
         $tree = try { Get-OwnedDriverProcessTree $DriverProcessId } catch { $inventoryError = $_.Exception.Message; $null }
+        $driverDeparted = $inventoryError -eq 'Owned driver is no longer running.'
+        if ($driverDeparted) { $inventoryError = $null }
         $sameDriver = $tree -and $tree.driver.CreationDate -eq $started -and
             [string]::Equals($tree.driver.ExecutablePath, $expectedPath, [StringComparison]::OrdinalIgnoreCase)
         $records = if ($sameDriver) { @($tree.driver) + @($tree.processes) } else { @() }
@@ -29,6 +31,7 @@ try {
             captured_at = [DateTime]::UtcNow.ToString('o')
             driver_identity_present = [bool]$sameDriver
             inventory_error = $inventoryError
+            driver_departed = $driverDeparted
             process_count = $records.Count
             process_inventory_truncated = $records.Count -gt 128
             processes = @($records | Select-Object -First 128 | ForEach-Object {
@@ -51,6 +54,7 @@ try {
         $writer.WriteLine(($entry | ConvertTo-Json -Depth 5 -Compress))
         $writer.Flush()
         if ($sample -eq 0) { Write-Output 'ready' }
+        if ($inventoryError -or (-not $sameDriver -and -not $driverDeparted)) { exit 1 }
         if (-not $sameDriver -or $entry.stop_requested) { break }
         Start-Sleep -Milliseconds 1000
     }

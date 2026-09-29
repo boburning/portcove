@@ -1,11 +1,67 @@
 import assert from "node:assert/strict";
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { once } from "node:events";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 import { observeStartup } from "../apps/desktop/scripts/desktop-startup-observation.mjs";
+
+test(
+  "startup inventory error retains a partial trace and fails the observer",
+  {
+    skip: process.platform !== "win32",
+    timeout: 20_000,
+  },
+  async () => {
+    const output = await mkdtemp(path.join(os.tmpdir(), "portcove-startup-observation-"));
+    try {
+      const fixture = path.join(output, "inventory-failure.ps1");
+      const trace = path.join(output, "trace.jsonl");
+      await writeFile(
+        fixture,
+        `param([string]$Observer, [string]$Image, [string]$Trace, [string]$Profile)
+$script:calls = 0
+function Get-CimInstance {
+    $script:calls++
+    if ($script:calls -gt 2) { throw 'synthetic inventory unavailable' }
+    [pscustomobject]@{ ProcessId=100; ParentProcessId=0; CreationDate=[DateTime]'2026-01-01'; ExecutablePath=$Image; CommandLine='' }
+}
+& $Observer -DriverProcessId 100 -DriverPath $Image -ProfilePath $Profile -OutputPath $Trace -StopPath (Join-Path $Profile 'stop') -Samples 3
+exit $LASTEXITCODE
+`,
+      );
+      const result = spawnSync(
+        "pwsh",
+        [
+          "-NoProfile",
+          "-File",
+          fixture,
+          "-Observer",
+          fileURLToPath(
+            new URL("../apps/desktop/scripts/native-startup-observation.ps1", import.meta.url),
+          ),
+          "-Image",
+          process.execPath,
+          "-Trace",
+          trace,
+          "-Profile",
+          output,
+        ],
+        { windowsHide: true, encoding: "utf8", timeout: 10_000 },
+      );
+      assert.equal(result.status, 1, result.stderr);
+      const records = (await readFile(trace, "utf8")).trim().split("\n").map(JSON.parse);
+      assert.equal(records.length, 2);
+      assert.equal(records[0].driver_identity_present, true);
+      assert.match(records[1].inventory_error, /synthetic inventory unavailable/);
+      assert.equal(records[1].driver_departed, false);
+    } finally {
+      await rm(output, { recursive: true, force: true });
+    }
+  },
+);
 
 test(
   "startup observer retains only owned descendants and missing endpoint evidence",
