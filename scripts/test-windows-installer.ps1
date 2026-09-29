@@ -288,6 +288,59 @@ function Write-InstallerEvidence([string]$Phase, $Details = $null) {
         }
     }
 }
+
+function Get-WebDriverHostBaseline([string]$RepositoryRoot = (Join-Path $PSScriptRoot "..")) {
+    $registryPaths = @(
+        "HKCU:\Software\Microsoft\EdgeUpdate\Clients\*",
+        "HKLM:\Software\Microsoft\EdgeUpdate\Clients\*",
+        "HKLM:\Software\WOW6432Node\Microsoft\EdgeUpdate\Clients\*"
+    )
+    $runtimeVersions = @($registryPaths | ForEach-Object {
+        Get-ItemProperty -Path $_ -ErrorAction SilentlyContinue |
+            Where-Object { $_.name -eq "Microsoft Edge WebView2 Runtime" } |
+            ForEach-Object { [string]$_.pv }
+    } | Where-Object { $_ -match '^\d+\.\d+\.\d+\.\d+$' } | Sort-Object -Unique)
+    $statePath = Join-Path $RepositoryRoot "work/tool-bin/tool-state.json"
+    $toolState = if ([IO.File]::Exists($statePath)) {
+        Get-Content -LiteralPath $statePath -Raw | ConvertFrom-Json
+    } else { $null }
+    $driverVersions = [ordered]@{}
+    foreach ($driver in @(
+        [pscustomobject]@{ name = "tauri_driver"; path = [string]$toolState.desktop.tauri_driver },
+        [pscustomobject]@{ name = "native_driver"; path = [string]$toolState.desktop.native_driver }
+    )) {
+        $reported = $null
+        $exitCode = $null
+        if ($driver.path -and [IO.File]::Exists($driver.path)) {
+            $reported = (& $driver.path --version 2>&1 | Out-String).Trim()
+            $exitCode = $LASTEXITCODE
+        }
+        $driverVersions[$driver.name] = [ordered]@{
+            reported = $reported
+            exit_code = $exitCode
+            sha256 = if ($driver.path -and [IO.File]::Exists($driver.path)) {
+                (Get-FileHash -LiteralPath $driver.path -Algorithm SHA256).Hash.ToLowerInvariant()
+            } else { $null }
+        }
+    }
+    $groups = @(& whoami.exe /groups /fo csv /nh | ConvertFrom-Csv -Header Name, Type, Sid, Attributes)
+    $whoamiExitCode = $LASTEXITCODE
+    $integrityGroups = @($groups | Where-Object { $_.Sid -match '^S-1-16-\d+$' })
+    $integrity = if ($integrityGroups.Count -eq 1) { $integrityGroups[0].Sid } else { $null }
+    $principal = [Security.Principal.WindowsPrincipal]::new([Security.Principal.WindowsIdentity]::GetCurrent())
+    return [ordered]@{
+        captured_at = (Get-Date).ToUniversalTime().ToString("o")
+        process_integrity_sid = $integrity
+        process_integrity_group_count = $integrityGroups.Count
+        whoami_exit_code = $whoamiExitCode
+        administrator_token = $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+        webview2_runtime_versions = $runtimeVersions
+        cached_webview2_version = if ($toolState) { [string]$toolState.desktop.webview2_version } else { $null }
+        drivers = $driverVersions
+        os_version = [Environment]::OSVersion.VersionString
+        os_architecture = [Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString()
+    }
+}
 if ($RequireSigningAuthorityAbsent) {
     if ([string]::IsNullOrWhiteSpace($PayloadPrivateKeyPath)) {
         throw "PayloadPrivateKeyPath is required when signing authority must be absent"
@@ -605,6 +658,10 @@ try {
         Write-InstallerEvidence "predecessor_verified" $upgrade
 
         if ($RendererUpdate) {
+            if ($evidence) {
+                $evidence.driver_host_baseline = Get-WebDriverHostBaseline
+                Write-InstallerEvidence "driver_host_baseline_recorded"
+            }
             $driverPreflight = Join-Path $runRoot "driver-preflight-baseline"
             & node (Join-Path $PSScriptRoot "../apps/desktop/scripts/desktop-test.mjs") --app $application --output $driverPreflight --scenario empty-library --port 45870
             if ($LASTEXITCODE -ne 0) { throw "Installed predecessor WebDriver baseline preflight failed" }
