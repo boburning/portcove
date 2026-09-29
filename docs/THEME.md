@@ -2,6 +2,8 @@
 
 Portcove's default theme borrows its structure from Nintendo 64-era industrial hardware and its punctuation from late-1990s Nintendo color. It is not a replica console UI: charcoal plastic, graphite panels, controller gray, and warm white carry the interface, while softened red, blue, green, and yellow communicate specific roles.
 
+The approved identity direction uses those original palette families in expressive 2D crab and wordmark illustration; the currently shipped V2 rasters remain in use until standalone production artwork is approved and integrated. [BRAND-ASSETS.md](BRAND-ASSETS.md) owns that transition. Illustration does not redefine the semantic UI tokens or turn the functional desktop into a decorative scene.
+
 ## Token layers
 
 `apps/desktop/src/styles.css` has four token layers:

@@ -1,6 +1,6 @@
 # Portcove Mascot V2 model
 
-This directory contains the first editable geometry authority for Mascot V2. The approved raster turnaround remains the visual authority for surface finish and the current desktop runtime asset. The model fixes anatomy, proportions, color ownership, lid controls, and camera conventions so later material and lighting work can improve without redrawing the character.
+This directory preserves the first editable geometry source for the shipped Mascot V2. The approved raster turnaround remains the visual reference for that historical asset and the current desktop runtime image. The construction, validation, and editing instructions below apply only to reproducing or maintaining V2. They do not govern the approved [2D successor direction](../../../../../../docs/BRAND-ASSETS.md): future illustration is not required to match this model's anatomy, proportions, lid controls, or cameras.
 
 ## Files
 
@@ -25,7 +25,7 @@ python apps/desktop/assets/brand/models/v2/create_portcove_mascot_v2_proofs.py
 
 The proof builder requires Pillow. It also strips Blender's volatile render-time PNG metadata so unchanged pixels produce byte-stable PNGs. The GLB and normalized PNGs are reproducible byte-for-byte. Blender embeds session metadata in `.blend`, so an unchanged rebuild can still change that source file's hash; `model-manifest.json` freezes the approved source instance. After a reviewed rebuild, update both brand manifests with the resulting hashes and byte sizes.
 
-## Editing contract
+## Historical V2 editing contract
 
 - Keep exactly two eyes, two claws, four short walking legs, four side spikes, and two lid hinges.
 - Preserve the front-only gold belly and deterministic six-material color ownership.
