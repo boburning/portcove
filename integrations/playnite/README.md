@@ -148,7 +148,12 @@ ID and wait for core's terminal result. Closing during work offers explicit
 disconnect without cancelling or claiming success. No automatic mutation replay, process-tree
 kill, rollback, library recovery or credential setup is performed.
 
-Play uses raw supervised `exec` with a fresh known UUID and polls `launch show`.
+Play uses raw supervised `exec` with a fresh known UUID. It polls `launch show`
+at startup until Portcove reports the child, then waits for the retained
+supervisor to exit before final durable readback, with a slow bounded
+reconciliation read if that exit does not arrive. A long-running game therefore
+does not launch a CLI read process every startup-poll interval. Missing or
+inconsistent terminal state remains unconfirmed even when the supervisor exits.
 The last game's library/port key and UUID are saved only as a reconnect pointer;
 all outcomes are read from core after restart. It is not a second job ledger and
 does not restore Playnite's old playtime tracking. The client drains raw game

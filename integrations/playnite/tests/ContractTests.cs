@@ -7,6 +7,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 internal static class ContractTests
@@ -328,6 +329,7 @@ internal static class ContractTests
         await client.Manage("cancel", new[] { "cancel", "request" }, null);
         Check(true, "cancellation request accepts a result-only response");
         await ConsumerMeasurements();
+        await LongSessionObservation();
         if (args.Length == 2)
         {
             var real = new PublicCli(args[0], args[1]); await real.Connect();
@@ -546,6 +548,120 @@ internal static class ContractTests
         {
             if (Directory.Exists(root)) Directory.Delete(root, true);
         }
+    }
+
+    private static async Task LongSessionObservation()
+    {
+        var root = Path.Combine(Path.GetDirectoryName(Binary), "long-session-library-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        try
+        {
+            var client = new PublicCli(Binary, root);
+            await client.Connect();
+            var baselineBefore = client.InvocationCount;
+            var baselineTimer = Stopwatch.StartNew();
+            var baselineStartedAt = TimeSpan.Zero;
+            using (var baseline = await client.Launch("shape-a", "baseline-session-request"))
+            {
+                while (true)
+                {
+                    var exitedBeforeRead = baseline.HasExited;
+                    var record = await client.Read("launch.show", "launch", "show", "baseline-session-request");
+                    var observed = LaunchObservation.Read(record, "baseline-session-request", "shape-a", baseline.ProcessId);
+                    if (observed != null && observed.ChildPid.HasValue && baselineStartedAt == TimeSpan.Zero)
+                        baselineStartedAt = baselineTimer.Elapsed;
+                    if (observed != null && observed.Outcome == "succeeded") break;
+                    if (exitedBeforeRead) throw new Exception("The baseline lost its terminal fixture record.");
+                    await Task.Delay(750);
+                }
+            }
+            baselineTimer.Stop();
+            var baselineReads = client.InvocationCount - baselineBefore - 2;
+            var baselineFinishedTicks = long.Parse(File.ReadAllText(Path.Combine(root, "baseline-session-finished")));
+            var baselineTerminalDelay = DateTime.UtcNow - new DateTime(baselineFinishedTicks, DateTimeKind.Utc);
+            var before = client.InvocationCount;
+            var timer = Stopwatch.StartNew();
+            var startedAt = TimeSpan.Zero;
+            using (var launch = await client.Launch("shape-a", "long-session-request"))
+                await LaunchObserver.Observe(client, launch, "shape-a", "long-session-request", child =>
+                {
+                    Check(child == launch.ProcessId, "long session reports the owned child identity");
+                    startedAt = timer.Elapsed;
+                });
+            timer.Stop();
+            var reads = client.InvocationCount - before - 2; // identity read and raw exec
+            var completedTicks = long.Parse(File.ReadAllText(Path.Combine(root, "long-session-finished")));
+            var terminalDelay = DateTime.UtcNow - new DateTime(completedTicks, DateTimeKind.Utc);
+            Check(startedAt > TimeSpan.Zero && startedAt <= timer.Elapsed,
+                "long session reports child start before terminal completion");
+            Check(baselineReads >= 1 && reads >= 1 && terminalDelay >= TimeSpan.Zero,
+                "both measured sessions use durable readback after the fixture completes");
+            Console.WriteLine("MEASUREMENT " + Json.Print(new
+            {
+                schema_version = 1, fixture = "long-lived-supervisor",
+                session_ms = timer.ElapsedMilliseconds,
+                measured_prior_750ms_poll = new { session_ms = baselineTimer.ElapsedMilliseconds,
+                    startup_observation_ms = baselineStartedAt.TotalMilliseconds,
+                    terminal_observation_after_fixture_completion_ms = baselineTerminalDelay.TotalMilliseconds,
+                    launch_show_processes = baselineReads },
+                startup_observation_ms = startedAt.TotalMilliseconds,
+                terminal_observation_after_fixture_completion_ms = terminalDelay.TotalMilliseconds,
+                launch_show_processes = reads
+            }));
+
+            using (var launch = await client.Launch("shape-a", "held-session-request"))
+            {
+                var childStarted = new TaskCompletionSource<int>();
+                var observation = LaunchObserver.Observe(client, launch, "shape-a", "held-session-request",
+                    child => childStarted.TrySetResult(child));
+                try
+                {
+                    if (await Task.WhenAny(childStarted.Task, Task.Delay(5000)) != childStarted.Task)
+                        throw new Exception("The held fixture did not report a child start.");
+                    Check(await childStarted.Task == launch.ProcessId, "held session reports the owned child");
+                    var readsAtStart = client.InvocationCount;
+                    await Task.Delay(1250);
+                    Check(client.InvocationCount == readsAtStart,
+                        "held running session starts no additional CLI read processes after child observation");
+                }
+                finally
+                {
+                    File.WriteAllText(Path.Combine(root, "held-session-release"), "release");
+                    await launch.WaitForExitAsync();
+                }
+                await observation;
+            }
+
+            using (var launch = await client.Launch("shape-a", "missing-terminal-request"))
+            {
+                var rejected = false;
+                try { await LaunchObserver.Observe(client, launch, "shape-a", "missing-terminal-request", child => { }); }
+                catch (InvalidOperationException) { rejected = true; }
+                Check(rejected, "supervisor exit without durable terminal state remains unconfirmed");
+            }
+            using (var launch = await client.Launch("shape-a", "failed-session-request"))
+            {
+                var rejected = false;
+                try { await LaunchObserver.Observe(client, launch, "shape-a", "failed-session-request", child => { }); }
+                catch (InvalidOperationException) { rejected = true; }
+                Check(rejected, "durable failed session is never reported as completed play");
+            }
+            using (var launch = await client.Launch("shape-a", "slow-reconciliation-request"))
+            {
+                try
+                {
+                    await LaunchObserver.Observe(client, launch, "shape-a", "slow-reconciliation-request", child => { },
+                        TimeSpan.FromMilliseconds(250));
+                    Check(!launch.HasExited, "slow reconciliation reads a durable terminal outcome before a stalled supervisor exit");
+                }
+                finally
+                {
+                    File.WriteAllText(Path.Combine(root, "slow-reconciliation-release"), "release");
+                    await launch.WaitForExitAsync();
+                }
+            }
+        }
+        finally { if (Directory.Exists(root)) Directory.Delete(root, true); }
     }
 
     private static async Task RunQualification(string[] args)
@@ -1012,15 +1128,63 @@ internal static class ContractTests
         }
         else if (command == "exec")
         {
-            File.WriteAllText(Path.Combine(args[1], "measurement-launch-pid"), Process.GetCurrentProcess().Id.ToString());
+            if (args.Contains("long-session-request") || args.Contains("baseline-session-request"))
+            {
+                var prefix = args.Contains("long-session-request") ? "long-session" : "baseline-session";
+                File.WriteAllText(Path.Combine(args[1], prefix + "-pid"), Process.GetCurrentProcess().Id.ToString());
+                Thread.Sleep(5000);
+                File.WriteAllText(Path.Combine(args[1], prefix + "-finished"), DateTime.UtcNow.Ticks.ToString());
+            }
+            else if (args.Contains("missing-terminal-request"))
+            {
+                File.WriteAllText(Path.Combine(args[1], "missing-terminal-pid"), Process.GetCurrentProcess().Id.ToString());
+                Thread.Sleep(200);
+            }
+            else if (args.Contains("failed-session-request"))
+            {
+                File.WriteAllText(Path.Combine(args[1], "failed-session-pid"), Process.GetCurrentProcess().Id.ToString());
+                Thread.Sleep(200);
+                File.WriteAllText(Path.Combine(args[1], "failed-session-finished"), "failed");
+            }
+            else if (args.Contains("slow-reconciliation-request"))
+            {
+                File.WriteAllText(Path.Combine(args[1], "slow-reconciliation-pid"), Process.GetCurrentProcess().Id.ToString());
+                Thread.Sleep(2000);
+                File.WriteAllText(Path.Combine(args[1], "slow-reconciliation-finished"), "succeeded");
+                for (var attempt = 0; attempt < 200 && !File.Exists(Path.Combine(args[1], "slow-reconciliation-release")); attempt++)
+                    Thread.Sleep(50);
+            }
+            else if (args.Contains("held-session-request"))
+            {
+                File.WriteAllText(Path.Combine(args[1], "held-session-pid"), Process.GetCurrentProcess().Id.ToString());
+                for (var attempt = 0; attempt < 200 && !File.Exists(Path.Combine(args[1], "held-session-release")); attempt++)
+                    Thread.Sleep(50);
+                File.WriteAllText(Path.Combine(args[1], "held-session-finished"), DateTime.UtcNow.Ticks.ToString());
+            }
+            else File.WriteAllText(Path.Combine(args[1], "measurement-launch-pid"), Process.GetCurrentProcess().Id.ToString());
         }
         else if (command == "launch")
         {
-            var pid = int.Parse(File.ReadAllText(Path.Combine(args[1], "measurement-launch-pid")));
+            var longSession = args.Contains("long-session-request");
+            var baselineSession = args.Contains("baseline-session-request");
+            var missingTerminal = args.Contains("missing-terminal-request");
+            var failedSession = args.Contains("failed-session-request");
+            var slowReconciliation = args.Contains("slow-reconciliation-request");
+            var heldSession = args.Contains("held-session-request");
+            var pidFile = longSession ? "long-session-pid" : baselineSession ? "baseline-session-pid" : missingTerminal ? "missing-terminal-pid" : failedSession ? "failed-session-pid" : slowReconciliation ? "slow-reconciliation-pid" : heldSession ? "held-session-pid" : "measurement-launch-pid";
+            if (!File.Exists(Path.Combine(args[1], pidFile))) { Console.WriteLine(Result("launch.show", null)); return 0; }
+            var pid = int.Parse(File.ReadAllText(Path.Combine(args[1], pidFile)));
+            var finished = (longSession && File.Exists(Path.Combine(args[1], "long-session-finished"))) ||
+                (baselineSession && File.Exists(Path.Combine(args[1], "baseline-session-finished"))) ||
+                (failedSession && File.Exists(Path.Combine(args[1], "failed-session-finished"))) ||
+                (slowReconciliation && File.Exists(Path.Combine(args[1], "slow-reconciliation-finished"))) ||
+                (heldSession && File.Exists(Path.Combine(args[1], "held-session-finished")));
             Console.WriteLine(Result("launch.show", new
             {
-                id = "measurement-request", port_id = "shape-a", supervisor_pid = pid, child_pid = (int?)pid,
-                phase = "running", outcome = "succeeded", finished_at = (long?)42
+                id = longSession ? "long-session-request" : baselineSession ? "baseline-session-request" : missingTerminal ? "missing-terminal-request" : failedSession ? "failed-session-request" : slowReconciliation ? "slow-reconciliation-request" : heldSession ? "held-session-request" : "measurement-request",
+                port_id = "shape-a", supervisor_pid = pid, child_pid = (int?)pid,
+                phase = "running", outcome = failedSession ? (finished ? "failed" : null) : longSession || baselineSession || slowReconciliation || heldSession ? (finished ? "succeeded" : null) : missingTerminal ? null : "succeeded",
+                finished_at = longSession || baselineSession || failedSession || slowReconciliation || heldSession ? (finished ? (long?)42 : null) : missingTerminal ? null : (long?)42
             }));
         }
         else
