@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Linq;
+using System.Collections.Generic;
 using System.Security.Cryptography;
 
 namespace Portcove.ReferenceClient
@@ -14,6 +15,7 @@ namespace Portcove.ReferenceClient
         public string ApprovedLibraryRoot { get; set; } = "";
         public string ExecutableSha256 { get; set; } = "";
         public string LibraryId { get; set; } = "";
+        public List<string> SelectedPortIds { get; set; } = new List<string>();
         // A reconnect pointer only. Core's retained record is the sole outcome authority.
         public string LastLaunchGame { get; set; } = "";
         public string LastLaunchRequest { get; set; } = "";
@@ -36,6 +38,16 @@ namespace Portcove.ReferenceClient
     internal static class RuntimeSelection
     {
         private const long MaximumExecutableBytes = 512L * 1024 * 1024;
+
+        internal static bool SameConnection(ClientSettings left, ClientSettings right) =>
+            left != null && right != null &&
+            string.Equals(left.Executable, right.Executable, StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(left.LibraryRoot, right.LibraryRoot, StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(left.ApprovedExecutable, right.ApprovedExecutable, StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(left.ApprovedLibraryRoot, right.ApprovedLibraryRoot, StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(left.ExecutableSha256, right.ExecutableSha256, StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(left.LibraryId, right.LibraryId, StringComparison.Ordinal) &&
+            left.CreateNewLibrary == right.CreateNewLibrary;
 
         internal static RuntimeInspection Inspect(ClientSettings draft)
         {

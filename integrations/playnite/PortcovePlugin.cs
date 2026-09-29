@@ -26,13 +26,16 @@ namespace Portcove.ReferenceClient
         internal string SelectExecutable() => PlayniteApi.Dialogs.SelectFile("Portcove CLI|portcove.exe|Applications|*.exe");
         internal string SelectLibrary() => PlayniteApi.Dialogs.SelectFolder();
 
-        internal async Task<PublicCli> Connect()
+        internal Task<PublicCli> Connect() => Connect(settings.Active);
+
+        private async Task<PublicCli> Connect(ClientSettings accepted)
         {
-            var accepted = settings.Active;
             RuntimeSelection.RequireAccepted(accepted);
             var client = new PublicCli(accepted.Executable, accepted.LibraryRoot);
             await client.Connect().ConfigureAwait(false);
             RuntimeSelection.RequireAccepted(accepted);
+            if (!RuntimeSelection.SameConnection(settings.Active, accepted))
+                throw new InvalidOperationException("The Portcove runtime or library selection changed. Refresh again.");
             if (!string.Equals(client.LibraryId, accepted.LibraryId, StringComparison.Ordinal))
                 throw new InvalidOperationException("The selected library identity changed. Reconnect it in extension settings.");
             return client;
@@ -46,37 +49,95 @@ namespace Portcove.ReferenceClient
         internal string RecentLaunch(string game) => PlayniteApi.MainView.UIDispatcher.Invoke(() =>
             settings.Active.LastLaunchGame == game ? settings.Active.LastLaunchRequest : null);
 
-        public override IEnumerable<GameMetadata> GetGames(LibraryGetGamesArgs args) => Discover().GetAwaiter().GetResult();
+        public override IEnumerable<GameMetadata> GetGames(LibraryGetGamesArgs args)
+        {
+            // Playnite refreshes a newly installed extension before first-use settings can be saved.
+            if (string.IsNullOrEmpty(settings.Active.LibraryId)) return Array.Empty<GameMetadata>();
+            return Discover().GetAwaiter().GetResult();
+        }
 
         private async Task<IEnumerable<GameMetadata>> Discover()
         {
-            var cli = await Connect().ConfigureAwait(false);
+            var accepted = settings.Active;
+            var selected = (accepted.SelectedPortIds ?? new List<string>()).ToArray();
+            var catalog = await ReadCatalog(accepted).ConfigureAwait(false);
+            if (!RuntimeSelection.SameConnection(settings.Active, accepted))
+                throw new InvalidOperationException("The Portcove library selection changed during refresh. Refresh again.");
+            return PersonalLibrary.Default(catalog, selected).Select(game => game.Metadata()).ToArray();
+        }
+
+        private async Task<IReadOnlyList<PortcoveCatalogGame>> ReadCatalog(ClientSettings accepted)
+        {
+            var cli = await Connect(accepted).ConfigureAwait(false);
             var catalog = Json.Array(await cli.Read("catalog.list", "catalog", "list").ConfigureAwait(false));
-            var statuses = Json.Array(await cli.Read("status", "status").ConfigureAwait(false))
-                .ToDictionary(status => Json.Text(status, "port_id"), StringComparer.Ordinal);
+            var statuses = Json.Array(await cli.Read("status", "status").ConfigureAwait(false));
             await cli.AssertIdentity().ConfigureAwait(false);
-            var result = new List<GameMetadata>();
-            var seen = new HashSet<string>(StringComparer.Ordinal);
-            foreach (var port in catalog)
+            if (!RuntimeSelection.SameConnection(settings.Active, accepted))
+                throw new InvalidOperationException("The Portcove library selection changed during discovery. Refresh again.");
+            return PersonalLibrary.Read(catalog, statuses, cli.LibraryId);
+        }
+
+        public override IEnumerable<MainMenuItem> GetMainMenuItems(GetMainMenuItemsArgs args)
+        {
+            yield return new MainMenuItem
             {
-                if (!Json.Array(Json.Field(port, "platforms")).Contains("windows-x86-64")) continue;
-                var portId = Json.Text(port, "id");
-                var key = Identity.Game(cli.LibraryId, portId);
-                if (!seen.Add(key)) throw new InvalidOperationException("The catalog repeats a port identity. Refresh after repairing the catalog.");
-                object status;
-                if (!statuses.TryGetValue(portId, out status)) throw new InvalidOperationException("The catalog changed during discovery. Refresh again.");
-                var active = Json.Field(status, "active");
-                var external = Json.OptionalObjectField(status, "external_runtime");
-                result.Add(new GameMetadata
+                MenuSection = "Portcove",
+                Description = "Browse and add compatible games…",
+                Action = action => AddGames()
+            };
+            yield return new MainMenuItem
+            {
+                MenuSection = "Portcove",
+                Description = "Review prior library entries…",
+                Action = action => ReviewPriorEntries()
+            };
+        }
+
+        private async void AddGames()
+        {
+            try
+            {
+                var accepted = settings.Active;
+                if (string.IsNullOrEmpty(accepted.LibraryId))
+                    throw new InvalidOperationException("Connect a Portcove CLI and library in extension settings before adding games.");
+                var catalog = await ReadCatalog(accepted);
+                var chosen = CatalogBrowser.Choose(PlayniteApi, catalog, accepted.SelectedPortIds);
+                if (chosen.Count == 0) return;
+                if (!RuntimeSelection.SameConnection(settings.Active, accepted))
+                    throw new InvalidOperationException("The Portcove library changed while choosing games. Refresh the catalog and choose again.");
+                foreach (var game in chosen)
                 {
-                    GameId = key, Name = Json.Text(port, "name"),
-                    Description = System.Net.WebUtility.HtmlEncode(Json.Text(port, "summary")),
-                    IsInstalled = active != null || external != null,
-                    InstallDirectory = active != null ? Json.Text(active, "path") : external == null ? null : Json.Text(external, "path"),
-                    Version = active != null ? Json.Text(active, "version") : external == null ? null : Json.Text(external, "version")
-                });
+                    if (!PlayniteApi.Database.Games.Any(existing => existing.PluginId == Id && existing.GameId == game.GameId))
+                        PlayniteApi.Database.ImportGame(game.Metadata(), this);
+                    settings.RememberSelection(new[] { game.PortId }, game.LibraryId);
+                }
             }
-            return result;
+            catch (Exception error) { Error(error); }
+        }
+
+        private async void ReviewPriorEntries()
+        {
+            try
+            {
+                var accepted = settings.Active;
+                var catalog = await ReadCatalog(accepted);
+                var current = PersonalLibrary.Default(catalog, accepted.SelectedPortIds);
+                var candidates = PersonalLibrary.PriorVisibleEntries(PlayniteApi.Database.Games, Id, current);
+                var chosen = LegacyEntriesWindow.Choose(PlayniteApi, candidates);
+                if (chosen.Count == 0) return;
+                var latest = await ReadCatalog(accepted);
+                var stillCurrent = new HashSet<string>(PersonalLibrary.Default(latest, settings.Active.SelectedPortIds)
+                    .Select(game => game.GameId), StringComparer.Ordinal);
+                foreach (var game in chosen)
+                {
+                    var live = PlayniteApi.Database.Games.Get(game.Id);
+                    if (live == null || live.PluginId != Id || live.GameId != game.GameId ||
+                        live.Hidden || stillCurrent.Contains(live.GameId)) continue;
+                    live.Hidden = true;
+                    PlayniteApi.Database.Games.Update(live);
+                }
+            }
+            catch (Exception error) { Error(error); }
         }
 
         public override IEnumerable<PlayController> GetPlayActions(GetPlayActionsArgs args)

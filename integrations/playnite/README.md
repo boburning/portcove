@@ -113,11 +113,24 @@ confirmation. Changed, missing, duplicated, unknown, or cross-port repair values
 fail closed; the compiled CLI remains authoritative and revalidates under its
 operation locks.
 
-Refresh imports Windows catalog entries with the key `(opaque library ID, port
-ID)`. Version/path changes do not alter it. Installation state comes from core;
-gameplay qualification is distinct from launch readiness. Right-click one
+Refresh imports installed Windows games and ports you explicitly selected, with
+the key `(opaque library ID, port ID)`. Use the Portcove main-menu command
+**Browse and add compatible games** to search and select additional entries. This
+does not install a game, infer ownership of original files, or scan drives.
+Changing to a different Portcove library clears the prior library's explicit
+selection. Playnite keeps entries it imported before a plugin update or library
+change. If you used the earlier broad-import `0.1.0` candidate, open the Portcove
+main-menu command **Review prior library entries** after connecting the new
+runtime/library. It lists visible entries outside the current installed/selected
+set and lets you deliberately hide individual entries. Hiding retains Playnite
+metadata and never uninstalls a Portcove game or removes files. Playnite's Hidden
+filter can show them again. The plugin does not silently delete or hide entries.
+Version/path changes do not alter a game's identity. Installation
+state comes from core; gameplay qualification is distinct from launch readiness.
+Right-click one
 Portcove game → Portcove → Manage and review activity opens the optional
-management view. Original file and BIOS inputs follow catalog source profiles.
+management view. Its file/folder buttons choose original files or a BIOS without
+requiring a typed path. Inputs still follow catalog source profiles.
 Registration leaves original files in place. Install uses an existing active
 version or installs one; Check and update explicitly resolves the channel at
 execution time. Preparation uses core's reviewed fingerprint and original
