@@ -226,6 +226,9 @@ test("manual rehearsal retains the complete matrix without production credential
       "session-startup-0.log",
       "session-startup-1.jsonl",
       "session-startup-1.log",
+      "embedded-processes-0.json",
+      "embedded-processes-1.json",
+      "embedded-application.log",
     ])
       assert.ok(retained(`${directory}/${artifact}`), `${preflight} loses ${artifact}`);
     assert.equal(retained(`${directory}/session-startup-0.stop`), false);
@@ -266,6 +269,15 @@ test("manual rehearsal retains the complete matrix without production credential
   assert.match(lifecycle, /installed_update_truncated_stage/);
   assert.match(lifecycle, /installed_truncated_stage_rejected/);
   assert.match(lifecycle, /desktop-windows-update-test\.mjs/);
+  assert.match(lifecycle, /ValidateSet\('official', 'embedded'\)/);
+  assert.equal((lifecycle.match(/if \(\$RendererTransport -eq 'embedded'\)/g) ?? []).length, 2);
+  assert.equal((lifecycle.match(/desktop-windows-embedded-preflight\.mjs/g) ?? []).length, 2);
+  assert.match(lifecycle, /\$rendererArguments \+= @\('--transport', \$RendererTransport\)/);
+  assert.match(
+    rehearsal,
+    /--bundles", "nsis"[^\n]*"application-update-qualification,native-compatibility-qualification"/,
+  );
+  assert.match(rehearsal, /-RendererUpdate -RendererTransport embedded/);
   assert.match(lifecycle, /installed_renderer_reconciled/);
   assert.match(lifecycle, /PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_RELAUNCH_EXIT = "1"/);
   assert.match(

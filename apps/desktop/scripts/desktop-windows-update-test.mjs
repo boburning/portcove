@@ -7,6 +7,7 @@ import { parseArgs } from "node:util";
 import { By } from "selenium-webdriver";
 import { cachedDesktopDrivers } from "../../../scripts/tool-cache.mjs";
 import { driveInstalledUpdateToRestart } from "./desktop-application-update-journey.mjs";
+import { startEmbeddedInstalledSession } from "./desktop-windows-embedded-session.mjs";
 import {
   awaitInstalledUpdateDriver,
   connectInstalledUpdateDriver,
@@ -31,6 +32,7 @@ const { values } = parseArgs({
       "candidate-installer-sha",
       "candidate-executable-sha",
       "candidate-version",
+      "transport",
     ].map((name) => [name, { type: "string" }]),
   ),
 });
@@ -46,8 +48,10 @@ for (const name of [
 for (const name of ["candidate-installer-sha", "candidate-executable-sha"])
   assert.match(values[name] ?? "", /^[0-9a-f]{64}$/u);
 assert.ok(values["candidate-version"]);
-const drivers = cachedDesktopDrivers();
-assert.ok(drivers, "Pinned Tauri and WebView2 drivers are unavailable");
+const embedded = values.transport === "embedded";
+assert.ok(!values.transport || ["official", "embedded"].includes(values.transport));
+const drivers = embedded ? null : cachedDesktopDrivers();
+assert.ok(embedded || drivers, "Pinned Tauri and WebView2 drivers are unavailable");
 await mkdir(values.output, { recursive: false });
 const report = {
   schema_version: 1,
@@ -59,6 +63,7 @@ const report = {
   candidate_executable_sha256: values["candidate-executable-sha"],
   candidate_version: values["candidate-version"],
   actions: [],
+  transport: embedded ? "embedded" : "official",
   failure: null,
 };
 const evidencePath = path.join(values.output, "renderer-update-evidence.json");
@@ -73,6 +78,7 @@ let driverSession;
 let snapshot;
 let activeSnapshotPath = snapshotPath;
 let restartStarted;
+let embeddedSession;
 
 async function save() {
   await writeFile(evidencePath, `${JSON.stringify(report, null, 2)}\n`);
@@ -162,16 +168,24 @@ async function awaitMarkedProcessExit(markerPath, label) {
 
 try {
   report.initial_executable_sha256 = (await hashFile(values.app)).sha256;
-  driverSession = startInstalledUpdateDriver(drivers.driver, drivers.nativeDriver, {
-    windowsHide: true,
-    env: {
-      ...process.env,
-      WEBVIEW2_USER_DATA_FOLDER: webviewProfile,
-    },
-  });
-  driver = driverSession.driver;
-  await awaitInstalledUpdateDriver(driver);
-  browser = await connectInstalledUpdateDriver(values.app, webviewProfile);
+  if (embedded) {
+    embeddedSession = await startEmbeddedInstalledSession(values.app, values.output);
+    browser = await embeddedSession.connect();
+    report.embedded_listener = embeddedSession.listener;
+    report.embedded_startup = embeddedSession.startup;
+    assert.equal(embeddedSession.identity.sha256, report.initial_executable_sha256);
+  } else {
+    driverSession = startInstalledUpdateDriver(drivers.driver, drivers.nativeDriver, {
+      windowsHide: true,
+      env: {
+        ...process.env,
+        WEBVIEW2_USER_DATA_FOLDER: webviewProfile,
+      },
+    });
+    driver = driverSession.driver;
+    await awaitInstalledUpdateDriver(driver);
+    browser = await connectInstalledUpdateDriver(values.app, webviewProfile);
+  }
   await driveInstalledUpdateToRestart(browser, report.actions);
   const staged = await verifyInstalledUpdateStaging({
     stagingRoot: values.staging,
@@ -186,7 +200,7 @@ try {
   await writeFile(path.join(values.output, "before-restart.png"), await browser.takeScreenshot(), {
     encoding: "base64",
   });
-  snapshot = nativeSessionCommand("Snapshot");
+  snapshot = embedded ? embeddedSession.capture() : nativeSessionCommand("Snapshot");
   report.native_processes_before_restart = snapshot;
   report.bootstrap_before_restart = JSON.parse(
     await browser.executeAsyncScript((done) => {
@@ -360,7 +374,34 @@ try {
       }
     }
   }
-  if (snapshot) {
+  if (embeddedSession) {
+    if (report.phase === "complete") {
+      try {
+        await waitFor(
+          async () =>
+            embeddedSession.child.exitCode !== null || embeddedSession.child.signalCode !== null,
+          "installed predecessor natural exit",
+          5000,
+        );
+      } catch (error) {
+        report.phase = "failed";
+        report.failure = error.message;
+        process.exitCode = 1;
+      }
+    }
+    try {
+      report.embedded_cleanup = await embeddedSession.close();
+      if (report.phase === "complete" && report.embedded_cleanup.forced) {
+        report.phase = "failed";
+        report.failure = "Installed predecessor required forced cleanup after reported success";
+        process.exitCode = 1;
+      }
+    } catch (error) {
+      report.phase = "failed";
+      report.failure = `${report.failure ?? "Qualification failed"}; embedded application cleanup: ${error.message}`;
+      process.exitCode = 1;
+    }
+  } else if (snapshot) {
     try {
       report.driver_cleanup =
         driver.exitCode === null ? nativeSessionCommand("StopDriver") : "driver-exited";

@@ -370,14 +370,19 @@ try {
         $targetsDirectory = (Resolve-Path -LiteralPath (Join-Path $repository "targets")).Path
         $env:PORTCOVE_APPLICATION_UPDATE_METADATA_URL = ([Uri]::new($metadataDirectory.TrimEnd('/', '\') + '/')).AbsoluteUri
         $env:PORTCOVE_APPLICATION_UPDATE_TARGETS_URL = ([Uri]::new($targetsDirectory.TrimEnd('/', '\') + '/')).AbsoluteUri
-        Invoke-Checked "corepack" @($pnpmSpec, "--dir", "apps/desktop", "tauri", "build", "--bundles", "nsis", "--config", $configPath, "--ci", "--features", "application-update-qualification")
+        # Only the disposable installed predecessor exposes the embedded driver.
+        # The candidate above retains its ordinary production feature set.
+        $nativeCompatibility = Get-Content (Join-Path $root "apps/desktop/src-tauri/tauri.native-compatibility.conf.json") -Raw | ConvertFrom-Json -AsHashtable
+        $configuration.app = @{ security = @{ capabilities = $nativeCompatibility.app.security.capabilities } }
+        $configuration | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $configPath -Encoding utf8
+        Invoke-Checked "corepack" @($pnpmSpec, "--dir", "apps/desktop", "tauri", "build", "--bundles", "nsis", "--config", $configPath, "--ci", "--features", "application-update-qualification,native-compatibility-qualification")
         $predecessor = Join-Path $bundleRoot "nsis/Portcove_$($predecessorVersion)_x64-setup.exe"
         Remove-Item -LiteralPath (Join-Path $fixtureRoot "private") -Recurse -Force
         Remove-Item -LiteralPath $tufConfigPath -Force
         $privateTufAbsent = -not [IO.Directory]::Exists((Join-Path $fixtureRoot "private"))
         if (-not $privateTufAbsent) { throw "Disposable TUF signing authority remained available" }
         $consumerEvidence = Invoke-PackagedPayloadConsumer -Stage $candidateStage -CandidateVersion $candidateVersion -TufPrivateRootPath (Join-Path $fixtureRoot "private")
-        & (Join-Path $PSScriptRoot "test-windows-installer.ps1") -InstallerPath $candidate -UpgradeFromInstallerPath $predecessor -ExpectedExecutablePath (Join-Path $runRoot "windows-candidate-desktop.exe") -TestBase (Join-Path $runRoot "installer-test") -EvidencePath (Join-Path $runRoot "windows-installed-update.json") -InstallMode Passive -ExpectedVersion $candidateVersion -PayloadPrivateKeyPath $privateKey -TufPrivateRootPath (Join-Path $fixtureRoot "private") -RequireSigningAuthorityAbsent -InstalledUpdateTrustedRootPath $env:PORTCOVE_APPLICATION_UPDATE_BUNDLED_ROOT_FILE -InstalledUpdateMetadataPath $metadataDirectory -InstalledUpdateTargetsPath $targetsDirectory -InstalledUpdateCandidatePath $candidate -InstalledUpdatePredecessorVersion $predecessorVersion -RendererUpdate
+        & (Join-Path $PSScriptRoot "test-windows-installer.ps1") -InstallerPath $candidate -UpgradeFromInstallerPath $predecessor -ExpectedExecutablePath (Join-Path $runRoot "windows-candidate-desktop.exe") -TestBase (Join-Path $runRoot "installer-test") -EvidencePath (Join-Path $runRoot "windows-installed-update.json") -InstallMode Passive -ExpectedVersion $candidateVersion -PayloadPrivateKeyPath $privateKey -TufPrivateRootPath (Join-Path $fixtureRoot "private") -RequireSigningAuthorityAbsent -InstalledUpdateTrustedRootPath $env:PORTCOVE_APPLICATION_UPDATE_BUNDLED_ROOT_FILE -InstalledUpdateMetadataPath $metadataDirectory -InstalledUpdateTargetsPath $targetsDirectory -InstalledUpdateCandidatePath $candidate -InstalledUpdatePredecessorVersion $predecessorVersion -RendererUpdate -RendererTransport embedded
         if ($LASTEXITCODE -ne 0) { throw "Windows installed application update qualification failed" }
         if ((Get-FileHash -LiteralPath $env:PORTCOVE_PREFERENCES -Algorithm SHA256).Hash -ne $preferencesHash) { throw "Windows updater qualification changed isolated host preferences" }
         [ordered]@{ source_commit = $revision; candidate_version = $candidateVersion; private_signing_inputs_absent = $consumerEvidence.private_signing_inputs_absent; private_tuf_inputs_absent = $privateTufAbsent; installed_update_evidence = "windows-installed-update.json" } | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $runRoot "windows-installed-update-summary.json") -Encoding utf8

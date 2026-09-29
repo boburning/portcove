@@ -58,6 +58,19 @@ stops afterward, including on failure; it does not change WebView policy or
 launch or terminate the application. Sampling can miss short-lived processes.
 It does not report attached application exit codes or application stderr, and
 an absent endpoint alone does not establish why session creation failed.
+
+The disposable Windows installed-updater predecessor enables the existing
+qualification-only embedded WebDriver, with its main-window capability overlay.
+Its candidate installer retains the ordinary feature set. The explicit embedded
+transport runs installed startup smoke checks before and after fixture setup,
+then the shared renderer check, stage and restart journey. Startup smoke is not
+the complete desktop empty-library scenario. Each listener must belong to the
+directly launched installed executable on `127.0.0.1`; process snapshots bind its
+parent, creation time, path and initial hash. Cleanup uses an application-root
+snapshot, distinct from official-driver ancestry. Application output and process
+evidence are retained on failure. Successful updater qualification still requires
+the signed candidate, marker-bound helper/relaunch, natural exit and preserved
+state checks; embedded transport or startup alone does not establish it.
 Linux builds a disposable test-signed TUF repository, embeds its public trust and
 local repository URLs in a qualification-only 0.1.0 AppImage, and exercises the
 packaged helper through an interrupted candidate copy, GUI-independent command

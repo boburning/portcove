@@ -23,6 +23,8 @@ param(
     [string]$InstalledUpdateCandidatePath,
     [string]$InstalledUpdatePredecessorVersion,
     [switch]$RendererUpdate,
+    [ValidateSet('official', 'embedded')]
+    [string]$RendererTransport = 'official',
     [ValidateSet("", "post-spawn-verification")]
     [string]$TestFault = ""
 )
@@ -663,7 +665,11 @@ try {
                 Write-InstallerEvidence "driver_host_baseline_recorded"
             }
             $driverPreflight = Join-Path $runRoot "driver-preflight-baseline"
-            & node (Join-Path $PSScriptRoot "../apps/desktop/scripts/desktop-test.mjs") --app $application --output $driverPreflight --scenario empty-library --port 45870
+            if ($RendererTransport -eq 'embedded') {
+                & node (Join-Path $PSScriptRoot "../apps/desktop/scripts/desktop-windows-embedded-preflight.mjs") --app $application --output $driverPreflight
+            } else {
+                & node (Join-Path $PSScriptRoot "../apps/desktop/scripts/desktop-test.mjs") --app $application --output $driverPreflight --scenario empty-library --port 45870
+            }
             if ($LASTEXITCODE -ne 0) { throw "Installed predecessor WebDriver baseline preflight failed" }
             if ($evidence) { $evidence.driver_preflight_baseline = "passed"; Write-InstallerEvidence "driver_preflight_baseline_passed" }
         }
@@ -786,7 +792,11 @@ try {
             $env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_HELPER_PROCESS = $helperMarker
             $env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_RELAUNCH_PROCESS = $relaunchMarker
             $driverPreflight = Join-Path $runRoot "driver-preflight-fixture-env"
-            & node (Join-Path $PSScriptRoot "../apps/desktop/scripts/desktop-test.mjs") --app $application --output $driverPreflight --scenario empty-library --port 45872
+            if ($RendererTransport -eq 'embedded') {
+                & node (Join-Path $PSScriptRoot "../apps/desktop/scripts/desktop-windows-embedded-preflight.mjs") --app $application --output $driverPreflight
+            } else {
+                & node (Join-Path $PSScriptRoot "../apps/desktop/scripts/desktop-test.mjs") --app $application --output $driverPreflight --scenario empty-library --port 45872
+            }
             if ($LASTEXITCODE -ne 0) { throw "Installed predecessor WebDriver fixture-environment preflight failed" }
             if ($evidence) { $evidence.driver_preflight_fixture_env = "passed"; Write-InstallerEvidence "driver_preflight_fixture_env_passed" }
             $candidateExecutableHash = (Get-FileHash -LiteralPath $ExpectedExecutablePath -Algorithm SHA256).Hash.ToLowerInvariant()
@@ -802,6 +812,7 @@ try {
                 "--candidate-executable-sha", $candidateExecutableHash,
                 "--candidate-version", $ExpectedVersion
             )
+            $rendererArguments += @('--transport', $RendererTransport)
             & node @rendererArguments
             if ($LASTEXITCODE -ne 0) { throw "Installed Windows renderer update qualification failed" }
             $rendererReport = Get-Content -LiteralPath (Join-Path $rendererEvidence "renderer-update-evidence.json") -Raw | ConvertFrom-Json
