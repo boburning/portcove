@@ -277,7 +277,7 @@ future evidence remain in the issues.
 
 ## Brand art
 
-The crab mascot and dimensional display wordmark follow the provenance, placement, accessibility, and derivative rules in [BRAND-ASSETS.md](BRAND-ASSETS.md). Brand art is deliberately rarer and more expressive than the working interface: use it to establish identity at startup, in an empty library, in About, or at a meaningful milestone—not as wallpaper for operational controls.
+The approved brand direction is an expressive 2D illustrated crab, custom `Portcove` wordmark, and simplified compact symbol using the original N64-inspired red, cobalt blue, emerald green, and golden yellow. [BRAND-ASSETS.md](BRAND-ASSETS.md) separates that target from the V2 raster assets still shipped. Brand art is deliberately rarer and more expressive than the restrained working interface: use it to establish identity at startup, in an empty library, or in About, not as wallpaper for operational controls. Game artwork remains separate and visually important.
 
 ## Approved Public beta redesign contract
 
