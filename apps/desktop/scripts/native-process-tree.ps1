@@ -1,5 +1,4 @@
-function Get-OwnedNativeProcessTree([int]$DriverProcessId, [string]$ApplicationPath) {
-    $applicationFull = (Resolve-Path -LiteralPath $ApplicationPath).Path
+function Get-OwnedDriverProcessTree([int]$DriverProcessId) {
     $processes = @(Get-CimInstance Win32_Process)
     $byId = @{}
     foreach ($entry in $processes) { $byId[[int]$entry.ProcessId] = $entry }
@@ -20,16 +19,32 @@ function Get-OwnedNativeProcessTree([int]$DriverProcessId, [string]$ApplicationP
         }
         return $false
     }
-    $applications = @($processes | Where-Object {
+    $descendants = @($processes | Where-Object { Test-Descendant $_ $DriverProcessId })
+    return [pscustomobject]@{ driver = $byId[$DriverProcessId]; processes = $descendants }
+}
+
+function Get-OwnedNativeProcessTree([int]$DriverProcessId, [string]$ApplicationPath) {
+    $applicationFull = (Resolve-Path -LiteralPath $ApplicationPath).Path
+    $tree = Get-OwnedDriverProcessTree $DriverProcessId
+    $applications = @($tree.processes | Where-Object {
         $_.ExecutablePath -and [string]::Equals($_.ExecutablePath, $applicationFull, [StringComparison]::OrdinalIgnoreCase) -and
-        (Test-Descendant $_ $DriverProcessId)
+        $_.CreationDate
     })
     if ($applications.Count -ne 1) {
-        $descendants = @($processes | Where-Object { Test-Descendant $_ $DriverProcessId })
+        $descendants = @($tree.processes)
         $missingPaths = @($descendants | Where-Object { -not $_.ExecutablePath }).Count
         throw "Expected exactly one owned application descended from the selected driver. Found $($applications.Count); descendants=$($descendants.Count); missing_image_paths=$missingPaths."
     }
     $application = $applications[0]
-    $children = @($processes | Where-Object { Test-Descendant $_ ([int]$application.ProcessId) })
-    return [pscustomobject]@{ driver = $byId[$DriverProcessId]; application = $application; processes = @($application) + $children }
+    # Select the application's subtree from the already identity-checked driver tree.
+    $ownedIds = [Collections.Generic.HashSet[int]]::new()
+    [void]$ownedIds.Add([int]$application.ProcessId)
+    do {
+        $added = $false
+        foreach ($entry in $tree.processes) {
+            if ($ownedIds.Contains([int]$entry.ParentProcessId) -and $ownedIds.Add([int]$entry.ProcessId)) { $added = $true }
+        }
+    } while ($added)
+    $children = @($tree.processes | Where-Object { $_.ProcessId -ne $application.ProcessId -and $ownedIds.Contains([int]$_.ProcessId) })
+    return [pscustomobject]@{ driver = $tree.driver; application = $application; processes = @($application) + $children }
 }

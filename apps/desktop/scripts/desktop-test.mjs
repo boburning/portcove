@@ -26,6 +26,7 @@ import {
   resolveDesktopSelection,
 } from "../../../scripts/desktop-scenarios.mjs";
 import { acquireNativeSessionLock } from "../../../scripts/native-session-lock.mjs";
+import { observeStartup } from "./desktop-startup-observation.mjs";
 
 const root = fileURLToPath(new URL("../../..", import.meta.url));
 const { values } = parseArgs({
@@ -99,7 +100,12 @@ inputs.push(await fileIdentity(fileURLToPath(import.meta.url)));
 inputs.push(
   await fileIdentity(fileURLToPath(new URL("./desktop-controller-test.mjs", import.meta.url))),
 );
-for (const name of ["native-session.ps1", "native-process-tree.ps1"])
+for (const name of [
+  "native-session.ps1",
+  "native-process-tree.ps1",
+  "native-startup-observation.ps1",
+  "desktop-startup-observation.mjs",
+])
   inputs.push(await fileIdentity(fileURLToPath(new URL(name, import.meta.url))));
 inputs.push(await fileIdentity(fileURLToPath(new URL("desktop-reload-test.mjs", import.meta.url))));
 inputs.push(
@@ -213,6 +219,7 @@ const scenarioOutcomes = new Map();
 let driver;
 let browser;
 let driverLog = "";
+let startupAttempt = 0;
 const nativeLock = await acquireNativeSessionLock({
   workspace: root,
   profile: selection.profile,
@@ -741,17 +748,39 @@ async function scenario(name, action) {
 }
 
 async function connect() {
-  browser = await new Builder()
-    .disableEnvironmentOverrides()
-    .usingServer(`http://127.0.0.1:${port}`)
-    .withCapabilities({
-      browserName: process.platform === "win32" ? "webview2" : "wry",
-      "tauri:options": {
-        application: values.app,
-        ...(process.platform === "win32" ? { webviewOptions: { userDataFolder: profile } } : {}),
-      },
-    })
-    .build();
+  const finishObservation =
+    process.platform === "win32"
+      ? await observeStartup({
+          driver,
+          driverPath: values.driver,
+          profile,
+          output,
+          attempt: startupAttempt++,
+        })
+      : null;
+  try {
+    browser = await new Builder()
+      .disableEnvironmentOverrides()
+      .usingServer(`http://127.0.0.1:${port}`)
+      .withCapabilities({
+        browserName: process.platform === "win32" ? "webview2" : "wry",
+        "tauri:options": {
+          application: values.app,
+          ...(process.platform === "win32" ? { webviewOptions: { userDataFolder: profile } } : {}),
+        },
+      })
+      .build();
+  } finally {
+    if (finishObservation) {
+      const observation = await finishObservation();
+      artifacts.push(...observation.artifacts);
+      setupChecks.push({
+        scenario: "session-startup-observation",
+        outcome: observation.successful ? "passed" : "failed",
+      });
+      if (!observation.successful) process.exitCode = 1;
+    }
+  }
   await browser.manage().setTimeouts({ script: 15_000 });
   const readyRoot = selection.prerequisites.includes("design-compatibility-fixture")
     ? ".design-compatibility-fixture"
