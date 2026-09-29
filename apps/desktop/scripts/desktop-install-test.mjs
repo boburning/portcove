@@ -28,7 +28,7 @@ function readStagedLayout(version) {
   const buttons = [...document.querySelectorAll(".primary-actions button")];
   const play = buttons.find((item) => item.textContent?.trim() === "Play");
   const activate = buttons.find(
-    (item) => item.textContent?.trim() === `Activate update · ${version}`,
+    (item) => item.textContent?.trim() === `Use update · ${version}`,
   );
   const rect = (element) => {
     const { left, right, top, bottom } = element.getBoundingClientRect();
@@ -446,10 +446,10 @@ export async function installScenarios({
           assert.equal(layout.play.enabled, true, JSON.stringify(layout));
           assert.equal(layout.activate.enabled, true, JSON.stringify(layout));
           assert.equal(layout.documentOverflow, false, JSON.stringify(layout));
-          assert.equal(layout.state, "Ready to play · update downloaded");
+          assert.equal(layout.state, "Installed · update saved for later");
           assert.equal(
             layout.reason,
-            `Play the installed version or activate staged version ${version}.`,
+            `Play the installed version or use the saved update ${version}.`,
           );
           assert.ok(layout.activate.left >= 0 && layout.activate.right <= width + 1);
           assert.ok(layout.play.left >= 0 && layout.play.right <= width + 1);
@@ -538,7 +538,7 @@ export async function installScenarios({
     assert.equal(staged.staged.artifact.sha256, published.sha256);
     assert.equal(staged.previous, null);
     const activation = await browser.wait(
-      until.elementLocated(button(`Activate update · ${nextVersion}`)),
+      until.elementLocated(button(`Use update · ${nextVersion}`)),
       15_000,
     );
     const play = await browser.wait(until.elementLocated(button("Play")), 15_000);
