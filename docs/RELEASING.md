@@ -50,6 +50,14 @@ candidate relaunch and reconciliation, then uninstalls with data
 preservation. The fixture prepares only the later apply intent externally;
 normal renderer download and restart, a non-administrator VM prompt sequence,
 production signing, and publication require separate evidence.
+Windows native session creation retains a bounded, one-second sampled inventory
+of the selected driver and its creation-time-checked descendants, executable
+versions, presence of remote-debugging arguments, and the isolated profile's
+`DevToolsActivePort` presence. The observer starts before session creation and
+stops afterward, including on failure; it does not change WebView policy or
+launch or terminate the application. Sampling can miss short-lived processes.
+It does not report attached application exit codes or application stderr, and
+an absent endpoint alone does not establish why session creation failed.
 Linux builds a disposable test-signed TUF repository, embeds its public trust and
 local repository URLs in a qualification-only 0.1.0 AppImage, and exercises the
 packaged helper through an interrupted candidate copy, GUI-independent command
