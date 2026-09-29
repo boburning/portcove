@@ -66,6 +66,7 @@ internal static class ContractTests
     {
         CheckRuntimeSelection();
         CheckPersonalLibrary();
+        CheckGuidedSetup();
         var managedStatus = Json.Parse("{\"active\":null}");
         Check(Json.OptionalObjectField(managedStatus, "external_runtime") == null,
             "absent external runtime is a valid managed status");
@@ -418,6 +419,37 @@ internal static class ContractTests
         var review = PersonalLibrary.PriorVisibleEntries(new[] { prior, foreign, currentGame, hidden }, plugin, initial);
         Check(review.Count == 1 && review[0].GameId == prior.GameId && !review[0].Hidden,
             "migration review identifies only visible prior Portcove entries and preserves current and foreign games");
+    }
+
+    private static void CheckGuidedSetup()
+    {
+        var catalog = Json.Parse("{\"source_profile\":\"game-source\",\"bios_source_profile\":null,\"release\":{\"provider\":\"github\"}}");
+        var missing = Json.Parse("{\"active\":null,\"external_runtime\":null,\"readiness\":{\"launchable\":false,\"pending_setup\":false,\"blockers\":[\"missing_source\"]},\"port_actions\":[{\"action\":\"install\",\"availability\":\"waiting\",\"reason\":\"missing_source\"}]}");
+        Check(GuidedSetup.Choose(missing, catalog, "", "").Kind == GuidedStepKind.ChooseSource,
+            "missing original game files lead to file selection rather than an unready install");
+        Check(GuidedSetup.Choose(missing, catalog, @"C:\owned\game.rom", "").Kind == GuidedStepKind.ValidateSources,
+            "selected original files lead to explicit core validation before installation");
+        var noSourceProfile = Json.Parse("{\"source_profile\":null,\"bios_source_profile\":null,\"release\":{\"provider\":\"github\"}}");
+        Check(GuidedSetup.Choose(missing, noSourceProfile, @"C:\owned\game.rom", "").Kind == GuidedStepKind.ReviewProblem,
+            "unrequested source input is not sent to a mutation");
+        var available = Json.Parse("{\"active\":null,\"external_runtime\":null,\"readiness\":{\"launchable\":false,\"pending_setup\":false,\"blockers\":[]},\"port_actions\":[{\"action\":\"install\",\"availability\":\"allowed\",\"reason\":\"available\"}]}");
+        Check(GuidedSetup.Choose(available, catalog, "", "").Kind == GuidedStepKind.Install,
+            "core-allowed uninstalled game can proceed to reviewed install");
+        var held = Json.Parse("{\"active\":null,\"external_runtime\":null,\"readiness\":{\"launchable\":false,\"pending_setup\":false,\"blockers\":[]},\"port_actions\":[{\"action\":\"install\",\"availability\":\"held\",\"reason\":\"unsupported_platform\"}]}");
+        Check(GuidedSetup.Choose(held, catalog, "", "").Kind == GuidedStepKind.ReviewProblem,
+            "a held core install cannot become the primary mutation");
+        var needsSetup = Json.Parse("{\"active\":{\"version\":\"1\"},\"external_runtime\":null,\"readiness\":{\"launchable\":false,\"pending_setup\":true,\"blockers\":[\"preparation_required\"]}}");
+        Check(GuidedSetup.Choose(needsSetup, catalog, "", "").Kind == GuidedStepKind.FinishSetup,
+            "an installed game with pending private preparation leads to reviewed setup");
+        var playable = Json.Parse("{\"active\":{\"version\":\"1\"},\"external_runtime\":null,\"readiness\":{\"launchable\":true,\"pending_setup\":false,\"blockers\":[]}}");
+        Check(GuidedSetup.Choose(playable, catalog, "", "").Kind == GuidedStepKind.Play,
+            "a core-ready installed game leads to Play instead of updating or reinstalling");
+        var launchHeld = Json.Parse("{\"active\":{\"version\":\"1\"},\"external_runtime\":null,\"readiness\":{\"launchable\":true,\"pending_setup\":false,\"blockers\":[]},\"port_actions\":[{\"action\":\"launch\",\"availability\":\"held\",\"reason\":\"invalid_installation\"}]}");
+        Check(GuidedSetup.Choose(launchHeld, catalog, "", "").Kind == GuidedStepKind.ReviewProblem,
+            "a held core launch cannot be advertised as Play even when readiness is otherwise launchable");
+        var external = Json.Parse("{\"source_profile\":null,\"bios_source_profile\":null,\"release\":{\"provider\":\"user-prepared\"}}");
+        Check(GuidedSetup.Choose(missing, external, "", "").Kind == GuidedStepKind.ReviewProblem,
+            "user-prepared runtime keeps its separate registration handoff");
     }
 
     private static async Task ConsumerMeasurements()
