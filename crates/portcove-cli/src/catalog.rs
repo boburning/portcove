@@ -9,8 +9,10 @@ use crate::{
 #[derive(Debug, Args)]
 #[group(required = true, multiple = false)]
 pub(crate) struct CatalogSourceArgs {
+    /// Read a signed catalog from a local file.
     #[arg(long)]
     file: Option<PathBuf>,
+    /// Download a signed catalog from an explicit HTTPS URL.
     #[arg(long)]
     url: Option<String>,
 }
@@ -26,15 +28,14 @@ impl CatalogSourceArgs {
 
 #[derive(Debug, Subcommand)]
 pub(crate) enum CatalogCommand {
+    /// List ports in the effective trusted catalog.
     List,
+    /// Export the full effective catalog for machine consumers.
     Export,
-    Show {
-        port_id: String,
-    },
+    /// Show one port's releases, source profiles, and requirements.
+    Show { port_id: String },
     /// Check an inert requirements file against installed engine template versions.
-    CheckCapabilities {
-        file: PathBuf,
-    },
+    CheckCapabilities { file: PathBuf },
     /// Interpret an inert upstream observation against the embedded catalog.
     InspectObservation {
         port_id: String,
@@ -50,8 +51,10 @@ pub(crate) enum CatalogCommand {
         #[arg(long)]
         yes: bool,
     },
+    /// Revoke a trusted publisher key after reviewing the current state.
     RevokeKey {
         key_id: String,
+        /// Require the current trust state to match the reviewed fingerprint.
         #[arg(long)]
         expected_state: String,
     },
@@ -64,14 +67,17 @@ pub(crate) enum CatalogCommand {
         #[arg(long, requires = "apply")]
         expected_plan: Option<String>,
     },
+    /// Return to the previously trusted catalog after reviewing state.
     Rollback {
         #[arg(long)]
         expected_state: String,
     },
+    /// Activate the last verified cached catalog after reviewing state.
     UseCached {
         #[arg(long)]
         expected_state: String,
     },
+    /// Use the built-in catalog after reviewing state.
     UseEmbedded {
         #[arg(long)]
         expected_state: String,

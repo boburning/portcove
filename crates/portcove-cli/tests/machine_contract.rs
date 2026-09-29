@@ -75,6 +75,41 @@ fn consequential_help_explains_actions_and_review_arguments() {
 }
 
 #[test]
+fn first_use_help_identifies_player_and_external_client_routes() {
+    let root = Command::new(cli_binary()).arg("--help").output().unwrap();
+    assert!(root.status.success());
+    let root = std::str::from_utf8(&root.stdout).unwrap();
+    for phrase in [
+        "catalog list",
+        "plan PORT_ID",
+        "capabilities",
+        "schema export",
+        "--library",
+        "--jsonl",
+        "--non-interactive",
+        "Download and install a selected port release",
+    ] {
+        assert!(root.contains(phrase), "missing {phrase} in root help");
+    }
+    for (args, phrase) in [
+        (
+            &["source", "remove", "--help"][..],
+            "without deleting its file",
+        ),
+        (
+            &["install", "--help"][..],
+            "without making it the current installed version",
+        ),
+        (&["backup", "restore", "--help"][..], "managed saved data"),
+    ] {
+        let output = Command::new(cli_binary()).args(args).output().unwrap();
+        assert!(output.status.success(), "{args:?}: {output:?}");
+        let help = std::str::from_utf8(&output.stdout).unwrap();
+        assert!(help.contains(phrase), "{args:?}: {help}");
+    }
+}
+
+#[test]
 fn cli_guide_read_only_examples_run_against_an_empty_fixture() {
     let temporary = tempfile::tempdir().unwrap();
     let library = temporary.path().join("library");
