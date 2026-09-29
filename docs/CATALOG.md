@@ -314,8 +314,10 @@ definition otherwise matches that retained definition and keeps all of its old
 mutable paths. An addition overlapping a recorded immutable file or naming an
 executable companion is rejected. The retained definition still owns source and
 launch behavior, while newly admitted persistent files participate in collection,
-restore, activation and rollback. Other catalog changes do not silently expand
-an old installation's mutable surface.
+restore, activation, interrupted-activation recovery, rollback and game-output
+relocation. Other catalog changes do not silently expand an old installation's
+mutable surface. Whole-library export and import retain their separately reviewed
+historical contract and can still reject an older install with new sidecars.
 
 Managed PS1 launches regenerate `.portcove-psx-runtime.toml` from the verified
 `game.toml` template and current verified disc paths for both source modes.

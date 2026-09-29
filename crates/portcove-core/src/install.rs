@@ -1081,20 +1081,6 @@ impl Installer {
         retained_catalog_for_install(install)
     }
 
-    pub(crate) fn qualification_for_install(
-        &self,
-        install: &InstallRecord,
-        fallback: &crate::Catalog,
-        platform: Platform,
-    ) -> Result<InstallQualification> {
-        let retained = self.retained_catalog(install)?;
-        InstallQualification::from_catalog(
-            retained.as_ref().unwrap_or(fallback),
-            &install.port_id,
-            platform,
-        )
-    }
-
     fn retained_qualification(
         &self,
         install: &InstallRecord,

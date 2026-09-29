@@ -4387,7 +4387,7 @@ impl PortcoveService {
         Ok(candidate)
     }
 
-    fn installed_mutability_qualification(
+    pub(crate) fn installed_mutability_qualification(
         &self,
         install: &InstallRecord,
     ) -> Result<InstallQualification> {
@@ -10985,6 +10985,35 @@ fn main() {
                 .join("new-settings.ini")
                 .exists()
         );
+    }
+
+    #[test]
+    fn interrupted_activation_recovers_with_newly_admitted_retained_preferences() {
+        const PORT: &str = "zelda64-recomp";
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let active = register_zelda_install(&library, "v1", true);
+        let staged = register_zelda_install(&library, "v2", false);
+        fs::write(active.join("new-settings.ini"), b"player preference").unwrap();
+        fs::write(active.join(LAUNCH_MARKER), b"1").unwrap();
+        let service = service_with_added_persistent_path(library.clone(), "v3", "new-settings.ini");
+        let store = OperationStore::new(library.clone());
+        let mut operation = LifecycleOperation::new(
+            "recover-additive-persistence",
+            LifecycleOperationKind::Activate,
+            PORT,
+        );
+        operation.install = Some(service.status(PORT).unwrap().staged.unwrap());
+        store.put(&mut operation).unwrap();
+
+        service.recover_activation(&store, &mut operation).unwrap();
+        assert_eq!(service.status(PORT).unwrap().active.unwrap().path, staged);
+        assert_eq!(
+            fs::read(staged.join("new-settings.ini")).unwrap(),
+            b"player preference"
+        );
+        assert!(service.verify(PORT).unwrap().valid);
+        assert!(store.all().unwrap().is_empty());
     }
 
     #[test]
