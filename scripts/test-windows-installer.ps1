@@ -685,7 +685,8 @@ try {
         }
         $recoveryVerified = Invoke-JournaledProcess -Role "installed_update_recovery_verified" -Executable $application -Arguments @("--application-update-recovery", "status")
         $recoveryVerifiedText = [IO.File]::ReadAllText((Join-Path $runRoot "installed-update-recovery-verified-stage.stdout.log"))
-        $repairedStaging = Get-Content -LiteralPath $stagingPath -Raw | ConvertFrom-Json
+        $repairedStagingText = Get-Content -LiteralPath $stagingPath -Raw
+        $repairedStaging = $repairedStagingText | ConvertFrom-Json
         $predecessorRegistration = @(Get-UninstallEntries $installRoot)
         if ($recoveryVerified.ExitCode -ne 0 -or -not $recoveryVerifiedText.Contains("coordination state is healthy") -or
             $repairedStaging.phase -ne "empty" -or $repairedStaging.candidate -or $repairedStaging.previous_candidate -or
@@ -698,11 +699,18 @@ try {
         }
         if ($evidence) {
             $evidence.installed_recovery = [ordered]@{
+                invalid_journal_fixture = "not-json"
                 invalid_journal_sha256 = $invalidJournalHash
                 stray_payload_bytes = 1
                 status_exit_code = $recoveryStatus.ExitCode
+                status_stdout = $recoveryStatusText.Trim()
                 repair_exit_code = $recoveryRepair.ExitCode
+                repair_stdout = $recoveryRepairText.Trim()
                 healthy_status_exit_code = $recoveryVerified.ExitCode
+                healthy_status_stdout = $recoveryVerifiedText.Trim()
+                repaired_journal_sha256 = (Get-FileHash -LiteralPath $stagingPath -Algorithm SHA256).Hash.ToLowerInvariant()
+                repaired_journal_base64 = [Convert]::ToBase64String([IO.File]::ReadAllBytes($stagingPath))
+                repaired_journal = $repairedStaging
                 predecessor_sha256 = $previousHash
                 predecessor_registration_version = $predecessorRegistration[0].DisplayVersion
                 sentinel_sha256 = $sentinelHash.ToLowerInvariant()
