@@ -257,6 +257,14 @@ namespace Portcove.ReferenceClient
                     (launch != null && launch.Availability != "allowed"))
                     throw new InvalidOperationException("Portcove no longer reports a playable installation. Refresh readiness before playing.");
                 var installPath = Json.Text(installation, "path");
+                // The modal is closed while the reads await. Check the currently accepted
+                // connection after the final await, before changing Playnite metadata.
+                var current = await plugin.Connect();
+                if (current.LibraryId != cli.LibraryId ||
+                    !string.Equals(current.LibraryRoot, cli.LibraryRoot, StringComparison.OrdinalIgnoreCase) ||
+                    !string.Equals(current.Executable, cli.Executable, StringComparison.OrdinalIgnoreCase) ||
+                    Identity.Port(game.GameId, current.LibraryId) != port)
+                    throw new InvalidOperationException("The selected Portcove runtime or library changed. Refresh before playing.");
                 var live = plugin.PlayniteApi.Database.Games.Get(game.Id);
                 if (live == null || live.PluginId != plugin.Id || live.GameId != game.GameId)
                     throw new InvalidOperationException("The selected Playnite game changed. Refresh the library before playing.");
