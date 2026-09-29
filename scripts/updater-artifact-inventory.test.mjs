@@ -273,11 +273,6 @@ test("manual rehearsal retains the complete matrix without production credential
   assert.equal((lifecycle.match(/if \(\$RendererTransport -eq 'embedded'\)/g) ?? []).length, 2);
   assert.equal((lifecycle.match(/desktop-windows-embedded-preflight\.mjs/g) ?? []).length, 2);
   assert.match(lifecycle, /\$rendererArguments \+= @\('--transport', \$RendererTransport\)/);
-  assert.match(
-    rehearsal,
-    /--bundles", "nsis"[^\n]*"application-update-qualification,native-compatibility-qualification"/,
-  );
-  assert.match(rehearsal, /-RendererUpdate -RendererTransport embedded/);
   assert.match(lifecycle, /installed_renderer_reconciled/);
   assert.match(lifecycle, /PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_RELAUNCH_EXIT = "1"/);
   assert.match(
@@ -291,6 +286,11 @@ test("manual rehearsal retains the complete matrix without production credential
     new URL("./rehearse-updater-artifacts.ps1", import.meta.url),
     "utf8",
   );
+  assert.match(
+    rehearsal,
+    /--bundles", "nsis"[^\n]*"application-update-qualification,native-compatibility-qualification"/,
+  );
+  assert.match(rehearsal, /-RendererUpdate -RendererTransport embedded/);
   // A DMG-only Tauri build creates the bootstrap disk image but does not return
   // an app bundle target for updater archive/signature generation.
   assert.match(rehearsal, /else \{ "app,dmg" \}/);
