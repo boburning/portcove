@@ -36,9 +36,12 @@ embeds its public trust and local repository URLs in a qualification-only
 predecessor NSIS package, and uses the installed predecessor to select the signed
 candidate and stage fixture-supplied installer bytes through the desktop
 check-and-stage operation. The harness first requires a one-byte truncated
-installer to fail with empty staging, then invokes the installed application's
-passive update helper,
-observe candidate relaunch and reconciliation, then uninstall with data
+installer to fail with empty staging. It then injects a malformed staging
+journal and stray payload, and requires the installed executable's
+GUI-independent status and targeted staging repair commands to preserve the
+registered predecessor and library marker. The renderer then downloads a fresh
+candidate, invokes the installed application's passive update helper, observes
+candidate relaunch and reconciliation, then uninstalls with data
 preservation. The fixture prepares only the later apply intent externally;
 normal renderer download and restart, a non-administrator VM prompt sequence,
 production signing, and publication require separate evidence.

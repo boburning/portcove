@@ -351,14 +351,34 @@ function Stop-JournaledProcess($Run, $Process, [string]$Status, [string]$Reason)
 
 function Start-JournaledProcess([string]$Role, [string]$Executable, [object[]]$Arguments, [string]$AllowedRelocationRoot = "") {
     $exact = [System.IO.Path]::GetFullPath($Executable)
+    $recoveryCommand = $Role.StartsWith("installed_update_recovery_", [StringComparison]::Ordinal)
     $requested = [DateTime]::UtcNow
     $run = [ordered]@{ id = [System.Guid]::NewGuid().ToString("N"); role = $Role; requested_at = $requested.ToString("o"); requested_at_filetime = $requested.ToFileTimeUtc(); executable_path = $exact; executable_sha256 = (Get-FileHash -LiteralPath $exact -Algorithm SHA256).Hash.ToLowerInvariant(); arguments = @($Arguments); status = "launch_pending"; pid = $null; start_time = $null; start_time_filetime = $null; exit_code = $null; exit_observation = $null }
+    $outputTask = $null
+    $errorTask = $null
     if ($evidence) { $evidence.process_runs += $run; Write-InstallerEvidence $evidence.phase }
-    if ($Role -in @("installed_update_helper", "installed_update_selection_stage", "installed_update_truncated_stage")) {
-        $outputName = if ($Role -eq "installed_update_helper") { "installed-update-helper" } else { $Role.Replace('_', '-') }
+    if ($Role -in @("installed_update_helper", "installed_update_selection_stage", "installed_update_truncated_stage",
+            "installed_update_recovery_status", "installed_update_recovery_repair", "installed_update_recovery_verified")) {
+        $outputName = if ($Role -eq "installed_update_helper") { "installed-update-helper" }
+            elseif ($recoveryCommand) { "$($Role.Replace('_', '-'))-stage" }
+            else { $Role.Replace('_', '-') }
         $run.output_relative = "$outputName.stdout.log"
         $run.error_relative = "$outputName.stderr.log"
-        $process = Start-Process -FilePath $exact -ArgumentList $Arguments -PassThru -WindowStyle Hidden -RedirectStandardOutput (Join-Path $runRoot $run.output_relative) -RedirectStandardError (Join-Path $runRoot $run.error_relative)
+        if ($recoveryCommand) {
+            $startInfo = [Diagnostics.ProcessStartInfo]::new($exact)
+            $startInfo.UseShellExecute = $false
+            $startInfo.CreateNoWindow = $true
+            $startInfo.RedirectStandardOutput = $true
+            $startInfo.RedirectStandardError = $true
+            foreach ($argument in $Arguments) { $startInfo.ArgumentList.Add([string]$argument) }
+            $process = [Diagnostics.Process]::new()
+            $process.StartInfo = $startInfo
+            if (-not $process.Start()) { throw "$Role did not start" }
+            $outputTask = $process.StandardOutput.ReadToEndAsync()
+            $errorTask = $process.StandardError.ReadToEndAsync()
+        } else {
+            $process = Start-Process -FilePath $exact -ArgumentList $Arguments -PassThru -WindowStyle Hidden -RedirectStandardOutput (Join-Path $runRoot $run.output_relative) -RedirectStandardError (Join-Path $runRoot $run.error_relative)
+        }
     } else {
         $process = Start-Process -FilePath $exact -ArgumentList $Arguments -PassThru -WindowStyle Hidden
     }
@@ -415,7 +435,7 @@ function Start-JournaledProcess([string]$Role, [string]$Executable, [object[]]$A
             $run.image_observation = "Observed the exact hash-journaled image or its exact session-owned temporary copy"
             if ($evidence) { Write-InstallerEvidence $evidence.phase }
         }
-        [pscustomobject]@{ process = $process; run = $run }
+        [pscustomobject]@{ process = $process; run = $run; output_task = $outputTask; error_task = $errorTask }
     } catch {
         $failure = $_.Exception.Message
         Stop-JournaledProcess $run $process "verification_failed" "Post-spawn verification failed: $failure"
@@ -509,6 +529,10 @@ function Invoke-JournaledProcess([string]$Role, [string]$Executable, [object[]]$
             throw "$Role did not exit within $ProcessTimeoutSeconds seconds"
         }
         Complete-JournaledProcess $launch.run $launch.process "exit_observed"
+        if ($launch.output_task) {
+            [IO.File]::WriteAllText((Join-Path $runRoot $launch.run.output_relative), $launch.output_task.GetAwaiter().GetResult())
+            [IO.File]::WriteAllText((Join-Path $runRoot $launch.run.error_relative), $launch.error_task.GetAwaiter().GetResult())
+        }
         if ($Role -eq "candidate_uninstaller" -and $launch.process.ExitCode -eq 0) {
             Wait-JournaledUninstallerChild $launch.run $AllowedRelocationRoot $deadline
         }
@@ -641,6 +665,51 @@ try {
         }
         if ($evidence) { $evidence.installed_truncated_stage = [ordered]@{ exit_code = $truncated.ExitCode; staging_empty = $true; predecessor_preserved = $true; sentinel_preserved = $true } }
         Write-InstallerEvidence "installed_truncated_stage_rejected"
+
+        # Exercise recovery through the actual installed executable before the
+        # renderer downloads a fresh candidate. The bad journal and stray byte
+        # model interrupted local staging, not a trusted installer.
+        [IO.File]::WriteAllText($stagingPath, "not-json")
+        [IO.File]::WriteAllBytes($stagedPayloadPath, [byte[]]@(0))
+        $invalidJournalHash = (Get-FileHash -LiteralPath $stagingPath -Algorithm SHA256).Hash.ToLowerInvariant()
+        Write-InstallerEvidence "installed_recovery_invalid_state"
+        $recoveryStatus = Invoke-JournaledProcess -Role "installed_update_recovery_status" -Executable $application -Arguments @("--application-update-recovery", "status")
+        $recoveryStatusText = [IO.File]::ReadAllText((Join-Path $runRoot "installed-update-recovery-status-stage.stdout.log"))
+        if ($recoveryStatus.ExitCode -ne 1 -or -not $recoveryStatusText.Contains("repair staging")) {
+            throw "Installed recovery status did not identify the invalid staging journal"
+        }
+        $recoveryRepair = Invoke-JournaledProcess -Role "installed_update_recovery_repair" -Executable $application -Arguments @("--application-update-recovery", "repair", "staging")
+        $recoveryRepairText = [IO.File]::ReadAllText((Join-Path $runRoot "installed-update-recovery-repair-stage.stdout.log"))
+        if ($recoveryRepair.ExitCode -ne 0 -or -not $recoveryRepairText.Contains("Repaired application update staging state.")) {
+            throw "Installed recovery did not repair only the invalid staging state"
+        }
+        $recoveryVerified = Invoke-JournaledProcess -Role "installed_update_recovery_verified" -Executable $application -Arguments @("--application-update-recovery", "status")
+        $recoveryVerifiedText = [IO.File]::ReadAllText((Join-Path $runRoot "installed-update-recovery-verified-stage.stdout.log"))
+        $repairedStaging = Get-Content -LiteralPath $stagingPath -Raw | ConvertFrom-Json
+        $predecessorRegistration = @(Get-UninstallEntries $installRoot)
+        if ($recoveryVerified.ExitCode -ne 0 -or -not $recoveryVerifiedText.Contains("coordination state is healthy") -or
+            $repairedStaging.phase -ne "empty" -or $repairedStaging.candidate -or $repairedStaging.previous_candidate -or
+            [IO.File]::Exists($stagedPayloadPath) -or [IO.File]::Exists((Join-Path $updateRoot ".candidate.payload.incoming")) -or
+            [IO.File]::Exists((Join-Path $updateRoot "apply.json")) -or
+            (Get-FileHash -LiteralPath $application -Algorithm SHA256).Hash.ToLowerInvariant() -ne $previousHash -or
+            (Get-FileHash -LiteralPath $sentinel -Algorithm SHA256).Hash -ne $sentinelHash -or
+            $predecessorRegistration.Count -ne 1 -or $predecessorRegistration[0].DisplayVersion -ne $InstalledUpdatePredecessorVersion) {
+            throw "Installed recovery changed the predecessor, registration, user data, or left invalid update state"
+        }
+        if ($evidence) {
+            $evidence.installed_recovery = [ordered]@{
+                invalid_journal_sha256 = $invalidJournalHash
+                stray_payload_bytes = 1
+                status_exit_code = $recoveryStatus.ExitCode
+                repair_exit_code = $recoveryRepair.ExitCode
+                healthy_status_exit_code = $recoveryVerified.ExitCode
+                predecessor_sha256 = $previousHash
+                predecessor_registration_version = $predecessorRegistration[0].DisplayVersion
+                sentinel_sha256 = $sentinelHash.ToLowerInvariant()
+                staging_empty = $true
+            }
+        }
+        Write-InstallerEvidence "installed_recovery_verified"
 
         if ($RendererUpdate) {
             $rendererRoot = Join-Path $runRoot "renderer-qualification"
