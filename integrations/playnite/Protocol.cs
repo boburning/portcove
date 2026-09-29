@@ -409,6 +409,53 @@ namespace Portcove.ReferenceClient
             "\nPortcove requires durable proof that the owned preparation process tree stopped before cleanup.";
     }
 
+    internal sealed class ManagedRemovalReview
+    {
+        internal string PortId { get; private set; }
+        internal string[] ManagedPaths { get; private set; }
+        internal string PersistentDataPath { get; private set; }
+        internal string PreviewSha256 { get; private set; }
+
+        internal static ManagedRemovalReview Read(object value, string expectedPort)
+        {
+            var port = Json.Text(value, "port_id");
+            if (port != expectedPort)
+                throw new InvalidOperationException("The removal preview belongs to another game. Refresh before removing files.");
+            var paths = Json.Array(Json.Field(value, "managed_paths")).Select(item => item as string).ToArray();
+            if (paths.Length == 0 || paths.Any(string.IsNullOrWhiteSpace) ||
+                paths.Distinct(StringComparer.OrdinalIgnoreCase).Count() != paths.Length)
+                throw new InvalidOperationException("The removal preview has an empty or repeated managed path. Refresh before removing files.");
+            foreach (var path in paths) PublicCli.RequireAbsolute(path);
+            var preserved = Json.Text(value, "persistent_data_path");
+            PublicCli.RequireAbsolute(preserved);
+            if (!Json.Boolean(value, "persistent_data_will_be_preserved"))
+                throw new InvalidOperationException("Portcove cannot confirm that saved data will be preserved. Refusing removal.");
+            var fingerprint = Json.Text(value, "preview_sha256");
+            if (fingerprint.Length != 64 || fingerprint.Any(character =>
+                (character < '0' || character > '9') && (character < 'a' || character > 'f')))
+                throw new InvalidOperationException("The removal preview has an invalid fingerprint. Refresh before removing files.");
+            return new ManagedRemovalReview
+            {
+                PortId = port, ManagedPaths = paths, PersistentDataPath = preserved, PreviewSha256 = fingerprint
+            };
+        }
+
+        internal void RequireApplied(object result)
+        {
+            var removed = Json.Array(Json.Field(result, "removed")).Select(item => item as string).ToArray();
+            if (removed.Length != ManagedPaths.Length || removed.Any(string.IsNullOrWhiteSpace) ||
+                !new HashSet<string>(removed, StringComparer.OrdinalIgnoreCase).SetEquals(ManagedPaths))
+                throw new InvalidOperationException("The removal result differs from the reviewed paths. Refresh Portcove activity and status.");
+        }
+
+        internal string Confirmation(string name, string library) =>
+            "Remove Portcove's managed installed versions for " + name + "?" +
+            "\n\nLibrary: " + library + "\nManaged folders to remove:\n" + string.Join("\n", ManagedPaths) +
+            "\n\nSaved data kept at: " + PersistentDataPath +
+            "\nOriginal game files and backups are not in this managed-folder preview." +
+            "\n\nThis is game uninstallation. Hiding or removing a Playnite entry is a separate action.";
+    }
+
     internal static class Identity
     {
         internal static string Game(string library, string port) => Uri.EscapeDataString(library) + "/" + Uri.EscapeDataString(port);
@@ -541,7 +588,7 @@ namespace Portcove.ReferenceClient
 
     internal sealed class ProtocolStream
     {
-        internal const int Schema = 55;
+        internal const int Schema = 56;
         private static bool SupportedSchema(long version) => version >= 42 && version <= Schema;
         private readonly string command;
         private readonly Action<Dictionary<string, object>> progress;
@@ -568,7 +615,7 @@ namespace Portcove.ReferenceClient
             if (type == null || (type as string) == "result")
             {
                 if (!SupportedSchema(Json.Number(record, "schema_version")) || Json.Text(record, "command") != command)
-                    throw new InvalidOperationException("Unsupported Portcove response. This client requires API schema 42 through 55; install a matching CLI/client pair.");
+                    throw new InvalidOperationException("Unsupported Portcove response. This client requires API schema 42 through 56; install a matching CLI/client pair.");
                 Json.Boolean(record, "ok");
                 result = record;
                 return;
@@ -668,7 +715,7 @@ namespace Portcove.ReferenceClient
         {
             var schema = Json.Number(capabilities, "schema_version");
             if (!SupportedSchema(schema) || Json.Text(capabilities, "product") != "Portcove")
-                throw new InvalidOperationException("This reference client requires Portcove API schema 42 through 55. Select a compatible CLI or update the client.");
+                throw new InvalidOperationException("This reference client requires Portcove API schema 42 through 56. Select a compatible CLI or update the client.");
             if (requiredCapabilities == null || requiredCapabilities.Length == 0)
                 throw new InvalidOperationException("Select at least one Portcove consumer capability before negotiation.");
             var commands = Json.Array(Json.Field(capabilities, "commands")).OfType<string>().ToArray();
@@ -686,6 +733,7 @@ namespace Portcove.ReferenceClient
                     case ConsumerCapability.Lifecycle:
                         requiredCommands.UnionWith(new[] { "source", "status", "activity", "cancel", "doctor", "library.identity", "ensure", "update", "preparation" });
                         if (schema >= 48) requiredCommands.Add("preparation.cleanup");
+                        if (schema >= 56) requiredCommands.UnionWith(new[] { "remove.preview", "remove" });
                         break;
                     default:
                         throw new InvalidOperationException("Unknown Portcove consumer capability.");

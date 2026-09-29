@@ -44,6 +44,9 @@ namespace Portcove.ReferenceClient
         internal void Error(Exception error) => PlayniteApi.MainView.UIDispatcher.Invoke(() =>
             PlayniteApi.Dialogs.ShowErrorMessage(error.Message, "Portcove"));
         internal void OnUi(Action action) => PlayniteApi.MainView.UIDispatcher.Invoke(action);
+        internal bool ConfirmRemoval(string message) => PlayniteApi.MainView.UIDispatcher.Invoke(() =>
+            MessageBox.Show(message, "Review Portcove game removal", MessageBoxButton.OKCancel,
+                MessageBoxImage.Warning) == MessageBoxResult.OK);
 
         internal void RememberLaunch(string game, string request) => PlayniteApi.MainView.UIDispatcher.Invoke(() => settings.RememberLaunch(game, request));
         internal string RecentLaunch(string game) => PlayniteApi.MainView.UIDispatcher.Invoke(() =>
@@ -148,6 +151,10 @@ namespace Portcove.ReferenceClient
         {
             if (args.Game.PluginId == Id) yield return new ManagedInstall(this, args.Game);
         }
+        public override IEnumerable<UninstallController> GetUninstallActions(GetUninstallActionsArgs args)
+        {
+            if (args.Game.PluginId == Id) yield return new ManagedUninstall(this, args.Game);
+        }
         public override IEnumerable<GameMenuItem> GetGameMenuItems(GetGameMenuItemsArgs args)
         {
             if (args.Games.Count != 1 || args.Games[0].PluginId != Id) yield break;
@@ -188,6 +195,40 @@ namespace Portcove.ReferenceClient
                 else InvokeOnInstallationCancelled(new GameInstallationCancelledEventArgs());
             }
             catch (Exception error) { plugin.Error(error); InvokeOnInstallationCancelled(new GameInstallationCancelledEventArgs()); }
+        }
+    }
+
+    internal sealed class ManagedUninstall : UninstallController
+    {
+        private readonly PortcovePlugin plugin;
+        internal ManagedUninstall(PortcovePlugin plugin, Game game) : base(game)
+        {
+            this.plugin = plugin;
+            Name = "Remove managed Portcove versions";
+        }
+
+        public override void Uninstall(UninstallActionArgs args)
+        {
+            try
+            {
+                var cli = plugin.Connect().GetAwaiter().GetResult();
+                if (cli.ApiSchemaVersion < 56)
+                    throw new InvalidOperationException("Reviewed managed removal needs Portcove CLI API schema 56 or newer. Update the selected CLI; external installations are not owned by this action.");
+                var port = Identity.Port(Game.GameId, cli.LibraryId);
+                var preview = ManagedRemovalReview.Read(
+                    cli.Read("remove.preview", "remove-preview", port).GetAwaiter().GetResult(), port);
+                if (!plugin.ConfirmRemoval(preview.Confirmation(Game.Name, cli.LibraryRoot))) return;
+                var result = cli.Manage("remove", new[]
+                {
+                    "remove", port, "--expected-preview", preview.PreviewSha256, "--yes"
+                }, null).GetAwaiter().GetResult();
+                preview.RequireApplied(result);
+                var status = cli.Read("status", "status", port).GetAwaiter().GetResult();
+                if (Json.Field(status, "active") != null)
+                    throw new InvalidOperationException("Portcove still reports an active managed version. Refresh activity before deciding whether removal completed.");
+                InvokeOnUninstalled();
+            }
+            catch (Exception error) { plugin.Error(error); }
         }
     }
 

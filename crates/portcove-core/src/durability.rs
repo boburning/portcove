@@ -75,18 +75,47 @@ fn rename_noreplace_os(staging: &Path, destination: &Path) -> std::io::Result<()
 #[cfg(windows)]
 fn rename_noreplace_os(staging: &Path, destination: &Path) -> std::io::Result<()> {
     use std::os::windows::ffi::OsStrExt;
+    use std::path::{Component, Prefix};
     use windows_sys::Win32::Foundation::{
         ERROR_ACCESS_DENIED, ERROR_LOCK_VIOLATION, ERROR_SHARING_VIOLATION,
     };
 
     fn wide(path: &Path) -> std::io::Result<Vec<u16>> {
         let mut value = path.as_os_str().encode_wide().collect::<Vec<_>>();
-        if value.contains(&0) {
+        if value.contains(&0) || !path.is_absolute() {
             return Err(std::io::Error::new(
                 std::io::ErrorKind::InvalidInput,
-                "publication path contains a null character",
+                "publication path must be absolute and contain no null character",
             ));
         }
+        // MoveFileExW does not apply Rust's long-path normalization to a raw
+        // destination buffer. Use the extended namespace for both operands.
+        // Keep UTF-16 units intact so a non-ASCII path is never round-tripped
+        // through a lossy display string.
+        let mut prefix = match path.components().next() {
+            Some(Component::Prefix(component)) => match component.kind() {
+                Prefix::Disk(_) => r"\\?\".encode_utf16().collect::<Vec<_>>(),
+                Prefix::UNC(_, _) => {
+                    value.drain(..2);
+                    r"\\?\UNC\".encode_utf16().collect::<Vec<_>>()
+                }
+                Prefix::VerbatimDisk(_) | Prefix::VerbatimUNC(_, _) => Vec::new(),
+                _ => {
+                    return Err(std::io::Error::new(
+                        std::io::ErrorKind::InvalidInput,
+                        "unsupported publication path prefix",
+                    ));
+                }
+            },
+            _ => {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::InvalidInput,
+                    "publication path has no volume prefix",
+                ));
+            }
+        };
+        prefix.append(&mut value);
+        let mut value = prefix;
         value.push(0);
         Ok(value)
     }
@@ -350,6 +379,30 @@ mod tests {
         assert_eq!(
             fs::read(final_directory.join("complete")).unwrap(),
             b"directory"
+        );
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn no_replace_publication_accepts_a_long_windows_recovery_destination() {
+        let temporary = tempfile::tempdir().unwrap();
+        let staged = temporary.path().join("managed-version");
+        fs::create_dir(&staged).unwrap();
+        fs::write(staged.join("save-independent.exe"), b"owned version").unwrap();
+        let mut parent = temporary.path().join("recovery");
+        while parent.join("managed-version").as_os_str().len() <= 260 {
+            parent = parent.join("nested-recovery-segment");
+        }
+        fs::create_dir_all(&parent).unwrap();
+        let destination = parent.join("managed-version");
+        assert!(destination.as_os_str().len() > 260);
+
+        rename_noreplace(&fs::canonicalize(&staged).unwrap(), &destination).unwrap();
+
+        assert!(!staged.exists());
+        assert_eq!(
+            fs::read(destination.join("save-independent.exe")).unwrap(),
+            b"owned version"
         );
     }
 

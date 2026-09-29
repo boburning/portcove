@@ -13,6 +13,7 @@ namespace Portcove.ReferenceClient
         internal string Executable { get; }
         internal string LibraryRoot { get; }
         internal string LibraryId { get; private set; }
+        internal long ApiSchemaVersion => apiSchemaVersion;
         internal long InvocationCount => Interlocked.Read(ref invocationCount);
         internal int MaximumConcurrentCommands => Volatile.Read(ref maximumConcurrentCommands);
         private long operationEventSchemaVersion = 2;
