@@ -522,7 +522,7 @@ fn publish_cache_file(
             total -= size;
         }
     }
-    ensure_parent(&path)?;
+    ensure_parent(path)?;
     let pending = library.root().join("artwork-cache").join(pending_name);
     crate::path::refuse_symlink_ancestors(&pending)?;
     if pending.exists() {
@@ -531,7 +531,7 @@ fn publish_cache_file(
     }
     crate::artwork_ingestion::write_staged_file(&pending, bytes)?;
     tempfile::TempPath::try_from_path(pending)?
-        .persist(&path)
+        .persist(path)
         .map_err(|error| PortcoveError::from(error.error))?;
     crate::durability::sync_publication(&library.root().join("artwork-cache"))?;
     Ok(())

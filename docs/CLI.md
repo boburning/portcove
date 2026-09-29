@@ -683,8 +683,9 @@ rendered source without changing the durable choice. The generated fallback uses
 describe integrity, not rights or authenticity; copyright permission for imports
 remains unknown. Artwork errors do not block normal catalog or game lifecycle operations.
 The [architecture limits](ARCHITECTURE.md#local-artwork-ownership) apply to both
-encoded input and decoding. Clear-cache affects only disposable thumbnails, which
-are rebuilt when requested by a client. A reviewed catalog cover can resolve
+encoded input and decoding. Clear-cache removes disposable derived thumbnails
+and fetched catalog-default JPEG originals, which are rebuilt when requested by
+a client. A reviewed catalog cover can resolve
 as the default for a mapped cover slot through the fixed IGDB image CDN path.
 The CLI does not search IGDB through these local-choice commands.
 
@@ -692,7 +693,8 @@ The CLI does not search IGDB through these local-choice commands.
 
 Format 3 includes local artwork choices and copied-image identities. Include the
 `artwork` tree when copying the separate payload backup; `artwork-cache` contains
-disposable derived thumbnails and is excluded. Formats 1 and 2 remain importable
+disposable derived thumbnails and fetched catalog-default JPEG originals and is
+excluded. Formats 1 and 2 remain importable
 without artwork. Clients that do not understand format 3 must reject it; SQLite
 schema 24 also prevents older clients from writing the upgraded library. Per-game
 saved-data backups keep their existing scope.
