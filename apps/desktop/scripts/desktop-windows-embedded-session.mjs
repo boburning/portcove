@@ -5,7 +5,6 @@ import { writeFile } from "node:fs/promises";
 import { createServer } from "node:net";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { Builder } from "selenium-webdriver";
 import { hashFile } from "./desktop-installed-update-harness.mjs";
 
 const nativeSession = fileURLToPath(new URL("./native-session.ps1", import.meta.url));
@@ -90,6 +89,7 @@ export async function startEmbeddedInstalledSession(application, output, launchA
           });
           if (response.ok) {
             session.listener = listener;
+            const { Builder } = await import("selenium-webdriver");
             const connection = new Builder()
               .disableEnvironmentOverrides()
               .usingServer(`http://127.0.0.1:${port}`)

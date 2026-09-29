@@ -4,7 +4,6 @@ import { createHash } from "node:crypto";
 import { createReadStream } from "node:fs";
 import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
-import { Builder } from "selenium-webdriver";
 
 export async function hashFile(file) {
   const hash = createHash("sha256");
@@ -58,6 +57,7 @@ export async function awaitInstalledUpdateDriver(driver, identify = () => true) 
 }
 
 export async function connectInstalledUpdateDriver(application, profile) {
+  const { Builder } = await import("selenium-webdriver");
   if (process.platform === "win32")
     assert.ok(profile && path.isAbsolute(profile), "Windows WebView2 profile must be absolute");
   return new Builder()
