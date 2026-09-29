@@ -337,7 +337,10 @@ inactive; only the explicit restart action dispatches the launch sequence.
 The on-demand Windows artifact rehearsal builds a disposable signed TUF
 repository and a predecessor NSIS package with its public root embedded. In an
 isolated current-user install, the installed application first rejects a truncated
-signed candidate with empty staging. Its ordinary renderer then selects the signed
+signed candidate with empty staging. The installed executable's GUI-independent
+command then identifies and repairs an injected malformed staging journal and
+stray payload while preserving the registered predecessor and library marker.
+Its ordinary renderer then selects the signed
 candidate, downloads and verifies fixture-supplied local installer bytes, and
 dispatches the explicit Restart to update action. The production Windows worker
 binding and revision-bound helper perform replacement. Qualification requires
