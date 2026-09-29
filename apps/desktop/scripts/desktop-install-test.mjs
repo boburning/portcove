@@ -27,9 +27,7 @@ async function waitForFixture(predicate, message) {
 function readStagedLayout(version) {
   const buttons = [...document.querySelectorAll(".primary-actions button")];
   const play = buttons.find((item) => item.textContent?.trim() === "Play");
-  const activate = buttons.find(
-    (item) => item.textContent?.trim() === `Use update · ${version}`,
-  );
+  const activate = buttons.find((item) => item.textContent?.trim() === `Use update · ${version}`);
   const rect = (element) => {
     const { left, right, top, bottom } = element.getBoundingClientRect();
     return { left, right, top, bottom };
