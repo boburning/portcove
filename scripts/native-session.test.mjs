@@ -8,11 +8,80 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 import { observeStartup } from "../apps/desktop/scripts/desktop-startup-observation.mjs";
+import { startEmbeddedInstalledSession } from "../apps/desktop/scripts/desktop-windows-embedded-session.mjs";
 
 const script = fileURLToPath(
   new URL("../apps/desktop/scripts/native-session.ps1", import.meta.url),
 );
 const windows = { skip: process.platform !== "win32", timeout: 20_000 };
+
+test(
+  "embedded startup root exit cannot claim cleanup of later descendants",
+  { ...windows, timeout: 45_000 },
+  async () => {
+    const root = await temporaryRoot();
+    const marker = path.join(root, "late-child.json");
+    let session;
+    let descendant;
+    try {
+      session = await startEmbeddedInstalledSession(process.execPath, root, [
+        "-e",
+        `
+const {spawn}=require('node:child_process');
+setTimeout(()=>{
+  const child=spawn(process.execPath,['-e','setTimeout(()=>process.exit(0),12000)'],{stdio:'ignore',windowsHide:true,detached:true});
+  require('node:fs').writeFileSync(${JSON.stringify(marker)},JSON.stringify({pid:child.pid}));
+  child.unref();
+},3000);
+setTimeout(()=>process.exit(0),4000);`,
+      ]);
+      await assert.rejects(session.connect());
+      descendant = JSON.parse(await readFile(marker, "utf8")).pid;
+      const alive = spawnSync(
+        "pwsh",
+        [
+          "-NoProfile",
+          "-Command",
+          `$entry=Get-CimInstance Win32_Process -Filter 'ProcessId = ${descendant}'; $entry | Select-Object ProcessId,ParentProcessId,ExecutablePath | ConvertTo-Json -Compress`,
+        ],
+        { encoding: "utf8", windowsHide: true, timeout: 10_000 },
+      );
+      assert.equal(alive.status, 0, alive.stderr);
+      const surviving = JSON.parse(alive.stdout);
+      assert.equal(surviving.ProcessId, descendant);
+      assert.equal(surviving.ParentProcessId, session.child.pid);
+      assert.equal(surviving.ExecutablePath.toLowerCase(), process.execPath.toLowerCase());
+      assert.ok(
+        !session.startup.processes.some((entry) => entry.pid === descendant),
+        "fixture descendant must be created after initial capture",
+      );
+      await assert.rejects(session.close(), /cleanup is unproven|tree refresh failed/);
+    } finally {
+      if (session?.child.exitCode === null && session.child.signalCode === null)
+        await session.close().catch(() => {});
+      // The late fixture child has its own finite lifetime. Wait for it rather
+      // than using an unbound PID termination to hide the missing cleanup proof.
+      if (!descendant)
+        descendant = await readFile(marker, "utf8")
+          .then(JSON.parse)
+          .then((value) => value.pid)
+          .catch(() => null);
+      if (descendant) {
+        const exited = spawnSync(
+          "pwsh",
+          [
+            "-NoProfile",
+            "-Command",
+            `$p=Get-Process -Id ${descendant} -ErrorAction SilentlyContinue; if($p -and -not $p.WaitForExit(20000)){exit 1}; exit 0`,
+          ],
+          { encoding: "utf8", windowsHide: true, timeout: 25_000 },
+        );
+        assert.equal(exited.status, 0, exited.stderr);
+      }
+      await rm(root, { recursive: true, force: true });
+    }
+  },
+);
 
 test(
   "embedded installed listener requires the exact direct child and loopback owner",

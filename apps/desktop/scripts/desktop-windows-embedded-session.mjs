@@ -9,7 +9,7 @@ import { Builder } from "selenium-webdriver";
 import { hashFile } from "./desktop-installed-update-harness.mjs";
 
 const nativeSession = fileURLToPath(new URL("./native-session.ps1", import.meta.url));
-export async function startEmbeddedInstalledSession(application, output) {
+export async function startEmbeddedInstalledSession(application, output, launchArguments = []) {
   assert.equal(process.platform, "win32");
   const identity = await hashFile(application);
   const reservation = createServer();
@@ -21,7 +21,7 @@ export async function startEmbeddedInstalledSession(application, output) {
   await new Promise((resolve, reject) =>
     reservation.close((error) => (error ? reject(error) : resolve())),
   );
-  const child = spawn(application, [], {
+  const child = spawn(application, launchArguments, {
     windowsHide: true,
     stdio: ["ignore", "pipe", "pipe"],
     env: {
@@ -72,6 +72,7 @@ export async function startEmbeddedInstalledSession(application, output) {
     identity,
     listener: null,
     browser: null,
+    startupComplete: false,
     capture,
     async connect() {
       await launched;
@@ -108,6 +109,10 @@ export async function startEmbeddedInstalledSession(application, output) {
             } finally {
               clearTimeout(timer);
             }
+            // Refresh after WebView/session startup, rather than relying on the
+            // immediate post-spawn inventory for later renderer qualification.
+            session.connectedProcesses = capture();
+            session.startupComplete = true;
             return session.browser;
           }
         }
@@ -117,18 +122,29 @@ export async function startEmbeddedInstalledSession(application, output) {
     },
     async close() {
       let forced = false;
+      let unproven;
       try {
         if (child.exitCode === null && child.signalCode === null && child.pid) {
           if (snapshotPath) {
+            try {
+              capture();
+            } catch (error) {
+              unproven = `Application tree refresh failed: ${error.message}`;
+            }
             command("StopApplication");
           } else {
             // Only the retained direct launch handle is available before capture.
             child.kill();
+            unproven = "No application tree was captured; descendant cleanup is unproven";
           }
           forced = true;
         } else if (snapshotPath) {
           const cleanup = command("StopApplication");
           forced = cleanup.terminated_survivors.length > 0;
+          if (!session.startupComplete)
+            unproven = "Application exited during startup; later descendant cleanup is unproven";
+        } else if (child.pid) {
+          unproven = "Application exited before tree capture; descendant cleanup is unproven";
         }
         if (child.exitCode === null && child.signalCode === null && child.pid) {
           await Promise.race([
@@ -139,6 +155,7 @@ export async function startEmbeddedInstalledSession(application, output) {
           ]);
         }
         if (snapshotPath) command("Wait");
+        if (unproven) throw new Error(unproven);
         return { forced, exit_code: child.exitCode, signal: child.signalCode };
       } finally {
         await writeFile(path.join(output, "embedded-application.log"), log);

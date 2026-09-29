@@ -68,7 +68,11 @@ the complete desktop empty-library scenario. Each listener must belong to the
 directly launched installed executable on `127.0.0.1`; process snapshots bind its
 parent, creation time, path and initial hash. Cleanup uses an application-root
 snapshot, distinct from official-driver ancestry. Application output and process
-evidence are retained on failure. Successful updater qualification still requires
+evidence are retained on failure. The tree is refreshed after session startup and
+while the root remains live during cleanup. If startup exits before that boundary,
+or no tree was captured, later descendant cleanup is explicitly unproven and the
+qualification fails; disappearance of the root is not a containment guarantee.
+Successful updater qualification still requires
 the signed candidate, marker-bound helper/relaunch, natural exit and preserved
 state checks; embedded transport or startup alone does not establish it.
 Linux builds a disposable test-signed TUF repository, embeds its public trust and
