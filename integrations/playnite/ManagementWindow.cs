@@ -229,14 +229,38 @@ namespace Portcove.ReferenceClient
                 case GuidedStepKind.Play:
                     // Let a pending Playnite install controller publish its installed event
                     // after the dialog returns before requesting the ordinary play action.
+                    var installation = StatusInstallation.Current(CurrentStatus);
+                    if (installation == null) throw new InvalidOperationException("Portcove no longer reports an installation. Refresh readiness.");
+                    var installPath = Json.Text(installation, "path");
                     window.Close();
-                    _ = window.Dispatcher.BeginInvoke(new Action(() => plugin.PlayniteApi.StartGame(game.Id)), DispatcherPriority.ApplicationIdle);
+                    if (detached)
+                        _ = window.Dispatcher.BeginInvoke(new Action(() => StartReadyGame(installPath)), DispatcherPriority.ApplicationIdle);
                     break;
                 default:
                     MessageBox.Show(window, nextStep.Detail + "\n\n" + state.Text,
                         "Portcove readiness", MessageBoxButton.OK, MessageBoxImage.Information);
                     break;
             }
+        }
+
+        private void StartReadyGame(string installPath)
+        {
+            try
+            {
+                var live = plugin.PlayniteApi.Database.Games.Get(game.Id);
+                if (live == null || live.PluginId != plugin.Id || live.GameId != game.GameId)
+                    throw new InvalidOperationException("The selected Playnite game changed. Refresh the library before playing.");
+                // A game-menu management session has no pending InstallController event.
+                // Sync only the installed flag and directory that core already reported.
+                if (!live.IsInstalled)
+                {
+                    live.IsInstalled = true;
+                    live.InstallDirectory = installPath;
+                    plugin.PlayniteApi.Database.Games.Update(live);
+                }
+                plugin.PlayniteApi.StartGame(game.Id);
+            }
+            catch (Exception error) { plugin.Error(error); }
         }
 
         private async Task Refresh()

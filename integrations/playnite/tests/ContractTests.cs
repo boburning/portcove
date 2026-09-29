@@ -429,6 +429,8 @@ internal static class ContractTests
             "missing original game files lead to file selection rather than an unready install");
         Check(GuidedSetup.Choose(missing, catalog, @"C:\owned\game.rom", "").Kind == GuidedStepKind.ValidateSources,
             "selected original files lead to explicit core validation before installation");
+        Check(GuidedSetup.Choose(missing, catalog, @"C:\owned\game.rom", "").Label.Contains("register"),
+            "guided source action discloses that validated input is registered");
         var noSourceProfile = Json.Parse("{\"source_profile\":null,\"bios_source_profile\":null,\"release\":{\"provider\":\"github\"}}");
         Check(GuidedSetup.Choose(missing, noSourceProfile, @"C:\owned\game.rom", "").Kind == GuidedStepKind.ReviewProblem,
             "unrequested source input is not sent to a mutation");
@@ -438,6 +440,14 @@ internal static class ContractTests
         var held = Json.Parse("{\"active\":null,\"external_runtime\":null,\"readiness\":{\"launchable\":false,\"pending_setup\":false,\"blockers\":[]},\"port_actions\":[{\"action\":\"install\",\"availability\":\"held\",\"reason\":\"unsupported_platform\"}]}");
         Check(GuidedSetup.Choose(held, catalog, "", "").Kind == GuidedStepKind.ReviewProblem,
             "a held core install cannot become the primary mutation");
+        var heldWithMissingSource = Json.Parse("{\"active\":null,\"external_runtime\":null,\"readiness\":{\"launchable\":false,\"pending_setup\":false,\"blockers\":[\"missing_source\"]},\"port_actions\":[{\"action\":\"install\",\"availability\":\"held\",\"reason\":\"unsupported_platform\"}]}");
+        Check(GuidedSetup.Choose(heldWithMissingSource, catalog, "", "").Kind == GuidedStepKind.ReviewProblem,
+            "a held install does not request new source registration");
+        Check(GuidedSetup.Choose(heldWithMissingSource, catalog, @"C:\owned\game.rom", "").Kind == GuidedStepKind.ReviewProblem,
+            "a selected source cannot override a held install");
+        var futureBlocker = Json.Parse("{\"active\":null,\"external_runtime\":null,\"readiness\":{\"launchable\":false,\"pending_setup\":false,\"blockers\":[\"future_requirement\"]},\"port_actions\":[{\"action\":\"install\",\"availability\":\"allowed\",\"reason\":\"available\"}]}");
+        Check(GuidedSetup.Choose(futureBlocker, catalog, "", "").Kind == GuidedStepKind.ReviewProblem,
+            "unknown future readiness does not advertise installation");
         var needsSetup = Json.Parse("{\"active\":{\"version\":\"1\"},\"external_runtime\":null,\"readiness\":{\"launchable\":false,\"pending_setup\":true,\"blockers\":[\"preparation_required\"]}}");
         Check(GuidedSetup.Choose(needsSetup, catalog, "", "").Kind == GuidedStepKind.FinishSetup,
             "an installed game with pending private preparation leads to reviewed setup");
@@ -450,6 +460,9 @@ internal static class ContractTests
         var external = Json.Parse("{\"source_profile\":null,\"bios_source_profile\":null,\"release\":{\"provider\":\"user-prepared\"}}");
         Check(GuidedSetup.Choose(missing, external, "", "").Kind == GuidedStepKind.ReviewProblem,
             "user-prepared runtime keeps its separate registration handoff");
+        var registeredExternal = Json.Parse("{\"active\":null,\"external_runtime\":{\"path\":\"C:\\\\owned\\\\runtime\",\"version\":\"1\"},\"readiness\":{\"launchable\":false,\"pending_setup\":false,\"blockers\":[\"invalid_installation\"]},\"port_actions\":[{\"action\":\"launch\",\"availability\":\"held\",\"reason\":\"invalid_installation\"}]}");
+        Check(GuidedSetup.Choose(registeredExternal, external, "", "").Detail.Contains("is registered"),
+            "registered but held external runtime receives its actual review path");
     }
 
     private static async Task ConsumerMeasurements()
