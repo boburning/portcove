@@ -245,7 +245,8 @@ the Portcove generator and exact fallback identity without claiming third-party
 artwork rights. If thumbnail transport or browser decoding fails after core resolves
 a local import, the shared display cache switches every visible consumer and its source
 disclosure to this generated fallback without changing the durable local choice.
-Catalog-mapped covers show a visible IGDB label and the reviewed source link.
+Catalog-mapped covers keep imagery clear of provider labels. The existing details
+source disclosure shows IGDB attribution and the reviewed source link.
 
 Provide **Change artwork**, **Choose local image**, **Browse SteamGridDB** when
 configured, **Reset to default**, and source/author information. Reset affects

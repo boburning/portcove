@@ -128,7 +128,7 @@ describe("local artwork controls", () => {
       ),
     );
     expect(container.querySelector(".artwork-image img")).not.toBeNull();
-    expect(container.querySelector(".artwork-image-provider")?.textContent).toBe("IGDB");
+    expect(container.querySelector(".artwork-image")?.textContent).not.toContain("IGDB");
     expect(container.querySelector<HTMLAnchorElement>(".artwork-source a")?.href).toBe(
       "https://www.igdb.com/games/ship-of-harkinian",
     );

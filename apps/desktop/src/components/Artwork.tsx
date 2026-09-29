@@ -35,9 +35,6 @@ export function ArtworkImage({
       {(display.error || display.state?.availability === "unavailable") && (
         <small className="artwork-image-note">Image unavailable</small>
       )}
-      {image && display.state?.resolved_source.kind === "igdb_cover" && (
-        <small className="artwork-image-provider">IGDB</small>
-      )}
     </div>
   );
 }
