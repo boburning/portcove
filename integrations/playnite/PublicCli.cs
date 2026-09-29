@@ -202,6 +202,7 @@ namespace Portcove.ReferenceClient
         private readonly Process process;
         private readonly Task output;
         private readonly Task errors;
+        private Task exit;
         internal RawLaunch(Process process)
         {
             this.process = process;
@@ -210,11 +211,14 @@ namespace Portcove.ReferenceClient
         }
         internal bool HasExited => process.HasExited;
         internal int ProcessId => process.Id;
+        internal Task WaitForExitAsync() => exit ?? (exit = Task.Run(() => process.WaitForExit()));
         public void Dispose()
         {
             // Closing the client never signals a game or invents a completed core session.
             // Keep draining inherited streams until their owners close them.
-            Task.WhenAll(output, errors).ContinueWith(task => { var ignored = task.Exception; process.Dispose(); }, TaskScheduler.Default);
+            var drained = Task.WhenAll(output, errors);
+            var completion = exit == null ? drained : Task.WhenAll(drained, exit);
+            completion.ContinueWith(task => { var ignored = task.Exception; process.Dispose(); }, TaskScheduler.Default);
         }
     }
 }

@@ -219,32 +219,12 @@ namespace Portcove.ReferenceClient
             {
                 using (launch)
                 {
-                    while (true)
+                    await LaunchObserver.Observe(cli, launch, port, request, childPid =>
                     {
-                        // If exit happens after this snapshot, read once more on the next poll.
-                        // The durable terminal write precedes an already-observed wrapper exit.
-                        var exitedBeforeRead = launch.HasExited;
-                        var record = await cli.Read("launch.show", "launch", "show", request).ConfigureAwait(false);
-                        var observation = LaunchObservation.Read(record, request, port, launch.ProcessId);
-                        if (observation != null)
-                        {
-                            if (!started && observation.ChildPid.HasValue)
-                            {
-                                observedStart = DateTime.UtcNow;
-                                plugin.OnUi(() => InvokeOnStarted(new GameStartedEventArgs { StartedProcessId = observation.ChildPid.Value }));
-                                started = true;
-                            }
-                            if (observation.Outcome != null)
-                            {
-                                if (observation.Outcome != "succeeded")
-                                    throw new InvalidOperationException("Portcove launch " + observation.Outcome + ". Review activity for recovery and save-collection details.");
-                                break;
-                            }
-                        }
-                        if (exitedBeforeRead)
-                            throw new InvalidOperationException("The CLI exited without an observed terminal launch outcome. Review activity and refresh; do not launch again automatically.");
-                        await Task.Delay(750).ConfigureAwait(false);
-                    }
+                        observedStart = DateTime.UtcNow;
+                        plugin.OnUi(() => InvokeOnStarted(new GameStartedEventArgs { StartedProcessId = childPid }));
+                        started = true;
+                    }).ConfigureAwait(false);
                 }
             }
             catch (Exception error) { plugin.Error(error); }
