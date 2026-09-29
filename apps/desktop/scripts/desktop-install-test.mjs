@@ -525,7 +525,7 @@ export async function installScenarios({
     await browser.findElement(button("Review game update")).click();
     const review = By.css('[aria-labelledby="game-update-review-title"]');
     await browser.wait(until.elementLocated(review), 15_000);
-    assert.match(await browser.findElement(review).getText(), /active version stays unchanged/i);
+    assert.match(await browser.findElement(review).getText(), /current version stays unchanged/i);
     await browser.findElement(button("Download update for later")).click();
     const staged = await browser.wait(async () => {
       const result = await invoke("get_statuses");
