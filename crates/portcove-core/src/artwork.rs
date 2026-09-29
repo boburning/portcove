@@ -1,6 +1,8 @@
 use std::{
     fs,
+    io::Read,
     path::{Path, PathBuf},
+    time::Duration,
 };
 
 use schemars::JsonSchema;
@@ -70,11 +72,17 @@ pub enum ArtworkAvailability {
 
 /// The source core resolves for one slot before a client attempts to transport
 /// or render it. A client can still display the generated fallback if a
-/// resolved local import cannot be decoded or presented safely.
+/// resolved image cannot be retrieved, decoded or presented safely.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum ArtworkResolvedSource {
-    LocalImport { asset_sha256: String },
+    LocalImport {
+        asset_sha256: String,
+    },
+    IgdbCover {
+        artwork: crate::IgdbArtwork,
+        cache_id: String,
+    },
     GeneratedFallback,
 }
 
@@ -124,11 +132,21 @@ impl PortcoveService {
         transaction.commit()?;
         let generated_fallback = generated_fallback(port_id, &port.name, slot)?;
         let (availability, reason, resolved_source) = match &selection {
-            None => (
-                ArtworkAvailability::Fallback,
-                None,
-                ArtworkResolvedSource::GeneratedFallback,
-            ),
+            None => match (slot, port.presentation.as_ref().and_then(|value| value.artwork.as_ref())) {
+                (ArtworkSlot::Cover, Some(artwork)) => (
+                    ArtworkAvailability::Available,
+                    None,
+                    ArtworkResolvedSource::IgdbCover {
+                        artwork: artwork.clone(),
+                        cache_id: igdb_cache_id(artwork),
+                    },
+                ),
+                _ => (
+                    ArtworkAvailability::Fallback,
+                    None,
+                    ArtworkResolvedSource::GeneratedFallback,
+                ),
+            },
             Some(asset) => match original_bytes(self.library(), asset) {
                 Ok(_) => (
                     ArtworkAvailability::Available,
@@ -253,7 +271,56 @@ impl PortcoveService {
         slot: ArtworkSlot,
         expected_revision: u64,
     ) -> Result<ArtworkThumbnail> {
-        self.catalog().port(port_id)?;
+        let port = self.catalog().port(port_id)?;
+        let mapped_cover = match slot {
+            ArtworkSlot::Cover => port
+                .presentation
+                .as_ref()
+                .and_then(|value| value.artwork.as_ref()),
+            ArtworkSlot::Detail => None,
+        };
+        if let Some(artwork) = mapped_cover {
+            let connection = self.library().connection()?;
+            let choice = crate::artwork_store::require_revision(
+                &connection,
+                port_id,
+                slot,
+                expected_revision,
+            )?;
+            if choice.asset_sha256.is_none() {
+                drop(connection);
+                let thumbnail =
+                    igdb_thumbnail(self.library(), artwork, expected_revision, |original| {
+                        let _guard = self.library().try_lock_artwork()?;
+                        let connection = self.library().connection()?;
+                        let current = crate::artwork_store::require_revision(
+                            &connection,
+                            port_id,
+                            slot,
+                            expected_revision,
+                        )?;
+                        if current.asset_sha256.is_some() {
+                            return Err(PortcoveError::conflict(
+                                "the artwork choice changed during cover retrieval",
+                            ));
+                        }
+                        publish_igdb_original(self.library(), artwork, original)
+                    })?;
+                let connection = self.library().connection()?;
+                let current = crate::artwork_store::require_revision(
+                    &connection,
+                    port_id,
+                    slot,
+                    expected_revision,
+                )?;
+                if current.asset_sha256.is_some() {
+                    return Err(PortcoveError::conflict(
+                        "the artwork choice changed during cover retrieval",
+                    ));
+                }
+                return Ok(thumbnail);
+            }
+        }
         let _guard = self.library().try_lock_artwork()?;
         let connection = self.library().connection()?;
         let choice =
@@ -410,11 +477,37 @@ fn publish_thumbnail(
     id: &str,
     bytes: &[u8],
 ) -> Result<()> {
+    publish_thumbnail_file(library, id, bytes)?;
+    crate::artwork_store::write_thumbnail(connection, id, bytes)
+}
+
+fn publish_thumbnail_file(library: &Library, id: &str, bytes: &[u8]) -> Result<()> {
     let path = thumbnail_path(library, id)?;
+    publish_cache_file(
+        library,
+        &path,
+        "pending-thumbnail",
+        crate::artwork_image::MAX_THUMBNAIL_BYTES,
+        bytes,
+    )
+}
+
+fn publish_cache_file(
+    library: &Library,
+    path: &Path,
+    pending_name: &str,
+    maximum_bytes: u64,
+    bytes: &[u8],
+) -> Result<()> {
+    if bytes.len() as u64 > maximum_bytes {
+        return Err(PortcoveError::verification(
+            "artwork cache entry exceeds its byte limit",
+        ));
+    }
     let files = cache_files(library)?;
     let mut total = files
         .iter()
-        .filter(|(existing, _)| existing != &path)
+        .filter(|(existing, _)| existing != path)
         .try_fold(0_u64, |total, (_, size)| {
             total
                 .checked_add(*size)
@@ -429,19 +522,136 @@ fn publish_thumbnail(
             total -= size;
         }
     }
-    ensure_parent(&path)?;
-    let pending = library.root().join("artwork-cache/pending-thumbnail");
+    ensure_parent(path)?;
+    let pending = library.root().join("artwork-cache").join(pending_name);
     crate::path::refuse_symlink_ancestors(&pending)?;
     if pending.exists() {
-        crate::path::read_bounded_regular(&pending, crate::artwork_image::MAX_THUMBNAIL_BYTES)?;
+        crate::path::read_bounded_regular(&pending, maximum_bytes)?;
         fs::remove_file(&pending)?;
     }
     crate::artwork_ingestion::write_staged_file(&pending, bytes)?;
     tempfile::TempPath::try_from_path(pending)?
-        .persist(&path)
+        .persist(path)
         .map_err(|error| PortcoveError::from(error.error))?;
     crate::durability::sync_publication(&library.root().join("artwork-cache"))?;
-    crate::artwork_store::write_thumbnail(connection, id, bytes)
+    Ok(())
+}
+
+fn igdb_thumbnail(
+    library: &Library,
+    artwork: &crate::IgdbArtwork,
+    revision: u64,
+    publish: impl FnOnce(&[u8]) -> Result<()>,
+) -> Result<ArtworkThumbnail> {
+    let id = igdb_cache_id(artwork);
+    let path = igdb_original_path(library, artwork)?;
+    if let Ok(original) =
+        crate::path::read_bounded_regular(&path, crate::artwork_image::MAX_ORIGINAL_BYTES)
+        && let Ok(decoded) = decode_igdb_original(&original, artwork)
+    {
+        return Ok(ArtworkThumbnail {
+            asset_sha256: id,
+            choice_revision: revision,
+            png: decoded.thumbnail,
+        });
+    }
+    let url = format!(
+        "https://images.igdb.com/igdb/image/upload/t_cover_big/{}.jpg",
+        artwork.image_id
+    );
+    let client = reqwest::blocking::Client::builder()
+        .redirect(reqwest::redirect::Policy::none())
+        .connect_timeout(Duration::from_secs(5))
+        .timeout(Duration::from_secs(15))
+        .build()
+        .map_err(|error| PortcoveError::network(format!("IGDB image client failed: {error}")))?;
+    let response = client
+        .get(url)
+        .send()
+        .map_err(|error| PortcoveError::network(format!("IGDB image request failed: {error}")))?;
+    if !response.status().is_success() {
+        return Err(PortcoveError::network(format!(
+            "IGDB cover unavailable (HTTP {}).",
+            response.status()
+        )));
+    }
+    if response
+        .headers()
+        .get(reqwest::header::CONTENT_TYPE)
+        .and_then(|value| value.to_str().ok())
+        .is_none_or(|value| !value.starts_with("image/jpeg"))
+    {
+        return Err(PortcoveError::verification(
+            "IGDB cover did not return JPEG content",
+        ));
+    }
+    if response
+        .content_length()
+        .is_some_and(|length| length > crate::artwork_image::MAX_ORIGINAL_BYTES)
+    {
+        return Err(PortcoveError::verification(
+            "IGDB cover exceeds the encoded byte limit",
+        ));
+    }
+    let mut original = Vec::new();
+    response
+        .take(crate::artwork_image::MAX_ORIGINAL_BYTES + 1)
+        .read_to_end(&mut original)?;
+    let decoded = decode_igdb_original(&original, artwork)?;
+    publish(&original)?;
+    Ok(ArtworkThumbnail {
+        asset_sha256: id,
+        choice_revision: revision,
+        png: decoded.thumbnail,
+    })
+}
+
+fn decode_igdb_original(
+    original: &[u8],
+    artwork: &crate::IgdbArtwork,
+) -> Result<crate::artwork_image::DecodedArtwork> {
+    if original.len() as u64 > crate::artwork_image::MAX_ORIGINAL_BYTES
+        || crate::signed_catalog::digest(original) != artwork.image_sha256
+    {
+        return Err(PortcoveError::verification(
+            "IGDB cover no longer matches its catalog identity",
+        ));
+    }
+    let decoded = crate::artwork_image::decode(original)?;
+    if decoded.format != ArtworkImageFormat::Jpeg {
+        return Err(PortcoveError::verification(
+            "IGDB cover is not a static JPEG",
+        ));
+    }
+    Ok(decoded)
+}
+
+fn igdb_original_path(library: &Library, artwork: &crate::IgdbArtwork) -> Result<PathBuf> {
+    crate::artwork_store::validate_hash(&artwork.image_sha256)?;
+    let path = library
+        .root()
+        .join("artwork-cache")
+        .join(format!("{}.jpg", artwork.image_sha256));
+    crate::path::refuse_symlink_ancestors(&path)?;
+    Ok(path)
+}
+
+fn publish_igdb_original(
+    library: &Library,
+    artwork: &crate::IgdbArtwork,
+    original: &[u8],
+) -> Result<()> {
+    publish_cache_file(
+        library,
+        &igdb_original_path(library, artwork)?,
+        "pending-igdb-original",
+        crate::artwork_image::MAX_ORIGINAL_BYTES,
+        original,
+    )
+}
+
+fn igdb_cache_id(artwork: &crate::IgdbArtwork) -> String {
+    crate::signed_catalog::digest(format!("igdb-cover-big:{}", artwork.image_sha256).as_bytes())
 }
 
 fn cache_files(library: &Library) -> Result<Vec<(PathBuf, u64)>> {
@@ -458,15 +668,26 @@ fn cache_files(library: &Library) -> Result<Vec<(PathBuf, u64)>> {
             .file_stem()
             .and_then(|name| name.to_str())
             .ok_or_else(|| PortcoveError::verification("unexpected artwork cache entry"))?;
-        let pending = path.file_name().and_then(|name| name.to_str()) == Some("pending-thumbnail");
+        let name = path.file_name().and_then(|name| name.to_str());
+        let pending_thumbnail = name == Some("pending-thumbnail");
+        let pending_original = name == Some("pending-igdb-original");
+        let pending = pending_thumbnail || pending_original;
         if !pending {
             crate::artwork_store::validate_hash(stem)?;
         }
         let metadata = fs::symlink_metadata(&path)?;
-        if (!pending && path.extension().and_then(|extension| extension.to_str()) != Some("png"))
+        let extension = path.extension().and_then(|extension| extension.to_str());
+        let too_large = if pending_original || extension == Some("jpg") {
+            metadata.len() > crate::artwork_image::MAX_ORIGINAL_BYTES
+        } else if pending_thumbnail {
+            metadata.len() > crate::artwork_image::MAX_THUMBNAIL_BYTES
+        } else {
+            false
+        };
+        if (!pending && !matches!(extension, Some("png" | "jpg")))
             || !metadata.is_file()
             || metadata.file_type().is_symlink()
-            || (pending && metadata.len() > crate::artwork_image::MAX_THUMBNAIL_BYTES)
+            || too_large
             || files.len() >= 4097
         {
             return Err(PortcoveError::verification(

@@ -22,9 +22,15 @@ function decodedBytes(encoded: string) {
 
 function thumbnailUrl(thumbnail: DesktopArtworkThumbnail, state: ArtworkState) {
   const encoded = thumbnail.png_base64;
+  const expectedId =
+    state.resolved_source.kind === "local_import"
+      ? state.resolved_source.asset_sha256
+      : state.resolved_source.kind === "igdb_cover"
+        ? state.resolved_source.cache_id
+        : undefined;
   if (
-    state.resolved_source.kind !== "local_import" ||
-    thumbnail.asset_sha256 !== state.resolved_source.asset_sha256 ||
+    !expectedId ||
+    thumbnail.asset_sha256 !== expectedId ||
     thumbnail.choice_revision !== state.choice.revision ||
     encoded.length === 0 ||
     encoded.length > 4 * Math.ceil(maximumPngBytes / 3) ||
@@ -43,7 +49,10 @@ export class ArtworkCache {
   private pending = new Map<string, Promise<void>>();
   private tail: Promise<unknown> = Promise.resolve();
 
-  constructor(readonly generation: number) {}
+  constructor(
+    readonly generation: number,
+    readonly catalogArtworkKey = "",
+  ) {}
 
   private key(portId: string, slot: ArtworkSlot) {
     return JSON.stringify([portId, slot]);
@@ -87,55 +96,74 @@ export class ArtworkCache {
 
   private async display(portId: string, slot: ArtworkSlot, state: ArtworkState) {
     const previous = this.read(portId, slot);
-    const local =
+    const sourceId =
       state.resolved_source.kind === "local_import"
         ? state.resolved_source.asset_sha256
-        : undefined;
+        : state.resolved_source.kind === "igdb_cover"
+          ? state.resolved_source.cache_id
+          : undefined;
+    const previousId =
+      previous.state?.resolved_source.kind === "local_import"
+        ? previous.state.resolved_source.asset_sha256
+        : previous.state?.resolved_source.kind === "igdb_cover"
+          ? previous.state.resolved_source.cache_id
+          : undefined;
     const image =
-      local &&
-      previous.state?.resolved_source.kind === "local_import" &&
-      previous.state.resolved_source.asset_sha256 === local &&
-      previous.state.choice.revision === state.choice.revision
+      sourceId &&
+      previousId === sourceId &&
+      previous.state?.choice.revision === state.choice.revision
         ? previous.image
         : undefined;
     this.publish(portId, slot, {
       state,
       image,
       onImageError: image ? previous.onImageError : undefined,
-      loading: Boolean(local),
+      loading: Boolean(sourceId),
     });
-    if (!local) return;
-    try {
-      const thumbnail = await desktopApi.artworkThumbnail(
-        portId,
-        slot,
-        state.choice.revision,
-        this.generation,
-      );
-      const image = thumbnailUrl(thumbnail, state);
-      this.publish(portId, slot, {
-        state,
-        image,
-        onImageError: () => {
-          const current = this.read(portId, slot);
-          if (current.image !== image) return;
-          this.publish(portId, slot, {
-            ...current,
-            image: undefined,
-            onImageError: undefined,
-            error: "The selected image cannot be displayed. Your choice is retained.",
-            loading: false,
-          });
-        },
-        loading: false,
-      });
-    } catch (error) {
-      this.publish(portId, slot, {
-        state,
-        error: errorText(error),
-        loading: false,
-      });
+    if (!sourceId) return;
+    const fetchThumbnail = async () => {
+      try {
+        const thumbnail = await desktopApi.artworkThumbnail(
+          portId,
+          slot,
+          state.choice.revision,
+          this.generation,
+        );
+        const image = thumbnailUrl(thumbnail, state);
+        if (this.read(portId, slot).state !== state) return;
+        this.publish(portId, slot, {
+          state,
+          image,
+          onImageError: () => {
+            const current = this.read(portId, slot);
+            if (current.state !== state || current.image !== image) return;
+            this.publish(portId, slot, {
+              ...current,
+              image: undefined,
+              onImageError: undefined,
+              error:
+                state.resolved_source.kind === "igdb_cover"
+                  ? "The catalog cover cannot be displayed right now."
+                  : "The selected image cannot be displayed. Your choice is retained.",
+              loading: false,
+            });
+          },
+          loading: false,
+        });
+      } catch (error) {
+        if (this.read(portId, slot).state !== state) return;
+        this.publish(portId, slot, {
+          state,
+          error: errorText(error),
+          loading: false,
+        });
+      }
+    };
+    if (state.resolved_source.kind === "igdb_cover") {
+      void fetchThumbnail();
+      return;
     }
+    await fetchThumbnail();
   }
 
   load(

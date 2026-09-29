@@ -237,14 +237,16 @@ generated fallback states. Logos, icons, animation and a crop editor are not
 required for this slice.
 
 The current account-free fallback is a core-owned style with a stable identity,
-initials and palette per port and slot. Desktop renders that exact result before an
-explicit local image is chosen and whenever retained local bytes are unavailable;
-it does not infer another title-based fallback. The source disclosure identifies
+initials and palette per port and slot. Desktop renders a reviewed IGDB catalog
+cover when mapped and no local image is chosen; other slots use the generated style.
+Unavailable images render that style without inferring another title-based asset.
+The source disclosure identifies
 the Portcove generator and exact fallback identity without claiming third-party
 artwork rights. If thumbnail transport or browser decoding fails after core resolves
 a local import, the shared display cache switches every visible consumer and its source
 disclosure to this generated fallback without changing the durable local choice.
-Catalog-selected and provider assets remain separate planned sources.
+Catalog-mapped covers keep imagery clear of provider labels. The existing details
+source disclosure shows IGDB attribution and the reviewed source link.
 
 Provide **Change artwork**, **Choose local image**, **Browse SteamGridDB** when
 configured, **Reset to default**, and source/author information. Reset affects

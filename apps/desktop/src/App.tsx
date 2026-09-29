@@ -479,7 +479,7 @@ function Workspace({
   };
 
   return (
-    <ArtworkProvider generation={bootstrap.generation}>
+    <ArtworkProvider generation={bootstrap.generation} catalog={data.catalog}>
       <div className="app-shell">
         <Sidebar
           view={ui.view}

@@ -5865,6 +5865,50 @@
         ],
         "type": "string"
       },
+      "IgdbArtwork": {
+        "additionalProperties": false,
+        "description": "Maintainer-reviewed catalog mapping. These public IDs never contain Twitch\ncredentials; the image CDN can serve the mapped cover without an API token.",
+        "properties": {
+          "cover_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "game_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "game_slug": {
+            "type": "string"
+          },
+          "image_id": {
+            "type": "string"
+          },
+          "image_sha256": {
+            "type": "string"
+          },
+          "match_kind": {
+            "$ref": "#/$defs/IgdbArtworkMatch"
+          }
+        },
+        "required": [
+          "game_id",
+          "cover_id",
+          "image_id",
+          "image_sha256",
+          "game_slug",
+          "match_kind"
+        ],
+        "type": "object"
+      },
+      "IgdbArtworkMatch": {
+        "enum": [
+          "port",
+          "underlying-game"
+        ],
+        "type": "string"
+      },
       "InstallRecord": {
         "properties": {
           "artifact": {
@@ -6576,6 +6620,16 @@
       "PortPresentation": {
         "description": "Additive catalog-owned facts intended for user-facing clients. Older catalog\ndocuments may omit this object; current embedded definitions provide it.",
         "properties": {
+          "artwork": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/IgdbArtwork"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "installation_method": {
             "$ref": "#/$defs/InstallationMethod"
           },

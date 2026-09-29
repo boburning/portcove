@@ -7,6 +7,94 @@ import type { ArtworkState } from "./types";
 afterEach(() => vi.restoreAllMocks());
 
 describe("disposable artwork display cache", () => {
+  it("binds mapped cover thumbnails to the current catalog image identity", async () => {
+    const mapped = {
+      ...artworkState("sample", "cover"),
+      resolved_source: {
+        kind: "igdb_cover" as const,
+        cache_id: "b".repeat(64),
+        artwork: {
+          game_id: 194694,
+          cover_id: 287780,
+          image_id: "co661w",
+          image_sha256: "4".repeat(64),
+          game_slug: "ship-of-harkinian",
+          match_kind: "port" as const,
+        },
+      },
+    };
+    vi.spyOn(desktopApi, "artwork").mockResolvedValue(mapped);
+    const thumbnail = vi.spyOn(desktopApi, "artworkThumbnail").mockResolvedValue({
+      asset_sha256: "b".repeat(64),
+      choice_revision: 0,
+      png_base64: "iVBORw==",
+    });
+    const cache = new ArtworkCache(7);
+    await cache.load("sample", "cover");
+    await vi.waitFor(() =>
+      expect(cache.read("sample", "cover").image).toMatch(/^data:image\/png;base64,/),
+    );
+    thumbnail.mockResolvedValueOnce({
+      asset_sha256: "c".repeat(64),
+      choice_revision: 0,
+      png_base64: "iVBORw==",
+    });
+    await cache.load("sample", "cover", true);
+    await vi.waitFor(() => {
+      expect(cache.read("sample", "cover").image).toBeUndefined();
+      expect(cache.read("sample", "cover").error).toContain("preview changed");
+    });
+  });
+
+  it("lets other cards and local changes proceed while a mapped cover waits on the CDN", async () => {
+    const mapped: ArtworkState = {
+      ...artworkState("sample", "cover"),
+      resolved_source: {
+        kind: "igdb_cover",
+        cache_id: "b".repeat(64),
+        artwork: {
+          game_id: 194694,
+          cover_id: 287780,
+          image_id: "co661w",
+          image_sha256: "4".repeat(64),
+          game_slug: "ship-of-harkinian",
+          match_kind: "port",
+        },
+      },
+    };
+    vi.spyOn(desktopApi, "artwork").mockImplementation(async (port, slot) =>
+      port === "sample" ? mapped : artworkState(port, slot),
+    );
+    let finishCover!: (value: {
+      asset_sha256: string;
+      choice_revision: number;
+      png_base64: string;
+    }) => void;
+    vi.spyOn(desktopApi, "artworkThumbnail")
+      .mockReturnValueOnce(new Promise((resolve) => (finishCover = resolve)))
+      .mockResolvedValue({
+        asset_sha256: "a".repeat(64),
+        choice_revision: 1,
+        png_base64: "iVBORw==",
+      });
+    const local = artworkState("sample", "cover", 1, true);
+    vi.spyOn(desktopApi, "importArtwork").mockResolvedValue(local);
+    const cache = new ArtworkCache(7);
+    await cache.load("sample", "cover");
+    await cache.load("other", "detail");
+    expect(cache.read("other", "detail").state?.choice.port_id).toBe("other");
+    await cache.change("sample", "cover", 0, "owned.png", () => true);
+    expect(cache.read("sample", "cover").state?.resolved_source.kind).toBe("local_import");
+    finishCover({
+      asset_sha256: "b".repeat(64),
+      choice_revision: 0,
+      png_base64: "iVBORw==",
+    });
+    await Promise.resolve();
+    expect(cache.read("sample", "cover").state?.resolved_source.kind).toBe("local_import");
+    expect(cache.read("sample", "cover").image).toMatch(/^data:image\/png;base64,/);
+  });
+
   it("updates subscribed views for their slot and stops notifying a closed view", async () => {
     vi.spyOn(desktopApi, "artwork").mockImplementation(async (port, slot) =>
       artworkState(port, slot),

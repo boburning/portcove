@@ -1831,7 +1831,7 @@
         "type": "string"
       },
       "ArtworkResolvedSource": {
-        "description": "The source core resolves for one slot before a client attempts to transport\nor render it. A client can still display the generated fallback if a\nresolved local import cannot be decoded or presented safely.",
+        "description": "The source core resolves for one slot before a client attempts to transport\nor render it. A client can still display the generated fallback if a\nresolved image cannot be retrieved, decoded or presented safely.",
         "oneOf": [
           {
             "properties": {
@@ -1846,6 +1846,26 @@
             "required": [
               "kind",
               "asset_sha256"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "artwork": {
+                "$ref": "#/$defs/IgdbArtwork"
+              },
+              "cache_id": {
+                "type": "string"
+              },
+              "kind": {
+                "const": "igdb_cover",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "artwork",
+              "cache_id"
             ],
             "type": "object"
           },
@@ -1898,6 +1918,50 @@
           "palette_index"
         ],
         "type": "object"
+      },
+      "IgdbArtwork": {
+        "additionalProperties": false,
+        "description": "Maintainer-reviewed catalog mapping. These public IDs never contain Twitch\ncredentials; the image CDN can serve the mapped cover without an API token.",
+        "properties": {
+          "cover_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "game_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "game_slug": {
+            "type": "string"
+          },
+          "image_id": {
+            "type": "string"
+          },
+          "image_sha256": {
+            "type": "string"
+          },
+          "match_kind": {
+            "$ref": "#/$defs/IgdbArtworkMatch"
+          }
+        },
+        "required": [
+          "game_id",
+          "cover_id",
+          "image_id",
+          "image_sha256",
+          "game_slug",
+          "match_kind"
+        ],
+        "type": "object"
+      },
+      "IgdbArtworkMatch": {
+        "enum": [
+          "port",
+          "underlying-game"
+        ],
+        "type": "string"
       },
       "LocalArtworkAsset": {
         "additionalProperties": false,
@@ -2676,6 +2740,50 @@
         ],
         "type": "object"
       },
+      "IgdbArtwork": {
+        "additionalProperties": false,
+        "description": "Maintainer-reviewed catalog mapping. These public IDs never contain Twitch\ncredentials; the image CDN can serve the mapped cover without an API token.",
+        "properties": {
+          "cover_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "game_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "game_slug": {
+            "type": "string"
+          },
+          "image_id": {
+            "type": "string"
+          },
+          "image_sha256": {
+            "type": "string"
+          },
+          "match_kind": {
+            "$ref": "#/$defs/IgdbArtworkMatch"
+          }
+        },
+        "required": [
+          "game_id",
+          "cover_id",
+          "image_id",
+          "image_sha256",
+          "game_slug",
+          "match_kind"
+        ],
+        "type": "object"
+      },
+      "IgdbArtworkMatch": {
+        "enum": [
+          "port",
+          "underlying-game"
+        ],
+        "type": "string"
+      },
       "InstallationMethod": {
         "description": "User-facing installation behavior supplied by the catalog. Adapters remain an\nimplementation detail and must not be translated into product copy by clients.",
         "enum": [
@@ -3037,6 +3145,16 @@
       "PortPresentation": {
         "description": "Additive catalog-owned facts intended for user-facing clients. Older catalog\ndocuments may omit this object; current embedded definitions provide it.",
         "properties": {
+          "artwork": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/IgdbArtwork"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "installation_method": {
             "$ref": "#/$defs/InstallationMethod"
           },
@@ -10901,6 +11019,50 @@
         ],
         "type": "object"
       },
+      "IgdbArtwork": {
+        "additionalProperties": false,
+        "description": "Maintainer-reviewed catalog mapping. These public IDs never contain Twitch\ncredentials; the image CDN can serve the mapped cover without an API token.",
+        "properties": {
+          "cover_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "game_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "game_slug": {
+            "type": "string"
+          },
+          "image_id": {
+            "type": "string"
+          },
+          "image_sha256": {
+            "type": "string"
+          },
+          "match_kind": {
+            "$ref": "#/$defs/IgdbArtworkMatch"
+          }
+        },
+        "required": [
+          "game_id",
+          "cover_id",
+          "image_id",
+          "image_sha256",
+          "game_slug",
+          "match_kind"
+        ],
+        "type": "object"
+      },
+      "IgdbArtworkMatch": {
+        "enum": [
+          "port",
+          "underlying-game"
+        ],
+        "type": "string"
+      },
       "InstallationMethod": {
         "description": "User-facing installation behavior supplied by the catalog. Adapters remain an\nimplementation detail and must not be translated into product copy by clients.",
         "enum": [
@@ -10942,6 +11104,16 @@
       "PortPresentation": {
         "description": "Additive catalog-owned facts intended for user-facing clients. Older catalog\ndocuments may omit this object; current embedded definitions provide it.",
         "properties": {
+          "artwork": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/IgdbArtwork"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "installation_method": {
             "$ref": "#/$defs/InstallationMethod"
           },
@@ -15047,6 +15219,50 @@
         ],
         "type": "object"
       },
+      "IgdbArtwork": {
+        "additionalProperties": false,
+        "description": "Maintainer-reviewed catalog mapping. These public IDs never contain Twitch\ncredentials; the image CDN can serve the mapped cover without an API token.",
+        "properties": {
+          "cover_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "game_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "game_slug": {
+            "type": "string"
+          },
+          "image_id": {
+            "type": "string"
+          },
+          "image_sha256": {
+            "type": "string"
+          },
+          "match_kind": {
+            "$ref": "#/$defs/IgdbArtworkMatch"
+          }
+        },
+        "required": [
+          "game_id",
+          "cover_id",
+          "image_id",
+          "image_sha256",
+          "game_slug",
+          "match_kind"
+        ],
+        "type": "object"
+      },
+      "IgdbArtworkMatch": {
+        "enum": [
+          "port",
+          "underlying-game"
+        ],
+        "type": "string"
+      },
       "InstallationMethod": {
         "description": "User-facing installation behavior supplied by the catalog. Adapters remain an\nimplementation detail and must not be translated into product copy by clients.",
         "enum": [
@@ -15408,6 +15624,16 @@
       "PortPresentation": {
         "description": "Additive catalog-owned facts intended for user-facing clients. Older catalog\ndocuments may omit this object; current embedded definitions provide it.",
         "properties": {
+          "artwork": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/IgdbArtwork"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "installation_method": {
             "$ref": "#/$defs/InstallationMethod"
           },

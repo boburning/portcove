@@ -1985,10 +1985,19 @@ fn validate_external_url(catalog: &CatalogDocument, url: &str) -> DesktopResult<
     let known = matches!(
         url,
         "https://github.com/boburning/portcove" | "https://github.com/login/device"
-    ) || catalog.ports.iter().any(|port| port.project_url == url);
+    ) || catalog.ports.iter().any(|port| {
+        port.project_url == url
+            || port
+                .presentation
+                .as_ref()
+                .and_then(|presentation| presentation.artwork.as_ref())
+                .is_some_and(|artwork| {
+                    url == format!("https://www.igdb.com/games/{}", artwork.game_slug)
+                })
+    });
     if !url.starts_with("https://") || !known {
         return Err(PortcoveError::usage(
-            "only reviewed project and GitHub sign-in links may be opened",
+            "only reviewed project, artwork source and GitHub sign-in links may be opened",
         )
         .into());
     }
@@ -2734,6 +2743,7 @@ mod tests {
             "https://github.com/boburning/portcove",
             "https://github.com/login/device",
             &catalog.document().ports[0].project_url,
+            "https://www.igdb.com/games/ship-of-harkinian",
         ] {
             validate_external_url(catalog.document(), url).unwrap();
         }
@@ -2743,6 +2753,8 @@ mod tests {
             "https://example.com",
             "https://github.com/login/device?redirect=elsewhere",
             "https://github.com/boburning/portcove.evil",
+            "https://www.igdb.com/games/ship-of-harkinian?redirect=elsewhere",
+            "https://www.igdb.com/games/unmapped-game",
         ] {
             assert!(
                 validate_external_url(catalog.document(), url).is_err(),

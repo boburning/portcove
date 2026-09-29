@@ -188,6 +188,28 @@ pub struct PortPresentation {
     pub saves_and_settings: SavesAndSettingsBehavior,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub manual_preparation: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub artwork: Option<IgdbArtwork>,
+}
+
+/// Maintainer-reviewed catalog mapping. These public IDs never contain Twitch
+/// credentials; the image CDN can serve the mapped cover without an API token.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct IgdbArtwork {
+    pub game_id: u64,
+    pub cover_id: u64,
+    pub image_id: String,
+    pub image_sha256: String,
+    pub game_slug: String,
+    pub match_kind: IgdbArtworkMatch,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "kebab-case")]
+pub enum IgdbArtworkMatch {
+    Port,
+    UnderlyingGame,
 }
 
 impl AdapterKind {

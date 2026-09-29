@@ -177,10 +177,12 @@ also discards that bounded incomplete copy. No random temporary-file accumulatio
 is possible across repeated import interruptions. Staging is excluded from payload
 exports. Originals remain until explicit unused-image removal. Thumbnail failures
 cannot prevent choosing a validated original. On-demand PNG thumbnails fit within
-384 by 576 pixels and 1 MiB each. Their separate 64 MiB cache verifies content hashes,
+384 by 576 pixels and 1 MiB each. Fetched catalog-default IGDB JPEG originals
+are limited to 16 MiB each. Their separate 64 MiB cache verifies content hashes,
 rebuilds missing/corrupt entries, and evicts entries in deterministic filename order.
-One bounded pending thumbnail is recognized for interrupted-write retry or cache
-clearing; publication may require up to 1 MiB of temporary working space.
+One bounded pending file for each kind is recognized for interrupted-write retry
+or cache clearing; publication of an original may require up to 16 MiB of
+temporary working space.
 Unexpected files or symlink paths are retained and rejected, never traversed.
 
 Library metadata format 3 exports logical choices and local asset identities with
@@ -210,18 +212,28 @@ palettes to the exact catalog port ID, display name and slot. It uses no externa
 image bytes or network access. An available local import resolves ahead of that
 fallback. A missing or changed selected import remains the durable choice while core
 resolves the fallback; restoring the same bytes resolves the local import again without
-substituting another asset. Reset clears only the local choice and resolves the same
-deterministic fallback. `resolved_source` describes that core decision, not a promise
+substituting another asset. Reset clears only the local choice and resolves a mapped
+catalog cover when present, or the same deterministic fallback otherwise.
+`resolved_source` describes that core decision, not a promise
 that a client decoder rendered the bytes. If thumbnail transport or browser decoding
 fails, Desktop publishes the failure through its disposable cache, renders the same
 core-provided fallback and discloses that actual rendered source without changing the
 durable choice. React consumes the core identity, initials and palette rather than
 deriving its own per-card fallback.
 
-There is still no provider, network fetch or catalog artwork default. Catalog and
-provider precedence, sparse mappings and permission-bearing external assets remain
-separate work. Provider access and redistribution permissions remain separate from
-this account-free generated-display and storage contract.
+The catalog may provide an additive, reviewed IGDB cover mapping with distinct
+game, cover and CDN image IDs plus the expected image digest. Core resolves a
+valid local choice first, then the mapped cover for that port's cover slot, then
+the generated fallback. The Desktop host remains a thin adapter. Core
+fetches only the fixed IGDB cover CDN path, without Twitch credentials or a
+client-side catalog search; a bounded JPEG is checked against the catalog digest
+before decoding, and its original bytes are retained in the disposable shared
+cache. Every cache read rechecks that digest before deriving a thumbnail. A missing, changed or
+unreachable image falls back in the renderer without blocking library or port
+operations. The catalog mapping is presentation data, so a reviewed signed
+catalog update can correct it without changing the installed app. An absent
+mapping retains the generated fallback. Provider terms and image withdrawal
+remain separate from local file integrity and executable trust.
 
 The [independent definition delivery contract](DEFINITION-DELIVERY.md) keeps
 successor definition admission, retained source/execution/persistence contracts

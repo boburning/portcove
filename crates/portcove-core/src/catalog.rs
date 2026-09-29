@@ -410,6 +410,29 @@ impl Catalog {
                 }
             }
             if let Some(presentation) = &port.presentation {
+                if let Some(artwork) = &presentation.artwork
+                    && (artwork.game_id == 0
+                        || artwork.cover_id == 0
+                        || artwork.image_id.is_empty()
+                        || artwork.image_sha256.len() != 64
+                        || !artwork
+                            .image_sha256
+                            .bytes()
+                            .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
+                        || !artwork
+                            .image_id
+                            .bytes()
+                            .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit())
+                        || artwork.game_slug.is_empty()
+                        || !artwork.game_slug.bytes().all(|byte| {
+                            byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-'
+                        }))
+                {
+                    return Err(PortcoveError::usage(format!(
+                        "{} has an invalid IGDB artwork mapping",
+                        port.id
+                    )));
+                }
                 let expected_requirements = [
                     (
                         crate::PortSourceRole::Game,
@@ -1799,6 +1822,15 @@ mod tests {
             "Different game files".into();
         let error = Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap_err();
         assert!(error.to_string().contains("disagrees with source profile"));
+    }
+
+    #[test]
+    fn catalog_artwork_rejects_unbounded_or_unreviewed_image_locations() {
+        let catalog = Catalog::embedded().unwrap();
+        let mut document = serde_json::to_value(catalog.authoritative_document()).unwrap();
+        document["ports"][0]["presentation"]["artwork"]["image_id"] = "../other-host".into();
+        let error = Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap_err();
+        assert!(error.to_string().contains("invalid IGDB artwork mapping"));
     }
 
     #[test]

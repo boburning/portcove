@@ -59,6 +59,102 @@ fn generated_fallback_is_core_owned_stable_and_independent_per_slot() {
 }
 
 #[test]
+fn verified_shipwright_mapping_is_the_cover_default_and_keeps_local_override_authority() {
+    let temp = tempfile::tempdir().unwrap();
+    let service = open_service(&temp.path().join("library"));
+    let cover = service.artwork("shipwright", ArtworkSlot::Cover).unwrap();
+    let ArtworkResolvedSource::IgdbCover { artwork, cache_id } = &cover.resolved_source else {
+        panic!("the reviewed catalog cover should resolve through IGDB");
+    };
+    assert_eq!((artwork.game_id, artwork.cover_id), (194694, 287780));
+    assert_eq!(artwork.image_id, "co661w");
+    assert_eq!(cache_id.len(), 64);
+    assert_eq!(cover.availability, ArtworkAvailability::Available);
+    assert_eq!(
+        service
+            .artwork("shipwright", ArtworkSlot::Detail)
+            .unwrap()
+            .resolved_source,
+        ArtworkResolvedSource::GeneratedFallback
+    );
+    let png = image_file(temp.path(), "owned.png", image::ImageFormat::Png);
+    let selected = service
+        .import_artwork("shipwright", ArtworkSlot::Cover, &png, 0)
+        .unwrap();
+    assert!(matches!(
+        selected.resolved_source,
+        ArtworkResolvedSource::LocalImport { .. }
+    ));
+    assert_eq!(
+        service
+            .reset_artwork("shipwright", ArtworkSlot::Cover, 1)
+            .unwrap()
+            .resolved_source,
+        cover.resolved_source
+    );
+}
+
+#[test]
+fn artwork_only_catalog_correction_preserves_installed_port_contract() {
+    let original = crate::Catalog::embedded()
+        .unwrap()
+        .port("shipwright")
+        .unwrap()
+        .clone();
+    let mut corrected = original.clone();
+    corrected
+        .presentation
+        .as_mut()
+        .unwrap()
+        .artwork
+        .as_mut()
+        .unwrap()
+        .image_id = "co9999".into();
+    crate::signed_catalog::validate_installed_port_contract(&corrected, &original).unwrap();
+}
+
+#[test]
+#[ignore = "manual live CDN qualification; run explicitly when network access is available"]
+fn live_igdb_shipwright_cover_fetches_and_reuses_bounded_thumbnail() {
+    let temp = tempfile::tempdir().unwrap();
+    let service = open_service(&temp.path().join("library"));
+    let first = service
+        .artwork_thumbnail("shipwright", ArtworkSlot::Cover, 0)
+        .unwrap();
+    assert!(first.png.starts_with(b"\x89PNG\r\n\x1a\n"));
+    let ArtworkResolvedSource::IgdbCover { artwork, .. } = service
+        .artwork("shipwright", ArtworkSlot::Cover)
+        .unwrap()
+        .resolved_source
+    else {
+        panic!("expected the catalog mapping")
+    };
+    let cache = service
+        .library()
+        .root()
+        .join("artwork-cache")
+        .join(format!("{}.jpg", artwork.image_sha256));
+    assert_eq!(
+        crate::signed_catalog::digest(&fs::read(&cache).unwrap()),
+        artwork.image_sha256
+    );
+    let other = image_file(temp.path(), "other.jpg", image::ImageFormat::Jpeg);
+    fs::copy(&other, &cache).unwrap();
+    assert_eq!(
+        service
+            .artwork_thumbnail("shipwright", ArtworkSlot::Cover, 0)
+            .unwrap()
+            .png,
+        first.png
+    );
+    assert_eq!(
+        crate::signed_catalog::digest(&fs::read(&cache).unwrap()),
+        artwork.image_sha256
+    );
+    assert_eq!(service.clear_artwork_cache().unwrap().removed_files, 1);
+}
+
+#[test]
 fn choices_are_per_slot_and_reset_cache_and_retirement_are_separate() {
     let temp = tempfile::tempdir().unwrap();
     let service = open_service(&temp.path().join("library"));

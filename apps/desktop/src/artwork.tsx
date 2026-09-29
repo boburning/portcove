@@ -10,19 +10,27 @@ import {
   type ReactNode,
 } from "react";
 import { ArtworkCache, type ArtworkDisplay } from "./artwork-cache";
-import type { ArtworkSlot } from "./types";
+import type { ArtworkSlot, CatalogDocument } from "./types";
 
 const ArtworkContext = createContext<ArtworkCache | undefined>(undefined);
 const unavailable: ArtworkDisplay = { loading: false };
 
 export function ArtworkProvider({
   generation,
+  catalog,
   children,
 }: {
   generation: number;
+  catalog?: CatalogDocument | null;
   children: ReactNode;
 }) {
-  const cache = useMemo(() => new ArtworkCache(generation), [generation]);
+  const catalogArtworkKey = JSON.stringify(
+    catalog?.ports.map(({ id, presentation }) => [id, presentation?.artwork]) ?? [],
+  );
+  const cache = useMemo(
+    () => new ArtworkCache(generation, catalogArtworkKey),
+    [generation, catalogArtworkKey],
+  );
   return <ArtworkContext.Provider value={cache}>{children}</ArtworkContext.Provider>;
 }
 
