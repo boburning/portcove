@@ -1409,8 +1409,12 @@ mod tests {
             .iter_mut()
             .find(|port| port.id == "2ship2harkinian")
             .unwrap();
-        two_ship.persistent_paths.push("imgui.ini".into());
-        two_ship.runtime_mutable_paths = vec!["logs/2 Ship 2 Harkinian.log".into()];
+        two_ship
+            .persistent_paths
+            .extend(["imgui.ini".into(), "2S2HTimeSplitData.json".into()]);
+        two_ship.runtime_mutable_paths = std::iter::once("logs/2 Ship 2 Harkinian.log".into())
+            .chain((1..=10).map(|index| format!("logs/2 Ship 2 Harkinian.{index}.log")))
+            .collect();
         let ygofm = expected_ports
             .iter_mut()
             .find(|port| port.id == "yu-gi-oh-forbidden-memories-recompiled")
@@ -3126,6 +3130,7 @@ mod tests {
             "mm.o2r",
             "2ship2harkinian.json",
             "imgui.ini",
+            "2S2HTimeSplitData.json",
             "saves",
             "presets",
         ] {
@@ -3134,7 +3139,12 @@ mod tests {
                 "2Ship persistence contract is missing {path}"
             );
         }
-        assert_eq!(port.runtime_mutable_paths, ["logs/2 Ship 2 Harkinian.log"]);
+        assert_eq!(
+            port.runtime_mutable_paths,
+            std::iter::once("logs/2 Ship 2 Harkinian.log".into())
+                .chain((1..=10).map(|index| format!("logs/2 Ship 2 Harkinian.{index}.log")))
+                .collect::<Vec<_>>()
+        );
     }
 
     #[test]

@@ -7082,10 +7082,21 @@
         "screenshots",
         "2ship2harkinian.json",
         "mm.o2r",
-        "imgui.ini"
+        "imgui.ini",
+        "2S2HTimeSplitData.json"
       ],
       "runtime_mutable_paths": [
-        "logs/2 Ship 2 Harkinian.log"
+        "logs/2 Ship 2 Harkinian.log",
+        "logs/2 Ship 2 Harkinian.1.log",
+        "logs/2 Ship 2 Harkinian.2.log",
+        "logs/2 Ship 2 Harkinian.3.log",
+        "logs/2 Ship 2 Harkinian.4.log",
+        "logs/2 Ship 2 Harkinian.5.log",
+        "logs/2 Ship 2 Harkinian.6.log",
+        "logs/2 Ship 2 Harkinian.7.log",
+        "logs/2 Ship 2 Harkinian.8.log",
+        "logs/2 Ship 2 Harkinian.9.log",
+        "logs/2 Ship 2 Harkinian.10.log"
       ],
       "presentation": {
         "installation_method": "portable-package",
