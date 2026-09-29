@@ -68,6 +68,7 @@ internal static class ContractTests
         CheckRuntimeSelection();
         CheckPersonalLibrary();
         CheckGuidedSetup();
+        CheckManagedRemoval();
         var managedStatus = Json.Parse("{\"active\":null}");
         Check(Json.OptionalObjectField(managedStatus, "external_runtime") == null,
             "absent external runtime is a valid managed status");
@@ -338,6 +339,46 @@ internal static class ContractTests
             Check(catalog.Length > 1 && statuses.Length == catalog.Length, "real standalone CLI discovery through reference consumer");
             Check(await real.Read("launch.show", "launch", "show", Guid.NewGuid().ToString("D")) == null, "real standalone CLI absent launch readback");
         }
+    }
+
+    private static void CheckManagedRemoval()
+    {
+        var value = Json.Object(Json.Parse(Json.Print(new
+        {
+            port_id = "shape-a",
+            managed_paths = new[] { @"C:\Portcove\versions\first", @"C:\Portcove\versions\second" },
+            persistent_data_path = @"C:\Portcove\saved\shape-a",
+            persistent_data_will_be_preserved = true,
+            preview_sha256 = new string('a', 64)
+        })));
+        var review = ManagedRemovalReview.Read(value, "shape-a");
+        Check(review.ManagedPaths.Length == 2 && review.Confirmation("Shape A", @"C:\Portcove")
+            .Contains(@"C:\Portcove\saved\shape-a"), "managed removal displays exact paths and preserved saved data");
+        review.RequireApplied(Json.Parse(@"{""removed"": [""C:\\Portcove\\versions\\second"", ""C:\\Portcove\\versions\\first""]}"));
+        Check(true, "managed removal accepts the exact reviewed path set after core succeeds");
+        Reject(() => review.RequireApplied(Json.Parse(@"{""removed"": [""C:\\Portcove\\versions\\first""]}")),
+            "managed removal rejects an incomplete result without marking Playnite uninstalled");
+        Reject(() => review.RequireApplied(Json.Parse(@"{""removed"": [""C:\\Portcove\\versions\\first"", ""C:\\unrelated""]}")),
+            "managed removal rejects a foreign result path");
+        Reject(() => ManagedRemovalReview.Read(value, "another-port"), "cross-port removal preview rejected");
+        value["persistent_data_will_be_preserved"] = false;
+        Reject(() => ManagedRemovalReview.Read(value, "shape-a"), "managed removal refuses an unpreserved saved-data contract");
+        value["persistent_data_will_be_preserved"] = true;
+        value["managed_paths"] = new object[] { @"C:\Portcove\versions\first", @"C:\Portcove\versions\first" };
+        Reject(() => ManagedRemovalReview.Read(value, "shape-a"), "duplicate managed removal path rejected");
+        value["managed_paths"] = new object[] { @"C:\Portcove\versions\first", @"C:\Portcove\versions\second" };
+        value["preview_sha256"] = "unbound";
+        Reject(() => ManagedRemovalReview.Read(value, "shape-a"), "unbound removal fingerprint rejected");
+
+        var capabilities = Json.Object(Json.Parse(Json.Print(Capabilities())));
+        capabilities["schema_version"] = 56;
+        capabilities["operation_event_schema_version"] = 3;
+        capabilities["commands"] = Json.Array(Json.Field(capabilities, "commands"))
+            .Cast<string>().Concat(new[] { "remove.preview", "remove" }).ToArray();
+        Check(ProtocolStream.Negotiate(capabilities) == 3, "schema-56 client consumes reviewed removal commands");
+        capabilities["commands"] = Json.Array(Json.Field(capabilities, "commands"))
+            .Cast<string>().Where(command => command != "remove.preview").ToArray();
+        Reject(() => ProtocolStream.Negotiate(capabilities), "schema-56 without removal preview capability rejected");
     }
 
     private static void CheckRuntimeSelection()
@@ -744,6 +785,34 @@ internal static class ContractTests
                 elapsed_ms = new { connect = connect.ElapsedMilliseconds, refresh = refresh.ElapsedMilliseconds },
                 artifact_server_online = false
             }));
+            return;
+        }
+
+        if (mode == "qualification-remove")
+        {
+            Check(client.ApiSchemaVersion >= 56, "compiled producer advertises reviewed removal schema");
+            var preview = ManagedRemovalReview.Read(await client.Read("remove.preview", "remove-preview", port), port);
+            Check(preview.ManagedPaths.Length > 0, "compiled producer exposes exact managed removal paths");
+            Directory.CreateDirectory(preview.PersistentDataPath);
+            var saved = Path.Combine(preview.PersistentDataPath, "playnite-removal-preserved.save");
+            File.WriteAllText(saved, "retained save marker");
+            await ExpectFailure(client.Manage("remove", new[]
+            {
+                "remove", port, "--expected-preview", new string('0', 64), "--yes"
+            }, null), "conflict:", "changed removal fingerprint refuses mutation before consent");
+            Check(ActiveVersion(await Status(client, port)) != null && File.Exists(saved),
+                "stale removal intent preserves installed version and saved data");
+            var result = await client.Manage("remove", new[]
+            {
+                "remove", port, "--expected-preview", preview.PreviewSha256, "--yes"
+            }, null);
+            preview.RequireApplied(result);
+            Check(ActiveVersion(await Status(client, port)) == null,
+                "real reviewed removal clears the managed installation");
+            Check(File.ReadAllText(saved) == "retained save marker",
+                "real reviewed removal preserves exact saved-data bytes");
+            await ExpectFailure(client.Read("remove.preview", "remove-preview", port), "not_found:",
+                "completed removal has no stale reusable preview");
             return;
         }
 

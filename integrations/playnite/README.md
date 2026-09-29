@@ -66,7 +66,7 @@ user's ordinary Playnite library.
 
 ## Compatibility and use
 
-This revision supports **Portcove API schemas 42–55 and event schemas 2–3**. Schema
+This revision supports **Portcove API schemas 42–56 and event schemas 2–3**. Schema
 50 advertises the independently versioned operation-event contract through
 `operation_event_schema_version`; the client consumes and rejects an unsupported
 value before lifecycle management. Launch-only and read-only library negotiation
@@ -83,7 +83,7 @@ client does not use. Schema 53 adds optional saved-root scan and snapshot comman
 that this client also does not use. It accepts both additive schemas while
 continuing to negotiate only its required capabilities. Use an exactly identified schema-42,
 schema-43, schema-44, schema-45, schema-46, schema-47, schema-48, schema-49,
-schema-50, schema-51, schema-52, schema-53, schema-54 or schema-55 candidate until a matching public
+schema-50, schema-51, schema-52, schema-53, schema-54, schema-55 or schema-56 candidate until a matching public
 standalone release exists; the older published technical previews must not be
 described as supporting these new commands.
 See the [author guide](../../docs/INTEGRATION-AUTHOR.md).
@@ -139,6 +139,15 @@ not an attempted mutation. **Check and update** stays separate from Play and
 resolves the selected channel at execution time. Other manual actions are under
 **Other Portcove actions**. Installation and preparation retain their exact
 review and core validation. Nothing installs or updates as a side effect of Play.
+
+Playnite's **Uninstall** action for a Portcove game offers **Remove managed
+Portcove versions**. It requires a compatible schema-56 CLI, reads core's exact
+managed-folder preview, shows the saved-data path that core preserves, and
+submits the reviewed fingerprint only after explicit confirmation. A changed
+inventory is rejected and must be reviewed again. The plugin marks the game
+uninstalled only after the CLI result matches the reviewed paths and current
+status has no active version. External player-owned runtimes are outside this
+managed removal action. Hiding a Playnite entry retains its files and metadata.
 
 Progress is best-effort and a single final response must agree with the process
 exit status. The view reads the latest 200 durable activities and displays up to
@@ -200,7 +209,7 @@ for exactly identified external candidate bytes. None of these headless checks
 substitutes for Playnite frontend interaction, packaged execution, gameplay,
 intrinsic human observation or a fresh independent author.
 
-The client deliberately omits artwork acquisition, shortcuts, uninstall,
+The client deliberately omits artwork acquisition, shortcuts,
 destructive backup actions, catalog trust changes, application updates, automatic
 recovery and broad launcher feature parity. Use Portcove's supported UI/CLI for
 the specific recovery action it reports. Shutdown during management may leave
@@ -208,7 +217,7 @@ durable incomplete work; never infer safe cleanup from a closed window.
 
 Portcove maintains this bounded reference and its public-contract regressions.
 Report the client commit, CLI capability/schema versions, Playnite/SDK version,
-operation, platform and a redacted reproducer on #243 or a linked bug. Do not
+operation, platform and a redacted reproducer on #910 or a linked bug. Do not
 attach original game files, credentials, raw tool output or unreviewed library
 paths. A public-contract failure belongs to Portcove; launcher presentation belongs
 to this extension; upstream game/source qualification keeps its catalog owner.

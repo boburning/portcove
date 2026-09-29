@@ -223,6 +223,7 @@ async function main() {
       .find((line) => line.startsWith("REAL_MEASUREMENT "));
     assert.ok(measurementLine, "compiled client must emit the real-CLI measurement record");
     const measurement = JSON.parse(measurementLine.slice("REAL_MEASUREMENT ".length));
+    await phase("qualification-remove", INSTALL_REFRESH_FIXTURE_PORT_ID);
 
     const report = {
       schema_version: 1,
@@ -236,6 +237,7 @@ async function main() {
         recovery_updates_succeeded: true,
         two_distinct_adapter_shapes_managed_through_public_client: true,
         revoked_selected_definition_failed_closed: true,
+        reviewed_managed_removal_preserved_saves: true,
       },
       fixture_ports: [INSTALL_FIXTURE_PORT_ID, INSTALL_REFRESH_FIXTURE_PORT_ID],
       definition_fixture_port: DEFINITION_FIXTURE_PORT_ID,
@@ -254,10 +256,14 @@ async function main() {
         cleanupFailed = true;
       }
     }
-    try {
-      await rm(workspace, { recursive: true, force: true });
-    } catch {
-      cleanupFailed = true;
+    if (primaryFailure) {
+      process.stderr.write(`Retained failed Playnite lifecycle fixture: ${workspace}\n`);
+    } else {
+      try {
+        await rm(workspace, { recursive: true, force: true });
+      } catch {
+        cleanupFailed = true;
+      }
     }
     if (cleanupFailed) {
       if (primaryFailure)

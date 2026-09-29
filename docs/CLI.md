@@ -119,6 +119,14 @@ the outside runtime or grant ownership of it. On another host or after moving
 the external folder, prepare and register it again against an accepted catalog
 entry.
 
+Schema 56 adds the read-only `remove.preview` capability. `remove-preview PORT_ID`
+returns core's exact managed paths, persistent-data preservation statement and
+fingerprint without issuing consent. A client may then show that preview and
+submit `remove PORT_ID --expected-preview <sha256> --yes`; the CLI rejects a
+changed inventory before issuing the one-use core authorization, and core
+rechecks it under the port lock. Existing interactive `remove PORT_ID` remains
+available. Hiding or deleting a Playnite entry does not authorize this command.
+
 Schema 54 adds `port_actions` to port status. Core projects install, launch,
 and owned-removal availability as `not_offered`, `waiting`, `held`, or
 `allowed` with a stable reason. A signed-definition restriction includes the
@@ -204,7 +212,7 @@ The CLI API schema version is independent of the Portcove release version. Every
 
 ```json
 {
-  "schema_version": 55,
+  "schema_version": 56,
   "ok": true,
   "command": "status",
   "data": {},
@@ -340,7 +348,7 @@ other games remain readable. New installations retain their execution and
 persistence definitions in manifest schema 6, introduced with writer protocol 23.
 Protocol 25 now protects exact successor definition retention; older clients refuse
 to modify an upgraded library. The Playnite
-reference accepts API schemas 42 through 55 with advertised event schema 2 or 3.
+reference accepts API schemas 42 through 56 with advertised event schema 2 or 3.
 Schema 50 advertises the independently versioned event contract; the historical
 42–49 window retains its documented event-2 contract. Event schema 3 adds a
 provisional exact `source_candidate` during discovery, carrying profile, path,

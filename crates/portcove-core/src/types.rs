@@ -1393,6 +1393,7 @@ impl CapabilityDocument {
                 "activate".into(),
                 "rollback".into(),
                 "remove".into(),
+                "remove.preview".into(),
                 "channel".into(),
                 "policy".into(),
                 "exec".into(),

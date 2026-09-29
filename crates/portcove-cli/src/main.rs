@@ -153,6 +153,10 @@ enum Commands {
         /// Port whose retained previous version should become current.
         port_id: String,
     },
+    /// Read the exact managed-version removal preview without changing files.
+    RemovePreview {
+        port_id: String,
+    },
     /// Remove managed installed versions while keeping persistent saved data.
     Remove {
         /// Port whose managed installed versions should be removed.
@@ -160,6 +164,9 @@ enum Commands {
         /// Confirm the reviewed removal without an interactive prompt.
         #[arg(long)]
         yes: bool,
+        /// Require the current removal inventory to match a separately reviewed preview.
+        #[arg(long)]
+        expected_preview: Option<String>,
     },
     Channel {
         #[command(subcommand)]
@@ -872,6 +879,7 @@ fn command_is_observation(command: &Commands) -> bool {
                 command: CatalogCommand::Update { apply: false, .. },
             }
             | Commands::Status { .. }
+            | Commands::RemovePreview { .. }
             | Commands::External {
                 command: ExternalCommand::Preview { .. },
             }
@@ -1896,8 +1904,23 @@ async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
         Commands::Rollback { port_id } => {
             render_success(mode, "rollback", service.rollback(&port_id)?)?
         }
-        Commands::Remove { port_id, yes } => {
+        Commands::RemovePreview { port_id } => {
+            render_success(mode, "remove.preview", service.preview_removal(&port_id)?)?;
+        }
+        Commands::Remove {
+            port_id,
+            yes,
+            expected_preview,
+        } => {
             let preview = service.preview_removal(&port_id)?;
+            if expected_preview
+                .as_ref()
+                .is_some_and(|expected| expected != &preview.preview_sha256)
+            {
+                return Err(PortcoveError::conflict(
+                    "managed installs changed after preview; review removal again",
+                ));
+            }
             if mode == OutputMode::Human {
                 println!("{}", human::document(&preview)?);
             }
@@ -2722,6 +2745,7 @@ fn command_name(command: &Commands) -> &'static str {
         Commands::Verify { .. } => "verify",
         Commands::Activate { .. } => "activate",
         Commands::Rollback { .. } => "rollback",
+        Commands::RemovePreview { .. } => "remove.preview",
         Commands::Remove { .. } => "remove",
         Commands::Channel { .. } => "channel.set",
         Commands::Policy { .. } => "policy.set",
@@ -2919,6 +2943,7 @@ mod tests {
     fn observation_commands_do_not_trigger_constructor_recovery() {
         for arguments in [
             vec!["portcove", "status"],
+            vec!["portcove", "remove-preview", "zelda64-recomp"],
             vec!["portcove", "activity"],
             vec!["portcove", "doctor"],
             vec!["portcove", "auth", "status"],
@@ -2942,6 +2967,14 @@ mod tests {
         }
         for arguments in [
             vec!["portcove", "remove", "zelda64-recomp", "--yes"],
+            vec![
+                "portcove",
+                "remove",
+                "zelda64-recomp",
+                "--yes",
+                "--expected-preview",
+                "abc",
+            ],
             vec!["portcove", "backup", "create", "zelda64-recomp"],
             vec![
                 "portcove",
@@ -3201,7 +3234,7 @@ mod tests {
     #[test]
     fn capabilities_advertise_failure_isolated_batches() {
         let capabilities = CapabilityDocument::current();
-        assert_eq!(capabilities.schema_version, 55);
+        assert_eq!(capabilities.schema_version, 56);
         assert!(
             capabilities
                 .commands
