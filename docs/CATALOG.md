@@ -308,6 +308,16 @@ New named persistent-path declarations also permit newly created preference
 files in existing installations. Verification still checks every file recorded
 as immutable in the original manifest; a later declaration cannot hide changes
 to those bytes or rewrite that recorded identity during library import.
+For an installed version with a retained definition, the service admits newly
+declared exact persistent and runtime-mutable paths only when the current port
+definition otherwise matches that retained definition and keeps all of its old
+mutable paths. An addition overlapping a recorded immutable file or naming an
+executable companion is rejected. The retained definition still owns source and
+launch behavior, while newly admitted persistent files participate in collection,
+restore, activation, interrupted-activation recovery, rollback and game-output
+relocation. Other catalog changes do not silently expand an old installation's
+mutable surface. Whole-library export and import retain their separately reviewed
+historical contract and can still reject an older install with new sidecars.
 
 Managed PS1 launches regenerate `.portcove-psx-runtime.toml` from the verified
 `game.toml` template and current verified disc paths for both source modes.

@@ -116,11 +116,7 @@ impl PortcoveService {
         let mut required_bytes = 0_u64;
         for install in records {
             crate::output_root::validate_install_path(self.library(), port_id, &install.path)?;
-            let qualification = installer.qualification_for_install(
-                &install,
-                self.catalog(),
-                crate::Platform::current()?,
-            )?;
+            let qualification = self.installed_mutability_qualification(&install)?;
             let report = installer.verify_managed(&install, &qualification)?;
             if !report.valid {
                 return Err(PortcoveError::verification(
@@ -490,11 +486,7 @@ fn verify_staged(
             path,
             ..entry.install.clone()
         };
-        let qualification = installer.qualification_for_install(
-            &staged,
-            service.catalog(),
-            crate::Platform::current()?,
-        )?;
+        let qualification = service.installed_mutability_qualification(&entry.install)?;
         let report = installer.verify_managed(&staged, &qualification)?;
         if !report.valid {
             return Err(PortcoveError::verification(
@@ -520,11 +512,7 @@ fn verify_new_authority(service: &PortcoveService, plan: &OutputRelocationPlan) 
             path: entry.destination_path.clone(),
             ..entry.install.clone()
         };
-        let qualification = installer.qualification_for_install(
-            &relocated,
-            service.catalog(),
-            crate::Platform::current()?,
-        )?;
+        let qualification = service.installed_mutability_qualification(&relocated)?;
         crate::output_root::validate_install_path(
             service.library(),
             &plan.port_id,
@@ -1262,6 +1250,67 @@ mod tests {
         assert_eq!(error.code, ErrorCode::Verification);
         assert!(fixture.library.output_directory(PORT).unwrap().is_none());
         assert!(fixture.original.iter().all(|install| install.path.exists()));
+    }
+
+    #[test]
+    fn relocation_accepts_newly_admitted_retained_preference_in_preview_and_staging() {
+        let fixture = Fixture::new();
+        let active = fixture
+            .original
+            .iter()
+            .find(|install| install.version == "active")
+            .unwrap();
+        let staged = fixture
+            .original
+            .iter()
+            .find(|install| install.version == "staged")
+            .unwrap();
+        fs::write(active.path.join("new-settings.ini"), b"active preference").unwrap();
+        fs::write(staged.path.join("new-settings.ini"), b"staged preference").unwrap();
+        let mut service = PortcoveService::new(fixture.library.clone()).unwrap();
+        let mut document = service.catalog().authoritative_document();
+        document
+            .ports
+            .iter_mut()
+            .find(|port| port.id == PORT)
+            .unwrap()
+            .persistent_paths
+            .push("new-settings.ini".into());
+        service.replace_catalog_for_test(
+            Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap(),
+        );
+
+        let plan = service
+            .plan_output_relocation(PORT, &fixture.destination)
+            .unwrap();
+        assert!(plan.validation_errors.is_empty());
+        let token = service
+            .authorize_output_relocation(PORT, &fixture.destination, &plan.plan_sha256)
+            .unwrap()
+            .token;
+        let result = service
+            .relocate_output(PORT, &fixture.destination, &token)
+            .unwrap();
+        assert!(!result.cleanup_pending);
+        for (version, contents) in [
+            ("active", b"active preference".as_slice()),
+            ("staged", b"staged preference".as_slice()),
+        ] {
+            let relocated = result
+                .relocated_installs
+                .iter()
+                .find(|install| install.version == version)
+                .unwrap();
+            assert_eq!(
+                fs::read(relocated.path.join("new-settings.ini")).unwrap(),
+                contents
+            );
+            assert!(
+                service
+                    .installed_mutability_qualification(relocated)
+                    .is_ok()
+            );
+        }
     }
 
     #[test]

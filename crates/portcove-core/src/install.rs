@@ -785,6 +785,31 @@ impl Installer {
         )
     }
 
+    pub(crate) fn permits_additive_mutability(
+        &self,
+        install: &InstallRecord,
+        retained: &InstallQualification,
+        candidate: &InstallQualification,
+    ) -> Result<bool> {
+        let manifest = verified_manifest(install)?;
+        let old = retained.current_mutable_paths(install)?;
+        for path in candidate.current_mutable_paths(install)? {
+            if old.contains(&path) {
+                continue;
+            }
+            let prefix = format!("{path}/");
+            if manifest
+                .files
+                .iter()
+                .any(|file| file.path == path || file.path.starts_with(&prefix))
+                || is_executable_companion_name(Path::new(&path), candidate.platform)
+            {
+                return Ok(false);
+            }
+        }
+        Ok(true)
+    }
+
     fn verify_with_metadata(
         &self,
         install: &InstallRecord,
@@ -1054,20 +1079,6 @@ impl Installer {
         install: &InstallRecord,
     ) -> Result<Option<crate::Catalog>> {
         retained_catalog_for_install(install)
-    }
-
-    pub(crate) fn qualification_for_install(
-        &self,
-        install: &InstallRecord,
-        fallback: &crate::Catalog,
-        platform: Platform,
-    ) -> Result<InstallQualification> {
-        let retained = self.retained_catalog(install)?;
-        InstallQualification::from_catalog(
-            retained.as_ref().unwrap_or(fallback),
-            &install.port_id,
-            platform,
-        )
     }
 
     fn retained_qualification(
@@ -2983,6 +2994,36 @@ mod tests {
         );
         fs::write(root.join("game.exe"), b"changed executable").unwrap();
         assert!(installer.verify_critical(&install, &current).is_err());
+    }
+
+    #[test]
+    fn additive_mutability_refuses_recorded_files_and_executable_companions() {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path().join("payload");
+        fs::create_dir_all(&root).unwrap();
+        fs::write(root.join("game.exe"), b"verified executable").unwrap();
+        fs::write(root.join("template.json"), b"immutable template").unwrap();
+        let original = InstallQualification::test("game.exe");
+        let (installer, install) = create_test_install(&root, &original);
+        let mut current = original.clone();
+        current.persistent_paths.push("template.json".into());
+        assert!(
+            !installer
+                .permits_additive_mutability(&install, &original, &current)
+                .unwrap()
+        );
+        current.persistent_paths = vec!["late.dll".into()];
+        assert!(
+            !installer
+                .permits_additive_mutability(&install, &original, &current)
+                .unwrap()
+        );
+        current.persistent_paths = vec!["settings.ini".into()];
+        assert!(
+            installer
+                .permits_additive_mutability(&install, &original, &current)
+                .unwrap()
+        );
     }
 
     #[test]
