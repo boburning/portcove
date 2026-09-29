@@ -40,20 +40,26 @@ static PORTCOVE_CLI_STEAM_EXEC_IDENTITY: &[u8] = concat!(
 #[command(
     name = "portcove",
     version,
-    about = "Install, update, and play native game ports."
+    about = "Install, update, and play native game ports.",
+    after_help = "Start with `catalog list`, then `catalog show PORT_ID` and `plan PORT_ID` before installing. Use `status PORT_ID` to inspect readiness and `exec PORT_ID` to launch. External clients can discover `capabilities` and `schema export`, select an explicit `--library`, and use `--json`, `--jsonl`, and `--non-interactive`. Read durable results with `activity`; handle stable exit codes and machine error objects; `exec` keeps game streams raw. See https://github.com/boburning/portcove/blob/main/docs/INTEGRATION-AUTHOR.md."
 )]
 struct Cli {
     /// Include redacted technical error and activity details in human-readable output.
     #[arg(long, global = true)]
     technical_details: bool,
+    /// Select a library for this invocation; overrides the saved default and PORTCOVE_LIBRARY.
     #[arg(long, global = true, env = "PORTCOVE_LIBRARY")]
     library: Option<PathBuf>,
+    /// Emit one versioned JSON result for an external client.
     #[arg(long, global = true, conflicts_with = "jsonl")]
     json: bool,
+    /// Emit versioned operation events as JSON Lines for an external client.
     #[arg(long, global = true, conflicts_with = "json")]
     jsonl: bool,
+    /// Reject commands that need a confirmation prompt instead of waiting for input.
     #[arg(long, global = true)]
     non_interactive: bool,
+    /// Increase diagnostic logging on stderr; repeat for more detail.
     #[arg(short, long, action = clap::ArgAction::Count, global = true)]
     verbose: u8,
     #[command(subcommand)]
@@ -67,22 +73,27 @@ enum Commands {
         #[command(subcommand)]
         command: ArtworkCommand,
     },
+    /// Select, inspect, export, import, or move a Portcove library.
     Library {
         #[command(subcommand)]
         command: LibraryCommand,
     },
+    /// Inspect or configure GitHub authentication for release downloads.
     Auth {
         #[command(subcommand)]
         command: AuthCommand,
     },
+    /// Create, inspect, restore, or delete managed save backups.
     Backup {
         #[command(subcommand)]
         command: BackupCommand,
     },
+    /// Browse ports and inspect or update the trusted catalog.
     Catalog {
         #[command(subcommand)]
         command: CatalogCommand,
     },
+    /// Discover and register player-owned game files without uploading them.
     Source {
         #[command(subcommand)]
         command: SourceCommand,
@@ -97,26 +108,30 @@ enum Commands {
         #[command(subcommand)]
         command: ToolCommand,
     },
-    Status {
-        port_id: Option<String>,
-    },
+    /// Show installation, source, launch, and update readiness.
+    Status { port_id: Option<String> },
+    /// Read recent operations and their durable outcomes.
     Activity {
         #[command(subcommand)]
         command: Option<ActivityCommand>,
+        /// Maximum recent activities to return (1 to 200).
         #[arg(long, default_value_t = 50, value_parser = clap::value_parser!(u16).range(1..=200))]
         limit: u16,
     },
-    Cancel {
-        operation_id: String,
-    },
+    /// Request cancellation of a running operation by its activity ID.
+    Cancel { operation_id: String },
     /// Read a caller-known durable launch request without starting or recovering a game.
     Launch {
         #[command(subcommand)]
         command: LaunchCommand,
     },
+    /// Show library storage use and managed locations.
     Storage,
+    /// Diagnose host, library, and tool prerequisites.
     Doctor,
+    /// Show Portcove product and version information without opening a library.
     About,
+    /// Preview requirements and actions for installing a port.
     Plan {
         port_id: String,
         #[arg(long, value_enum)]
@@ -129,20 +144,22 @@ enum Commands {
         #[command(subcommand)]
         command: PreparationCommand,
     },
-    Paths {
-        port_id: String,
-    },
+    /// Show managed installation and persistent-data paths for a port.
+    Paths { port_id: String },
+    /// Check installed ports for available game updates without applying them.
     Check(UpdateTargetArgs),
     /// Check installed ports and follow each port's game update settings.
     Reconcile(UpdateTargetArgs),
+    /// Install or stage a selected port release in its managed destination.
     Install(InstallArgs),
+    /// Review and register an existing managed port installation.
     Adopt(AdoptArgs),
     /// Reuse the current installation when its required runtime is present, or install a selected release.
     Ensure(EnsureArgs),
+    /// Install or stage available game updates for installed ports.
     Update(UpdateArgs),
-    Verify {
-        port_id: String,
-    },
+    /// Verify the installed files for one port against recorded hashes.
+    Verify { port_id: String },
     /// Make a staged release the current installed version.
     Activate {
         /// Port with a staged release to activate.
@@ -154,9 +171,7 @@ enum Commands {
         port_id: String,
     },
     /// Read the exact managed-version removal preview without changing files.
-    RemovePreview {
-        port_id: String,
-    },
+    RemovePreview { port_id: String },
     /// Remove managed installed versions while keeping persistent saved data.
     Remove {
         /// Port whose managed installed versions should be removed.
@@ -168,20 +183,26 @@ enum Commands {
         #[arg(long)]
         expected_preview: Option<String>,
     },
+    /// Set the preferred game-release channel for a port.
     Channel {
         #[command(subcommand)]
         command: ChannelCommand,
     },
+    /// Set how Portcove handles future game updates for a port.
     Policy {
         #[command(subcommand)]
         command: PolicyCommand,
     },
+    /// Review or change where future game installs are placed.
     Output {
         #[command(subcommand)]
         command: OutputCommand,
     },
+    /// Launch an installed port and supervise its raw game process streams.
     Exec(ExecArgs),
+    /// Discover supported CLI operations and machine contract versions.
     Capabilities,
+    /// Export authoritative machine input or output JSON schemas.
     Schema {
         #[command(subcommand)]
         command: SchemaCommand,
@@ -211,28 +232,36 @@ impl From<ArtworkSlotArg> for portcove_core::ArtworkSlot {
 
 #[derive(Debug, Subcommand)]
 enum ArtworkCommand {
+    /// Show the effective artwork and source for a port and slot.
     Show {
         port_id: String,
         #[arg(long, value_enum, default_value = "cover")]
         slot: ArtworkSlotArg,
     },
+    /// Import a local image for one port without changing its installation.
     Import {
         port_id: String,
         path: PathBuf,
         #[arg(long, value_enum, default_value = "cover")]
         slot: ArtworkSlotArg,
+        /// Require the artwork revision to match the value previously read.
         #[arg(long)]
         expected_revision: Option<u64>,
     },
+    /// Return a port and slot to catalog or generated artwork.
     Reset {
         port_id: String,
         #[arg(long, value_enum, default_value = "cover")]
         slot: ArtworkSlotArg,
+        /// Require the artwork revision to match the value previously read.
         #[arg(long)]
         expected_revision: Option<u64>,
     },
+    /// Remove only regenerable artwork cache files.
     ClearCache,
+    /// List imported artwork assets no longer referenced by a port.
     Unused,
+    /// Delete one unreferenced imported asset after confirmation.
     RemoveUnused {
         asset_sha256: String,
         #[arg(long)]
@@ -282,8 +311,11 @@ enum ExternalCommand {
 
 #[derive(Debug, Subcommand)]
 enum AuthCommand {
+    /// Show whether release-download credentials are available.
     Status,
+    /// Begin GitHub device login and save the resulting credential.
     Login,
+    /// Save a supplied GitHub token for release downloads.
     SetToken {
         #[arg(
             long,
@@ -291,26 +323,29 @@ enum AuthCommand {
         )]
         stdin: bool,
     },
+    /// Remove the saved GitHub credential from this host.
     Logout,
 }
 
 #[derive(Debug, Subcommand)]
 enum BackupCommand {
-    Create {
-        port_id: String,
-    },
-    List {
-        port_id: String,
-    },
+    /// Copy and verify managed persistent data for one port.
+    Create { port_id: String },
+    /// List retained backups and their verification state.
+    List { port_id: String },
+    /// Delete one backup after confirmation; does not remove live saved data.
     Delete {
         port_id: String,
         backup_id: String,
+        /// Confirm permanent removal of this backup.
         #[arg(long)]
         yes: bool,
     },
+    /// Restore a selected backup after confirmation.
     Restore {
         port_id: String,
         backup_id: String,
+        /// Confirm replacement of the affected managed saved data.
         #[arg(long)]
         yes: bool,
     },
@@ -397,9 +432,11 @@ enum SourceCommand {
         #[command(subcommand)]
         command: GameFileRootCommand,
     },
+    /// Validate and register a player-owned game file at its current location.
     Add {
         profile_id: String,
         path: PathBuf,
+        /// Require the selected file to match this SHA-256 digest.
         #[arg(long)]
         expected_sha256: Option<String>,
     },
@@ -416,14 +453,16 @@ enum SourceCommand {
         #[arg(long, requires = "apply")]
         expected_plan: Option<String>,
     },
+    /// List registered game-file locations and their profile IDs.
     List,
     /// Inspect a registered source without changing its bytes or saved baseline.
-    Inspect {
-        profile_id: String,
-    },
+    Inspect { profile_id: String },
+    /// Recheck registered game files against their saved baselines.
     Verify(SourceVerifyArgs),
+    /// Forget a source registration without deleting its file.
     Remove {
         profile_id: String,
+        /// Confirm forgetting this registration without a prompt.
         #[arg(long)]
         yes: bool,
     },
@@ -612,15 +651,21 @@ fn source_limits(
 
 #[derive(Debug, Args)]
 struct InstallArgs {
+    /// Catalog port to install.
     port_id: String,
+    /// Release channel for this installation.
     #[arg(long, value_enum)]
     channel: Option<ChannelArg>,
+    /// Override the registered game file for this installation.
     #[arg(long)]
     source: Option<PathBuf>,
+    /// Override the registered BIOS file for this installation.
     #[arg(long)]
     bios: Option<PathBuf>,
+    /// Place a new install in this folder instead of its saved destination.
     #[arg(long)]
     output_dir: Option<PathBuf>,
+    /// Prepare a release without making it the current installed version.
     #[arg(long)]
     stage: bool,
 }
@@ -685,13 +730,18 @@ enum OutputCommand {
 
 #[derive(Debug, Args)]
 struct UpdateArgs {
+    /// Installed port to update.
     port_id: Option<String>,
+    /// Update every eligible installed port instead of one PORT_ID.
     #[arg(long, conflicts_with = "port_id")]
     all: bool,
+    /// Override the registered game file for the update.
     #[arg(long)]
     source: Option<PathBuf>,
+    /// Override the registered BIOS file for the update.
     #[arg(long)]
     bios: Option<PathBuf>,
+    /// Prepare an update without making it the current installed version.
     #[arg(long)]
     stage: bool,
 }
@@ -707,27 +757,34 @@ struct UpdateTargetArgs {
 
 #[derive(Debug, Args)]
 struct AdoptArgs {
+    /// Existing managed installation folder to review.
     path: PathBuf,
+    /// Require adoption to resolve to this catalog port ID.
     #[arg(long)]
     port: Option<String>,
+    /// Confirm registering the reviewed installation.
     #[arg(long)]
     yes: bool,
 }
 
 #[derive(Debug, Args)]
 struct ExecArgs {
+    /// Installed port to launch.
     port_id: String,
+    /// Override the registered game file for this launch.
     #[arg(long)]
     source: Option<PathBuf>,
     /// Caller-known UUID for durable launch observation; a fresh UUID is generated by default.
     #[arg(long)]
     request_id: Option<Uuid>,
+    /// Pass the remaining arguments to the game after `--`.
     #[arg(last = true, allow_hyphen_values = true)]
     game_args: Vec<String>,
 }
 
 #[derive(Debug, Subcommand)]
 enum ChannelCommand {
+    /// Save the preferred release channel for future game updates.
     Set {
         port_id: String,
         #[arg(value_enum)]
@@ -737,6 +794,7 @@ enum ChannelCommand {
 
 #[derive(Debug, Subcommand)]
 enum PolicyCommand {
+    /// Save notify, stage, or automatic handling for future game updates.
     Set {
         port_id: String,
         #[arg(value_enum)]
@@ -746,7 +804,9 @@ enum PolicyCommand {
 
 #[derive(Debug, Subcommand)]
 enum SchemaCommand {
+    /// Export JSON schemas for CLI input or serialized output.
     Export {
+        /// Choose input (default) or output contract shapes.
         #[arg(long, value_enum, default_value = "input")]
         contract: SchemaContract,
     },
