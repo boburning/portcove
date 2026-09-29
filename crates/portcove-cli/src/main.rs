@@ -150,13 +150,13 @@ enum Commands {
     Check(UpdateTargetArgs),
     /// Check installed ports and follow each port's game update settings.
     Reconcile(UpdateTargetArgs),
-    /// Download and install a selected port release into the library.
+    /// Install or stage a selected port release in its managed destination.
     Install(InstallArgs),
     /// Review and register an existing managed port installation.
     Adopt(AdoptArgs),
     /// Reuse the current installation when its required runtime is present, or install a selected release.
     Ensure(EnsureArgs),
-    /// Apply an available game update to an installed port.
+    /// Install or stage available game updates for installed ports.
     Update(UpdateArgs),
     /// Verify the installed files for one port against recorded hashes.
     Verify { port_id: String },
@@ -453,7 +453,7 @@ enum SourceCommand {
         #[arg(long, requires = "apply")]
         expected_plan: Option<String>,
     },
-    /// List registered game files and their source profiles.
+    /// List registered game-file locations and their profile IDs.
     List,
     /// Inspect a registered source without changing its bytes or saved baseline.
     Inspect { profile_id: String },

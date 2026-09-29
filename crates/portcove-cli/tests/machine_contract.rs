@@ -87,7 +87,7 @@ fn first_use_help_identifies_player_and_external_client_routes() {
         "--library",
         "--jsonl",
         "--non-interactive",
-        "Download and install a selected port release",
+        "Install or stage a selected port release",
     ] {
         assert!(root.contains(phrase), "missing {phrase} in root help");
     }

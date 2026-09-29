@@ -32,7 +32,7 @@ pub(crate) enum CatalogCommand {
     List,
     /// Export the full effective catalog for machine consumers.
     Export,
-    /// Show one port's releases, source profiles, and requirements.
+    /// Show one port's channels, platform, and source requirements.
     Show { port_id: String },
     /// Check an inert requirements file against installed engine template versions.
     CheckCapabilities { file: PathBuf },
