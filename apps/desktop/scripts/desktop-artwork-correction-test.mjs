@@ -308,7 +308,7 @@ export async function artworkCorrectionScenario({
     await capture("artwork-correction-withdrawn-fallback");
     const finalCatalog = (await invoke("get_catalog")).value;
     const finalPort = finalCatalog.ports.find((port) => port.id === portId);
-    assert.equal(finalPort.presentation.artwork, null);
+    assert.equal(Object.hasOwn(finalPort.presentation, "artwork"), false);
     finalPort.presentation.artwork = baseline.value.ports.find(
       (port) => port.id === portId,
     ).presentation.artwork;
