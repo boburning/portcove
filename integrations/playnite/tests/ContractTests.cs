@@ -18,7 +18,19 @@ internal static class ContractTests
     {
         Console.OutputEncoding = new UTF8Encoding(false);
         if (args.Length > 0 && args[0] == "argv") { Console.Write(Json.Print(args.Skip(1).ToArray())); return 0; }
-        if (args.Length > 0 && args[0] == "--library") return FakeCli(args);
+        if (args.Length > 0 && args[0] == "--library")
+        {
+            try { return FakeCli(args); }
+            catch (Exception error)
+            {
+                // Only disposable held-session fixtures retain raw reader errors.
+                // Production PublicCli deliberately drains potentially private stderr.
+                if (args.Contains("held-session-request"))
+                    File.WriteAllText(Path.Combine(args[1], "held-session-cli-error"), error.ToString());
+                Console.Error.WriteLine(error);
+                return 1;
+            }
+        }
         try
         {
             if (args.Length > 0 && args[0].StartsWith("qualification-", StringComparison.Ordinal))
@@ -593,12 +605,14 @@ internal static class ContractTests
 
     private static async Task LongSessionObservation()
     {
+        await HeldChildWaitContracts();
         var root = Path.Combine(Path.GetDirectoryName(Binary), "long-session-library-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(root);
         try
         {
             var client = new PublicCli(Binary, root);
             await client.Connect();
+            await HeldPublicationContracts(client, root);
             var baselineBefore = client.InvocationCount;
             var baselineTimer = Stopwatch.StartNew();
             var baselineStartedAt = TimeSpan.Zero;
@@ -655,22 +669,56 @@ internal static class ContractTests
                 var childStarted = new TaskCompletionSource<int>();
                 var observation = LaunchObserver.Observe(client, launch, "shape-a", "held-session-request",
                     child => childStarted.TrySetResult(child));
+                Exception readinessFailure = null;
+                var readinessTimer = Stopwatch.StartNew();
                 try
                 {
-                    if (await Task.WhenAny(childStarted.Task, Task.Delay(5000)) != childStarted.Task)
-                        throw new Exception("The held fixture did not report a child start.");
-                    Check(await childStarted.Task == launch.ProcessId, "held session reports the owned child");
+                    var child = await WaitForHeldChild(childStarted.Task, observation, Task.Delay(5000));
+                    Check(child == launch.ProcessId, "held session reports the owned child");
                     var readsAtStart = client.InvocationCount;
                     await Task.Delay(1250);
                     Check(client.InvocationCount == readsAtStart,
                         "held running session starts no additional CLI read processes after child observation");
                 }
+                catch (Exception error)
+                {
+                    readinessFailure = error;
+                    Console.Error.WriteLine("HELD_START_FAILURE " + Json.Print(new
+                    {
+                        elapsed_ms = readinessTimer.ElapsedMilliseconds,
+                        child_task = childStarted.Task.Status.ToString(),
+                        observation_task = observation.Status.ToString(),
+                        supervisor_pid = launch.ProcessId, supervisor_exited = launch.HasExited,
+                        cli_invocations = client.InvocationCount,
+                        pid_publication = ReadFixtureEvidence(root, "held-session-pid"),
+                        terminal_publication = ReadFixtureEvidence(root, "held-session-finished"),
+                        release_publication = ReadFixtureEvidence(root, "held-session-release"),
+                        cli_reader_error = ReadFixtureEvidence(root, "held-session-cli-error"),
+                        error = error.ToString()
+                    }));
+                    throw;
+                }
                 finally
                 {
-                    File.WriteAllText(Path.Combine(root, "held-session-release"), "release");
-                    await launch.WaitForExitAsync();
+                    try
+                    {
+                        File.WriteAllText(Path.Combine(root, "held-session-release"), "release");
+                        await launch.WaitForExitAsync();
+                    }
+                    catch (Exception error)
+                    {
+                        if (readinessFailure == null) throw;
+                        Console.Error.WriteLine("HELD_RELEASE_FAILURE " + error);
+                    }
+                    // Settle the owned observer after releasing the fixture. A later
+                    // observer fault must not replace the retained readiness failure.
+                    if (readinessFailure == null) await observation;
+                    else
+                    {
+                        try { await observation; }
+                        catch (Exception error) { Console.Error.WriteLine("HELD_OBSERVER_AFTER_RELEASE " + error); }
+                    }
                 }
-                await observation;
             }
 
             using (var launch = await client.Launch("shape-a", "missing-terminal-request"))
@@ -703,6 +751,124 @@ internal static class ContractTests
             }
         }
         finally { if (Directory.Exists(root)) Directory.Delete(root, true); }
+    }
+
+    private static async Task<int> WaitForHeldChild(Task<int> child, Task observation, Task deadline)
+    {
+        var completed = await Task.WhenAny(child, observation, deadline);
+        if (completed == deadline)
+            throw new TimeoutException("The held fixture did not report a child start within the existing 5s deadline.");
+        if (completed == observation)
+        {
+            await observation; // Preserve the actual CLI/decoder/callback fault.
+            if (!child.IsCompleted)
+                throw new InvalidOperationException("The held observer completed without reporting a child start.");
+        }
+        return await child;
+    }
+
+    private static void PublishFixtureText(string root, string name, string text, Action staged = null)
+    {
+        var path = Path.Combine(root, name);
+        var temporary = path + "." + Guid.NewGuid().ToString("N") + ".pending";
+        try
+        {
+            File.WriteAllText(temporary, text);
+            staged?.Invoke();
+            File.Move(temporary, path);
+        }
+        finally { if (File.Exists(temporary)) File.Delete(temporary); }
+    }
+
+    private static async Task HeldPublicationContracts(PublicCli client, string root)
+    {
+        var path = Path.Combine(root, "held-session-pid");
+        var errorPath = Path.Combine(root, "held-session-cli-error");
+        try
+        {
+            // Reproduce the old write/read overlap deterministically: the final
+            // name is visible while its writer is still open, before any bytes.
+            using (var writer = new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.Read))
+            {
+                var rejected = false;
+                try { await client.Read("launch.show", "launch", "show", "held-session-request"); }
+                catch (InvalidOperationException) { rejected = true; }
+                Check(rejected && File.ReadAllText(errorPath).Contains("System.IO.IOException"),
+                    "visible in-progress PID publication reproduces an actual fixture reader failure");
+            }
+            File.Delete(path);
+            File.Delete(errorPath);
+            var pid = Process.GetCurrentProcess().Id;
+            PublishFixtureText(root, "held-session-pid", pid.ToString(), () =>
+            {
+                Check(!File.Exists(path), "staged PID bytes remain private until the writer closes");
+                Check(client.Read("launch.show", "launch", "show", "held-session-request").GetAwaiter().GetResult() == null,
+                    "reader before PID publication sees honest pending state without a failed process");
+            });
+            var record = await client.Read("launch.show", "launch", "show", "held-session-request");
+            Check(Json.Number(record, "child_pid") == pid && !File.Exists(errorPath),
+                "reader after PID publication sees the complete exact child identity");
+        }
+        finally
+        {
+            if (File.Exists(path)) File.Delete(path);
+            if (File.Exists(errorPath)) File.Delete(errorPath);
+        }
+    }
+
+    private static object ReadFixtureEvidence(string root, string name)
+    {
+        try
+        {
+            var path = Path.Combine(root, name);
+            if (!File.Exists(path)) return new { state = "absent", bytes = (long?)null, text = (string)null };
+            var bytes = new FileInfo(path).Length;
+            var buffer = new char[128];
+            using (var reader = File.OpenText(path))
+            {
+                var length = reader.Read(buffer, 0, buffer.Length);
+                return new { state = "present", bytes = (long?)bytes, text = new string(buffer, 0, length) };
+            }
+        }
+        catch (Exception error) { return new { state = "unreadable", error = error.GetType().Name }; }
+    }
+
+    private static async Task HeldChildWaitContracts()
+    {
+        var pendingChild = new TaskCompletionSource<int>();
+        var pendingObserver = new TaskCompletionSource<bool>();
+        var pendingDeadline = new TaskCompletionSource<bool>();
+        Check(await WaitForHeldChild(Task.FromResult(42), pendingObserver.Task, pendingDeadline.Task) == 42,
+            "held readiness accepts the exact reported child without waiting for completion");
+        var failure = new InvalidOperationException("fixture observer read failed");
+        try
+        {
+            await WaitForHeldChild(pendingChild.Task, Task.FromException(failure), pendingDeadline.Task);
+            throw new Exception("Masked the observer failure.");
+        }
+        catch (InvalidOperationException error)
+        {
+            Check(ReferenceEquals(error, failure), "held readiness preserves the original observer fault before its deadline");
+        }
+        try
+        {
+            await WaitForHeldChild(pendingChild.Task, Task.CompletedTask, pendingDeadline.Task);
+            throw new Exception("Accepted completion without child readiness.");
+        }
+        catch (InvalidOperationException)
+        {
+            Check(true, "held observer completion without a child stays unconfirmed");
+        }
+        try
+        {
+            await WaitForHeldChild(pendingChild.Task, pendingObserver.Task, Task.CompletedTask);
+            throw new Exception("Accepted missing readiness after the deadline.");
+        }
+        catch (TimeoutException)
+        {
+            Check(!pendingChild.Task.IsCompleted && !pendingObserver.Task.IsCompleted,
+                "held deadline does not manufacture child readiness or observer completion");
+        }
     }
 
     private static async Task RunQualification(string[] args)
@@ -1225,10 +1391,10 @@ internal static class ContractTests
             }
             else if (args.Contains("held-session-request"))
             {
-                File.WriteAllText(Path.Combine(args[1], "held-session-pid"), Process.GetCurrentProcess().Id.ToString());
+                PublishFixtureText(args[1], "held-session-pid", Process.GetCurrentProcess().Id.ToString());
                 for (var attempt = 0; attempt < 200 && !File.Exists(Path.Combine(args[1], "held-session-release")); attempt++)
                     Thread.Sleep(50);
-                File.WriteAllText(Path.Combine(args[1], "held-session-finished"), DateTime.UtcNow.Ticks.ToString());
+                PublishFixtureText(args[1], "held-session-finished", DateTime.UtcNow.Ticks.ToString());
             }
             else File.WriteAllText(Path.Combine(args[1], "measurement-launch-pid"), Process.GetCurrentProcess().Id.ToString());
         }
