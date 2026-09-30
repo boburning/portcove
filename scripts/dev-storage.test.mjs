@@ -216,6 +216,7 @@ test("light storage never resolves Cargo; Rust resolves actual metadata and unkn
   assert.equal(rust.target_directory, path.join(projectRoot, "redirected-target"));
   assert.equal(rust.frontend_dependencies, undefined);
   assert.equal(rust.pnpm_store, undefined);
+  assert.equal(rust.tauri_generated, path.join(projectRoot, "apps/desktop/src-tauri/gen"));
   const complete = getPaths("all", { metadataProvider });
   assert.equal(calls, 2);
   assert.ok(complete.tauri_generated);
@@ -232,6 +233,26 @@ test("light storage never resolves Cargo; Rust resolves actual metadata and unkn
     /does not match/,
   );
 });
+
+test(
+  "Rust-generated Tauri storage remains subject to strict physical-path checks",
+  { skip: process.platform !== "win32" },
+  (t) => {
+    const link = path.join(fixture(t), "tauri-gen");
+    symlinkSync(`${process.env.SystemDrive || "C:"}\\`, link, "junction");
+    const paths = getPaths("rust", {
+      metadataProvider: () => ({
+        workspace_root: projectRoot,
+        target_directory: path.join(projectRoot, "target"),
+      }),
+    });
+    paths.tauri_generated = path.join(link, "not-created-schema");
+    assert.throws(
+      () => preflight(paths, 1, { blockSystemDrive: true }),
+      /tauri_generated=.*system drive|system drive.*tauri_generated/,
+    );
+  },
+);
 
 test("frontend setup and execution work without Cargo or native output resolution", (t) => {
   const root = workspace(t);

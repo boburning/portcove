@@ -75,7 +75,8 @@ Its default `all` scope resolves the actual Cargo workspace/target through
 `cargo metadata` and checks native/package outputs. `--scope frontend` checks
 frontend dependencies, output, browser and package caches without Cargo or Tauri
 generated paths. `--scope tooling` checks workspace, temporary and output paths;
-`--scope rust` resolves actual Cargo outputs without frontend paths. Unknown
+`--scope rust` resolves actual Cargo outputs and Tauri generated paths (Desktop's
+Rust build script writes schemas) without frontend dependency/output paths. Unknown
 commands retain `all`; cleanup always uses complete Cargo discovery/containment.
 
 The existing local planner selects these scopes from its complete command plan.

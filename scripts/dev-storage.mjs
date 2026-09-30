@@ -113,7 +113,9 @@ export function getPaths(scope = "all", { metadataProvider = cargoMetadata } = {
       desktop_dependencies: path.join(projectRoot, "apps/desktop/node_modules"),
       frontend_output: path.join(projectRoot, "apps/desktop/dist"),
     });
-  if (scope === "all") paths.tauri_generated = path.join(projectRoot, "apps/desktop/src-tauri/gen");
+  // Desktop build.rs can generate Tauri schemas during a Rust-only build.
+  if (["all", "rust"].includes(scope))
+    paths.tauri_generated = path.join(projectRoot, "apps/desktop/src-tauri/gen");
   return paths;
 }
 
