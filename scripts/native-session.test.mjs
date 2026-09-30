@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { once } from "node:events";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
@@ -7,11 +8,156 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 import { observeStartup } from "../apps/desktop/scripts/desktop-startup-observation.mjs";
+import { startEmbeddedInstalledSession } from "../apps/desktop/scripts/desktop-windows-embedded-session.mjs";
 
 const script = fileURLToPath(
   new URL("../apps/desktop/scripts/native-session.ps1", import.meta.url),
 );
 const windows = { skip: process.platform !== "win32", timeout: 20_000 };
+
+test(
+  "embedded startup root exit cannot claim cleanup of later descendants",
+  { ...windows, timeout: 45_000 },
+  async () => {
+    const root = await temporaryRoot();
+    const marker = path.join(root, "late-child.json");
+    let session;
+    let descendant;
+    try {
+      session = await startEmbeddedInstalledSession(process.execPath, root, [
+        "-e",
+        `
+const {spawn}=require('node:child_process');
+setTimeout(()=>{
+  const child=spawn(process.execPath,['-e','setTimeout(()=>process.exit(0),12000)'],{stdio:'ignore',windowsHide:true,detached:true});
+  require('node:fs').writeFileSync(${JSON.stringify(marker)},JSON.stringify({pid:child.pid}));
+  child.unref();
+},3000);
+setTimeout(()=>process.exit(0),4000);`,
+      ]);
+      await assert.rejects(session.connect());
+      descendant = JSON.parse(await readFile(marker, "utf8")).pid;
+      const alive = spawnSync(
+        "pwsh",
+        [
+          "-NoProfile",
+          "-Command",
+          `$entry=Get-CimInstance Win32_Process -Filter 'ProcessId = ${descendant}'; $entry | Select-Object ProcessId,ParentProcessId,ExecutablePath | ConvertTo-Json -Compress`,
+        ],
+        { encoding: "utf8", windowsHide: true, timeout: 10_000 },
+      );
+      assert.equal(alive.status, 0, alive.stderr);
+      const surviving = JSON.parse(alive.stdout);
+      assert.equal(surviving.ProcessId, descendant);
+      assert.equal(surviving.ParentProcessId, session.child.pid);
+      assert.equal(surviving.ExecutablePath.toLowerCase(), process.execPath.toLowerCase());
+      assert.ok(
+        !session.startup.processes.some((entry) => entry.pid === descendant),
+        "fixture descendant must be created after initial capture",
+      );
+      await assert.rejects(session.close(), /cleanup is unproven|tree refresh failed/);
+    } finally {
+      if (session?.child.exitCode === null && session.child.signalCode === null)
+        await session.close().catch(() => {});
+      // The late fixture child has its own finite lifetime. Wait for it rather
+      // than using an unbound PID termination to hide the missing cleanup proof.
+      if (!descendant)
+        descendant = await readFile(marker, "utf8")
+          .then(JSON.parse)
+          .then((value) => value.pid)
+          .catch(() => null);
+      if (descendant) {
+        const exited = spawnSync(
+          "pwsh",
+          [
+            "-NoProfile",
+            "-Command",
+            `$p=Get-Process -Id ${descendant} -ErrorAction SilentlyContinue; if($p -and -not $p.WaitForExit(20000)){exit 1}; exit 0`,
+          ],
+          { encoding: "utf8", windowsHide: true, timeout: 25_000 },
+        );
+        assert.equal(exited.status, 0, exited.stderr);
+      }
+      await rm(root, { recursive: true, force: true });
+    }
+  },
+);
+
+test(
+  "embedded installed listener requires the exact direct child and loopback owner",
+  { ...windows, timeout: 60_000 },
+  async () => {
+    const root = await temporaryRoot();
+    const child = spawn(
+      process.execPath,
+      [
+        "-e",
+        `const net=require('node:net');
+net.createServer().listen(0,'127.0.0.1',function(){process.stdout.write(String(this.address().port));});`,
+      ],
+      { windowsHide: true, stdio: ["ignore", "pipe", "pipe"] },
+    );
+    const ready = once(child.stdout, "data");
+    const foreign = await ownedChild();
+    try {
+      const [bytes] = await ready;
+      const port = Number(String(bytes));
+      const sha = createHash("sha256")
+        .update(await readFile(process.execPath))
+        .digest("hex");
+      const invoke = (mode, target, extra = []) =>
+        spawnSync(
+          "pwsh",
+          ["-NoProfile", "-File", script, "-Mode", mode, "-SnapshotPath", target, ...extra],
+          { encoding: "utf8", windowsHide: true, timeout: 15_000 },
+        );
+      const args = (pid, parent = process.pid, hash = sha) => [
+        "-DriverProcessId",
+        String(pid),
+        "-ApplicationPath",
+        process.execPath,
+        "-ExpectedParentProcessId",
+        String(parent),
+        "-ExpectedApplicationSha256",
+        hash,
+      ];
+      const rejected = path.join(root, "rejected.json");
+      assert.notEqual(
+        invoke("SnapshotApplication", rejected, args(child.pid, foreign.pid)).status,
+        0,
+      );
+      assert.notEqual(
+        invoke("SnapshotApplication", rejected, args(child.pid, process.pid, "0".repeat(64)))
+          .status,
+        0,
+      );
+      const snapshot = path.join(root, "application.json");
+      const captured = invoke("SnapshotApplication", snapshot, args(child.pid));
+      assert.equal(captured.status, 0, captured.stderr);
+      const identity = JSON.parse(captured.stdout);
+      assert.equal(identity.root_kind, "direct-application");
+      assert.equal(identity.application_pid, child.pid);
+      const listener = invoke("ApplicationListener", snapshot, ["-Port", String(port)]);
+      assert.equal(listener.status, 0, listener.stderr);
+      assert.equal(JSON.parse(listener.stdout).pid, child.pid);
+      const wrong = path.join(root, "foreign.json");
+      assert.equal(invoke("SnapshotApplication", wrong, args(foreign.pid)).status, 0);
+      const foreignListener = invoke("ApplicationListener", wrong, ["-Port", String(port)]);
+      assert.notEqual(foreignListener.status, 0);
+      assert.match(foreignListener.stderr, /not exclusively owned/);
+      const exited = once(child, "exit");
+      const cleanup = invoke("StopApplication", snapshot);
+      assert.equal(cleanup.status, 0, cleanup.stderr);
+      await exited;
+      assert.equal(invoke("Wait", snapshot).status, 0);
+      assert.equal(foreign.exitCode, null, "foreign sibling must remain alive");
+    } finally {
+      await stop(child);
+      await stop(foreign);
+      await rm(root, { recursive: true, force: true });
+    }
+  },
+);
 const run = (mode, snapshot) =>
   spawnSync(
     "pwsh",

@@ -1,14 +1,30 @@
 param(
-    [Parameter(Mandatory)][ValidateSet('Snapshot', 'SnapshotDriver', 'StopDriver', 'Wait')][string]$Mode,
+    [Parameter(Mandatory)][ValidateSet('Snapshot', 'SnapshotDriver', 'SnapshotApplication', 'ApplicationListener', 'StopApplication', 'StopDriver', 'Wait')][string]$Mode,
     [int]$DriverProcessId,
     [string]$ApplicationPath,
+    [int]$ExpectedParentProcessId,
+    [string]$ExpectedApplicationSha256,
+    [int]$Port,
     [Parameter(Mandatory)][string]$SnapshotPath
 )
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'native-process-tree.ps1')
-if ($Mode -eq 'Snapshot' -or $Mode -eq 'SnapshotDriver') {
+if ($Mode -eq 'Snapshot' -or $Mode -eq 'SnapshotDriver' -or $Mode -eq 'SnapshotApplication') {
     $tree = if ($Mode -eq 'Snapshot') {
         Get-OwnedNativeProcessTree $DriverProcessId $ApplicationPath
+    } elseif ($Mode -eq 'SnapshotApplication') {
+        $owned = Get-OwnedDriverProcessTree $DriverProcessId
+        $root = $owned.driver
+        $parent = Get-CimInstance Win32_Process -Filter "ProcessId = $ExpectedParentProcessId"
+        if ($ExpectedParentProcessId -le 0 -or -not $parent -or -not $parent.CreationDate -or
+            $root.ParentProcessId -ne $ExpectedParentProcessId -or -not $root.CreationDate -or
+            $parent.CreationDate -gt $root.CreationDate -or
+            -not [string]::Equals($root.ExecutablePath, (Resolve-Path -LiteralPath $ApplicationPath).Path, [StringComparison]::OrdinalIgnoreCase) -or
+            $ExpectedApplicationSha256 -notmatch '^[0-9a-f]{64}$' -or
+            (Get-FileHash -LiteralPath $ApplicationPath -Algorithm SHA256).Hash.ToLowerInvariant() -ne $ExpectedApplicationSha256) {
+            throw 'Embedded application did not match the retained child, parent or executable identity.'
+        }
+        [pscustomobject]@{ driver = $root; application = $root; processes = @($root) + @($owned.processes) }
     } else {
         $entry = Get-CimInstance Win32_Process -Filter "ProcessId = $DriverProcessId"
         if (-not $entry) { throw 'Owned driver is no longer running.' }
@@ -37,6 +53,10 @@ if ($Mode -eq 'Snapshot' -or $Mode -eq 'SnapshotDriver') {
     })
     $applicationPid = if ($tree.application) { $tree.application.ProcessId } else { $null }
     $snapshot = [pscustomobject]@{ captured_at = [DateTime]::UtcNow.ToString('o'); driver = $driverRecord; application_pid = $applicationPid; processes = $records }
+    if ($Mode -eq 'SnapshotApplication') {
+        $snapshot | Add-Member root_kind 'direct-application'
+        $snapshot | Add-Member executable_sha256 $ExpectedApplicationSha256
+    }
     $stream = [IO.File]::Open($SnapshotPath, [IO.FileMode]::CreateNew, [IO.FileAccess]::Write, [IO.FileShare]::None)
     try {
         $bytes = [Text.Encoding]::UTF8.GetBytes(($snapshot | ConvertTo-Json -Depth 4))
@@ -46,8 +66,43 @@ if ($Mode -eq 'Snapshot' -or $Mode -eq 'SnapshotDriver') {
     exit
 }
 $snapshot = Get-Content -LiteralPath $SnapshotPath -Raw | ConvertFrom-Json
-if ($Mode -eq 'StopDriver') {
+if ($Mode -eq 'ApplicationListener') {
+    if ($snapshot.root_kind -ne 'direct-application' -or $Port -lt 1 -or $Port -gt 65535) { throw 'Invalid embedded listener identity request.' }
+    $entry = Get-CimInstance Win32_Process -Filter "ProcessId = $([int]$snapshot.driver.pid)"
+    if (-not $entry -or [Math]::Abs(($entry.CreationDate.ToUniversalTime() - [DateTime]::FromFileTimeUtc([long]$snapshot.driver.started_filetime)).TotalMilliseconds) -gt 1 -or
+        -not [string]::Equals($entry.ExecutablePath, $snapshot.driver.path, [StringComparison]::OrdinalIgnoreCase)) {
+        throw 'Embedded application identity changed before listener verification.'
+    }
+    $listeners = @(Get-NetTCPConnection -State Listen -ErrorAction Stop | Where-Object LocalPort -eq $Port)
+    if ($listeners.Count -eq 0) { '{"ready":false}'; exit }
+    if ($listeners.Count -ne 1 -or $listeners[0].LocalAddress -ne '127.0.0.1' -or $listeners[0].OwningProcess -ne $snapshot.driver.pid) {
+        throw 'Embedded listener is not exclusively owned by the retained application on loopback.'
+    }
+    [pscustomobject]@{ ready = $true; pid = $snapshot.driver.pid; address = '127.0.0.1'; port = $Port; started_filetime = $snapshot.driver.started_filetime } | ConvertTo-Json -Compress
+    exit
+}
+if ($Mode -eq 'StopDriver' -or $Mode -eq 'StopApplication') {
+    if ($Mode -eq 'StopApplication' -and $snapshot.root_kind -ne 'direct-application') { throw 'Application cleanup requires an application-root snapshot.' }
     $process = try { [Diagnostics.Process]::GetProcessById([int]$snapshot.driver.pid) } catch [ArgumentException] { $null }
+    if (-not $process -and $Mode -eq 'StopApplication') {
+        $terminated = @()
+        foreach ($record in $snapshot.processes) {
+            $owned = try { [Diagnostics.Process]::GetProcessById([int]$record.pid) } catch [ArgumentException] { $null }
+            if (-not $owned) { continue }
+            try {
+                # An exited root cannot confer authority over new descendants.
+                # Stop only individually captured, still identical survivors.
+                if ($owned.StartTime.ToFileTimeUtc() -ne $record.started_filetime) { continue }
+                if (-not [string]::Equals($owned.MainModule.FileName, $record.path, [StringComparison]::OrdinalIgnoreCase)) { throw 'Captured application descendant path changed.' }
+                $owned.Kill()
+                $terminated += $owned.Id
+            } catch [InvalidOperationException] {
+                if (-not $owned.HasExited) { throw }
+            } finally { $owned.Dispose() }
+        }
+        [pscustomobject]@{ method = 'captured-application-survivors'; terminated_survivors = $terminated } | ConvertTo-Json -Compress
+        exit
+    }
     if (-not $process) { throw 'Captured driver exited before isolated tree termination.' }
     try {
         if ($process.StartTime.ToFileTimeUtc() -ne $snapshot.driver.started_filetime -or
