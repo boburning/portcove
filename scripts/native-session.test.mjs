@@ -21,6 +21,7 @@ test(
   async () => {
     const root = await temporaryRoot();
     const marker = path.join(root, "late-child.json");
+    const release = path.join(root, "release-late-child");
     let session;
     let descendant;
     try {
@@ -28,13 +29,38 @@ test(
         "-e",
         `
 const {spawn}=require('node:child_process');
-setTimeout(()=>{
+const fs=require('node:fs');
+const watchdog=setTimeout(()=>process.exit(2),20000);
+const gate=setInterval(()=>{
+  if(!fs.existsSync(${JSON.stringify(release)}))return;
+  clearInterval(gate);
+  clearTimeout(watchdog);
   const child=spawn(process.execPath,['-e','setTimeout(()=>process.exit(0),12000)'],{stdio:'ignore',windowsHide:true,detached:true});
-  require('node:fs').writeFileSync(${JSON.stringify(marker)},JSON.stringify({pid:child.pid}));
+  fs.writeFileSync(${JSON.stringify(marker)},JSON.stringify({pid:child.pid}));
   child.unref();
-},3000);
-setTimeout(()=>process.exit(0),4000);`,
+  process.exit(0);
+},20);`,
       ]);
+      // Establish the actual initial inventory before releasing the later
+      // descendant. Host/CIM startup speed must not decide this ordering.
+      session.startup = session.capture();
+      const rootExited = once(session.child, "exit");
+      await writeFile(release, "initial snapshot retained");
+      let timer;
+      try {
+        const [code] = await Promise.race([
+          rootExited,
+          new Promise((_, reject) => {
+            timer = setTimeout(
+              () => reject(new Error("Fixture root did not exit after release")),
+              5000,
+            );
+          }),
+        ]);
+        assert.equal(code, 0);
+      } finally {
+        clearTimeout(timer);
+      }
       await assert.rejects(session.connect());
       descendant = JSON.parse(await readFile(marker, "utf8")).pid;
       const alive = spawnSync(
