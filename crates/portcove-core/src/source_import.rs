@@ -188,6 +188,13 @@ impl SourceImportOperation {
                 "source import quarantine exists before original cleanup",
             ));
         }
+        if let Some(quarantine) = &operation.paths.quarantine
+            && quarantine != &quarantine_path(&plan.source.path, &operation.id)
+        {
+            return Err(PortcoveError::verification(
+                "source import quarantine differs from its operation-bound path",
+            ));
+        }
         Ok(Self {
             profile_id: SourceProfileId(plan.profile_id.clone()),
             plan: plan.clone(),
