@@ -80,7 +80,9 @@ apt_options=(
 run_apt() {
   local deadline=$1
   shift
-  timeout --kill-after=10s "$deadline" "${privilege[@]}" env DEBIAN_FRONTEND=noninteractive \
+  # The deadline owner must share APT's privilege. A user-owned timeout cannot
+  # terminate root children after sudo starts its separate process group.
+  "${privilege[@]}" timeout --kill-after=10s "$deadline" env DEBIAN_FRONTEND=noninteractive \
     apt-get "${apt_options[@]}" "$@"
 }
 
