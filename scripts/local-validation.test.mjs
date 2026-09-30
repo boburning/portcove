@@ -497,6 +497,30 @@ test("browser composition, transport, and config changes select the real-browser
   assert.ok(!ids(plan).includes("ui-browser-tests"));
 });
 
+test("frontend script and test changes retain the same analyzer as frontend source", () => {
+  for (const path of [
+    "apps/desktop/scripts/desktop-install-fixture.test.mjs",
+    "apps/desktop/scripts/desktop-install-fixture.mjs",
+    "apps/desktop/test/process-fixture.test.mjs",
+  ]) {
+    for (const status of ["A", "M", "D"]) {
+      const { plan } = planFor([{ status, path }]);
+      assert.ok(ids(plan).includes("fallow"), `${status} ${path}`);
+      assert.equal(storageScopeForPlan(plan), "frontend");
+      assert.ok(!ids(plan).some((id) => id.startsWith("rust-")));
+    }
+  }
+  const renamed = planFor([
+    {
+      status: "R100",
+      previousPath: "apps/desktop/scripts/desktop-install-fixture.test.mjs",
+      path: "docs/former-fixture.md",
+    },
+  ]).plan;
+  assert.ok(ids(renamed).includes("fallow"));
+  assert.ok(!ids(planFor(["docs/README.md"]).plan).includes("fallow"));
+});
+
 test("frontend configuration changes use the complete small UI suite", () => {
   for (const path of ["package.json", "pnpm-lock.yaml"]) {
     const { selection, plan } = planFor([path]);
