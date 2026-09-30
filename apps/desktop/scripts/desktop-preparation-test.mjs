@@ -9,6 +9,7 @@ import { backupReviewScenario } from "./desktop-backup-review-test.mjs";
 import { removalReviewScenario } from "./desktop-removal-review-test.mjs";
 import { cliHandoffScenario } from "./desktop-cli-handoff-test.mjs";
 import { artworkScenario } from "./desktop-artwork-test.mjs";
+import { artworkCorrectionScenario } from "./desktop-artwork-correction-test.mjs";
 import { libraryHandoffScenario } from "./desktop-library-handoff-test.mjs";
 import { adoptionReviewScenario } from "./desktop-adoption-review-test.mjs";
 import { sourceRemovalScenario } from "./desktop-source-removal-test.mjs";
@@ -1341,6 +1342,16 @@ export async function preparationScenarios({
     artifacts,
     command,
     confirmNative,
+  });
+  await artworkCorrectionScenario({
+    browser,
+    invoke,
+    scenario,
+    output,
+    artifacts,
+    command,
+    confirmNative,
+    restartApplication,
   });
 }
 

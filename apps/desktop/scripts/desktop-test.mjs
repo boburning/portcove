@@ -117,6 +117,15 @@ inputs.push(
   await fileIdentity(fileURLToPath(new URL("desktop-default-cover-test.mjs", import.meta.url))),
 );
 if (selection.prerequisites.includes("owned-fixture")) {
+  if (selection.selected_scenarios.includes("native-artwork-catalog-correction"))
+    for (const name of [
+      "desktop-artwork-correction-test.mjs",
+      "testdata/catalog-artwork-red.jpg",
+      "testdata/catalog-artwork-blue.jpg",
+      "../../../scripts/sign-catalog.mjs",
+      "../../../crates/portcove-core/catalog/catalog.json",
+    ])
+      inputs.push(await fileIdentity(fileURLToPath(new URL(name, import.meta.url))));
   for (const name of ["preparation-cli", "preparation-tool"]) {
     if (!values[name] || !path.isAbsolute(values[name]))
       throw new Error(`--${name} requires an absolute path`);

@@ -65,6 +65,16 @@ test("exact selections are deduplicated and returned in catalog order", () => {
   assert.deepEqual(selection.setup_scenarios, []);
 });
 
+test("signed artwork correction is an isolated opt-in consumer proof", () => {
+  const id = "native-artwork-catalog-correction";
+  for (const ids of Object.values(DESKTOP_PROFILES)) assert.ok(!ids.includes(id));
+  const selection = resolveDesktopSelection({ scenarios: [id] });
+  assert.deepEqual(selection.selected_scenarios, [id]);
+  assert.deepEqual(selection.setup_scenarios, []);
+  assert.deepEqual(selection.prerequisites, ["desktop", "owned-fixture", "native-dialog"]);
+  assert.equal(desktopHarnessDeadlineMs(selection), 180_000);
+});
+
 test("design compatibility stays exact-selection-only and requests its isolated fixture", () => {
   for (const ids of Object.values(DESKTOP_PROFILES))
     assert.ok(!ids.includes("native-design-system-compatibility"));
