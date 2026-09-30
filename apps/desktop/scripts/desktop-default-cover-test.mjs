@@ -16,14 +16,24 @@ export async function defaultCoverScenario({
   await scenario("native-default-cover-display", async () => {
     const catalog = await invoke("get_catalog");
     assert.equal(catalog.ok, true);
-    const ids = [
+    const detailIds = new Set([
       "shipwright",
       "2ship2harkinian",
       "zelda64-recomp",
       "spaghetti-kart",
       "paperboat",
       "dkr-r",
-    ];
+      "banjo-recomp",
+      "re-blue",
+      "gen1recomp",
+      "vpw2-recompiled",
+      "open-nectar-pikmin",
+      "diddy-kong-racing-golden-balloon",
+    ]);
+    const ids = catalog.value.ports
+      .filter((port) => port.presentation?.artwork)
+      .map((port) => port.id);
+    assert.ok(ids.length > 0, "The actual catalog must have accepted cover mappings");
     const rows = [];
     const captureSettled = async (name, selector) => {
       await browser.wait(
@@ -132,10 +142,13 @@ export async function defaultCoverScenario({
         const cardImage = await image(`${selector} .card-art`);
         const cardMs = performance.now() - started;
         await captureSettled(`default-cover-${id}-${pass}-catalog`, selector);
-        await card.click();
-        await browser.wait(until.elementLocated(By.css("[data-detail-workspace]")), 10_000);
-        const detailImage = await image(".detail-cover");
-        await captureSettled(`default-cover-${id}-${pass}-details`, "[data-detail-workspace]");
+        let detailImage = null;
+        if (detailIds.has(id)) {
+          await card.click();
+          await browser.wait(until.elementLocated(By.css("[data-detail-workspace]")), 10_000);
+          detailImage = await image(".detail-cover");
+          await captureSettled(`default-cover-${id}-${pass}-details`, "[data-detail-workspace]");
+        }
         rows.push({
           id,
           pass,
@@ -155,7 +168,9 @@ export async function defaultCoverScenario({
       JSON.stringify(
         {
           scope:
-            "native development app; first/warm same-session CDN display, not cold-request latency or offline",
+            "native development app; every mapped catalog cover in both themes, representative details; first/warm same-session CDN display, not cold-request latency or offline",
+          catalogCount: catalog.value.ports.length,
+          mappedCount: ids.length,
           rows,
         },
         null,

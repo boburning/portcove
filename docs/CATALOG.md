@@ -1,5 +1,34 @@
 # Catalog policy
 
+## Default covers
+
+Prepare a cover beside each new port definition. Search its public project name
+and known aliases first; accept an exact port record only after checking the
+underlying title and project identity. Keep the original-game identity separate.
+Prefer a usable port cover, then the exact original game, then generated fallback.
+Record ambiguous, coverless or unavailable candidates as finite exceptions.
+Explicit local selections remain preferred; artwork never grants game support.
+
+`presentation.artwork` contains the selected IGDB game/cover/image identities,
+fixed CDN image digest and match kind. Maintainer preparation uses private Twitch
+credentials; clients need no key and only fetch the bounded mapped image through
+the existing shared resolver. Do not bundle images or treat display permission as
+Steam export permission. All current and future covers use the shared full-image
+presentation: preserve aspect ratio, show the complete cover, and use the card's
+surface instead of a generated colored matte. Generated colors return only when
+no usable image is displayed.
+
+The [2026-09-30 identity receipt](archive/2026-09-30-igdb-catalog-cover-identities.json)
+records the catalog-wide preparation, accepted port and original identities, and
+port-specific exceptions. It is dated evidence, not another scheduling tracker.
+Preserve accepted mappings when adding entries; investigate only additions or
+changed references. Generate the embedded catalog with
+`node scripts/generate-catalog.mjs`, then run selected local checks and the opt-in
+`just desktop-verify --scenario native-default-cover-display --require-clean`.
+That scenario derives its cover inventory from the actual native catalog, checks
+every mapped cover in both themes, and captures representative detail surfaces.
+Live CDN evidence is separate from ordinary offline CI and signed publication.
+
 For managed setup, `setup_output_paths` declares safe relative generated files
 or directories. They cannot overlap game/setup executables, persistent data,
 disposable runtime state, the materialized source, or one another. The completion

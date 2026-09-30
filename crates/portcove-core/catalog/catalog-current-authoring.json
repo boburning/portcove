@@ -7294,7 +7294,15 @@
             "verification": "catalog-identity"
           }
         ],
-        "saves_and_settings": "portcove-managed"
+        "saves_and_settings": "portcove-managed",
+        "artwork": {
+          "game_id": 1074,
+          "cover_id": 329251,
+          "image_id": "co721v",
+          "image_sha256": "f918d6ea5c09e5b5f44c8863b0a465e145956a26ca98646c25f84c8da3a290f5",
+          "game_slug": "super-mario-64",
+          "match_kind": "underlying-game"
+        }
       }
     },
     {
@@ -7427,7 +7435,15 @@
             "verification": "catalog-rules"
           }
         ],
-        "saves_and_settings": "portcove-managed"
+        "saves_and_settings": "portcove-managed",
+        "artwork": {
+          "game_id": 2591,
+          "cover_id": 524514,
+          "image_id": "cob8pu",
+          "image_sha256": "2c004bd7f2d6fdcdbd306a1cf9bca990bfae075dae322dda2d9fc223e0011518",
+          "game_slug": "star-fox-64",
+          "match_kind": "underlying-game"
+        }
       }
     },
     {
@@ -7489,7 +7505,15 @@
             "verification": "catalog-identity"
           }
         ],
-        "saves_and_settings": "portcove-managed"
+        "saves_and_settings": "portcove-managed",
+        "artwork": {
+          "game_id": 2148,
+          "cover_id": 528449,
+          "image_id": "cobbr5",
+          "image_sha256": "578beb8f394d692c83b886b70aad4effd70a6d9f29bb872c3714b9703e9a69fa",
+          "game_slug": "banjo-kazooie",
+          "match_kind": "underlying-game"
+        }
       }
     },
     {
@@ -7547,7 +7571,15 @@
             "verification": "catalog-rules"
           }
         ],
-        "saves_and_settings": "portcove-managed"
+        "saves_and_settings": "portcove-managed",
+        "artwork": {
+          "game_id": 1036,
+          "cover_id": 169555,
+          "image_id": "co3mtv",
+          "image_sha256": "c418fa20e362aa487bd429b6620a53fd5a382b0b32f0bc50d065ae65a12d338d",
+          "game_slug": "the-legend-of-zelda-twilight-princess",
+          "match_kind": "underlying-game"
+        }
       }
     },
     {
@@ -7705,7 +7737,15 @@
             "verification": "catalog-identity"
           }
         ],
-        "saves_and_settings": "portcove-managed"
+        "saves_and_settings": "portcove-managed",
+        "artwork": {
+          "game_id": 387032,
+          "cover_id": 529776,
+          "image_id": "cobcs0",
+          "image_sha256": "a26e95b65f1665fe8ae42c60dd93c72a6dfda993384a4fa6b3c1bb544a30e212",
+          "game_slug": "banjo-recompiled",
+          "match_kind": "port"
+        }
       }
     },
     {
@@ -7772,7 +7812,15 @@
             "verification": "catalog-identity"
           }
         ],
-        "saves_and_settings": "portcove-managed"
+        "saves_and_settings": "portcove-managed",
+        "artwork": {
+          "game_id": 3451,
+          "cover_id": 239678,
+          "image_id": "co54xq",
+          "image_sha256": "9504ce53505bec94aa096060d121ae653e4c72678f95476a99c032d18381835e",
+          "game_slug": "bomberman-64",
+          "match_kind": "underlying-game"
+        }
       }
     },
     {
@@ -7847,7 +7895,15 @@
             "verification": "catalog-identity"
           }
         ],
-        "saves_and_settings": "portcove-managed"
+        "saves_and_settings": "portcove-managed",
+        "artwork": {
+          "game_id": 3378,
+          "cover_id": 106783,
+          "image_id": "co2ae7",
+          "image_sha256": "c20365604ed292cda597a2098c3dcea13be7489661f837d9d9d1914c7bcfbb52",
+          "game_slug": "harvest-moon-64",
+          "match_kind": "underlying-game"
+        }
       }
     },
     {
@@ -7910,7 +7966,15 @@
             "verification": "catalog-identity"
           }
         ],
-        "saves_and_settings": "portcove-managed"
+        "saves_and_settings": "portcove-managed",
+        "artwork": {
+          "game_id": 343047,
+          "cover_id": 507330,
+          "image_id": "coavgi",
+          "image_sha256": "094d40bab4fa4536e9f257d351767683076fa37b6eaaa3a004664fcebcf0b02e",
+          "game_slug": "dinosaur-planet-recompiled",
+          "match_kind": "port"
+        }
       }
     },
     {
@@ -8049,7 +8113,15 @@
             "verification": "catalog-identity"
           }
         ],
-        "saves_and_settings": "portcove-managed"
+        "saves_and_settings": "portcove-managed",
+        "artwork": {
+          "game_id": 1096,
+          "cover_id": 104022,
+          "image_id": "co289i",
+          "image_sha256": "1e158cd8901207a6d920b7efba2617194a6e7ac9cee5402ed65c414dfb1346f1",
+          "game_slug": "donkey-kong-64",
+          "match_kind": "underlying-game"
+        }
       }
     },
     {
@@ -8115,7 +8187,15 @@
             "verification": "catalog-identity"
           }
         ],
-        "saves_and_settings": "portcove-managed"
+        "saves_and_settings": "portcove-managed",
+        "artwork": {
+          "game_id": 3442,
+          "cover_id": 195699,
+          "image_id": "co4703",
+          "image_sha256": "9c5fc948439de5aae2ff7c4d26045b96e582951af640612e2f08ef3a26ba2c2b",
+          "game_slug": "automobili-lamborghini",
+          "match_kind": "underlying-game"
+        }
       }
     },
     {
@@ -8178,7 +8258,15 @@
             "verification": "catalog-identity"
           }
         ],
-        "saves_and_settings": "portcove-managed"
+        "saves_and_settings": "portcove-managed",
+        "artwork": {
+          "game_id": 3329,
+          "cover_id": 152868,
+          "image_id": "co39yc",
+          "image_sha256": "ccec07e860f582b6d7384a43e8010a090445f90dffa6a3f553c594f73ee8dedd",
+          "game_slug": "aerogauge",
+          "match_kind": "underlying-game"
+        }
       }
     },
     {
@@ -8264,7 +8352,15 @@
             "verification": "catalog-identity"
           }
         ],
-        "saves_and_settings": "portcove-managed"
+        "saves_and_settings": "portcove-managed",
+        "artwork": {
+          "game_id": 3485,
+          "cover_id": 356344,
+          "image_id": "co7myg",
+          "image_sha256": "940beee36edd1f93956c5e2ce5be7464ffaf4c371d941aa73dca8018a504ad9a",
+          "game_slug": "extreme-g",
+          "match_kind": "underlying-game"
+        }
       }
     },
     {
@@ -8342,7 +8438,15 @@
             "verification": "catalog-identity"
           }
         ],
-        "saves_and_settings": "portcove-managed"
+        "saves_and_settings": "portcove-managed",
+        "artwork": {
+          "game_id": 22773,
+          "cover_id": 352710,
+          "image_id": "co7k5i",
+          "image_sha256": "0cdba00dab96c296f72c408011459b7cab3ba7fb06a5cbf906575ba2e6b5cb7f",
+          "game_slug": "bomberman-fantasy-race",
+          "match_kind": "underlying-game"
+        }
       }
     },
     {
@@ -8428,7 +8532,15 @@
             "verification": "catalog-identity"
           }
         ],
-        "saves_and_settings": "portcove-managed"
+        "saves_and_settings": "portcove-managed",
+        "artwork": {
+          "game_id": 18786,
+          "cover_id": 473835,
+          "image_id": "coa5m3",
+          "image_sha256": "d56a93b4ccdfa966ba0bd50007333c60eddcc803665a01b3eb1624d2f44a790e",
+          "game_slug": "bomberman-party-edition",
+          "match_kind": "underlying-game"
+        }
       }
     },
     {
@@ -8506,7 +8618,15 @@
             "verification": "catalog-identity"
           }
         ],
-        "saves_and_settings": "portcove-managed"
+        "saves_and_settings": "portcove-managed",
+        "artwork": {
+          "game_id": 27255,
+          "cover_id": 380305,
+          "image_id": "co85g1",
+          "image_sha256": "b0fe92e473c71712d10caad6648214ae23df1541c3badf7c5e6ba0e013be361e",
+          "game_slug": "bomberman-world",
+          "match_kind": "underlying-game"
+        }
       }
     },
     {
@@ -8597,7 +8717,15 @@
             "verification": "catalog-identity"
           }
         ],
-        "saves_and_settings": "portcove-managed"
+        "saves_and_settings": "portcove-managed",
+        "artwork": {
+          "game_id": 427,
+          "cover_id": 120422,
+          "image_id": "co2kx2",
+          "image_sha256": "0f6ab3e2041cdc8cc29580e5b868f84df71bd991c581ee080b9674a9f1c8c087",
+          "game_slug": "final-fantasy-vii",
+          "match_kind": "underlying-game"
+        }
       }
     },
     {
@@ -8675,7 +8803,15 @@
             "verification": "catalog-identity"
           }
         ],
-        "saves_and_settings": "portcove-managed"
+        "saves_and_settings": "portcove-managed",
+        "artwork": {
+          "game_id": 4959,
+          "cover_id": 155686,
+          "image_id": "co3c4m",
+          "image_sha256": "d91e7c0dcb7148584837201c2a0a3970b379df644fc222cda6664e42b8d875e6",
+          "game_slug": "klonoa-door-to-phantomile",
+          "match_kind": "underlying-game"
+        }
       }
     },
     {
@@ -8753,7 +8889,15 @@
             "verification": "catalog-identity"
           }
         ],
-        "saves_and_settings": "portcove-managed"
+        "saves_and_settings": "portcove-managed",
+        "artwork": {
+          "game_id": 14986,
+          "cover_id": 511116,
+          "image_id": "coaydo",
+          "image_sha256": "140ebddb4f9692fdf02f1103e27f9e8c5dd30e51dd26ce1fb3802584faec33b3",
+          "game_slug": "legend-of-mana",
+          "match_kind": "underlying-game"
+        }
       }
     },
     {
@@ -8831,7 +8975,15 @@
             "verification": "catalog-identity"
           }
         ],
-        "saves_and_settings": "portcove-managed"
+        "saves_and_settings": "portcove-managed",
+        "artwork": {
+          "game_id": 8246,
+          "cover_id": 408383,
+          "image_id": "co8r3z",
+          "image_sha256": "3cdc8f9f06ba98c9917549a0092e08139ae4fd272d747e1ad132a58a69ab8022",
+          "game_slug": "marvel-vs-capcom-clash-of-super-heroes",
+          "match_kind": "underlying-game"
+        }
       }
     },
     {
@@ -8909,7 +9061,15 @@
             "verification": "catalog-identity"
           }
         ],
-        "saves_and_settings": "portcove-managed"
+        "saves_and_settings": "portcove-managed",
+        "artwork": {
+          "game_id": 18044,
+          "cover_id": 128842,
+          "image_id": "co2rey",
+          "image_sha256": "a5caaa796598d983b0f4a729139c9fd1e8caa40baf834dd93685b9ecfc195a65",
+          "game_slug": "star-wars-masters-of-teras-kasi",
+          "match_kind": "underlying-game"
+        }
       }
     },
     {
@@ -8987,7 +9147,15 @@
             "verification": "catalog-identity"
           }
         ],
-        "saves_and_settings": "portcove-managed"
+        "saves_and_settings": "portcove-managed",
+        "artwork": {
+          "game_id": 18840,
+          "cover_id": 397601,
+          "image_id": "co8ish",
+          "image_sha256": "790e580b9d6d0733a7e5bf024fdc7d68a5ad276bda3ec55633b19b198f752476",
+          "game_slug": "metal-slug-x",
+          "match_kind": "underlying-game"
+        }
       }
     },
     {
@@ -9072,7 +9240,15 @@
             "verification": "catalog-identity"
           }
         ],
-        "saves_and_settings": "portcove-managed"
+        "saves_and_settings": "portcove-managed",
+        "artwork": {
+          "game_id": 1622,
+          "cover_id": 237769,
+          "image_id": "co53gp",
+          "image_sha256": "364769f2837d8bc18f4cd248c0b9c6b53aa5e4fb2b9f5d14cb26e645a9abcf47",
+          "game_slug": "mortal-kombat-4",
+          "match_kind": "underlying-game"
+        }
       }
     },
     {
@@ -9150,7 +9326,15 @@
             "verification": "catalog-identity"
           }
         ],
-        "saves_and_settings": "portcove-managed"
+        "saves_and_settings": "portcove-managed",
+        "artwork": {
+          "game_id": 45091,
+          "cover_id": 371171,
+          "image_id": "co7yeb",
+          "image_sha256": "20ed2a4e03a19f561deb9c779e455459bf9aa719092393c7872003156c094fff",
+          "game_slug": "rampage-through-time",
+          "match_kind": "underlying-game"
+        }
       }
     },
     {
@@ -9228,7 +9412,15 @@
             "verification": "catalog-identity"
           }
         ],
-        "saves_and_settings": "portcove-managed"
+        "saves_and_settings": "portcove-managed",
+        "artwork": {
+          "game_id": 6606,
+          "cover_id": 506749,
+          "image_id": "coav0d",
+          "image_sha256": "409810bbaa369112a4906d6f783066cf74a9389736671241f7442f39a6880da9",
+          "game_slug": "star-wars-episode-i-jedi-power-battles",
+          "match_kind": "underlying-game"
+        }
       }
     },
     {
@@ -9306,7 +9498,15 @@
             "verification": "catalog-identity"
           }
         ],
-        "saves_and_settings": "portcove-managed"
+        "saves_and_settings": "portcove-managed",
+        "artwork": {
+          "game_id": 6704,
+          "cover_id": 294008,
+          "image_id": "co6auw",
+          "image_sha256": "3278c5c999a04505b9702c867f3b802d5fbd1ed92ece3a9d8870579a8c04ac9b",
+          "game_slug": "street-fighter-alpha-3",
+          "match_kind": "underlying-game"
+        }
       }
     },
     {
@@ -9384,7 +9584,15 @@
             "verification": "catalog-identity"
           }
         ],
-        "saves_and_settings": "portcove-managed"
+        "saves_and_settings": "portcove-managed",
+        "artwork": {
+          "game_id": 4097,
+          "cover_id": 240797,
+          "image_id": "co55st",
+          "image_sha256": "dbb5c9b3f514e60b2ebf41394319c9b68b44bc2ff36e9a1b81e61eb86de4382a",
+          "game_slug": "tomba",
+          "match_kind": "underlying-game"
+        }
       }
     },
     {
@@ -9460,7 +9668,15 @@
             "verification": "catalog-identity"
           }
         ],
-        "saves_and_settings": "portcove-managed"
+        "saves_and_settings": "portcove-managed",
+        "artwork": {
+          "game_id": 4698,
+          "cover_id": 85914,
+          "image_id": "co1uai",
+          "image_sha256": "5d38ad17f5b66a33334c5a828f83fa5c45597f0a2a8384bbc6e86cac89302786",
+          "game_slug": "twisted-metal-4",
+          "match_kind": "underlying-game"
+        }
       }
     },
     {
@@ -9523,7 +9739,15 @@
             "verification": "catalog-identity"
           }
         ],
-        "saves_and_settings": "portcove-managed"
+        "saves_and_settings": "portcove-managed",
+        "artwork": {
+          "game_id": 4108,
+          "cover_id": 86189,
+          "image_id": "co1ui5",
+          "image_sha256": "4433b62aad4b6eb383b78541b23242c395a35fa426c5f50d217d605c19312291",
+          "game_slug": "yu-gi-oh-forbidden-memories",
+          "match_kind": "underlying-game"
+        }
       }
     },
     {
@@ -9582,7 +9806,15 @@
             "verification": "catalog-identity"
           }
         ],
-        "saves_and_settings": "portcove-managed"
+        "saves_and_settings": "portcove-managed",
+        "artwork": {
+          "game_id": 11452,
+          "cover_id": 85551,
+          "image_id": "co1u0f",
+          "image_sha256": "724b15c0cba66fdf05c553ae8330a99a1c6192142ea1ef0bb1561d454d1796ae",
+          "game_slug": "revelations-persona",
+          "match_kind": "underlying-game"
+        }
       }
     },
     {
@@ -9646,7 +9878,15 @@
             "verification": "catalog-identity"
           }
         ],
-        "saves_and_settings": "portcove-managed"
+        "saves_and_settings": "portcove-managed",
+        "artwork": {
+          "game_id": 2715,
+          "cover_id": 104718,
+          "image_id": "co28su",
+          "image_sha256": "cbcd2bd8f4371735cee53a83c72e5f694c09dd899c1d35ac08126389f63200e1",
+          "game_slug": "beetle-adventure-racing",
+          "match_kind": "underlying-game"
+        }
       }
     },
     {
@@ -9709,7 +9949,15 @@
             "verification": "catalog-identity"
           }
         ],
-        "saves_and_settings": "portcove-managed"
+        "saves_and_settings": "portcove-managed",
+        "artwork": {
+          "game_id": 3580,
+          "cover_id": 400422,
+          "image_id": "co8kyu",
+          "image_sha256": "d2ee88ac1ab1bfe7f4f56c5de0b4adaecce6c23e9292105ef382b931910d64d0",
+          "game_slug": "quest-64",
+          "match_kind": "underlying-game"
+        }
       }
     },
     {
@@ -9773,7 +10021,15 @@
             "verification": "catalog-identity"
           }
         ],
-        "saves_and_settings": "portcove-managed"
+        "saves_and_settings": "portcove-managed",
+        "artwork": {
+          "game_id": 3635,
+          "cover_id": 277081,
+          "image_id": "co5xsp",
+          "image_sha256": "78ffa9784c9466e1d23557ae1d3d4555b75548eaccc078f202e73e06c788b69a",
+          "game_slug": "wcw-vs-nwo-world-tour",
+          "match_kind": "underlying-game"
+        }
       }
     },
     {
@@ -9837,7 +10093,15 @@
             "verification": "catalog-identity"
           }
         ],
-        "saves_and_settings": "portcove-managed"
+        "saves_and_settings": "portcove-managed",
+        "artwork": {
+          "game_id": 3626,
+          "cover_id": 322381,
+          "image_id": "co6wr1",
+          "image_sha256": "23257d5395ddf17e5bee16367d5906ba52937debc6f7a5873bf2a4e190233025",
+          "game_slug": "virtual-pro-wrestling-64",
+          "match_kind": "underlying-game"
+        }
       }
     },
     {
@@ -9901,7 +10165,15 @@
             "verification": "catalog-identity"
           }
         ],
-        "saves_and_settings": "portcove-managed"
+        "saves_and_settings": "portcove-managed",
+        "artwork": {
+          "game_id": 3636,
+          "cover_id": 154513,
+          "image_id": "co3b81",
+          "image_sha256": "d55280f6b77a96f2510147777d1ab98a6955107bec0770ae6d597510f3969d00",
+          "game_slug": "wcw-nwo-revenge",
+          "match_kind": "underlying-game"
+        }
       }
     },
     {
@@ -9965,7 +10237,15 @@
             "verification": "catalog-identity"
           }
         ],
-        "saves_and_settings": "portcove-managed"
+        "saves_and_settings": "portcove-managed",
+        "artwork": {
+          "game_id": 3646,
+          "cover_id": 576157,
+          "image_id": "cocckd",
+          "image_sha256": "b1bfebc82d3cd96311c388b7e6d027ec7a63b56c74268eff97809a616e0198ac",
+          "game_slug": "wwf-wrestlemania-2000",
+          "match_kind": "underlying-game"
+        }
       }
     },
     {
@@ -10023,7 +10303,15 @@
             "verification": "catalog-identity"
           }
         ],
-        "saves_and_settings": "portcove-managed"
+        "saves_and_settings": "portcove-managed",
+        "artwork": {
+          "game_id": 3625,
+          "cover_id": 3742,
+          "image_id": "tucrem7ud9pqmtee2wd9",
+          "image_sha256": "ec2679768510d6904a1a91bb7c312630c42e5b026ef382c3e045e14c9e65b946",
+          "game_slug": "virtual-pro-wrestling-2-oudou-keishou",
+          "match_kind": "underlying-game"
+        }
       }
     },
     {
@@ -10087,7 +10375,15 @@
             "verification": "catalog-identity"
           }
         ],
-        "saves_and_settings": "portcove-managed"
+        "saves_and_settings": "portcove-managed",
+        "artwork": {
+          "game_id": 3644,
+          "cover_id": 576138,
+          "image_id": "coccju",
+          "image_sha256": "cdab11b8b0c86e6bcc4d8c63b0b0b818db938bce4bda0363396aaa0034c803eb",
+          "game_slug": "wwf-no-mercy",
+          "match_kind": "underlying-game"
+        }
       }
     },
     {
@@ -10157,7 +10453,15 @@
             "verification": "catalog-identity"
           }
         ],
-        "saves_and_settings": "portcove-managed"
+        "saves_and_settings": "portcove-managed",
+        "artwork": {
+          "game_id": 400965,
+          "cover_id": 569473,
+          "image_id": "coc7ep",
+          "image_sha256": "ff35ce084c37e6a77e9ab11339a088ab37486b85aa05b40dfdd18e3586f52181",
+          "game_slug": "mega-man-64-recompiled",
+          "match_kind": "port"
+        }
       }
     },
     {
@@ -10223,7 +10527,15 @@
             "verification": "catalog-identity"
           }
         ],
-        "saves_and_settings": "portcove-managed"
+        "saves_and_settings": "portcove-managed",
+        "artwork": {
+          "game_id": 3475,
+          "cover_id": 95584,
+          "image_id": "co21r4",
+          "image_sha256": "1250bd93b844860ddd0ecdf0043b64f56d9ec647c586912edfc3a0d7421796c7",
+          "game_slug": "dr-mario-64",
+          "match_kind": "underlying-game"
+        }
       }
     },
     {
@@ -10299,7 +10611,15 @@
             "verification": "catalog-identity"
           }
         ],
-        "saves_and_settings": "portcove-managed"
+        "saves_and_settings": "portcove-managed",
+        "artwork": {
+          "game_id": 1561,
+          "cover_id": 266332,
+          "image_id": "co5pi4",
+          "image_sha256": "1efe996b56d4e3af47ac342358b7a55f2fcc95d362b5dd1a87eb3153c9be16a8",
+          "game_slug": "pokemon-red-version",
+          "match_kind": "underlying-game"
+        }
       }
     },
     {
@@ -10371,7 +10691,15 @@
             "verification": "catalog-identity"
           }
         ],
-        "saves_and_settings": "portcove-managed"
+        "saves_and_settings": "portcove-managed",
+        "artwork": {
+          "game_id": 1558,
+          "cover_id": 266338,
+          "image_id": "co5pia",
+          "image_sha256": "c4eaf36f94396d584a5f372c6668f4330a8b076645964650279f7acd10a4381f",
+          "game_slug": "pokemon-gold-version",
+          "match_kind": "underlying-game"
+        }
       }
     },
     {
@@ -10443,7 +10771,15 @@
             "verification": "catalog-identity"
           }
         ],
-        "saves_and_settings": "portcove-managed"
+        "saves_and_settings": "portcove-managed",
+        "artwork": {
+          "game_id": 1513,
+          "cover_id": 266341,
+          "image_id": "co5pid",
+          "image_sha256": "3912aeb009ea0e9fce19375978837d69982ee4ed3f1ad96deefc2314351dc0bb",
+          "game_slug": "pokemon-silver-version",
+          "match_kind": "underlying-game"
+        }
       }
     },
     {
@@ -10515,7 +10851,15 @@
             "verification": "catalog-identity"
           }
         ],
-        "saves_and_settings": "portcove-managed"
+        "saves_and_settings": "portcove-managed",
+        "artwork": {
+          "game_id": 1514,
+          "cover_id": 266349,
+          "image_id": "co5pil",
+          "image_sha256": "f5bb92cc496efd7ad1c64b57a96480255c568ae2bf2fde17a19765f0591923d4",
+          "game_slug": "pokemon-crystal-version",
+          "match_kind": "underlying-game"
+        }
       }
     },
     {
@@ -10577,7 +10921,15 @@
             "verification": "catalog-identity"
           }
         ],
-        "saves_and_settings": "portcove-managed"
+        "saves_and_settings": "portcove-managed",
+        "artwork": {
+          "game_id": 408841,
+          "cover_id": 603605,
+          "image_id": "cocxqt",
+          "image_sha256": "8c2affef1978f38399fc9b402e4f555f20eea0873f1f8922af27e680b34de6a6",
+          "game_slug": "nocturnerecomp",
+          "match_kind": "port"
+        }
       }
     },
     {
@@ -10619,7 +10971,15 @@
             "verification": "catalog-rules"
           }
         ],
-        "saves_and_settings": "portcove-managed"
+        "saves_and_settings": "portcove-managed",
+        "artwork": {
+          "game_id": 415482,
+          "cover_id": 599565,
+          "image_id": "cocuml",
+          "image_sha256": "9a0f83631498cfea17d61bb69a4f4b1e07b584b82aa9dd7a7c4fc01db03b5284",
+          "game_slug": "re-blue",
+          "match_kind": "port"
+        }
       }
     },
     {
@@ -10686,7 +11046,15 @@
             "verification": "catalog-identity"
           }
         ],
-        "saves_and_settings": "portcove-managed"
+        "saves_and_settings": "portcove-managed",
+        "artwork": {
+          "game_id": 3453,
+          "cover_id": 310928,
+          "image_id": "co6nww",
+          "image_sha256": "168ab8510dc2edba60ab14918974372e2786cf9c6804b5180c98373f53ae7c3c",
+          "game_slug": "bomberman-hero",
+          "match_kind": "underlying-game"
+        }
       }
     },
     {
@@ -10756,7 +11124,15 @@
             "verification": "catalog-identity"
           }
         ],
-        "saves_and_settings": "portcove-managed"
+        "saves_and_settings": "portcove-managed",
+        "artwork": {
+          "game_id": 3343,
+          "cover_id": 130695,
+          "image_id": "co2suf",
+          "image_sha256": "93bea476c967bc8a05eef964f16b274c65d5cd33a89dea7fab7ea790d273843b",
+          "game_slug": "snowboard-kids-2",
+          "match_kind": "underlying-game"
+        }
       }
     },
     {
@@ -10821,7 +11197,15 @@
             "verification": "catalog-identity"
           }
         ],
-        "saves_and_settings": "portcove-managed"
+        "saves_and_settings": "portcove-managed",
+        "artwork": {
+          "game_id": 3412,
+          "cover_id": 557812,
+          "image_id": "cobyes",
+          "image_sha256": "a6d4389f7a37a19bd1d31171dd7db2cc889eb8e472a88d798c5736853e4fb79c",
+          "game_slug": "mischief-makers",
+          "match_kind": "underlying-game"
+        }
       }
     },
     {
@@ -10888,7 +11272,15 @@
             "verification": "catalog-identity"
           }
         ],
-        "saves_and_settings": "portcove-managed"
+        "saves_and_settings": "portcove-managed",
+        "artwork": {
+          "game_id": 330074,
+          "cover_id": 507328,
+          "image_id": "coavgg",
+          "image_sha256": "2eab9dd3c036b9109f3987b62bef829c1cc5ccaf2f09969d73fe34ae172f7249",
+          "game_slug": "goemon-64-recompiled--1",
+          "match_kind": "port"
+        }
       }
     },
     {
@@ -10955,7 +11347,15 @@
             "verification": "catalog-identity"
           }
         ],
-        "saves_and_settings": "portcove-managed"
+        "saves_and_settings": "portcove-managed",
+        "artwork": {
+          "game_id": 271424,
+          "cover_id": 336876,
+          "image_id": "co77xo",
+          "image_sha256": "ef517716b94da70cfb87a7349d99b1b81cdfc39e3aee45f710e0fef08b7f5e8b",
+          "game_slug": "perfect-dark-pc-port",
+          "match_kind": "port"
+        }
       }
     },
     {
@@ -11040,7 +11440,15 @@
             "verification": "catalog-identity"
           }
         ],
-        "saves_and_settings": "portcove-managed"
+        "saves_and_settings": "portcove-managed",
+        "artwork": {
+          "game_id": 3602,
+          "cover_id": 182330,
+          "image_id": "co3woq",
+          "image_sha256": "5bfcab3a7d39e84052d7a0c18dd8e644906d3586f8846c121f2d64d54e2500da",
+          "game_slug": "space-station-silicon-valley",
+          "match_kind": "underlying-game"
+        }
       }
     },
     {
@@ -11094,7 +11502,15 @@
             "verification": "catalog-identity"
           }
         ],
-        "saves_and_settings": "portcove-managed"
+        "saves_and_settings": "portcove-managed",
+        "artwork": {
+          "game_id": 2655,
+          "cover_id": 182255,
+          "image_id": "co3wmn",
+          "image_sha256": "ffcc4b01733a1028a338e1d15263a040686f9da84ca9d05b8f484494c22c0575",
+          "game_slug": "animal-crossing",
+          "match_kind": "underlying-game"
+        }
       }
     },
     {
@@ -11196,7 +11612,15 @@
             "verification": "catalog-identity"
           }
         ],
-        "saves_and_settings": "portcove-managed"
+        "saves_and_settings": "portcove-managed",
+        "artwork": {
+          "game_id": 1035,
+          "cover_id": 170804,
+          "image_id": "co3nsk",
+          "image_sha256": "98bec281528d2af17fdd826a0a8a096e07f0352d95a97c9f0b474930a00fe3c2",
+          "game_slug": "the-legend-of-zelda-the-minish-cap",
+          "match_kind": "underlying-game"
+        }
       }
     },
     {
@@ -11268,7 +11692,15 @@
             "verification": "catalog-identity"
           }
         ],
-        "saves_and_settings": "portcove-managed"
+        "saves_and_settings": "portcove-managed",
+        "artwork": {
+          "game_id": 1626,
+          "cover_id": 131928,
+          "image_id": "co2tso",
+          "image_sha256": "b8c0edf9685259b4e1cfb879e8d5275dd1c1aa124f98c9612ee4cd03f6ed0d9e",
+          "game_slug": "super-smash-bros",
+          "match_kind": "underlying-game"
+        }
       }
     },
     {
@@ -11353,7 +11785,15 @@
             "verification": "catalog-identity"
           }
         ],
-        "saves_and_settings": "portcove-managed"
+        "saves_and_settings": "portcove-managed",
+        "artwork": {
+          "game_id": 413108,
+          "cover_id": 604537,
+          "image_id": "cocygp",
+          "image_sha256": "7c961141c0855131b197e8ba37f361230d99e6cc243cd63f332562ba94322406",
+          "game_slug": "g-diffuser",
+          "match_kind": "port"
+        }
       }
     },
     {
@@ -11482,7 +11922,15 @@
             "verification": "catalog-identity"
           }
         ],
-        "saves_and_settings": "portcove-managed"
+        "saves_and_settings": "portcove-managed",
+        "artwork": {
+          "game_id": 3140,
+          "cover_id": 219407,
+          "image_id": "co4pan",
+          "image_sha256": "f1908dfe94bdf8fa49c80cf9250a5618ddd0b94e04c7bba4b5146152f44e5f6f",
+          "game_slug": "the-legend-of-dragoon",
+          "match_kind": "underlying-game"
+        }
       }
     },
     {
@@ -11538,7 +11986,15 @@
             "verification": "catalog-identity"
           }
         ],
-        "saves_and_settings": "portcove-managed"
+        "saves_and_settings": "portcove-managed",
+        "artwork": {
+          "game_id": 413542,
+          "cover_id": 602369,
+          "image_id": "cocwsh",
+          "image_sha256": "1924468863d94c337ba71a03ca602babeb8ff01553ed27e69d7d9a6934a92adc",
+          "game_slug": "openpete",
+          "match_kind": "port"
+        }
       }
     },
     {
@@ -11648,7 +12104,15 @@
             "verification": "upstream-validator"
           }
         ],
-        "saves_and_settings": "portcove-managed"
+        "saves_and_settings": "portcove-managed",
+        "artwork": {
+          "game_id": 206008,
+          "cover_id": 298993,
+          "image_id": "co6epd",
+          "image_sha256": "ebe260ca49ee45b287f86a2c4be6cee4d4cc8d394bbbd2d95e8e94f7139e0b37",
+          "game_slug": "opengoal-jak-and-daxter-the-precursor-legacy",
+          "match_kind": "port"
+        }
       }
     },
     {
@@ -11758,7 +12222,15 @@
             "verification": "upstream-validator"
           }
         ],
-        "saves_and_settings": "portcove-managed"
+        "saves_and_settings": "portcove-managed",
+        "artwork": {
+          "game_id": 275306,
+          "cover_id": 341811,
+          "image_id": "co7bqr",
+          "image_sha256": "2e12b0393af03c42dd03dfc91e0b52262073164e2b85405c02fc330c524a02bd",
+          "game_slug": "opengoal-jak-ii",
+          "match_kind": "port"
+        }
       }
     },
     {
@@ -11868,7 +12340,15 @@
             "verification": "upstream-validator"
           }
         ],
-        "saves_and_settings": "portcove-managed"
+        "saves_and_settings": "portcove-managed",
+        "artwork": {
+          "game_id": 396702,
+          "cover_id": 553369,
+          "image_id": "cobuzd",
+          "image_sha256": "66250fb2384e4abb27d5a9857b2b48a99e39d2c87fcd40409bf8a6c2bed560a8",
+          "game_slug": "opengoal-jak-3",
+          "match_kind": "port"
+        }
       }
     },
     {
@@ -11944,7 +12424,15 @@
             "verification": "catalog-identity"
           }
         ],
-        "saves_and_settings": "portcove-managed"
+        "saves_and_settings": "portcove-managed",
+        "artwork": {
+          "game_id": 409014,
+          "cover_id": 605094,
+          "image_id": "cocyw6",
+          "image_sha256": "12da48db9afebefe18414ff63c1ffc718adf5ee18fa94881a0f8d228c7770d6a",
+          "game_slug": "mega-man-x6-recompiled",
+          "match_kind": "port"
+        }
       }
     },
     {
@@ -11996,7 +12484,15 @@
             "verification": "catalog-identity"
           }
         ],
-        "saves_and_settings": "portcove-managed"
+        "saves_and_settings": "portcove-managed",
+        "artwork": {
+          "game_id": 403229,
+          "cover_id": 603637,
+          "image_id": "cocxrp",
+          "image_sha256": "eaaed17caf7d18029f1ba16aeeac99490b401f4d8b89c2d618f724cce51de5ae",
+          "game_slug": "paper-mario-recut",
+          "match_kind": "port"
+        }
       }
     },
     {
@@ -12061,7 +12557,15 @@
             "verification": "catalog-identity"
           }
         ],
-        "saves_and_settings": "portcove-managed"
+        "saves_and_settings": "portcove-managed",
+        "artwork": {
+          "game_id": 2324,
+          "cover_id": 221003,
+          "image_id": "co4qiz",
+          "image_sha256": "7b00ec78a5ca47c6f1d134cb09f500f6267fcffaa6ae61de2df03a47ded06d86",
+          "game_slug": "pokemon-snap",
+          "match_kind": "underlying-game"
+        }
       }
     },
     {
@@ -12135,7 +12639,15 @@
             "verification": "catalog-identity"
           }
         ],
-        "saves_and_settings": "portcove-managed"
+        "saves_and_settings": "portcove-managed",
+        "artwork": {
+          "game_id": 1131,
+          "cover_id": 239526,
+          "image_id": "co54ti",
+          "image_sha256": "eae6b7bce138d1cd5e119746c4c2f495957803de898061b00834d5a5037b4489",
+          "game_slug": "castlevania-legacy-of-darkness",
+          "match_kind": "underlying-game"
+        }
       }
     },
     {
@@ -12201,7 +12713,15 @@
             "verification": "catalog-identity"
           }
         ],
-        "saves_and_settings": "portcove-managed"
+        "saves_and_settings": "portcove-managed",
+        "artwork": {
+          "game_id": 412063,
+          "cover_id": 588536,
+          "image_id": "cocm48",
+          "image_sha256": "95d3fbb56907111b0520a8c61cc6bce9b15821745c26627a42734f8307ba1c4c",
+          "game_slug": "golden-balloon",
+          "match_kind": "port"
+        }
       }
     },
     {
@@ -12257,7 +12777,15 @@
             "verification": "catalog-identity"
           }
         ],
-        "saves_and_settings": "portcove-managed"
+        "saves_and_settings": "portcove-managed",
+        "artwork": {
+          "game_id": 8581,
+          "cover_id": 432448,
+          "image_id": "co99og",
+          "image_sha256": "ffed915ee076b17b762d01a4d9dc528512d4ce5d456134f1cf612a8c86add400",
+          "game_slug": "star-fox",
+          "match_kind": "underlying-game"
+        }
       }
     },
     {
@@ -12319,7 +12847,15 @@
             "verification": "catalog-identity"
           }
         ],
-        "saves_and_settings": "portcove-managed"
+        "saves_and_settings": "portcove-managed",
+        "artwork": {
+          "game_id": 8503,
+          "cover_id": 107668,
+          "image_id": "co2b2s",
+          "image_sha256": "d33a7ebdd8853077a91cc0b5c7a28c681d06e95623029f5ed3cb751ab9396ce2",
+          "game_slug": "duke-nukem-zero-hour",
+          "match_kind": "underlying-game"
+        }
       }
     },
     {
@@ -12402,7 +12938,15 @@
             "verification": "catalog-identity"
           }
         ],
-        "saves_and_settings": "portcove-managed"
+        "saves_and_settings": "portcove-managed",
+        "artwork": {
+          "game_id": 3762,
+          "cover_id": 115320,
+          "image_id": "co2gzc",
+          "image_sha256": "b689ac550b7807203e88a928ff42c5906ccdce2c4f2a38229f2a3204c878f906",
+          "game_slug": "ape-escape",
+          "match_kind": "underlying-game"
+        }
       }
     },
     {
@@ -12485,7 +13029,15 @@
             "verification": "catalog-identity"
           }
         ],
-        "saves_and_settings": "portcove-managed"
+        "saves_and_settings": "portcove-managed",
+        "artwork": {
+          "game_id": 413319,
+          "cover_id": 603636,
+          "image_id": "cocxro",
+          "image_sha256": "b736247122ba1c809a712098c07598d23506d3e7f323444afa76f337fa925a7e",
+          "game_slug": "mega-man-x5-recompiled",
+          "match_kind": "port"
+        }
       }
     },
     {
@@ -12553,7 +13105,15 @@
             "verification": "upstream-validator"
           }
         ],
-        "saves_and_settings": "portcove-managed"
+        "saves_and_settings": "portcove-managed",
+        "artwork": {
+          "game_id": 2239,
+          "cover_id": 310696,
+          "image_id": "co6nqg",
+          "image_sha256": "e329bed9a1c6b508e0da086eaa87e323d52027a583c01a09cec87b807983680a",
+          "game_slug": "pikmin",
+          "match_kind": "underlying-game"
+        }
       }
     },
     {
@@ -12623,7 +13183,15 @@
           }
         ],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "Extract the official v1.0.2 Windows ZIP, then create an empty portable.txt beside WaveRace64Recomp.exe. The marker is not in the ZIP; it keeps game-owned saves and settings beside the executable. Choose that folder for Portcove's exact-file review."
+        "manual_preparation": "Extract the official v1.0.2 Windows ZIP, then create an empty portable.txt beside WaveRace64Recomp.exe. The marker is not in the ZIP; it keeps game-owned saves and settings beside the executable. Choose that folder for Portcove's exact-file review.",
+        "artwork": {
+          "game_id": 3629,
+          "cover_id": 478764,
+          "image_id": "coa9f0",
+          "image_sha256": "ff7d17084337bec6a851bfca8706b670eb6441afad1ecc03d99aa1a143d1d196",
+          "game_slug": "wave-race-64",
+          "match_kind": "underlying-game"
+        }
       }
     }
   ]

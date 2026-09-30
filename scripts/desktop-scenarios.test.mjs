@@ -53,6 +53,7 @@ test("live default-cover observation remains opt-in without fixtures or offline 
   assert.deepEqual(selection.selected_scenarios, [id]);
   assert.deepEqual(selection.setup_scenarios, []);
   assert.deepEqual(selection.prerequisites, ["desktop"]);
+  assert.ok(desktopHarnessDeadlineMs(selection) > 180_000);
 });
 
 test("exact selections are deduplicated and returned in catalog order", () => {
