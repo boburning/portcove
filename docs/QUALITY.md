@@ -132,7 +132,10 @@ retain the complete local audit; the profile never manufactures exhaustive CI
 authority. Audit selection itself, result gates, qualification/release workflows,
 recipes and dependency inputs are excluded from this profile and cannot narrow
 their own transition. Maintained hosted routing is eligible only while its actual
-exact-head plan still requires every qualification group and platform. Existing release and deep audit
+exact-head plan still requires every qualification group and platform from the
+preserved `.github/qualification-coverage.json` and its excluded validator. A
+candidate's reduced coverage constants cannot authorize its own shorter gate.
+Existing release and deep audit
 stage selection remains unchanged. Partial-profile reports use separate filenames and never
 replace a complete audit report. Missing or incomplete discovery blocks execution.
 
