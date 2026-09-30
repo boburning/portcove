@@ -109,6 +109,129 @@ struct SourceImportPublicationReceipt {
     object_identity: String,
 }
 
+/// The persisted `port_id` slot is a profile identity for this family only.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct SourceProfileId(String);
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ImportPhase {
+    Copying,
+    ReadyToPublish,
+    Published,
+    Registered,
+    RemovingOriginal,
+}
+
+/// Checked interpretation of the released journal envelope, not authorization.
+struct SourceImportOperation {
+    profile_id: SourceProfileId,
+    plan: SourceImportPlan,
+    phase: ImportPhase,
+}
+
+impl SourceImportOperation {
+    fn decode(operation: &LifecycleOperation) -> Result<Self> {
+        let plan = operation.source_import.as_ref().ok_or_else(|| {
+            PortcoveError::state("source import lifecycle record has no bound plan")
+        })?;
+        if operation.kind != LifecycleOperationKind::ImportSource
+            || operation.install.is_some()
+            || operation.relocation.is_some()
+            || operation.preparation.is_some()
+            || operation.preparation_process_quiesced.is_some()
+            || operation.activate
+            || plan.schema_version != IMPORT_PLAN_SCHEMA_VERSION
+            || plan.profile_id.is_empty()
+            || plan.profile_id != operation.port_id
+            || plan.source.profile_id != plan.profile_id
+            || plan.mode == SourceImportMode::UseCurrentLocation
+            || operation.original_paths != [plan.source.path.clone()]
+        {
+            return Err(PortcoveError::state(
+                "source import lifecycle record has an incompatible plan or family payload",
+            ));
+        }
+        if operation.paths.final_path.as_ref() != Some(&plan.destination) {
+            return Err(PortcoveError::verification(
+                "source import destination no longer matches its reviewed plan",
+            ));
+        }
+        let staging = operation.paths.staging.as_ref().ok_or_else(|| {
+            PortcoveError::state("source import lifecycle record has no staging path")
+        })?;
+        let profile = plan
+            .destination
+            .parent()
+            .ok_or_else(|| PortcoveError::state("Source Inbox destination has no parent"))?;
+        validated_staging_root(staging, profile, &operation.id)?;
+        if staging.file_name() != plan.destination.file_name() {
+            return Err(PortcoveError::verification(
+                "source import staging filename differs from its reviewed destination",
+            ));
+        }
+        let phase = match operation.phase {
+            LifecyclePhase::Preparing => ImportPhase::Copying,
+            LifecyclePhase::Prepared => ImportPhase::ReadyToPublish,
+            LifecyclePhase::PayloadPublished => ImportPhase::Published,
+            LifecyclePhase::MetadataCommitted => ImportPhase::Registered,
+            LifecyclePhase::CleanupPending if plan.mode == SourceImportMode::Move => {
+                ImportPhase::RemovingOriginal
+            }
+            LifecyclePhase::CleanupPending => {
+                return Err(PortcoveError::state(
+                    "copy import cannot remove its original",
+                ));
+            }
+        };
+        if operation.paths.quarantine.is_some() && phase != ImportPhase::RemovingOriginal {
+            return Err(PortcoveError::state(
+                "source import quarantine exists before original cleanup",
+            ));
+        }
+        Ok(Self {
+            profile_id: SourceProfileId(plan.profile_id.clone()),
+            plan: plan.clone(),
+            phase,
+        })
+    }
+
+    fn advance(
+        &mut self,
+        next: ImportPhase,
+        operation: &mut LifecycleOperation,
+        store: &OperationStore,
+    ) -> Result<()> {
+        let legal = matches!(
+            (self.phase, next),
+            (ImportPhase::Copying, ImportPhase::ReadyToPublish)
+                | (ImportPhase::ReadyToPublish, ImportPhase::Published)
+                | (ImportPhase::Published, ImportPhase::Registered)
+        ) || (self.plan.mode == SourceImportMode::Move
+            && matches!(
+                (self.phase, next),
+                (
+                    ImportPhase::Registered | ImportPhase::RemovingOriginal,
+                    ImportPhase::RemovingOriginal
+                )
+            ));
+        if !legal {
+            return Err(PortcoveError::state(
+                "illegal source import phase transition",
+            ));
+        }
+        operation.phase = match next {
+            ImportPhase::Copying => LifecyclePhase::Preparing,
+            ImportPhase::ReadyToPublish => LifecyclePhase::Prepared,
+            ImportPhase::Published => LifecyclePhase::PayloadPublished,
+            ImportPhase::Registered => LifecyclePhase::MetadataCommitted,
+            ImportPhase::RemovingOriginal => LifecyclePhase::CleanupPending,
+        };
+        store.put(operation)?;
+        self.phase = next;
+        Ok(())
+    }
+}
+
 impl PortcoveService {
     /// Inspect and bind an import without creating directories, copying, registering, or deleting.
     pub fn plan_source_import(
@@ -342,7 +465,7 @@ pub(crate) fn recover(
     store: &OperationStore,
     operation: &mut LifecycleOperation,
 ) -> Result<SourceImportResult> {
-    let profile_id = operation.port_id.clone();
+    let profile_id = SourceImportOperation::decode(operation)?.profile_id.0;
     let coordinator = OperationCoordinator::resume(
         &operation.id,
         ActivityOperation::ImportSource.to_string(),
@@ -365,26 +488,10 @@ fn continue_import<F>(
 where
     F: FnMut(OperationEvent),
 {
-    let plan = operation
-        .source_import
-        .clone()
-        .ok_or_else(|| PortcoveError::state("source import lifecycle record has no bound plan"))?;
-    if plan.schema_version != IMPORT_PLAN_SCHEMA_VERSION || plan.profile_id != operation.port_id {
-        return Err(PortcoveError::state(
-            "source import lifecycle record has an incompatible plan",
-        ));
-    }
-    let final_path =
-        operation.paths.final_path.as_ref().ok_or_else(|| {
-            PortcoveError::state("source import lifecycle record has no destination")
-        })?;
-    if final_path != &plan.destination {
-        return Err(PortcoveError::verification(
-            "source import destination no longer matches its reviewed plan",
-        ));
-    }
+    let mut import = SourceImportOperation::decode(operation)?;
+    let plan = import.plan.clone();
 
-    if operation.phase == LifecyclePhase::Preparing {
+    if import.phase == ImportPhase::Copying {
         revalidate_source(service, &plan, &plan.source.path)?;
         ensure_profile_directory(service, &plan.profile_id)?;
         require_capacity(&plan.destination, plan.required_bytes)?;
@@ -412,14 +519,13 @@ where
             let staged = revalidate_source(service, &plan, staging)?;
             require_equivalent(&plan.source, &staged, "staged source")?;
         }
-        operation.phase = LifecyclePhase::Prepared;
         operation.last_error = None;
-        store.put(operation)?;
+        import.advance(ImportPhase::ReadyToPublish, operation, store)?;
         service
             .check_lifecycle_fault(crate::operation::LifecycleFaultPoint::SourceImportVerified)?;
     }
 
-    if operation.phase == LifecyclePhase::Prepared {
+    if import.phase == ImportPhase::ReadyToPublish {
         if plan.reuse_existing {
             revalidate_source(service, &plan, &plan.source.path)?;
         } else {
@@ -435,8 +541,7 @@ where
             )?;
             verify_publication_receipt(operation, &plan, &plan.destination)?;
         }
-        operation.phase = LifecyclePhase::PayloadPublished;
-        store.put(operation)?;
+        import.advance(ImportPhase::Published, operation, store)?;
         if !plan.reuse_existing {
             cleanup_publication_receipt(operation, &plan)?;
         }
@@ -444,22 +549,20 @@ where
             .check_lifecycle_fault(crate::operation::LifecycleFaultPoint::SourceImportPublished)?;
     }
 
-    if operation.phase == LifecyclePhase::PayloadPublished {
+    if import.phase == ImportPhase::Published {
         if !plan.reuse_existing {
             cleanup_publication_receipt(operation, &plan)?;
         }
         let registered = revalidate_destination(service, &plan)?;
         service.library().register_source(&registered)?;
-        operation.phase = LifecyclePhase::MetadataCommitted;
-        store.put(operation)?;
+        import.advance(ImportPhase::Registered, operation, store)?;
         service
             .check_lifecycle_fault(crate::operation::LifecycleFaultPoint::SourceImportRegistered)?;
     }
 
     let registered = revalidate_registered(service, &plan)?;
     if plan.mode == SourceImportMode::Move {
-        operation.phase = LifecyclePhase::CleanupPending;
-        store.put(operation)?;
+        import.advance(ImportPhase::RemovingOriginal, operation, store)?;
         let cleanup = cleanup_original(service, store, operation, &plan)?;
         service.check_lifecycle_fault(
             crate::operation::LifecycleFaultPoint::SourceImportCleanupCompleted,
@@ -1385,8 +1488,11 @@ fn cleanup_cancelled_import(store: &OperationStore, id: &str) -> Result<()> {
         .all()?
         .into_iter()
         .find(|operation| operation.id == id)
-        && operation.phase == LifecyclePhase::Preparing
     {
+        let import = SourceImportOperation::decode(&operation)?;
+        if import.phase != ImportPhase::Copying {
+            return Ok(());
+        }
         if let Some(staging) = operation.paths.staging
             && let Some(root) = staging.parent()
             && root.try_exists()?

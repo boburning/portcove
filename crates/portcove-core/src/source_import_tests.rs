@@ -21,6 +21,169 @@ use crate::{
 
 const PROFILE: &str = "opengoal-jak1-disc";
 
+fn import_journal(plan: SourceImportPlan) -> LifecycleOperation {
+    let mut operation = LifecycleOperation::new(
+        uuid::Uuid::new_v4().to_string(),
+        LifecycleOperationKind::ImportSource,
+        &plan.profile_id,
+    );
+    operation.paths.staging = Some(
+        plan.destination
+            .parent()
+            .unwrap()
+            .join(format!(".portcove-import-{}.staging", operation.id))
+            .join(plan.destination.file_name().unwrap()),
+    );
+    operation.paths.final_path = Some(plan.destination.clone());
+    operation.original_paths = vec![plan.source.path.clone()];
+    operation.source_import = Some(plan);
+    operation
+}
+
+#[test]
+fn import_family_decodes_released_records_and_legal_phases() {
+    let (_temporary, library, source) = library_fixture();
+    let service = traced_service(library.clone()).unwrap();
+    let store = OperationStore::new(library);
+    for mode in [SourceImportMode::Copy, SourceImportMode::Move] {
+        let plan = service.plan_source_import(PROFILE, &source, mode).unwrap();
+        let mut operation = import_journal(plan);
+        for (persisted, typed) in [
+            (LifecyclePhase::Preparing, ImportPhase::Copying),
+            (LifecyclePhase::Prepared, ImportPhase::ReadyToPublish),
+            (LifecyclePhase::PayloadPublished, ImportPhase::Published),
+            (LifecyclePhase::MetadataCommitted, ImportPhase::Registered),
+        ] {
+            operation.phase = persisted;
+            store.put(&mut operation).unwrap();
+            let retained = store.all().unwrap().pop().unwrap();
+            let decoded = SourceImportOperation::decode(&retained).unwrap();
+            assert_eq!(decoded.profile_id, SourceProfileId(PROFILE.into()));
+            assert_eq!(decoded.phase, typed);
+            assert_eq!(retained.port_id, PROFILE);
+            store.remove(&operation.id).unwrap();
+        }
+        operation.phase = LifecyclePhase::CleanupPending;
+        assert_eq!(
+            SourceImportOperation::decode(&operation).is_ok(),
+            mode == SourceImportMode::Move
+        );
+    }
+}
+
+#[test]
+fn invalid_import_family_cannot_execute_recover_or_clean_staging() {
+    let (_temporary, library, source) = library_fixture();
+    let service = traced_service(library.clone()).unwrap();
+    let plan = service
+        .plan_source_import(PROFILE, &source, SourceImportMode::Copy)
+        .unwrap();
+    let valid = import_journal(plan);
+    let store = OperationStore::new(library.clone());
+    let mut invalid = Vec::new();
+    let mut changed = valid.clone();
+    changed.kind = LifecycleOperationKind::Remove;
+    invalid.push(changed);
+    let mut changed = valid.clone();
+    changed.activate = true;
+    invalid.push(changed);
+    let mut changed = valid.clone();
+    changed.preparation_process_quiesced = Some(true);
+    invalid.push(changed);
+    let mut changed = valid.clone();
+    changed.port_id = "not-the-profile".into();
+    invalid.push(changed);
+    let mut changed = valid.clone();
+    changed.source_import = None;
+    invalid.push(changed);
+    let mut changed = valid.clone();
+    changed.source_import.as_mut().unwrap().mode = SourceImportMode::UseCurrentLocation;
+    invalid.push(changed);
+    let mut changed = valid.clone();
+    changed.source_import.as_mut().unwrap().source.profile_id = "different-profile".into();
+    invalid.push(changed);
+    let mut changed = valid.clone();
+    changed.original_paths.clear();
+    invalid.push(changed);
+    let mut changed = valid.clone();
+    changed.phase = LifecyclePhase::CleanupPending;
+    invalid.push(changed);
+    let mut changed = valid.clone();
+    changed.paths.staging = None;
+    invalid.push(changed);
+    let mut changed = valid.clone();
+    changed.paths.final_path = Some(source.clone());
+    invalid.push(changed);
+    let mut changed = valid.clone();
+    changed.paths.quarantine = Some(source.clone());
+    invalid.push(changed);
+    let mut changed = valid.clone();
+    changed.paths.staging = Some(source.clone());
+    invalid.push(changed);
+    let staging_root = valid.paths.staging.as_ref().unwrap().parent().unwrap();
+    fs::create_dir_all(staging_root).unwrap();
+    let retained_bytes = staging_root.join("retained-fixture");
+    fs::write(&retained_bytes, b"preserve").unwrap();
+    for mut operation in invalid {
+        assert!(SourceImportOperation::decode(&operation).is_err());
+        let coordinator = OperationCoordinator::resume(&operation.id, "import_source", None);
+        assert!(
+            continue_import(
+                &service,
+                &store,
+                &mut operation,
+                &coordinator,
+                &mut |_| {},
+                false
+            )
+            .is_err()
+        );
+        assert!(recover(&service, &store, &mut operation).is_err());
+        store.put(&mut operation).unwrap();
+        assert!(cleanup_cancelled_import(&store, &operation.id).is_err());
+        assert_eq!(fs::read(&retained_bytes).unwrap(), b"preserve");
+        assert!(source.exists());
+        assert!(library.source(PROFILE).unwrap().is_none());
+        assert_eq!(store.all().unwrap().len(), 1);
+        store.remove(&operation.id).unwrap();
+    }
+}
+
+#[test]
+fn import_family_rejects_skipped_and_copy_cleanup_transitions() {
+    let (_temporary, library, source) = library_fixture();
+    let service = traced_service(library.clone()).unwrap();
+    let store = OperationStore::new(library);
+    let plan = service
+        .plan_source_import(PROFILE, &source, SourceImportMode::Copy)
+        .unwrap();
+    let mut operation = import_journal(plan);
+    store.put(&mut operation).unwrap();
+    let mut import = SourceImportOperation::decode(&operation).unwrap();
+    assert!(
+        import
+            .advance(ImportPhase::Published, &mut operation, &store)
+            .is_err()
+    );
+    assert_eq!(operation.phase, LifecyclePhase::Preparing);
+    for next in [
+        ImportPhase::ReadyToPublish,
+        ImportPhase::Published,
+        ImportPhase::Registered,
+    ] {
+        import.advance(next, &mut operation, &store).unwrap();
+    }
+    assert!(
+        import
+            .advance(ImportPhase::RemovingOriginal, &mut operation, &store)
+            .is_err()
+    );
+    assert_eq!(
+        store.all().unwrap()[0].phase,
+        LifecyclePhase::MetadataCommitted
+    );
+}
+
 // Nextest retains this small stage trace on failure, including when its hang
 // guard terminates a case before normal test output can identify the slow call.
 #[track_caller]
