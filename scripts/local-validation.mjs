@@ -906,6 +906,24 @@ export function buildPlan(selection, context = {}) {
         rustTestImpactLoadError = error.message;
       }
     }
+    const catalogArtworkInputs = [
+      "crates/portcove-core/catalog/catalog-current-authoring.json",
+      "crates/portcove-core/catalog/catalog.json",
+    ];
+    const catalogArtworkChanges = selection.rustChanges.filter(
+      (change) =>
+        catalogArtworkInputs.includes(change.path) ||
+        catalogArtworkInputs.includes(change.previousPath),
+    );
+    const catalogArtworkGroup = rustTestImpactMap?.packages?.["portcove-cli"]?.groups.find(
+      (group) => group.id === "artwork-fixtures",
+    );
+    const catalogArtworkFocused =
+      catalogArtworkGroup &&
+      catalogArtworkChanges.every(
+        (change) => !change.previousPath && ["A", "M"].includes(change.status),
+      );
+    let cliArtworkCovered = false;
     for (const packageName of sorted(selection.packages)) {
       const impact = selectRustTestImpact(
         rustTestImpactMap,
@@ -913,6 +931,20 @@ export function buildPlan(selection, context = {}) {
         selection.rustChanges.filter((change) => change.packageName === packageName),
       );
       if (rustTestImpactLoadError) impact.reason = `${impact.reason}; ${rustTestImpactLoadError}`;
+      if (
+        packageName === "portcove-cli" &&
+        catalogArtworkChanges.length &&
+        !catalogArtworkFocused
+      ) {
+        impact.mode = "broad";
+        impact.reason =
+          "catalog consumer ownership or changed inputs are uncertain; run the complete CLI inventory";
+      }
+      if (
+        packageName === "portcove-cli" &&
+        (impact.mode === "broad" || impact.groups.some((group) => group.id === "artwork-fixtures"))
+      )
+        cliArtworkCovered = true;
       if (!selection.workspaceRust)
         commands.push(
           heavyRustCommand(
@@ -964,6 +996,24 @@ export function buildPlan(selection, context = {}) {
             ["test", "--locked", "-p", packageName, "--doc"],
           ),
         );
+    }
+    if (catalogArtworkChanges.length && !cliArtworkCovered) {
+      commands.push(
+        command(
+          "rust-tests:portcove-cli:catalog-artwork-consumer",
+          catalogArtworkFocused
+            ? "embedded catalog artwork must also satisfy its public CLI consumer contract"
+            : "catalog consumer ownership or changed inputs are uncertain; run the complete CLI inventory",
+          process.execPath,
+          [
+            "scripts/run-rust-tests.mjs",
+            "--locked",
+            "-p",
+            "portcove-cli",
+            ...(catalogArtworkFocused ? ["-E", catalogArtworkGroup.filter] : []),
+          ],
+        ),
+      );
     }
   }
 

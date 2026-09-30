@@ -20,7 +20,13 @@
             "crates/portcove-core/src/source_catalog.rs",
             "crates/portcove-core/src/source_catalog_tests.rs"
           ],
-          "filter": "test(/^catalog::tests::/) | test(/^catalog_update::tests::/) | test(/^source_catalog::tests::/) | test(/^definition_projection::tests::/) | test(/^definition_policy_tests::/)"
+          "filter": "test(/^catalog::tests::/) | test(/^catalog_update::tests::/) | test(/^source_catalog::tests::/) | test(/^definition_projection::tests::/) | test(/^definition_policy_tests::/) | test(/^artwork_tests::/)"
+        },
+        {
+          "id": "artwork-fixtures",
+          "reason": "artwork fixtures exercise default resolution, explicit choices, ingestion, cache and library transfer without narrowing shared implementation changes",
+          "paths": ["crates/portcove-core/src/artwork_tests.rs"],
+          "filter": "test(/^artwork_tests::/)"
         },
         {
           "id": "definition-delivery",
@@ -79,6 +85,18 @@
             "crates/portcove-core/src/release/observation_tests.rs"
           ],
           "filter": "test(/^gitlab::tests::/) | test(/^providers::tests::/) | test(/^release::tests::/) | test(/^release::observation::tests::/)"
+        }
+      ]
+    },
+    "portcove-cli": {
+      "path_prefix": "crates/portcove-cli/",
+      "broad_reason": "shared or unmapped CLI changes require the complete portcove-cli test inventory",
+      "groups": [
+        {
+          "id": "artwork-fixtures",
+          "reason": "the public artwork consumer fixture preserves catalog defaults, local choices, reset and explicit cleanup",
+          "paths": ["crates/portcove-cli/tests/machine_contract/artwork.rs"],
+          "filter": "test(/^artwork_contract::/)"
         }
       ]
     }
