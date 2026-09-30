@@ -1,5 +1,6 @@
 import { readFile, mkdtemp, writeFile, rm } from "node:fs/promises";
 import { URL } from "node:url";
+import process from "node:process";
 import { runInNewContext } from "node:vm";
 import { build } from "vite";
 
