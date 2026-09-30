@@ -1,19 +1,13 @@
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
-import { mkdir, writeFile } from "node:fs/promises";
+import { writeFile } from "node:fs/promises";
 import path from "node:path";
-import { parseArgs } from "node:util";
 import { By, until } from "selenium-webdriver";
-import { startEmbeddedInstalledSession } from "./desktop-windows-embedded-session.mjs";
+import {
+  beginEmbeddedEvidence,
+  startEmbeddedInstalledSession,
+} from "./desktop-windows-embedded-session.mjs";
 
-const { values } = parseArgs({ options: { app: { type: "string" }, output: { type: "string" } } });
-for (const name of ["app", "output"]) assert.ok(values[name] && path.isAbsolute(values[name]));
-await mkdir(values.output, { recursive: false });
-const report = {
-  revision: execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim(),
-  method: "installed-embedded-startup",
-  outcome: "failed",
-};
+const { values, report } = await beginEmbeddedEvidence("installed-embedded-startup");
 let session;
 try {
   session = await startEmbeddedInstalledSession(values.app, values.output);

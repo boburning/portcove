@@ -136,7 +136,12 @@ The selector always checks whitespace and changed supported-file formatting.
 It runs affected Rust packages rather than the workspace, uses Vitest's import
 graph for UI sources, and maps repository scripts and workflows to their exact
 contract tests. Root Cargo/toolchain changes compile, lint, and test the complete
-workspace and run dependency policy. Combined changes use the union of their
+workspace and run dependency policy. A lockfile-only dependency change retains
+workspace Clippy and dependency policy locally; dependency-wide tests belong to
+required exact-head hosted CI. When Rust package sources or manifests also change,
+their selected package tests still run locally. Deleting the lockfile retains the
+broad local fallback. This delegation does not apply to root manifests, toolchains,
+advisory policy or test-runner policy changes. Combined changes use the union of their
 scopes.
 
 The browser composition stage is selected when its tests, configuration, pinned

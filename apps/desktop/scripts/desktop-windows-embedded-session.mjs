@@ -1,13 +1,31 @@
 import assert from "node:assert/strict";
 import { execFileSync, spawn } from "node:child_process";
 import { once } from "node:events";
-import { writeFile } from "node:fs/promises";
+import { mkdir, writeFile } from "node:fs/promises";
 import { createServer } from "node:net";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { parseArgs } from "node:util";
 import { hashFile } from "./desktop-installed-update-harness.mjs";
 
 const nativeSession = fileURLToPath(new URL("./native-session.ps1", import.meta.url));
+export async function beginEmbeddedEvidence(method) {
+  const { values } = parseArgs({
+    options: { app: { type: "string" }, output: { type: "string" } },
+  });
+  for (const name of ["app", "output"]) assert.ok(values[name] && path.isAbsolute(values[name]));
+  await mkdir(values.output, { recursive: false });
+  return {
+    values,
+    report: {
+      revision: execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim(),
+      working_tree: execFileSync("git", ["status", "--porcelain"], { encoding: "utf8" }).trim(),
+      method,
+      outcome: "failed",
+    },
+  };
+}
+
 export async function startEmbeddedInstalledSession(application, output, launchArguments = []) {
   assert.equal(process.platform, "win32");
   const identity = await hashFile(application);
