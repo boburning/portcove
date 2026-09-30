@@ -45,6 +45,15 @@
           "filter": "test(/^definition_capabilities::tests::/) | test(/^definition_entry::tests::/) | test(/^definition_index::tests::/) | test(/^definition_loader::tests::/) | test(/^definition_policy_tests::/) | test(/^definition_projection::tests::/) | test(/^definition_repository::tests::/) | test(/^installed_contract::tests::/)"
         },
         {
+          "id": "source-import",
+          "reason": "source import review, consent, journal decoding, publication, recovery and cancellation share one family; discovery also consumes its read-only plan",
+          "paths": [
+            "crates/portcove-core/src/source_import.rs",
+            "crates/portcove-core/src/source_import_tests.rs"
+          ],
+          "filter": "test(/^source_import::tests::/) | test(/^source_discovery::tests::/)"
+        },
+        {
           "id": "source-inspection",
           "reason": "source discovery, inspection, reporting, inbox consumption, STFS parsing, and adapter materialization share observed-input semantics",
           "paths": [

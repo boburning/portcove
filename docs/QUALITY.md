@@ -192,6 +192,14 @@ incomplete diff discovery still blocks the classifier before it can authorize
 tests. A selected filter that matches no tests fails through nextest rather than
 becoming an empty success.
 
+The source-import group includes the complete source-import family and source
+discovery, which consumes its read-only plan. Its local journal roundtrip,
+consent, publication, original retention, cancellation and interruption/recovery
+tests travel together. Changes to the shared persisted envelope, database,
+service dispatcher, common types or module wiring remain broad. Adding this
+ownership avoids repeating unrelated core families for a module-local change;
+it does not repair a fixture timing failure or replace exact-head hosted coverage.
+
 The contract is intentionally conservative: shared types, service and lifecycle
 orchestration, database behavior, public module wiring, and package manifests are
 outside the focused groups. Required GitHub CI still runs the complete selected
