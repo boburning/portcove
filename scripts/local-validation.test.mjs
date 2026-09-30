@@ -251,6 +251,90 @@ test("mapped Rust responsibilities run one attributable guarded union", () => {
   assert.ok(!ids(plan).includes("rust-tests:portcove-core"));
 });
 
+test("artwork fixture edits select their families but shared implementations stay broad", () => {
+  for (const [file, packageName, filter] of [
+    ["crates/portcove-core/src/artwork_tests.rs", "portcove-core", "artwork_tests"],
+    ["crates/portcove-cli/tests/machine_contract/artwork.rs", "portcove-cli", "artwork_contract"],
+  ]) {
+    const { plan } = planFor([file]);
+    const stage = plan.find((entry) => entry.id === `rust-tests:${packageName}:artwork-fixtures`);
+    assert.ok(stage, file);
+    assert.ok(stage.args.at(-1).includes(filter));
+    assert.ok(!ids(plan).includes(`rust-tests:${packageName}`));
+  }
+  for (const file of [
+    "crates/portcove-core/src/artwork.rs",
+    "crates/portcove-core/src/artwork_store.rs",
+    "crates/portcove-core/src/artwork_image.rs",
+    "crates/portcove-cli/src/main.rs",
+  ]) {
+    const { plan } = planFor([file]);
+    const packageName = file.includes("portcove-cli") ? "portcove-cli" : "portcove-core";
+    assert.ok(ids(plan).includes(`rust-tests:${packageName}`), file);
+  }
+});
+
+test("embedded catalog feedback includes both core artwork and the public CLI consumer", () => {
+  for (const file of [
+    "crates/portcove-core/catalog/catalog-current-authoring.json",
+    "crates/portcove-core/catalog/catalog.json",
+  ]) {
+    const { plan } = planFor([file]);
+    const core = plan.find((entry) => entry.id === "rust-tests:portcove-core:catalog-contract");
+    assert.match(core.args.at(-1), /artwork_tests/);
+    const cli = plan.find(
+      (entry) => entry.id === "rust-tests:portcove-cli:catalog-artwork-consumer",
+    );
+    assert.deepEqual(cli.args.slice(0, -2), [
+      "scripts/run-rust-tests.mjs",
+      "--locked",
+      "-p",
+      "portcove-cli",
+    ]);
+    assert.equal(cli.args.at(-2), "-E");
+    assert.match(cli.args.at(-1), /artwork_contract/);
+    assert.equal(storageScopeForPlan(plan), "rust");
+    assert.ok(!plan.some((entry) => entry.id.startsWith("ui-")));
+  }
+});
+
+test("catalog consumer coverage coalesces with an existing CLI family or broad run", () => {
+  for (const cliPath of [
+    "crates/portcove-cli/tests/machine_contract/artwork.rs",
+    "crates/portcove-cli/src/main.rs",
+  ]) {
+    const { plan } = planFor(["crates/portcove-core/catalog/catalog.json", cliPath]);
+    const cliTests = plan.filter(
+      (entry) =>
+        entry.id.startsWith("rust-tests:portcove-cli:") || entry.id === "rust-tests:portcove-cli",
+    );
+    assert.equal(cliTests.length, 1);
+    assert.ok(!ids(plan).includes("rust-tests:portcove-cli:catalog-artwork-consumer"));
+  }
+});
+
+test("uncertain catalog changes and unavailable impact maps keep the broad CLI fallback", () => {
+  const file = "crates/portcove-core/catalog/catalog.json";
+  for (const input of [
+    { status: "D", path: file },
+    { status: "R100", previousPath: file, path: "crates/portcove-core/catalog/renamed.json" },
+  ]) {
+    const { plan } = planFor([input]);
+    const cli = plan.find(
+      (entry) => entry.id === "rust-tests:portcove-cli:catalog-artwork-consumer",
+    );
+    assert.ok(cli);
+    assert.ok(!cli.args.includes("-E"));
+  }
+  const selection = classifyChanges([change(file)], { fileExists: allFilesExist });
+  const plan = buildPlan(selection, { mergeBase: "base-sha", rustTestImpactMap: null });
+  const cli = plan.find((entry) => entry.id === "rust-tests:portcove-cli:catalog-artwork-consumer");
+  assert.ok(!cli.args.includes("-E"));
+  const workspace = planFor(["Cargo.toml", file]).plan;
+  assert.ok(ids(workspace).includes("rust-workspace-tests"));
+  assert.ok(!ids(workspace).includes("rust-tests:portcove-cli:catalog-artwork-consumer"));
+});
+
 test("mapped renames and an unavailable impact contract use the broad package fallback", () => {
   const renamed = planFor([
     change("crates/portcove-core/src/source_report.rs", {
