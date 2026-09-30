@@ -2,6 +2,20 @@
 
 Portcove releases fail closed when the product version, Git tag, required identity assets, tests, or catalog ownership checks disagree. Tagged builds remain draft releases until their platform artifacts and checksums have been reviewed.
 
+## Frontend and signing environment boundary
+
+`VITE_` variables are public renderer inputs and must never contain secrets.
+The desktop build command runs typechecking and Vite in children that omit all
+`TAURI_SIGNING_` environment variables, including key, key-path and password.
+Native target/debug variables remain available to those children, but Vite does
+not expose the broad `TAURI_` namespace to renderer code. Source maps remain
+enabled. Tauri packaging/signing retains its original parent environment; that
+native stage receives private signing inputs. Ordinary builds and disposable
+updater rehearsals use this shared frontend build command. Do not put signing
+inputs in frontend environment files or public `VITE_` variables.
+
+Portcove releases fail closed when the product version, Git tag, required identity assets, tests, or catalog ownership checks disagree. Tagged builds remain draft releases until their platform artifacts and checksums have been reviewed.
+
 See [Continuous verified delivery](DELIVERY.md) for the approved future
 version/channel, platform-updater and zero-cost automation policy. Current
 protected publication remains effective until separately authorized activation.
