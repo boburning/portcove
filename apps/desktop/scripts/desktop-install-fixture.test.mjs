@@ -19,8 +19,10 @@ const root = fileURLToPath(new URL("../../..", import.meta.url));
 
 async function waitFor(predicate, message) {
   const deadline = Date.now() + 5_000;
-  while (!(await predicate())) {
+  while (true) {
+    const ready = await predicate();
     if (Date.now() >= deadline) throw new Error(message);
+    if (ready) return;
     await waitRealTime(20);
   }
 }
@@ -197,6 +199,7 @@ test.runIf(process.platform === "win32")(
     let owned;
     let primaryFailure;
     let cleanupFailure;
+    let timer;
     let expire;
     let timedOut;
     let observationFinished = false;
@@ -204,7 +207,7 @@ test.runIf(process.platform === "win32")(
     try {
       // Hold only the first execution deadline until readiness. The secondary
       // close bound and all child processes keep their real timers.
-      const timer = vi.spyOn(globalThis, "setTimeout").mockImplementationOnce((callback, delay) => {
+      timer = vi.spyOn(globalThis, "setTimeout").mockImplementationOnce((callback, delay) => {
         assert.equal(delay, 250);
         expire = () => {
           if (executionExpired || observationFinished) return;
@@ -249,12 +252,12 @@ test.runIf(process.platform === "win32")(
     } catch (error) {
       primaryFailure = error;
     } finally {
-      vi.restoreAllMocks();
+      timer?.mockRestore();
       try {
         expire?.();
         await cleanUpTimeoutFixture(output, marker, owned);
         const timeoutFailure = await timedOut;
-        if (timeoutFailure) throw timeoutFailure;
+        if (timeoutFailure !== primaryFailure) assert.ifError(timeoutFailure);
       } catch (error) {
         cleanupFailure = error;
       }
