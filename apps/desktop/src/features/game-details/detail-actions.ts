@@ -3,18 +3,34 @@ import type { DetailActions } from "../../components/DetailPanel";
 import type { PortDefinition, PortStatus } from "../../types";
 import type { Perform } from "../operations/use-operation-state";
 
-export function detailActions(
-  port: PortDefinition,
-  status: PortStatus | undefined,
-  sourcePath: string,
-  biosPath: string,
-  perform: Perform,
-  close: () => void,
-  reviewInstall: DetailActions["reviewInstall"] = () => undefined,
-  backupsChanged: () => Promise<void> = () => Promise.resolve(),
-  libraryGeneration = 0,
-  dismissInstallReview: DetailActions["dismissInstallReview"] = () => undefined,
-): DetailActions {
+export interface DetailActionContext {
+  port: PortDefinition;
+  status: PortStatus | undefined;
+  sourcePath: string;
+  biosPath: string;
+  perform: Perform;
+  close: () => void;
+  reviewInstall?: DetailActions["reviewInstall"];
+  backupsChanged?: () => Promise<void>;
+  libraryGeneration: number;
+  dismissInstallReview?: DetailActions["dismissInstallReview"];
+}
+
+export function detailActions({
+  port,
+  status,
+  sourcePath,
+  biosPath,
+  perform,
+  close,
+  reviewInstall = () => undefined,
+  backupsChanged = () => Promise.resolve(),
+  libraryGeneration,
+  dismissInstallReview = () => undefined,
+}: DetailActionContext): DetailActions {
+  if (!Number.isSafeInteger(libraryGeneration) || libraryGeneration < 0) {
+    throw new Error("Game details require an explicit library generation");
+  }
   return {
     activate: () =>
       status?.staged
