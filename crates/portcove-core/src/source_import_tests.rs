@@ -1711,6 +1711,75 @@ fn changed_original_after_publication_registers_destination_and_retains_original
 }
 
 #[test]
+fn recovery_rejects_a_quarantine_path_not_bound_to_the_move() {
+    for point in [
+        LifecycleFaultPoint::SourceImportRegistered,
+        LifecycleFaultPoint::SourceImportOriginalQuarantined,
+    ] {
+        let (temporary, library, source) = library_fixture();
+        let service = traced_service_with_faults(library.clone(), Arc::new(FailAt(point))).unwrap();
+        let plan = service
+            .plan_source_import(PROFILE, &source, SourceImportMode::Move)
+            .unwrap();
+        let authorization = service
+            .authorize_source_move(PROFILE, &source, &plan.plan_sha256)
+            .unwrap();
+        service
+            .import_source(
+                PROFILE,
+                &source,
+                SourceImportMode::Move,
+                &plan.plan_sha256,
+                Some(&authorization.token),
+            )
+            .unwrap_err();
+        let store = OperationStore::new(library.clone());
+        let mut operation = store.all().unwrap().pop().unwrap();
+        let expected = quarantine_path(&source, &operation.id);
+        let foreign = temporary.path().join("unrelated.iso");
+        let already_quarantined = point == LifecycleFaultPoint::SourceImportOriginalQuarantined;
+        if already_quarantined {
+            // Same filesystem identity and bytes still do not authorize an unrelated path.
+            fs::hard_link(&expected, &foreign).unwrap();
+        }
+        operation.phase = LifecyclePhase::CleanupPending;
+        operation.paths.quarantine = Some(foreign.clone());
+        store.put(&mut operation).unwrap();
+        assert!(
+            recover(&service, &store, &mut operation).is_err(),
+            "{point:?}"
+        );
+        assert_eq!(source.exists(), !already_quarantined, "{point:?}");
+        assert_eq!(expected.exists(), already_quarantined, "{point:?}");
+        assert_eq!(foreign.exists(), already_quarantined, "{point:?}");
+        assert_eq!(
+            fs::read(&plan.destination).unwrap(),
+            b"synthetic format-only disc source"
+        );
+        if already_quarantined {
+            assert_eq!(
+                fs::read(&expected).unwrap(),
+                b"synthetic format-only disc source"
+            );
+            assert_eq!(
+                fs::read(&foreign).unwrap(),
+                b"synthetic format-only disc source"
+            );
+        } else {
+            assert_eq!(
+                fs::read(&source).unwrap(),
+                b"synthetic format-only disc source"
+            );
+        }
+        let retained = store.all().unwrap();
+        assert_eq!(retained.len(), 1);
+        assert_eq!(retained[0].phase, LifecyclePhase::CleanupPending);
+        assert_eq!(retained[0].paths.quarantine, Some(foreign));
+        assert!(retained[0].last_error.is_none());
+    }
+}
+
+#[test]
 fn recovery_never_deletes_a_replacement_at_the_original_path() {
     let (_temporary, library, _service, source) = fixture();
     let service = traced_service_with_faults(
