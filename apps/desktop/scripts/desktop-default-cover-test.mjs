@@ -63,20 +63,27 @@ export async function defaultCoverScenario({
           `Real default cover did not render: ${selector}`,
         );
       } catch (error) {
-        if (selector.includes(".card-art")) {
-          await browser.findElement(By.css(selector.replace(" .card-art", ""))).click();
+        let diagnostics;
+        try {
+          if (selector.includes(".card-art")) {
+            await browser.findElement(By.css(selector.replace(" .card-art", ""))).click();
+          }
+          const controls = await browser.wait(
+            until.elementLocated(By.css(".artwork-controls > summary")),
+            5_000,
+          );
+          await controls.click();
+          diagnostics = await browser.executeScript(() =>
+            [...document.querySelectorAll(".artwork-controls [role=alert]")].map(
+              (item) => item.textContent,
+            ),
+          );
+        } catch (diagnosticError) {
+          diagnostics = { collectionFailure: diagnosticError.message };
         }
-        const controls = await browser.wait(
-          until.elementLocated(By.css(".artwork-controls > summary")),
-          5_000,
-        );
-        await controls.click();
-        const errors = await browser.executeScript(() =>
-          [...document.querySelectorAll(".artwork-controls [role=alert]")].map(
-            (item) => item.textContent,
-          ),
-        );
-        throw new Error(`${error.message}; artwork diagnostics: ${JSON.stringify(errors)}`);
+        throw new Error(`${error.message}; artwork diagnostics: ${JSON.stringify(diagnostics)}`, {
+          cause: error,
+        });
       }
       const rendered = await browser.executeScript((selector) => {
         const frame = document.querySelector(selector);
