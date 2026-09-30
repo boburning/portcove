@@ -17,7 +17,7 @@ if (
   throw new Error(`Browser cache resolves outside the checkout: ${physicalCache}`);
 const packageJson = JSON.parse(readFileSync(path.join(desktop, "package.json"), "utf8"));
 if (
-  packageJson.devDependencies["@vitest/browser-playwright"] !== "5.0.1" ||
+  packageJson.devDependencies["@vitest/browser-playwright"] !== "5.0.2" ||
   packageJson.devDependencies.playwright !== "1.63.0"
 ) {
   throw new Error("Browser package versions differ from the reviewed browser contract");
