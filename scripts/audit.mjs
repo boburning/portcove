@@ -83,8 +83,9 @@ export const RELEASE_AUDIT_STAGE_IDS = Object.freeze([
   "release-unit",
 ]);
 
-// Hosted routing, this selector, recipes and dependency inputs are deliberately
-// absent: a change to those authorities cannot select its own narrower audit.
+// This selector, recipes and dependency inputs remain absent. Maintained hosted
+// routing can delegate unchanged product suites only when the complete hosted
+// plan still requires every qualification group/platform; it cannot omit them.
 const transitionPaths = new Set([
   "scripts/local-validation.mjs",
   "scripts/local-validation.test.mjs",
@@ -93,6 +94,12 @@ const transitionPaths = new Set([
   ".config/rust-test-impact.json",
   "scripts/dev-storage.mjs",
   "scripts/dev-storage.test.mjs",
+  "scripts/validation-plan.mjs",
+  "scripts/validation-plan.test.mjs",
+  "scripts/select-ci-plan.mjs",
+  "scripts/select-ci-plan.test.mjs",
+  "scripts/ci-workflow.test.mjs",
+  ".github/workflows/ci.yml",
   "docs/QUALITY.md",
   "docs/DEVELOPMENT-TOOLS.md",
   "docs/DEVELOPMENT-STORAGE.md",
