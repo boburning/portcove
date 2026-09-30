@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
-import { afterEach, test } from "vitest";
+import { afterEach, beforeEach, describe, test } from "vitest";
 import { prepareReleaseVersion } from "./prepare-release-version.mjs";
 
 const roots = [];
@@ -147,21 +147,32 @@ test("rejects changed intent, reused version, stale history and partial receipts
   assert.equal(git("for-each-ref", "--format=%(refname)", result.allocation_refs[0]), "");
 }, 30_000);
 
-test("receipt lock contention fails within its bound and a retry preserves the allocation", async () => {
-  const { root, classification, git } = await fixture();
-  const result = await prepareReleaseVersion(root, classification, ["0.1.0"]);
-  const lock = path.join(root, ".git", `${result.allocation_refs[1]}.lock`);
-  await writeFile(lock, "owned contention fixture", { flag: "wx" });
-  try {
-    await assert.rejects(prepareReleaseVersion(root, classification, ["0.1.0"]), /locked/);
-    assert.equal(await readFile(lock, "utf8"), "owned contention fixture");
-    for (const ref of result.allocation_refs)
-      assert.equal(git("rev-parse", ref).trim(), result.prepared_commit);
-  } finally {
-    await rm(lock);
-  }
-  assert.deepEqual(await prepareReleaseVersion(root, classification, ["0.1.0"]), result);
-}, 10_000);
+describe("receipt lock contention", () => {
+  let prepared;
+  // Repository construction and the first successful allocation are setup, not
+  // lock contention. Keep the existing ten-second behavior budget independent
+  // of that Git work; setup retains the other preparation fixtures' bound.
+  beforeEach(async () => {
+    const context = await fixture();
+    const result = await prepareReleaseVersion(context.root, context.classification, ["0.1.0"]);
+    prepared = { ...context, result };
+  }, 30_000);
+
+  test("fails within its bound and a retry preserves the allocation", async () => {
+    const { root, classification, git, result } = prepared;
+    const lock = path.join(root, ".git", `${result.allocation_refs[1]}.lock`);
+    await writeFile(lock, "owned contention fixture", { flag: "wx" });
+    try {
+      await assert.rejects(prepareReleaseVersion(root, classification, ["0.1.0"]), /locked/);
+      assert.equal(await readFile(lock, "utf8"), "owned contention fixture");
+      for (const ref of result.allocation_refs)
+        assert.equal(git("rev-parse", ref).trim(), result.prepared_commit);
+    } finally {
+      await rm(lock);
+    }
+    assert.deepEqual(await prepareReleaseVersion(root, classification, ["0.1.0"]), result);
+  }, 10_000);
+});
 
 test("version preparation does not execute repository hooks", async () => {
   const { root, classification, git } = await fixture();
