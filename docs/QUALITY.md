@@ -335,6 +335,15 @@ Renames and deletions classify both identities, mixed changes union their owners
 and incomplete discovery authorizes no plan. Words such as `design`, `channel`, or
 `release` in an otherwise inert filename do not assign trust authority.
 
+The maintained native artwork-correction harness, its preparation/main consumers,
+two synthetic JPEG fixtures, and scenario catalog/test have explicit frontend
+ownership. Both frontend lanes run their Node contracts and context preflight;
+ordinary native acceptance still runs separately on the changed scenario. These
+qualification consumers do not change Rust, signed catalog inputs, or publisher
+authority. The exact inventory lives in the protected hosted selector. New or
+renamed unknown harness paths retain all-fast fallback; mixed product, native,
+signing, and policy changes retain their additional owners and qualification.
+
 Every completed audit writes a current-head run receipt listing the fingerprint,
 originating head, duration, rationale, and fresh/reused/failed result for every
 applicable stage. These files are disposable local execution evidence. They do not
