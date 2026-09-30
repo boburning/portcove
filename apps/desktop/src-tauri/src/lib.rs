@@ -44,6 +44,9 @@ mod source_removal;
 pub mod steam_entries;
 pub mod steam_entry_commands;
 mod transport;
+mod webview_boundary;
+#[cfg(feature = "native-compatibility-qualification")]
+mod webview_boundary_qualification;
 
 use transport::{
     BatchOutcome, BootstrapStatus, DesktopError, DesktopWorkspaceSnapshot, InstallInput,
@@ -2365,7 +2368,9 @@ pub fn run() {
             Ok(state)
         }),
     ));
-    let builder = tauri::Builder::default().plugin(tauri_plugin_dialog::init());
+    let builder = tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(webview_boundary::init());
     #[cfg(feature = "native-compatibility-qualification")]
     let builder = builder.plugin(tauri_plugin_wdio_webdriver::init());
     builder
@@ -2510,6 +2515,8 @@ pub fn run() {
             report_frontend_error,
         ]))
         .setup(|app| {
+            #[cfg(feature = "native-compatibility-qualification")]
+            webview_boundary_qualification::create_windows(app.handle())?;
             #[cfg(any(windows, target_os = "linux", target_os = "macos"))]
             report_application_update_qualification_stage("Tauri setup");
             if let Some(window) = app.get_webview_window("main") {

@@ -1,5 +1,29 @@
 # Architecture
 
+## Privileged webview boundary
+
+The Tauri host permits application navigation only within its bundled
+application origin. Development additionally permits the exact configured
+development origin when Tauri is running in development mode. Credentials,
+foreign hosts, substituted ports, file/data pages and arbitrary remote content
+are refused. Approved external links continue through the catalog-validated
+native opener; navigation never grants that opener authority.
+
+Custom commands retain the main-window label gate, and Tauri's origin-aware ACL
+rejects remote content without an explicit remote grant. Windows WebView2 browser
+permission requests are denied by the host; native file dialogs remain separately
+governed by the existing main-window capability and user consent. Failure to
+install the Windows permission boundary exits the application. Other platform
+permission behavior requires its own native qualification and is not inferred
+from Windows results.
+
+The optional native compatibility feature can create unprivileged secondary
+and loopback-origin windows for boundary qualification. Its remote test window
+may navigate so the existing remote ACL can actually be exercised; it never
+receives main-window grants. Ordinary production builds exclude these fixtures
+and the embedded driver. Qualification evidence is labeled separately from
+installed production packages and physical or human observations.
+
 ## Repair diagnostic snapshots
 
 One `repair_plan` pass reads the lifecycle-operation journal once and reuses that
