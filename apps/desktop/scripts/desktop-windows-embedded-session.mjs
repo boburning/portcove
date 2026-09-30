@@ -65,6 +65,41 @@ export async function startEmbeddedInstalledSession(application, output, launchA
     snapshotPath = target;
     return result;
   };
+  const rootIsLive = () => child.exitCode === null && child.signalCode === null && child.pid;
+  const stopLiveRoot = () => {
+    if (!snapshotPath) {
+      // Only the retained direct launch handle is available before capture.
+      child.kill();
+      return {
+        forced: true,
+        unproven: "No application tree was captured; descendant cleanup is unproven",
+      };
+    }
+    let unproven;
+    try {
+      capture();
+    } catch (error) {
+      unproven = `Application tree refresh failed: ${error.message}`;
+    }
+    command("StopApplication");
+    return { forced: true, unproven };
+  };
+  const cleanupExitedRoot = () => {
+    if (!snapshotPath)
+      return {
+        forced: false,
+        unproven: child.pid
+          ? "Application exited before tree capture; descendant cleanup is unproven"
+          : null,
+      };
+    const cleanup = command("StopApplication");
+    return {
+      forced: cleanup.terminated_survivors.length > 0,
+      unproven: !session.startupComplete
+        ? "Application exited during startup; later descendant cleanup is unproven"
+        : null,
+    };
+  };
   const session = {
     child,
     port,
@@ -121,32 +156,9 @@ export async function startEmbeddedInstalledSession(application, output, launchA
       throw new Error("Owned embedded installed WebDriver did not become ready within 15 seconds");
     },
     async close() {
-      let forced = false;
-      let unproven;
       try {
-        if (child.exitCode === null && child.signalCode === null && child.pid) {
-          if (snapshotPath) {
-            try {
-              capture();
-            } catch (error) {
-              unproven = `Application tree refresh failed: ${error.message}`;
-            }
-            command("StopApplication");
-          } else {
-            // Only the retained direct launch handle is available before capture.
-            child.kill();
-            unproven = "No application tree was captured; descendant cleanup is unproven";
-          }
-          forced = true;
-        } else if (snapshotPath) {
-          const cleanup = command("StopApplication");
-          forced = cleanup.terminated_survivors.length > 0;
-          if (!session.startupComplete)
-            unproven = "Application exited during startup; later descendant cleanup is unproven";
-        } else if (child.pid) {
-          unproven = "Application exited before tree capture; descendant cleanup is unproven";
-        }
-        if (child.exitCode === null && child.signalCode === null && child.pid) {
+        const result = rootIsLive() ? stopLiveRoot() : cleanupExitedRoot();
+        if (rootIsLive()) {
           await Promise.race([
             once(child, "exit"),
             new Promise((_, reject) =>
@@ -155,8 +167,8 @@ export async function startEmbeddedInstalledSession(application, output, launchA
           ]);
         }
         if (snapshotPath) command("Wait");
-        if (unproven) throw new Error(unproven);
-        return { forced, exit_code: child.exitCode, signal: child.signalCode };
+        if (result.unproven) throw new Error(result.unproven);
+        return { forced: result.forced, exit_code: child.exitCode, signal: child.signalCode };
       } finally {
         await writeFile(path.join(output, "embedded-application.log"), log);
       }

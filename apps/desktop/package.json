@@ -18,6 +18,7 @@
     "test:desktop": "node scripts/desktop-test.mjs",
     "test:appimage-update": "node scripts/desktop-appimage-update-test.mjs",
     "test:macos-installed-update": "node scripts/desktop-macos-installed-update-test.mjs",
+    "test:windows-embedded-preflight": "node scripts/desktop-windows-embedded-preflight.mjs",
     "test:windows-update": "node scripts/desktop-windows-update-test.mjs",
     "browser:bootstrap": "node scripts/browser-runtime.mjs bootstrap",
     "test:browser": "node scripts/browser-runtime.mjs test",
