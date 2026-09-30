@@ -1,6 +1,17 @@
 #!/usr/bin/env node
 
-import { lstatSync, mkdirSync, realpathSync, rmSync, statSync, statfsSync } from "node:fs";
+import {
+  accessSync,
+  constants,
+  lstatSync,
+  mkdirSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  statSync,
+  statfsSync,
+} from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
@@ -53,27 +64,59 @@ export function windowsSystemDriveViolations(paths, systemDrive = "C:") {
     .map(([label, candidate]) => `${label}=${candidate}`);
 }
 
-export function getPaths() {
-  const metadata = cargoMetadata();
-  const metadataRoot = path.resolve(metadata.workspace_root);
-  if (metadataRoot.toLowerCase() !== projectRoot.toLowerCase()) {
-    throw new Error(
-      `Cargo workspace ${metadataRoot} does not match script workspace ${projectRoot}`,
-    );
+export function readStoragePolicy({
+  environment = process.env,
+  configPath = path.join(os.homedir(), ".config/portcove/development-storage.json"),
+} = {}) {
+  let config = { format: 1, blockSystemDrive: false };
+  try {
+    config = JSON.parse(readFileSync(configPath, "utf8").replace(/^\uFEFF/u, ""));
+  } catch (error) {
+    if (error.code !== "ENOENT")
+      throw new Error(`Cannot read machine storage policy ${configPath}: ${error.message}`);
   }
+  if (
+    config?.format !== 1 ||
+    typeof config.blockSystemDrive !== "boolean" ||
+    Object.keys(config).some((key) => !["format", "blockSystemDrive"].includes(key))
+  )
+    throw new Error(`Invalid machine storage policy ${configPath}`);
+  const override = environment.PORTCOVE_BLOCK_SYSTEM_DRIVE;
+  if (override !== undefined && !["0", "1"].includes(override))
+    throw new Error("PORTCOVE_BLOCK_SYSTEM_DRIVE must be 0 or 1");
+  // An environment override can tighten a machine policy, never relax it.
+  return { blockSystemDrive: config.blockSystemDrive || override === "1" };
+}
 
-  return {
-    workspace: metadataRoot,
-    target_directory: path.resolve(metadata.target_directory),
+export function getPaths(scope = "all", { metadataProvider = cargoMetadata } = {}) {
+  if (!["all", "tooling", "frontend", "rust"].includes(scope))
+    throw new Error(`Unknown storage task scope: ${scope}`);
+  const paths = {
+    workspace: projectRoot,
     temporary_directory: resolveConfiguredPath(process.env.PORTCOVE_TEMP_DIR, "work/temp"),
     output_root: resolveConfiguredPath(process.env.PORTCOVE_OUTPUT_DIR, "outputs"),
-    pnpm_store: resolveConfiguredPath(process.env.PORTCOVE_PNPM_STORE_DIR, "work/pnpm-store"),
-    browser_cache: path.join(projectRoot, "work", "browser-cache"),
-    frontend_dependencies: path.join(projectRoot, "node_modules"),
-    desktop_dependencies: path.join(projectRoot, "apps/desktop/node_modules"),
-    frontend_output: path.join(projectRoot, "apps/desktop/dist"),
-    tauri_generated: path.join(projectRoot, "apps/desktop/src-tauri/gen"),
   };
+  if (["all", "rust"].includes(scope)) {
+    const metadata = metadataProvider();
+    const metadataRoot = path.resolve(metadata.workspace_root);
+    if (metadataRoot.toLowerCase() !== projectRoot.toLowerCase())
+      throw new Error(
+        `Cargo workspace ${metadataRoot} does not match script workspace ${projectRoot}`,
+      );
+    paths.target_directory = path.resolve(metadata.target_directory);
+  }
+  if (["all", "frontend"].includes(scope))
+    Object.assign(paths, {
+      pnpm_store: resolveConfiguredPath(process.env.PORTCOVE_PNPM_STORE_DIR, "work/pnpm-store"),
+      browser_cache: path.join(projectRoot, "work", "browser-cache"),
+      frontend_dependencies: path.join(projectRoot, "node_modules"),
+      desktop_dependencies: path.join(projectRoot, "apps/desktop/node_modules"),
+      frontend_output: path.join(projectRoot, "apps/desktop/dist"),
+    });
+  // Desktop build.rs can generate Tauri schemas during a Rust-only build.
+  if (["all", "rust"].includes(scope))
+    paths.tauri_generated = path.join(projectRoot, "apps/desktop/src-tauri/gen");
+  return paths;
 }
 
 function nearestExistingPath(candidate) {
@@ -129,11 +172,18 @@ export function minimumFreeGiB(value) {
   return parsed;
 }
 
-export function preflight(paths, requiredFreeGiB) {
+export function preflight(paths, requiredFreeGiB, policy = readStoragePolicy()) {
   paths = Object.fromEntries(
     Object.entries(paths).map(([label, candidate]) => [label, resolvePhysicalPath(candidate)]),
   );
-  if (process.platform === "win32") {
+  for (const [label, candidate] of Object.entries(paths)) {
+    try {
+      accessSync(nearestExistingPath(candidate), constants.W_OK);
+    } catch (error) {
+      throw new Error(`Storage path is not writable: ${label}=${candidate}: ${error.message}`);
+    }
+  }
+  if (process.platform === "win32" && policy.blockSystemDrive) {
     const violations = windowsSystemDriveViolations(paths, process.env.SystemDrive || "C:");
     if (violations.length) {
       throw new Error(
@@ -173,14 +223,16 @@ function printPaths(paths, volumes, requiredFreeGiB, asJson) {
     return;
   }
   console.log(`Portcove workspace: ${report.workspace}`);
-  console.log(`Cargo target:       ${report.target_directory}`);
+  if (report.target_directory) console.log(`Cargo target:       ${report.target_directory}`);
   console.log(`Temporary data:     ${report.temporary_directory}`);
   console.log(`Packaging output:   ${report.output_root}`);
-  console.log(`pnpm store:         ${report.pnpm_store}`);
-  console.log(`Repository packages: ${report.frontend_dependencies}`);
-  console.log(`Desktop packages:   ${report.desktop_dependencies}`);
-  console.log(`Frontend output:    ${report.frontend_output}`);
-  console.log(`Tauri generated:    ${report.tauri_generated}`);
+  if (report.pnpm_store) console.log(`pnpm store:         ${report.pnpm_store}`);
+  if (report.frontend_dependencies)
+    console.log(`Repository packages: ${report.frontend_dependencies}`);
+  if (report.desktop_dependencies)
+    console.log(`Desktop packages:   ${report.desktop_dependencies}`);
+  if (report.frontend_output) console.log(`Frontend output:    ${report.frontend_output}`);
+  if (report.tauri_generated) console.log(`Tauri generated:    ${report.tauri_generated}`);
   for (const volume of report.volumes) {
     console.log(
       `Free on ${volume.root}:          ${volume.free_gib.toFixed(2)} GiB (minimum ${requiredFreeGiB.toFixed(1)} GiB)`,
@@ -189,16 +241,18 @@ function printPaths(paths, volumes, requiredFreeGiB, asJson) {
 }
 
 export function childEnvironment(paths) {
-  const overrides = {
-    CARGO_TARGET_DIR: paths.target_directory,
-    PORTCOVE_TEMP_DIR: paths.temporary_directory,
-    PORTCOVE_OUTPUT_DIR: paths.output_root,
-    PORTCOVE_PNPM_STORE_DIR: paths.pnpm_store,
-    pnpm_config_store_dir: paths.pnpm_store,
-    TEMP: paths.temporary_directory,
-    TMP: paths.temporary_directory,
-    TMPDIR: paths.temporary_directory,
-  };
+  const overrides = Object.fromEntries(
+    Object.entries({
+      CARGO_TARGET_DIR: paths.target_directory,
+      PORTCOVE_TEMP_DIR: paths.temporary_directory,
+      PORTCOVE_OUTPUT_DIR: paths.output_root,
+      PORTCOVE_PNPM_STORE_DIR: paths.pnpm_store,
+      pnpm_config_store_dir: paths.pnpm_store,
+      TEMP: paths.temporary_directory,
+      TMP: paths.temporary_directory,
+      TMPDIR: paths.temporary_directory,
+    }).filter(([, value]) => value !== undefined),
+  );
   const overriddenKeys = new Set(Object.keys(overrides).map((key) => key.toLowerCase()));
   // pnpm normalizes configuration variable names on every platform, even
   // where the operating system permits differently cased names to coexist.
@@ -214,8 +268,17 @@ export function childEnvironment(paths) {
 
 function ensureChildDirectories(paths) {
   for (const candidate of [paths.temporary_directory, paths.output_root, paths.pnpm_store]) {
-    mkdirSync(candidate, { recursive: true });
+    if (candidate) mkdirSync(candidate, { recursive: true });
   }
+}
+
+export function prepareStorageScope(scope) {
+  const requiredFreeGiB = minimumFreeGiB();
+  console.log(`Storage task: ${scope}`);
+  const { paths, volumes } = preflight(getPaths(scope), requiredFreeGiB);
+  printPaths(paths, volumes, requiredFreeGiB, false);
+  ensureChildDirectories(paths);
+  return childEnvironment(paths);
 }
 
 export function spawnCommand(command, args, options) {
@@ -363,10 +426,15 @@ export function parseArguments(argv) {
   if (remaining[0] && !remaining[0].startsWith("-")) action = remaining.shift();
   let asJson = false;
   let requestedMinimum;
+  let scope;
   while (remaining.length && remaining[0] !== "--") {
     const option = remaining.shift();
     if (option === "--json") asJson = true;
-    else if (option === "--minimum-free-gib") {
+    else if (option === "--scope") {
+      scope = remaining.shift();
+      if (!["all", "tooling", "frontend", "rust"].includes(scope))
+        throw new Error("--scope requires all, tooling, frontend or rust");
+    } else if (option === "--minimum-free-gib") {
       requestedMinimum = remaining.shift();
       if (!requestedMinimum || requestedMinimum.startsWith("--")) {
         throw new Error("--minimum-free-gib requires a positive GiB value");
@@ -382,7 +450,9 @@ export function parseArguments(argv) {
   if (action === "run" && !remaining.length) throw new Error("run requires a command after --");
   if (action !== "run" && remaining.length) throw new Error(`${action} does not accept a command`);
   if (asJson && action !== "preflight") throw new Error("--json is only supported by preflight");
-  return { action, asJson, requestedMinimum, command: remaining };
+  if (scope && ["clean", "prune-incremental"].includes(action))
+    throw new Error("cleanup always resolves complete Cargo storage");
+  return { action, asJson, requestedMinimum, scope, command: remaining };
 }
 
 export function isSideEffectFreeHelpCommand(command) {
@@ -401,7 +471,9 @@ export function isSideEffectFreeHelpCommand(command) {
 }
 
 function main() {
-  const { action, asJson, requestedMinimum, command } = parseArguments(process.argv.slice(2));
+  const { action, asJson, requestedMinimum, scope, command } = parseArguments(
+    process.argv.slice(2),
+  );
   if (action === "run" && isSideEffectFreeHelpCommand(command)) {
     const result = spawnSync(command[0], command.slice(1), {
       cwd: projectRoot,
@@ -412,7 +484,15 @@ function main() {
     if (result.error) throw result.error;
     return result.status ?? 1;
   }
-  const configuredPaths = getPaths();
+  const plannerCommand =
+    action === "run" &&
+    ["node", "node.exe"].includes(path.basename(command[0]).toLowerCase()) &&
+    path.resolve(projectRoot, command[1] ?? "") ===
+      path.join(projectRoot, "scripts/local-validation.mjs");
+  const selectedScope = scope ?? (plannerCommand ? "tooling" : "all");
+  if (!asJson && !["clean", "prune-incremental"].includes(action))
+    console.log(`Storage task: ${selectedScope}`);
+  const configuredPaths = getPaths(selectedScope);
   if (action === "clean") {
     return cleanCargoTarget(configuredPaths);
   }

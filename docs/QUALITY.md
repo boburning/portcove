@@ -108,6 +108,12 @@ profile and cannot narrow their own transition. Existing release and deep audit
 stage selection remains unchanged. Partial-profile reports use separate filenames and never
 replace a complete audit report. Missing or incomplete discovery blocks execution.
 
+Git-clean text may retain CRLF worktree bytes when explicit Git attributes select
+LF text. Inventory permits only UTF-8 CRLF-to-LF equivalence with no clean filter
+or alternate encoding; binary, unknown attributes and other changed bytes retain
+complete fallback. Raw bytes remain in stage fingerprints, so this comparison
+does not reuse a different worktree's successful receipt.
+
 Unchanged host-tool fixtures and containment supervisors may reuse only their
 compiled product after complete input/toolchain/target/flag/environment identity,
 trusted atomic publication, corruption/interruption rejection, provenance and
@@ -269,6 +275,13 @@ adversarial selector coverage, and run `just audit --fresh` before relying on
 them.
 
 ## Staged audit receipts
+
+Local validation selects resource preflight from its actual command plan before
+execution: tooling/frontend scopes do not resolve Cargo or native outputs,
+Rust resolves actual Cargo storage, and mixed/unknown commands keep the complete
+scope. Capacity, physical-path and machine-policy checks run independently of
+successful test receipts. See [development storage](DEVELOPMENT-STORAGE.md#bootstrap-and-preflight)
+for portable defaults and the private strict Windows profile.
 
 `just audit` executes named formatting, Rust, UI, script-lint, repository-tooling, Roadmap,
 development-tool, dependency-policy, rscheck, release-unit, and applicable

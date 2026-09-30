@@ -1,6 +1,9 @@
 # Development storage
 
-On Windows, Portcove development should run from a workspace on a non-system volume. Keeping the checkout there gives Cargo, Tauri, frontend builds, tests, mutation analysis, packaging, and generated data one physical home instead of accumulating independent trees on the Windows system drive.
+Portcove development can use any writable contributor-owned volume with sufficient
+free space, including the Windows system drive. Repository defaults check physical
+paths, capacity and cleanup containment; a drive letter alone is not a failure.
+The primary maintainer retains a stricter non-system-drive machine policy.
 
 Prefer a non-system **SSD** for active development. Free capacity alone does not
 make an HDD suitable for the many small reads and writes in dependency loading,
@@ -66,7 +69,41 @@ under ignored `apps/desktop/.vitest`. Preserve failed evidence during diagnosis.
 Use the owning task's narrow test command and `just local-check`; exhaustive
 validation remains required only for its documented acceptance or investigation.
 
-The read-only preflight resolves the workspace and Cargo target through `cargo metadata`, follows existing symlinks and junctions (including ancestors of directories not yet created), and prints the physical storage paths. It stops on Windows if the workspace, Cargo target, project temporary directory, packaging output, pnpm store, browser cache, frontend dependencies/output, or Tauri generated directory resolves to the system drive. It also stops when any relevant filesystem has less than 20 GiB free. `PORTCOVE_MIN_FREE_GIB` or `--minimum-free-gib` can raise that margin for release or mutation work; lowering it should be an explicit, temporary decision based on a measured build. `preflight --json` returns the same checked layout for scripts.
+The read-only preflight follows existing symlinks and junctions (including missing
+descendants), checks directory access and capacity, and prints the physical paths.
+Its default `all` scope resolves the actual Cargo workspace/target through
+`cargo metadata` and checks native/package outputs. `--scope frontend` checks
+frontend dependencies, output, browser and package caches without Cargo or Tauri
+generated paths. `--scope tooling` checks workspace, temporary and output paths;
+`--scope rust` resolves actual Cargo outputs and Tauri generated paths (Desktop's
+Rust build script writes schemas) without frontend dependency/output paths. Unknown
+commands retain `all`; cleanup always uses complete Cargo discovery/containment.
+
+The existing local planner selects these scopes from its complete command plan.
+Its outer launcher uses tooling scope; selected Rust/mixed work still resolves
+Cargo before execution. Plan-only frontend/tooling discovery does not require
+Cargo. Receipt identity collection may probe optional tool versions; those probes
+do not require the tools or resolve native outputs. Ordinary `cargo build -p
+portcove-cli` remains independent of the frontend launcher and Node toolchain.
+
+Any selected filesystem with less than 20 GiB free blocks execution.
+`PORTCOVE_MIN_FREE_GIB` or `--minimum-free-gib` changes this configurable margin;
+use observed requirements rather than treating it as a precise build prediction.
+`preflight --json` returns the checked layout without creating output directories.
+
+For a stricter Windows profile, set `PORTCOVE_BLOCK_SYSTEM_DRIVE=1`, or keep this
+private machine file at `~/.config/portcove/development-storage.json`:
+
+```json
+{ "format": 1, "blockSystemDrive": true }
+```
+
+It applies to selected physical paths, including redirected junctions, in every
+checkout on that machine. Missing configuration uses portable defaults; malformed
+or unreadable configuration blocks execution with its exact path. Environment
+value `0` does not relax a strict machine policy. Do not commit machine settings or
+change another contributor's policy. The primary maintainer's strict file must be
+verified before switching from the historical repository-wide drive prohibition.
 
 Before installing dependencies, compare `pnpm --version` with `packageManager`
 in the root `package.json`. A host-provided fallback that ignores the project

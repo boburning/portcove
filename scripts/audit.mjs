@@ -137,7 +137,7 @@ export function selectTransitionAudit({ inventory, validationPlan, changes, work
         !file.untracked &&
         file.kind === "file" &&
         file.headBlob === file.indexBlob &&
-        file.indexBlob === file.gitBlob &&
+        (file.indexBlob === file.gitBlob || file.indexBlob === file.canonicalTextBlob) &&
         file.headMode === file.indexMode,
     );
   const eligible =
@@ -445,7 +445,40 @@ function gitBlobIdentity(contents, objectFormat) {
     .digest("hex");
 }
 
-function contentIdentity(root, file, objectFormat) {
+export function canonicalTextBlob(contents, objectFormat, attributes) {
+  if (
+    !["set", "auto"].includes(attributes.text) ||
+    attributes.eol !== "lf" ||
+    !["unset", "unspecified"].includes(attributes.filter) ||
+    !["unset", "unspecified"].includes(attributes["working-tree-encoding"]) ||
+    contents.includes(0)
+  )
+    return null;
+  const text = contents.toString("utf8");
+  if (!Buffer.from(text, "utf8").equals(contents)) return null;
+  return gitBlobIdentity(Buffer.from(text.replaceAll("\r\n", "\n"), "utf8"), objectFormat);
+}
+
+function textAttributes(root, file) {
+  const values = git(root, [
+    "check-attr",
+    "-z",
+    "text",
+    "eol",
+    "filter",
+    "working-tree-encoding",
+    "--",
+    file,
+  ]).split("\0");
+  const attributes = {};
+  for (let offset = 0; offset + 2 < values.length; offset += 3) {
+    if (values[offset] !== file) throw new Error(`Unexpected Git attribute path for ${file}`);
+    attributes[values[offset + 1]] = values[offset + 2];
+  }
+  return attributes;
+}
+
+function contentIdentity(root, file, objectFormat, expectedBlob) {
   const absolute = path.join(root, ...file.split("/"));
   if (!existsSync(absolute))
     return { kind: "missing", worktreeMode: null, sha256: null, gitBlob: null };
@@ -461,11 +494,19 @@ function contentIdentity(root, file, objectFormat) {
   }
   if (!stat.isFile()) return { kind: "other", worktreeMode: null, sha256: null, gitBlob: null };
   const contents = readFileSync(absolute);
+  const gitBlob = gitBlobIdentity(contents, objectFormat);
+  // Preserve raw bytes for fingerprints. Only explicit LF text attributes,
+  // without filters/encoding, permit a separate CRLF-normalized comparison.
+  const canonical =
+    gitBlob !== expectedBlob && contents.includes(Buffer.from("\r\n"))
+      ? canonicalTextBlob(contents, objectFormat, textAttributes(root, file))
+      : null;
   return {
     kind: "file",
     worktreeMode: stat.mode & 0o111 ? "100755" : "100644",
     sha256: createHash("sha256").update(contents).digest("hex"),
-    gitBlob: gitBlobIdentity(contents, objectFormat),
+    gitBlob,
+    canonicalTextBlob: canonical,
   };
 }
 
@@ -504,7 +545,7 @@ export function repositoryInventory(root = projectRoot) {
         headMode: headTree.get(file)?.mode ?? null,
         indexBlob: index.get(file)?.blob ?? null,
         indexMode: index.get(file)?.mode ?? null,
-        ...contentIdentity(root, file, objectFormat),
+        ...contentIdentity(root, file, objectFormat, headTree.get(file)?.blob),
         domains: [...ownership.domains].sort(),
         ambiguous: ownership.ambiguous,
         untracked: !index.has(file),
