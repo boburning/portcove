@@ -59,10 +59,25 @@ export async function defaultCoverScenario({
         15_000,
         `Real default cover did not render: ${selector}`,
       );
-      return browser.executeScript((selector) => {
-        const img = document.querySelector(selector).querySelector("img");
-        return { width: img.naturalWidth, height: img.naturalHeight };
+      const rendered = await browser.executeScript((selector) => {
+        const frame = document.querySelector(selector);
+        const img = frame.querySelector("img");
+        return {
+          width: img.naturalWidth,
+          height: img.naturalHeight,
+          background: getComputedStyle(frame).backgroundColor,
+          objectFit: getComputedStyle(img).objectFit,
+          fallbackPalette: [...frame.classList].some((name) => /^palette-\d+$/.test(name)),
+        };
       }, selector);
+      assert.equal(rendered.background, "rgba(0, 0, 0, 0)", "Artwork matte follows its surface");
+      assert.equal(rendered.objectFit, "contain", "The complete original cover remains visible");
+      assert.equal(
+        rendered.fallbackPalette,
+        false,
+        "Real images do not inherit placeholder colors",
+      );
+      return rendered;
     };
     for (const [pass, theme, size] of [
       ["first-display", "light", { width: 1280, height: 800 }],

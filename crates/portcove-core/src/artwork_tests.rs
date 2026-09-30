@@ -19,7 +19,23 @@ fn image_file(root: &Path, name: &str, format: image::ImageFormat) -> std::path:
 }
 
 fn open_service(root: &Path) -> PortcoveService {
-    PortcoveService::new(Library::open(root).unwrap()).unwrap()
+    let mut service = PortcoveService::new(Library::open(root).unwrap()).unwrap();
+    // Local-choice/fallback fixtures explicitly need a port without a default.
+    // Real catalog coverage can grow without changing this test precondition.
+    let mut document = service.catalog().authoritative_document().clone();
+    document
+        .ports
+        .iter_mut()
+        .find(|port| port.id == "zelda64-recomp")
+        .unwrap()
+        .presentation
+        .as_mut()
+        .unwrap()
+        .artwork = None;
+    service.replace_catalog_for_test(
+        crate::Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap(),
+    );
+    service
 }
 
 #[test]
