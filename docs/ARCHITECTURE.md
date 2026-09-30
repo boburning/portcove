@@ -1,5 +1,21 @@
 # Architecture
 
+## Source import journal interpretation
+
+The source-import owner decodes the released lifecycle envelope into a private
+profile identity and import phase before normal execution, recovery or cancelled
+staging cleanup. The persisted `port_id` column continues to hold the source
+profile for this family; SQLite, journal and public representations are unchanged.
+Copying, ready-to-publish, published, registered and move-only original cleanup
+are distinct internal phases. Contradictory family payloads, profile/path bindings
+and copy cleanup states are refused before mutation and retained for diagnosis.
+
+The interpreter is not authorization. Move consent, source revalidation, locks,
+capacity, staging containment, publication receipts and quarantine ownership
+remain authoritative. Publication precedes source registration; registration
+precedes optional original cleanup. Phase writes preserve the existing durable
+ordering and interruption recovery, including publication before its phase write.
+
 ## Privileged webview boundary
 
 The Tauri host permits application navigation only within its bundled
