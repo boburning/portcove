@@ -44,8 +44,8 @@ export async function defaultCoverScenario({
       }, selector);
     };
     for (const [pass, theme, size] of [
-      ["first-display", "Light", { width: 1280, height: 800 }],
-      ["warm", "Dark", { width: 960, height: 640 }],
+      ["first-display", "light", { width: 1280, height: 800 }],
+      ["warm", "dark", { width: 960, height: 640 }],
     ]) {
       await browser.findElement(By.xpath('//nav//button[contains(., "Settings")]')).click();
       await setTheme(theme);
