@@ -98,12 +98,31 @@ function transitionContext(paths, overrides = {}) {
       mergeBase: "b".repeat(40),
       head,
       checkout: head,
+      fastValidationEnabled: true,
+      proseOnlyEnabled: true,
     }),
     changes,
     workingTreeStatus: "",
     ...overrides,
   };
 }
+
+test("standalone resource and impact changes retain full local coverage under real hosted routing", () => {
+  for (const pathname of [
+    "scripts/dev-storage.mjs",
+    "scripts/dev-storage.test.mjs",
+    "scripts/rust-test-impact.mjs",
+    "scripts/rust-test-impact.test.mjs",
+    ".config/rust-test-impact.json",
+    "docs/DEVELOPMENT-STORAGE.md",
+  ]) {
+    const context = transitionContext([pathname]);
+    assert.equal(context.validationPlan.qualification_required, false, pathname);
+    const selected = selectTransitionAudit(context);
+    assert.equal(selected.profile, "complete", pathname);
+    assert.deepEqual(selected.stages, AUDIT_STAGES, pathname);
+  }
+});
 
 test("real rename and copy path unions retain the complete audit instead of failing discovery", () => {
   for (const status of ["R", "C"]) {

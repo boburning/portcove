@@ -14,7 +14,11 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { validateQualificationBinding, validationOwnershipForPath } from "./validation-plan.mjs";
+import {
+  validateQualificationBinding,
+  validateValidationPlan,
+  validationOwnershipForPath,
+} from "./validation-plan.mjs";
 import { discoverCiPlan, parseRawDiff } from "./select-ci-plan.mjs";
 
 const projectRoot = fileURLToPath(new URL("../", import.meta.url));
@@ -103,13 +107,20 @@ export const TRANSITION_AUDIT_STAGE_IDS = Object.freeze([
 ]);
 
 export function selectTransitionAudit({ inventory, validationPlan, changes, workingTreeStatus }) {
-  validateQualificationBinding({
-    plan: validationPlan,
-    digest: validationPlan?.digest,
-    checkout: inventory?.head,
-  });
-  if (validationPlan.identities.head !== inventory.head || !Array.isArray(changes))
+  validateValidationPlan(validationPlan);
+  if (
+    validationPlan.discovery !== "complete" ||
+    validationPlan.identities.checkout !== inventory?.head ||
+    validationPlan.identities.head !== inventory?.head ||
+    !Array.isArray(changes)
+  )
     throw new Error("transition audit lacks an exact complete source diff");
+  if (validationPlan.qualification_required)
+    validateQualificationBinding({
+      plan: validationPlan,
+      digest: validationPlan.digest,
+      checkout: inventory.head,
+    });
   const paths = [...new Set(changes.flatMap((change) => [change.oldPath, change.newPath]))].sort();
   if (JSON.stringify(paths) !== JSON.stringify([...validationPlan.changed_files].sort()))
     throw new Error("transition audit diff inventory does not match the hosted plan");
@@ -128,6 +139,7 @@ export function selectTransitionAudit({ inventory, validationPlan, changes, work
         file.headMode === file.indexMode,
     );
   const eligible =
+    validationPlan.qualification_required &&
     clean &&
     changes.length > 0 &&
     changes.every(
@@ -147,7 +159,7 @@ export function selectTransitionAudit({ inventory, validationPlan, changes, work
     profile: eligible ? "transition" : "complete",
     reason: eligible
       ? "clean local-policy diff; complete hosted qualification remains required"
-      : "mixed, dirty, unknown or authority-changing inputs require the complete audit",
+      : "non-qualification, mixed, dirty, unknown or authority-changing inputs require the complete audit",
     stages: eligible
       ? AUDIT_STAGES.filter((stage) => TRANSITION_AUDIT_STAGE_IDS.includes(stage.id))
       : AUDIT_STAGES,
@@ -847,11 +859,9 @@ export function main(argv = process.argv.slice(2)) {
       fastValidationEnabled: true,
       proseOnlyEnabled: true,
     });
-    validateQualificationBinding({
-      plan: validationPlan,
-      digest: validationPlan.digest,
-      checkout: inventory.head,
-    });
+    validateValidationPlan(validationPlan);
+    if (validationPlan.discovery !== "complete")
+      throw new Error("transition audit lacks complete hosted discovery");
     const changes = parseRawDiff(
       execFileSync(
         "git",

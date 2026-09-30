@@ -93,12 +93,16 @@ continue to fail safely. A protected selector change qualifies under the pre-cha
 policy, adversarial tests, a fresh audit, exhaustive hosted checks, and separate
 review. For a clean committed change confined to the existing local planner,
 Rust impact map, resource preflight and their tests or owning development docs,
+and whose actual hosted plan requires exhaustive qualification,
 `just audit --profile transition --fresh` runs fresh formatting, script lint,
 repository/development contracts, dependency policy and release-unit checks.
 It requires complete Git diff/file inventories and the existing exhaustive
 hosted plan. Full Rust/UI test and platform coverage remains an exact-head CI
 obligation, not a local receipt claim. Mixed, dirty, unknown, added, removed,
-renamed or non-regular inputs retain the complete audit. Audit selection itself,
+renamed or non-regular inputs retain the complete audit. Standalone resource,
+impact-map or storage-document changes with fast/prose hosted coverage also
+retain the complete local audit; the profile never manufactures exhaustive CI
+authority. Audit selection itself,
 hosted routing/workflows, recipes and dependency inputs are excluded from this
 profile and cannot narrow their own transition. Existing release and deep audit
 stage selection remains unchanged. Partial-profile reports use separate filenames and never
