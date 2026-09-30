@@ -7,14 +7,21 @@ import {
   cachedDesktopDrivers,
   checkoutToolEnvironment,
   readToolState,
+  runAqua,
   toolCachePaths,
 } from "./tool-cache.mjs";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 
+function doctorCommand(command, arguments_, options) {
+  return command === "aqua"
+    ? runAqua(arguments_, options)
+    : spawnCommand(command, arguments_, options);
+}
+
 function aquaToolPaths(command, environment) {
   try {
-    const result = spawnCommand("aqua", ["which", command], {
+    const result = doctorCommand("aqua", ["which", command], {
       cwd: root,
       encoding: "utf8",
       windowsHide: true,
@@ -208,6 +215,7 @@ export async function collectDoctor(options = {}) {
       id: "aqua",
       command: ["aqua", "--version"],
       version: aquaVersion,
+      ...(process.platform === "win32" ? { paths: [cachePaths.aquaExecutable] } : {}),
       remediation: "./scripts/bootstrap-quality-tools.ps1",
     },
     ...aquaDefinitions(environment),
@@ -236,7 +244,7 @@ export async function collectDoctor(options = {}) {
           paths: [],
         }
       : {
-          ...probeTool(definition, spawnCommand, { environment }),
+          ...probeTool(definition, doctorCommand, { environment }),
           paths:
             definition.paths ??
             (definition.reportedPath
@@ -266,7 +274,7 @@ export async function collectDoctor(options = {}) {
       },
     ];
     for (const definition of desktopDefinitions) {
-      let result = probeTool(definition, spawnCommand, { environment });
+      let result = probeTool(definition, doctorCommand, { environment });
       if (definition.reportedVersion && result.status === "mismatch") {
         result = { ...result, observed: definition.reportedVersion, status: "ok" };
       }

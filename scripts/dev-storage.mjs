@@ -19,6 +19,7 @@ import {
   checkoutToolEnvironment,
   readToolPins,
   readToolState,
+  pinnedAquaCommand,
   toolCachePaths,
 } from "./tool-cache.mjs";
 
@@ -320,6 +321,8 @@ export function spawnCommand(command, args, options) {
 
 export function canonicalCheckoutCommand(command, args, toolState = readToolState()) {
   const executable = path.basename(command).toLowerCase();
+  if (!path.isAbsolute(command) && new Set(["aqua", "aqua.exe"]).has(executable))
+    return [pinnedAquaCommand(), args];
   if (
     !path.isAbsolute(command) &&
     new Set(["node", "node.exe"]).has(executable) &&

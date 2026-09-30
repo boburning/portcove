@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -151,6 +152,75 @@ export function readToolState(options = {}) {
     return null;
   }
   return state;
+}
+
+let windowsOSArchitecture;
+
+function readWindowsOSArchitecture() {
+  if (windowsOSArchitecture) return windowsOSArchitecture;
+  const result = spawnSync(
+    "pwsh",
+    [
+      "-NoProfile",
+      "-Command",
+      "[Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString().ToLowerInvariant()",
+    ],
+    { encoding: "utf8", windowsHide: true, timeout: 5_000 },
+  );
+  const architecture = result.stdout?.trim();
+  if (result.error || result.status !== 0 || !["x64", "arm64"].includes(architecture))
+    throw new Error(
+      "Windows OS architecture is unavailable; inspect the required PowerShell setup",
+    );
+  // OS architecture is immutable for this bounded command process; no tool,
+  // receipt, output or authorization is reused through this observation.
+  windowsOSArchitecture = architecture;
+  return architecture;
+}
+
+export function pinnedAquaCommand(options = {}) {
+  const platform = options.platform ?? process.platform;
+  if (platform !== "win32") return "aqua";
+  const paths = options.paths ?? toolCachePaths(options);
+  const state = readToolState({ paths });
+  const artifact =
+    paths.pins.bootstrap.aqua?.artifacts?.[
+      `win32-${options.osArchitecture ?? readWindowsOSArchitecture()}`
+    ];
+  const repair = "run ./scripts/bootstrap-quality-tools.ps1";
+  if (!artifact || state?.aqua !== paths.aquaExecutable)
+    throw new Error(`Pinned Aqua checkout state is unavailable; ${repair}`);
+  let receipt;
+  try {
+    receipt = JSON.parse(readFileSync(`${paths.aquaExecutable}.receipt.json`, "utf8"));
+  } catch {
+    throw new Error(`Pinned Aqua cache receipt is unavailable; ${repair}`);
+  }
+  if (receipt.version !== paths.pins.aquaSemver || receipt.archive_sha256 !== artifact.sha256)
+    throw new Error(`Pinned Aqua cache receipt does not match checkout pins; ${repair}`);
+  // Preserve the bootstrap's archive receipt + exact version cache boundary.
+  // Do not fall back to PATH: Node may find an older .exe before our .cmd shim.
+  const result = (options.probe ?? spawnSync)(paths.aquaExecutable, ["--version"], {
+    cwd: paths.projectRoot,
+    encoding: "utf8",
+    windowsHide: true,
+    timeout: 10_000,
+    env: checkoutToolEnvironment(options.environment ?? process.env, { paths, platform }),
+  });
+  if (
+    result.error ||
+    result.status !== 0 ||
+    result.stdout?.trim() !== `aqua version ${paths.pins.aquaSemver}`
+  )
+    throw new Error(`Pinned Aqua executable is unavailable or reports another version; ${repair}`);
+  return paths.aquaExecutable;
+}
+
+export function runAqua(arguments_, options = {}) {
+  const paths = toolCachePaths({ environment: options.env ?? process.env });
+  const env = checkoutToolEnvironment(options.env ?? process.env, { paths });
+  const executable = pinnedAquaCommand({ paths, environment: env });
+  return spawnSync(executable, arguments_, { ...options, env });
 }
 
 export function cachedDesktopDrivers(options = {}) {

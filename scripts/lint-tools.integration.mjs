@@ -4,18 +4,20 @@ import { mkdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { spawn, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { runAqua } from "./tool-cache.mjs";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 const desktop = path.join(root, "apps", "desktop");
 const nonce = randomUUID();
 
 function run(command, args) {
-  return spawnSync(command, args, {
+  const settings = {
     cwd: root,
     encoding: "utf8",
     timeout: 30_000,
     windowsHide: true,
-  });
+  };
+  return command === "aqua" ? runAqua(args, settings) : spawnSync(command, args, settings);
 }
 
 function runAsync(command, args) {

@@ -1,10 +1,13 @@
-import { spawnSync } from "node:child_process";
+import { runAqua } from "./tool-cache.mjs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const scriptPath = fileURLToPath(import.meta.url);
 
-export function runActionlint(arguments_, run = spawnSync) {
+export function runActionlint(
+  arguments_,
+  run = (_command, args, options) => runAqua(args, options),
+) {
   const shellcheck = run("aqua", ["which", "shellcheck"], {
     encoding: "utf8",
     windowsHide: true,
