@@ -275,10 +275,12 @@ test("doctest capability comes from Cargo target metadata", () => {
 });
 
 test("Clippy owns equivalent Rust compilation before the broad workspace test fallback", () => {
-  const { plan } = planFor(["Cargo.lock"]);
+  const { plan } = planFor(["Cargo.toml"]);
   assert.deepEqual(ids(plan), [
     "diff-check",
+    "toml-format",
     "rustfmt",
+    "node-tests",
     "rust-workspace-clippy",
     "dependency-policy",
     "rust-workspace-tests",
@@ -299,7 +301,7 @@ test("supported local Rust compilation and tests acquire admission before starti
   assert.equal(focusedTests.executable, process.execPath);
   assert.deepEqual(focusedTests.args.slice(0, 2), ["scripts/run-rust-tests.mjs", "--locked"]);
 
-  const workspace = planFor(["Cargo.lock"]).plan;
+  const workspace = planFor(["Cargo.toml"]).plan;
   assert.ok(!ids(workspace).includes("rust-workspace-check"));
   for (const id of ["rust-workspace-clippy"]) {
     const entry = workspace.find((candidate) => candidate.id === id);
@@ -311,6 +313,27 @@ test("supported local Rust compilation and tests acquire admission before starti
   assert.ok(workspaceTests);
   assert.equal(workspaceTests.executable, process.execPath);
   assert.deepEqual(workspaceTests.args.slice(0, 2), ["scripts/run-rust-tests.mjs", "--locked"]);
+});
+
+test("lockfile edits retain workspace compilation and policy while CI owns dependency-wide tests", () => {
+  const { plan } = planFor(["Cargo.lock"]);
+  assert.deepEqual(ids(plan), [
+    "diff-check",
+    "rustfmt",
+    "rust-workspace-clippy",
+    "dependency-policy",
+  ]);
+  const mixed = planFor(["Cargo.lock", "apps/desktop/src-tauri/Cargo.toml"]).plan;
+  assert.ok(ids(mixed).includes("rust-tests:portcove-desktop"));
+  assert.ok(!ids(mixed).includes("rust-workspace-tests"));
+  assert.ok(!ids(mixed).includes("rust-tests:portcove-core"));
+  assert.ok(!ids(mixed).includes("rust-clippy:portcove-desktop"));
+  for (const root of ["Cargo.toml", "rust-toolchain.toml", "deny.toml", ".config/nextest.toml"]) {
+    assert.ok(ids(planFor(["Cargo.lock", root]).plan).includes("rust-workspace-tests"), root);
+  }
+  assert.ok(
+    ids(planFor([{ path: "Cargo.lock", status: "D" }]).plan).includes("rust-workspace-tests"),
+  );
 });
 
 test("UI sources build, lint, and run import-related tests", () => {

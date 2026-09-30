@@ -355,6 +355,7 @@ function classifyOnePath(selection, input, fileExists, options = {}) {
     file === ".config/nextest.toml"
   ) {
     selection.workspaceRust = true;
+    if (file !== "Cargo.lock" || options.isDeletion) selection.workspaceRustTests = true;
     selection.rustfmt = true;
     selection.scopes.add("rust-workspace");
     recognized = true;
@@ -642,6 +643,7 @@ export function classifyChanges(changes, options = {}) {
     unknown: new Set(),
     rustfmt: false,
     workspaceRust: false,
+    workspaceRustTests: false,
     ui: false,
     browser: false,
     uiFullTests: false,
@@ -881,6 +883,10 @@ export function buildPlan(selection, context = {}) {
         "cargo",
         ["deny", "check", "--hide-inclusion-graph", "-W", "unmaintained"],
       ),
+    );
+  }
+  if (selection.workspaceRustTests) {
+    commands.push(
       command(
         "rust-workspace-tests",
         "root dependency or toolchain changes use the documented broad workspace fallback",
@@ -907,14 +913,15 @@ export function buildPlan(selection, context = {}) {
         selection.rustChanges.filter((change) => change.packageName === packageName),
       );
       if (rustTestImpactLoadError) impact.reason = `${impact.reason}; ${rustTestImpactLoadError}`;
-      commands.push(
-        heavyRustCommand(
-          `rust-clippy:${packageName}`,
-          `compile and lint every target in affected package ${packageName}`,
-          "cargo",
-          ["clippy", "--locked", "-p", packageName, "--all-targets", "--", "-D", "warnings"],
-        ),
-      );
+      if (!selection.workspaceRust)
+        commands.push(
+          heavyRustCommand(
+            `rust-clippy:${packageName}`,
+            `compile and lint every target in affected package ${packageName}`,
+            "cargo",
+            ["clippy", "--locked", "-p", packageName, "--all-targets", "--", "-D", "warnings"],
+          ),
+        );
       if (impact.mode === "broad")
         commands.push(
           command(`rust-tests:${packageName}`, impact.reason, process.execPath, [
@@ -1413,7 +1420,7 @@ export function main(argv = process.argv.slice(2)) {
   );
   const selection = classifyChanges(context.changes);
   const planContext =
-    selection.packages.size > 0 && !selection.workspaceRust
+    selection.packages.size > 0 && !selection.workspaceRustTests
       ? { ...context, doctestPackages: readDoctestPackages() }
       : context;
   const plan = buildPlan(selection, planContext);
