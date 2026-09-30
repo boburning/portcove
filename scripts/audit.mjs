@@ -9,12 +9,13 @@ import {
   rmSync,
   writeFileSync,
 } from "node:fs";
-import { spawnSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { validationOwnershipForPath } from "./validation-plan.mjs";
+import { validateQualificationBinding, validationOwnershipForPath } from "./validation-plan.mjs";
+import { discoverCiPlan, parseRawDiff } from "./select-ci-plan.mjs";
 
 const projectRoot = fileURLToPath(new URL("../", import.meta.url));
 const receiptFormat = 1;
@@ -78,10 +79,87 @@ export const RELEASE_AUDIT_STAGE_IDS = Object.freeze([
   "release-unit",
 ]);
 
+// Hosted routing, this selector, recipes and dependency inputs are deliberately
+// absent: a change to those authorities cannot select its own narrower audit.
+const transitionPaths = new Set([
+  "scripts/local-validation.mjs",
+  "scripts/local-validation.test.mjs",
+  "scripts/rust-test-impact.mjs",
+  "scripts/rust-test-impact.test.mjs",
+  ".config/rust-test-impact.json",
+  "scripts/dev-storage.mjs",
+  "scripts/dev-storage.test.mjs",
+  "docs/QUALITY.md",
+  "docs/DEVELOPMENT-TOOLS.md",
+  "docs/DEVELOPMENT-STORAGE.md",
+]);
+export const TRANSITION_AUDIT_STAGE_IDS = Object.freeze([
+  "format",
+  "script-lint",
+  "repository-tooling",
+  "development-tools",
+  "dependency-policy",
+  "release-unit",
+]);
+
+export function selectTransitionAudit({ inventory, validationPlan, changes, workingTreeStatus }) {
+  validateQualificationBinding({
+    plan: validationPlan,
+    digest: validationPlan?.digest,
+    checkout: inventory?.head,
+  });
+  if (validationPlan.identities.head !== inventory.head || !Array.isArray(changes))
+    throw new Error("transition audit lacks an exact complete source diff");
+  const paths = changes.map((change) => change.newPath).sort();
+  if (JSON.stringify(paths) !== JSON.stringify([...validationPlan.changed_files].sort()))
+    throw new Error("transition audit diff inventory does not match the hosted plan");
+  if (!Array.isArray(inventory.files)) throw new Error("transition audit lacks a file inventory");
+  if (typeof workingTreeStatus !== "string")
+    throw new Error("transition audit lacks Git worktree status");
+  const clean =
+    workingTreeStatus.trim() === "" &&
+    inventory.files.length > 0 &&
+    inventory.files.every(
+      (file) =>
+        !file.untracked &&
+        file.kind === "file" &&
+        file.headBlob === file.indexBlob &&
+        file.indexBlob === file.gitBlob &&
+        file.headMode === file.indexMode,
+    );
+  const eligible =
+    clean &&
+    changes.length > 0 &&
+    changes.every(
+      (change) =>
+        change.status === "M" &&
+        change.oldPath === change.newPath &&
+        change.oldMode === "100644" &&
+        change.newMode === "100644" &&
+        transitionPaths.has(change.newPath),
+    );
+  if (
+    eligible &&
+    changes.some((change) => !inventory.files.some((file) => file.path === change.newPath))
+  )
+    throw new Error("transition audit is missing a changed file from its inventory");
+  return {
+    profile: eligible ? "transition" : "complete",
+    reason: eligible
+      ? "clean local-policy diff; complete hosted qualification remains required"
+      : "mixed, dirty, unknown or authority-changing inputs require the complete audit",
+    stages: eligible
+      ? AUDIT_STAGES.filter((stage) => TRANSITION_AUDIT_STAGE_IDS.includes(stage.id))
+      : AUDIT_STAGES,
+  };
+}
+
 export function auditStagesForProfile(profile = "complete") {
   if (profile === "complete") return AUDIT_STAGES;
   if (profile === "release")
     return AUDIT_STAGES.filter((stage) => RELEASE_AUDIT_STAGE_IDS.includes(stage.id));
+  if (profile === "transition")
+    throw new Error("transition profile requires complete diff discovery");
   throw new Error(`unknown audit profile: ${profile}`);
 }
 
@@ -573,6 +651,7 @@ export function planAudit(options = {}) {
   const fresh = options.fresh ?? false;
   return {
     head: inventory.head,
+    profile: options.profile ?? "complete",
     receiptRoot,
     inventory,
     runtime,
@@ -623,6 +702,7 @@ export function planAudit(options = {}) {
 function displayPlan(plan) {
   console.log(`# Portcove audit plan`);
   console.log(`Head: ${plan.head}`);
+  console.log(`Profile: ${plan.profile ?? "complete"}`);
   for (const stage of plan.stages)
     console.log(
       `- ${stage.id}: ${stage.action} (${stage.rationale}); fingerprint ${stage.fingerprint}`,
@@ -703,13 +783,18 @@ export function executeAudit(plan, options = {}) {
   const reportPayload = {
     format: receiptFormat,
     kind: "audit-run",
+    profile: plan.profile ?? "complete",
     head: plan.head,
     success,
     completedAt: new Date().toISOString(),
     stages: results,
   };
   writeJsonAtomic(
-    path.join(plan.receiptRoot, "audits", `${plan.head}.json`),
+    path.join(
+      plan.receiptRoot,
+      "audits",
+      `${plan.head}${plan.profile && plan.profile !== "complete" ? `.${plan.profile}` : ""}.json`,
+    ),
     receiptEnvelope(reportPayload),
   );
   return { success, results, report: reportPayload };
@@ -725,26 +810,76 @@ function parseArguments(argv) {
     else if (argument === "--plan") planOnly = true;
     else if (argument === "--profile") {
       profile = argv[++index];
-      if (!profile) throw new Error("--profile requires complete or release");
+      if (!profile) throw new Error("--profile requires complete, release or transition");
     } else if (argument === "--help")
       return { help: true, fresh: false, planOnly: false, profile: "complete" };
     else throw new Error(`unknown audit option: ${argument}`);
   }
   if (fresh && planOnly) throw new Error("--fresh and --plan cannot be combined");
-  auditStagesForProfile(profile);
+  if (profile !== "transition") auditStagesForProfile(profile);
   return { help: false, fresh, planOnly, profile };
 }
 
 export function main(argv = process.argv.slice(2)) {
   const options = parseArguments(argv);
   if (options.help) {
-    console.log("usage: audit.mjs [--plan|--fresh] [--profile complete|release]");
+    console.log("usage: audit.mjs [--plan|--fresh] [--profile complete|release|transition]");
     console.log("  --plan   report stage execution/reuse without running or writing receipts");
     console.log("  --fresh  ignore receipts and execute every applicable stage");
     console.log("  --profile release  delegate source/platform coverage to qualification");
+    console.log(
+      "  --profile transition  fresh local-policy checks with complete exact-head hosted coverage",
+    );
     return;
   }
-  const plan = planAudit({ fresh: options.fresh, stages: auditStagesForProfile(options.profile) });
+  let selection;
+  let inventory;
+  if (options.profile === "transition") {
+    inventory = repositoryInventory(projectRoot);
+    const base = String(
+      execFileSync("git", ["rev-parse", "origin/main"], { cwd: projectRoot }),
+    ).trim();
+    const validationPlan = discoverCiPlan({
+      eventName: "pull_request",
+      baseSha: base,
+      headSha: inventory.head,
+      checkoutSha: inventory.head,
+      fastValidationEnabled: true,
+      proseOnlyEnabled: true,
+    });
+    validateQualificationBinding({
+      plan: validationPlan,
+      digest: validationPlan.digest,
+      checkout: inventory.head,
+    });
+    const changes = parseRawDiff(
+      execFileSync(
+        "git",
+        [
+          "diff",
+          "--raw",
+          "-z",
+          "--find-renames",
+          validationPlan.identities.merge_base,
+          inventory.head,
+        ],
+        { cwd: projectRoot },
+      ),
+    );
+    const workingTreeStatus = String(
+      execFileSync("git", ["status", "--porcelain=v1", "--untracked-files=all"], {
+        cwd: projectRoot,
+      }),
+    );
+    selection = selectTransitionAudit({ inventory, validationPlan, changes, workingTreeStatus });
+    console.log(`Transition selection: ${selection.reason}`);
+  } else selection = { profile: options.profile, stages: auditStagesForProfile(options.profile) };
+  const plan = planAudit({
+    fresh: options.profile === "transition" || options.fresh,
+    stages: selection.stages,
+    profile: selection.profile,
+    ...(inventory ? { inventory } : {}),
+  });
   displayPlan(plan);
   if (options.planOnly) return;
   const result = executeAudit(plan);
@@ -754,7 +889,11 @@ export function main(argv = process.argv.slice(2)) {
       .map((entry) => entry.id);
     throw new Error(`audit failed after all independent stages completed: ${failed.join(", ")}`);
   }
-  console.log("\nPortcove audit passed.");
+  console.log(
+    selection.profile === "complete"
+      ? "\nPortcove audit passed."
+      : `\nPortcove ${selection.profile} audit passed; complete exact-head hosted qualification remains required.`,
+  );
 }
 
 if (path.resolve(process.argv[1] ?? "") === fileURLToPath(import.meta.url)) {
