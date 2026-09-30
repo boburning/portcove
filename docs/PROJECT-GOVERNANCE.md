@@ -298,9 +298,14 @@ filter and all configured manual grouping/sorting rules in the UI, run `doctor`,
 record the change in the planning pull request. This selects a readiness commitment,
 not the next application version or a publication authorization.
 
-Within the same horizon, address release blockers and safety failures before
-optional scope. Manual order is the final tie-breaker. A dependency may move an
-item earlier; record the reason in the issue rather than freezing it in docs.
+Address immediate security or data-loss hazards and broken required validation
+first. Then prioritize bounded, demonstrated development improvements before
+ordinary feature expansion when they make remaining work faster, easier to
+change, less repetitive or less failure-prone. This execution preference does
+not change release commitments or turn optional cleanup into a prerequisite for
+every feature. Manual order is the final tie-breaker within otherwise equivalent
+work. A genuine dependency may move an item earlier; record the reason in the
+issue rather than freezing the queue in docs.
 
 Coordinate application maturity and compatible catalog freshness in these same
 queues and views; no additional workstream is needed. A high-priority active Port
