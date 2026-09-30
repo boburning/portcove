@@ -104,9 +104,23 @@ neither a universal abstraction nor a duplicate lifecycle is the entry price.
 Use the existing queue for both application maturity and catalog freshness.
 High-priority active port work can be Opportunistic for a release: absence does
 not block that release, but the work need not always wait. Bound work in progress
-and give safety/release blockers precedence. Before independent delivery ships,
+and give immediate security/data-loss hazards and broken required validation
+precedence. Before independent delivery ships,
 compatible additions may still require application releases; preserve that
 transitional route without claiming format-1 clients can load new definitions.
+
+Within that boundary, prioritize demonstrated improvements that make remaining
+development faster, easier to change, less repetitive or less failure-prone
+before ordinary feature expansion. Bound each improvement by its evidence,
+consumers and a useful completion or no-change decision. Execution priority does
+not promote an optional improvement into a release gate or make every feature
+wait for architecture cleanup.
+
+Component implementation, integration handoff and final release evidence are
+distinct. Develop components against tested narrow interfaces; the downstream
+owner retains the complete integrated commitment. Credit completed scoped proof
+without treating a partial delivery as parent completion or repeatedly testing
+it solely to refresh tracking.
 
 The long-term operating test is an extended absence from routine maintainer
 work: installed libraries remain usable, accepted routine releases keep arriving,
@@ -120,14 +134,19 @@ Artwork should provide useful account-free defaults, explicit local choices and
 cached display that never delays installation or play. Existing owners
 [#208](https://github.com/boburning/portcove/issues/208) and
 [#206](https://github.com/boburning/portcove/issues/206) own the shared foundation
-and presentation within the flagship outcome. Start with recognizable covers,
-permitted defaults and generated fallbacks; optional wide imagery, a complete
-asset pipeline and artwork for every entry are not release gates.
+and presentation within the flagship outcome.
+[#1155](https://github.com/boburning/portcove/issues/1155) owns the Required
+Public beta account-free default-cover experience, measured coverage against a
+recorded catalog snapshot with finite exceptions, ongoing intake and repair, and
+artwork-only correction for capable unchanged clients. Optional wide imagery
+and a complete bundled archive for a first-ever disconnected launch are not
+release gates. Missing artwork never blocks an individual port's availability.
 
 For each slot, prefer an explicit user choice, then a usable catalog default,
 then an automatic provider choice only when enabled, then generated fallback.
-Availability does not erase preference: catalog references cannot bypass provider
-setup, and refreshes or rankings cannot replace explicit selections. Shared Rust
+Availability does not erase preference: personal provider references cannot
+bypass provider setup; accepted account-free defaults do not require it.
+Refreshes or rankings cannot replace explicit selections. Shared Rust
 services own selection, sparse exact-port/original-game mappings, provenance,
 safe ingestion and cache policy; hosts own dialogs, secure credentials and display
 bridging. React presents that state. Public machine contracts must evolve

@@ -131,7 +131,7 @@ The launcher creates the temporary, packaging, and pnpm directories after a succ
 On a host where the workspace volume is rotational, sustained fixture-heavy
 validation can saturate that volume even after cross-worktree Rust admission is
 serialized. Set `PORTCOVE_TEMP_DIR` to a unique directory for this worktree on a
-non-system SSD before invoking the normal `just` entrypoint. The storage
+policy-permitted SSD before invoking the normal `just` entrypoint. The storage
 preflight reports the resolved volume and enforces the same free-space floor.
 Do not share one scratch directory between worktrees, and do not treat this
 controlled local scratch relocation as packaged, production-feed, or
@@ -140,7 +140,7 @@ isolated validation checkout is deliberately located on that SSD.
 
 Required CI runs the storage regression suite in both the Windows `rust` job and Linux `rust-quality` job. CI, release, and deep-quality workflows export the workspace store before pnpm cache discovery, so the cached directory and the install directory agree even when a setup action runs from the repository root.
 
-Run rust-analyzer from the non-system-volume workspace so its Cargo metadata resolves the same `target` directory. Do not create validation-mode-specific target directories unless a tool proves that isolation is required. These controls cover repository build and scratch data; they do not relocate installed tools, Cargo's global registry, or other user-level caches. Native executables receive their arguments directly. Windows batch shims support spaced arguments but reject shell expansion/control characters rather than interpreting them.
+Run rust-analyzer from the selected workspace so its Cargo metadata resolves the same `target` directory. That workspace must satisfy the effective machine-local policy as well as portable repository checks. Do not create validation-mode-specific target directories unless a tool proves that isolation is required. These controls cover repository build and scratch data; they do not relocate installed tools, Cargo's global registry, or other user-level caches. Native executables receive their arguments directly. Windows batch shims support spaced arguments but reject shell expansion/control characters rather than interpreting them.
 
 Use the explicit cleanup command when the shared Cargo tree is no longer needed:
 

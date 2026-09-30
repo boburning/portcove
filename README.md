@@ -138,7 +138,7 @@ Requirements:
 - pnpm 12.4.2
 - the [Tauri 2 platform prerequisites](https://v2.tauri.app/start/prerequisites/)
 
-On Windows, keep the checkout on a non-system drive. The repository preflight blocks heavy work when the workspace, build output, temporary data, or package store resolves to the system drive. See [docs/DEVELOPMENT-STORAGE.md](docs/DEVELOPMENT-STORAGE.md) for details.
+Development storage defaults are portable: a checkout may use the Windows system drive when its physical paths and free capacity pass preflight. Prefer an SSD for fixture-heavy work. A stricter machine-local policy can impose additional restrictions without changing repository defaults. See [docs/DEVELOPMENT-STORAGE.md](docs/DEVELOPMENT-STORAGE.md) for the storage checks and private-policy boundary.
 
 Run the desktop app from the repository root:
 
