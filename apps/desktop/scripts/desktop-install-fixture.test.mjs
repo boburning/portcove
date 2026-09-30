@@ -69,9 +69,9 @@ async function readOwnedProcessesIfPresent(marker) {
   }
 }
 
-function throwCleanupFailures(failures) {
+function throwFixtureFailures(failures, message = "Timeout fixture cleanup failed") {
   if (failures.length === 1) throw failures[0];
-  if (failures.length > 1) throw new AggregateError(failures, "Timeout fixture cleanup failed");
+  if (failures.length > 1) throw new AggregateError(failures, message);
 }
 
 async function cleanUpTimeoutFixture(output, marker, owned) {
@@ -85,8 +85,26 @@ async function cleanUpTimeoutFixture(output, marker, owned) {
     });
   }
   await captureCleanupFailure(failures, () => rm(output, { recursive: true, force: true }));
-  throwCleanupFailures(failures);
+  throwFixtureFailures(failures);
 }
+
+test("fixture failures preserve the original assertion and independent cleanup evidence", () => {
+  const primary = new Error("readiness failed");
+  const cleanup = new Error("owned process cleanup failed");
+  assert.throws(
+    () => throwFixtureFailures([primary]),
+    (error) => error === primary,
+  );
+  assert.throws(
+    () => throwFixtureFailures([primary, cleanup], "Assertion and cleanup failed"),
+    (error) => {
+      assert.ok(error instanceof AggregateError);
+      assert.deepEqual(error.errors, [primary, cleanup]);
+      assert.equal(error.message, "Assertion and cleanup failed");
+      return true;
+    },
+  );
+});
 
 test("install fixture is isolated, pinned, interruptible, and retryable", async () => {
   const output = await mkdtemp(path.join(tmpdir(), "portcove-install-fixture-"));
@@ -262,13 +280,10 @@ test.runIf(process.platform === "win32")(
         cleanupFailure = error;
       }
     }
-    if (primaryFailure && cleanupFailure)
-      throw new AggregateError(
-        [primaryFailure, cleanupFailure],
-        "Timeout assertion and its independent cleanup both failed",
-      );
-    if (primaryFailure) throw primaryFailure;
-    if (cleanupFailure) throw cleanupFailure;
+    throwFixtureFailures(
+      [primaryFailure, cleanupFailure].filter(Boolean),
+      "Timeout assertion and its independent cleanup both failed",
+    );
   },
   30_000,
 );
