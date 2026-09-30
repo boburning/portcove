@@ -325,6 +325,18 @@ test("uncertain catalog changes and unavailable impact maps keep the broad CLI f
     );
     assert.ok(cli);
     assert.ok(!cli.args.includes("-E"));
+    for (const cliPath of [
+      "crates/portcove-cli/tests/machine_contract/artwork.rs",
+      "crates/portcove-cli/src/main.rs",
+    ]) {
+      const mixed = planFor([input, cliPath]).plan.filter((entry) =>
+        entry.id.startsWith("rust-tests:portcove-cli"),
+      );
+      assert.equal(mixed.length, 1);
+      assert.equal(mixed[0].id, "rust-tests:portcove-cli");
+      assert.ok(!mixed[0].args.includes("-E"));
+      assert.ok(!mixed[0].args.includes("--impact-union"));
+    }
   }
   const selection = classifyChanges([change(file)], { fileExists: allFilesExist });
   const plan = buildPlan(selection, { mergeBase: "base-sha", rustTestImpactMap: null });
