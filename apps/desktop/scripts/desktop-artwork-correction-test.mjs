@@ -113,6 +113,7 @@ export async function artworkCorrectionScenario({
       await click(By.xpath('//nav//button[contains(., "Settings")]'));
       await click(button("Manage catalog updates"));
       await browser.wait(until.elementLocated(dialog), 10000);
+      await browser.wait(until.elementLocated(By.id("catalog-public-key")), 10000);
     };
     const close = async () => {
       await click(button("Close"));
@@ -224,7 +225,8 @@ export async function artworkCorrectionScenario({
     );
     const before = (await status()).state_sha256;
     const invalid = path.join(output, "invalid-signature.json");
-    const tampered = JSON.parse(await readFile(blue.envelope, "utf8"));
+    const fresh = await signed(3, mappings.red, "fresh-signature");
+    const tampered = JSON.parse(await readFile(fresh.envelope, "utf8"));
     tampered.signature = "00".repeat(64);
     await writeFile(invalid, JSON.stringify(tampered), { flag: "wx" });
     artifacts.push(invalid);
@@ -234,6 +236,10 @@ export async function artworkCorrectionScenario({
       until.elementLocated(By.css('.catalog-update-dialog [role="alert"]')),
       10000,
     );
+    const signatureError = await browser
+      .findElement(By.css('.catalog-update-dialog [role="alert"]'))
+      .getText();
+    assert.match(signatureError, /catalog signature verification failed/i);
     assert.equal((await status()).state_sha256, before);
     await close();
     const stale = await signed(3, mappings.red, "stale");
@@ -241,12 +247,20 @@ export async function artworkCorrectionScenario({
     await review(stale.envelope);
     await browser.wait(until.elementLocated(By.css('[aria-label="Catalog update review"]')), 10000);
     const replacement = await signed(4, mappings.red, "replacement");
+    const reviewedBytes = await readFile(stale.envelope);
+    const reviewedCopy = path.join(output, "stale-reviewed-envelope.json");
+    await writeFile(reviewedCopy, reviewedBytes, { flag: "wx" });
+    artifacts.push(reviewedCopy);
     await writeFile(stale.envelope, await readFile(replacement.envelope));
     await click(button("Apply catalog update"));
     await browser.wait(
       until.elementLocated(By.css('.catalog-update-dialog [role="alert"]')),
       10000,
     );
+    const staleError = await browser
+      .findElement(By.css('.catalog-update-dialog [role="alert"]'))
+      .getText();
+    assert.match(staleError, /catalog candidate or trust changed/i);
     assert.equal((await status()).state_sha256, before);
     await close();
     assert.deepEqual(await render("igdb_cover"), corrected);
@@ -287,7 +301,11 @@ export async function artworkCorrectionScenario({
           localChoicePreserved: true,
           localOriginalPreserved: true,
           invalidSignatureRejected: true,
+          signatureError,
           changedReviewRejected: true,
+          staleError,
+          reviewedEnvelopeSha256: digest(reviewedBytes),
+          replacementEnvelopeSha256: digest(await readFile(stale.envelope)),
           withdrawalUsesFallback: true,
           cachedPixelsSurviveRestart: true,
         },
