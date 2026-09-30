@@ -180,6 +180,39 @@ export async function artworkCorrectionScenario({
       artifacts.push(filename);
     };
     const artwork = () => command(["artwork", "show", portId], library);
+    // Observe the error from the actual UI request, preserving its rejection.
+    // Qualification-only instrumentation; no replacement result or authority.
+    const rejection = async (name, action) => {
+      await browser.executeScript((name) => {
+        const original = window.__TAURI_INTERNALS__.invoke;
+        window.__artworkCorrectionError = null;
+        window.__artworkCorrectionInvoke = original;
+        window.__TAURI_INTERNALS__.invoke = function (command, ...args) {
+          return original.call(this, command, ...args).catch((error) => {
+            if (command === name) window.__artworkCorrectionError = error;
+            throw error;
+          });
+        };
+      }, name);
+      try {
+        await action();
+        await browser.wait(
+          () => browser.executeScript(() => Boolean(window.__artworkCorrectionError)),
+          10000,
+        );
+        await browser.wait(
+          until.elementLocated(By.css('.catalog-update-dialog [role="alert"]')),
+          10000,
+        );
+        return await browser.executeScript(() => window.__artworkCorrectionError);
+      } finally {
+        await browser.executeScript(() => {
+          window.__TAURI_INTERNALS__.invoke = window.__artworkCorrectionInvoke;
+          delete window.__artworkCorrectionInvoke;
+          delete window.__artworkCorrectionError;
+        });
+      }
+    };
     await open();
     await browser.findElement(By.id("catalog-public-key")).sendKeys(red.public_key);
     await click(button("Trust publisher"));
@@ -231,15 +264,9 @@ export async function artworkCorrectionScenario({
     await writeFile(invalid, JSON.stringify(tampered), { flag: "wx" });
     artifacts.push(invalid);
     await open();
-    await review(invalid);
-    await browser.wait(
-      until.elementLocated(By.css('.catalog-update-dialog [role="alert"]')),
-      10000,
-    );
-    const signatureError = await browser
-      .findElement(By.css('.catalog-update-dialog [role="alert"]'))
-      .getText();
-    assert.match(signatureError, /catalog signature verification failed/i);
+    const signatureError = await rejection("plan_catalog_update", () => review(invalid));
+    assert.equal(signatureError.code, "verification");
+    assert.match(signatureError.message, /catalog signature verification failed/i);
     assert.equal((await status()).state_sha256, before);
     await close();
     const stale = await signed(3, mappings.red, "stale");
@@ -252,15 +279,11 @@ export async function artworkCorrectionScenario({
     await writeFile(reviewedCopy, reviewedBytes, { flag: "wx" });
     artifacts.push(reviewedCopy);
     await writeFile(stale.envelope, await readFile(replacement.envelope));
-    await click(button("Apply catalog update"));
-    await browser.wait(
-      until.elementLocated(By.css('.catalog-update-dialog [role="alert"]')),
-      10000,
+    const staleError = await rejection("apply_catalog_update", () =>
+      click(button("Apply catalog update")),
     );
-    const staleError = await browser
-      .findElement(By.css('.catalog-update-dialog [role="alert"]'))
-      .getText();
-    assert.match(staleError, /catalog candidate or trust changed/i);
+    assert.equal(staleError.code, "conflict");
+    assert.match(staleError.message, /catalog candidate or trust changed/i);
     assert.equal((await status()).state_sha256, before);
     await close();
     assert.deepEqual(await render("igdb_cover"), corrected);
