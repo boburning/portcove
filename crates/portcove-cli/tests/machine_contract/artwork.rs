@@ -16,10 +16,31 @@ fn artwork_cli_preserves_choices_and_requires_explicit_unused_removal() {
         &library,
         &["--json", "artwork", "show", "zelda64-recomp"],
     ));
-    assert_eq!(
-        fallback["data"]["resolved_source"]["kind"],
-        "generated_fallback"
-    );
+    // The consumer default follows the real catalog; adding a cover must not
+    // invalidate local-choice and cleanup assertions or require a live fetch.
+    let catalog = portcove_core::Catalog::embedded().unwrap();
+    let mapping = catalog
+        .port("zelda64-recomp")
+        .unwrap()
+        .presentation
+        .as_ref()
+        .unwrap()
+        .artwork
+        .as_ref();
+    if let Some(mapping) = mapping {
+        assert_eq!(fallback["data"]["resolved_source"]["kind"], "igdb_cover");
+        assert_eq!(
+            fallback["data"]["resolved_source"]["artwork"],
+            serde_json::to_value(mapping).unwrap()
+        );
+    } else {
+        assert_eq!(
+            fallback["data"]["resolved_source"]["kind"],
+            "generated_fallback"
+        );
+    }
+    assert_eq!(fallback["data"]["choice"]["revision"], 0);
+    assert!(fallback["data"]["choice"]["asset_sha256"].is_null());
     assert_eq!(fallback["data"]["generated_fallback"]["style_version"], 1);
     assert_eq!(fallback["data"]["generated_fallback"]["initials"], "Z6");
     assert!(
@@ -92,6 +113,10 @@ fn artwork_cli_preserves_choices_and_requires_explicit_unused_removal() {
     );
     assert!(reset.status.success());
     let reset = json_stdout(&reset);
+    assert_eq!(
+        reset["data"]["resolved_source"],
+        fallback["data"]["resolved_source"]
+    );
     assert_eq!(
         reset["data"]["generated_fallback"],
         fallback["data"]["generated_fallback"]

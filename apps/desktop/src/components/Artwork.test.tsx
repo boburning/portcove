@@ -128,6 +128,10 @@ describe("local artwork controls", () => {
       ),
     );
     expect(container.querySelector(".artwork-image img")).not.toBeNull();
+    expect(container.querySelector(".artwork-image")?.classList).toContain(
+      "artwork-image-resolved",
+    );
+    expect(container.querySelector(".artwork-image")?.className).not.toMatch(/palette-\d/);
     expect(container.querySelector(".artwork-image")?.textContent).not.toContain("IGDB");
     expect(container.querySelector<HTMLAnchorElement>(".artwork-source a")?.href).toBe(
       "https://www.igdb.com/games/ship-of-harkinian",
@@ -156,6 +160,10 @@ describe("local artwork controls", () => {
     await click("cover", "Choose local image");
     expect(change).toHaveBeenLastCalledWith("sample", "cover", "E:/owned.png", 0, 7);
     expect(container.querySelector("img")?.alt).toBe("");
+    expect(container.querySelector(".artwork-image")?.classList).toContain(
+      "artwork-image-resolved",
+    );
+    expect(container.querySelector(".artwork-image")?.className).not.toMatch(/palette-\d/);
     expect(container.querySelector("h2")?.textContent).toContain("unusually long");
     expect(container.textContent).toContain("owned-image.png");
     expect(container.textContent).toContain("Not provided with this local image.");
@@ -165,6 +173,10 @@ describe("local artwork controls", () => {
     await click("cover", "Reset to default");
     expect(reset).toHaveBeenCalledWith("sample", "cover", 1, 7);
     expect(container.querySelector("img")).toBeNull();
+    expect(container.querySelector(".artwork-image")?.classList).toContain("palette-4");
+    expect(container.querySelector(".artwork-image")?.classList).not.toContain(
+      "artwork-image-resolved",
+    );
     expect(container.querySelector(".artwork-image > span")?.textContent).toBe("SF");
     expect(button("detail", "Reset to default").disabled).toBe(false);
     expect(choose).toHaveBeenCalledTimes(2);
@@ -238,6 +250,10 @@ describe("local artwork controls", () => {
     await open();
     const image = container.querySelector<HTMLImageElement>(".artwork-image img")!;
     await act(async () => image.dispatchEvent(new Event("error")));
+    expect(container.querySelector(".artwork-image")?.classList).toContain("palette-4");
+    expect(container.querySelector(".artwork-image")?.classList).not.toContain(
+      "artwork-image-resolved",
+    );
     expect(container.querySelector(".artwork-image > span")?.textContent).toBe("SF");
     expect(container.querySelector<HTMLElement>(".artwork-image")?.dataset.artworkSource).toBe(
       "generated_fallback",

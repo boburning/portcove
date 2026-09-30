@@ -924,6 +924,11 @@ h2 {
   object-fit: contain;
 }
 
+/* Real artwork owns its color; letterboxing follows the surrounding surface. */
+.artwork-image.artwork-image-resolved {
+  background: transparent;
+}
+
 .artwork-image-note {
   position: absolute;
   inset: auto 0 0;

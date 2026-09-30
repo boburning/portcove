@@ -19,11 +19,15 @@ export function ArtworkImage({
   const { display } = useArtwork(port.id, slot, visible);
   const image = display.image;
   const fallback = display.state?.generated_fallback;
-  const palette = fallback ? ` palette-${fallback.palette_index}` : "";
+  const presentation = image
+    ? " artwork-image-resolved"
+    : fallback
+      ? ` palette-${fallback.palette_index}`
+      : "";
   return (
     <div
       ref={element}
-      className={`artwork-image ${className}${palette}`}
+      className={`artwork-image ${className}${presentation}`}
       data-artwork-source={image ? display.state?.resolved_source.kind : "generated_fallback"}
       aria-hidden="true"
     >
