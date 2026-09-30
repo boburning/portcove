@@ -2,6 +2,7 @@ import { spawnSync } from "node:child_process";
 import { copyFile, mkdir, mkdtemp, readFile, rename, rm } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { runAqua } from "./tool-cache.mjs";
 
 const scriptPath = fileURLToPath(import.meta.url);
 const projectRoot = fileURLToPath(new URL("..", import.meta.url));
@@ -142,12 +143,14 @@ export function verifyPublisherDigests(entries, releases) {
 }
 
 function run(command, arguments_, options = {}) {
-  const result = spawnSync(command, arguments_, {
+  const settings = {
     cwd: options.cwd ?? projectRoot,
     encoding: "utf8",
     env: options.env ?? process.env,
     windowsHide: true,
-  });
+  };
+  const result =
+    command === "aqua" ? runAqua(arguments_, settings) : spawnSync(command, arguments_, settings);
   if (result.error) throw result.error;
   if (result.status !== 0)
     throw new Error(

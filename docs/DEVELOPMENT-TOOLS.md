@@ -46,6 +46,12 @@ prepend those shims and set Aqua and PowerShell module paths only for their chil
 processes. The bootstrap never changes the persistent user or machine `PATH` or
 environment.
 
+On Windows, Aqua-backed commands use the pinned cache executable directly after
+checking the existing checkout state, archive receipt and reported version. A
+stale machine `aqua.exe` cannot bypass the checkout's batch shim through native
+process lookup. Missing or mismatched cached inputs fail with the bootstrap
+repair command; commands do not install tools or change the persistent `PATH`.
+
 When an Aqua-managed package version changes in `aqua.yaml`, run
 `just aqua-integrity-update` before validation. The fixed-purpose updater invokes
 the pinned Aqua `update-checksum --prune` command against isolated staged copies,

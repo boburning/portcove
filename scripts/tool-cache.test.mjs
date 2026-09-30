@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -9,11 +10,166 @@ import {
   cachedDesktopDrivers,
   checkoutToolEnvironment,
   readToolState,
+  pinnedAquaCommand,
   toolCachePaths,
 } from "./tool-cache.mjs";
 
+function aquaFixture(t) {
+  const item = fixture();
+  t.after(() => rmSync(item.root, { recursive: true, force: true }));
+  item.paths.pins.bootstrap.aqua = { artifacts: { "win32-x64": { sha256: "C".repeat(64) } } };
+  mkdirSync(item.paths.shimDirectory, { recursive: true });
+  const state = {
+    format_version: 1,
+    pin_fingerprint: item.paths.pins.fingerprint,
+    shared_root: item.paths.sharedRoot,
+    shim_directory: item.paths.shimDirectory,
+    aqua: item.paths.aquaExecutable,
+  };
+  writeFileSync(item.paths.statePath, JSON.stringify(state));
+  mkdirSync(path.dirname(item.paths.aquaExecutable), { recursive: true });
+  const receipt = { version: item.paths.pins.aquaSemver, archive_sha256: "C".repeat(64) };
+  writeFileSync(`${item.paths.aquaExecutable}.receipt.json`, JSON.stringify(receipt));
+  return { ...item, state, receipt };
+}
+
+test("pinned Aqua ignores a conflicting PATH executable and preserves child-only environment", (t) => {
+  const item = aquaFixture(t);
+  const environment = { Path: "C:\\old-machine-tools", marker: "unchanged" };
+  const calls = [];
+  const executable = pinnedAquaCommand({
+    paths: item.paths,
+    platform: "win32",
+    architecture: "x64",
+    environment,
+    probe: (command, args, options) => {
+      calls.push({ command, args, options });
+      return { status: 0, stdout: "aqua version 2.62.3\r\n" };
+    },
+  });
+  assert.equal(executable, item.paths.aquaExecutable);
+  assert.deepEqual(calls[0].args, ["--version"]);
+  assert.equal(calls[0].command, executable);
+  assert.equal(calls[0].options.cwd, item.paths.projectRoot);
+  assert.equal(calls[0].options.env.AQUA_ROOT_DIR, item.paths.aquaRoot);
+  assert.equal(environment.Path, "C:\\old-machine-tools");
+  assert.equal(environment.AQUA_ROOT_DIR, undefined);
+});
+
+test("pinned Aqua fails closed on absent, stale or corrupt cache identities without PATH probing", (t) => {
+  const item = aquaFixture(t);
+  let probes = 0;
+  const options = {
+    paths: item.paths,
+    platform: "win32",
+    architecture: "x64",
+    probe: () => {
+      probes++;
+      return { status: 0, stdout: "aqua version 2.62.3" };
+    },
+  };
+  for (const receipt of [
+    null,
+    "broken JSON",
+    { ...item.receipt, version: "2.61.0" },
+    { ...item.receipt, archive_sha256: "D".repeat(64) },
+  ]) {
+    if (receipt == null) rmSync(`${item.paths.aquaExecutable}.receipt.json`);
+    else
+      writeFileSync(
+        `${item.paths.aquaExecutable}.receipt.json`,
+        typeof receipt === "string" ? receipt : JSON.stringify(receipt),
+      );
+    assert.throws(() => pinnedAquaCommand(options), /cache receipt.*bootstrap-quality-tools/u);
+  }
+  writeFileSync(`${item.paths.aquaExecutable}.receipt.json`, JSON.stringify(item.receipt));
+  writeFileSync(
+    item.paths.statePath,
+    JSON.stringify({ ...item.state, aqua: "C:\\stale\\aqua.exe" }),
+  );
+  assert.throws(() => pinnedAquaCommand(options), /checkout state.*bootstrap-quality-tools/u);
+  rmSync(item.paths.statePath);
+  assert.throws(() => pinnedAquaCommand(options), /checkout state/u);
+  assert.equal(probes, 0);
+});
+
+test("pinned Aqua rejects missing, failed or wrong-version payloads without stale PATH fallback", (t) => {
+  const item = aquaFixture(t);
+  const options = { paths: item.paths, platform: "win32", architecture: "x64" };
+  assert.throws(() => pinnedAquaCommand(options), /executable is unavailable/u);
+  for (const result of [
+    { status: 0, stdout: "aqua version 2.61.0" },
+    { status: 1, stdout: "aqua version 2.62.3" },
+    { status: null, error: { code: "ETIMEDOUT" } },
+  ]) {
+    let command;
+    assert.throws(
+      () =>
+        pinnedAquaCommand({
+          ...options,
+          probe: (value) => {
+            command = value;
+            return result;
+          },
+        }),
+      /executable is unavailable/u,
+    );
+    assert.equal(command, item.paths.aquaExecutable);
+  }
+  assert.throws(
+    () => pinnedAquaCommand({ ...options, architecture: "unsupported" }),
+    /checkout state/u,
+  );
+});
+
+test("non-Windows Aqua retains the existing executable lookup", () => {
+  for (const platform of ["linux", "darwin"]) assert.equal(pinnedAquaCommand({ platform }), "aqua");
+});
+
+test("selected cached native executable preserves Unicode paths and literal arguments despite PATH collision", (t) => {
+  const item = aquaFixture(t);
+  // Node stands in for a native payload to inspect argv and executable identity.
+  // The injected version probe is fixture evidence, not a live Aqua version claim.
+  copyFileSync(process.execPath, item.paths.aquaExecutable);
+  const staleDirectory = path.join(item.root, "older PATH candidate");
+  mkdirSync(staleDirectory);
+  copyFileSync(process.execPath, path.join(staleDirectory, "aqua.exe"));
+  const key = Object.keys(process.env).find((name) => name.toLowerCase() === "path") ?? "PATH";
+  const environment = { ...process.env, [key]: staleDirectory };
+  const executable = pinnedAquaCommand({
+    paths: item.paths,
+    platform: "win32",
+    architecture: "x64",
+    environment,
+    probe: () => ({ status: 0, stdout: "aqua version 2.62.3" }),
+  });
+  const arguments_ = ["space here", "雪 café", "", "&|<>^%!$(literal)`", 'a"b'];
+  const result = spawnSync(
+    executable,
+    [
+      "-e",
+      "console.log(JSON.stringify({executable:process.execPath,args:process.argv.slice(1)}))",
+      "--",
+      ...arguments_,
+    ],
+    {
+      cwd: item.paths.projectRoot,
+      env: environment,
+      encoding: "utf8",
+      windowsHide: true,
+      timeout: 10_000,
+    },
+  );
+  assert.ifError(result.error);
+  assert.equal(result.status, 0, result.stderr);
+  const observed = JSON.parse(result.stdout);
+  assert.equal(observed.executable, item.paths.aquaExecutable);
+  assert.deepEqual(observed.args, arguments_);
+  assert.equal(environment[key], staleDirectory);
+});
+
 function fixture() {
-  const root = path.join(os.tmpdir(), `portcove-tool-cache-${process.pid}-${Date.now()}`);
+  const root = path.join(os.tmpdir(), `portcove tool cache 雪-${process.pid}-${Date.now()}`);
   const projectRoot = path.join(root, "checkout");
   const sharedRoot = path.join(root, "shared");
   mkdirSync(projectRoot, { recursive: true });
