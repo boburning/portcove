@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -23,7 +23,7 @@ import {
   canonicalTextBlob,
   validateReceipt,
 } from "./audit.mjs";
-import { buildValidationPlan } from "./validation-plan.mjs";
+import { buildValidationPlan, digestValidationPlan } from "./validation-plan.mjs";
 
 test("release audit profile delegates source and platform coverage without going empty", () => {
   const stages = auditStagesForProfile("release");
@@ -162,17 +162,43 @@ test("a clean local-policy transition keeps fresh contracts and complete hosted 
   assert.equal(context.validationPlan.qualification_required, true);
 });
 
-test("mixed, unknown and audit/routing authority changes retain the complete transition gate", () => {
+test("maintained hosted routing delegates unchanged suites only with exhaustive qualification", () => {
+  for (const pathname of [
+    "scripts/validation-plan.mjs",
+    "scripts/validation-plan.test.mjs",
+    "scripts/select-ci-plan.mjs",
+    "scripts/select-ci-plan.test.mjs",
+    "scripts/ci-workflow.test.mjs",
+    ".github/workflows/ci.yml",
+  ]) {
+    const context = transitionContext([pathname, "docs/QUALITY.md"]);
+    assert.equal(context.validationPlan.qualification_required, true);
+    assert.equal(selectTransitionAudit(context).profile, "transition");
+    const incomplete = structuredClone(context);
+    incomplete.validationPlan.groups = ["frontend"];
+    delete incomplete.validationPlan.digest;
+    incomplete.validationPlan.digest = digestValidationPlan(incomplete.validationPlan);
+    assert.throws(() => selectTransitionAudit(incomplete));
+    const fast = transitionContext([pathname]);
+    fast.validationPlan = transitionContext(["apps/desktop/src/App.tsx"]).validationPlan;
+    assert.throws(() => selectTransitionAudit(fast), /inventory/);
+  }
+});
+
+test("mixed, unknown and audit authority changes retain the complete transition gate", () => {
   for (const pathname of [
     "scripts/audit.mjs",
     "scripts/audit.test.mjs",
-    "scripts/validation-plan.mjs",
-    "scripts/select-ci-plan.mjs",
     "justfile",
     "Cargo.lock",
     "crates/portcove-core/src/lib.rs",
     "apps/desktop/src/App.tsx",
-    ".github/workflows/ci.yml",
+    ".github/workflows/qualification.yml",
+    ".github/workflows/release.yml",
+    "scripts/ci-result-gate.mjs",
+    "scripts/qualification-coverage.mjs",
+    "scripts/qualification-coverage.test.mjs",
+    ".github/qualification-coverage.json",
     "unknown.txt",
   ]) {
     assert.equal(
@@ -195,6 +221,46 @@ test("mixed, unknown and audit/routing authority changes retain the complete tra
       "complete",
     );
   }
+});
+
+test("candidate coverage constants cannot authorize their own reduced transition", (t) => {
+  const root = temporaryDirectory(t);
+  mkdirSync(path.join(root, "scripts"));
+  mkdirSync(path.join(root, ".github/workflows"), { recursive: true });
+  for (const filename of [
+    "scripts/audit.mjs",
+    "scripts/select-ci-plan.mjs",
+    "scripts/validation-plan.mjs",
+    "scripts/qualification-coverage.mjs",
+    ".github/qualification-coverage.json",
+    ".github/workflows/ci.yml",
+  ]) {
+    let contents = readFileSync(new URL(`../${filename}`, import.meta.url), "utf8");
+    if (filename === "scripts/validation-plan.mjs") {
+      contents = contents.replace('  "rust",\n', "").replace('  "windows-x86_64",\n', "");
+    }
+    writeFileSync(path.join(root, filename), contents);
+  }
+  const runner = `
+    import assert from 'node:assert/strict';
+    import {buildValidationPlan, validateQualificationBinding} from './scripts/validation-plan.mjs';
+    import {selectTransitionAudit} from './scripts/audit.mjs';
+    const context=JSON.parse(process.env.TRANSITION_FIXTURE);
+    context.validationPlan=buildValidationPlan({changes:context.changes,eventName:'pull_request',
+      base:'b'.repeat(40),mergeBase:'b'.repeat(40),head:context.inventory.head,checkout:context.inventory.head});
+    assert.equal(context.validationPlan.groups.includes('rust'),false);
+    assert.equal(context.validationPlan.platforms.includes('windows-x86_64'),false);
+    validateQualificationBinding({plan:context.validationPlan,digest:context.validationPlan.digest,checkout:context.inventory.head});
+    assert.throws(()=>selectTransitionAudit(context),/preserved qualification coverage/);
+  `;
+  execFileSync(process.execPath, ["--input-type=module", "-e", runner], {
+    cwd: root,
+    windowsHide: true,
+    env: {
+      ...process.env,
+      TRANSITION_FIXTURE: JSON.stringify(transitionContext(["scripts/validation-plan.mjs"])),
+    },
+  });
 });
 
 test("incomplete transition discovery cannot authorize a shorter audit", () => {

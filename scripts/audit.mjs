@@ -20,6 +20,7 @@ import {
   validationOwnershipForPath,
 } from "./validation-plan.mjs";
 import { discoverCiPlan, parseRawDiff } from "./select-ci-plan.mjs";
+import { validateQualificationCoverage } from "./qualification-coverage.mjs";
 
 const projectRoot = fileURLToPath(new URL("../", import.meta.url));
 const receiptFormat = 1;
@@ -83,8 +84,9 @@ export const RELEASE_AUDIT_STAGE_IDS = Object.freeze([
   "release-unit",
 ]);
 
-// Hosted routing, this selector, recipes and dependency inputs are deliberately
-// absent: a change to those authorities cannot select its own narrower audit.
+// This selector, recipes and dependency inputs remain absent. Maintained hosted
+// routing can delegate unchanged product suites only when the complete hosted
+// plan still requires every qualification group/platform; it cannot omit them.
 const transitionPaths = new Set([
   "scripts/local-validation.mjs",
   "scripts/local-validation.test.mjs",
@@ -93,6 +95,12 @@ const transitionPaths = new Set([
   ".config/rust-test-impact.json",
   "scripts/dev-storage.mjs",
   "scripts/dev-storage.test.mjs",
+  "scripts/validation-plan.mjs",
+  "scripts/validation-plan.test.mjs",
+  "scripts/select-ci-plan.mjs",
+  "scripts/select-ci-plan.test.mjs",
+  "scripts/ci-workflow.test.mjs",
+  ".github/workflows/ci.yml",
   "docs/QUALITY.md",
   "docs/DEVELOPMENT-TOOLS.md",
   "docs/DEVELOPMENT-STORAGE.md",
@@ -117,12 +125,32 @@ export function selectTransitionAudit({ inventory, validationPlan, changes, work
     changes.length === 0
   )
     throw new Error("transition audit lacks an exact complete source diff");
-  if (validationPlan.qualification_required)
+  if (validationPlan.qualification_required) {
+    // The plan module is eligible to change, so its own constants/validators
+    // cannot establish complete coverage. This preserved authority is excluded
+    // from transition eligibility together with its validator and result gates.
+    const coverage = JSON.parse(
+      readFileSync(path.join(projectRoot, ".github/qualification-coverage.json"), "utf8"),
+    );
+    validateQualificationCoverage(
+      coverage,
+      readFileSync(path.join(projectRoot, coverage.workflow), "utf8"),
+    );
+    if (
+      validationPlan.mode !== "qualification" ||
+      JSON.stringify([...validationPlan.groups].sort()) !==
+        JSON.stringify([...coverage.protected_contexts].sort()) ||
+      JSON.stringify([...validationPlan.platforms].sort()) !==
+        JSON.stringify([...coverage.platforms].sort())
+    ) {
+      throw new Error("transition plan omitted preserved qualification coverage");
+    }
     validateQualificationBinding({
       plan: validationPlan,
       digest: validationPlan.digest,
       checkout: inventory.head,
     });
+  }
   const paths = [...new Set(changes.flatMap((change) => [change.oldPath, change.newPath]))].sort();
   if (JSON.stringify(paths) !== JSON.stringify([...validationPlan.changed_files].sort()))
     throw new Error("transition audit diff inventory does not match the hosted plan");
