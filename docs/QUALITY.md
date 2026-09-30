@@ -1,5 +1,31 @@
 # Code quality and codebase intelligence
 
+## Everyday development
+
+Use the smallest checks that establish the changed behavior, then finish the
+complete diff-selected `just local-check`, independent review, and exact-head CI.
+Do not add an aggregate audit merely because a change has a pull request.
+
+- Presentation changes use affected component tests and existing real-component
+  scenarios. Run the native app when native interaction or presentation acceptance
+  changes; do not rebuild unrelated packages or repeat platform qualification.
+- Rust changes use the affected package or maintained operation-family selection.
+  Shared or uncertain impact keeps the existing broader fallback.
+- Tooling changes use their contract tests. A harness or synthetic image change
+  does not imply changed Rust behavior.
+- Validation-routing changes use adversarial selection tests, separate review and
+  the transition profile when eligible. Exhaustive exact-head hosted qualification
+  owns the unchanged product suites; do not duplicate them locally.
+
+Use a complete fresh audit for release investigation, changes to the audit
+selector itself, or an actual cross-cutting safety requirement. State the reason
+before starting it. After a failure, preserve its evidence and isolate the cause;
+repeat only invalidated obligations rather than restarting every passed stage.
+Equivalent evidence must satisfy the receipt rules below. A passing rerun alone
+does not repair a flaky check.
+
+## Setup
+
 Portcove uses one local quality interface for humans, CI, and coding agents. The bootstrap requires Cargo/Rust, Node 24, and PowerShell 7 on Windows or Bash on Linux/macOS. Install the pinned tools with:
 
 ```powershell
@@ -90,9 +116,10 @@ set of test identities from those groups before the union executes once. Every
 group reason and count is reported. Single-group plans retain their direct run.
 Deletions, renames, new or unknown paths
 continue to fail safely. A protected selector change qualifies under the pre-change
-policy, adversarial tests, a fresh audit, exhaustive hosted checks, and separate
-review. For a clean committed change confined to the existing local planner,
-Rust impact map, resource preflight and their tests or owning development docs,
+policy, adversarial tests, an eligible fresh transition audit, exhaustive hosted
+checks, and separate review. For a clean committed change confined to the existing
+local planner, Rust impact map, resource preflight, maintained hosted selector and
+CI workflow, and their tests or owning development docs,
 and whose actual hosted plan requires exhaustive qualification,
 `just audit --profile transition --fresh` runs fresh formatting, script lint,
 repository/development contracts, dependency policy and release-unit checks.
@@ -102,9 +129,13 @@ obligation, not a local receipt claim. Mixed, dirty, unknown, added, removed,
 renamed or non-regular inputs retain the complete audit. Standalone resource,
 impact-map or storage-document changes with fast/prose hosted coverage also
 retain the complete local audit; the profile never manufactures exhaustive CI
-authority. Audit selection itself,
-hosted routing/workflows, recipes and dependency inputs are excluded from this
-profile and cannot narrow their own transition. Existing release and deep audit
+authority. Audit selection itself, result gates, qualification/release workflows,
+recipes and dependency inputs are excluded from this profile and cannot narrow
+their own transition. Maintained hosted routing is eligible only while its actual
+exact-head plan still requires every qualification group and platform from the
+preserved `.github/qualification-coverage.json` and its excluded validator. A
+candidate's reduced coverage constants cannot authorize its own shorter gate.
+Existing release and deep audit
 stage selection remains unchanged. Partial-profile reports use separate filenames and never
 replace a complete audit report. Missing or incomplete discovery blocks execution.
 
@@ -231,7 +262,7 @@ qualification and cannot exempt themselves.
 A local full suite does not replace the selected hosted plan. Ordinary pull
 requests do not repeat `just check` or `just audit` merely to duplicate that
 coverage. Aggregate local commands remain useful for release preflight, an
-explicitly named acceptance requirement, a validation-contract transition, or
+explicitly named acceptance requirement, an ineligible validation transition, or
 diagnosing a hosted failure. Native desktop, installer, recovery, security,
 physical-platform, and human evidence remains separate and is still required
 when the issue's acceptance scope calls for it.
@@ -279,8 +310,10 @@ Disable the optimization immediately by setting
 entries from `scripts/select-ci-plan.mjs`, or reverting the classifier/wrapper
 change. Deactivation, reactivation, and any allowlist expansion are protected
 validation-contract changes: obtain the required independent authorization, add
-adversarial selector coverage, and run `just audit --fresh` before relying on
-them.
+adversarial selector coverage, and run the applicable pre-change transition gate
+before relying on them. Changes to production authority, permissions or protected
+result gates retain their separate authorization; an ordinary routing repair does
+not grant those privileges.
 
 ## Staged audit receipts
 
@@ -334,6 +367,15 @@ Representative hosted selection after explicit ownership routing:
 Renames and deletions classify both identities, mixed changes union their owners,
 and incomplete discovery authorizes no plan. Words such as `design`, `channel`, or
 `release` in an otherwise inert filename do not assign trust authority.
+
+The maintained native artwork-correction harness, its preparation/main consumers,
+two synthetic JPEG fixtures, and scenario catalog/test have explicit frontend
+ownership. Both frontend lanes run their Node contracts and context preflight;
+ordinary native acceptance still runs separately on the changed scenario. These
+qualification consumers do not change Rust, signed catalog inputs, or publisher
+authority. The exact inventory lives in the protected hosted selector. New or
+renamed unknown harness paths retain all-fast fallback; mixed product, native,
+signing, and policy changes retain their additional owners and qualification.
 
 Every completed audit writes a current-head run receipt listing the fingerprint,
 originating head, duration, rationale, and fresh/reused/failed result for every

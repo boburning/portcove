@@ -79,6 +79,55 @@ test("frontend and primary Rust paths receive focused fast plans", () => {
   assert.equal(rust.qualification_required, false);
 });
 
+test("maintained native scenario consumers retain contracts without unrelated Rust tests", () => {
+  const files = [
+    "apps/desktop/scripts/desktop-artwork-correction-test.mjs",
+    "apps/desktop/scripts/desktop-preparation-test.mjs",
+    "apps/desktop/scripts/desktop-test.mjs",
+    "apps/desktop/scripts/testdata/catalog-artwork-blue.jpg",
+    "apps/desktop/scripts/testdata/catalog-artwork-red.jpg",
+    "scripts/desktop-scenarios.mjs",
+    "scripts/desktop-scenarios.test.mjs",
+  ];
+  const result = plan(files.map((file) => change(file)));
+  assert.equal(result.mode, "fast");
+  assert.deepEqual(result.groups, ["frontend", "rust-quality"]);
+  assert.equal(result.fallback, null);
+  validateValidationPlan(result);
+  for (const file of files) {
+    for (const status of ["A", "M", "D"]) {
+      const selected = plan([
+        change(file, {
+          status,
+          oldMode: status === "A" ? "000000" : "100644",
+          newMode: status === "D" ? "000000" : "100644",
+        }),
+      ]);
+      assert.deepEqual(selected.groups, ["frontend", "rust-quality"]);
+      validateValidationPlan(selected);
+    }
+  }
+  assert.ok(
+    plan([change(files[0]), change("crates/portcove-core/src/artwork.rs")]).groups.includes("rust"),
+  );
+  assert.equal(
+    plan([change(files[0]), change("apps/desktop/src-tauri/src/lib.rs")]).mode,
+    "qualification",
+  );
+  assert.equal(plan([change(files[0]), change("scripts/sign-catalog.mjs")]).mode, "qualification");
+  assert.equal(
+    plan([change(files[0]), change("scripts/validation-plan.mjs")]).mode,
+    "qualification",
+  );
+  const unknown = plan([change(files[0]), change("apps/desktop/scripts/future-scenario.mjs")]);
+  assert.ok(unknown.groups.includes("rust"));
+  const renamed = plan([
+    change(files[0], { status: "R", newPath: "apps/desktop/scripts/new-scenario.mjs" }),
+  ]);
+  assert.ok(renamed.groups.includes("rust"));
+  assert.equal(plan([change(files[0], { newMode: "120000" })]).mode, "qualification");
+});
+
 test("validation authorities and GitHub policy always require qualification", () => {
   for (const path of [
     "scripts/validation-plan.mjs",

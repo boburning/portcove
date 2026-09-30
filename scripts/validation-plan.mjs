@@ -79,6 +79,19 @@ const protectedPolicyFiles = withNodeTestCompanions([
   "scripts/workflow-provenance.mjs",
 ]);
 
+// Maintained qualification consumers, not Rust/product/catalog inputs. Their
+// Node/context contracts run in frontend CI; actual native acceptance is separate.
+// New or renamed harness files stay unknown until their ownership is reviewed.
+const nativeScenarioFiles = new Set([
+  "apps/desktop/scripts/desktop-artwork-correction-test.mjs",
+  "apps/desktop/scripts/desktop-preparation-test.mjs",
+  "apps/desktop/scripts/desktop-test.mjs",
+  "apps/desktop/scripts/testdata/catalog-artwork-blue.jpg",
+  "apps/desktop/scripts/testdata/catalog-artwork-red.jpg",
+  "scripts/desktop-scenarios.mjs",
+  "scripts/desktop-scenarios.test.mjs",
+]);
+
 // This is the maintained inventory of executable release, packaging, signing,
 // qualification, and updater authorities. Node contract tests are protected
 // with their implementations so a gate cannot weaken its own required proof.
@@ -221,6 +234,7 @@ function classifyPath(file) {
   );
   match(
     file.startsWith("apps/desktop/src/") ||
+      nativeScenarioFiles.has(file) ||
       file.startsWith("apps/desktop/public/") ||
       /^apps\/desktop\/(?:index\.html|package\.json|tsconfig.*\.json|vite\.config\.[cm]?ts|stylelint\.config\.mjs)$/u.test(
         file,
@@ -252,9 +266,10 @@ function classifyPath(file) {
     hasPlatformSignal ? affectedPlatforms : qualificationPlatforms,
   );
   match(
-    file === "crates/portcove-core/catalog/catalog.json" ||
-      file.startsWith("crates/portcove-core/catalog/") ||
-      /(?:catalog|retcomm|source-provenance)/iu.test(file),
+    !nativeScenarioFiles.has(file) &&
+      (file === "crates/portcove-core/catalog/catalog.json" ||
+        file.startsWith("crates/portcove-core/catalog/") ||
+        /(?:catalog|retcomm|source-provenance)/iu.test(file)),
     "catalog",
     ["catalog", "rust", "rust-quality"],
     "catalog-or-source-contract",

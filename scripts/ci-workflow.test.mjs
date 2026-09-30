@@ -30,6 +30,23 @@ function jobSection(name, nextName) {
   return workflow.match(new RegExp(`^  ${name}:\\r?\\n([\\s\\S]*?)${end}`, "m"))?.[1] ?? "";
 }
 
+test("native scenario consumers keep Node and context contracts in both frontend lanes", () => {
+  for (const section of [
+    jobSection("fast_frontend", "fast_catalog"),
+    jobSection("frontend_full", "frontend"),
+  ]) {
+    assert.match(
+      section,
+      /scripts\/desktop-scenarios\.test\.mjs scripts\/desktop-verify\.test\.mjs scripts\/development-evidence\.test\.mjs scripts\/native-session-lock\.test\.mjs/,
+    );
+    assert.match(
+      section,
+      /node apps\/desktop\/scripts\/desktop-preparation-test\.mjs --context-preflight/,
+    );
+    assert.match(section, /pnpm install --frozen-lockfile/);
+  }
+});
+
 test("native design compatibility remains explicit, isolated, and non-publishing", () => {
   assert.match(nativeDesignCompatibilityWorkflow, /^ {2}workflow_dispatch:$/m);
   assert.doesNotMatch(nativeDesignCompatibilityWorkflow, /^ {2}(pull_request|push|schedule):/m);

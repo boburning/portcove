@@ -297,6 +297,11 @@ jobs:
       - run: pnpm lint
       - run: pnpm build
       - run: pnpm test
+      - name: Check maintained native scenario consumer contracts
+        run: |
+          node --test --test-timeout=30000 scripts/desktop-scenarios.test.mjs scripts/desktop-verify.test.mjs scripts/development-evidence.test.mjs scripts/native-session-lock.test.mjs
+          node apps/desktop/scripts/desktop-preparation-test.mjs --context-preflight
+        working-directory: .
       - name: Provision reviewed Chromium for browser composition
         run: pnpm browser:bootstrap
       - name: Test browser composition
@@ -798,6 +803,11 @@ jobs:
           node apps/desktop/scripts/generate-transport-types.mjs
           node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/transport-types.test.mjs
       - run: pnpm test
+      - name: Check maintained native scenario consumer contracts
+        run: |
+          node --test --test-timeout=30000 scripts/desktop-scenarios.test.mjs scripts/desktop-verify.test.mjs scripts/development-evidence.test.mjs scripts/native-session-lock.test.mjs
+          node apps/desktop/scripts/desktop-preparation-test.mjs --context-preflight
+        working-directory: .
       - name: Provision reviewed Chromium for browser composition
         run: pnpm browser:bootstrap
       - name: Test browser composition
