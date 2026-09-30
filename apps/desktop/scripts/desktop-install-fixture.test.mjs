@@ -3,8 +3,10 @@ import { createHash } from "node:crypto";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { setTimeout as scheduleRealTime } from "node:timers";
+import { setTimeout as waitRealTime } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
-import { test } from "vitest";
+import { test, vi } from "vitest";
 import {
   createInstallFixture,
   INSTALL_FIXTURE_PORT_ID,
@@ -17,9 +19,9 @@ const root = fileURLToPath(new URL("../../..", import.meta.url));
 
 async function waitFor(predicate, message) {
   const deadline = Date.now() + 5_000;
-  while (!predicate()) {
+  while (!(await predicate())) {
     if (Date.now() >= deadline) throw new Error(message);
-    await new Promise((resolve) => setTimeout(resolve, 20));
+    await waitRealTime(20);
   }
 }
 
@@ -174,38 +176,85 @@ test("unselected install scenarios do not require an initialized fixture", async
 });
 
 test.runIf(process.platform === "win32")(
-  "lifecycle timeout terminates its owned descendant process tree within a second bound",
+  "lifecycle timeout terminates a ready descendant process tree within a second bound",
   async () => {
     const output = await mkdtemp(path.join(tmpdir(), "portcove-lifecycle-timeout-"));
     const marker = path.join(output, "descendant.pid");
+    const descendant = [
+      'const { writeFileSync, renameSync } = require("node:fs");',
+      'const temporary = process.argv[1] + ".tmp";',
+      "writeFileSync(temporary, JSON.stringify({ parent: process.ppid, descendant: process.pid }));",
+      "renameSync(temporary, process.argv[1]);",
+      "setInterval(() => {}, 1000);",
+    ].join(" ");
     const child = [
       'const { spawn } = require("node:child_process");',
-      'const { writeFileSync } = require("node:fs");',
-      'const descendant = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"], { stdio: "ignore" });',
-      "writeFileSync(process.argv[1], JSON.stringify({ parent: process.pid, descendant: descendant.pid }));",
+      // Deliberately exceed the execution timeout: startup is a distinct prerequisite.
+      `setTimeout(() => spawn(process.execPath, ["-e", ${JSON.stringify(descendant)}, process.argv[1]], { stdio: "ignore" }), 350);`,
       "setInterval(() => {}, 1000);",
     ].join(" ");
 
     let owned;
     let primaryFailure;
     let cleanupFailure;
+    let expire;
+    let timedOut;
+    let observationFinished = false;
+    let executionExpired = false;
     try {
+      // Hold only the first execution deadline until readiness. The secondary
+      // close bound and all child processes keep their real timers.
+      const timer = vi.spyOn(globalThis, "setTimeout").mockImplementationOnce((callback, delay) => {
+        assert.equal(delay, 250);
+        expire = () => {
+          if (executionExpired || observationFinished) return;
+          executionExpired = true;
+          callback();
+        };
+        return scheduleRealTime(() => {}, 5_000);
+      });
+      timedOut = assert
+        .rejects(
+          runLifecycleCommand(process.execPath, ["-e", child, marker], {
+            echo: false,
+            timeout: 250,
+          }),
+          /timed out after 250ms/,
+        )
+        .then(
+          () => {
+            observationFinished = true;
+          },
+          (error) => {
+            observationFinished = true;
+            return error;
+          },
+        );
+      timer.mockRestore();
+      await waitFor(async () => {
+        owned = await readOwnedProcessesIfPresent(marker);
+        return Boolean(owned);
+      }, "owned descendant did not become ready within the existing startup bound");
+      assert.ok(Number.isInteger(owned.parent) && Number.isInteger(owned.descendant));
+      process.kill(owned.parent, 0);
+      process.kill(owned.descendant, 0);
+      assert.equal(typeof expire, "function", "execution timeout must remain armed at 250ms");
       const startedAt = Date.now();
-      await assert.rejects(
-        runLifecycleCommand(process.execPath, ["-e", child, marker], {
-          echo: false,
-          timeout: 250,
-        }),
-        /timed out after 250ms/,
-      );
+      expire();
+      const timeoutFailure = await timedOut;
+      if (timeoutFailure) throw timeoutFailure;
       assert.ok(Date.now() - startedAt < 8_000, "timeout path exceeded its secondary bound");
-      owned = await readOwnedProcesses(marker);
       await waitForProcessExit(owned.descendant);
+      await waitForProcessExit(owned.parent);
     } catch (error) {
       primaryFailure = error;
     } finally {
+      vi.restoreAllMocks();
       try {
+        expire?.();
         await cleanUpTimeoutFixture(output, marker, owned);
+        const timeoutFailure = await timedOut;
+        if (timeoutFailure) throw timeoutFailure;
       } catch (error) {
         cleanupFailure = error;
       }
