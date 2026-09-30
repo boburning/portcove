@@ -138,6 +138,56 @@ test("module-local changes select their owned groups and union mixed impacts", (
   assert.match(selected.groups[1].reason, /source discovery/u);
 });
 
+test("source import selects its complete family and discovery consumers", () => {
+  const paths = [
+    "crates/portcove-core/src/source_import.rs",
+    "crates/portcove-core/src/source_import_tests.rs",
+  ];
+  const before = structuredClone(map);
+  before.packages["portcove-core"].groups = before.packages["portcove-core"].groups.filter(
+    (group) => group.id !== "source-import",
+  );
+  assert.equal(selectRustTestImpact(before, "portcove-core", paths.map(modified)).mode, "broad");
+  const selected = selectRustTestImpact(map, "portcove-core", paths.map(modified));
+  assert.equal(selected.mode, "focused");
+  assert.deepEqual(
+    selected.groups.map((group) => group.id),
+    ["source-import"],
+  );
+  assert.equal(
+    selected.groups[0].filter,
+    "test(/^source_import::tests::/) | test(/^source_discovery::tests::/)",
+  );
+  for (const shared of ["operation.rs", "service.rs", "database.rs", "types.rs", "lib.rs"]) {
+    assert.equal(
+      selectRustTestImpact(map, "portcove-core", [
+        ...paths.map(modified),
+        modified(`crates/portcove-core/src/${shared}`),
+      ]).mode,
+      "broad",
+      shared,
+    );
+  }
+  for (const change of [
+    { status: "D", path: paths[0] },
+    { status: "R", path: paths[0], previousPath: "crates/portcove-core/src/old_import.rs" },
+    { status: "M", path: "crates/portcove-core/src/new_import_helper.rs" },
+  ])
+    assert.equal(selectRustTestImpact(map, "portcove-core", [change]).mode, "broad");
+});
+
+test("source import mixed with inspection preserves both groups and overlapping consumers", () => {
+  const selected = selectRustTestImpact(map, "portcove-core", [
+    modified("crates/portcove-core/src/source_import.rs"),
+    modified("crates/portcove-core/src/source_discovery.rs"),
+  ]);
+  assert.deepEqual(
+    selected.groups.map((group) => group.id),
+    ["source-import", "source-inspection"],
+  );
+  for (const group of selected.groups) assert.match(group.filter, /source_discovery::tests::/u);
+});
+
 test("cross-cutting, manifest, unmapped addition, rename, and deletion changes use the broad fallback", () => {
   for (const change of [
     modified("crates/portcove-core/src/types.rs"),
