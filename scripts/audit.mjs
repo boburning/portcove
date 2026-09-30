@@ -110,7 +110,7 @@ export function selectTransitionAudit({ inventory, validationPlan, changes, work
   });
   if (validationPlan.identities.head !== inventory.head || !Array.isArray(changes))
     throw new Error("transition audit lacks an exact complete source diff");
-  const paths = changes.map((change) => change.newPath).sort();
+  const paths = [...new Set(changes.flatMap((change) => [change.oldPath, change.newPath]))].sort();
   if (JSON.stringify(paths) !== JSON.stringify([...validationPlan.changed_files].sort()))
     throw new Error("transition audit diff inventory does not match the hosted plan");
   if (!Array.isArray(inventory.files)) throw new Error("transition audit lacks a file inventory");

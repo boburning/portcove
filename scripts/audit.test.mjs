@@ -105,6 +105,28 @@ function transitionContext(paths, overrides = {}) {
   };
 }
 
+test("real rename and copy path unions retain the complete audit instead of failing discovery", () => {
+  for (const status of ["R", "C"]) {
+    const context = transitionContext(["scripts/local-validation.mjs", "docs/QUALITY.md"]);
+    context.changes[0] = {
+      ...context.changes[0],
+      status,
+      newPath: "scripts/renamed-local-validation.mjs",
+    };
+    context.validationPlan = buildValidationPlan({
+      changes: context.changes,
+      eventName: "pull_request",
+      base: "b".repeat(40),
+      mergeBase: "b".repeat(40),
+      head: context.inventory.head,
+      checkout: context.inventory.head,
+    });
+    context.inventory.files.push(file("scripts/renamed-local-validation.mjs", "fixture"));
+    assert.equal(selectTransitionAudit(context).profile, "complete", status);
+    assert.equal(context.validationPlan.changed_files.length, 3);
+  }
+});
+
 test("a clean local-policy transition keeps fresh contracts and complete hosted qualification", () => {
   const context = transitionContext(["scripts/local-validation.mjs", "docs/QUALITY.md"]);
   const selected = selectTransitionAudit(context);
