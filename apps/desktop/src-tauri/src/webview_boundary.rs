@@ -118,9 +118,9 @@ mod tests {
         let development = Url::parse("http://localhost:1420").unwrap();
         let application = application_origin(false);
         for path in [
-            "/index.html",
-            "/index.html?mode=library#port",
-            "/assets/index.js",
+            "index.html",
+            "index.html?mode=library#port",
+            "assets/index.js",
         ] {
             assert!(trusted_navigation(
                 &application.join(path).unwrap(),
@@ -181,7 +181,7 @@ mod tests {
         let expected = if cfg!(any(windows, target_os = "android")) {
             "https://tauri.localhost/"
         } else {
-            "tauri://localhost/"
+            "tauri://localhost"
         };
         assert_eq!(application_origin(true).as_str(), expected);
     }

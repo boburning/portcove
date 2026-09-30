@@ -1,23 +1,16 @@
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import path from "node:path";
-import { parseArgs } from "node:util";
-import { startEmbeddedInstalledSession } from "./desktop-windows-embedded-session.mjs";
+import {
+  beginEmbeddedEvidence,
+  startEmbeddedInstalledSession,
+} from "./desktop-windows-embedded-session.mjs";
 
-const { values } = parseArgs({
-  options: { app: { type: "string" }, output: { type: "string" } },
-});
-for (const name of ["app", "output"]) assert.ok(values[name] && path.isAbsolute(values[name]));
-await mkdir(values.output, { recursive: false });
-const report = {
-  revision: execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim(),
-  method: "qualification-only-native-webview-boundary",
-  working_tree: execFileSync("git", ["status", "--porcelain"], { encoding: "utf8" }).trim(),
-  outcome: "failed",
-  observations: {},
-};
+const { values, report } = await beginEmbeddedEvidence(
+  "qualification-only-native-webview-boundary",
+);
+report.observations = {};
 const requests = [];
 const server = createServer((request, response) => {
   requests.push(request.url);
