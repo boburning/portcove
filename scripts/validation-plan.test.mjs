@@ -82,6 +82,7 @@ test("frontend and primary Rust paths receive focused fast plans", () => {
 test("maintained native scenario consumers retain contracts without unrelated Rust tests", () => {
   const files = [
     "apps/desktop/scripts/desktop-artwork-correction-test.mjs",
+    "apps/desktop/scripts/desktop-install-fixture.test.mjs",
     "apps/desktop/scripts/desktop-preparation-test.mjs",
     "apps/desktop/scripts/desktop-test.mjs",
     "apps/desktop/scripts/testdata/catalog-artwork-blue.jpg",
@@ -126,6 +127,25 @@ test("maintained native scenario consumers retain contracts without unrelated Ru
   ]);
   assert.ok(renamed.groups.includes("rust"));
   assert.equal(plan([change(files[0], { newMode: "120000" })]).mode, "qualification");
+});
+
+test("install fixture test ownership does not narrow its executable consumers", () => {
+  const assertion = "apps/desktop/scripts/desktop-install-fixture.test.mjs";
+  for (const executable of [
+    "apps/desktop/scripts/desktop-install-fixture.mjs",
+    "apps/desktop/scripts/desktop-install-test.mjs",
+  ]) {
+    const result = plan([change(assertion), change(executable)]);
+    assert.deepEqual(result.groups, fastGroups, executable);
+    assert.ok(result.fallback.paths.includes(executable), executable);
+  }
+  const lifecycle = plan([change(assertion), change("integrations/playnite/lifecycle-check.mjs")]);
+  assert.ok(lifecycle.groups.includes("rust"));
+  assert.deepEqual(lifecycle.platforms, qualificationPlatforms);
+  const unknownTest = "apps/desktop/scripts/future-install-fixture.test.mjs";
+  const renamed = plan([change(assertion, { status: "R", newPath: unknownTest })]);
+  assert.deepEqual(renamed.groups, fastGroups);
+  assert.ok(renamed.fallback.paths.includes(unknownTest));
 });
 
 test("validation authorities and GitHub policy always require qualification", () => {

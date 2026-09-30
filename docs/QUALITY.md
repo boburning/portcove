@@ -377,6 +377,13 @@ authority. The exact inventory lives in the protected hosted selector. New or
 renamed unknown harness paths retain all-fast fallback; mixed product, native,
 signing, and policy changes retain their additional owners and qualification.
 
+The reviewed `apps/desktop/scripts/desktop-install-fixture.test.mjs` assertion
+file also belongs to frontend validation: both frontend lanes discover its
+Vitest cases. Its Windows-only process-tree case still requires actual Windows
+execution when changed; a Linux skip does not supply that evidence. This exact
+test ownership does not narrow its fixture, scenario or Playnite lifecycle
+implementations, which retain their existing conservative/native selection.
+
 Every completed audit writes a current-head run receipt listing the fingerprint,
 originating head, duration, rationale, and fresh/reused/failed result for every
 applicable stage. These files are disposable local execution evidence. They do not
