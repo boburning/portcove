@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+
 const nativeResources = ["native-desktop", "keyboard-pointer"];
 
 function scenario(id, description, options = {}) {
@@ -421,5 +423,14 @@ export function catalogReport() {
 
 export function desktopHarnessDeadlineMs(selection) {
   const executed = selection.selected_scenarios.length + selection.setup_scenarios.length;
-  return executed > 8 ? 10 * 60_000 : 3 * 60_000;
+  const ordinary = executed > 8 ? 10 * 60_000 : 3 * 60_000;
+  if (!selection.selected_scenarios.includes("native-default-cover-display")) return ordinary;
+  const catalog = JSON.parse(
+    readFileSync(new URL("../crates/portcove-core/catalog/catalog.json", import.meta.url), "utf8"),
+  );
+  const covers = catalog.ports.filter((port) => port.presentation?.artwork).length;
+  // Two themes per cover: existing card location (10s), image (15s), settling
+  // (5s), and bounded navigation/capture allowance (10s). The detail subset
+  // adds its existing waits. Individual deadlines and routine profiles stay fixed.
+  return ordinary + covers * 2 * 40_000 + Math.min(covers, 12) * 2 * 30_000;
 }
