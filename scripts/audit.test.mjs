@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
+import { execFileSync } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -19,6 +20,7 @@ import {
   parseIndex,
   planAudit,
   repositoryInventory,
+  canonicalTextBlob,
   validateReceipt,
 } from "./audit.mjs";
 import { buildValidationPlan } from "./validation-plan.mjs";
@@ -296,6 +298,57 @@ test("repository inventory binds tracked Git blobs to current content", () => {
   assert.equal(cargo.kind, "file");
   assert.ok(cargo.sha256);
   assert.ok(cargo.domains.includes("rust"));
+});
+
+test("canonical text identity permits only explicit UTF-8 LF conversion without filters", () => {
+  const attributes = {
+    text: "auto",
+    eol: "lf",
+    filter: "unspecified",
+    "working-tree-encoding": "unspecified",
+  };
+  const contents = Buffer.from("first\r\nsecond\r\n");
+  const expected = file("docs/QUALITY.md", "first\nsecond\n").gitBlob;
+  assert.equal(canonicalTextBlob(contents, "sha1", attributes), expected);
+  for (const override of [
+    { text: "unset" },
+    { eol: "crlf" },
+    { eol: "unspecified" },
+    { filter: "custom" },
+    { "working-tree-encoding": "UTF-16" },
+  ])
+    assert.equal(canonicalTextBlob(contents, "sha1", { ...attributes, ...override }), null);
+  for (const bytes of [Buffer.from([255, 13, 10]), Buffer.from("binary\0\r\n")])
+    assert.equal(canonicalTextBlob(bytes, "sha1", attributes), null);
+  assert.notEqual(canonicalTextBlob(Buffer.from("changed\r\n"), "sha1", attributes), expected);
+});
+
+test("actual clean Git LF-text checkout qualifies while raw fingerprints remain distinct", (t) => {
+  const root = temporaryDirectory(t);
+  const run = (...args) =>
+    execFileSync("git", ["-C", root, ...args], { encoding: "utf8", windowsHide: true });
+  run("init", "-q");
+  run("config", "user.name", "Audit fixture");
+  run("config", "user.email", "audit@portcove.invalid");
+  run("config", "core.autocrlf", "false");
+  writeFileSync(path.join(root, ".gitattributes"), "*.md text eol=lf\n");
+  writeFileSync(path.join(root, "example.md"), "same\ntext\n");
+  run("add", ".");
+  run("commit", "-qm", "LF fixture");
+  const lf = repositoryInventory(root);
+  writeFileSync(path.join(root, "example.md"), "same\r\ntext\r\n");
+  run("add", "example.md");
+  assert.equal(run("status", "--porcelain").trim(), "");
+  const crlf = repositoryInventory(root);
+  const entry = crlf.files.find((item) => item.path === "example.md");
+  assert.notEqual(entry.gitBlob, entry.indexBlob);
+  assert.equal(entry.canonicalTextBlob, entry.indexBlob);
+  assert.notEqual(entry.sha256, lf.files.find((item) => item.path === "example.md").sha256);
+  const context = transitionContext(["docs/QUALITY.md"]);
+  context.inventory.files.push(entry);
+  assert.equal(selectTransitionAudit(context).profile, "transition");
+  entry.canonicalTextBlob = "0".repeat(40);
+  assert.equal(selectTransitionAudit(context).profile, "complete");
 });
 
 test("domain inventories retain unrelated documentation rebases and invalidate Rust changes", () => {

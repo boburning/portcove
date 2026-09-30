@@ -108,6 +108,12 @@ profile and cannot narrow their own transition. Existing release and deep audit
 stage selection remains unchanged. Partial-profile reports use separate filenames and never
 replace a complete audit report. Missing or incomplete discovery blocks execution.
 
+Git-clean text may retain CRLF worktree bytes when explicit Git attributes select
+LF text. Inventory permits only UTF-8 CRLF-to-LF equivalence with no clean filter
+or alternate encoding; binary, unknown attributes and other changed bytes retain
+complete fallback. Raw bytes remain in stage fingerprints, so this comparison
+does not reuse a different worktree's successful receipt.
+
 Unchanged host-tool fixtures and containment supervisors may reuse only their
 compiled product after complete input/toolchain/target/flag/environment identity,
 trusted atomic publication, corruption/interruption rejection, provenance and

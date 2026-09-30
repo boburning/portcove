@@ -61,7 +61,6 @@ const gate=setInterval(()=>{
       } finally {
         clearTimeout(timer);
       }
-      await assert.rejects(session.connect());
       descendant = JSON.parse(await readFile(marker, "utf8")).pid;
       const alive = spawnSync(
         "pwsh",
@@ -77,6 +76,9 @@ const gate=setInterval(()=>{
       assert.equal(surviving.ProcessId, descendant);
       assert.equal(surviving.ParentProcessId, session.child.pid);
       assert.equal(surviving.ExecutablePath.toLowerCase(), process.execPath.toLowerCase());
+      // Establish liveness before connect's bounded but potentially slow CIM
+      // rejection; the finite descendant can then exit without invalidating it.
+      await assert.rejects(session.connect());
       assert.ok(
         !session.startup.processes.some((entry) => entry.pid === descendant),
         "fixture descendant must be created after initial capture",
