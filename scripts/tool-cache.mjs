@@ -154,13 +154,39 @@ export function readToolState(options = {}) {
   return state;
 }
 
+let windowsOSArchitecture;
+
+function readWindowsOSArchitecture() {
+  if (windowsOSArchitecture) return windowsOSArchitecture;
+  const result = spawnSync(
+    "pwsh",
+    [
+      "-NoProfile",
+      "-Command",
+      "[Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString().ToLowerInvariant()",
+    ],
+    { encoding: "utf8", windowsHide: true, timeout: 5_000 },
+  );
+  const architecture = result.stdout?.trim();
+  if (result.error || result.status !== 0 || !["x64", "arm64"].includes(architecture))
+    throw new Error(
+      "Windows OS architecture is unavailable; inspect the required PowerShell setup",
+    );
+  // OS architecture is immutable for this bounded command process; no tool,
+  // receipt, output or authorization is reused through this observation.
+  windowsOSArchitecture = architecture;
+  return architecture;
+}
+
 export function pinnedAquaCommand(options = {}) {
   const platform = options.platform ?? process.platform;
   if (platform !== "win32") return "aqua";
   const paths = options.paths ?? toolCachePaths(options);
   const state = readToolState({ paths });
   const artifact =
-    paths.pins.bootstrap.aqua?.artifacts?.[`win32-${options.architecture ?? process.arch}`];
+    paths.pins.bootstrap.aqua?.artifacts?.[
+      `win32-${options.osArchitecture ?? readWindowsOSArchitecture()}`
+    ];
   const repair = "run ./scripts/bootstrap-quality-tools.ps1";
   if (!artifact || state?.aqua !== paths.aquaExecutable)
     throw new Error(`Pinned Aqua checkout state is unavailable; ${repair}`);

@@ -40,7 +40,7 @@ test("pinned Aqua ignores a conflicting PATH executable and preserves child-only
   const executable = pinnedAquaCommand({
     paths: item.paths,
     platform: "win32",
-    architecture: "x64",
+    osArchitecture: "x64",
     environment,
     probe: (command, args, options) => {
       calls.push({ command, args, options });
@@ -62,7 +62,7 @@ test("pinned Aqua fails closed on absent, stale or corrupt cache identities with
   const options = {
     paths: item.paths,
     platform: "win32",
-    architecture: "x64",
+    osArchitecture: "x64",
     probe: () => {
       probes++;
       return { status: 0, stdout: "aqua version 2.62.3" };
@@ -95,7 +95,7 @@ test("pinned Aqua fails closed on absent, stale or corrupt cache identities with
 
 test("pinned Aqua rejects missing, failed or wrong-version payloads without stale PATH fallback", (t) => {
   const item = aquaFixture(t);
-  const options = { paths: item.paths, platform: "win32", architecture: "x64" };
+  const options = { paths: item.paths, platform: "win32", osArchitecture: "x64" };
   assert.throws(() => pinnedAquaCommand(options), /executable is unavailable/u);
   for (const result of [
     { status: 0, stdout: "aqua version 2.61.0" },
@@ -117,13 +117,37 @@ test("pinned Aqua rejects missing, failed or wrong-version payloads without stal
     assert.equal(command, item.paths.aquaExecutable);
   }
   assert.throws(
-    () => pinnedAquaCommand({ ...options, architecture: "unsupported" }),
+    () => pinnedAquaCommand({ ...options, osArchitecture: "unsupported" }),
     /checkout state/u,
   );
 });
 
 test("non-Windows Aqua retains the existing executable lookup", () => {
   for (const platform of ["linux", "darwin"]) assert.equal(pinnedAquaCommand({ platform }), "aqua");
+});
+
+test("Windows ARM64 receipts follow bootstrap OS architecture even with an x64 Node cache path", (t) => {
+  const item = aquaFixture(t);
+  item.paths.pins.bootstrap.aqua.artifacts["win32-arm64"] = { sha256: "D".repeat(64) };
+  writeFileSync(
+    `${item.paths.aquaExecutable}.receipt.json`,
+    JSON.stringify({
+      ...item.receipt,
+      archive_sha256: "D".repeat(64),
+    }),
+  );
+  assert.match(item.paths.aquaExecutable, /win32-x64/u);
+  const options = {
+    paths: item.paths,
+    platform: "win32",
+    osArchitecture: "arm64",
+    probe: () => ({ status: 0, stdout: "aqua version 2.62.3" }),
+  };
+  assert.equal(pinnedAquaCommand(options), item.paths.aquaExecutable);
+  assert.throws(
+    () => pinnedAquaCommand({ ...options, osArchitecture: "x64" }),
+    /cache receipt does not match/u,
+  );
 });
 
 test("selected cached native executable preserves Unicode paths and literal arguments despite PATH collision", (t) => {
@@ -139,7 +163,7 @@ test("selected cached native executable preserves Unicode paths and literal argu
   const executable = pinnedAquaCommand({
     paths: item.paths,
     platform: "win32",
-    architecture: "x64",
+    osArchitecture: "x64",
     environment,
     probe: () => ({ status: 0, stdout: "aqua version 2.62.3" }),
   });

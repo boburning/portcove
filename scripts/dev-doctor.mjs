@@ -215,7 +215,7 @@ export async function collectDoctor(options = {}) {
       id: "aqua",
       command: ["aqua", "--version"],
       version: aquaVersion,
-      paths: [cachePaths.aquaExecutable],
+      ...(process.platform === "win32" ? { paths: [cachePaths.aquaExecutable] } : {}),
       remediation: "./scripts/bootstrap-quality-tools.ps1",
     },
     ...aquaDefinitions(environment),
