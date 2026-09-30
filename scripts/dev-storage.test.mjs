@@ -17,11 +17,13 @@ import { fileURLToPath } from "node:url";
 import {
   childEnvironment,
   canonicalCheckoutCommand,
+  getPaths,
   isSideEffectFreeHelpCommand,
   isWindowsSystemDrivePath,
   minimumFreeGiB,
   parseArguments,
   preflight,
+  readStoragePolicy,
   resolvePhysicalPath,
   spawnCommand,
   validateCleanTarget,
@@ -156,8 +158,118 @@ test(
     const link = path.join(root, "redirected");
     symlinkSync(`${process.env.SystemDrive || "C:"}\\`, link, "junction");
     assert.throws(
-      () => preflight({ target_directory: path.join(link, "missing-portcove-target") }, 1),
+      () =>
+        preflight({ target_directory: path.join(link, "missing-portcove-target") }, 1, {
+          blockSystemDrive: true,
+        }),
       /system drive/,
+    );
+  },
+);
+
+test("portable defaults and explicit machine/environment restrictions are distinct", (t) => {
+  const configPath = path.join(fixture(t), "policy.json");
+  assert.deepEqual(readStoragePolicy({ configPath, environment: {} }), { blockSystemDrive: false });
+  assert.deepEqual(
+    readStoragePolicy({ configPath, environment: { PORTCOVE_BLOCK_SYSTEM_DRIVE: "1" } }),
+    { blockSystemDrive: true },
+  );
+  writeFileSync(configPath, JSON.stringify({ format: 1, blockSystemDrive: true }));
+  assert.equal(
+    readStoragePolicy({ configPath, environment: { PORTCOVE_BLOCK_SYSTEM_DRIVE: "0" } })
+      .blockSystemDrive,
+    true,
+  );
+  for (const contents of [
+    "broken",
+    '{"format":2,"blockSystemDrive":true}',
+    '{"format":1,"blockSystemDrive":"false"}',
+    '{"format":1,"blockSystemDrive":false,"unknown":true}',
+  ]) {
+    writeFileSync(configPath, contents);
+    assert.throws(() => readStoragePolicy({ configPath, environment: {} }), /policy/);
+  }
+  writeFileSync(configPath, '{"format":1,"blockSystemDrive":false}');
+  assert.throws(
+    () => readStoragePolicy({ configPath, environment: { PORTCOVE_BLOCK_SYSTEM_DRIVE: "false" } }),
+    /must be 0 or 1/,
+  );
+});
+
+test("light storage never resolves Cargo; Rust resolves actual metadata and unknown scopes fail", () => {
+  let calls = 0;
+  const metadataProvider = () => {
+    calls += 1;
+    return {
+      workspace_root: projectRoot,
+      target_directory: path.join(projectRoot, "redirected-target"),
+    };
+  };
+  for (const scope of ["frontend", "tooling"]) {
+    const paths = getPaths(scope, { metadataProvider });
+    assert.equal(paths.target_directory, undefined);
+    assert.equal(paths.tauri_generated, undefined);
+  }
+  assert.equal(calls, 0);
+  const rust = getPaths("rust", { metadataProvider });
+  assert.equal(calls, 1);
+  assert.equal(rust.target_directory, path.join(projectRoot, "redirected-target"));
+  assert.equal(rust.frontend_dependencies, undefined);
+  assert.equal(rust.pnpm_store, undefined);
+  const complete = getPaths("all", { metadataProvider });
+  assert.equal(calls, 2);
+  assert.ok(complete.tauri_generated);
+  assert.ok(complete.frontend_dependencies);
+  assert.throws(() => getPaths("unknown", { metadataProvider }), /Unknown storage task/);
+  assert.throws(
+    () =>
+      getPaths("rust", {
+        metadataProvider: () => ({
+          workspace_root: path.dirname(projectRoot),
+          target_directory: "target",
+        }),
+      }),
+    /does not match/,
+  );
+});
+
+test("frontend setup and execution work without Cargo or native output resolution", (t) => {
+  const root = workspace(t);
+  const overrides = { PATH: "", CARGO_TARGET_DIR: path.join(root, "not-a-directory") };
+  writeFileSync(overrides.CARGO_TARGET_DIR, "unrelated Rust path must not be inspected");
+  const result = cli(root, ["preflight", "--scope", "frontend", "--json"], overrides);
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(JSON.parse(result.stdout).target_directory, undefined);
+  const executed = cli(
+    root,
+    [
+      "run",
+      "--scope",
+      "frontend",
+      "--",
+      process.execPath,
+      "-e",
+      "require('fs').writeFileSync('ran', 'frontend')",
+    ],
+    overrides,
+  );
+  assert.equal(executed.status, 0, executed.stderr);
+  assert.equal(readFileSync(path.join(root, "ran"), "utf8"), "frontend");
+  const unknown = cli(root, ["run", "--", process.execPath, "-e", "process.exit(0)"], overrides);
+  assert.equal(unknown.status, 1);
+  assert.match(unknown.stderr, /cargo|ENOENT/);
+});
+
+test(
+  "ordinary Windows system-drive paths pass capacity checks while strict policy refuses",
+  { skip: process.platform !== "win32" },
+  () => {
+    const paths = { temporary_directory: `${process.env.SystemDrive || "C:"}\\` };
+    assert.doesNotThrow(() => preflight(paths, 1, { blockSystemDrive: false }));
+    assert.throws(() => preflight(paths, 1, { blockSystemDrive: true }), /system drive/);
+    assert.throws(
+      () => preflight(paths, 1_000_000_000, { blockSystemDrive: false }),
+      /needs at least/,
     );
   },
 );

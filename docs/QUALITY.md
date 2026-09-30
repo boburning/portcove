@@ -270,6 +270,13 @@ them.
 
 ## Staged audit receipts
 
+Local validation selects resource preflight from its actual command plan before
+execution: tooling/frontend scopes do not resolve Cargo or native outputs,
+Rust resolves actual Cargo storage, and mixed/unknown commands keep the complete
+scope. Capacity, physical-path and machine-policy checks run independently of
+successful test receipts. See [development storage](DEVELOPMENT-STORAGE.md#bootstrap-and-preflight)
+for portable defaults and the private strict Windows profile.
+
 `just audit` executes named formatting, Rust, UI, script-lint, repository-tooling, Roadmap,
 development-tool, dependency-policy, rscheck, release-unit, and applicable
 Windows-qualification stages. It continues independent stages after a failure

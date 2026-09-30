@@ -17,6 +17,7 @@ import {
   packagesWithDoctests,
   parseNameStatus,
   requireFocusedArguments,
+  storageScopeForPlan,
 } from "./local-validation.mjs";
 import { isExcludedOxfmtPath } from "./oxfmt-ownership.mjs";
 
@@ -37,6 +38,22 @@ function planFor(paths) {
     }),
   };
 }
+
+test("selected local resource scope follows actual commands and mixed or unknown work is conservative", () => {
+  assert.equal(storageScopeForPlan([{ id: "diff-check" }, { id: "node-tests" }]), "tooling");
+  assert.equal(storageScopeForPlan([{ id: "node-syntax:tool.mjs" }]), "tooling");
+  assert.equal(storageScopeForPlan(planFor(["docs/QUALITY.md"]).plan), "frontend");
+  assert.equal(
+    storageScopeForPlan(planFor(["apps/desktop/src/features/game-details/detail-actions.ts"]).plan),
+    "frontend",
+  );
+  assert.equal(
+    storageScopeForPlan([{ id: "rust-core-tests" }, { id: "dependency-policy" }]),
+    "rust",
+  );
+  assert.equal(storageScopeForPlan([{ id: "rust-core-tests" }, { id: "ui-build" }]), "all");
+  assert.equal(storageScopeForPlan([{ id: "new-unclassified-stage" }]), "all");
+});
 
 test("parses modified, deleted, renamed, and copied Git records", () => {
   const records = parseNameStatus(

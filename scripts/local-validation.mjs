@@ -25,7 +25,7 @@ import {
   repositoryInventory,
   validateReceipt,
 } from "./audit.mjs";
-import { spawnCommand } from "./dev-storage.mjs";
+import { prepareStorageScope, spawnCommand } from "./dev-storage.mjs";
 import { parseRawDiff } from "./select-ci-plan.mjs";
 import { readRustTestImpactMap, selectRustTestImpact } from "./rust-test-impact.mjs";
 import { isExcludedOxfmtPath } from "./oxfmt-ownership.mjs";
@@ -1188,7 +1188,7 @@ export function executePlan(plan, options = {}) {
       cwd: entry.cwd,
       stdio: "inherit",
       windowsHide: true,
-      env: process.env,
+      env: options.env ?? process.env,
     });
     const elapsedMs = Date.now() - stageStarted;
     timings.push({ id: entry.id, elapsedMs });
@@ -1314,7 +1314,7 @@ export function executePlanWithReceipts(plan, options = {}) {
       cwd: entry.cwd,
       stdio: "inherit",
       windowsHide: true,
-      env: process.env,
+      env: options.env ?? process.env,
     });
     const elapsedMs = Date.now() - stageStarted;
     timings.push({ id: entry.id, elapsedMs, status: "executed" });
@@ -1350,6 +1350,19 @@ export function requireFocusedArguments(kind, args) {
     throw new Error(`${kind} requires an explicit package, filter, or test path`);
 }
 
+export function storageScopeForPlan(plan) {
+  let rust = false;
+  let frontend = false;
+  for (const { id } of plan) {
+    if (["rustfmt", "dependency-policy", "test-rust"].includes(id) || id.startsWith("rust-"))
+      rust = true;
+    else if (id.startsWith("ui-") || ["oxfmt", "oxlint", "fallow"].includes(id)) frontend = true;
+    else if (id !== "diff-check" && id !== "node-tests" && !id.startsWith("node-syntax:"))
+      return "all";
+  }
+  return rust && frontend ? "all" : rust ? "rust" : frontend ? "frontend" : "tooling";
+}
+
 function runFocusedCommand(kind, args) {
   requireFocusedArguments(kind, args);
   let plan;
@@ -1368,7 +1381,7 @@ function runFocusedCommand(kind, args) {
   } else {
     throw new Error(`unknown focused command: ${kind}`);
   }
-  executePlan(plan);
+  executePlan(plan, { env: prepareStorageScope(storageScopeForPlan(plan)) });
 }
 
 function parseCheckArgs(args) {
@@ -1426,7 +1439,8 @@ export function main(argv = process.argv.slice(2)) {
   const plan = buildPlan(selection, planContext);
   printPlan(context, selection, plan, validationPlan);
   if (planOnly) return;
-  const result = executePlanWithReceipts(plan, { fresh });
+  const env = prepareStorageScope(storageScopeForPlan(plan));
+  const result = executePlanWithReceipts(plan, { fresh, env });
   console.log(`\nFocused local validation passed in ${(result.elapsedMs / 1000).toFixed(1)}s.`);
   if (result.elapsedMs > 120_000)
     console.warn(
