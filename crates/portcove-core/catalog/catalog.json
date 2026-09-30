@@ -7116,7 +7116,15 @@
             "verification": "catalog-rules"
           }
         ],
-        "saves_and_settings": "portcove-managed"
+        "saves_and_settings": "portcove-managed",
+        "artwork": {
+          "game_id": 303033,
+          "cover_id": 385536,
+          "image_id": "co89hc",
+          "image_sha256": "d10bee48f8f55703980de3a8e390489a1cab5285b687e7f09449c13cfd4c5365",
+          "game_slug": "2ship2harkinian",
+          "match_kind": "port"
+        }
       }
     },
     {
@@ -7209,7 +7217,15 @@
             "verification": "catalog-identity"
           }
         ],
-        "saves_and_settings": "portcove-managed"
+        "saves_and_settings": "portcove-managed",
+        "artwork": {
+          "game_id": 350955,
+          "cover_id": 468175,
+          "image_id": "coa18v",
+          "image_sha256": "683d75b6fd06877376c2123b9b3c0a75058707e1a13aab7c3aa113980f495bc0",
+          "game_slug": "spaghettikart",
+          "match_kind": "port"
+        }
       }
     },
     {
@@ -7351,7 +7367,15 @@
             "verification": "catalog-identity"
           }
         ],
-        "saves_and_settings": "portcove-managed"
+        "saves_and_settings": "portcove-managed",
+        "artwork": {
+          "game_id": 3340,
+          "cover_id": 80830,
+          "image_id": "co1qda",
+          "image_sha256": "4a74019838ee30a7ee187f1017d3da8e050aa127714b0363ed1f9bd07d168421",
+          "game_slug": "paper-mario",
+          "match_kind": "underlying-game"
+        }
       }
     },
     {
@@ -7598,7 +7622,15 @@
             "verification": "catalog-rules"
           }
         ],
-        "saves_and_settings": "portcove-managed"
+        "saves_and_settings": "portcove-managed",
+        "artwork": {
+          "game_id": 300982,
+          "cover_id": 396666,
+          "image_id": "co8i2i",
+          "image_sha256": "78f3367efe5e883d438cff42fd7316795e1f02bde958e54b8dd81256d120ebf7",
+          "game_slug": "zelda-64-recompiled",
+          "match_kind": "port"
+        }
       }
     },
     {
@@ -7937,7 +7969,15 @@
             "verification": "catalog-identity"
           }
         ],
-        "saves_and_settings": "portcove-managed"
+        "saves_and_settings": "portcove-managed",
+        "artwork": {
+          "game_id": 2723,
+          "cover_id": 88723,
+          "image_id": "co1wgj",
+          "image_sha256": "1a844d513546a07d99461f949c36e7c9d7ececcd0465b618b982b817b23f7391",
+          "game_slug": "diddy-kong-racing",
+          "match_kind": "underlying-game"
+        }
       }
     },
     {

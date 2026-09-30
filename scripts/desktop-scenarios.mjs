@@ -265,6 +265,14 @@ export const DESKTOP_SCENARIOS = Object.freeze([
     cycle_option: "reload-cycles",
     source: "desktop-reload-test.mjs",
   }),
+  scenario(
+    "native-default-cover-display",
+    "Accepted IGDB covers render in Catalog and details without client credentials.",
+    {
+      source: "desktop-default-cover-test.mjs",
+      qualification_only: true,
+    },
+  ),
 ]);
 
 const smoke = [

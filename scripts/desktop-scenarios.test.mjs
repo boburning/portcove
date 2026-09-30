@@ -46,6 +46,15 @@ test("smoke includes isolated install cancellation and committed-refresh recover
   assert.deepEqual(selection.known_gaps, []);
 });
 
+test("live default-cover observation remains opt-in without fixtures or offline profiles", () => {
+  const id = "native-default-cover-display";
+  for (const ids of Object.values(DESKTOP_PROFILES)) assert.ok(!ids.includes(id));
+  const selection = resolveDesktopSelection({ scenarios: [id] });
+  assert.deepEqual(selection.selected_scenarios, [id]);
+  assert.deepEqual(selection.setup_scenarios, []);
+  assert.deepEqual(selection.prerequisites, ["desktop"]);
+});
+
 test("exact selections are deduplicated and returned in catalog order", () => {
   const selection = resolveDesktopSelection({
     scenarios: ["accessibility", "keyboard-layout", "accessibility"],

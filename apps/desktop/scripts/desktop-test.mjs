@@ -20,6 +20,7 @@ import { createInstallFixture } from "./desktop-install-fixture.mjs";
 import { installScenarios } from "./desktop-install-test.mjs";
 import { assertDesignCompatibility } from "./desktop-design-compatibility-assertions.mjs";
 import { catalogUpdateScenario } from "./desktop-catalog-update-test.mjs";
+import { defaultCoverScenario } from "./desktop-default-cover-test.mjs";
 import {
   desktopHarnessDeadlineMs,
   desktopScenarioById,
@@ -113,6 +114,7 @@ inputs.push(
 );
 inputs.push(
   await fileIdentity(fileURLToPath(new URL("desktop-catalog-update-test.mjs", import.meta.url))),
+  await fileIdentity(fileURLToPath(new URL("desktop-default-cover-test.mjs", import.meta.url))),
 );
 if (selection.prerequisites.includes("owned-fixture")) {
   for (const name of ["preparation-cli", "preparation-tool"]) {
@@ -1314,6 +1316,15 @@ try {
     await captureScenarioScreenshot("native-library-browsing-context-restored");
   });
   await catalogUpdateScenario({ browser, invoke, scenario, output, artifacts });
+  await defaultCoverScenario({
+    browser,
+    invoke,
+    scenario,
+    output,
+    artifacts,
+    capture: captureScenarioScreenshot,
+    setTheme: selectSettingsTheme,
+  });
   await scenario("keyboard-layout", async () => {
     const verifySidebarLabels = async () => {
       const labels = await browser.executeScript(() =>
