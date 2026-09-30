@@ -47,18 +47,37 @@ export async function defaultCoverScenario({
       await capture(name, true);
     };
     const image = async (selector) => {
-      await browser.wait(
-        async () =>
-          browser.executeScript((selector) => {
-            const frame = document.querySelector(selector);
-            const img = frame?.querySelector("img");
-            return (
-              frame?.dataset.artworkSource === "igdb_cover" && img?.complete && img.naturalWidth > 0
-            );
-          }, selector),
-        15_000,
-        `Real default cover did not render: ${selector}`,
-      );
+      try {
+        await browser.wait(
+          async () =>
+            browser.executeScript((selector) => {
+              const frame = document.querySelector(selector);
+              const img = frame?.querySelector("img");
+              return (
+                frame?.dataset.artworkSource === "igdb_cover" &&
+                img?.complete &&
+                img.naturalWidth > 0
+              );
+            }, selector),
+          15_000,
+          `Real default cover did not render: ${selector}`,
+        );
+      } catch (error) {
+        if (selector.includes(".card-art")) {
+          await browser.findElement(By.css(selector.replace(" .card-art", ""))).click();
+        }
+        const controls = await browser.wait(
+          until.elementLocated(By.css(".artwork-controls > summary")),
+          5_000,
+        );
+        await controls.click();
+        const errors = await browser.executeScript(() =>
+          [...document.querySelectorAll(".artwork-controls [role=alert]")].map(
+            (item) => item.textContent,
+          ),
+        );
+        throw new Error(`${error.message}; artwork diagnostics: ${JSON.stringify(errors)}`);
+      }
       const rendered = await browser.executeScript((selector) => {
         const frame = document.querySelector(selector);
         const img = frame.querySelector("img");
