@@ -174,17 +174,36 @@ try {
   assert.equal(report.observations.permissionRequests.notifications, "denied");
   assert.equal(report.observations.permissionRequests.geolocation.code, 1);
   assert.equal(report.observations.permissionRequests.media.name, "NotAllowedError");
-  await browser.get(fixtureUrl);
   const diagnosticPath = path.join(process.env.PORTCOVE_LIBRARY, "logs", "portcove-desktop.jsonl");
-  const deadline = Date.now() + 10_000;
-  while (
-    !(await readFile(diagnosticPath, "utf8")).includes(
-      "blocked navigation outside trusted application origin",
-    )
-  ) {
-    if (Date.now() >= deadline)
-      throw new Error("Navigation refusal was not observed by the native host");
-    await new Promise((resolve) => setTimeout(resolve, 200));
+  const navigationRefusals = async () =>
+    (await readFile(diagnosticPath, "utf8"))
+      .trim()
+      .split("\n")
+      .map((line) => JSON.parse(line))
+      .filter(
+        (entry) =>
+          entry.fields.operation_id === "webview-navigation" &&
+          entry.fields.webview_label === "main",
+      );
+  report.observations.navigationRefusals = [];
+  const inactiveAlias = new URL(initialUrl);
+  inactiveAlias.protocol = inactiveAlias.protocol === "http:" ? "https:" : "http:";
+  for (const destination of [fixtureUrl, inactiveAlias.href]) {
+    const previous = (await navigationRefusals()).length;
+    await browser.get(destination);
+    const deadline = Date.now() + 10_000;
+    while ((await navigationRefusals()).length <= previous) {
+      if (Date.now() >= deadline)
+        throw new Error("New navigation refusal was not observed by the native host");
+      await new Promise((resolve) => setTimeout(resolve, 200));
+    }
+    const currentUrl = await browser.getCurrentUrl();
+    assert.equal(currentUrl, initialUrl);
+    report.observations.navigationRefusals.push({
+      attempted: destination,
+      current: currentUrl,
+      native: (await navigationRefusals()).at(-1),
+    });
   }
   report.observations.mainNavigatedUrl = await browser.getCurrentUrl();
   assert.equal(report.observations.mainNavigatedUrl, initialUrl);

@@ -21,6 +21,14 @@ pub fn create_windows<R: tauri::Runtime>(
         "boundary-secondary",
         tauri::WebviewUrl::App("index.html".into()),
     )
+    .use_https_scheme(
+        app.config()
+            .app
+            .windows
+            .iter()
+            .find(|window| window.label == "main")
+            .is_some_and(|window| window.use_https_scheme),
+    )
     .title("Portcove owned secondary boundary fixture")
     .build()?;
     tauri::WebviewWindowBuilder::new(app, "boundary-remote", tauri::WebviewUrl::External(url))

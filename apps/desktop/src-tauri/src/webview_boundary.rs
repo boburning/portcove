@@ -3,15 +3,27 @@
 
 use tauri::{Manager, Runtime, Url};
 
-fn trusted_navigation(url: &Url, development_origin: Option<&Url>) -> bool {
+fn application_origin(https_scheme: bool) -> Url {
+    let origin = if cfg!(any(windows, target_os = "android")) {
+        if https_scheme {
+            "https://tauri.localhost"
+        } else {
+            "http://tauri.localhost"
+        }
+    } else {
+        "tauri://localhost"
+    };
+    Url::parse(origin).expect("fixed Tauri application origin is valid")
+}
+
+fn trusted_navigation(url: &Url, application: &Url, development_origin: Option<&Url>) -> bool {
     if !url.username().is_empty() || url.password().is_some() {
         return false;
     }
-    let application_origin = url.port().is_none()
-        && ((url.scheme() == "tauri" && url.host_str() == Some("localhost"))
-            || (matches!(url.scheme(), "http" | "https")
-                && url.host_str() == Some("tauri.localhost")));
-    application_origin
+    let same_application_origin = url.scheme() == application.scheme()
+        && url.host_str() == application.host_str()
+        && url.port() == application.port();
+    same_application_origin
         || development_origin.is_some_and(|development| url.origin() == development.origin())
 }
 
@@ -27,7 +39,16 @@ pub fn init<R: Runtime>() -> tauri::plugin::TauriPlugin<R> {
             let development_origin = tauri::is_dev()
                 .then(|| webview.app_handle().config().build.dev_url.as_ref())
                 .flatten();
-            let allowed = trusted_navigation(url, development_origin);
+            let https_scheme = webview
+                .app_handle()
+                .config()
+                .app
+                .windows
+                .iter()
+                .find(|window| window.label == "main")
+                .is_some_and(|window| window.use_https_scheme);
+            let allowed =
+                trusted_navigation(url, &application_origin(https_scheme), development_origin);
             if !allowed {
                 tracing::warn!(
                     operation_id = "webview-navigation",
@@ -95,12 +116,17 @@ mod tests {
     #[test]
     fn permits_only_application_origins_and_the_exact_development_origin() {
         let development = Url::parse("http://localhost:1420").unwrap();
-        for value in [
-            "tauri://localhost/index.html",
-            "http://tauri.localhost/index.html?mode=library#port",
-            "https://tauri.localhost/assets/index.js",
+        let application = application_origin(false);
+        for path in [
+            "/index.html",
+            "/index.html?mode=library#port",
+            "/assets/index.js",
         ] {
-            assert!(trusted_navigation(&Url::parse(value).unwrap(), None));
+            assert!(trusted_navigation(
+                &application.join(path).unwrap(),
+                &application,
+                None
+            ));
         }
         for value in [
             "https://example.com/",
@@ -112,10 +138,15 @@ mod tests {
             "about:blank",
             "http://localhost:1420/",
         ] {
-            assert!(!trusted_navigation(&Url::parse(value).unwrap(), None));
+            assert!(!trusted_navigation(
+                &Url::parse(value).unwrap(),
+                &application,
+                None
+            ));
         }
         assert!(trusted_navigation(
             &Url::parse("http://localhost:1420/catalog").unwrap(),
+            &application,
             Some(&development),
         ));
         for value in [
@@ -125,8 +156,33 @@ mod tests {
         ] {
             assert!(!trusted_navigation(
                 &Url::parse(value).unwrap(),
+                &application,
                 Some(&development)
             ));
         }
+    }
+
+    #[test]
+    fn rejects_inactive_transport_aliases() {
+        let aliases = [
+            "tauri://localhost/",
+            "http://tauri.localhost/",
+            "https://tauri.localhost/",
+        ];
+        for active in aliases {
+            let application = Url::parse(active).unwrap();
+            for candidate in aliases {
+                assert_eq!(
+                    trusted_navigation(&Url::parse(candidate).unwrap(), &application, None),
+                    candidate == active,
+                );
+            }
+        }
+        let expected = if cfg!(any(windows, target_os = "android")) {
+            "https://tauri.localhost/"
+        } else {
+            "tauri://localhost/"
+        };
+        assert_eq!(application_origin(true).as_str(), expected);
     }
 }
