@@ -110,9 +110,11 @@ export function selectTransitionAudit({ inventory, validationPlan, changes, work
   validateValidationPlan(validationPlan);
   if (
     validationPlan.discovery !== "complete" ||
+    validationPlan.mode === "blocked" ||
     validationPlan.identities.checkout !== inventory?.head ||
     validationPlan.identities.head !== inventory?.head ||
-    !Array.isArray(changes)
+    !Array.isArray(changes) ||
+    changes.length === 0
   )
     throw new Error("transition audit lacks an exact complete source diff");
   if (validationPlan.qualification_required)
@@ -860,7 +862,7 @@ export function main(argv = process.argv.slice(2)) {
       proseOnlyEnabled: true,
     });
     validateValidationPlan(validationPlan);
-    if (validationPlan.discovery !== "complete")
+    if (validationPlan.discovery !== "complete" || validationPlan.mode === "blocked")
       throw new Error("transition audit lacks complete hosted discovery");
     const changes = parseRawDiff(
       execFileSync(

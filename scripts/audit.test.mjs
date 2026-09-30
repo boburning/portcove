@@ -199,7 +199,23 @@ test("incomplete transition discovery cannot authorize a shorter audit", () => {
   const context = transitionContext(["docs/QUALITY.md"]);
   assert.throws(
     () => selectTransitionAudit({ ...context, changes: [] }),
-    /inventory does not match/,
+    /exact complete source diff/,
+  );
+  const emptyPlan = buildValidationPlan({
+    changes: [],
+    eventName: "pull_request",
+    base: "b".repeat(40),
+    mergeBase: "b".repeat(40),
+    head: context.inventory.head,
+    checkout: context.inventory.head,
+    fastValidationEnabled: true,
+    proseOnlyEnabled: true,
+  });
+  assert.equal(emptyPlan.mode, "blocked");
+  assert.equal(emptyPlan.discovery, "complete");
+  assert.throws(
+    () => selectTransitionAudit({ ...context, changes: [], validationPlan: emptyPlan }),
+    /exact complete source diff/,
   );
   assert.throws(
     () =>
