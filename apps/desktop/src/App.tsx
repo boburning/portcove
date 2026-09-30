@@ -1004,18 +1004,18 @@ function SelectedPortPanel({
       inspectSource={(profile) => openSourceIntake(model.port.id, profile.id)}
       openHostTool={openHostTool}
       openLibraryStorage={openLibraryStorage}
-      actions={detailActions(
-        model.port,
-        model.status,
-        ui.sourcePath,
-        ui.biosPath,
-        operations.perform,
-        close,
-        installPlanning.review,
-        backups.refresh,
-        libraryGeneration,
-        installPlanning.invalidate,
-      )}
+      actions={detailActions({
+        port: model.port,
+        status: model.status,
+        sourcePath: ui.sourcePath,
+        biosPath: ui.biosPath,
+        perform: operations.perform,
+        close: close,
+        reviewInstall: installPlanning.review,
+        backupsChanged: backups.refresh,
+        libraryGeneration: libraryGeneration,
+        dismissInstallReview: installPlanning.invalidate,
+      })}
     />
   );
 }

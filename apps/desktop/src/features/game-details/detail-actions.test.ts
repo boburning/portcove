@@ -28,22 +28,47 @@ describe("detail actions", () => {
     vi.restoreAllMocks();
   });
 
+  it("requires explicit valid generation before constructing mutation actions", () => {
+    const context = {
+      port,
+      status: undefined,
+      sourcePath: "",
+      biosPath: "",
+      perform: vi.fn() as unknown as Perform,
+      close: vi.fn(),
+    };
+    const remove = vi.spyOn(desktopApi, "remove");
+    expect(() => {
+      // @ts-expect-error Missing library context cannot construct the action family.
+      detailActions(context);
+    }).toThrow("explicit library generation");
+    for (const libraryGeneration of [NaN, -1, Infinity, 0.5, Number.MAX_SAFE_INTEGER + 1]) {
+      expect(() => detailActions({ ...context, libraryGeneration })).toThrow(
+        "explicit library generation",
+      );
+    }
+    // Generation zero may be an actual supplied context; it is never invented.
+    expect(detailActions({ ...context, libraryGeneration: 0 })).toBeDefined();
+    expect(context.perform).not.toHaveBeenCalled();
+    expect(remove).not.toHaveBeenCalled();
+  });
+
   it("binds channel saving and subsequent checks to the selected library", async () => {
     const saved = { ...portStatus(), channel: "beta" as const };
     vi.spyOn(desktopApi, "setChannel").mockResolvedValue(saved);
     vi.spyOn(desktopApi, "check").mockResolvedValue(undefined!);
     const perform: Perform = async (_name, task) => task();
-    const actions = detailActions(
-      port,
-      saved,
-      "",
-      "",
-      perform,
-      vi.fn(),
-      vi.fn(),
-      async () => {},
-      17,
-    );
+    const actions = detailActions({
+      port: port,
+      status: saved,
+      sourcePath: "",
+      biosPath: "",
+      perform: perform,
+      close: vi.fn(),
+      reviewInstall: vi.fn(),
+      backupsChanged: async () => {},
+      libraryGeneration: 17,
+    });
     await actions.setChannel("beta");
     await actions.check();
     expect(desktopApi.setChannel).toHaveBeenCalledExactlyOnceWith(port.id, "beta", 17);
@@ -56,7 +81,15 @@ describe("detail actions", () => {
       task(),
     ) as unknown as Perform;
 
-    await detailActions(port, undefined, "", "", perform, vi.fn()).check();
+    await detailActions({
+      port: port,
+      status: undefined,
+      sourcePath: "",
+      biosPath: "",
+      perform: perform,
+      close: vi.fn(),
+      libraryGeneration: 9,
+    }).check();
 
     expect(perform).toHaveBeenCalledWith("check", expect.any(Function), {
       refresh: "workspace",
@@ -70,17 +103,17 @@ describe("detail actions", () => {
     const install = vi.spyOn(desktopApi, "install");
     const update = vi.spyOn(desktopApi, "applyGameUpdate");
     const perform: Perform = async (_name, task) => task();
-    await detailActions(
-      port,
-      saved,
-      "",
-      "",
-      perform,
-      vi.fn(),
-      vi.fn(),
-      async () => {},
-      12,
-    ).setPolicy("automatic");
+    await detailActions({
+      port: port,
+      status: saved,
+      sourcePath: "",
+      biosPath: "",
+      perform: perform,
+      close: vi.fn(),
+      reviewInstall: vi.fn(),
+      backupsChanged: async () => {},
+      libraryGeneration: 12,
+    }).setPolicy("automatic");
     expect(desktopApi.setPolicy).toHaveBeenCalledExactlyOnceWith(port.id, "automatic", 12);
     expect(install).not.toHaveBeenCalled();
     expect(update).not.toHaveBeenCalled();
@@ -89,14 +122,15 @@ describe("detail actions", () => {
   it("the explicit Install action does not silently stage because of saved policy", async () => {
     const install = vi.spyOn(desktopApi, "install").mockResolvedValue(undefined!);
     const perform: Perform = async (_name, task) => task();
-    await detailActions(
-      port,
-      { ...portStatus(), update_policy: "stage" },
-      "source.z64",
-      "",
-      perform,
-      vi.fn(),
-    ).install();
+    await detailActions({
+      port: port,
+      status: { ...portStatus(), update_policy: "stage" },
+      sourcePath: "source.z64",
+      biosPath: "",
+      perform: perform,
+      close: vi.fn(),
+      libraryGeneration: 9,
+    }).install();
     expect(install).toHaveBeenCalledExactlyOnceWith(port.id, "stable", "source.z64", "", false);
   });
 
@@ -116,18 +150,18 @@ describe("detail actions", () => {
         return undefined;
       }
     };
-    const actions = detailActions(
-      port,
-      undefined,
-      "",
-      "",
-      perform,
-      vi.fn(),
-      vi.fn(),
-      async () => {},
-      0,
-      dismiss,
-    );
+    const actions = detailActions({
+      port: port,
+      status: undefined,
+      sourcePath: "",
+      biosPath: "",
+      perform: perform,
+      close: vi.fn(),
+      reviewInstall: vi.fn(),
+      backupsChanged: async () => {},
+      libraryGeneration: 0,
+      dismissInstallReview: dismiss,
+    });
     const installing = actions.install();
     expect(dismiss).not.toHaveBeenCalled();
     fail(new Error("Artifact unavailable"));
@@ -149,7 +183,15 @@ describe("detail actions", () => {
       task(),
     ) as unknown as Perform;
 
-    await detailActions(port, undefined, "", "", perform, vi.fn()).backup();
+    await detailActions({
+      port: port,
+      status: undefined,
+      sourcePath: "",
+      biosPath: "",
+      perform: perform,
+      close: vi.fn(),
+      libraryGeneration: 9,
+    }).backup();
 
     expect(perform).toHaveBeenCalledWith("back up data", expect.any(Function));
     expect(desktopApi.backup).toHaveBeenCalledWith(port.id);
@@ -166,9 +208,15 @@ describe("detail actions", () => {
     }) as unknown as Perform;
     const close = vi.fn();
 
-    await detailActions(port, undefined, "", "", perform, close, undefined, undefined, 9).remove(
-      "reviewed-removal",
-    );
+    await detailActions({
+      port: port,
+      status: undefined,
+      sourcePath: "",
+      biosPath: "",
+      perform: perform,
+      close: close,
+      libraryGeneration: 9,
+    }).remove("reviewed-removal");
 
     expect(perform).toHaveBeenCalledWith("remove", expect.any(Function));
     expect(desktopApi.remove).toHaveBeenCalledWith(port.id, "reviewed-removal", 9);
@@ -194,17 +242,16 @@ describe("detail actions", () => {
     ) as unknown as Perform;
     const refresh = vi.fn().mockResolvedValue(undefined);
 
-    await detailActions(
-      port,
-      undefined,
-      "",
-      "",
-      perform,
-      vi.fn(),
-      undefined,
-      refresh,
-      7,
-    ).restoreBackup(backup, "reviewed-restore");
+    await detailActions({
+      port: port,
+      status: undefined,
+      sourcePath: "",
+      biosPath: "",
+      perform: perform,
+      close: vi.fn(),
+      backupsChanged: refresh,
+      libraryGeneration: 7,
+    }).restoreBackup(backup, "reviewed-restore");
 
     expect(desktopApi.restoreBackup).toHaveBeenCalledWith(
       port.id,
@@ -231,17 +278,16 @@ describe("detail actions", () => {
     ) as unknown as Perform;
     const refresh = vi.fn().mockResolvedValue(undefined);
 
-    await detailActions(
-      port,
-      undefined,
-      "",
-      "",
-      perform,
-      vi.fn(),
-      undefined,
-      refresh,
-      8,
-    ).deleteBackup(backup, "reviewed-delete");
+    await detailActions({
+      port: port,
+      status: undefined,
+      sourcePath: "",
+      biosPath: "",
+      perform: perform,
+      close: vi.fn(),
+      backupsChanged: refresh,
+      libraryGeneration: 8,
+    }).deleteBackup(backup, "reviewed-delete");
 
     expect(desktopApi.deleteBackup).toHaveBeenCalledWith(port.id, backup.id, "reviewed-delete", 8);
     expect(refresh).toHaveBeenCalledOnce();
@@ -254,9 +300,15 @@ describe("detail actions", () => {
     ) as unknown as Perform;
     const close = vi.fn();
 
-    await detailActions(port, undefined, "", "", perform, close, undefined, undefined, 9).remove(
-      "reviewed-removal",
-    );
+    await detailActions({
+      port: port,
+      status: undefined,
+      sourcePath: "",
+      biosPath: "",
+      perform: perform,
+      close: close,
+      libraryGeneration: 9,
+    }).remove("reviewed-removal");
 
     expect(perform).toHaveBeenCalledWith("remove", expect.any(Function));
     expect(desktopApi.remove).toHaveBeenCalledWith(port.id, "reviewed-removal", 9);
@@ -270,7 +322,16 @@ describe("detail actions", () => {
     const perform: Perform = async (_name, task) => task();
     const close = vi.fn();
     const refresh = vi.fn();
-    const actions = detailActions(port, undefined, "", "", perform, close, undefined, refresh, 9);
+    const actions = detailActions({
+      port: port,
+      status: undefined,
+      sourcePath: "",
+      biosPath: "",
+      perform: perform,
+      close: close,
+      backupsChanged: refresh,
+      libraryGeneration: 9,
+    });
     const backup = {
       id: "snapshot",
       port_id: port.id,
