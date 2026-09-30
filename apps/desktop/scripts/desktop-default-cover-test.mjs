@@ -25,6 +25,27 @@ export async function defaultCoverScenario({
       "dkr-r",
     ];
     const rows = [];
+    const captureSettled = async (name, selector) => {
+      await browser.wait(
+        () =>
+          browser.executeScript((selector) => {
+            const element = document.querySelector(selector);
+            return (
+              element &&
+              element
+                .getAnimations({ subtree: true })
+                .every(
+                  (animation) =>
+                    animation.playState !== "running" ||
+                    !Number.isFinite(animation.effect?.getComputedTiming().endTime),
+                )
+            );
+          }, selector),
+        5_000,
+        `Presentation did not settle: ${selector}`,
+      );
+      await capture(name, true);
+    };
     const image = async (selector) => {
       await browser.wait(
         async () =>
@@ -69,11 +90,11 @@ export async function defaultCoverScenario({
         await browser.executeScript((card) => card.scrollIntoView({ block: "center" }), card);
         const cardImage = await image(`${selector} .card-art`);
         const cardMs = performance.now() - started;
-        await capture(`default-cover-${id}-${pass}-catalog`, true);
+        await captureSettled(`default-cover-${id}-${pass}-catalog`, selector);
         await card.click();
         await browser.wait(until.elementLocated(By.css("[data-detail-workspace]")), 10_000);
         const detailImage = await image(".detail-cover");
-        await capture(`default-cover-${id}-${pass}-details`, true);
+        await captureSettled(`default-cover-${id}-${pass}-details`, "[data-detail-workspace]");
         rows.push({
           id,
           pass,
