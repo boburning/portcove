@@ -9,6 +9,8 @@ import { fileURLToPath } from "node:url";
 import {
   AUDIT_STAGES,
   RELEASE_AUDIT_STAGE_IDS,
+  TRANSITION_AUDIT_STAGE_IDS,
+  selectTransitionAudit,
   auditStagesForProfile,
   assertNoSplitIndex,
   domainsForPath,
@@ -19,6 +21,7 @@ import {
   repositoryInventory,
   validateReceipt,
 } from "./audit.mjs";
+import { buildValidationPlan } from "./validation-plan.mjs";
 
 test("release audit profile delegates source and platform coverage without going empty", () => {
   const stages = auditStagesForProfile("release");
@@ -73,6 +76,204 @@ function file(pathname, contents, extra = {}) {
 function inventory(head, entries) {
   return { head, files: entries };
 }
+
+function transitionContext(paths, overrides = {}) {
+  const head = "a".repeat(40);
+  const changes = paths.map((pathname) => ({
+    status: "M",
+    oldMode: "100644",
+    newMode: "100644",
+    oldPath: pathname,
+    newPath: pathname,
+  }));
+  return {
+    inventory: inventory(
+      head,
+      paths.map((pathname) => file(pathname, "fixture")),
+    ),
+    validationPlan: buildValidationPlan({
+      changes,
+      eventName: "pull_request",
+      base: "b".repeat(40),
+      mergeBase: "b".repeat(40),
+      head,
+      checkout: head,
+      fastValidationEnabled: true,
+      proseOnlyEnabled: true,
+    }),
+    changes,
+    workingTreeStatus: "",
+    ...overrides,
+  };
+}
+
+test("standalone resource and impact changes retain full local coverage under real hosted routing", () => {
+  for (const pathname of [
+    "scripts/dev-storage.mjs",
+    "scripts/dev-storage.test.mjs",
+    "scripts/rust-test-impact.mjs",
+    "scripts/rust-test-impact.test.mjs",
+    ".config/rust-test-impact.json",
+    "docs/DEVELOPMENT-STORAGE.md",
+  ]) {
+    const context = transitionContext([pathname]);
+    assert.equal(context.validationPlan.qualification_required, false, pathname);
+    const selected = selectTransitionAudit(context);
+    assert.equal(selected.profile, "complete", pathname);
+    assert.deepEqual(selected.stages, AUDIT_STAGES, pathname);
+  }
+});
+
+test("real rename and copy path unions retain the complete audit instead of failing discovery", () => {
+  for (const status of ["R", "C"]) {
+    const context = transitionContext(["scripts/local-validation.mjs", "docs/QUALITY.md"]);
+    context.changes[0] = {
+      ...context.changes[0],
+      status,
+      newPath: "scripts/renamed-local-validation.mjs",
+    };
+    context.validationPlan = buildValidationPlan({
+      changes: context.changes,
+      eventName: "pull_request",
+      base: "b".repeat(40),
+      mergeBase: "b".repeat(40),
+      head: context.inventory.head,
+      checkout: context.inventory.head,
+    });
+    context.inventory.files.push(file("scripts/renamed-local-validation.mjs", "fixture"));
+    assert.equal(selectTransitionAudit(context).profile, "complete", status);
+    assert.equal(context.validationPlan.changed_files.length, 3);
+  }
+});
+
+test("a clean local-policy transition keeps fresh contracts and complete hosted qualification", () => {
+  const context = transitionContext(["scripts/local-validation.mjs", "docs/QUALITY.md"]);
+  const selected = selectTransitionAudit(context);
+  assert.equal(selected.profile, "transition");
+  assert.deepEqual(
+    selected.stages.map((stage) => stage.id),
+    TRANSITION_AUDIT_STAGE_IDS,
+  );
+  assert.ok(
+    !selected.stages.some((stage) => ["rust", "ui", "windows-qualification"].includes(stage.id)),
+  );
+  assert.equal(context.validationPlan.qualification_required, true);
+});
+
+test("mixed, unknown and audit/routing authority changes retain the complete transition gate", () => {
+  for (const pathname of [
+    "scripts/audit.mjs",
+    "scripts/audit.test.mjs",
+    "scripts/validation-plan.mjs",
+    "scripts/select-ci-plan.mjs",
+    "justfile",
+    "Cargo.lock",
+    "crates/portcove-core/src/lib.rs",
+    "apps/desktop/src/App.tsx",
+    ".github/workflows/ci.yml",
+    "unknown.txt",
+  ]) {
+    assert.equal(
+      selectTransitionAudit(transitionContext(["docs/QUALITY.md", pathname])).profile,
+      "complete",
+      pathname,
+    );
+  }
+  for (const status of ["A", "D", "R", "C", "T"]) {
+    const context = transitionContext(["scripts/local-validation.mjs"]);
+    context.changes[0].status = status;
+    assert.equal(selectTransitionAudit(context).profile, "complete", status);
+  }
+  for (const extra of [
+    { workingTreeStatus: " M docs/QUALITY.md" },
+    { workingTreeStatus: "?? extra.txt" },
+  ]) {
+    assert.equal(
+      selectTransitionAudit(transitionContext(["docs/QUALITY.md"], extra)).profile,
+      "complete",
+    );
+  }
+});
+
+test("incomplete transition discovery cannot authorize a shorter audit", () => {
+  const context = transitionContext(["docs/QUALITY.md"]);
+  assert.throws(
+    () => selectTransitionAudit({ ...context, changes: [] }),
+    /exact complete source diff/,
+  );
+  const emptyPlan = buildValidationPlan({
+    changes: [],
+    eventName: "pull_request",
+    base: "b".repeat(40),
+    mergeBase: "b".repeat(40),
+    head: context.inventory.head,
+    checkout: context.inventory.head,
+    fastValidationEnabled: true,
+    proseOnlyEnabled: true,
+  });
+  assert.equal(emptyPlan.mode, "blocked");
+  assert.equal(emptyPlan.discovery, "complete");
+  assert.throws(
+    () => selectTransitionAudit({ ...context, changes: [], validationPlan: emptyPlan }),
+    /exact complete source diff/,
+  );
+  assert.throws(
+    () =>
+      selectTransitionAudit({
+        ...context,
+        inventory: { ...context.inventory, files: [file("README.md", "other")] },
+      }),
+    /missing a changed file/,
+  );
+  assert.throws(
+    () => selectTransitionAudit({ ...context, workingTreeStatus: undefined }),
+    /Git worktree status/,
+  );
+  assert.throws(() =>
+    selectTransitionAudit({
+      ...context,
+      validationPlan: { ...context.validationPlan, qualification_required: false },
+    }),
+  );
+  assert.throws(() =>
+    selectTransitionAudit({
+      ...context,
+      inventory: { ...context.inventory, head: "c".repeat(40) },
+    }),
+  );
+});
+
+test("partial audit profiles cannot overwrite the complete audit report", (t) => {
+  const root = temporaryDirectory(t);
+  const receiptRoot = path.join(root, "receipts");
+  const head = "a".repeat(40);
+  const full = planAudit({
+    root,
+    receiptRoot,
+    inventory: inventory(head, []),
+    runtime,
+    stages: smallStages,
+    fresh: true,
+  });
+  executeAudit(full, { execute: () => ({ status: 0 }) });
+  const fullPath = path.join(receiptRoot, "audits", `${head}.json`);
+  const fullBytes = readFileSync(fullPath, "utf8");
+  for (const profile of ["transition", "release"]) {
+    const partial = planAudit({
+      root,
+      receiptRoot,
+      inventory: inventory(head, []),
+      runtime,
+      stages: [smallStages[0]],
+      fresh: true,
+      profile,
+    });
+    const result = executeAudit(partial, { execute: () => ({ status: 0 }) });
+    assert.equal(result.report.profile, profile);
+    assert.ok(existsSync(path.join(receiptRoot, "audits", `${head}.${profile}.json`)));
+    assert.equal(readFileSync(fullPath, "utf8"), fullBytes);
+  }
+});
 
 function temporaryDirectory(t) {
   const directory = mkdtempSync(path.join(os.tmpdir(), "portcove-audit-test-"));
