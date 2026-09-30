@@ -180,39 +180,6 @@ export async function artworkCorrectionScenario({
       artifacts.push(filename);
     };
     const artwork = () => command(["artwork", "show", portId], library);
-    // Observe the error from the actual UI request, preserving its rejection.
-    // Qualification-only instrumentation; no replacement result or authority.
-    const rejection = async (name, action) => {
-      await browser.executeScript((name) => {
-        const original = window.__TAURI_INTERNALS__.invoke;
-        window.__artworkCorrectionError = null;
-        window.__artworkCorrectionInvoke = original;
-        window.__TAURI_INTERNALS__.invoke = function (command, ...args) {
-          return original.call(this, command, ...args).catch((error) => {
-            if (command === name) window.__artworkCorrectionError = error;
-            throw error;
-          });
-        };
-      }, name);
-      try {
-        await action();
-        await browser.wait(
-          () => browser.executeScript(() => Boolean(window.__artworkCorrectionError)),
-          10000,
-        );
-        await browser.wait(
-          until.elementLocated(By.css('.catalog-update-dialog [role="alert"]')),
-          10000,
-        );
-        return await browser.executeScript(() => window.__artworkCorrectionError);
-      } finally {
-        await browser.executeScript(() => {
-          window.__TAURI_INTERNALS__.invoke = window.__artworkCorrectionInvoke;
-          delete window.__artworkCorrectionInvoke;
-          delete window.__artworkCorrectionError;
-        });
-      }
-    };
     await open();
     await browser.findElement(By.id("catalog-public-key")).sendKeys(red.public_key);
     await click(button("Trust publisher"));
@@ -250,7 +217,7 @@ export async function artworkCorrectionScenario({
     assert.notEqual(corrected.image, first.image);
     assert.deepEqual(artwork().resolved_source.artwork, mappings.blue);
     await capture("artwork-correction-blue-fixture");
-    browser = await restartApplication();
+    browser = await restartApplication("artwork-correction");
     assert.deepEqual(
       await render("igdb_cover"),
       corrected,
@@ -264,7 +231,18 @@ export async function artworkCorrectionScenario({
     await writeFile(invalid, JSON.stringify(tampered), { flag: "wx" });
     artifacts.push(invalid);
     await open();
-    const signatureError = await rejection("plan_catalog_update", () => review(invalid));
+    await review(invalid);
+    await browser.wait(
+      until.elementLocated(By.css('.catalog-update-dialog [role="alert"]')),
+      10000,
+    );
+    // The UI intentionally presents a general summary. Independently attribute
+    // the same immutable rejected input through the existing read-only command.
+    const signatureResult = await invoke("plan_catalog_update", {
+      source: { kind: "file", value: invalid },
+    });
+    assert.equal(signatureResult.ok, false);
+    const signatureError = signatureResult.error;
     assert.equal(signatureError.code, "verification");
     assert.match(signatureError.message, /catalog signature verification failed/i);
     assert.equal((await status()).state_sha256, before);
@@ -273,15 +251,46 @@ export async function artworkCorrectionScenario({
     await open();
     await review(stale.envelope);
     await browser.wait(until.elementLocated(By.css('[aria-label="Catalog update review"]')), 10000);
+    const reviewedPlan = await invoke("plan_catalog_update", {
+      source: { kind: "file", value: stale.envelope },
+    });
+    assert.equal(reviewedPlan.ok, true);
     const replacement = await signed(4, mappings.red, "replacement");
     const reviewedBytes = await readFile(stale.envelope);
     const reviewedCopy = path.join(output, "stale-reviewed-envelope.json");
     await writeFile(reviewedCopy, reviewedBytes, { flag: "wx" });
     artifacts.push(reviewedCopy);
     await writeFile(stale.envelope, await readFile(replacement.envelope));
-    const staleError = await rejection("apply_catalog_update", () =>
-      click(button("Apply catalog update")),
+    await click(button("Apply catalog update"));
+    await browser.wait(
+      until.elementLocated(By.css('.catalog-update-dialog [role="alert"]')),
+      10000,
     );
+    // Repeat only the exact rejected stale intent to retain its machine reason;
+    // the valid replacement is never supplied with fresh mutation authorization.
+    const staleResult = JSON.parse(
+      await browser.executeAsyncScript(
+        (source, expectedPlan, done) => {
+          const internals = window.__TAURI_INTERNALS__;
+          const callback = internals.transformCallback(() => {});
+          internals
+            .invoke("apply_catalog_update", {
+              source,
+              expectedPlan,
+              onEvent: `__CHANNEL__:${callback}`,
+            })
+            .then(
+              (value) => done(JSON.stringify({ ok: true, value })),
+              (error) => done(JSON.stringify({ ok: false, error })),
+            )
+            .finally(() => internals.unregisterCallback(callback));
+        },
+        reviewedPlan.value.source,
+        reviewedPlan.value.plan_sha256,
+      ),
+    );
+    assert.equal(staleResult.ok, false);
+    const staleError = staleResult.error;
     assert.equal(staleError.code, "conflict");
     assert.match(staleError.message, /catalog candidate or trust changed/i);
     assert.equal((await status()).state_sha256, before);
