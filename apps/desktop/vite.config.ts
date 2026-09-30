@@ -48,6 +48,8 @@ export default defineConfig({
   clearScreen: false,
   resolve: { alias: { "@": path.resolve(desktopRoot, "src") } },
   server: { strictPort: true },
-  envPrefix: ["VITE_", "TAURI_"],
+  // Only explicitly public frontend inputs are exposed. Tauri target/debug
+  // variables remain available to native tooling without exposing signing inputs.
+  envPrefix: "VITE_",
   build: { target: ["es2021", "chrome105", "safari13"], sourcemap: true },
 });
