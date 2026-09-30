@@ -268,6 +268,16 @@ export const DESKTOP_SCENARIOS = Object.freeze([
     source: "desktop-reload-test.mjs",
   }),
   scenario(
+    "native-artwork-catalog-correction",
+    "An unchanged app renders signed artwork corrections, preserves local choices and refuses stale publication.",
+    {
+      prerequisites: ["desktop", "owned-fixture", "native-dialog"],
+      host_resources: [...nativeResources, "native-dialog"],
+      source: "desktop-artwork-correction-test.mjs",
+      qualification_only: true,
+    },
+  ),
+  scenario(
     "native-default-cover-display",
     "Accepted IGDB covers render in Catalog and details without client credentials.",
     {
