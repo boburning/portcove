@@ -2,11 +2,11 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { desktopApi } from "../api";
-import { portStatus } from "../test-fixtures";
-import type { GameUpdatePlan, InstallRecord } from "../types";
-import type { Perform } from "../features/operations/use-operation-state";
-import { GameUpdateControl, UpdatePolicyControl } from "./GameUpdates";
+import { desktopApi } from "../../api";
+import { portStatus } from "../../test-fixtures";
+import type { GameUpdatePlan, InstallRecord } from "../../types";
+import type { Perform } from "../operations/use-operation-state";
+import { GameUpdateControl, UpdatePolicyControl } from "../../components/GameUpdates";
 
 const plan: GameUpdatePlan = {
   activate: false,
