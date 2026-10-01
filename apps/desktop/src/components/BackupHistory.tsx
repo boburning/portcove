@@ -169,7 +169,10 @@ export function BackupHistory({
                 (heading.current?.isConnected ? heading.current : undefined) ??
                 focusFallback?.();
               if (target?.isConnected)
-                target.focus({ preventScroll: true, focusVisible: closeType === "keyboard" });
+                target.focus({
+                  preventScroll: true,
+                  ...(closeType === "keyboard" ? { focusVisible: true } : {}),
+                });
             });
             return false;
           }}
