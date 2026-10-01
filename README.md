@@ -109,6 +109,11 @@ before opening it.
 
 Use a disposable or backed-up library for this technical preview.
 
+The screenshots show the current development build. In the published Alpha 2
+app, **Review install** presents the plan inline, and the launch action is
+**Play now** or **Complete setup and play**. The newer build uses the labels
+below and a separate installation-review dialog.
+
 1. Open **Portcove Desktop** and choose the local library you intend to use.
 2. Open **Port catalog**, choose a port, and read its game-file requirements and
    recorded platform evidence. A catalog entry alone does not establish support.
