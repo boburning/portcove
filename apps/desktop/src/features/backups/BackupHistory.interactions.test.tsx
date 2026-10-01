@@ -4,7 +4,9 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { desktopApi } from "../../api";
 import { BackupHistory } from "../../components/BackupHistory";
+import { DetailPanel, type DetailActions } from "../../components/DetailPanel";
 import type { ApplyBackupAction } from "../../components/BackupReview";
+import { portDefinition } from "../../test-fixtures";
 import type { BackupRecord, BackupReview } from "../../types";
 
 const backups: BackupRecord[] = [1, 2].map((index) => ({
@@ -119,6 +121,60 @@ it("returns focus to the backup heading when the final backup is deleted", async
   await vi.waitFor(() =>
     expect(document.activeElement).toBe(container.querySelector('[role="heading"]')),
   );
+});
+
+it("returns focus to Saves and storage when the uninstalled detail consumer removes all backup history", async () => {
+  let finish!: (result: boolean) => void;
+  const deleteBackup = vi.fn((_backup: BackupRecord) => {
+    updateBackups([]);
+    return new Promise<boolean>((resolve) => {
+      finish = resolve;
+    });
+  });
+  let updateBackups!: (backups: BackupRecord[]) => void;
+  function DetailHistory() {
+    const [current, setCurrent] = useState(backups.slice(0, 1));
+    updateBackups = setCurrent;
+    const actions: DetailActions = {
+      activate: vi.fn(),
+      backup: vi.fn(),
+      check: vi.fn(),
+      close: vi.fn(),
+      deleteBackup,
+      dismissInstallReview: vi.fn(),
+      install: vi.fn(),
+      launch: vi.fn(),
+      openUserData: vi.fn(),
+      reviewInstall: vi.fn(),
+      remove: vi.fn(),
+      restoreBackup: vi.fn(),
+      rollback: vi.fn(),
+      setChannel: vi.fn(),
+      setPolicy: vi.fn(),
+      verify: vi.fn(),
+    };
+    return (
+      <DetailPanel
+        port={portDefinition()}
+        backups={current}
+        libraryGeneration={7}
+        sourcePath=""
+        setSourcePath={vi.fn()}
+        actions={actions}
+      />
+    );
+  }
+  await act(async () => root.render(<DetailHistory />));
+  const opener = await openDeletion("backup-1");
+  await click("Delete this backup permanently");
+  expect(deleteBackup).toHaveBeenCalledExactlyOnceWith(backups[0], "reviewed-data");
+  expect(opener.isConnected).toBe(false);
+  expect(container.querySelector(".backup-history")).toBeNull();
+  await vi.waitFor(() =>
+    expect(document.activeElement).toBe(container.querySelector("#detail-saves-and-storage")),
+  );
+  await act(async () => finish(true));
+  expect(document.activeElement).toBe(container.querySelector("#detail-saves-and-storage"));
 });
 
 it("returns focus to the original delete action on cancellation without applying", async () => {

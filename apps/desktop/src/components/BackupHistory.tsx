@@ -14,6 +14,7 @@ export function BackupHistory({
   generation = 0,
   restore,
   remove,
+  focusFallback,
 }: {
   backups: BackupRecord[];
   problems?: BackupProblem[];
@@ -22,6 +23,7 @@ export function BackupHistory({
   generation?: number;
   restore: ApplyBackupAction;
   remove: ApplyBackupAction;
+  focusFallback?: () => HTMLElement | null;
 }) {
   const [expanded, setExpanded] = useState(false);
   const history = useRef<HTMLDivElement>(null);
@@ -147,11 +149,23 @@ export function BackupHistory({
           apply={selection.action === "restore" ? restore : remove}
           close={() => setSelection(undefined)}
           finalFocus={() => {
-            if (selection.opener.isConnected && !selection.opener.disabled) return selection.opener;
-            const actions = history.current?.querySelectorAll<HTMLButtonElement>(
-              `button[data-backup-action="${selection.action}"]:not(:disabled)`,
+            if (
+              history.current?.isConnected &&
+              selection.opener.isConnected &&
+              !selection.opener.disabled
+            )
+              return selection.opener;
+            const actions = history.current?.isConnected
+              ? history.current.querySelectorAll<HTMLButtonElement>(
+                  `button[data-backup-action="${selection.action}"]:not(:disabled)`,
+                )
+              : undefined;
+            return (
+              actions?.[Math.min(selection.index, actions.length - 1)] ??
+              (heading.current?.isConnected ? heading.current : undefined) ??
+              focusFallback?.() ??
+              null
             );
-            return actions?.[Math.min(selection.index, actions.length - 1)] ?? heading.current;
           }}
         />
       )}
