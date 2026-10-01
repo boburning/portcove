@@ -252,7 +252,7 @@ export function domainsForPath(input) {
   // The release handbook is read by documentation/release contracts, not by
   // product compilation or UI tests. Fresh audits still execute every stage.
   if (file === "docs/RELEASING.md") {
-    add(domains, "format", "release", "repository");
+    add(domains, "format", "release", "repository", "roadmap");
     return { domains, ambiguous: false };
   }
   const validationOwnership = validationOwnershipForPath(file);

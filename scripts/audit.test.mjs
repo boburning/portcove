@@ -443,7 +443,7 @@ test("domain inventories retain unrelated documentation rebases and invalidate R
 
 test("release handbook edits invalidate their consumers without expiring unchanged product receipts", () => {
   const handbook = file("docs/RELEASING.md", "selected predecessor and candidate");
-  assert.deepEqual(handbook.domains, ["format", "release", "repository"]);
+  assert.deepEqual(handbook.domains, ["format", "release", "repository", "roadmap"]);
   const before = inventory("before", [handbook]);
   const after = inventory("after", [file("docs/RELEASING.md", "corrected selected versions")]);
   for (const stage of AUDIT_STAGES.filter((entry) => entry.reusable)) {

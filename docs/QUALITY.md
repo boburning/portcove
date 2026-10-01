@@ -186,7 +186,7 @@ is intentional, `--plan` to inspect the exact selection, or `--fresh` when an
 acceptance contract explicitly requires execution without reusable local receipts.
 
 Release-handbook changes in `docs/RELEASING.md` invalidate formatting,
-repository and release-unit receipts. They do not expire otherwise identical
+repository, roadmap and release-unit receipts. They do not expire otherwise identical
 Rust or UI command evidence. Changes to their actual source, recipes, dependencies,
 toolchain or environment still invalidate those receipts. This does not shorten
 `--fresh` audits, grant transition-profile eligibility, reuse stateful results or
