@@ -830,8 +830,8 @@ internal static class ContractTests
                         }
                         catch (Exception cleanup) { timeout.Data["cleanup"] = cleanup.GetType().Name; }
                         // Observe eventual stream faults even if termination failed.
-                        stderr.ContinueWith(task => { var ignored = task.Exception; }, TaskContinuationOptions.OnlyOnFaulted);
-                        stdout.ContinueWith(task => { var ignored = task.Exception; }, TaskContinuationOptions.OnlyOnFaulted);
+                        _ = stderr.ContinueWith(task => { var ignored = task.Exception; }, TaskContinuationOptions.OnlyOnFaulted);
+                        _ = stdout.ContinueWith(task => { var ignored = task.Exception; }, TaskContinuationOptions.OnlyOnFaulted);
                         throw timeout;
                     }
                     Check(reader.ExitCode == 1 && (await stderr).Contains(path) && (await stdout).Length == 0,
