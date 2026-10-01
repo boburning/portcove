@@ -13,22 +13,96 @@ use crate::ErrorCode;
 use sha2::{Digest, Sha256};
 use std::io::Write;
 
+// Generic discovery needs two identities and one port for catalog snapshot changes.
+// Keep real schema-2 admission and embedded-catalog coverage in their dedicated cases.
 fn catalog(bytes: &[u8]) -> Catalog {
-    let mut document = Catalog::from_json(include_str!("../catalog/catalog-schema1-fixture.json"))
-        .unwrap()
-        .document()
-        .clone();
+    let digest = hex::encode(Sha256::digest(bytes));
+    let document = serde_json::json!({
+        "schema_version": 1,
+        "source_profiles": (["star-fox-64", "ocarina-of-time"].map(|id| {
+            serde_json::json!({
+                "id": id,
+                "label": format!("Synthetic {id} source"),
+                "accepted_extensions": ["z64"],
+                "accepted_sha256": [digest],
+            })
+        })),
+        "ports": [{
+            "id": "discovery-fixture",
+            "name": "Discovery fixture",
+            "summary": "Synthetic source discovery fixture",
+            "project_url": "https://example.invalid/discovery-fixture",
+            "support_tier": "beta",
+            "channels": ["stable"],
+            "platforms": ["linux-x86-64"],
+            "adapter": "libultraship-portable",
+            "release": { "repository": "fixture/discovery" },
+            "source_profile": "ocarina-of-time",
+            "executable_hints": { "linux-x86-64": ["fixture"] },
+        }],
+    });
+    Catalog::from_json(&document.to_string()).unwrap()
+}
+
+#[test]
+fn generic_discovery_catalog_has_only_its_valid_fixture_graph() {
+    let payload = b"synthetic supported source";
+    let fixture = catalog(payload);
+    fixture.validate().unwrap();
+    assert_eq!(fixture.document().schema_version, 1);
+    assert_eq!(fixture.document().ports.len(), 1);
+    assert_eq!(fixture.document().ports[0].id, "discovery-fixture");
+    assert_eq!(fixture.document().source_profiles.len(), 2);
     for id in ["star-fox-64", "ocarina-of-time"] {
-        let profile = document
-            .source_profiles
-            .iter_mut()
-            .find(|profile| profile.id == id)
-            .unwrap();
-        profile.accepted_extensions = vec!["z64".into()];
-        profile.accepted_sha1.clear();
-        profile.accepted_sha256 = vec![hex::encode(Sha256::digest(bytes))];
+        let profile = fixture.source_profile(id).unwrap();
+        assert_eq!(profile.accepted_extensions, ["z64"]);
+        assert!(profile.accepted_sha1.is_empty());
+        assert_eq!(
+            profile.accepted_sha256,
+            [hex::encode(Sha256::digest(payload))]
+        );
     }
-    Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap()
+
+    let mut invalid = fixture.document().clone();
+    invalid.ports[0].source_profile = Some("missing-source".into());
+    assert!(Catalog::from_json(&serde_json::to_string(&invalid).unwrap()).is_err());
+    let mut invalid = fixture.document().clone();
+    invalid.source_profiles[0].accepted_sha256 = vec!["invalid-digest".into()];
+    assert!(Catalog::from_json(&serde_json::to_string(&invalid).unwrap()).is_err());
+}
+
+#[test]
+fn unrelated_catalog_entries_do_not_change_selected_generic_discovery() {
+    let temporary = tempfile::tempdir().unwrap();
+    let payload = b"synthetic supported source";
+    fs::write(temporary.path().join("source.z64"), payload).unwrap();
+    let fixture = catalog(payload);
+    let mut extended = fixture.document().clone();
+    let mut profile = extended.source_profiles[0].clone();
+    profile.id = "unrelated-source".into();
+    profile.accepted_sha256 = vec![hex::encode(Sha256::digest(b"unrelated bytes"))];
+    extended.source_profiles.push(profile);
+    let mut port = extended.ports[0].clone();
+    port.id = "unrelated-port".into();
+    port.source_profile = Some("unrelated-source".into());
+    extended.ports.push(port);
+    let extended = Catalog::from_json(&serde_json::to_string(&extended).unwrap()).unwrap();
+    let selected = request(temporary.path());
+    let before = scan(&fixture, &selected).unwrap();
+    let after = scan(&extended, &selected).unwrap();
+    assert_eq!(before.candidates.len(), 2);
+    assert_eq!(after.candidates.len(), 2);
+    assert_eq!(before.searched_profiles, after.searched_profiles);
+    assert_eq!(before.files_hashed, after.files_hashed);
+    assert_eq!(before.hash_bytes, after.hash_bytes);
+    for (before, after) in before.candidates.iter().zip(&after.candidates) {
+        assert_eq!(before.profile_id, after.profile_id);
+        assert_eq!(before.path, after.path);
+        assert_eq!(before.sha256, after.sha256);
+        assert_eq!(before.storage_sha256, after.storage_sha256);
+    }
+    assert!(before.limits_reached.is_empty() && after.limits_reached.is_empty());
+    assert!(before.issues.is_empty() && after.issues.is_empty());
 }
 
 fn overlapping_catalog(bytes: &[u8], ocarina_bytes: &[u8]) -> Catalog {
