@@ -240,6 +240,14 @@ fallback; mixed explicitly mapped families retain their full union. This removes
 unrelated test execution for an assertion-only edit without narrowing production
 import coverage or replacing required hosted evidence.
 
+The backup-fixtures group owns only the private `service/tests/backups.rs`
+module. Every creation, inventory, restore, deletion, authorization, preservation
+and interruption/recovery assertion in that module runs together, including
+applicable Unix symlink cases and the real interruption subprocess. Production
+backup orchestration, recovery, service helpers, journals, library/database and
+module wiring remain broad. Deletion, renaming and unknown paths retain the
+complete-package fallback; mixed mapped changes retain their complete union.
+
 The contract is intentionally conservative: shared types, service and lifecycle
 orchestration, database behavior, public module wiring, and package manifests are
 outside the focused groups. The exact artwork resolution module additionally

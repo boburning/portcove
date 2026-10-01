@@ -251,6 +251,31 @@ test("mapped Rust responsibilities run one attributable guarded union", () => {
   assert.ok(!ids(plan).includes("rust-tests:portcove-core"));
 });
 
+test("private backup fixture feedback keeps complete family, Clippy and doctests", () => {
+  const path = "crates/portcove-core/src/service/tests/backups.rs";
+  const { plan } = planFor([path]);
+  const tests = plan.find((entry) => entry.id === "rust-tests:portcove-core:backup-fixtures");
+  assert.ok(tests);
+  assert.equal(tests.args.at(-1), "test(/^service::tests::backups::/)");
+  assert.ok(ids(plan).includes("rust-clippy:portcove-core"));
+  assert.ok(ids(plan).includes("rust-docs:portcove-core"));
+  assert.ok(!ids(plan).includes("rust-tests:portcove-core"));
+  for (const shared of [
+    "service/backups.rs",
+    "recovery.rs",
+    "service.rs",
+    "database.rs",
+    "lib.rs",
+  ]) {
+    assert.ok(
+      ids(planFor([path, `crates/portcove-core/src/${shared}`]).plan).includes(
+        "rust-tests:portcove-core",
+      ),
+      shared,
+    );
+  }
+});
+
 test("artwork fixture edits select their families but storage and decoding stay broad", () => {
   for (const [file, packageName, filter] of [
     ["crates/portcove-core/src/artwork_tests.rs", "portcove-core", "artwork_tests"],
