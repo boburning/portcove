@@ -23,6 +23,9 @@ on:
       authority_sha:
         description: Trusted unchanged selector, recipe and pin revision
         type: string
+      dependency_binding:
+        description: Optional canonical reviewed single-package Cargo token binding
+        type: string
 
 permissions:
   contents: read
@@ -127,6 +130,7 @@ jobs:
       PORTCOVE_LOCAL_MERGE_BASE_SHA: ${{ inputs.merge_base_sha }}
       PORTCOVE_LOCAL_CONTROLLER_SHA: ${{ inputs.controller_sha }}
       PORTCOVE_LOCAL_AUTHORITY_SHA: ${{ inputs.authority_sha }}
+      PORTCOVE_LOCAL_DEPENDENCY_BINDING: ${{ inputs.dependency_binding }}
       pnpm_config_store_dir: ${{ github.workspace }}/source/work/pnpm-store
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
