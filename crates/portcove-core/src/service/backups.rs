@@ -113,6 +113,117 @@ impl RestoreOperation {
     }
 }
 
+/// Internal interpretation of the released deletion envelope, never consent or path authority.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum BackupDeletionPhase {
+    Unconfirmed,
+    Authorized,
+    Quarantined,
+    Deleted,
+    CleanupPending,
+}
+
+impl BackupDeletionPhase {
+    fn stored(self) -> LifecyclePhase {
+        match self {
+            Self::Unconfirmed => LifecyclePhase::Preparing,
+            Self::Authorized => LifecyclePhase::Prepared,
+            Self::Quarantined => LifecyclePhase::PayloadPublished,
+            Self::Deleted => LifecyclePhase::MetadataCommitted,
+            Self::CleanupPending => LifecyclePhase::CleanupPending,
+        }
+    }
+}
+
+pub(crate) struct BackupDeletionOperation {
+    id: String,
+    port_id: String,
+    pub(crate) phase: BackupDeletionPhase,
+    pub(crate) original: PathBuf,
+    pub(crate) quarantine: PathBuf,
+    pub(crate) backup_id: String,
+}
+
+impl BackupDeletionOperation {
+    pub(crate) fn validate_envelope(operation: &LifecycleOperation) -> Result<()> {
+        crate::portable_tree::validate_relative_path(&operation.id, false)?;
+        let mut identity = Path::new(&operation.id).components();
+        if operation.kind != LifecycleOperationKind::DeleteBackup
+            || !matches!(identity.next(), Some(std::path::Component::Normal(_)))
+            || identity.next().is_some()
+            || operation.install.is_some()
+            || operation.relocation.is_some()
+            || operation.source_import.is_some()
+            || operation.preparation.is_some()
+            || operation.preparation_process_quiesced.is_some()
+            || !operation.original_paths.is_empty()
+            || operation.paths.staging.is_some()
+            || operation.activate
+        {
+            return Err(PortcoveError::state(
+                "backup deletion journal has an incompatible identity or family payload",
+            ));
+        }
+        Ok(())
+    }
+
+    pub(crate) fn from_validated_paths(
+        operation: &LifecycleOperation,
+        original: PathBuf,
+        quarantine: PathBuf,
+        backup_id: String,
+    ) -> Self {
+        Self {
+            id: operation.id.clone(),
+            port_id: operation.port_id.clone(),
+            phase: match operation.phase {
+                LifecyclePhase::Preparing => BackupDeletionPhase::Unconfirmed,
+                LifecyclePhase::Prepared => BackupDeletionPhase::Authorized,
+                LifecyclePhase::PayloadPublished => BackupDeletionPhase::Quarantined,
+                LifecyclePhase::MetadataCommitted => BackupDeletionPhase::Deleted,
+                LifecyclePhase::CleanupPending => BackupDeletionPhase::CleanupPending,
+            },
+            original,
+            quarantine,
+            backup_id,
+        }
+    }
+
+    pub(crate) fn advance(
+        &mut self,
+        next: BackupDeletionPhase,
+        operation: &mut LifecycleOperation,
+        store: &OperationStore,
+    ) -> Result<()> {
+        Self::validate_envelope(operation)?;
+        if operation.id != self.id
+            || operation.port_id != self.port_id
+            || operation.paths.final_path.as_ref() != Some(&self.original)
+            || operation.paths.quarantine.as_ref() != Some(&self.quarantine)
+            || operation.phase != self.phase.stored()
+            || !matches!(
+                (self.phase, next),
+                (
+                    BackupDeletionPhase::Authorized,
+                    BackupDeletionPhase::Quarantined
+                ) | (
+                    BackupDeletionPhase::Quarantined,
+                    BackupDeletionPhase::Deleted
+                )
+            )
+        {
+            return Err(PortcoveError::state(
+                "illegal backup deletion phase transition",
+            ));
+        }
+        operation.phase = next.stored();
+        operation.last_error = None;
+        store.put(operation)?;
+        self.phase = next;
+        Ok(())
+    }
+}
+
 const BACKUP_MANIFEST_MAX_BYTES: u64 = 64 * 1024;
 const BACKUP_PREPARATION_MARKER: &str = "preparation.json";
 
@@ -765,23 +876,21 @@ impl PortcoveService {
             lifecycle.paths.final_path = Some(backup.path.clone());
             lifecycle.paths.quarantine = Some(deleting.clone());
             lifecycle.phase = LifecyclePhase::Prepared;
-            self.validate_backup_deletion_operation(&lifecycle)?;
+            let mut deletion = self.validate_backup_deletion_operation(&lifecycle)?;
             store.put(&mut lifecycle)?;
             self.faults
                 .check(LifecycleFaultPoint::DeleteBackupPrepared)?;
             crate::durability::rename_noreplace(&backup.path, &deleting)?;
             self.faults
                 .check(LifecycleFaultPoint::DeleteBackupQuarantined)?;
-            lifecycle.phase = LifecyclePhase::PayloadPublished;
-            store.put(&mut lifecycle)?;
+            deletion.advance(BackupDeletionPhase::Quarantined, &mut lifecycle, &store)?;
             self.faults
                 .check(LifecycleFaultPoint::DeleteBackupDeleting)?;
             refuse_symlink_ancestors(&deleting)?;
             fs::remove_dir_all(&deleting)?;
             self.faults
                 .check(LifecycleFaultPoint::DeleteBackupDeleted)?;
-            lifecycle.phase = LifecyclePhase::MetadataCommitted;
-            store.put(&mut lifecycle)?;
+            deletion.advance(BackupDeletionPhase::Deleted, &mut lifecycle, &store)?;
             self.faults
                 .check(LifecycleFaultPoint::DeleteBackupMetadataCommitted)?;
             store.remove(&lifecycle.id)?;
