@@ -407,7 +407,14 @@ export async function watchRequiredChecks(
           evidence(),
         );
       if (state.contexts.every((context) => context.outcome === "success"))
-        return { ...state, watch: evidence() };
+        return {
+          ...state,
+          watch: {
+            ...evidence(),
+            next_action:
+              "Complete outstanding acceptance and independent review, then use the existing exact-head guarded merge.",
+          },
+        };
       throw deliveryOutcomeError(
         "failed",
         "identified workflow succeeded but required exact-head gates remain missing or pending",

@@ -300,6 +300,7 @@ test("watcher waits quietly on one run and requires both terminal success and ex
   assert.equal(state.watch.deadline, watchOptions.deadline);
   assert.equal(state.watch.workflow.created_at, "2026-10-01T20:55:00Z");
   assert.equal(state.watch.workflow.run_started_at, "2026-10-01T21:00:00Z");
+  assert.match(state.watch.next_action, /guarded merge/);
 
   for (const conclusion of [
     "failure",
