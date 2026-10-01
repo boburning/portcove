@@ -24,11 +24,17 @@ import {
   receiptEnvelope,
   repositoryInventory,
   validateReceipt,
+  selectTransitionAudit,
 } from "./audit.mjs";
 import { prepareStorageScope, spawnCommand } from "./dev-storage.mjs";
 import { parseRawDiff } from "./select-ci-plan.mjs";
 import { readRustTestImpactMap, selectRustTestImpact } from "./rust-test-impact.mjs";
 import { isExcludedOxfmtPath } from "./oxfmt-ownership.mjs";
+import { collectSelectedPrerequisites, selectedPrerequisites } from "./dev-doctor.mjs";
+import {
+  hostedLocalCheckAuthorityPaths,
+  isHostedLocalCheckScriptAuthority,
+} from "./workflow-provenance.mjs";
 
 const projectRoot = fileURLToPath(new URL("../", import.meta.url));
 const desktopRoot = path.join(projectRoot, "apps", "desktop");
@@ -1289,6 +1295,178 @@ function printPlan(context, selection, plan, validationPlan) {
   }
 }
 
+export function buildExecutionPreflight({
+  context,
+  plan,
+  validationPlan,
+  prerequisites,
+  hosted,
+  audit = null,
+}) {
+  validateValidationPlan(validationPlan);
+  if (
+    validationPlan.discovery !== "complete" ||
+    validationPlan.mode === "blocked" ||
+    validationPlan.identities.head !== context.headSha ||
+    validationPlan.identities.base !== context.baseSha ||
+    validationPlan.identities.merge_base !== context.mergeBase ||
+    validationPlan.identities.checkout !== context.headSha
+  )
+    throw new Error("execution preflight requires the current complete comparison");
+  const observations = new Map(prerequisites.map((item) => [item.id, item]));
+  const obligations = plan.map((entry) => {
+    const required = selectedPrerequisites(entry);
+    const missing = required.filter((id) => observations.get(id)?.status !== "ok");
+    return {
+      id: entry.id,
+      property: entry.reason,
+      command: formatCommand(entry),
+      cwd: entry.cwd,
+      capabilities: required,
+      missing,
+      route:
+        missing.length === 0
+          ? "local"
+          : hosted.status === "eligible"
+            ? "hosted-local-check"
+            : "blocked",
+      next_action:
+        missing.length === 0
+          ? formatCommand(entry)
+          : hosted.status === "eligible"
+            ? hosted.command
+            : missing
+                .map((id) => observations.get(id)?.remediation ?? `establish ${id}`)
+                .join("; "),
+    };
+  });
+  return {
+    format_version: 1,
+    source: context.headSha,
+    base: context.baseSha,
+    merge_base: context.mergeBase,
+    plan_digest: validationPlan.digest,
+    local_profile: "default full-debug; selected command arguments and features are authoritative",
+    prerequisites,
+    hosted,
+    obligations,
+    pre_change_audit: audit,
+    storage_scope: storageScopeForPlan(plan),
+    hosted_ci: {
+      groups: validationPlan.groups,
+      platforms: validationPlan.platforms,
+      qualification_required: validationPlan.qualification_required,
+      role: "mandatory exact-head CI; not inferred from prerequisite observations or local receipts",
+    },
+    limits:
+      "No dispatch or acceptance occurs. Fixture/build-script prerequisites, provisioning, dispatch permission and actual run readback remain execution obligations. Refresh against the complete frozen diff before qualification.",
+  };
+}
+
+function inspectPreChangeAudit(context, validationPlan, authority, controller) {
+  const policy = context.changes.some((change) =>
+    [change.path, change.previousPath]
+      .filter(Boolean)
+      .some((name) => validationOwnershipForPath(name).areas.includes("policy")),
+  );
+  if (!policy) return null;
+  const changes = context.changes.map((change) => ({
+    status: change.status,
+    oldPath: change.previousPath ?? change.path,
+    newPath: change.path,
+    oldMode: change.oldMode,
+    newMode: change.newMode,
+  }));
+  const selection = selectTransitionAudit({
+    inventory: repositoryInventory(),
+    validationPlan,
+    changes,
+    workingTreeStatus: git(["status", "--porcelain=v1", "--untracked-files=all"]),
+  });
+  const result = {
+    profile: selection.profile,
+    stages: selection.stages
+      .filter((stage) => !stage.platforms || stage.platforms.includes(process.platform))
+      .map((stage) => ({ id: stage.id, command: `just ${stage.recipe}` })),
+    command: "just audit --profile transition --fresh",
+    route: "local-prerequisites-unverified",
+    reason: selection.reason,
+    next_action:
+      "establish audit prerequisites on the selected host; selected local-check alone does not qualify this policy transition",
+  };
+  if (!authority || !controller || selection.profile !== "complete") return result;
+  for (const revision of [authority, controller])
+    git(["merge-base", "--is-ancestor", revision, context.baseSha]);
+  const protectedInputs = [".github/workflows/deep-quality.yml", "scripts/audit.mjs", "justfile"];
+  if (
+    git(["diff", "--name-only", authority, context.headSha, "--", ...protectedInputs]).trim() ||
+    git(["status", "--porcelain"]).trim()
+  )
+    return result;
+  const branch = git(["branch", "--show-current"]).trim();
+  if (!/^[A-Za-z0-9./_-]+$/u.test(branch)) return result;
+  return {
+    ...result,
+    route: "hosted-deep-audit",
+    next_action: `gh workflow run deep-quality.yml --ref ${branch} -f operation=audit`,
+    source: context.headSha,
+    authority,
+    controller,
+    limit:
+      "fixed complete audit only; dispatch permission and actual run/head readback remain required; not equivalent to selected local-check",
+  };
+}
+
+export function inspectHostedLocalRoute(context, authority, controller, invokeGit = git) {
+  if (!authority || !controller)
+    return {
+      status: "unverified",
+      reason: "exact trusted authority and controller revisions not supplied",
+      next_action:
+        "supply --hosted-authority SHA --hosted-controller SHA from the already qualified main route",
+    };
+  if (![authority, controller].every((sha) => /^[a-f0-9]{40}$/u.test(sha)))
+    throw new Error("hosted preflight requires exact authority and controller SHAs");
+  if (invokeGit(["status", "--porcelain"]).trim())
+    return { status: "blocked", reason: "hosted route requires a clean frozen source" };
+  for (const revision of [authority, controller]) {
+    if (invokeGit(["rev-parse", "--verify", `${revision}^{commit}`]).trim() !== revision)
+      throw new Error("hosted authority revision differs from supplied identity");
+    invokeGit(["merge-base", "--is-ancestor", revision, context.baseSha]);
+  }
+  const workflow = invokeGit(["show", `${controller}:.github/workflows/deep-quality.yml`]);
+  if (
+    !workflow.includes("hosted-local-check controller") ||
+    !workflow.includes("hosted-local-check run")
+  )
+    return {
+      status: "blocked",
+      reason: "controller lacks the established fixed local-check route",
+    };
+  const paths = invokeGit(["diff", "--name-only", "-z", authority, context.headSha])
+    .split("\0")
+    .filter(Boolean);
+  const changed = paths.filter(
+    (name) =>
+      hostedLocalCheckAuthorityPaths.includes(name) || isHostedLocalCheckScriptAuthority(name),
+  );
+  if (changed.length)
+    return {
+      status: "blocked",
+      reason:
+        "candidate changes trusted local-check authority; fixed transport cannot qualify itself",
+      changed,
+    };
+  return {
+    status: "eligible",
+    authority,
+    controller,
+    dispatch_authority:
+      "not established by this local observation; dispatch and exact run readback must succeed",
+    command: `gh workflow run deep-quality.yml --ref ${controller} -f operation=local-check -f source_sha=${context.headSha} -f base_sha=${context.baseSha} -f merge_base_sha=${context.mergeBase} -f controller_sha=${controller} -f authority_sha=${authority}`,
+  };
+}
+
 export function executePlan(plan, options = {}) {
   const spawn = options.spawn ?? spawnCommand;
   const started = Date.now();
@@ -1500,19 +1678,29 @@ function parseCheckArgs(args) {
   let base = "origin/main";
   let planOnly = false;
   let fresh = false;
+  let preflightOnly = false;
+  let asJson = false;
+  let authority;
+  let controller;
   for (let index = 0; index < args.length; index += 1) {
     const value = args[index];
     if (value === "--plan") planOnly = true;
     else if (value === "--fresh") fresh = true;
+    else if (value === "--preflight") preflightOnly = true;
+    else if (value === "--json") asJson = true;
+    else if (value === "--hosted-authority") authority = args[++index];
+    else if (value === "--hosted-controller") controller = args[++index];
     else if (value === "--base") {
       base = args[++index];
       if (!base) throw new Error("--base requires a Git revision");
     } else throw new Error(`unknown local-check option: ${value}`);
   }
-  return { base, planOnly, fresh };
+  if ((asJson || authority || controller) && !preflightOnly)
+    throw new Error("route/JSON options require --preflight");
+  return { base, planOnly, fresh, preflightOnly, asJson, authority, controller };
 }
 
-export function main(argv = process.argv.slice(2)) {
+export async function main(argv = process.argv.slice(2)) {
   if (argv.includes("--help")) {
     console.log(
       "usage: local-validation.mjs [check [--base REV] [--plan] [--fresh]|test-rust ARGS|test-ui-related FILES|test-node TESTS]",
@@ -1525,7 +1713,8 @@ export function main(argv = process.argv.slice(2)) {
     return;
   }
   if (kind !== "check") throw new Error(`unknown local validation command: ${kind}`);
-  const { base, planOnly, fresh } = parseCheckArgs(args);
+  const { base, planOnly, fresh, preflightOnly, asJson, authority, controller } =
+    parseCheckArgs(args);
   const context = readChangeContext(base);
   const validationPlan = validateValidationPlan(
     buildValidationPlan({
@@ -1549,6 +1738,40 @@ export function main(argv = process.argv.slice(2)) {
       ? { ...context, validationPlan, doctestPackages: readDoctestPackages() }
       : { ...context, validationPlan };
   const plan = buildPlan(selection, planContext);
+  if (preflightOnly) {
+    const hosted = inspectHostedLocalRoute(context, authority, controller);
+    const audit = inspectPreChangeAudit(context, validationPlan, authority, controller);
+    const report = buildExecutionPreflight({
+      context,
+      plan,
+      validationPlan,
+      prerequisites: await collectSelectedPrerequisites(
+        audit ? [...plan, { id: "conservative-audit" }] : plan,
+      ),
+      hosted,
+      audit,
+    });
+    if (asJson) console.log(JSON.stringify(report, null, 2));
+    else {
+      printPlan(context, selection, plan, validationPlan);
+      console.log(
+        `Hosted selected route: ${report.hosted.status} (${report.hosted.reason ?? "exact trusted revisions supplied; dispatch remains unproven"})`,
+      );
+      for (const entry of report.obligations)
+        console.log(
+          `${entry.id}: ${entry.route}; missing ${entry.missing.join(", ") || "none observed"}; next ${entry.next_action}`,
+        );
+      if (audit)
+        console.log(`Pre-change ${audit.profile} audit: ${audit.route}; next ${audit.next_action}`);
+      console.log(report.limits);
+    }
+    if (
+      report.obligations.some((entry) => entry.route === "blocked") ||
+      audit?.route === "local-prerequisites-unverified"
+    )
+      process.exitCode = 1;
+    return;
+  }
   printPlan(context, selection, plan, validationPlan);
   if (planOnly) return;
   const env = prepareStorageScope(storageScopeForPlan(plan));
@@ -1565,7 +1788,7 @@ export function main(argv = process.argv.slice(2)) {
 
 if (path.resolve(process.argv[1] ?? "") === fileURLToPath(import.meta.url)) {
   try {
-    main();
+    await main();
   } catch (error) {
     console.error(error instanceof Error ? error.message : error);
     process.exitCode = 1;

@@ -27,11 +27,132 @@ import {
   requireFocusedArguments,
   storageScopeForPlan,
   untrackedFileMode,
+  buildExecutionPreflight,
+  inspectHostedLocalRoute,
 } from "./local-validation.mjs";
 import { isExcludedOxfmtPath } from "./oxfmt-ownership.mjs";
 import { buildValidationPlan } from "./validation-plan.mjs";
 
 const allFilesExist = () => true;
+
+function preflightFixture() {
+  const context = { headSha: "a".repeat(40), baseSha: "b".repeat(40), mergeBase: "b".repeat(40) };
+  const validationPlan = buildValidationPlan({
+    changes: [
+      {
+        status: "M",
+        oldPath: "apps/desktop/src/App.tsx",
+        newPath: "apps/desktop/src/App.tsx",
+        oldMode: "100644",
+        newMode: "100644",
+      },
+    ],
+    eventName: "pull_request",
+    head: context.headSha,
+    base: context.baseSha,
+    mergeBase: context.mergeBase,
+    checkout: context.headSha,
+  });
+  const plan = [
+    {
+      id: "rust-clippy:portcove-desktop",
+      reason: "compile the actual native target",
+      executable: "cargo",
+      args: ["clippy", "--locked", "-p", "portcove-desktop"],
+      cwd: "/source",
+    },
+  ];
+  const prerequisites = ["node", "rustc", "cargo"]
+    .map((id) => ({ id, status: "ok" }))
+    .concat({
+      id: "native-desktop-build",
+      status: "unavailable",
+      remediation: "use an approved capable route",
+    });
+  return { context, validationPlan, plan, prerequisites };
+}
+
+test("preflight selects the approved capable route without claiming execution or CI", () => {
+  const inputs = preflightFixture();
+  const hosted = { status: "eligible", command: "exact frozen hosted dispatch" };
+  const report = buildExecutionPreflight({ ...inputs, hosted });
+  assert.equal(report.obligations[0].route, "hosted-local-check");
+  assert.deepEqual(report.obligations[0].missing, ["native-desktop-build"]);
+  assert.equal(report.obligations[0].next_action, hosted.command);
+  assert.match(report.local_profile, /full-debug/);
+  assert.match(report.hosted_ci.role, /mandatory exact-head CI/);
+  assert.match(report.limits, /No dispatch or acceptance/);
+  const blocked = buildExecutionPreflight({
+    ...inputs,
+    hosted: { status: "blocked", reason: "authority changed" },
+  });
+  assert.equal(blocked.obligations[0].route, "blocked");
+  const local = buildExecutionPreflight({
+    ...inputs,
+    prerequisites: inputs.prerequisites.map((item) => ({ ...item, status: "ok" })),
+    hosted,
+  });
+  assert.equal(local.obligations[0].route, "local");
+  assert.equal(local.obligations[0].command, formatCommand(inputs.plan[0]));
+  assert.throws(
+    () =>
+      buildExecutionPreflight({
+        ...inputs,
+        context: { ...inputs.context, headSha: "c".repeat(40) },
+        hosted,
+      }),
+    /current complete comparison/,
+  );
+});
+
+test("hosted preflight requires exact available ancestor authorities and a frozen clean source", () => {
+  const { context } = preflightFixture();
+  const sha = "b".repeat(40);
+  const invoke =
+    (paths = "", dirty = "") =>
+    (args) => {
+      if (args[0] === "status") return dirty;
+      if (args[0] === "rev-parse") return sha;
+      if (args[0] === "show") return "hosted-local-check controller\nhosted-local-check run";
+      if (args[0] === "diff") return paths;
+      return "";
+    };
+  assert.equal(inspectHostedLocalRoute(context).status, "unverified");
+  assert.throws(() => inspectHostedLocalRoute(context, "main", sha), /exact authority/);
+  assert.equal(
+    inspectHostedLocalRoute(context, sha, sha, invoke("", " M source")).status,
+    "blocked",
+  );
+  for (const changed of [
+    "Cargo.lock",
+    "scripts/local-validation.mjs",
+    "scripts/dev-doctor.mjs",
+    "apps/desktop/scripts/new-helper.mjs",
+    "docs/QUALITY.md",
+  ]) {
+    assert.equal(
+      inspectHostedLocalRoute(context, sha, sha, invoke(changed + "\0")).status,
+      "blocked",
+      changed,
+    );
+  }
+  const eligible = inspectHostedLocalRoute(
+    context,
+    sha,
+    sha,
+    invoke("apps/desktop/src-tauri/src/cli_context.rs\0scripts/example.test.mjs\0"),
+  );
+  assert.equal(eligible.status, "eligible");
+  assert.match(eligible.command, new RegExp(`source_sha=${context.headSha}`));
+  assert.match(eligible.dispatch_authority, /not established/);
+  assert.throws(
+    () =>
+      inspectHostedLocalRoute(context, sha, sha, () => {
+        throw new Error("unavailable comparison authority");
+      }),
+    /unavailable/,
+  );
+});
 const change = (path, options = {}) => ({ status: "M", path, ...options });
 const ids = (plan) => plan.map((entry) => entry.id);
 

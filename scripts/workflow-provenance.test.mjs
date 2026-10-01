@@ -11,9 +11,19 @@ import {
   parseProvenanceArchive,
   validateWorkflowProvenance,
   hostedLocalCheckAuthorityPaths,
+  isHostedLocalCheckScriptAuthority,
   hostedLocalCheckEnvironment,
   runHostedLocalCheck,
 } from "./workflow-provenance.mjs";
+
+test("preflight and controller share the exact hosted script authority boundary", () => {
+  assert.equal(isHostedLocalCheckScriptAuthority("scripts/dev-doctor.mjs"), true);
+  assert.equal(isHostedLocalCheckScriptAuthority("apps/desktop/scripts/example.mjs"), true);
+  assert.equal(isHostedLocalCheckScriptAuthority("scripts/example.test.mjs"), false);
+  assert.equal(isHostedLocalCheckScriptAuthority("scripts/workflow-provenance.mjs"), false);
+  assert.equal(isHostedLocalCheckScriptAuthority("apps/desktop/src/example.ts"), false);
+  assert.ok(hostedLocalCheckAuthorityPaths.includes("scripts/workflow-provenance.mjs") === false);
+});
 
 function hostedFixture(t) {
   const directory = mkdtempSync(path.join(tmpdir(), "portcove-local-check-binding-"));

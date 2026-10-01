@@ -1,6 +1,64 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { probeTool } from "./dev-doctor.mjs";
+import { probeTool, selectedPrerequisites, collectSelectedPrerequisites } from "./dev-doctor.mjs";
+
+test("selected frontend prerequisites do not invoke Rust, native provisioning or bootstrap", async () => {
+  const calls = [];
+  const report = await collectSelectedPrerequisites([{ id: "oxfmt" }], {
+    run: (command, args) => {
+      calls.push([command, args]);
+      return { status: 0, stdout: command === "corepack" ? "12.7.0" : "v24.21.0" };
+    },
+  });
+  assert.deepEqual(
+    report.map((entry) => entry.id),
+    ["node", "pnpm", "frontend-dependencies"],
+  );
+  assert.equal(calls.length, 2);
+  assert.ok(calls.every(([command]) => command !== "cargo" && command !== "rustc"));
+});
+
+test("selected native compilation reports missing Linux libraries without installing them", async () => {
+  const calls = [];
+  const report = await collectSelectedPrerequisites([{ id: "rust-clippy:portcove-desktop" }], {
+    platform: "linux",
+    run: (command, args) => {
+      calls.push([command, args]);
+      return {
+        status: command === "pkg-config" ? 1 : 0,
+        stdout: command === "rustc" ? "1.98.1" : "24.21.0",
+      };
+    },
+  });
+  assert.equal(report.find((item) => item.id === "native-desktop-build").status, "unavailable");
+  assert.deepEqual(calls.find(([command]) => command === "pkg-config")[1], [
+    "--exists",
+    "gtk+-3.0",
+    "webkit2gtk-4.1",
+    "libsoup-3.0",
+  ]);
+  assert.ok(!calls.some(([command]) => command === "apt-get"));
+});
+
+test("stale Windows Aqua state is an actionable prerequisite failure", async () => {
+  const report = await collectSelectedPrerequisites([{ id: "actionlint" }], {
+    platform: "win32",
+    readToolState: () => null,
+    run: () => ({ status: 0, stdout: "24.21.0" }),
+  });
+  assert.deepEqual(
+    report.find((item) => item.id === "aqua-state"),
+    {
+      id: "aqua-state",
+      status: "unavailable",
+      remediation: "./scripts/bootstrap-quality-tools.ps1",
+    },
+  );
+  assert.ok(
+    selectedPrerequisites({ id: "conservative-audit" }).includes("complete-audit-prerequisites"),
+  );
+  assert.ok(selectedPrerequisites({ id: "playnite-contract" }).includes("dotnet"));
+});
 
 const definition = {
   id: "example",

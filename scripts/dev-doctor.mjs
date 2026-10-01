@@ -108,6 +108,140 @@ export function probeTool(definition, run = spawnCommand, options = {}) {
   return { id, required, expected: version, observed, status, remediation: definition.remediation };
 }
 
+// These are prerequisite observations, never successful execution receipts.
+// Test fixtures and build scripts can expose further prerequisites at execution.
+export function selectedPrerequisites(entry) {
+  const ids = new Set(["node"]);
+  const rust =
+    entry.id === "rustfmt" ||
+    entry.id.startsWith("rust-") ||
+    ["dependency-policy", "transport-export", "playnite-contract"].includes(entry.id);
+  if (rust) {
+    ids.add("rustc");
+    ids.add("cargo");
+  }
+  if (entry.id.startsWith("rust-tests") || entry.id === "rust-workspace-tests")
+    ids.add("cargo-nextest");
+  if (entry.id === "dependency-policy") ids.add("cargo-deny");
+  if (
+    entry.id.startsWith("ui-") ||
+    ["oxfmt", "oxlint", "toml-format", "fallow", "transport-export"].includes(entry.id)
+  ) {
+    ids.add("pnpm");
+    ids.add("frontend-dependencies");
+  }
+  if (entry.id === "playnite-contract") {
+    ids.add("pwsh");
+    ids.add("dotnet");
+  }
+  if (entry.id === "powershell-lint") ids.add("pwsh");
+  if (["shell-lint", "python-lint", "actionlint", "lint-tool-fixtures"].includes(entry.id))
+    ids.add("aqua-state");
+  if (entry.id === "shell-lint") ids.add("shellcheck");
+  if (entry.id === "python-lint") ids.add("ruff");
+  if (entry.id === "actionlint") ids.add("actionlint");
+  if (rust && (entry.id.includes("workspace") || entry.id.includes("portcove-desktop")))
+    ids.add("native-desktop-build");
+  if (entry.id === "conservative-audit") {
+    ids.add("complete-audit-prerequisites");
+    ids.add("aqua-state");
+  }
+  return [...ids];
+}
+
+export async function collectSelectedPrerequisites(plan, options = {}) {
+  const platform = options.platform ?? process.platform;
+  const run = options.run ?? doctorCommand;
+  const manifest = await loadQualityManifest();
+  const repositoryPackage = JSON.parse(readFileSync(path.join(root, "package.json"), "utf8"));
+  const cachePaths = toolCachePaths();
+  const environment = checkoutToolEnvironment(process.env, { paths: cachePaths });
+  const definitions = {
+    node: {
+      id: "node",
+      command: [process.execPath, "--version"],
+      version: readFileSync(path.join(root, ".node-version"), "utf8").trim(),
+    },
+    pnpm: {
+      id: "pnpm",
+      command: ["corepack", repositoryPackage.packageManager, "--version"],
+      version: repositoryPackage.packageManager.split("@")[1],
+    },
+    rustc: { id: "rustc", command: ["rustc", "--version"], version: manifest.rust.channel },
+    cargo: { id: "cargo", command: ["cargo", "--version"] },
+    pwsh: { id: "pwsh", command: ["pwsh", "--version"] },
+    dotnet: { id: "dotnet", command: ["dotnet", "--version"] },
+  };
+  for (const tool of manifest.tools) definitions[tool.id] = { ...tool, command: tool.command };
+  const ids = new Set(plan.flatMap(selectedPrerequisites));
+  const results = [];
+  for (const id of ids) {
+    if (id === "frontend-dependencies")
+      results.push({
+        id,
+        status:
+          existsSync(path.join(root, "node_modules")) &&
+          existsSync(path.join(root, "apps/desktop/node_modules"))
+            ? "ok"
+            : "unavailable",
+        remediation: "pnpm install --frozen-lockfile",
+      });
+    else if (id === "aqua-state")
+      results.push({
+        id,
+        status:
+          platform !== "win32" || (options.readToolState ?? readToolState)({ paths: cachePaths })
+            ? "ok"
+            : "unavailable",
+        remediation: "./scripts/bootstrap-quality-tools.ps1",
+      });
+    else if (id === "native-desktop-build") {
+      if (platform === "linux")
+        results.push(
+          probeTool(
+            {
+              id,
+              command: ["pkg-config", "--exists", "gtk+-3.0", "webkit2gtk-4.1", "libsoup-3.0"],
+              remediation:
+                "use the approved hosted local-check route or scripts/install-linux-desktop-prerequisites.sh",
+            },
+            run,
+            { environment },
+          ),
+        );
+      else
+        results.push({
+          id,
+          status: "unverified",
+          remediation:
+            platform === "win32"
+              ? "just doctor --profile desktop; establish the selected MSVC build environment"
+              : "establish the Xcode command-line build prerequisites",
+        });
+    } else if (id === "complete-audit-prerequisites")
+      results.push({
+        id,
+        status: "unverified",
+        remediation: "just doctor; qualify the complete audit on an approved capable host",
+      });
+    else if (["ruff", "shellcheck", "actionlint"].includes(id))
+      results.push(
+        probeTool(
+          {
+            id,
+            command: ["aqua", "exec", "--", id, id === "actionlint" ? "-version" : "--version"],
+            remediation: "run the normal pinned tool bootstrap",
+          },
+          run,
+          { environment },
+        ),
+      );
+    else if (definitions[id]) results.push(probeTool(definitions[id], run, { environment }));
+    else throw new Error(`unowned prerequisite: ${id}`);
+  }
+  return results;
+}
+
 function executablePaths(command, environment = process.env) {
   if (path.isAbsolute(command)) return existsSync(command) ? [command] : [];
   try {

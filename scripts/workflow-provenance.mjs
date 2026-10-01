@@ -75,6 +75,14 @@ export const hostedLocalCheckAuthorityPaths = Object.freeze([
   "scripts/fixtures/windows-process-tree-supervisor.rs.txt",
 ]);
 
+export function isHostedLocalCheckScriptAuthority(name) {
+  return (
+    (name.startsWith("scripts/") || name.startsWith("apps/desktop/scripts/")) &&
+    !name.endsWith(".test.mjs") &&
+    name !== "scripts/workflow-provenance.mjs"
+  );
+}
+
 export function hostedLocalCheckEnvironment(
   environment,
   rustPin,
@@ -205,9 +213,7 @@ export async function runHostedLocalCheck(phase, options = {}) {
     "apps/desktop/scripts",
   ])
     .split("\n")
-    .filter(
-      (name) => name && !name.endsWith(".test.mjs") && name !== "scripts/workflow-provenance.mjs",
-    );
+    .filter((name) => name && isHostedLocalCheckScriptAuthority(name));
   if (scriptChanges.length > 0)
     throw new Error("Source changes trusted local-check script authority");
   if (
