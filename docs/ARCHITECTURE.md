@@ -99,7 +99,11 @@ from Windows results.
 The optional native compatibility feature can create unprivileged secondary
 and loopback-origin windows for boundary qualification. Its remote test window
 may navigate so the existing remote ACL can actually be exercised; it never
-receives main-window grants. Ordinary production builds exclude these fixtures
+receives main-window grants. The same opt-in fixture can queue a fixed synthetic reply for an unprivileged
+window and recreate that owned window to test queue disposal. Only the main
+window can request those fixture operations, and only with the explicit loopback
+fixture configured. They grant no core operation or additional capability.
+Ordinary production builds exclude these fixtures
 and the embedded driver. Qualification evidence is labeled separately from
 installed production packages and physical or human observations.
 
