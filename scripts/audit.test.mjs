@@ -441,6 +441,37 @@ test("domain inventories retain unrelated documentation rebases and invalidate R
   );
 });
 
+test("release handbook edits invalidate their consumers without expiring unchanged product receipts", () => {
+  const handbook = file("docs/RELEASING.md", "selected predecessor and candidate");
+  assert.deepEqual(handbook.domains, ["format", "release", "repository", "roadmap"]);
+  const before = inventory("before", [handbook]);
+  const after = inventory("after", [file("docs/RELEASING.md", "corrected selected versions")]);
+  for (const stage of AUDIT_STAGES.filter((entry) => entry.reusable)) {
+    const changed = handbook.domains.includes(stage.domain);
+    assert.equal(
+      fingerprintStage(stage, before, runtime) !== fingerprintStage(stage, after, runtime),
+      changed,
+      stage.id,
+    );
+  }
+  for (const protectedInput of ["docs/QUALITY.md", "scripts/audit.mjs", "unknown-release.bin"])
+    for (const stage of AUDIT_STAGES.filter((entry) => entry.reusable))
+      assert.ok(file(protectedInput, "changed policy").domains.includes(stage.domain), stage.id);
+  const rust = AUDIT_STAGES.find((entry) => entry.id === "rust");
+  assert.notEqual(
+    fingerprintStage(
+      rust,
+      inventory("a", [handbook, file("crates/portcove-core/src/lib.rs", "a")]),
+      runtime,
+    ),
+    fingerprintStage(
+      rust,
+      inventory("b", [handbook, file("crates/portcove-core/src/lib.rs", "b")]),
+      runtime,
+    ),
+  );
+});
+
 test("formatting and transport inputs invalidate every stage that actually reads them", () => {
   const documentation = file("docs/README.md", "docs");
   assert.ok(documentation.domains.includes("format"));

@@ -185,6 +185,13 @@ non-ignored untracked files. Pass `--base <revision>` when another reviewed base
 is intentional, `--plan` to inspect the exact selection, or `--fresh` when an
 acceptance contract explicitly requires execution without reusable local receipts.
 
+Release-handbook changes in `docs/RELEASING.md` invalidate formatting,
+repository, roadmap and release-unit receipts. They do not expire otherwise identical
+Rust or UI command evidence. Changes to their actual source, recipes, dependencies,
+toolchain or environment still invalidate those receipts. This does not shorten
+`--fresh` audits, grant transition-profile eligibility, reuse stateful results or
+replace required exact-head hosted and installed-application qualification.
+
 Eligible deterministic local stages use the audit's integrity-checked receipt
 model. Each fingerprint binds the exact command and obligation, complete
 conservative domain inputs, recipes and pins, relevant toolchain and host identity,
