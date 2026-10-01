@@ -258,9 +258,78 @@ mod tests {
         assert!(discover_cli(None, [temp.path().to_path_buf()].into_iter()).is_none());
         let error = inspect_cli(&renamed_desktop).unwrap_err();
         assert_eq!(error.kind(), std::io::ErrorKind::InvalidData);
+
+        // Full-debug native images can exceed the production size limit. Preserve
+        // every decision-relevant marker window from the entire actual image in
+        // a bounded fixture so this assertion always reaches capability scanning.
+        // An accidentally embedded compatible marker must still fail this test.
+        let marker_len = cli_steam_exec_identity::LEN;
+        let mut image = File::open(&renamed_desktop).unwrap();
+        let mut chunk = [0_u8; 64 * 1024];
+        let mut overlap = Vec::new();
+        let mut candidates = Vec::new();
+        loop {
+            let count = image.read(&mut chunk).unwrap();
+            if count == 0 {
+                break;
+            }
+            overlap.extend_from_slice(&chunk[..count]);
+            for window in overlap
+                .windows(marker_len)
+                .filter(|window| window.starts_with(CLI_STEAM_EXEC_IDENTITY_PREFIX))
+            {
+                assert!((candidates.len() + 2 * marker_len) as u64 <= MAX_CLI_BYTES);
+                candidates.extend_from_slice(window);
+                // Prevent adjacent source windows from forming a new marker.
+                candidates.resize(candidates.len() + marker_len, 0);
+            }
+            let retain = marker_len - 1;
+            if overlap.len() > retain {
+                overlap.drain(..overlap.len() - retain);
+            }
+        }
+        assert!(
+            !candidates.is_empty(),
+            "native image must contain the scanner prefix"
+        );
+        std::fs::write(&renamed_desktop, candidates).unwrap();
+        assert!(std::fs::metadata(&renamed_desktop).unwrap().len() <= MAX_CLI_BYTES);
+        assert!(discover_cli(None, [temp.path().to_path_buf()].into_iter()).is_none());
+        let error = inspect_cli(&renamed_desktop).unwrap_err();
+        assert_eq!(error.kind(), std::io::ErrorKind::InvalidData);
         assert_eq!(
             error.to_string(),
             "standalone CLI does not advertise the compatible Steam exec contract"
         );
+    }
+
+    #[test]
+    fn rejects_an_oversized_compatible_regular_executable_without_scanning_it() {
+        let temp = tempfile::tempdir().unwrap();
+        let cli = temp.path().join(if cfg!(windows) {
+            "portcove.exe"
+        } else {
+            "portcove"
+        });
+        std::fs::write(&cli, compatible_cli_fixture()).unwrap();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(&cli, std::fs::Permissions::from_mode(0o700)).unwrap();
+        }
+        let file = OpenOptions::new().write(true).open(&cli).unwrap();
+        file.set_len(MAX_CLI_BYTES + 1).unwrap();
+        let metadata = file.metadata().unwrap();
+        assert!(metadata.is_file());
+        assert_eq!(metadata.len(), MAX_CLI_BYTES + 1);
+        drop(file);
+
+        let error = inspect_cli(&cli).unwrap_err();
+        assert_eq!(error.kind(), std::io::ErrorKind::InvalidData);
+        assert_eq!(
+            error.to_string(),
+            "standalone CLI is not a bounded regular file"
+        );
+        assert!(discover_cli(None, [temp.path().to_path_buf()].into_iter()).is_none());
     }
 }
