@@ -23,7 +23,7 @@ export function BackupReviewDialog({
   generation: number;
   apply: ApplyBackupAction;
   close: () => void;
-  finalFocus?: () => HTMLElement | null;
+  finalFocus?: React.ComponentProps<typeof DialogContent>["finalFocus"];
 }) {
   const {
     preview: review,

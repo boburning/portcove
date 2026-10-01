@@ -103,6 +103,54 @@ it("returns focus to a remaining backup after successful deletion removes the op
   await vi.waitFor(() => expect(document.activeElement).toBe(remaining));
 });
 
+it("restores committed-row focus after operation completion and an awaited inventory refresh", async () => {
+  let finishOperation!: () => void;
+  let finishInventory!: () => void;
+  function RefreshedHistory() {
+    const [current, setCurrent] = useState(backups);
+    const [busy, setBusy] = useState<string>();
+    return (
+      <BackupHistory
+        backups={current}
+        generation={7}
+        busy={busy}
+        restore={vi.fn()}
+        remove={async (backup) => {
+          setBusy("delete backup");
+          await new Promise<void>((resolve) => {
+            finishOperation = resolve;
+          });
+          setBusy(undefined);
+          await new Promise<void>((resolve) => {
+            finishInventory = () => {
+              setCurrent((items) => items.filter((item) => item.id !== backup.id));
+              resolve();
+            };
+          });
+          return true;
+        }}
+      />
+    );
+  }
+  await act(async () => root.render(<RefreshedHistory />));
+  const opener = await openDeletion("backup-1");
+  const disconnectedFocus = vi.spyOn(opener, "focus");
+  await click("Delete this backup permanently");
+  expect(opener.disabled).toBe(true);
+  await act(async () => finishOperation());
+  expect(opener.disabled).toBe(false);
+  expect(document.body.querySelector('[role="dialog"]')).not.toBeNull();
+  await act(async () => finishInventory());
+  expect(opener.isConnected).toBe(false);
+  expect(document.body.querySelector('[role="dialog"]')).toBeNull();
+  await vi.waitFor(() =>
+    expect(document.activeElement).toBe(
+      container.querySelector('[data-backup-id="backup-2"] button[data-backup-action="delete"]'),
+    ),
+  );
+  expect(disconnectedFocus).not.toHaveBeenCalled();
+});
+
 it("returns focus to the previous backup when the last row is deleted", async () => {
   await act(async () => root.render(<History />));
   await openDeletion("backup-2");

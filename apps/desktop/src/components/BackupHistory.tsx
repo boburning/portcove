@@ -148,24 +148,30 @@ export function BackupHistory({
           generation={generation}
           apply={selection.action === "restore" ? restore : remove}
           close={() => setSelection(undefined)}
-          finalFocus={() => {
-            if (
-              history.current?.isConnected &&
-              selection.opener.isConnected &&
-              !selection.opener.disabled
-            )
-              return selection.opener;
-            const actions = history.current?.isConnected
-              ? history.current.querySelectorAll<HTMLButtonElement>(
-                  `button[data-backup-action="${selection.action}"]:not(:disabled)`,
-                )
-              : undefined;
-            return (
-              actions?.[Math.min(selection.index, actions.length - 1)] ??
-              (heading.current?.isConnected ? heading.current : undefined) ??
-              focusFallback?.() ??
-              null
-            );
+          finalFocus={(closeType) => {
+            // The primitive calls this during unmount, before React finishes removing rows.
+            // Resolve from the committed DOM in the same microtask stage as return focus.
+            queueMicrotask(() => {
+              const opener =
+                history.current?.isConnected &&
+                selection.opener.isConnected &&
+                !selection.opener.disabled
+                  ? selection.opener
+                  : undefined;
+              const actions = history.current?.isConnected
+                ? history.current.querySelectorAll<HTMLButtonElement>(
+                    `button[data-backup-action="${selection.action}"]:not(:disabled)`,
+                  )
+                : undefined;
+              const target =
+                opener ??
+                actions?.[Math.min(selection.index, actions.length - 1)] ??
+                (heading.current?.isConnected ? heading.current : undefined) ??
+                focusFallback?.();
+              if (target?.isConnected)
+                target.focus({ preventScroll: true, focusVisible: closeType === "keyboard" });
+            });
+            return false;
           }}
         />
       )}
