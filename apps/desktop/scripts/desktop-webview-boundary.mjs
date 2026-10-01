@@ -278,6 +278,17 @@ try {
   assert.equal(delivered.exact, true);
   const consumed = await fetchQueued(held.id);
   assert.equal(consumed.ok, false);
+  report.observations.queuedReplies = {
+    secondaryFixtureControl,
+    remoteFixtureControl,
+    held,
+    foreign,
+    unknown,
+    remoteForeign,
+    remoteUnknown,
+    delivered,
+    consumed,
+  };
   // Recreate the same label, before queuing any new reply. A stale entry would
   // otherwise be addressable by that replacement webview under this patch.
   const abandoned = await queueOwner(await armOwner());
@@ -289,20 +300,7 @@ try {
   const disposed = await fetchQueued(abandoned.id);
   assert.equal(disposed.ok, false);
   assert.deepEqual(disposed, consumed);
-  report.observations.queuedReplies = {
-    secondaryFixtureControl,
-    remoteFixtureControl,
-    held,
-    foreign,
-    unknown,
-    remoteForeign,
-    remoteUnknown,
-    delivered,
-    consumed,
-    abandoned,
-    recreated,
-    disposed,
-  };
+  Object.assign(report.observations.queuedReplies, { abandoned, recreated, disposed });
   await browser.switchTo().window("main");
   report.observations.returnedMain = await invoke(browser, "get_bootstrap_status");
   assert.equal(report.observations.returnedMain.ok, true);

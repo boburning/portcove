@@ -60,7 +60,9 @@ pub fn queue_boundary_reply<R: tauri::Runtime>(
 }
 
 #[tauri::command]
-pub fn recreate_boundary_owner<R: tauri::Runtime>(app: tauri::AppHandle<R>) -> Result<(), String> {
+pub async fn recreate_boundary_owner<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+) -> Result<(), String> {
     use tauri::Manager;
     if app.get_webview_window("boundary-secondary").is_some() {
         return Err("close the existing owned fixture first".into());
