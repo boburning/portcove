@@ -1689,7 +1689,7 @@ fn backup_deletion_family_rejects_original_paths() {
 }
 
 #[test]
-fn backup_deletion_family_decodes_legacy_phases_and_checks_transitions() {
+fn backup_deletion_family_decodes_legacy_phases_without_mutation() {
     let temporary = tempfile::tempdir().unwrap();
     let library = Library::open(temporary.path().join("library")).unwrap();
     let service = service_with_release(library.clone(), "v2");
@@ -1750,6 +1750,30 @@ fn backup_deletion_family_decodes_legacy_phases_and_checks_transitions() {
         format!("{:?}", store.get(&operation.id).unwrap().unwrap()),
         before
     );
+}
+
+#[test]
+fn backup_deletion_family_checks_transitions_before_journal_write() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("library")).unwrap();
+    let service = service_with_release(library.clone(), "v2");
+    let store = OperationStore::new(library.clone());
+    let mut operation = LifecycleOperation::new(
+        "legacy-deletion",
+        LifecycleOperationKind::DeleteBackup,
+        "zelda64-recomp",
+    );
+    let original = library
+        .backups_dir()
+        .join(&operation.port_id)
+        .join(Uuid::new_v4().to_string());
+    let quarantine = original
+        .parent()
+        .unwrap()
+        .join(format!(".deleting-{}", operation.id));
+    operation.paths.final_path = Some(original.clone());
+    operation.paths.quarantine = Some(quarantine.clone());
+    operation.last_error = Some("retained fault".into());
     operation.phase = LifecyclePhase::Prepared;
     store.put(&mut operation).unwrap();
     let mut deletion = service
@@ -1797,6 +1821,30 @@ fn backup_deletion_family_decodes_legacy_phases_and_checks_transitions() {
             .last_error
             .is_none()
     );
+}
+
+#[test]
+fn backup_deletion_family_recovers_legacy_partial_cleanup() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("library")).unwrap();
+    let service = service_with_release(library.clone(), "v2");
+    let store = OperationStore::new(library.clone());
+    let mut operation = LifecycleOperation::new(
+        "legacy-deletion",
+        LifecycleOperationKind::DeleteBackup,
+        "zelda64-recomp",
+    );
+    let original = library
+        .backups_dir()
+        .join(&operation.port_id)
+        .join(Uuid::new_v4().to_string());
+    let quarantine = original
+        .parent()
+        .unwrap()
+        .join(format!(".deleting-{}", operation.id));
+    operation.paths.final_path = Some(original.clone());
+    operation.paths.quarantine = Some(quarantine.clone());
+    operation.last_error = Some("retained fault".into());
     // Released cleanup-pending records may contain only a partially removed quarantine.
     fs::create_dir_all(&quarantine).unwrap();
     fs::write(quarantine.join("partial-data"), b"remaining").unwrap();
