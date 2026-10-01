@@ -20,6 +20,7 @@ import {
   storageScopeForPlan,
 } from "./local-validation.mjs";
 import { isExcludedOxfmtPath } from "./oxfmt-ownership.mjs";
+import { buildValidationPlan } from "./validation-plan.mjs";
 
 const allFilesExist = () => true;
 const change = (path, options = {}) => ({ status: "M", path, ...options });
@@ -1004,14 +1005,116 @@ test("design-system configuration and native compatibility tests have UI owners"
   assert.equal(nativeTest.unknown.size, 0);
 });
 
-test("unknown paths refuse local execution until a focused rule owns them", () => {
-  const selection = classifyChanges([change("new-subsystem/input.bin")], {
-    fileExists: allFilesExist,
-  });
-  assert.throws(
-    () => buildPlan(selection, { mergeBase: "base-sha" }),
-    /no selection rule.*new-subsystem\/input\.bin/su,
-  );
+function fallbackContext(changes) {
+  const headSha = "a".repeat(40);
+  const mergeBase = "b".repeat(40);
+  return {
+    changes,
+    headSha,
+    baseSha: mergeBase,
+    mergeBase,
+    validationPlan: buildValidationPlan({
+      changes,
+      eventName: "pull_request",
+      base: mergeBase,
+      mergeBase,
+      head: headSha,
+      checkout: headSha,
+    }),
+  };
+}
+
+test("safe complete unknown input impact selects one fresh full-debug fallback rather than requiring another selector", () => {
+  for (const changes of [
+    [change("new-subsystem/input.bin", { oldMode: "100644", newMode: "100644" })],
+    [change("new-subsystem/new.dat", { status: "A", oldMode: "000000", newMode: "100644" })],
+    [change("new-subsystem/old.txt", { status: "D", oldMode: "100644", newMode: "000000" })],
+    [
+      change("new-subsystem/new.png", {
+        status: "R100",
+        previousPath: "old-input/image.png",
+        oldMode: "100644",
+        newMode: "100644",
+      }),
+    ],
+    [
+      change("new-subsystem/input.bin", { oldMode: "100644", newMode: "100644" }),
+      change("crates/portcove-core/src/adapter.rs", { oldMode: "100644", newMode: "100644" }),
+    ],
+  ]) {
+    const plan = buildPlan(
+      classifyChanges(changes, { fileExists: allFilesExist }),
+      fallbackContext(changes),
+    );
+    assert.equal(plan[0].id, "diff-check");
+    assert.equal(plan.at(-1).id, "conservative-audit");
+    assert.deepEqual(plan.at(-1).args, ["audit", "--fresh"]);
+    if (changes.length > 1) assert.ok(ids(plan).includes("rust-clippy:portcove-core"));
+    assert.equal(storageScopeForPlan(plan), "all");
+  }
+});
+
+test("unknown fallback preserves known specialist consumers rather than assuming aggregate equivalence", () => {
+  const changes = [
+    change("new-subsystem/input.bin", { oldMode: "100644", newMode: "100644" }),
+    change("integrations/playnite/PortcoveLibrary/Library.cs", {
+      oldMode: "100644",
+      newMode: "100644",
+    }),
+  ];
+  const selection = classifyChanges(changes, { fileExists: allFilesExist });
+  const ordinary = buildPlan({ ...selection, unknown: new Set() }, fallbackContext(changes));
+  const fallback = buildPlan(selection, fallbackContext(changes));
+  assert.deepEqual(fallback.slice(0, -1), ordinary);
+  assert.ok(ids(fallback).includes("playnite-contract"));
+  assert.equal(fallback.at(-1).id, "conservative-audit");
+});
+
+test("unknown impact cannot use incomplete, stale, non-regular or untrusted executable/configuration discovery", () => {
+  const ordinary = change("new-subsystem/input.bin", { oldMode: "100644", newMode: "100644" });
+  const selection = classifyChanges([ordinary], { fileExists: allFilesExist });
+  assert.throws(() => buildPlan(selection), /validation plan/);
+  for (const altered of [
+    { headSha: "c".repeat(40) },
+    { baseSha: "c".repeat(40) },
+    { mergeBase: "c".repeat(40) },
+    { changes: [] },
+    { changes: [{ ...ordinary, oldMode: undefined }] },
+    { changes: [{ ...ordinary, oldMode: "000000" }] },
+    { changes: [{ ...ordinary, newMode: "100755" }] },
+    { changes: [{ ...ordinary, newMode: "120000" }] },
+    { changes: [{ ...ordinary, newMode: "160000" }] },
+    { changes: [{ ...ordinary, status: "C100" }] },
+    { changes: [{ ...ordinary, path: "other/input.bin" }] },
+  ])
+    assert.throws(() => buildPlan(selection, { ...fallbackContext([ordinary]), ...altered }));
+  const failed = {
+    ...fallbackContext([ordinary]),
+    validationPlan: buildValidationPlan({
+      changes: [ordinary],
+      checkout: "a".repeat(40),
+      discovery: "failed",
+      blockedReason: "missing comparison authority",
+    }),
+  };
+  assert.throws(() => buildPlan(selection, failed), /complete bound/);
+  for (const file of [
+    "new-subsystem/program.rs",
+    "new-subsystem/script.py",
+    "new-subsystem/settings.json",
+    ".untrusted/input.bin",
+  ]) {
+    const changes = [change(file, { oldMode: "100644", newMode: "100644" })];
+    assert.throws(
+      () =>
+        buildPlan(
+          classifyChanges(changes, { fileExists: allFilesExist }),
+          fallbackContext(changes),
+        ),
+      /ownership blocks/,
+    );
+  }
+  assert.throws(() => fallbackContext([change("../input.bin")]), /path/);
 });
 
 test("ordinary plans never invoke aggregate, deep, release, installer, or native gates", () => {

@@ -6,6 +6,19 @@ Use the smallest checks that establish the changed behavior, then finish the
 complete diff-selected `just local-check`, independent review, and exact-head CI.
 Do not add an aggregate audit merely because a change has a pull request.
 
+Complete regular-file changes to inert unknown inputs (`.bin`, `.dat`, `.txt`,
+PNG, JPEG or WebP) use the existing fresh exhaustive audit as a conservative local
+fallback. This includes mixed changes and both rename sides; it does not require
+another filename rule. The plan must bind the complete Git paths/modes and
+comparison identities to the validated hosted plan. The fallback is broad,
+full-debug and never reused from a local receipt; hosted required checks remain
+separate. Known selected consumers remain in the plan, including specialist
+Playnite/transport checks; an aggregate name does not prove their equivalence.
+Unknown executable/configuration ownership, hidden authority paths,
+incomplete discovery, unsafe paths or non-regular/missing modes stop with a
+specific owning-route requirement. This is an uncertainty fallback, not the
+ordinary focused route or proof of installed/native/physical acceptance.
+
 - Presentation changes use affected component tests and existing real-component
   scenarios. Run the native app when native interaction or presentation acceptance
   changes; do not rebuild unrelated packages or repeat platform qualification.

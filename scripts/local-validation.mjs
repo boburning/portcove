@@ -743,13 +743,65 @@ function uiRelatedDurationCommand() {
 
 export function buildPlan(selection, context = {}) {
   if (selection.unknown.size) {
-    throw new Error(
-      `local validation has no selection rule for:\n${sorted(selection.unknown)
-        .map((file) => `- ${file}`)
-        .join(
-          "\n",
-        )}\nAdd and test a focused rule; the required hosted plan must not be replaced by silent local success.`,
+    const validation = validateValidationPlan(context.validationPlan);
+    const changes = context.changes;
+    if (
+      validation.discovery !== "complete" ||
+      validation.mode === "blocked" ||
+      validation.identities.base !== context.baseSha ||
+      validation.identities.head !== context.headSha ||
+      validation.identities.merge_base !== context.mergeBase ||
+      !Array.isArray(changes) ||
+      changes.length === 0
+    )
+      throw new Error("conservative local fallback requires a complete bound Git comparison");
+    const paths = sorted(
+      new Set(
+        changes.flatMap((change) => [
+          normalizePath(change.path),
+          ...(change.previousPath ? [normalizePath(change.previousPath)] : []),
+        ]),
+      ),
     );
+    if (
+      JSON.stringify(paths) !== JSON.stringify(validation.changed_files) ||
+      !changes.every((change) => {
+        if (/^[A?]$/u.test(change.status))
+          return change.oldMode === "000000" && change.newMode === "100644";
+        if (change.status === "D")
+          return change.oldMode === "100644" && change.newMode === "000000";
+        return (
+          /^(?:M|R\d*)$/u.test(change.status) &&
+          change.oldMode === "100644" &&
+          change.newMode === "100644"
+        );
+      })
+    )
+      throw new Error("conservative local fallback requires complete regular-file modes and paths");
+    // These are inert inputs to the existing application/tooling, not a newly
+    // executable/configuration authority that the maintained audit cannot own.
+    const inert = new Set([".bin", ".dat", ".txt", ".png", ".jpg", ".jpeg", ".webp"]);
+    for (const file of selection.unknown) {
+      if (
+        !validation.fallback?.paths.includes(file) ||
+        file.split("/").some((part) => part.startsWith(".")) ||
+        !inert.has(path.posix.extname(file).toLowerCase())
+      )
+        throw new Error(
+          `unknown executable or configuration ownership blocks local validation: ${file}; establish its owning validation route`,
+        );
+    }
+    // Retain known consumers, including Playnite/transport/lint fixture checks.
+    // A broad audit is not proof of equivalence for those selected obligations.
+    return [
+      ...buildPlan({ ...selection, unknown: new Set() }, context),
+      command(
+        "conservative-audit",
+        `uncertain inert input impact: ${sorted(selection.unknown).join(", ")}; fresh full-debug repository audit, not cached or focused success`,
+        "just",
+        ["audit", "--fresh"],
+      ),
+    ];
   }
   const mergeBase = context.mergeBase ?? "<merge-base>";
   const commands = [
@@ -1486,8 +1538,8 @@ export function main(argv = process.argv.slice(2)) {
   const selection = classifyChanges(context.changes);
   const planContext =
     selection.packages.size > 0 && !selection.workspaceRustTests
-      ? { ...context, doctestPackages: readDoctestPackages() }
-      : context;
+      ? { ...context, validationPlan, doctestPackages: readDoctestPackages() }
+      : { ...context, validationPlan };
   const plan = buildPlan(selection, planContext);
   printPlan(context, selection, plan, validationPlan);
   if (planOnly) return;
