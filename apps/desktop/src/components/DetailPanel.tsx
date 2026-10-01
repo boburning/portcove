@@ -750,6 +750,7 @@ function SavesStorageGroup({
   outputApplying: (applying: boolean) => void;
   actions: DetailActions;
 }) {
+  const heading = useRef<HTMLHeadingElement>(null);
   const hasBackupHistory = installed || backups.length > 0 || backupProblems.length > 0;
   const outputLocation = (
     <OutputLocationControl
@@ -762,7 +763,7 @@ function SavesStorageGroup({
     />
   );
   return (
-    <DetailGroup title="Saves and storage">
+    <DetailGroup title="Saves and storage" headingRef={heading}>
       <TrustStrip status={status} />
       <SavesAndSettingsSummary port={port} />
       <StorageSummary status={status} />
@@ -784,6 +785,7 @@ function SavesStorageGroup({
           busy={busy}
           restore={actions.restoreBackup}
           remove={actions.deleteBackup}
+          focusFallback={() => heading.current}
         />
       )}
     </DetailGroup>
@@ -821,14 +823,22 @@ function FutureSetupDisclosure({
   );
 }
 
-function DetailGroup({ title, children }: { title: string; children: React.ReactNode }) {
+function DetailGroup({
+  title,
+  children,
+  headingRef,
+}: {
+  title: string;
+  children: React.ReactNode;
+  headingRef?: RefObject<HTMLHeadingElement | null>;
+}) {
   const headingId = `detail-${title.toLowerCase().replaceAll(" ", "-")}`;
   return (
     <section
       className="detail-group mt-7 grid gap-4 border-t border-pc-border pt-6 first:mt-0 first:border-t-0 first:pt-0"
       aria-labelledby={headingId}
     >
-      <h2 id={headingId} tabIndex={-1} className="m-0 text-base">
+      <h2 ref={headingRef} id={headingId} tabIndex={-1} className="m-0 text-base">
         {title}
       </h2>
       <div className="grid gap-4">{children}</div>
