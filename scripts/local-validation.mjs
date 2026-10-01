@@ -139,6 +139,7 @@ const explicitNodeTests = new Map([
     ],
   ],
   ["apps/desktop/scripts/desktop-preparation-test.mjs", ["scripts/desktop-scenarios.test.mjs"]],
+  ["apps/desktop/scripts/desktop-default-cover-test.mjs", ["scripts/desktop-scenarios.test.mjs"]],
   [
     ".github/quality-tools.json",
     ["scripts/quality-tools.test.mjs", "scripts/dependency-automation.test.mjs"],

@@ -13,6 +13,10 @@ Do not add an aggregate audit merely because a change has a pull request.
   Shared or uncertain impact keeps the existing broader fallback.
 - Tooling changes use their contract tests. A harness or synthetic image change
   does not imply changed Rust behavior.
+  The maintained default-cover native harness selects its Node scenario contracts
+  locally and frontend plus Rust-quality hosted coverage. Changed core/Tauri,
+  unknown or renamed harness inputs keep their broader routing. Actual native
+  display, restart and network acceptance still run separately when affected.
 - Validation-routing changes use adversarial selection tests, separate review and
   the transition profile when eligible. Exhaustive exact-head hosted qualification
   owns the unchanged product suites; do not duplicate them locally.

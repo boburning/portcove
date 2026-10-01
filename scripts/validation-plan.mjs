@@ -85,6 +85,7 @@ const protectedPolicyFiles = withNodeTestCompanions([
 // New or renamed harness files stay unknown until their ownership is reviewed.
 const nativeScenarioFiles = new Set([
   "apps/desktop/scripts/desktop-artwork-correction-test.mjs",
+  "apps/desktop/scripts/desktop-default-cover-test.mjs",
   "apps/desktop/scripts/desktop-install-fixture.test.mjs",
   "apps/desktop/scripts/desktop-preparation-test.mjs",
   "apps/desktop/scripts/desktop-test.mjs",

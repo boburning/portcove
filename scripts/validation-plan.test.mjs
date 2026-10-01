@@ -82,6 +82,7 @@ test("frontend and primary Rust paths receive focused fast plans", () => {
 test("maintained native scenario consumers retain contracts without unrelated Rust tests", () => {
   const files = [
     "apps/desktop/scripts/desktop-artwork-correction-test.mjs",
+    "apps/desktop/scripts/desktop-default-cover-test.mjs",
     "apps/desktop/scripts/desktop-install-fixture.test.mjs",
     "apps/desktop/scripts/desktop-preparation-test.mjs",
     "apps/desktop/scripts/desktop-test.mjs",
@@ -127,6 +128,25 @@ test("maintained native scenario consumers retain contracts without unrelated Ru
   ]);
   assert.ok(renamed.groups.includes("rust"));
   assert.equal(plan([change(files[0], { newMode: "120000" })]).mode, "qualification");
+});
+
+test("default-cover harness ownership preserves unknown, renamed, product and policy fallback", () => {
+  const cover = "apps/desktop/scripts/desktop-default-cover-test.mjs";
+  const unknown = "apps/desktop/scripts/future-cover-test.mjs";
+  for (const changes of [
+    [change(cover), change(unknown)],
+    [change(cover, { status: "R", newPath: unknown })],
+    [change(unknown, { status: "R", newPath: cover })],
+  ]) {
+    const selected = plan(changes);
+    assert.deepEqual(selected.groups, fastGroups);
+    assert.ok(selected.fallback.paths.includes(unknown));
+  }
+  const product = plan([change(cover), change("crates/portcove-core/src/artwork.rs")]);
+  assert.deepEqual(product.groups, ["frontend", "rust", "rust-quality"]);
+  for (const protectedFile of ["apps/desktop/src-tauri/src/lib.rs", "scripts/validation-plan.mjs"])
+    assert.equal(plan([change(cover), change(protectedFile)]).mode, "qualification");
+  assert.equal(plan([change(cover, { newMode: "120000" })]).mode, "qualification");
 });
 
 test("install fixture test ownership does not narrow its executable consumers", () => {
