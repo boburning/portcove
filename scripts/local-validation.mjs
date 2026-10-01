@@ -907,6 +907,7 @@ export function buildPlan(selection, context = {}) {
       }
     }
     const catalogArtworkInputs = [
+      "crates/portcove-core/src/artwork.rs",
       "crates/portcove-core/catalog/catalog-current-authoring.json",
       "crates/portcove-core/catalog/catalog.json",
     ];
@@ -1002,7 +1003,7 @@ export function buildPlan(selection, context = {}) {
         command(
           "rust-tests:portcove-cli:catalog-artwork-consumer",
           catalogArtworkFocused
-            ? "embedded catalog artwork must also satisfy its public CLI consumer contract"
+            ? "catalog and artwork resolution must also satisfy their public CLI consumer contract"
             : "catalog consumer ownership or changed inputs are uncertain; run the complete CLI inventory",
           process.execPath,
           [
