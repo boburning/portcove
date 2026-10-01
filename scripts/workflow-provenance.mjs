@@ -31,6 +31,14 @@ export const hostedLocalCheckAuthorityPaths = Object.freeze([
   ".node-version",
   "package.json",
   "apps/desktop/package.json",
+  "apps/desktop/vitest.config.ts",
+  "apps/desktop/vitest.browser.config.ts",
+  "apps/desktop/vite.config.ts",
+  "apps/desktop/tsconfig.json",
+  "apps/desktop/tsconfig.app.json",
+  "apps/desktop/tsconfig.node.json",
+  "apps/desktop/stylelint.config.mjs",
+  "apps/desktop/.fallowrc.json",
   "pnpm-lock.yaml",
   "pnpm-workspace.yaml",
   ".aqua-version",
@@ -65,7 +73,11 @@ export const hostedLocalCheckAuthorityPaths = Object.freeze([
   "scripts/fixtures/windows-process-tree-supervisor.rs.txt",
 ]);
 
-export function hostedLocalCheckEnvironment(environment, rustPin) {
+export function hostedLocalCheckEnvironment(
+  environment,
+  rustPin,
+  sourceRoot = path.resolve(root, "../source"),
+) {
   const child = { ...environment };
   for (const name of Object.keys(child)) {
     if (
@@ -75,7 +87,10 @@ export function hostedLocalCheckEnvironment(environment, rustPin) {
       /^CARGO_(?:PROFILE_|TARGET_.*_(?:RUSTFLAGS|RUSTDOCFLAGS|LINKER|RUNNER)$|BUILD_(?:TARGET|RUSTC|RUSTDOC|RUSTFLAGS))/u.test(
         name,
       ) ||
-      /^PORTCOVE_(?:HEAVY_RUST|MIN_FREE_GIB|BLOCK_SYSTEM_DRIVE)/u.test(name)
+      name === "CARGO_TARGET_DIR" ||
+      (name.startsWith("PORTCOVE_") &&
+        !name.startsWith("PORTCOVE_LOCAL_") &&
+        !/(?:TOKEN|SECRET|PASSWORD|CREDENTIAL|AUTHORIZATION)/iu.test(name))
     )
       throw new Error(`Unsupported local-check environment override: ${name}`);
     if (/(?:TOKEN|SECRET|PASSWORD|CREDENTIAL|AUTHORIZATION)/iu.test(name)) delete child[name];
@@ -87,6 +102,11 @@ export function hostedLocalCheckEnvironment(environment, rustPin) {
   if (child.CARGO_INCREMENTAL !== undefined && child.CARGO_INCREMENTAL !== "0")
     throw new Error("Unexpected provisioning CARGO_INCREMENTAL override");
   if (
+    child.pnpm_config_store_dir !== undefined &&
+    child.pnpm_config_store_dir !== path.join(sourceRoot, "work", "pnpm-store")
+  )
+    throw new Error("Package-manager store differs from the owned source checkout");
+  if (
     child.RUSTUP_TOOLCHAIN !== undefined &&
     ![rustPin, `${rustPin}-x86_64-unknown-linux-gnu`].includes(child.RUSTUP_TOOLCHAIN)
   )
@@ -94,6 +114,7 @@ export function hostedLocalCheckEnvironment(environment, rustPin) {
   delete child.CI;
   delete child.RUSTUP_TOOLCHAIN;
   delete child.CARGO_INCREMENTAL;
+  delete child.RUNNER_TEMP;
   child.CARGO_BUILD_JOBS = "4";
   return child;
 }
@@ -137,7 +158,7 @@ export async function runHostedLocalCheck(phase, options = {}) {
   const git = (cwd, args) => invoke("git", args, cwd);
   const clean = (cwd, expected) => {
     if (
-      git(cwd, ["rev-parse", "--show-toplevel"]) !== path.resolve(cwd) ||
+      path.resolve(git(cwd, ["rev-parse", "--show-toplevel"])) !== path.resolve(cwd) ||
       git(cwd, ["rev-parse", "HEAD"]) !== expected ||
       git(cwd, ["status", "--porcelain=v1", "--untracked-files=all"]) !== ""
     )
@@ -179,6 +200,7 @@ export async function runHostedLocalCheck(phase, options = {}) {
     identities.source,
     "--",
     "scripts",
+    "apps/desktop/scripts",
   ])
     .split("\n")
     .filter(
@@ -203,7 +225,14 @@ export async function runHostedLocalCheck(phase, options = {}) {
     "--",
     ...hostedLocalCheckAuthorityPaths,
   ]);
-  const scriptTree = git(sourceRoot, ["ls-tree", "-r", identities.authority, "--", "scripts"])
+  const scriptTree = git(sourceRoot, [
+    "ls-tree",
+    "-r",
+    identities.authority,
+    "--",
+    "scripts",
+    "apps/desktop/scripts",
+  ])
     .split("\n")
     .filter(
       (record) =>
@@ -215,7 +244,7 @@ export async function runHostedLocalCheck(phase, options = {}) {
     /^channel = "([^"]+)"$/mu,
   )?.[1];
   if (!/^\d+\.\d+\.\d+$/u.test(rustPin ?? "")) throw new Error("Source Rust pin is invalid");
-  const child = hostedLocalCheckEnvironment(environment, rustPin);
+  const child = hostedLocalCheckEnvironment(environment, rustPin, sourceRoot);
   git(sourceRoot, ["update-ref", "refs/remotes/origin/main", identities.base]);
   if (git(sourceRoot, ["rev-parse", "origin/main"]) !== identities.base)
     throw new Error("Default local-check comparison target was not bound");

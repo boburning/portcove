@@ -132,6 +132,7 @@ test("hosted local execution preserves defaults and removes provisioning credent
     "RUSTC_WRAPPER",
     "RUSTC_WORKSPACE_WRAPPER",
     "CARGO_BUILD_TARGET",
+    "CARGO_TARGET_DIR",
     "CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUSTFLAGS",
     "CARGO_PROFILE_TEST_DEBUG",
     "CARGO_PROFILE_DEV_OPT_LEVEL",
@@ -139,6 +140,11 @@ test("hosted local execution preserves defaults and removes provisioning credent
     "PORTCOVE_TEST_FIXTURES",
     "PORTCOVE_HEAVY_RUST_WAIT_MS",
     "PORTCOVE_MIN_FREE_GIB",
+    "PORTCOVE_TEMP_DIR",
+    "PORTCOVE_OUTPUT_DIR",
+    "PORTCOVE_PNPM_STORE_DIR",
+    "PORTCOVE_SHARED_TOOL_CACHE",
+    "PORTCOVE_HOST_TOOL_FIXTURE",
   ])
     assert.throws(
       () => hostedLocalCheckEnvironment({ [name]: "unsupported" }, "1.98.1"),
@@ -151,6 +157,10 @@ test("hosted local execution preserves defaults and removes provisioning credent
   assert.throws(
     () => hostedLocalCheckEnvironment({ RUSTUP_TOOLCHAIN: "nightly" }, "1.98.1"),
     /repository pin/,
+  );
+  assert.throws(
+    () => hostedLocalCheckEnvironment({ pnpm_config_store_dir: "/unowned/store" }, "1.98.1"),
+    /owned source checkout/,
   );
 });
 
@@ -165,6 +175,8 @@ test("hosted execution binds actual Git source, default base, controller and fin
       assert.equal(options.env.CI, undefined);
       assert.equal(options.env.GH_TOKEN, undefined);
       assert.equal(options.env.CARGO_BUILD_JOBS, "4");
+      assert.equal(options.env.CARGO_INCREMENTAL, undefined);
+      assert.equal(options.env.RUNNER_TEMP, undefined);
       return { status: 0 };
     },
   });
@@ -180,6 +192,21 @@ test("hosted execution binds actual Git source, default base, controller and fin
     calls.every((call) => call.options.cwd === f.source && call.options.stdio === "inherit"),
   );
   assert.ok(f.logs.some((line) => line.startsWith("Hosted local-check completed:")));
+});
+
+test("hosted binding rejects frontend validation helper and test-policy changes", async (t) => {
+  for (const name of [
+    "apps/desktop/scripts/check-copy.mjs",
+    "apps/desktop/vitest.config.ts",
+    "apps/desktop/stylelint.config.mjs",
+  ]) {
+    const f = hostedFixture(t);
+    f.write(f.source, name, "process.exit(0);\n");
+    f.git(f.source, ["add", "."]);
+    f.git(f.source, ["commit", "--quiet", "-m", "altered frontend validation"]);
+    f.env.PORTCOVE_LOCAL_SOURCE_SHA = f.git(f.source, ["rev-parse", "HEAD"]);
+    await assert.rejects(runHostedLocalCheck("prepare", f.options), /changes trusted.*authority/);
+  }
 });
 
 test("hosted binding rejects source, workflow, base, dirt and authority mismatches", async (t) => {
