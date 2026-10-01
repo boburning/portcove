@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   PullRequestDeliveryClient,
+  createWatchClient,
   parseArguments,
   parsePullRequestReference,
   renovateCheckEnvelope,
@@ -264,27 +265,44 @@ function workflow(overrides = {}) {
 }
 function checkState(outcome = "pending") {
   return {
-    contexts: required.map((context) => ({
+    contexts: required.map((context, index) => ({
       context,
+      source: "check-run",
+      check_run_id: index + 1,
       outcome,
       conclusion: outcome === "pending" ? "missing" : outcome,
     })),
   };
+}
+function workflowJobs() {
+  return required.map((name, index) => ({
+    id: index + 1,
+    name,
+    run_id: 42,
+    run_attempt: 1,
+    head_sha: head,
+    status: "completed",
+    conclusion: "success",
+    check_run_url: `https://api.github.com/repos/boburning/portcove/check-runs/${index + 1}`,
+  }));
 }
 
 test("watcher waits quietly on one run and requires both terminal success and exact-head gates", async () => {
   let calls = 0;
   const pauses = [];
   const pendingThenSuccess = {
+    workflowJobs,
     workflowRun(id) {
       assert.equal(id, 42);
-      return workflow(calls === 1 ? { status: "completed", conclusion: "success" } : {});
+      return workflow(calls >= 1 ? { status: "completed", conclusion: "success" } : {});
     },
     requiredCheckState() {
       calls += 1;
       return {
-        contexts: required.map((context) => ({
+        contexts: required.map((context, index) => ({
           context,
+          source: "check-run",
+          check_run_id: index + 1,
           outcome: calls === 1 ? "pending" : "success",
           conclusion: calls === 1 ? "missing" : "success",
         })),
@@ -446,6 +464,106 @@ test("workflow REST readback validates repository and opaque run identity", () =
   assert.throws(() => client.workflowRun(42), /identity/);
   body = { ...body, id: 42, repository: { full_name: "other/portcove" } };
   assert.throws(() => client.workflowRun(42), /identity/);
+});
+
+test("watcher rejects green checks from another run/attempt or incomplete job inventory", async () => {
+  for (const change of [
+    (jobs) => jobs.slice(1),
+    (jobs) => [{ ...jobs[0], run_id: 43 }, ...jobs.slice(1)],
+    (jobs) => [{ ...jobs[0], run_attempt: 2 }, ...jobs.slice(1)],
+    (jobs) => [{ ...jobs[0], head_sha: base }, ...jobs.slice(1)],
+    (jobs) => [{ ...jobs[0], name: "other" }, ...jobs.slice(1)],
+    (jobs) => [{ ...jobs[0], conclusion: "skipped" }, ...jobs.slice(1)],
+    (jobs) => [{ ...jobs[0], check_run_url: jobs[1].check_run_url }, ...jobs.slice(1)],
+    (jobs) => [
+      { ...jobs[0], check_run_url: "https://api.github.com/repos/other/repo/check-runs/1" },
+      ...jobs.slice(1),
+    ],
+  ])
+    await assert.rejects(
+      watchRequiredChecks(
+        {
+          workflowRun: () => workflow({ status: "completed", conclusion: "success" }),
+          requiredCheckState: () => checkState("success"),
+          workflowJobs: () => change(workflowJobs()),
+        },
+        watchOptions,
+      ),
+      /inventory|not a successful job/,
+    );
+  await assert.rejects(
+    watchRequiredChecks(
+      {
+        workflowRun: () => workflow({ status: "completed", conclusion: "success" }),
+        requiredCheckState: () => checkState("success"),
+        workflowJobs: () => {
+          throw new Error("incomplete paginated jobs");
+        },
+      },
+      watchOptions,
+    ),
+    /job readback failed/,
+  );
+});
+
+test("workflow attempt job inventory follows pagination and rejects incomplete totals", () => {
+  let incomplete = false;
+  const client = new PullRequestDeliveryClient((args) => {
+    const endpoint = args[2];
+    assert.match(endpoint, /actions\/runs\/42\/attempts\/1\/jobs/);
+    if (endpoint.includes("page=2"))
+      return included({ total_count: 5, jobs: workflowJobs().slice(1) });
+    return included(
+      { total_count: incomplete ? 6 : 5, jobs: workflowJobs().slice(0, 1) },
+      {
+        link: '<https://api.github.com/repos/boburning/portcove/actions/runs/42/attempts/1/jobs?per_page=100&page=2>; rel="next"',
+      },
+    );
+  });
+  assert.equal(client.workflowJobs(42, 1).length, 5);
+  incomplete = true;
+  assert.throws(() => client.workflowJobs(42, 1), /incomplete|total/);
+});
+
+test("watch-only API reads bound subprocess and whole observation without altering merge clients", () => {
+  let time = 1000;
+  const timeouts = [];
+  const client = createWatchClient({
+    now: () => time,
+    spawn: (_command, _args, options) => {
+      timeouts.push(options.timeout);
+      assert.equal(options.killSignal, "SIGKILL");
+      return {
+        status: 0,
+        stdout: included({ ...workflow(), repository: { full_name: "boburning/portcove" } }),
+        stderr: "",
+      };
+    },
+  });
+  assert.throws(() => client.workflowRun(42), /60-second budget/);
+  client.beginObservation();
+  client.workflowRun(42);
+  time += 59_500;
+  client.workflowRun(42);
+  time += 500;
+  assert.throws(() => client.workflowRun(42), /60-second budget/);
+  assert.deepEqual(timeouts, [15_000, 500]);
+});
+
+test("subprocess timeout is retained as a failed observation with no retry", async () => {
+  let calls = 0;
+  const client = createWatchClient({
+    spawn: () => {
+      calls += 1;
+      return { error: Object.assign(new Error("spawnSync gh ETIMEDOUT"), { code: "ETIMEDOUT" }) };
+    },
+  });
+  await assert.rejects(watchRequiredChecks(client, watchOptions), (error) => {
+    assert.match(error.message, /monitoring failed.*ETIMEDOUT/);
+    assert.equal(error.operationEvidence.deadline, watchOptions.deadline);
+    return true;
+  });
+  assert.equal(calls, 1);
 });
 
 test("REST merge uses the exact SHA and verifies remote completion", () => {

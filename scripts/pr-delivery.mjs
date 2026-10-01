@@ -1,4 +1,5 @@
 import { readFile } from "node:fs/promises";
+import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -139,6 +140,14 @@ export class PullRequestDeliveryClient {
     return body;
   }
 
+  workflowJobs(run, attempt) {
+    return this.paginatedConnection(
+      `repos/${repository}/actions/runs/${run}/attempts/${attempt}/jobs?per_page=100`,
+      "jobs",
+      (job) => (Number.isSafeInteger(job?.id) ? String(job.id) : null),
+    );
+  }
+
   requiredCheckState(number, head, requiredContexts) {
     const pull = this.pull(number);
     if (pull.head.sha !== head)
@@ -269,6 +278,7 @@ export function requiredCheckContexts(checkRuns, statuses, requiredContexts) {
         : "pending";
     candidates.get(run.name).push({
       source: "check-run",
+      check_run_id: run.id,
       outcome,
       conclusion: run.conclusion ?? run.status,
       url: run.html_url ?? null,
@@ -315,6 +325,31 @@ export function renovateCheckEnvelope({ number, head, result, snapshot }) {
   });
 }
 
+// This read-only client bounds both each gh subprocess and all pages/reads in
+// one observation. Merge and other GitHub consumers keep their existing runner.
+export function createWatchClient({ now = Date.now, spawn = spawnSync } = {}) {
+  let collectionDeadline = 0;
+  const api = new GitHubApiClient(
+    createGitHubRunner({
+      cwd: projectRoot,
+      spawn: (command, args, options) => {
+        const remaining = collectionDeadline - now();
+        if (remaining <= 0) throw new Error("watch read collection exceeded its 60-second budget");
+        return spawn(command, args, {
+          ...options,
+          timeout: Math.min(15_000, remaining),
+          killSignal: "SIGKILL",
+        });
+      },
+    }),
+  );
+  const client = new PullRequestDeliveryClient(api);
+  client.beginObservation = () => {
+    collectionDeadline = now() + 60_000;
+  };
+  return client;
+}
+
 export async function watchRequiredChecks(
   client,
   { number, head, requiredContexts, run, attempt, deadline, sleep, now = Date.now },
@@ -355,6 +390,7 @@ export async function watchRequiredChecks(
   });
   for (;;) {
     try {
+      client.beginObservation?.();
       observed = client.workflowRun(run);
       state = client.requiredCheckState(number, head, requiredContexts);
     } catch (error) {
@@ -406,7 +442,75 @@ export async function watchRequiredChecks(
           `identified workflow run completed with ${observed.conclusion ?? "no conclusion"}`,
           evidence(),
         );
-      if (state.contexts.every((context) => context.outcome === "success"))
+      if (state.contexts.every((context) => context.outcome === "success")) {
+        let jobs;
+        try {
+          jobs = client.workflowJobs(run, attempt);
+        } catch (error) {
+          throw deliveryOutcomeError(
+            "failed",
+            `watch job readback failed: ${sanitizeOperationError(error).message}`,
+            evidence(),
+            error,
+          );
+        }
+        const checks = new Map();
+        for (const job of jobs) {
+          const match =
+            /^https:\/\/api\.github\.com\/repos\/boburning\/portcove\/check-runs\/([1-9]\d*)$/u.exec(
+              job.check_run_url ?? "",
+            );
+          const checkId = Number(match?.[1]);
+          if (
+            job.run_id !== run ||
+            job.run_attempt !== attempt ||
+            job.head_sha !== head ||
+            !Number.isSafeInteger(checkId) ||
+            checks.has(checkId)
+          )
+            throw deliveryOutcomeError(
+              "failed",
+              "watch job inventory has invalid or duplicate run/attempt/source/check identity",
+              evidence(),
+            );
+          checks.set(checkId, job);
+        }
+        for (const context of state.contexts) {
+          const job = checks.get(context.check_run_id);
+          if (
+            context.source !== "check-run" ||
+            !job ||
+            job.name !== context.context ||
+            job.status !== "completed" ||
+            job.conclusion !== "success"
+          )
+            throw deliveryOutcomeError(
+              "failed",
+              `required check ${context.context} is not a successful job of the identified run attempt`,
+              evidence(),
+            );
+        }
+        try {
+          observed = client.workflowRun(run);
+        } catch (error) {
+          throw deliveryOutcomeError(
+            "failed",
+            `watch final run readback failed: ${sanitizeOperationError(error).message}`,
+            evidence(),
+            error,
+          );
+        }
+        if (
+          observed.head_sha !== head ||
+          observed.run_attempt !== attempt ||
+          observed.status !== "completed" ||
+          observed.conclusion !== "success"
+        )
+          throw deliveryOutcomeError(
+            "failed",
+            "watch run changed during job collection",
+            evidence(),
+          );
         return {
           ...state,
           watch: {
@@ -415,6 +519,7 @@ export async function watchRequiredChecks(
               "Complete outstanding acceptance and independent review, then use the existing exact-head guarded merge.",
           },
         };
+      }
       throw deliveryOutcomeError(
         "failed",
         "identified workflow succeeded but required exact-head gates remain missing or pending",
@@ -492,7 +597,7 @@ async function main(argv) {
   const head = options["--head"];
   if (!/^[0-9a-f]{40}$/u.test(head ?? "")) throw new Error("--head must be a 40-character SHA");
   const contexts = await requiredContexts();
-  const client = new PullRequestDeliveryClient();
+  const client = command === "watch" ? createWatchClient() : new PullRequestDeliveryClient();
   if (command === "renovate-check") {
     const config = JSON.parse(await readFile(path.join(projectRoot, "renovate.json"), "utf8"));
     const snapshot = client.renovateSnapshot(number, head, contexts);
