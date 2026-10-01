@@ -123,7 +123,7 @@ jobs:
     timeout-minutes: 45
     env:
       PORTCOVE_OUTPUT_DIR: ${{ github.workspace }}/work/native-backup-focus
-      PORTCOVE_TEMP_DIR: ${{ runner.temp }}/portcove-native-backup-focus
+      PORTCOVE_TEMP_DIR: ${{ github.workspace }}/work/temp/native-backup-focus
       pnpm_config_store_dir: ${{ github.workspace }}/work/pnpm-store
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

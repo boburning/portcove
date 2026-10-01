@@ -53,6 +53,8 @@ test("hosted backup focus is manual-only, pinned, isolated and retains real evid
   );
   assert.match(source, /qualify:\n {4}if: inputs.runner != 'windows-2022'/);
   assert.match(windows, /^ {4}if: inputs.runner == 'windows-2022'/);
+  assert.match(windows, /PORTCOVE_TEMP_DIR: \$\{\{ github.workspace \}\}/);
+  assert.doesNotMatch(windows.split("    steps:")[0], /\$\{\{ runner\./);
 
   assert.match(source, /if: always\(\)[\s\S]*native-backup-evidence.mjs emit/);
   assert.match(source, /if \(\$LASTEXITCODE -ne 0\) \{ throw 'Required evidence retention failed/);
