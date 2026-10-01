@@ -19,7 +19,12 @@ fn image_file(root: &Path, name: &str, format: image::ImageFormat) -> std::path:
 }
 
 fn open_service(root: &Path) -> PortcoveService {
-    let mut service = PortcoveService::new(Library::open(root).unwrap()).unwrap();
+    let library = crate::test_fixture::phase("artwork fixture: open library", || {
+        Library::open(root).unwrap()
+    });
+    let mut service = crate::test_fixture::phase("artwork fixture: open service", || {
+        PortcoveService::new(library).unwrap()
+    });
     // Local-choice/fallback fixtures explicitly need a port without a default.
     // Real catalog coverage can grow without changing this test precondition.
     let mut document = service.catalog().authoritative_document().clone();
@@ -32,9 +37,11 @@ fn open_service(root: &Path) -> PortcoveService {
         .as_mut()
         .unwrap()
         .artwork = None;
-    service.replace_catalog_for_test(
-        crate::Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap(),
-    );
+    let catalog =
+        crate::test_fixture::phase("artwork fixture: validate presentation catalog", || {
+            crate::Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap()
+        });
+    service.replace_catalog_for_test(catalog);
     service
 }
 
