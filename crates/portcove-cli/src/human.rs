@@ -55,8 +55,25 @@ fn diagnostic_phase(capture: &portcove_core::ActivityDiagnostic) -> String {
     };
     format!(
         "Activity: {}\nPhase: {}\n{status}{truncation}\n\nStandard output:\n{}\n\nStandard error:\n{}",
-        capture.activity_id, capture.phase, capture.stdout.text, capture.stderr.text
+        clean(&capture.activity_id),
+        clean(&capture.phase),
+        diagnostic_text(&capture.stdout.text),
+        diagnostic_text(&capture.stderr.text)
     )
+}
+
+// Captured tool output is data, not terminal instructions. Keep its layout and
+// Unicode text; expose other controls without changing retained machine records.
+fn diagnostic_text(text: &str) -> String {
+    let mut output = String::with_capacity(text.len());
+    for character in text.chars() {
+        if character.is_control() && !matches!(character, '\n' | '\t') {
+            output.extend(character.escape_default());
+        } else {
+            output.push(character);
+        }
+    }
+    output
 }
 
 pub(crate) fn failure(error: &portcove_core::FailureReport, technical: bool) -> String {
@@ -1390,6 +1407,106 @@ mod tests {
     };
 
     use super::{backup_list, catalog_show, document, storage, table, utc_rate_reset, utc_time};
+
+    #[test]
+    fn retained_diagnostics_escape_controls_without_changing_captures() {
+        use portcove_core::{ActivityDiagnostic, DiagnosticStream, redact_diagnostic_text};
+        let capture = ActivityDiagnostic {
+            activity_id: "owned-activity-id".into(),
+            phase: "preparation.setup".into(),
+            stdout: DiagnosticStream {
+                text: "first π 日本語\n\tsecond\u{1b}[31m\rprogress\u{8}\0\u{7f}\u{9b}2J".into(),
+                observed_bytes: 4096,
+                truncated: true,
+            },
+            stderr: DiagnosticStream {
+                text: redact_diagnostic_text(
+                    "password=owned-private-value\nsafe\u{1b}]2;owned-title\u{7}\n",
+                ),
+                observed_bytes: 1024,
+                truncated: false,
+            },
+            complete: false,
+            updated_at: 42,
+            stream_limit_bytes: 2048,
+        };
+        let stored = serde_json::to_value(&capture).unwrap();
+        let rendered = super::activity_diagnostic(std::slice::from_ref(&capture));
+        assert!(
+            rendered
+                .chars()
+                .all(|c| !c.is_control() || matches!(c, '\n' | '\t'))
+        );
+        assert!(rendered.contains("first π 日本語\n\tsecond"));
+        assert!(rendered.contains(r"\u{1b}[31m\rprogress\u{8}\u{0}\u{7f}\u{9b}2J"));
+        assert!(rendered.contains(r"safe\u{1b}]2;owned-title\u{7}"));
+        assert!(rendered.contains("password=[REDACTED]"));
+        assert!(!rendered.contains("owned-private-value"));
+        assert!(rendered.contains("Capture is incomplete."));
+        assert!(rendered.contains("Output exceeded the capture limit; some output was omitted."));
+        assert_eq!(serde_json::to_value(&capture).unwrap(), stored);
+        assert!(
+            stored["stdout"]["text"]
+                .as_str()
+                .unwrap()
+                .contains('\u{1b}')
+        );
+        assert_eq!(stored["stdout"]["observed_bytes"], 4096);
+        assert_eq!(stored["stderr"]["observed_bytes"], 1024);
+    }
+
+    #[test]
+    fn diagnostic_text_preserves_layout_and_unicode_but_escapes_all_controls() {
+        let readable = "first π 日本語 🐚\n\tindented\n";
+        assert_eq!(super::diagnostic_text(readable), readable);
+        assert_eq!(super::diagnostic_text(""), "");
+        for code in (0..=0x1f).chain(0x7f..=0x9f) {
+            let control = char::from_u32(code).unwrap();
+            let rendered = super::diagnostic_text(&control.to_string());
+            if matches!(control, '\n' | '\t') {
+                assert_eq!(rendered, control.to_string());
+            } else {
+                assert_eq!(rendered, control.escape_default().to_string());
+                assert!(!rendered.chars().any(char::is_control));
+            }
+        }
+    }
+
+    #[test]
+    fn retained_diagnostic_headers_are_single_line_and_completion_stays_truthful() {
+        use portcove_core::{ActivityDiagnostic, DiagnosticStream};
+        let stream = DiagnosticStream {
+            text: "ordinary π\n\tsecond line\n".into(),
+            observed_bytes: 30,
+            truncated: false,
+        };
+        let capture = ActivityDiagnostic {
+            activity_id: "owned-id\u{1b}[31m\nheader".into(),
+            phase: "preparation.setup\u{8}\tphase".into(),
+            stdout: stream.clone(),
+            stderr: stream,
+            complete: true,
+            updated_at: 42,
+            stream_limit_bytes: 2048,
+        };
+        let rendered = super::activity_diagnostic(&[capture.clone(), capture]);
+        assert!(rendered.contains("Activity: owned-id[31m header\nPhase: preparation.setup phase"));
+        assert_eq!(
+            rendered
+                .matches("Capture reached the end of both streams.")
+                .count(),
+            2
+        );
+        assert_eq!(rendered.matches("ordinary π\n\tsecond line\n").count(), 4);
+        assert!(!rendered.contains("Capture is incomplete"));
+        assert!(!rendered.contains("some output was omitted"));
+        assert!(!rendered.contains('\u{1b}'));
+        assert!(!rendered.contains('\u{8}'));
+        assert_eq!(
+            super::activity_diagnostic(&[]),
+            "No retained diagnostic capture is available for this activity."
+        );
+    }
 
     #[test]
     fn human_times_use_utc_and_report_unrepresentable_values() {

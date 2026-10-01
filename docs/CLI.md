@@ -241,6 +241,12 @@ observed mutation outcome. Older entries without a structured report do not infe
 unchanged files or a resumable operation. Their recorded message and targets no
 longer in the current catalog are available only as requested redacted technical
 details. Use `activity log <activity-id>` to read any retained phase captures.
+Human retained logs preserve newlines, tabs, and Unicode text. Other control
+characters are shown as visible escapes (for example, `\u{1b}` or `\r`) so
+captured tool output cannot issue terminal instructions. Activity and phase
+headers use the same single-line cleaning as other human labels. This display
+format does not rewrite retained captures, observed byte counts, truncation or
+completion flags, JSON/JSONL data, or the raw game streams from `exec`.
 JSON and JSONL keep the original machine error and activity fields.
 A new preparation always starts with fresh private work; it does not consume or
 automatically delete a failed attempt's retained files.
