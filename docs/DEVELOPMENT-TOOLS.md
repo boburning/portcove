@@ -72,12 +72,23 @@ registry ref: if an actual tool update is unavailable in the pinned registry, or
 a compatibility, integrity, or security repair requires a registry change,
 advance that ref in the same reviewed change and run the integrity updater above.
 
-Linux and macOS retain `./scripts/bootstrap-quality-tools.sh`. A checkout with
-different pins resolves a different content-keyed Aqua root while sharing identical
-versioned payloads. A failed download, checksum mismatch, unsupported architecture,
-partial extraction, or invalid cached receipt fails closed. The previous verified
-payload remains in place. Run the bootstrap again to reuse cache hits; no download
-or environment mutation is performed for already verified versions.
+Linux and macOS retain `./scripts/bootstrap-quality-tools.sh`. Checkouts share an
+Aqua root when `.aqua-version`, `aqua.yaml`, `aqua-checksums.json` and the Aqua
+bootstrap data match. The versioned Aqua cache key excludes unrelated package,
+Rust quality-tool and desktop-driver inputs; those still invalidate checkout
+state and shims through the separate full pin fingerprint. Aqua retains its own
+platform-specific package resolution and checksum and publisher-attestation
+verification. The cache key identifies inputs; it is not proof of provenance.
+
+The first bootstrap for a new Aqua cache identity requires a successful fully
+verified install. Historical cache roots are not imported or adopted, and a
+blocked first download or attestation fetch remains a prerequisite failure.
+Checkout state must name the matching Aqua root; an old or missing root rejects
+the state and directs Windows commands to bootstrap before probing an executable.
+A failed download, checksum mismatch, unsupported architecture, partial extraction,
+or invalid cached receipt fails closed. Previous verified payloads remain in place.
+Run the bootstrap again to reuse Aqua's existing cache hits for matching inputs;
+unrelated pin changes no longer select an empty Aqua root.
 
 Run `just fmt-check` for the complete formatting contract, `just check-ui`
 for UI build/tests, Oxlint, Fallow, and Stylelint, or `just script-lint` for
