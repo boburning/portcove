@@ -26,6 +26,93 @@ use crate::{
     path::refuse_symlink_ancestors,
 };
 
+/// Internal interpretation of the released restore envelope, never mutation authority.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum RestorePhase {
+    Unverified,
+    ReadyToPublish,
+    Published,
+    Committed,
+    CleanupPending,
+}
+
+impl RestorePhase {
+    fn stored(self) -> LifecyclePhase {
+        match self {
+            Self::Unverified => LifecyclePhase::Preparing,
+            Self::ReadyToPublish => LifecyclePhase::Prepared,
+            Self::Published => LifecyclePhase::PayloadPublished,
+            Self::Committed => LifecyclePhase::MetadataCommitted,
+            Self::CleanupPending => LifecyclePhase::CleanupPending,
+        }
+    }
+}
+
+pub(crate) struct RestoreOperation {
+    id: String,
+    port_id: String,
+    pub(crate) phase: RestorePhase,
+    pub(crate) replaces_existing_data: bool,
+    pub(crate) recovery_root: PathBuf,
+    pub(crate) staged_data: PathBuf,
+    pub(crate) user_root: PathBuf,
+    pub(crate) previous_data: PathBuf,
+}
+
+impl RestoreOperation {
+    fn validate_envelope(operation: &LifecycleOperation) -> Result<()> {
+        crate::portable_tree::validate_relative_path(&operation.id, false)?;
+        let mut identity = Path::new(&operation.id).components();
+        if operation.kind != LifecycleOperationKind::Restore
+            || !matches!(identity.next(), Some(std::path::Component::Normal(_)))
+            || identity.next().is_some()
+            || operation.install.is_some()
+            || operation.relocation.is_some()
+            || operation.source_import.is_some()
+            || operation.preparation.is_some()
+            || operation.preparation_process_quiesced.is_some()
+            || !operation.original_paths.is_empty()
+        {
+            return Err(PortcoveError::state(
+                "backup restore journal has an incompatible identity or family payload",
+            ));
+        }
+        Ok(())
+    }
+
+    pub(crate) fn advance(
+        &mut self,
+        next: RestorePhase,
+        operation: &mut LifecycleOperation,
+        store: &OperationStore,
+    ) -> Result<()> {
+        Self::validate_envelope(operation)?;
+        if operation.id != self.id
+            || operation.port_id != self.port_id
+            || operation.activate != self.replaces_existing_data
+            || operation.paths.staging.as_ref() != Some(&self.recovery_root)
+            || operation.paths.final_path.as_ref() != Some(&self.user_root)
+            || operation.paths.quarantine.as_ref() != Some(&self.previous_data)
+            || operation.phase != self.phase.stored()
+            || !matches!(
+                (self.phase, next),
+                (RestorePhase::Unverified, RestorePhase::ReadyToPublish)
+                    | (RestorePhase::ReadyToPublish, RestorePhase::Published)
+                    | (RestorePhase::Published, RestorePhase::Committed)
+            )
+        {
+            return Err(PortcoveError::state(
+                "illegal backup restore phase transition",
+            ));
+        }
+        operation.phase = next.stored();
+        operation.last_error = None;
+        store.put(operation)?;
+        self.phase = next;
+        Ok(())
+    }
+}
+
 const BACKUP_MANIFEST_MAX_BYTES: u64 = 64 * 1024;
 const BACKUP_PREPARATION_MARKER: &str = "preparation.json";
 
@@ -475,24 +562,12 @@ impl PortcoveService {
         )
     }
 
-    pub(crate) fn validate_restore_operation(&self, operation: &LifecycleOperation) -> Result<()> {
+    pub(crate) fn validate_restore_operation(
+        &self,
+        operation: &LifecycleOperation,
+    ) -> Result<RestoreOperation> {
         self.catalog.port(&operation.port_id)?;
-        crate::portable_tree::validate_relative_path(&operation.id, false)?;
-        let mut identity = Path::new(&operation.id).components();
-        if operation.kind != LifecycleOperationKind::Restore
-            || !matches!(identity.next(), Some(std::path::Component::Normal(_)))
-            || identity.next().is_some()
-            || operation.install.is_some()
-            || operation.relocation.is_some()
-            || operation.source_import.is_some()
-            || operation.preparation.is_some()
-            || operation.preparation_process_quiesced.is_some()
-            || !operation.original_paths.is_empty()
-        {
-            return Err(PortcoveError::state(
-                "backup restore journal has an incompatible identity or family payload",
-            ));
-        }
+        RestoreOperation::validate_envelope(operation)?;
         let recovery = self.library.recovery_dir().join(&operation.id);
         let user = self.library.user_dir(&operation.port_id);
         let previous = recovery.join("previous-data");
@@ -517,7 +592,22 @@ impl PortcoveService {
                 Err(error) => return Err(error.into()),
             }
         }
-        Ok(())
+        Ok(RestoreOperation {
+            id: operation.id.clone(),
+            port_id: operation.port_id.clone(),
+            phase: match operation.phase {
+                LifecyclePhase::Preparing => RestorePhase::Unverified,
+                LifecyclePhase::Prepared => RestorePhase::ReadyToPublish,
+                LifecyclePhase::PayloadPublished => RestorePhase::Published,
+                LifecyclePhase::MetadataCommitted => RestorePhase::Committed,
+                LifecyclePhase::CleanupPending => RestorePhase::CleanupPending,
+            },
+            replaces_existing_data: operation.activate,
+            staged_data: recovery.join("staged-data"),
+            recovery_root: recovery,
+            user_root: user,
+            previous_data: previous,
+        })
     }
 
     pub fn restore_backup(
@@ -591,26 +681,24 @@ impl PortcoveService {
                 None
             };
             lifecycle.activate = user_root.exists();
-            lifecycle.phase = LifecyclePhase::Prepared;
-            store.put(&mut lifecycle)?;
+            let mut restore = self.validate_restore_operation(&lifecycle)?;
+            restore.advance(RestorePhase::ReadyToPublish, &mut lifecycle, &store)?;
             self.faults.check(LifecycleFaultPoint::RestorePrepared)?;
-            self.validate_restore_operation(&lifecycle)?;
-            if lifecycle.activate {
+            restore = self.validate_restore_operation(&lifecycle)?;
+            if restore.replaces_existing_data {
                 fs::rename(&user_root, &previous_data)?;
             }
             if let Err(error) = fs::rename(&staged_data, &user_root) {
-                if lifecycle.activate {
+                if restore.replaces_existing_data {
                     let _ = fs::rename(&previous_data, &user_root);
                 }
                 return Err(error.into());
             }
-            lifecycle.phase = LifecyclePhase::PayloadPublished;
-            store.put(&mut lifecycle)?;
+            restore.advance(RestorePhase::Published, &mut lifecycle, &store)?;
             self.faults.check(LifecycleFaultPoint::RestorePublished)?;
             self.validate_restore_operation(&lifecycle)?;
             self.synchronize_restored_user_data(port_id)?;
-            lifecycle.phase = LifecyclePhase::MetadataCommitted;
-            store.put(&mut lifecycle)?;
+            restore.advance(RestorePhase::Committed, &mut lifecycle, &store)?;
             self.validate_restore_operation(&lifecycle)?;
             if previous_data.exists() {
                 fs::remove_dir_all(&previous_data)?;

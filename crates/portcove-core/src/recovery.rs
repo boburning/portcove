@@ -3,7 +3,7 @@ use std::fs;
 use crate::{
     InstallRecord, Installer, PortcoveError, PortcoveService, Result,
     operation::{LifecycleOperation, LifecycleOperationKind, LifecyclePhase, OperationStore},
-    service::copy_tree,
+    service::{RestorePhase, copy_tree},
 };
 
 pub(crate) fn recover_published_install(
@@ -210,27 +210,18 @@ pub(crate) fn recover_restore(
     store: &OperationStore,
     operation: &mut LifecycleOperation,
 ) -> Result<()> {
-    service.validate_restore_operation(operation)?;
-    if operation.phase == LifecyclePhase::Preparing {
+    let mut restore = service.validate_restore_operation(operation)?;
+    if restore.phase == RestorePhase::Unverified {
         return Err(PortcoveError::state(
             "restore preparation was interrupted before backup verification",
         ));
     }
-    let recovery_root =
-        operation.paths.staging.clone().ok_or_else(|| {
-            PortcoveError::state("recoverable restore is missing its recovery path")
-        })?;
-    let staged = recovery_root.join("staged-data");
-    let user_root =
-        operation.paths.final_path.clone().ok_or_else(|| {
-            PortcoveError::state("recoverable restore is missing its user-data path")
-        })?;
-    let previous =
-        operation.paths.quarantine.clone().ok_or_else(|| {
-            PortcoveError::state("recoverable restore is missing its rollback path")
-        })?;
-    if operation.phase == LifecyclePhase::Prepared {
-        if operation.activate {
+    let recovery_root = restore.recovery_root.clone();
+    let staged = restore.staged_data.clone();
+    let user_root = restore.user_root.clone();
+    let previous = restore.previous_data.clone();
+    if restore.phase == RestorePhase::ReadyToPublish {
+        if restore.replaces_existing_data {
             match (staged.exists(), user_root.exists(), previous.exists()) {
                 (true, true, false) => {
                     fs::rename(&user_root, &previous)?;
@@ -255,26 +246,20 @@ pub(crate) fn recover_restore(
                 }
             }
         }
-        operation.phase = LifecyclePhase::PayloadPublished;
-        operation.last_error = None;
-        store.put(operation)?;
+        restore.advance(RestorePhase::Published, operation, store)?;
     }
     if matches!(
-        operation.phase,
-        LifecyclePhase::PayloadPublished
-            | LifecyclePhase::MetadataCommitted
-            | LifecyclePhase::CleanupPending
+        restore.phase,
+        RestorePhase::Published | RestorePhase::Committed | RestorePhase::CleanupPending
     ) {
         service.synchronize_restored_user_data(&operation.port_id)?;
     }
-    if operation.phase == LifecyclePhase::PayloadPublished {
-        operation.phase = LifecyclePhase::MetadataCommitted;
-        operation.last_error = None;
-        store.put(operation)?;
+    if restore.phase == RestorePhase::Published {
+        restore.advance(RestorePhase::Committed, operation, store)?;
     }
     if matches!(
-        operation.phase,
-        LifecyclePhase::MetadataCommitted | LifecyclePhase::CleanupPending
+        restore.phase,
+        RestorePhase::Committed | RestorePhase::CleanupPending
     ) {
         if previous.exists() {
             fs::remove_dir_all(&previous)?;
