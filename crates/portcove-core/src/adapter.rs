@@ -3175,6 +3175,27 @@ mod tests {
             source: Some(&source),
             source_record: Some(&admitted),
         };
+        let no_source = plan_libultraship_source(
+            LaunchSpecRequest {
+                source: None,
+                source_record: None,
+                ..request
+            },
+            false,
+        )
+        .unwrap();
+        assert!(matches!(no_source, LibultrashipSourcePlan::NoArgument));
+        let original_storage = std::fs::read(&source).unwrap();
+        let missing_admission = plan_libultraship_source(
+            LaunchSpecRequest {
+                source_record: None,
+                ..request
+            },
+            false,
+        );
+        assert!(matches!(missing_admission, Err(error) if error.code == crate::ErrorCode::State));
+        assert!(!library.runtime_sources_dir().join(&port.id).exists());
+        assert_eq!(std::fs::read(&source).unwrap(), original_storage);
         let planned = plan_libultraship_source(request, false).unwrap();
         write_source(&[0x80, 0x37, 0x12, 0x40, 5, 6, 7, 8]);
         let changed = std::fs::read(&source).unwrap();
