@@ -210,6 +210,7 @@ pub(crate) fn recover_restore(
     store: &OperationStore,
     operation: &mut LifecycleOperation,
 ) -> Result<()> {
+    service.validate_restore_operation(operation)?;
     if operation.phase == LifecyclePhase::Preparing {
         return Err(PortcoveError::state(
             "restore preparation was interrupted before backup verification",

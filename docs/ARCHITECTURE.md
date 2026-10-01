@@ -429,7 +429,12 @@ lifecycle intent,
 uses the existing port lock and one-use state-bound authorization, validates and
 stages the selected payload, and creates the safety backup before replacing live
 data. It records payload publication and metadata commit before retiring retained
-recovery data. Deletion rechecks its content-bound review under the port lock,
+recovery data. Normal restore and recovery validate the current port, a safe
+single-component operation identity, and the exact library-owned recovery,
+user-data and previous-data paths before mutation. Unrelated family payloads,
+symlink ancestors and existing nondirectory roots are refused; a rejected
+preparation cleanup retains its journal and tree for review. The released phase
+and replacement flag remain compatible. Deletion rechecks its content-bound review under the port lock,
 records the prepared intent, quarantines with no replacement, records publication,
 removes only that quarantine, then records metadata commit and retires the journal.
 The existing restore/deletion fault points and recovery rules still distinguish
