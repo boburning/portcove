@@ -22,17 +22,7 @@ export async function defaultCoverScenario({
     cacheConditions ? "native-default-cover-cache-conditions" : "native-default-cover-display",
     async () => {
       const cache = path.join(library, "artwork-cache");
-      if (cacheConditions) {
-        const initial = await readdir(cache).catch((error) => {
-          if (error.code === "ENOENT") return [];
-          throw error;
-        });
-        assert.deepEqual(
-          initial,
-          [],
-          "Cold display requires an actually empty isolated artwork cache",
-        );
-      }
+      if (cacheConditions) await assertEmptyCache(cache);
       const refusal = cacheConditions ? await createImageRefusal() : null;
       const refusedOrigins = refusal?.origins ?? [];
       const offlineEnvironment = refusal?.environment;
@@ -164,20 +154,7 @@ export async function defaultCoverScenario({
           ],
         ]) {
           if (cacheConditions && pass === "offline-cached-restart") {
-            for (const digest of new Set(
-              ids.map(
-                (id) =>
-                  catalog.value.ports.find((port) => port.id === id).presentation.artwork
-                    .image_sha256,
-              ),
-            )) {
-              const bytes = await readFile(path.join(cache, `${digest}.jpg`));
-              assert.equal(
-                createHash("sha256").update(bytes).digest("hex"),
-                digest,
-                "Cached original matches accepted mapping",
-              );
-            }
+            await verifyMappedCache(catalog.value.ports, ids, cache);
             browser = await restart("default-cover-offline", undefined, offlineEnvironment);
           }
           await browser.findElement(By.xpath('//nav//button[contains(., "Settings")]')).click();
@@ -269,7 +246,8 @@ export async function defaultCoverScenario({
                 const frame = document.querySelector(`${selector} .card-art`);
                 return (
                   frame?.dataset.artworkSource === "generated_fallback" &&
-                  !frame.querySelector("img")
+                  !frame.querySelector("img") &&
+                  frame.querySelector(".artwork-image-note")?.textContent === "Image unavailable"
                 );
               }, selector),
             10_000,
@@ -403,5 +381,26 @@ async function restoreCacheAfterObservation({
       .catch((error) => console.error("Failed to retain cache cleanup diagnostic:", error.message));
   } finally {
     await refusal?.close();
+  }
+}
+
+async function assertEmptyCache(cache) {
+  const initial = await readdir(cache).catch((error) => {
+    if (error.code === "ENOENT") return [];
+    throw error;
+  });
+  assert.deepEqual(initial, [], "Cold display requires an actually empty isolated artwork cache");
+}
+
+async function verifyMappedCache(ports, ids, cache) {
+  const mappings = new Map(ports.map((port) => [port.id, port.presentation?.artwork]));
+  for (const digest of new Set(ids.map((id) => mappings.get(id).image_sha256))) {
+    assert.match(digest, /^[a-f0-9]{64}$/);
+    const bytes = await readFile(path.join(cache, `${digest}.jpg`));
+    assert.equal(
+      createHash("sha256").update(bytes).digest("hex"),
+      digest,
+      "Cached original matches accepted mapping",
+    );
   }
 }
