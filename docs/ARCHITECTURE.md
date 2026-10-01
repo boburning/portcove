@@ -1759,6 +1759,17 @@ backup manifest.
 
 ## Adapter boundary
 
+Libultraship's transient-source decision is a private read-only plan over the
+current supervised launch snapshot: use the original source, materialize an
+admitted archive, supply no source argument, or clean transient sources after a
+generated archive exists. Planning does not create, extract or delete files.
+Explicit preparation checks cancellation before materialization or cleanup and
+uses the existing identity-checked staging and owned cleanup helpers. The plan
+is consumed immediately under existing service ownership; it is not cached
+permission. Source revalidation, save synchronization, executable verification
+and process authority remain in the service. Other launch-spec branches still
+perform preparation; this boundary does not make the full API read-only.
+
 Adapters describe recurring families rather than individual games: libultraship portable releases, N64 recomp portable releases, staged-source portable releases, referenced-disc ports, generated-cache ports, upstream-managed setup, and managed PS1 recomp builds. Port-specific facts stay in `catalog.json`: repository, channels, platform availability, source profile, executable hints, launch behavior, persistent paths, and optional runtime subdirectory and source paths. Source profiles may use exact SHA-1, SHA-256, file-set CRC32, reviewed PS1 ISO-volume allowlists, or a tightly bounded upstream-validator handoff so Portcove can enforce the strongest identity form an upstream actually publishes while continuing to record SHA-256 in local state. A declared runtime subdirectory keeps working-directory, portable-marker, and stored-source behavior inside a stable nested release layout without port-specific code. Runtime source materialization is limited to reviewed generic operations: N64 byte-order normalization, bounded exact copy or ZIP-member extraction, GameCube or PS2 ISO conversion, single-disc PS1 CHD expansion to a multi-BIN/CUE directory, multi-disc PS1 CHD expansion to numbered raw data tracks, and read-only LIVE/STFS extraction into a new directory. STFS extraction validates a bounded ASCII path table, rejects traversal, case collisions, cyclic or out-of-range block chains, caps depth/count/expanded bytes against available storage, and publishes only after declared inner-file SHA-256 checks pass. File replacements and directory swaps preserve the prior destination until the staged replacement is ready; schema-2 source sidecars bind reuse to the current storage SHA-256 and size instead of path metadata, forcing restaging even when changed bytes retain the same path, length, and timestamp.
 
 Catalog entries may add fixed launch environment values and one dynamic user-data environment variable. Validation rejects session-critical, Portcove-owned, credential-shaped, duplicate, multiline, or empty values before a process is constructed. The dynamic value always resolves to the canonical per-port library user directory; fixed values express an upstream selector or disable an upstream updater that would otherwise compete with Portcove's verified lifecycle. Reviewed nonpersistent exact paths and bounded filename patterns created by managed portable runtimes remain catalog-owned integrity exclusions and cannot overlap persistent data.
