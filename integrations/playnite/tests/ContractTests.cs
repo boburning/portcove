@@ -23,11 +23,16 @@ internal static class ContractTests
             try { return FakeCli(args); }
             catch (Exception error)
             {
-                // Only disposable held-session fixtures retain raw reader errors.
+                // Only disposable session fixtures retain raw reader errors.
                 // Production PublicCli deliberately drains potentially private stderr.
-                if (args.Contains("held-session-request"))
-                    File.WriteAllText(Path.Combine(args[1], "held-session-cli-error"), error.ToString());
                 Console.Error.WriteLine(error);
+                try
+                {
+                    foreach (var prefix in new[] { "held-session", "baseline-session", "long-session", "missing-terminal", "failed-session", "slow-reconciliation" })
+                        if (args.Contains(prefix + "-request"))
+                            PublishFixtureText(args[1], prefix + "-cli-error", error.ToString());
+                }
+                catch (Exception) { /* Retention is best-effort; preserve the original failure. */ }
                 return 1;
             }
         }
@@ -612,7 +617,7 @@ internal static class ContractTests
         {
             var client = new PublicCli(Binary, root);
             await client.Connect();
-            await HeldPublicationContracts(client, root);
+            await SessionPublicationContracts(client, root);
             var baselineBefore = client.InvocationCount;
             var baselineTimer = Stopwatch.StartNew();
             var baselineStartedAt = TimeSpan.Zero;
@@ -780,10 +785,16 @@ internal static class ContractTests
         finally { if (File.Exists(temporary)) File.Delete(temporary); }
     }
 
-    private static async Task HeldPublicationContracts(PublicCli client, string root)
+    private static async Task SessionPublicationContracts(PublicCli client, string root)
     {
-        var path = Path.Combine(root, "held-session-pid");
-        var errorPath = Path.Combine(root, "held-session-cli-error");
+        foreach (var prefix in new[] { "held-session", "baseline-session", "long-session", "missing-terminal", "failed-session", "slow-reconciliation" })
+            await SessionPublicationContract(client, root, prefix);
+    }
+
+    private static async Task SessionPublicationContract(PublicCli client, string root, string prefix)
+    {
+        var path = Path.Combine(root, prefix + "-pid");
+        var errorPath = Path.Combine(root, prefix + "-cli-error");
         try
         {
             // Reproduce the old write/read overlap deterministically: the final
@@ -791,23 +802,54 @@ internal static class ContractTests
             using (var writer = new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.Read))
             {
                 var rejected = false;
-                try { await client.Read("launch.show", "launch", "show", "held-session-request"); }
+                try { await client.Read("launch.show", "launch", "show", prefix + "-request"); }
                 catch (InvalidOperationException) { rejected = true; }
                 Check(rejected && File.ReadAllText(errorPath).Contains("System.IO.IOException"),
-                    "visible in-progress PID publication reproduces an actual fixture reader failure");
+                    prefix + ": visible in-progress PID publication reproduces an actual fixture reader failure");
+                // The previous diagnostic remains present, so publication must fail
+                // without hiding this second reader's actual PID-file exception.
+                var start = new ProcessStartInfo(Binary, WindowsArguments.Join(new[] {
+                    "--library", root, "--non-interactive", "--json", "launch", "show", prefix + "-request"
+                })) { UseShellExecute = false, CreateNoWindow = true, RedirectStandardError = true, RedirectStandardOutput = true };
+                using (var reader = Process.Start(start))
+                {
+                    var stderr = reader.StandardError.ReadToEndAsync();
+                    var stdout = reader.StandardOutput.ReadToEndAsync();
+                    if (!reader.WaitForExit(10000))
+                    {
+                        var timeout = new TimeoutException("Owned fixture diagnostic reader did not exit.");
+                        try
+                        {
+                            reader.Kill();
+                            if (reader.WaitForExit(5000))
+                            {
+                                await stderr;
+                                await stdout;
+                            }
+                            else timeout.Data["cleanup"] = "Owned reader did not exit after termination.";
+                        }
+                        catch (Exception cleanup) { timeout.Data["cleanup"] = cleanup.GetType().Name; }
+                        // Observe eventual stream faults even if termination failed.
+                        _ = stderr.ContinueWith(task => { var ignored = task.Exception; }, TaskContinuationOptions.OnlyOnFaulted);
+                        _ = stdout.ContinueWith(task => { var ignored = task.Exception; }, TaskContinuationOptions.OnlyOnFaulted);
+                        throw timeout;
+                    }
+                    Check(reader.ExitCode == 1 && (await stderr).Contains(path) && (await stdout).Length == 0,
+                        prefix + ": existing diagnostic cannot mask the original reader error or manufacture a result");
+                }
             }
             File.Delete(path);
             File.Delete(errorPath);
             var pid = Process.GetCurrentProcess().Id;
-            PublishFixtureText(root, "held-session-pid", pid.ToString(), () =>
+            PublishFixtureText(root, prefix + "-pid", pid.ToString(), () =>
             {
-                Check(!File.Exists(path), "staged PID bytes remain private until the writer closes");
-                Check(client.Read("launch.show", "launch", "show", "held-session-request").GetAwaiter().GetResult() == null,
-                    "reader before PID publication sees honest pending state without a failed process");
+                Check(!File.Exists(path), prefix + ": staged PID bytes remain private until the writer closes");
+                Check(client.Read("launch.show", "launch", "show", prefix + "-request").GetAwaiter().GetResult() == null,
+                    prefix + ": reader before PID publication sees honest pending state without a failed process");
             });
-            var record = await client.Read("launch.show", "launch", "show", "held-session-request");
+            var record = await client.Read("launch.show", "launch", "show", prefix + "-request");
             Check(Json.Number(record, "child_pid") == pid && !File.Exists(errorPath),
-                "reader after PID publication sees the complete exact child identity");
+                prefix + ": reader after PID publication sees the complete exact child identity");
         }
         finally
         {
@@ -1366,26 +1408,26 @@ internal static class ContractTests
             if (args.Contains("long-session-request") || args.Contains("baseline-session-request"))
             {
                 var prefix = args.Contains("long-session-request") ? "long-session" : "baseline-session";
-                File.WriteAllText(Path.Combine(args[1], prefix + "-pid"), Process.GetCurrentProcess().Id.ToString());
+                PublishFixtureText(args[1], prefix + "-pid", Process.GetCurrentProcess().Id.ToString());
                 Thread.Sleep(5000);
-                File.WriteAllText(Path.Combine(args[1], prefix + "-finished"), DateTime.UtcNow.Ticks.ToString());
+                PublishFixtureText(args[1], prefix + "-finished", DateTime.UtcNow.Ticks.ToString());
             }
             else if (args.Contains("missing-terminal-request"))
             {
-                File.WriteAllText(Path.Combine(args[1], "missing-terminal-pid"), Process.GetCurrentProcess().Id.ToString());
+                PublishFixtureText(args[1], "missing-terminal-pid", Process.GetCurrentProcess().Id.ToString());
                 Thread.Sleep(200);
             }
             else if (args.Contains("failed-session-request"))
             {
-                File.WriteAllText(Path.Combine(args[1], "failed-session-pid"), Process.GetCurrentProcess().Id.ToString());
+                PublishFixtureText(args[1], "failed-session-pid", Process.GetCurrentProcess().Id.ToString());
                 Thread.Sleep(200);
-                File.WriteAllText(Path.Combine(args[1], "failed-session-finished"), "failed");
+                PublishFixtureText(args[1], "failed-session-finished", "failed");
             }
             else if (args.Contains("slow-reconciliation-request"))
             {
-                File.WriteAllText(Path.Combine(args[1], "slow-reconciliation-pid"), Process.GetCurrentProcess().Id.ToString());
+                PublishFixtureText(args[1], "slow-reconciliation-pid", Process.GetCurrentProcess().Id.ToString());
                 Thread.Sleep(2000);
-                File.WriteAllText(Path.Combine(args[1], "slow-reconciliation-finished"), "succeeded");
+                PublishFixtureText(args[1], "slow-reconciliation-finished", "succeeded");
                 for (var attempt = 0; attempt < 200 && !File.Exists(Path.Combine(args[1], "slow-reconciliation-release")); attempt++)
                     Thread.Sleep(50);
             }
@@ -1396,7 +1438,7 @@ internal static class ContractTests
                     Thread.Sleep(50);
                 PublishFixtureText(args[1], "held-session-finished", DateTime.UtcNow.Ticks.ToString());
             }
-            else File.WriteAllText(Path.Combine(args[1], "measurement-launch-pid"), Process.GetCurrentProcess().Id.ToString());
+            else PublishFixtureText(args[1], "measurement-launch-pid", Process.GetCurrentProcess().Id.ToString());
         }
         else if (command == "launch")
         {
