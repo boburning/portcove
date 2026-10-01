@@ -18,6 +18,12 @@ on:
         default: 2a69773f5f0d1e773eb6972ab7a6f43a2d5e40c2
         type: string
 
+      edge_driver_proof:
+        description: Verify signature-first EdgeDriver acquisition only; no application or native UI run.
+        required: true
+        default: false
+        type: boolean
+
 permissions:
   contents: read
 
@@ -30,7 +36,7 @@ env:
 
 jobs:
   qualify:
-    if: inputs.runner != 'windows-2022'
+    if: ${{ !inputs.edge_driver_proof && inputs.runner != 'windows-2022' }}
     env:
       VITE_PORTCOVE_DESIGN_COMPATIBILITY_FIXTURE: "1"
     name: native-design-compatibility (${{ inputs.runner }})
@@ -118,7 +124,7 @@ jobs:
           retention-days: 14
 
   backup_focus:
-    if: inputs.runner == 'windows-2022'
+    if: ${{ !inputs.edge_driver_proof && inputs.runner == 'windows-2022' }}
     runs-on: windows-2022
     timeout-minutes: 45
     env:
@@ -190,3 +196,68 @@ jobs:
         run: |
           node scripts/native-backup-evidence.mjs emit "$env:PORTCOVE_OUTPUT_DIR"
           if ($LASTEXITCODE -ne 0) { throw 'Required evidence retention failed.' }
+
+  edge_driver_proof:
+    if: inputs.edge_driver_proof
+    runs-on: windows-2022
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+      - name: Prove rejected fixture candidates never reach the version probe
+        run: node --test --test-timeout=30000 scripts/quality-tools.test.mjs
+      - name: Prove the official signed driver matches the current WebView2 runtime
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $source = (Resolve-Path scripts/bootstrap-quality-tools.ps1).Path
+          $tokens = $null; $errors = $null
+          $ast = [System.Management.Automation.Language.Parser]::ParseFile($source, [ref]$tokens, [ref]$errors)
+          if ($errors.Count) { throw ($errors | Out-String) }
+          foreach ($name in @('Test-ReportedVersion', 'Test-VerifiedEdgeDriver', 'Get-WebViewRuntimeVersion')) {
+            $definition = @($ast.FindAll({param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq $name}, $true))
+            if ($definition.Count -ne 1) { throw "Expected one production function $name" }
+            . ([scriptblock]::Create($definition[0].Extent.Text))
+          }
+          $manifest = Get-Content .config/tool-bootstrap.json -Raw | ConvertFrom-Json
+          if ($manifest.desktop.edge_driver_base -ne 'https://msedgedriver.microsoft.com') { throw 'Official origin changed' }
+          $version = Get-WebViewRuntimeVersion
+          $architecture = [Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString().ToLowerInvariant()
+          $archiveName = switch ($architecture) {
+            'x64' { 'edgedriver_win64.zip' }
+            'arm64' { 'edgedriver_arm64.zip' }
+            default { throw "Unsupported Windows architecture $architecture" }
+          }
+          $root = Join-Path $env:RUNNER_TEMP ('portcove-edge-proof-' + [guid]::NewGuid())
+          New-Item -ItemType Directory $root | Out-Null
+          try {
+            $archive = Join-Path $root $archiveName
+            $uri = "$($manifest.desktop.edge_driver_base)/$version/$archiveName"
+            Invoke-WebRequest -UseBasicParsing -Uri $uri -OutFile $archive
+            Expand-Archive -LiteralPath $archive -DestinationPath (Join-Path $root 'downloaded')
+            $downloaded = Join-Path $root 'downloaded/msedgedriver.exe'
+            if (-not (Test-VerifiedEdgeDriver $downloaded $version)) { throw 'Verified download does not match runtime' }
+            $cached = Join-Path $root 'cached-msedgedriver.exe'
+            Copy-Item -LiteralPath $downloaded -Destination $cached
+            if (-not (Test-VerifiedEdgeDriver $cached $version)) { throw 'Verified cached copy does not match runtime' }
+            if (Test-VerifiedEdgeDriver $cached '0.0.0.0') { throw 'Wrong runtime version was accepted' }
+            $signature = Get-AuthenticodeSignature -LiteralPath $cached
+            [ordered]@{
+              revision = (git rev-parse HEAD).Trim()
+              bootstrap_sha256 = (Get-FileHash -LiteralPath $source -Algorithm SHA256).Hash
+              os = [Runtime.InteropServices.RuntimeInformation]::OSDescription
+              architecture = $architecture
+              runtime = $version
+              origin = $uri
+              driver_sha256 = (Get-FileHash -LiteralPath $cached -Algorithm SHA256).Hash
+              signature = [string]$signature.Status
+              signer_subject = $signature.SignerCertificate.Subject
+              downloaded_match = $true
+              cached_match = $true
+              wrong_version_rejected = $true
+            } | ConvertTo-Json -Depth 4
+          } finally { Remove-Item -LiteralPath $root -Recurse -Force }

@@ -45,14 +45,20 @@ test("hosted backup focus is manual-only, pinned, isolated and retains real evid
   assert.match(source, /merge_head = \(git rev-parse HEAD\)/);
   assert.match(source, /merge_parents = \(git show -s --format=%P HEAD\)/);
   assert.match(source, /just desktop-verify --scenario native-backup-delete-focus --require-clean/);
-  const windows = source.split("  backup_focus:\n")[1];
+  const windows = source.split("  backup_focus:\n")[1]?.split("\n  edge_driver_proof:")[0];
   assert.ok(windows);
   assert.doesNotMatch(
     windows,
     /VITE_PORTCOVE_DESIGN_COMPATIBILITY_FIXTURE|upload-artifact|rust-cache|actions\/cache|cache: pnpm/,
   );
-  assert.match(source, /qualify:\n {4}if: inputs.runner != 'windows-2022'/);
-  assert.match(windows, /^ {4}if: inputs.runner == 'windows-2022'/);
+  assert.match(
+    source,
+    /qualify:\n {4}if: \$\{\{ !inputs\.edge_driver_proof && inputs\.runner != 'windows-2022' \}\}/,
+  );
+  assert.match(
+    windows,
+    /^ {4}if: \$\{\{ !inputs\.edge_driver_proof && inputs\.runner == 'windows-2022' \}\}/,
+  );
   assert.match(windows, /PORTCOVE_TEMP_DIR: \$\{\{ github.workspace \}\}/);
   assert.doesNotMatch(windows.split("    steps:")[0], /\$\{\{ runner\./);
 
@@ -80,6 +86,28 @@ test("native scenario consumers keep Node and context contracts in both frontend
     );
     assert.match(section, /pnpm install --frozen-lockfile/);
   }
+});
+
+test("EdgeDriver trust proof is manual, isolated, and does not launch the application", () => {
+  const job = nativeDesignCompatibilityWorkflow.split("\n  edge_driver_proof:")[1];
+  assert.ok(job);
+  assert.match(job, /if: inputs\.edge_driver_proof/u);
+  assert.match(job, /runs-on: windows-2022/u);
+  assert.match(job, /persist-credentials: false/u);
+  assert.doesNotMatch(
+    job,
+    /upload-artifact|actions\/cache|cache:|cargo|bootstrap-quality-tools\.ps1 -Desktop|desktop-verify/u,
+  );
+  assert.match(job, /Test-VerifiedEdgeDriver \$downloaded \$version/u);
+  assert.match(job, /Test-VerifiedEdgeDriver \$cached \$version/u);
+  assert.match(job, /Test-VerifiedEdgeDriver \$cached '0\.0\.0\.0'/u);
+  assert.match(job, /https:\/\/msedgedriver\.microsoft\.com/u);
+  assert.match(job, /bootstrap_sha256/u);
+  assert.match(job, /driver_sha256/u);
+  assert.match(
+    nativeDesignCompatibilityWorkflow,
+    /if: \$\{\{ !inputs\.edge_driver_proof && inputs\.runner != 'windows-2022' \}\}/u,
+  );
 });
 
 test("native design compatibility remains explicit, isolated, and non-publishing", () => {
