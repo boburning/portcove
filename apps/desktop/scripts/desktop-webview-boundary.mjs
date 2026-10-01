@@ -245,6 +245,13 @@ try {
     invoke(browser, "plugin:__TAURI_CHANNEL__|fetch", null, {
       headers: { "Tauri-Channel-Id": String(id) },
     });
+  await browser.switchTo().window("boundary-secondary");
+  const secondaryFixtureControl = await invoke(browser, "recreate_boundary_owner");
+  assert.equal(secondaryFixtureControl.ok, false);
+  assert.match(secondaryFixtureControl.error, /only to the main window/);
+  await browser.switchTo().window("boundary-remote");
+  const remoteFixtureControl = await invoke(browser, "recreate_boundary_owner");
+  assert.equal(remoteFixtureControl.ok, false);
   const held = await queueOwner(await armOwner());
   const unknownId = Number(held.id) === 4294967295 ? 4294967294 : 4294967295;
   await browser.switchTo().window("main");
@@ -283,6 +290,8 @@ try {
   assert.equal(disposed.ok, false);
   assert.deepEqual(disposed, consumed);
   report.observations.queuedReplies = {
+    secondaryFixtureControl,
+    remoteFixtureControl,
     held,
     foreign,
     unknown,

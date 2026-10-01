@@ -77,5 +77,7 @@ pub fn dispatch<R: tauri::Runtime>(invoke: tauri::ipc::Invoke<R>) -> bool {
         invoke.resolver.reject("boundary fixture is inactive");
         return true;
     }
-    tauri::generate_handler![queue_boundary_reply, recreate_boundary_owner](invoke)
+    let handler: fn(tauri::ipc::Invoke<R>) -> bool =
+        tauri::generate_handler![queue_boundary_reply, recreate_boundary_owner];
+    handler(invoke)
 }
