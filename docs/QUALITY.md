@@ -231,6 +231,15 @@ service dispatcher, common types or module wiring remain broad. Adding this
 ownership avoids repeating unrelated core families for a module-local change;
 it does not repair a fixture timing failure or replace exact-head hosted coverage.
 
+The library-import-fixtures group owns only the private
+`import_execution_tests.rs` module and runs all its import preservation,
+retained-definition, authority-rejection and interrupted recovery assertions.
+The executable import implementation, journals, library import facade and shared
+test fixtures remain broad. Renames, deletion and unknown paths retain the same
+fallback; mixed explicitly mapped families retain their full union. This removes
+unrelated test execution for an assertion-only edit without narrowing production
+import coverage or replacing required hosted evidence.
+
 The contract is intentionally conservative: shared types, service and lifecycle
 orchestration, database behavior, public module wiring, and package manifests are
 outside the focused groups. Required GitHub CI still runs the complete selected
