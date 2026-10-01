@@ -330,43 +330,11 @@ impl Adapter for StandardAdapter {
                     .any(|directory| directory.join(relative).is_file())
             })
         };
-        let libultraship_source_argument = if self.0 == AdapterKind::LibultrashipPortable
-            && port.runtime_source_filename.is_none()
-            && !has_generated_archive
-        {
-            source
-                .map(|source| -> Result<PathBuf> {
-                    if !source
-                        .extension()
-                        .and_then(|extension| extension.to_str())
-                        .is_some_and(|extension| extension.eq_ignore_ascii_case("zip"))
-                    {
-                        return Ok(source.to_path_buf());
-                    }
-                    let materialized = library
-                        .runtime_sources_dir()
-                        .join(&port.id)
-                        .join("portcove-launch-source.z64");
-                    let admitted = source_record.ok_or_else(|| {
-                        PortcoveError::state(
-                            "archived Libultraship launch requires its admitted source identity",
-                        )
-                    })?;
-                    prepare_transient_n64_launch_source(
-                        source,
-                        admitted,
-                        &materialized,
-                        checkpoint,
-                    )?;
-                    Ok(materialized)
-                })
-                .transpose()?
+        let libultraship_source_argument = if self.0 == AdapterKind::LibultrashipPortable {
+            plan_libultraship_source(request, has_generated_archive)?.prepare(checkpoint)?
         } else {
             None
         };
-        if self.0 == AdapterKind::LibultrashipPortable && has_generated_archive {
-            cleanup_transient_n64_launch_sources(&library.runtime_sources_dir().join(&port.id))?;
-        }
         let adapter_arguments = match self.0 {
             AdapterKind::ReferencedDisc => match source {
                 Some(path) => vec![
@@ -408,6 +376,76 @@ impl Adapter for StandardAdapter {
             environment,
             arguments,
         })
+    }
+}
+
+/// A source decision from the current launch snapshot, not mutation authority.
+/// The service still owns locks, admission, cancellation and post-preparation verification.
+enum LibultrashipSourcePlan<'a> {
+    NoArgument,
+    Original(&'a Path),
+    Archived {
+        source: &'a Path,
+        admitted: &'a SourceRecord,
+        destination: PathBuf,
+    },
+    GeneratedArchive {
+        transient_root: PathBuf,
+    },
+}
+
+/// Select paths from observed facts without creating, extracting or deleting anything.
+fn plan_libultraship_source(
+    request: LaunchSpecRequest<'_>,
+    has_generated_archive: bool,
+) -> Result<LibultrashipSourcePlan<'_>> {
+    let transient_root = request.library.runtime_sources_dir().join(&request.port.id);
+    if has_generated_archive {
+        return Ok(LibultrashipSourcePlan::GeneratedArchive { transient_root });
+    }
+    if request.port.runtime_source_filename.is_some() {
+        return Ok(LibultrashipSourcePlan::NoArgument);
+    }
+    let Some(source) = request.source else {
+        return Ok(LibultrashipSourcePlan::NoArgument);
+    };
+    if !source
+        .extension()
+        .and_then(|extension| extension.to_str())
+        .is_some_and(|extension| extension.eq_ignore_ascii_case("zip"))
+    {
+        return Ok(LibultrashipSourcePlan::Original(source));
+    }
+    let admitted = request.source_record.ok_or_else(|| {
+        PortcoveError::state("archived Libultraship launch requires its admitted source identity")
+    })?;
+    Ok(LibultrashipSourcePlan::Archived {
+        source,
+        admitted,
+        destination: transient_root.join("portcove-launch-source.z64"),
+    })
+}
+
+impl LibultrashipSourcePlan<'_> {
+    /// Execute immediately within the existing supervised launch, never as a cached permission.
+    fn prepare(self, checkpoint: &dyn Fn() -> Result<()>) -> Result<Option<PathBuf>> {
+        checkpoint()?;
+        match self {
+            Self::NoArgument => Ok(None),
+            Self::Original(source) => Ok(Some(source.to_path_buf())),
+            Self::Archived {
+                source,
+                admitted,
+                destination,
+            } => {
+                prepare_transient_n64_launch_source(source, admitted, &destination, checkpoint)?;
+                Ok(Some(destination))
+            }
+            Self::GeneratedArchive { transient_root } => {
+                cleanup_transient_n64_launch_sources(&transient_root)?;
+                Ok(None)
+            }
+        }
     }
 }
 
@@ -2984,6 +3022,31 @@ mod tests {
         library.register_source(&source_record).unwrap();
         let catalog = Catalog::embedded().unwrap();
         let port = catalog.port("lighthouse").unwrap();
+        let executable = install.join("Lighthouse.exe");
+        let request = LaunchSpecRequest {
+            library: &library,
+            port,
+            platform: Platform::WindowsX86_64,
+            install_root: &install,
+            selected_executable: &executable,
+            source: Some(&source),
+            source_record: Some(&source_record),
+        };
+        let planned = plan_libultraship_source(request, false).unwrap();
+        assert!(matches!(&planned, LibultrashipSourcePlan::Archived { .. }));
+        assert!(!library.runtime_sources_dir().join(&port.id).exists());
+        assert_eq!(std::fs::read(&source).unwrap(), source_before);
+        let cancelled = planned
+            .prepare(&|| {
+                Err(PortcoveError::new(
+                    crate::ErrorCode::Cancelled,
+                    "cancelled before preparation",
+                ))
+            })
+            .unwrap_err();
+        assert_eq!(cancelled.code, crate::ErrorCode::Cancelled);
+        assert!(!library.runtime_sources_dir().join(&port.id).exists());
+        assert_eq!(std::fs::read(&source).unwrap(), source_before);
         let user_collision = library
             .user_dir("lighthouse")
             .join("portcove-launch-source.z64");
@@ -3038,6 +3101,23 @@ mod tests {
         assert_eq!(std::fs::read(&source).unwrap(), source_before);
 
         std::fs::write(library.user_dir("lighthouse").join("bk.o2r"), b"archive").unwrap();
+        let generated = plan_libultraship_source(request, true).unwrap();
+        assert!(matches!(
+            &generated,
+            LibultrashipSourcePlan::GeneratedArchive { .. }
+        ));
+        assert_eq!(std::fs::read(&materialized).unwrap(), rom);
+        assert!(
+            generated
+                .prepare(&|| {
+                    Err(PortcoveError::new(
+                        crate::ErrorCode::Cancelled,
+                        "cancelled before cleanup",
+                    ))
+                })
+                .is_err()
+        );
+        assert_eq!(std::fs::read(&materialized).unwrap(), rom);
         let next_spec = AdapterRegistry
             .get(AdapterKind::LibultrashipPortable)
             .launch_spec(
@@ -3057,6 +3137,53 @@ mod tests {
             std::fs::read(user_marker_collision).unwrap(),
             b"user marker"
         );
+    }
+
+    #[test]
+    fn libultraship_source_plan_revalidates_changed_archived_bytes() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let source = temporary.path().join("source.zip");
+        let rom = [0x80, 0x37, 0x12, 0x40, 1, 2, 3, 4];
+        let write_source = |bytes: &[u8]| {
+            let mut zip = zip::ZipWriter::new(File::create(&source).unwrap());
+            zip.start_file("source.z64", zip::write::SimpleFileOptions::default())
+                .unwrap();
+            zip.write_all(bytes).unwrap();
+            zip.finish().unwrap();
+        };
+        write_source(&rom);
+        let (storage_sha256, storage_size) = hash_file(&source).unwrap();
+        let admitted = SourceRecord {
+            profile_id: "banjo-kazooie".into(),
+            path: source.clone(),
+            sha256: hex::encode(Sha256::digest(rom)),
+            size: rom.len() as u64,
+            storage_sha256,
+            storage_size,
+            updated_at: 1,
+            observed_identity: None,
+        };
+        let catalog = Catalog::embedded().unwrap();
+        let port = catalog.port("lighthouse").unwrap();
+        let request = LaunchSpecRequest {
+            library: &library,
+            port,
+            platform: Platform::WindowsX86_64,
+            install_root: temporary.path(),
+            selected_executable: temporary.path(),
+            source: Some(&source),
+            source_record: Some(&admitted),
+        };
+        let planned = plan_libultraship_source(request, false).unwrap();
+        write_source(&[0x80, 0x37, 0x12, 0x40, 5, 6, 7, 8]);
+        let changed = std::fs::read(&source).unwrap();
+        let error = planned.prepare(&|| Ok(())).unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Verification);
+        assert_eq!(std::fs::read(&source).unwrap(), changed);
+        let root = library.runtime_sources_dir().join(&port.id);
+        assert!(!root.join("portcove-launch-source.z64").exists());
+        assert_eq!(std::fs::read_dir(&root).unwrap().count(), 0);
     }
 
     #[test]
