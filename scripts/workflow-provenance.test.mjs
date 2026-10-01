@@ -199,6 +199,9 @@ test("hosted binding rejects frontend validation helper and test-policy changes"
     "apps/desktop/scripts/check-copy.mjs",
     "apps/desktop/vitest.config.ts",
     "apps/desktop/stylelint.config.mjs",
+    "apps/desktop/tsconfig.orchestration.json",
+    "apps/desktop/i18next.config.ts",
+    "apps/desktop/i18next.invalid.config.ts",
   ]) {
     const f = hostedFixture(t);
     f.write(f.source, name, "process.exit(0);\n");
