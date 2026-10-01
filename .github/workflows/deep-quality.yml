@@ -78,4 +78,19 @@ jobs:
         run: ./scripts/bootstrap-quality-tools.sh
       - run: pnpm install --frozen-lockfile
       - name: Run deterministic gates and structural audit
-        run: just audit --fresh
+        id: fresh-audit
+        shell: bash
+        run: |
+          echo "started=$(date +%s)" >> "$GITHUB_OUTPUT"
+          set +e
+          just audit --fresh
+          audit_status=$?
+          echo "exit_code=$audit_status" >> "$GITHUB_OUTPUT"
+          exit "$audit_status"
+      - name: Summarize structured audit evidence
+        if: always()
+        env:
+          AUDIT_OUTCOME: ${{ steps.fresh-audit.outcome }}
+          AUDIT_EXIT_CODE: ${{ steps.fresh-audit.outputs.exit_code }}
+          AUDIT_STARTED: ${{ steps.fresh-audit.outputs.started }}
+        run: node scripts/deep-audit-summary.mjs

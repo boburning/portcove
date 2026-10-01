@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { readFile, readdir } from "node:fs/promises";
 import test from "node:test";
+import { AUDIT_STAGES, receiptEnvelope } from "./audit.mjs";
+import { renderDeepAuditSummary } from "./deep-audit-summary.mjs";
 
 const workflow = await readFile(new URL("../.github/workflows/ci.yml", import.meta.url), "utf8");
 const qualificationWorkflow = await readFile(
@@ -1190,4 +1192,171 @@ test("Rust reports slow tests, terminates hangs and retains documentation covera
   assert.doesNotMatch(rustQuality, /cargo nextest run/);
   assert.match(workflow, /CARGO_PROFILE_TEST_DEBUG: line-tables-only/);
   assert.match(workflow, /CARGO_PROFILE_DEV_DEBUG: line-tables-only/);
+});
+
+test("deep audit summary retains audit status without artifacts or privilege changes", async () => {
+  const deep = await readFile(
+    new URL("../.github/workflows/deep-quality.yml", import.meta.url),
+    "utf8",
+  );
+  assert.match(deep, /id: fresh-audit/);
+  assert.match(deep, /just audit --fresh\r?\n {10}audit_status=\$\?/);
+  assert.match(deep, /exit "\$audit_status"/);
+  assert.match(deep, /name: Summarize structured audit evidence\r?\n {8}if: always\(\)/);
+  assert.match(deep, /AUDIT_OUTCOME: \$\{\{ steps\.fresh-audit\.outcome \}\}/);
+  assert.match(deep, /AUDIT_EXIT_CODE: \$\{\{ steps\.fresh-audit\.outputs\.exit_code \}\}/);
+  assert.match(deep, /AUDIT_STARTED: \$\{\{ steps\.fresh-audit\.outputs\.started \}\}/);
+  assert.match(deep, /run: node scripts\/deep-audit-summary\.mjs/);
+  assert.match(deep, /^permissions:\r?\n {2}contents: read$/m);
+  assert.doesNotMatch(deep, /upload-artifact|continue-on-error|secrets:|schedule:|tee /);
+});
+
+const auditSummarySource = "a".repeat(40);
+const identity = {
+  source: auditSummarySource,
+  workflowSha: auditSummarySource,
+  workflowDigest: "b".repeat(64),
+  workflowRef: "boburning/portcove/.github/workflows/deep-quality.yml@refs/heads/main",
+  run: "12",
+  attempt: "2",
+  outcome: "success",
+  exitCode: "0",
+  started: "1700000000",
+};
+function fixture() {
+  return {
+    format: 1,
+    kind: "audit-run",
+    profile: "complete",
+    head: auditSummarySource,
+    success: true,
+    completedAt: "2023-11-14T22:13:21Z",
+    stages: AUDIT_STAGES.filter((stage) => !stage.platforms).map((stage) => ({
+      id: stage.id,
+      recipe: stage.recipe,
+      originatingHead: auditSummarySource,
+      status: "passed",
+      durationMs: 123,
+      rationale: "secret diagnostic /private/path",
+    })),
+  };
+}
+test("complete fresh success publishes bounded identities and stage results only", () => {
+  const text = renderDeepAuditSummary(receiptEnvelope(fixture()), identity);
+  assert.match(text, /Complete fresh audit receipt: passed/);
+  assert.match(text, /Run: 12; attempt: 2/);
+  assert.match(text, /\| rust \| passed \| 123 \| 0 \|/);
+  assert.doesNotMatch(text, /secret diagnostic|private\/path|rationale/);
+  assert.ok(text.length < 4096);
+});
+test("failed full audit retains actual stage failure and exit status", () => {
+  const payload = fixture();
+  payload.success = false;
+  Object.assign(payload.stages[1], { status: "failed", exitCode: 2 });
+  const text = renderDeepAuditSummary(receiptEnvelope(payload), {
+    ...identity,
+    outcome: "failure",
+    exitCode: "1",
+  });
+  assert.match(text, /receipt: failed/);
+  assert.match(text, /\| rust \| failed \| 123 \| 2 \|/);
+  assert.match(text, /Recorded audit exit status: 1/);
+});
+for (const [name, mutate] of [
+  [
+    "wrong source",
+    (p) => {
+      p.head = "c".repeat(40);
+    },
+  ],
+  [
+    "stale receipt",
+    (p) => {
+      p.completedAt = "2023-11-14T22:13:19Z";
+    },
+  ],
+  [
+    "partial profile",
+    (p) => {
+      p.profile = "transition";
+    },
+  ],
+  [
+    "missing stage",
+    (p) => {
+      p.stages.pop();
+    },
+  ],
+  [
+    "duplicate stage",
+    (p) => {
+      p.stages[1] = p.stages[0];
+    },
+  ],
+  [
+    "reused stage",
+    (p) => {
+      p.stages[1].status = "reused";
+    },
+  ],
+  [
+    "foreign stage source",
+    (p) => {
+      p.stages[1].originatingHead = "c".repeat(40);
+    },
+  ],
+  [
+    "injected label",
+    (p) => {
+      p.stages[1].id = "rust\nsecret";
+    },
+  ],
+  [
+    "invalid duration",
+    (p) => {
+      p.stages[1].durationMs = -1;
+    },
+  ],
+  [
+    "false success",
+    (p) => {
+      p.success = false;
+    },
+  ],
+])
+  test(`${name} never establishes coverage or success`, () => {
+    const payload = fixture();
+    mutate(payload);
+    const text = renderDeepAuditSummary(receiptEnvelope(payload), identity);
+    assert.match(text, /unavailable or invalid/);
+    assert.doesNotMatch(text, /receipt: passed|\| rust/);
+  });
+test("missing, corrupt, cancelled and unavailable exit receipts never pass", () => {
+  for (const receipt of [undefined, {}, { ...receiptEnvelope(fixture()), integrity: "bad" }]) {
+    assert.match(renderDeepAuditSummary(receipt, identity), /unavailable or invalid/);
+  }
+  for (const patch of [{ outcome: "cancelled" }, { exitCode: "" }, { exitCode: "1" }]) {
+    assert.match(
+      renderDeepAuditSummary(receiptEnvelope(fixture()), { ...identity, ...patch }),
+      /unavailable or invalid/,
+    );
+  }
+});
+test("invalid identity cannot inject public output", () => {
+  for (const key of [
+    "source",
+    "workflowSha",
+    "workflowDigest",
+    "workflowRef",
+    "run",
+    "attempt",
+    "outcome",
+  ]) {
+    const text = renderDeepAuditSummary(receiptEnvelope(fixture()), {
+      ...identity,
+      [key]: "secret\n<script>",
+    });
+    assert.match(text, /Identity unavailable or invalid/);
+    assert.doesNotMatch(text, /secret|script>/);
+  }
 });
