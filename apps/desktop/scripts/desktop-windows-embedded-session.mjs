@@ -146,7 +146,10 @@ export async function startEmbeddedInstalledSession(application, output, launchA
             const connection = new Builder()
               .disableEnvironmentOverrides()
               .usingServer(`http://127.0.0.1:${port}`)
-              .withCapabilities({ browserName: "tauri" })
+              .withCapabilities({
+                browserName: "tauri",
+                "wdio:tauriServiceOptions": { windowLabel: "main" },
+              })
               .build();
             let timer;
             try {
