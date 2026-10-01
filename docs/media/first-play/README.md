@@ -36,11 +36,11 @@ after normal closure.
 
 ### Let the game finish its first-launch preparation
 
-![Actual game extracting its prepared source](first-launch.png)
+![Actual game extracting its prepared source](first-launch.jpg)
 
 ### Reach the real game
 
-![Actual Ocarina of Time title screen in Ship of Harkinian](title-screen.png)
+![Actual Ocarina of Time title screen in Ship of Harkinian](title-screen.jpg)
 
 ### Return to the catalog
 
@@ -60,7 +60,8 @@ after normal closure.
 - Existing embedded Windows WebDriver captured actual application screenshots
   and visible text. Computer Use operated the application and game and captured
   the game's preparation/title windows. These are not component scenarios or
-  invented screenshots. Five original PNGs are published without image edits.
+  invented screenshots. Three original PNGs and two original JPEGs are published
+  without image edits.
 - The native file picker exposed inconsistent focus information to Computer Use.
   Its dialog was cancelled; the visible application path field was used instead.
   This establishes that route, not automated picker completion. An earlier
