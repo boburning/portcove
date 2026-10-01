@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="apps/desktop/assets/brand/generated/v2/portcove-logo-v2-transparent.png" alt="Portcove logo" width="560">
+  <img src="apps/desktop/assets/brand/generated/v2/portcove-logo-v2-transparent.png" alt="Portcove logo" width="160">
 </p>
 
 <h1 align="center">Portcove</h1>
@@ -20,6 +20,12 @@ Portcove brings native game ports into one local library. Choose a port, add the
 game files it needs, and use the desktop app or command-line tool to manage
 supported installations, updates, and backups. Some ports use an existing
 installation rather than installing or updating files through Portcove.
+
+![Portcove's actual catalog, with Ship of Harkinian ready to play](docs/media/first-play/catalog.png)
+
+_Windows development build, October 1, 2026: an installed game, available ports,
+and real mixed artwork. This is the application, not a mockup; the pictured
+design and default covers are newer than the published Alpha 2 preview._
 
 Existing Alpha 1 libraries can be carried forward with the documented
 [upgrade and recovery procedure](docs/UPGRADING.md).
@@ -79,12 +85,12 @@ For terminal use, choose the separate **CLI** archive. The desktop app does not
 require that archive, and the CLI archive is not a graphical app. GitHub's
 generated **Source code** archives are for building Portcove yourself.
 
-| System                            | Desktop package                                                                                                       | Standalone CLI archive          |
-| --------------------------------- | --------------------------------------------------------------------------------------------------------------------- | ------------------------------- |
-| Windows x64                       | `Portcove_0.1.0-alpha.2_x64-setup.exe`                                                                                | `portcove-windows-x86_64.zip`   |
-| Linux x64, experimental           | `Portcove_0.1.0-alpha.2_amd64.AppImage`, `Portcove_0.1.0-alpha.2_amd64.deb`, or `Portcove-0.1.0-alpha.2-1.x86_64.rpm` | `portcove-linux-x86_64.tar.gz`  |
-| macOS Intel, experimental         | `Portcove_0.1.0-alpha.2_x64.dmg`                                                                                      | `portcove-macos-x86_64.tar.gz`  |
-| macOS Apple silicon, experimental | `Portcove_0.1.0-alpha.2_aarch64.dmg`                                                                                  | `portcove-macos-aarch64.tar.gz` |
+| System                            | Desktop package                                                                                                                                                                                                                                                                                                                                                                                                                                          | Standalone CLI archive                                                                                                                |
+| --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| Windows x64                       | [Portcove_0.1.0-alpha.2_x64-setup.exe](https://github.com/boburning/portcove/releases/download/v0.1.0-alpha.2/Portcove_0.1.0-alpha.2_x64-setup.exe)                                                                                                                                                                                                                                                                                                      | [portcove-windows-x86_64.zip](https://github.com/boburning/portcove/releases/download/v0.1.0-alpha.2/portcove-windows-x86_64.zip)     |
+| Linux x64, experimental           | [Portcove_0.1.0-alpha.2_amd64.AppImage](https://github.com/boburning/portcove/releases/download/v0.1.0-alpha.2/Portcove_0.1.0-alpha.2_amd64.AppImage), [Portcove_0.1.0-alpha.2_amd64.deb](https://github.com/boburning/portcove/releases/download/v0.1.0-alpha.2/Portcove_0.1.0-alpha.2_amd64.deb), or [Portcove-0.1.0-alpha.2-1.x86_64.rpm](https://github.com/boburning/portcove/releases/download/v0.1.0-alpha.2/Portcove-0.1.0-alpha.2-1.x86_64.rpm) | [portcove-linux-x86_64.tar.gz](https://github.com/boburning/portcove/releases/download/v0.1.0-alpha.2/portcove-linux-x86_64.tar.gz)   |
+| macOS Intel, experimental         | [Portcove_0.1.0-alpha.2_x64.dmg](https://github.com/boburning/portcove/releases/download/v0.1.0-alpha.2/Portcove_0.1.0-alpha.2_x64.dmg)                                                                                                                                                                                                                                                                                                                  | [portcove-macos-x86_64.tar.gz](https://github.com/boburning/portcove/releases/download/v0.1.0-alpha.2/portcove-macos-x86_64.tar.gz)   |
+| macOS Apple silicon, experimental | [Portcove_0.1.0-alpha.2_aarch64.dmg](https://github.com/boburning/portcove/releases/download/v0.1.0-alpha.2/Portcove_0.1.0-alpha.2_aarch64.dmg)                                                                                                                                                                                                                                                                                                          | [portcove-macos-aarch64.tar.gz](https://github.com/boburning/portcove/releases/download/v0.1.0-alpha.2/portcove-macos-aarch64.tar.gz) |
 
 These are the published Alpha 2 choices; check the selected release page for
 later versions and their limitations. Application upgrades are manual. Before
@@ -93,29 +99,33 @@ steps](docs/UPGRADING.md). Read the [Alpha 2 release
 notes](docs/releases/0.1.0-alpha.2-release-notes.md) for package scope and
 known limitations.
 
-### Verify a download
+Windows packages are unsigned; macOS packages are unsigned and not notarized.
+Keep operating-system security protections enabled. Linux and macOS remain
+experimental, with hosted build/test evidence and incomplete hands-on package
+qualification. [Verify the download and read the signing/SBOM limits](docs/DOWNLOADS.md)
+before opening it.
 
-Download `SHA256SUMS-<platform>.txt` or `SHA256SUMS.txt` from the same release
-and compare the complete SHA-256 on the line for the exact filename you chose.
-Stop if the entry is missing, duplicated, conflicting, or mismatched. A matching
-checksum establishes agreement with that manifest; it does not identify an OS
-publisher or prove gameplay support.
+## Your first game
 
-The current release workflow is designed to include an SPDX 2.3 JSON software
-bill of materials and GitHub artifact attestations for the final tagged files
-in future releases. Its aggregate checksum manifest covers the packages and
-the SBOM before a draft release is created. Check the actual assets and
-attestations for the version you choose: the published Alpha 2 release lists
-package and checksum files, but no SBOM. These records do not replace an
-operating-system publisher signature or hands-on package qualification.
+Use a disposable or backed-up library for this technical preview.
 
-Windows packages lack Authenticode signing and may show unknown-publisher or
-reputation warnings. macOS packages lack Developer ID signing and notarization
-and may be blocked by platform policy. Keep operating-system security
-protections enabled. Linux and macOS have hosted build/test evidence, but not
-equivalent hands-on desktop package qualification. The [Alpha 1
-notes](docs/releases/0.1.0-alpha.1-release-notes.md) remain available for
-people upgrading from that preview.
+1. Open **Portcove Desktop** and choose the local library you intend to use.
+2. Open **Port catalog**, choose a port, and read its game-file requirements and
+   recorded platform evidence. A catalog entry alone does not establish support.
+3. Choose your own required game files, or enter their local path. Portcove
+   checks them locally when you continue installation. An unsupported or changed
+   input needs attention; do not substitute another edition blindly.
+4. Choose **Review installation**. Check the version, download size and install
+   folder, then confirm **Install**. Wait for verification and preparation to finish.
+5. When the game is **Ready to play**, choose **Play**. Some ports perform their
+   own first-launch preparation or ask a further question. Close the game normally
+   to return to Portcove.
+
+This [captured Windows development-build journey](docs/media/first-play/README.md)
+shows Ship of Harkinian installing from a verified package, recognizing an exact
+Ocarina of Time source, preparing its game data, and reaching the title screen.
+It is separate from Alpha 2 package qualification and does not establish gameplay,
+audio, save compatibility or physical-controller behavior.
 
 ## Catalog and support
 
@@ -135,7 +145,7 @@ Requirements:
 
 - Rust 1.98.1
 - Node.js 24.21.0
-- pnpm 12.4.2
+- pnpm 12.7.0
 - the [Tauri 2 platform prerequisites](https://v2.tauri.app/start/prerequisites/)
 
 Development storage defaults are portable: a checkout may use the Windows system drive when its physical paths and free capacity pass preflight. Prefer an SSD for fixture-heavy work. A stricter machine-local policy can impose additional restrictions without changing repository defaults. See [docs/DEVELOPMENT-STORAGE.md](docs/DEVELOPMENT-STORAGE.md) for the storage checks and private-policy boundary.
@@ -200,3 +210,12 @@ route without duplicating lifecycle authority. See
 ## License
 
 Portcove is available under either the [MIT License](LICENSE-MIT) or the [Apache License 2.0](LICENSE-APACHE), at your option.
+
+## Development and responsibility
+
+Portcove uses AI-assisted development. The project owner is responsible for the
+changes and release decisions. Published test evidence describes its actual
+scope; it does not guarantee every port, platform or personal library.
+
+See the [contributor workflow](CONTRIBUTING.md), [quality checks](docs/QUALITY.md),
+[architecture](docs/ARCHITECTURE.md) and [documentation index](docs/README.md).
