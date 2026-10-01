@@ -1503,3 +1503,116 @@ fn backup_rejects_symbolic_links_instead_of_omitting_them() {
     assert_eq!(error.code, crate::ErrorCode::Conflict);
     assert!(error.message.contains("symbolic link"));
 }
+
+#[test]
+fn restore_family_decodes_all_released_phases_without_mutation() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("library")).unwrap();
+    let service = service_with_release(library.clone(), "v2");
+    let store = OperationStore::new(library.clone());
+    let mut operation = LifecycleOperation::new(
+        "legacy-restore",
+        LifecycleOperationKind::Restore,
+        "zelda64-recomp",
+    );
+    let recovery = library.recovery_dir().join(&operation.id);
+    let user = library.user_dir(&operation.port_id);
+    let previous = recovery.join("previous-data");
+    operation.paths.staging = Some(recovery.clone());
+    operation.paths.final_path = Some(user.clone());
+    operation.paths.quarantine = Some(previous.clone());
+    operation.last_error = Some("retained diagnostic".into());
+    for (stored, typed) in [
+        (LifecyclePhase::Preparing, RestorePhase::Unverified),
+        (LifecyclePhase::Prepared, RestorePhase::ReadyToPublish),
+        (LifecyclePhase::PayloadPublished, RestorePhase::Published),
+        (LifecyclePhase::MetadataCommitted, RestorePhase::Committed),
+        (LifecyclePhase::CleanupPending, RestorePhase::CleanupPending),
+    ] {
+        for replaces_existing_data in [false, true] {
+            operation.phase = stored;
+            operation.activate = replaces_existing_data;
+            store.put(&mut operation).unwrap();
+            let persisted = store.get(&operation.id).unwrap().unwrap();
+            let restore = service.validate_restore_operation(&persisted).unwrap();
+            assert_eq!(restore.phase, typed);
+            assert_eq!(restore.replaces_existing_data, replaces_existing_data);
+            assert_eq!(restore.recovery_root, recovery);
+            assert_eq!(restore.staged_data, recovery.join("staged-data"));
+            assert_eq!(restore.user_root, user);
+            assert_eq!(restore.previous_data, previous);
+            let unchanged = store.get(&operation.id).unwrap().unwrap();
+            assert_eq!(unchanged.phase, stored);
+            assert_eq!(unchanged.activate, replaces_existing_data);
+            assert_eq!(unchanged.last_error, operation.last_error);
+            assert_eq!(unchanged.updated_at, operation.updated_at);
+            assert!(!recovery.exists());
+            assert!(!user.exists());
+        }
+    }
+}
+
+#[test]
+fn restore_family_refuses_skipped_or_stale_transitions_before_journal_write() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("library")).unwrap();
+    let service = service_with_release(library.clone(), "v2");
+    let store = OperationStore::new(library.clone());
+    let mut operation = LifecycleOperation::new(
+        "checked-restore",
+        LifecycleOperationKind::Restore,
+        "zelda64-recomp",
+    );
+    let recovery = library.recovery_dir().join(&operation.id);
+    operation.paths.staging = Some(recovery.clone());
+    operation.paths.final_path = Some(library.user_dir(&operation.port_id));
+    operation.paths.quarantine = Some(recovery.join("previous-data"));
+    operation.last_error = Some("preserved fault".into());
+    store.put(&mut operation).unwrap();
+    let mut restore = service.validate_restore_operation(&operation).unwrap();
+    let error = restore
+        .advance(RestorePhase::Committed, &mut operation, &store)
+        .unwrap_err();
+    assert_eq!(error.code, crate::ErrorCode::State);
+    assert_eq!(operation.phase, LifecyclePhase::Preparing);
+    assert_eq!(
+        store.get(&operation.id).unwrap().unwrap().last_error,
+        operation.last_error
+    );
+    operation.activate = true;
+    assert!(
+        restore
+            .advance(RestorePhase::ReadyToPublish, &mut operation, &store)
+            .is_err()
+    );
+    assert!(!store.get(&operation.id).unwrap().unwrap().activate);
+    operation.activate = false;
+    operation.preparation_process_quiesced = Some(false);
+    assert!(
+        restore
+            .advance(RestorePhase::ReadyToPublish, &mut operation, &store)
+            .is_err()
+    );
+    assert!(
+        store
+            .get(&operation.id)
+            .unwrap()
+            .unwrap()
+            .preparation_process_quiesced
+            .is_none()
+    );
+    operation.preparation_process_quiesced = None;
+    restore
+        .advance(RestorePhase::ReadyToPublish, &mut operation, &store)
+        .unwrap();
+    restore
+        .advance(RestorePhase::Published, &mut operation, &store)
+        .unwrap();
+    restore
+        .advance(RestorePhase::Committed, &mut operation, &store)
+        .unwrap();
+    let committed = store.get(&operation.id).unwrap().unwrap();
+    assert_eq!(committed.phase, LifecyclePhase::MetadataCommitted);
+    assert!(committed.last_error.is_none());
+    assert!(!recovery.exists());
+}

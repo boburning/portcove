@@ -1848,3 +1848,16 @@ Post-exit collection compares canonical install and versions-directory paths aft
 Persistent-data synchronization skips a redundant file copy only when lengths and complete SHA-256 content match. Timestamps alone never authorize reuse, and a same-size changed save still replaces its collected copy. Existing ancestor checks, port locking, and deletion propagation remain in force.
 
 ZIP entry names from Windows producers are normalized from DOS separators to forward slashes before the shared portable validator and collision inventory run. This is one platform-independent output namespace: mixed-separator aliases collide, and traversal, drive/UNC roots, reserved names, links, special files, and resource limits still fail before extraction writes. Catalog and TAR paths retain their forward-slash requirement.
+
+### Checked backup restore interpretation
+
+The released restore journal remains the storage compatibility envelope. The private
+backup owner decodes it into `RestoreOperation`: unverified staging, ready publication,
+published data, committed metadata or pending cleanup, exact operation-owned paths,
+and an explicit `replaces_existing_data` value for the historical `activate` column.
+Normal restore and interrupted recovery use this same interpreter and checked legal
+phase transitions; the recovery path does not independently unwrap optional paths or
+interpret generic flags. Decoding does not write files or journals and is not authority.
+Catalog identity, port locks, one-use consent, original/source preservation and filesystem
+revalidation remain required. Typed path snapshots cannot replace symlink/ownership
+checks at mutation boundaries. SQLite, public schemas and journal encodings are unchanged.

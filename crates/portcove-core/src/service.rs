@@ -37,6 +37,7 @@ use crate::{
 };
 
 mod backups;
+pub(crate) use backups::RestorePhase;
 
 const LAUNCH_MARKER: &str = ".portcove-launched";
 const BULK_PROVIDER_CONCURRENCY: usize = 4;
