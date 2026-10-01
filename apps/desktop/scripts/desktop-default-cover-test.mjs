@@ -33,45 +33,9 @@ export async function defaultCoverScenario({
           "Cold display requires an actually empty isolated artwork cache",
         );
       }
-      const refusedOrigins = [];
-      const refusalSockets = new Set();
-      // Test-only local refusal: never forwards traffic or records headers, paths or credentials.
-      const refusal = cacheConditions
-        ? createServer((request, response) => {
-            refusedOrigins.push("http-request");
-            response.writeHead(503).end();
-          })
-        : null;
-      refusal?.on("connection", (socket) => {
-        refusalSockets.add(socket);
-        socket.on("error", () => {});
-        socket.once("close", () => refusalSockets.delete(socket));
-        socket.setTimeout(2000, () => socket.destroy());
-      });
-      refusal?.on("connect", (request, socket) => {
-        refusedOrigins.push(
-          request.url === "images.igdb.com:443" ? "images.igdb.com" : "other-origin",
-        );
-        socket.end("HTTP/1.1 503 Service Unavailable\r\nConnection: close\r\n\r\n");
-      });
-      let offlineEnvironment;
-      if (refusal) {
-        await new Promise((resolve, reject) => {
-          refusal.once("error", reject);
-          refusal.listen(0, "127.0.0.1", resolve);
-        });
-        const proxy = `http://127.0.0.1:${refusal.address().port}`;
-        offlineEnvironment = {
-          HTTP_PROXY: proxy,
-          HTTPS_PROXY: proxy,
-          ALL_PROXY: proxy,
-          http_proxy: proxy,
-          https_proxy: proxy,
-          all_proxy: proxy,
-          NO_PROXY: "localhost,127.0.0.1,::1",
-          no_proxy: "localhost,127.0.0.1,::1",
-        };
-      }
+      const refusal = cacheConditions ? await createImageRefusal() : null;
+      const refusedOrigins = refusal?.origins ?? [];
+      const offlineEnvironment = refusal?.environment;
       let withheld;
       let primaryError;
       try {
@@ -353,36 +317,91 @@ export async function defaultCoverScenario({
         primaryError = error;
         throw error;
       } finally {
-        try {
-          if (withheld) {
-            browser = await restart("default-cover-cache-restored", async () => {
-              const bytes = await readFile(withheld.retained);
-              assert.equal(
-                createHash("sha256").update(bytes).digest("hex"),
-                path.basename(withheld.original, ".jpg"),
-              );
-              await rename(withheld.retained, withheld.original);
-            });
-          }
-        } catch (cleanupError) {
-          if (!primaryError) throw cleanupError;
-          const diagnostic = path.join(output, "default-cover-cache-cleanup-failure.json");
-          await writeFile(
-            diagnostic,
-            JSON.stringify({ primary: primaryError.message, cleanup: cleanupError.message }),
-          )
-            .then(() => artifacts.push(diagnostic))
-            .catch((error) =>
-              console.error("Failed to retain cache cleanup diagnostic:", error.message),
-            );
-        } finally {
-          if (refusal) {
-            for (const socket of refusalSockets) socket.destroy();
-            refusal.closeAllConnections();
-            await new Promise((resolve) => refusal.close(resolve));
-          }
-        }
+        await restoreCacheAfterObservation({
+          withheld,
+          restart,
+          primaryError,
+          output,
+          artifacts,
+          refusal,
+        });
       }
     },
   );
+}
+
+async function createImageRefusal() {
+  const origins = [];
+  const sockets = new Set();
+  // Test-only local refusal: never forwards traffic or records headers, paths or credentials.
+  const server = createServer((request, response) => {
+    origins.push("http-request");
+    response.writeHead(503).end();
+  });
+  server.on("connection", (socket) => {
+    sockets.add(socket);
+    socket.on("error", () => {});
+    socket.once("close", () => sockets.delete(socket));
+    socket.setTimeout(2000, () => socket.destroy());
+  });
+  server.on("connect", (request, socket) => {
+    origins.push(request.url === "images.igdb.com:443" ? "images.igdb.com" : "other-origin");
+    socket.end("HTTP/1.1 503 Service Unavailable\r\nConnection: close\r\n\r\n");
+  });
+  await new Promise((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", resolve);
+  });
+  const proxy = `http://127.0.0.1:${server.address().port}`;
+  return {
+    origins,
+    environment: {
+      HTTP_PROXY: proxy,
+      HTTPS_PROXY: proxy,
+      ALL_PROXY: proxy,
+      http_proxy: proxy,
+      https_proxy: proxy,
+      all_proxy: proxy,
+      NO_PROXY: "localhost,127.0.0.1,::1",
+      no_proxy: "localhost,127.0.0.1,::1",
+    },
+    async close() {
+      for (const socket of sockets) socket.destroy();
+      server.closeAllConnections();
+      await new Promise((resolve) => server.close(resolve));
+    },
+  };
+}
+
+async function restoreCacheAfterObservation({
+  withheld,
+  restart,
+  primaryError,
+  output,
+  artifacts,
+  refusal,
+}) {
+  try {
+    if (withheld) {
+      await restart("default-cover-cache-restored", async () => {
+        const bytes = await readFile(withheld.retained);
+        assert.equal(
+          createHash("sha256").update(bytes).digest("hex"),
+          path.basename(withheld.original, ".jpg"),
+        );
+        await rename(withheld.retained, withheld.original);
+      });
+    }
+  } catch (cleanupError) {
+    if (!primaryError) throw cleanupError;
+    const diagnostic = path.join(output, "default-cover-cache-cleanup-failure.json");
+    await writeFile(
+      diagnostic,
+      JSON.stringify({ primary: primaryError.message, cleanup: cleanupError.message }),
+    )
+      .then(() => artifacts.push(diagnostic))
+      .catch((error) => console.error("Failed to retain cache cleanup diagnostic:", error.message));
+  } finally {
+    await refusal?.close();
+  }
 }
