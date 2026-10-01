@@ -31,7 +31,7 @@ fn assert_restore_recovers_before_and_after_user_data_publication(point: Lifecyc
     );
     assert_eq!(
         service
-            .launch_spec("zelda64-recomp", None)
+            .prepare_launch("zelda64-recomp", None)
             .unwrap_err()
             .code,
         crate::ErrorCode::Conflict
@@ -881,11 +881,11 @@ fn assert_restored_versions(service: &PortcoveService, versions: &[PathBuf]) {
         assert!(!path.join("mods").exists());
         assert!(!path.join(LAUNCH_MARKER).exists());
     }
-    service.launch_spec("zelda64-recomp", None).unwrap();
+    service.prepare_launch("zelda64-recomp", None).unwrap();
     service.rollback("zelda64-recomp").unwrap();
-    service.launch_spec("zelda64-recomp", None).unwrap();
+    service.prepare_launch("zelda64-recomp", None).unwrap();
     service.activate_staged("zelda64-recomp").unwrap();
-    service.launch_spec("zelda64-recomp", None).unwrap();
+    service.prepare_launch("zelda64-recomp", None).unwrap();
     service.collect_user_data("zelda64-recomp").unwrap();
     let user_root = service.library.user_dir("zelda64-recomp");
     assert_eq!(fs::read(user_root.join("general.json")).unwrap(), b"wanted");
@@ -930,7 +930,7 @@ fn current_persistence_cannot_restore_an_unmanifested_companion_into_lifecycle_p
     fs::write(&user_companion, b"untrusted companion").unwrap();
     let service = service_with_added_persistent_path(library.clone(), "v2", COMPANION);
 
-    service.launch_spec(PORT, None).unwrap();
+    service.prepare_launch(PORT, None).unwrap();
     assert!(!active.join(COMPANION).exists());
     assert_eq!(service.status(PORT).unwrap().active.unwrap().version, "v1");
 

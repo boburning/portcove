@@ -1787,6 +1787,18 @@ backup manifest.
 
 ## Adapter boundary
 
+Adapter `launch_spec` and `launch_spec_with_executable` observe current inputs and
+assemble paths, environment and arguments without creating directories, copying
+sources, writing markers/configuration, cleaning transient data or invoking setup.
+Their result describes a proposed launch; it grants no mutation or spawn authority.
+The existing supervised service calls explicit `prepare_launch_with_executable`
+under its launch locks and cancellation coordinator. Preparation retains the
+existing source/cache/marker/setup helpers, then uses that same read-only argument
+planner on current facts. No stored plan or cached permission is executed later.
+Core still synchronizes saves, checks source identity after preparation, commits
+generated manifests and performs the conditional spawning transition. Service
+preparation methods are named accordingly; they are not read-only inspections.
+
 Libultraship's transient-source decision is a private read-only plan over the
 current supervised launch snapshot: use the original source, materialize an
 admitted archive, supply no source argument, or clean transient sources after a

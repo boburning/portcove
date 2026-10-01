@@ -699,7 +699,7 @@ async fn adopted_runtime_remains_subject_to_critical_launch_policy() {
     );
     assert!(
         service
-            .launch_spec(PORT, None)
+            .prepare_launch(PORT, None)
             .unwrap_err()
             .message
             .contains("verified runtime")
