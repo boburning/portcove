@@ -299,6 +299,9 @@ try {
   const recreated = await invoke(browser, "recreate_boundary_owner");
   assert.equal(recreated.ok, true);
   await browser.switchTo().window("boundary-secondary");
+  // The new window must finish its initial document/IPC bridge before a
+  // WebDriver async callback can be observed. No queued reply is added here.
+  await browser.get(initialUrl);
   const disposed = await fetchQueued(abandoned.id);
   assert.equal(disposed.ok, false);
   assert.deepEqual(disposed, consumed);
