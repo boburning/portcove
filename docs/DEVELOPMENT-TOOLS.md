@@ -83,6 +83,8 @@ verification. The cache key identifies inputs; it is not proof of provenance.
 The first bootstrap for a new Aqua cache identity requires a successful fully
 verified install. Historical cache roots are not imported or adopted, and a
 blocked first download or attestation fetch remains a prerequisite failure.
+Checkout state must name the matching Aqua root; an old or missing root rejects
+the state and directs Windows commands to bootstrap before probing an executable.
 A failed download, checksum mismatch, unsupported architecture, partial extraction,
 or invalid cached receipt fails closed. Previous verified payloads remain in place.
 Run the bootstrap again to reuse Aqua's existing cache hits for matching inputs;

@@ -25,6 +25,7 @@ function aquaFixture(t) {
     pin_fingerprint: item.paths.pins.fingerprint,
     shared_root: item.paths.sharedRoot,
     shim_directory: item.paths.shimDirectory,
+    aqua_root: item.paths.aquaRoot,
     aqua: item.paths.aquaExecutable,
   };
   writeFileSync(item.paths.statePath, JSON.stringify(state));
@@ -288,6 +289,7 @@ test("unrelated pins preserve the Aqua root while invalidating checkout state", 
       pin_fingerprint: item.paths.pins.fingerprint,
       shared_root: item.paths.sharedRoot,
       shim_directory: item.paths.shimDirectory,
+      aqua_root: item.paths.aquaRoot,
     }),
   );
   assert.notEqual(item.paths.pins.aquaFingerprint, item.paths.pins.fingerprint);
@@ -449,6 +451,35 @@ test("supported hosts share Aqua identity and retain separate Aqua executable pa
   assert.equal(executables.size, 6);
 });
 
+test("historical Aqua roots invalidate checkout state before any executable probe", (t) => {
+  const item = aquaFixture(t);
+  const legacyRoot = path.join(item.paths.sharedRoot, "aqua-roots", item.paths.pins.fingerprint);
+  assert.notEqual(legacyRoot, item.paths.aquaRoot);
+  writeFileSync(item.paths.statePath, JSON.stringify({ ...item.state, aqua_root: legacyRoot }));
+  assert.equal(readToolState({ paths: item.paths }), null);
+  let probes = 0;
+  assert.throws(
+    () =>
+      pinnedAquaCommand({
+        paths: item.paths,
+        platform: "win32",
+        osArchitecture: "x64",
+        probe: () => {
+          probes++;
+          return { status: 0, stdout: "aqua version 2.62.3" };
+        },
+      }),
+    /checkout state.*bootstrap-quality-tools/u,
+  );
+  assert.equal(probes, 0);
+  for (const aquaRoot of [null, path.join(item.root, "unrelated-root")]) {
+    writeFileSync(item.paths.statePath, JSON.stringify({ ...item.state, aqua_root: aquaRoot }));
+    assert.equal(readToolState({ paths: item.paths }), null);
+  }
+  writeFileSync(item.paths.statePath, JSON.stringify(item.state));
+  assert.ok(readToolState({ paths: item.paths }));
+});
+
 test("checkout environment prepends only the local shims and scopes Aqua", (t) => {
   const item = fixture();
   t.after(() => rmSync(item.root, { recursive: true, force: true }));
@@ -471,6 +502,7 @@ test("state is rejected after pin drift or missing desktop payloads", (t) => {
     pin_fingerprint: item.paths.pins.fingerprint,
     shared_root: item.paths.sharedRoot,
     shim_directory: item.paths.shimDirectory,
+    aqua_root: item.paths.aquaRoot,
     desktop: {
       tauri_driver: path.join(item.root, "tauri-driver.exe"),
       native_driver: path.join(item.root, "msedgedriver.exe"),

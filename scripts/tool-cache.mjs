@@ -154,7 +154,8 @@ export function readToolState(options = {}) {
     state?.format_version !== 1 ||
     state?.pin_fingerprint !== paths.pins.fingerprint ||
     state?.shared_root !== paths.sharedRoot ||
-    state?.shim_directory !== paths.shimDirectory
+    state?.shim_directory !== paths.shimDirectory ||
+    state?.aqua_root !== paths.aquaRoot
   ) {
     return null;
   }
