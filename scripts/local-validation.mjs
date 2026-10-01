@@ -62,12 +62,26 @@ export function packagesWithDoctests(metadata) {
   );
 }
 
-function readDoctestPackages() {
-  const result = spawnSync("cargo", ["metadata", "--format-version", "1", "--no-deps"], {
-    cwd: projectRoot,
-    encoding: "utf8",
-    windowsHide: true,
-  });
+export function readDoctestPackages(options = {}) {
+  const result = (options.spawn ?? spawnSync)(
+    "cargo",
+    [
+      "metadata",
+      "--format-version",
+      "1",
+      "--no-deps",
+      ...(options.observeOnly ? ["--offline", "--locked"] : []),
+    ],
+    {
+      cwd: projectRoot,
+      encoding: "utf8",
+      windowsHide: true,
+      timeout: 15_000,
+      env: options.observeOnly
+        ? { ...process.env, RUSTUP_AUTO_INSTALL: "0", CARGO_NET_OFFLINE: "true" }
+        : process.env,
+    },
+  );
   if (result.error) throw result.error;
   if (result.status !== 0) throw new Error(`cargo metadata failed: ${result.stderr.trim()}`);
   return packagesWithDoctests(JSON.parse(result.stdout));
@@ -1302,6 +1316,7 @@ export function buildExecutionPreflight({
   prerequisites,
   hosted,
   audit = null,
+  platform = process.platform,
 }) {
   validateValidationPlan(validationPlan);
   if (
@@ -1315,7 +1330,7 @@ export function buildExecutionPreflight({
     throw new Error("execution preflight requires the current complete comparison");
   const observations = new Map(prerequisites.map((item) => [item.id, item]));
   const obligations = plan.map((entry) => {
-    const required = selectedPrerequisites(entry);
+    const required = selectedPrerequisites(entry, platform);
     const missing = required.filter((id) => observations.get(id)?.status !== "ok");
     return {
       id: entry.id,
@@ -1327,13 +1342,13 @@ export function buildExecutionPreflight({
       route:
         missing.length === 0
           ? "local"
-          : hosted.status === "eligible"
+          : hosted.status === "eligible" && !required.includes("windows-host")
             ? "hosted-local-check"
             : "blocked",
       next_action:
         missing.length === 0
           ? formatCommand(entry)
-          : hosted.status === "eligible"
+          : hosted.status === "eligible" && !required.includes("windows-host")
             ? hosted.command
             : missing
                 .map((id) => observations.get(id)?.remediation ?? `establish ${id}`)
@@ -1465,9 +1480,22 @@ export function inspectHostedLocalRoute(context, authority, controller, invokeGi
       status: "blocked",
       reason: "controller lacks the established fixed local-check route",
     };
-  const paths = invokeGit(["diff", "--name-only", "-z", authority, context.headSha])
-    .split("\0")
-    .filter(Boolean);
+  if (
+    invokeGit(["rev-parse", `${controller}:scripts/workflow-provenance.mjs`]).trim() !==
+    invokeGit(["rev-parse", `${context.headSha}:scripts/workflow-provenance.mjs`]).trim()
+  )
+    return {
+      status: "blocked",
+      reason:
+        "candidate authority inventory differs from immutable controller; adopt the qualified controller before route diagnosis",
+    };
+  const changes = parseRawDiff(
+    Buffer.from(
+      invokeGit(["diff", "--raw", "-z", "--find-renames", authority, context.headSha]),
+      "utf8",
+    ),
+  );
+  const paths = [...new Set(changes.flatMap((change) => [change.oldPath, change.newPath]))];
   const changed = paths.filter(
     (name) =>
       hostedLocalCheckAuthorityPaths.includes(name) || isHostedLocalCheckScriptAuthority(name),
@@ -1722,7 +1750,7 @@ function parseCheckArgs(args) {
   return { base, planOnly, fresh, preflightOnly, asJson, authority, controller };
 }
 
-export async function main(argv = process.argv.slice(2)) {
+export async function main(argv = process.argv.slice(2), options = {}) {
   if (argv.includes("--help")) {
     console.log(
       "usage: local-validation.mjs [check [--base REV] [--plan|--preflight [--json] [--hosted-authority SHA --hosted-controller SHA]] [--fresh]|test-rust ARGS|test-ui-related FILES|test-node TESTS]",
@@ -1737,7 +1765,7 @@ export async function main(argv = process.argv.slice(2)) {
   if (kind !== "check") throw new Error(`unknown local validation command: ${kind}`);
   const { base, planOnly, fresh, preflightOnly, asJson, authority, controller } =
     parseCheckArgs(args);
-  const context = readChangeContext(base);
+  const context = (options.readContext ?? readChangeContext)(base);
   const validationPlan = validateValidationPlan(
     buildValidationPlan({
       changes: context.changes.map((change) => ({
@@ -1755,10 +1783,54 @@ export async function main(argv = process.argv.slice(2)) {
     }),
   );
   const selection = classifyChanges(context.changes);
-  const planContext =
-    selection.packages.size > 0 && !selection.workspaceRustTests
-      ? { ...context, validationPlan, doctestPackages: readDoctestPackages() }
-      : { ...context, validationPlan };
+  let doctestPackages;
+  if (selection.packages.size > 0 && !selection.workspaceRustTests) {
+    try {
+      doctestPackages = (options.metadataProvider ?? readDoctestPackages)({
+        observeOnly: preflightOnly,
+      });
+    } catch (error) {
+      if (!preflightOnly) throw error;
+      const hosted = inspectHostedLocalRoute(context, authority, controller);
+      const report = {
+        format_version: 1,
+        source: context.headSha,
+        base: context.baseSha,
+        merge_base: context.mergeBase,
+        plan_digest: validationPlan.digest,
+        selected_plan: null,
+        status: "planning-blocked",
+        blocker: {
+          id: "cargo-metadata",
+          command: "cargo metadata --format-version 1 --no-deps --offline --locked",
+          capability: "pinned Cargo and readable locked workspace metadata",
+          reason: "bounded metadata observation failed; no complete local selection is claimed",
+          next_action:
+            hosted.status === "eligible"
+              ? hosted.command
+              : "establish the pinned Rust/Cargo prerequisite, then rerun preflight",
+        },
+        hosted,
+        hosted_ci: {
+          groups: validationPlan.groups,
+          platforms: validationPlan.platforms,
+          role: "mandatory exact-head CI remains separate",
+        },
+      };
+      (options.log ?? console.log)(
+        asJson
+          ? JSON.stringify(report, null, 2)
+          : `${report.status}: ${report.blocker.reason}; next ${report.blocker.next_action}`,
+      );
+      process.exitCode = 1;
+      return;
+    }
+  }
+  const planContext = {
+    ...context,
+    validationPlan,
+    ...(doctestPackages ? { doctestPackages } : {}),
+  };
   const plan = buildPlan(selection, planContext);
   if (preflightOnly) {
     const hosted = inspectHostedLocalRoute(context, authority, controller);

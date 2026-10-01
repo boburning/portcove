@@ -30,6 +30,8 @@ import {
   buildExecutionPreflight,
   inspectHostedLocalRoute,
   inspectPreChangeAudit,
+  readDoctestPackages,
+  main,
 } from "./local-validation.mjs";
 import { isExcludedOxfmtPath } from "./oxfmt-ownership.mjs";
 import { buildValidationPlan } from "./validation-plan.mjs";
@@ -63,7 +65,7 @@ function preflightFixture() {
       cwd: "/source",
     },
   ];
-  const prerequisites = ["node", "rustc", "cargo"]
+  const prerequisites = ["node", "rustc", "cargo", "clippy-component"]
     .map((id) => ({ id, status: "ok" }))
     .concat({
       id: "native-desktop-build",
@@ -113,9 +115,16 @@ test("hosted preflight requires exact available ancestor authorities and a froze
     (paths = "", dirty = "") =>
     (args) => {
       if (args[0] === "status") return dirty;
-      if (args[0] === "rev-parse") return sha;
+      if (args[0] === "rev-parse") return args[1].includes(":") ? "c".repeat(40) : sha;
       if (args[0] === "show") return "hosted-local-check controller\nhosted-local-check run";
-      if (args[0] === "diff") return paths;
+      if (args[0] === "diff")
+        return paths.startsWith(":")
+          ? paths
+          : paths
+              .split("\0")
+              .filter(Boolean)
+              .map((name) => `:100644 100644 ${"b".repeat(40)} ${"a".repeat(40)} M\0${name}\0`)
+              .join("");
       return "";
     };
   assert.equal(inspectHostedLocalRoute(context).status, "unverified");
@@ -146,6 +155,16 @@ test("hosted preflight requires exact available ancestor authorities and a froze
   assert.equal(eligible.status, "eligible");
   assert.match(eligible.command, new RegExp(`source_sha=${context.headSha}`));
   assert.match(eligible.dispatch_authority, /not established/);
+  const renamed = `:100644 100644 ${"b".repeat(40)} ${"a".repeat(40)} R100\0scripts/owned-authority.mjs\0docs/moved.txt\0`;
+  assert.equal(inspectHostedLocalRoute(context, sha, sha, invoke(renamed)).status, "blocked");
+  assert.equal(
+    inspectHostedLocalRoute(context, sha, sha, (args) =>
+      args[0] === "rev-parse" && args[1] === `${context.headSha}:scripts/workflow-provenance.mjs`
+        ? "d".repeat(40)
+        : invoke()(args),
+    ).status,
+    "blocked",
+  );
   assert.throws(
     () =>
       inspectHostedLocalRoute(context, sha, sha, () => {
@@ -153,6 +172,88 @@ test("hosted preflight requires exact available ancestor authorities and a froze
       }),
     /unavailable/,
   );
+});
+
+test("missing Cargo is a bounded non-provisioning planning failure", () => {
+  assert.throws(
+    () =>
+      readDoctestPackages({
+        observeOnly: true,
+        spawn: (command, args, options) => {
+          assert.equal(command, "cargo");
+          assert.ok(args.includes("--offline") && args.includes("--locked"));
+          assert.equal(options.timeout, 15000);
+          assert.equal(options.env.RUSTUP_AUTO_INSTALL, "0");
+          assert.equal(options.env.CARGO_NET_OFFLINE, "true");
+          return { error: Object.assign(new Error("unavailable fixture"), { code: "ENOENT" }) };
+        },
+      }),
+    /unavailable fixture/,
+  );
+});
+
+test("a missing Windows/MSBuild Playnite capability cannot route to Ubuntu", () => {
+  const inputs = preflightFixture();
+  const plan = [
+    {
+      id: "playnite-contract",
+      reason: "execute actual Windows consumer",
+      executable: "pwsh",
+      args: ["integrations/playnite/check.ps1"],
+      cwd: "/source",
+    },
+  ];
+  const prerequisites = ["node", "rustc", "cargo", "pwsh"]
+    .map((id) => ({ id, status: "ok" }))
+    .concat([
+      { id: "windows-host", status: "unavailable" },
+      { id: "msbuild", status: "unavailable" },
+    ]);
+  const report = buildExecutionPreflight({
+    ...inputs,
+    plan,
+    prerequisites,
+    platform: "linux",
+    hosted: { status: "eligible", command: "Ubuntu dispatch" },
+  });
+  assert.equal(report.obligations[0].route, "blocked");
+  assert.ok(report.obligations[0].missing.includes("windows-host"));
+});
+
+test("missing Cargo emits a named JSON planning blocker without pretending to select a complete plan", async (t) => {
+  const previous = process.exitCode;
+  t.after(() => {
+    process.exitCode = previous;
+  });
+  const outputs = [];
+  await main(["check", "--preflight", "--json"], {
+    readContext: () => ({
+      base: "origin/main",
+      baseSha: "b".repeat(40),
+      mergeBase: "b".repeat(40),
+      headSha: "a".repeat(40),
+      changes: [
+        {
+          status: "M",
+          path: "crates/portcove-core/src/lib.rs",
+          oldMode: "100644",
+          newMode: "100644",
+        },
+      ],
+    }),
+    metadataProvider: () => {
+      throw Object.assign(new Error("private output must not leak"), { code: "ENOENT" });
+    },
+    log: (value) => outputs.push(value),
+  });
+  assert.equal(outputs.length, 1);
+  const report = JSON.parse(outputs[0]);
+  assert.equal(report.status, "planning-blocked");
+  assert.equal(report.selected_plan, null);
+  assert.equal(report.blocker.id, "cargo-metadata");
+  assert.match(report.hosted_ci.role, /mandatory exact-head/);
+  assert.ok(!outputs[0].includes("private output"));
+  assert.equal(process.exitCode, 1);
 });
 
 test("preflight keeps policy qualification and Linux audit scope separate from selected local and Windows evidence", () => {

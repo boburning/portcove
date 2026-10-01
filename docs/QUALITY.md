@@ -210,6 +210,12 @@ blocked obligation instead of expanding a product repair into environment work.
 Refresh preflight after the final diff changes. A prerequisite observation is
 neither an execution pass nor evidence equivalent to CI, a full-debug audit,
 native/stateful runs, installed applications or physical devices.
+Observation runs existing cached payloads directly: it never invokes Corepack or
+Aqua's installing command paths. Missing/ambiguous caches remain prerequisites;
+normal execution still owns pinned installation and attestation. Rust observations
+disable toolchain auto-install. Missing/offline Cargo metadata produces a named
+planning blocker with no allegedly complete local plan. Windows/MSBuild Playnite
+work cannot route to the Ubuntu job; platform deferrals retain their owning gates.
 For a policy change, preflight also uses the unchanged audit selector to report
 the required fresh profile and stages. Its complete hosted audit route remains
 separate from selected local-check and reports Linux-applicable stages separately

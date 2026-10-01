@@ -1,4 +1,5 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, lstatSync, realpathSync, readdirSync } from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnCommand, getPaths, preflight, minimumFreeGiB } from "./dev-storage.mjs";
@@ -49,6 +50,8 @@ function aquaDefinitions(environment, locate = true) {
         id: command[0],
         command: ["aqua", "exec", "--", ...command],
         version: version.replace(/^v/u, ""),
+        cachePackage: packageName,
+        cacheVersion: version,
         paths: locate ? aquaToolPaths(command[0], environment) : [],
         remediation: "./scripts/bootstrap-quality-tools.ps1",
       };
@@ -110,7 +113,7 @@ export function probeTool(definition, run = spawnCommand, options = {}) {
 
 // These are prerequisite observations, never successful execution receipts.
 // Test fixtures and build scripts can expose further prerequisites at execution.
-export function selectedPrerequisites(entry) {
+export function selectedPrerequisites(entry, platform = process.platform) {
   const ids = new Set(["node"]);
   const rust =
     entry.id === "rustfmt" ||
@@ -120,6 +123,9 @@ export function selectedPrerequisites(entry) {
     ids.add("rustc");
     ids.add("cargo");
   }
+  if (entry.id === "rustfmt") ids.add("rustfmt-component");
+  if (entry.id.startsWith("rust-clippy") || entry.id === "rust-workspace-clippy")
+    ids.add("clippy-component");
   if (entry.id.startsWith("rust-tests") || entry.id === "rust-workspace-tests")
     ids.add("cargo-nextest");
   if (entry.id === "dependency-policy") ids.add("cargo-deny");
@@ -132,14 +138,36 @@ export function selectedPrerequisites(entry) {
   }
   if (entry.id === "playnite-contract") {
     ids.add("pwsh");
-    ids.add("dotnet");
+    ids.add("windows-host");
+    ids.add("msbuild");
   }
-  if (entry.id === "powershell-lint") ids.add("pwsh");
-  if (["shell-lint", "python-lint", "actionlint", "lint-tool-fixtures"].includes(entry.id))
-    ids.add("aqua-state");
+  if (entry.id === "powershell-lint" && platform === "win32") {
+    ids.add("pwsh");
+    ids.add("psscriptanalyzer");
+  }
+  if (["shell-lint", "python-lint", "actionlint"].includes(entry.id)) ids.add("aqua-state");
   if (entry.id === "shell-lint") ids.add("shellcheck");
   if (entry.id === "python-lint") ids.add("ruff");
-  if (entry.id === "actionlint") ids.add("actionlint");
+  if (entry.id === "actionlint") {
+    ids.add("actionlint");
+    ids.add("shellcheck");
+  }
+  if (entry.id === "lint-tool-fixtures") {
+    const selected = entry.args?.slice(1) ?? [];
+    const fixtures = {
+      oxfmt: ["npm-oxfmt"],
+      oxlint: ["npm-oxlint", "npm-oxlint-tsgolint"],
+      stylelint: ["npm-stylelint"],
+      ruff: ["ruff"],
+      shellcheck: ["shellcheck"],
+      actionlint: ["actionlint", "shellcheck"],
+      psscriptanalyzer: platform === "win32" ? ["pwsh", "psscriptanalyzer"] : [],
+    };
+    if (!selected.length || selected.some((name) => !Object.hasOwn(fixtures, name)))
+      throw new Error("lint fixture prerequisite inventory is unavailable");
+    for (const name of selected) for (const id of fixtures[name]) ids.add(id);
+    if (["ruff", "shellcheck", "actionlint"].some((id) => ids.has(id))) ids.add("aqua-state");
+  }
   if (rust && (entry.id.includes("workspace") || entry.id.includes("portcove-desktop")))
     ids.add("native-desktop-build");
   if (entry.id === "conservative-audit") {
@@ -149,35 +177,170 @@ export function selectedPrerequisites(entry) {
   return [...ids];
 }
 
+export function existingPnpmDefinition(version, environment = process.env) {
+  // Corepack's bundled v1 cache is observed; Corepack itself is never invoked.
+  const cache =
+    environment.COREPACK_HOME ??
+    path.join(
+      environment.XDG_CACHE_HOME ??
+        environment.LOCALAPPDATA ??
+        path.join(os.homedir(), process.platform === "win32" ? "AppData/Local" : ".cache"),
+      "node/corepack",
+    );
+  const directory = path.join(cache, "v1", "pnpm", version);
+  try {
+    const metadata = JSON.parse(readFileSync(path.join(directory, ".corepack"), "utf8"));
+    if (
+      metadata.locator?.name !== "pnpm" ||
+      metadata.locator.reference.split("+")[0] !== version ||
+      typeof metadata.bin?.pnpm !== "string"
+    )
+      return null;
+    const executable = path.resolve(directory, metadata.bin.pnpm);
+    const relative = path.relative(realpathSync(directory), realpathSync(executable));
+    if (
+      !relative ||
+      relative.startsWith("..") ||
+      path.isAbsolute(relative) ||
+      !lstatSync(executable).isFile()
+    )
+      return null;
+    return {
+      id: "pnpm",
+      version,
+      command: [process.execPath, executable, "--version"],
+      remediation: "run the normal pinned package-manager bootstrap",
+    };
+  } catch {
+    return null;
+  }
+}
+
+export function existingAquaDefinition(definition, aquaRoot, platform = process.platform) {
+  try {
+    const rootPath = realpathSync(aquaRoot);
+    const directory = path.join(
+      aquaRoot,
+      "pkgs/github_release/github.com",
+      definition.cachePackage,
+      definition.cacheVersion,
+    );
+    const relative = path.relative(rootPath, realpathSync(directory));
+    if (!relative || relative.startsWith("..") || path.isAbsolute(relative)) return null;
+    const matches = [];
+    let entries = 0;
+    const visit = (directoryPath, depth) => {
+      if (depth > 4) throw new Error("cached payload depth exceeds the bounded observation");
+      for (const item of readdirSync(directoryPath, { withFileTypes: true })) {
+        if (++entries > 256 || item.isSymbolicLink())
+          throw new Error("cached payload discovery is ambiguous or linked");
+        const absolute = path.join(directoryPath, item.name);
+        if (item.isDirectory()) visit(absolute, depth + 1);
+        else if (
+          item.isFile() &&
+          item.name === `${definition.id}${platform === "win32" ? ".exe" : ""}`
+        )
+          matches.push(absolute);
+      }
+    };
+    visit(directory, 0);
+    if (matches.length !== 1) return null;
+    const payloadRelative = path.relative(realpathSync(directory), realpathSync(matches[0]));
+    if (!payloadRelative || payloadRelative.startsWith("..") || path.isAbsolute(payloadRelative))
+      return null;
+    return {
+      ...definition,
+      command: [matches[0], definition.id === "actionlint" ? "-version" : "--version"],
+    };
+  } catch {
+    return null;
+  }
+}
+
 export async function collectSelectedPrerequisites(plan, options = {}) {
   const platform = options.platform ?? process.platform;
   const run = options.run ?? doctorCommand;
   const manifest = await loadQualityManifest();
   const repositoryPackage = JSON.parse(readFileSync(path.join(root, "package.json"), "utf8"));
   const cachePaths = toolCachePaths();
-  const environment = checkoutToolEnvironment(process.env, { paths: cachePaths });
+  const environment = {
+    ...checkoutToolEnvironment(options.environment ?? process.env, { paths: cachePaths }),
+    RUSTUP_AUTO_INSTALL: "0",
+  };
   const definitions = {
     node: {
       id: "node",
       command: [process.execPath, "--version"],
       version: readFileSync(path.join(root, ".node-version"), "utf8").trim(),
     },
-    pnpm: {
-      id: "pnpm",
-      command: ["corepack", repositoryPackage.packageManager, "--version"],
-      version: repositoryPackage.packageManager.split("@")[1],
-    },
+    pnpm: (options.pnpmDefinition ?? existingPnpmDefinition)(
+      repositoryPackage.packageManager.split("@")[1],
+      environment,
+    ),
     rustc: { id: "rustc", command: ["rustc", "--version"], version: manifest.rust.channel },
     cargo: { id: "cargo", command: ["cargo", "--version"] },
     pwsh: { id: "pwsh", command: ["pwsh", "--version"] },
-    dotnet: { id: "dotnet", command: ["dotnet", "--version"] },
+    "rustfmt-component": { id: "rustfmt-component", command: ["cargo", "fmt", "--version"] },
+    "clippy-component": { id: "clippy-component", command: ["cargo", "clippy", "--version"] },
+    psscriptanalyzer: powershellAnalyzerDefinition(),
+    msbuild: {
+      id: "msbuild",
+      command: [
+        "pwsh",
+        "-NoProfile",
+        "-Command",
+        "$locator=Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio/Installer/vswhere.exe'; if (!(Test-Path -LiteralPath $locator)) { exit 1 }; $candidate=& $locator -latest -products '*' -requires Microsoft.Component.MSBuild -find 'MSBuild\\**\\Bin\\MSBuild.exe' | Select-Object -First 1; if (!$candidate) { exit 1 }; & $candidate -version -nologo; exit $LASTEXITCODE",
+      ],
+      remediation: "use Windows with the existing Visual Studio MSBuild installation",
+    },
   };
   for (const tool of manifest.tools) definitions[tool.id] = { ...tool, command: tool.command };
-  for (const tool of aquaDefinitions(environment, false)) definitions[tool.id] = tool;
-  const ids = new Set(plan.flatMap(selectedPrerequisites));
+  for (const tool of aquaDefinitions(environment, false))
+    definitions[tool.id] = (options.aquaDefinition ?? existingAquaDefinition)(
+      tool,
+      cachePaths.aquaRoot,
+      platform,
+    );
+  const npm = {
+    "npm-oxfmt": [root, "oxfmt", "oxfmt"],
+    "npm-oxlint": [root, "oxlint", "oxlint"],
+    "npm-oxlint-tsgolint": [root, "oxlint-tsgolint", "tsgolint"],
+    "npm-stylelint": [path.join(root, "apps/desktop"), "stylelint", "stylelint"],
+  };
+  for (const [id, [base, name, bin]] of Object.entries(npm)) {
+    try {
+      const packageRoot = path.join(base, "node_modules", name);
+      const data = JSON.parse(readFileSync(path.join(packageRoot, "package.json"), "utf8"));
+      const executable = path.resolve(
+        packageRoot,
+        typeof data.bin === "string" ? data.bin : data.bin[bin],
+      );
+      definitions[id] = {
+        id,
+        command: [process.execPath, executable, "--version"],
+        version: data.version,
+      };
+    } catch {
+      definitions[id] = null;
+    }
+  }
+  const ids = new Set(plan.flatMap((entry) => selectedPrerequisites(entry, platform)));
   const results = [];
   for (const id of ids) {
-    if (id === "frontend-dependencies")
+    if (id === "windows-host")
+      results.push({
+        id,
+        status: platform === "win32" ? "ok" : "unavailable",
+        remediation:
+          "use the owning Windows qualification route; the Ubuntu selected route cannot execute this obligation",
+      });
+    else if (id === "msbuild" && platform !== "win32")
+      results.push({
+        id,
+        status: "unavailable",
+        remediation: "Windows/MSBuild execution is required",
+      });
+    else if (id === "frontend-dependencies")
       results.push({
         id,
         status:
@@ -226,6 +389,13 @@ export async function collectSelectedPrerequisites(plan, options = {}) {
         remediation: "just doctor; qualify the complete audit on an approved capable host",
       });
     else if (definitions[id]) results.push(probeTool(definitions[id], run, { environment }));
+    else if (Object.hasOwn(definitions, id))
+      results.push({
+        id,
+        status: "unavailable",
+        remediation:
+          "run the normal pinned tool bootstrap; no cache bytes are provisioned by preflight",
+      });
     else throw new Error(`unowned prerequisite: ${id}`);
   }
   return results;
