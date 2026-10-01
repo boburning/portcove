@@ -1,5 +1,5 @@
 param(
-    [Parameter(Mandatory)][ValidateSet('Snapshot', 'SnapshotDriver', 'SnapshotApplication', 'ApplicationListener', 'StopApplication', 'StopDriver', 'Wait')][string]$Mode,
+    [Parameter(Mandatory)][ValidateSet('Snapshot', 'SnapshotDriver', 'SnapshotDriverTree', 'SnapshotApplication', 'ApplicationListener', 'StopApplication', 'StopDriver', 'Wait')][string]$Mode,
     [int]$DriverProcessId,
     [string]$ApplicationPath,
     [int]$ExpectedParentProcessId,
@@ -9,9 +9,11 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'native-process-tree.ps1')
-if ($Mode -eq 'Snapshot' -or $Mode -eq 'SnapshotDriver' -or $Mode -eq 'SnapshotApplication') {
+if ($Mode -eq 'Snapshot' -or $Mode -eq 'SnapshotDriver' -or $Mode -eq 'SnapshotDriverTree' -or $Mode -eq 'SnapshotApplication') {
     $tree = if ($Mode -eq 'Snapshot') {
         Get-OwnedNativeProcessTree $DriverProcessId $ApplicationPath
+    } elseif ($Mode -eq 'SnapshotDriverTree') {
+        Get-OwnedDriverProcessTree $DriverProcessId
     } elseif ($Mode -eq 'SnapshotApplication') {
         $owned = Get-OwnedDriverProcessTree $DriverProcessId
         $root = $owned.driver

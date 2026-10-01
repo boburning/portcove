@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
-import { readFile, readdir } from "node:fs/promises";
+import { readFile, readdir, mkdtemp, mkdir, rm, symlink, writeFile } from "node:fs/promises";
 import test from "node:test";
+import os from "node:os";
+import path from "node:path";
+import { encodeBackupEvidence, recoverBackupEvidence } from "./native-backup-evidence.mjs";
 import { AUDIT_STAGES, receiptEnvelope } from "./audit.mjs";
 import { renderDeepAuditSummary } from "./deep-audit-summary.mjs";
 
@@ -26,6 +29,50 @@ const windowsQualificationRunner = await readFile(
   "utf8",
 );
 const requiredCiSurface = `${workflow}\n${windowsQualificationRunner}`;
+
+test("hosted backup focus is manual-only, pinned, isolated and retains real evidence without billed storage", async () => {
+  const source = await readFile(
+    new URL("../.github/workflows/native-design-compatibility.yml", import.meta.url),
+    "utf8",
+  );
+  assert.match(source, /^ {2}workflow_dispatch:$/m);
+  assert.doesNotMatch(source, /^ {2}(pull_request|push|schedule|workflow_run):/m);
+  assert.match(source, /^permissions:\n {2}contents: read$/m);
+  assert.match(source, /runs-on: windows-2022/);
+  assert.match(source, /persist-credentials: false/);
+  assert.match(source, /\$env:FOCUS_HEAD -ne '161e577dc48f93db98a9930853e808e22c43c7b2'/);
+  assert.match(source, /git -c user.name=PortcoveQualification .* merge --no-ff --no-edit/);
+  assert.match(source, /merge_head = \(git rev-parse HEAD\)/);
+  assert.match(source, /merge_parents = \(git show -s --format=%P HEAD\)/);
+  assert.match(source, /just desktop-verify --scenario native-backup-delete-focus --require-clean/);
+  const windows = source.split("  backup_focus:\n")[1]?.split("\n  edge_driver_proof:")[0];
+  assert.ok(windows);
+  assert.doesNotMatch(
+    windows,
+    /VITE_PORTCOVE_DESIGN_COMPATIBILITY_FIXTURE|upload-artifact|rust-cache|actions\/cache|cache: pnpm/,
+  );
+  assert.match(
+    source,
+    /qualify:\n {4}if: \$\{\{ !inputs\.edge_driver_proof && inputs\.runner != 'windows-2022' \}\}/,
+  );
+  assert.match(
+    windows,
+    /^ {4}if: \$\{\{ !inputs\.edge_driver_proof && inputs\.runner == 'windows-2022' \}\}/,
+  );
+  assert.match(windows, /PORTCOVE_TEMP_DIR: \$\{\{ github.workspace \}\}/);
+  assert.doesNotMatch(windows.split("    steps:")[0], /\$\{\{ runner\./);
+  assert.match(windows, /id: native-quality-pins/);
+  assert.match(windows, /node scripts\/quality-tools.mjs --github-output >> \$env:GITHUB_OUTPUT/);
+  assert.match(windows, /taiki-e\/install-action@c3ec0de9ae7f1019cea21aa96aa0a895b9552063/);
+  assert.match(windows, /tool: \$\{\{ steps.native-quality-pins.outputs.required_prebuilt \}\}/);
+  assert.ok(
+    windows.indexOf("Provision existing pinned prebuilt quality tools") <
+      windows.indexOf("./scripts/bootstrap-quality-tools.ps1 -Desktop"),
+  );
+
+  assert.match(source, /if: always\(\)[\s\S]*native-backup-evidence.mjs emit/);
+  assert.match(source, /if \(\$LASTEXITCODE -ne 0\) \{ throw 'Required evidence retention failed/);
+});
 
 function jobSection(name, nextName) {
   const end = nextName ? `(?=^  ${nextName}:)` : "(?![\\s\\S])";
@@ -65,7 +112,10 @@ test("EdgeDriver trust proof is manual, isolated, and does not launch the applic
   assert.match(job, /https:\/\/msedgedriver\.microsoft\.com/u);
   assert.match(job, /bootstrap_sha256/u);
   assert.match(job, /driver_sha256/u);
-  assert.match(nativeDesignCompatibilityWorkflow, /if: \$\{\{ !inputs\.edge_driver_proof \}\}/u);
+  assert.match(
+    nativeDesignCompatibilityWorkflow,
+    /if: \$\{\{ !inputs\.edge_driver_proof && inputs\.runner != 'windows-2022' \}\}/u,
+  );
 });
 
 test("native design compatibility remains explicit, isolated, and non-publishing", () => {
@@ -1417,4 +1467,75 @@ test("deep audit rejects another attempt, missing completion and future receipt"
     renderDeepAuditSummary(receiptEnvelope(payload), identity, binding(payload)),
     /unavailable or invalid/,
   );
+});
+
+test("real evidence bytes round-trip through timestamped job logs without exporting library or profile", async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "backup-evidence-"));
+  try {
+    const source = path.join(root, "source");
+    const native = path.join(source, "desktop-verify", "one-run", "native");
+    await mkdir(path.join(native, "library"), { recursive: true });
+    await mkdir(path.join(native, "webview"));
+    await writeFile(path.join(source, "host.json"), '{"revision":"owned"}');
+    const image = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10, 0, 255, 23]);
+    await writeFile(path.join(native, "success.png"), image);
+    await writeFile(path.join(native, "evidence.json"), '{"outcome":"failed"}');
+    await writeFile(path.join(native, "library", "private.json"), "never-export");
+    await writeFile(path.join(native, "webview", "profile.json"), "never-export");
+    await writeFile(path.join(native, "session-startup-0.jsonl"), '{"owned_process":"identity"}\n');
+    const encoded = await encodeBackupEvidence(source);
+    const log = encoded
+      .split("\n")
+      .map((line) => `2026-10-01T00:00:00Z ${line}`)
+      .join("\n");
+    const recovered = path.join(root, "recovered");
+    const names = await recoverBackupEvidence(log, recovered);
+    assert.equal(names.length, 4);
+    assert.ok(!names.some((name) => /library|webview/.test(name)));
+    assert.deepEqual(
+      await readFile(path.join(recovered, "desktop-verify/one-run/native/success.png")),
+      image,
+    );
+    assert.equal(
+      await readFile(path.join(recovered, "desktop-verify/one-run/native/evidence.json"), "utf8"),
+      '{"outcome":"failed"}',
+    );
+    await assert.rejects(recoverBackupEvidence(log, recovered), /EEXIST/);
+    await assert.rejects(
+      recoverBackupEvidence(encoded + "\n" + encoded, path.join(root, "duplicate")),
+      /Incomplete/,
+    );
+    await assert.rejects(
+      recoverBackupEvidence(
+        encoded.replace(/ [a-f0-9]{64} /, ` ${"0".repeat(64)} `),
+        path.join(root, "corrupt"),
+      ),
+      /hash mismatch/,
+    );
+    await assert.rejects(
+      recoverBackupEvidence("no retained evidence", path.join(root, "missing")),
+      /Missing/,
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("export refuses links and oversized evidence instead of silently dropping required images", async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "backup-evidence-"));
+  try {
+    const file = path.join(root, "large.json");
+    await writeFile(file, Buffer.alloc(12 * 1024 * 1024 + 1));
+    await assert.rejects(encodeBackupEvidence(root), /excessive/);
+    await rm(file);
+    await mkdir(path.join(root, "target"));
+    await symlink(
+      path.join(root, "target"),
+      path.join(root, "linked.json"),
+      process.platform === "win32" ? "junction" : "dir",
+    );
+    await assert.rejects(encodeBackupEvidence(root), /regular files/);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
 });

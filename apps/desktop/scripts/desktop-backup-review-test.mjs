@@ -8,7 +8,9 @@ import {
   assertPrimaryReviewAction,
   captureAccessibilityReport,
   clickVisible as clickReviewControl,
+  openCatalogPortAfterRefresh,
 } from "./desktop-review-controls.mjs";
+import { fileIdentity } from "../../../scripts/development-evidence.mjs";
 
 export async function backupReviewScenario({
   browser,
@@ -323,6 +325,215 @@ export async function backupReviewScenario({
           },
           evidence:
             "owned fixture backup lifecycle through native review UI and actual core authorization",
+        },
+        null,
+        2,
+      ),
+      { flag: "wx" },
+    );
+    artifacts.push(report);
+  });
+  await scenario("native-backup-delete-focus", async () => {
+    assert.equal(process.platform, "win32", "This consent observation requires Windows");
+    assert.equal(path.resolve(library), path.resolve(output, "library"));
+    const { port, install } = await seed("opengoal-jak3", "success");
+    const paths = command(["paths", port.id]);
+    const relative = path.relative(library, paths.user_data_root);
+    assert.ok(relative && !relative.startsWith("..") && !path.isAbsolute(relative));
+    const save = path.join(paths.user_data_root, "owned-focus-save.bin");
+    await mkdir(paths.user_data_root, { recursive: true });
+    await writeFile(save, "first owned focus snapshot");
+    const first = command(["backup", "create", port.id]);
+    await writeFile(save, "second owned focus snapshot");
+    const second = command(["backup", "create", port.id]);
+    await writeFile(save, "current owned focus data");
+    const immutable = await Promise.all(
+      [save, path.join(second.path, "data/owned-focus-save.bin")].map(fileIdentity),
+    );
+    const list = () => command(["backup", "list", port.id]).backups;
+    const row = (id) => By.css(`[data-backup-id="${id}"]`);
+    const review = By.css('[aria-labelledby="backup-review-title"]');
+    const action = By.xpath('//button[normalize-space(.)="Delete this backup permanently"]');
+    const focused = () =>
+      browser.executeScript(() => {
+        const element = document.activeElement;
+        return {
+          tag: element?.tagName,
+          text: element?.textContent?.trim(),
+          label: element?.getAttribute("aria-label"),
+          backup: element?.closest("[data-backup-id]")?.getAttribute("data-backup-id"),
+          connected: element?.isConnected,
+        };
+      });
+    const screenshot = async (name) => {
+      // Read settled state only; never repair focus or scroll after the mutation.
+      await browser.wait(
+        () =>
+          browser.executeScript(() => {
+            const target =
+              document.querySelector('[aria-labelledby="backup-review-title"]') ??
+              document.activeElement?.closest(".detail-group");
+            return (
+              target &&
+              !target
+                .getAnimations({ subtree: true })
+                .some(
+                  (animation) =>
+                    animation.playState === "running" &&
+                    animation.effect?.getTiming().iterations !== Infinity,
+                )
+            );
+          }),
+        5_000,
+        "The changed review/focus surface must settle before capture",
+      );
+      const state = await focused();
+      const frame = path.join(output, `${name}-frame.json`);
+      await writeFile(
+        frame,
+        JSON.stringify(
+          {
+            focus: state,
+            outer: await browser.manage().window().getRect(),
+            viewport: await browser.executeScript(() => ({
+              width: innerWidth,
+              height: innerHeight,
+              scale: devicePixelRatio,
+            })),
+          },
+          null,
+          2,
+        ),
+        { flag: "wx" },
+      );
+      artifacts.push(frame);
+      const report = path.join(output, `${name}-accessibility.json`);
+      await captureAccessibilityReport(browser, report, artifacts);
+      const image = path.join(output, `${name}.png`);
+      await writeFile(image, await browser.takeScreenshot(), { encoding: "base64", flag: "wx" });
+      artifacts.push(image);
+      assert.deepEqual(await focused(), state, "Evidence capture must not change natural focus");
+    };
+    const deleteReviewed = async (backup, name) => {
+      await browser.wait(until.elementLocated(row(backup.id)), 15_000);
+      await (
+        await browser.findElement(row(backup.id))
+      )
+        .findElement(By.css('button[aria-label^="Delete backup"]'))
+        .click();
+      await browser.wait(until.elementLocated(action), 15_000);
+      await screenshot(`${name}-review`);
+      const before = list()
+        .map((item) => item.id)
+        .sort();
+      const beforeFiles = await Promise.all(
+        [save, path.join(backup.path, "data/owned-focus-save.bin")].map(fileIdentity),
+      );
+      const beforeReport = path.join(output, `${name}-before-files.json`);
+      const beforeCopies = await Promise.all(
+        beforeFiles.map(async (identity) => ({
+          ...identity,
+          base64: (await readFile(identity.path)).toString("base64"),
+        })),
+      );
+      await writeFile(
+        beforeReport,
+        JSON.stringify({ inventory: before, backup, files: beforeCopies }, null, 2),
+        { flag: "wx" },
+      );
+      artifacts.push(beforeReport);
+      await browser.findElement(action).click();
+      const observed = await confirmNative(
+        "Confirm backup deletion",
+        "__observe__",
+        backup.path,
+        `${name}-before-consent`,
+        undefined,
+        undefined,
+        true,
+      );
+      for (const expected of [port.name, port.id, paths.user_data_root, "This cannot be undone"])
+        assert.ok(observed.text.includes(expected), expected);
+      assert.deepEqual(
+        list()
+          .map((item) => item.id)
+          .sort(),
+        before,
+      );
+      for (const identity of beforeFiles)
+        assert.equal((await fileIdentity(identity.path)).sha256, identity.sha256);
+      await confirmNative(
+        "Confirm backup deletion",
+        "Delete backup permanently",
+        backup.path,
+        `${name}-consented`,
+      );
+      await browser.wait(async () => (await browser.findElements(review)).length === 0, 15_000);
+      assert.deepEqual(
+        list()
+          .map((item) => item.id)
+          .sort(),
+        before.filter((id) => id !== backup.id),
+      );
+      await browser.wait(
+        async () => (await browser.findElements(row(backup.id))).length === 0,
+        15_000,
+      );
+    };
+    await open(port, false);
+    await deleteReviewed(first, "backup-focus-remaining");
+    await browser.wait(
+      async () => {
+        const state = await focused();
+        return (
+          state.connected && state.backup === second.id && state.label?.startsWith("Delete backup")
+        );
+      },
+      15_000,
+      "Successful deletion must focus the remaining matching action naturally",
+    );
+    const remainingFocus = await focused();
+    await screenshot("backup-focus-remaining-success");
+    assert.equal(command(["status", port.id]).active.id, install.id);
+    for (const identity of immutable)
+      assert.equal((await fileIdentity(identity.path)).sha256, identity.sha256);
+
+    // Supported core fixture setup, not a native uninstall acceptance claim.
+    command(["remove", port.id, "--yes"]);
+    assert.equal(command(["status", port.id]).active, null);
+    assert.deepEqual(
+      list().map((item) => item.id),
+      [second.id],
+    );
+    await openCatalogPortAfterRefresh(browser, port, port.name);
+    await deleteReviewed(second, "backup-focus-final");
+    await browser.wait(
+      async () => {
+        const state = await focused();
+        return state.connected && state.tag === "H2" && state.text === "Saves and storage";
+      },
+      15_000,
+      "History disappearance must focus the stable parent heading naturally",
+    );
+    assert.equal((await browser.findElements(By.css(".backup-history"))).length, 0);
+    assert.deepEqual(list(), []);
+    assert.equal(command(["status", port.id]).active, null);
+    assert.equal((await fileIdentity(save)).sha256, immutable[0].sha256);
+    const finalFocus = await focused();
+    await screenshot("backup-focus-final-success");
+    const report = path.join(output, "backup-focus-results.json");
+    await writeFile(
+      report,
+      JSON.stringify(
+        {
+          port: port.id,
+          first,
+          second,
+          immutable,
+          remainingFocus,
+          finalFocus,
+          setup:
+            "supported CLI adoption/removal of owned fixtures; not native uninstall acceptance",
         },
         null,
         2,
