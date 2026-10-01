@@ -481,7 +481,6 @@ export async function backupReviewScenario({
       );
     };
     await open(port, false);
-    await browser.findElement(By.css("summary.advanced-summary")).click();
     await deleteReviewed(first, "backup-focus-remaining");
     await browser.wait(
       async () => {
@@ -507,7 +506,6 @@ export async function backupReviewScenario({
       [second.id],
     );
     await openCatalogPortAfterRefresh(browser, port, port.name);
-    await browser.findElement(By.css("summary.advanced-summary")).click();
     await deleteReviewed(second, "backup-focus-final");
     await browser.wait(
       async () => {

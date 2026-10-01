@@ -176,6 +176,14 @@ jobs:
         with:
           node-version-file: .node-version
       - uses: ./.github/actions/setup-rust
+      - name: Read existing prebuilt quality-tool pins
+        id: native-quality-pins
+        shell: pwsh
+        run: node scripts/quality-tools.mjs --github-output >> $env:GITHUB_OUTPUT
+      - name: Provision existing pinned prebuilt quality tools
+        uses: taiki-e/install-action@c3ec0de9ae7f1019cea21aa96aa0a895b9552063 # v2
+        with:
+          tool: ${{ steps.native-quality-pins.outputs.required_prebuilt }}
       - name: Install locked packages and existing pinned native tools
         shell: pwsh
         run: |

@@ -61,6 +61,14 @@ test("hosted backup focus is manual-only, pinned, isolated and retains real evid
   );
   assert.match(windows, /PORTCOVE_TEMP_DIR: \$\{\{ github.workspace \}\}/);
   assert.doesNotMatch(windows.split("    steps:")[0], /\$\{\{ runner\./);
+  assert.match(windows, /id: native-quality-pins/);
+  assert.match(windows, /node scripts\/quality-tools.mjs --github-output >> \$env:GITHUB_OUTPUT/);
+  assert.match(windows, /taiki-e\/install-action@c3ec0de9ae7f1019cea21aa96aa0a895b9552063/);
+  assert.match(windows, /tool: \$\{\{ steps.native-quality-pins.outputs.required_prebuilt \}\}/);
+  assert.ok(
+    windows.indexOf("Provision existing pinned prebuilt quality tools") <
+      windows.indexOf("./scripts/bootstrap-quality-tools.ps1 -Desktop"),
+  );
 
   assert.match(source, /if: always\(\)[\s\S]*native-backup-evidence.mjs emit/);
   assert.match(source, /if \(\$LASTEXITCODE -ne 0\) \{ throw 'Required evidence retention failed/);
