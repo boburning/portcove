@@ -22,6 +22,8 @@ must match the trusted authority. Transitive changes, extra paths, renamed or
 removed files, features, Git/path dependencies, root manifests, helper changes,
 duplicate or ambiguous bindings and lock digest mismatches fail closed. This is
 an exact transformation of trusted bytes, not permissive TOML normalization.
+The narrow profile rejects multiline TOML strings and noncanonical CRLF inputs
+so table-shaped description text cannot be mistaken for a dependency entry.
 
 Preparation validates before provisioning; execution repeats the validation and
 digest check before and after literal `just local-check --fresh`. Existing pinned

@@ -404,6 +404,33 @@ test("planning cannot change the reviewed lock before fresh execution", async (t
   assert.ok(!f.logs.some((line) => line.startsWith("Hosted local-check completed:")));
 });
 
+test("multiline TOML descriptions cannot masquerade as dependency tables", async (t) => {
+  for (const delimiter of ['\"\"\"', "'''"]) {
+    const f = cargoFixture(t);
+    f.git(f.source, ["reset", "--hard", f.env.PORTCOVE_LOCAL_AUTHORITY_SHA]);
+    const manifest = f.spec.manifests[0].path;
+    const text = `[package]\nname = "fixture"\nversion = "0.1.0"\ndescription = ${delimiter}\n[dev-dependencies]\nminisign = "0.9.1"\n${delimiter}\n\n[dev-dependencies] # actual table\nminisign = "0.9.1"\n`;
+    f.write(f.source, manifest, text);
+    f.git(f.source, ["add", "."]);
+    f.git(f.source, ["commit", "--quiet", "-m", "valid multiline authority"]);
+    const authority = f.git(f.source, ["rev-parse", "HEAD"]);
+    f.write(f.source, manifest, text.replace('minisign = "0.9.1"', 'minisign = "0.10.0"'));
+    const lock = readFileSync(path.join(f.source, "Cargo.lock"), "utf8")
+      .replace('version = "0.9.1"', 'version = "0.10.0"')
+      .replace("a".repeat(64), "b".repeat(64));
+    f.write(f.source, "Cargo.lock", lock);
+    f.spec.lock_sha256 = createHash("sha256").update(lock).digest("hex");
+    f.commit();
+    f.env.PORTCOVE_LOCAL_AUTHORITY_SHA = authority;
+    f.env.PORTCOVE_LOCAL_BASE_SHA = authority;
+    f.env.PORTCOVE_LOCAL_MERGE_BASE_SHA = authority;
+    await assert.rejects(
+      runHostedLocalCheck("prepare", f.options),
+      /Invalid reviewed Cargo dependency binding/,
+    );
+  }
+});
+
 test("hosted execution binds actual Git source, default base, controller and final child", async (t) => {
   const f = hostedFixture(t);
   const calls = [];

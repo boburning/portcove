@@ -225,6 +225,9 @@ function cargoDependencyBinding(raw, git, sourceRoot, identities) {
     });
     const text = blob.toString("utf8");
     if (!Buffer.from(text).equals(blob)) fail();
+    // A line scanner must never interpret table-shaped text inside TOML strings.
+    // This profile intentionally accepts only the canonical single-line shapes.
+    if (text.includes('\"\"\"') || text.includes("'''") || text.includes("\r")) fail();
     return text;
   };
   const before = bytes(identities.authority, "Cargo.lock");
