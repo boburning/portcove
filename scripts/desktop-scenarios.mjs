@@ -278,6 +278,11 @@ export const DESKTOP_SCENARIOS = Object.freeze([
     },
   ),
   scenario(
+    "native-default-cover-cache-conditions",
+    "Every mapped cover survives an offline cached restart; missing bytes exercise backend refusal and fallback.",
+    { source: "desktop-default-cover-test.mjs", qualification_only: true },
+  ),
+  scenario(
     "native-default-cover-display",
     "Accepted IGDB covers render in Catalog and details without client credentials.",
     {
@@ -434,7 +439,11 @@ export function catalogReport() {
 export function desktopHarnessDeadlineMs(selection) {
   const executed = selection.selected_scenarios.length + selection.setup_scenarios.length;
   const ordinary = executed > 8 ? 10 * 60_000 : 3 * 60_000;
-  if (!selection.selected_scenarios.includes("native-default-cover-display")) return ordinary;
+  const cacheConditions = selection.selected_scenarios.includes(
+    "native-default-cover-cache-conditions",
+  );
+  if (!cacheConditions && !selection.selected_scenarios.includes("native-default-cover-display"))
+    return ordinary;
   const catalog = JSON.parse(
     readFileSync(new URL("../crates/portcove-core/catalog/catalog.json", import.meta.url), "utf8"),
   );
@@ -442,5 +451,12 @@ export function desktopHarnessDeadlineMs(selection) {
   // Two themes per cover: existing card location (10s), image (15s), settling
   // (5s), and bounded navigation/capture allowance (10s). The detail subset
   // adds its existing waits. Individual deadlines and routine profiles stay fixed.
-  return ordinary + covers * 2 * 40_000 + Math.min(covers, 12) * 2 * 30_000;
+  const displayRuns =
+    Number(cacheConditions) +
+    Number(selection.selected_scenarios.includes("native-default-cover-display"));
+  return (
+    ordinary +
+    displayRuns * (covers * 2 * 40_000 + Math.min(covers, 12) * 2 * 30_000) +
+    (cacheConditions ? 180_000 : 0)
+  );
 }
