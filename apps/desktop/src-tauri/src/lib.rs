@@ -2315,6 +2315,10 @@ where
 {
     move |invoke| {
         let label = invoke.message.webview_ref().label().to_owned();
+        #[cfg(feature = "native-compatibility-qualification")]
+        if label == "main" && webview_boundary_qualification::handles(invoke.message.command()) {
+            return webview_boundary_qualification::dispatch(invoke);
+        }
         match dispatch_main_window(&label, invoke, &handler) {
             Ok(handled) => handled,
             Err(invoke) => {

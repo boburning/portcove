@@ -28,20 +28,21 @@ process.env.PORTCOVE_WEBVIEW_BOUNDARY_FIXTURE_URL = fixtureUrl;
 process.env.PORTCOVE_LIBRARY = path.join(values.output, "library");
 process.env.PORTCOVE_PREFERENCES = path.join(values.output, "preferences.json");
 let session;
-async function invoke(browser, command, arguments_ = {}) {
+async function invoke(browser, command, arguments_ = {}, options = {}) {
   return browser.executeAsyncScript(
-    (command_, arguments__, done) => {
+    (command_, arguments__, options_, done) => {
       if (typeof window.__TAURI_INTERNALS__?.invoke !== "function") {
         done({ unavailable: true });
         return;
       }
-      window.__TAURI_INTERNALS__.invoke(command_, arguments__).then(
+      window.__TAURI_INTERNALS__.invoke(command_, arguments__, options_).then(
         (value) => done({ ok: true, value }),
         (error) => done({ ok: false, error: String(error) }),
       );
     },
     command,
     arguments_,
+    options,
   );
 }
 try {
@@ -200,6 +201,100 @@ try {
   }
   report.observations.mainNavigatedUrl = await browser.getCurrentUrl();
   assert.equal(report.observations.mainNavigatedUrl, initialUrl);
+  // Hold only the owner's real IPC fetch transport. Rust still queues the real
+  // payload; foreign and unknown requests reach Tauri's unmodified fetch handler.
+  const armOwner = async () => {
+    await browser.switchTo().window("boundary-secondary");
+    return browser.executeScript(() => {
+      window.__boundaryDelivery = null;
+      window.__boundaryHeld = null;
+      const originalFetch = window.fetch;
+      window.fetch = (input, options) => {
+        const id = new Headers(options?.headers).get("Tauri-Channel-Id");
+        if (id !== null && window.__boundaryHeld === null) {
+          window.__boundaryHeld = { id, input: String(input) };
+          return new Promise((resolve, reject) => {
+            window.__boundaryRelease = () => {
+              window.fetch = originalFetch;
+              originalFetch(input, options).then(resolve, reject);
+            };
+          });
+        }
+        return originalFetch(input, options);
+      };
+      return window.__TAURI_INTERNALS__.transformCallback((value) => {
+        if (value.message) window.__boundaryDelivery = value.message;
+      });
+    });
+  };
+  const queueOwner = async (callback) => {
+    await browser.switchTo().window("main");
+    const queued = await invoke(browser, "queue_boundary_reply", {
+      callback: `__CHANNEL__:${callback}`,
+    });
+    assert.equal(queued.ok, true);
+    await browser.switchTo().window("boundary-secondary");
+    await browser.wait(
+      () => browser.executeScript(() => window.__boundaryHeld !== null),
+      10_000,
+      "real queued fetch was not intercepted",
+    );
+    return browser.executeScript(() => window.__boundaryHeld);
+  };
+  const fetchQueued = (id) =>
+    invoke(browser, "plugin:__TAURI_CHANNEL__|fetch", null, {
+      headers: { "Tauri-Channel-Id": String(id) },
+    });
+  const held = await queueOwner(await armOwner());
+  const unknownId = Number(held.id) === 4294967295 ? 4294967294 : 4294967295;
+  await browser.switchTo().window("main");
+  const foreign = await fetchQueued(held.id);
+  const unknown = await fetchQueued(unknownId);
+  assert.equal(foreign.ok, false);
+  assert.deepEqual(foreign, unknown);
+  await browser.switchTo().window("boundary-remote");
+  const remoteForeign = await fetchQueued(held.id);
+  const remoteUnknown = await fetchQueued(unknownId);
+  assert.equal(remoteForeign.ok, false);
+  assert.deepEqual(remoteForeign, remoteUnknown);
+  await browser.switchTo().window("boundary-secondary");
+  await browser.executeScript(() => window.__boundaryRelease());
+  await browser.wait(
+    () => browser.executeScript(() => window.__boundaryDelivery !== null),
+    10_000,
+    "owner did not receive its preserved queued payload",
+  );
+  const delivered = await browser.executeScript(() => ({
+    length: window.__boundaryDelivery.length,
+    exact: window.__boundaryDelivery === `PORTCOVE_SYNTHETIC_QUEUE:${"Q".repeat(65536)}`,
+  }));
+  assert.equal(delivered.exact, true);
+  const consumed = await fetchQueued(held.id);
+  assert.equal(consumed.ok, false);
+  // Recreate the same label, before queuing any new reply. A stale entry would
+  // otherwise be addressable by that replacement webview under this patch.
+  const abandoned = await queueOwner(await armOwner());
+  await browser.close();
+  await browser.switchTo().window("main");
+  const recreated = await invoke(browser, "recreate_boundary_owner");
+  assert.equal(recreated.ok, true);
+  await browser.switchTo().window("boundary-secondary");
+  const disposed = await fetchQueued(abandoned.id);
+  assert.equal(disposed.ok, false);
+  assert.deepEqual(disposed, consumed);
+  report.observations.queuedReplies = {
+    held,
+    foreign,
+    unknown,
+    remoteForeign,
+    remoteUnknown,
+    delivered,
+    consumed,
+    abandoned,
+    recreated,
+    disposed,
+  };
+  await browser.switchTo().window("main");
   report.observations.returnedMain = await invoke(browser, "get_bootstrap_status");
   assert.equal(report.observations.returnedMain.ok, true);
   assert.equal(requests.includes("/untrusted/popup"), false);
