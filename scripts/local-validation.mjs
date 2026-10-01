@@ -381,7 +381,7 @@ function classifyOnePath(selection, input, fileExists, options = {}) {
       file.startsWith("apps/desktop/test/")
     ) {
       selection.uiRelatedFiles.add(file);
-      if (file.startsWith("apps/desktop/src/")) selection.fallow = true;
+      selection.fallow = true;
     } else {
       selection.uiFullTests = true;
     }

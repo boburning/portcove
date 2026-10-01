@@ -226,6 +226,8 @@ test("fast plans give Oxfmt and Oxlint one job owner", () => {
   assert.equal(fastRustQuality.match(/lint:oxlint/gu)?.length, 1);
   assert.equal(fastFrontend.match(/pnpm format:check/gu)?.length, 1);
   assert.equal(fastFrontend.match(/pnpm lint/gu)?.length, 1);
+  assert.equal(fastFrontend.match(/run-fallow\.mjs/gu)?.length, 1);
+  assert.ok(fastFrontend.indexOf("run-fallow.mjs") < fastFrontend.indexOf("pnpm build"));
 });
 
 test("reusable qualification is read-only, daily, and coalesces without cancelling", () => {

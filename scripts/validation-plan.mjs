@@ -80,10 +80,12 @@ const protectedPolicyFiles = withNodeTestCompanions([
 ]);
 
 // Maintained qualification consumers, not Rust/product/catalog inputs. Their
-// Node/context contracts run in frontend CI; actual native acceptance is separate.
+// Node/context and Vitest contracts run in frontend CI; actual native acceptance
+// is separate. A reviewed test path does not grant ownership to its implementation.
 // New or renamed harness files stay unknown until their ownership is reviewed.
 const nativeScenarioFiles = new Set([
   "apps/desktop/scripts/desktop-artwork-correction-test.mjs",
+  "apps/desktop/scripts/desktop-install-fixture.test.mjs",
   "apps/desktop/scripts/desktop-preparation-test.mjs",
   "apps/desktop/scripts/desktop-test.mjs",
   "apps/desktop/scripts/testdata/catalog-artwork-blue.jpg",

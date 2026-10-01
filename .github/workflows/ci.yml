@@ -295,6 +295,9 @@ jobs:
         working-directory: .
       - run: pnpm format:check
       - run: pnpm lint
+      - name: Fallow quality gate
+        run: node scripts/run-fallow.mjs
+        working-directory: .
       - run: pnpm build
       - run: pnpm test
       - name: Check maintained native scenario consumer contracts
