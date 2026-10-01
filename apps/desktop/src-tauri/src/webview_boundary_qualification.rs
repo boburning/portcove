@@ -105,7 +105,8 @@ pub fn dispatch<R: tauri::Runtime>(invoke: tauri::ipc::Invoke<R>) -> bool {
         invoke.resolver.respond(
             callback
                 .map_err(str::to_owned)
-                .and_then(|callback| queue_boundary_reply(app, callback)),
+                .and_then(|callback| queue_boundary_reply(app, callback))
+                .map_err(Into::into),
         );
     } else {
         tauri::async_runtime::spawn(async move {
@@ -114,7 +115,7 @@ pub fn dispatch<R: tauri::Runtime>(invoke: tauri::ipc::Invoke<R>) -> bool {
                 "recreate_boundary_owner" => recreate_boundary_owner(app).await,
                 _ => Err("unknown boundary fixture operation".into()),
             };
-            invoke.resolver.respond(result);
+            invoke.resolver.respond(result.map_err(Into::into));
         });
     }
     true
