@@ -582,10 +582,12 @@ fn corrupted_thumbnails_are_rebuilt_and_cache_capacity_is_bounded() {
     let cache = service.library().root().join("artwork-cache");
     let selected_cache = cache.join(format!("{}.png", selected.choice.asset_sha256.unwrap()));
     fs::write(&selected_cache, b"corrupt cached data").unwrap();
-    for name in ["a", "b"] {
-        fs::File::create(cache.join(format!("{}.png", name.repeat(64))))
+    // Exceed the total cache capacity with individually permitted entries.
+    // Oversized files are unexpected inventory, not ordinary eviction input.
+    for index in 0..65 {
+        fs::File::create(cache.join(format!("{index:064x}.png")))
             .unwrap()
-            .set_len(40 * 1024 * 1024)
+            .set_len(crate::artwork_image::MAX_THUMBNAIL_BYTES)
             .unwrap();
     }
     assert_eq!(
@@ -595,6 +597,9 @@ fn corrupted_thumbnails_are_rebuilt_and_cache_capacity_is_bounded() {
             .png,
         expected
     );
+    assert!(!cache.join(format!("{:064x}.png", 0)).exists());
+    assert!(!cache.join(format!("{:064x}.png", 1)).exists());
+    assert!(cache.join(format!("{:064x}.png", 64)).exists());
     let cleared = service.clear_artwork_cache().unwrap();
     assert!(cleared.removed_bytes <= 64 * 1024 * 1024);
     assert_eq!(
