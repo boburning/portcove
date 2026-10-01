@@ -817,8 +817,22 @@ internal static class ContractTests
                     var stdout = reader.StandardOutput.ReadToEndAsync();
                     if (!reader.WaitForExit(10000))
                     {
-                        reader.Kill();
-                        throw new TimeoutException("Owned fixture diagnostic reader did not exit.");
+                        var timeout = new TimeoutException("Owned fixture diagnostic reader did not exit.");
+                        try
+                        {
+                            reader.Kill();
+                            if (reader.WaitForExit(5000))
+                            {
+                                await stderr;
+                                await stdout;
+                            }
+                            else timeout.Data["cleanup"] = "Owned reader did not exit after termination.";
+                        }
+                        catch (Exception cleanup) { timeout.Data["cleanup"] = cleanup.GetType().Name; }
+                        // Observe eventual stream faults even if termination failed.
+                        stderr.ContinueWith(task => { var ignored = task.Exception; }, TaskContinuationOptions.OnlyOnFaulted);
+                        stdout.ContinueWith(task => { var ignored = task.Exception; }, TaskContinuationOptions.OnlyOnFaulted);
+                        throw timeout;
                     }
                     Check(reader.ExitCode == 1 && (await stderr).Contains(path) && (await stdout).Length == 0,
                         prefix + ": existing diagnostic cannot mask the original reader error or manufacture a result");
