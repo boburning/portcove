@@ -51,6 +51,12 @@
           "filter": "test(/^definition_capabilities::tests::/) | test(/^definition_entry::tests::/) | test(/^definition_index::tests::/) | test(/^definition_loader::tests::/) | test(/^definition_policy_tests::/) | test(/^definition_projection::tests::/) | test(/^definition_repository::tests::/) | test(/^installed_contract::tests::/)"
         },
         {
+          "id": "library-import-fixtures",
+          "reason": "the private library-import test module owns its complete preservation, retained-definition, interruption, recovery and authority assertions; shared implementation changes remain broad",
+          "paths": ["crates/portcove-core/src/import_execution_tests.rs"],
+          "filter": "test(/^import_execution::tests::/)"
+        },
+        {
           "id": "source-import",
           "reason": "source import review, consent, journal decoding, publication, recovery and cancellation share one family; discovery also consumes its read-only plan",
           "paths": [

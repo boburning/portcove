@@ -176,6 +176,52 @@ test("source import selects its complete family and discovery consumers", () => 
     assert.equal(selectRustTestImpact(map, "portcove-core", [change]).mode, "broad");
 });
 
+test("private library-import assertions select their whole module without narrowing implementation", () => {
+  const path = "crates/portcove-core/src/import_execution_tests.rs";
+  for (const status of ["A", "M"]) {
+    const selected = selectRustTestImpact(map, "portcove-core", [{ status, path }]);
+    assert.equal(selected.mode, "focused");
+    assert.deepEqual(
+      selected.groups.map((group) => group.id),
+      ["library-import-fixtures"],
+    );
+    assert.equal(selected.groups[0].filter, "test(/^import_execution::tests::/)");
+  }
+  for (const shared of [
+    "import_execution.rs",
+    "import_journal.rs",
+    "library_import.rs",
+    "test_fixture.rs",
+    "service.rs",
+    "database.rs",
+    "types.rs",
+    "new_import_tests.rs",
+  ]) {
+    assert.equal(
+      selectRustTestImpact(map, "portcove-core", [
+        modified(path),
+        modified(`crates/portcove-core/src/${shared}`),
+      ]).mode,
+      "broad",
+      shared,
+    );
+  }
+  for (const change of [
+    { status: "D", path },
+    { status: "R", path, previousPath: "crates/portcove-core/src/old_import_tests.rs" },
+    { status: "R", path: "crates/portcove-core/src/moved_import_tests.rs", previousPath: path },
+  ])
+    assert.equal(selectRustTestImpact(map, "portcove-core", [change]).mode, "broad");
+  const mixed = selectRustTestImpact(map, "portcove-core", [
+    modified(path),
+    modified("crates/portcove-core/src/source_import.rs"),
+  ]);
+  assert.deepEqual(
+    mixed.groups.map((group) => group.id),
+    ["library-import-fixtures", "source-import"],
+  );
+});
+
 test("source import mixed with inspection preserves both groups and overlapping consumers", () => {
   const selected = selectRustTestImpact(map, "portcove-core", [
     modified("crates/portcove-core/src/source_import.rs"),
