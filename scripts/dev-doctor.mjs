@@ -34,7 +34,7 @@ function aquaToolPaths(command, environment) {
   }
 }
 
-function aquaDefinitions(environment) {
+function aquaDefinitions(environment, locate = true) {
   const contents = readFileSync(path.join(root, "aqua.yaml"), "utf8");
   const commands = {
     "astral-sh/ruff": ["ruff", "--version"],
@@ -49,7 +49,7 @@ function aquaDefinitions(environment) {
         id: command[0],
         command: ["aqua", "exec", "--", ...command],
         version: version.replace(/^v/u, ""),
-        paths: aquaToolPaths(command[0], environment),
+        paths: locate ? aquaToolPaths(command[0], environment) : [],
         remediation: "./scripts/bootstrap-quality-tools.ps1",
       };
     },
@@ -173,6 +173,7 @@ export async function collectSelectedPrerequisites(plan, options = {}) {
     dotnet: { id: "dotnet", command: ["dotnet", "--version"] },
   };
   for (const tool of manifest.tools) definitions[tool.id] = { ...tool, command: tool.command };
+  for (const tool of aquaDefinitions(environment, false)) definitions[tool.id] = tool;
   const ids = new Set(plan.flatMap(selectedPrerequisites));
   const results = [];
   for (const id of ids) {
@@ -224,18 +225,6 @@ export async function collectSelectedPrerequisites(plan, options = {}) {
         status: "unverified",
         remediation: "just doctor; qualify the complete audit on an approved capable host",
       });
-    else if (["ruff", "shellcheck", "actionlint"].includes(id))
-      results.push(
-        probeTool(
-          {
-            id,
-            command: ["aqua", "exec", "--", id, id === "actionlint" ? "-version" : "--version"],
-            remediation: "run the normal pinned tool bootstrap",
-          },
-          run,
-          { environment },
-        ),
-      );
     else if (definitions[id]) results.push(probeTool(definitions[id], run, { environment }));
     else throw new Error(`unowned prerequisite: ${id}`);
   }

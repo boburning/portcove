@@ -210,6 +210,10 @@ blocked obligation instead of expanding a product repair into environment work.
 Refresh preflight after the final diff changes. A prerequisite observation is
 neither an execution pass nor evidence equivalent to CI, a full-debug audit,
 native/stateful runs, installed applications or physical devices.
+For a policy change, preflight also uses the unchanged audit selector to report
+the required fresh profile and stages. Its complete hosted audit route remains
+separate from selected local-check and reports Linux-applicable stages separately
+from local Windows stages; it cannot supply a Windows installed-package claim.
 
 Portcove uses three validation tiers. The inner loop runs only the test or test
 files that exercise the edit. Bare `just` invokes the same complete diff-selected

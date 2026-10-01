@@ -1363,7 +1363,14 @@ export function buildExecutionPreflight({
   };
 }
 
-function inspectPreChangeAudit(context, validationPlan, authority, controller) {
+export function inspectPreChangeAudit(
+  context,
+  validationPlan,
+  authority,
+  controller,
+  options = {},
+) {
+  const invokeGit = options.git ?? git;
   const policy = context.changes.some((change) =>
     [change.path, change.previousPath]
       .filter(Boolean)
@@ -1378,15 +1385,18 @@ function inspectPreChangeAudit(context, validationPlan, authority, controller) {
     newMode: change.newMode,
   }));
   const selection = selectTransitionAudit({
-    inventory: repositoryInventory(),
+    inventory: options.inventory ?? repositoryInventory(),
     validationPlan,
     changes,
-    workingTreeStatus: git(["status", "--porcelain=v1", "--untracked-files=all"]),
+    workingTreeStatus: invokeGit(["status", "--porcelain=v1", "--untracked-files=all"]),
   });
   const result = {
     profile: selection.profile,
     stages: selection.stages
-      .filter((stage) => !stage.platforms || stage.platforms.includes(process.platform))
+      .filter(
+        (stage) =>
+          !stage.platforms || stage.platforms.includes(options.platform ?? process.platform),
+      )
       .map((stage) => ({ id: stage.id, command: `just ${stage.recipe}` })),
     command: "just audit --profile transition --fresh",
     route: "local-prerequisites-unverified",
@@ -1396,17 +1406,29 @@ function inspectPreChangeAudit(context, validationPlan, authority, controller) {
   };
   if (!authority || !controller || selection.profile !== "complete") return result;
   for (const revision of [authority, controller])
-    git(["merge-base", "--is-ancestor", revision, context.baseSha]);
+    invokeGit(["merge-base", "--is-ancestor", revision, context.baseSha]);
   const protectedInputs = [".github/workflows/deep-quality.yml", "scripts/audit.mjs", "justfile"];
   if (
-    git(["diff", "--name-only", authority, context.headSha, "--", ...protectedInputs]).trim() ||
-    git(["status", "--porcelain"]).trim()
+    invokeGit([
+      "diff",
+      "--name-only",
+      authority,
+      context.headSha,
+      "--",
+      ...protectedInputs,
+    ]).trim() ||
+    invokeGit(["status", "--porcelain"]).trim()
   )
     return result;
-  const branch = git(["branch", "--show-current"]).trim();
+  const branch = invokeGit(["branch", "--show-current"]).trim();
   if (!/^[A-Za-z0-9./_-]+$/u.test(branch)) return result;
   return {
     ...result,
+    local_stages: result.stages,
+    platform: "linux-x86_64 (ubuntu-24.04)",
+    stages: selection.stages
+      .filter((stage) => !stage.platforms || stage.platforms.includes("linux"))
+      .map((stage) => ({ id: stage.id, command: `just ${stage.recipe}` })),
     route: "hosted-deep-audit",
     next_action: `gh workflow run deep-quality.yml --ref ${branch} -f operation=audit`,
     source: context.headSha,
@@ -1703,7 +1725,7 @@ function parseCheckArgs(args) {
 export async function main(argv = process.argv.slice(2)) {
   if (argv.includes("--help")) {
     console.log(
-      "usage: local-validation.mjs [check [--base REV] [--plan] [--fresh]|test-rust ARGS|test-ui-related FILES|test-node TESTS]",
+      "usage: local-validation.mjs [check [--base REV] [--plan|--preflight [--json] [--hosted-authority SHA --hosted-controller SHA]] [--fresh]|test-rust ARGS|test-ui-related FILES|test-node TESTS]",
     );
     return;
   }

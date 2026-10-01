@@ -29,6 +29,7 @@ import {
   untrackedFileMode,
   buildExecutionPreflight,
   inspectHostedLocalRoute,
+  inspectPreChangeAudit,
 } from "./local-validation.mjs";
 import { isExcludedOxfmtPath } from "./oxfmt-ownership.mjs";
 import { buildValidationPlan } from "./validation-plan.mjs";
@@ -151,6 +152,76 @@ test("hosted preflight requires exact available ancestor authorities and a froze
         throw new Error("unavailable comparison authority");
       }),
     /unavailable/,
+  );
+});
+
+test("preflight keeps policy qualification and Linux audit scope separate from selected local and Windows evidence", () => {
+  const head = "a".repeat(40),
+    base = "b".repeat(40);
+  const name = "scripts/workflow-provenance.mjs";
+  const changes = [
+    { status: "M", oldPath: name, newPath: name, oldMode: "100644", newMode: "100644" },
+  ];
+  const context = {
+    headSha: head,
+    baseSha: base,
+    mergeBase: base,
+    changes: [{ status: "M", path: name, oldMode: "100644", newMode: "100644" }],
+  };
+  const validationPlan = buildValidationPlan({
+    changes,
+    eventName: "pull_request",
+    head,
+    base,
+    mergeBase: base,
+    checkout: head,
+  });
+  const inventory = {
+    head,
+    files: [
+      {
+        path: name,
+        kind: "file",
+        headBlob: "same",
+        indexBlob: "same",
+        gitBlob: "same",
+        headMode: "100644",
+        indexMode: "100644",
+      },
+    ],
+  };
+  const command =
+    (diff = "", dirty = "") =>
+    (args) =>
+      args[0] === "status"
+        ? dirty
+        : args[0] === "diff"
+          ? diff
+          : args[0] === "branch"
+            ? "feature/candidate"
+            : "";
+  const hosted = inspectPreChangeAudit(context, validationPlan, base, base, {
+    inventory,
+    platform: "win32",
+    git: command(),
+  });
+  assert.equal(hosted.route, "hosted-deep-audit");
+  assert.equal(hosted.profile, "complete");
+  assert.ok(hosted.local_stages.some((stage) => stage.id === "windows-qualification"));
+  assert.ok(!hosted.stages.some((stage) => stage.id === "windows-qualification"));
+  assert.match(hosted.limit, /not equivalent to selected local-check/);
+  for (const input of [{ git: command("scripts/audit.mjs") }, { git: command("", " M source") }]) {
+    assert.equal(
+      inspectPreChangeAudit(context, validationPlan, base, base, { inventory, ...input }).route,
+      "local-prerequisites-unverified",
+    );
+  }
+  assert.equal(
+    inspectPreChangeAudit(context, validationPlan, undefined, undefined, {
+      inventory,
+      git: command(),
+    }).route,
+    "local-prerequisites-unverified",
   );
 });
 const change = (path, options = {}) => ({ status: "M", path, ...options });
