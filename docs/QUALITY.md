@@ -17,6 +17,13 @@ Do not add an aggregate audit merely because a change has a pull request.
   locally and frontend plus Rust-quality hosted coverage. Changed core/Tauri,
   unknown or renamed harness inputs keep their broader routing. Actual native
   display, restart and network acceptance still run separately when affected.
+- Regular PNG, JPEG and WebP captures under `docs/media/` retain the documentation
+  catalog and Rust-quality checks without the broad `catalog`, `retcomm` or
+  `source-provenance` filename heuristic selecting Rust tests. Other existing
+  signals, including schema/IPC and platform ownership, still apply. Runtime/catalog
+  assets, other formats or locations, mixed production changes, both rename sides
+  and consequential file modes retain their existing routes. This does not extend
+  the prose-only allowlist.
 - Validation-routing changes use adversarial selection tests, separate review and
   the transition profile when eligible. Exhaustive exact-head hosted qualification
   owns the unchanged product suites; do not duplicate them locally.
@@ -177,6 +184,13 @@ committed branch changes, staged and unstaged changes, renames, deletions, and
 non-ignored untracked files. Pass `--base <revision>` when another reviewed base
 is intentional, `--plan` to inspect the exact selection, or `--fresh` when an
 acceptance contract explicitly requires execution without reusable local receipts.
+
+Release-handbook changes in `docs/RELEASING.md` invalidate formatting,
+repository, roadmap and release-unit receipts. They do not expire otherwise identical
+Rust or UI command evidence. Changes to their actual source, recipes, dependencies,
+toolchain or environment still invalidate those receipts. This does not shorten
+`--fresh` audits, grant transition-profile eligibility, reuse stateful results or
+replace required exact-head hosted and installed-application qualification.
 
 Eligible deterministic local stages use the audit's integrity-checked receipt
 model. Each fingerprint binds the exact command and obligation, complete

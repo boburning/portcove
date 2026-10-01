@@ -12,7 +12,7 @@ on:
         description: Packaged version transition to exercise
         type: choice
         default: legacy-skipped
-        options: [legacy-skipped, preview-final]
+        options: [legacy-adjacent, legacy-skipped, preview-final]
       linux_runner:
         description: Ubuntu baseline for the installed AppImage rehearsal
         type: choice
@@ -95,6 +95,7 @@ jobs:
             work/updater-rehearsal/*.pub
             work/updater-rehearsal/linux-host-baseline.txt
             work/updater-rehearsal/0.1.0-${{ matrix.label }}/**
+            work/updater-rehearsal/0.2.0-${{ matrix.label }}/**
             work/updater-rehearsal/0.3.0-${{ matrix.label }}/**
             work/updater-rehearsal/1.0.0-rc.2-${{ matrix.label }}/**
             work/updater-rehearsal/1.0.0-${{ matrix.label }}/**

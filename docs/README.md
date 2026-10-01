@@ -50,6 +50,14 @@ For starting or resuming work in a healthy checkout, use the
 [warm single-session workflow](DEVELOPMENT-TOOLS.md#warm-single-session-workflow),
 including its compact task/reviewer handoff and ownership-first diagnosis.
 
+## Actual application journeys
+
+- [First installation and real game launch](media/first-play/README.md): isolated
+  Windows development app, authorized game file, actual title and return.
+- [Installed application update and staging recovery](media/application-update/README.md):
+  Windows test packages and disposable feed, adjacent replacement and confirmed
+  restart. These captures do not imply the same features are in published Alpha 2.
+
 ## Product and presentation guidance
 
 - [Design system](DESIGN-SYSTEM.md)

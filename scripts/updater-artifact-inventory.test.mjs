@@ -204,7 +204,7 @@ test("manual rehearsal retains the complete matrix without production credential
   assert.match(workflow, /default: all/);
   assert.match(workflow, /transition_profile:/);
   assert.match(workflow, /default: legacy-skipped/);
-  assert.match(workflow, /options: \[legacy-skipped, preview-final\]/);
+  assert.match(workflow, /options: \[legacy-adjacent, legacy-skipped, preview-final\]/);
   assert.match(workflow, /-TransitionProfile '\$\{\{ inputs\.transition_profile \}\}'/);
   const matrix = JSON.parse(workflow.match(/label:.*fromJSON\('([^']+)'\)/)[1]);
   assert.deepEqual(matrix.all.toSorted(), releaseLabels(policy).toSorted());
@@ -219,6 +219,18 @@ test("manual rehearsal retains the complete matrix without production credential
     .split(/\r?\n/)
     .map((entry) => entry.trim());
   const retained = (file) => retainedPaths.some((pattern) => path.posix.matchesGlob(file, pattern));
+  for (const label of releaseLabels(policy)) {
+    for (const version of ["0.1.0", "0.2.0", "0.3.0", "1.0.0-rc.2", "1.0.0"])
+      assert.ok(
+        retainedPaths.some((pattern) =>
+          path.posix.matchesGlob(
+            `work/updater-rehearsal/${version}-${label}/updater-inventory.json`,
+            pattern.replaceAll("${{ matrix.label }}", label),
+          ),
+        ),
+        `${label} loses ${version} candidate identity`,
+      );
+  }
   for (const preflight of ["baseline", "fixture-env"]) {
     const directory = `work/updater-rehearsal/installer-test/run-owned/driver-preflight-${preflight}`;
     for (const artifact of [
@@ -329,7 +341,7 @@ test("manual rehearsal retains the complete matrix without production credential
     rehearsal,
     /\$qualifiedBundleName = "qualified-\$predecessorVersion-bundles"[\s\S]*Move-RehearsalInput \$bundleRoot \$qualifiedBundleName[\s\S]*\$predecessor = Join-Path \$runRoot[\s\S]*Invoke-Checked "dbus-run-session"/,
   );
-  assert.match(rehearsal, /ValidateSet\("legacy-skipped", "preview-final"\)/);
+  assert.match(rehearsal, /ValidateSet\("legacy-adjacent", "legacy-skipped", "preview-final"\)/);
   assert.match(rehearsal, /"1\.0\.0-rc\.2"/);
   assert.match(rehearsal, /"1\.0\.0"/);
   assert.match(rehearsal, /-PredecessorVersion/);
@@ -683,6 +695,17 @@ test("manual rehearsal retains the complete matrix without production credential
 
 test("packaged transition and evidence contracts execute exact profile semantics", () => {
   const rehearsalCases = [
+    ...["windows-x86_64", "linux-x86_64", "macos-x86_64", "macos-aarch64"].map((platform) => ({
+      profile: "legacy-adjacent",
+      platform,
+      expected: {
+        profile: "legacy-adjacent",
+        platform,
+        predecessor_version: "0.1.0",
+        candidate_version: "0.2.0",
+        candidate_production_eligible: false,
+      },
+    })),
     {
       profile: "legacy-skipped",
       expected: {
@@ -749,6 +772,16 @@ test("packaged transition and evidence contracts execute exact profile semantics
     assert.equal(result.status, 0, result.stderr);
     assert.deepEqual(JSON.parse(result.stdout), expected);
   }
+
+  const invalid = runPowerShellScript("./rehearse-updater-artifacts.ps1", [
+    "-PlatformLabel",
+    "windows-x86_64",
+    "-TransitionProfile",
+    "not-a-transition",
+    "-DescribeTransition",
+  ]);
+  assert.notEqual(invalid.status, 0);
+  assert.match(invalid.stderr, /Cannot validate argument.*TransitionProfile/);
 
   const evidence = runPowerShellScript("./test-linux-appimage-update.ps1", [
     "-DescribeContract",

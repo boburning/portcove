@@ -313,6 +313,14 @@ function Get-WebViewRuntimeVersion {
     return $versions[0]
 }
 
+function Test-VerifiedEdgeDriver([string]$Executable, [string]$RuntimeVersion) {
+    $signature = Get-AuthenticodeSignature -LiteralPath $Executable
+    if ($signature.Status -ne "Valid" -or $signature.SignerCertificate.Subject -notmatch "Microsoft Corporation") {
+        throw "EdgeDriver does not have a valid Microsoft signature"
+    }
+    return Test-ReportedVersion $Executable @("--version") $RuntimeVersion
+}
+
 function Install-DesktopTools {
     if (-not $runningOnWindows) { throw "-Desktop self-provisioning currently supports Windows only" }
     $tauriDriverVersion = [string]$bootstrapManifest.desktop.tauri_driver
@@ -326,13 +334,12 @@ function Install-DesktopTools {
     }
     $driverRoot = Join-Path $sharedRoot "desktop\msedgedriver\$runtimeVersion\$architecture"
     $nativeDriver = Join-Path $driverRoot "msedgedriver.exe"
-    $reportedPattern = "(?<![0-9])$([regex]::Escape($runtimeVersion))(?![0-9])"
     $driverReady = $false
     if (Test-Path -LiteralPath $nativeDriver -PathType Leaf) {
-        $reported = (& $nativeDriver --version 2>&1 | Out-String).Trim()
-        $signature = Get-AuthenticodeSignature -LiteralPath $nativeDriver
-        $driverReady = $LASTEXITCODE -eq 0 -and $reported -match $reportedPattern -and
-            $signature.Status -eq "Valid" -and $signature.SignerCertificate.Subject -match "Microsoft Corporation"
+        try { $driverReady = Test-VerifiedEdgeDriver $nativeDriver $runtimeVersion }
+        catch {
+            Write-Information "EdgeDriver cache rejected before execution: $($_.Exception.Message)" -InformationAction Continue
+        }
     }
     if (-not $driverReady) {
         $stagingRoot = Assert-UnderRoot (Join-Path $sharedRoot ".staging\edge-$([guid]::NewGuid())") $sharedRoot "EdgeDriver staging"
@@ -342,13 +349,8 @@ function Install-DesktopTools {
             Invoke-WebRequest -UseBasicParsing -Uri "$($bootstrapManifest.desktop.edge_driver_base)/$runtimeVersion/$archiveName" -OutFile $archive
             Expand-Archive -LiteralPath $archive -DestinationPath (Join-Path $stagingRoot "extract")
             $candidate = Join-Path $stagingRoot "extract\msedgedriver.exe"
-            $reported = (& $candidate --version 2>&1 | Out-String).Trim()
-            $signature = Get-AuthenticodeSignature -LiteralPath $candidate
-            if ($LASTEXITCODE -ne 0 -or $reported -notmatch $reportedPattern) {
+            if (-not (Test-VerifiedEdgeDriver $candidate $runtimeVersion)) {
                 throw "EdgeDriver does not exactly match WebView2 runtime $runtimeVersion"
-            }
-            if ($signature.Status -ne "Valid" -or $signature.SignerCertificate.Subject -notmatch "Microsoft Corporation") {
-                throw "EdgeDriver does not have a valid Microsoft signature"
             }
             New-Item -ItemType Directory -Force -Path $driverRoot | Out-Null
             $nativeDriverNext = Join-Path $driverRoot "msedgedriver.$([guid]::NewGuid()).next.exe"
