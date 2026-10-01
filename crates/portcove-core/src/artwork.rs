@@ -718,7 +718,7 @@ fn cache_files(library: &Library) -> Result<Vec<(PathBuf, u64)>> {
         let extension = path.extension().and_then(|extension| extension.to_str());
         let too_large = if pending_original || extension == Some("jpg") {
             metadata.len() > crate::artwork_image::MAX_ORIGINAL_BYTES
-        } else if pending_thumbnail {
+        } else if pending_thumbnail || extension == Some("png") {
             metadata.len() > crate::artwork_image::MAX_THUMBNAIL_BYTES
         } else {
             false
