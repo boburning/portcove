@@ -21,11 +21,10 @@ export async function defaultCoverScenario({
   await scenario(
     cacheConditions ? "native-default-cover-cache-conditions" : "native-default-cover-display",
     async () => {
-      const cache = path.join(library, "artwork-cache");
-      if (cacheConditions) await assertEmptyCache(cache);
-      const refusal = cacheConditions ? await createImageRefusal() : null;
-      const refusedOrigins = refusal?.origins ?? [];
-      const offlineEnvironment = refusal?.environment;
+      const { cache, refusal, refusedOrigins, offlineEnvironment } = await createCoverConditions(
+        library,
+        cacheConditions,
+      );
       let withheld;
       let primaryError;
       try {
@@ -447,4 +446,18 @@ async function inspectCoverPass({
     });
   }
   return observations;
+}
+
+async function createCoverConditions(library, cacheConditions) {
+  const cache = path.join(library, "artwork-cache");
+  if (!cacheConditions)
+    return { cache, refusal: null, refusedOrigins: [], offlineEnvironment: undefined };
+  await assertEmptyCache(cache);
+  const refusal = await createImageRefusal();
+  return {
+    cache,
+    refusal,
+    refusedOrigins: refusal.origins,
+    offlineEnvironment: refusal.environment,
+  };
 }
