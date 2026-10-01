@@ -73,6 +73,7 @@ export async function defaultCoverScenario({
         };
       }
       let withheld;
+      let primaryError;
       try {
         const catalog = await invoke("get_catalog");
         assert.equal(catalog.ok, true);
@@ -276,14 +277,15 @@ export async function defaultCoverScenario({
             "Negative control requires the maintained DKR mapping",
           );
           const digest = port.presentation.artwork.image_sha256;
-          withheld = {
+          const candidate = {
             original: path.join(cache, `${digest}.jpg`),
             retained: path.join(output, `withheld-${digest}.jpg`),
           };
           browser = await restart(
             "default-cover-missing-cache",
             async () => {
-              await rename(withheld.original, withheld.retained);
+              await rename(candidate.original, candidate.retained);
+              withheld = candidate;
             },
             offlineEnvironment,
           );
@@ -347,6 +349,9 @@ export async function defaultCoverScenario({
           ),
         );
         artifacts.push(report);
+      } catch (error) {
+        primaryError = error;
+        throw error;
       } finally {
         try {
           if (withheld) {
@@ -359,6 +364,17 @@ export async function defaultCoverScenario({
               await rename(withheld.retained, withheld.original);
             });
           }
+        } catch (cleanupError) {
+          if (!primaryError) throw cleanupError;
+          const diagnostic = path.join(output, "default-cover-cache-cleanup-failure.json");
+          await writeFile(
+            diagnostic,
+            JSON.stringify({ primary: primaryError.message, cleanup: cleanupError.message }),
+          )
+            .then(() => artifacts.push(diagnostic))
+            .catch((error) =>
+              console.error("Failed to retain cache cleanup diagnostic:", error.message),
+            );
         } finally {
           if (refusal) {
             for (const socket of refusalSockets) socket.destroy();
