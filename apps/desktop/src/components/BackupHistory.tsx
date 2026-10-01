@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { ChevronDown, ChevronUp, RotateCcw, Trash2 } from "lucide-react";
 import type { BackupInventory, BackupProblem, BackupRecord } from "../types";
 import { formatBytes } from "../view-model";
@@ -24,15 +24,21 @@ export function BackupHistory({
   remove: ApplyBackupAction;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const history = useRef<HTMLDivElement>(null);
+  const heading = useRef<HTMLSpanElement>(null);
   const [selection, setSelection] = useState<{
     backup: BackupRecord;
     action: "restore" | "delete";
+    opener: HTMLButtonElement;
+    index: number;
   }>();
   const visible = expanded ? backups : backups.slice(0, 3);
   return (
-    <div className="backup-history">
+    <div ref={history} className="backup-history">
       <div className="backup-heading">
-        <span>Backups</span>
+        <span ref={heading} role="heading" aria-level={3} tabIndex={-1}>
+          Backups
+        </span>
         <small>{backupSummary(backups.length, problems.length, state)}</small>
       </div>
       <p>Backups include saves and settings managed by Portcove.</p>
@@ -82,7 +88,7 @@ export function BackupHistory({
           </details>
         </div>
       )}
-      {visible.map((backup) => {
+      {visible.map((backup, index) => {
         const createdLabel = new Date(backup.created_at * 1000).toLocaleString();
         return (
           <div className="backup-row" key={backup.id} data-backup-id={backup.id}>
@@ -105,20 +111,26 @@ export function BackupHistory({
             <span className="backup-actions">
               <Button
                 data-focusable
+                data-backup-action="restore"
                 variant="outline"
                 disabled={Boolean(busy) || state === "recovery_required"}
-                onClick={() => setSelection({ backup, action: "restore" })}
+                onClick={(event) =>
+                  setSelection({ backup, action: "restore", opener: event.currentTarget, index })
+                }
               >
                 <Icon glyph={RotateCcw} />
                 Restore
               </Button>
               <Button
                 data-focusable
+                data-backup-action="delete"
                 variant="destructive"
                 size="icon"
                 aria-label={`Delete backup from ${createdLabel}`}
                 disabled={Boolean(busy) || state === "recovery_required"}
-                onClick={() => setSelection({ backup, action: "delete" })}
+                onClick={(event) =>
+                  setSelection({ backup, action: "delete", opener: event.currentTarget, index })
+                }
               >
                 <Icon glyph={Trash2} />
               </Button>
@@ -134,6 +146,13 @@ export function BackupHistory({
           generation={generation}
           apply={selection.action === "restore" ? restore : remove}
           close={() => setSelection(undefined)}
+          finalFocus={() => {
+            if (selection.opener.isConnected && !selection.opener.disabled) return selection.opener;
+            const actions = history.current?.querySelectorAll<HTMLButtonElement>(
+              `button[data-backup-action="${selection.action}"]:not(:disabled)`,
+            );
+            return actions?.[Math.min(selection.index, actions.length - 1)] ?? heading.current;
+          }}
         />
       )}
       {backups.length > 3 && (
