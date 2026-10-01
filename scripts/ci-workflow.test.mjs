@@ -49,6 +49,25 @@ test("native scenario consumers keep Node and context contracts in both frontend
   }
 });
 
+test("EdgeDriver trust proof is manual, isolated, and does not launch the application", () => {
+  const job = nativeDesignCompatibilityWorkflow.split("\n  edge_driver_proof:")[1];
+  assert.ok(job);
+  assert.match(job, /if: inputs\.edge_driver_proof/u);
+  assert.match(job, /runs-on: windows-2022/u);
+  assert.match(job, /persist-credentials: false/u);
+  assert.doesNotMatch(
+    job,
+    /upload-artifact|actions\/cache|cache:|cargo|bootstrap-quality-tools\.ps1 -Desktop|desktop-verify/u,
+  );
+  assert.match(job, /Test-VerifiedEdgeDriver \$downloaded \$version/u);
+  assert.match(job, /Test-VerifiedEdgeDriver \$cached \$version/u);
+  assert.match(job, /Test-VerifiedEdgeDriver \$cached '0\.0\.0\.0'/u);
+  assert.match(job, /https:\/\/msedgedriver\.microsoft\.com/u);
+  assert.match(job, /bootstrap_sha256/u);
+  assert.match(job, /driver_sha256/u);
+  assert.match(nativeDesignCompatibilityWorkflow, /if: \$\{\{ !inputs\.edge_driver_proof \}\}/u);
+});
+
 test("native design compatibility remains explicit, isolated, and non-publishing", () => {
   assert.match(nativeDesignCompatibilityWorkflow, /^ {2}workflow_dispatch:$/m);
   assert.doesNotMatch(nativeDesignCompatibilityWorkflow, /^ {2}(pull_request|push|schedule):/m);
