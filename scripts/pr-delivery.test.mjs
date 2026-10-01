@@ -566,6 +566,31 @@ test("subprocess timeout is retained as a failed observation with no retry", asy
   assert.equal(calls, 1);
 });
 
+test("watcher rejects an attempt changed during otherwise successful job collection", async () => {
+  let reads = 0;
+  await assert.rejects(
+    watchRequiredChecks(
+      {
+        workflowRun: () =>
+          workflow({
+            status: "completed",
+            conclusion: "success",
+            run_attempt: ++reads === 1 ? 1 : 2,
+          }),
+        requiredCheckState: () => checkState("success"),
+        workflowJobs,
+      },
+      watchOptions,
+    ),
+    (error) => {
+      assert.match(error.message, /changed during job collection/);
+      assert.equal(error.operationEvidence.workflow.run_attempt, 2);
+      return true;
+    },
+  );
+  assert.equal(reads, 2);
+});
+
 test("REST merge uses the exact SHA and verifies remote completion", () => {
   const calls = [];
   let merged = false;
