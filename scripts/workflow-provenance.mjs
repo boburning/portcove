@@ -272,10 +272,14 @@ function cargoDependencyBinding(raw, git, sourceRoot, identities) {
     let found = -1;
     let declarations = 0;
     let tables = 0;
+    const declaration = new RegExp(
+      `^\\s*(?:${spec.package}|"${spec.package}"|'${spec.package}')\\s*=`,
+      "u",
+    );
     for (let index = 0; index < lines.length; index++) {
       if (/^\[/u.test(lines[index])) section = lines[index];
       if (lines[index] === `[${entry.section}]`) tables++;
-      if (section === `[${entry.section}]` && lines[index].startsWith(`${spec.package} = `)) {
+      if (section === `[${entry.section}]` && declaration.test(lines[index])) {
         declarations++;
         if (lines[index] === `${spec.package} = "${spec.from_version}"`) found = index;
       }
@@ -453,6 +457,21 @@ export async function runHostedLocalCheck(phase, options = {}) {
   });
   if (plan.error) throw plan.error;
   if (plan.status !== 0) return plan.status ?? 1;
+  // Planning can run Cargo metadata. Never execute a graph changed by discovery.
+  clean(controllerRoot, identities.controller);
+  clean(sourceRoot, identities.source);
+  if (git(sourceRoot, ["rev-parse", "origin/main"]) !== identities.base)
+    throw new Error("Local-check comparison target changed during planning");
+  if (dependency) {
+    cargoDependencyBinding(
+      environment.PORTCOVE_LOCAL_DEPENDENCY_BINDING,
+      git,
+      sourceRoot,
+      identities,
+    );
+    if (sha256(await readFile(path.join(sourceRoot, "Cargo.lock"))) !== dependency.lock_sha256)
+      throw new Error("Reviewed dependency lock changed during planning");
+  }
   const result = execute("just", ["local-check", "--fresh"], {
     cwd: sourceRoot,
     env: child,

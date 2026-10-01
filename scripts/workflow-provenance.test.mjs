@@ -180,7 +180,7 @@ function cargoFixture(t, twoManifests = false) {
     manifests.push({ path: "apps/desktop/src-tauri/Cargo.toml", section: "dependencies" });
   const checksum = "a".repeat(64);
   const nextChecksum = "b".repeat(64);
-  const lock = `# Generated lock\nversion = 4\n\n[[package]]\nname = "${packageName}"\nversion = "${oldVersion}"\nsource = "registry+https://github.com/rust-lang/crates.io-index"\nchecksum = "${checksum}"\n\n`;
+  const lock = `# Generated lock\nversion = 4\n\n[[package]]\nname = "${packageName}"\nversion = "${oldVersion}"\nsource = "registry+https://github.com/rust-lang/crates.io-index"\nchecksum = "${checksum}"\n${twoManifests ? "" : 'dependencies = [\n "ct-codecs",\n]\n'}\n`;
   f.write(f.source, "Cargo.lock", lock);
   for (const entry of manifests)
     f.write(
@@ -384,6 +384,24 @@ test("Cargo binding is rechecked after provisioning and execution", async (t) =>
     }),
     /dirty/,
   );
+});
+
+test("planning cannot change the reviewed lock before fresh execution", async (t) => {
+  const f = cargoFixture(t);
+  const calls = [];
+  await assert.rejects(
+    runHostedLocalCheck("run", {
+      ...f.options,
+      spawn: (_name, args) => {
+        calls.push(args);
+        f.write(f.source, "Cargo.lock", "metadata changed the graph\n");
+        return { status: 0 };
+      },
+    }),
+    /dirty/,
+  );
+  assert.deepEqual(calls, [["local-check", "--plan"]]);
+  assert.ok(!f.logs.some((line) => line.startsWith("Hosted local-check completed:")));
 });
 
 test("hosted execution binds actual Git source, default base, controller and final child", async (t) => {
