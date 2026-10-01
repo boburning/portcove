@@ -318,6 +318,7 @@ pub(crate) fn requires_migration(root: &Path) -> Result<bool> {
 
 fn migrate_to(root: &Path, target_version: i64) -> Result<()> {
     let _lock = MigrationLock::acquire(root)?;
+    let fresh_database = !database_path(root).try_exists()?;
     let mut connection = connect(root)?;
     connection.execute(
         "CREATE TABLE IF NOT EXISTS schema_migrations (
@@ -333,19 +334,19 @@ fn migrate_to(root: &Path, target_version: i64) -> Result<()> {
         verify_recorded_migration(&connection, migration)?;
     }
 
-    for migration in MIGRATIONS
+    let pending = MIGRATIONS
         .iter()
         .skip(applied.len())
-        .take(target_version.saturating_sub(applied.len() as i64) as usize)
-    {
-        let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
-        (migration.apply)(&transaction).map_err(|error| migration_failure(migration, error))?;
-        (migration.verify)(&transaction).map_err(|error| migration_failure(migration, error))?;
-        transaction.execute(
-            "INSERT INTO schema_migrations(version, applied_at) VALUES (?1, unixepoch())",
-            [migration.version],
-        )?;
-        transaction.commit()?;
+        .take(target_version.saturating_sub(applied.len() as i64) as usize);
+    if fresh_database && applied.is_empty() {
+        initialize_fresh_schema(&mut connection, pending)?;
+    } else {
+        for migration in pending {
+            let transaction =
+                connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+            apply_recorded_migration(&transaction, migration)?;
+            transaction.commit()?;
+        }
     }
 
     let final_versions = recorded_versions(&connection)?;
@@ -363,6 +364,30 @@ fn migrate_to(root: &Path, target_version: i64) -> Result<()> {
                 ),
         );
     }
+    Ok(())
+}
+
+fn apply_recorded_migration(transaction: &Transaction<'_>, migration: &Migration) -> Result<()> {
+    (migration.apply)(transaction).map_err(|error| migration_failure(migration, error))?;
+    (migration.verify)(transaction).map_err(|error| migration_failure(migration, error))?;
+    transaction.execute(
+        "INSERT INTO schema_migrations(version, applied_at) VALUES (?1, unixepoch())",
+        [migration.version],
+    )?;
+    Ok(())
+}
+
+fn initialize_fresh_schema<'a>(
+    connection: &mut Connection,
+    migrations: impl Iterator<Item = &'a Migration>,
+) -> Result<()> {
+    // A new database has no released schema to preserve between versions.
+    // Publish its complete verified schema once; failure leaves no partial history.
+    let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+    for migration in migrations {
+        apply_recorded_migration(&transaction, migration)?;
+    }
+    transaction.commit()?;
     Ok(())
 }
 
@@ -1244,6 +1269,110 @@ mod tests {
 
     fn prepare_root(root: &Path) {
         fs::create_dir_all(root.join("locks")).unwrap();
+    }
+
+    #[test]
+    fn failed_fresh_schema_initialization_rolls_back_every_version() {
+        let temporary = tempdir().unwrap();
+        let root = temporary.path();
+        prepare_root(root);
+        let mut connection = connect(root).unwrap();
+        connection.execute_batch(
+            "CREATE TABLE schema_migrations(version INTEGER PRIMARY KEY, applied_at INTEGER NOT NULL);
+             CREATE TABLE retained_marker(value TEXT NOT NULL);
+             INSERT INTO retained_marker VALUES ('preserved');",
+        ).unwrap();
+        let failing = Migration {
+            verify: |_| Err(PortcoveError::state("injected verification failure")),
+            ..MIGRATIONS[1]
+        };
+        let error =
+            initialize_fresh_schema(&mut connection, [&MIGRATIONS[0], &failing].into_iter())
+                .unwrap_err();
+        assert!(
+            error.details["cause"].contains("injected verification failure"),
+            "{error}"
+        );
+        assert_eq!(error.details["migration_version"], "2");
+        assert!(recorded_versions(&connection).unwrap().is_empty());
+        for table in ["installs", "sources", "github_http_cache"] {
+            assert!(
+                table_columns(&connection, table).unwrap().is_empty(),
+                "{table}"
+            );
+        }
+        assert_eq!(
+            connection
+                .query_row("SELECT value FROM retained_marker", [], |row| row
+                    .get::<_, String>(0))
+                .unwrap(),
+            "preserved"
+        );
+        drop(connection);
+        migrate(root).unwrap();
+        assert_eq!(
+            recorded_versions(&connect(root).unwrap()).unwrap(),
+            (1..=CURRENT_SCHEMA_VERSION).collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
+    fn existing_unversioned_database_keeps_completed_versions_on_later_failure() {
+        let temporary = tempdir().unwrap();
+        let root = temporary.path();
+        prepare_root(root);
+        let connection = connect(root).unwrap();
+        connection
+            .execute_batch(
+                "CREATE TABLE github_http_cache(retained TEXT NOT NULL);
+             INSERT INTO github_http_cache VALUES ('preserved');",
+            )
+            .unwrap();
+        drop(connection);
+        let error = migrate_to(root, 2).unwrap_err();
+        assert!(
+            error.details["cause"].contains("required database column"),
+            "{error}"
+        );
+        let connection = connect(root).unwrap();
+        assert_eq!(error.details["migration_version"], "2");
+        assert_eq!(recorded_versions(&connection).unwrap(), vec![1]);
+        (MIGRATIONS[0].verify)(&connection).unwrap();
+        assert_eq!(
+            connection
+                .query_row("SELECT retained FROM github_http_cache", [], |row| row
+                    .get::<_, String>(
+                    0
+                ))
+                .unwrap(),
+            "preserved"
+        );
+    }
+
+    #[test]
+    fn fresh_schema_matches_existing_unversioned_initialization() {
+        let temporary = tempdir().unwrap();
+        let fresh = temporary.path().join("fresh");
+        let upgraded = temporary.path().join("upgraded");
+        prepare_root(&fresh);
+        prepare_root(&upgraded);
+        drop(connect(&upgraded).unwrap());
+        crate::test_fixture::phase("fresh schema: one publication", || migrate(&fresh).unwrap());
+        crate::test_fixture::phase("existing schema: per-version publications", || {
+            migrate(&upgraded).unwrap()
+        });
+        let fresh = connect(&fresh).unwrap();
+        let upgraded = connect(&upgraded).unwrap();
+        assert_eq!(schema_fingerprint(&fresh), schema_fingerprint(&upgraded));
+        for connection in [&fresh, &upgraded] {
+            assert_eq!(
+                recorded_versions(connection).unwrap(),
+                (1..=CURRENT_SCHEMA_VERSION).collect::<Vec<_>>()
+            );
+            for migration in MIGRATIONS {
+                (migration.verify)(connection).unwrap();
+            }
+        }
     }
 
     #[test]
