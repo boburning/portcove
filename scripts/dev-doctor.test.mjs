@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, mkdirSync, writeFileSync, existsSync, rmSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync, existsSync, rmSync, symlinkSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import {
@@ -161,6 +161,29 @@ test("Aqua observations use an existing unique payload and reject ambiguous or m
   mkdirSync(path.join(versionRoot, "other"));
   writeFileSync(path.join(versionRoot, "other/actionlint"), "ambiguous fixture");
   assert.equal(existingAquaDefinition(definition, directory, "linux"), null);
+});
+
+test("a linked Corepack version cannot execute an entrypoint outside the configured cache", (t) => {
+  const directory = mkdtempSync(path.join(os.tmpdir(), "portcove-linked-pnpm-"));
+  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  const cache = path.join(directory, "cache"),
+    foreign = path.join(directory, "foreign");
+  mkdirSync(path.join(cache, "v1/pnpm"), { recursive: true });
+  mkdirSync(path.join(foreign, "bin"), { recursive: true });
+  writeFileSync(path.join(foreign, "bin/pnpm.mjs"), "throw Error('must not execute');");
+  writeFileSync(
+    path.join(foreign, ".corepack"),
+    JSON.stringify({
+      locator: { name: "pnpm", reference: "12.7.0" },
+      bin: { pnpm: "bin/pnpm.mjs" },
+    }),
+  );
+  symlinkSync(
+    foreign,
+    path.join(cache, "v1/pnpm/12.7.0"),
+    process.platform === "win32" ? "junction" : "dir",
+  );
+  assert.equal(existingPnpmDefinition("12.7.0", { COREPACK_HOME: cache }), null);
 });
 
 const definition = {

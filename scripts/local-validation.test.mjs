@@ -256,6 +256,50 @@ test("missing Cargo emits a named JSON planning blocker without pretending to se
   assert.equal(process.exitCode, 1);
 });
 
+test("missing Cargo in a mixed Playnite change does not recommend an incapable Ubuntu route", async (t) => {
+  const previous = process.exitCode;
+  t.after(() => {
+    process.exitCode = previous;
+  });
+  const outputs = [];
+  await main(["check", "--preflight", "--json"], {
+    readContext: () => ({
+      base: "origin/main",
+      baseSha: "b".repeat(40),
+      mergeBase: "b".repeat(40),
+      headSha: "a".repeat(40),
+      changes: [
+        "crates/portcove-core/src/lib.rs",
+        "integrations/playnite/Portcove.Playnite.csproj",
+      ].map((path) => ({ status: "M", path, oldMode: "100644", newMode: "100644" })),
+    }),
+    metadataProvider: () => {
+      throw Error("unavailable");
+    },
+    hostedInspector: () => ({ status: "eligible", command: "incapable Ubuntu dispatch" }),
+    log: (value) => outputs.push(value),
+  });
+  const report = JSON.parse(outputs[0]);
+  assert.equal(report.selected_plan, null);
+  assert.ok(!report.blocker.next_action.includes("Ubuntu dispatch"));
+  assert.equal(report.status, "planning-blocked");
+});
+
+test("normal metadata selection keeps its existing execution contract", () => {
+  assert.deepEqual(
+    [
+      ...readDoctestPackages({
+        spawn: (_command, args, options) => {
+          assert.equal(options.timeout, undefined);
+          assert.ok(!args.includes("--offline"));
+          return { status: 0, stdout: JSON.stringify({ packages: [] }) };
+        },
+      }),
+    ],
+    [],
+  );
+});
+
 test("preflight keeps policy qualification and Linux audit scope separate from selected local and Windows evidence", () => {
   const head = "a".repeat(40),
     base = "b".repeat(40);

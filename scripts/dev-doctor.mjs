@@ -189,6 +189,9 @@ export function existingPnpmDefinition(version, environment = process.env) {
     );
   const directory = path.join(cache, "v1", "pnpm", version);
   try {
+    const cacheRelative = path.relative(realpathSync(cache), realpathSync(directory));
+    if (!cacheRelative || cacheRelative.startsWith("..") || path.isAbsolute(cacheRelative))
+      return null;
     const metadata = JSON.parse(readFileSync(path.join(directory, ".corepack"), "utf8"));
     if (
       metadata.locator?.name !== "pnpm" ||

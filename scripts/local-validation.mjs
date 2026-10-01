@@ -76,7 +76,7 @@ export function readDoctestPackages(options = {}) {
       cwd: projectRoot,
       encoding: "utf8",
       windowsHide: true,
-      timeout: 15_000,
+      timeout: options.observeOnly ? 15_000 : undefined,
       env: options.observeOnly
         ? { ...process.env, RUSTUP_AUTO_INSTALL: "0", CARGO_NET_OFFLINE: "true" }
         : process.env,
@@ -1791,7 +1791,11 @@ export async function main(argv = process.argv.slice(2), options = {}) {
       });
     } catch (error) {
       if (!preflightOnly) throw error;
-      const hosted = inspectHostedLocalRoute(context, authority, controller);
+      const hosted = (options.hostedInspector ?? inspectHostedLocalRoute)(
+        context,
+        authority,
+        controller,
+      );
       const report = {
         format_version: 1,
         source: context.headSha,
@@ -1806,7 +1810,7 @@ export async function main(argv = process.argv.slice(2), options = {}) {
           capability: "pinned Cargo and readable locked workspace metadata",
           reason: "bounded metadata observation failed; no complete local selection is claimed",
           next_action:
-            hosted.status === "eligible"
+            hosted.status === "eligible" && !selection.playnite
               ? hosted.command
               : "establish the pinned Rust/Cargo prerequisite, then rerun preflight",
         },
