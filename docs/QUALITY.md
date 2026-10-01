@@ -242,7 +242,16 @@ import coverage or replacing required hosted evidence.
 
 The contract is intentionally conservative: shared types, service and lifecycle
 orchestration, database behavior, public module wiring, and package manifests are
-outside the focused groups. Required GitHub CI still runs the complete selected
+outside the focused groups. The exact artwork resolution module additionally
+owns the complete artwork, import, move and transfer assertion families because
+its original-byte reader is consumed by transfer verification. It also selects
+the existing public CLI artwork contract. Storage, image decoding, ingestion,
+shared transfer implementation changes remain broad, as
+do uncertain, deleted and renamed paths; mixed mapped groups retain their union.
+Retained-contract changes keep their existing complete definition-delivery group.
+This ownership does not reuse stateful success or replace native acceptance.
+
+Required GitHub CI still runs the complete selected
 hosted plan on the exact reviewed head; shared or uncertain changes select
 exhaustive qualification. To roll back local selection,
 revert the map and selector change; the previous complete-package command remains

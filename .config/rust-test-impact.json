@@ -23,6 +23,12 @@
           "filter": "test(/^catalog::tests::/) | test(/^catalog_update::tests::/) | test(/^source_catalog::tests::/) | test(/^definition_projection::tests::/) | test(/^definition_policy_tests::/) | test(/^artwork_tests::/)"
         },
         {
+          "id": "artwork-resolution",
+          "reason": "artwork resolution, choice publication and owned-original reads require the complete artwork, import, move and transfer consumer families",
+          "paths": ["crates/portcove-core/src/artwork.rs"],
+          "filter": "test(/^artwork_tests::/) | test(/^import_execution::tests::/) | test(/^library_move::tests::/) | test(/^library_transfer::tests::/)"
+        },
+        {
           "id": "artwork-fixtures",
           "reason": "artwork fixtures exercise default resolution, explicit choices, ingestion, cache and library transfer without narrowing shared implementation changes",
           "paths": ["crates/portcove-core/src/artwork_tests.rs"],
