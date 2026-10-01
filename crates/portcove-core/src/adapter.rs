@@ -165,7 +165,7 @@ impl Adapter for StandardAdapter {
             install_root,
             selected_executable,
             source,
-            source_record,
+            ..
         } = request;
         checkpoint()?;
         if !selected_executable.starts_with(install_root) || !selected_executable.is_file() {
