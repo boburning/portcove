@@ -119,8 +119,47 @@ pub struct ArtworkCacheClear {
 }
 
 impl PortcoveService {
+    fn artwork_port(&self, port_id: &str) -> Result<std::borrow::Cow<'_, crate::PortDefinition>> {
+        match self.catalog().port(port_id) {
+            Ok(port) => Ok(std::borrow::Cow::Borrowed(port)),
+            Err(unknown) => {
+                // An imported installation may retain an admitted definition that
+                // the current catalog does not offer. Resolve presentation only;
+                // do not add it to discovery or grant lifecycle authority.
+                let Some(install) = self
+                    .library()
+                    .status(port_id, crate::ReleaseChannel::Stable)?
+                    .active
+                else {
+                    return Err(unknown);
+                };
+                let retained = self.installed_catalog(&install)?;
+                let Some(identity) = retained.definition_selection(port_id) else {
+                    return Err(unknown);
+                };
+                if self
+                    .library()
+                    .retained_definition_admission_role(identity)?
+                    .is_none()
+                {
+                    return Err(unknown);
+                }
+                Ok(std::borrow::Cow::Owned(retained.port(port_id)?.clone()))
+            }
+        }
+    }
+
     pub fn artwork(&self, port_id: &str, slot: ArtworkSlot) -> Result<ArtworkState> {
-        let port = self.catalog().port(port_id)?;
+        let port = self.artwork_port(port_id)?;
+        self.artwork_for_port(&port, slot)
+    }
+
+    fn artwork_for_port(
+        &self,
+        port: &crate::PortDefinition,
+        slot: ArtworkSlot,
+    ) -> Result<ArtworkState> {
+        let port_id = &port.id;
         let mut connection = self.library().connection()?;
         let transaction = connection.transaction()?;
         let choice = crate::artwork_store::choice(&transaction, port_id, slot)?;
@@ -179,7 +218,7 @@ impl PortcoveService {
         source: &Path,
         expected_revision: u64,
     ) -> Result<ArtworkState> {
-        self.catalog().port(port_id)?;
+        let port = self.artwork_port(port_id)?;
         let _guard = self.library().try_lock_artwork()?;
         crate::path::unicode(source, "local artwork")?;
         crate::path::refuse_symlink_ancestors(source)?;
@@ -246,7 +285,7 @@ impl PortcoveService {
             &proposed.sha256,
             &decoded.thumbnail,
         );
-        self.artwork(port_id, slot)
+        self.artwork_for_port(&port, slot)
     }
 
     pub fn reset_artwork(
@@ -255,14 +294,14 @@ impl PortcoveService {
         slot: ArtworkSlot,
         expected_revision: u64,
     ) -> Result<ArtworkState> {
-        self.catalog().port(port_id)?;
+        let port = self.artwork_port(port_id)?;
         let _guard = self.library().try_lock_artwork()?;
         let mut connection = self.library().connection()?;
         let transaction = connection.transaction()?;
         crate::artwork_store::require_revision(&transaction, port_id, slot, expected_revision)?;
         crate::artwork_store::write_choice(&transaction, port_id, slot, expected_revision, None)?;
         transaction.commit()?;
-        self.artwork(port_id, slot)
+        self.artwork_for_port(&port, slot)
     }
 
     pub fn artwork_thumbnail(
@@ -271,7 +310,7 @@ impl PortcoveService {
         slot: ArtworkSlot,
         expected_revision: u64,
     ) -> Result<ArtworkThumbnail> {
-        let port = self.catalog().port(port_id)?;
+        let port = self.artwork_port(port_id)?;
         let mapped_cover = match slot {
             ArtworkSlot::Cover => port
                 .presentation
