@@ -2520,7 +2520,7 @@ pub fn run() {
         ]))
         .setup(|app| {
             #[cfg(feature = "native-compatibility-qualification")]
-            webview_boundary_qualification::create_windows(app.handle())?;
+            webview_boundary_qualification::validate_fixture()?;
             #[cfg(any(windows, target_os = "linux", target_os = "macos"))]
             report_application_update_qualification_stage("Tauri setup");
             if let Some(window) = app.get_webview_window("main") {

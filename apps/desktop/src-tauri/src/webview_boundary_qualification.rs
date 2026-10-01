@@ -1,13 +1,11 @@
 //! Qualification-only windows exercise the existing command/origin guards.
 //! No additional capability or privileged command is granted to these windows.
 
-pub fn create_windows<R: tauri::Runtime>(
-    app: &tauri::AppHandle<R>,
-) -> Result<(), Box<dyn std::error::Error>> {
+fn fixture_url() -> Result<Option<tauri::Url>, String> {
     let Some(value) = std::env::var_os("PORTCOVE_WEBVIEW_BOUNDARY_FIXTURE_URL") else {
-        return Ok(());
+        return Ok(None);
     };
-    let url = tauri::Url::parse(&value.to_string_lossy())?;
+    let url = tauri::Url::parse(&value.to_string_lossy()).map_err(|error| error.to_string())?;
     if url.scheme() != "http"
         || url.host_str() != Some("127.0.0.1")
         || url.port().is_none()
@@ -16,10 +14,23 @@ pub fn create_windows<R: tauri::Runtime>(
     {
         return Err("Boundary fixture requires an explicit loopback HTTP port".into());
     }
-    create_owner(app)?;
-    tauri::WebviewWindowBuilder::new(app, "boundary-remote", tauri::WebviewUrl::External(url))
+    Ok(Some(url))
+}
+
+pub fn validate_fixture() -> Result<(), String> {
+    fixture_url().map(|_| ())
+}
+
+#[tauri::command]
+pub async fn create_boundary_windows<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+) -> Result<(), String> {
+    let url = fixture_url()?.ok_or("boundary fixture is inactive")?;
+    create_owner(&app).map_err(|error| error.to_string())?;
+    tauri::WebviewWindowBuilder::new(&app, "boundary-remote", tauri::WebviewUrl::External(url))
         .title("Portcove owned remote boundary fixture")
-        .build()?;
+        .build()
+        .map_err(|error| error.to_string())?;
     Ok(())
 }
 
@@ -71,7 +82,10 @@ pub async fn recreate_boundary_owner<R: tauri::Runtime>(
 }
 
 pub fn handles(command: &str) -> bool {
-    matches!(command, "queue_boundary_reply" | "recreate_boundary_owner")
+    matches!(
+        command,
+        "create_boundary_windows" | "queue_boundary_reply" | "recreate_boundary_owner"
+    )
 }
 
 pub fn dispatch<R: tauri::Runtime>(invoke: tauri::ipc::Invoke<R>) -> bool {
@@ -79,7 +93,10 @@ pub fn dispatch<R: tauri::Runtime>(invoke: tauri::ipc::Invoke<R>) -> bool {
         invoke.resolver.reject("boundary fixture is inactive");
         return true;
     }
-    let handler: fn(tauri::ipc::Invoke<R>) -> bool =
-        tauri::generate_handler![queue_boundary_reply, recreate_boundary_owner];
+    let handler: fn(tauri::ipc::Invoke<R>) -> bool = tauri::generate_handler![
+        create_boundary_windows,
+        queue_boundary_reply,
+        recreate_boundary_owner
+    ];
     handler(invoke)
 }

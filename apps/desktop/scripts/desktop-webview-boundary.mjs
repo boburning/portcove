@@ -87,6 +87,8 @@ try {
     path.resolve(positive.value.library_root),
     path.resolve(process.env.PORTCOVE_LIBRARY),
   );
+  report.observations.createdFixtures = await invoke(browser, "create_boundary_windows");
+  assert.equal(report.observations.createdFixtures.ok, true);
   await browser.switchTo().window("boundary-secondary");
   const secondary = await invoke(browser, "get_bootstrap_status");
   report.observations.secondary = secondary;
