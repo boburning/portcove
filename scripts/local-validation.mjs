@@ -750,19 +750,20 @@ export function buildPlan(selection, context = {}) {
       validation.mode === "blocked" ||
       validation.identities.base !== context.baseSha ||
       validation.identities.head !== context.headSha ||
+      validation.identities.checkout !== context.headSha ||
       validation.identities.merge_base !== context.mergeBase ||
       !Array.isArray(changes) ||
       changes.length === 0
     )
       throw new Error("conservative local fallback requires a complete bound Git comparison");
-    const paths = sorted(
-      new Set(
+    const paths = [
+      ...new Set(
         changes.flatMap((change) => [
           normalizePath(change.path),
           ...(change.previousPath ? [normalizePath(change.previousPath)] : []),
         ]),
       ),
-    );
+    ].sort();
     if (
       JSON.stringify(paths) !== JSON.stringify(validation.changed_files) ||
       !changes.every((change) => {
@@ -1221,6 +1222,13 @@ export function localChangesFromRaw(buffer) {
   }));
 }
 
+export function untrackedFileMode(stat, platform = process.platform) {
+  if (stat.isSymbolicLink()) return "120000";
+  if (!stat.isFile())
+    throw new Error("untracked discovery contains an unsupported non-regular object");
+  return platform !== "win32" && (stat.mode & 0o111) !== 0 ? "100755" : "100644";
+}
+
 export function readChangeContext(base = "origin/main") {
   const baseSha = git(["rev-parse", "--verify", `${base}^{commit}`]).trim();
   const headSha = git(["rev-parse", "HEAD"]).trim();
@@ -1240,7 +1248,7 @@ export function readChangeContext(base = "origin/main") {
       status: "?",
       path: file,
       oldMode: "000000",
-      newMode: lstatSync(path.join(projectRoot, file)).isSymbolicLink() ? "120000" : "100644",
+      newMode: untrackedFileMode(lstatSync(path.join(projectRoot, file))),
     }));
   return {
     base,

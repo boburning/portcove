@@ -1,6 +1,14 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import {
+  chmodSync,
+  lstatSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -18,6 +26,7 @@ import {
   parseNameStatus,
   requireFocusedArguments,
   storageScopeForPlan,
+  untrackedFileMode,
 } from "./local-validation.mjs";
 import { isExcludedOxfmtPath } from "./oxfmt-ownership.mjs";
 import { buildValidationPlan } from "./validation-plan.mjs";
@@ -1028,6 +1037,7 @@ test("safe complete unknown input impact selects one fresh full-debug fallback r
   for (const changes of [
     [change("new-subsystem/input.bin", { oldMode: "100644", newMode: "100644" })],
     [change("new-subsystem/new.dat", { status: "A", oldMode: "000000", newMode: "100644" })],
+    [change("new-subsystem/local.bin", { status: "?", oldMode: "000000", newMode: "100644" })],
     [change("new-subsystem/old.txt", { status: "D", oldMode: "100644", newMode: "000000" })],
     [
       change("new-subsystem/new.png", {
@@ -1041,6 +1051,10 @@ test("safe complete unknown input impact selects one fresh full-debug fallback r
       change("new-subsystem/input.bin", { oldMode: "100644", newMode: "100644" }),
       change("crates/portcove-core/src/adapter.rs", { oldMode: "100644", newMode: "100644" }),
     ],
+    [
+      change("README.md", { oldMode: "100644", newMode: "100644" }),
+      change("new-subsystem/input.bin", { oldMode: "100644", newMode: "100644" }),
+    ],
   ]) {
     const plan = buildPlan(
       classifyChanges(changes, { fileExists: allFilesExist }),
@@ -1049,8 +1063,35 @@ test("safe complete unknown input impact selects one fresh full-debug fallback r
     assert.equal(plan[0].id, "diff-check");
     assert.equal(plan.at(-1).id, "conservative-audit");
     assert.deepEqual(plan.at(-1).args, ["audit", "--fresh"]);
-    if (changes.length > 1) assert.ok(ids(plan).includes("rust-clippy:portcove-core"));
+    if (changes.some(({ path }) => path.endsWith("adapter.rs")))
+      assert.ok(ids(plan).includes("rust-clippy:portcove-core"));
     assert.equal(storageScopeForPlan(plan), "all");
+  }
+});
+
+test("untracked modes preserve executable/type facts rather than treating every non-symlink as regular", () => {
+  const file = { isSymbolicLink: () => false, isFile: () => true, mode: 0o100755 };
+  assert.equal(untrackedFileMode(file, "linux"), "100755");
+  assert.equal(untrackedFileMode(file, "win32"), "100644");
+  assert.equal(untrackedFileMode({ ...file, mode: 0o100644 }, "linux"), "100644");
+  assert.equal(untrackedFileMode({ isSymbolicLink: () => true }, "linux"), "120000");
+  assert.throws(
+    () => untrackedFileMode({ isSymbolicLink: () => false, isFile: () => false }),
+    /non-regular/,
+  );
+  const directory = mkdtempSync(path.join(tmpdir(), "portcove-untracked-mode-"));
+  try {
+    assert.throws(() => untrackedFileMode(lstatSync(directory)), /non-regular/);
+    const input = path.join(directory, "input.bin");
+    writeFileSync(input, "untracked data");
+    chmodSync(input, 0o644);
+    assert.equal(untrackedFileMode(lstatSync(input)), "100644");
+    if (process.platform !== "win32") {
+      chmodSync(input, 0o755);
+      assert.equal(untrackedFileMode(lstatSync(input)), "100755");
+    }
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
   }
 });
 
@@ -1098,6 +1139,36 @@ test("unknown impact cannot use incomplete, stale, non-regular or untrusted exec
     }),
   };
   assert.throws(() => buildPlan(selection, failed), /complete bound/);
+  const wrongCheckout = {
+    ...fallbackContext([ordinary]),
+    validationPlan: buildValidationPlan({
+      changes: [ordinary],
+      eventName: "pull_request",
+      base: "b".repeat(40),
+      mergeBase: "b".repeat(40),
+      head: "a".repeat(40),
+      checkout: "c".repeat(40),
+    }),
+  };
+  assert.throws(() => buildPlan(selection, wrongCheckout), /complete bound/);
+  const executable = [
+    change("new-subsystem/local.bin", {
+      status: "?",
+      oldMode: "000000",
+      newMode: untrackedFileMode(
+        { isSymbolicLink: () => false, isFile: () => true, mode: 0o100755 },
+        "linux",
+      ),
+    }),
+  ];
+  assert.throws(
+    () =>
+      buildPlan(
+        classifyChanges(executable, { fileExists: allFilesExist }),
+        fallbackContext(executable),
+      ),
+    /regular-file modes/,
+  );
   for (const file of [
     "new-subsystem/program.rs",
     "new-subsystem/script.py",
