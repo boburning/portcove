@@ -25,5 +25,5 @@ reputation warnings. macOS packages lack Developer ID signing and notarization
 and may be blocked by platform policy. Keep operating-system security
 protections enabled. Linux and macOS have hosted build/test evidence, but not
 equivalent hands-on desktop package qualification. The [Alpha 1
-notes](docs/releases/0.1.0-alpha.1-release-notes.md) remain available for
+notes](releases/0.1.0-alpha.1-release-notes.md) remain available for
 people upgrading from that preview.
