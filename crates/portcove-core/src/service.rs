@@ -6315,6 +6315,126 @@ mod tests {
     }
 
     #[test]
+    fn restore_recovery_preserves_foreign_paths() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = crate::test_fixture::phase("restore guard fixture: open library", || {
+            Library::open(temporary.path().join("library")).unwrap()
+        });
+        let service = service_with_release(library.clone(), "v2");
+        let store = OperationStore::new(library.clone());
+        let outside = temporary.path().join("unrelated-saves");
+        fs::create_dir(&outside).unwrap();
+        fs::write(outside.join("valuable.dat"), b"preserve").unwrap();
+        for phase in [
+            LifecyclePhase::Prepared,
+            LifecyclePhase::PayloadPublished,
+            LifecyclePhase::MetadataCommitted,
+            LifecyclePhase::CleanupPending,
+        ] {
+            for role in ["staging", "user", "previous"] {
+                let mut operation = LifecycleOperation::new(
+                    Uuid::new_v4().to_string(),
+                    LifecycleOperationKind::Restore,
+                    "zelda64-recomp",
+                );
+                operation.phase = phase;
+                let recovery = library.recovery_dir().join(&operation.id);
+                operation.paths.staging = Some(recovery.clone());
+                operation.paths.final_path = Some(library.user_dir("zelda64-recomp"));
+                operation.paths.quarantine = Some(recovery.join("previous-data"));
+                match role {
+                    "staging" => operation.paths.staging = Some(outside.clone()),
+                    "user" => operation.paths.final_path = Some(outside.clone()),
+                    "previous" => operation.paths.quarantine = Some(outside.clone()),
+                    _ => unreachable!(),
+                }
+                store.put(&mut operation).unwrap();
+
+                service.recover_lifecycle_operations_for_test().unwrap();
+
+                assert_eq!(fs::read(outside.join("valuable.dat")).unwrap(), b"preserve");
+                let retained = store.get(&operation.id).unwrap().unwrap();
+                assert_eq!(retained.phase, phase);
+                assert!(retained.last_error.unwrap().contains("paths do not match"));
+                assert!(!recovery.exists());
+                store.remove(&operation.id).unwrap();
+            }
+        }
+        for identity in ["", ".", "..", "../other", "id.", "CON", "id:stream"] {
+            let operation = LifecycleOperation::new(
+                identity,
+                LifecycleOperationKind::Restore,
+                "zelda64-recomp",
+            );
+            assert!(service.validate_restore_operation(&operation).is_err());
+            assert_eq!(fs::read(outside.join("valuable.dat")).unwrap(), b"preserve");
+        }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn restore_refuses_linked_paths_without_cleanup_or_publication() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let service = service_with_release(library.clone(), "v2");
+        let store = OperationStore::new(library.clone());
+        let outside = temporary.path().join("unrelated-saves");
+        fs::create_dir(&outside).unwrap();
+        fs::write(outside.join("valuable.dat"), b"preserve").unwrap();
+        let user = library.user_dir("zelda64-recomp");
+        std::os::unix::fs::symlink(&outside, &user).unwrap();
+
+        let error = service
+            .restore_backup("zelda64-recomp", "unused", "unauthorized")
+            .unwrap_err();
+
+        assert!(error.message.contains("symlink"));
+        assert_eq!(fs::read(outside.join("valuable.dat")).unwrap(), b"preserve");
+        assert!(store.all().unwrap().is_empty());
+        fs::remove_file(&user).unwrap();
+        for linked_staging in [false, true] {
+            let mut operation = LifecycleOperation::new(
+                Uuid::new_v4().to_string(),
+                LifecycleOperationKind::Restore,
+                "zelda64-recomp",
+            );
+            operation.phase = LifecyclePhase::MetadataCommitted;
+            let recovery = library.recovery_dir().join(&operation.id);
+            let link = if linked_staging {
+                fs::create_dir(&recovery).unwrap();
+                recovery.join("staged-data")
+            } else {
+                recovery.clone()
+            };
+            std::os::unix::fs::symlink(&outside, &link).unwrap();
+            operation.paths.staging = Some(recovery.clone());
+            operation.paths.final_path = Some(user.clone());
+            operation.paths.quarantine = Some(recovery.join("previous-data"));
+            store.put(&mut operation).unwrap();
+
+            service.recover_lifecycle_operations_for_test().unwrap();
+
+            assert_eq!(fs::read(outside.join("valuable.dat")).unwrap(), b"preserve");
+            assert!(
+                store
+                    .get(&operation.id)
+                    .unwrap()
+                    .unwrap()
+                    .last_error
+                    .unwrap()
+                    .contains("symlink")
+            );
+            assert!(
+                fs::symlink_metadata(&link)
+                    .unwrap()
+                    .file_type()
+                    .is_symlink()
+            );
+            store.remove(&operation.id).unwrap();
+            fs::remove_file(link).unwrap();
+        }
+    }
+    #[test]
     fn restore_recovery_finishes_published_replacement() {
         assert_half_published_restore(true, false, true, true);
     }

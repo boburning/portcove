@@ -475,6 +475,51 @@ impl PortcoveService {
         )
     }
 
+    pub(crate) fn validate_restore_operation(&self, operation: &LifecycleOperation) -> Result<()> {
+        self.catalog.port(&operation.port_id)?;
+        crate::portable_tree::validate_relative_path(&operation.id, false)?;
+        let mut identity = Path::new(&operation.id).components();
+        if operation.kind != LifecycleOperationKind::Restore
+            || !matches!(identity.next(), Some(std::path::Component::Normal(_)))
+            || identity.next().is_some()
+            || operation.install.is_some()
+            || operation.relocation.is_some()
+            || operation.source_import.is_some()
+            || operation.preparation.is_some()
+            || operation.preparation_process_quiesced.is_some()
+            || !operation.original_paths.is_empty()
+        {
+            return Err(PortcoveError::state(
+                "backup restore journal has an incompatible identity or family payload",
+            ));
+        }
+        let recovery = self.library.recovery_dir().join(&operation.id);
+        let user = self.library.user_dir(&operation.port_id);
+        let previous = recovery.join("previous-data");
+        if operation.paths.staging.as_ref() != Some(&recovery)
+            || operation.paths.final_path.as_ref() != Some(&user)
+            || operation.paths.quarantine.as_ref() != Some(&previous)
+        {
+            return Err(PortcoveError::conflict(
+                "backup restore paths do not match the recorded library and operation identity",
+            ));
+        }
+        for path in [&recovery, &user, &previous, &recovery.join("staged-data")] {
+            refuse_symlink_ancestors(path)?;
+            match fs::symlink_metadata(path) {
+                Ok(metadata) if !metadata.is_dir() => {
+                    return Err(PortcoveError::conflict(
+                        "backup restore path is not a directory",
+                    ));
+                }
+                Ok(_) => {}
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+                Err(error) => return Err(error.into()),
+            }
+        }
+        Ok(())
+    }
+
     pub fn restore_backup(
         &self,
         port_id: &str,
@@ -496,6 +541,9 @@ impl PortcoveService {
         lifecycle.paths.staging = Some(recovery_root.clone());
         lifecycle.paths.final_path = Some(user_root.clone());
         lifecycle.paths.quarantine = Some(previous_data.clone());
+        if let Err(error) = self.validate_restore_operation(&lifecycle) {
+            return self.finish_activity(activity, Err(error));
+        }
         store.put(&mut lifecycle)?;
         let result = (|| {
             self.catalog.port(port_id)?;
@@ -546,6 +594,7 @@ impl PortcoveService {
             lifecycle.phase = LifecyclePhase::Prepared;
             store.put(&mut lifecycle)?;
             self.faults.check(LifecycleFaultPoint::RestorePrepared)?;
+            self.validate_restore_operation(&lifecycle)?;
             if lifecycle.activate {
                 fs::rename(&user_root, &previous_data)?;
             }
@@ -558,9 +607,11 @@ impl PortcoveService {
             lifecycle.phase = LifecyclePhase::PayloadPublished;
             store.put(&mut lifecycle)?;
             self.faults.check(LifecycleFaultPoint::RestorePublished)?;
+            self.validate_restore_operation(&lifecycle)?;
             self.synchronize_restored_user_data(port_id)?;
             lifecycle.phase = LifecyclePhase::MetadataCommitted;
             store.put(&mut lifecycle)?;
+            self.validate_restore_operation(&lifecycle)?;
             if previous_data.exists() {
                 fs::remove_dir_all(&previous_data)?;
             }
@@ -574,7 +625,9 @@ impl PortcoveService {
             })
         })();
         if let Err(error) = &result {
-            if lifecycle.phase == LifecyclePhase::Preparing {
+            if lifecycle.phase == LifecyclePhase::Preparing
+                && self.validate_restore_operation(&lifecycle).is_ok()
+            {
                 let _ = fs::remove_dir_all(&recovery_root);
                 let _ = store.remove(&lifecycle.id);
             } else {
