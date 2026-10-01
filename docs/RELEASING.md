@@ -44,7 +44,12 @@ produce an updater package.
 
 The manual **Updater artifact rehearsal** workflow generates disposable keys on
 each runner and builds every required Windows, Linux, Intel Mac and Apple Silicon
-package at fixture versions 0.1.0 and 0.3.0. It checks native package versions and
+package for the selected fixture transition: `legacy-adjacent` uses 0.1.0 to
+0.2.0, `legacy-skipped` retains 0.1.0 to 0.3.0, and `preview-final` uses
+1.0.0-rc.2 to 1.0.0. Each profile builds only its two endpoints and follows the
+same installed-app selection, staging, replacement and restart path. The default
+remains `legacy-skipped`; choosing a profile is not evidence it passed.
+It checks native package versions and
 executable permissions. The Linux job defaults to Ubuntu 22.04; the dispatch-only
 `linux_runner` choice can run the same installed AppImage path on Ubuntu 24.04.
 Its retained host baseline records the actual OS, kernel, glibc, WebKitGTK and
