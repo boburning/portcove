@@ -299,10 +299,37 @@ try {
   const recreated = await invoke(browser, "recreate_boundary_owner");
   assert.equal(recreated.ok, true);
   await browser.switchTo().window("boundary-secondary");
-  // The new window must finish its initial document/IPC bridge before a
-  // WebDriver async callback can be observed. No queued reply is added here.
-  await browser.get(initialUrl);
-  const disposed = await fetchQueued(abandoned.id);
+  // Pinned Windows driver registers async completion once per label and
+  // cannot reinstall it after same-label recreation. Preserve a discriminator.
+  try {
+    report.observations.recreatedAsyncControl = await browser.executeAsyncScript((done) =>
+      done("ready"),
+    );
+  } catch (error) {
+    if (error.name !== "ScriptTimeoutError") throw error;
+    report.observations.recreatedAsyncControl = { error: error.name };
+  }
+  await browser.executeScript((id) => {
+    window.__boundaryDisposedResult = null;
+    window.__TAURI_INTERNALS__
+      .invoke("plugin:__TAURI_CHANNEL__|fetch", null, {
+        headers: { "Tauri-Channel-Id": String(id) },
+      })
+      .then(
+        (value) => {
+          window.__boundaryDisposedResult = { ok: true, value };
+        },
+        (error) => {
+          window.__boundaryDisposedResult = { ok: false, error: String(error) };
+        },
+      );
+  }, abandoned.id);
+  await browser.wait(
+    () => browser.executeScript(() => window.__boundaryDisposedResult !== null),
+    10_000,
+    "recreated owner did not settle its actual queued fetch",
+  );
+  const disposed = await browser.executeScript(() => window.__boundaryDisposedResult);
   assert.equal(disposed.ok, false);
   assert.deepEqual(disposed, consumed);
   Object.assign(report.observations.queuedReplies, { abandoned, recreated, disposed });
