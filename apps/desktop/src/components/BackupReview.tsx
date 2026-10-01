@@ -16,12 +16,14 @@ export function BackupReviewDialog({
   generation,
   apply,
   close,
+  finalFocus,
 }: {
   backup: BackupRecord;
   action: BackupAction;
   generation: number;
   apply: ApplyBackupAction;
   close: () => void;
+  finalFocus?: React.ComponentProps<typeof DialogContent>["finalFocus"];
 }) {
   const {
     preview: review,
@@ -50,6 +52,7 @@ export function BackupReviewDialog({
         showCloseButton={false}
         className="max-h-[calc(100dvh-var(--space-8))] w-[min(680px,90vw)] max-w-none gap-0 overflow-y-auto overscroll-contain p-8 [scroll-padding-block:var(--space-4)] sm:max-w-none"
         aria-describedby="backup-review-description"
+        finalFocus={finalFocus}
       >
         <DialogTitle id="backup-review-title" className="mb-2 text-xl">
           {restore ? "Review backup restore" : "Review backup deletion"}

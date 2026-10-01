@@ -170,6 +170,16 @@ export const DESKTOP_SCENARIOS = Object.freeze([
     },
   ),
   scenario(
+    "native-backup-delete-focus",
+    "Real Windows consent and successful deletion restore remaining-row and parent focus.",
+    {
+      prerequisites: ["desktop", "owned-fixture", "native-dialog"],
+      host_resources: [...nativeResources, "native-dialog"],
+      source: "desktop-backup-review-test.mjs",
+      qualification_only: true,
+    },
+  ),
+  scenario(
     "native-reviewed-backup-restore-and-delete",
     "Backup actions require reviewed consent.",
     {

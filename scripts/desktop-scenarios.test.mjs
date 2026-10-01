@@ -193,3 +193,18 @@ test("large lifecycle profiles receive a bounded profile-scale watchdog", () => 
   );
   assert.equal(desktopHarnessDeadlineMs(resolveDesktopSelection({ profile: "full" })), 600_000);
 });
+
+test("backup success-focus acceptance is isolated and exact-selection-only", () => {
+  const id = "native-backup-delete-focus";
+  for (const ids of Object.values(DESKTOP_PROFILES)) assert.ok(!ids.includes(id));
+  const selection = resolveDesktopSelection({ scenarios: [id] });
+  assert.deepEqual(selection.selected_scenarios, [id]);
+  assert.deepEqual(selection.setup_scenarios, []);
+  assert.deepEqual(selection.prerequisites, ["desktop", "owned-fixture", "native-dialog"]);
+  assert.deepEqual(selection.host_resources, [
+    "native-desktop",
+    "keyboard-pointer",
+    "native-dialog",
+  ]);
+  assert.equal(desktopHarnessDeadlineMs(selection), 180_000);
+});
