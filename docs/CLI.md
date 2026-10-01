@@ -148,7 +148,7 @@ Candidates remain unregistered until separately accepted.
 Schema 52 adds the `source.roots` capability, the `source roots` add, list,
 relink and remove commands, and the `game_file_roots` exported schema. Saved
 roots retain stable identities and unavailable paths; consumers must negotiate
-this specific capability rather than infer it from the coarse `source` entry.
+this specific capability rather than infer it from the coarse `source` entry. Adding the same canonical folder from concurrent clients is idempotent: all successful registrations return the same persisted root identity and leave unrelated saved roots unchanged.
 
 Schema 47 adds `definition_operations` to port status results for authenticated
 successor definitions. Each entry identifies install, preparation or launch,
