@@ -138,8 +138,10 @@ each selected group under the same locked package, profile and environment and
 must report runnable tests for each. A separate union inventory must equal the
 set of test identities from those groups before the union executes once. Every
 group reason and count is reported. Single-group plans retain their direct run.
-Deletions, renames, new or unknown paths
-continue to fail safely. A protected selector change qualifies under the pre-change
+Rust impact uncertainty retains broader package/workspace consumers. Inert
+unknown inputs use the conservative fallback above; unknown executable or
+configuration ownership and incomplete discovery remain blocked.
+A protected selector change qualifies under the pre-change
 policy, adversarial tests, an eligible fresh transition audit, exhaustive hosted
 checks, and separate review. For a clean committed change confined to the existing
 local planner, Rust impact map, resource preflight, maintained hosted selector and
