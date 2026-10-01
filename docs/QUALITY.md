@@ -17,6 +17,11 @@ Do not add an aggregate audit merely because a change has a pull request.
   locally and frontend plus Rust-quality hosted coverage. Changed core/Tauri,
   unknown or renamed harness inputs keep their broader routing. Actual native
   display, restart and network acceptance still run separately when affected.
+- Regular PNG, JPEG and WebP captures under `docs/media/` retain the documentation
+  catalog and Rust-quality checks. Their pictured topic or filename does not
+  select Rust tests. Runtime/catalog assets, other formats or locations, mixed
+  production changes, both rename sides and consequential file modes retain
+  their existing routes. This does not extend the prose-only allowlist.
 - Validation-routing changes use adversarial selection tests, separate review and
   the transition profile when eligible. Exhaustive exact-head hosted qualification
   owns the unchanged product suites; do not duplicate them locally.
