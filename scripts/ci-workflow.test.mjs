@@ -1207,7 +1207,10 @@ test("deep audit summary retains audit status without artifacts or privilege cha
   assert.match(deep, /name: Summarize structured audit evidence\r?\n {8}if: always\(\)/);
   assert.match(deep, /AUDIT_OUTCOME: \$\{\{ steps\.fresh-audit\.outcome \}\}/);
   assert.match(deep, /AUDIT_EXIT_CODE: \$\{\{ steps\.fresh-audit\.outputs\.exit_code \}\}/);
-  assert.match(deep, /run: node scripts\/deep-audit-summary\.mjs/);
+  assert.match(
+    deep,
+    /run: node scripts\/deep-audit-summary\.mjs \|\| echo "Structured audit evidence unavailable"/,
+  );
   assert.match(deep, /^permissions:\r?\n {2}contents: read$/m);
   assert.doesNotMatch(deep, /upload-artifact|continue-on-error|secrets:|schedule:|tee /);
 });

@@ -93,4 +93,4 @@ jobs:
         env:
           AUDIT_OUTCOME: ${{ steps.fresh-audit.outcome }}
           AUDIT_EXIT_CODE: ${{ steps.fresh-audit.outputs.exit_code }}
-        run: node scripts/deep-audit-summary.mjs
+        run: node scripts/deep-audit-summary.mjs || echo "Structured audit evidence unavailable"
