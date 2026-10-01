@@ -25,10 +25,14 @@ internal static class ContractTests
             {
                 // Only disposable session fixtures retain raw reader errors.
                 // Production PublicCli deliberately drains potentially private stderr.
-                foreach (var prefix in new[] { "held-session", "baseline-session", "long-session", "missing-terminal", "failed-session", "slow-reconciliation" })
-                    if (args.Contains(prefix + "-request"))
-                        PublishFixtureText(args[1], prefix + "-cli-error", error.ToString());
                 Console.Error.WriteLine(error);
+                try
+                {
+                    foreach (var prefix in new[] { "held-session", "baseline-session", "long-session", "missing-terminal", "failed-session", "slow-reconciliation" })
+                        if (args.Contains(prefix + "-request"))
+                            PublishFixtureText(args[1], prefix + "-cli-error", error.ToString());
+                }
+                catch (Exception) { /* Retention is best-effort; preserve the original failure. */ }
                 return 1;
             }
         }
@@ -802,6 +806,23 @@ internal static class ContractTests
                 catch (InvalidOperationException) { rejected = true; }
                 Check(rejected && File.ReadAllText(errorPath).Contains("System.IO.IOException"),
                     prefix + ": visible in-progress PID publication reproduces an actual fixture reader failure");
+                // The previous diagnostic remains present, so publication must fail
+                // without hiding this second reader's actual PID-file exception.
+                var start = new ProcessStartInfo(Binary, WindowsArguments.Join(new[] {
+                    "--library", root, "--non-interactive", "--json", "launch", "show", prefix + "-request"
+                })) { UseShellExecute = false, CreateNoWindow = true, RedirectStandardError = true, RedirectStandardOutput = true };
+                using (var reader = Process.Start(start))
+                {
+                    var stderr = reader.StandardError.ReadToEndAsync();
+                    var stdout = reader.StandardOutput.ReadToEndAsync();
+                    if (!reader.WaitForExit(10000))
+                    {
+                        reader.Kill();
+                        throw new TimeoutException("Owned fixture diagnostic reader did not exit.");
+                    }
+                    Check(reader.ExitCode == 1 && (await stderr).Contains(path) && (await stdout).Length == 0,
+                        prefix + ": existing diagnostic cannot mask the original reader error or manufacture a result");
+                }
             }
             File.Delete(path);
             File.Delete(errorPath);
