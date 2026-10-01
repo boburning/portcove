@@ -1446,6 +1446,7 @@ test("real evidence bytes round-trip through timestamped job logs without export
     await writeFile(path.join(native, "evidence.json"), '{"outcome":"failed"}');
     await writeFile(path.join(native, "library", "private.json"), "never-export");
     await writeFile(path.join(native, "webview", "profile.json"), "never-export");
+    await writeFile(path.join(native, "session-startup-0.jsonl"), '{"owned_process":"identity"}\n');
     const encoded = await encodeBackupEvidence(source);
     const log = encoded
       .split("\n")
@@ -1453,7 +1454,7 @@ test("real evidence bytes round-trip through timestamped job logs without export
       .join("\n");
     const recovered = path.join(root, "recovered");
     const names = await recoverBackupEvidence(log, recovered);
-    assert.equal(names.length, 3);
+    assert.equal(names.length, 4);
     assert.ok(!names.some((name) => /library|webview/.test(name)));
     assert.deepEqual(
       await readFile(path.join(recovered, "desktop-verify/one-run/native/success.png")),

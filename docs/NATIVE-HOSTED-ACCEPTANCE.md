@@ -31,6 +31,21 @@ Record the runner image, OS, session, input revisions, executable hashes,
 driver/application/WebView identities, scenario outcomes, screenshots, timing and
 cleanup. Inspect the recovered images themselves before a visual claim.
 
+The backup-focus route captures its driver at launch and requires an unchanged
+root identity before quitting the session. Its opt-in `SnapshotDriverTree` uses
+the existing chronological process-tree owner to retain the native driver,
+application and WebView descendants. The raw snapshot remains immutable; a
+labeled derived inventory includes the same driver root for the existing
+five-second positive-exit check. Quit errors remain failures after identity-bound
+cleanup. Ambiguous identity never falls back to a PID-only termination. Other
+scenarios and existing snapshot/stop/wait modes are unchanged.
+
+Existing issue #1360's EdgeDriver signature-before-invocation repair must be
+included in the actual qualification source before Windows bootstrap or dispatch.
+The route does not waive signature/publisher verification or execute an unverified
+driver to collect its version. A passing compile or CI result cannot discharge
+this direct trust dependency.
+
 Use standard public `windows-2022` compute only. The workflow writes no Actions
 artifacts or caches. Its dedicated bounded evidence encoder retains the real PNG,
 JSON and log bytes in ordinary job logs, which GitHub documents as outside the

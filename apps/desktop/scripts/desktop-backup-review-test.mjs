@@ -429,6 +429,19 @@ export async function backupReviewScenario({
       const beforeFiles = await Promise.all(
         [save, path.join(backup.path, "data/owned-focus-save.bin")].map(fileIdentity),
       );
+      const beforeReport = path.join(output, `${name}-before-files.json`);
+      const beforeCopies = await Promise.all(
+        beforeFiles.map(async (identity) => ({
+          ...identity,
+          base64: (await readFile(identity.path)).toString("base64"),
+        })),
+      );
+      await writeFile(
+        beforeReport,
+        JSON.stringify({ inventory: before, backup, files: beforeCopies }, null, 2),
+        { flag: "wx" },
+      );
+      artifacts.push(beforeReport);
       await browser.findElement(action).click();
       const observed = await confirmNative(
         "Confirm backup deletion",

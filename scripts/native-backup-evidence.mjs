@@ -11,7 +11,7 @@ const payloadLimit = 20 * 1024 * 1024;
 const compressedLimit = 8 * 1024 * 1024;
 const prefix = "PORTCOVE_BACKUP_EVIDENCE_V1";
 const digest = (bytes) => createHash("sha256").update(bytes).digest("hex");
-const ownedName = /^(?:[a-zA-Z0-9_.-]+\/){0,3}[a-zA-Z0-9_.-]+\.(?:png|json|log)$/u;
+const ownedName = /^(?:[a-zA-Z0-9_.-]+\/){0,3}[a-zA-Z0-9_.-]+\.(?:png|json|jsonl|log)$/u;
 
 async function filesIn(directory, extensions) {
   const result = [];
@@ -37,7 +37,7 @@ export async function encodeBackupEvidence(root) {
     const native = path.join(run, "native");
     if (await lstat(native).catch(() => null)) {
       assert.ok((await lstat(native)).isDirectory(), "Native output must be a regular directory");
-      files.push(...(await filesIn(native, new Set([".json", ".log", ".png"]))));
+      files.push(...(await filesIn(native, new Set([".json", ".jsonl", ".log", ".png"]))));
     }
   }
   assert.ok(files.length > 0 && files.length <= 128, "Missing or excessive native evidence");
