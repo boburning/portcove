@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
+import { spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 import test from "node:test";
 
 import { findStaleConsumerPins, githubOutputs, validateQualityManifest } from "./quality-tools.mjs";
@@ -218,3 +220,118 @@ test("bootstrap pins use verified official Windows download origins", () => {
   for (const artifact of Object.values(pins.bootstrap.aqua.artifacts))
     assert.match(artifact.sha256, /^[A-F0-9]{64}$/u);
 });
+
+test("EdgeDriver callers share a signature-first version boundary", async () => {
+  const source = await readFile(new URL("./bootstrap-quality-tools.ps1", import.meta.url), "utf8");
+  const helper = source.slice(
+    source.indexOf("function Test-VerifiedEdgeDriver"),
+    source.indexOf("function Install-DesktopTools"),
+  );
+  assert.ok(helper.indexOf("Get-AuthenticodeSignature") < helper.indexOf("Test-ReportedVersion"));
+  assert.match(helper, /Status -ne "Valid"/u);
+  assert.match(helper, /Subject -notmatch "Microsoft Corporation"/u);
+  assert.match(source, /Test-VerifiedEdgeDriver \$nativeDriver \$runtimeVersion/u);
+  assert.match(source, /Test-VerifiedEdgeDriver \$candidate \$runtimeVersion/u);
+  assert.doesNotMatch(source, /& \$(?:nativeDriver|candidate) --version/u);
+});
+
+test(
+  "cached and downloaded EdgeDriver rejection never reaches the executable probe",
+  { skip: process.platform !== "win32", timeout: 20_000 },
+  () => {
+    const script = fileURLToPath(new URL("./bootstrap-quality-tools.ps1", import.meta.url));
+    const command = String.raw`
+$ErrorActionPreference = 'Stop'
+$tokens = $null; $errors = $null
+$ast = [System.Management.Automation.Language.Parser]::ParseFile($env:PORTCOVE_EDGE_FIXTURE_SOURCE, [ref]$tokens, [ref]$errors)
+if ($errors.Count) { throw ($errors | Out-String) }
+foreach ($name in @('Assert-UnderRoot','Test-VerifiedEdgeDriver','Install-DesktopTools')) {
+    $definition = @($ast.FindAll({param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq $name}, $true))
+    if ($definition.Count -ne 1) { throw "Expected one production function $name" }
+    . ([scriptblock]::Create($definition[0].Extent.Text))
+}
+$runningOnWindows = $true
+$bootstrapManifest = @{desktop=@{tauri_driver='2.0.6';edge_driver_base='https://msedgedriver.microsoft.com'}}
+function Install-CachedTauriDriver { return $PSHOME + '\pwsh.exe' }
+function Get-WebViewRuntimeVersion { return '1.2.3.4' }
+function Write-CommandShim { }
+function Write-Information { }
+function Invoke-WebRequest {
+    param([switch]$UseBasicParsing, $Uri, $OutFile)
+    if ($Uri -notlike 'https://msedgedriver.microsoft.com/1.2.3.4/edgedriver_*.zip') { throw 'Origin changed' }
+    Set-Content -LiteralPath $OutFile -Value 'inert archive fixture'
+}
+function Expand-Archive {
+    param($LiteralPath, $DestinationPath)
+    New-Item -ItemType Directory -Force $DestinationPath | Out-Null
+    Set-Content -LiteralPath (Join-Path $DestinationPath 'msedgedriver.exe') -Value 'inert downloaded fixture'
+}
+function Get-AuthenticodeSignature {
+    param($LiteralPath)
+    $downloaded = $LiteralPath -like '*\.staging\*'
+    $role = if ($downloaded) {'downloaded'} else {'cached'}
+    $events.Add("signature:$role")
+    $trust = if ($downloaded) {$case.downloaded} else {$case.cached}
+    return @{Status=$trust.status;SignerCertificate=@{Subject=$trust.publisher}}
+}
+function Test-ReportedVersion {
+    param($Executable, $Arguments, $Version)
+    if ($Arguments.Count -ne 1 -or $Arguments[0] -ne '--version' -or $Version -ne '1.2.3.4') { throw 'Probe contract changed' }
+    $downloaded = $Executable -like '*\.staging\*'
+    $role = if ($downloaded) {'downloaded'} else {'cached'}
+    $events.Add("probe:$role")
+    $trust = if ($downloaded) {$case.downloaded} else {$case.cached}
+    if ($trust.status -ne 'Valid' -or $trust.publisher -notmatch 'Microsoft Corporation') { throw 'UNTRUSTED EXECUTION' }
+    return $trust.match
+}
+$valid = @{status='Valid';publisher='CN=Microsoft Corporation';match=$true}
+$invalid = @{status='HashMismatch';publisher='CN=Microsoft Corporation';match=$true}
+$unsigned = @{status='NotSigned';publisher='';match=$true}
+$wrongPublisher = @{status='Valid';publisher='CN=Other Publisher';match=$true}
+$wrongVersion = @{status='Valid';publisher='CN=Microsoft Corporation';match=$false}
+$cases = @(
+    @{name='cached accepted';cached=$valid;downloaded=$invalid;expected=@('signature:cached','probe:cached');fails=$false},
+    @{name='invalid cache';cached=$invalid;downloaded=$valid;expected=@('signature:cached','signature:downloaded','probe:downloaded');fails=$false},
+    @{name='unsigned cache';cached=$unsigned;downloaded=$valid;expected=@('signature:cached','signature:downloaded','probe:downloaded');fails=$false},
+    @{name='wrong publisher cache';cached=$wrongPublisher;downloaded=$valid;expected=@('signature:cached','signature:downloaded','probe:downloaded');fails=$false},
+    @{name='wrong version cache';cached=$wrongVersion;downloaded=$valid;expected=@('signature:cached','probe:cached','signature:downloaded','probe:downloaded');fails=$false},
+    @{name='invalid download';cached=$invalid;downloaded=$invalid;expected=@('signature:cached','signature:downloaded');fails=$true},
+    @{name='unsigned download';cached=$invalid;downloaded=$unsigned;expected=@('signature:cached','signature:downloaded');fails=$true},
+    @{name='wrong publisher download';cached=$invalid;downloaded=$wrongPublisher;expected=@('signature:cached','signature:downloaded');fails=$true},
+    @{name='wrong version download';cached=$invalid;downloaded=$wrongVersion;expected=@('signature:cached','signature:downloaded','probe:downloaded');fails=$true}
+)
+$results = @()
+foreach ($case in $cases) {
+    $sharedRoot = Join-Path ([IO.Path]::GetTempPath()) ('portcove-edge-fixture-' + [guid]::NewGuid())
+    $events = [Collections.Generic.List[string]]::new()
+    try {
+        $architecture = [Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString().ToLowerInvariant()
+        $cached = Join-Path $sharedRoot "desktop\msedgedriver\1.2.3.4\$architecture\msedgedriver.exe"
+        New-Item -ItemType Directory -Force (Split-Path -Parent $cached) | Out-Null
+        Set-Content -LiteralPath $cached -Value 'inert cached fixture'
+        $failed = $false; $message = ''
+        try { $receipt = Install-DesktopTools }
+        catch { $failed = $true; $message = $_.Exception.Message }
+        if ($message -like '*UNTRUSTED EXECUTION*') { throw $message }
+        if ($failed -ne $case.fails) { throw "Unexpected result for $($case.name): $message" }
+        if (($events -join ',') -ne ($case.expected -join ',')) { throw "Unexpected events for $($case.name): $events" }
+        if ($case.name -eq 'wrong version download' -and $message -notlike '*exactly match WebView2*') { throw 'Wrong-version rejection lost' }
+        if ($failed -and (Get-Content -LiteralPath $cached -Raw).Trim() -ne 'inert cached fixture') { throw 'Rejected candidate was promoted' }
+        if (-not $failed -and $receipt.webview2_version -ne '1.2.3.4') { throw 'Receipt changed' }
+        $results += @{name=$case.name;events=$events.ToArray();failed=$failed}
+    } finally { Remove-Item -LiteralPath $sharedRoot -Recurse -Force -ErrorAction SilentlyContinue }
+}
+$results | ConvertTo-Json -Depth 6 -Compress
+`;
+    const result = spawnSync("pwsh", ["-NoProfile", "-NonInteractive", "-Command", command], {
+      encoding: "utf8",
+      windowsHide: true,
+      timeout: 18_000,
+      env: { ...process.env, PORTCOVE_EDGE_FIXTURE_SOURCE: script },
+    });
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    const cases = JSON.parse(result.stdout);
+    assert.equal(cases.length, 9);
+    assert.equal(cases.filter((entry) => entry.failed).length, 4);
+  },
+);
