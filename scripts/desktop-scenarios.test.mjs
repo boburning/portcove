@@ -47,13 +47,14 @@ test("smoke includes isolated install cancellation and committed-refresh recover
 });
 
 test("live default-cover observation remains opt-in without fixtures or offline profiles", () => {
-  const id = "native-default-cover-display";
-  for (const ids of Object.values(DESKTOP_PROFILES)) assert.ok(!ids.includes(id));
-  const selection = resolveDesktopSelection({ scenarios: [id] });
-  assert.deepEqual(selection.selected_scenarios, [id]);
-  assert.deepEqual(selection.setup_scenarios, []);
-  assert.deepEqual(selection.prerequisites, ["desktop"]);
-  assert.ok(desktopHarnessDeadlineMs(selection) > 180_000);
+  for (const id of ["native-default-cover-display", "native-default-cover-cache-conditions"]) {
+    for (const ids of Object.values(DESKTOP_PROFILES)) assert.ok(!ids.includes(id));
+    const selection = resolveDesktopSelection({ scenarios: [id] });
+    assert.deepEqual(selection.selected_scenarios, [id]);
+    assert.deepEqual(selection.setup_scenarios, []);
+    assert.deepEqual(selection.prerequisites, ["desktop"]);
+    assert.ok(desktopHarnessDeadlineMs(selection) > 180_000);
+  }
 });
 
 test("exact selections are deduplicated and returned in catalog order", () => {

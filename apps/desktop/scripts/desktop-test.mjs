@@ -812,7 +812,7 @@ async function requestApplicationShutdown(snapshot) {
   return driverStop;
 }
 
-async function restartApplication(name, prepareWhileStopped) {
+async function restartApplication(name, prepareWhileStopped, childEnvironment = {}) {
   const snapshot = path.join(output, `${name}-processes.json`);
   const restartEvidence = path.join(output, `${name}-restart.json`);
   const observation = {
@@ -832,7 +832,7 @@ async function restartApplication(name, prepareWhileStopped) {
     await prepareWhileStopped();
     observation.fixture_prepared_while_stopped = true;
   }
-  await startDriver();
+  await startDriver(childEnvironment);
   await connect();
   observation.reconnected_at = new Date().toISOString();
   await writeFile(restartEvidence, `${JSON.stringify(observation, null, 2)}\n`, { flag: "wx" });
@@ -863,7 +863,7 @@ function observeNativeSession(mode, snapshot) {
   return JSON.parse(result.stdout);
 }
 
-async function startDriver() {
+async function startDriver(childEnvironment = {}) {
   driver = spawn(
     values.driver,
     [
@@ -880,6 +880,7 @@ async function startDriver() {
       stdio: ["ignore", "pipe", "pipe"],
       env: {
         ...process.env,
+        ...childEnvironment,
         ...(installFixture ? { PORTCOVE_QUALIFICATION_CATALOG: installFixture.catalogPath } : {}),
         ...(selection.prerequisites.includes("steam-fixture")
           ? { PORTCOVE_QUALIFICATION_STEAM_CLIENT_STATE: "closed" }
@@ -1325,15 +1326,20 @@ try {
     await captureScenarioScreenshot("native-library-browsing-context-restored");
   });
   await catalogUpdateScenario({ browser, invoke, scenario, output, artifacts });
-  await defaultCoverScenario({
-    browser,
-    invoke,
-    scenario,
-    output,
-    artifacts,
-    capture: captureScenarioScreenshot,
-    setTheme: selectSettingsTheme,
-  });
+  for (const cacheConditions of [true, false]) {
+    await defaultCoverScenario({
+      browser,
+      invoke,
+      scenario,
+      output,
+      artifacts,
+      capture: captureScenarioScreenshot,
+      setTheme: selectSettingsTheme,
+      library,
+      restart: restartApplication,
+      cacheConditions,
+    });
+  }
   await scenario("keyboard-layout", async () => {
     const verifySidebarLabels = async () => {
       const labels = await browser.executeScript(() =>

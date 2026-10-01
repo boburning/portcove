@@ -787,3 +787,18 @@ then compares its actual argument vector. Component tests cover missing inputs,
 clipboard failure and a late response from another library. Quoting follows the
 [PowerShell quoting rules](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_quoting_rules?view=powershell-7.6)
 and [POSIX-style single quoting](https://www.gnu.org/software/bash/manual/html_node/Single-Quotes.html).
+
+### Isolated cover cache observation
+
+`just desktop-verify --scenario native-default-cover-cache-conditions --require-clean`
+uses the real catalog and a fresh isolated library. It requires the artwork cache
+actually be empty before first cover navigation, verifies accepted cached image
+hashes, then restarts the same executable with only its child process proxy
+environment pointing to a local refusal fixture. The fixture never forwards
+traffic or records headers, credential values or request paths. All mapped covers
+must render from cached bytes; one removed cache entry must produce actual
+rejected backend IGDB traffic and a generated fallback without erasing its mapping.
+The exact retained cache bytes are restored while the app is stopped. This live
+CDN scenario is opt-in and excluded from ordinary offline profiles. It proves
+native development-app display and cache behavior, not installed-package updates,
+production content publication, physical devices or human comprehension.
