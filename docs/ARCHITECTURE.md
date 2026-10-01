@@ -1,5 +1,68 @@
 # Architecture
 
+## Current ownership and deliverables
+
+Portcove Core, CLI, and Desktop remain in one repository. Shared core services
+own game-management behavior. CLI and Desktop are independently usable
+interfaces and separately packaged deliverables. Repository separation is not
+needed to provide standalone CLI downloads, focused builds, or independent
+release scheduling if that is eventually justified.
+
+The dependency direction remains CLI -> core, Tauri backend -> core, and React
+-> Tauri IPC. The official desktop application calls core through its Tauri
+backend; it does not shell out to a separately installed CLI. Catalog and source
+admission, installation, game updates, persistence, per-port locking, recovery,
+and launch policy retain one shared authority. Host argument parsing, native
+dialogs, process integration, IPC translation, and presentation remain at their
+appropriate boundaries. Interfaces need compatible domain outcomes, not
+identical presentation.
+
+Core, CLI, and Desktop keep coordinated product versions for now. Coordinated
+versions do not make arbitrary separately installed CLI and Desktop versions
+compatible: library-schema, locking, migration, and machine-contract protections
+still apply. This decision does not publish internal crates, promise a stable
+internal Rust API, introduce a daemon/RPC layer, or prevent a focused crate from
+being extracted when implementation evidence supports the evolution policy.
+
+Reconsider repository extraction only for demonstrated independent ownership,
+access-control requirements, or a genuinely independent product. Download-list
+clutter, implementation language, file counts, directory aesthetics, and a wish
+for different release timing are not sufficient. Community-maintained clients
+may live elsewhere and consume the public CLI contract without becoming official
+Portcove maintenance obligations.
+
+The same rule applies to third-party clients. A launch-only integration may
+translate a stable Portcove/library identity into its frontend's executable and
+argument fields. A library integration may map supported metadata. A lifecycle
+integration may present Portcove readiness, progress, errors, cancellation, and
+recovery. None may read SQLite, duplicate catalog/admission rules, derive durable
+identity from display names or mutable paths, or retain a parallel operation
+database. `exec` deliberately transfers its standard streams and final process
+status to the game; structured management calls and durable core activity remain
+the observation path around it. See [External frontend integration](INTEGRATIONS.md).
+
+## Find the owning boundary
+
+Use this map before changing a subsystem. The linked contracts own their detailed
+rules; the sections below explain implemented boundaries and explicitly labeled
+planned work. Issue and Project links describe work ownership, not proof that an
+outcome is complete. Dated qualification and release records retain their exact
+scope; they do not certify later builds.
+
+| Change or question                                      | Owner and entry point                                                                                                                                                                                                                                                                                                       |
+| ------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Catalog, sources, installation, game updates and launch | Shared core; start with the [library model](#library-model), [install transaction](#install-transaction), [adapter boundary](#adapter-boundary) and [catalog contract](CATALOG.md).                                                                                                                                         |
+| Application self-update, replacement and recovery       | Tauri host; [updater trust](UPDATER-TRUST.md), [upgrade behavior](UPGRADING.md) and [delivery boundaries](DELIVERY.md). Application, game and catalog updates remain separate.                                                                                                                                              |
+| CLI, Desktop IPC and external clients                   | Thin adapters over core; [CLI contract](CLI.md), [external frontend boundary](#external-frontend-contract) and [integration-author route](INTEGRATION-AUTHOR.md).                                                                                                                                                           |
+| React presentation and workspace state                  | Desktop frontend; [design system](DESIGN-SYSTEM.md), [desktop library handoff](#desktop-library-handoff-state) and [backup review presentation](#backup-review-presentation). Core assessments retain operation authority.                                                                                                  |
+| Source, save, backup and library recovery               | Core; [source import interpretation](#source-import-journal-interpretation), [backup service](#backup-service-ownership), [checked backup restoration](#checked-backup-restore-interpretation) and [library model](#library-model). Machine development storage is separate: [development storage](DEVELOPMENT-STORAGE.md). |
+| Artwork, credentials and Steam destinations             | [Shared artwork ownership](#local-artwork-ownership), host credential boundaries and [Steam shortcut boundary](#steam-shortcut-compatibility-boundary); [integration contract](INTEGRATIONS.md) keeps destination and physical-device obligations distinct.                                                                 |
+| Independent definitions, authentication and publication | Core admission and selection; [signed catalog authority](#signed-catalog-authority), [signed catalog contract](SIGNED-CATALOG.md) and [definition delivery](DEFINITION-DELIVERY.md). Content inspection is not publication or activation authority.                                                                         |
+| Validation, native evidence and review                  | [Quality contract](QUALITY.md), [development tools](DEVELOPMENT-TOOLS.md) and [review/merge contract](CONTRIBUTION-CONVENTIONS.md). Browser, native, installed-package and physical-device results establish different claims.                                                                                              |
+| Proposed structural changes                             | [Evolution policy](#evolution-policy) and [planned consolidation](#planned-public-beta-consolidation); a planned interface is not an implemented capability.                                                                                                                                                                |
+
+## Subsystem contracts
+
 ## Source import journal interpretation
 
 The source-import owner decodes the released lifecycle envelope into a private
@@ -1217,45 +1280,6 @@ release records from mutation or omission and can atomically repair derived chan
 output. It holds no runtime, signing, publication or production eligibility
 authority; protected automation must authenticate the inputs and sign the distinct
 TUF roles without executing candidate tooling with production credentials.
-
-Portcove Core, CLI, and Desktop remain in one repository. Shared core services
-own game-management behavior. CLI and Desktop are independently usable
-interfaces and separately packaged deliverables. Repository separation is not
-needed to provide standalone CLI downloads, focused builds, or independent
-release scheduling if that is eventually justified.
-
-The dependency direction remains CLI -> core, Tauri backend -> core, and React
--> Tauri IPC. The official desktop application calls core through its Tauri
-backend; it does not shell out to a separately installed CLI. Catalog and source
-admission, installation, game updates, persistence, per-port locking, recovery,
-and launch policy retain one shared authority. Host argument parsing, native
-dialogs, process integration, IPC translation, and presentation remain at their
-appropriate boundaries. Interfaces need compatible domain outcomes, not
-identical presentation.
-
-Core, CLI, and Desktop keep coordinated product versions for now. Coordinated
-versions do not make arbitrary separately installed CLI and Desktop versions
-compatible: library-schema, locking, migration, and machine-contract protections
-still apply. This decision does not publish internal crates, promise a stable
-internal Rust API, introduce a daemon/RPC layer, or prevent a focused crate from
-being extracted when implementation evidence supports the evolution policy.
-
-Reconsider repository extraction only for demonstrated independent ownership,
-access-control requirements, or a genuinely independent product. Download-list
-clutter, implementation language, file counts, directory aesthetics, and a wish
-for different release timing are not sufficient. Community-maintained clients
-may live elsewhere and consume the public CLI contract without becoming official
-Portcove maintenance obligations.
-
-The same rule applies to third-party clients. A launch-only integration may
-translate a stable Portcove/library identity into its frontend's executable and
-argument fields. A library integration may map supported metadata. A lifecycle
-integration may present Portcove readiness, progress, errors, cancellation, and
-recovery. None may read SQLite, duplicate catalog/admission rules, derive durable
-identity from display names or mutable paths, or retain a parallel operation
-database. `exec` deliberately transfers its standard streams and final process
-status to the game; structured management calls and durable core activity remain
-the observation path around it. See [External frontend integration](INTEGRATIONS.md).
 
 ## Library model
 
