@@ -198,6 +198,15 @@ core-resolved source and generated-fallback provenance. Catalog and signed-envel
 formats are unchanged. Local filenames, hashes and import times record provenance;
 they establish neither copyright permission nor upstream authenticity.
 
+Artwork reads, thumbnails, imports and resets prefer current catalog presentation.
+When an imported installed port is absent from that catalog, they may use its
+active installation's digest-validated retained definition only while its exact
+admission matches the library's retained active or previous selection. Missing
+installations, invalid manifests and unadmitted snapshots cannot supply this
+fallback. This private presentation lookup does not modify catalog discovery or
+lifecycle authority. An artwork change captures that validated presentation once
+and reports its committed choice without reopening the retained manifest.
+
 Imports accept static PNG/JPEG files with at most 16 MiB encoded bytes, 8192 pixels
 per dimension, 8 megapixels and 32 MiB decoded pixel storage. Decoder allocation
 limits also apply; destination pixel allocation is checked explicitly. A separate
