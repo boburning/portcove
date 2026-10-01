@@ -26,13 +26,24 @@ async function validatePickerInput({ output, title, button, filePath, directoryP
 }
 
 export function nativeConfirmation({ application, getDriverPid, output, artifacts }) {
-  return async (title, button, expectedText, name, filePath, directoryPath) => {
+  return async (
+    title,
+    button,
+    expectedText,
+    name,
+    filePath,
+    directoryPath,
+    captureWindow = false,
+  ) => {
     assert.equal(
       process.platform,
       "win32",
       "Owned native confirmation automation currently requires Windows",
     );
     await validatePickerInput({ output, title, button, filePath, directoryPath });
+    if (captureWindow)
+      assert.match(name, /^[a-z0-9-]+$/u, "Native evidence names must be simple owned file names");
+    const screenshot = captureWindow ? path.join(output, `${name}.png`) : null;
     const result = spawnCommand(
       "pwsh",
       [
@@ -51,6 +62,7 @@ export function nativeConfirmation({ application, getDriverPid, output, artifact
         button,
         ...(filePath ? ["-FilePath", filePath] : []),
         ...(directoryPath ? ["-DirectoryPath", directoryPath] : []),
+        ...(screenshot ? ["-ScreenshotPath", screenshot] : []),
       ],
       { encoding: "utf8", windowsHide: true, timeout: 15_000 },
     );
@@ -61,6 +73,10 @@ export function nativeConfirmation({ application, getDriverPid, output, artifact
       flag: "wx",
     });
     artifacts.push(report);
+    if (screenshot) {
+      assert.ok((await stat(screenshot)).size > 0, "Actual native window screenshot is required");
+      artifacts.push(screenshot);
+    }
     return observation;
   };
 }

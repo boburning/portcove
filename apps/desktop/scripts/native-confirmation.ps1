@@ -5,7 +5,8 @@ param(
     [Parameter(Mandatory)][string]$ExpectedText,
     [Parameter(Mandatory)][string]$Button,
     [string]$FilePath,
-    [string]$DirectoryPath
+    [string]$DirectoryPath,
+    [string]$ScreenshotPath
 )
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName UIAutomationClient
@@ -128,7 +129,55 @@ if ($Button -ne '__observe__') {
     }
 }
 Assert-LiveApplication
+$screenshotObservation = $null
+if ($ScreenshotPath) {
+    $sessionId = [Diagnostics.Process]::GetCurrentProcess().SessionId
+    if (-not [Environment]::UserInteractive -or $sessionId -le 0 -or
+        $application.SessionId -ne $sessionId -or $tree.driver.SessionId -ne $sessionId -or
+        @($tree.processes | Where-Object { $_.SessionId -ne $sessionId }).Count -gt 0) {
+        throw 'Native screenshot requires the harness, driver and application in one interactive session.'
+    }
+    if (-not [IO.Path]::IsPathFullyQualified($ScreenshotPath) -or
+        [IO.File]::Exists($ScreenshotPath) -or -not [IO.Directory]::Exists([IO.Path]::GetDirectoryName($ScreenshotPath))) {
+        throw 'Native screenshot requires a fresh file in the existing owned output directory.'
+    }
+    Add-Type -AssemblyName System.Drawing
+    Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+public static class PortcoveConsentWindow {
+    [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
+}
+'@
+    $bounds = $window.Current.BoundingRectangle
+    if ($window.Current.IsOffscreen -or $bounds.Width -le 0 -or $bounds.Height -le 0 -or
+        $bounds.Width -gt 4096 -or $bounds.Height -gt 4096 -or
+        [PortcoveConsentWindow]::GetForegroundWindow().ToInt64() -ne $window.Current.NativeWindowHandle) {
+        throw 'Exact owned native consent must be visible and foreground before its screenshot.'
+    }
+    $width = [int][Math]::Ceiling($bounds.Width)
+    $height = [int][Math]::Ceiling($bounds.Height)
+    $bitmap = [Drawing.Bitmap]::new($width, $height)
+    $graphics = [Drawing.Graphics]::FromImage($bitmap)
+    try {
+        $graphics.CopyFromScreen([int]$bounds.X, [int]$bounds.Y, 0, 0, $bitmap.Size)
+        Assert-LiveApplication
+        if ([PortcoveConsentWindow]::GetForegroundWindow().ToInt64() -ne $window.Current.NativeWindowHandle) {
+            throw 'Native foreground ownership changed during capture.'
+        }
+        $stream = [IO.File]::Open($ScreenshotPath, [IO.FileMode]::CreateNew)
+        try { $bitmap.Save($stream, [Drawing.Imaging.ImageFormat]::Png) } finally { $stream.Dispose() }
+    } finally { $graphics.Dispose(); $bitmap.Dispose() }
+    $screenshotObservation = [pscustomobject]@{
+        path = $ScreenshotPath; width = $width; height = $height; session_id = $sessionId
+        window_handle = $window.Current.NativeWindowHandle; foreground = $true
+        application_created_at = $application.CreationDate; driver_created_at = $tree.driver.CreationDate
+        owned_processes = @($tree.processes | ForEach-Object {
+            [pscustomobject]@{ pid = $_.ProcessId; path = $_.ExecutablePath; created_at = $_.CreationDate; session_id = $_.SessionId }
+        })
+    }
+}
 if ($Button -ne '__observe__') {
     $buttons[0].GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
 }
-[pscustomobject]@{ application_pid = $applicationId; driver_pid = $DriverProcessId; application_path = $applicationFull; title = $Title; window_scope = $windowScope; button = $Button; text = $text; selected_file = $FilePath; selected_directory = $DirectoryPath } | ConvertTo-Json -Compress
+[pscustomobject]@{ application_pid = $applicationId; driver_pid = $DriverProcessId; application_path = $applicationFull; title = $Title; window_scope = $windowScope; button = $Button; text = $text; selected_file = $FilePath; selected_directory = $DirectoryPath; screenshot = $screenshotObservation } | ConvertTo-Json -Depth 4 -Compress
