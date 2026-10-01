@@ -39,6 +39,19 @@ function planFor(paths) {
   };
 }
 
+test("the maintained default-cover harness selects native scenario contracts without Rust execution", () => {
+  const cover = "apps/desktop/scripts/desktop-default-cover-test.mjs";
+  for (const status of ["A", "M", "D"]) {
+    const { selection, plan } = planFor([{ status, path: cover }]);
+    assert.ok(selection.nodeTests.has("scripts/desktop-scenarios.test.mjs"));
+    assert.ok(ids(plan).includes("node-tests"));
+    assert.ok(!ids(plan).some((id) => id.startsWith("rust-tests")));
+    assert.ok(!plan.map(formatCommand).join("\n").includes("desktop-test"));
+  }
+  const mixed = planFor([cover, "crates/portcove-core/src/artwork.rs"]);
+  assert.ok(ids(mixed.plan).some((id) => id.startsWith("rust-tests")));
+});
+
 test("selected local resource scope follows actual commands and mixed or unknown work is conservative", () => {
   assert.equal(storageScopeForPlan([{ id: "diff-check" }, { id: "node-tests" }]), "tooling");
   assert.equal(storageScopeForPlan([{ id: "node-syntax:tool.mjs" }]), "tooling");
