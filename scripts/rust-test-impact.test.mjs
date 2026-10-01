@@ -222,6 +222,53 @@ test("private library-import assertions select their whole module without narrow
   );
 });
 
+test("private backup assertions own their complete module without narrowing recovery or service", () => {
+  const path = "crates/portcove-core/src/service/tests/backups.rs";
+  for (const status of ["A", "M"]) {
+    const selected = selectRustTestImpact(map, "portcove-core", [{ status, path }]);
+    assert.equal(selected.mode, "focused");
+    assert.deepEqual(
+      selected.groups.map((group) => group.id),
+      ["backup-fixtures"],
+    );
+    assert.equal(selected.groups[0].filter, "test(/^service::tests::backups::/)");
+  }
+  for (const shared of [
+    "service/backups.rs",
+    "service.rs",
+    "recovery.rs",
+    "operation.rs",
+    "library.rs",
+    "database.rs",
+    "test_fixture.rs",
+    "lib.rs",
+    "service/tests/new_backup_tests.rs",
+  ]) {
+    assert.equal(
+      selectRustTestImpact(map, "portcove-core", [
+        modified(path),
+        modified(`crates/portcove-core/src/${shared}`),
+      ]).mode,
+      "broad",
+      shared,
+    );
+  }
+  for (const change of [
+    { status: "D", path },
+    { status: "R", path, previousPath: "crates/portcove-core/src/old_backup_tests.rs" },
+    { status: "R", path: "crates/portcove-core/src/moved_backup_tests.rs", previousPath: path },
+  ])
+    assert.equal(selectRustTestImpact(map, "portcove-core", [change]).mode, "broad");
+  const mixed = selectRustTestImpact(map, "portcove-core", [
+    modified(path),
+    modified("crates/portcove-core/src/source_import_tests.rs"),
+  ]);
+  assert.deepEqual(
+    mixed.groups.map((group) => group.id),
+    ["backup-fixtures", "source-import"],
+  );
+});
+
 test("artwork resolution owns all direct and transfer consumers with conservative shared fallback", () => {
   const path = "crates/portcove-core/src/artwork.rs";
   const filter =

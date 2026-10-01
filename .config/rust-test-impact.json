@@ -63,6 +63,12 @@
           "filter": "test(/^import_execution::tests::/)"
         },
         {
+          "id": "backup-fixtures",
+          "reason": "the private backup fixture module owns complete creation, inventory, restore, deletion, authorization, preservation and interruption/recovery assertions; shared implementation changes remain broad",
+          "paths": ["crates/portcove-core/src/service/tests/backups.rs"],
+          "filter": "test(/^service::tests::backups::/)"
+        },
+        {
           "id": "source-import",
           "reason": "source import review, consent, journal decoding, publication, recovery and cancellation share one family; discovery also consumes its read-only plan",
           "paths": [
