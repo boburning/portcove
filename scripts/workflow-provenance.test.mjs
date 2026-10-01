@@ -405,7 +405,7 @@ test("planning cannot change the reviewed lock before fresh execution", async (t
 });
 
 test("multiline TOML descriptions cannot masquerade as dependency tables", async (t) => {
-  for (const delimiter of ['\"\"\"', "'''"]) {
+  for (const delimiter of ['"""', "'''"]) {
     const f = cargoFixture(t);
     f.git(f.source, ["reset", "--hard", f.env.PORTCOVE_LOCAL_AUTHORITY_SHA]);
     const manifest = f.spec.manifests[0].path;
