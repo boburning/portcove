@@ -248,6 +248,13 @@ export function domainsForPath(input) {
   const file = normalizeRepositoryPath(input);
   const domains = new Set();
   let recognized = false;
+  // Hosted policy classification is deliberately broader than command inputs.
+  // The release handbook is read by documentation/release contracts, not by
+  // product compilation or UI tests. Fresh audits still execute every stage.
+  if (file === "docs/RELEASING.md") {
+    add(domains, "format", "release", "repository");
+    return { domains, ambiguous: false };
+  }
   const validationOwnership = validationOwnershipForPath(file);
   if (validationOwnership.areas.includes("policy")) {
     add(domains, ...allReusableDomains);
