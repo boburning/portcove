@@ -369,6 +369,12 @@ test("documentation-media routing preserves consequential inputs and both rename
   ]);
   assert.ok(rename.groups.includes("frontend"));
   assert.ok(rename.groups.includes("rust"));
+  const schema = plan([change("docs/media/schema.png")]);
+  assert.equal(schema.mode, "qualification");
+  assert.ok(schema.groups.includes("rust"));
+  const windows = plan([change("docs/media/windows/catalog.png")]);
+  assert.ok(windows.groups.includes("rust"));
+  assert.ok(windows.platforms.includes("windows-x86_64"));
   for (const changes of [
     [change("docs/media/catalog.png", { newMode: "100755" })],
     [change("docs/media/catalog.png", { newMode: "120000" })],
