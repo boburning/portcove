@@ -2315,6 +2315,10 @@ where
 {
     move |invoke| {
         let label = invoke.message.webview_ref().label().to_owned();
+        #[cfg(feature = "native-compatibility-qualification")]
+        if label == "main" && webview_boundary_qualification::handles(invoke.message.command()) {
+            return webview_boundary_qualification::dispatch(invoke);
+        }
         match dispatch_main_window(&label, invoke, &handler) {
             Ok(handled) => handled,
             Err(invoke) => {
@@ -2516,7 +2520,7 @@ pub fn run() {
         ]))
         .setup(|app| {
             #[cfg(feature = "native-compatibility-qualification")]
-            webview_boundary_qualification::create_windows(app.handle())?;
+            webview_boundary_qualification::validate_fixture()?;
             #[cfg(any(windows, target_os = "linux", target_os = "macos"))]
             report_application_update_qualification_stage("Tauri setup");
             if let Some(window) = app.get_webview_window("main") {
