@@ -260,6 +260,36 @@ export function existingAquaDefinition(definition, aquaRoot, platform = process.
   }
 }
 
+export function existingNpmDefinition(id, base, name, bin) {
+  try {
+    const desired = JSON.parse(readFileSync(path.join(base, "package.json"), "utf8"))
+      .devDependencies?.[name];
+    const packageRoot = path.join(base, "node_modules", name);
+    const installed = JSON.parse(readFileSync(path.join(packageRoot, "package.json"), "utf8"));
+    if (installed.name !== name || !/^\d+\.\d+\.\d+$/u.test(desired ?? "")) return null;
+    const executable = path.resolve(
+      packageRoot,
+      typeof installed.bin === "string" ? installed.bin : installed.bin[bin],
+    );
+    const relative = path.relative(realpathSync(packageRoot), realpathSync(executable));
+    if (
+      !relative ||
+      relative.startsWith("..") ||
+      path.isAbsolute(relative) ||
+      !lstatSync(executable).isFile()
+    )
+      return null;
+    return {
+      id,
+      command: [process.execPath, executable, "--version"],
+      version: desired,
+      installed_version: installed.version,
+    };
+  } catch {
+    return null;
+  }
+}
+
 export async function collectSelectedPrerequisites(plan, options = {}) {
   const platform = options.platform ?? process.platform;
   const run = options.run ?? doctorCommand;
@@ -311,21 +341,7 @@ export async function collectSelectedPrerequisites(plan, options = {}) {
     "npm-stylelint": [path.join(root, "apps/desktop"), "stylelint", "stylelint"],
   };
   for (const [id, [base, name, bin]] of Object.entries(npm)) {
-    try {
-      const packageRoot = path.join(base, "node_modules", name);
-      const data = JSON.parse(readFileSync(path.join(packageRoot, "package.json"), "utf8"));
-      const executable = path.resolve(
-        packageRoot,
-        typeof data.bin === "string" ? data.bin : data.bin[bin],
-      );
-      definitions[id] = {
-        id,
-        command: [process.execPath, executable, "--version"],
-        version: data.version,
-      };
-    } catch {
-      definitions[id] = null;
-    }
+    definitions[id] = existingNpmDefinition(id, base, name, bin);
   }
   const ids = new Set(plan.flatMap((entry) => selectedPrerequisites(entry, platform)));
   const results = [];

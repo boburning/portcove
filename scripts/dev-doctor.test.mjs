@@ -9,6 +9,7 @@ import {
   collectSelectedPrerequisites,
   existingPnpmDefinition,
   existingAquaDefinition,
+  existingNpmDefinition,
 } from "./dev-doctor.mjs";
 
 test("selected frontend prerequisites do not invoke Rust, native provisioning or bootstrap", async () => {
@@ -191,6 +192,32 @@ const definition = {
   command: ["example", "--version"],
   version: "1.2.3",
 };
+
+test("stale npm fixture tools cannot approve their own installed version", (t) => {
+  const directory = mkdtempSync(path.join(os.tmpdir(), "portcove-npm-prerequisite-"));
+  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  writeFileSync(
+    path.join(directory, "package.json"),
+    JSON.stringify({ devDependencies: { oxfmt: "0.70.0" } }),
+  );
+  const packageRoot = path.join(directory, "node_modules/oxfmt");
+  mkdirSync(packageRoot, { recursive: true });
+  writeFileSync(path.join(packageRoot, "cli.mjs"), "console.log('0.69.0');");
+  const marker = path.join(packageRoot, "package.json");
+  writeFileSync(
+    marker,
+    JSON.stringify({ name: "oxfmt", version: "0.69.0", bin: { oxfmt: "cli.mjs" } }),
+  );
+  const definition = existingNpmDefinition("npm-oxfmt", directory, "oxfmt", "oxfmt");
+  assert.equal(definition.version, "0.70.0");
+  assert.equal(definition.installed_version, "0.69.0");
+  assert.equal(probeTool(definition, () => ({ status: 0, stdout: "0.69.0" })).status, "mismatch");
+  writeFileSync(
+    marker,
+    JSON.stringify({ name: "wrong-package", version: "0.70.0", bin: { oxfmt: "cli.mjs" } }),
+  );
+  assert.equal(existingNpmDefinition("npm-oxfmt", directory, "oxfmt", "oxfmt"), null);
+});
 test("doctor distinguishes exact, mismatched, failed and absent tools without raw output", () => {
   const run = (stdout) => () => ({ status: 0, stdout });
   assert.equal(probeTool(definition, run("example 1.2.3")).status, "ok");
