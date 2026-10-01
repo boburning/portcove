@@ -1202,10 +1202,11 @@ test("deep audit summary retains audit status without artifacts or privilege cha
   assert.match(deep, /id: fresh-audit/);
   assert.match(deep, /just audit --fresh\r?\n {10}audit_status=\$\?/);
   assert.match(deep, /exit "\$audit_status"/);
+  assert.match(deep, /node scripts\/deep-audit-summary\.mjs --start/);
+  assert.match(deep, /node scripts\/deep-audit-summary\.mjs --finish "\$audit_status"/);
   assert.match(deep, /name: Summarize structured audit evidence\r?\n {8}if: always\(\)/);
   assert.match(deep, /AUDIT_OUTCOME: \$\{\{ steps\.fresh-audit\.outcome \}\}/);
   assert.match(deep, /AUDIT_EXIT_CODE: \$\{\{ steps\.fresh-audit\.outputs\.exit_code \}\}/);
-  assert.match(deep, /AUDIT_STARTED: \$\{\{ steps\.fresh-audit\.outputs\.started \}\}/);
   assert.match(deep, /run: node scripts\/deep-audit-summary\.mjs/);
   assert.match(deep, /^permissions:\r?\n {2}contents: read$/m);
   assert.doesNotMatch(deep, /upload-artifact|continue-on-error|secrets:|schedule:|tee /);
@@ -1242,7 +1243,7 @@ function fixture() {
   };
 }
 test("complete fresh success publishes bounded identities and stage results only", () => {
-  const text = renderDeepAuditSummary(receiptEnvelope(fixture()), identity);
+  const text = renderDeepAuditSummary(receiptEnvelope(fixture()), identity, binding(fixture()));
   assert.match(text, /Complete fresh audit receipt: passed/);
   assert.match(text, /Run: 12; attempt: 2/);
   assert.match(text, /\| rust \| passed \| 123 \| 0 \|/);
@@ -1253,11 +1254,15 @@ test("failed full audit retains actual stage failure and exit status", () => {
   const payload = fixture();
   payload.success = false;
   Object.assign(payload.stages[1], { status: "failed", exitCode: 2 });
-  const text = renderDeepAuditSummary(receiptEnvelope(payload), {
-    ...identity,
-    outcome: "failure",
-    exitCode: "1",
-  });
+  const text = renderDeepAuditSummary(
+    receiptEnvelope(payload),
+    {
+      ...identity,
+      outcome: "failure",
+      exitCode: "1",
+    },
+    { ...binding(payload), exitCode: "1" },
+  );
   assert.match(text, /receipt: failed/);
   assert.match(text, /\| rust \| failed \| 123 \| 2 \|/);
   assert.match(text, /Recorded audit exit status: 1/);
@@ -1327,7 +1332,7 @@ for (const [name, mutate] of [
   test(`${name} never establishes coverage or success`, () => {
     const payload = fixture();
     mutate(payload);
-    const text = renderDeepAuditSummary(receiptEnvelope(payload), identity);
+    const text = renderDeepAuditSummary(receiptEnvelope(payload), identity, binding(payload));
     assert.match(text, /unavailable or invalid/);
     assert.doesNotMatch(text, /receipt: passed|\| rust/);
   });
@@ -1359,4 +1364,35 @@ test("invalid identity cannot inject public output", () => {
     assert.match(text, /Identity unavailable or invalid/);
     assert.doesNotMatch(text, /secret|script>/);
   }
+});
+
+function binding(payload) {
+  return {
+    ...identity,
+    startedMs: 1700000000000,
+    completedMs: 1700000002000,
+    receiptIntegrity: receiptEnvelope(payload).integrity,
+  };
+}
+
+test("deep audit rejects another attempt, missing completion and future receipt", () => {
+  const payload = fixture();
+  for (const patch of [
+    { attempt: "1" },
+    { run: "11" },
+    { workflowSha: "c".repeat(40) },
+    { workflowDigest: "c".repeat(64) },
+    { completedMs: undefined },
+    { receiptIntegrity: "bad" },
+  ]) {
+    assert.match(
+      renderDeepAuditSummary(receiptEnvelope(payload), identity, { ...binding(payload), ...patch }),
+      /unavailable or invalid/,
+    );
+  }
+  payload.completedAt = "2023-11-14T22:13:23Z";
+  assert.match(
+    renderDeepAuditSummary(receiptEnvelope(payload), identity, binding(payload)),
+    /unavailable or invalid/,
+  );
 });

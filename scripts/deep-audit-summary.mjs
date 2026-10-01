@@ -1,4 +1,4 @@
-import { readFileSync, appendFileSync } from "node:fs";
+import { readFileSync, appendFileSync, writeFileSync, rmSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { AUDIT_STAGES, receiptEnvelope } from "./audit.mjs";
@@ -11,7 +11,7 @@ const stages = AUDIT_STAGES.filter(
 );
 
 // Only fixed labels, validated identities and numeric/enum fields reach public output.
-export function renderDeepAuditSummary(receipt, identity) {
+export function renderDeepAuditSummary(receipt, identity, binding) {
   if (
     !sha.test(identity.source) ||
     !sha.test(identity.workflowSha) ||
@@ -47,10 +47,20 @@ export function renderDeepAuditSummary(receipt, identity) {
     payload.profile === "complete" &&
     payload.head === identity.source &&
     typeof payload.success === "boolean" &&
-    number.test(identity.started) &&
-    Number(identity.started) > 0 &&
+    binding &&
+    ["source", "workflowSha", "workflowRef", "workflowDigest", "run", "attempt"].every(
+      (key) => binding[key] === identity[key],
+    ) &&
+    binding.exitCode === identity.exitCode &&
+    binding.receiptIntegrity === receipt.integrity &&
+    Number.isSafeInteger(binding.startedMs) &&
+    Number.isSafeInteger(binding.completedMs) &&
+    binding.startedMs > 0 &&
+    binding.completedMs >= binding.startedMs &&
+    binding.completedMs <= Date.now() &&
     Number.isFinite(Date.parse(payload.completedAt)) &&
-    Date.parse(payload.completedAt) >= Number(identity.started) * 1000 &&
+    Date.parse(payload.completedAt) >= binding.startedMs &&
+    Date.parse(payload.completedAt) <= binding.completedMs &&
     Array.isArray(payload.stages) &&
     payload.stages.length === stages.length &&
     stages.every((expected, index) => {
@@ -97,17 +107,16 @@ export function renderDeepAuditSummary(receipt, identity) {
   return `${lines.join("\n")}\n`;
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  let receipt;
+function readJson(file) {
   try {
-    const text = readFileSync(
-      `work/validation-receipts/audits/${process.env.GITHUB_SHA}.json`,
-      "utf8",
-    );
-    if (Buffer.byteLength(text) <= 1024 * 1024) receipt = JSON.parse(text);
+    const text = readFileSync(file, "utf8");
+    return Buffer.byteLength(text) <= 1024 * 1024 ? JSON.parse(text) : undefined;
   } catch {
-    /* Missing or interrupted audit is explicitly incomplete. */
+    return undefined;
   }
+}
+
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const identity = {
     source: process.env.GITHUB_SHA,
     workflowSha: process.env.GITHUB_WORKFLOW_SHA,
@@ -116,10 +125,33 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     attempt: process.env.GITHUB_RUN_ATTEMPT,
     outcome: process.env.AUDIT_OUTCOME,
     exitCode: process.env.AUDIT_EXIT_CODE,
-    started: process.env.AUDIT_STARTED,
     workflowDigest: createHash("sha256")
       .update(readFileSync(".github/workflows/deep-quality.yml"))
       .digest("hex"),
   };
-  appendFileSync(process.env.GITHUB_STEP_SUMMARY, renderDeepAuditSummary(receipt, identity));
+  if (!sha.test(identity.source) || !number.test(identity.run) || !number.test(identity.attempt))
+    throw new Error("Invalid audit invocation identity");
+  const receiptFile = `work/validation-receipts/audits/${identity.source}.json`;
+  const bindingFile = `${process.env.RUNNER_TEMP}/deep-audit-${identity.run}-${identity.attempt}.json`;
+  if (process.argv[2] === "--start") {
+    rmSync(receiptFile, { force: true });
+    writeFileSync(bindingFile, JSON.stringify({ ...identity, startedMs: Date.now() }));
+  } else if (process.argv[2] === "--finish") {
+    const marker = readJson(bindingFile);
+    const receipt = readJson(receiptFile);
+    writeFileSync(
+      bindingFile,
+      JSON.stringify({
+        ...marker,
+        completedMs: Date.now(),
+        exitCode: process.argv[3],
+        receiptIntegrity: receipt?.integrity,
+      }),
+    );
+  } else {
+    appendFileSync(
+      process.env.GITHUB_STEP_SUMMARY,
+      renderDeepAuditSummary(readJson(receiptFile), identity, readJson(bindingFile)),
+    );
+  }
 }

@@ -81,16 +81,16 @@ jobs:
         id: fresh-audit
         shell: bash
         run: |
-          echo "started=$(date +%s)" >> "$GITHUB_OUTPUT"
+          node scripts/deep-audit-summary.mjs --start || echo "Audit summary initialization unavailable"
           set +e
           just audit --fresh
           audit_status=$?
           echo "exit_code=$audit_status" >> "$GITHUB_OUTPUT"
+          node scripts/deep-audit-summary.mjs --finish "$audit_status"
           exit "$audit_status"
       - name: Summarize structured audit evidence
         if: always()
         env:
           AUDIT_OUTCOME: ${{ steps.fresh-audit.outcome }}
           AUDIT_EXIT_CODE: ${{ steps.fresh-audit.outputs.exit_code }}
-          AUDIT_STARTED: ${{ steps.fresh-audit.outputs.started }}
         run: node scripts/deep-audit-summary.mjs
