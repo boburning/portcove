@@ -199,6 +199,76 @@ fn restore_recovery_preserves_foreign_paths_after_metadata_commit() {
 fn restore_recovery_preserves_foreign_paths_during_cleanup() {
     assert_restore_recovery_preserves_foreign_paths(LifecyclePhase::CleanupPending);
 }
+
+#[test]
+fn restore_recovery_preserves_persisted_incompatible_family_payloads() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("library")).unwrap();
+    let service = service_with_release(library.clone(), "v2");
+    let store = OperationStore::new(library.clone());
+    let user = library.user_dir("zelda64-recomp");
+    fs::create_dir_all(&user).unwrap();
+    fs::write(user.join("save.dat"), b"current saves").unwrap();
+    let original = temporary.path().join("original-source.dat");
+    fs::write(&original, b"preserved original").unwrap();
+
+    for (name, quiesced, original_paths) in [
+        ("original-paths", None, vec![original.clone()]),
+        ("preparation-running", Some(false), Vec::new()),
+        ("preparation-quiesced", Some(true), Vec::new()),
+    ] {
+        let mut intent = LifecycleOperation::new(
+            format!("restore-{name}"),
+            LifecycleOperationKind::Restore,
+            "zelda64-recomp",
+        );
+        intent.phase = LifecyclePhase::MetadataCommitted;
+        intent.last_error = Some("retained failure evidence".into());
+        let recovery = library.recovery_dir().join(&intent.id);
+        let previous = recovery.join("previous-data");
+        fs::create_dir_all(&previous).unwrap();
+        fs::write(previous.join("save.dat"), b"previous saves").unwrap();
+        intent.paths.staging = Some(recovery.clone());
+        intent.paths.final_path = Some(user.clone());
+        intent.paths.quarantine = Some(previous.clone());
+        intent.preparation_process_quiesced = quiesced;
+        intent.original_paths = original_paths;
+        store.put(&mut intent).unwrap();
+
+        // Exercise the persisted compatibility envelope, not only an in-memory guard.
+        let mut decoded = store.get(&intent.id).unwrap().unwrap();
+        let error = crate::recovery::recover_restore(&service, &store, &mut decoded).unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::State, "{name}");
+        assert!(
+            error
+                .message
+                .contains("incompatible identity or family payload")
+        );
+        let retained = store.get(&intent.id).unwrap().unwrap();
+        assert_eq!(retained.phase, LifecyclePhase::MetadataCommitted);
+        assert_eq!(retained.last_error, intent.last_error);
+        assert_eq!(retained.preparation_process_quiesced, quiesced);
+        assert_eq!(retained.original_paths, intent.original_paths);
+        assert_eq!(retained.updated_at, intent.updated_at);
+        assert_eq!(
+            fs::read(previous.join("save.dat")).unwrap(),
+            b"previous saves"
+        );
+        assert_eq!(fs::read(user.join("save.dat")).unwrap(), b"current saves");
+        assert_eq!(fs::read(&original).unwrap(), b"preserved original");
+
+        // The identical paths and phase are recoverable with ordinary legacy defaults.
+        decoded.preparation_process_quiesced = None;
+        decoded.original_paths.clear();
+        store.put(&mut decoded).unwrap();
+        let mut valid = store.get(&intent.id).unwrap().unwrap();
+        crate::recovery::recover_restore(&service, &store, &mut valid).unwrap();
+        assert!(store.get(&intent.id).unwrap().is_none());
+        assert!(!recovery.exists());
+        assert_eq!(fs::read(user.join("save.dat")).unwrap(), b"current saves");
+        assert_eq!(fs::read(&original).unwrap(), b"preserved original");
+    }
+}
 #[cfg(unix)]
 #[test]
 fn restore_preparing_failure_preserves_a_replaced_recovery_root() {
