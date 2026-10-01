@@ -277,27 +277,29 @@ pub(crate) fn recover_backup_deletion(
     store: &OperationStore,
     operation: &mut LifecycleOperation,
 ) -> Result<()> {
-    let (original, quarantine, backup_id) =
-        service.validate_backup_deletion_operation(operation)?;
-    if operation.phase == LifecyclePhase::Preparing {
+    let mut deletion = service.validate_backup_deletion_operation(operation)?;
+    if deletion.phase == crate::service::BackupDeletionPhase::Unconfirmed {
         return Err(PortcoveError::state(
             "backup deletion preparation was interrupted before authorization",
         ));
     }
-    if operation.phase == LifecyclePhase::Prepared {
-        match (path_exists(&original)?, path_exists(&quarantine)?) {
+    if deletion.phase == crate::service::BackupDeletionPhase::Authorized {
+        match (
+            path_exists(&deletion.original)?,
+            path_exists(&deletion.quarantine)?,
+        ) {
             (true, false) => {
                 service.validate_backup_directory_identity(
-                    &original,
+                    &deletion.original,
                     &operation.port_id,
-                    &backup_id,
+                    &deletion.backup_id,
                 )?;
-                crate::durability::rename_noreplace(&original, &quarantine)?;
+                crate::durability::rename_noreplace(&deletion.original, &deletion.quarantine)?;
             }
             (false, true) => service.validate_backup_directory_identity(
-                &quarantine,
+                &deletion.quarantine,
                 &operation.port_id,
-                &backup_id,
+                &deletion.backup_id,
             )?,
             (true, true) => {
                 return Err(PortcoveError::conflict(
@@ -310,34 +312,39 @@ pub(crate) fn recover_backup_deletion(
                 ));
             }
         }
-        operation.phase = LifecyclePhase::PayloadPublished;
-        operation.last_error = None;
-        store.put(operation)?;
+        deletion.advance(
+            crate::service::BackupDeletionPhase::Quarantined,
+            operation,
+            store,
+        )?;
     }
-    if operation.phase == LifecyclePhase::PayloadPublished {
-        if path_exists(&original)? {
+    if deletion.phase == crate::service::BackupDeletionPhase::Quarantined {
+        if path_exists(&deletion.original)? {
             return Err(PortcoveError::conflict(
                 "a visible backup reappeared during deletion recovery; refusing automatic deletion",
             ));
         }
-        if path_exists(&quarantine)? {
-            fs::remove_dir_all(&quarantine)?;
+        if path_exists(&deletion.quarantine)? {
+            fs::remove_dir_all(&deletion.quarantine)?;
         }
-        operation.phase = LifecyclePhase::MetadataCommitted;
-        operation.last_error = None;
-        store.put(operation)?;
+        deletion.advance(
+            crate::service::BackupDeletionPhase::Deleted,
+            operation,
+            store,
+        )?;
     }
     if matches!(
-        operation.phase,
-        LifecyclePhase::MetadataCommitted | LifecyclePhase::CleanupPending
+        deletion.phase,
+        crate::service::BackupDeletionPhase::Deleted
+            | crate::service::BackupDeletionPhase::CleanupPending
     ) {
-        if path_exists(&original)? {
+        if path_exists(&deletion.original)? {
             return Err(PortcoveError::conflict(
                 "a visible backup exists after deletion was committed; refusing to reinterpret it",
             ));
         }
-        if path_exists(&quarantine)? {
-            fs::remove_dir_all(&quarantine)?;
+        if path_exists(&deletion.quarantine)? {
+            fs::remove_dir_all(&deletion.quarantine)?;
         }
         store.remove(&operation.id)?;
     }

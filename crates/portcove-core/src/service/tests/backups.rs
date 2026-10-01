@@ -1616,3 +1616,193 @@ fn restore_family_refuses_skipped_or_stale_transitions_before_journal_write() {
     assert!(committed.last_error.is_none());
     assert!(!recovery.exists());
 }
+
+fn assert_backup_deletion_family_rejects_payload(variant: u8) {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("library")).unwrap();
+    let user_root = library.user_dir("zelda64-recomp");
+    fs::create_dir_all(&user_root).unwrap();
+    fs::write(user_root.join("save.dat"), b"live").unwrap();
+    let service = service_with_fault(library.clone(), LifecycleFaultPoint::DeleteBackupPrepared);
+    let backup = service.create_backup("zelda64-recomp").unwrap();
+    delete_backup_authorized(&service, "zelda64-recomp", &backup.id).unwrap_err();
+    let store = OperationStore::new(library.clone());
+    let mut operation = store.all().unwrap().remove(0);
+    let quarantine = operation.paths.quarantine.clone().unwrap();
+    let manifest = fs::read(backup.path.join("backup.json")).unwrap();
+    match variant {
+        0 => operation.preparation_process_quiesced = Some(false),
+        1 => operation.preparation_process_quiesced = Some(true),
+        2 => operation.activate = true,
+        3 => operation.paths.staging = Some(temporary.path().join("unrelated")),
+        _ => operation.original_paths.push(user_root.clone()),
+    }
+    store.put(&mut operation).unwrap();
+    let persisted = store.get(&operation.id).unwrap().unwrap();
+    let before = format!("{persisted:?}");
+    let mut rejected = persisted.clone();
+    crate::recovery::recover_backup_deletion(&service, &store, &mut rejected)
+        .expect_err("incompatible deletion payload must not authorize recovery");
+    assert_eq!(
+        format!("{:?}", store.get(&operation.id).unwrap().unwrap()),
+        before
+    );
+    assert_eq!(fs::read(backup.path.join("backup.json")).unwrap(), manifest);
+    assert_eq!(fs::read(user_root.join("save.dat")).unwrap(), b"live");
+    assert!(!quarantine.exists());
+    let mut valid = persisted;
+    valid.preparation_process_quiesced = None;
+    valid.activate = false;
+    valid.paths.staging = None;
+    valid.original_paths.clear();
+    store.put(&mut valid).unwrap();
+    crate::recovery::recover_backup_deletion(&service, &store, &mut valid).unwrap();
+    assert!(!backup.path.exists());
+    assert!(!quarantine.exists());
+    assert!(store.get(&valid.id).unwrap().is_none());
+    assert_eq!(fs::read(user_root.join("save.dat")).unwrap(), b"live");
+}
+
+#[test]
+fn backup_deletion_family_rejects_unproven_quiescence() {
+    assert_backup_deletion_family_rejects_payload(0);
+}
+
+#[test]
+fn backup_deletion_family_rejects_proven_quiescence() {
+    assert_backup_deletion_family_rejects_payload(1);
+}
+
+#[test]
+fn backup_deletion_family_rejects_activation_flag() {
+    assert_backup_deletion_family_rejects_payload(2);
+}
+
+#[test]
+fn backup_deletion_family_rejects_staging_path() {
+    assert_backup_deletion_family_rejects_payload(3);
+}
+
+#[test]
+fn backup_deletion_family_rejects_original_paths() {
+    assert_backup_deletion_family_rejects_payload(4);
+}
+
+#[test]
+fn backup_deletion_family_decodes_legacy_phases_and_checks_transitions() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("library")).unwrap();
+    let service = service_with_release(library.clone(), "v2");
+    let store = OperationStore::new(library.clone());
+    let mut operation = LifecycleOperation::new(
+        "legacy-deletion",
+        LifecycleOperationKind::DeleteBackup,
+        "zelda64-recomp",
+    );
+    let original = library
+        .backups_dir()
+        .join(&operation.port_id)
+        .join(Uuid::new_v4().to_string());
+    let quarantine = original
+        .parent()
+        .unwrap()
+        .join(format!(".deleting-{}", operation.id));
+    operation.paths.final_path = Some(original.clone());
+    operation.paths.quarantine = Some(quarantine.clone());
+    operation.last_error = Some("retained fault".into());
+    for (stored, typed) in [
+        (LifecyclePhase::Preparing, BackupDeletionPhase::Unconfirmed),
+        (LifecyclePhase::Prepared, BackupDeletionPhase::Authorized),
+        (
+            LifecyclePhase::PayloadPublished,
+            BackupDeletionPhase::Quarantined,
+        ),
+        (
+            LifecyclePhase::MetadataCommitted,
+            BackupDeletionPhase::Deleted,
+        ),
+        (
+            LifecyclePhase::CleanupPending,
+            BackupDeletionPhase::CleanupPending,
+        ),
+    ] {
+        operation.phase = stored;
+        store.put(&mut operation).unwrap();
+        let persisted = store.get(&operation.id).unwrap().unwrap();
+        let deletion = service
+            .validate_backup_deletion_operation(&persisted)
+            .unwrap();
+        assert_eq!(deletion.phase, typed);
+        assert_eq!(deletion.original, original);
+        assert_eq!(deletion.quarantine, quarantine);
+        assert_eq!(
+            format!("{:?}", store.get(&operation.id).unwrap().unwrap()),
+            format!("{persisted:?}")
+        );
+        assert!(!original.exists());
+        assert!(!quarantine.exists());
+    }
+    operation.phase = LifecyclePhase::Preparing;
+    store.put(&mut operation).unwrap();
+    let before = format!("{:?}", store.get(&operation.id).unwrap().unwrap());
+    assert!(crate::recovery::recover_backup_deletion(&service, &store, &mut operation).is_err());
+    assert_eq!(
+        format!("{:?}", store.get(&operation.id).unwrap().unwrap()),
+        before
+    );
+    operation.phase = LifecyclePhase::Prepared;
+    store.put(&mut operation).unwrap();
+    let mut deletion = service
+        .validate_backup_deletion_operation(&operation)
+        .unwrap();
+    let before = format!("{:?}", store.get(&operation.id).unwrap().unwrap());
+    assert!(
+        deletion
+            .advance(BackupDeletionPhase::Deleted, &mut operation, &store)
+            .is_err()
+    );
+    operation.paths.quarantine = Some(temporary.path().join("unrelated"));
+    assert!(
+        deletion
+            .advance(BackupDeletionPhase::Quarantined, &mut operation, &store)
+            .is_err()
+    );
+    operation.paths.quarantine = Some(quarantine.clone());
+    operation.activate = true;
+    assert!(
+        deletion
+            .advance(BackupDeletionPhase::Quarantined, &mut operation, &store)
+            .is_err()
+    );
+    assert_eq!(
+        format!("{:?}", store.get(&operation.id).unwrap().unwrap()),
+        before
+    );
+    operation.activate = false;
+    deletion
+        .advance(BackupDeletionPhase::Quarantined, &mut operation, &store)
+        .unwrap();
+    deletion
+        .advance(BackupDeletionPhase::Deleted, &mut operation, &store)
+        .unwrap();
+    assert_eq!(
+        store.get(&operation.id).unwrap().unwrap().phase,
+        LifecyclePhase::MetadataCommitted
+    );
+    assert!(
+        store
+            .get(&operation.id)
+            .unwrap()
+            .unwrap()
+            .last_error
+            .is_none()
+    );
+    // Released cleanup-pending records may contain only a partially removed quarantine.
+    fs::create_dir_all(&quarantine).unwrap();
+    fs::write(quarantine.join("partial-data"), b"remaining").unwrap();
+    operation.phase = LifecyclePhase::CleanupPending;
+    store.put(&mut operation).unwrap();
+    crate::recovery::recover_backup_deletion(&service, &store, &mut operation).unwrap();
+    assert!(!quarantine.exists());
+    assert!(store.get(&operation.id).unwrap().is_none());
+}

@@ -37,7 +37,7 @@ use crate::{
 };
 
 mod backups;
-pub(crate) use backups::RestorePhase;
+pub(crate) use backups::{BackupDeletionPhase, RestorePhase};
 
 const LAUNCH_MARKER: &str = ".portcove-launched";
 const BULK_PROVIDER_CONCURRENCY: usize = 4;
@@ -4468,12 +4468,8 @@ impl PortcoveService {
     pub(crate) fn validate_backup_deletion_operation(
         &self,
         operation: &LifecycleOperation,
-    ) -> Result<(PathBuf, PathBuf, String)> {
-        if operation.kind != LifecycleOperationKind::DeleteBackup {
-            return Err(PortcoveError::state(
-                "backup deletion recovery received another lifecycle kind",
-            ));
-        }
+    ) -> Result<backups::BackupDeletionOperation> {
+        backups::BackupDeletionOperation::validate_envelope(operation)?;
         self.catalog.port(&operation.port_id)?;
         let expected_parent = self.library.backups_dir().join(&operation.port_id);
         refuse_symlink_ancestors(&expected_parent)?;
@@ -4509,7 +4505,9 @@ impl PortcoveService {
         }
         refuse_symlink_ancestors(&original)?;
         refuse_symlink_ancestors(&quarantine)?;
-        Ok((original, quarantine, backup_id))
+        Ok(backups::BackupDeletionOperation::from_validated_paths(
+            operation, original, quarantine, backup_id,
+        ))
     }
 
     pub(crate) fn synchronize_restored_user_data(&self, port_id: &str) -> Result<()> {
