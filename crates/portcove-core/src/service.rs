@@ -6314,8 +6314,7 @@ mod tests {
         assert_half_published_restore(true, true, false, true);
     }
 
-    #[test]
-    fn restore_recovery_preserves_foreign_paths() {
+    fn assert_restore_recovery_preserves_foreign_paths(phase: LifecyclePhase) {
         let temporary = tempfile::tempdir().unwrap();
         let library = crate::test_fixture::phase("restore guard fixture: open library", || {
             Library::open(temporary.path().join("library")).unwrap()
@@ -6325,50 +6324,171 @@ mod tests {
         let outside = temporary.path().join("unrelated-saves");
         fs::create_dir(&outside).unwrap();
         fs::write(outside.join("valuable.dat"), b"preserve").unwrap();
-        for phase in [
-            LifecyclePhase::Prepared,
-            LifecyclePhase::PayloadPublished,
-            LifecyclePhase::MetadataCommitted,
-            LifecyclePhase::CleanupPending,
-        ] {
-            for role in ["staging", "user", "previous"] {
-                let mut operation = LifecycleOperation::new(
-                    Uuid::new_v4().to_string(),
-                    LifecycleOperationKind::Restore,
-                    "zelda64-recomp",
-                );
-                operation.phase = phase;
-                let recovery = library.recovery_dir().join(&operation.id);
-                operation.paths.staging = Some(recovery.clone());
-                operation.paths.final_path = Some(library.user_dir("zelda64-recomp"));
-                operation.paths.quarantine = Some(recovery.join("previous-data"));
-                match role {
-                    "staging" => operation.paths.staging = Some(outside.clone()),
-                    "user" => operation.paths.final_path = Some(outside.clone()),
-                    "previous" => operation.paths.quarantine = Some(outside.clone()),
-                    _ => unreachable!(),
-                }
-                store.put(&mut operation).unwrap();
-
-                service.recover_lifecycle_operations_for_test().unwrap();
-
-                assert_eq!(fs::read(outside.join("valuable.dat")).unwrap(), b"preserve");
-                let retained = store.get(&operation.id).unwrap().unwrap();
-                assert_eq!(retained.phase, phase);
-                assert!(retained.last_error.unwrap().contains("paths do not match"));
-                assert!(!recovery.exists());
-                store.remove(&operation.id).unwrap();
+        for role in ["staging", "user", "previous"] {
+            let mut operation = LifecycleOperation::new(
+                Uuid::new_v4().to_string(),
+                LifecycleOperationKind::Restore,
+                "zelda64-recomp",
+            );
+            operation.phase = phase;
+            let recovery = library.recovery_dir().join(&operation.id);
+            operation.paths.staging = Some(recovery.clone());
+            operation.paths.final_path = Some(library.user_dir("zelda64-recomp"));
+            operation.paths.quarantine = Some(recovery.join("previous-data"));
+            match role {
+                "staging" => operation.paths.staging = Some(outside.clone()),
+                "user" => operation.paths.final_path = Some(outside.clone()),
+                "previous" => operation.paths.quarantine = Some(outside.clone()),
+                _ => unreachable!(),
             }
+            store.put(&mut operation).unwrap();
+
+            service.recover_lifecycle_operations_for_test().unwrap();
+
+            assert_eq!(fs::read(outside.join("valuable.dat")).unwrap(), b"preserve");
+            let retained = store.get(&operation.id).unwrap().unwrap();
+            assert_eq!(retained.phase, phase);
+            assert!(retained.last_error.unwrap().contains("paths do not match"));
+            assert!(!recovery.exists());
+            store.remove(&operation.id).unwrap();
         }
-        for identity in ["", ".", "..", "../other", "id.", "CON", "id:stream"] {
-            let operation = LifecycleOperation::new(
+        for identity in [
+            "",
+            ".",
+            "..",
+            "../other",
+            "nested/id",
+            "id.",
+            "CON",
+            "id:stream",
+            "restore-safe",
+        ] {
+            let mut operation = LifecycleOperation::new(
                 identity,
                 LifecycleOperationKind::Restore,
                 "zelda64-recomp",
             );
-            assert!(service.validate_restore_operation(&operation).is_err());
+            let recovery = library.recovery_dir().join(identity);
+            operation.paths.staging = Some(recovery.clone());
+            operation.paths.final_path = Some(library.user_dir("zelda64-recomp"));
+            operation.paths.quarantine = Some(recovery.join("previous-data"));
+            assert_eq!(
+                service.validate_restore_operation(&operation).is_ok(),
+                identity == "restore-safe",
+                "{identity}"
+            );
             assert_eq!(fs::read(outside.join("valuable.dat")).unwrap(), b"preserve");
         }
+    }
+
+    #[test]
+    fn restore_recovery_preserves_foreign_paths_when_prepared() {
+        assert_restore_recovery_preserves_foreign_paths(LifecyclePhase::Prepared);
+    }
+
+    #[test]
+    fn restore_recovery_preserves_foreign_paths_after_publication() {
+        assert_restore_recovery_preserves_foreign_paths(LifecyclePhase::PayloadPublished);
+    }
+
+    #[test]
+    fn restore_recovery_preserves_foreign_paths_after_metadata_commit() {
+        assert_restore_recovery_preserves_foreign_paths(LifecyclePhase::MetadataCommitted);
+    }
+
+    #[test]
+    fn restore_recovery_preserves_foreign_paths_during_cleanup() {
+        assert_restore_recovery_preserves_foreign_paths(LifecyclePhase::CleanupPending);
+    }
+    #[cfg(unix)]
+    #[test]
+    fn restore_preparing_failure_preserves_a_replaced_recovery_root() {
+        struct ReplaceRecoveryDuringSafetyBackup {
+            library: Library,
+            outside: PathBuf,
+        }
+        impl LifecycleFaultInjector for ReplaceRecoveryDuringSafetyBackup {
+            fn check(&self, point: LifecycleFaultPoint) -> Result<()> {
+                if point == LifecycleFaultPoint::BackupDataCopied {
+                    let operation = OperationStore::new(self.library.clone())
+                        .all()?
+                        .into_iter()
+                        .find(|operation| operation.kind == LifecycleOperationKind::Restore)
+                        .expect("restore intent precedes its safety backup");
+                    assert_eq!(operation.phase, LifecyclePhase::Preparing);
+                    let recovery = operation.paths.staging.unwrap();
+                    assert!(recovery.join("staged-data/general.json").is_file());
+                    fs::rename(
+                        &recovery,
+                        recovery.with_file_name(format!("retained-{}", operation.id)),
+                    )?;
+                    std::os::unix::fs::symlink(&self.outside, &recovery)?;
+                    return Err(PortcoveError::state(
+                        "injected failure after recovery root replacement",
+                    ));
+                }
+                Ok(())
+            }
+        }
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let user = library.user_dir("zelda64-recomp");
+        fs::create_dir_all(&user).unwrap();
+        fs::write(user.join("general.json"), b"wanted").unwrap();
+        let original = service_with_release(library.clone(), "v2");
+        let backup = original.create_backup("zelda64-recomp").unwrap();
+        fs::write(user.join("general.json"), b"live").unwrap();
+        let outside = temporary.path().join("unrelated-saves");
+        fs::create_dir(&outside).unwrap();
+        fs::write(outside.join("valuable.dat"), b"preserve").unwrap();
+        let service = PortcoveService::with_provider_and_faults(
+            library.clone(),
+            Arc::new(StaticReleaseProvider {
+                version: "v2".into(),
+            }),
+            Arc::new(ReplaceRecoveryDuringSafetyBackup {
+                library: library.clone(),
+                outside: outside.clone(),
+            }),
+        )
+        .unwrap();
+        let authorization = backup_authorization(
+            &service,
+            "zelda64-recomp",
+            &backup.id,
+            BackupAction::Restore,
+        );
+
+        let error = service
+            .restore_backup("zelda64-recomp", &backup.id, &authorization.token)
+            .unwrap_err();
+
+        assert!(
+            error
+                .message
+                .contains("injected failure after recovery root replacement")
+        );
+        assert_eq!(fs::read(outside.join("valuable.dat")).unwrap(), b"preserve");
+        assert_eq!(fs::read(user.join("general.json")).unwrap(), b"live");
+        let retained = OperationStore::new(library).all().unwrap().remove(0);
+        assert_eq!(retained.phase, LifecyclePhase::Preparing);
+        assert_eq!(retained.last_error.as_deref(), Some(error.message.as_str()));
+        let recovery = retained.paths.staging.unwrap();
+        assert!(
+            fs::symlink_metadata(&recovery)
+                .unwrap()
+                .file_type()
+                .is_symlink()
+        );
+        assert_eq!(
+            fs::read(
+                recovery
+                    .with_file_name(format!("retained-{}", retained.id))
+                    .join("staged-data/general.json")
+            )
+            .unwrap(),
+            b"wanted"
+        );
     }
 
     #[cfg(unix)]
