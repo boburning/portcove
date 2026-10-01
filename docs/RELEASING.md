@@ -95,9 +95,11 @@ Successful updater qualification still requires
 the signed candidate, marker-bound helper/relaunch, natural exit and preserved
 state checks; embedded transport or startup alone does not establish it.
 Linux builds a disposable test-signed TUF repository, embeds its public trust and
-local repository URLs in a qualification-only 0.1.0 AppImage, and exercises the
+local repository URLs in the selected qualification-only predecessor AppImage,
+and exercises the
 packaged helper through an interrupted candidate copy, GUI-independent command
-recovery without a display server, and retrying 0.1.0-to-0.3.0 replacement under
+recovery without a display server, and retrying replacement with the selected
+candidate under
 Xvfb. The installed predecessor selects the candidate with its compiled provider
 and stages fixture-supplied bytes through the desktop check-and-stage operation;
 the external fixture prepares only the later apply intent. Before granting staged
