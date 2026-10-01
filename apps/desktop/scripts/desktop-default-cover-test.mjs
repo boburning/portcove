@@ -50,10 +50,10 @@ export async function defaultCoverScenario({
           .map((port) => port.id);
         assert.ok(ids.length > 0, "The actual catalog must have accepted cover mappings");
         const rows = [];
-        const captureSettled = async (name, selector) => {
-          await browser.wait(
+        const captureSettled = async (name, selector, currentBrowser = browser) => {
+          await currentBrowser.wait(
             () =>
-              browser.executeScript((selector) => {
+              currentBrowser.executeScript((selector) => {
                 const element = document.querySelector(selector);
                 return (
                   element &&
@@ -141,18 +141,7 @@ export async function defaultCoverScenario({
           );
           return rendered;
         };
-        for (const [pass, theme, size] of [
-          [
-            cacheConditions ? "cold-empty-cache" : "first-display",
-            "light",
-            { width: 1280, height: 800 },
-          ],
-          [
-            cacheConditions ? "offline-cached-restart" : "warm",
-            "dark",
-            { width: 960, height: 640 },
-          ],
-        ]) {
+        for (const [pass, theme, size] of coverPasses(cacheConditions)) {
           if (cacheConditions && pass === "offline-cached-restart") {
             await verifyMappedCache(catalog.value.ports, ids, cache);
             browser = await restart("default-cover-offline", undefined, offlineEnvironment);
@@ -205,70 +194,22 @@ export async function defaultCoverScenario({
             });
           }
         }
-        let negativeControl = null;
-        if (cacheConditions) {
-          assert.equal(
-            refusedOrigins.filter((origin) => origin === "images.igdb.com").length,
-            0,
-            "All mapped cached covers render after restart without an IGDB request",
-          );
-          const port = catalog.value.ports.find((port) => port.id === "dkr-r");
-          assert.ok(
-            port?.presentation?.artwork,
-            "Negative control requires the maintained DKR mapping",
-          );
-          const digest = port.presentation.artwork.image_sha256;
-          const candidate = {
-            original: path.join(cache, `${digest}.jpg`),
-            retained: path.join(output, `withheld-${digest}.jpg`),
-          };
-          browser = await restart(
-            "default-cover-missing-cache",
-            async () => {
-              await rename(candidate.original, candidate.retained);
-              withheld = candidate;
-            },
-            offlineEnvironment,
-          );
-          await browser.findElement(By.xpath('//nav//button[contains(., "Port catalog")]')).click();
-          const search = await browser.wait(until.elementLocated(By.id("port-search")), 10_000);
-          await search.sendKeys(Key.CONTROL, "a", Key.NULL, port.name);
-          const selector = `[data-detail-origin="catalog:card:${port.id}"]`;
-          await browser.wait(until.elementLocated(By.css(selector)), 10_000);
-          await browser.wait(
-            () => refusedOrigins.includes("images.igdb.com"),
-            15_000,
-            "Missing cache must exercise actual rejected backend image traffic",
-          );
-          await browser.wait(
-            () =>
-              browser.executeScript((selector) => {
-                const frame = document.querySelector(`${selector} .card-art`);
-                return (
-                  frame?.dataset.artworkSource === "generated_fallback" &&
-                  !frame.querySelector("img") &&
-                  frame.querySelector(".artwork-image-note")?.textContent === "Image unavailable"
-                );
-              }, selector),
-            10_000,
-            "Unavailable image must retain an honest generated fallback",
-          );
-          await captureSettled("default-cover-missing-cache-offline", selector);
-          const logical = await invoke("get_catalog");
-          assert.equal(logical.ok, true);
-          assert.deepEqual(
-            logical.value.ports.find((item) => item.id === port.id).presentation.artwork,
-            port.presentation.artwork,
-            "Missing bytes do not erase the accepted logical mapping",
-          );
-          negativeControl = {
-            id: port.id,
-            digest,
-            refusedImageRequests: refusedOrigins.filter((origin) => origin === "images.igdb.com")
-              .length,
-            fallback: true,
-          };
-        }
+        const negativeControl = cacheConditions
+          ? await missingCacheNegativeControl({
+              browser,
+              ports: catalog.value.ports,
+              cache,
+              output,
+              restart,
+              offlineEnvironment,
+              refusedOrigins,
+              invoke,
+              captureSettled,
+              onWithheld: (value) => {
+                withheld = value;
+              },
+            })
+          : null;
         const report = path.join(
           output,
           cacheConditions ? "default-cover-cache-conditions.json" : "default-cover-display.json",
@@ -403,4 +344,82 @@ async function verifyMappedCache(ports, ids, cache) {
       "Cached original matches accepted mapping",
     );
   }
+}
+
+async function missingCacheNegativeControl({
+  browser,
+  ports,
+  cache,
+  output,
+  restart,
+  offlineEnvironment,
+  refusedOrigins,
+  invoke,
+  captureSettled,
+  onWithheld,
+}) {
+  assert.equal(
+    refusedOrigins.filter((origin) => origin === "images.igdb.com").length,
+    0,
+    "All mapped cached covers render after restart without an IGDB request",
+  );
+  const port = ports.find((port) => port.id === "dkr-r");
+  assert.ok(port?.presentation?.artwork, "Negative control requires the maintained DKR mapping");
+  const digest = port.presentation.artwork.image_sha256;
+  const candidate = {
+    original: path.join(cache, `${digest}.jpg`),
+    retained: path.join(output, `withheld-${digest}.jpg`),
+  };
+  browser = await restart(
+    "default-cover-missing-cache",
+    async () => {
+      await rename(candidate.original, candidate.retained);
+      onWithheld(candidate);
+    },
+    offlineEnvironment,
+  );
+  await browser.findElement(By.xpath('//nav//button[contains(., "Port catalog")]')).click();
+  const search = await browser.wait(until.elementLocated(By.id("port-search")), 10_000);
+  await search.sendKeys(Key.CONTROL, "a", Key.NULL, port.name);
+  const selector = `[data-detail-origin="catalog:card:${port.id}"]`;
+  await browser.wait(until.elementLocated(By.css(selector)), 10_000);
+  await browser.wait(
+    () => refusedOrigins.includes("images.igdb.com"),
+    15_000,
+    "Missing cache must exercise actual rejected backend image traffic",
+  );
+  await browser.wait(
+    () =>
+      browser.executeScript((selector) => {
+        const frame = document.querySelector(`${selector} .card-art`);
+        return (
+          frame?.dataset.artworkSource === "generated_fallback" &&
+          !frame.querySelector("img") &&
+          frame.querySelector(".artwork-image-note")?.textContent === "Image unavailable"
+        );
+      }, selector),
+    10_000,
+    "Unavailable image must retain an honest generated fallback",
+  );
+  await captureSettled("default-cover-missing-cache-offline", selector, browser);
+  const logical = await invoke("get_catalog");
+  assert.equal(logical.ok, true);
+  assert.deepEqual(
+    logical.value.ports.find((item) => item.id === port.id).presentation.artwork,
+    port.presentation.artwork,
+    "Missing bytes do not erase the accepted logical mapping",
+  );
+  return {
+    id: port.id,
+    digest,
+    refusedImageRequests: refusedOrigins.filter((origin) => origin === "images.igdb.com").length,
+    fallback: true,
+  };
+}
+
+function coverPasses(cacheConditions) {
+  return [
+    [cacheConditions ? "cold-empty-cache" : "first-display", "light", { width: 1280, height: 800 }],
+    [cacheConditions ? "offline-cached-restart" : "warm", "dark", { width: 960, height: 640 }],
+  ];
 }
