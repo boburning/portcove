@@ -582,10 +582,12 @@ fn corrupted_thumbnails_are_rebuilt_and_cache_capacity_is_bounded() {
     let cache = service.library().root().join("artwork-cache");
     let selected_cache = cache.join(format!("{}.png", selected.choice.asset_sha256.unwrap()));
     fs::write(&selected_cache, b"corrupt cached data").unwrap();
-    for name in ["a", "b"] {
-        fs::File::create(cache.join(format!("{}.png", name.repeat(64))))
+    // Exceed the total cache capacity with individually permitted entries.
+    // Oversized files are unexpected inventory, not ordinary eviction input.
+    for index in 0..65 {
+        fs::File::create(cache.join(format!("{index:064x}.png")))
             .unwrap()
-            .set_len(40 * 1024 * 1024)
+            .set_len(crate::artwork_image::MAX_THUMBNAIL_BYTES)
             .unwrap();
     }
     assert_eq!(
@@ -595,6 +597,9 @@ fn corrupted_thumbnails_are_rebuilt_and_cache_capacity_is_bounded() {
             .png,
         expected
     );
+    assert!(!cache.join(format!("{:064x}.png", 0)).exists());
+    assert!(!cache.join(format!("{:064x}.png", 1)).exists());
+    assert!(cache.join(format!("{:064x}.png", 64)).exists());
     let cleared = service.clear_artwork_cache().unwrap();
     assert!(cleared.removed_bytes <= 64 * 1024 * 1024);
     assert_eq!(
@@ -852,6 +857,42 @@ fn interrupted_thumbnail_staging_can_be_cleared_or_rebuilt_without_losing_choice
             .is_empty()
     );
     assert!(!pending.exists());
+    assert_eq!(
+        service
+            .artwork("zelda64-recomp", ArtworkSlot::Cover)
+            .unwrap()
+            .choice,
+        selected
+    );
+}
+
+#[test]
+fn oversized_published_thumbnail_is_retained_as_an_unexpected_cache_entry() {
+    let temp = tempfile::tempdir().unwrap();
+    let service = open_service(&temp.path().join("library"));
+    let png = image_file(temp.path(), "cover.png", image::ImageFormat::Png);
+    let selected = service
+        .import_artwork("zelda64-recomp", ArtworkSlot::Cover, &png, 0)
+        .unwrap()
+        .choice;
+    let cache = service
+        .library()
+        .root()
+        .join("artwork-cache")
+        .join(format!("{}.png", selected.asset_sha256.as_ref().unwrap()));
+    let oversized = vec![0_u8; crate::artwork_image::MAX_THUMBNAIL_BYTES as usize + 1];
+    fs::write(&cache, &oversized).unwrap();
+    let error = service.clear_artwork_cache().unwrap_err();
+    assert!(error.message.contains("unexpected entry"), "{error}");
+    assert_eq!(fs::read(&cache).unwrap(), oversized);
+    fs::write(&cache, &oversized[..oversized.len() - 1]).unwrap();
+    let cleared = service.clear_artwork_cache().unwrap();
+    assert_eq!(cleared.removed_files, 1);
+    assert_eq!(
+        cleared.removed_bytes,
+        crate::artwork_image::MAX_THUMBNAIL_BYTES
+    );
+    assert!(!cache.exists());
     assert_eq!(
         service
             .artwork("zelda64-recomp", ArtworkSlot::Cover)
