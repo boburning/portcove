@@ -15,7 +15,7 @@ on:
       focus_head:
         description: Exact reviewed PR 1327 source for Windows backup-focus acceptance only.
         required: true
-        default: 2a69773f5f0d1e773eb6972ab7a6f43a2d5e40c2
+        default: 161e577dc48f93db98a9930853e808e22c43c7b2
         type: string
 
       edge_driver_proof:
@@ -143,7 +143,7 @@ jobs:
           WORKFLOW_HEAD: ${{ github.sha }}
         run: |
           $ErrorActionPreference = 'Stop'
-          if ($env:FOCUS_HEAD -ne '2a69773f5f0d1e773eb6972ab7a6f43a2d5e40c2') { throw 'Only the reviewed frozen PR 1327 source is supported.' }
+          if ($env:FOCUS_HEAD -ne '161e577dc48f93db98a9930853e808e22c43c7b2') { throw 'Only the reviewed frozen PR 1327 source is supported.' }
           New-Item -ItemType Directory -Force $env:PORTCOVE_OUTPUT_DIR | Out-Null
           $identity = [ordered]@{
             workflow_head = $env:WORKFLOW_HEAD

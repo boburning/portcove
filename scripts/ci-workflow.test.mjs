@@ -40,7 +40,7 @@ test("hosted backup focus is manual-only, pinned, isolated and retains real evid
   assert.match(source, /^permissions:\n {2}contents: read$/m);
   assert.match(source, /runs-on: windows-2022/);
   assert.match(source, /persist-credentials: false/);
-  assert.match(source, /\$env:FOCUS_HEAD -ne '2a69773f5f0d1e773eb6972ab7a6f43a2d5e40c2'/);
+  assert.match(source, /\$env:FOCUS_HEAD -ne '161e577dc48f93db98a9930853e808e22c43c7b2'/);
   assert.match(source, /git -c user.name=PortcoveQualification .* merge --no-ff --no-edit/);
   assert.match(source, /merge_head = \(git rev-parse HEAD\)/);
   assert.match(source, /merge_parents = \(git show -s --format=%P HEAD\)/);
