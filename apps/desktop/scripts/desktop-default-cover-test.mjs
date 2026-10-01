@@ -156,43 +156,20 @@ export async function defaultCoverScenario({
             width: innerWidth,
             height: innerHeight,
           }));
-          for (const id of ids) {
-            const port = catalog.value.ports.find((port) => port.id === id);
-            assert.ok(port?.presentation?.artwork, `Missing maintained mapping: ${id}`);
-            await browser
-              .findElement(By.xpath('//nav//button[contains(., "Port catalog")]'))
-              .click();
-            const search = await browser.wait(until.elementLocated(By.id("port-search")), 10_000);
-            await search.sendKeys(Key.CONTROL, "a", Key.NULL, port.name);
-            const started = performance.now();
-            const selector = `[data-detail-origin="catalog:card:${id}"]`;
-            const card = await browser.wait(until.elementLocated(By.css(selector)), 10_000);
-            await browser.executeScript((card) => card.scrollIntoView({ block: "center" }), card);
-            const cardImage = await image(`${selector} .card-art`);
-            const cardMs = performance.now() - started;
-            await captureSettled(`default-cover-${id}-${pass}-catalog`, selector);
-            let detailImage = null;
-            if (detailIds.has(id)) {
-              await card.click();
-              await browser.wait(until.elementLocated(By.css("[data-detail-workspace]")), 10_000);
-              detailImage = await image(".detail-cover");
-              await captureSettled(
-                `default-cover-${id}-${pass}-details`,
-                "[data-detail-workspace]",
-              );
-            }
-            rows.push({
-              id,
+          rows.push(
+            ...(await inspectCoverPass({
+              browser,
+              ports: catalog.value.ports,
+              ids,
+              detailIds,
+              image,
+              captureSettled,
               pass,
               theme,
               outer,
               viewport,
-              cardMs,
-              cardImage,
-              detailImage,
-              mapping: port.presentation.artwork,
-            });
-          }
+            })),
+          );
         }
         const negativeControl = cacheConditions
           ? await missingCacheNegativeControl({
@@ -422,4 +399,52 @@ function coverPasses(cacheConditions) {
     [cacheConditions ? "cold-empty-cache" : "first-display", "light", { width: 1280, height: 800 }],
     [cacheConditions ? "offline-cached-restart" : "warm", "dark", { width: 960, height: 640 }],
   ];
+}
+
+async function inspectCoverPass({
+  browser,
+  ports,
+  ids,
+  detailIds,
+  image,
+  captureSettled,
+  pass,
+  theme,
+  outer,
+  viewport,
+}) {
+  const observations = [];
+  for (const id of ids) {
+    const port = ports.find((port) => port.id === id);
+    assert.ok(port?.presentation?.artwork, `Missing maintained mapping: ${id}`);
+    await browser.findElement(By.xpath('//nav//button[contains(., "Port catalog")]')).click();
+    const search = await browser.wait(until.elementLocated(By.id("port-search")), 10_000);
+    await search.sendKeys(Key.CONTROL, "a", Key.NULL, port.name);
+    const started = performance.now();
+    const selector = `[data-detail-origin="catalog:card:${id}"]`;
+    const card = await browser.wait(until.elementLocated(By.css(selector)), 10_000);
+    await browser.executeScript((card) => card.scrollIntoView({ block: "center" }), card);
+    const cardImage = await image(`${selector} .card-art`);
+    const cardMs = performance.now() - started;
+    await captureSettled(`default-cover-${id}-${pass}-catalog`, selector);
+    let detailImage = null;
+    if (detailIds.has(id)) {
+      await card.click();
+      await browser.wait(until.elementLocated(By.css("[data-detail-workspace]")), 10_000);
+      detailImage = await image(".detail-cover");
+      await captureSettled(`default-cover-${id}-${pass}-details`, "[data-detail-workspace]");
+    }
+    observations.push({
+      id,
+      pass,
+      theme,
+      outer,
+      viewport,
+      cardMs,
+      cardImage,
+      detailImage,
+      mapping: port.presentation.artwork,
+    });
+  }
+  return observations;
 }
