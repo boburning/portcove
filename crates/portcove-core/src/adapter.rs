@@ -41,6 +41,8 @@ pub trait Adapter: Send + Sync {
         platform: Platform,
         root: &Path,
     ) -> Result<PathBuf>;
+    /// Observe current inputs and describe a launch without preparing or spawning it.
+    /// The returned paths and arguments are not mutation or process authority.
     fn launch_spec(
         &self,
         library: &Library,
@@ -49,7 +51,43 @@ pub trait Adapter: Send + Sync {
         install_root: &Path,
         source: Option<&Path>,
     ) -> Result<LaunchSpec>;
+    /// Read-only planning with a caller-selected executable; never launch authority.
     fn launch_spec_with_executable(
+        &self,
+        request: LaunchSpecRequest<'_>,
+        checkpoint: &dyn Fn() -> Result<()>,
+    ) -> Result<LaunchSpec>;
+    /// Execute preparation inside the caller's existing launch authority.
+    fn prepare_launch(
+        &self,
+        library: &Library,
+        port: &PortDefinition,
+        platform: Platform,
+        install_root: &Path,
+        source: Option<&Path>,
+    ) -> Result<LaunchSpec> {
+        let executable = self.find_executable(port, platform, install_root)?;
+        let source_record = match (port.source_profile.as_deref(), source) {
+            (Some(profile_id), Some(source)) => library
+                .source(profile_id)?
+                .filter(|record| record.path == source),
+            _ => None,
+        };
+        self.prepare_launch_with_executable(
+            LaunchSpecRequest {
+                library,
+                port,
+                platform,
+                install_root,
+                selected_executable: &executable,
+                source,
+                source_record: source_record.as_ref(),
+            },
+            &|| Ok(()),
+        )
+    }
+
+    fn prepare_launch_with_executable(
         &self,
         request: LaunchSpecRequest<'_>,
         checkpoint: &dyn Fn() -> Result<()>,
@@ -161,7 +199,7 @@ impl Adapter for StandardAdapter {
         let LaunchSpecRequest {
             library,
             port,
-            platform,
+            platform: _,
             install_root,
             selected_executable,
             source,
@@ -175,7 +213,6 @@ impl Adapter for StandardAdapter {
         }
         let executable = selected_executable.to_path_buf();
         let user_data = library.user_dir(&port.id);
-        std::fs::create_dir_all(&user_data)?;
         let library_path = crate::path::unicode(library.root(), "library root")?;
         let user_data_path = crate::path::unicode(&user_data, "user data")?;
         let mut environment = BTreeMap::from([
@@ -196,7 +233,6 @@ impl Adapter for StandardAdapter {
         }
         if self.0 == AdapterKind::GeneratedCache {
             let cache = user_data.join("cache");
-            std::fs::create_dir_all(&cache)?;
             environment.insert(
                 "PORTCOVE_CACHE".into(),
                 crate::path::unicode(&cache, "cache")?,
@@ -206,25 +242,11 @@ impl Adapter for StandardAdapter {
             environment.insert("SHIP_HOME".into(), user_data_path.clone());
         }
         let working_directory = launch_working_directory(self.0, port, install_root, &executable)?;
-        if self.0 == AdapterKind::ReferencedDisc {
-            let descriptor = serde_json::json!({
-                "version": 1,
-                "mode": "custom",
-                "customPath": user_data_path,
-            });
-            std::fs::write(
-                working_directory.join("data_location.json"),
-                serde_json::to_vec_pretty(&descriptor)?,
-            )?;
-        }
-        if self.0 == AdapterKind::N64RecompPortable || port.portable_marker {
-            std::fs::write(working_directory.join("portable.txt"), b"")?;
-        }
         let immutable_managed_psx_source = self.0 == AdapterKind::PsxRecompManaged
             && port.runtime_source_materialization == Some(RuntimeSourceMaterialization::PsxRawSet);
         if !immutable_managed_psx_source
             && !crate::preparation::managed(port)
-            && let (Some(source), Some(filename)) = (source, &port.runtime_source_filename)
+            && let (Some(_), Some(filename)) = (source, &port.runtime_source_filename)
         {
             let source_root = if self.0 == AdapterKind::N64RecompPortable
                 && port.user_data_environment.is_some()
@@ -233,105 +255,30 @@ impl Adapter for StandardAdapter {
             } else {
                 &working_directory
             };
-            let stored_source = source_root.join(filename);
-            if let Some(parent) = stored_source.parent() {
-                std::fs::create_dir_all(parent)?;
-            }
-            prepare_runtime_source(
-                source,
-                &stored_source,
-                port.runtime_source_materialization
-                    .unwrap_or(RuntimeSourceMaterialization::N64BigEndian),
-                &port.runtime_source_hashes,
-                checkpoint,
-            )?;
-            checkpoint()?;
             if let Some(variable) = &port.source_environment {
                 environment.insert(
                     variable.clone(),
-                    crate::path::unicode(&stored_source, "materialized source")?,
+                    crate::path::unicode(&source_root.join(filename), "materialized source")?,
                 );
             }
         }
-        let managed_psx_runtime_config = (self.0 == AdapterKind::PsxRecompManaged)
-            .then(|| {
-                let discs = if immutable_managed_psx_source {
-                    managed_psx_materialized_discs(port, &working_directory)?
-                } else {
-                    psx_runtime_source_paths(source.ok_or_else(|| {
-                        PortcoveError::launch("managed PS1 launch requires its verified source")
-                    })?)?
-                };
-                prepare_managed_psx_runtime_config(&working_directory, &discs)
-            })
-            .transpose()?;
-        if self.0 == AdapterKind::UpstreamManagedSetup && !crate::preparation::managed(port) {
-            let source_path = port
-                .runtime_source_filename
-                .as_ref()
-                .map(|filename| working_directory.join(filename));
-            run_upstream_setup(
-                port,
-                platform,
-                &working_directory,
-                source_path.as_deref(),
-                checkpoint,
-            )?;
-            checkpoint()?;
-        }
-        if let Some(source) = source {
-            for target in &port.runtime_source_set {
-                let destination = working_directory.join(&target.destination);
-                if let Some(parent) = destination.parent() {
-                    std::fs::create_dir_all(parent)?;
-                }
-                prepare_runtime_source_set_member(
-                    source,
-                    &target.source_filenames,
-                    &destination,
-                    target.materialization,
-                    checkpoint,
-                )?;
-                checkpoint()?;
+        let managed_psx_runtime_config = if self.0 == AdapterKind::PsxRecompManaged {
+            if immutable_managed_psx_source {
+                managed_psx_materialized_discs(port, &working_directory)?;
+            } else {
+                psx_runtime_source_paths(source.ok_or_else(|| {
+                    PortcoveError::launch("managed PS1 launch requires its verified source")
+                })?)?;
             }
-        }
-        let generated_archive_paths = port
-            .persistent_paths
-            .iter()
-            .filter(|path| {
-                Path::new(path)
-                    .extension()
-                    .and_then(|extension| extension.to_str())
-                    .is_some_and(|extension| {
-                        extension.eq_ignore_ascii_case("o2r")
-                            || extension.eq_ignore_ascii_case("otr")
-                    })
-            })
-            .collect::<Vec<_>>();
-        let has_generated_archive = if generated_archive_paths.is_empty() {
-            std::fs::read_dir(&user_data)
-                .into_iter()
-                .flatten()
-                .filter_map(std::result::Result::ok)
-                .any(|entry| {
-                    entry
-                        .path()
-                        .extension()
-                        .and_then(|extension| extension.to_str())
-                        .is_some_and(|extension| {
-                            extension.eq_ignore_ascii_case("o2r")
-                                || extension.eq_ignore_ascii_case("otr")
-                        })
-                })
+            Some(working_directory.join(MANAGED_PSX_RUNTIME_CONFIG))
         } else {
-            generated_archive_paths.iter().any(|relative| {
-                [&user_data, &working_directory]
-                    .into_iter()
-                    .any(|directory| directory.join(relative).is_file())
-            })
+            None
         };
+        let has_generated_archive = has_generated_archive(port, &user_data, &working_directory);
         let libultraship_source_argument = if self.0 == AdapterKind::LibultrashipPortable {
-            plan_libultraship_source(request, has_generated_archive)?.prepare(checkpoint)?
+            plan_libultraship_source(request, has_generated_archive)?
+                .argument()
+                .map(Path::to_path_buf)
         } else {
             None
         };
@@ -375,6 +322,168 @@ impl Adapter for StandardAdapter {
             working_directory,
             environment,
             arguments,
+        })
+    }
+    fn prepare_launch_with_executable(
+        &self,
+        request: LaunchSpecRequest<'_>,
+        checkpoint: &dyn Fn() -> Result<()>,
+    ) -> Result<LaunchSpec> {
+        let LaunchSpecRequest {
+            library,
+            port,
+            platform,
+            install_root,
+            selected_executable,
+            source,
+            ..
+        } = request;
+        checkpoint()?;
+        if !selected_executable.starts_with(install_root) || !selected_executable.is_file() {
+            return Err(PortcoveError::verification(
+                "selected executable is not a file in the registered install",
+            ));
+        }
+        let executable = selected_executable.to_path_buf();
+        let user_data = library.user_dir(&port.id);
+        std::fs::create_dir_all(&user_data)?;
+        crate::path::unicode(library.root(), "library root")?;
+        let user_data_path = crate::path::unicode(&user_data, "user data")?;
+        if let Some(source) = source {
+            crate::path::unicode(source, "source")?;
+        }
+        if self.0 == AdapterKind::GeneratedCache {
+            std::fs::create_dir_all(user_data.join("cache"))?;
+        }
+        let working_directory = launch_working_directory(self.0, port, install_root, &executable)?;
+        if self.0 == AdapterKind::ReferencedDisc {
+            let descriptor = serde_json::json!({
+                "version": 1,
+                "mode": "custom",
+                "customPath": user_data_path,
+            });
+            std::fs::write(
+                working_directory.join("data_location.json"),
+                serde_json::to_vec_pretty(&descriptor)?,
+            )?;
+        }
+        if self.0 == AdapterKind::N64RecompPortable || port.portable_marker {
+            std::fs::write(working_directory.join("portable.txt"), b"")?;
+        }
+        let immutable_managed_psx_source = self.0 == AdapterKind::PsxRecompManaged
+            && port.runtime_source_materialization == Some(RuntimeSourceMaterialization::PsxRawSet);
+        if !immutable_managed_psx_source
+            && !crate::preparation::managed(port)
+            && let (Some(source), Some(filename)) = (source, &port.runtime_source_filename)
+        {
+            let source_root = if self.0 == AdapterKind::N64RecompPortable
+                && port.user_data_environment.is_some()
+            {
+                &user_data
+            } else {
+                &working_directory
+            };
+            let stored_source = source_root.join(filename);
+            if let Some(parent) = stored_source.parent() {
+                std::fs::create_dir_all(parent)?;
+            }
+            prepare_runtime_source(
+                source,
+                &stored_source,
+                port.runtime_source_materialization
+                    .unwrap_or(RuntimeSourceMaterialization::N64BigEndian),
+                &port.runtime_source_hashes,
+                checkpoint,
+            )?;
+            checkpoint()?;
+        }
+        (self.0 == AdapterKind::PsxRecompManaged)
+            .then(|| {
+                let discs = if immutable_managed_psx_source {
+                    managed_psx_materialized_discs(port, &working_directory)?
+                } else {
+                    psx_runtime_source_paths(source.ok_or_else(|| {
+                        PortcoveError::launch("managed PS1 launch requires its verified source")
+                    })?)?
+                };
+                prepare_managed_psx_runtime_config(&working_directory, &discs)
+            })
+            .transpose()?;
+        if self.0 == AdapterKind::UpstreamManagedSetup && !crate::preparation::managed(port) {
+            let source_path = port
+                .runtime_source_filename
+                .as_ref()
+                .map(|filename| working_directory.join(filename));
+            run_upstream_setup(
+                port,
+                platform,
+                &working_directory,
+                source_path.as_deref(),
+                checkpoint,
+            )?;
+            checkpoint()?;
+        }
+        if let Some(source) = source {
+            for target in &port.runtime_source_set {
+                let destination = working_directory.join(&target.destination);
+                if let Some(parent) = destination.parent() {
+                    std::fs::create_dir_all(parent)?;
+                }
+                prepare_runtime_source_set_member(
+                    source,
+                    &target.source_filenames,
+                    &destination,
+                    target.materialization,
+                    checkpoint,
+                )?;
+                checkpoint()?;
+            }
+        }
+        let has_generated_archive = has_generated_archive(port, &user_data, &working_directory);
+        if self.0 == AdapterKind::LibultrashipPortable {
+            plan_libultraship_source(request, has_generated_archive)?.prepare(checkpoint)?;
+        }
+        self.launch_spec_with_executable(request, checkpoint)
+    }
+}
+
+fn has_generated_archive(
+    port: &PortDefinition,
+    user_data: &Path,
+    working_directory: &Path,
+) -> bool {
+    let generated_archive_paths = port
+        .persistent_paths
+        .iter()
+        .filter(|path| {
+            Path::new(path)
+                .extension()
+                .and_then(|extension| extension.to_str())
+                .is_some_and(|extension| {
+                    extension.eq_ignore_ascii_case("o2r") || extension.eq_ignore_ascii_case("otr")
+                })
+        })
+        .collect::<Vec<_>>();
+    if generated_archive_paths.is_empty() {
+        std::fs::read_dir(user_data)
+            .into_iter()
+            .flatten()
+            .filter_map(std::result::Result::ok)
+            .any(|entry| {
+                entry
+                    .path()
+                    .extension()
+                    .and_then(|extension| extension.to_str())
+                    .is_some_and(|extension| {
+                        extension.eq_ignore_ascii_case("o2r")
+                            || extension.eq_ignore_ascii_case("otr")
+                    })
+            })
+    } else {
+        generated_archive_paths.iter().any(|relative| {
+            [user_data, working_directory]
+                .into_iter()
+                .any(|directory| directory.join(relative).is_file())
         })
     }
 }
@@ -427,6 +536,14 @@ fn plan_libultraship_source(
 }
 
 impl LibultrashipSourcePlan<'_> {
+    fn argument(&self) -> Option<&Path> {
+        match self {
+            Self::Original(source) => Some(source),
+            Self::Archived { destination, .. } => Some(destination),
+            Self::NoArgument | Self::GeneratedArchive { .. } => None,
+        }
+    }
+
     /// Execute immediately within the existing supervised launch, never as a cached permission.
     fn prepare(self, checkpoint: &dyn Fn() -> Result<()>) -> Result<Option<PathBuf>> {
         checkpoint()?;
@@ -2565,6 +2682,130 @@ mod tests {
     use super::*;
     use crate::Catalog;
 
+    fn launch_fixture_inventory(root: &Path) -> BTreeMap<PathBuf, Option<Vec<u8>>> {
+        fn visit(root: &Path, directory: &Path, entries: &mut BTreeMap<PathBuf, Option<Vec<u8>>>) {
+            for entry in std::fs::read_dir(directory).unwrap() {
+                let entry = entry.unwrap();
+                let path = entry.path();
+                let bytes = path.is_file().then(|| std::fs::read(&path).unwrap());
+                entries.insert(path.strip_prefix(root).unwrap().to_path_buf(), bytes);
+                if path.is_dir() {
+                    visit(root, &path, entries);
+                }
+            }
+        }
+        let mut entries = BTreeMap::new();
+        visit(root, root, &mut entries);
+        entries
+    }
+
+    #[test]
+    fn every_adapter_launch_plan_preserves_files_and_missing_outputs() {
+        let catalog = Catalog::embedded().unwrap();
+        for kind in [
+            AdapterKind::LibultrashipPortable,
+            AdapterKind::N64RecompPortable,
+            AdapterKind::StagedSourcePortable,
+            AdapterKind::ReferencedDisc,
+            AdapterKind::GeneratedCache,
+            AdapterKind::UpstreamManagedSetup,
+            AdapterKind::PsxRecompManaged,
+        ] {
+            let temporary = tempfile::tempdir().unwrap();
+            let library = Library::open(temporary.path().join("library")).unwrap();
+            let install = temporary.path().join("install");
+            std::fs::create_dir(&install).unwrap();
+            let executable = install.join("Game.exe");
+            std::fs::write(&executable, b"fixture executable").unwrap();
+            let source = temporary.path().join("source.chd");
+            std::fs::write(&source, b"fixture source, planning does not materialize it").unwrap();
+            for filename in [
+                "portable.txt",
+                "data_location.json",
+                MANAGED_PSX_RUNTIME_CONFIG,
+            ] {
+                std::fs::write(install.join(filename), b"existing bytes must remain").unwrap();
+            }
+            let mut port = catalog.port("banjo-recomp").unwrap().clone();
+            port.adapter = kind;
+            port.launch_from_install_root = true;
+            port.runtime_subdirectory = None;
+            port.runtime_source_filename = Some("generated/source.z64".into());
+            port.runtime_source_materialization = None;
+            port.runtime_source_set.clear();
+            port.user_data_environment = Some("DATA_DIR".into());
+            port.source_environment = Some("SOURCE_FILE".into());
+            port.portable_marker = true;
+            assert!(!library.user_dir(&port.id).exists());
+            let before = launch_fixture_inventory(temporary.path());
+            let spec = AdapterRegistry
+                .get(kind)
+                .launch_spec_with_executable(
+                    LaunchSpecRequest {
+                        library: &library,
+                        port: &port,
+                        platform: Platform::WindowsX86_64,
+                        install_root: &install,
+                        selected_executable: &executable,
+                        source: Some(&source),
+                        source_record: None,
+                    },
+                    &|| Ok(()),
+                )
+                .unwrap();
+            assert_eq!(spec.executable, executable);
+            assert_eq!(
+                launch_fixture_inventory(temporary.path()),
+                before,
+                "{kind:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn cancelled_adapter_preparation_and_plan_publish_nothing() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let install = temporary.path().join("install");
+        std::fs::create_dir(&install).unwrap();
+        let executable = install.join("Game.exe");
+        std::fs::write(&executable, b"fixture executable").unwrap();
+        let catalog = Catalog::embedded().unwrap();
+        let port = catalog.port("banjo-recomp").unwrap();
+        let request = LaunchSpecRequest {
+            library: &library,
+            port,
+            platform: Platform::WindowsX86_64,
+            install_root: &install,
+            selected_executable: &executable,
+            source: None,
+            source_record: None,
+        };
+        let checkpoint = || {
+            Err(PortcoveError::new(
+                crate::ErrorCode::Cancelled,
+                "fixture cancellation",
+            ))
+        };
+        let before = launch_fixture_inventory(temporary.path());
+        let adapter = AdapterRegistry.get(AdapterKind::N64RecompPortable);
+        assert_eq!(
+            adapter
+                .launch_spec_with_executable(request, &checkpoint)
+                .unwrap_err()
+                .code,
+            crate::ErrorCode::Cancelled
+        );
+        assert_eq!(
+            adapter
+                .prepare_launch_with_executable(request, &checkpoint)
+                .unwrap_err()
+                .code,
+            crate::ErrorCode::Cancelled
+        );
+        assert_eq!(launch_fixture_inventory(temporary.path()), before);
+    }
+
     fn write_stfs_fixture(path: &Path) {
         let mut package = vec![0_u8; 0xe000];
         package[..4].copy_from_slice(b"LIVE");
@@ -2914,7 +3155,7 @@ mod tests {
 
         let spec = AdapterRegistry
             .get(AdapterKind::N64RecompPortable)
-            .launch_spec_with_executable(
+            .prepare_launch_with_executable(
                 LaunchSpecRequest {
                     library: &library,
                     port: &port,
@@ -2956,7 +3197,7 @@ mod tests {
 
         let spec = AdapterRegistry
             .get(AdapterKind::LibultrashipPortable)
-            .launch_spec(
+            .prepare_launch(
                 &library,
                 port,
                 Platform::WindowsX86_64,
@@ -2977,7 +3218,7 @@ mod tests {
         std::fs::write(install.join("bk.o2r"), b"archive").unwrap();
         let next_spec = AdapterRegistry
             .get(AdapterKind::LibultrashipPortable)
-            .launch_spec(
+            .prepare_launch(
                 &library,
                 port,
                 Platform::WindowsX86_64,
@@ -3036,6 +3277,22 @@ mod tests {
         assert!(matches!(&planned, LibultrashipSourcePlan::Archived { .. }));
         assert!(!library.runtime_sources_dir().join(&port.id).exists());
         assert_eq!(std::fs::read(&source).unwrap(), source_before);
+        let before = launch_fixture_inventory(temporary.path());
+        let proposed = AdapterRegistry
+            .get(AdapterKind::LibultrashipPortable)
+            .launch_spec_with_executable(request, &|| Ok(()))
+            .unwrap();
+        assert_eq!(
+            proposed.arguments,
+            vec![
+                library
+                    .runtime_sources_dir()
+                    .join(&port.id)
+                    .join("portcove-launch-source.z64")
+                    .to_string_lossy()
+            ]
+        );
+        assert_eq!(launch_fixture_inventory(temporary.path()), before);
         let cancelled = planned
             .prepare(&|| {
                 Err(PortcoveError::new(
@@ -3057,7 +3314,7 @@ mod tests {
 
         let spec = AdapterRegistry
             .get(AdapterKind::LibultrashipPortable)
-            .launch_spec(
+            .prepare_launch(
                 &library,
                 port,
                 Platform::WindowsX86_64,
@@ -3087,7 +3344,7 @@ mod tests {
         std::fs::write(&stale, b"interrupted temporary").unwrap();
         let retried_spec = AdapterRegistry
             .get(AdapterKind::LibultrashipPortable)
-            .launch_spec(
+            .prepare_launch(
                 &library,
                 port,
                 Platform::WindowsX86_64,
@@ -3120,7 +3377,7 @@ mod tests {
         assert_eq!(std::fs::read(&materialized).unwrap(), rom);
         let next_spec = AdapterRegistry
             .get(AdapterKind::LibultrashipPortable)
-            .launch_spec(
+            .prepare_launch(
                 &library,
                 port,
                 Platform::WindowsX86_64,
@@ -3269,7 +3526,7 @@ mod tests {
 
         let spec = AdapterRegistry
             .get(AdapterKind::ReferencedDisc)
-            .launch_spec(
+            .prepare_launch(
                 &library,
                 port,
                 Platform::WindowsX86_64,
@@ -3338,7 +3595,7 @@ mod tests {
             std::fs::write(&source, b"adapter fixture; admission tested separately").unwrap();
             let spec = AdapterRegistry
                 .get(AdapterKind::PsxRecompManaged)
-                .launch_spec(
+                .prepare_launch(
                     &library,
                     port,
                     Platform::WindowsX86_64,
@@ -3368,7 +3625,7 @@ mod tests {
             std::fs::write(&generated_config, "[game]\ndisc = \"unverified.chd\"\n").unwrap();
             AdapterRegistry
                 .get(AdapterKind::PsxRecompManaged)
-                .launch_spec(
+                .prepare_launch(
                     &library,
                     port,
                     Platform::WindowsX86_64,
@@ -3418,7 +3675,7 @@ mod tests {
 
         let spec = AdapterRegistry
             .get(AdapterKind::PsxRecompManaged)
-            .launch_spec(
+            .prepare_launch(
                 &library,
                 port,
                 Platform::WindowsX86_64,
@@ -3462,7 +3719,7 @@ mod tests {
 
         AdapterRegistry
             .get(AdapterKind::N64RecompPortable)
-            .launch_spec(
+            .prepare_launch(
                 &library,
                 port,
                 Platform::WindowsX86_64,
@@ -3493,7 +3750,7 @@ mod tests {
 
         let spec = AdapterRegistry
             .get(AdapterKind::LibultrashipPortable)
-            .launch_spec(
+            .prepare_launch(
                 &library,
                 port,
                 Platform::WindowsX86_64,
@@ -3746,7 +4003,7 @@ mod tests {
 
         AdapterRegistry
             .get(AdapterKind::StagedSourcePortable)
-            .launch_spec(
+            .prepare_launch(
                 &library,
                 &port,
                 Platform::WindowsX86_64,
@@ -3836,7 +4093,7 @@ mod tests {
         ];
         AdapterRegistry
             .get(AdapterKind::StagedSourcePortable)
-            .launch_spec(
+            .prepare_launch(
                 &library,
                 &port,
                 Platform::WindowsX86_64,
@@ -3922,7 +4179,7 @@ mod tests {
 
         let spec = AdapterRegistry
             .get(AdapterKind::N64RecompPortable)
-            .launch_spec(&library, port, Platform::MacosAarch64, &install, None)
+            .prepare_launch(&library, port, Platform::MacosAarch64, &install, None)
             .unwrap();
 
         assert_eq!(spec.working_directory, install);
@@ -3945,7 +4202,7 @@ mod tests {
 
         let spec = AdapterRegistry
             .get(AdapterKind::N64RecompPortable)
-            .launch_spec(
+            .prepare_launch(
                 &library,
                 port,
                 Platform::WindowsX86_64,
@@ -3986,7 +4243,7 @@ mod tests {
 
         let spec = AdapterRegistry
             .get(AdapterKind::GeneratedCache)
-            .launch_spec(
+            .prepare_launch(
                 &library,
                 port,
                 Platform::WindowsX86_64,
@@ -4019,7 +4276,7 @@ mod tests {
 
         let spec = AdapterRegistry
             .get(AdapterKind::GeneratedCache)
-            .launch_spec(
+            .prepare_launch(
                 &library,
                 port,
                 Platform::WindowsX86_64,
@@ -4062,7 +4319,7 @@ mod tests {
 
         let spec = AdapterRegistry
             .get(AdapterKind::GeneratedCache)
-            .launch_spec(
+            .prepare_launch(
                 &library,
                 port,
                 Platform::WindowsX86_64,

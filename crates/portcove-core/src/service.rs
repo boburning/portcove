@@ -3683,10 +3683,13 @@ impl PortcoveService {
 
             operation.checkpoint()?;
             let spec = match (&active, &external) {
-                (Some(install), None) => {
-                    self.launch_spec_for_install(port, install, source_override, Some(&operation))?
-                }
-                (None, Some((record, retained_catalog))) => self.launch_spec_for_external(
+                (Some(install), None) => self.prepare_launch_for_install(
+                    port,
+                    install,
+                    source_override,
+                    Some(&operation),
+                )?,
+                (None, Some((record, retained_catalog))) => self.prepare_launch_for_external(
                     record,
                     retained_catalog,
                     source_override,
@@ -4043,7 +4046,7 @@ impl PortcoveService {
     }
 
     #[cfg(test)]
-    pub(crate) fn launch_spec(
+    pub(crate) fn prepare_launch(
         &self,
         port_id: &str,
         source_override: Option<&Path>,
@@ -4054,10 +4057,10 @@ impl PortcoveService {
             .status(port_id)?
             .active
             .ok_or_else(|| PortcoveError::not_found(format!("{port_id} is not installed")))?;
-        self.launch_spec_for_install(port, &active, source_override, None)
+        self.prepare_launch_for_install(port, &active, source_override, None)
     }
 
-    fn launch_spec_for_install(
+    fn prepare_launch_for_install(
         &self,
         port: &PortDefinition,
         active: &InstallRecord,
@@ -4131,7 +4134,7 @@ impl PortcoveService {
         let spec = self
             .adapters
             .get(port.adapter)
-            .launch_spec_with_executable(
+            .prepare_launch_with_executable(
                 crate::LaunchSpecRequest {
                     library: &self.library,
                     port,
@@ -4154,7 +4157,7 @@ impl PortcoveService {
         Ok(spec)
     }
 
-    fn launch_spec_for_external(
+    fn prepare_launch_for_external(
         &self,
         record: &ExternalRuntimeRecord,
         retained_catalog: &Catalog,
@@ -8164,7 +8167,7 @@ fn main() {
         let library = Library::open(temporary.path().join("library")).unwrap();
         let first = register_zelda_install(&library, "v1", true);
         let service = PortcoveService::new(library.clone()).unwrap();
-        let launch = service.launch_spec("zelda64-recomp", None).unwrap();
+        let launch = service.prepare_launch("zelda64-recomp", None).unwrap();
         assert_eq!(launch.install_root, first);
 
         fs::write(first.join("general.json"), b"from-v1-session").unwrap();
@@ -8179,7 +8182,7 @@ fn main() {
             b"from-v1-session"
         );
 
-        service.launch_spec("zelda64-recomp", None).unwrap();
+        service.prepare_launch("zelda64-recomp", None).unwrap();
         assert_eq!(
             fs::read(second.join("general.json")).unwrap(),
             b"from-v1-session"
@@ -8187,7 +8190,7 @@ fn main() {
 
         fs::write(second.join("general.json"), b"recovered-after-crash").unwrap();
         fs::write(second.join(LAUNCH_MARKER), b"1").unwrap();
-        service.launch_spec("zelda64-recomp", None).unwrap();
+        service.prepare_launch("zelda64-recomp", None).unwrap();
         assert_eq!(
             fs::read(library.user_dir("zelda64-recomp").join("general.json")).unwrap(),
             b"recovered-after-crash"
@@ -8469,7 +8472,7 @@ fn main() {
             PortActionReason::ChangedSource
         );
         // The presentation projection cannot turn a changed source into permission.
-        assert!(service.launch_spec("opengoal-jak1", None).is_err());
+        assert!(service.prepare_launch("opengoal-jak1", None).is_err());
     }
 
     #[test]
@@ -8869,18 +8872,18 @@ fn main() {
         service.register_source("star-fox-64", &source).unwrap();
 
         fs::write(&source, b"changed source").unwrap();
-        let error = service.launch_spec("starship", None).unwrap_err();
+        let error = service.prepare_launch("starship", None).unwrap_err();
         assert_eq!(error.code, crate::ErrorCode::SourceInvalid);
         assert!(!install.join(LAUNCH_MARKER).exists());
 
         service.register_source("star-fox-64", &source).unwrap();
         fs::remove_file(&executable).unwrap();
-        let error = service.launch_spec("starship", None).unwrap_err();
+        let error = service.prepare_launch("starship", None).unwrap_err();
         assert_eq!(error.code, crate::ErrorCode::Verification);
         assert!(!install.join(LAUNCH_MARKER).exists());
 
         assert_eq!(write_host_test_executable(&install, "starship"), executable);
-        let launch = service.launch_spec("starship", None).unwrap();
+        let launch = service.prepare_launch("starship", None).unwrap();
         assert_eq!(
             launch.environment.get("PORTCOVE_SOURCE"),
             Some(&source.to_string_lossy().into_owned())
@@ -8911,7 +8914,7 @@ fn main() {
         .unwrap();
         service.register_source("star-fox-64", &source).unwrap();
 
-        let error = service.launch_spec("starship", None).unwrap_err();
+        let error = service.prepare_launch("starship", None).unwrap_err();
 
         assert_eq!(error.code, crate::ErrorCode::SourceInvalid);
         assert!(error.message.contains("changed since registration"));
@@ -9015,7 +9018,7 @@ fn main() {
                 .is_err()
         );
         for selected in [None, Some(source.as_path())] {
-            let spec = service.launch_spec("starship", selected).unwrap();
+            let spec = service.prepare_launch("starship", selected).unwrap();
             assert_eq!(
                 spec.environment.get("PORTCOVE_SOURCE"),
                 Some(&source.to_string_lossy().into_owned())
@@ -9028,7 +9031,7 @@ fn main() {
         assert_eq!(fs::read(&source).unwrap(), b"original source");
         fs::write(&source, b"changed after registration").unwrap();
         assert_eq!(
-            service.launch_spec("starship", None).unwrap_err().code,
+            service.prepare_launch("starship", None).unwrap_err().code,
             crate::ErrorCode::SourceInvalid
         );
         assert!(!install.join(LAUNCH_MARKER).exists());
@@ -9056,7 +9059,7 @@ fn main() {
         );
 
         let second = register_gen1_install(&library, "v2", true);
-        let launch = service.launch_spec("gen1recomp", None).unwrap();
+        let launch = service.prepare_launch("gen1recomp", None).unwrap();
         assert_eq!(launch.working_directory, second.join("gen1recomp-win64"));
         assert_eq!(
             fs::read(
@@ -9274,7 +9277,7 @@ fn main() {
                 .iter()
                 .any(|status| status.port_id != "zelda64-recomp")
         );
-        assert!(service.launch_spec("zelda64-recomp", None).is_err());
+        assert!(service.prepare_launch("zelda64-recomp", None).is_err());
         assert!(!path.join(LAUNCH_MARKER).exists());
     }
 
@@ -9461,7 +9464,7 @@ fn main() {
         service.catalog = Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap();
 
         assert!(service.verify(&original.id).unwrap().valid);
-        let spec = service.launch_spec(&original.id, None).unwrap();
+        let spec = service.prepare_launch(&original.id, None).unwrap();
         assert!(!format!("{spec:?}").contains("--future-contract"));
         let rolled_back = service.rollback(&original.id).unwrap();
         assert_eq!(rolled_back.path, first);
@@ -9524,7 +9527,7 @@ fn main() {
                 crate::DefinitionEligibilityReason::PublisherRevoked
             );
             assert!(!status.readiness.unwrap().launchable);
-            let error = service.launch_spec(&original.id, None).unwrap_err();
+            let error = service.prepare_launch(&original.id, None).unwrap_err();
             assert_eq!(error.code, crate::ErrorCode::Conflict);
             assert_eq!(error.details["definition_reason"], "publisher_revoked");
         }
@@ -9579,7 +9582,7 @@ fn main() {
         let service = PortcoveService::new(library).unwrap();
 
         let error = service
-            .launch_spec("lighthouse", Some(&invalid))
+            .prepare_launch("lighthouse", Some(&invalid))
             .unwrap_err();
         assert_eq!(error.code, crate::ErrorCode::SourceInvalid);
     }
@@ -9610,7 +9613,7 @@ fn main() {
             }
             let service = PortcoveService::new(library.clone()).unwrap();
 
-            let error = service.launch_spec("zelda64-recomp", None).unwrap_err();
+            let error = service.prepare_launch("zelda64-recomp", None).unwrap_err();
 
             assert_eq!(error.code, crate::ErrorCode::Verification, "{target}");
             assert!(
@@ -9642,7 +9645,7 @@ fn main() {
         fs::write(active.path.join("plausible-fallback.exe"), b"untrusted").unwrap();
         let service = PortcoveService::new(library).unwrap();
 
-        let error = service.launch_spec("zelda64-recomp", None).unwrap_err();
+        let error = service.prepare_launch("zelda64-recomp", None).unwrap_err();
 
         assert_eq!(error.code, crate::ErrorCode::Verification);
         assert!(!active.path.join(LAUNCH_MARKER).exists());
@@ -9665,7 +9668,7 @@ fn main() {
         .unwrap();
         let service = PortcoveService::new(library).unwrap();
 
-        let error = service.launch_spec("zelda64-recomp", None).unwrap_err();
+        let error = service.prepare_launch("zelda64-recomp", None).unwrap_err();
 
         assert_eq!(error.code, crate::ErrorCode::Verification);
         assert!(error.details["failures"].contains("unmanifested.dll"));
@@ -9682,7 +9685,7 @@ fn main() {
         let service = PortcoveService::new(library).unwrap();
 
         let report = service.verify("zelda64-recomp").unwrap();
-        let spec = service.launch_spec("zelda64-recomp", None).unwrap();
+        let spec = service.prepare_launch("zelda64-recomp", None).unwrap();
 
         assert!(report.valid, "{:?}", report.failures);
         assert!(spec.executable.starts_with(&path));
@@ -9722,7 +9725,7 @@ fn main() {
         );
 
         assert!(service.verify(PORT).unwrap().valid);
-        assert!(service.launch_spec(PORT, None).is_ok());
+        assert!(service.prepare_launch(PORT, None).is_ok());
         assert_eq!(
             fs::read(library.user_dir(PORT).join("new-settings.ini")).unwrap(),
             b"player preference"
@@ -9749,7 +9752,7 @@ fn main() {
         assert!(service.verify(PORT).unwrap().valid);
         fs::write(previous.join("engine.dll"), b"changed engine").unwrap();
         assert!(!service.verify(PORT).unwrap().valid);
-        assert!(service.launch_spec(PORT, None).is_err());
+        assert!(service.prepare_launch(PORT, None).is_err());
     }
 
     #[test]
@@ -9779,7 +9782,7 @@ fn main() {
                 .failures
                 .contains(&"unexpected: new-settings.ini".into())
         );
-        assert!(service.launch_spec("zelda64-recomp", None).is_err());
+        assert!(service.prepare_launch("zelda64-recomp", None).is_err());
         assert!(
             !service
                 .library
@@ -10708,7 +10711,7 @@ fn main() {
             .unwrap();
         let service = PortcoveService::new(library.clone()).unwrap();
 
-        let error = service.launch_spec("zelda64-recomp", None).unwrap_err();
+        let error = service.prepare_launch("zelda64-recomp", None).unwrap_err();
 
         assert_eq!(error.code, crate::ErrorCode::Verification);
         let after = library
