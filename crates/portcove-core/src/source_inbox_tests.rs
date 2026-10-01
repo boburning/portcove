@@ -49,13 +49,114 @@ fn service(catalog: Catalog) -> (tempfile::TempDir, PortcoveService) {
     (temporary, service)
 }
 
+// These resolver cases need an exact identity, not a real port's admission contract.
+// Keep catalog_with and the embedded informational/representation cases separate.
 fn exact_bios_catalog(bytes: &[u8]) -> Catalog {
-    catalog_with("psx-scph-1001-bios", |representation| {
-        representation.extensions = vec!["bin".into()];
-        representation.kind = SourceRepresentationKind::RawFile {
-            identities: vec![hashes(bytes, DigestScope::OriginalFile)],
-        };
-    })
+    let document = serde_json::json!({
+        "schema_version": 2,
+        "source_catalog": {
+            "evidence": [{
+                "id": "inbox-fixture-bytes", "role": "byte_identity",
+                "authority": "Synthetic inbox fixture", "authority_ref": "fixture-1",
+                "reviewed_at": "2026-10-01", "claim": "Synthetic exact source bytes",
+                "immutable_url": "https://example.com/fixtures/inbox-v1"
+            }],
+            "identities": [{
+                "id": "psx-scph-1001-bios", "label": "Synthetic inbox source",
+                "kind": "file", "variants": [{
+                    "id": "fixture-1", "title": "Synthetic inbox source",
+                    "representations": [{
+                        "id": "raw", "extensions": ["bin"], "kind": "raw-file",
+                        "identities": [hashes(bytes, DigestScope::OriginalFile)],
+                        "evidence_ids": ["inbox-fixture-bytes"]
+                    }], "evidence_ids": ["inbox-fixture-bytes"]
+                }]
+            }],
+            "contracts": [], "validators": []
+        },
+        "ports": []
+    });
+    Catalog::from_json(&document.to_string()).unwrap()
+}
+
+#[test]
+fn exact_inbox_fixture_validates_its_independent_schema2_graph() {
+    let bytes = b"synthetic exact BIOS";
+    let catalog = exact_bios_catalog(bytes);
+    catalog.validate().unwrap();
+    assert_eq!(catalog.document().schema_version, 2);
+    assert!(catalog.ports().is_empty());
+    let source = catalog.source_catalog().unwrap();
+    assert_eq!(source.identities.len(), 1);
+    assert_eq!(source.evidence.len(), 1);
+    assert!(source.contracts.is_empty());
+    assert!(source.validators.is_empty());
+    assert!(source.qualification.is_empty());
+    assert_eq!(catalog.document().source_profiles.len(), 1);
+    let profile = &source.identities[0];
+    assert_eq!(profile.id, "psx-scph-1001-bios");
+    assert_eq!(profile.variants.len(), 1);
+    let representation = &profile.variants[0].representations[0];
+    assert_eq!(representation.extensions, ["bin"]);
+    let SourceRepresentationKind::RawFile { identities } = &representation.kind else {
+        panic!("the exact inbox fixture is a raw file")
+    };
+    assert_eq!(
+        serde_json::to_value(identities).unwrap(),
+        serde_json::json!([hashes(bytes, DigestScope::OriginalFile)])
+    );
+
+    let mut invalid = serde_json::to_value(catalog.authoritative_document()).unwrap();
+    invalid["source_catalog"]["identities"][0]["variants"][0]["representations"][0]["evidence_ids"] =
+        serde_json::json!(["missing-evidence"]);
+    assert!(Catalog::from_json(&invalid.to_string()).is_err());
+    let mut invalid = serde_json::to_value(catalog.authoritative_document()).unwrap();
+    invalid["source_catalog"]["identities"][0]["unexpected_authority"] = true.into();
+    assert!(Catalog::from_json(&invalid.to_string()).is_err());
+}
+
+#[test]
+fn unrelated_source_identity_does_not_change_exact_inbox_resolution() {
+    let bytes = b"synthetic exact BIOS";
+    let catalog = exact_bios_catalog(bytes);
+    let mut extended = catalog.authoritative_document();
+    let source = extended.source_catalog.as_mut().unwrap();
+    let mut unrelated = source.identities[0].clone();
+    unrelated.id = "unrelated-source".into();
+    unrelated.variants[0].representations[0].kind = SourceRepresentationKind::RawFile {
+        identities: vec![hashes(b"unrelated bytes", DigestScope::OriginalFile)],
+    };
+    source.identities.push(unrelated);
+    let extended = Catalog::from_json(&serde_json::to_string(&extended).unwrap()).unwrap();
+    let (_temporary, mut service) = service(catalog);
+    let inbox = profile_dir(&service, "psx-scph-1001-bios");
+    fs::write(inbox.join("bios.bin"), bytes).unwrap();
+    let before = service
+        .scan_source_inbox("psx-scph-1001-bios", &SourceDiscoveryLimits::default())
+        .unwrap();
+    service.replace_catalog_for_test(extended);
+    let after = service
+        .scan_source_inbox("psx-scph-1001-bios", &SourceDiscoveryLimits::default())
+        .unwrap();
+    assert_eq!(before.state, SourceInboxResolutionState::ExactMatch);
+    assert_eq!(before.state, after.state);
+    assert_eq!(before.profile_id, after.profile_id);
+    assert_eq!(before.candidates.len(), 1);
+    assert_eq!(before.candidates.len(), after.candidates.len());
+    assert_eq!(
+        serde_json::to_value(before.stats).unwrap(),
+        serde_json::to_value(after.stats).unwrap()
+    );
+    let before = before.selected.unwrap();
+    let after = after.selected.unwrap();
+    assert_eq!(before.path, after.path);
+    assert_eq!(before.sha256, after.sha256);
+    assert_eq!(before.storage_sha256, after.storage_sha256);
+    assert_eq!(
+        serde_json::to_value(before.observed_identity).unwrap(),
+        serde_json::to_value(after.observed_identity).unwrap()
+    );
+    assert!(service.library().sources().unwrap().is_empty());
 }
 
 fn profile_dir(service: &PortcoveService, profile_id: &str) -> PathBuf {

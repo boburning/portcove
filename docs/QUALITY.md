@@ -13,6 +13,17 @@ Do not add an aggregate audit merely because a change has a pull request.
   Shared or uncertain impact keeps the existing broader fallback.
 - Tooling changes use their contract tests. A harness or synthetic image change
   does not imply changed Rust behavior.
+  The maintained default-cover native harness selects its Node scenario contracts
+  locally and frontend plus Rust-quality hosted coverage. Changed core/Tauri,
+  unknown or renamed harness inputs keep their broader routing. Actual native
+  display, restart and network acceptance still run separately when affected.
+- Regular PNG, JPEG and WebP captures under `docs/media/` retain the documentation
+  catalog and Rust-quality checks without the broad `catalog`, `retcomm` or
+  `source-provenance` filename heuristic selecting Rust tests. Other existing
+  signals, including schema/IPC and platform ownership, still apply. Runtime/catalog
+  assets, other formats or locations, mixed production changes, both rename sides
+  and consequential file modes retain their existing routes. This does not extend
+  the prose-only allowlist.
 - Validation-routing changes use adversarial selection tests, separate review and
   the transition profile when eligible. Exhaustive exact-head hosted qualification
   owns the unchanged product suites; do not duplicate them locally.
@@ -174,6 +185,13 @@ non-ignored untracked files. Pass `--base <revision>` when another reviewed base
 is intentional, `--plan` to inspect the exact selection, or `--fresh` when an
 acceptance contract explicitly requires execution without reusable local receipts.
 
+Release-handbook changes in `docs/RELEASING.md` invalidate formatting,
+repository, roadmap and release-unit receipts. They do not expire otherwise identical
+Rust or UI command evidence. Changes to their actual source, recipes, dependencies,
+toolchain or environment still invalidate those receipts. This does not shorten
+`--fresh` audits, grant transition-profile eligibility, reuse stateful results or
+replace required exact-head hosted and installed-application qualification.
+
 Eligible deterministic local stages use the audit's integrity-checked receipt
 model. Each fingerprint binds the exact command and obligation, complete
 conservative domain inputs, recipes and pins, relevant toolchain and host identity,
@@ -240,9 +258,26 @@ fallback; mixed explicitly mapped families retain their full union. This removes
 unrelated test execution for an assertion-only edit without narrowing production
 import coverage or replacing required hosted evidence.
 
+The backup-fixtures group owns only the private `service/tests/backups.rs`
+module. Every creation, inventory, restore, deletion, authorization, preservation
+and interruption/recovery assertion in that module runs together, including
+applicable Unix symlink cases and the real interruption subprocess. Production
+backup orchestration, recovery, service helpers, journals, library/database and
+module wiring remain broad. Deletion, renaming and unknown paths retain the
+complete-package fallback; mixed mapped changes retain their complete union.
+
 The contract is intentionally conservative: shared types, service and lifecycle
 orchestration, database behavior, public module wiring, and package manifests are
-outside the focused groups. Required GitHub CI still runs the complete selected
+outside the focused groups. The exact artwork resolution module additionally
+owns the complete artwork, import, move and transfer assertion families because
+its original-byte reader is consumed by transfer verification. It also selects
+the existing public CLI artwork contract. Storage, image decoding, ingestion,
+shared transfer implementation changes remain broad, as
+do uncertain, deleted and renamed paths; mixed mapped groups retain their union.
+Retained-contract changes keep their existing complete definition-delivery group.
+This ownership does not reuse stateful success or replace native acceptance.
+
+Required GitHub CI still runs the complete selected
 hosted plan on the exact reviewed head; shared or uncertain changes select
 exhaustive qualification. To roll back local selection,
 revert the map and selector change; the previous complete-package command remains

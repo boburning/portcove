@@ -39,6 +39,19 @@ function planFor(paths) {
   };
 }
 
+test("the maintained default-cover harness selects native scenario contracts without Rust execution", () => {
+  const cover = "apps/desktop/scripts/desktop-default-cover-test.mjs";
+  for (const status of ["A", "M", "D"]) {
+    const { selection, plan } = planFor([{ status, path: cover }]);
+    assert.ok(selection.nodeTests.has("scripts/desktop-scenarios.test.mjs"));
+    assert.ok(ids(plan).includes("node-tests"));
+    assert.ok(!ids(plan).some((id) => id.startsWith("rust-tests")));
+    assert.ok(!plan.map(formatCommand).join("\n").includes("desktop-test"));
+  }
+  const mixed = planFor([cover, "crates/portcove-core/src/artwork.rs"]);
+  assert.ok(ids(mixed.plan).some((id) => id.startsWith("rust-tests")));
+});
+
 test("selected local resource scope follows actual commands and mixed or unknown work is conservative", () => {
   assert.equal(storageScopeForPlan([{ id: "diff-check" }, { id: "node-tests" }]), "tooling");
   assert.equal(storageScopeForPlan([{ id: "node-syntax:tool.mjs" }]), "tooling");
@@ -251,7 +264,32 @@ test("mapped Rust responsibilities run one attributable guarded union", () => {
   assert.ok(!ids(plan).includes("rust-tests:portcove-core"));
 });
 
-test("artwork fixture edits select their families but shared implementations stay broad", () => {
+test("private backup fixture feedback keeps complete family, Clippy and doctests", () => {
+  const path = "crates/portcove-core/src/service/tests/backups.rs";
+  const { plan } = planFor([path]);
+  const tests = plan.find((entry) => entry.id === "rust-tests:portcove-core:backup-fixtures");
+  assert.ok(tests);
+  assert.equal(tests.args.at(-1), "test(/^service::tests::backups::/)");
+  assert.ok(ids(plan).includes("rust-clippy:portcove-core"));
+  assert.ok(ids(plan).includes("rust-docs:portcove-core"));
+  assert.ok(!ids(plan).includes("rust-tests:portcove-core"));
+  for (const shared of [
+    "service/backups.rs",
+    "recovery.rs",
+    "service.rs",
+    "database.rs",
+    "lib.rs",
+  ]) {
+    assert.ok(
+      ids(planFor([path, `crates/portcove-core/src/${shared}`]).plan).includes(
+        "rust-tests:portcove-core",
+      ),
+      shared,
+    );
+  }
+});
+
+test("artwork fixture edits select their families but storage and decoding stay broad", () => {
   for (const [file, packageName, filter] of [
     ["crates/portcove-core/src/artwork_tests.rs", "portcove-core", "artwork_tests"],
     ["crates/portcove-cli/tests/machine_contract/artwork.rs", "portcove-cli", "artwork_contract"],
@@ -263,7 +301,6 @@ test("artwork fixture edits select their families but shared implementations sta
     assert.ok(!ids(plan).includes(`rust-tests:${packageName}`));
   }
   for (const file of [
-    "crates/portcove-core/src/artwork.rs",
     "crates/portcove-core/src/artwork_store.rs",
     "crates/portcove-core/src/artwork_image.rs",
     "crates/portcove-cli/src/main.rs",
@@ -272,6 +309,19 @@ test("artwork fixture edits select their families but shared implementations sta
     const packageName = file.includes("portcove-cli") ? "portcove-cli" : "portcove-core";
     assert.ok(ids(plan).includes(`rust-tests:${packageName}`), file);
   }
+});
+
+test("artwork resolution selects complete transfer families and the public CLI consumer", () => {
+  const { plan } = planFor(["crates/portcove-core/src/artwork.rs"]);
+  const core = plan.find((entry) => entry.id === "rust-tests:portcove-core:artwork-resolution");
+  assert.ok(core);
+  for (const family of ["artwork_tests", "import_execution", "library_move", "library_transfer"])
+    assert.ok(core.args.at(-1).includes(family), family);
+  assert.ok(ids(plan).includes("rust-clippy:portcove-core"));
+  assert.ok(ids(plan).includes("rust-docs:portcove-core"));
+  const cli = plan.find((entry) => entry.id === "rust-tests:portcove-cli:catalog-artwork-consumer");
+  assert.ok(cli);
+  assert.match(cli.args.at(-1), /artwork_contract/u);
 });
 
 test("embedded catalog feedback includes both core artwork and the public CLI consumer", () => {
@@ -295,6 +345,38 @@ test("embedded catalog feedback includes both core artwork and the public CLI co
     assert.match(cli.args.at(-1), /artwork_contract/);
     assert.equal(storageScopeForPlan(plan), "rust");
     assert.ok(!plan.some((entry) => entry.id.startsWith("ui-")));
+  }
+});
+
+test("uncertain artwork module changes preserve broad core and CLI evidence", () => {
+  const path = "crates/portcove-core/src/artwork.rs";
+  for (const change of [
+    { status: "D", path },
+    { status: "R100", path, previousPath: "crates/portcove-core/src/old_artwork.rs" },
+    { status: "R100", path: "crates/portcove-core/src/new_artwork.rs", previousPath: path },
+  ]) {
+    const { plan } = planFor([change]);
+    assert.ok(ids(plan).includes("rust-tests:portcove-core"));
+    const cli = plan.find(
+      (entry) => entry.id === "rust-tests:portcove-cli:catalog-artwork-consumer",
+    );
+    assert.ok(cli);
+    assert.ok(!cli.args.includes("-E"));
+  }
+  const { selection } = planFor([path]);
+  const unavailable = buildPlan(selection, { rustTestImpactMap: null });
+  assert.ok(ids(unavailable).includes("rust-tests:portcove-core"));
+  assert.ok(
+    !unavailable
+      .find((entry) => entry.id === "rust-tests:portcove-cli:catalog-artwork-consumer")
+      .args.includes("-E"),
+  );
+  for (const cliPath of [
+    "crates/portcove-cli/tests/machine_contract/artwork.rs",
+    "crates/portcove-cli/src/main.rs",
+  ]) {
+    const { plan } = planFor([path, cliPath]);
+    assert.equal(plan.filter((entry) => entry.id.startsWith("rust-tests:portcove-cli")).length, 1);
   }
 });
 

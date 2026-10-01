@@ -1,5 +1,68 @@
 # Architecture
 
+## Current ownership and deliverables
+
+Portcove Core, CLI, and Desktop remain in one repository. Shared core services
+own game-management behavior. CLI and Desktop are independently usable
+interfaces and separately packaged deliverables. Repository separation is not
+needed to provide standalone CLI downloads, focused builds, or independent
+release scheduling if that is eventually justified.
+
+The dependency direction remains CLI -> core, Tauri backend -> core, and React
+-> Tauri IPC. The official desktop application calls core through its Tauri
+backend; it does not shell out to a separately installed CLI. Catalog and source
+admission, installation, game updates, persistence, per-port locking, recovery,
+and launch policy retain one shared authority. Host argument parsing, native
+dialogs, process integration, IPC translation, and presentation remain at their
+appropriate boundaries. Interfaces need compatible domain outcomes, not
+identical presentation.
+
+Core, CLI, and Desktop keep coordinated product versions for now. Coordinated
+versions do not make arbitrary separately installed CLI and Desktop versions
+compatible: library-schema, locking, migration, and machine-contract protections
+still apply. This decision does not publish internal crates, promise a stable
+internal Rust API, introduce a daemon/RPC layer, or prevent a focused crate from
+being extracted when implementation evidence supports the evolution policy.
+
+Reconsider repository extraction only for demonstrated independent ownership,
+access-control requirements, or a genuinely independent product. Download-list
+clutter, implementation language, file counts, directory aesthetics, and a wish
+for different release timing are not sufficient. Community-maintained clients
+may live elsewhere and consume the public CLI contract without becoming official
+Portcove maintenance obligations.
+
+The same rule applies to third-party clients. A launch-only integration may
+translate a stable Portcove/library identity into its frontend's executable and
+argument fields. A library integration may map supported metadata. A lifecycle
+integration may present Portcove readiness, progress, errors, cancellation, and
+recovery. None may read SQLite, duplicate catalog/admission rules, derive durable
+identity from display names or mutable paths, or retain a parallel operation
+database. `exec` deliberately transfers its standard streams and final process
+status to the game; structured management calls and durable core activity remain
+the observation path around it. See [External frontend integration](INTEGRATIONS.md).
+
+## Find the owning boundary
+
+Use this map before changing a subsystem. The linked contracts own their detailed
+rules; the sections below explain implemented boundaries and explicitly labeled
+planned work. Issue and Project links describe work ownership, not proof that an
+outcome is complete. Dated qualification and release records retain their exact
+scope; they do not certify later builds.
+
+| Change or question                                      | Owner and entry point                                                                                                                                                                                                                                                                                                       |
+| ------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Catalog, sources, installation, game updates and launch | Shared core; start with the [library model](#library-model), [install transaction](#install-transaction), [adapter boundary](#adapter-boundary) and [catalog contract](CATALOG.md).                                                                                                                                         |
+| Application self-update, replacement and recovery       | Tauri host; [updater trust](UPDATER-TRUST.md), [upgrade behavior](UPGRADING.md) and [delivery boundaries](DELIVERY.md). Application, game and catalog updates remain separate.                                                                                                                                              |
+| CLI, Desktop IPC and external clients                   | Thin adapters over core; [CLI contract](CLI.md), [external frontend boundary](#external-frontend-contract) and [integration-author route](INTEGRATION-AUTHOR.md).                                                                                                                                                           |
+| React presentation and workspace state                  | Desktop frontend; [design system](DESIGN-SYSTEM.md), [desktop library handoff](#desktop-library-handoff-state) and [backup review presentation](#backup-review-presentation). Core assessments retain operation authority.                                                                                                  |
+| Source, save, backup and library recovery               | Core; [source import interpretation](#source-import-journal-interpretation), [backup service](#backup-service-ownership), [checked backup restoration](#checked-backup-restore-interpretation) and [library model](#library-model). Machine development storage is separate: [development storage](DEVELOPMENT-STORAGE.md). |
+| Artwork, credentials and Steam destinations             | [Shared artwork ownership](#local-artwork-ownership), host credential boundaries and [Steam shortcut boundary](#steam-shortcut-compatibility-boundary); [integration contract](INTEGRATIONS.md) keeps destination and physical-device obligations distinct.                                                                 |
+| Independent definitions, authentication and publication | Core admission and selection; [signed catalog authority](#signed-catalog-authority), [signed catalog contract](SIGNED-CATALOG.md) and [definition delivery](DEFINITION-DELIVERY.md). Content inspection is not publication or activation authority.                                                                         |
+| Validation, native evidence and review                  | [Quality contract](QUALITY.md), [development tools](DEVELOPMENT-TOOLS.md) and [review/merge contract](CONTRIBUTION-CONVENTIONS.md). Browser, native, installed-package and physical-device results establish different claims.                                                                                              |
+| Proposed structural changes                             | [Evolution policy](#evolution-policy) and [planned consolidation](#planned-public-beta-consolidation); a planned interface is not an implemented capability.                                                                                                                                                                |
+
+## Subsystem contracts
+
 ## Source import journal interpretation
 
 The source-import owner decodes the released lifecycle envelope into a private
@@ -197,6 +260,15 @@ the CLI and Desktop. The schema-49 `artwork_state` object now includes an additi
 core-resolved source and generated-fallback provenance. Catalog and signed-envelope
 formats are unchanged. Local filenames, hashes and import times record provenance;
 they establish neither copyright permission nor upstream authenticity.
+
+Artwork reads, thumbnails, imports and resets prefer current catalog presentation.
+When an imported installed port is absent from that catalog, they may use its
+active installation's digest-validated retained definition only while its exact
+admission matches the library's retained active or previous selection. Missing
+installations, invalid manifests and unadmitted snapshots cannot supply this
+fallback. This private presentation lookup does not modify catalog discovery or
+lifecycle authority. An artwork change captures that validated presentation once
+and reports its committed choice without reopening the retained manifest.
 
 Imports accept static PNG/JPEG files with at most 16 MiB encoded bytes, 8192 pixels
 per dimension, 8 megapixels and 32 MiB decoded pixel storage. Decoder allocation
@@ -420,7 +492,12 @@ lifecycle intent,
 uses the existing port lock and one-use state-bound authorization, validates and
 stages the selected payload, and creates the safety backup before replacing live
 data. It records payload publication and metadata commit before retiring retained
-recovery data. Deletion rechecks its content-bound review under the port lock,
+recovery data. Normal restore and recovery validate the current port, a safe
+single-component operation identity, and the exact library-owned recovery,
+user-data and previous-data paths before mutation. Unrelated family payloads,
+symlink ancestors and existing nondirectory roots are refused; a rejected
+preparation cleanup retains its journal and tree for review. The released phase
+and replacement flag remain compatible. Deletion rechecks its content-bound review under the port lock,
 records the prepared intent, quarantines with no replacement, records publication,
 removes only that quarantine, then records metadata commit and retires the journal.
 The existing restore/deletion fault points and recovery rules still distinguish
@@ -1204,45 +1281,6 @@ output. It holds no runtime, signing, publication or production eligibility
 authority; protected automation must authenticate the inputs and sign the distinct
 TUF roles without executing candidate tooling with production credentials.
 
-Portcove Core, CLI, and Desktop remain in one repository. Shared core services
-own game-management behavior. CLI and Desktop are independently usable
-interfaces and separately packaged deliverables. Repository separation is not
-needed to provide standalone CLI downloads, focused builds, or independent
-release scheduling if that is eventually justified.
-
-The dependency direction remains CLI -> core, Tauri backend -> core, and React
--> Tauri IPC. The official desktop application calls core through its Tauri
-backend; it does not shell out to a separately installed CLI. Catalog and source
-admission, installation, game updates, persistence, per-port locking, recovery,
-and launch policy retain one shared authority. Host argument parsing, native
-dialogs, process integration, IPC translation, and presentation remain at their
-appropriate boundaries. Interfaces need compatible domain outcomes, not
-identical presentation.
-
-Core, CLI, and Desktop keep coordinated product versions for now. Coordinated
-versions do not make arbitrary separately installed CLI and Desktop versions
-compatible: library-schema, locking, migration, and machine-contract protections
-still apply. This decision does not publish internal crates, promise a stable
-internal Rust API, introduce a daemon/RPC layer, or prevent a focused crate from
-being extracted when implementation evidence supports the evolution policy.
-
-Reconsider repository extraction only for demonstrated independent ownership,
-access-control requirements, or a genuinely independent product. Download-list
-clutter, implementation language, file counts, directory aesthetics, and a wish
-for different release timing are not sufficient. Community-maintained clients
-may live elsewhere and consume the public CLI contract without becoming official
-Portcove maintenance obligations.
-
-The same rule applies to third-party clients. A launch-only integration may
-translate a stable Portcove/library identity into its frontend's executable and
-argument fields. A library integration may map supported metadata. A lifecycle
-integration may present Portcove readiness, progress, errors, cancellation, and
-recovery. None may read SQLite, duplicate catalog/admission rules, derive durable
-identity from display names or mutable paths, or retain a parallel operation
-database. `exec` deliberately transfers its standard streams and final process
-status to the game; structured management calls and durable core activity remain
-the observation path around it. See [External frontend integration](INTEGRATIONS.md).
-
 ## Library model
 
 The [configured upstream observer](UPSTREAM-OBSERVATIONS.md) owns bounded,
@@ -1381,7 +1419,7 @@ still-registered source when required. The retained source directory from a
 library move may keep an old cache until that retained directory is removed by
 the owner; it is never treated as user data or recovery evidence.
 
-SQLite stores source references, settings, install records, active/previous version pointers, successful launch history, timestamped successful update-check snapshots, a typed activity ledger, durable launch requests, and the small set of incomplete cross-store lifecycle operations. An install record keeps its human-readable display version separately from the asset name, verified asset SHA-256 and size, manifest SHA-256, selected executable, and exact concrete path. Database opening takes a library-scoped operating-system migration lock before checking or changing the schema. Migrations are contiguous, individually transactional, postcondition-checked steps; a gap, a recorded partial step, or a schema newer than the running build fails with the affected versions instead of guessing. WAL and the busy timeout remain ordinary concurrency aids, not migration locks. Schema-8 migration leaves pre-identity installs explicitly unqualified rather than inventing provenance; they fail current-integrity gates until replaced or re-adopted. Schema 9 introduced active launch sessions. Schema 13 evolves them into retained request records with exact supervisor/child process-start identities, active phase, terminal outcome, child exit code, explanation, and timestamps; migrated sessions without start identity remain blocked for manual review rather than trusting a PID. Schema 14 adds an optional normalized absolute output directory to each port's settings. Core resolves a request override, then that saved setting, then the existing `versions/<port-id>` default. This preference controls future placement only; current installs, central user data, backups, sources, and shared tools keep their recorded locations. Schema 15 assigns the movable library a stable identity and records every claimed external game-output root with its port, marker identity, and filesystem-volume identity. The root marker and SQLite record must agree before core stages or publishes there. External installation preparation lives under that root's private `.staging` directory so verified publication remains a same-filesystem rename; missing or replaced volumes fail instead of falling back to the library drive.
+SQLite stores source references, settings, install records, active/previous version pointers, successful launch history, timestamped successful update-check snapshots, a typed activity ledger, durable launch requests, and the small set of incomplete cross-store lifecycle operations. An install record keeps its human-readable display version separately from the asset name, verified asset SHA-256 and size, manifest SHA-256, selected executable, and exact concrete path. Database opening takes a library-scoped operating-system migration lock before checking or changing the schema. Migrations are contiguous, postcondition-checked steps. When the database is absent under the migration lock and its new ledger is empty, all pending steps and their history publish in one transaction; a failed step rolls the whole initial schema back. Existing database files retain one transaction per pending version, including empty ledgers left by an interrupted first initialization. A gap, a recorded partial step, or a schema newer than the running build fails with the affected versions instead of guessing. WAL and the busy timeout remain ordinary concurrency aids, not migration locks. Schema-8 migration leaves pre-identity installs explicitly unqualified rather than inventing provenance; they fail current-integrity gates until replaced or re-adopted. Schema 9 introduced active launch sessions. Schema 13 evolves them into retained request records with exact supervisor/child process-start identities, active phase, terminal outcome, child exit code, explanation, and timestamps; migrated sessions without start identity remain blocked for manual review rather than trusting a PID. Schema 14 adds an optional normalized absolute output directory to each port's settings. Core resolves a request override, then that saved setting, then the existing `versions/<port-id>` default. This preference controls future placement only; current installs, central user data, backups, sources, and shared tools keep their recorded locations. Schema 15 assigns the movable library a stable identity and records every claimed external game-output root with its port, marker identity, and filesystem-volume identity. The root marker and SQLite record must agree before core stages or publishes there. External installation preparation lives under that root's private `.staging` directory so verified publication remains a same-filesystem rename; missing or replaced volumes fail instead of falling back to the library drive.
 
 Schema 16 adds the reviewed relocation plan to the existing lifecycle journal. Core copies every recorded version for one port into operation-private staging on the destination volume, verifies the copied tree and install manifest, publishes each copy with an atomic same-volume no-replace operation, then changes all install paths and the port output preference in one SQLite transaction. A destination that appears after review is retained and blocks publication; a platform or filesystem without the required primitive fails closed. Before the metadata commit the old paths are authoritative; after it the destination paths are authoritative. Startup resumes every recorded interruption phase. Cleanup verifies that an old tree contains only reviewed content before removing it; changed or undeletable old content is retained with `cleanup_pending`. Sources, central user data, backups, and shared tools are outside relocation ownership.
 
@@ -1732,7 +1770,29 @@ Authentication does not grant webhook access to arbitrary upstream repositories.
 
 RetComM is not a Portcove release provider. Its title catalog is used only by a CI audit to confirm that PS1 entries still name the same direct per-game repositories. The RetComM launcher cannot satisfy a game release request and is explicitly rejected by catalog validation. `retcomm-toolchains` is a separate checksum-pinned build dependency used by the shared PS1 adapter.
 
+Backup deletion uses a private checked operation-family view in normal execution
+and recovery. Named original/quarantine/backup identities replace its positional
+recovery tuple; checked authorized-to-quarantined-to-deleted transitions retain
+the released journal encodings. Unconfirmed preparation still refuses recovery,
+and legacy cleanup-pending records still finish partially removed quarantines.
+Unrelated family payloads, staging, original paths and activation flags are
+rejected before mutation. The view confers no consent or filesystem authority:
+existing one-use authorization, locks, exact backup-root/identity and symlink
+checks remain required. Deletion already in progress need not retain an intact
+backup manifest.
+
 ## Adapter boundary
+
+Libultraship's transient-source decision is a private read-only plan over the
+current supervised launch snapshot: use the original source, materialize an
+admitted archive, supply no source argument, or clean transient sources after a
+generated archive exists. Planning does not create, extract or delete files.
+Explicit preparation checks cancellation before materialization or cleanup and
+uses the existing identity-checked staging and owned cleanup helpers. The plan
+is consumed immediately under existing service ownership; it is not cached
+permission. Source revalidation, save synchronization, executable verification
+and process authority remain in the service. Other launch-spec branches still
+perform preparation; this boundary does not make the full API read-only.
 
 Adapters describe recurring families rather than individual games: libultraship portable releases, N64 recomp portable releases, staged-source portable releases, referenced-disc ports, generated-cache ports, upstream-managed setup, and managed PS1 recomp builds. Port-specific facts stay in `catalog.json`: repository, channels, platform availability, source profile, executable hints, launch behavior, persistent paths, and optional runtime subdirectory and source paths. Source profiles may use exact SHA-1, SHA-256, file-set CRC32, reviewed PS1 ISO-volume allowlists, or a tightly bounded upstream-validator handoff so Portcove can enforce the strongest identity form an upstream actually publishes while continuing to record SHA-256 in local state. A declared runtime subdirectory keeps working-directory, portable-marker, and stored-source behavior inside a stable nested release layout without port-specific code. Runtime source materialization is limited to reviewed generic operations: N64 byte-order normalization, bounded exact copy or ZIP-member extraction, GameCube or PS2 ISO conversion, single-disc PS1 CHD expansion to a multi-BIN/CUE directory, multi-disc PS1 CHD expansion to numbered raw data tracks, and read-only LIVE/STFS extraction into a new directory. STFS extraction validates a bounded ASCII path table, rejects traversal, case collisions, cyclic or out-of-range block chains, caps depth/count/expanded bytes against available storage, and publishes only after declared inner-file SHA-256 checks pass. File replacements and directory swaps preserve the prior destination until the staged replacement is ready; schema-2 source sidecars bind reuse to the current storage SHA-256 and size instead of path metadata, forcing restaging even when changed bytes retain the same path, length, and timestamp.
 
@@ -1834,3 +1894,16 @@ Post-exit collection compares canonical install and versions-directory paths aft
 Persistent-data synchronization skips a redundant file copy only when lengths and complete SHA-256 content match. Timestamps alone never authorize reuse, and a same-size changed save still replaces its collected copy. Existing ancestor checks, port locking, and deletion propagation remain in force.
 
 ZIP entry names from Windows producers are normalized from DOS separators to forward slashes before the shared portable validator and collision inventory run. This is one platform-independent output namespace: mixed-separator aliases collide, and traversal, drive/UNC roots, reserved names, links, special files, and resource limits still fail before extraction writes. Catalog and TAR paths retain their forward-slash requirement.
+
+### Checked backup restore interpretation
+
+The released restore journal remains the storage compatibility envelope. The private
+backup owner decodes it into `RestoreOperation`: unverified staging, ready publication,
+published data, committed metadata or pending cleanup, exact operation-owned paths,
+and an explicit `replaces_existing_data` value for the historical `activate` column.
+Normal restore and interrupted recovery use this same interpreter and checked legal
+phase transitions; the recovery path does not independently unwrap optional paths or
+interpret generic flags. Decoding does not write files or journals and is not authority.
+Catalog identity, port locks, one-use consent, original/source preservation and filesystem
+revalidation remain required. Typed path snapshots cannot replace symlink/ownership
+checks at mutation boundaries. SQLite, public schemas and journal encodings are unchanged.

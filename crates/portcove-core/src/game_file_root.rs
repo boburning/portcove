@@ -87,8 +87,11 @@ impl Library {
         let path = require_available_root(path)?;
         let path_text = crate::path::unicode(&path, "game-file root")?;
         let path_key = path_key(&path_text);
-        let connection = self.connection()?;
-        if let Some(stored) = connection
+        let mut connection = self.connection()?;
+        // Serialize the absence check with insertion so concurrent clients
+        // adding the same canonical folder retain one durable identity.
+        let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+        if let Some(stored) = transaction
             .query_row(
                 "SELECT id,path,created_at,updated_at FROM game_file_roots WHERE path_key=?1",
                 [&path_key],
@@ -96,15 +99,17 @@ impl Library {
             )
             .optional()?
         {
+            transaction.commit()?;
             return stored.into_record();
         }
         let now = Self::now();
         let id = uuid::Uuid::new_v4().to_string();
-        connection.execute(
+        transaction.execute(
             "INSERT INTO game_file_roots(id,path,path_key,created_at,updated_at)
              VALUES (?1,?2,?3,?4,?4)",
             params![id, path_text, path_key, now],
         )?;
+        transaction.commit()?;
         Ok(GameFileRoot {
             id,
             path,
@@ -279,6 +284,60 @@ fn validate_id(id: &str) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn concurrent_root_registration_returns_one_durable_identity() {
+        const CLIENTS: usize = 16;
+        let temporary = tempfile::tempdir().unwrap();
+        let selected = temporary.path().join("selected");
+        std::fs::create_dir(&selected).unwrap();
+        let library_root = temporary.path().join("library");
+        let library = Library::open(&library_root).unwrap();
+        let unrelated = temporary.path().join("unrelated");
+        std::fs::create_dir(&unrelated).unwrap();
+        let unrelated = library.add_game_file_root(&unrelated).unwrap();
+        let clients = (0..CLIENTS)
+            .map(|_| Library::open(&library_root).unwrap())
+            .collect::<Vec<_>>();
+        let start = std::sync::Barrier::new(CLIENTS);
+        let results = std::thread::scope(|scope| {
+            let handles = clients
+                .iter()
+                .map(|client| {
+                    let start = &start;
+                    let selected = &selected;
+                    scope.spawn(move || {
+                        start.wait();
+                        client.add_game_file_root(selected)
+                    })
+                })
+                .collect::<Vec<_>>();
+            handles
+                .into_iter()
+                .map(|handle| handle.join().unwrap())
+                .collect::<Vec<_>>()
+        });
+        let failures = results
+            .iter()
+            .filter(|result| result.is_err())
+            .collect::<Vec<_>>();
+        assert!(
+            failures.is_empty(),
+            "concurrent root registration failed: {failures:?}"
+        );
+        let roots = results.into_iter().map(Result::unwrap).collect::<Vec<_>>();
+        assert!(roots.iter().all(|root| root == &roots[0]));
+        assert_eq!(roots[0].path, std::fs::canonicalize(&selected).unwrap());
+        assert_eq!(roots[0].availability, GameFileRootAvailability::Available);
+        drop(clients);
+        drop(library);
+        let reopened = Library::open(&library_root).unwrap();
+        let stored = reopened.game_file_roots().unwrap();
+        assert_eq!(stored.len(), 2);
+        assert!(stored.contains(&roots[0]));
+        assert!(stored.contains(&unrelated));
+        assert_eq!(reopened.add_game_file_root(&selected).unwrap(), roots[0]);
+    }
 
     #[test]
     fn roots_persist_and_unavailable_paths_remain_relinkable() {

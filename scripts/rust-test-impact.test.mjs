@@ -222,6 +222,115 @@ test("private library-import assertions select their whole module without narrow
   );
 });
 
+test("private backup assertions own their complete module without narrowing recovery or service", () => {
+  const path = "crates/portcove-core/src/service/tests/backups.rs";
+  for (const status of ["A", "M"]) {
+    const selected = selectRustTestImpact(map, "portcove-core", [{ status, path }]);
+    assert.equal(selected.mode, "focused");
+    assert.deepEqual(
+      selected.groups.map((group) => group.id),
+      ["backup-fixtures"],
+    );
+    assert.equal(selected.groups[0].filter, "test(/^service::tests::backups::/)");
+  }
+  for (const shared of [
+    "service/backups.rs",
+    "service.rs",
+    "recovery.rs",
+    "operation.rs",
+    "library.rs",
+    "database.rs",
+    "test_fixture.rs",
+    "lib.rs",
+    "service/tests/new_backup_tests.rs",
+  ]) {
+    assert.equal(
+      selectRustTestImpact(map, "portcove-core", [
+        modified(path),
+        modified(`crates/portcove-core/src/${shared}`),
+      ]).mode,
+      "broad",
+      shared,
+    );
+  }
+  for (const change of [
+    { status: "D", path },
+    { status: "R", path, previousPath: "crates/portcove-core/src/old_backup_tests.rs" },
+    { status: "R", path: "crates/portcove-core/src/moved_backup_tests.rs", previousPath: path },
+  ])
+    assert.equal(selectRustTestImpact(map, "portcove-core", [change]).mode, "broad");
+  const mixed = selectRustTestImpact(map, "portcove-core", [
+    modified(path),
+    modified("crates/portcove-core/src/source_import_tests.rs"),
+  ]);
+  assert.deepEqual(
+    mixed.groups.map((group) => group.id),
+    ["backup-fixtures", "source-import"],
+  );
+});
+
+test("artwork resolution owns all direct and transfer consumers with conservative shared fallback", () => {
+  const path = "crates/portcove-core/src/artwork.rs";
+  const filter =
+    "test(/^artwork_tests::/) | test(/^import_execution::tests::/) | test(/^library_move::tests::/) | test(/^library_transfer::tests::/)";
+  for (const status of ["A", "M"]) {
+    const selected = selectRustTestImpact(map, "portcove-core", [{ status, path }]);
+    assert.equal(selected.mode, "focused");
+    assert.deepEqual(
+      selected.groups.map((group) => group.id),
+      ["artwork-resolution"],
+    );
+    assert.equal(selected.groups[0].filter, filter);
+  }
+  for (const shared of [
+    "artwork_store.rs",
+    "artwork_image.rs",
+    "artwork_ingestion.rs",
+    "transfer_copy.rs",
+    "import_execution.rs",
+    "library_move.rs",
+    "library_transfer.rs",
+    "test_fixture.rs",
+    "service.rs",
+    "database.rs",
+    "types.rs",
+    "lib.rs",
+    "unknown_artwork.rs",
+  ]) {
+    assert.equal(
+      selectRustTestImpact(map, "portcove-core", [
+        modified(path),
+        modified(`crates/portcove-core/src/${shared}`),
+      ]).mode,
+      "broad",
+      shared,
+    );
+  }
+  for (const change of [
+    { status: "D", path },
+    { status: "R", path, previousPath: "crates/portcove-core/src/old_artwork.rs" },
+    { status: "R", path: "crates/portcove-core/src/moved_artwork.rs", previousPath: path },
+  ])
+    assert.equal(selectRustTestImpact(map, "portcove-core", [change]).mode, "broad");
+  const mixed = selectRustTestImpact(map, "portcove-core", [
+    modified(path),
+    modified("crates/portcove-core/src/import_execution_tests.rs"),
+  ]);
+  assert.deepEqual(
+    mixed.groups.map((group) => group.id),
+    ["artwork-resolution", "library-import-fixtures"],
+  );
+  assert.equal(mixed.groups[0].filter, filter);
+  const retained = selectRustTestImpact(map, "portcove-core", [
+    modified(path),
+    modified("crates/portcove-core/src/installed_contract.rs"),
+  ]);
+  assert.deepEqual(
+    retained.groups.map((group) => group.id),
+    ["artwork-resolution", "definition-delivery"],
+  );
+});
+
 test("source import mixed with inspection preserves both groups and overlapping consumers", () => {
   const selected = selectRustTestImpact(map, "portcove-core", [
     modified("crates/portcove-core/src/source_import.rs"),
