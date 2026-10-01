@@ -53,9 +53,11 @@ mod tests {
 
     #[test]
     fn cancellation_failure_does_not_disclose_raw_diagnostics_or_claim_stoppage() {
-        let error = portcove_core::PortcoveError::state(
-            "database /private/library unavailable password=fixture-secret\u{1b}[2J\rhidden",
-        )
+        let fixture = tempfile::tempdir().unwrap();
+        let private_path = fixture.path().join("library").display().to_string();
+        let error = portcove_core::PortcoveError::state(format!(
+            "database {private_path} unavailable password=fixture-secret\u{1b}[2J\rhidden",
+        ))
         .detail("token", "fixture-token");
         let before = error.report();
         let output = cancellation_warning(&error);
@@ -63,7 +65,7 @@ mod tests {
         assert!(output.contains("The current operation state could not be confirmed."));
         assert!(output.ends_with("Waiting for the operation to finish safely."));
         for private in [
-            "/private/library",
+            private_path.as_str(),
             "fixture-secret",
             "fixture-token",
             "hidden",
