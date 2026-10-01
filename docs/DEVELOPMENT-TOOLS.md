@@ -542,6 +542,11 @@ stale parent references independently from the live-process checks; they do not
 claim to reproduce an observed operating-system PID reuse. This follows the
 [Windows parent-process identity contract](https://learn.microsoft.com/en-us/windows/win32/cimwin32prov/win32-process).
 
+Direct embedded-application snapshot refusals identify the first failed parent,
+creation-time, executable-path or hash check. Diagnostics omit command arguments,
+environment and file paths. Rejection publishes no snapshot and grants no cleanup
+authority; it does not establish the cause of an earlier generic identity failure.
+
 For bounded diagnosis, `--restart-cycles 1..10` repeats the actual process restart
 and records preference persistence and shutdown observations. `--reload-cycles
 0..25` optionally adds repeated renderer reloads and concurrent read-only native

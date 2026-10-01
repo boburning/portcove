@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { once } from "node:events";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { access, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -150,15 +150,19 @@ net.createServer().listen(0,'127.0.0.1',function(){process.stdout.write(String(t
         hash,
       ];
       const rejected = path.join(root, "rejected.json");
-      assert.notEqual(
-        invoke("SnapshotApplication", rejected, args(child.pid, foreign.pid)).status,
-        0,
-      );
-      assert.notEqual(
-        invoke("SnapshotApplication", rejected, args(child.pid, process.pid, "0".repeat(64)))
-          .status,
-        0,
-      );
+      for (const [arguments_, reason] of [
+        [args(child.pid, foreign.pid), "parent-id-mismatch"],
+        [args(child.pid, 0), "invalid-parent-id"],
+        [args(child.pid, process.pid, "invalid"), "invalid-expected-hash"],
+        [args(child.pid, process.pid, "0".repeat(64)), "executable-hash-mismatch"],
+      ]) {
+        const refusal = invoke("SnapshotApplication", rejected, arguments_);
+        assert.notEqual(refusal.status, 0, refusal.stdout);
+        assert.match(refusal.stderr, new RegExp(`identity rejected: ${reason}\\.`));
+        await assert.rejects(access(rejected), { code: "ENOENT" });
+        assert.equal(child.exitCode, null, "rejection must not terminate the child");
+        assert.equal(foreign.exitCode, null, "rejection must not terminate its sibling");
+      }
       const snapshot = path.join(root, "application.json");
       const captured = invoke("SnapshotApplication", snapshot, args(child.pid));
       assert.equal(captured.status, 0, captured.stderr);

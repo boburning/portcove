@@ -16,13 +16,19 @@ if ($Mode -eq 'Snapshot' -or $Mode -eq 'SnapshotDriver' -or $Mode -eq 'SnapshotA
         $owned = Get-OwnedDriverProcessTree $DriverProcessId
         $root = $owned.driver
         $parent = Get-CimInstance Win32_Process -Filter "ProcessId = $ExpectedParentProcessId"
-        if ($ExpectedParentProcessId -le 0 -or -not $parent -or -not $parent.CreationDate -or
-            $root.ParentProcessId -ne $ExpectedParentProcessId -or -not $root.CreationDate -or
-            $parent.CreationDate -gt $root.CreationDate -or
-            -not [string]::Equals($root.ExecutablePath, (Resolve-Path -LiteralPath $ApplicationPath).Path, [StringComparison]::OrdinalIgnoreCase) -or
-            $ExpectedApplicationSha256 -notmatch '^[0-9a-f]{64}$' -or
-            (Get-FileHash -LiteralPath $ApplicationPath -Algorithm SHA256).Hash.ToLowerInvariant() -ne $ExpectedApplicationSha256) {
-            throw 'Embedded application did not match the retained child, parent or executable identity.'
+        # Keep the existing short-circuit order and reject before publishing a
+        # snapshot. Report the failed check, not paths, arguments or environment.
+        $identityFailure = if ($ExpectedParentProcessId -le 0) { 'invalid-parent-id' }
+            elseif (-not $parent) { 'parent-not-running' }
+            elseif (-not $parent.CreationDate) { 'parent-creation-unavailable' }
+            elseif ($root.ParentProcessId -ne $ExpectedParentProcessId) { 'parent-id-mismatch' }
+            elseif (-not $root.CreationDate) { 'application-creation-unavailable' }
+            elseif ($parent.CreationDate -gt $root.CreationDate) { 'parent-newer-than-application' }
+            elseif (-not [string]::Equals($root.ExecutablePath, (Resolve-Path -LiteralPath $ApplicationPath).Path, [StringComparison]::OrdinalIgnoreCase)) { 'executable-path-mismatch' }
+            elseif ($ExpectedApplicationSha256 -notmatch '^[0-9a-f]{64}$') { 'invalid-expected-hash' }
+            elseif ((Get-FileHash -LiteralPath $ApplicationPath -Algorithm SHA256).Hash.ToLowerInvariant() -ne $ExpectedApplicationSha256) { 'executable-hash-mismatch' }
+        if ($identityFailure) {
+            throw "Embedded application identity rejected: $identityFailure."
         }
         [pscustomobject]@{ driver = $root; application = $root; processes = @($root) + @($owned.processes) }
     } else {
