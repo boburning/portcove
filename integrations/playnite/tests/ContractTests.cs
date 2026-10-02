@@ -89,7 +89,7 @@ internal static class ContractTests
             selected_install = (object)null,
             plan = new
             {
-                port_id = "shape-a", platform = "windows", channel = "stable", action = "download",
+                port_id = "shape-a", platform = "windows-x86-64", channel = "stable", action = "download",
                 download_bytes = 123L, bundled_runtime = (object)null,
                 release = new { version = "v2", channel = "stable", asset = new
                     { name = "fixture.zip", sha256 = new string('b', 64), size = 123L } },
@@ -123,7 +123,7 @@ internal static class ContractTests
         Reject(() => InstallationReview.Read(negative, "shape-a", library), "negative download size rejected");
         var channel = fresh(); Json.Object(Json.Field(Json.Field(channel, "plan"), "release"))["channel"] = "beta";
         Reject(() => InstallationReview.Read(channel, "shape-a", library), "inconsistent release channel rejected");
-        var platform = fresh(); Json.Object(Json.Field(platform, "plan"))["platform"] = "linux";
+        var platform = fresh(); Json.Object(Json.Field(platform, "plan"))["platform"] = "linux-x86-64";
         Reject(() => InstallationReview.Read(platform, "shape-a", library), "other-platform installation rejected");
         var duplicate = fresh(); var plan = Json.Object(Json.Field(duplicate, "plan"));
         var sources = Json.Array(Json.Field(plan, "source_requirements")); plan["source_requirements"] = new[] { sources[0], sources[0] };

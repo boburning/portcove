@@ -28,7 +28,7 @@ namespace Portcove.ReferenceClient
         internal static InstallationReview Read(object value, string port, string library)
         {
             var plan = Json.Field(value, "plan");
-            if (RequiredText(plan, "port_id") != port || RequiredText(plan, "platform") != "windows")
+            if (RequiredText(plan, "port_id") != port || RequiredText(plan, "platform") != "windows-x86-64")
                 throw new InvalidOperationException("Installation review targets another game or platform.");
             var action = RequiredText(plan, "action");
             if (!new[] { "download", "use_staged", "reuse_retained" }.Contains(action))
