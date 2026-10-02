@@ -6390,7 +6390,7 @@ mod tests {
             LifecycleOperationKind::Remove,
             "zelda64-recomp",
         );
-        operation.paths.quarantine = Some(library.staging_dir().join("unused-quarantine"));
+        operation.paths.quarantine = Some(library.recovery_dir().join(&operation.id));
         store.put(&mut operation).unwrap();
 
         let (entered, observed) = mpsc::channel();
@@ -6428,7 +6428,7 @@ mod tests {
                 LifecycleOperationKind::Remove,
                 "zelda64-recomp",
             );
-            operation.paths.quarantine = Some(library.staging_dir().join("unused-quarantine"));
+            operation.paths.quarantine = Some(library.recovery_dir().join(&operation.id));
             store.put(&mut operation).unwrap();
             let (entered, observed) = mpsc::channel();
             let (proceed, resume) = mpsc::channel();
@@ -6489,7 +6489,7 @@ mod tests {
             LifecycleOperationKind::Remove,
             "zelda64-recomp",
         );
-        operation.paths.quarantine = Some(library.staging_dir().join("unused-quarantine"));
+        operation.paths.quarantine = Some(library.recovery_dir().join(&operation.id));
         store.put(&mut operation).unwrap();
         let (entered, observed) = mpsc::channel();
         let (proceed, resume) = mpsc::channel();
@@ -6523,7 +6523,7 @@ mod tests {
             LifecycleOperationKind::Remove,
             "zelda64-recomp",
         );
-        operation.paths.quarantine = Some(library.staging_dir().join("unused-quarantine"));
+        operation.paths.quarantine = Some(library.recovery_dir().join(&operation.id));
         store.put(&mut operation).unwrap();
 
         let observer = PortcoveService::new_read_only(library.clone()).unwrap();
