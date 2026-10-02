@@ -210,6 +210,16 @@ enum PolicyDecision {
         definition_sha256: String,
         template: String,
     },
+    ManagedGithub {
+        definition_revision: u64,
+        index_sha256: String,
+        definition_sha256: String,
+        template: String,
+        repository_id: u64,
+        artifact_hosts: Vec<String>,
+        max_redirects: u32,
+        operations: Vec<String>,
+    },
     Revoked,
 }
 
@@ -267,10 +277,35 @@ impl PolicyDocument {
             ));
         }
         let value: Self = serde_json::from_slice(bytes)?;
-        if value.policy_schema != 1 {
+        if !matches!(value.policy_schema, 1 | 2) {
             return Err(PortcoveError::unsupported(
                 "unsupported publisher policy schema",
             ));
+        }
+        let restricted = crate::definition_acquisition::restricted_grant(&value.grant_id);
+        if (value.policy_schema == 1
+            && (restricted || matches!(value.decision, PolicyDecision::ManagedGithub { .. })))
+            || (value.policy_schema == 2
+                && (!restricted || matches!(value.decision, PolicyDecision::Availability { .. })))
+        {
+            return Err(PortcoveError::unsupported(
+                "publisher policy schema and grant scope disagree",
+            ));
+        }
+        if let PolicyDecision::ManagedGithub {
+            repository_id,
+            artifact_hosts,
+            max_redirects,
+            operations,
+            ..
+        } = &value.decision
+        {
+            crate::DefinitionAcquisitionScope::validate_parameters(
+                *repository_id,
+                artifact_hosts,
+                *max_redirects,
+                operations,
+            )?;
         }
         if value.namespace != "official"
             || !valid_identity(&value.stable_id)
@@ -287,6 +322,13 @@ impl PolicyDocument {
             index_sha256,
             definition_sha256,
             template,
+        }
+        | PolicyDecision::ManagedGithub {
+            definition_revision,
+            index_sha256,
+            definition_sha256,
+            template,
+            ..
         } = &value.decision
             && (*definition_revision == 0
                 || !valid_sha256(index_sha256)
@@ -301,12 +343,18 @@ impl PolicyDocument {
     }
 
     fn binds(&self, candidate: &AuthenticatedDefinitionCandidate) -> Result<bool> {
-        let PolicyDecision::Availability {
+        let (PolicyDecision::Availability {
             definition_revision,
             index_sha256,
             definition_sha256,
             ..
-        } = &self.decision
+        }
+        | PolicyDecision::ManagedGithub {
+            definition_revision,
+            index_sha256,
+            definition_sha256,
+            ..
+        }) = &self.decision
         else {
             return Ok(false);
         };
@@ -330,16 +378,26 @@ impl PolicyDocument {
         projection: &crate::DefinitionCatalogProjection,
         candidate_index_sha256: &str,
     ) -> Result<bool> {
-        let PolicyDecision::Availability {
+        let (PolicyDecision::Availability {
             definition_revision,
             index_sha256,
             definition_sha256,
             template,
-        } = &self.decision
+        }
+        | PolicyDecision::ManagedGithub {
+            definition_revision,
+            index_sha256,
+            definition_sha256,
+            template,
+            ..
+        }) = &self.decision
         else {
             return Ok(false);
         };
         let entry = projection.entry();
+        if matches!(self.decision, PolicyDecision::ManagedGithub { .. }) {
+            crate::DefinitionAcquisitionScope::validate_port(entry.port())?;
+        }
         Ok(entry.namespace() == self.namespace
             && entry.port().id == self.stable_id
             && entry.revision() == *definition_revision
@@ -501,7 +559,7 @@ impl Library {
         policy.provenance.require_fresh()?;
         if matches!(
             policy.document.decision,
-            PolicyDecision::Availability { .. }
+            PolicyDecision::Availability { .. } | PolicyDecision::ManagedGithub { .. }
         ) {
             let candidate = candidate.ok_or_else(|| {
                 PortcoveError::usage(
@@ -612,6 +670,136 @@ impl Library {
     }
 }
 
+fn current_restrictive_grant(
+    connection: &Connection,
+    namespace: &str,
+    stable_id: &str,
+) -> Result<bool> {
+    let grant: Option<String> = connection
+        .query_row(
+            "SELECT grant_id FROM definition_publisher_policy WHERE namespace=?1 AND stable_id=?2",
+            params![namespace, stable_id],
+            |row| row.get::<_, Option<String>>(0),
+        )
+        .optional()?
+        .flatten();
+    Ok(grant.is_some_and(|grant| crate::definition_acquisition::restricted_grant(&grant)))
+}
+
+pub(crate) fn acquisition_scope(
+    library: &Library,
+    catalog: &crate::Catalog,
+    port_id: &str,
+) -> Result<Option<crate::DefinitionAcquisitionScope>> {
+    let connection = library.connection()?;
+    let transaction = connection.unchecked_transaction()?;
+    let Some(identity) = catalog.definition_selection(port_id) else {
+        if current_restrictive_grant(&transaction, "official", port_id)? {
+            return Err(PortcoveError::unsupported(
+                "restricted acquisition requires its exact selected definition",
+            ));
+        }
+        return Ok(None);
+    };
+    let Some((document, provenance)) =
+        stored_admission(&transaction, &identity.namespace, &identity.stable_id)?
+    else {
+        if crate::definition_acquisition::restricted_grant(&identity.grant_id)
+            || current_restrictive_grant(&transaction, &identity.namespace, &identity.stable_id)?
+        {
+            return Err(PortcoveError::unsupported(
+                "restricted grant has no authenticated acquisition admission",
+            ));
+        }
+        return Ok(None);
+    };
+    provenance.require_fresh()?;
+    let floor =
+        installed_authority_floor(&transaction, &provenance.anchor_sha256)?.ok_or_else(|| {
+            PortcoveError::state("admitted acquisition authority has no replay floor")
+        })?;
+    floor.check_advance(&provenance)?;
+    let snapshot = catalog
+        .definition_snapshot(port_id)
+        .ok_or_else(|| PortcoveError::state("scoped acquisition lost its exact definition"))?;
+    identity.validate_snapshot(snapshot)?;
+    if document.grant_id != identity.grant_id
+        || document.policy_revision != identity.policy_revision
+        || provenance.root_sha256 != identity.repository_root_sha256
+        || !document.binds_projection(&snapshot.projection()?, &snapshot.index_sha256())?
+    {
+        return Err(PortcoveError::conflict(
+            "acquisition publisher scope changed; assess it again",
+        ));
+    }
+    let PolicyDecision::ManagedGithub {
+        repository_id,
+        artifact_hosts,
+        max_redirects,
+        ..
+    } = document.decision
+    else {
+        return Err(PortcoveError::unsupported(
+            "publisher policy does not authorize acquisition",
+        ));
+    };
+    let scope = crate::DefinitionAcquisitionScope {
+        library: library.clone(),
+        identity: Some(identity.clone()),
+        policy_sha256: provenance.target_sha256,
+        anchor_sha256: provenance.anchor_sha256,
+        port_sha256: crate::DefinitionAcquisitionScope::port_digest(catalog.port(port_id)?)?,
+        stable_id: identity.stable_id.clone(),
+        repository: catalog.port(port_id)?.release.repository.clone(),
+        repository_id,
+        artifact_hosts,
+        max_redirects,
+        grant_id: document.grant_id,
+        policy_revision: document.policy_revision,
+        #[cfg(test)]
+        fixture_origin: None,
+    };
+    scope.require_port(catalog.port(port_id)?)?;
+    transaction.commit()?;
+    Ok(Some(scope))
+}
+
+pub(crate) fn validate_current_acquisition(
+    scope: &crate::DefinitionAcquisitionScope,
+) -> Result<()> {
+    let identity = scope
+        .identity
+        .as_ref()
+        .ok_or_else(|| PortcoveError::state("acquisition lost its definition identity"))?;
+    let connection = scope.library.connection()?;
+    let transaction = connection.unchecked_transaction()?;
+    let Some((document, provenance)) =
+        stored_admission(&transaction, &identity.namespace, &identity.stable_id)?
+    else {
+        return Err(PortcoveError::conflict(
+            "acquisition publisher admission disappeared",
+        ));
+    };
+    if !matches!(document.decision, PolicyDecision::ManagedGithub { .. })
+        || provenance.target_sha256 != scope.policy_sha256
+        || provenance.anchor_sha256 != scope.anchor_sha256
+        || document.grant_id != scope.grant_id
+        || document.policy_revision != scope.policy_revision
+    {
+        return Err(PortcoveError::conflict(
+            "acquisition publisher scope changed",
+        ));
+    }
+    provenance.require_fresh()?;
+    let floor =
+        installed_authority_floor(&transaction, &provenance.anchor_sha256)?.ok_or_else(|| {
+            PortcoveError::state("acquisition publisher authority lost its replay floor")
+        })?;
+    floor.check_advance(&provenance)?;
+    transaction.commit()?;
+    Ok(())
+}
+
 pub(crate) fn allows_candidate(
     connection: &Connection,
     candidate: &AuthenticatedDefinitionCandidate,
@@ -620,7 +808,9 @@ pub(crate) fn allows_candidate(
 ) -> Result<bool> {
     let Some((document, provenance)) = stored_admission(connection, namespace, stable_id)? else {
         // Existing retained/test policy has its own delivered authority path.
-        return Ok(true);
+        return Ok(!current_restrictive_grant(
+            connection, namespace, stable_id,
+        )?);
     };
     provenance.require_fresh()?;
     let floor = installed_authority_floor(connection, &provenance.anchor_sha256)?;
@@ -642,7 +832,11 @@ pub(crate) fn allows_projection(
     let Some((document, provenance)) =
         stored_admission(connection, entry.namespace(), &entry.port().id)?
     else {
-        return Ok(true);
+        return Ok(!current_restrictive_grant(
+            connection,
+            entry.namespace(),
+            &entry.port().id,
+        )?);
     };
     provenance.require_fresh()?;
     let floor = installed_authority_floor(connection, &provenance.anchor_sha256)?;
@@ -685,19 +879,36 @@ pub(super) fn install_authority_for_test(library: &Library, root: &[u8]) -> Resu
 
 pub(crate) fn allows_operation(
     connection: &Connection,
-    namespace: &str,
-    stable_id: &str,
-    operation: DefinitionOperation,
+    identity: &crate::DefinitionSelectionIdentity,
+    context: crate::definition_eligibility::DefinitionOperationContext,
 ) -> Result<bool> {
-    let Some((document, provenance)) = stored_admission(connection, namespace, stable_id)? else {
-        return Ok(true);
+    let Some((document, provenance)) =
+        stored_admission(connection, &identity.namespace, &identity.stable_id)?
+    else {
+        return Ok(
+            !crate::definition_acquisition::restricted_grant(&identity.grant_id)
+                && !current_restrictive_grant(
+                    connection,
+                    &identity.namespace,
+                    &identity.stable_id,
+                )?,
+        );
     };
-    if operation != DefinitionOperation::Availability
-        || !matches!(document.decision, PolicyDecision::Availability { .. })
-    {
+    let managed = matches!(document.decision, PolicyDecision::ManagedGithub { .. });
+    let permitted = match context.operation {
+        DefinitionOperation::Availability => !matches!(document.decision, PolicyDecision::Revoked),
+        DefinitionOperation::Install
+        | DefinitionOperation::Update
+        | DefinitionOperation::Prepare => managed,
+        DefinitionOperation::Launch => managed && context.retained_contract,
+        DefinitionOperation::RegisterExternal => false,
+    };
+    if !permitted {
         return Ok(false);
     }
-    provenance.require_fresh()?;
+    // Assessment reports discovery expiry as eligibility, not a read failure.
+    // Actual acquisition still requires fresh proof at each request/publication.
+    provenance.validate()?;
     let floor = installed_authority_floor(connection, &provenance.anchor_sha256)?
         .ok_or_else(|| PortcoveError::state("admitted publisher authority has no replay floor"))?;
     floor.check_advance(&provenance)?;

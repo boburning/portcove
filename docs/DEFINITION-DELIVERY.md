@@ -460,7 +460,7 @@ stale metadata, withdrawn content, permission errors and corrupt local files.
 
 ### Exact-definition availability policy
 
-Core can authenticate an inert schema-1 policy target at
+Core can authenticate an independently scoped policy target at
 `policy/official/<stable-id>.json`. The direct terminating `official-policy`
 delegation has exactly `policy/official/*.json`; its key material must be distinct
 from the definition role and top-level metadata keys. Authentication uses the
@@ -473,15 +473,48 @@ delegates. This component does not infer offline custody from public key bytes;
 that custody remains a protected provisioning obligation. Policy fixtures use a
 separate offline delegation signer rather than the timestamp/snapshot signer.
 
-This policy schema authorizes **availability only**, binding the namespace,
+Policy schema 1 authorizes **availability only**, binding the namespace,
 stable ID, grant and monotonic policy revision to the exact index, definition
 revision, definition bytes and implemented template. Unknown fields or decisions
 are refused. It does not grant Install, Update, Prepare, RegisterExternal or
-Launch. Those operations require a later qualified scope implementation: stable
-provider identity must be verified before cached resolution, and permitted
-initial artifact hosts and every redirect must be enforced. The inert upstream
+Launch. Schema 2 provides the bounded managed GitHub scope described below. The inert upstream
 observation's `provider_authenticated: false` and an exact definition hash cannot
 substitute for that acquisition proof.
+
+Policy schema 2 accepts `managed_github` or `revoked` decisions and requires a
+`managed-github-v1-` grant ID. That prefix is a refusal discriminator for unsupported
+consumers, not proof of authority. A managed decision retains schema 1's exact
+definition/index/template bindings and adds a positive numeric `repository_id`,
+1–8 unique canonical domain `artifact_hosts`, `max_redirects` from 0 through 5,
+and exactly the coupled `install`, `update`, `prepare`, `launch` operation set.
+Partial, duplicate, unknown or wider operations and schema/grant mismatches are
+refused. The independent installed authority, authenticated policy, exact
+candidate and monotonic floors remain mandatory; policy bytes cannot provision
+their own authority.
+
+The GitHub resolver observes the numeric repository ID before release cache reuse.
+Release requests still use the repository's textual name; this observation does
+not claim an immutable ID-addressed route or eliminate concurrent rename races.
+Scope-bound cache keys include the authority, policy and exact port definition.
+Scoped metadata requests carry no ambient GitHub credential or conditional cache
+validator. Checksums and ordinary artifact downloads require credential-free
+HTTPS on port 443, an exact admitted host and no fragment; every redirect rechecks
+the current admission, URL and explicit hop bound before following it. Artifact
+digests, archive safety and executable verification remain separate controls.
+
+Installers consume an opaque resolver proof bound to the exact release, definition
+and library. A direct request cannot substitute a serialized release for that
+proof. Admission is checked before staging and at publication/registration;
+unfinished preparation recovery also checks its retained admission. Revocation or
+missing authority/floors preserves refused journals and data. Expired metadata
+holds new acquisition while verified retained launch and its save collection can
+use the exact installed contract; revocation and corrupt authority still refuse.
+
+This initial scope covers ordinary GitHub artifacts for the existing portable
+Libultraship, N64Recomp, staged-source and referenced-disc workflows without bundled
+runtimes. Auxiliary toolchains/runtimes, managed adoption, external registration
+and restricted library portability are unsupported. No public trust-root setter,
+new serialized client field or API schema increment is introduced.
 
 `apply_definition_publisher_policy` requires the exact authenticated candidate
 for availability; a `revoked` decision needs no definition candidate. Library
@@ -504,8 +537,9 @@ definition before publishing staged bytes and before registering published bytes
 A refused operation keeps its journal and recovery evidence; the current fallback
 catalog cannot authorize its retained definition. Committed cleanup remains distinct.
 
-Disposable TUF authority fixtures qualify this component. Production root/grant
-provisioning, scoped acquisition, protected publisher custody and write/signing
+Disposable TUF authority and owned HTTP/native probe fixtures exercise this component.
+They do not qualify production TLS, gameplay or automatic publisher delivery.
+Production root/grant provisioning, protected publisher custody and write/signing
 authority, automatic publication and the unchanged-client new-definition,
 next-artifact and correction proof remain distinct #246 acceptance. This is not
 activation of a production feed or whole-issue delivery.

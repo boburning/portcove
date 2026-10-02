@@ -165,6 +165,7 @@ impl Library {
                             "retained portability admission lost its selection identity",
                         )
                     })?;
+                crate::definition_acquisition::refuse_restricted_portability(&identity.grant_id)?;
                 let role = self
                     .retained_definition_admission_role(identity)?
                     .ok_or_else(|| {

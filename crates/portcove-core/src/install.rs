@@ -36,6 +36,7 @@ pub struct InstallRequest {
 
 #[derive(Debug, Clone)]
 pub struct InstallQualification {
+    acquisition: Option<crate::ScopedResolvedRelease>,
     retained_contract: Option<crate::installed_contract::InstalledContract>,
     platform: Platform,
     executable_hints: Vec<String>,
@@ -53,6 +54,27 @@ pub struct InstallQualification {
 }
 
 impl InstallQualification {
+    pub(crate) fn with_acquisition_resolution(
+        mut self,
+        resolution: crate::ScopedResolvedRelease,
+    ) -> Result<Self> {
+        if let Some(scope) = &resolution.scope {
+            scope.require_current()?;
+            let contract = self.retained_contract.as_ref().ok_or_else(|| {
+                PortcoveError::state("scoped resolution requires its retained contract")
+            })?;
+            let catalog = contract.catalog(&scope.stable_id)?;
+            if catalog.definition_selection(&scope.stable_id) != scope.identity.as_ref() {
+                return Err(PortcoveError::verification(
+                    "resolved acquisition belongs to another retained definition",
+                ));
+            }
+            scope.require_port(catalog.port(&scope.stable_id)?)?;
+            self.acquisition = Some(resolution);
+        }
+        Ok(self)
+    }
+
     /// Capture the catalog and referenced source contracts before publication.
     pub fn from_catalog(
         catalog: &crate::Catalog,
@@ -88,6 +110,7 @@ impl InstallQualification {
             )));
         }
         Ok(Self {
+            acquisition: None,
             retained_contract: None,
             platform,
             executable_hints,
@@ -308,6 +331,7 @@ const fn is_false(value: &bool) -> bool {
 pub struct Installer {
     library: Library,
     client: reqwest::Client,
+    network_bounds: (Duration, Duration),
     faults: Arc<dyn LifecycleFaultInjector>,
     #[cfg(test)]
     archive_worker_test_hook: Option<ArchiveWorkerTestHook>,
@@ -350,6 +374,7 @@ impl Installer {
         Ok(Self {
             library,
             client,
+            network_bounds: (DOWNLOAD_CONNECT_TIMEOUT, DOWNLOAD_READ_IDLE_TIMEOUT),
             faults: Arc::new(NoLifecycleFaults),
             #[cfg(test)]
             archive_worker_test_hook: None,
@@ -365,6 +390,7 @@ impl Installer {
         Ok(Self {
             library,
             client: download_client(connect_timeout, read_idle_timeout)?,
+            network_bounds: (connect_timeout, read_idle_timeout),
             faults: Arc::new(NoLifecycleFaults),
             archive_worker_test_hook: None,
         })
@@ -394,6 +420,7 @@ impl Installer {
     where
         F: FnMut(OperationEvent),
     {
+        self.require_acquisition(&request)?;
         let mut storage_key = artifact_storage_key(&request.release.asset.sha256)?;
         if let Some(runtime) = &request.qualification.runtime {
             storage_key = hex::encode(Sha256::digest(serde_json::to_vec(&(
@@ -494,6 +521,44 @@ impl Installer {
         result
     }
 
+    fn require_acquisition(
+        &self,
+        request: &InstallRequest,
+    ) -> Result<Option<crate::DefinitionAcquisitionScope>> {
+        let catalog = match &request.qualification.retained_contract {
+            Some(contract) => contract.catalog(&request.port_id)?,
+            None => self.library.load_catalog()?.0,
+        };
+        let current = crate::definition_repository::publisher_policy::acquisition_scope(
+            &self.library,
+            &catalog,
+            &request.port_id,
+        )?;
+        match (current, &request.qualification.acquisition) {
+            (None, None) => Ok(None),
+            (Some(current), Some(resolution)) => {
+                let scope = resolution.scope.as_ref().ok_or_else(|| {
+                    PortcoveError::state("managed resolution lost its acquisition proof")
+                })?;
+                if !scope.same_authorization(&current)
+                    || resolution.release.asset != request.release.asset
+                    || resolution.release.version != request.release.version
+                    || resolution.release.channel != request.release.channel
+                {
+                    return Err(PortcoveError::conflict(
+                        "installation acquisition proof changed",
+                    ));
+                }
+                scope.require_current()?;
+                scope.require_asset_url(&request.release.asset.url)?;
+                Ok(Some(scope.clone()))
+            }
+            _ => Err(PortcoveError::unsupported(
+                "installation requires an exact qualified acquisition resolution",
+            )),
+        }
+    }
+
     async fn install_inner<F>(
         &self,
         request: InstallRequest,
@@ -504,6 +569,7 @@ impl Installer {
     where
         F: FnMut(OperationEvent),
     {
+        let scope = self.require_acquisition(&request)?;
         let operation_id = operation.operation_id().to_owned();
         let payload_root = lifecycle.operation_root.join("payload");
         fs::create_dir_all(&payload_root)?;
@@ -514,6 +580,7 @@ impl Installer {
                 &payload_root,
                 operation,
                 emit,
+                scope.as_ref(),
             )
             .await?;
         normalize_standalone_appimage(&payload_root, &artifact, &request.qualification)?;
@@ -526,6 +593,7 @@ impl Installer {
                 &unpacked,
                 operation,
                 emit,
+                None,
             )
             .await?;
             let source = unpacked.join(&runtime.archive_root);
@@ -562,7 +630,7 @@ impl Installer {
         )?;
         let install = InstallRecord {
             id: operation_id,
-            port_id: request.port_id,
+            port_id: request.port_id.clone(),
             version: request.release.version.clone(),
             path: lifecycle.destination.clone(),
             channel: request.release.channel,
@@ -581,6 +649,7 @@ impl Installer {
         lifecycle.record.phase = LifecyclePhase::Prepared;
         lifecycle.store.put(&mut lifecycle.record)?;
         self.faults.check(LifecycleFaultPoint::InstallPrepared)?;
+        self.require_acquisition(&request)?;
         fs::create_dir_all(
             lifecycle
                 .destination
@@ -598,6 +667,7 @@ impl Installer {
         lifecycle.record.phase = LifecyclePhase::PayloadPublished;
         lifecycle.store.put(&mut lifecycle.record)?;
         self.faults.check(LifecycleFaultPoint::InstallPublished)?;
+        self.require_acquisition(&request)?;
         self.library.register_install(&install, request.activate)?;
         lifecycle.record.phase = LifecyclePhase::MetadataCommitted;
         lifecycle.store.put(&mut lifecycle.record)?;
@@ -620,11 +690,18 @@ impl Installer {
         payload_root: &Path,
         operation: &OperationCoordinator,
         emit: &mut F,
+        scope: Option<&crate::DefinitionAcquisitionScope>,
     ) -> Result<ArtifactIdentity>
     where
         F: FnMut(OperationEvent),
     {
-        self.download(asset, download_path, operation, emit).await?;
+        match scope {
+            Some(scope) => {
+                self.download_scoped(asset, download_path, operation, emit, Some(scope))
+                    .await?
+            }
+            None => self.download(asset, download_path, operation, emit).await?,
+        }
         let (actual_hash, actual_size) =
             crate::adapter::hash_file_with_checkpoint(download_path, || operation.checkpoint())?;
         if !actual_hash.eq_ignore_ascii_case(&asset.sha256) {
@@ -684,10 +761,39 @@ impl Installer {
     where
         F: FnMut(OperationEvent),
     {
+        self.download_scoped(asset, destination, operation, emit, None)
+            .await
+    }
+
+    async fn download_scoped<F>(
+        &self,
+        asset: &ReleaseAsset,
+        destination: &Path,
+        operation: &OperationCoordinator,
+        emit: &mut F,
+        scope: Option<&crate::DefinitionAcquisitionScope>,
+    ) -> Result<()>
+    where
+        F: FnMut(OperationEvent),
+    {
+        let client = match scope {
+            Some(scope) => {
+                scope.require_current()?;
+                scope.require_asset_url(&asset.url)?;
+                reqwest::Client::builder()
+                    .user_agent(concat!("Portcove/", env!("CARGO_PKG_VERSION")))
+                    .connect_timeout(self.network_bounds.0)
+                    .read_timeout(self.network_bounds.1)
+                    .redirect(scope.redirect_policy())
+                    .build()
+                    .map_err(|error| PortcoveError::network(error.to_string()))?
+            }
+            None => self.client.clone(),
+        };
         validate_download_progress(0, asset.size)?;
         let response = operation
             .interruptible(async {
-                self.client
+                client
                     .get(&asset.url)
                     .send()
                     .await
