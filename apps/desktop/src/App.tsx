@@ -108,7 +108,7 @@ export default function App() {
       return next;
     });
   }, []);
-  const { bootstrap, bootstrapError, switchLibrary, chooseLibrary, resetLibrary } =
+  const { bootstrap, bootstrapError, recoveryPending, switchLibrary, chooseLibrary, resetLibrary } =
     useBootstrapState();
   const {
     switchFromSettings,
@@ -120,6 +120,7 @@ export default function App() {
     return (
       <BootstrapRecovery
         error={bootstrapError}
+        recoveryPending={recoveryPending}
         chooseLibrary={chooseLibrary}
         resetLibrary={resetLibrary}
       />
@@ -129,6 +130,7 @@ export default function App() {
     return (
       <BootstrapRecovery
         error={bootstrap.error ?? missingBootstrapError}
+        recoveryPending={recoveryPending}
         chooseLibrary={chooseLibrary}
         resetLibrary={resetLibrary}
       />
@@ -163,10 +165,12 @@ function BootstrapLoading() {
 
 export function BootstrapRecovery({
   error,
+  recoveryPending = false,
   chooseLibrary,
   resetLibrary,
 }: {
   error: StartupFailure;
+  recoveryPending?: boolean;
   chooseLibrary?: () => Promise<void>;
   resetLibrary?: () => Promise<void>;
 }) {
@@ -193,13 +197,14 @@ export function BootstrapRecovery({
         Review the error details, then retry startup. If the current library is the cause, you can
         choose another library or return to the platform default.
       </p>
-      <div className="button-row">
+      <div className="button-row" aria-busy={recoveryPending}>
         <Button type="button" variant="primary" onClick={() => window.location.reload()}>
           Retry startup
         </Button>
         <Button
           type="button"
           variant="outline"
+          disabled={recoveryPending}
           onClick={() => {
             void chooseLibrary?.().catch((value) => setActionError(errorText(value)));
           }}
@@ -209,6 +214,7 @@ export function BootstrapRecovery({
         <Button
           type="button"
           variant="outline"
+          disabled={recoveryPending}
           onClick={() => {
             void resetLibrary?.().catch((value) => setActionError(errorText(value)));
           }}
