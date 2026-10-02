@@ -440,6 +440,91 @@ fn raw_gamecube_candidate_cancellation_preserves_previous_snapshot_and_registry(
 }
 
 #[test]
+fn raw_gamecube_current_gcm_remains_importable_with_narrower_legacy_projection() {
+    let temporary = tempfile::tempdir().unwrap();
+    let bytes = b"current normalized GCM with an ISO-only legacy projection";
+    let path = temporary.path().join("current.gcm");
+    fs::write(&path, bytes).unwrap();
+    let mut document = serde_json::to_value(raw_gamecube_catalog(bytes).document()).unwrap();
+    document.as_object_mut().unwrap().remove("source_profiles");
+    let profile = document["source_catalog"]["identities"]
+        .as_array_mut()
+        .unwrap()
+        .iter_mut()
+        .find(|p| p["id"] == "animal-crossing-gamecube")
+        .unwrap();
+    let variants = profile["variants"].as_array_mut().unwrap();
+    let mut legacy = variants[0].clone();
+    legacy["id"] = "narrow-legacy-fixture".into();
+    legacy["legacy_projection_only"] = true.into();
+    legacy["representations"][0]["extensions"] = serde_json::json!(["iso"]);
+    variants.push(legacy);
+    let catalog = Catalog::from_json(&document.to_string()).unwrap();
+    assert_eq!(
+        catalog
+            .source_profile("animal-crossing-gamecube")
+            .unwrap()
+            .accepted_extensions,
+        ["iso"]
+    );
+    let mut selected = request(temporary.path());
+    selected.profile_ids = vec!["animal-crossing-gamecube".into()];
+    let report = scan(&catalog, &selected).unwrap();
+    assert_eq!(report.candidates.len(), 1);
+    let mut service =
+        PortcoveService::new(crate::Library::open(temporary.path().join("library")).unwrap())
+            .unwrap();
+    service.replace_catalog_for_test(catalog);
+    let candidate = &report.candidates[0];
+    let plan = service
+        .plan_source_import(
+            &candidate.profile_id,
+            &candidate.path,
+            crate::SourceImportMode::UseCurrentLocation,
+        )
+        .unwrap();
+    assert_eq!(
+        plan.admission_mode,
+        crate::SourceAdmissionMode::ExactIdentity
+    );
+    assert!(service.library().sources().unwrap().is_empty());
+    assert_eq!(fs::read(path).unwrap(), bytes);
+}
+
+#[test]
+fn raw_gamecube_direct_discovery_cancellation_is_not_a_successful_report() {
+    let temporary = tempfile::tempdir().unwrap();
+    let bytes = b"sole provisional GameCube candidate";
+    let roots = temporary.path().join("sources");
+    fs::create_dir(&roots).unwrap();
+    let path = roots.join("game.iso");
+    fs::write(&path, bytes).unwrap();
+    let mut service =
+        PortcoveService::new(crate::Library::open(temporary.path().join("library")).unwrap())
+            .unwrap();
+    service.replace_catalog_for_test(raw_gamecube_catalog(bytes));
+    for max_candidates in [1, 64] {
+        let mut selected = request(&roots);
+        selected.profile_ids = vec!["animal-crossing-gamecube".into()];
+        selected.limits.max_candidates = max_candidates;
+        let mut seen = false;
+        let result = service.discover_sources_with_progress(&selected, |event| {
+            if matches!(
+                event.event,
+                crate::OperationEventKind::SourceCandidate { .. }
+            ) {
+                seen = true;
+                service.request_cancellation(&event.operation_id).unwrap();
+            }
+        });
+        assert!(seen);
+        assert_eq!(result.unwrap_err().code, ErrorCode::Cancelled);
+        assert!(service.library().sources().unwrap().is_empty());
+    }
+    assert_eq!(fs::read(path).unwrap(), bytes);
+}
+
+#[test]
 fn current_schema2_file_identities_and_extensions_are_discoverable_without_legacy_digest() {
     let temporary = tempfile::tempdir().unwrap();
     let canonical = [0x80, 0x37, 0x12, 0x40, 1, 2, 3, 4, 5, 6, 7, 8];

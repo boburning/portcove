@@ -738,7 +738,18 @@ pub(crate) fn inspect_disc(
 ) -> Result<SourceInspection> {
     let legacy = catalog.source_profile(profile_id)?;
     let observation = match legacy.kind {
-        SourceKind::GamecubeDisc => observe_gamecube_disc_source(legacy, path)?,
+        SourceKind::GamecubeDisc => {
+            // As with exact ordinary files, current raw representations can be
+            // broader than the informational schema-1 compatibility projection.
+            // Retain manual conversion extensions; add only inspectable raw facts.
+            let mut profile = legacy.clone();
+            profile
+                .accepted_extensions
+                .extend(file_scan_extensions(catalog, legacy).0);
+            profile.accepted_extensions.sort_unstable();
+            profile.accepted_extensions.dedup();
+            observe_gamecube_disc_source(&profile, path)?
+        }
         SourceKind::PsxDisc => observe_psx_disc_source(legacy, path)?,
         _ => {
             return Err(PortcoveError::state(format!(
