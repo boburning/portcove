@@ -199,11 +199,17 @@ that fixture/build-script provisioning will succeed. Storage containment remains
 enforced by the selected execution itself.
 
 For the qualified fixed hosted selected route, supply exact already-trusted
-`--hosted-authority SHA --hosted-controller SHA` revisions from main. Preflight
+`--hosted-authority SHA --hosted-controller SHA` revisions from main and
+`--hosted-ref NAME`, an existing fetched origin branch or tag at that controller.
+GitHub dispatch requires a named ref; a raw SHA is not a dispatch ref. Missing,
+ambiguous or mismatched names report a prerequisite instead of an unusable command.
+Preflight
 uses the controller's existing authority inventory and script boundary; dirty
 sources, unavailable/non-ancestor revisions and changed authority cannot use
 this route to qualify themselves. An eligible route prints the existing exact
-dispatch command; dispatch permission and identified run readback still must be
+dispatch command. This observes local advertised refs without fetching or creating
+them; the immutable controller check still rejects remote drift at execution.
+Dispatch permission and identified run readback still must be
 established. Missing native Linux libraries can route there without repeated local
 provisioning. If no approved capable route is available, retain the specific
 blocked obligation instead of expanding a product repair into environment work.
