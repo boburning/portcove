@@ -184,6 +184,12 @@ test("active and unlabeled collapsed details remain authoritative blockers", () 
     "Historical context still applicable",
     "Not superseded",
     "Superseded? Review is still pending",
+    "Superseded historical scope?",
+    "Superseded history is not established",
+    "Superseded history remains unconfirmed",
+    "Superseded history isn't established",
+    "Superseded history isn’t established",
+    "Superseded history may still be current",
     "Current blocker supersedes an earlier decision",
   ]) {
     assert.equal(
@@ -239,6 +245,7 @@ test("malformed or code/comment examples do not establish a superseded boundary"
   for (const body of [
     "<details><summary>Superseded historical scope</summary>\n- Current blocker and exact resume condition: Unclosed evidence remains visible.",
     "<details><summary>Current scope</summary><details><summary>Superseded history</summary>\n- Current blocker and exact resume condition: Unclosed evidence remains visible.\n</details>",
+    "<details><summary>Superseded historical scope\n<details><summary>Current exact evidence</summary>\n- Current blocker and exact resume condition: Unclosed evidence remains visible.\n</details>\n</details>",
     "<details><summary>Superseded historical scope\n- Current blocker and exact resume condition: Unclosed evidence remains visible.\n</details>",
   ])
     assert.equal(researchBlocker(body), "Unclosed evidence remains visible.");

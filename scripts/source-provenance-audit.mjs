@@ -96,11 +96,14 @@ function withoutSupersededHistory(body) {
     if (!opening) continue;
     const end = match.index + token.length;
     const content = text.slice(opening.content, match.index);
-    const summary = content.match(/^\s*<summary\b[^>]*>([\s\S]*?)<\/summary\s*>/iu)?.[1];
-    // An affirmative leading label is evidence; a question, negation, or merely
-    // mentioning an old decision in active details is not.
+    const summary = content.match(
+      /^\s*<summary\b[^>]*>((?:(?!<\/?(?:details|summary)\b)[\s\S])*?)<\/summary\s*>/iu,
+    )?.[1];
+    // Accept complete supersession titles, not arbitrary sentences whose leading
+    // word could introduce a question, negation, or an uncertain decision.
     const label = summary?.replace(/<!--([\s\S]*?)-->|<[^>]*>/gu, "").trim();
-    if (/^superseded(?:\s|$)/iu.test(label ?? "")) ignored.push({ start: opening.start, end });
+    if (/^superseded(?:\s+(?:historical\s+scope|history|scope))?$/iu.test(label ?? ""))
+      ignored.push({ start: opening.start, end });
   }
   // Do not infer a boundary through malformed/unclosed parent details.
   const unclosed = stack[0]?.start ?? text.length;
