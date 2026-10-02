@@ -152,6 +152,15 @@ export const DESKTOP_SCENARIOS = Object.freeze([
     },
   ),
   scenario(
+    "native-host-interrupted-preparation",
+    "Forced Windows host termination during live preparation preserves originals and requires recovery.",
+    {
+      prerequisites: ["desktop", "owned-fixture"],
+      source: "desktop-preparation-recovery-test.mjs",
+      qualification_only: true,
+    },
+  ),
+  scenario(
     "native-update-settings-save-without-execution",
     "Saving update settings does not execute an update.",
     {

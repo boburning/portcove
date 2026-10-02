@@ -87,6 +87,16 @@ test("design compatibility stays exact-selection-only and requests its isolated 
   assert.ok(selection.prerequisites.includes("design-compatibility-fixture"));
 });
 
+test("live host interruption selects its own fixture without synthetic recovery setup", () => {
+  const id = "native-host-interrupted-preparation";
+  for (const ids of Object.values(DESKTOP_PROFILES)) assert.ok(!ids.includes(id));
+  const selection = resolveDesktopSelection({ scenarios: [id] });
+  assert.deepEqual(selection.selected_scenarios, [id]);
+  assert.deepEqual(selection.setup_scenarios, []);
+  assert.deepEqual(selection.prerequisites, ["desktop", "owned-fixture"]);
+  assert.ok(selection.host_resources.includes("native-desktop"));
+});
+
 test("focused lifecycle selection resolves setup without claiming it", () => {
   const selection = resolveDesktopSelection({
     scenarios: ["native-reviewed-installed-game-removal"],

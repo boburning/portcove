@@ -957,6 +957,58 @@ async function restartApplication(name, prepareWhileStopped, childEnvironment = 
   return browser;
 }
 
+// Interrupt only this harness's positively identified tree, without first
+// deleting its WebDriver session or requesting graceful application shutdown.
+async function interruptApplication(name, preparationExecutable, assertStillPreparing) {
+  assert.equal(process.platform, "win32", "Live host interruption is Windows qualification");
+  const snapshot = path.join(output, `${name}-processes.json`);
+  const captured = observeNativeSession("SnapshotDriverTree", snapshot);
+  artifacts.push(snapshot);
+  assert.deepEqual(captured.driver, interruptionDriver, "Owned launch identity changed");
+  const matches = (expected) =>
+    captured.processes.filter(
+      (entry) => path.resolve(entry.path).toLowerCase() === path.resolve(expected).toLowerCase(),
+    );
+  assert.equal(matches(values.app).length, 1, "Capture the live owned application");
+  assert.equal(matches(preparationExecutable).length, 1, "Capture the live preparation child");
+  await assertStillPreparing();
+  const inventory = path.join(output, `${name}-exit-inventory.json`);
+  await writeFile(
+    inventory,
+    JSON.stringify(
+      {
+        ...captured,
+        source_snapshot: path.basename(snapshot),
+        derivation: "include-captured-driver-root-in-positive-exit-inventory",
+        processes: [captured.driver, ...captured.processes],
+      },
+      null,
+      2,
+    ),
+    { flag: "wx" },
+  );
+  artifacts.push(inventory);
+  const observation = {
+    started_at: new Date().toISOString(),
+    shutdown_request: "forced-owned-tree-termination-without-session-delete",
+    driver_stop: observeNativeSession("StopDriver", snapshot),
+    shutdown: observeNativeSession("Wait", inventory),
+  };
+  // The killed session cannot be reused. Recovery runs in a new native host;
+  // no durable-state fixture or quiescence flag is written by the harness.
+  browser = undefined;
+  driver = undefined;
+  await startDriver();
+  await connect();
+  observation.reconnected_at = new Date().toISOString();
+  const evidence = path.join(output, `${name}-restart.json`);
+  await writeFile(evidence, JSON.stringify(observation, null, 2), { flag: "wx" });
+  artifacts.push(evidence);
+  return browser;
+}
+
+let interruptionDriver;
+
 function observeNativeSession(mode, snapshot) {
   const driverProcessId = mode === "Wait" ? 0 : driver.pid;
   const result = spawnCommand(
@@ -1055,6 +1107,22 @@ async function startDriver(childEnvironment = {}) {
       driver.once("error", reject);
     });
     captureBackupFocusDriverLaunch(launchStarted);
+  }
+  if (selection.selected_scenarios.includes("native-host-interrupted-preparation")) {
+    const snapshot = path.join(output, `host-interruption-driver-${driver.pid}.json`);
+    const captured = observeNativeSession("SnapshotDriver", snapshot);
+    artifacts.push(snapshot);
+    assert.equal(captured.driver.pid, driver.pid);
+    assert.equal(
+      path.resolve(captured.driver.path).toLowerCase(),
+      path.resolve(values.driver).toLowerCase(),
+    );
+    const created = Number(BigInt(captured.driver.started_filetime) / 10_000n) - 11_644_473_600_000;
+    assert.ok(
+      created >= launchStarted - 1 && created <= Date.now(),
+      "Driver belongs to owned launch",
+    );
+    interruptionDriver = captured.driver;
   }
   for (let attempt = 0; attempt < 40; attempt++) {
     if (spawnError) throw spawnError;
@@ -2443,6 +2511,7 @@ try {
       }),
       restartApplication,
       cli: values["preparation-cli"],
+      interruptApplication,
       tool: values["preparation-tool"],
     });
   }
