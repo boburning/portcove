@@ -517,6 +517,7 @@ export interface TransportOutputs {
   external_runtime_removal_preview: OutputExternalRuntimeRemovalPreview;
   game_file_roots: OutputGameFileRoots;
   game_file_scan_snapshot: OutputGameFileScanSnapshot;
+  game_install_plan: OutputGameInstallPlan;
   game_update_plan: OutputGameUpdatePlan;
   github_auth_status: GithubAuthStatus;
   github_device_login: OutputGithubDeviceLogin;
@@ -1583,12 +1584,15 @@ export interface SourceDiscoveryIssue {
   [k: string]: unknown;
 }
 /**
- * A reviewed game update, independent of the saved automatic-update policy.
+ * Exact registered-input review for the first managed installation.
  */
-export interface OutputGameUpdatePlan {
-  activate: boolean;
+export interface OutputGameInstallPlan {
   plan: InstallPlan;
   plan_sha256: string;
+  /**
+   * The exact existing copy that execution will activate, if any.
+   */
+  selected_install: InstallRecord | null;
   [k: string]: unknown;
 }
 export interface InstallPlan {
@@ -1609,6 +1613,15 @@ export interface InstallSourceRequirement {
   profile_id: string;
   registered: boolean;
   role: SourceRequirementRole;
+  [k: string]: unknown;
+}
+/**
+ * A reviewed game update, independent of the saved automatic-update policy.
+ */
+export interface OutputGameUpdatePlan {
+  activate: boolean;
+  plan: InstallPlan;
+  plan_sha256: string;
   [k: string]: unknown;
 }
 export interface GithubAuthStatus {

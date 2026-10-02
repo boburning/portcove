@@ -66,7 +66,7 @@ user's ordinary Playnite library.
 
 ## Compatibility and use
 
-This revision supports **Portcove API schemas 42–56 and event schemas 2–3**. Schema
+This revision supports **Portcove API schemas 42–57 and event schemas 2–3**. Schema
 50 advertises the independently versioned operation-event contract through
 `operation_event_schema_version`; the client consumes and rejects an unsupported
 value before lifecycle management. Launch-only and read-only library negotiation
@@ -83,7 +83,7 @@ client does not use. Schema 53 adds optional saved-root scan and snapshot comman
 that this client also does not use. It accepts both additive schemas while
 continuing to negotiate only its required capabilities. Use an exactly identified schema-42,
 schema-43, schema-44, schema-45, schema-46, schema-47, schema-48, schema-49,
-schema-50, schema-51, schema-52, schema-53, schema-54, schema-55 or schema-56 candidate until a matching public
+schema-50, schema-51, schema-52, schema-53, schema-54, schema-55, schema-56 or schema-57 candidate until a matching public
 standalone release exists; the older published technical previews must not be
 described as supporting these new commands.
 See the [author guide](../../docs/INTEGRATION-AUTHOR.md).
@@ -132,6 +132,14 @@ Portcove game → Portcove → Manage and review activity opens the optional
 management view. Its primary button follows Portcove's current status: choose
 original files or BIOS, validate the selected files, review installation or
 private preparation, or Play when core reports a launchable installation.
+First installation requires the optional schema-57 `installation.review`
+capability. Register selected originals first. The review shows the resolved
+version, artifact SHA-256, bundled runtime, download bytes, managed versions
+folder, saved-data location and original-file requirements. Confirming submits
+the exact core fingerprint; changed inputs require a new review. Older compatible
+CLIs still support their existing Play/management contracts, but first installation
+asks for a matching CLI rather than falling back to unreviewed `ensure`.
+
 File/folder buttons remain available for original files without requiring a typed
 path. Validation registers only catalog-requested inputs and reports the result;
 original files stay in place. A held or unknown action leads to a review message,

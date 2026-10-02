@@ -23,7 +23,29 @@ impl PortcoveService {
             ));
         }
         let plan = self.plan_install(port_id, Some(status.channel)).await?;
-        let port = self.catalog.port(port_id)?;
+        let plan_sha256 = self.game_release_review_digest(
+            "Portcove game update review v1",
+            &plan,
+            &status,
+            activate,
+        )?;
+        Ok(GameUpdatePlan {
+            plan,
+            activate,
+            plan_sha256,
+        })
+    }
+
+    // Shared exact-input digest; each operation retains its own legal-state and
+    // execution boundary. Keep the existing update digest representation intact.
+    pub(super) fn game_release_review_digest(
+        &self,
+        domain: &str,
+        plan: &crate::InstallPlan,
+        status: &crate::PortStatus,
+        activate: bool,
+    ) -> Result<String> {
+        let port = self.catalog.port(&plan.port_id)?;
         let sources = self
             .library
             .sources()?
@@ -36,8 +58,8 @@ impl PortcoveService {
         // Free space is checked again at execution, but changing free bytes is
         // not a change to what the user reviewed. Release, destination, source,
         // definition, retained state and execution mode are exact identities.
-        let plan_sha256 = crate::signed_catalog::digest(&serde_json::to_vec(&(
-            "Portcove game update review v1",
+        let digest = crate::signed_catalog::digest(&serde_json::to_vec(&(
+            domain,
             port,
             &plan.release,
             plan.channel,
@@ -54,11 +76,7 @@ impl PortcoveService {
             sources,
             activate,
         ))?);
-        Ok(GameUpdatePlan {
-            plan,
-            activate,
-            plan_sha256,
-        })
+        Ok(digest)
     }
 
     pub async fn authorize_game_update(

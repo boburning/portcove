@@ -116,7 +116,7 @@ async function main() {
     const output = path.join(workspace, "fixture");
     const library = path.join(workspace, "library");
     await mkdir(output);
-    fixture = await createInstallFixture({ root, output });
+    fixture = await createInstallFixture({ root, output, holdFirstDownload: true });
     const env = {
       ...process.env,
       PORTCOVE_PREFERENCES: path.join(workspace, "preferences.json"),
@@ -158,6 +158,13 @@ async function main() {
 
     await phase("qualification-library-busy", INSTALL_REFRESH_FIXTURE_PORT_ID);
     await phase("qualification-concurrency", INSTALL_REFRESH_FIXTURE_PORT_ID);
+    assert.equal(fixture.requests.length, 1, "conflict cannot start a competing artifact download");
+    assert.equal(fixture.requests[0].completed, false, "cancellation must precede full delivery");
+    assert.equal(
+      fixture.requests[0].bytes_sent,
+      1024 * 1024,
+      "real download stays held at its progress handshake",
+    );
     await phase("qualification-install", INSTALL_REFRESH_FIXTURE_PORT_ID, "1.0.0-fixture");
     await editRelease(fixture.catalogPath, INSTALL_REFRESH_FIXTURE_PORT_ID, {
       version: "2.0.0-bad-checksum",

@@ -80,12 +80,84 @@ internal static class ContractTests
         commands = new[] { "capabilities", "catalog", "source", "status", "activity", "cancel", "doctor", "library.identity", "launch.show", "launch.recover", "exec", "ensure", "update", "preparation", "preparation.cleanup" },
         machine_formats = new[] { "json", "jsonl" }, raw_stream_commands = new[] { "exec" }
     };
+    private static void CheckInstallationReview()
+    {
+        const string library = @"H:\Isolated library";
+        var fixture = new
+        {
+            plan_sha256 = new string('a', 64),
+            selected_install = (object)null,
+            plan = new
+            {
+                port_id = "shape-a", platform = "windows-x86-64", channel = "stable", action = "download",
+                download_bytes = 123L, bundled_runtime = (object)null,
+                release = new { version = "v2", channel = "stable", asset = new
+                    { name = "fixture.zip", sha256 = new string('b', 64), size = 123L } },
+                output_location = new { port_id = "shape-a", library_root = library,
+                    effective_output_directory = @"H:\Isolated library\versions\shape-a",
+                    user_data_root = @"H:\Isolated library\userdata\shape-a" },
+                source_requirements = new[] { new { profile_id = "original", label = "Original game", role = "game_source", registered = true } }
+            }
+        };
+        Func<Dictionary<string, object>> fresh = () => Json.Object(Json.Parse(Json.Print(fixture)));
+        var review = InstallationReview.Read(fresh(), "shape-a", library);
+        Check(review.Fingerprint == new string('a', 64) && review.Description.Contains("Requested release version: v2") &&
+            review.Description.Contains("fixture.zip") && review.Description.Contains("123 bytes") &&
+            review.Description.Contains(@"versions\shape-a") && review.Description.Contains("Original game (registered)"),
+            "installation review presents exact artifact, destination, source and consent identity");
+        Reject(() => InstallationReview.Read(fresh(), "other", library), "cross-port installation review rejected");
+        Reject(() => InstallationReview.Read(fresh(), "shape-a", @"H:\Other library"), "cross-library installation review rejected");
+        foreach (var field in new[] { "plan_sha256", "plan" })
+        {
+            var broken = fresh(); broken.Remove(field);
+            Reject(() => InstallationReview.Read(broken, "shape-a", library), "missing installation " + field + " rejected");
+        }
+        foreach (var action in new[] { "already_active", "blocked_unverified", "unknown" })
+        {
+            var broken = fresh(); Json.Object(Json.Field(broken, "plan"))["action"] = action;
+            Reject(() => InstallationReview.Read(broken, "shape-a", library), "non-first-install action " + action + " rejected");
+        }
+        var invalidDigest = fresh(); invalidDigest["plan_sha256"] = new string('z', 64);
+        Reject(() => InstallationReview.Read(invalidDigest, "shape-a", library), "malformed consent digest rejected");
+        var negative = fresh(); Json.Object(Json.Field(negative, "plan"))["download_bytes"] = -1L;
+        Reject(() => InstallationReview.Read(negative, "shape-a", library), "negative download size rejected");
+        var channel = fresh(); Json.Object(Json.Field(Json.Field(channel, "plan"), "release"))["channel"] = "beta";
+        Reject(() => InstallationReview.Read(channel, "shape-a", library), "inconsistent release channel rejected");
+        var platform = fresh(); Json.Object(Json.Field(platform, "plan"))["platform"] = "linux-x86-64";
+        Reject(() => InstallationReview.Read(platform, "shape-a", library), "other-platform installation rejected");
+        var duplicate = fresh(); var plan = Json.Object(Json.Field(duplicate, "plan"));
+        var sources = Json.Array(Json.Field(plan, "source_requirements")); plan["source_requirements"] = new[] { sources[0], sources[0] };
+        Reject(() => InstallationReview.Read(duplicate, "shape-a", library), "duplicate source requirement rejected");
+        var missingRegistration = fresh();
+        Json.Object(Json.Array(Json.Field(Json.Field(missingRegistration, "plan"), "source_requirements"))[0])["registered"] = false;
+        Check(InstallationReview.Read(missingRegistration, "shape-a", library).Description.Contains("not registered"),
+            "absent source registration is displayed honestly without a new client eligibility engine");
+        foreach (var reuseAction in new[] { "use_staged", "reuse_retained" })
+        {
+            var reuse = fresh(); Json.Object(Json.Field(reuse, "plan"))["action"] = reuseAction;
+            Reject(() => InstallationReview.Read(reuse, "shape-a", library), "missing reuse target rejected for " + reuseAction);
+            reuse["selected_install"] = Json.Parse(Json.Print(new { id = "retained-id", port_id = "shape-a", verified = true, version = "original-v1", channel = "beta",
+                path = @"H:\Earlier output\exact-copy", artifact = new { sha256 = new string('b', 64) } }));
+            var presentation = InstallationReview.Read(reuse, "shape-a", library).Description;
+            Check(presentation.Contains(@"H:\Earlier output\exact-copy") && !presentation.Contains(@"versions\shape-a") &&
+                presentation.Contains("No artifact download") && presentation.Contains("Existing copy version: original-v1") &&
+                presentation.Contains("Existing copy channel: beta") && presentation.Contains("Requested release version: v2"),
+                "reuse presents actual retained path, metadata and download boundary for " + reuseAction);
+            var selected = Json.Object(Json.Parse(Json.Print(Json.Field(reuse, "selected_install"))));
+            reuse["selected_install"] = selected; selected["port_id"] = "other";
+            Reject(() => InstallationReview.Read(reuse, "shape-a", library), "cross-port reuse target rejected");
+            selected["port_id"] = "shape-a"; Json.Object(Json.Field(selected, "artifact"))["sha256"] = new string('c', 64);
+            Reject(() => InstallationReview.Read(reuse, "shape-a", library), "different retained artifact rejected");
+        }
+    }
+
     private static async Task Run(string[] args)
     {
         CheckRuntimeSelection();
         CheckPersonalLibrary();
         CheckGuidedSetup();
         CheckManagedRemoval();
+        CheckInstallationReview();
         var managedStatus = Json.Parse("{\"active\":null}");
         Check(Json.OptionalObjectField(managedStatus, "external_runtime") == null,
             "absent external runtime is a valid managed status");
@@ -265,7 +337,7 @@ internal static class ContractTests
         bad["schema_version"] = 55;
         ProtocolStream.Negotiate(bad);
         Check(true, "external runtime API schema negotiated without requiring unused commands");
-        bad["schema_version"] = 56;
+        bad["schema_version"] = 58;
         Reject(() => ProtocolStream.Negotiate(bad), "future schema rejected with migration guidance");
         bad["schema_version"] = 42; bad["commands"] = new object[0];
         Reject(() => ProtocolStream.Negotiate(bad), "missing command capability rejected");
@@ -393,6 +465,12 @@ internal static class ContractTests
         capabilities["commands"] = Json.Array(Json.Field(capabilities, "commands"))
             .Cast<string>().Concat(new[] { "remove.preview", "remove" }).ToArray();
         Check(ProtocolStream.Negotiate(capabilities) == 3, "schema-56 client consumes reviewed removal commands");
+        var firstInstall = Json.Object(Json.Parse(Json.Print(capabilities)));
+        firstInstall["schema_version"] = 57;
+        Reject(() => ProtocolStream.Negotiate(firstInstall), "schema-57 without installation review capability rejected");
+        firstInstall["commands"] = Json.Array(Json.Field(firstInstall, "commands"))
+            .Cast<string>().Concat(new[] { "installation.review" }).ToArray();
+        Check(ProtocolStream.Negotiate(firstInstall) == 3, "schema-57 consumes exact first-install review capability");
         capabilities["commands"] = Json.Array(Json.Field(capabilities, "commands"))
             .Cast<string>().Where(command => command != "remove.preview").ToArray();
         Reject(() => ProtocolStream.Negotiate(capabilities), "schema-56 without removal preview capability rejected");
@@ -948,8 +1026,11 @@ internal static class ContractTests
         {
             var operation = new OperationCapture();
             var install = client.Manage("ensure", new[] { "ensure", port }, operation.Observe);
-            if (await Task.WhenAny(operation.Root, Task.Delay(TimeSpan.FromSeconds(15))) != operation.Root)
-                throw new Exception("The real install emitted no root operation identity before the qualification timeout.");
+            if (await Task.WhenAny(operation.Downloading, install, Task.Delay(TimeSpan.FromSeconds(15))) != operation.Downloading)
+            {
+                if (install.IsCompleted) await install;
+                throw new Exception("The real install emitted no held download progress before the qualification timeout.");
+            }
 
             var competing = new PublicCli(args[1], args[2]);
             await competing.Connect();
@@ -1117,13 +1198,18 @@ internal static class ContractTests
     private sealed class OperationCapture
     {
         private readonly TaskCompletionSource<string> root = new TaskCompletionSource<string>();
+        private readonly TaskCompletionSource<bool> downloading = new TaskCompletionSource<bool>();
         private string id;
         internal readonly List<string> Events = new List<string>();
         internal Task<string> Root { get { return root.Task; } }
+        internal Task<bool> Downloading { get { return downloading.Task; } }
 
         internal void Observe(Dictionary<string, object> record)
         {
             Events.Add(Json.Text(record, "type"));
+            if (Json.Text(record, "type") == "progress" && Json.Text(record, "phase") == "download" &&
+                Json.Number(record, "completed") > 0)
+                downloading.TrySetResult(true);
             if (Json.Field(record, "parent_operation_id") != null) return;
             var current = Json.Text(record, "operation_id");
             if (id != null && id != current)

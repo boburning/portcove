@@ -588,7 +588,7 @@ namespace Portcove.ReferenceClient
 
     internal sealed class ProtocolStream
     {
-        internal const int Schema = 56;
+        internal const int Schema = 57;
         private static bool SupportedSchema(long version) => version >= 42 && version <= Schema;
         private readonly string command;
         private readonly Action<Dictionary<string, object>> progress;
@@ -615,7 +615,7 @@ namespace Portcove.ReferenceClient
             if (type == null || (type as string) == "result")
             {
                 if (!SupportedSchema(Json.Number(record, "schema_version")) || Json.Text(record, "command") != command)
-                    throw new InvalidOperationException("Unsupported Portcove response. This client requires API schema 42 through 56; install a matching CLI/client pair.");
+                    throw new InvalidOperationException("Unsupported Portcove response. This client requires API schema 42 through 57; install a matching CLI/client pair.");
                 Json.Boolean(record, "ok");
                 result = record;
                 return;
@@ -715,7 +715,7 @@ namespace Portcove.ReferenceClient
         {
             var schema = Json.Number(capabilities, "schema_version");
             if (!SupportedSchema(schema) || Json.Text(capabilities, "product") != "Portcove")
-                throw new InvalidOperationException("This reference client requires Portcove API schema 42 through 56. Select a compatible CLI or update the client.");
+                throw new InvalidOperationException("This reference client requires Portcove API schema 42 through 57. Select a compatible CLI or update the client.");
             if (requiredCapabilities == null || requiredCapabilities.Length == 0)
                 throw new InvalidOperationException("Select at least one Portcove consumer capability before negotiation.");
             var commands = Json.Array(Json.Field(capabilities, "commands")).OfType<string>().ToArray();
@@ -734,6 +734,7 @@ namespace Portcove.ReferenceClient
                         requiredCommands.UnionWith(new[] { "source", "status", "activity", "cancel", "doctor", "library.identity", "ensure", "update", "preparation" });
                         if (schema >= 48) requiredCommands.Add("preparation.cleanup");
                         if (schema >= 56) requiredCommands.UnionWith(new[] { "remove.preview", "remove" });
+                        if (schema >= 57) requiredCommands.Add("installation.review");
                         break;
                     default:
                         throw new InvalidOperationException("Unknown Portcove consumer capability.");

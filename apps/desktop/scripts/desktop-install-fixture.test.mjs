@@ -183,6 +183,38 @@ test("install fixture is isolated, pinned, interruptible, and retryable", async 
   }
 });
 
+test("held install download cannot outrun delayed conflict and cancellation checks", async () => {
+  const output = await mkdtemp(path.join(tmpdir(), "portcove-held-install-fixture-"));
+  const fixture = await createInstallFixture({ root, output, holdFirstDownload: true });
+  const controller = new AbortController();
+  vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
+  try {
+    const first = await fetch(fixture.url, { signal: controller.signal });
+    const reader = first.body.getReader();
+    await reader.read();
+    assert.equal(fixture.requests[0].bytes_sent, 1024 * 1024);
+    // Advance beyond the entire old 75ms/chunk download. This must remain
+    // incomplete regardless of the time taken by consumer CLI readbacks.
+    await vi.advanceTimersByTimeAsync(6_000);
+    assert.equal(fixture.requests[0].completed, false);
+    assert.equal(fixture.requests[0].bytes_sent, 1024 * 1024);
+    controller.abort();
+    await reader.cancel().catch(() => {});
+    await waitFor(
+      () => fixture.requests[0].connection_closed,
+      "held download did not close after cancellation",
+    );
+    const retry = Buffer.from(await (await fetch(fixture.url)).arrayBuffer());
+    assert.deepEqual(retry, fixture.artifact);
+    assert.equal(fixture.requests[1].completed, true);
+  } finally {
+    controller.abort();
+    vi.useRealTimers();
+    await fixture.close();
+    await rm(output, { recursive: true, force: true });
+  }
+});
+
 test("unselected install scenarios do not require an initialized fixture", async () => {
   const registered = [];
   await installScenarios({

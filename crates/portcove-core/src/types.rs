@@ -1127,6 +1127,15 @@ pub struct InstallPlan {
     pub output_location: PortOutputLocation,
 }
 
+/// Exact registered-input review for the first managed installation.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct GameInstallPlan {
+    pub plan: InstallPlan,
+    /// The exact existing copy that execution will activate, if any.
+    pub selected_install: Option<InstallRecord>,
+    pub plan_sha256: String,
+}
+
 /// A reviewed game update, independent of the saved automatic-update policy.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct GameUpdatePlan {
@@ -1408,6 +1417,7 @@ impl CapabilityDocument {
                 "check".into(),
                 "reconcile".into(),
                 "install".into(),
+                "installation.review".into(),
                 "adopt".into(),
                 "ensure".into(),
                 "update".into(),

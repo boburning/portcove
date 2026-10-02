@@ -139,6 +139,11 @@ enum Commands {
         #[arg(long)]
         output_dir: Option<PathBuf>,
     },
+    /// Review or apply the first managed install using separately registered inputs.
+    Installation {
+        #[command(subcommand)]
+        command: InstallationCommand,
+    },
     /// Inspect and prepare exact managed game inputs.
     Preparation {
         #[command(subcommand)]
@@ -213,6 +218,20 @@ enum Commands {
 enum ActivityCommand {
     /// Read the retained, redacted diagnostic capture for one activity.
     Log { activity_id: String },
+}
+
+#[derive(Debug, Subcommand)]
+enum InstallationCommand {
+    /// Resolve the exact release, destination and registered inputs without mutation.
+    Plan { port_id: String },
+    /// Install only when the reviewed inputs still match under the port lock.
+    Run {
+        port_id: String,
+        #[arg(long)]
+        expected_plan: String,
+        #[arg(long)]
+        yes: bool,
+    },
 }
 
 #[derive(Debug, Clone, Copy, clap::ValueEnum)]
@@ -948,6 +967,9 @@ fn command_is_observation(command: &Commands) -> bool {
             | Commands::Doctor
             | Commands::Paths { .. }
             | Commands::Plan { .. }
+            | Commands::Installation {
+                command: InstallationCommand::Plan { .. }
+            }
             | Commands::Catalog {
                 command: CatalogCommand::List
                     | CatalogCommand::Export
@@ -1128,6 +1150,9 @@ async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
     let _cancellation_signals = matches!(
         &cli.command,
         Commands::Install(_)
+            | Commands::Installation {
+                command: InstallationCommand::Run { .. }
+            }
             | Commands::Update(_)
             | Commands::Ensure(_)
             | Commands::Reconcile(_)
@@ -1142,6 +1167,45 @@ async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
     .then(|| cancellation::CancellationSignals::start(service.clone()))
     .transpose()?;
     match cli.command {
+        Commands::Installation {
+            command: InstallationCommand::Plan { port_id },
+        } => {
+            let review = service.plan_game_install(&port_id).await?;
+            let mut text = human::plan(&review.plan);
+            if let Some(selected) = &review.selected_install {
+                text.push_str(&format!(
+                    "\nExisting copy to activate: {}\nExisting copy version: {}\nExisting copy channel: {}\nNo artifact download.\n",
+                    selected.path.display(), selected.version, selected.channel,
+                ));
+            }
+            text.push_str(&format!(
+                "\nReviewed plan SHA-256: {}\n",
+                review.plan_sha256
+            ));
+            render_read_success(mode, "installation.plan", review, |_| text.clone())?;
+        }
+        Commands::Installation {
+            command:
+                InstallationCommand::Run {
+                    port_id,
+                    expected_plan,
+                    yes,
+                },
+        } => {
+            require_confirmation(
+                "Install this exact reviewed release in its managed destination?",
+                yes,
+                cli.non_interactive,
+            )?;
+            let authorization = service
+                .authorize_game_install(&port_id, &expected_plan)
+                .await?;
+            let mut progress = progress_renderer(mode);
+            let installed = service
+                .apply_game_install(&port_id, &authorization.token, &mut progress)
+                .await?;
+            render_success(mode, "installation.run", installed)?;
+        }
         Commands::Artwork { command } => {
             execute_artwork(&service, command, mode, cli.non_interactive)?
         }
@@ -2858,6 +2922,10 @@ fn command_name(command: &Commands) -> &'static str {
         Commands::Doctor => "doctor",
         Commands::About => "about",
         Commands::Plan { .. } => "plan",
+        Commands::Installation { command } => match command {
+            InstallationCommand::Plan { .. } => "installation.plan",
+            InstallationCommand::Run { .. } => "installation.run",
+        },
         Commands::Preparation {
             command: PreparationCommand::Plan { .. },
         } => "preparation.plan",
@@ -3410,6 +3478,53 @@ mod tests {
     }
 
     #[test]
+    fn reviewed_installation_routes_keep_plan_read_only_and_require_exact_consent() {
+        let plan = Cli::try_parse_from(["portcove", "installation", "plan", "shipwright"]).unwrap();
+        assert!(super::command_is_observation(&plan.command));
+        assert_eq!(super::command_name(&plan.command), "installation.plan");
+        let run = Cli::try_parse_from([
+            "portcove",
+            "installation",
+            "run",
+            "shipwright",
+            "--expected-plan",
+            "digest",
+            "--yes",
+        ])
+        .unwrap();
+        assert!(!super::command_is_observation(&run.command));
+        assert_eq!(super::command_name(&run.command), "installation.run");
+        assert!(
+            Cli::try_parse_from(["portcove", "installation", "run", "shipwright", "--yes"])
+                .is_err()
+        );
+        assert!(
+            Cli::try_parse_from([
+                "portcove",
+                "installation",
+                "run",
+                "shipwright",
+                "--expected-plan",
+                "digest",
+                "--source",
+                "source.z64"
+            ])
+            .is_err()
+        );
+        assert!(
+            Cli::try_parse_from([
+                "portcove",
+                "installation",
+                "plan",
+                "shipwright",
+                "--output-dir",
+                "other"
+            ])
+            .is_err()
+        );
+    }
+
+    #[test]
     fn nested_command_names_match_their_machine_response_names() {
         let cases = [
             (vec!["portcove", "auth", "status"], "auth.status"),
@@ -3448,7 +3563,7 @@ mod tests {
     #[test]
     fn capabilities_advertise_failure_isolated_batches() {
         let capabilities = CapabilityDocument::current();
-        assert_eq!(capabilities.schema_version, 56);
+        assert_eq!(capabilities.schema_version, 57);
         assert!(
             capabilities
                 .commands

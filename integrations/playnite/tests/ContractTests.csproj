@@ -21,6 +21,7 @@
     <Compile Include="..\RuntimeSelection.cs" />
     <Compile Include="..\PersonalLibrary.cs" />
     <Compile Include="..\GuidedSetup.cs" />
+    <Compile Include="..\InstallationReview.cs" />
     <Compile Include="ContractTests.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

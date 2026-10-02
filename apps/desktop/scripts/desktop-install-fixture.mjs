@@ -112,7 +112,7 @@ async function listen(server) {
   return server.address().port;
 }
 
-export async function createInstallFixture({ root, output }) {
+export async function createInstallFixture({ root, output, holdFirstDownload = false }) {
   let artifact = createInstallArtifact();
   const artifacts = new Map([[`/${artifactName}`, artifact]]);
   const requests = [];
@@ -149,7 +149,8 @@ export async function createInstallFixture({ root, output }) {
         if (timer) clearInterval(timer);
         return;
       }
-      const end = Math.min(offset + 64 * 1024, servedArtifact.length);
+      const chunkSize = holdFirstDownload && observation.index === 1 ? 1024 * 1024 : 64 * 1024;
+      const end = Math.min(offset + chunkSize, servedArtifact.length);
       if (end > offset) {
         response.write(servedArtifact.subarray(offset, end));
         observation.bytes_sent = end;
@@ -164,7 +165,10 @@ export async function createInstallFixture({ root, output }) {
     });
     if (observation.index === 1) {
       writeChunk();
-      timer = setInterval(writeChunk, 75);
+      // A held first request exposes real download progress but cannot pass
+      // publication while the consumer establishes conflict and cancellation.
+      // Abort/fixture close releases the socket; retries remain complete.
+      if (!holdFirstDownload) timer = setInterval(writeChunk, 75);
     } else {
       response.write(servedArtifact);
       observation.bytes_sent = servedArtifact.length;
