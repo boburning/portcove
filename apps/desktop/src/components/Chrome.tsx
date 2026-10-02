@@ -53,6 +53,7 @@ import {
   type View,
 } from "../view-model";
 import { FailureDetails } from "./FailureDetails";
+import type { SourceInspectionReadState } from "../features/source-health/use-source-health";
 import { BrandAvatar, BrandMascot, BrandWordmark } from "./Brand";
 import { ExternalLink } from "./ExternalLink";
 import { LibraryMoveButton } from "./LibraryMove";
@@ -849,6 +850,12 @@ function SourceRequirements({
   );
 }
 
+type SourceInspectionReadback = {
+  reports: ReadonlyMap<string, SourceInspectionReport>;
+  reads: ReadonlyMap<string, SourceInspectionReadState>;
+  retry: (profileId: string) => Promise<void>;
+};
+
 function SourceHealth({
   generation,
   ports,
@@ -857,7 +864,7 @@ function SourceHealth({
   requirementsState,
   installedCount,
   outcomes,
-  inspections,
+  inspections: inspectionInput,
   busy,
   verify,
   replace,
@@ -878,10 +885,18 @@ function SourceHealth({
   installedCount: number;
   add?: (profile: SourceProfile, archive: boolean) => void;
   profiles: SourceProfile[];
-  inspections: ReadonlyMap<string, SourceInspectionReport>;
+  inspections: ReadonlyMap<string, SourceInspectionReport> | SourceInspectionReadback;
   onAdded?: () => Promise<unknown>;
   openEvidence?: (evidenceId: string) => void;
 }) {
+  const inspection =
+    "reports" in inspectionInput
+      ? inspectionInput
+      : {
+          reports: inspectionInput,
+          reads: new Map<string, SourceInspectionReadState>(),
+          retry: undefined,
+        };
   const byProfile = new Map(outcomes.map((outcome) => [outcome.profile_id, outcome]));
   const profilesById = new Map(profiles.map((profile) => [profile.id, profile]));
   return (
@@ -926,7 +941,9 @@ function SourceHealth({
                 generation={generation}
                 ports={ports}
                 onRemoved={onAdded}
-                report={inspections.get(source.profile_id)}
+                report={inspection.reports.get(source.profile_id)}
+                inspectionRead={inspection.reads.get(source.profile_id)}
+                retryInspection={inspection.retry}
                 outcome={byProfile.get(source.profile_id)}
                 busy={busy}
                 replace={replace}
@@ -952,6 +969,8 @@ function SourceHealthRow({
   ports,
   onRemoved,
   report,
+  inspectionRead,
+  retryInspection,
   outcome,
   busy,
   replace,
@@ -965,6 +984,8 @@ function SourceHealthRow({
   sourceCount: number;
   profile?: SourceProfile;
   report?: SourceInspectionReport;
+  inspectionRead?: SourceInspectionReadState;
+  retryInspection?: (profileId: string) => Promise<void>;
   outcome?: SourceVerificationOutcome;
   busy?: string;
   replace?: (source: SourceRecord) => void;
@@ -987,7 +1008,12 @@ function SourceHealthRow({
         </code>
       </div>
       <div className="source-health-actions flex flex-wrap items-center gap-2.5">
-        <SourceState report={report} outcome={outcome} profileAvailable={Boolean(profile)} />
+        <SourceInspectionState
+          read={inspectionRead}
+          report={report}
+          outcome={outcome}
+          profileAvailable={Boolean(profile)}
+        />
         {profile && (
           <Button
             data-focusable
@@ -1036,15 +1062,100 @@ function SourceHealthRow({
           <FailureDetails presentation={outcome.error.presentation} code={outcome.error.code} />
         </div>
       )}
-      {report ? (
-        <div className="col-span-full min-w-0">
-          <SourceIdentityPanel report={report} openEvidence={openEvidence} />
-        </div>
-      ) : profile ? (
-        <p className="source-inspection-loading col-span-full" role="status">
-          Checking file…
-        </p>
-      ) : null}
+      {(profile || report) && (
+        <SourceInspectionPresentation
+          read={inspectionRead}
+          report={report}
+          profileId={source.profile_id}
+          retry={retryInspection}
+          disabled={Boolean(busy)}
+          openEvidence={openEvidence}
+        />
+      )}
+    </div>
+  );
+}
+
+function SourceInspectionState({
+  read,
+  ...props
+}: {
+  read?: SourceInspectionReadState;
+  report?: SourceInspectionReport;
+  outcome?: SourceVerificationOutcome;
+  profileAvailable: boolean;
+}) {
+  if (!props.profileAvailable || !read || read.status === "current")
+    return <SourceState {...props} />;
+  const label =
+    read.status === "pending"
+      ? "Checking"
+      : read.status === "cancelled"
+        ? "Check cancelled"
+        : "Check unavailable";
+  return (
+    <span className="source-state inline-flex items-center gap-1 text-xs text-pc-muted-foreground">
+      {label}
+    </span>
+  );
+}
+
+function SourceInspectionPresentation({
+  read,
+  report,
+  profileId,
+  retry,
+  disabled,
+  openEvidence,
+}: {
+  read?: SourceInspectionReadState;
+  report?: SourceInspectionReport;
+  profileId: string;
+  retry?: (profileId: string) => Promise<void>;
+  disabled: boolean;
+  openEvidence?: (evidenceId: string) => void;
+}) {
+  const currentReport = !read || read.status === "current" ? report : undefined;
+  const message =
+    read?.status === "pending"
+      ? "Checking file…"
+      : read?.status === "cancelled"
+        ? "File check cancelled."
+        : (read?.failure?.summary ?? "File check is unavailable. Try checking it again.");
+  return (
+    <div className="col-span-full min-w-0">
+      <div>
+        {currentReport ? (
+          <SourceIdentityPanel report={currentReport} openEvidence={openEvidence} />
+        ) : (
+          <p
+            className={read?.status === "pending" ? "source-inspection-loading" : undefined}
+            role="status"
+          >
+            {message}
+          </p>
+        )}
+        {read?.failure && (
+          <FailureDetails
+            presentation={read.failure}
+            code={read.code}
+            showMutationSummary={false}
+          />
+        )}
+      </div>
+      {read && retry && (
+        <Button
+          data-focusable
+          variant="outline"
+          size="sm"
+          disabled={disabled || read.status === "pending"}
+          onClick={() => void retry(profileId)}
+        >
+          {read.status === "failed" || read.status === "cancelled"
+            ? "Retry file check"
+            : "Check file again"}
+        </Button>
+      )}
     </div>
   );
 }
@@ -1360,7 +1471,7 @@ export function SettingsView({
   sourceOutcomes?: SourceVerificationOutcome[];
   verifySources?: () => void;
   replaceSource?: (source: SourceRecord) => void;
-  sourceInspections?: ReadonlyMap<string, SourceInspectionReport>;
+  sourceInspections?: ReadonlyMap<string, SourceInspectionReport> | SourceInspectionReadback;
   openSourceEvidence?: (evidenceId: string) => void;
   addSource?: (profile: SourceProfile, archive: boolean) => void;
   appearance?: ThemeState;

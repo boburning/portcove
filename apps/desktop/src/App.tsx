@@ -812,7 +812,11 @@ function CurrentView({
           )
         }
         sourceOutcomes={sourceHealth.outcomes}
-        sourceInspections={sourceHealth.inspections}
+        sourceInspections={{
+          reports: sourceHealth.inspections,
+          reads: sourceHealth.inspectionReads,
+          retry: sourceHealth.inspectSource,
+        }}
         verifySources={() => {
           void sourceHealth.verifyAll();
         }}

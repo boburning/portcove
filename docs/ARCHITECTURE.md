@@ -1944,6 +1944,16 @@ directly, and the former root `use-portcove.ts` compatibility module is removed
 without a re-export. None of this shell state is persisted or authoritative for
 domain behavior.
 
+The `features/source-health` read owner records each requested saved-file
+inspection as pending, current, failed or cancelled. Settings presents a settled
+inspection failure separately from verified file identity and offers an explicit
+read-only retry for that profile. Healthy sibling inspections and existing source
+verification outcomes retain their own meaning. Concurrent reads for one current
+profile share the pending request; registration/catalog/selection changes and
+disposal invalidate older responses. Failed inspections provide no current report
+and cannot grant registration, setup or mutation authority. Core remains the
+owner of source matching, verification and typed diagnostic/recovery facts.
+
 The `features/bootstrap` unit owns the initial bootstrap-status read, normalized
 startup failure state and the choose, switch and reset library handoff. A
 successful result publishes the returned generation so App remounts all
