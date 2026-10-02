@@ -14,7 +14,7 @@
   },
   "devDependencies": {
     "@taplo/cli": "0.7.0",
-    "fallow": "^3.26.0",
+    "fallow": "^3.30.0",
     "oxfmt": "0.70.0",
     "oxlint": "1.85.0",
     "oxlint-tsgolint": "7.0.2003"
