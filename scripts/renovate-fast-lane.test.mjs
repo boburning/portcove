@@ -17,6 +17,14 @@ const base = "b".repeat(40);
 const target = "c".repeat(40);
 const required = ["catalog", "dependency-review", "frontend", "rust", "rust-quality"];
 
+function cargoArtifact(name, version, checksum = "1".repeat(64)) {
+  return `[[package]]\nname = "${name}"\nversion = "${version}"\nsource = "registry+https://github.com/rust-lang/crates.io-index"\nchecksum = "${checksum}"\n`;
+}
+
+function npmArtifact(version, integrity = "AAAA", extra = "") {
+  return `packages:\n\n  lucide-react@${version}:\n    resolution: {integrity: sha512-${integrity}}\n${extra}`;
+}
+
 const config = {
   automerge: false,
   minimumReleaseAge: "3 days",
@@ -272,8 +280,8 @@ test("dependency delta binds the claimed package and versions to manifest and lo
     newVersion: "1.5.2",
     baseManifest: '[workspace.dependencies]\ncrc32fast = "1.5.1"\nother = "2.0.0"\n',
     headManifest: '[workspace.dependencies]\ncrc32fast = "1.5.2"\nother = "2.0.0"\n',
-    baseLock: '[[package]]\nname = "crc32fast"\nversion = "1.5.1"\n',
-    headLock: '[[package]]\nname = "crc32fast"\nversion = "1.5.2"\n',
+    baseLock: cargoArtifact("crc32fast", "1.5.1"),
+    headLock: cargoArtifact("crc32fast", "1.5.2", "2".repeat(64)),
   };
   assert.doesNotThrow(() => validateDependencyDelta(cargo));
   assert.throws(
@@ -314,8 +322,8 @@ test("dependency delta binds the claimed package and versions to manifest and lo
     newVersion: "1.46.0",
     baseManifest: JSON.stringify({ dependencies: { "lucide-react": "^1.45.0" } }),
     headManifest: JSON.stringify({ dependencies: { "lucide-react": "^1.46.0" } }),
-    baseLock: "packages:\n\n  lucide-react@1.45.0:\n",
-    headLock: "packages:\n\n  lucide-react@1.46.0:\n",
+    baseLock: npmArtifact("1.45.0"),
+    headLock: npmArtifact("1.46.0", "BBBB"),
   };
   assert.doesNotThrow(() => validateDependencyDelta(npm));
   assert.throws(
@@ -339,6 +347,138 @@ test("dependency delta binds the claimed package and versions to manifest and lo
         headManifest: JSON.stringify({ dependencies: { "lucide-react": "~1.46.0" } }),
       }),
     /not the only manifest change/,
+  );
+});
+
+test("small stable signing trust credential archive and persistent-data changes require controlled review", () => {
+  for (const packageName of [
+    "minisign",
+    "minisign-verify",
+    "tough",
+    "ed25519-dalek",
+    "sha2",
+    "sha1",
+    "keyring",
+    "rpassword",
+    "reqwest",
+    "url",
+    "zip",
+    "tar",
+    "flate2",
+    "rusqlite",
+  ]) {
+    const result = classify({
+      pull: { body: body({ packageName, currentVersion: "2.0.0", newVersion: "2.0.1" }) },
+    });
+    assert.equal(result.verdict, "manual-review-required", packageName);
+    assert.match(result.reason, /security-sensitive or persistent-data/);
+  }
+});
+
+test("whole Cargo lock review refuses hidden transitive source feature and integrity changes", () => {
+  const change = {
+    manager: "cargo",
+    packageName: "crc32fast",
+    currentVersion: "1.5.1",
+    newVersion: "1.5.2",
+    baseManifest: 'crc32fast = { version = "1.5.1", features = ["std"] }\n',
+    headManifest: 'crc32fast = { version = "1.5.2", features = ["std"] }\n',
+    baseLock: cargoArtifact("crc32fast", "1.5.1") + cargoArtifact("other", "2.0.0"),
+    headLock: cargoArtifact("crc32fast", "1.5.2", "2".repeat(64)) + cargoArtifact("other", "2.0.0"),
+  };
+  assert.doesNotThrow(() => validateDependencyDelta(change));
+  for (const headLock of [
+    change.headLock.replace(
+      'name = "other"\nversion = "2.0.0"',
+      'name = "other"\nversion = "2.0.1"',
+    ),
+    change.headLock + cargoArtifact("new-build-script", "1.0.0"),
+    change.headLock.replace(
+      'name = "other"\nversion = "2.0.0"',
+      'name = "other"\nversion = "2.0.0"\nfeatures = ["new"]',
+    ),
+    change.headLock.replaceAll(
+      'checksum = "' + "1".repeat(64) + '"',
+      'checksum = "' + "3".repeat(64) + '"',
+    ),
+  ])
+    assert.throws(() => validateDependencyDelta({ ...change, headLock }), /resolved lock graph/);
+  assert.throws(
+    () =>
+      validateDependencyDelta({
+        ...change,
+        headLock: change.headLock.replace(
+          "registry+https://github.com/rust-lang/crates.io-index",
+          "git+https://example.test/repo",
+        ),
+      }),
+    /registry/,
+  );
+  assert.throws(
+    () =>
+      validateDependencyDelta({
+        ...change,
+        headManifest: change.headManifest.replace('["std"]', '["different"]'),
+      }),
+    /only manifest/,
+  );
+});
+
+test("pnpm masking is confined to the direct artifact and importer entry, including sibling versions", () => {
+  const importer = (direct, sibling) =>
+    `importers:\n  apps/desktop:\n    dependencies:\n      lucide-react:\n        specifier: ^${direct}\n        version: ${direct}(react@19.3.0)\n      other:\n        specifier: ^1.45.0\n        version: ${sibling}\n`;
+  const unchanged =
+    "\n  other@1.45.0:\n    resolution: {integrity: sha512-CCCC}\n\n  other@1.46.0:\n    resolution: {integrity: sha512-DDDD}\n";
+  const change = {
+    manager: "npm",
+    packageName: "lucide-react",
+    currentVersion: "1.45.0",
+    newVersion: "1.46.0",
+    baseManifest: JSON.stringify({ dependencies: { "lucide-react": "^1.45.0", other: "^1.45.0" } }),
+    headManifest: JSON.stringify({ dependencies: { "lucide-react": "^1.46.0", other: "^1.45.0" } }),
+    baseLock: importer("1.45.0", "1.45.0") + npmArtifact("1.45.0") + unchanged,
+    headLock: importer("1.46.0", "1.45.0") + npmArtifact("1.46.0", "BBBB") + unchanged,
+  };
+  assert.doesNotThrow(() => validateDependencyDelta(change));
+  const siblingChanged = importer("1.46.0", "1.46.0") + npmArtifact("1.46.0", "BBBB") + unchanged;
+  assert.throws(
+    () => validateDependencyDelta({ ...change, headLock: siblingChanged }),
+    /resolved lock graph/,
+  );
+  assert.throws(
+    () =>
+      validateDependencyDelta({
+        ...change,
+        headLock: change.headLock.replace("sha512-CCCC", "sha512-EEEE"),
+      }),
+    /resolved lock graph/,
+  );
+  for (const extra of [
+    "    engines: {node: '>=28'}\n",
+    "    hasBin: true\n",
+    "    dependencies: {new: 1.0.0}\n",
+  ])
+    assert.throws(
+      () =>
+        validateDependencyDelta({
+          ...change,
+          headLock: importer("1.46.0", "1.45.0") + npmArtifact("1.46.0", "BBBB", extra) + unchanged,
+        }),
+      /resolved lock graph/,
+    );
+  assert.throws(
+    () =>
+      validateDependencyDelta({
+        ...change,
+        headLock: change.headLock.replace(
+          "{integrity: sha512-BBBB}",
+          "{tarball: https://unreviewed.test/package.tgz}",
+        ),
+      }),
+    /registry\/integrity/,
+  );
+  assert.doesNotThrow(() =>
+    validateDependencyDelta({ ...change, headLock: change.headLock.replaceAll("\n", "\r\n") }),
   );
 });
 
