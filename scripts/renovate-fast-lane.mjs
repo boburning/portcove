@@ -11,6 +11,7 @@ const controlledDependencies = new Set([
   "minisign-verify",
   "tough",
   "ed25519-dalek",
+  "aws-lc-rs",
   "sha2",
   "sha1",
   "keyring",
@@ -21,6 +22,8 @@ const controlledDependencies = new Set([
   "tar",
   "flate2",
   "rusqlite",
+  "rustix",
+  "tempfile",
 ]);
 const requiredPolicy = Object.freeze({
   automerge: false,

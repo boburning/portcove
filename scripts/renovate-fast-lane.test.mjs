@@ -356,6 +356,7 @@ test("small stable signing trust credential archive and persistent-data changes 
     "minisign-verify",
     "tough",
     "ed25519-dalek",
+    "aws-lc-rs",
     "sha2",
     "sha1",
     "keyring",
@@ -366,6 +367,8 @@ test("small stable signing trust credential archive and persistent-data changes 
     "tar",
     "flate2",
     "rusqlite",
+    "rustix",
+    "tempfile",
   ]) {
     const result = classify({
       pull: { body: body({ packageName, currentVersion: "2.0.0", newVersion: "2.0.1" }) },
