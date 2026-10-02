@@ -318,7 +318,7 @@ fn saved_roots_scan_the_catalog_and_persist_one_current_snapshot() {
         &crate::OperationCoordinator::new("saved-root-scan", None),
     )
     .unwrap();
-    assert_eq!(snapshot.format_version, 4);
+    assert_eq!(snapshot.format_version, 5);
     assert_eq!(snapshot.limits.as_ref().unwrap().max_entries, 10_000);
     assert_eq!(snapshot.roots.len(), 1);
     assert_eq!(snapshot.report.files_hashed, 1);
@@ -1018,7 +1018,7 @@ fn stored_scan_snapshot_accepts_legacy_and_rejects_corrupt_and_future_formats() 
     assert!(error.to_string().contains("invalid scan limits"));
 
     snapshot.limits = Some(SourceDiscoveryLimits::default());
-    snapshot.format_version = 5;
+    snapshot.format_version = 6;
     library.replace_game_file_scan_snapshot(&snapshot).unwrap();
 
     let error = super::current_game_file_scan(&catalog, &library).unwrap_err();
@@ -1272,6 +1272,68 @@ fn directory_file_set_discovery_shares_raw_observations_and_preserves_review() {
     }
 }
 
+fn write_file_set_zip(path: &Path, fixtures: &[(&str, Vec<u8>)]) {
+    let mut zip = zip::ZipWriter::new(fs::File::create(path).unwrap());
+    for (name, bytes) in fixtures {
+        zip.start_file(*name, zip::write::SimpleFileOptions::default())
+            .unwrap();
+        zip.write_all(bytes).unwrap();
+    }
+    zip.finish().unwrap();
+}
+
+#[test]
+fn zip_file_set_discovery_preserves_exact_inspection_and_explicit_review() {
+    let temporary = tempfile::tempdir().unwrap();
+    let (catalog, fixtures) = directory_set_catalog();
+    let path = temporary.path().join("set.zip");
+    write_file_set_zip(&path, &fixtures);
+    let original = fs::read(&path).unwrap();
+    let mut selected = request(temporary.path());
+    selected.profile_ids = vec!["g-diffuser-source-set".into()];
+    selected.limits.max_hash_bytes = original.len() as u64
+        + fixtures
+            .iter()
+            .map(|(_, bytes)| bytes.len() as u64)
+            .sum::<u64>();
+    let report = scan(&catalog, &selected).unwrap();
+    assert_eq!(report.candidates.len(), 1);
+    assert_eq!(report.files_hashed, 1);
+    assert_eq!(report.hash_bytes, selected.limits.max_hash_bytes);
+    assert!(report.limits_reached.is_empty());
+    let candidate = &report.candidates[0];
+    let manual = crate::source_inspection::inspect_file_set(&catalog, &candidate.profile_id, &path)
+        .unwrap()
+        .record
+        .unwrap();
+    assert_eq!(candidate.path, fs::canonicalize(&path).unwrap());
+    assert_eq!(candidate.sha256, manual.sha256);
+    assert_eq!(candidate.size, manual.size);
+    assert_eq!(
+        candidate.storage_sha256,
+        hex::encode(Sha256::digest(&original))
+    );
+    assert_eq!(candidate.storage_sha256, manual.storage_sha256);
+    assert_eq!(candidate.storage_size, original.len() as u64);
+    let mut service =
+        PortcoveService::new(crate::Library::open(temporary.path().join("library")).unwrap())
+            .unwrap();
+    service.replace_catalog_for_test(catalog);
+    let plan = service
+        .plan_source_import(
+            &candidate.profile_id,
+            &candidate.path,
+            crate::SourceImportMode::UseCurrentLocation,
+        )
+        .unwrap();
+    assert_eq!(
+        plan.admission_mode,
+        crate::SourceAdmissionMode::ExactIdentity
+    );
+    assert!(service.library().sources().unwrap().is_empty());
+    assert_eq!(fs::read(&path).unwrap(), original);
+}
+
 #[test]
 fn directory_file_sets_reject_missing_mismatched_and_ambiguous_members() {
     for case in ["missing", "mismatch", "ambiguous", "split", "zip"] {
@@ -1316,8 +1378,23 @@ fn directory_file_sets_reject_missing_mismatched_and_ambiguous_members() {
         let mut selected = request(temporary.path());
         selected.profile_ids = vec!["g-diffuser-source-set".into()];
         let report = scan(&catalog, &selected).unwrap();
-        assert!(report.candidates.is_empty(), "{case}");
-        if case != "mismatch" {
+        if case == "zip" {
+            assert_eq!(report.candidates.len(), 1);
+            assert_eq!(report.files_hashed, 1);
+            assert_eq!(
+                report.hash_bytes,
+                fs::metadata(temporary.path().join("set.zip"))
+                    .unwrap()
+                    .len()
+                    + fixtures
+                        .iter()
+                        .map(|(_, bytes)| bytes.len() as u64)
+                        .sum::<u64>()
+            );
+        } else {
+            assert!(report.candidates.is_empty(), "{case}");
+        }
+        if case != "mismatch" && case != "zip" {
             assert_eq!(report.hash_bytes, 0, "{case}");
         }
     }
@@ -1394,6 +1471,16 @@ fn directory_file_sets_keep_request_wide_limits_and_prior_snapshot_freshness() {
         .unwrap();
     assert_eq!(old.format_version, 3);
     assert_eq!(old.freshness, GameFileScanFreshness::InputsChanged);
+    snapshot.format_version = 4;
+    library.replace_game_file_scan_snapshot(&snapshot).unwrap();
+    let prior_zip_coverage = super::current_game_file_scan(&catalog, &library)
+        .unwrap()
+        .unwrap();
+    assert_eq!(prior_zip_coverage.format_version, 4);
+    assert_eq!(
+        prior_zip_coverage.freshness,
+        GameFileScanFreshness::InputsChanged
+    );
     assert_eq!(
         old.report.candidates[0].sha256,
         snapshot.report.candidates[0].sha256
@@ -1565,4 +1652,396 @@ fn directory_file_set_facts_do_not_share_admission_between_profiles_or_variants(
             .to_string()
             .contains("ambiguous deterministic identity")
     );
+}
+
+#[test]
+fn zip_file_sets_share_facts_without_sharing_profile_admission() {
+    let temporary = tempfile::tempdir().unwrap();
+    let (catalog, fixtures) = directory_set_catalog();
+    let path = temporary.path().join("SET.ZIP");
+    let aliases = fixtures
+        .iter()
+        .map(|(name, bytes)| (name.to_ascii_lowercase(), bytes.clone()))
+        .collect::<Vec<_>>();
+    write_file_set_zip(
+        &path,
+        &aliases
+            .iter()
+            .map(|(name, bytes)| (name.as_str(), bytes.clone()))
+            .collect::<Vec<_>>(),
+    );
+    let mut document = catalog.document().clone();
+    let source = document.source_catalog.as_mut().unwrap();
+    let original = source
+        .identities
+        .iter()
+        .find(|profile| profile.id == "g-diffuser-source-set")
+        .unwrap()
+        .clone();
+    let mut accepted = original.clone();
+    accepted.id = "zip-accepted".into();
+    let mut rejected = original;
+    rejected.id = "a-zip-rejected".into();
+    let crate::SourceRepresentationKind::FileSet { members } =
+        &mut rejected.variants[0].representations[0].kind
+    else {
+        unreachable!()
+    };
+    members[2].identities[0].crc32 = Some("ffffffff".into());
+    source.identities.extend([accepted, rejected]);
+    let mut json = serde_json::to_value(document).unwrap();
+    json.as_object_mut().unwrap().remove("source_profiles");
+    let catalog = Catalog::from_json(&json.to_string()).unwrap();
+    let mut selected = request(temporary.path());
+    selected.profile_ids = vec![
+        "g-diffuser-source-set".into(),
+        "zip-accepted".into(),
+        "a-zip-rejected".into(),
+        "g-diffuser-source-set".into(),
+    ];
+    selected.limits.max_hash_bytes = fs::metadata(&path).unwrap().len()
+        + fixtures
+            .iter()
+            .map(|(_, bytes)| bytes.len() as u64)
+            .sum::<u64>();
+    let report = scan(&catalog, &selected).unwrap();
+    assert_eq!(
+        report
+            .candidates
+            .iter()
+            .map(|candidate| candidate.profile_id.as_str())
+            .collect::<Vec<_>>(),
+        ["g-diffuser-source-set", "zip-accepted"]
+    );
+    assert_eq!(report.hash_bytes, selected.limits.max_hash_bytes);
+    assert_eq!(report.files_hashed, 1);
+    assert!(report.limits_reached.is_empty());
+    assert_eq!(report.searched_profiles.len(), 3);
+    selected.limits.max_candidates = 1;
+    let limited = scan(&catalog, &selected).unwrap();
+    assert_eq!(limited.candidates.len(), 1);
+    assert!(
+        limited
+            .limits_reached
+            .contains(&SourceDiscoveryLimit::Candidates)
+    );
+}
+
+#[test]
+fn zip_file_sets_reject_incomplete_ambiguous_unsafe_and_corrupt_members() {
+    for case in [
+        "missing",
+        "mismatch",
+        "duplicate",
+        "nested",
+        "unsafe",
+        "crc",
+        "symlink",
+    ] {
+        let temporary = tempfile::tempdir().unwrap();
+        let (catalog, mut fixtures) = directory_set_catalog();
+        let path = temporary.path().join("set.zip");
+        match case {
+            "missing" => {
+                fixtures.pop();
+            }
+            "mismatch" => fixtures[2].1 = b"wrong".to_vec(),
+            "duplicate" => fixtures.push(("64DD_IPL_US_MJR.n64", fixtures[2].1.clone())),
+            "nested" => fixtures[2].0 = "nested/N64DDIPLROM.n64",
+            "unsafe" => fixtures[2].0 = "../N64DDIPLROM.n64",
+            _ => {}
+        }
+        if case == "symlink" {
+            let mut zip = zip::ZipWriter::new(fs::File::create(&path).unwrap());
+            for (name, bytes) in &fixtures[..2] {
+                zip.start_file(*name, zip::write::SimpleFileOptions::default())
+                    .unwrap();
+                zip.write_all(bytes).unwrap();
+            }
+            zip.add_symlink(
+                fixtures[2].0,
+                "outside",
+                zip::write::SimpleFileOptions::default(),
+            )
+            .unwrap();
+            zip.finish().unwrap();
+        } else {
+            write_file_set_zip(&path, &fixtures);
+        }
+        if case == "crc" {
+            let mut zip = zip::ZipArchive::new(fs::File::open(&path).unwrap()).unwrap();
+            let offset = zip.by_index(0).unwrap().data_start().unwrap() as usize;
+            let mut bytes = fs::read(&path).unwrap();
+            bytes[offset] ^= 1;
+            fs::write(&path, bytes).unwrap();
+        }
+        let original = fs::read(&path).unwrap();
+        let mut selected = request(temporary.path());
+        selected.profile_ids = vec!["g-diffuser-source-set".into()];
+        let report = scan(&catalog, &selected).unwrap();
+        assert!(report.candidates.is_empty(), "{case}");
+        if matches!(
+            case,
+            "missing" | "duplicate" | "nested" | "unsafe" | "symlink"
+        ) {
+            assert_eq!(report.hash_bytes, 0, "{case}");
+        }
+        assert_eq!(fs::read(&path).unwrap(), original, "{case}");
+        if case == "crc" || case == "symlink" {
+            assert!(!report.issues.is_empty(), "{case}");
+        }
+    }
+}
+
+#[test]
+fn zip_file_sets_keep_container_member_and_request_budgets() {
+    let temporary = tempfile::tempdir().unwrap();
+    let (catalog, fixtures) = directory_set_catalog();
+    let path = temporary.path().join("set.zip");
+    write_file_set_zip(&path, &fixtures);
+    let length = fs::metadata(&path).unwrap().len();
+    let mut selected = request(temporary.path());
+    selected.profile_ids = vec!["g-diffuser-source-set".into()];
+    selected.limits.max_hash_bytes = length
+        + fixtures
+            .iter()
+            .map(|(_, bytes)| bytes.len() as u64)
+            .sum::<u64>()
+        - 1;
+    let report = scan(&catalog, &selected).unwrap();
+    assert!(report.candidates.is_empty());
+    assert!(report.hash_bytes <= selected.limits.max_hash_bytes);
+    assert!(
+        report
+            .limits_reached
+            .contains(&SourceDiscoveryLimit::HashBytes)
+    );
+    selected.limits.max_hash_bytes = 1;
+    let report = scan(&catalog, &selected).unwrap();
+    assert_eq!(report.hash_bytes, 0);
+    assert!(report.candidates.is_empty());
+    assert!(
+        report
+            .limits_reached
+            .contains(&SourceDiscoveryLimit::HashBytes)
+    );
+    selected.limits = SourceDiscoveryLimits::default();
+    selected.limits.max_file_bytes = length - 1;
+    let report = scan(&catalog, &selected).unwrap();
+    assert_eq!(report.hash_bytes, 0);
+    assert!(report.candidates.is_empty());
+    assert!(
+        report
+            .limits_reached
+            .contains(&SourceDiscoveryLimit::FileSize)
+    );
+
+    // A small compressed container cannot bypass the expanded-member bound.
+    let mut zip = zip::ZipWriter::new(fs::File::create(&path).unwrap());
+    for (name, _) in &fixtures {
+        zip.start_file(
+            *name,
+            zip::write::SimpleFileOptions::default()
+                .compression_method(zip::CompressionMethod::Deflated),
+        )
+        .unwrap();
+        zip.write_all(&[0; 4096]).unwrap();
+    }
+    zip.finish().unwrap();
+    selected.limits.max_file_bytes = 1024;
+    assert!(fs::metadata(&path).unwrap().len() < 1024);
+    let report = scan(&catalog, &selected).unwrap();
+    assert!(report.candidates.is_empty());
+    assert!(
+        report
+            .limits_reached
+            .contains(&SourceDiscoveryLimit::FileSize)
+    );
+    assert_eq!(report.hash_bytes, fs::metadata(&path).unwrap().len());
+}
+
+#[test]
+fn zip_file_set_inventory_limit_precedes_hashing() {
+    let temporary = tempfile::tempdir().unwrap();
+    let (catalog, _) = directory_set_catalog();
+    let path = temporary.path().join("set.zip");
+    let mut zip = zip::ZipWriter::new(fs::File::create(&path).unwrap());
+    for index in 0..4097 {
+        zip.start_file(
+            format!("unrelated-{index}"),
+            zip::write::SimpleFileOptions::default(),
+        )
+        .unwrap();
+    }
+    zip.finish().unwrap();
+    let mut selected = request(temporary.path());
+    selected.profile_ids = vec!["g-diffuser-source-set".into()];
+    let report = scan(&catalog, &selected).unwrap();
+    assert!(report.candidates.is_empty());
+    assert_eq!(report.hash_bytes, 0);
+    assert!(
+        report
+            .issues
+            .iter()
+            .any(|issue| issue.message.contains("too many entries"))
+    );
+}
+
+#[test]
+fn zip_file_set_changed_length_invalidates_observed_candidate() {
+    for grows in [true, false] {
+        let temporary = tempfile::tempdir().unwrap();
+        let (catalog, fixtures) = directory_set_catalog();
+        let path = temporary.path().join("set.zip");
+        write_file_set_zip(&path, &fixtures);
+        let path = fs::canonicalize(path).unwrap();
+        let original = fs::read(&path).unwrap();
+        let mut budget = HashBudget {
+            operation: None,
+            limit: 1_000_000,
+            hashed: 0,
+            max_zip_entries: 4096,
+        };
+        let mut archive = super::zip_file_sets::ZipFileSet::open(
+            &path,
+            &catalog,
+            &["g-diffuser-source-set"],
+            1_000_000,
+            &mut budget,
+        )
+        .unwrap()
+        .unwrap();
+        let mut changed = original.clone();
+        if grows {
+            changed.push(0);
+        } else {
+            changed.pop();
+        }
+        fs::write(&path, &changed).unwrap();
+        let error = archive
+            .inspect(
+                &catalog,
+                "g-diffuser-source-set",
+                &path,
+                1_000_000,
+                &mut budget,
+            )
+            .unwrap_err();
+        assert!(error.message.contains("changed") || error.message.contains("shrank"));
+        assert_eq!(fs::read(&path).unwrap(), changed);
+    }
+}
+
+#[test]
+fn zip_file_set_progress_cancellation_keeps_previous_snapshot() {
+    let temporary = tempfile::tempdir().unwrap();
+    let roots = temporary.path().join("sources");
+    fs::create_dir(&roots).unwrap();
+    let (catalog, fixtures) = directory_set_catalog();
+    write_file_set_zip(&roots.join("set.zip"), &fixtures);
+    let library = crate::Library::open(temporary.path().join("library")).unwrap();
+    library.add_game_file_root(&roots).unwrap();
+    let mut prior = build_game_file_scan(
+        &catalog,
+        &library,
+        &SourceDiscoveryLimits::default(),
+        &crate::OperationCoordinator::new("zip-prior", None),
+    )
+    .unwrap();
+    prior.completed_at = 1;
+    library.replace_game_file_scan_snapshot(&prior).unwrap();
+    let mut service = PortcoveService::new(library).unwrap();
+    service.replace_catalog_for_test(catalog);
+    let mut seen = false;
+    let result =
+        service.scan_game_file_roots_with_progress(&SourceDiscoveryLimits::default(), |event| {
+            if let crate::OperationEventKind::SourceCandidate { profile_id, .. } = &event.event
+                && profile_id == "g-diffuser-source-set"
+            {
+                seen = true;
+                service.request_cancellation(&event.operation_id).unwrap();
+            }
+        });
+    assert!(seen);
+    assert_eq!(result.unwrap_err().code, ErrorCode::Cancelled);
+    assert_eq!(
+        service
+            .library()
+            .stored_game_file_scan_snapshot()
+            .unwrap()
+            .unwrap()
+            .completed_at,
+        1
+    );
+    assert!(service.library().sources().unwrap().is_empty());
+}
+
+#[test]
+fn zip_profile_limit_does_not_hide_a_later_independent_small_set() {
+    let temporary = tempfile::tempdir().unwrap();
+    let (catalog, fixtures) = directory_set_catalog();
+    let path = temporary.path().join("set.zip");
+    let large = vec![0; 4096];
+    let mut zip = zip::ZipWriter::new(fs::File::create(&path).unwrap());
+    for (name, bytes) in fixtures
+        .iter()
+        .map(|(name, bytes)| (*name, bytes.as_slice()))
+        .chain([("large.bin", large.as_slice())])
+    {
+        zip.start_file(
+            name,
+            zip::write::SimpleFileOptions::default()
+                .compression_method(zip::CompressionMethod::Deflated),
+        )
+        .unwrap();
+        zip.write_all(bytes).unwrap();
+    }
+    zip.finish().unwrap();
+    let original = fs::read(&path).unwrap();
+    assert!(original.len() < 1024);
+    let mut document = catalog.document().clone();
+    let source = document.source_catalog.as_mut().unwrap();
+    let mut earlier = source
+        .identities
+        .iter()
+        .find(|profile| profile.id == "g-diffuser-source-set")
+        .unwrap()
+        .clone();
+    earlier.id = "a-expanded-set".into();
+    let crate::SourceRepresentationKind::FileSet { members } =
+        &mut earlier.variants[0].representations[0].kind
+    else {
+        unreachable!()
+    };
+    members[2].filenames = vec!["large.bin".into()];
+    members[2].identities = vec![crate::DigestIdentity {
+        scope: crate::DigestScope::FileSetMember,
+        sha1: Some(hex::encode(sha1::Sha1::digest(&large))),
+        sha256: Some(hex::encode(Sha256::digest(&large))),
+        crc32: Some(format!("{:08x}", crc32fast::hash(&large))),
+    }];
+    source.identities.push(earlier);
+    let mut json = serde_json::to_value(document).unwrap();
+    json.as_object_mut().unwrap().remove("source_profiles");
+    let catalog = Catalog::from_json(&json.to_string()).unwrap();
+    for (maximum, expected_limit) in [
+        (1024, SourceDiscoveryLimit::FileSize),
+        (6000, SourceDiscoveryLimit::HashBytes),
+    ] {
+        let mut selected = request(temporary.path());
+        selected.profile_ids = vec!["g-diffuser-source-set".into(), "a-expanded-set".into()];
+        selected.limits.max_file_bytes = maximum;
+        selected.limits.max_hash_bytes = original.len() as u64
+            + fixtures
+                .iter()
+                .map(|(_, bytes)| bytes.len() as u64)
+                .sum::<u64>();
+        let report = scan(&catalog, &selected).unwrap();
+        assert_eq!(report.candidates.len(), 1);
+        assert_eq!(report.candidates[0].profile_id, "g-diffuser-source-set");
+        assert_eq!(report.hash_bytes, selected.limits.max_hash_bytes);
+        assert_eq!(report.files_hashed, 1);
+        assert!(report.limits_reached.contains(&expected_limit));
+        assert_eq!(fs::read(&path).unwrap(), original);
+    }
 }
