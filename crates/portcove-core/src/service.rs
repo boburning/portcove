@@ -3375,9 +3375,8 @@ impl PortcoveService {
                 if cleanup_root.exists()
                     && let Err(error) = fs::remove_dir_all(cleanup_root)
                 {
-                    removal.advance(RemovalPhase::CleanupPending, &mut lifecycle, &store)?;
                     lifecycle.last_error = Some(error.to_string());
-                    store.put(&mut lifecycle)?;
+                    removal.advance(RemovalPhase::CleanupPending, &mut lifecycle, &store)?;
                     return Ok(paths);
                 }
             }

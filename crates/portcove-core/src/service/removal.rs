@@ -70,7 +70,7 @@ mod tests {
                 .advance(RemovalPhase::Committed, &mut operation, &store)
                 .is_err()
         );
-        for case in 0..5 {
+        for case in 0..6 {
             let mut changed = operation.clone();
             match case {
                 0 => changed.port_id = "other-port".to_owned(),
@@ -78,6 +78,7 @@ mod tests {
                 2 => changed.original_paths.push(temporary.path().join("other")),
                 3 => changed.phase = LifecyclePhase::PayloadPublished,
                 4 => changed.activate = true,
+                5 => changed.created_at += 1,
                 _ => unreachable!(),
             }
             assert!(
@@ -95,12 +96,24 @@ mod tests {
             RemovalPhase::Committed,
             RemovalPhase::CleanupPending,
         ] {
+            if next == RemovalPhase::CleanupPending {
+                operation.last_error = Some("retained cleanup failure".to_owned());
+            }
             removal.advance(next, &mut operation, &store).unwrap();
             assert_eq!(
                 store.get(&operation.id).unwrap().unwrap().phase,
                 next.stored()
             );
         }
+        assert_eq!(
+            store
+                .get(&operation.id)
+                .unwrap()
+                .unwrap()
+                .last_error
+                .as_deref(),
+            Some("retained cleanup failure")
+        );
         assert!(
             removal
                 .advance(RemovalPhase::Quarantining, &mut operation, &store)
@@ -124,6 +137,7 @@ impl RemovalPhase {
 pub(crate) struct RemovalOperation {
     id: String,
     port_id: String,
+    created_at: i64,
     quarantine: PathBuf,
     original_paths: Vec<PathBuf>,
     pub(crate) phase: RemovalPhase,
@@ -182,6 +196,7 @@ impl RemovalOperation {
         Ok(Self {
             id: operation.id.clone(),
             port_id: operation.port_id.clone(),
+            created_at: operation.created_at,
             quarantine,
             original_paths: operation.original_paths.clone(),
             phase,
@@ -205,6 +220,7 @@ impl RemovalOperation {
         Self::validate_envelope(operation)?;
         if operation.id != self.id
             || operation.port_id != self.port_id
+            || operation.created_at != self.created_at
             || operation.paths.quarantine.as_ref() != Some(&self.quarantine)
             || operation.original_paths != self.original_paths
             || operation.phase != self.phase.stored()
@@ -218,7 +234,9 @@ impl RemovalOperation {
             return Err(PortcoveError::state("illegal removal phase transition"));
         }
         operation.phase = next.stored();
-        operation.last_error = None;
+        if next != RemovalPhase::CleanupPending {
+            operation.last_error = None;
+        }
         store.put(operation)?;
         self.phase = next;
         Ok(())
