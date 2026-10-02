@@ -8,10 +8,9 @@ import { fileURLToPath } from "node:url";
 const scriptPath = fileURLToPath(import.meta.url);
 export const projectRoot = fileURLToPath(new URL("..", import.meta.url));
 
+const aquaPinFiles = [".aqua-version", "aqua.yaml", "aqua-checksums.json"];
 const pinFiles = [
-  ".aqua-version",
-  "aqua.yaml",
-  "aqua-checksums.json",
+  ...aquaPinFiles,
   ".github/quality-tools.json",
   ".config/tool-bootstrap.json",
   "package.json",
@@ -52,12 +51,20 @@ export function readToolPins(root = projectRoot) {
   const fingerprint = sha256(
     pinFiles.map((name) => `${name}\0${readFileSync(path.join(root, name))}`).join("\0"),
   );
+  const aquaFingerprint = sha256(
+    [
+      "portcove-aqua-cache-v1",
+      ...aquaPinFiles.map((name) => `${name}\0${readFileSync(path.join(root, name))}`),
+      JSON.stringify({ schema_version: bootstrap.schema_version, aqua: bootstrap.aqua }),
+    ].join("\0"),
+  );
   return {
     aquaVersion,
     aquaSemver: aquaVersion.slice(1),
     packageManager: repositoryPackage.packageManager,
     bootstrap,
     fingerprint,
+    aquaFingerprint,
   };
 }
 
@@ -103,7 +110,7 @@ export function toolCachePaths(options = {}) {
     shimDirectory: path.join(root, "work", "tool-bin"),
     statePath: path.join(root, "work", "tool-bin", "tool-state.json"),
     aquaExecutable: path.join(aquaDirectory, `aqua${executableSuffix}`),
-    aquaRoot: path.join(sharedRoot, "aqua-roots", pins.fingerprint),
+    aquaRoot: path.join(sharedRoot, "aqua-roots", pins.aquaFingerprint),
     cargoRoot: path.join(sharedRoot, "cargo", `${platform}-${architecture}`),
     powershellModules: path.join(sharedRoot, "powershell-modules"),
     desktopRoot: path.join(sharedRoot, "desktop"),
@@ -147,7 +154,8 @@ export function readToolState(options = {}) {
     state?.format_version !== 1 ||
     state?.pin_fingerprint !== paths.pins.fingerprint ||
     state?.shared_root !== paths.sharedRoot ||
-    state?.shim_directory !== paths.shimDirectory
+    state?.shim_directory !== paths.shimDirectory ||
+    state?.aqua_root !== paths.aquaRoot
   ) {
     return null;
   }

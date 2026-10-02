@@ -1,6 +1,14 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import {
+  chmodSync,
+  lstatSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -18,10 +26,349 @@ import {
   parseNameStatus,
   requireFocusedArguments,
   storageScopeForPlan,
+  untrackedFileMode,
+  buildExecutionPreflight,
+  inspectHostedLocalRoute,
+  inspectPreChangeAudit,
+  readDoctestPackages,
+  main,
 } from "./local-validation.mjs";
 import { isExcludedOxfmtPath } from "./oxfmt-ownership.mjs";
+import { buildValidationPlan } from "./validation-plan.mjs";
 
 const allFilesExist = () => true;
+
+function preflightFixture() {
+  const context = { headSha: "a".repeat(40), baseSha: "b".repeat(40), mergeBase: "b".repeat(40) };
+  const validationPlan = buildValidationPlan({
+    changes: [
+      {
+        status: "M",
+        oldPath: "apps/desktop/src/App.tsx",
+        newPath: "apps/desktop/src/App.tsx",
+        oldMode: "100644",
+        newMode: "100644",
+      },
+    ],
+    eventName: "pull_request",
+    head: context.headSha,
+    base: context.baseSha,
+    mergeBase: context.mergeBase,
+    checkout: context.headSha,
+  });
+  const plan = [
+    {
+      id: "rust-clippy:portcove-desktop",
+      reason: "compile the actual native target",
+      executable: "cargo",
+      args: ["clippy", "--locked", "-p", "portcove-desktop"],
+      cwd: "/source",
+    },
+  ];
+  const prerequisites = ["node", "rustc", "cargo", "clippy-component"]
+    .map((id) => ({ id, status: "ok" }))
+    .concat({
+      id: "native-desktop-build",
+      status: "unavailable",
+      remediation: "use an approved capable route",
+    });
+  return { context, validationPlan, plan, prerequisites };
+}
+
+test("preflight selects the approved capable route without claiming execution or CI", () => {
+  const inputs = preflightFixture();
+  const hosted = { status: "eligible", command: "exact frozen hosted dispatch" };
+  const report = buildExecutionPreflight({ ...inputs, hosted });
+  assert.equal(report.obligations[0].route, "hosted-local-check");
+  assert.deepEqual(report.obligations[0].missing, ["native-desktop-build"]);
+  assert.equal(report.obligations[0].next_action, hosted.command);
+  assert.match(report.local_profile, /full-debug/);
+  assert.match(report.hosted_ci.role, /mandatory exact-head CI/);
+  assert.match(report.limits, /No dispatch or acceptance/);
+  const blocked = buildExecutionPreflight({
+    ...inputs,
+    hosted: { status: "blocked", reason: "authority changed" },
+  });
+  assert.equal(blocked.obligations[0].route, "blocked");
+  const local = buildExecutionPreflight({
+    ...inputs,
+    prerequisites: inputs.prerequisites.map((item) => ({ ...item, status: "ok" })),
+    hosted,
+  });
+  assert.equal(local.obligations[0].route, "local");
+  assert.equal(local.obligations[0].command, formatCommand(inputs.plan[0]));
+  assert.throws(
+    () =>
+      buildExecutionPreflight({
+        ...inputs,
+        context: { ...inputs.context, headSha: "c".repeat(40) },
+        hosted,
+      }),
+    /current complete comparison/,
+  );
+});
+
+test("hosted preflight requires exact available ancestor authorities and a frozen clean source", () => {
+  const { context } = preflightFixture();
+  const sha = "b".repeat(40);
+  const invoke =
+    (paths = "", dirty = "") =>
+    (args) => {
+      if (args[0] === "status") return dirty;
+      if (args[0] === "rev-parse") return args[1].includes(":") ? "c".repeat(40) : sha;
+      if (args[0] === "show") return "hosted-local-check controller\nhosted-local-check run";
+      if (args[0] === "diff")
+        return paths.startsWith(":")
+          ? paths
+          : paths
+              .split("\0")
+              .filter(Boolean)
+              .map((name) => `:100644 100644 ${"b".repeat(40)} ${"a".repeat(40)} M\0${name}\0`)
+              .join("");
+      return "";
+    };
+  assert.equal(inspectHostedLocalRoute(context).status, "unverified");
+  assert.throws(() => inspectHostedLocalRoute(context, "main", sha), /exact authority/);
+  assert.equal(
+    inspectHostedLocalRoute(context, sha, sha, invoke("", " M source")).status,
+    "blocked",
+  );
+  for (const changed of [
+    "Cargo.lock",
+    "scripts/local-validation.mjs",
+    "scripts/dev-doctor.mjs",
+    "apps/desktop/scripts/new-helper.mjs",
+    "docs/QUALITY.md",
+  ]) {
+    assert.equal(
+      inspectHostedLocalRoute(context, sha, sha, invoke(changed + "\0")).status,
+      "blocked",
+      changed,
+    );
+  }
+  const eligible = inspectHostedLocalRoute(
+    context,
+    sha,
+    sha,
+    invoke("apps/desktop/src-tauri/src/cli_context.rs\0scripts/example.test.mjs\0"),
+  );
+  assert.equal(eligible.status, "eligible");
+  assert.match(eligible.command, new RegExp(`source_sha=${context.headSha}`));
+  assert.match(eligible.dispatch_authority, /not established/);
+  const renamed = `:100644 100644 ${"b".repeat(40)} ${"a".repeat(40)} R100\0scripts/owned-authority.mjs\0docs/moved.txt\0`;
+  assert.equal(inspectHostedLocalRoute(context, sha, sha, invoke(renamed)).status, "blocked");
+  assert.equal(
+    inspectHostedLocalRoute(context, sha, sha, (args) =>
+      args[0] === "rev-parse" && args[1] === `${context.headSha}:scripts/workflow-provenance.mjs`
+        ? "d".repeat(40)
+        : invoke()(args),
+    ).status,
+    "blocked",
+  );
+  assert.throws(
+    () =>
+      inspectHostedLocalRoute(context, sha, sha, () => {
+        throw new Error("unavailable comparison authority");
+      }),
+    /unavailable/,
+  );
+});
+
+test("missing Cargo is a bounded non-provisioning planning failure", () => {
+  assert.throws(
+    () =>
+      readDoctestPackages({
+        observeOnly: true,
+        spawn: (command, args, options) => {
+          assert.equal(command, "cargo");
+          assert.ok(args.includes("--offline") && args.includes("--locked"));
+          assert.equal(options.timeout, 15000);
+          assert.equal(options.env.RUSTUP_AUTO_INSTALL, "0");
+          assert.equal(options.env.CARGO_NET_OFFLINE, "true");
+          return { error: Object.assign(new Error("unavailable fixture"), { code: "ENOENT" }) };
+        },
+      }),
+    /unavailable fixture/,
+  );
+});
+
+test("a missing Windows/MSBuild Playnite capability cannot route to Ubuntu", () => {
+  const inputs = preflightFixture();
+  const plan = [
+    {
+      id: "playnite-contract",
+      reason: "execute actual Windows consumer",
+      executable: "pwsh",
+      args: ["integrations/playnite/check.ps1"],
+      cwd: "/source",
+    },
+  ];
+  const prerequisites = ["node", "rustc", "cargo", "pwsh"]
+    .map((id) => ({ id, status: "ok" }))
+    .concat([
+      { id: "windows-host", status: "unavailable" },
+      { id: "msbuild", status: "unavailable" },
+    ]);
+  const report = buildExecutionPreflight({
+    ...inputs,
+    plan,
+    prerequisites,
+    platform: "linux",
+    hosted: { status: "eligible", command: "Ubuntu dispatch" },
+  });
+  assert.equal(report.obligations[0].route, "blocked");
+  assert.ok(report.obligations[0].missing.includes("windows-host"));
+});
+
+test("missing Cargo emits a named JSON planning blocker without pretending to select a complete plan", async (t) => {
+  const previous = process.exitCode;
+  t.after(() => {
+    process.exitCode = previous;
+  });
+  const outputs = [];
+  await main(["check", "--preflight", "--json"], {
+    readContext: () => ({
+      base: "origin/main",
+      baseSha: "b".repeat(40),
+      mergeBase: "b".repeat(40),
+      headSha: "a".repeat(40),
+      changes: [
+        {
+          status: "M",
+          path: "crates/portcove-core/src/lib.rs",
+          oldMode: "100644",
+          newMode: "100644",
+        },
+      ],
+    }),
+    metadataProvider: () => {
+      throw Object.assign(new Error("private output must not leak"), { code: "ENOENT" });
+    },
+    log: (value) => outputs.push(value),
+  });
+  assert.equal(outputs.length, 1);
+  const report = JSON.parse(outputs[0]);
+  assert.equal(report.status, "planning-blocked");
+  assert.equal(report.selected_plan, null);
+  assert.equal(report.blocker.id, "cargo-metadata");
+  assert.match(report.hosted_ci.role, /mandatory exact-head/);
+  assert.ok(!outputs[0].includes("private output"));
+  assert.equal(process.exitCode, 1);
+});
+
+test("missing Cargo in a mixed Playnite change does not recommend an incapable Ubuntu route", async (t) => {
+  const previous = process.exitCode;
+  t.after(() => {
+    process.exitCode = previous;
+  });
+  const outputs = [];
+  await main(["check", "--preflight", "--json"], {
+    readContext: () => ({
+      base: "origin/main",
+      baseSha: "b".repeat(40),
+      mergeBase: "b".repeat(40),
+      headSha: "a".repeat(40),
+      changes: [
+        "crates/portcove-core/src/lib.rs",
+        "integrations/playnite/Portcove.Playnite.csproj",
+      ].map((path) => ({ status: "M", path, oldMode: "100644", newMode: "100644" })),
+    }),
+    metadataProvider: () => {
+      throw Error("unavailable");
+    },
+    hostedInspector: () => ({ status: "eligible", command: "incapable Ubuntu dispatch" }),
+    log: (value) => outputs.push(value),
+  });
+  const report = JSON.parse(outputs[0]);
+  assert.equal(report.selected_plan, null);
+  assert.ok(!report.blocker.next_action.includes("Ubuntu dispatch"));
+  assert.equal(report.status, "planning-blocked");
+});
+
+test("normal metadata selection keeps its existing execution contract", () => {
+  assert.deepEqual(
+    [
+      ...readDoctestPackages({
+        spawn: (_command, args, options) => {
+          assert.equal(options.timeout, undefined);
+          assert.ok(!args.includes("--offline"));
+          return { status: 0, stdout: JSON.stringify({ packages: [] }) };
+        },
+      }),
+    ],
+    [],
+  );
+});
+
+test("preflight keeps policy qualification and Linux audit scope separate from selected local and Windows evidence", () => {
+  const head = "a".repeat(40),
+    base = "b".repeat(40);
+  const name = "scripts/workflow-provenance.mjs";
+  const changes = [
+    { status: "M", oldPath: name, newPath: name, oldMode: "100644", newMode: "100644" },
+  ];
+  const context = {
+    headSha: head,
+    baseSha: base,
+    mergeBase: base,
+    changes: [{ status: "M", path: name, oldMode: "100644", newMode: "100644" }],
+  };
+  const validationPlan = buildValidationPlan({
+    changes,
+    eventName: "pull_request",
+    head,
+    base,
+    mergeBase: base,
+    checkout: head,
+  });
+  const inventory = {
+    head,
+    files: [
+      {
+        path: name,
+        kind: "file",
+        headBlob: "same",
+        indexBlob: "same",
+        gitBlob: "same",
+        headMode: "100644",
+        indexMode: "100644",
+      },
+    ],
+  };
+  const command =
+    (diff = "", dirty = "") =>
+    (args) =>
+      args[0] === "status"
+        ? dirty
+        : args[0] === "diff"
+          ? diff
+          : args[0] === "branch"
+            ? "feature/candidate"
+            : "";
+  const hosted = inspectPreChangeAudit(context, validationPlan, base, base, {
+    inventory,
+    platform: "win32",
+    git: command(),
+  });
+  assert.equal(hosted.route, "hosted-deep-audit");
+  assert.equal(hosted.profile, "complete");
+  assert.ok(hosted.local_stages.some((stage) => stage.id === "windows-qualification"));
+  assert.ok(!hosted.stages.some((stage) => stage.id === "windows-qualification"));
+  assert.match(hosted.limit, /not equivalent to selected local-check/);
+  for (const input of [{ git: command("scripts/audit.mjs") }, { git: command("", " M source") }]) {
+    assert.equal(
+      inspectPreChangeAudit(context, validationPlan, base, base, { inventory, ...input }).route,
+      "local-prerequisites-unverified",
+    );
+  }
+  assert.equal(
+    inspectPreChangeAudit(context, validationPlan, undefined, undefined, {
+      inventory,
+      git: command(),
+    }).route,
+    "local-prerequisites-unverified",
+  );
+});
 const change = (path, options = {}) => ({ status: "M", path, ...options });
 const ids = (plan) => plan.map((entry) => entry.id);
 
@@ -38,6 +385,19 @@ function planFor(paths) {
     }),
   };
 }
+
+test("the maintained default-cover harness selects native scenario contracts without Rust execution", () => {
+  const cover = "apps/desktop/scripts/desktop-default-cover-test.mjs";
+  for (const status of ["A", "M", "D"]) {
+    const { selection, plan } = planFor([{ status, path: cover }]);
+    assert.ok(selection.nodeTests.has("scripts/desktop-scenarios.test.mjs"));
+    assert.ok(ids(plan).includes("node-tests"));
+    assert.ok(!ids(plan).some((id) => id.startsWith("rust-tests")));
+    assert.ok(!plan.map(formatCommand).join("\n").includes("desktop-test"));
+  }
+  const mixed = planFor([cover, "crates/portcove-core/src/artwork.rs"]);
+  assert.ok(ids(mixed.plan).some((id) => id.startsWith("rust-tests")));
+});
 
 test("selected local resource scope follows actual commands and mixed or unknown work is conservative", () => {
   assert.equal(storageScopeForPlan([{ id: "diff-check" }, { id: "node-tests" }]), "tooling");
@@ -251,7 +611,32 @@ test("mapped Rust responsibilities run one attributable guarded union", () => {
   assert.ok(!ids(plan).includes("rust-tests:portcove-core"));
 });
 
-test("artwork fixture edits select their families but shared implementations stay broad", () => {
+test("private backup fixture feedback keeps complete family, Clippy and doctests", () => {
+  const path = "crates/portcove-core/src/service/tests/backups.rs";
+  const { plan } = planFor([path]);
+  const tests = plan.find((entry) => entry.id === "rust-tests:portcove-core:backup-fixtures");
+  assert.ok(tests);
+  assert.equal(tests.args.at(-1), "test(/^service::tests::backups::/)");
+  assert.ok(ids(plan).includes("rust-clippy:portcove-core"));
+  assert.ok(ids(plan).includes("rust-docs:portcove-core"));
+  assert.ok(!ids(plan).includes("rust-tests:portcove-core"));
+  for (const shared of [
+    "service/backups.rs",
+    "recovery.rs",
+    "service.rs",
+    "database.rs",
+    "lib.rs",
+  ]) {
+    assert.ok(
+      ids(planFor([path, `crates/portcove-core/src/${shared}`]).plan).includes(
+        "rust-tests:portcove-core",
+      ),
+      shared,
+    );
+  }
+});
+
+test("artwork fixture edits select their families but storage and decoding stay broad", () => {
   for (const [file, packageName, filter] of [
     ["crates/portcove-core/src/artwork_tests.rs", "portcove-core", "artwork_tests"],
     ["crates/portcove-cli/tests/machine_contract/artwork.rs", "portcove-cli", "artwork_contract"],
@@ -263,7 +648,6 @@ test("artwork fixture edits select their families but shared implementations sta
     assert.ok(!ids(plan).includes(`rust-tests:${packageName}`));
   }
   for (const file of [
-    "crates/portcove-core/src/artwork.rs",
     "crates/portcove-core/src/artwork_store.rs",
     "crates/portcove-core/src/artwork_image.rs",
     "crates/portcove-cli/src/main.rs",
@@ -272,6 +656,19 @@ test("artwork fixture edits select their families but shared implementations sta
     const packageName = file.includes("portcove-cli") ? "portcove-cli" : "portcove-core";
     assert.ok(ids(plan).includes(`rust-tests:${packageName}`), file);
   }
+});
+
+test("artwork resolution selects complete transfer families and the public CLI consumer", () => {
+  const { plan } = planFor(["crates/portcove-core/src/artwork.rs"]);
+  const core = plan.find((entry) => entry.id === "rust-tests:portcove-core:artwork-resolution");
+  assert.ok(core);
+  for (const family of ["artwork_tests", "import_execution", "library_move", "library_transfer"])
+    assert.ok(core.args.at(-1).includes(family), family);
+  assert.ok(ids(plan).includes("rust-clippy:portcove-core"));
+  assert.ok(ids(plan).includes("rust-docs:portcove-core"));
+  const cli = plan.find((entry) => entry.id === "rust-tests:portcove-cli:catalog-artwork-consumer");
+  assert.ok(cli);
+  assert.match(cli.args.at(-1), /artwork_contract/u);
 });
 
 test("embedded catalog feedback includes both core artwork and the public CLI consumer", () => {
@@ -295,6 +692,38 @@ test("embedded catalog feedback includes both core artwork and the public CLI co
     assert.match(cli.args.at(-1), /artwork_contract/);
     assert.equal(storageScopeForPlan(plan), "rust");
     assert.ok(!plan.some((entry) => entry.id.startsWith("ui-")));
+  }
+});
+
+test("uncertain artwork module changes preserve broad core and CLI evidence", () => {
+  const path = "crates/portcove-core/src/artwork.rs";
+  for (const change of [
+    { status: "D", path },
+    { status: "R100", path, previousPath: "crates/portcove-core/src/old_artwork.rs" },
+    { status: "R100", path: "crates/portcove-core/src/new_artwork.rs", previousPath: path },
+  ]) {
+    const { plan } = planFor([change]);
+    assert.ok(ids(plan).includes("rust-tests:portcove-core"));
+    const cli = plan.find(
+      (entry) => entry.id === "rust-tests:portcove-cli:catalog-artwork-consumer",
+    );
+    assert.ok(cli);
+    assert.ok(!cli.args.includes("-E"));
+  }
+  const { selection } = planFor([path]);
+  const unavailable = buildPlan(selection, { rustTestImpactMap: null });
+  assert.ok(ids(unavailable).includes("rust-tests:portcove-core"));
+  assert.ok(
+    !unavailable
+      .find((entry) => entry.id === "rust-tests:portcove-cli:catalog-artwork-consumer")
+      .args.includes("-E"),
+  );
+  for (const cliPath of [
+    "crates/portcove-cli/tests/machine_contract/artwork.rs",
+    "crates/portcove-cli/src/main.rs",
+  ]) {
+    const { plan } = planFor([path, cliPath]);
+    assert.equal(plan.filter((entry) => entry.id.startsWith("rust-tests:portcove-cli")).length, 1);
   }
 });
 
@@ -922,14 +1351,178 @@ test("design-system configuration and native compatibility tests have UI owners"
   assert.equal(nativeTest.unknown.size, 0);
 });
 
-test("unknown paths refuse local execution until a focused rule owns them", () => {
-  const selection = classifyChanges([change("new-subsystem/input.bin")], {
-    fileExists: allFilesExist,
-  });
+function fallbackContext(changes) {
+  const headSha = "a".repeat(40);
+  const mergeBase = "b".repeat(40);
+  return {
+    changes,
+    headSha,
+    baseSha: mergeBase,
+    mergeBase,
+    validationPlan: buildValidationPlan({
+      changes,
+      eventName: "pull_request",
+      base: mergeBase,
+      mergeBase,
+      head: headSha,
+      checkout: headSha,
+    }),
+  };
+}
+
+test("safe complete unknown input impact selects one fresh full-debug fallback rather than requiring another selector", () => {
+  for (const changes of [
+    [change("new-subsystem/input.bin", { oldMode: "100644", newMode: "100644" })],
+    [change("new-subsystem/new.dat", { status: "A", oldMode: "000000", newMode: "100644" })],
+    [change("new-subsystem/local.bin", { status: "?", oldMode: "000000", newMode: "100644" })],
+    [change("new-subsystem/old.txt", { status: "D", oldMode: "100644", newMode: "000000" })],
+    [
+      change("new-subsystem/new.png", {
+        status: "R100",
+        previousPath: "old-input/image.png",
+        oldMode: "100644",
+        newMode: "100644",
+      }),
+    ],
+    [
+      change("new-subsystem/input.bin", { oldMode: "100644", newMode: "100644" }),
+      change("crates/portcove-core/src/adapter.rs", { oldMode: "100644", newMode: "100644" }),
+    ],
+    [
+      change("README.md", { oldMode: "100644", newMode: "100644" }),
+      change("new-subsystem/input.bin", { oldMode: "100644", newMode: "100644" }),
+    ],
+  ]) {
+    const plan = buildPlan(
+      classifyChanges(changes, { fileExists: allFilesExist }),
+      fallbackContext(changes),
+    );
+    assert.equal(plan[0].id, "diff-check");
+    assert.equal(plan.at(-1).id, "conservative-audit");
+    assert.deepEqual(plan.at(-1).args, ["audit", "--fresh"]);
+    if (changes.some(({ path }) => path.endsWith("adapter.rs")))
+      assert.ok(ids(plan).includes("rust-clippy:portcove-core"));
+    assert.equal(storageScopeForPlan(plan), "all");
+  }
+});
+
+test("untracked modes preserve executable/type facts rather than treating every non-symlink as regular", () => {
+  const file = { isSymbolicLink: () => false, isFile: () => true, mode: 0o100755 };
+  assert.equal(untrackedFileMode(file, "linux"), "100755");
+  assert.equal(untrackedFileMode(file, "win32"), "100644");
+  assert.equal(untrackedFileMode({ ...file, mode: 0o100644 }, "linux"), "100644");
+  assert.equal(untrackedFileMode({ isSymbolicLink: () => true }, "linux"), "120000");
   assert.throws(
-    () => buildPlan(selection, { mergeBase: "base-sha" }),
-    /no selection rule.*new-subsystem\/input\.bin/su,
+    () => untrackedFileMode({ isSymbolicLink: () => false, isFile: () => false }),
+    /non-regular/,
   );
+  const directory = mkdtempSync(path.join(tmpdir(), "portcove-untracked-mode-"));
+  try {
+    assert.throws(() => untrackedFileMode(lstatSync(directory)), /non-regular/);
+    const input = path.join(directory, "input.bin");
+    writeFileSync(input, "untracked data");
+    chmodSync(input, 0o644);
+    assert.equal(untrackedFileMode(lstatSync(input)), "100644");
+    if (process.platform !== "win32") {
+      chmodSync(input, 0o755);
+      assert.equal(untrackedFileMode(lstatSync(input)), "100755");
+    }
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("unknown fallback preserves known specialist consumers rather than assuming aggregate equivalence", () => {
+  const changes = [
+    change("new-subsystem/input.bin", { oldMode: "100644", newMode: "100644" }),
+    change("integrations/playnite/PortcoveLibrary/Library.cs", {
+      oldMode: "100644",
+      newMode: "100644",
+    }),
+  ];
+  const selection = classifyChanges(changes, { fileExists: allFilesExist });
+  const ordinary = buildPlan({ ...selection, unknown: new Set() }, fallbackContext(changes));
+  const fallback = buildPlan(selection, fallbackContext(changes));
+  assert.deepEqual(fallback.slice(0, -1), ordinary);
+  assert.ok(ids(fallback).includes("playnite-contract"));
+  assert.equal(fallback.at(-1).id, "conservative-audit");
+});
+
+test("unknown impact cannot use incomplete, stale, non-regular or untrusted executable/configuration discovery", () => {
+  const ordinary = change("new-subsystem/input.bin", { oldMode: "100644", newMode: "100644" });
+  const selection = classifyChanges([ordinary], { fileExists: allFilesExist });
+  assert.throws(() => buildPlan(selection), /validation plan/);
+  for (const altered of [
+    { headSha: "c".repeat(40) },
+    { baseSha: "c".repeat(40) },
+    { mergeBase: "c".repeat(40) },
+    { changes: [] },
+    { changes: [{ ...ordinary, oldMode: undefined }] },
+    { changes: [{ ...ordinary, oldMode: "000000" }] },
+    { changes: [{ ...ordinary, newMode: "100755" }] },
+    { changes: [{ ...ordinary, newMode: "120000" }] },
+    { changes: [{ ...ordinary, newMode: "160000" }] },
+    { changes: [{ ...ordinary, status: "C100" }] },
+    { changes: [{ ...ordinary, path: "other/input.bin" }] },
+  ])
+    assert.throws(() => buildPlan(selection, { ...fallbackContext([ordinary]), ...altered }));
+  const failed = {
+    ...fallbackContext([ordinary]),
+    validationPlan: buildValidationPlan({
+      changes: [ordinary],
+      checkout: "a".repeat(40),
+      discovery: "failed",
+      blockedReason: "missing comparison authority",
+    }),
+  };
+  assert.throws(() => buildPlan(selection, failed), /complete bound/);
+  const wrongCheckout = {
+    ...fallbackContext([ordinary]),
+    validationPlan: buildValidationPlan({
+      changes: [ordinary],
+      eventName: "pull_request",
+      base: "b".repeat(40),
+      mergeBase: "b".repeat(40),
+      head: "a".repeat(40),
+      checkout: "c".repeat(40),
+    }),
+  };
+  assert.throws(() => buildPlan(selection, wrongCheckout), /complete bound/);
+  const executable = [
+    change("new-subsystem/local.bin", {
+      status: "?",
+      oldMode: "000000",
+      newMode: untrackedFileMode(
+        { isSymbolicLink: () => false, isFile: () => true, mode: 0o100755 },
+        "linux",
+      ),
+    }),
+  ];
+  assert.throws(
+    () =>
+      buildPlan(
+        classifyChanges(executable, { fileExists: allFilesExist }),
+        fallbackContext(executable),
+      ),
+    /regular-file modes/,
+  );
+  for (const file of [
+    "new-subsystem/program.rs",
+    "new-subsystem/script.py",
+    "new-subsystem/settings.json",
+    ".untrusted/input.bin",
+  ]) {
+    const changes = [change(file, { oldMode: "100644", newMode: "100644" })];
+    assert.throws(
+      () =>
+        buildPlan(
+          classifyChanges(changes, { fileExists: allFilesExist }),
+          fallbackContext(changes),
+        ),
+      /ownership blocks/,
+    );
+  }
+  assert.throws(() => fallbackContext([change("../input.bin")]), /path/);
 });
 
 test("ordinary plans never invoke aggregate, deep, release, installer, or native gates", () => {

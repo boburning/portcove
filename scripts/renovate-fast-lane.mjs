@@ -4,6 +4,27 @@ import os from "node:os";
 import path from "node:path";
 
 const renovateLogins = new Set(["renovate[bot]", "app/renovate"]);
+// Function-sensitive updates require controlled qualification even at stable versions.
+// These own signatures/trust, credential transport/storage, extraction or durable data.
+const controlledDependencies = new Set([
+  "minisign",
+  "minisign-verify",
+  "tough",
+  "ed25519-dalek",
+  "aws-lc-rs",
+  "sha2",
+  "sha1",
+  "keyring",
+  "rpassword",
+  "reqwest",
+  "url",
+  "zip",
+  "tar",
+  "flate2",
+  "rusqlite",
+  "rustix",
+  "tempfile",
+]);
 const requiredPolicy = Object.freeze({
   automerge: false,
   internalChecksFilter: "strict",
@@ -161,6 +182,17 @@ function verdict(verdictName, reason, evidence = {}) {
   return { verdict: verdictName, reason, evidence };
 }
 
+export function renovateSecurityIntent(pull) {
+  const labels = (pull.labels ?? []).map((label) => String(label.name ?? "").toLowerCase());
+  const firstSection = String(pull.body ?? "").split(/^---$/mu, 1)[0];
+  return (
+    labels.some((label) => label.includes("security")) ||
+    /\[security\]/iu.test(String(pull.title ?? "")) ||
+    /(?:^|[/-])security(?:[/-]|$)/iu.test(String(pull.head?.ref ?? "")) ||
+    /\b(?:security update|vulnerability alert)\b/iu.test(firstSection)
+  );
+}
+
 export function classifyRenovateSnapshot({
   pull,
   commits,
@@ -209,6 +241,14 @@ export function classifyRenovateSnapshot({
       "manual-review-required",
       `${update.updateType || "unknown"} updates stay outside the fast lane`,
     );
+  if (controlledDependencies.has(update.packageName))
+    return verdict(
+      "manual-review-required",
+      "dependency owns a security-sensitive or persistent-data boundary",
+      {
+        package: update.packageName,
+      },
+    );
   const currentVersion = parseVersion(update.currentVersion);
   const newVersion = parseVersion(update.newVersion);
   if (!currentVersion || !newVersion || currentVersion.major < 1)
@@ -226,14 +266,7 @@ export function classifyRenovateSnapshot({
       "manual-review-required",
       `${update.packageName} belongs to a reviewed update group`,
     );
-  const firstSection = String(pull.body ?? "").split(/^---$/mu, 1)[0];
-  const labels = (pull.labels ?? []).map((label) => String(label.name ?? "").toLowerCase());
-  if (
-    labels.some((label) => label.includes("security")) ||
-    /\[security\]/iu.test(String(pull.title ?? "")) ||
-    /(?:^|[/-])security(?:[/-]|$)/iu.test(String(pull.head?.ref ?? "")) ||
-    /\b(?:security update|vulnerability alert)\b/iu.test(firstSection)
-  ) {
+  if (renovateSecurityIntent(pull)) {
     return verdict("manual-review-required", "security-driven updates stay outside the fast lane");
   }
 
@@ -603,6 +636,72 @@ function assertVersionTransition({
   }
 }
 
+// Compare the whole resolved input after masking only the claimed direct identity.
+// Unknown syntax, changed sources/features/engines/hooks and transitive graph changes
+// remain controlled; frozen metadata alone cannot establish their behavior.
+function normalizedLock(manager, lock, packageName, version) {
+  const escaped = gitRegex(packageName);
+  let text = lock.replaceAll("\r\n", "\n");
+  if (manager === "cargo") {
+    let direct = 0;
+    text = text
+      .split(/(?=^\[\[package\]\]$)/mu)
+      .map((block) => {
+        if (!new RegExp('^name = "' + escaped + '"$', "mu").test(block)) return block;
+        if (!new RegExp('^version = "' + gitRegex(version) + '"$', "mu").test(block)) return block;
+        direct += 1;
+        if (
+          !/^source = "registry\+https:\/\/github\.com\/rust-lang\/crates\.io-index"$/mu.test(
+            block,
+          ) ||
+          !/^checksum = "[0-9a-f]{64}"$/mu.test(block)
+        )
+          throw new Error("direct Cargo artifact lacks the accepted registry/checksum shape");
+        return block
+          .replace('version = "' + version + '"', 'version = "<direct-version>"')
+          .replace(/^checksum = "[0-9a-f]{64}"$/mu, 'checksum = "<direct-checksum>"');
+      })
+      .join("");
+    if (direct !== 1) throw new Error("direct Cargo lock identity is missing or ambiguous");
+    return text.replaceAll(
+      '"' + packageName + " " + version + '"',
+      '"' + packageName + ' <direct-version>"',
+    );
+  }
+  // Retain all pnpm YAML documents, importer context, peer suffixes and snapshots.
+  // Only the exact claimed package's blocks and importer values may be masked.
+  let artifact = 0;
+  text = text.replace(
+    new RegExp(
+      String.raw`^  ['"]?${escaped}@${gitRegex(version)}(?:[^\n]*):\n(?:[ \t]{4}[^\n]*\n|\n)*`,
+      "gmu",
+    ),
+    (block) => {
+      if (!block.includes("    resolution:")) return block;
+      artifact += 1;
+      if (!/^    resolution: \{integrity: sha512-[A-Za-z0-9+/]+={0,2}\}$/mu.test(block))
+        throw new Error("direct npm artifact lacks the supported registry/integrity shape");
+      return block.replace(
+        /^    resolution: \{integrity: sha512-[A-Za-z0-9+/]+={0,2}\}$/mu,
+        "    resolution: {integrity: <direct-integrity>}",
+      );
+    },
+  );
+  if (artifact !== 1) throw new Error("direct npm lock identity is missing or ambiguous");
+  text = text.replace(
+    new RegExp(String.raw`^([ \t]+)['"]?${escaped}['"]?:\n(?:\1[ \t]{2}[^\n]*\n)*`, "gmu"),
+    (block) =>
+      block.replace(
+        new RegExp(String.raw`(specifier: [~^=]?|version: )${gitRegex(version)}(?=\(|\s|$)`, "gu"),
+        "$1<direct-version>",
+      ),
+  );
+  return text.replace(
+    new RegExp(String.raw`(^|[\s'"(])${escaped}@${gitRegex(version)}(?=[(:'"\s]|$)`, "gmu"),
+    (_match, prefix) => `${prefix}${packageName}@<direct-version>`,
+  );
+}
+
 export function validateDependencyDelta({
   manager,
   packageName,
@@ -625,6 +724,11 @@ export function validateDependencyDelta({
     baseLock,
     headLock,
   });
+  if (
+    normalizedLock(manager, baseLock, packageName, currentVersion) !==
+    normalizedLock(manager, headLock, packageName, newVersion)
+  )
+    throw new Error("resolved lock graph contains changes beyond the direct version and integrity");
 }
 
 async function validateNpmCheckoutAuthority(checkout, packageName) {

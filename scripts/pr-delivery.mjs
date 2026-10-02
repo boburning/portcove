@@ -1,4 +1,5 @@
 import { readFile } from "node:fs/promises";
+import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -13,6 +14,7 @@ import {
   inspectCurrentBase,
   parseRenovateUpdates,
   runMetadataValidation,
+  renovateSecurityIntent,
 } from "./renovate-fast-lane.mjs";
 
 const scriptPath = fileURLToPath(import.meta.url);
@@ -73,6 +75,16 @@ export class PullRequestDeliveryClient {
     return this.api.request(method, endpoint, body);
   }
 
+  openRenovatePulls() {
+    return this.api
+      .paginateRest(`repos/${repository}/pulls?state=open&per_page=100`, {
+        select: (body) => body,
+        identity: (pull) => (Number.isSafeInteger(pull?.number) ? String(pull.number) : null),
+        label: "open pull requests",
+      })
+      .filter((pull) => ["renovate[bot]", "app/renovate"].includes(pull.user?.login));
+  }
+
   pull(number) {
     const body = this.request("GET", `repos/${repository}/pulls/${number}`).body;
     if (!body?.head?.sha || !body?.base?.sha || body.number !== number)
@@ -130,6 +142,32 @@ export class PullRequestDeliveryClient {
     if (!/^[0-9a-f]{40}$/u.test(body?.commit?.sha ?? ""))
       throw new Error(`branch ${name} response is incomplete`);
     return body;
+  }
+
+  workflowRun(id) {
+    const body = this.request("GET", `repos/${repository}/actions/runs/${id}`).body;
+    if (body?.id !== id || body?.repository?.full_name?.toLowerCase() !== repository)
+      throw new Error(`workflow run ${id} identity is incomplete or differs`);
+    return body;
+  }
+
+  sourceWorkflowRuns(sha) {
+    const runs = this.paginatedConnection(
+      `repos/${repository}/actions/runs?head_sha=${sha}&per_page=100`,
+      "workflow_runs",
+      (run) => (Number.isSafeInteger(run?.id) ? String(run.id) : null),
+    );
+    if (runs.some((run) => run.head_sha !== sha || !Number.isSafeInteger(run.run_attempt)))
+      throw new Error("source workflow run inventory differs from the exact queue head");
+    return runs;
+  }
+
+  workflowJobs(run, attempt) {
+    return this.paginatedConnection(
+      `repos/${repository}/actions/runs/${run}/attempts/${attempt}/jobs?per_page=100`,
+      "jobs",
+      (job) => (Number.isSafeInteger(job?.id) ? String(job.id) : null),
+    );
   }
 
   requiredCheckState(number, head, requiredContexts) {
@@ -262,6 +300,7 @@ export function requiredCheckContexts(checkRuns, statuses, requiredContexts) {
         : "pending";
     candidates.get(run.name).push({
       source: "check-run",
+      check_run_id: run.id,
       outcome,
       conclusion: run.conclusion ?? run.status,
       url: run.html_url ?? null,
@@ -308,32 +347,318 @@ export function renovateCheckEnvelope({ number, head, result, snapshot }) {
   });
 }
 
+// This read-only client bounds both each gh subprocess and all pages/reads in
+// one observation. Merge and other GitHub consumers keep their existing runner.
+export function createWatchClient({ now = Date.now, spawn = spawnSync } = {}) {
+  let collectionDeadline = 0;
+  const api = new GitHubApiClient(
+    createGitHubRunner({
+      cwd: projectRoot,
+      spawn: (command, args, options) => {
+        const remaining = collectionDeadline - now();
+        if (remaining <= 0) throw new Error("watch read collection exceeded its 60-second budget");
+        return spawn(command, args, {
+          ...options,
+          timeout: Math.min(15_000, remaining),
+          killSignal: "SIGKILL",
+        });
+      },
+    }),
+  );
+  const client = new PullRequestDeliveryClient(api);
+  client.beginObservation = () => {
+    collectionDeadline = now() + 60_000;
+  };
+  return client;
+}
+
 export async function watchRequiredChecks(
   client,
-  { number, head, requiredContexts, timeoutSeconds = 3600, intervalSeconds = 30, sleep },
+  { number, head, requiredContexts, run, attempt, deadline, sleep, now = Date.now },
 ) {
+  if (!Number.isSafeInteger(run) || run < 1 || !Number.isSafeInteger(attempt) || attempt < 1)
+    throw new Error("watch requires a positive run and attempt");
+  if (
+    !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/u.test(deadline ?? "") ||
+    !Number.isFinite(Date.parse(deadline))
+  )
+    throw new Error("watch requires an absolute UTC --deadline; retain it when resuming");
+  const deadlineMs = Date.parse(deadline);
+  if (new Date(deadlineMs).toISOString().replace(".000Z", "Z") !== deadline.replace(".000Z", "Z"))
+    throw new Error("watch --deadline must be a valid UTC calendar time");
   const pause =
     sleep ?? ((milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds)));
-  const deadline = Date.now() + timeoutSeconds * 1000;
+  let observed = null;
+  let state = null;
+  const evidence = () => ({
+    pull_request: number,
+    head,
+    run,
+    attempt,
+    deadline,
+    workflow: observed && {
+      id: observed.id,
+      head_sha: observed.head_sha,
+      run_attempt: observed.run_attempt,
+      url: observed.html_url,
+      status: observed.status,
+      conclusion: observed.conclusion,
+      created_at: observed.created_at,
+      run_started_at: observed.run_started_at,
+    },
+    contexts: state?.contexts ?? [],
+    next_action:
+      "Inspect this run's jobs, logs and available artifacts; preserve the candidate and failure before choosing a repair. Do not redispatch automatically.",
+  });
   for (;;) {
-    const state = client.requiredCheckState(number, head, requiredContexts);
+    try {
+      client.beginObservation?.();
+      observed = client.workflowRun(run);
+      state = client.requiredCheckState(number, head, requiredContexts);
+    } catch (error) {
+      throw deliveryOutcomeError(
+        "failed",
+        `watch monitoring failed: ${sanitizeOperationError(error).message}`,
+        evidence(),
+        error,
+      );
+    }
+    if (observed.head_sha !== head || observed.run_attempt !== attempt)
+      throw deliveryOutcomeError(
+        "failed",
+        "watch run/source/attempt changed; reconcile the identified run before resuming",
+        evidence(),
+      );
+    if (
+      !["queued", "requested", "waiting", "pending", "in_progress", "completed"].includes(
+        observed.status,
+      )
+    )
+      throw deliveryOutcomeError(
+        "failed",
+        "watch workflow status is missing or unknown",
+        evidence(),
+      );
+    if (
+      !Number.isFinite(Date.parse(observed.created_at)) ||
+      deadlineMs <= Date.parse(observed.created_at)
+    )
+      throw deliveryOutcomeError(
+        "failed",
+        "watch run creation time or deadline is invalid",
+        evidence(),
+      );
     const failures = state.contexts.filter((context) => context.outcome === "failure");
     if (failures.length)
-      throw new Error(
+      throw deliveryOutcomeError(
+        "failed",
         `required checks failed: ${failures
           .map((context) => `${context.context}=${context.conclusion}`)
           .join(", ")}`,
+        evidence(),
       );
-    if (state.contexts.every((context) => context.outcome === "success")) return state;
-    if (Date.now() >= deadline)
-      throw new Error(
-        `timed out waiting for required checks: ${state.contexts
+    if (observed.status === "completed") {
+      if (observed.conclusion !== "success")
+        throw deliveryOutcomeError(
+          "failed",
+          `identified workflow run completed with ${observed.conclusion ?? "no conclusion"}`,
+          evidence(),
+        );
+      if (state.contexts.every((context) => context.outcome === "success")) {
+        let jobs;
+        try {
+          jobs = client.workflowJobs(run, attempt);
+        } catch (error) {
+          throw deliveryOutcomeError(
+            "failed",
+            `watch job readback failed: ${sanitizeOperationError(error).message}`,
+            evidence(),
+            error,
+          );
+        }
+        const checks = new Map();
+        for (const job of jobs) {
+          const match =
+            /^https:\/\/api\.github\.com\/repos\/boburning\/portcove\/check-runs\/([1-9]\d*)$/u.exec(
+              job.check_run_url ?? "",
+            );
+          const checkId = Number(match?.[1]);
+          if (
+            job.run_id !== run ||
+            job.run_attempt !== attempt ||
+            job.head_sha !== head ||
+            !Number.isSafeInteger(checkId) ||
+            checks.has(checkId)
+          )
+            throw deliveryOutcomeError(
+              "failed",
+              "watch job inventory has invalid or duplicate run/attempt/source/check identity",
+              evidence(),
+            );
+          checks.set(checkId, job);
+        }
+        for (const context of state.contexts) {
+          const job = checks.get(context.check_run_id);
+          if (
+            context.source !== "check-run" ||
+            !job ||
+            job.name !== context.context ||
+            job.status !== "completed" ||
+            job.conclusion !== "success"
+          )
+            throw deliveryOutcomeError(
+              "failed",
+              `required check ${context.context} is not a successful job of the identified run attempt`,
+              evidence(),
+            );
+        }
+        try {
+          observed = client.workflowRun(run);
+        } catch (error) {
+          throw deliveryOutcomeError(
+            "failed",
+            `watch final run readback failed: ${sanitizeOperationError(error).message}`,
+            evidence(),
+            error,
+          );
+        }
+        if (
+          observed.head_sha !== head ||
+          observed.run_attempt !== attempt ||
+          observed.status !== "completed" ||
+          observed.conclusion !== "success"
+        )
+          throw deliveryOutcomeError(
+            "failed",
+            "watch run changed during job collection",
+            evidence(),
+          );
+        return {
+          ...state,
+          watch: {
+            ...evidence(),
+            next_action:
+              "Complete outstanding acceptance and independent review, then use the existing exact-head guarded merge.",
+          },
+        };
+      }
+      throw deliveryOutcomeError(
+        "failed",
+        "identified workflow succeeded but required exact-head gates remain missing or pending",
+        evidence(),
+      );
+    }
+    if (now() >= deadlineMs)
+      throw deliveryOutcomeError(
+        "failed",
+        `watch deadline expired (run ${run}, attempt ${attempt}, ${observed.status}); timed out waiting for required checks: ${state.contexts
           .filter((context) => context.outcome !== "success")
           .map((context) => `${context.context}=${context.conclusion}`)
           .join(", ")}`,
+        evidence(),
       );
-    await pause(intervalSeconds * 1000);
+    await pause(Math.min(180_000, Math.max(0, deadlineMs - now())));
   }
+}
+
+export function inspectRenovateQueue(client, config, contexts, inspectBase = inspectCurrentBase) {
+  const target = client.branch("main").commit.sha;
+  const candidates = client.openRenovatePulls().map((listed) => {
+    const head = listed.head?.sha;
+    if (!/^[0-9a-f]{40}$/u.test(head ?? "")) throw new Error("queue candidate lacks exact head");
+    const snapshot = client.renovateSnapshot(listed.number, head, contexts);
+    if (snapshot.pull.head.sha !== head || snapshot.target.commit.sha !== target)
+      throw new Error("queue head or target changed; refresh once before selection");
+    const updates = parseRenovateUpdates(snapshot.pull.body);
+    const baseEvidence = inspectBase({
+      projectRoot,
+      number: listed.number,
+      expectedHead: head,
+      currentTarget: target,
+      interactionTerms: updates.flatMap(({ packageName }) => [
+        packageName,
+        packageName.replaceAll("-", "_"),
+      ]),
+    });
+    if (baseEvidence.changedHead) throw new Error("queue candidate changed during base inspection");
+    const result = classifyRenovateSnapshot({
+      ...snapshot,
+      config,
+      expectedHead: head,
+      baseEvidence,
+    });
+    const security = renovateSecurityIntent(snapshot.pull);
+    const failures = snapshot.contexts.filter(({ outcome }) => outcome === "failure");
+    const pending = snapshot.contexts.filter(({ outcome }) => outcome !== "success");
+    const age = snapshot.statuses.filter(({ context }) => context === "renovate/stability-days");
+    const agePending = !security && age.some(({ state }) => state === "pending");
+    const actionable =
+      !snapshot.pull.draft &&
+      snapshot.pull.mergeable === true &&
+      !pending.length &&
+      !agePending &&
+      !["reject", "waiting"].includes(result.verdict);
+    return {
+      number: listed.number,
+      head,
+      target,
+      title: snapshot.pull.title,
+      url: snapshot.pull.html_url,
+      owners: (snapshot.pull.assignees ?? []).map(({ login }) => login),
+      path: security
+        ? "urgent-remediation-assessment"
+        : result.verdict === "metadata-required"
+          ? "routine-fast-lane-candidate"
+          : "controlled-maintenance",
+      verdict: result.verdict,
+      reason: result.reason,
+      actionable,
+      release_age: age,
+      checks: snapshot.contexts,
+      runs: client
+        .sourceWorkflowRuns(head)
+        .map(({ id, run_attempt, name, status, conclusion, run_started_at, html_url }) => ({
+          id,
+          attempt: run_attempt,
+          name,
+          status,
+          conclusion,
+          started_at: run_started_at,
+          url: html_url,
+        })),
+      next_action: snapshot.pull.draft
+        ? "Resume the current owner's draft checkpoint in #793."
+        : failures.length
+          ? "Inspect the first failed exact-head job and retained evidence; repair causally before rerunning."
+          : pending.length
+            ? "Collect the identified source-head run with its original attempt and absolute deadline; do not start duplicate validation."
+            : snapshot.pull.mergeable !== true
+              ? "Resolve actual conflicts or unknown mergeability with the current owner."
+              : agePending
+                ? "Wait for the existing release-age status; missing timestamps need a specific reviewed resolution, never a global cooldown waiver."
+                : ["reject", "waiting"].includes(result.verdict)
+                  ? "Resolve the reported classifier condition before selection."
+                  : result.verdict === "metadata-required"
+                    ? `Confirm #793 ownership, then just renovate-check --pr ${listed.number} --head ${head}; final delivering-agent review and guarded merge follow only merge-ready.`
+                    : "Confirm #793 ownership, inspect advisory/graph/features and select the existing local/hosted/behavior plan; independent review and guarded merge remain.",
+    };
+  });
+  candidates.sort(
+    (a, b) =>
+      Number(b.path === "urgent-remediation-assessment") -
+        Number(a.path === "urgent-remediation-assessment") ||
+      Number(b.actionable) - Number(a.actionable) ||
+      Number(b.path === "routine-fast-lane-candidate") -
+        Number(a.path === "routine-fast-lane-candidate") ||
+      a.number - b.number,
+  );
+  return {
+    target,
+    candidates,
+    selected: candidates.find(({ actionable }) => actionable)?.number ?? null,
+    selection_boundary:
+      "Recommendation only. Existing #793 reservations govern ownership; this command neither approves, rebases, retries nor merges. Refresh after each delivered candidate.",
+  };
 }
 
 export function parseArguments(argv) {
@@ -341,7 +666,8 @@ export function parseArguments(argv) {
   const options = {};
   for (let index = 1; index < argv.length; index += 1) {
     const name = argv[index];
-    if (name === "--json") {
+    if (Object.hasOwn(options, name)) throw new Error(`duplicate option: ${name}`);
+    if (name === "--json" || name === "--queue") {
       options[name] = true;
       continue;
     }
@@ -369,9 +695,39 @@ async function main(argv) {
   if (["help", "--help"].includes(command)) {
     console.log(
       "usage:\n" +
-        "  node scripts/pr-delivery.mjs watch --pr <number-or-url> --head <sha> [--timeout-seconds <seconds>] [--json]\n" +
+        "  node scripts/pr-delivery.mjs watch --pr <number-or-url> --head <sha> --run <id> --attempt <number> --deadline <UTC-time> [--json]\n" +
+        "  node scripts/pr-delivery.mjs renovate-check --queue [--json]\n" +
         "  node scripts/pr-delivery.mjs renovate-check --pr <number-or-url> --head <sha> [--json]\n" +
         "  node scripts/pr-delivery.mjs merge --pr <number-or-url> --head <sha> [--json]",
+    );
+    return;
+  }
+  if (command === "renovate-check" && options["--queue"]) {
+    exactKeys(options, ["--queue", ...(options["--json"] ? ["--json"] : [])], "queue options");
+    const config = JSON.parse(await readFile(path.join(projectRoot, "renovate.json"), "utf8"));
+    const queue = inspectRenovateQueue(
+      new PullRequestDeliveryClient(),
+      config,
+      await requiredContexts(),
+    );
+    const summary = `Renovate queue: ${queue.candidates.length} complete candidates; recommended selection ${queue.selected ?? "none"}.`;
+    console.log(
+      options["--json"]
+        ? JSON.stringify(
+            githubOperationEnvelope({
+              operation: "pr-delivery.renovate-queue",
+              status: "succeeded",
+              summary,
+              evidence: queue,
+            }),
+          )
+        : [
+            summary,
+            ...queue.candidates.map(
+              (c) => `#${c.number} ${c.head}: ${c.path}; ${c.reason}. ${c.next_action}`,
+            ),
+            queue.selection_boundary,
+          ].join("\n"),
     );
     return;
   }
@@ -381,7 +737,9 @@ async function main(argv) {
       ? [
           "--head",
           "--pr",
-          ...(options["--timeout-seconds"] ? ["--timeout-seconds"] : []),
+          "--run",
+          "--attempt",
+          "--deadline",
           ...(options["--json"] ? ["--json"] : []),
         ]
       : ["--head", "--pr", ...(options["--json"] ? ["--json"] : [])],
@@ -391,7 +749,7 @@ async function main(argv) {
   const head = options["--head"];
   if (!/^[0-9a-f]{40}$/u.test(head ?? "")) throw new Error("--head must be a 40-character SHA");
   const contexts = await requiredContexts();
-  const client = new PullRequestDeliveryClient();
+  const client = command === "watch" ? createWatchClient() : new PullRequestDeliveryClient();
   if (command === "renovate-check") {
     const config = JSON.parse(await readFile(path.join(projectRoot, "renovate.json"), "utf8"));
     const snapshot = client.renovateSnapshot(number, head, contexts);
@@ -461,14 +819,13 @@ async function main(argv) {
     return;
   }
   if (command === "watch") {
-    const timeoutSeconds = Number(options["--timeout-seconds"] ?? 3600);
-    if (!Number.isSafeInteger(timeoutSeconds) || timeoutSeconds < 1)
-      throw new Error("--timeout-seconds must be a positive integer");
     const state = await watchRequiredChecks(client, {
       number,
       head,
       requiredContexts: contexts,
-      timeoutSeconds,
+      run: Number(options["--run"]),
+      attempt: Number(options["--attempt"]),
+      deadline: options["--deadline"],
     });
     const summary = `Pull request #${number} exact head ${head} passed required checks: ${state.contexts
       .map((context) => context.context)
@@ -483,6 +840,7 @@ async function main(argv) {
             evidence: {
               pull_request: number,
               head,
+              watch: state.watch,
               contexts: state.contexts.map(({ context, conclusion }) => ({
                 context,
                 conclusion,

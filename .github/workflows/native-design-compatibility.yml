@@ -11,6 +11,18 @@ on:
           - ubuntu-22.04
           - macos-15
           - macos-15-intel
+          - windows-2022
+      focus_head:
+        description: Exact reviewed PR 1327 source for Windows backup-focus acceptance only.
+        required: true
+        default: 161e577dc48f93db98a9930853e808e22c43c7b2
+        type: string
+
+      edge_driver_proof:
+        description: Verify signature-first EdgeDriver acquisition only; no application or native UI run.
+        required: true
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -21,10 +33,12 @@ concurrency:
 
 env:
   pnpm_config_store_dir: ${{ github.workspace }}/work/pnpm-store
-  VITE_PORTCOVE_DESIGN_COMPATIBILITY_FIXTURE: "1"
 
 jobs:
   qualify:
+    if: ${{ !inputs.edge_driver_proof && inputs.runner != 'windows-2022' }}
+    env:
+      VITE_PORTCOVE_DESIGN_COMPATIBILITY_FIXTURE: "1"
     name: native-design-compatibility (${{ inputs.runner }})
     runs-on: ${{ inputs.runner }}
     timeout-minutes: 45
@@ -108,3 +122,150 @@ jobs:
           path: work/native-compatibility-evidence
           if-no-files-found: error
           retention-days: 14
+
+  backup_focus:
+    if: ${{ !inputs.edge_driver_proof && inputs.runner == 'windows-2022' }}
+    runs-on: windows-2022
+    timeout-minutes: 45
+    env:
+      PORTCOVE_OUTPUT_DIR: ${{ github.workspace }}/work/native-backup-focus
+      PORTCOVE_TEMP_DIR: ${{ github.workspace }}/work/temp/native-backup-focus
+      pnpm_config_store_dir: ${{ github.workspace }}/work/pnpm-store
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Record and combine exact reviewed inputs
+        shell: pwsh
+        env:
+          FOCUS_HEAD: ${{ inputs.focus_head }}
+          WORKFLOW_HEAD: ${{ github.sha }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ($env:FOCUS_HEAD -ne '161e577dc48f93db98a9930853e808e22c43c7b2') { throw 'Only the reviewed frozen PR 1327 source is supported.' }
+          New-Item -ItemType Directory -Force $env:PORTCOVE_OUTPUT_DIR | Out-Null
+          $identity = [ordered]@{
+            workflow_head = $env:WORKFLOW_HEAD
+            focus_head = $env:FOCUS_HEAD
+            run_id = '${{ github.run_id }}'
+            run_attempt = '${{ github.run_attempt }}'
+            image_os = $env:ImageOS
+            image_version = $env:ImageVersion
+            os = [Runtime.InteropServices.RuntimeInformation]::OSDescription
+            session_id = [Diagnostics.Process]::GetCurrentProcess().SessionId
+            user_interactive = [Environment]::UserInteractive
+          }
+          $identity | ConvertTo-Json | Set-Content "$env:PORTCOVE_OUTPUT_DIR/host.json"
+          git fetch origin $env:FOCUS_HEAD
+          if ($LASTEXITCODE -ne 0) { throw 'Reviewed candidate fetch failed.' }
+          if ((git rev-parse FETCH_HEAD).Trim() -ne $env:FOCUS_HEAD) { throw 'Candidate identity mismatch.' }
+          git -c user.name=PortcoveQualification -c user.email=qualification@invalid merge --no-ff --no-edit $env:FOCUS_HEAD
+          if ($LASTEXITCODE -ne 0) { throw 'Candidate conflict; no build or acceptance.' }
+          if (git status --porcelain) { throw 'Qualification requires a clean source.' }
+          $identity.merge_head = (git rev-parse HEAD).Trim()
+          $identity.merge_parents = (git show -s --format=%P HEAD).Trim()
+          $identity | ConvertTo-Json | Set-Content "$env:PORTCOVE_OUTPUT_DIR/host.json"
+          if (-not $identity.user_interactive -or $identity.session_id -le 0) {
+            throw 'Hosted interactive desktop is unavailable; preserve the feasibility failure.'
+          }
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        with:
+          package_json_file: package.json
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+      - uses: ./.github/actions/setup-rust
+      - name: Read existing prebuilt quality-tool pins
+        id: native-quality-pins
+        shell: pwsh
+        run: node scripts/quality-tools.mjs --github-output >> $env:GITHUB_OUTPUT
+      - name: Provision existing pinned prebuilt quality tools
+        uses: taiki-e/install-action@c3ec0de9ae7f1019cea21aa96aa0a895b9552063 # v2
+        with:
+          tool: ${{ steps.native-quality-pins.outputs.required_prebuilt }}
+      - name: Install locked packages and existing pinned native tools
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          pnpm install --frozen-lockfile
+          if ($LASTEXITCODE -ne 0) { throw 'Locked package installation failed.' }
+          ./scripts/bootstrap-quality-tools.ps1 -Desktop
+          if ($LASTEXITCODE -ne 0) { throw 'Pinned native bootstrap failed.' }
+      - name: Observe the one real native backup-focus scenario
+        shell: pwsh
+        run: |
+          $env:PATH = "$PWD/work/tool-bin;$env:PATH"
+          just desktop-verify --scenario native-backup-delete-focus --require-clean
+          if ($LASTEXITCODE -ne 0) { throw 'Native acceptance failed; retain original evidence.' }
+      - name: Retain lossless native evidence in ordinary job logs
+        if: always()
+        shell: pwsh
+        run: |
+          node scripts/native-backup-evidence.mjs emit "$env:PORTCOVE_OUTPUT_DIR"
+          if ($LASTEXITCODE -ne 0) { throw 'Required evidence retention failed.' }
+
+  edge_driver_proof:
+    if: inputs.edge_driver_proof
+    runs-on: windows-2022
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+      - name: Prove rejected fixture candidates never reach the version probe
+        run: node --test --test-timeout=30000 scripts/quality-tools.test.mjs
+      - name: Prove the official signed driver matches the current WebView2 runtime
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $source = (Resolve-Path scripts/bootstrap-quality-tools.ps1).Path
+          $tokens = $null; $errors = $null
+          $ast = [System.Management.Automation.Language.Parser]::ParseFile($source, [ref]$tokens, [ref]$errors)
+          if ($errors.Count) { throw ($errors | Out-String) }
+          foreach ($name in @('Test-ReportedVersion', 'Test-VerifiedEdgeDriver', 'Get-WebViewRuntimeVersion')) {
+            $definition = @($ast.FindAll({param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq $name}, $true))
+            if ($definition.Count -ne 1) { throw "Expected one production function $name" }
+            . ([scriptblock]::Create($definition[0].Extent.Text))
+          }
+          $manifest = Get-Content .config/tool-bootstrap.json -Raw | ConvertFrom-Json
+          if ($manifest.desktop.edge_driver_base -ne 'https://msedgedriver.microsoft.com') { throw 'Official origin changed' }
+          $version = Get-WebViewRuntimeVersion
+          $architecture = [Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString().ToLowerInvariant()
+          $archiveName = switch ($architecture) {
+            'x64' { 'edgedriver_win64.zip' }
+            'arm64' { 'edgedriver_arm64.zip' }
+            default { throw "Unsupported Windows architecture $architecture" }
+          }
+          $root = Join-Path $env:RUNNER_TEMP ('portcove-edge-proof-' + [guid]::NewGuid())
+          New-Item -ItemType Directory $root | Out-Null
+          try {
+            $archive = Join-Path $root $archiveName
+            $uri = "$($manifest.desktop.edge_driver_base)/$version/$archiveName"
+            Invoke-WebRequest -UseBasicParsing -Uri $uri -OutFile $archive
+            Expand-Archive -LiteralPath $archive -DestinationPath (Join-Path $root 'downloaded')
+            $downloaded = Join-Path $root 'downloaded/msedgedriver.exe'
+            if (-not (Test-VerifiedEdgeDriver $downloaded $version)) { throw 'Verified download does not match runtime' }
+            $cached = Join-Path $root 'cached-msedgedriver.exe'
+            Copy-Item -LiteralPath $downloaded -Destination $cached
+            if (-not (Test-VerifiedEdgeDriver $cached $version)) { throw 'Verified cached copy does not match runtime' }
+            if (Test-VerifiedEdgeDriver $cached '0.0.0.0') { throw 'Wrong runtime version was accepted' }
+            $signature = Get-AuthenticodeSignature -LiteralPath $cached
+            [ordered]@{
+              revision = (git rev-parse HEAD).Trim()
+              bootstrap_sha256 = (Get-FileHash -LiteralPath $source -Algorithm SHA256).Hash
+              os = [Runtime.InteropServices.RuntimeInformation]::OSDescription
+              architecture = $architecture
+              runtime = $version
+              origin = $uri
+              driver_sha256 = (Get-FileHash -LiteralPath $cached -Algorithm SHA256).Hash
+              signature = [string]$signature.Status
+              signer_subject = $signature.SignerCertificate.Subject
+              downloaded_match = $true
+              cached_match = $true
+              wrong_version_rejected = $true
+            } | ConvertTo-Json -Depth 4
+          } finally { Remove-Item -LiteralPath $root -Recurse -Force }

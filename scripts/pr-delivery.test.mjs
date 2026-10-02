@@ -2,12 +2,14 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   PullRequestDeliveryClient,
+  createWatchClient,
   parseArguments,
   parsePullRequestReference,
   renovateCheckEnvelope,
   requiredCheckContexts,
   requiredContextsFromConfigs,
   watchRequiredChecks,
+  inspectRenovateQueue,
 } from "./pr-delivery.mjs";
 
 const required = ["catalog", "dependency-review", "frontend", "rust", "rust-quality"];
@@ -51,6 +53,152 @@ function successfulRuns() {
   }));
 }
 
+test("queue inventory follows all open-PR pages and rejects duplicate identities", () => {
+  const client = new PullRequestDeliveryClient((args) => {
+    if (args[2].includes("page=2"))
+      return included([{ number: 9, user: { login: "app/renovate" } }]);
+    return included(
+      [
+        { number: 7, user: { login: "renovate[bot]" } },
+        { number: 8, user: { login: "contributor" } },
+      ],
+      { link: '<https://api.github.test/pulls?page=2>; rel="next"' },
+    );
+  });
+  assert.deepEqual(
+    client.openRenovatePulls().map(({ number }) => number),
+    [7, 9],
+  );
+  const duplicate = new PullRequestDeliveryClient((args) =>
+    included(
+      [{ number: 7, user: { login: "renovate[bot]" } }],
+      args[2].includes("page=2")
+        ? {}
+        : { link: '<https://api.github.test/pulls?page=2>; rel="next"' },
+    ),
+  );
+  assert.throws(() => duplicate.openRenovatePulls(), /duplicate/);
+});
+
+function queueClient(overrides = {}) {
+  const age = [{ context: "renovate/stability-days", state: "success" }];
+  const snapshot = {
+    pull: pull({
+      number: 7,
+      user: { login: "renovate[bot]" },
+      title: "update crc32fast",
+      labels: [],
+      base: { sha: base, ref: "main" },
+      head: { sha: head, ref: "renovate/crc32fast" },
+      assignees: [],
+      body: "| Package | Update | Change |\n|---|---|---|\n| crc32fast | patch | `1.5.1` → `1.5.2` |\n",
+    }),
+    commits: [{ sha: head, author: { login: "renovate[bot]" } }],
+    files: [
+      { filename: "Cargo.toml", status: "modified" },
+      { filename: "Cargo.lock", status: "modified" },
+    ],
+    statuses: age,
+    contexts: required.map((context) => ({ context, outcome: "success", conclusion: "success" })),
+    target: { commit: { sha: base } },
+    checkRuns: successfulRuns(),
+  };
+  return {
+    branch: () => ({ commit: { sha: base } }),
+    openRenovatePulls: () => [snapshot.pull],
+    sourceWorkflowRuns: () => [
+      {
+        id: 42,
+        run_attempt: 1,
+        name: "CI",
+        status: "completed",
+        conclusion: "success",
+        run_started_at: "2026-10-01T00:00:00Z",
+      },
+    ],
+    renovateSnapshot: () => ({
+      ...snapshot,
+      ...overrides,
+      pull: { ...snapshot.pull, ...overrides.pull },
+    }),
+  };
+}
+const queueConfig = {
+  automerge: false,
+  internalChecksFilter: "strict",
+  minimumReleaseAge: "3 days",
+  minimumReleaseAgeBehaviour: "timestamp-required",
+  packageRules: [],
+};
+const queueBase = () => ({
+  currentTarget: base,
+  currentMergeBase: base,
+  targetPaths: [],
+  targetDependencyPaths: [],
+});
+
+test("queue recommends only an actionable exact-head candidate and never supplies merge authority", () => {
+  const queue = inspectRenovateQueue(queueClient(), queueConfig, required, queueBase);
+  assert.equal(queue.selected, 7);
+  assert.equal(queue.candidates[0].path, "routine-fast-lane-candidate");
+  assert.match(queue.candidates[0].next_action, /renovate-check --pr 7 --head/);
+  assert.equal(queue.candidates[0].runs[0].id, 42);
+  assert.equal(queue.candidates[0].runs[0].attempt, 1);
+  assert.match(queue.selection_boundary, /#793 reservations/);
+  assert.throws(
+    () =>
+      inspectRenovateQueue(
+        queueClient({ target: { commit: { sha: "d".repeat(40) } } }),
+        queueConfig,
+        required,
+        queueBase,
+      ),
+    /target changed/,
+  );
+  assert.throws(
+    () =>
+      inspectRenovateQueue(queueClient(), queueConfig, required, () => ({
+        ...queueBase(),
+        changedHead: "d".repeat(40),
+      })),
+    /candidate changed/,
+  );
+});
+
+test("cooldown draft failed CI and rejected targets cannot become actionable controlled candidates", () => {
+  for (const overrides of [
+    {
+      statuses: [
+        { context: "renovate/stability-days", state: "pending", description: "missing timestamp" },
+      ],
+    },
+    { pull: { draft: true } },
+    { contexts: [{ context: "rust", outcome: "failure", conclusion: "failure" }] },
+    { pull: { base: { sha: base, ref: "different" } } },
+    { pull: { mergeable: null } },
+  ]) {
+    const queue = inspectRenovateQueue(queueClient(overrides), queueConfig, required, queueBase);
+    assert.equal(queue.selected, null);
+    assert.equal(queue.candidates[0].actionable, false);
+    assert.ok(queue.candidates[0].next_action);
+  }
+});
+
+test("branch-only security intent uses controlled expedited assessment without asserting vulnerability", () => {
+  const queue = inspectRenovateQueue(
+    queueClient({
+      pull: { head: { sha: head, ref: "renovate/security/crc32fast" } },
+      statuses: [{ context: "renovate/stability-days", state: "pending" }],
+    }),
+    queueConfig,
+    required,
+    queueBase,
+  );
+  assert.equal(queue.candidates[0].path, "urgent-remediation-assessment");
+  assert.equal(queue.candidates[0].verdict, "manual-review-required");
+  assert.match(queue.candidates[0].next_action, /inspect advisory\/graph\/features/);
+});
+
 test("required contexts are loaded from both checked-in authorities", () => {
   const ruleset = {
     rules: [
@@ -79,10 +227,30 @@ test("pull request references are repository-bound and exact", () => {
 
 test("delivery arguments accept opt-in JSON without changing required values", () => {
   assert.deepEqual(
-    parseArguments(["watch", "--pr", "7", "--json", "--head", head, "--timeout-seconds", "30"]),
+    parseArguments([
+      "watch",
+      "--pr",
+      "7",
+      "--json",
+      "--head",
+      head,
+      "--run",
+      "42",
+      "--attempt",
+      "1",
+      "--deadline",
+      "2026-10-01T22:00:00Z",
+    ]),
     {
       command: "watch",
-      options: { "--pr": "7", "--json": true, "--head": head, "--timeout-seconds": "30" },
+      options: {
+        "--pr": "7",
+        "--json": true,
+        "--head": head,
+        "--run": "42",
+        "--attempt": "1",
+        "--deadline": "2026-10-01T22:00:00Z",
+      },
     },
   );
   assert.deepEqual(parseArguments(["renovate-check", "--pr", "7", "--head", head]), {
@@ -90,6 +258,7 @@ test("delivery arguments accept opt-in JSON without changing required values", (
     options: { "--pr": "7", "--head": head },
   });
   assert.throws(() => parseArguments(["merge", "--pr", "7", "--head"]), /invalid argument/);
+  assert.throws(() => parseArguments(["watch", "--run", "42", "--run", "43"]), /duplicate option/);
 });
 
 test("Renovate verdicts have matching human and JSON output", () => {
@@ -219,14 +388,68 @@ test("required check observation is exact-head and fails closed on ambiguity", (
   assert.throws(() => client.requiredCheckState(7, head, required), /head changed/);
 });
 
-test("watcher waits for missing checks and fails on every non-success terminal result", async () => {
+const watchOptions = {
+  number: 7,
+  head,
+  requiredContexts: required,
+  run: 42,
+  attempt: 1,
+  deadline: "2026-10-01T22:00:00Z",
+  now: () => Date.parse("2026-10-01T21:00:00Z"),
+};
+function workflow(overrides = {}) {
+  return {
+    id: 42,
+    head_sha: head,
+    run_attempt: 1,
+    status: "in_progress",
+    conclusion: null,
+    created_at: "2026-10-01T20:55:00Z",
+    run_started_at: "2026-10-01T21:00:00Z",
+    html_url: "https://github.com/boburning/portcove/actions/runs/42",
+    ...overrides,
+  };
+}
+function checkState(outcome = "pending") {
+  return {
+    contexts: required.map((context, index) => ({
+      context,
+      source: "check-run",
+      check_run_id: index + 1,
+      outcome,
+      conclusion: outcome === "pending" ? "missing" : outcome,
+    })),
+  };
+}
+function workflowJobs() {
+  return required.map((name, index) => ({
+    id: index + 1,
+    name,
+    run_id: 42,
+    run_attempt: 1,
+    head_sha: head,
+    status: "completed",
+    conclusion: "success",
+    check_run_url: `https://api.github.com/repos/boburning/portcove/check-runs/${index + 1}`,
+  }));
+}
+
+test("watcher waits quietly on one run and requires both terminal success and exact-head gates", async () => {
   let calls = 0;
+  const pauses = [];
   const pendingThenSuccess = {
+    workflowJobs,
+    workflowRun(id) {
+      assert.equal(id, 42);
+      return workflow(calls >= 1 ? { status: "completed", conclusion: "success" } : {});
+    },
     requiredCheckState() {
       calls += 1;
       return {
-        contexts: required.map((context) => ({
+        contexts: required.map((context, index) => ({
           context,
+          source: "check-run",
+          check_run_id: index + 1,
           outcome: calls === 1 ? "pending" : "success",
           conclusion: calls === 1 ? "missing" : "success",
         })),
@@ -234,14 +457,15 @@ test("watcher waits for missing checks and fails on every non-success terminal r
     },
   };
   const state = await watchRequiredChecks(pendingThenSuccess, {
-    number: 7,
-    head,
-    requiredContexts: required,
-    timeoutSeconds: 1,
-    intervalSeconds: 0,
-    sleep: async () => {},
+    ...watchOptions,
+    sleep: async (milliseconds) => pauses.push(milliseconds),
   });
   assert.ok(state.contexts.every((context) => context.outcome === "success"));
+  assert.deepEqual(pauses, [180_000]);
+  assert.equal(state.watch.deadline, watchOptions.deadline);
+  assert.equal(state.watch.workflow.created_at, "2026-10-01T20:55:00Z");
+  assert.equal(state.watch.workflow.run_started_at, "2026-10-01T21:00:00Z");
+  assert.match(state.watch.next_action, /guarded merge/);
 
   for (const conclusion of [
     "failure",
@@ -254,15 +478,264 @@ test("watcher waits for missing checks and fails on every non-success terminal r
     await assert.rejects(
       watchRequiredChecks(
         {
+          workflowRun: () => workflow(),
           requiredCheckState: () => ({
             contexts: [{ context: "rust", outcome: "failure", conclusion }],
           }),
         },
-        { number: 7, head, requiredContexts: ["rust"], timeoutSeconds: 1 },
+        { ...watchOptions, requiredContexts: ["rust"] },
       ),
       new RegExp(conclusion),
     );
   }
+});
+
+test("resuming an expired deadline reads evidence once and never creates another wait", async () => {
+  for (let resume = 0; resume < 2; resume += 1) {
+    let reads = 0;
+    await assert.rejects(
+      watchRequiredChecks(
+        {
+          workflowRun: () => workflow(),
+          requiredCheckState: () => {
+            reads += 1;
+            return checkState();
+          },
+        },
+        {
+          ...watchOptions,
+          now: () => Date.parse("2026-10-01T22:01:00Z"),
+          sleep: async () => assert.fail("expired watcher must not sleep"),
+        },
+      ),
+      (error) => {
+        assert.match(error.message, /timed out/);
+        assert.equal(error.operationEvidence.run, 42);
+        assert.equal(error.operationEvidence.attempt, 1);
+        assert.equal(error.operationEvidence.deadline, watchOptions.deadline);
+        assert.equal(error.operationEvidence.contexts.length, required.length);
+        assert.match(error.operationEvidence.next_action, /artifacts/);
+        return true;
+      },
+    );
+    assert.equal(reads, 1);
+  }
+});
+
+test("watcher caps its final sleep to the retained deadline", async () => {
+  let current = Date.parse(watchOptions.deadline) - 2500;
+  const pauses = [];
+  await assert.rejects(
+    watchRequiredChecks(
+      { workflowRun: () => workflow(), requiredCheckState: () => checkState() },
+      {
+        ...watchOptions,
+        now: () => current,
+        sleep: async (ms) => {
+          pauses.push(ms);
+          current += ms;
+        },
+      },
+    ),
+    /timed out/,
+  );
+  assert.deepEqual(pauses, [2500]);
+});
+
+test("watcher stops on replacement identity, failed workflow, absent gates or monitoring failure", async () => {
+  for (const [runState, pattern] of [
+    [{ head_sha: base }, /run\/source\/attempt changed/],
+    [{ run_attempt: 2 }, /run\/source\/attempt changed/],
+    [{ status: "unknown" }, /status is missing or unknown/],
+    [{ created_at: "unknown" }, /creation time/],
+    [{ status: "completed", conclusion: "failure" }, /completed with failure/],
+    [{ status: "completed", conclusion: "cancelled" }, /completed with cancelled/],
+    [{ status: "completed", conclusion: null }, /no conclusion/],
+    [{ status: "completed", conclusion: "success" }, /gates remain missing/],
+  ])
+    await assert.rejects(
+      watchRequiredChecks(
+        {
+          workflowRun: () => workflow(runState),
+          requiredCheckState: () => checkState(),
+        },
+        { ...watchOptions, sleep: async () => assert.fail("terminal state must stop") },
+      ),
+      pattern,
+    );
+  await assert.rejects(
+    watchRequiredChecks(
+      {
+        workflowRun: () => {
+          throw new Error("403 readback unavailable");
+        },
+      },
+      watchOptions,
+    ),
+    (error) => {
+      assert.match(error.message, /monitoring failed/);
+      assert.equal(error.operationEvidence.head, head);
+      return true;
+    },
+  );
+});
+
+test("watcher rejects missing identity/deadline before querying and does not accept old green gates while the run is pending", async () => {
+  const client = { workflowRun: () => assert.fail("invalid options must stop before API access") };
+  for (const overrides of [
+    { run: 0 },
+    { attempt: 0 },
+    { deadline: undefined },
+    { deadline: "in one hour" },
+    { deadline: "2026-02-30T22:00:00Z" },
+    { deadline: "2026-10-01T22:00:00+00:00" },
+  ])
+    await assert.rejects(watchRequiredChecks(client, { ...watchOptions, ...overrides }));
+  await assert.rejects(
+    watchRequiredChecks(
+      { workflowRun: () => workflow(), requiredCheckState: () => checkState("success") },
+      { ...watchOptions, now: () => Date.parse(watchOptions.deadline) },
+    ),
+    /timed out/,
+  );
+});
+
+test("workflow REST readback validates repository and opaque run identity", () => {
+  let body = { ...workflow(), repository: { full_name: "boburning/portcove" } };
+  const client = new PullRequestDeliveryClient((args) => {
+    assert.equal(args[2], "repos/boburning/portcove/actions/runs/42");
+    return included(body);
+  });
+  assert.equal(client.workflowRun(42).id, 42);
+  body = { ...body, id: 43 };
+  assert.throws(() => client.workflowRun(42), /identity/);
+  body = { ...body, id: 42, repository: { full_name: "other/portcove" } };
+  assert.throws(() => client.workflowRun(42), /identity/);
+});
+
+test("watcher rejects green checks from another run/attempt or incomplete job inventory", async () => {
+  for (const change of [
+    (jobs) => jobs.slice(1),
+    (jobs) => [{ ...jobs[0], run_id: 43 }, ...jobs.slice(1)],
+    (jobs) => [{ ...jobs[0], run_attempt: 2 }, ...jobs.slice(1)],
+    (jobs) => [{ ...jobs[0], head_sha: base }, ...jobs.slice(1)],
+    (jobs) => [{ ...jobs[0], name: "other" }, ...jobs.slice(1)],
+    (jobs) => [{ ...jobs[0], conclusion: "skipped" }, ...jobs.slice(1)],
+    (jobs) => [{ ...jobs[0], check_run_url: jobs[1].check_run_url }, ...jobs.slice(1)],
+    (jobs) => [
+      { ...jobs[0], check_run_url: "https://api.github.com/repos/other/repo/check-runs/1" },
+      ...jobs.slice(1),
+    ],
+  ])
+    await assert.rejects(
+      watchRequiredChecks(
+        {
+          workflowRun: () => workflow({ status: "completed", conclusion: "success" }),
+          requiredCheckState: () => checkState("success"),
+          workflowJobs: () => change(workflowJobs()),
+        },
+        watchOptions,
+      ),
+      /inventory|not a successful job/,
+    );
+  await assert.rejects(
+    watchRequiredChecks(
+      {
+        workflowRun: () => workflow({ status: "completed", conclusion: "success" }),
+        requiredCheckState: () => checkState("success"),
+        workflowJobs: () => {
+          throw new Error("incomplete paginated jobs");
+        },
+      },
+      watchOptions,
+    ),
+    /job readback failed/,
+  );
+});
+
+test("workflow attempt job inventory follows pagination and rejects incomplete totals", () => {
+  let incomplete = false;
+  const client = new PullRequestDeliveryClient((args) => {
+    const endpoint = args[2];
+    assert.match(endpoint, /actions\/runs\/42\/attempts\/1\/jobs/);
+    if (endpoint.includes("page=2"))
+      return included({ total_count: 5, jobs: workflowJobs().slice(1) });
+    return included(
+      { total_count: incomplete ? 6 : 5, jobs: workflowJobs().slice(0, 1) },
+      {
+        link: '<https://api.github.com/repos/boburning/portcove/actions/runs/42/attempts/1/jobs?per_page=100&page=2>; rel="next"',
+      },
+    );
+  });
+  assert.equal(client.workflowJobs(42, 1).length, 5);
+  incomplete = true;
+  assert.throws(() => client.workflowJobs(42, 1), /incomplete|total/);
+});
+
+test("watch-only API reads bound subprocess and whole observation without altering merge clients", () => {
+  let time = 1000;
+  const timeouts = [];
+  const client = createWatchClient({
+    now: () => time,
+    spawn: (_command, _args, options) => {
+      timeouts.push(options.timeout);
+      assert.equal(options.killSignal, "SIGKILL");
+      return {
+        status: 0,
+        stdout: included({ ...workflow(), repository: { full_name: "boburning/portcove" } }),
+        stderr: "",
+      };
+    },
+  });
+  assert.throws(() => client.workflowRun(42), /60-second budget/);
+  client.beginObservation();
+  client.workflowRun(42);
+  time += 59_500;
+  client.workflowRun(42);
+  time += 500;
+  assert.throws(() => client.workflowRun(42), /60-second budget/);
+  assert.deepEqual(timeouts, [15_000, 500]);
+});
+
+test("subprocess timeout is retained as a failed observation with no retry", async () => {
+  let calls = 0;
+  const client = createWatchClient({
+    spawn: () => {
+      calls += 1;
+      return { error: Object.assign(new Error("spawnSync gh ETIMEDOUT"), { code: "ETIMEDOUT" }) };
+    },
+  });
+  await assert.rejects(watchRequiredChecks(client, watchOptions), (error) => {
+    assert.match(error.message, /monitoring failed.*ETIMEDOUT/);
+    assert.equal(error.operationEvidence.deadline, watchOptions.deadline);
+    return true;
+  });
+  assert.equal(calls, 1);
+});
+
+test("watcher rejects an attempt changed during otherwise successful job collection", async () => {
+  let reads = 0;
+  await assert.rejects(
+    watchRequiredChecks(
+      {
+        workflowRun: () =>
+          workflow({
+            status: "completed",
+            conclusion: "success",
+            run_attempt: ++reads === 1 ? 1 : 2,
+          }),
+        requiredCheckState: () => checkState("success"),
+        workflowJobs,
+      },
+      watchOptions,
+    ),
+    (error) => {
+      assert.match(error.message, /changed during job collection/);
+      assert.equal(error.operationEvidence.workflow.run_attempt, 2);
+      return true;
+    },
+  );
+  assert.equal(reads, 2);
 });
 
 test("REST merge uses the exact SHA and verifies remote completion", () => {

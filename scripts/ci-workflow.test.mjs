@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
-import { readFile, readdir } from "node:fs/promises";
+import { readFile, readdir, mkdtemp, mkdir, rm, symlink, writeFile } from "node:fs/promises";
 import test from "node:test";
+import os from "node:os";
+import path from "node:path";
+import { encodeBackupEvidence, recoverBackupEvidence } from "./native-backup-evidence.mjs";
+import { AUDIT_STAGES, receiptEnvelope } from "./audit.mjs";
+import { renderDeepAuditSummary } from "./deep-audit-summary.mjs";
 
 const workflow = await readFile(new URL("../.github/workflows/ci.yml", import.meta.url), "utf8");
 const qualificationWorkflow = await readFile(
@@ -25,6 +30,50 @@ const windowsQualificationRunner = await readFile(
 );
 const requiredCiSurface = `${workflow}\n${windowsQualificationRunner}`;
 
+test("hosted backup focus is manual-only, pinned, isolated and retains real evidence without billed storage", async () => {
+  const source = await readFile(
+    new URL("../.github/workflows/native-design-compatibility.yml", import.meta.url),
+    "utf8",
+  );
+  assert.match(source, /^ {2}workflow_dispatch:$/m);
+  assert.doesNotMatch(source, /^ {2}(pull_request|push|schedule|workflow_run):/m);
+  assert.match(source, /^permissions:\n {2}contents: read$/m);
+  assert.match(source, /runs-on: windows-2022/);
+  assert.match(source, /persist-credentials: false/);
+  assert.match(source, /\$env:FOCUS_HEAD -ne '161e577dc48f93db98a9930853e808e22c43c7b2'/);
+  assert.match(source, /git -c user.name=PortcoveQualification .* merge --no-ff --no-edit/);
+  assert.match(source, /merge_head = \(git rev-parse HEAD\)/);
+  assert.match(source, /merge_parents = \(git show -s --format=%P HEAD\)/);
+  assert.match(source, /just desktop-verify --scenario native-backup-delete-focus --require-clean/);
+  const windows = source.split("  backup_focus:\n")[1]?.split("\n  edge_driver_proof:")[0];
+  assert.ok(windows);
+  assert.doesNotMatch(
+    windows,
+    /VITE_PORTCOVE_DESIGN_COMPATIBILITY_FIXTURE|upload-artifact|rust-cache|actions\/cache|cache: pnpm/,
+  );
+  assert.match(
+    source,
+    /qualify:\n {4}if: \$\{\{ !inputs\.edge_driver_proof && inputs\.runner != 'windows-2022' \}\}/,
+  );
+  assert.match(
+    windows,
+    /^ {4}if: \$\{\{ !inputs\.edge_driver_proof && inputs\.runner == 'windows-2022' \}\}/,
+  );
+  assert.match(windows, /PORTCOVE_TEMP_DIR: \$\{\{ github.workspace \}\}/);
+  assert.doesNotMatch(windows.split("    steps:")[0], /\$\{\{ runner\./);
+  assert.match(windows, /id: native-quality-pins/);
+  assert.match(windows, /node scripts\/quality-tools.mjs --github-output >> \$env:GITHUB_OUTPUT/);
+  assert.match(windows, /taiki-e\/install-action@c3ec0de9ae7f1019cea21aa96aa0a895b9552063/);
+  assert.match(windows, /tool: \$\{\{ steps.native-quality-pins.outputs.required_prebuilt \}\}/);
+  assert.ok(
+    windows.indexOf("Provision existing pinned prebuilt quality tools") <
+      windows.indexOf("./scripts/bootstrap-quality-tools.ps1 -Desktop"),
+  );
+
+  assert.match(source, /if: always\(\)[\s\S]*native-backup-evidence.mjs emit/);
+  assert.match(source, /if \(\$LASTEXITCODE -ne 0\) \{ throw 'Required evidence retention failed/);
+});
+
 function jobSection(name, nextName) {
   const end = nextName ? `(?=^  ${nextName}:)` : "(?![\\s\\S])";
   return workflow.match(new RegExp(`^  ${name}:\\r?\\n([\\s\\S]*?)${end}`, "m"))?.[1] ?? "";
@@ -45,6 +94,28 @@ test("native scenario consumers keep Node and context contracts in both frontend
     );
     assert.match(section, /pnpm install --frozen-lockfile/);
   }
+});
+
+test("EdgeDriver trust proof is manual, isolated, and does not launch the application", () => {
+  const job = nativeDesignCompatibilityWorkflow.split("\n  edge_driver_proof:")[1];
+  assert.ok(job);
+  assert.match(job, /if: inputs\.edge_driver_proof/u);
+  assert.match(job, /runs-on: windows-2022/u);
+  assert.match(job, /persist-credentials: false/u);
+  assert.doesNotMatch(
+    job,
+    /upload-artifact|actions\/cache|cache:|cargo|bootstrap-quality-tools\.ps1 -Desktop|desktop-verify/u,
+  );
+  assert.match(job, /Test-VerifiedEdgeDriver \$downloaded \$version/u);
+  assert.match(job, /Test-VerifiedEdgeDriver \$cached \$version/u);
+  assert.match(job, /Test-VerifiedEdgeDriver \$cached '0\.0\.0\.0'/u);
+  assert.match(job, /https:\/\/msedgedriver\.microsoft\.com/u);
+  assert.match(job, /bootstrap_sha256/u);
+  assert.match(job, /driver_sha256/u);
+  assert.match(
+    nativeDesignCompatibilityWorkflow,
+    /if: \$\{\{ !inputs\.edge_driver_proof && inputs\.runner != 'windows-2022' \}\}/u,
+  );
 });
 
 test("native design compatibility remains explicit, isolated, and non-publishing", () => {
@@ -1190,4 +1261,281 @@ test("Rust reports slow tests, terminates hangs and retains documentation covera
   assert.doesNotMatch(rustQuality, /cargo nextest run/);
   assert.match(workflow, /CARGO_PROFILE_TEST_DEBUG: line-tables-only/);
   assert.match(workflow, /CARGO_PROFILE_DEV_DEBUG: line-tables-only/);
+});
+
+test("deep audit summary retains audit status without artifacts or privilege changes", async () => {
+  const deep = await readFile(
+    new URL("../.github/workflows/deep-quality.yml", import.meta.url),
+    "utf8",
+  );
+  assert.match(deep, /id: fresh-audit/);
+  assert.match(deep, /just audit --fresh\r?\n {10}audit_status=\$\?/);
+  assert.match(deep, /exit "\$audit_status"/);
+  assert.match(deep, /node scripts\/deep-audit-summary\.mjs --start/);
+  assert.match(deep, /node scripts\/deep-audit-summary\.mjs --finish "\$audit_status"/);
+  assert.match(deep, /name: Summarize structured audit evidence\r?\n {8}if: always\(\)/);
+  assert.match(deep, /AUDIT_OUTCOME: \$\{\{ steps\.fresh-audit\.outcome \}\}/);
+  assert.match(deep, /AUDIT_EXIT_CODE: \$\{\{ steps\.fresh-audit\.outputs\.exit_code \}\}/);
+  assert.match(
+    deep,
+    /run: node scripts\/deep-audit-summary\.mjs \|\| echo "Structured audit evidence unavailable"/,
+  );
+  assert.match(deep, /^permissions:\r?\n {2}contents: read$/m);
+  assert.doesNotMatch(deep, /upload-artifact|continue-on-error|secrets:|schedule:|tee /);
+});
+
+const auditSummarySource = "a".repeat(40);
+const identity = {
+  source: auditSummarySource,
+  workflowSha: auditSummarySource,
+  workflowDigest: "b".repeat(64),
+  workflowRef: "boburning/portcove/.github/workflows/deep-quality.yml@refs/heads/main",
+  run: "12",
+  attempt: "2",
+  outcome: "success",
+  exitCode: "0",
+  started: "1700000000",
+};
+function fixture() {
+  return {
+    format: 1,
+    kind: "audit-run",
+    profile: "complete",
+    head: auditSummarySource,
+    success: true,
+    completedAt: "2023-11-14T22:13:21Z",
+    stages: AUDIT_STAGES.filter((stage) => !stage.platforms).map((stage) => ({
+      id: stage.id,
+      recipe: stage.recipe,
+      originatingHead: auditSummarySource,
+      status: "passed",
+      durationMs: 123,
+      rationale: "secret diagnostic /private/path",
+    })),
+  };
+}
+test("complete fresh success publishes bounded identities and stage results only", () => {
+  const text = renderDeepAuditSummary(receiptEnvelope(fixture()), identity, binding(fixture()));
+  assert.match(text, /Complete fresh audit receipt: passed/);
+  assert.match(text, /Run: 12; attempt: 2/);
+  assert.match(text, /\| rust \| passed \| 123 \| 0 \|/);
+  assert.doesNotMatch(text, /secret diagnostic|private\/path|rationale/);
+  assert.ok(text.length < 4096);
+});
+test("failed full audit retains actual stage failure and exit status", () => {
+  const payload = fixture();
+  payload.success = false;
+  Object.assign(payload.stages[1], { status: "failed", exitCode: 2 });
+  const text = renderDeepAuditSummary(
+    receiptEnvelope(payload),
+    {
+      ...identity,
+      outcome: "failure",
+      exitCode: "1",
+    },
+    { ...binding(payload), exitCode: "1" },
+  );
+  assert.match(text, /receipt: failed/);
+  assert.match(text, /\| rust \| failed \| 123 \| 2 \|/);
+  assert.match(text, /Recorded audit exit status: 1/);
+});
+for (const [name, mutate] of [
+  [
+    "wrong source",
+    (p) => {
+      p.head = "c".repeat(40);
+    },
+  ],
+  [
+    "stale receipt",
+    (p) => {
+      p.completedAt = "2023-11-14T22:13:19Z";
+    },
+  ],
+  [
+    "partial profile",
+    (p) => {
+      p.profile = "transition";
+    },
+  ],
+  [
+    "missing stage",
+    (p) => {
+      p.stages.pop();
+    },
+  ],
+  [
+    "duplicate stage",
+    (p) => {
+      p.stages[1] = p.stages[0];
+    },
+  ],
+  [
+    "reused stage",
+    (p) => {
+      p.stages[1].status = "reused";
+    },
+  ],
+  [
+    "foreign stage source",
+    (p) => {
+      p.stages[1].originatingHead = "c".repeat(40);
+    },
+  ],
+  [
+    "injected label",
+    (p) => {
+      p.stages[1].id = "rust\nsecret";
+    },
+  ],
+  [
+    "invalid duration",
+    (p) => {
+      p.stages[1].durationMs = -1;
+    },
+  ],
+  [
+    "false success",
+    (p) => {
+      p.success = false;
+    },
+  ],
+])
+  test(`${name} never establishes coverage or success`, () => {
+    const payload = fixture();
+    mutate(payload);
+    const text = renderDeepAuditSummary(receiptEnvelope(payload), identity, binding(payload));
+    assert.match(text, /unavailable or invalid/);
+    assert.doesNotMatch(text, /receipt: passed|\| rust/);
+  });
+test("missing, corrupt, cancelled and unavailable exit receipts never pass", () => {
+  for (const receipt of [undefined, {}, { ...receiptEnvelope(fixture()), integrity: "bad" }]) {
+    assert.match(renderDeepAuditSummary(receipt, identity), /unavailable or invalid/);
+  }
+  for (const patch of [{ outcome: "cancelled" }, { exitCode: "" }, { exitCode: "1" }]) {
+    assert.match(
+      renderDeepAuditSummary(receiptEnvelope(fixture()), { ...identity, ...patch }),
+      /unavailable or invalid/,
+    );
+  }
+});
+test("invalid identity cannot inject public output", () => {
+  for (const key of [
+    "source",
+    "workflowSha",
+    "workflowDigest",
+    "workflowRef",
+    "run",
+    "attempt",
+    "outcome",
+  ]) {
+    const text = renderDeepAuditSummary(receiptEnvelope(fixture()), {
+      ...identity,
+      [key]: "secret\n<script>",
+    });
+    assert.match(text, /Identity unavailable or invalid/);
+    assert.doesNotMatch(text, /secret|script>/);
+  }
+});
+
+function binding(payload) {
+  return {
+    ...identity,
+    startedMs: 1700000000000,
+    completedMs: 1700000002000,
+    receiptIntegrity: receiptEnvelope(payload).integrity,
+  };
+}
+
+test("deep audit rejects another attempt, missing completion and future receipt", () => {
+  const payload = fixture();
+  for (const patch of [
+    { attempt: "1" },
+    { run: "11" },
+    { workflowSha: "c".repeat(40) },
+    { workflowDigest: "c".repeat(64) },
+    { completedMs: undefined },
+    { receiptIntegrity: "bad" },
+  ]) {
+    assert.match(
+      renderDeepAuditSummary(receiptEnvelope(payload), identity, { ...binding(payload), ...patch }),
+      /unavailable or invalid/,
+    );
+  }
+  payload.completedAt = "2023-11-14T22:13:23Z";
+  assert.match(
+    renderDeepAuditSummary(receiptEnvelope(payload), identity, binding(payload)),
+    /unavailable or invalid/,
+  );
+});
+
+test("real evidence bytes round-trip through timestamped job logs without exporting library or profile", async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "backup-evidence-"));
+  try {
+    const source = path.join(root, "source");
+    const native = path.join(source, "desktop-verify", "one-run", "native");
+    await mkdir(path.join(native, "library"), { recursive: true });
+    await mkdir(path.join(native, "webview"));
+    await writeFile(path.join(source, "host.json"), '{"revision":"owned"}');
+    const image = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10, 0, 255, 23]);
+    await writeFile(path.join(native, "success.png"), image);
+    await writeFile(path.join(native, "evidence.json"), '{"outcome":"failed"}');
+    await writeFile(path.join(native, "library", "private.json"), "never-export");
+    await writeFile(path.join(native, "webview", "profile.json"), "never-export");
+    await writeFile(path.join(native, "session-startup-0.jsonl"), '{"owned_process":"identity"}\n');
+    const encoded = await encodeBackupEvidence(source);
+    const log = encoded
+      .split("\n")
+      .map((line) => `2026-10-01T00:00:00Z ${line}`)
+      .join("\n");
+    const recovered = path.join(root, "recovered");
+    const names = await recoverBackupEvidence(log, recovered);
+    assert.equal(names.length, 4);
+    assert.ok(!names.some((name) => /library|webview/.test(name)));
+    assert.deepEqual(
+      await readFile(path.join(recovered, "desktop-verify/one-run/native/success.png")),
+      image,
+    );
+    assert.equal(
+      await readFile(path.join(recovered, "desktop-verify/one-run/native/evidence.json"), "utf8"),
+      '{"outcome":"failed"}',
+    );
+    await assert.rejects(recoverBackupEvidence(log, recovered), /EEXIST/);
+    await assert.rejects(
+      recoverBackupEvidence(encoded + "\n" + encoded, path.join(root, "duplicate")),
+      /Incomplete/,
+    );
+    await assert.rejects(
+      recoverBackupEvidence(
+        encoded.replace(/ [a-f0-9]{64} /, ` ${"0".repeat(64)} `),
+        path.join(root, "corrupt"),
+      ),
+      /hash mismatch/,
+    );
+    await assert.rejects(
+      recoverBackupEvidence("no retained evidence", path.join(root, "missing")),
+      /Missing/,
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("export refuses links and oversized evidence instead of silently dropping required images", async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "backup-evidence-"));
+  try {
+    const file = path.join(root, "large.json");
+    await writeFile(file, Buffer.alloc(12 * 1024 * 1024 + 1));
+    await assert.rejects(encodeBackupEvidence(root), /excessive/);
+    await rm(file);
+    await mkdir(path.join(root, "target"));
+    await symlink(
+      path.join(root, "target"),
+      path.join(root, "linked.json"),
+      process.platform === "win32" ? "junction" : "dir",
+    );
+    await assert.rejects(encodeBackupEvidence(root), /regular files/);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
 });

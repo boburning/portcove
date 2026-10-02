@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { copyFileSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import os from "node:os";
 import path from "node:path";
@@ -9,6 +9,7 @@ import test from "node:test";
 import {
   cachedDesktopDrivers,
   checkoutToolEnvironment,
+  readToolPins,
   readToolState,
   pinnedAquaCommand,
   toolCachePaths,
@@ -24,6 +25,7 @@ function aquaFixture(t) {
     pin_fingerprint: item.paths.pins.fingerprint,
     shared_root: item.paths.sharedRoot,
     shim_directory: item.paths.shimDirectory,
+    aqua_root: item.paths.aquaRoot,
     aqua: item.paths.aquaExecutable,
   };
   writeFileSync(item.paths.statePath, JSON.stringify(state));
@@ -203,6 +205,7 @@ function fixture() {
     packageManager: "pnpm@12.4.1",
     bootstrap: { schema_version: 1 },
     fingerprint: "a".repeat(64),
+    aquaFingerprint: "e".repeat(64),
   };
   const paths = toolCachePaths({
     projectRoot,
@@ -228,7 +231,12 @@ test("shared payload paths are stable while checkout shims remain isolated", (t)
   assert.equal(sibling.aquaExecutable, item.paths.aquaExecutable);
   assert.equal(sibling.aquaRoot, item.paths.aquaRoot);
   assert.notEqual(sibling.shimDirectory, item.paths.shimDirectory);
-  const changedPins = { ...item.paths.pins, aquaSemver: "2.63.0", fingerprint: "b".repeat(64) };
+  const changedPins = {
+    ...item.paths.pins,
+    aquaSemver: "2.63.0",
+    fingerprint: "b".repeat(64),
+    aquaFingerprint: "f".repeat(64),
+  };
   const different = toolCachePaths({
     projectRoot: path.join(item.root, "third-checkout"),
     environment: { PORTCOVE_SHARED_TOOL_CACHE: item.paths.sharedRoot },
@@ -239,6 +247,237 @@ test("shared payload paths are stable while checkout shims remain isolated", (t)
   assert.equal(different.sharedRoot, item.paths.sharedRoot);
   assert.notEqual(different.aquaExecutable, item.paths.aquaExecutable);
   assert.notEqual(different.aquaRoot, item.paths.aquaRoot);
+});
+
+function pinnedCheckoutFixture(t) {
+  const item = fixture();
+  t.after(() => rmSync(item.root, { recursive: true, force: true }));
+  for (const name of [
+    ".aqua-version",
+    "aqua.yaml",
+    "aqua-checksums.json",
+    ".github/quality-tools.json",
+    ".config/tool-bootstrap.json",
+    "package.json",
+  ]) {
+    const target = path.join(item.paths.projectRoot, name);
+    mkdirSync(path.dirname(target), { recursive: true });
+    copyFileSync(new URL(`../${name}`, import.meta.url), target);
+  }
+  const paths = toolCachePaths({
+    projectRoot: item.paths.projectRoot,
+    environment: { PORTCOVE_SHARED_TOOL_CACHE: item.paths.sharedRoot },
+    platform: "win32",
+    architecture: "x64",
+  });
+  return { ...item, paths };
+}
+
+function changeJson(contents, change) {
+  const value = JSON.parse(contents);
+  change(value);
+  return JSON.stringify(value);
+}
+
+test("unrelated pins preserve the Aqua root while invalidating checkout state", (t) => {
+  const item = pinnedCheckoutFixture(t);
+  mkdirSync(item.paths.shimDirectory, { recursive: true });
+  writeFileSync(
+    item.paths.statePath,
+    JSON.stringify({
+      format_version: 1,
+      pin_fingerprint: item.paths.pins.fingerprint,
+      shared_root: item.paths.sharedRoot,
+      shim_directory: item.paths.shimDirectory,
+      aqua_root: item.paths.aquaRoot,
+    }),
+  );
+  assert.notEqual(item.paths.pins.aquaFingerprint, item.paths.pins.fingerprint);
+  assert.ok(readToolState({ paths: item.paths }));
+  const changes = [
+    [
+      "package.json",
+      (text) =>
+        changeJson(text, (value) => {
+          value.packageManager = "pnpm@99.0.0";
+        }),
+    ],
+    [
+      "package.json",
+      (text) =>
+        changeJson(text, (value) => {
+          value.description = "unrelated metadata";
+        }),
+    ],
+    [
+      "package.json",
+      (text) =>
+        changeJson(text, (value) => {
+          value.scripts.example = "unrelated script";
+        }),
+    ],
+    [
+      ".github/quality-tools.json",
+      (text) =>
+        changeJson(text, (value) => {
+          value.tools[0].version = "99.0.0";
+        }),
+    ],
+    [
+      ".config/tool-bootstrap.json",
+      (text) =>
+        changeJson(text, (value) => {
+          value.desktop.tauri_driver = "99.0.0";
+        }),
+    ],
+  ];
+  for (const [name, change] of changes) {
+    const file = path.join(item.paths.projectRoot, name);
+    const original = readFileSync(file, "utf8");
+    writeFileSync(file, change(original));
+    const pins = readToolPins(item.paths.projectRoot);
+    const paths = toolCachePaths({
+      projectRoot: item.paths.projectRoot,
+      environment: { PORTCOVE_SHARED_TOOL_CACHE: item.paths.sharedRoot },
+      platform: "win32",
+      architecture: "x64",
+      pins,
+    });
+    assert.notEqual(pins.fingerprint, item.paths.pins.fingerprint, name);
+    assert.equal(pins.aquaFingerprint, item.paths.pins.aquaFingerprint, name);
+    assert.equal(paths.aquaRoot, item.paths.aquaRoot, name);
+    assert.equal(readToolState({ paths }), null, name);
+    writeFileSync(file, original);
+  }
+});
+
+test("every Aqua manifest and bootstrap integrity input invalidates its root", (t) => {
+  const item = pinnedCheckoutFixture(t);
+  const changes = [
+    [".aqua-version", () => "v99.0.0\n"],
+    ["aqua.yaml", (text) => text.replace(/ref: v\S+/u, "ref: v99.0.0")],
+    ...["astral-sh/ruff", "rhysd/actionlint", "koalaman/shellcheck"].map((name) => [
+      "aqua.yaml",
+      (text) => text.replace(new RegExp(`${name}@\\S+`, "u"), `${name}@v99.0.0`),
+    ]),
+    ...["registries/", "github_release/"].map((prefix) => [
+      "aqua-checksums.json",
+      (text) =>
+        changeJson(text, (value) => {
+          const entry = value.checksums.find(({ id }) => id.startsWith(prefix));
+          entry.checksum = entry.checksum === "A".repeat(64) ? "B".repeat(64) : "A".repeat(64);
+        }),
+    ]),
+    ...["win32-x64", "win32-arm64"].map((architecture) => [
+      ".config/tool-bootstrap.json",
+      (text) =>
+        changeJson(text, (value) => {
+          const artifact = value.aqua.artifacts[architecture];
+          artifact.sha256 = artifact.sha256 === "A".repeat(64) ? "B".repeat(64) : "A".repeat(64);
+        }),
+    ]),
+  ];
+  for (const [name, change] of changes) {
+    const file = path.join(item.paths.projectRoot, name);
+    const original = readFileSync(file, "utf8");
+    const changed = change(original);
+    assert.notEqual(changed, original, name);
+    writeFileSync(file, changed);
+    const pins = readToolPins(item.paths.projectRoot);
+    const paths = toolCachePaths({
+      projectRoot: item.paths.projectRoot,
+      environment: { PORTCOVE_SHARED_TOOL_CACHE: item.paths.sharedRoot },
+      platform: "win32",
+      architecture: "x64",
+      pins,
+    });
+    assert.notEqual(pins.aquaFingerprint, item.paths.pins.aquaFingerprint, name);
+    assert.notEqual(paths.aquaRoot, item.paths.aquaRoot, name);
+    writeFileSync(file, original);
+  }
+});
+
+test("Aqua cache identity preserves official-origin and bootstrap pin rejection", (t) => {
+  const item = pinnedCheckoutFixture(t);
+  const file = path.join(item.paths.projectRoot, ".config/tool-bootstrap.json");
+  const original = readFileSync(file, "utf8");
+  for (const [change, expected] of [
+    [
+      (value) => {
+        value.aqua.release_base = "https://example.invalid/aqua";
+      },
+      /official release origin/u,
+    ],
+    [
+      (value) => {
+        value.aqua.artifacts["win32-x64"].archive = "arbitrary.zip";
+      },
+      /invalid Aqua archive/u,
+    ],
+    [
+      (value) => {
+        value.aqua.artifacts["win32-arm64"].sha256 = "invalid";
+      },
+      /invalid Aqua SHA-256/u,
+    ],
+    [
+      (value) => {
+        value.schema_version = 2;
+      },
+      /schema_version must be 1/u,
+    ],
+  ]) {
+    writeFileSync(file, changeJson(original, change));
+    assert.throws(() => readToolPins(item.paths.projectRoot), expected);
+  }
+});
+
+test("supported hosts share Aqua identity and retain separate Aqua executable paths", (t) => {
+  const item = pinnedCheckoutFixture(t);
+  const executables = new Set();
+  for (const platform of ["win32", "linux", "darwin"]) {
+    for (const architecture of ["x64", "arm64"]) {
+      const paths = toolCachePaths({
+        projectRoot: item.paths.projectRoot,
+        environment: { PORTCOVE_SHARED_TOOL_CACHE: item.paths.sharedRoot },
+        platform,
+        architecture,
+      });
+      assert.equal(paths.aquaRoot, item.paths.aquaRoot);
+      assert.ok(paths.aquaExecutable.includes(`${platform}-${architecture}`));
+      executables.add(paths.aquaExecutable);
+    }
+  }
+  assert.equal(executables.size, 6);
+});
+
+test("historical Aqua roots invalidate checkout state before any executable probe", (t) => {
+  const item = aquaFixture(t);
+  const legacyRoot = path.join(item.paths.sharedRoot, "aqua-roots", item.paths.pins.fingerprint);
+  assert.notEqual(legacyRoot, item.paths.aquaRoot);
+  writeFileSync(item.paths.statePath, JSON.stringify({ ...item.state, aqua_root: legacyRoot }));
+  assert.equal(readToolState({ paths: item.paths }), null);
+  let probes = 0;
+  assert.throws(
+    () =>
+      pinnedAquaCommand({
+        paths: item.paths,
+        platform: "win32",
+        osArchitecture: "x64",
+        probe: () => {
+          probes++;
+          return { status: 0, stdout: "aqua version 2.62.3" };
+        },
+      }),
+    /checkout state.*bootstrap-quality-tools/u,
+  );
+  assert.equal(probes, 0);
+  for (const aquaRoot of [null, path.join(item.root, "unrelated-root")]) {
+    writeFileSync(item.paths.statePath, JSON.stringify({ ...item.state, aqua_root: aquaRoot }));
+    assert.equal(readToolState({ paths: item.paths }), null);
+  }
+  writeFileSync(item.paths.statePath, JSON.stringify(item.state));
+  assert.ok(readToolState({ paths: item.paths }));
 });
 
 test("checkout environment prepends only the local shims and scopes Aqua", (t) => {
@@ -263,6 +502,7 @@ test("state is rejected after pin drift or missing desktop payloads", (t) => {
     pin_fingerprint: item.paths.pins.fingerprint,
     shared_root: item.paths.sharedRoot,
     shim_directory: item.paths.shimDirectory,
+    aqua_root: item.paths.aquaRoot,
     desktop: {
       tauri_driver: path.join(item.root, "tauri-driver.exe"),
       native_driver: path.join(item.root, "msedgedriver.exe"),

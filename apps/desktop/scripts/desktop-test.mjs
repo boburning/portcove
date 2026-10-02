@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
+import { writeFileSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import net from "node:net";
@@ -231,6 +232,18 @@ let driver;
 let browser;
 let driverLog = "";
 let startupAttempt = 0;
+const backupFocusSession = selection.selected_scenarios.includes("native-backup-delete-focus");
+if (backupFocusSession) {
+  assert.equal(process.platform, "win32", "The exact backup-focus consent route requires Windows");
+  assert.deepEqual(
+    selection.selected_scenarios,
+    ["native-backup-delete-focus"],
+    "The bounded backup-focus qualification must run as one exact scenario",
+  );
+}
+let backupFocusDriver;
+let backupFocusCleanupSnapshot;
+let backupFocusCleanup;
 const nativeLock = await acquireNativeSessionLock({
   workspace: root,
   profile: selection.profile,
@@ -238,6 +251,10 @@ const nativeLock = await acquireNativeSessionLock({
 });
 const harnessStarted = new Date();
 function stopDriver() {
+  if (backupFocusSession) {
+    stopBackupFocusDriver();
+    return;
+  }
   if (!driver?.pid || driver.exitCode !== null) return;
   if (process.platform === "win32") {
     spawnCommand("taskkill.exe", ["/PID", String(driver.pid), "/T", "/F"], {
@@ -252,6 +269,97 @@ function stopDriver() {
       /* Already stopped. */
     }
   }
+}
+
+function stopBackupFocusDriver() {
+  if (backupFocusCleanup || !driver?.pid) return;
+  const snapshot = captureBackupFocusCleanup();
+  const stopped =
+    driver.exitCode === null
+      ? observeNativeSession("StopDriver", snapshot)
+      : { method: "observed-child-exit", exit_code: driver.exitCode };
+  const exited = observeNativeSession("Wait", snapshot);
+  backupFocusCleanup = { stopped, exited, snapshot };
+  driver = undefined;
+}
+
+function validateBackupFocusInventory(captured) {
+  if (
+    checks.some(
+      (check) => check.scenario === "native-backup-delete-focus" && check.outcome === "passed",
+    )
+  ) {
+    assert.equal(
+      captured.processes.filter(
+        (entry) =>
+          path.resolve(entry.path).toLowerCase() === path.resolve(values.app).toLowerCase(),
+      ).length,
+      1,
+      "Successful native qualification requires one captured application",
+    );
+    assert.ok(
+      captured.processes.some(
+        (entry) => path.basename(entry.path).toLowerCase() === "msedgewebview2.exe",
+      ),
+      "Successful native qualification requires actual WebView identities",
+    );
+    assert.equal(
+      captured.processes.filter(
+        (entry) =>
+          path.resolve(entry.path).toLowerCase() ===
+          path.resolve(values["native-driver"]).toLowerCase(),
+      ).length,
+      1,
+      "Successful native qualification requires the exact selected native driver identity",
+    );
+  }
+}
+
+function captureBackupFocusCleanup() {
+  if (backupFocusCleanupSnapshot) return backupFocusCleanupSnapshot;
+  assert.ok(
+    backupFocusDriver && driver?.pid,
+    "Missing initial owned driver identity; refuse unchecked cleanup",
+  );
+  const original = path.join(output, "backup-focus-final-processes.json");
+  const captured = observeNativeSession("SnapshotDriverTree", original);
+  artifacts.push(original);
+  assert.deepEqual(
+    captured.driver,
+    backupFocusDriver,
+    "Driver identity changed since owned launch",
+  );
+  try {
+    validateBackupFocusInventory(captured);
+  } catch (error) {
+    checks.push({
+      scenario: "native-backup-process-inventory",
+      outcome: "failed",
+      message: error.message,
+    });
+    process.exitCode = 1;
+  }
+  // Preserve the original snapshot; the existing Wait helper iterates processes.
+  // Include the captured driver root in a separate, explicitly derived inventory
+  // so positive exit shares the same five-second bound for root and descendants.
+  const checked = path.join(output, "backup-focus-exit-inventory.json");
+  writeFileSync(
+    checked,
+    JSON.stringify(
+      {
+        ...captured,
+        source_snapshot: path.basename(original),
+        derivation: "include-captured-driver-root-in-positive-exit-inventory",
+        processes: [captured.driver, ...captured.processes],
+      },
+      null,
+      2,
+    ),
+    { flag: "wx" },
+  );
+  artifacts.push(checked);
+  backupFocusCleanupSnapshot = checked;
+  return checked;
 }
 async function verifySettingsRows() {
   const savedFolders = await browser.wait(
@@ -520,7 +628,16 @@ async function refreshSettings() {
 // Includes owned native artwork picker/restart coverage in addition to lifecycle reviews.
 const harnessDeadlineMs = desktopHarnessDeadlineMs(selection);
 const deadline = setTimeout(() => {
-  stopDriver();
+  try {
+    stopDriver();
+  } catch (error) {
+    checks.push({
+      scenario: "native-backup-watchdog-cleanup",
+      outcome: "failed",
+      message: error.message,
+    });
+    process.exitCode = 1;
+  }
 }, harnessDeadlineMs);
 deadline.unref();
 
@@ -812,7 +929,7 @@ async function requestApplicationShutdown(snapshot) {
   return driverStop;
 }
 
-async function restartApplication(name, prepareWhileStopped) {
+async function restartApplication(name, prepareWhileStopped, childEnvironment = {}) {
   const snapshot = path.join(output, `${name}-processes.json`);
   const restartEvidence = path.join(output, `${name}-restart.json`);
   const observation = {
@@ -832,7 +949,7 @@ async function restartApplication(name, prepareWhileStopped) {
     await prepareWhileStopped();
     observation.fixture_prepared_while_stopped = true;
   }
-  await startDriver();
+  await startDriver(childEnvironment);
   await connect();
   observation.reconnected_at = new Date().toISOString();
   await writeFile(restartEvidence, `${JSON.stringify(observation, null, 2)}\n`, { flag: "wx" });
@@ -863,7 +980,37 @@ function observeNativeSession(mode, snapshot) {
   return JSON.parse(result.stdout);
 }
 
-async function startDriver() {
+function captureBackupFocusDriverLaunch(launchStarted) {
+  const snapshot = path.join(output, "backup-focus-driver-startup.json");
+  const captured = observeNativeSession("SnapshotDriver", snapshot);
+  artifacts.push(snapshot);
+  assert.equal(captured.driver.pid, driver.pid);
+  assert.equal(
+    path.resolve(captured.driver.path).toLowerCase(),
+    path.resolve(values.driver).toLowerCase(),
+  );
+  const created = Number(BigInt(captured.driver.started_filetime) / 10_000n) - 11_644_473_600_000;
+  assert.ok(
+    created >= launchStarted - 1 && created <= Date.now(),
+    "Driver creation must belong to this launch",
+  );
+  backupFocusDriver = captured.driver;
+}
+
+async function driverReady() {
+  try {
+    const response = await fetch(`http://127.0.0.1:${port}/status`, {
+      signal: AbortSignal.timeout(500),
+    });
+    return response.ok;
+  } catch {
+    // Driver startup remains bounded by the loop and connection timeout.
+    return false;
+  }
+}
+
+async function startDriver(childEnvironment = {}) {
+  const launchStarted = Date.now();
   driver = spawn(
     values.driver,
     [
@@ -880,6 +1027,7 @@ async function startDriver() {
       stdio: ["ignore", "pipe", "pipe"],
       env: {
         ...process.env,
+        ...childEnvironment,
         ...(installFixture ? { PORTCOVE_QUALIFICATION_CATALOG: installFixture.catalogPath } : {}),
         ...(selection.prerequisites.includes("steam-fixture")
           ? { PORTCOVE_QUALIFICATION_STEAM_CLIENT_STATE: "closed" }
@@ -901,18 +1049,18 @@ async function startDriver() {
     stream.on("data", (chunk) => {
       driverLog = (driverLog + chunk).slice(-1024 * 1024);
     });
+  if (backupFocusSession) {
+    await new Promise((resolve, reject) => {
+      driver.once("spawn", resolve);
+      driver.once("error", reject);
+    });
+    captureBackupFocusDriverLaunch(launchStarted);
+  }
   for (let attempt = 0; attempt < 40; attempt++) {
     if (spawnError) throw spawnError;
     if (driver.exitCode !== null) throw new Error(`tauri-driver exited: ${driver.exitCode}`);
     await new Promise((resolve) => setTimeout(resolve, 250));
-    try {
-      const response = await fetch(`http://127.0.0.1:${port}/status`, {
-        signal: AbortSignal.timeout(500),
-      });
-      if (response.ok) return;
-    } catch {
-      /* Driver startup is bounded by the loop and connection timeout. */
-    }
+    if (await driverReady()) return;
   }
   throw new Error("tauri-driver did not become ready within ten seconds");
 }
@@ -1325,15 +1473,20 @@ try {
     await captureScenarioScreenshot("native-library-browsing-context-restored");
   });
   await catalogUpdateScenario({ browser, invoke, scenario, output, artifacts });
-  await defaultCoverScenario({
-    browser,
-    invoke,
-    scenario,
-    output,
-    artifacts,
-    capture: captureScenarioScreenshot,
-    setTheme: selectSettingsTheme,
-  });
+  for (const cacheConditions of [true, false]) {
+    await defaultCoverScenario({
+      browser,
+      invoke,
+      scenario,
+      output,
+      artifacts,
+      capture: captureScenarioScreenshot,
+      setTheme: selectSettingsTheme,
+      library,
+      restart: restartApplication,
+      cacheConditions,
+    });
+  }
   await scenario("keyboard-layout", async () => {
     const verifySidebarLabels = async () => {
       const labels = await browser.executeScript(() =>
@@ -2318,8 +2471,52 @@ try {
   process.exitCode = 1;
 } finally {
   try {
-    if (browser) await browser.quit().catch(() => {});
-    stopDriver();
+    if (backupFocusSession) {
+      try {
+        if (driver?.pid && !backupFocusCleanup) captureBackupFocusCleanup();
+        let quitError;
+        if (browser)
+          await browser.quit().catch((error) => {
+            quitError = error;
+          });
+        browser = undefined;
+        stopDriver();
+        assert.ok(
+          backupFocusCleanup,
+          "Positive owned root/application/WebView cleanup is required",
+        );
+        const report = path.join(output, "backup-focus-cleanup.json");
+        await writeFile(
+          report,
+          JSON.stringify(
+            { ...backupFocusCleanup, session_quit_error: quitError?.message },
+            null,
+            2,
+          ),
+          { flag: "wx" },
+        );
+        artifacts.push(report);
+        if (quitError) {
+          checks.push({
+            scenario: "native-backup-session-quit",
+            outcome: "failed",
+            message: quitError.message,
+          });
+          process.exitCode = 1;
+        }
+      } catch (error) {
+        checks.push({
+          scenario: "native-backup-owned-cleanup",
+          outcome: "failed",
+          message: error.message,
+        });
+        process.exitCode = 1;
+        // No PID-only fallback when identity or positive exit could not be proved.
+      }
+    } else {
+      if (browser) await browser.quit().catch(() => {});
+      stopDriver();
+    }
     clearTimeout(deadline);
     try {
       assert.equal(

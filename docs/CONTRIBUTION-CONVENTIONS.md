@@ -66,6 +66,10 @@ Keep the five template sections in order:
    findings, limitations, repairs, incremental re-review delta and final reviewed head,
    important invariants, and documentation impact. Implementer self-review may
    supplement this evidence but is not independent review.
+   The existing Renovate fast-lane exception in `AGENTS.md` takes precedence for
+   an exact head that `just renovate-check` classifies `merge-ready`: record the
+   delivering agent's concise dependency diff and upstream review instead.
+   A repair, controlled update or policy change retains independent review.
 5. **Readiness and follow-ups** — state the live Roadmap status, merge authority,
    remaining blockers or linked follow-up issues, or `None`.
 
@@ -90,10 +94,29 @@ current-head validation and review; administrator bypass remains outside the
 routine path.
 
 Keep the reviewed source head frozen while checks complete. Use
-`just pr-watch --pr <number-or-url> --head <reviewed-head> [--timeout-seconds <positive-integer>]`
-when a bounded wait for the five checked-in required contexts is useful. It defaults to one hour;
-pass a different positive timeout for another explicit bound. Once
-the pull request is ready, conflict-free, independently reviewed, authorized,
+`just pr-watch --pr <number-or-url> --head <reviewed-head> --run <id> --attempt <number> --deadline <UTC-time>`
+for one identified source-head workflow and the five checked-in required contexts.
+Success also requires every context to identify a successful job in that exact
+run attempt's complete job inventory; same-head checks from another run cannot
+supply missing jobs.
+Set the absolute UTC deadline once from the actual job start and configured
+timeout, with a bounded allowance for collecting results; track queue time
+separately. Resume with the same run, attempt, head and deadline. The former
+invocation-relative `--timeout-seconds` option is removed because restarting it
+extended the wait. The watcher polls silently every three minutes, caps its last
+sleep to the deadline, and stops on changed identity, failed checks, terminal
+missing gates, unavailable readback or expiry. Its JSON failure evidence retains
+the binding, last observations and next action. Each read-only `gh` subprocess
+has a fifteen-second limit; all reads and pagination for one observation share
+a sixty-second collection budget. A resumed expired wait may collect evidence
+once within that budget, but cannot start another polling interval. This bounded
+read collection is separate from the retained execution deadline. Inspect
+the identified run's jobs,
+logs and available artifacts once; classify product, provisioning, resource or
+authority failures from that evidence, then repair or retain a resumable
+checkpoint. The watcher neither dispatches nor retries a run, and success does
+not supply review, local, native, installed-app or merge authority. Once
+the pull request is ready, conflict-free, reviewed under its applicable contract, authorized,
 and all exact-head contexts are successful, use
 `just pr-merge-rest --pr <number-or-url> --head <reviewed-head>` for the routine
 immediate squash merge. It freezes and rechecks the source SHA and required

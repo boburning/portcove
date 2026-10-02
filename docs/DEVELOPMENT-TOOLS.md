@@ -1,5 +1,42 @@
 # Development tools
 
+## Hosted Cargo dependency validation
+
+The existing Deep audit workflow's `local-check` operation accepts an optional
+`dependency_binding` containing canonical compact JSON. Without it, the strict
+authority check, including byte-identical `Cargo.lock`, is unchanged. This opt-in
+profile supports one independently reviewed registry package update, not changes
+to validation policy, tools, features, dependency sources or arbitrary execution.
+
+The binding names `package`, `from_version`, `to_version`, `from_checksum`,
+`to_checksum`, `lock_sha256` and `manifests`. Each manifest entry names `path` and
+`section` (`dependencies` or `dev-dependencies`). Only the existing release-tools
+and desktop Cargo manifests are supported. Full immutable source, comparison
+base, merge-base, separate controller and ancestral authority revisions remain
+required; a candidate cannot appoint itself authority.
+
+The controller permits only the named existing registry lock record's version
+and checksum tokens and the matching simple version tokens in the declared
+existing manifest entries. All other repository bytes and regular file modes
+must match the trusted authority. Transitive changes, extra paths, renamed or
+removed files, features, Git/path dependencies, root manifests, helper changes,
+duplicate or ambiguous bindings and lock digest mismatches fail closed. This is
+an exact transformation of trusted bytes, not permissive TOML normalization.
+The narrow profile rejects multiline TOML strings and noncanonical CRLF inputs
+so table-shaped description text cannot be mistaken for a dependency entry.
+
+Preparation validates before provisioning; execution repeats the validation and
+digest check before and after literal `just local-check --fresh`. Existing pinned
+tools, guarded storage, environment sanitation, read-only job permissions and
+owned cleanup remain in force. Logs bind the reviewed dependency data and source
+identity to the actual execution. Required checks, independent review and
+current-target reconciliation remain separate merge obligations. A later source
+or relevant target change does not inherit this receipt automatically.
+
+Changes to this controller require the protected pre-change qualification and
+independent review. The new dependency profile cannot qualify its own authority
+changes or replace required literal locked commands with a broader audit claim.
+
 `just doctor` reads the current host and emits a concise prerequisite report.
 Use `just doctor --profile desktop` when native desktop automation is required.
 `just doctor --json` emits format version 2: workspace, platform, selected profile,
@@ -72,12 +109,23 @@ registry ref: if an actual tool update is unavailable in the pinned registry, or
 a compatibility, integrity, or security repair requires a registry change,
 advance that ref in the same reviewed change and run the integrity updater above.
 
-Linux and macOS retain `./scripts/bootstrap-quality-tools.sh`. A checkout with
-different pins resolves a different content-keyed Aqua root while sharing identical
-versioned payloads. A failed download, checksum mismatch, unsupported architecture,
-partial extraction, or invalid cached receipt fails closed. The previous verified
-payload remains in place. Run the bootstrap again to reuse cache hits; no download
-or environment mutation is performed for already verified versions.
+Linux and macOS retain `./scripts/bootstrap-quality-tools.sh`. Checkouts share an
+Aqua root when `.aqua-version`, `aqua.yaml`, `aqua-checksums.json` and the Aqua
+bootstrap data match. The versioned Aqua cache key excludes unrelated package,
+Rust quality-tool and desktop-driver inputs; those still invalidate checkout
+state and shims through the separate full pin fingerprint. Aqua retains its own
+platform-specific package resolution and checksum and publisher-attestation
+verification. The cache key identifies inputs; it is not proof of provenance.
+
+The first bootstrap for a new Aqua cache identity requires a successful fully
+verified install. Historical cache roots are not imported or adopted, and a
+blocked first download or attestation fetch remains a prerequisite failure.
+Checkout state must name the matching Aqua root; an old or missing root rejects
+the state and directs Windows commands to bootstrap before probing an executable.
+A failed download, checksum mismatch, unsupported architecture, partial extraction,
+or invalid cached receipt fails closed. Previous verified payloads remain in place.
+Run the bootstrap again to reuse Aqua's existing cache hits for matching inputs;
+unrelated pin changes no longer select an empty Aqua root.
 
 Run `just fmt-check` for the complete formatting contract, `just check-ui`
 for UI build/tests, Oxlint, Fallow, and Stylelint, or `just script-lint` for
@@ -542,6 +590,11 @@ stale parent references independently from the live-process checks; they do not
 claim to reproduce an observed operating-system PID reuse. This follows the
 [Windows parent-process identity contract](https://learn.microsoft.com/en-us/windows/win32/cimwin32prov/win32-process).
 
+Direct embedded-application snapshot refusals identify the first failed parent,
+creation-time, executable-path or hash check. Diagnostics omit command arguments,
+environment and file paths. Rejection publishes no snapshot and grants no cleanup
+authority; it does not establish the cause of an earlier generic identity failure.
+
 For bounded diagnosis, `--restart-cycles 1..10` repeats the actual process restart
 and records preference persistence and shutdown observations. `--reload-cycles
 0..25` optionally adds repeated renderer reloads and concurrent read-only native
@@ -787,3 +840,18 @@ then compares its actual argument vector. Component tests cover missing inputs,
 clipboard failure and a late response from another library. Quoting follows the
 [PowerShell quoting rules](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_quoting_rules?view=powershell-7.6)
 and [POSIX-style single quoting](https://www.gnu.org/software/bash/manual/html_node/Single-Quotes.html).
+
+### Isolated cover cache observation
+
+`just desktop-verify --scenario native-default-cover-cache-conditions --require-clean`
+uses the real catalog and a fresh isolated library. It requires the artwork cache
+actually be empty before first cover navigation, verifies accepted cached image
+hashes, then restarts the same executable with only its child process proxy
+environment pointing to a local refusal fixture. The fixture never forwards
+traffic or records headers, credential values or request paths. All mapped covers
+must render from cached bytes; one removed cache entry must produce actual
+rejected backend IGDB traffic and a generated fallback without erasing its mapping.
+The exact retained cache bytes are restored while the app is stopped. This live
+CDN scenario is opt-in and excluded from ordinary offline profiles. It proves
+native development-app display and cache behavior, not installed-package updates,
+production content publication, physical devices or human comprehension.

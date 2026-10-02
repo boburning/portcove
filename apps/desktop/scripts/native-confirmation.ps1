@@ -5,13 +5,34 @@ param(
     [Parameter(Mandatory)][string]$ExpectedText,
     [Parameter(Mandatory)][string]$Button,
     [string]$FilePath,
-    [string]$DirectoryPath
+    [string]$DirectoryPath,
+    [string]$ScreenshotPath
 )
 $ErrorActionPreference = 'Stop'
+$progressPath = $null
+if ($ScreenshotPath) {
+    if (-not [IO.Path]::IsPathFullyQualified($ScreenshotPath) -or
+        [IO.File]::Exists($ScreenshotPath) -or -not [IO.Directory]::Exists([IO.Path]::GetDirectoryName($ScreenshotPath))) {
+        throw 'Native screenshot requires a fresh file in the existing owned output directory.'
+    }
+    $progressPath = "$ScreenshotPath.progress.jsonl"
+    $progressStream = [IO.File]::Open($progressPath, [IO.FileMode]::CreateNew)
+    $progressStream.Dispose()
+}
+function Write-ObservationProgress([string]$Stage) {
+    if ($progressPath) {
+        $record = [pscustomobject]@{ stage = $Stage; observed_at = [DateTime]::UtcNow.ToString('o') } | ConvertTo-Json -Compress
+        [IO.File]::AppendAllText($progressPath, "$record`n")
+    }
+}
+Write-ObservationProgress 'automation-assemblies-start'
 Add-Type -AssemblyName UIAutomationClient
 Add-Type -AssemblyName UIAutomationTypes
+Write-ObservationProgress 'automation-assemblies-ready'
 . (Join-Path $PSScriptRoot 'native-process-tree.ps1')
+Write-ObservationProgress 'owned-process-tree-start'
 $tree = Get-OwnedNativeProcessTree $DriverProcessId $ApplicationPath
+Write-ObservationProgress 'owned-process-tree-ready'
 $application = $tree.application
 $applicationFull = $application.ExecutablePath
 $applicationId = [int]$application.ProcessId
@@ -27,10 +48,16 @@ $condition = [System.Windows.Automation.AndCondition]::new([System.Windows.Autom
 function Get-OwnedConfirmationWindows {
     $ownedWindows = @()
     $seen = [Collections.Generic.HashSet[string]]::new()
+    Write-ObservationProgress 'exact-root-discovery-start'
     $rootMatches = [System.Windows.Automation.AutomationElement]::RootElement.FindAll([System.Windows.Automation.TreeScope]::Children, $condition)
+    Write-ObservationProgress 'exact-root-discovery-ready'
     $ownedCondition = [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::ProcessIdProperty, $applicationId)
+    Write-ObservationProgress 'owned-root-discovery-start'
     $roots = [System.Windows.Automation.AutomationElement]::RootElement.FindAll([System.Windows.Automation.TreeScope]::Children, $ownedCondition)
+    Write-ObservationProgress 'owned-root-discovery-ready'
+    Write-ObservationProgress 'nested-discovery-start'
     $nestedMatches = @($roots | ForEach-Object { $_.FindAll([System.Windows.Automation.TreeScope]::Descendants, $condition) })
+    Write-ObservationProgress 'nested-discovery-ready'
     foreach ($candidate in @($rootMatches) + @($nestedMatches)) {
         $handle = $candidate.Current.NativeWindowHandle
         $key = if ($handle) { "handle:$handle" } else { "runtime:$($candidate.GetRuntimeId() -join '.')" }
@@ -44,8 +71,11 @@ $children = @()
 while ([DateTime]::UtcNow -lt $deadline) {
     $targets = @()
     foreach ($candidate in @(Get-OwnedConfirmationWindows)) {
+        Write-ObservationProgress 'candidate-descendants-start'
         $candidateChildren = $candidate.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)
+        Write-ObservationProgress 'candidate-descendants-ready'
         $candidateText = @($candidateChildren | ForEach-Object { $_.Current.Name }) -join "`n"
+        Write-ObservationProgress 'candidate-text-ready'
         if ($candidateText.Contains($ExpectedText)) {
             $targets += [pscustomobject]@{ window = $candidate; children = $candidateChildren; text = $candidateText }
         }
@@ -128,7 +158,59 @@ if ($Button -ne '__observe__') {
     }
 }
 Assert-LiveApplication
+Write-ObservationProgress 'target-identity-rechecked'
+$screenshotObservation = $null
+if ($ScreenshotPath) {
+    Write-ObservationProgress 'screenshot-preparation-start'
+    $sessionId = [Diagnostics.Process]::GetCurrentProcess().SessionId
+    if (-not [Environment]::UserInteractive -or $sessionId -le 0 -or
+        $application.SessionId -ne $sessionId -or $tree.driver.SessionId -ne $sessionId -or
+        @($tree.processes | Where-Object { $_.SessionId -ne $sessionId }).Count -gt 0) {
+        throw 'Native screenshot requires the harness, driver and application in one interactive session.'
+    }
+    if (-not [IO.Path]::IsPathFullyQualified($ScreenshotPath) -or
+        [IO.File]::Exists($ScreenshotPath) -or -not [IO.Directory]::Exists([IO.Path]::GetDirectoryName($ScreenshotPath))) {
+        throw 'Native screenshot requires a fresh file in the existing owned output directory.'
+    }
+    Add-Type -AssemblyName System.Drawing
+    Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+public static class PortcoveConsentWindow {
+    [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
+}
+'@
+    $bounds = $window.Current.BoundingRectangle
+    if ($window.Current.IsOffscreen -or $bounds.Width -le 0 -or $bounds.Height -le 0 -or
+        $bounds.Width -gt 4096 -or $bounds.Height -gt 4096 -or
+        [PortcoveConsentWindow]::GetForegroundWindow().ToInt64() -ne $window.Current.NativeWindowHandle) {
+        throw 'Exact owned native consent must be visible and foreground before its screenshot.'
+    }
+    $width = [int][Math]::Ceiling($bounds.Width)
+    $height = [int][Math]::Ceiling($bounds.Height)
+    $bitmap = [Drawing.Bitmap]::new($width, $height)
+    $graphics = [Drawing.Graphics]::FromImage($bitmap)
+    try {
+        $graphics.CopyFromScreen([int]$bounds.X, [int]$bounds.Y, 0, 0, $bitmap.Size)
+        Assert-LiveApplication
+        if ([PortcoveConsentWindow]::GetForegroundWindow().ToInt64() -ne $window.Current.NativeWindowHandle) {
+            throw 'Native foreground ownership changed during capture.'
+        }
+        $stream = [IO.File]::Open($ScreenshotPath, [IO.FileMode]::CreateNew)
+        try { $bitmap.Save($stream, [Drawing.Imaging.ImageFormat]::Png) } finally { $stream.Dispose() }
+    } finally { $graphics.Dispose(); $bitmap.Dispose() }
+    Write-ObservationProgress 'screenshot-written'
+    $screenshotObservation = [pscustomobject]@{
+        path = $ScreenshotPath; width = $width; height = $height; session_id = $sessionId
+        window_handle = $window.Current.NativeWindowHandle; foreground = $true
+        application_created_at = $application.CreationDate; driver_created_at = $tree.driver.CreationDate
+        owned_processes = @($tree.processes | ForEach-Object {
+            [pscustomobject]@{ pid = $_.ProcessId; path = $_.ExecutablePath; created_at = $_.CreationDate; session_id = $_.SessionId }
+        })
+    }
+}
+Write-ObservationProgress 'observation-complete'
 if ($Button -ne '__observe__') {
     $buttons[0].GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
 }
-[pscustomobject]@{ application_pid = $applicationId; driver_pid = $DriverProcessId; application_path = $applicationFull; title = $Title; window_scope = $windowScope; button = $Button; text = $text; selected_file = $FilePath; selected_directory = $DirectoryPath } | ConvertTo-Json -Compress
+[pscustomobject]@{ application_pid = $applicationId; driver_pid = $DriverProcessId; application_path = $applicationFull; title = $Title; window_scope = $windowScope; button = $Button; text = $text; selected_file = $FilePath; selected_directory = $DirectoryPath; screenshot = $screenshotObservation } | ConvertTo-Json -Depth 4 -Compress

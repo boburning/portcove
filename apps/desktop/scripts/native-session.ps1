@@ -1,5 +1,5 @@
 param(
-    [Parameter(Mandatory)][ValidateSet('Snapshot', 'SnapshotDriver', 'SnapshotApplication', 'ApplicationListener', 'StopApplication', 'StopDriver', 'Wait')][string]$Mode,
+    [Parameter(Mandatory)][ValidateSet('Snapshot', 'SnapshotDriver', 'SnapshotDriverTree', 'SnapshotApplication', 'ApplicationListener', 'StopApplication', 'StopDriver', 'Wait')][string]$Mode,
     [int]$DriverProcessId,
     [string]$ApplicationPath,
     [int]$ExpectedParentProcessId,
@@ -9,20 +9,28 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'native-process-tree.ps1')
-if ($Mode -eq 'Snapshot' -or $Mode -eq 'SnapshotDriver' -or $Mode -eq 'SnapshotApplication') {
+if ($Mode -eq 'Snapshot' -or $Mode -eq 'SnapshotDriver' -or $Mode -eq 'SnapshotDriverTree' -or $Mode -eq 'SnapshotApplication') {
     $tree = if ($Mode -eq 'Snapshot') {
         Get-OwnedNativeProcessTree $DriverProcessId $ApplicationPath
+    } elseif ($Mode -eq 'SnapshotDriverTree') {
+        Get-OwnedDriverProcessTree $DriverProcessId
     } elseif ($Mode -eq 'SnapshotApplication') {
         $owned = Get-OwnedDriverProcessTree $DriverProcessId
         $root = $owned.driver
         $parent = Get-CimInstance Win32_Process -Filter "ProcessId = $ExpectedParentProcessId"
-        if ($ExpectedParentProcessId -le 0 -or -not $parent -or -not $parent.CreationDate -or
-            $root.ParentProcessId -ne $ExpectedParentProcessId -or -not $root.CreationDate -or
-            $parent.CreationDate -gt $root.CreationDate -or
-            -not [string]::Equals($root.ExecutablePath, (Resolve-Path -LiteralPath $ApplicationPath).Path, [StringComparison]::OrdinalIgnoreCase) -or
-            $ExpectedApplicationSha256 -notmatch '^[0-9a-f]{64}$' -or
-            (Get-FileHash -LiteralPath $ApplicationPath -Algorithm SHA256).Hash.ToLowerInvariant() -ne $ExpectedApplicationSha256) {
-            throw 'Embedded application did not match the retained child, parent or executable identity.'
+        # Keep the existing short-circuit order and reject before publishing a
+        # snapshot. Report the failed check, not paths, arguments or environment.
+        $identityFailure = if ($ExpectedParentProcessId -le 0) { 'invalid-parent-id' }
+            elseif (-not $parent) { 'parent-not-running' }
+            elseif (-not $parent.CreationDate) { 'parent-creation-unavailable' }
+            elseif ($root.ParentProcessId -ne $ExpectedParentProcessId) { 'parent-id-mismatch' }
+            elseif (-not $root.CreationDate) { 'application-creation-unavailable' }
+            elseif ($parent.CreationDate -gt $root.CreationDate) { 'parent-newer-than-application' }
+            elseif (-not [string]::Equals($root.ExecutablePath, (Resolve-Path -LiteralPath $ApplicationPath).Path, [StringComparison]::OrdinalIgnoreCase)) { 'executable-path-mismatch' }
+            elseif ($ExpectedApplicationSha256 -notmatch '^[0-9a-f]{64}$') { 'invalid-expected-hash' }
+            elseif ((Get-FileHash -LiteralPath $ApplicationPath -Algorithm SHA256).Hash.ToLowerInvariant() -ne $ExpectedApplicationSha256) { 'executable-hash-mismatch' }
+        if ($identityFailure) {
+            throw "Embedded application identity rejected: $identityFailure."
         }
         [pscustomobject]@{ driver = $root; application = $root; processes = @($root) + @($owned.processes) }
     } else {

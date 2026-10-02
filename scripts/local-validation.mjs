@@ -24,11 +24,17 @@ import {
   receiptEnvelope,
   repositoryInventory,
   validateReceipt,
+  selectTransitionAudit,
 } from "./audit.mjs";
 import { prepareStorageScope, spawnCommand } from "./dev-storage.mjs";
 import { parseRawDiff } from "./select-ci-plan.mjs";
 import { readRustTestImpactMap, selectRustTestImpact } from "./rust-test-impact.mjs";
 import { isExcludedOxfmtPath } from "./oxfmt-ownership.mjs";
+import { collectSelectedPrerequisites, selectedPrerequisites } from "./dev-doctor.mjs";
+import {
+  hostedLocalCheckAuthorityPaths,
+  isHostedLocalCheckScriptAuthority,
+} from "./workflow-provenance.mjs";
 
 const projectRoot = fileURLToPath(new URL("../", import.meta.url));
 const desktopRoot = path.join(projectRoot, "apps", "desktop");
@@ -56,12 +62,26 @@ export function packagesWithDoctests(metadata) {
   );
 }
 
-function readDoctestPackages() {
-  const result = spawnSync("cargo", ["metadata", "--format-version", "1", "--no-deps"], {
-    cwd: projectRoot,
-    encoding: "utf8",
-    windowsHide: true,
-  });
+export function readDoctestPackages(options = {}) {
+  const result = (options.spawn ?? spawnSync)(
+    "cargo",
+    [
+      "metadata",
+      "--format-version",
+      "1",
+      "--no-deps",
+      ...(options.observeOnly ? ["--offline", "--locked"] : []),
+    ],
+    {
+      cwd: projectRoot,
+      encoding: "utf8",
+      windowsHide: true,
+      timeout: options.observeOnly ? 15_000 : undefined,
+      env: options.observeOnly
+        ? { ...process.env, RUSTUP_AUTO_INSTALL: "0", CARGO_NET_OFFLINE: "true" }
+        : process.env,
+    },
+  );
   if (result.error) throw result.error;
   if (result.status !== 0) throw new Error(`cargo metadata failed: ${result.stderr.trim()}`);
   return packagesWithDoctests(JSON.parse(result.stdout));
@@ -139,6 +159,7 @@ const explicitNodeTests = new Map([
     ],
   ],
   ["apps/desktop/scripts/desktop-preparation-test.mjs", ["scripts/desktop-scenarios.test.mjs"]],
+  ["apps/desktop/scripts/desktop-default-cover-test.mjs", ["scripts/desktop-scenarios.test.mjs"]],
   [
     ".github/quality-tools.json",
     ["scripts/quality-tools.test.mjs", "scripts/dependency-automation.test.mjs"],
@@ -742,13 +763,66 @@ function uiRelatedDurationCommand() {
 
 export function buildPlan(selection, context = {}) {
   if (selection.unknown.size) {
-    throw new Error(
-      `local validation has no selection rule for:\n${sorted(selection.unknown)
-        .map((file) => `- ${file}`)
-        .join(
-          "\n",
-        )}\nAdd and test a focused rule; the required hosted plan must not be replaced by silent local success.`,
-    );
+    const validation = validateValidationPlan(context.validationPlan);
+    const changes = context.changes;
+    if (
+      validation.discovery !== "complete" ||
+      validation.mode === "blocked" ||
+      validation.identities.base !== context.baseSha ||
+      validation.identities.head !== context.headSha ||
+      validation.identities.checkout !== context.headSha ||
+      validation.identities.merge_base !== context.mergeBase ||
+      !Array.isArray(changes) ||
+      changes.length === 0
+    )
+      throw new Error("conservative local fallback requires a complete bound Git comparison");
+    const paths = [
+      ...new Set(
+        changes.flatMap((change) => [
+          normalizePath(change.path),
+          ...(change.previousPath ? [normalizePath(change.previousPath)] : []),
+        ]),
+      ),
+    ].sort();
+    if (
+      JSON.stringify(paths) !== JSON.stringify(validation.changed_files) ||
+      !changes.every((change) => {
+        if (/^[A?]$/u.test(change.status))
+          return change.oldMode === "000000" && change.newMode === "100644";
+        if (change.status === "D")
+          return change.oldMode === "100644" && change.newMode === "000000";
+        return (
+          /^(?:M|R\d*)$/u.test(change.status) &&
+          change.oldMode === "100644" &&
+          change.newMode === "100644"
+        );
+      })
+    )
+      throw new Error("conservative local fallback requires complete regular-file modes and paths");
+    // These are inert inputs to the existing application/tooling, not a newly
+    // executable/configuration authority that the maintained audit cannot own.
+    const inert = new Set([".bin", ".dat", ".txt", ".png", ".jpg", ".jpeg", ".webp"]);
+    for (const file of selection.unknown) {
+      if (
+        !validation.fallback?.paths.includes(file) ||
+        file.split("/").some((part) => part.startsWith(".")) ||
+        !inert.has(path.posix.extname(file).toLowerCase())
+      )
+        throw new Error(
+          `unknown executable or configuration ownership blocks local validation: ${file}; establish its owning validation route`,
+        );
+    }
+    // Retain known consumers, including Playnite/transport/lint fixture checks.
+    // A broad audit is not proof of equivalence for those selected obligations.
+    return [
+      ...buildPlan({ ...selection, unknown: new Set() }, context),
+      command(
+        "conservative-audit",
+        `uncertain inert input impact: ${sorted(selection.unknown).join(", ")}; fresh full-debug repository audit, not cached or focused success`,
+        "just",
+        ["audit", "--fresh"],
+      ),
+    ];
   }
   const mergeBase = context.mergeBase ?? "<merge-base>";
   const commands = [
@@ -907,6 +981,7 @@ export function buildPlan(selection, context = {}) {
       }
     }
     const catalogArtworkInputs = [
+      "crates/portcove-core/src/artwork.rs",
       "crates/portcove-core/catalog/catalog-current-authoring.json",
       "crates/portcove-core/catalog/catalog.json",
     ];
@@ -1002,7 +1077,7 @@ export function buildPlan(selection, context = {}) {
         command(
           "rust-tests:portcove-cli:catalog-artwork-consumer",
           catalogArtworkFocused
-            ? "embedded catalog artwork must also satisfy its public CLI consumer contract"
+            ? "catalog and artwork resolution must also satisfy their public CLI consumer contract"
             : "catalog consumer ownership or changed inputs are uncertain; run the complete CLI inventory",
           process.execPath,
           [
@@ -1167,6 +1242,13 @@ export function localChangesFromRaw(buffer) {
   }));
 }
 
+export function untrackedFileMode(stat, platform = process.platform) {
+  if (stat.isSymbolicLink()) return "120000";
+  if (!stat.isFile())
+    throw new Error("untracked discovery contains an unsupported non-regular object");
+  return platform !== "win32" && (stat.mode & 0o111) !== 0 ? "100755" : "100644";
+}
+
 export function readChangeContext(base = "origin/main") {
   const baseSha = git(["rev-parse", "--verify", `${base}^{commit}`]).trim();
   const headSha = git(["rev-parse", "HEAD"]).trim();
@@ -1186,7 +1268,7 @@ export function readChangeContext(base = "origin/main") {
       status: "?",
       path: file,
       oldMode: "000000",
-      newMode: lstatSync(path.join(projectRoot, file)).isSymbolicLink() ? "120000" : "100644",
+      newMode: untrackedFileMode(lstatSync(path.join(projectRoot, file))),
     }));
   return {
     base,
@@ -1225,6 +1307,214 @@ function printPlan(context, selection, plan, validationPlan) {
     console.log(`- ${entry.id}: ${entry.reason}`);
     console.log(`  ${formatCommand(entry)}`);
   }
+}
+
+export function buildExecutionPreflight({
+  context,
+  plan,
+  validationPlan,
+  prerequisites,
+  hosted,
+  audit = null,
+  platform = process.platform,
+}) {
+  validateValidationPlan(validationPlan);
+  if (
+    validationPlan.discovery !== "complete" ||
+    validationPlan.mode === "blocked" ||
+    validationPlan.identities.head !== context.headSha ||
+    validationPlan.identities.base !== context.baseSha ||
+    validationPlan.identities.merge_base !== context.mergeBase ||
+    validationPlan.identities.checkout !== context.headSha
+  )
+    throw new Error("execution preflight requires the current complete comparison");
+  const observations = new Map(prerequisites.map((item) => [item.id, item]));
+  const obligations = plan.map((entry) => {
+    const required = selectedPrerequisites(entry, platform);
+    const missing = required.filter((id) => observations.get(id)?.status !== "ok");
+    return {
+      id: entry.id,
+      property: entry.reason,
+      command: formatCommand(entry),
+      cwd: entry.cwd,
+      capabilities: required,
+      missing,
+      route:
+        missing.length === 0
+          ? "local"
+          : hosted.status === "eligible" && !required.includes("windows-host")
+            ? "hosted-local-check"
+            : "blocked",
+      next_action:
+        missing.length === 0
+          ? formatCommand(entry)
+          : hosted.status === "eligible" && !required.includes("windows-host")
+            ? hosted.command
+            : missing
+                .map((id) => observations.get(id)?.remediation ?? `establish ${id}`)
+                .join("; "),
+    };
+  });
+  return {
+    format_version: 1,
+    source: context.headSha,
+    base: context.baseSha,
+    merge_base: context.mergeBase,
+    plan_digest: validationPlan.digest,
+    local_profile: "default full-debug; selected command arguments and features are authoritative",
+    prerequisites,
+    hosted,
+    obligations,
+    pre_change_audit: audit,
+    storage_scope: storageScopeForPlan(plan),
+    hosted_ci: {
+      groups: validationPlan.groups,
+      platforms: validationPlan.platforms,
+      qualification_required: validationPlan.qualification_required,
+      role: "mandatory exact-head CI; not inferred from prerequisite observations or local receipts",
+    },
+    limits:
+      "No dispatch or acceptance occurs. Fixture/build-script prerequisites, provisioning, dispatch permission and actual run readback remain execution obligations. Refresh against the complete frozen diff before qualification.",
+  };
+}
+
+export function inspectPreChangeAudit(
+  context,
+  validationPlan,
+  authority,
+  controller,
+  options = {},
+) {
+  const invokeGit = options.git ?? git;
+  const policy = context.changes.some((change) =>
+    [change.path, change.previousPath]
+      .filter(Boolean)
+      .some((name) => validationOwnershipForPath(name).areas.includes("policy")),
+  );
+  if (!policy) return null;
+  const changes = context.changes.map((change) => ({
+    status: change.status,
+    oldPath: change.previousPath ?? change.path,
+    newPath: change.path,
+    oldMode: change.oldMode,
+    newMode: change.newMode,
+  }));
+  const selection = selectTransitionAudit({
+    inventory: options.inventory ?? repositoryInventory(),
+    validationPlan,
+    changes,
+    workingTreeStatus: invokeGit(["status", "--porcelain=v1", "--untracked-files=all"]),
+  });
+  const result = {
+    profile: selection.profile,
+    stages: selection.stages
+      .filter(
+        (stage) =>
+          !stage.platforms || stage.platforms.includes(options.platform ?? process.platform),
+      )
+      .map((stage) => ({ id: stage.id, command: `just ${stage.recipe}` })),
+    command: "just audit --profile transition --fresh",
+    route: "local-prerequisites-unverified",
+    reason: selection.reason,
+    next_action:
+      "establish audit prerequisites on the selected host; selected local-check alone does not qualify this policy transition",
+  };
+  if (!authority || !controller || selection.profile !== "complete") return result;
+  for (const revision of [authority, controller])
+    invokeGit(["merge-base", "--is-ancestor", revision, context.baseSha]);
+  const protectedInputs = [".github/workflows/deep-quality.yml", "scripts/audit.mjs", "justfile"];
+  if (
+    invokeGit([
+      "diff",
+      "--name-only",
+      authority,
+      context.headSha,
+      "--",
+      ...protectedInputs,
+    ]).trim() ||
+    invokeGit(["status", "--porcelain"]).trim()
+  )
+    return result;
+  const branch = invokeGit(["branch", "--show-current"]).trim();
+  if (!/^[A-Za-z0-9./_-]+$/u.test(branch)) return result;
+  return {
+    ...result,
+    local_stages: result.stages,
+    platform: "linux-x86_64 (ubuntu-24.04)",
+    stages: selection.stages
+      .filter((stage) => !stage.platforms || stage.platforms.includes("linux"))
+      .map((stage) => ({ id: stage.id, command: `just ${stage.recipe}` })),
+    route: "hosted-deep-audit",
+    next_action: `gh workflow run deep-quality.yml --ref ${branch} -f operation=audit`,
+    source: context.headSha,
+    authority,
+    controller,
+    limit:
+      "fixed complete audit only; dispatch permission and actual run/head readback remain required; not equivalent to selected local-check",
+  };
+}
+
+export function inspectHostedLocalRoute(context, authority, controller, invokeGit = git) {
+  if (!authority || !controller)
+    return {
+      status: "unverified",
+      reason: "exact trusted authority and controller revisions not supplied",
+      next_action:
+        "supply --hosted-authority SHA --hosted-controller SHA from the already qualified main route",
+    };
+  if (![authority, controller].every((sha) => /^[a-f0-9]{40}$/u.test(sha)))
+    throw new Error("hosted preflight requires exact authority and controller SHAs");
+  if (invokeGit(["status", "--porcelain"]).trim())
+    return { status: "blocked", reason: "hosted route requires a clean frozen source" };
+  for (const revision of [authority, controller]) {
+    if (invokeGit(["rev-parse", "--verify", `${revision}^{commit}`]).trim() !== revision)
+      throw new Error("hosted authority revision differs from supplied identity");
+    invokeGit(["merge-base", "--is-ancestor", revision, context.baseSha]);
+  }
+  const workflow = invokeGit(["show", `${controller}:.github/workflows/deep-quality.yml`]);
+  if (
+    !workflow.includes("hosted-local-check controller") ||
+    !workflow.includes("hosted-local-check run")
+  )
+    return {
+      status: "blocked",
+      reason: "controller lacks the established fixed local-check route",
+    };
+  if (
+    invokeGit(["rev-parse", `${controller}:scripts/workflow-provenance.mjs`]).trim() !==
+    invokeGit(["rev-parse", `${context.headSha}:scripts/workflow-provenance.mjs`]).trim()
+  )
+    return {
+      status: "blocked",
+      reason:
+        "candidate authority inventory differs from immutable controller; adopt the qualified controller before route diagnosis",
+    };
+  const changes = parseRawDiff(
+    Buffer.from(
+      invokeGit(["diff", "--raw", "-z", "--find-renames", authority, context.headSha]),
+      "utf8",
+    ),
+  );
+  const paths = [...new Set(changes.flatMap((change) => [change.oldPath, change.newPath]))];
+  const changed = paths.filter(
+    (name) =>
+      hostedLocalCheckAuthorityPaths.includes(name) || isHostedLocalCheckScriptAuthority(name),
+  );
+  if (changed.length)
+    return {
+      status: "blocked",
+      reason:
+        "candidate changes trusted local-check authority; fixed transport cannot qualify itself",
+      changed,
+    };
+  return {
+    status: "eligible",
+    authority,
+    controller,
+    dispatch_authority:
+      "not established by this local observation; dispatch and exact run readback must succeed",
+    command: `gh workflow run deep-quality.yml --ref ${controller} -f operation=local-check -f source_sha=${context.headSha} -f base_sha=${context.baseSha} -f merge_base_sha=${context.mergeBase} -f controller_sha=${controller} -f authority_sha=${authority}`,
+  };
 }
 
 export function executePlan(plan, options = {}) {
@@ -1438,22 +1728,32 @@ function parseCheckArgs(args) {
   let base = "origin/main";
   let planOnly = false;
   let fresh = false;
+  let preflightOnly = false;
+  let asJson = false;
+  let authority;
+  let controller;
   for (let index = 0; index < args.length; index += 1) {
     const value = args[index];
     if (value === "--plan") planOnly = true;
     else if (value === "--fresh") fresh = true;
+    else if (value === "--preflight") preflightOnly = true;
+    else if (value === "--json") asJson = true;
+    else if (value === "--hosted-authority") authority = args[++index];
+    else if (value === "--hosted-controller") controller = args[++index];
     else if (value === "--base") {
       base = args[++index];
       if (!base) throw new Error("--base requires a Git revision");
     } else throw new Error(`unknown local-check option: ${value}`);
   }
-  return { base, planOnly, fresh };
+  if ((asJson || authority || controller) && !preflightOnly)
+    throw new Error("route/JSON options require --preflight");
+  return { base, planOnly, fresh, preflightOnly, asJson, authority, controller };
 }
 
-export function main(argv = process.argv.slice(2)) {
+export async function main(argv = process.argv.slice(2), options = {}) {
   if (argv.includes("--help")) {
     console.log(
-      "usage: local-validation.mjs [check [--base REV] [--plan] [--fresh]|test-rust ARGS|test-ui-related FILES|test-node TESTS]",
+      "usage: local-validation.mjs [check [--base REV] [--plan|--preflight [--json] [--hosted-authority SHA --hosted-controller SHA]] [--fresh]|test-rust ARGS|test-ui-related FILES|test-node TESTS]",
     );
     return;
   }
@@ -1463,8 +1763,9 @@ export function main(argv = process.argv.slice(2)) {
     return;
   }
   if (kind !== "check") throw new Error(`unknown local validation command: ${kind}`);
-  const { base, planOnly, fresh } = parseCheckArgs(args);
-  const context = readChangeContext(base);
+  const { base, planOnly, fresh, preflightOnly, asJson, authority, controller } =
+    parseCheckArgs(args);
+  const context = (options.readContext ?? readChangeContext)(base);
   const validationPlan = validateValidationPlan(
     buildValidationPlan({
       changes: context.changes.map((change) => ({
@@ -1482,11 +1783,93 @@ export function main(argv = process.argv.slice(2)) {
     }),
   );
   const selection = classifyChanges(context.changes);
-  const planContext =
-    selection.packages.size > 0 && !selection.workspaceRustTests
-      ? { ...context, doctestPackages: readDoctestPackages() }
-      : context;
+  let doctestPackages;
+  if (selection.packages.size > 0 && !selection.workspaceRustTests) {
+    try {
+      doctestPackages = (options.metadataProvider ?? readDoctestPackages)({
+        observeOnly: preflightOnly,
+      });
+    } catch (error) {
+      if (!preflightOnly) throw error;
+      const hosted = (options.hostedInspector ?? inspectHostedLocalRoute)(
+        context,
+        authority,
+        controller,
+      );
+      const report = {
+        format_version: 1,
+        source: context.headSha,
+        base: context.baseSha,
+        merge_base: context.mergeBase,
+        plan_digest: validationPlan.digest,
+        selected_plan: null,
+        status: "planning-blocked",
+        blocker: {
+          id: "cargo-metadata",
+          command: "cargo metadata --format-version 1 --no-deps --offline --locked",
+          capability: "pinned Cargo and readable locked workspace metadata",
+          reason: "bounded metadata observation failed; no complete local selection is claimed",
+          next_action:
+            hosted.status === "eligible" && !selection.playnite
+              ? hosted.command
+              : "establish the pinned Rust/Cargo prerequisite, then rerun preflight",
+        },
+        hosted,
+        hosted_ci: {
+          groups: validationPlan.groups,
+          platforms: validationPlan.platforms,
+          role: "mandatory exact-head CI remains separate",
+        },
+      };
+      (options.log ?? console.log)(
+        asJson
+          ? JSON.stringify(report, null, 2)
+          : `${report.status}: ${report.blocker.reason}; next ${report.blocker.next_action}`,
+      );
+      process.exitCode = 1;
+      return;
+    }
+  }
+  const planContext = {
+    ...context,
+    validationPlan,
+    ...(doctestPackages ? { doctestPackages } : {}),
+  };
   const plan = buildPlan(selection, planContext);
+  if (preflightOnly) {
+    const hosted = inspectHostedLocalRoute(context, authority, controller);
+    const audit = inspectPreChangeAudit(context, validationPlan, authority, controller);
+    const report = buildExecutionPreflight({
+      context,
+      plan,
+      validationPlan,
+      prerequisites: await collectSelectedPrerequisites(
+        audit ? [...plan, { id: "conservative-audit" }] : plan,
+      ),
+      hosted,
+      audit,
+    });
+    if (asJson) console.log(JSON.stringify(report, null, 2));
+    else {
+      printPlan(context, selection, plan, validationPlan);
+      console.log(
+        `Hosted selected route: ${report.hosted.status} (${report.hosted.reason ?? "exact trusted revisions supplied; dispatch remains unproven"})`,
+      );
+      for (const entry of report.obligations)
+        console.log(
+          `${entry.id}: ${entry.route}; missing ${entry.missing.join(", ") || "none observed"}; next ${entry.next_action}`,
+        );
+      if (audit)
+        console.log(`Pre-change ${audit.profile} audit: ${audit.route}; next ${audit.next_action}`);
+      console.log(report.limits);
+    }
+    if (
+      report.obligations.some((entry) => entry.route === "blocked") ||
+      audit?.route === "local-prerequisites-unverified"
+    )
+      process.exitCode = 1;
+    return;
+  }
   printPlan(context, selection, plan, validationPlan);
   if (planOnly) return;
   const env = prepareStorageScope(storageScopeForPlan(plan));
@@ -1503,7 +1886,7 @@ export function main(argv = process.argv.slice(2)) {
 
 if (path.resolve(process.argv[1] ?? "") === fileURLToPath(import.meta.url)) {
   try {
-    main();
+    await main();
   } catch (error) {
     console.error(error instanceof Error ? error.message : error);
     process.exitCode = 1;
