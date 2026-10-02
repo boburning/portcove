@@ -1882,6 +1882,7 @@ fn unavailable_saved_roots_do_not_consume_the_available_root_budget() {
         for index in 0..available_count + unavailable_count {
             let root = temporary.path().join(format!("selected-{index}"));
             fs::create_dir(&root).unwrap();
+            let root = fs::canonicalize(root).unwrap();
             library.add_game_file_root(&root).unwrap();
             if index < available_count {
                 fs::write(root.join("source.z64"), payload).unwrap();
