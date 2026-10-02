@@ -866,3 +866,32 @@ The exact retained cache bytes are restored while the app is stopped. This live
 CDN scenario is opt-in and excluded from ordinary offline profiles. It proves
 native development-app display and cache behavior, not installed-package updates,
 production content publication, physical devices or human comprehension.
+
+`--scenario native-normal-package-webview-boundary` is an opt-in Windows
+ordinary-package case through the existing external Tauri/EdgeDriver route.
+Use low-level `desktop-test.mjs --app <retained-installed-executable> --output
+<new-absolute-directory> --scenario native-normal-package-webview-boundary
+--package-evidence <absolute-manifest>`. The manifest binds the clean candidate
+revision, exact ordinary `corepack pnpm tauri build --bundles nsis` invocation,
+empty qualification-feature list, hashes of the normal Tauri configuration,
+Windows overlay and Desktop Cargo manifest, installer, and completed
+`test-windows-installer.ps1` evidence. Its retained executable must match the
+installed hash. Produce it with that existing script's `-RetainExecutablePath`
+and `-EvidencePath`; preserve package/build logs with the manifest.
+
+Shared main-window assertions check application-origin assets and legitimate
+IPC, unavailable qualification commands, actual inline CSP violation, browser
+permission denials and native diagnostics, refused owned-loopback/inactive-origin
+navigation and popup requests, and returned-main IPC. Identity-bound root and
+descendant exit receipts cover final/failure/watchdog cleanup. This is execution
+of retained installed bytes after the isolated installer route, not current
+installed-context, signed production, minimum-version or all-platform evidence.
+Refused navigation does not prove privileged invocation after remote execution;
+earlier instrumented secondary/queued-reply controls remain separate evidence.
+
+WebView2 documents that cancelled `NavigationStarting` can still issue GET
+requests while the host responds. The boundary case records every owned server
+request and requires the popup destination to receive none; it does not promise
+network silence for cancelled navigation. Native refusal, the preserved main
+URL/assets, absent remote fixture execution marker and returned-main IPC establish
+context containment. See the [Microsoft cancellation contract](https://learn.microsoft.com/en-us/microsoft-edge/webview2/reference/win32/icorewebview2navigationstartingeventargs?view=webview2-1.0.4129.50).

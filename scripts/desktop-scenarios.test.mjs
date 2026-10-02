@@ -1,5 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { mkdtemp, mkdir, readFile, writeFile, rm } from "node:fs/promises";
+import path from "node:path";
+import { fileIdentity } from "./development-evidence.mjs";
+import {
+  verifyNormalPackageEvidence,
+  assertOwnedBoundaryRequests,
+} from "../apps/desktop/scripts/desktop-main-webview-boundary.mjs";
 import { assertSteamEntryContext } from "../apps/desktop/scripts/desktop-context-contract.mjs";
 import { OwnedNativeSession } from "../apps/desktop/scripts/desktop-owned-native-session.mjs";
 import {
@@ -9,6 +16,94 @@ import {
   DESKTOP_SCENARIOS,
   resolveDesktopSelection,
 } from "./desktop-scenarios.mjs";
+
+test("cancelled navigation permits only observed GETs and never popup or execution traffic", () => {
+  const request = { method: "GET", path: "/untrusted", phase: "navigation-http" };
+  assertOwnedBoundaryRequests([]);
+  assertOwnedBoundaryRequests([request]);
+  for (const invalid of [
+    { ...request, method: "POST" },
+    { ...request, path: "/untrusted/popup" },
+    { ...request, path: "/untrusted/executed-marker" },
+    { ...request, phase: "main-controls" },
+  ])
+    assert.throws(() => assertOwnedBoundaryRequests([invalid]));
+});
+
+test("ordinary package boundary is isolated and rejects stale or substituted evidence", async (t) => {
+  const selection = resolveDesktopSelection({
+    scenarios: ["native-normal-package-webview-boundary"],
+  });
+  assert.deepEqual(selection.setup_scenarios, []);
+  assert.deepEqual(selection.prerequisites, ["desktop"]);
+  for (const ids of Object.values(DESKTOP_PROFILES))
+    assert.ok(!ids.includes("native-normal-package-webview-boundary"));
+  const work = path.resolve("work");
+  await mkdir(work, { recursive: true });
+  const root = await mkdtemp(path.join(work, "normal-package-contract-"));
+  t.after(async () => {
+    assert.equal(path.dirname(root), work);
+    await rm(root, { recursive: true });
+  });
+  await mkdir(path.join(root, "apps/desktop/src-tauri"), { recursive: true });
+  const configuration = [];
+  for (const name of ["tauri.conf.json", "tauri.windows.conf.json", "Cargo.toml"]) {
+    const file = path.join(root, "apps/desktop/src-tauri", name);
+    await writeFile(file, "owned configuration fixture");
+    configuration.push(await fileIdentity(file));
+  }
+  const installerPath = path.join(root, "installer.exe");
+  await writeFile(installerPath, "owned package fixture");
+  const installer = await fileIdentity(installerPath);
+  const executable = { sha256: "a".repeat(64) };
+  const receiptPath = path.join(root, "installer-evidence.json");
+  await writeFile(
+    receiptPath,
+    JSON.stringify({
+      phase: "complete",
+      details: {
+        installer_sha256: installer.sha256,
+        installed_executable_sha256: executable.sha256,
+        application_responding: true,
+        persistent_data_preserved: true,
+        managed_files_removed: true,
+        registration_removed: true,
+        application_exit_code: 0,
+      },
+    }),
+  );
+  const manifest = {
+    revision: "b".repeat(40),
+    build_command: ["corepack", "pnpm", "tauri", "build", "--bundles", "nsis"],
+    qualification_features: [],
+    configuration,
+    installer,
+    installer_evidence: await fileIdentity(receiptPath),
+  };
+  const manifestPath = path.join(root, "package.json");
+  await writeFile(manifestPath, JSON.stringify(manifest));
+  await verifyNormalPackageEvidence(manifestPath, manifest.revision, executable, root);
+  await assert.rejects(
+    verifyNormalPackageEvidence(manifestPath, "c".repeat(40), executable, root),
+    /source must match/,
+  );
+  await assert.rejects(
+    verifyNormalPackageEvidence(manifestPath, manifest.revision, { sha256: "d".repeat(64) }, root),
+  );
+  await writeFile(installerPath, "substituted package");
+  await assert.rejects(
+    verifyNormalPackageEvidence(manifestPath, manifest.revision, executable, root),
+    /input changed/,
+  );
+  await writeFile(installerPath, "owned package fixture");
+  const originalReceipt = await readFile(receiptPath, "utf8");
+  await writeFile(receiptPath, originalReceipt.replace('"complete"', '"failed"'));
+  manifest.installer_evidence = await fileIdentity(receiptPath);
+  await writeFile(manifestPath, JSON.stringify(manifest));
+  await assert.rejects(
+    verifyNormalPackageEvidence(manifestPath, manifest.revision, executable, root),
+  );
+});
 
 test("desktop scenario catalog is nonempty, unique, and fully profiled", () => {
   assert.ok(DESKTOP_SCENARIOS.length > 0);
