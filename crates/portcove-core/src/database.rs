@@ -14,7 +14,7 @@ use crate::{PortcoveError, Result};
 #[path = "database_concurrency_tests.rs"]
 mod concurrency_tests;
 
-pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 32;
+pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 33;
 
 struct Migration {
     version: i64,
@@ -216,7 +216,51 @@ const MIGRATIONS: &[Migration] = &[
         apply: migration_32,
         verify: verify_migration_32,
     },
+    Migration {
+        version: 33,
+        name: "protected definition publisher admission",
+        apply: migration_33,
+        verify: verify_migration_33,
+    },
 ];
+
+fn migration_33(transaction: &Transaction<'_>) -> Result<()> {
+    transaction.execute_batch(
+        "CREATE TABLE definition_publisher_authority (
+            anchor_sha256 TEXT PRIMARY KEY CHECK(length(anchor_sha256)=64),
+            trusted_root_json TEXT NOT NULL CHECK(length(trusted_root_json)<=1048576),
+            replay_floor_json TEXT CHECK(length(replay_floor_json)<=16384)
+         );
+         CREATE TABLE definition_publisher_admission (
+            namespace TEXT NOT NULL,
+            stable_id TEXT NOT NULL,
+            anchor_sha256 TEXT NOT NULL REFERENCES definition_publisher_authority(anchor_sha256),
+            policy_json TEXT NOT NULL CHECK(length(policy_json)<=65536),
+            provenance_json TEXT NOT NULL CHECK(length(provenance_json)<=16384),
+            PRIMARY KEY(namespace,stable_id)
+         );",
+    )?;
+    verify_migration_33(transaction)
+}
+
+fn verify_migration_33(connection: &Connection) -> Result<()> {
+    require_columns(
+        connection,
+        "definition_publisher_authority",
+        &["anchor_sha256", "trusted_root_json", "replay_floor_json"],
+    )?;
+    require_columns(
+        connection,
+        "definition_publisher_admission",
+        &[
+            "namespace",
+            "stable_id",
+            "anchor_sha256",
+            "policy_json",
+            "provenance_json",
+        ],
+    )
+}
 
 fn migration_32(transaction: &Transaction<'_>) -> Result<()> {
     transaction.execute_batch(
@@ -1594,6 +1638,7 @@ mod tests {
         schema_29: 29,
         schema_30: 30,
         schema_31: 31,
+        schema_32: 32,
     }
 
     #[test]

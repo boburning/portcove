@@ -25,8 +25,8 @@ pub enum DefinitionPublisherStatus {
 
 /// Publisher-policy result bound to the exact repository root and definition identity.
 ///
-/// Production construction currently exposes only the safe unscoped state. A later protected
-/// policy implementation will construct scoped and revoked observations from installed grants.
+/// Public construction exposes the safe unscoped state. Core constructs scoped or revoked
+/// observations only from independently installed publisher authority and current grants.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DefinitionPublisherObservation {
     root_sha256: String,

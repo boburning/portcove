@@ -34,6 +34,9 @@ const FETCH_TIMEOUT: Duration = Duration::from_secs(20);
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
 const TARGET_CONCURRENCY: usize = 8;
 
+#[path = "definition_publisher_policy.rs"]
+pub(crate) mod publisher_policy;
+
 /// Explicit network locations for one catalog-specific TUF repository.
 #[derive(Debug, Clone)]
 pub struct DefinitionRepositorySource {
@@ -358,6 +361,20 @@ async fn acquire_with_transport<T>(
 where
     T: Transport + Send + Sync + 'static,
 {
+    let repository =
+        load_repository(trusted_root, metadata_base_url, targets_base_url, transport).await?;
+    acquire_from_repository(repository).await
+}
+
+async fn load_repository<T>(
+    trusted_root: &[u8],
+    metadata_base_url: Url,
+    targets_base_url: Url,
+    transport: T,
+) -> Result<Repository>
+where
+    T: Transport + Send + Sync + 'static,
+{
     if trusted_root.is_empty() || trusted_root.len() > MAX_ROOT_BYTES {
         return Err(PortcoveError::verification(
             "trusted definition root exceeds its byte bound",
@@ -381,6 +398,12 @@ where
             "definition repository requires consistent snapshots",
         ));
     }
+    Ok(repository)
+}
+
+async fn acquire_from_repository(
+    repository: Repository,
+) -> Result<AuthenticatedDefinitionCandidate> {
     let role = definition_role(&repository)?;
     let index_name = TargetName::new(INDEX_TARGET).map_err(map_tough_error)?;
     let index_metadata = definition_target(role, &repository, &index_name)?;

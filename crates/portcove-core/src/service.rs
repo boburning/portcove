@@ -3139,6 +3139,11 @@ impl PortcoveService {
             let qualification =
                 InstallQualification::from_catalog(&self.catalog, &port_id, platform)?;
             let _operation = self.library.try_lock_port(&port_id, "adopt")?;
+            self.require_definition_operation(
+                &self.catalog,
+                port,
+                DefinitionOperationContext::observed(DefinitionOperation::Install, false, true),
+            )?;
             let locked_preview = self.preview_adoption(source, selected_port_id)?;
             let target = adoption_authorization_target(source, selected_port_id)?;
             self.library.consume_authorization(
@@ -3239,6 +3244,11 @@ impl PortcoveService {
             lifecycle.phase = LifecyclePhase::Prepared;
             store.put(&mut lifecycle)?;
             self.faults.check(LifecycleFaultPoint::AdoptionPrepared)?;
+            self.require_definition_operation(
+                &self.catalog,
+                port,
+                DefinitionOperationContext::observed(DefinitionOperation::Install, false, true),
+            )?;
             fs::create_dir_all(
                 destination
                     .parent()

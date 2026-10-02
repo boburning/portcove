@@ -120,6 +120,9 @@ pub use definition_repository::{
     AuthenticatedDefinitionCandidate, AuthenticatedDefinitionProvenance,
     DefinitionReplayDisposition, DefinitionReplayFloor, DefinitionRepositorySource,
     acquire_definition_candidate,
+    publisher_policy::{
+        AuthenticatedDefinitionPublisherPolicy, acquire_definition_publisher_policy,
+    },
 };
 pub use error::{ErrorCode, PortcoveError, Result};
 pub use external_runtime::{ExternalRuntimePreview, ExternalRuntimeRemovalPreview};

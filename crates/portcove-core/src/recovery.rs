@@ -60,6 +60,7 @@ pub(crate) fn recover_published_install(
                         "prepared payload no longer matches its manifest",
                     ));
                 }
+                require_install_publication_authority(service, operation, &staged)?;
                 fs::create_dir_all(
                     install
                         .path
@@ -98,6 +99,7 @@ pub(crate) fn recover_published_install(
                 "published payload no longer matches its manifest",
             ));
         }
+        require_install_publication_authority(service, operation, &install)?;
         if operation.kind == LifecycleOperationKind::Prepare {
             let plan = operation.preparation.as_ref().ok_or_else(|| {
                 PortcoveError::state("prepared publication is missing its reviewed inputs")
@@ -133,6 +135,32 @@ pub(crate) fn recover_published_install(
             fs::remove_dir_all(&staging)?;
         }
         store.remove(&operation.id)?;
+    }
+    Ok(())
+}
+
+fn require_install_publication_authority(
+    service: &PortcoveService,
+    operation: &LifecycleOperation,
+    install: &InstallRecord,
+) -> Result<()> {
+    if !matches!(
+        operation.kind,
+        LifecycleOperationKind::Install | LifecycleOperationKind::Adopt
+    ) {
+        return Ok(());
+    }
+    if let Some(catalog) = Installer::new(service.library.clone())?.retained_catalog(install)? {
+        let port = catalog.port(&install.port_id)?;
+        service.require_definition_operation(
+            &catalog,
+            port,
+            crate::definition_eligibility::DefinitionOperationContext::observed(
+                crate::DefinitionOperation::Install,
+                false,
+                true,
+            ),
+        )?;
     }
     Ok(())
 }

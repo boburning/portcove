@@ -120,6 +120,15 @@ impl RepositoryFixture {
     }
 
     async fn root(&self, consistent_snapshot: bool) -> Vec<u8> {
+        self.root_with_protected_delegation(consistent_snapshot, false)
+            .await
+    }
+
+    async fn root_with_protected_delegation(
+        &self,
+        consistent_snapshot: bool,
+        protected_delegation: bool,
+    ) -> Vec<u8> {
         let mut root = Root {
             spec_version: "1.0.0".into(),
             consistent_snapshot,
@@ -139,7 +148,7 @@ impl RepositoryFixture {
         root.roles.insert(
             RoleType::Root,
             RoleKeys {
-                keyids: root_ids,
+                keyids: root_ids.clone(),
                 threshold: nz(2),
                 _extra: HashMap::new(),
             },
@@ -151,7 +160,11 @@ impl RepositoryFixture {
             root.roles.insert(
                 role,
                 RoleKeys {
-                    keyids: vec![id.clone()],
+                    keyids: vec![if protected_delegation && role == RoleType::Targets {
+                        root_ids[0].clone()
+                    } else {
+                        id.clone()
+                    }],
                     threshold: nz(1),
                     _extra: HashMap::new(),
                 },
@@ -183,7 +196,32 @@ impl RepositoryFixture {
         role_paths: &[&str],
         expires: Timestamp,
     ) -> Vec<u8> {
-        let root = self.root(consistent_snapshot).await;
+        self.publish_with_policy(targets, consistent_snapshot, role_paths, expires, None)
+            .await
+    }
+
+    async fn publish_with_policy(
+        &self,
+        targets: &[(String, Vec<u8>)],
+        consistent_snapshot: bool,
+        role_paths: &[&str],
+        expires: Timestamp,
+        policy: Option<(&Key, u64)>,
+    ) -> Vec<u8> {
+        let version = policy.map_or(1, |(_, version)| version);
+        let root = if policy.is_some() && self.root_path.exists() {
+            fs::read(&self.root_path).unwrap()
+        } else if policy.is_some() {
+            self.root_with_protected_delegation(consistent_snapshot, true)
+                .await
+        } else {
+            self.root(consistent_snapshot).await
+        };
+        let delegation_key = if policy.is_some() {
+            &self.offline[0]
+        } else {
+            &self.online
+        };
         let mut inputs = Vec::new();
         for (name, bytes) in targets {
             let path = self.source.join(name);
@@ -197,13 +235,13 @@ impl RepositoryFixture {
             .collect();
         let mut editor = RepositoryEditor::new(&self.root_path).await.unwrap();
         editor
-            .targets_version(nz(1))
+            .targets_version(nz(version))
             .unwrap()
             .targets_expires(expires)
             .unwrap()
-            .snapshot_version(nz(1))
+            .snapshot_version(nz(version))
             .snapshot_expires(expires)
-            .timestamp_version(nz(1))
+            .timestamp_version(nz(version))
             .timestamp_expires(expires)
             .delegate_role(
                 "official-definitions",
@@ -212,22 +250,47 @@ impl RepositoryFixture {
                 true,
                 nz(1),
                 expires,
-                nz(1),
+                nz(version),
             )
             .await
-            .unwrap()
-            .sign_targets_editor(&[self.online.source()])
+            .unwrap();
+        if let Some((key, version)) = policy {
+            // Policy validity is shorter than definition validity so runtime cache
+            // tests can distinguish the two authenticated expiration boundaries.
+            let policy_expires = expires
+                .checked_sub(std::time::Duration::from_secs(60))
+                .unwrap();
+            editor
+                .delegate_role(
+                    super::publisher_policy::POLICY_ROLE,
+                    &[key.source()],
+                    PathSet::Paths(vec![
+                        PathPattern::new(super::publisher_policy::POLICY_PATH).unwrap(),
+                    ]),
+                    true,
+                    nz(1),
+                    policy_expires,
+                    nz(version),
+                )
+                .await
+                .unwrap();
+        }
+        editor
+            .sign_targets_editor(&[delegation_key.source()])
             .await
             .unwrap()
             .change_delegated_targets("official-definitions")
             .unwrap();
         for (name, path) in &inputs {
+            if name.raw().starts_with("policy/") {
+                continue;
+            }
             editor
                 .add_target(name.clone(), Target::from_path(path).await.unwrap())
                 .unwrap();
         }
         editor
-            .targets_version(nz(1))
+            .targets_version(nz(version))
             .unwrap()
             .targets_expires(expires)
             .unwrap()
@@ -236,16 +299,61 @@ impl RepositoryFixture {
             .unwrap()
             .change_delegated_targets("targets")
             .unwrap();
+        if let Some((key, version)) = policy {
+            let policy_expires = expires
+                .checked_sub(std::time::Duration::from_secs(60))
+                .unwrap();
+            editor
+                .targets_version(nz(version))
+                .unwrap()
+                .targets_expires(expires)
+                .unwrap()
+                .sign_targets_editor(&[delegation_key.source()])
+                .await
+                .unwrap()
+                .change_delegated_targets(super::publisher_policy::POLICY_ROLE)
+                .unwrap();
+            for (name, path) in &inputs {
+                if name.raw().starts_with("policy/") {
+                    editor
+                        .add_target(name.clone(), Target::from_path(path).await.unwrap())
+                        .unwrap();
+                }
+            }
+            editor
+                .targets_version(nz(version))
+                .unwrap()
+                .targets_expires(policy_expires)
+                .unwrap()
+                .sign_targets_editor(&[key.source()])
+                .await
+                .unwrap()
+                .change_delegated_targets("targets")
+                .unwrap();
+        }
         editor
-            .targets_version(nz(1))
+            .targets_version(nz(version))
             .unwrap()
             .targets_expires(expires)
             .unwrap();
-        let signed = editor.sign(&[self.online.source()]).await.unwrap();
+        let mut signing_keys = vec![self.online.source()];
+        if policy.is_some() {
+            signing_keys.push(delegation_key.source());
+        }
+        let signed = editor.sign(&signing_keys).await.unwrap();
         signed.write(&self.metadata).await.unwrap();
         for (name, path) in &inputs {
             signed
-                .copy_target(path, &self.targets, PathExists::Fail, Some(name))
+                .copy_target(
+                    path,
+                    &self.targets,
+                    if policy.is_some() {
+                        PathExists::Skip
+                    } else {
+                        PathExists::Fail
+                    },
+                    Some(name),
+                )
                 .await
                 .unwrap();
         }
@@ -269,6 +377,9 @@ impl RepositoryFixture {
         }
     }
 }
+
+#[path = "definition_publisher_policy_tests.rs"]
+mod publisher_policy_tests;
 
 fn repository_targets() -> (String, Vec<(String, Vec<u8>)>) {
     let catalog = Catalog::embedded().unwrap();
