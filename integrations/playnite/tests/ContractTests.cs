@@ -729,6 +729,26 @@ internal static class ContractTests
         var registeredExternal = Json.Parse("{\"active\":null,\"external_runtime\":{\"path\":\"C:\\\\owned\\\\runtime\",\"version\":\"1\"},\"readiness\":{\"launchable\":false,\"pending_setup\":false,\"blockers\":[\"invalid_installation\"]},\"port_actions\":[{\"action\":\"launch\",\"availability\":\"held\",\"reason\":\"invalid_installation\"}]}");
         Check(GuidedSetup.Choose(registeredExternal, external, "", "").Detail.Contains("is registered"),
             "registered but held external runtime receives its actual review path");
+        var incompatible = Json.Parse("{\"active\":null,\"external_runtime\":{\"path\":\"C:\\\\owned\\\\runtime\",\"version\":\"1\"},\"readiness\":{\"launchable\":false,\"source\":\"current\",\"required_source_extension\":\"z64\",\"blockers\":[\"incompatible_source\"]},\"port_actions\":[{\"action\":\"launch\",\"availability\":\"waiting\",\"reason\":\"incompatible_source\"}]}");
+        var guidance = GuidedSetup.Choose(incompatible, externalNeedsSource, "", "");
+        Check(guidance.Kind == GuidedStepKind.ChooseSource && guidance.Detail.Contains(".z64") && guidance.Detail.Contains("uncompressed"),
+            "a current but incompatible source receives the core-required original file guidance");
+        Check(GuidedSetup.Choose(incompatible, externalNeedsSource, @"C:\owned\original.Z64", "").Kind == GuidedStepKind.ValidateSources,
+            "waiting for compatible source permits explicit core validation of a replacement file");
+        var malformed = Json.Object(Json.Parse(Json.Print(incompatible)));
+        var malformedReadiness = Json.Object(Json.Field(malformed, "readiness"));
+        malformedReadiness.Remove("required_source_extension");
+        Check(GuidedSetup.Choose(malformed, externalNeedsSource, @"C:\owned\original.Z64", "").Kind == GuidedStepKind.ReviewProblem,
+            "missing consequential extension guidance fails closed before source mutation");
+        foreach (var invalidExtension in new object[] { "", ".z64", "../z64", "z64\n", 64, new string('a', 17) })
+        {
+            malformedReadiness["required_source_extension"] = invalidExtension;
+            Check(GuidedSetup.Choose(malformed, externalNeedsSource, "", "").Kind == GuidedStepKind.ReviewProblem,
+                "malformed source extension fails closed: " + invalidExtension);
+        }
+        malformedReadiness["required_source_extension"] = "N64";
+        Check(GuidedSetup.Choose(malformed, externalNeedsSource, "", "").Detail.Contains(".N64"),
+            "source representation guidance follows core instead of a title-specific client rule");
     }
 
     private static async Task ConsumerMeasurements()
@@ -1125,6 +1145,19 @@ internal static class ContractTests
         await client.Connect();
         connect.Stop();
         var port = args[3];
+
+        if (mode == "qualification-source-guidance")
+        {
+            var status = await Status(client, port);
+            var catalog = Json.Array(await client.Read("catalog.list", "catalog", "list"))
+                .Single(value => Json.Text(value, "id") == port);
+            var guided = GuidedSetup.Choose(status, catalog, "", "");
+            Check(guided.Kind == GuidedStepKind.ChooseSource && guided.Detail.Contains(".z64"),
+                "real producer incompatible-source readiness drives exact client file guidance");
+            Check(GuidedSetup.Choose(status, catalog, args[4], "").Kind == GuidedStepKind.ValidateSources,
+                "real producer waiting action permits explicit replacement validation");
+            return;
+        }
 
         if (mode == "qualification-library-busy")
         {

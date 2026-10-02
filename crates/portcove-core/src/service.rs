@@ -1309,6 +1309,7 @@ impl PortcoveService {
                     launchable: false,
                     blockers: vec![LaunchBlocker::InvalidInstallation],
                     pending_setup: false,
+                    required_source_extension: None,
                     source: None,
                     bios: None,
                 });
@@ -1346,6 +1347,28 @@ impl PortcoveService {
             .transpose()?;
         add_source_blocker(&mut blockers, source, false);
         add_source_blocker(&mut blockers, bios, true);
+        let required_source_extension = if port.release.provider == ReleaseSource::UserPrepared {
+            Platform::current().ok().and_then(|platform| {
+                port.release
+                    .user_prepared
+                    .get(&platform)
+                    .and_then(|runtime| runtime.source_argument_extension.clone())
+            })
+        } else {
+            None
+        };
+        if source == Some(SourceHealth::Current)
+            && required_source_extension
+                .as_deref()
+                .is_some_and(|extension| {
+                    port.source_profile
+                        .as_ref()
+                        .and_then(|profile| registered_sources.get(profile))
+                        .is_some_and(|record| !source_path_has_extension(&record.path, extension))
+                })
+        {
+            blockers.push(LaunchBlocker::IncompatibleSource);
+        }
         if status.active.as_ref().is_some_and(|active| {
             Platform::current().is_ok_and(|platform| !crate::runtime::ready(port, platform, active))
         }) {
@@ -1372,6 +1395,7 @@ impl PortcoveService {
             launchable: installed && blockers.is_empty(),
             blockers,
             pending_setup,
+            required_source_extension,
             source,
             bios,
         });
@@ -4225,12 +4249,7 @@ impl PortcoveService {
                 })?
             };
             if let Some(extension) = spec.source_argument_extension.as_deref() {
-                if source
-                    .path
-                    .extension()
-                    .and_then(|value| value.to_str())
-                    .is_none_or(|actual| !actual.eq_ignore_ascii_case(extension))
-                {
+                if !source_path_has_extension(&source.path, extension) {
                     return Err(PortcoveError::source(format!(
                         "{} requires an uncompressed .{extension} original source",
                         retained_port.name
@@ -4633,6 +4652,7 @@ fn port_action_blocker(blocker: LaunchBlocker) -> (PortActionAvailability, PortA
         LaunchBlocker::MissingSource => (Availability::Waiting, Reason::MissingSource),
         LaunchBlocker::UnreadableSource => (Availability::Held, Reason::UnreadableSource),
         LaunchBlocker::ChangedSource => (Availability::Held, Reason::ChangedSource),
+        LaunchBlocker::IncompatibleSource => (Availability::Waiting, Reason::IncompatibleSource),
         LaunchBlocker::MissingBios => (Availability::Waiting, Reason::MissingBios),
         LaunchBlocker::UnreadableBios => (Availability::Held, Reason::UnreadableBios),
         LaunchBlocker::ChangedBios => (Availability::Held, Reason::ChangedBios),
@@ -4640,6 +4660,12 @@ fn port_action_blocker(blocker: LaunchBlocker) -> (PortActionAvailability, PortA
         LaunchBlocker::PreparationRequired => (Availability::Waiting, Reason::PreparationRequired),
         LaunchBlocker::InvalidInstallation => (Availability::Held, Reason::InvalidInstallation),
     }
+}
+
+fn source_path_has_extension(path: &Path, extension: &str) -> bool {
+    path.extension()
+        .and_then(|value| value.to_str())
+        .is_some_and(|actual| actual.eq_ignore_ascii_case(extension))
 }
 
 fn repair_path_identity(path: &Path) -> PathBuf {
@@ -7236,6 +7262,253 @@ fn main() {
         fs::remove_file(source).unwrap();
         fs::write(path.join("engine.dll"), b"critical library").unwrap();
         register_existing_test_artifact(library, "zelda64-recomp", version, &path, artifact, active)
+    }
+
+    #[test]
+    fn external_source_representation_uses_retained_contract_without_changing_source_health() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let probe = register_launch_probe(&library, "v1", true);
+        let external = temporary.path().join("player-owned");
+        fs::create_dir(&external).unwrap();
+        let platform = Platform::current().unwrap();
+        let executable_name = probe.selected_executable.to_str().unwrap().to_owned();
+        fs::copy(
+            probe.path.join(&executable_name),
+            external.join(&executable_name),
+        )
+        .unwrap();
+        let mut runtime = crate::UserPreparedRuntimeSpec {
+            version: "probe-v1".into(),
+            archive_name: "probe.zip".into(),
+            archive_size: 1,
+            archive_sha256: "a".repeat(64),
+            executable: executable_name.clone(),
+            immutable_tree_sha256: "0".repeat(64),
+            source_argument_extension: Some("z64".into()),
+            mutable_paths: vec!["general.json".into()],
+        };
+        runtime.immutable_tree_sha256 =
+            crate::external_runtime::inspect(&external, &runtime, library.root())
+                .unwrap_err()
+                .details["actual_tree_sha256"]
+                .clone();
+        let mut service = service_with_release(library.clone(), "v1");
+        let mut document = service.catalog().authoritative_document();
+        let mut port = service.catalog().port("zelda64-recomp").unwrap().clone();
+        port.id = "external-source-probe".into();
+        port.platforms = vec![platform];
+        port.automated_tested_platforms.clear();
+        port.manually_validated_platforms.clear();
+        port.source_profile = Some("star-fox-64".into());
+        port.bios_source_profile = None;
+        port.runtime_source_filename = None;
+        port.persistent_paths.clear();
+        port.presentation = None;
+        port.release.provider = ReleaseSource::UserPrepared;
+        port.release.asset_hints.clear();
+        port.release.user_prepared.insert(platform, runtime);
+        port.executable_hints = [(platform, vec![executable_name.clone()])].into();
+        document.ports.push(port.clone());
+        let mut sibling = port.clone();
+        sibling.id = "external-source-sibling".into();
+        sibling
+            .release
+            .user_prepared
+            .get_mut(&platform)
+            .unwrap()
+            .source_argument_extension = None;
+        document.ports.push(sibling);
+        let source_catalog = document.source_catalog.as_mut().unwrap();
+        let binding = source_catalog
+            .contracts
+            .iter()
+            .find(|contract| contract.profile_id == "star-fox-64")
+            .unwrap()
+            .clone();
+        for id in [port.id.as_str(), "external-source-sibling"] {
+            let mut binding = binding.clone();
+            binding.id = format!("{id}-game-source");
+            binding.port_id = id.into();
+            source_catalog.contracts.push(binding);
+        }
+        service.replace_catalog_for_test(
+            Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap(),
+        );
+        for id in [port.id.as_str(), "external-source-sibling"] {
+            let token = service
+                .authorize_external_runtime(
+                    id,
+                    &external,
+                    &service
+                        .preview_external_runtime(id, &external)
+                        .unwrap()
+                        .preview_sha256,
+                )
+                .unwrap();
+            service
+                .register_external_runtime(id, &external, &token.token)
+                .unwrap();
+        }
+        let raw = temporary.path().join("original.Z64");
+        fs::write(&raw, b"synthetic original source").unwrap();
+        let zipped = temporary.path().join("original.zip");
+        let mut archive = zip::ZipWriter::new(fs::File::create(&zipped).unwrap());
+        archive
+            .start_file("original.z64", zip::write::SimpleFileOptions::default())
+            .unwrap();
+        std::io::Write::write_all(&mut archive, b"synthetic original source").unwrap();
+        archive.finish().unwrap();
+        service.register_source("star-fox-64", &zipped).unwrap();
+        let zip_bytes = fs::read(&zipped).unwrap();
+        let database_before = fs::read(library.root().join("portcove.sqlite3")).unwrap();
+        let batch = service.statuses().unwrap();
+        let sibling = batch
+            .iter()
+            .find(|status| status.port_id == "external-source-sibling")
+            .unwrap();
+        assert!(
+            sibling.readiness.as_ref().unwrap().launchable,
+            "per-runtime incompatibility must not contaminate shared source-health cache"
+        );
+        assert!(
+            service
+                .status("zelda64-recomp")
+                .unwrap()
+                .readiness
+                .unwrap()
+                .required_source_extension
+                .is_none(),
+            "managed runtimes keep their source materialization contract"
+        );
+        for status in [
+            service.status(&port.id).unwrap(),
+            batch
+                .into_iter()
+                .find(|status| status.port_id == port.id)
+                .unwrap(),
+        ] {
+            let readiness = status.readiness.unwrap();
+            assert_eq!(readiness.source, Some(SourceHealth::Current));
+            assert_eq!(readiness.required_source_extension.as_deref(), Some("z64"));
+            assert_eq!(readiness.blockers, [LaunchBlocker::IncompatibleSource]);
+            assert!(!readiness.launchable);
+            let launch = status
+                .port_actions
+                .iter()
+                .find(|action| action.action == PortAction::Launch)
+                .unwrap();
+            assert_eq!(launch.availability, PortActionAvailability::Waiting);
+            assert_eq!(launch.reason, PortActionReason::IncompatibleSource);
+        }
+        assert_eq!(
+            fs::read(library.root().join("portcove.sqlite3")).unwrap(),
+            database_before
+        );
+        let sibling_readiness = service
+            .status("external-source-sibling")
+            .unwrap()
+            .readiness
+            .unwrap();
+        assert!(sibling_readiness.launchable);
+        assert_eq!(sibling_readiness.source, Some(SourceHealth::Current));
+        assert!(sibling_readiness.required_source_extension.is_none());
+        assert_eq!(
+            service
+                .supervise_launch(&port.id, None, &[], LaunchStdio::Null, |_| panic!(
+                    "incompatible ZIP must fail before a game child starts"
+                ))
+                .unwrap_err()
+                .code,
+            crate::ErrorCode::SourceInvalid
+        );
+        // A catalog update cannot reinterpret the already registered runtime.
+        document
+            .ports
+            .iter_mut()
+            .find(|entry| entry.id == port.id)
+            .unwrap()
+            .release
+            .user_prepared
+            .get_mut(&platform)
+            .unwrap()
+            .source_argument_extension = Some("n64".into());
+        service.replace_catalog_for_test(
+            Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap(),
+        );
+        assert_eq!(
+            service
+                .status(&port.id)
+                .unwrap()
+                .readiness
+                .unwrap()
+                .required_source_extension
+                .as_deref(),
+            Some("z64")
+        );
+        service.register_source("star-fox-64", &raw).unwrap();
+        let ready = service.status(&port.id).unwrap();
+        assert!(ready.readiness.unwrap().launchable);
+        assert_eq!(
+            ready
+                .port_actions
+                .iter()
+                .find(|action| action.action == PortAction::Launch)
+                .unwrap()
+                .availability,
+            PortActionAvailability::Allowed
+        );
+        let (record, retained) = library
+            .external_runtime_with_port(&port.id)
+            .unwrap()
+            .unwrap();
+        let launch = service
+            .prepare_launch_for_external(
+                &record,
+                &retained,
+                None,
+                &OperationCoordinator::new("launch", None),
+            )
+            .unwrap();
+        assert_eq!(
+            launch.arguments.first(),
+            Some(&raw.to_string_lossy().into_owned())
+        );
+        assert_eq!(
+            service
+                .supervise_launch(&port.id, Some(&zipped), &[], LaunchStdio::Null, |_| panic!(
+                    "incompatible override must fail before child launch"
+                ))
+                .unwrap_err()
+                .code,
+            crate::ErrorCode::SourceInvalid
+        );
+        assert_eq!(fs::read(&raw).unwrap(), b"synthetic original source");
+        assert_eq!(fs::read(&zipped).unwrap(), zip_bytes);
+        assert!(
+            !external.join("general.json").exists(),
+            "no game child or source materialization"
+        );
+        fs::write(&raw, b"changed").unwrap();
+        assert_eq!(
+            service
+                .status(&port.id)
+                .unwrap()
+                .readiness
+                .unwrap()
+                .blockers,
+            [LaunchBlocker::ChangedSource]
+        );
+        fs::remove_file(&raw).unwrap();
+        assert_eq!(
+            service
+                .status(&port.id)
+                .unwrap()
+                .readiness
+                .unwrap()
+                .blockers,
+            [LaunchBlocker::MissingSource]
+        );
     }
 
     #[test]

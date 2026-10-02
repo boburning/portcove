@@ -1194,6 +1194,7 @@
           "missing_source",
           "unreadable_source",
           "changed_source",
+          "incompatible_source",
           "missing_bios",
           "unreadable_bios",
           "changed_bios",
@@ -1226,6 +1227,13 @@
           },
           "pending_setup": {
             "type": "boolean"
+          },
+          "required_source_extension": {
+            "description": "Original file representation required by the effective runtime contract.\nThis is independent of source identity health and uses the retained\ndefinition when an external runtime is registered.",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "source": {
             "anyOf": [
@@ -1325,6 +1333,7 @@
           "missing_source",
           "unreadable_source",
           "changed_source",
+          "incompatible_source",
           "missing_bios",
           "unreadable_bios",
           "changed_bios",
@@ -28789,6 +28798,7 @@
           "missing_source",
           "unreadable_source",
           "changed_source",
+          "incompatible_source",
           "missing_bios",
           "unreadable_bios",
           "changed_bios",
@@ -28821,6 +28831,13 @@
           },
           "pending_setup": {
             "type": "boolean"
+          },
+          "required_source_extension": {
+            "description": "Original file representation required by the effective runtime contract.\nThis is independent of source identity health and uses the retained\ndefinition when an external runtime is registered.",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "source": {
             "anyOf": [
@@ -28910,6 +28927,7 @@
           "missing_source",
           "unreadable_source",
           "changed_source",
+          "incompatible_source",
           "missing_bios",
           "unreadable_bios",
           "changed_bios",

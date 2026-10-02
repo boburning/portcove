@@ -14,7 +14,7 @@ namespace Portcove.ReferenceClient
     {
         private static readonly string[] KnownBlockers =
         {
-            "missing_source", "unreadable_source", "changed_source", "missing_bios",
+            "missing_source", "unreadable_source", "changed_source", "incompatible_source", "missing_bios",
             "unreadable_bios", "changed_bios", "missing_runtime", "preparation_required",
             "invalid_installation"
         };
@@ -35,6 +35,15 @@ namespace Portcove.ReferenceClient
             if (blockers.Any(value => value == null || !KnownBlockers.Contains(value)))
                 return Step(GuidedStepKind.ReviewProblem, "Review readiness",
                     "Portcove returned an unknown readiness blocker. Refresh with a compatible CLI before managing this game.");
+            object requiredExtension;
+            Json.TryField(readiness, "required_source_extension", out requiredExtension);
+            var extension = requiredExtension as string;
+            if ((requiredExtension != null && (extension == null || extension.Length == 0 ||
+                extension.Length > 16 || extension.Any(character => !((character >= 'a' && character <= 'z') ||
+                    (character >= 'A' && character <= 'Z') || (character >= '0' && character <= '9'))) || sourceProfile == null)) ||
+                (blockers.Contains("incompatible_source") && (extension == null || Json.Boolean(readiness, "launchable"))))
+                return Step(GuidedStepKind.ReviewProblem, "Review source requirement",
+                    "Portcove returned an invalid source representation requirement. Refresh with a compatible CLI before registering files.");
             var actions = PortActions.Read(status);
             var launch = actions.FirstOrDefault(value => value.Action == "launch");
             var installed = StatusInstallation.Current(status) != null;
@@ -57,16 +66,18 @@ namespace Portcove.ReferenceClient
                     return Step(GuidedStepKind.ReviewProblem, "Review source selection",
                         "This catalog entry does not request one of the selected inputs. Clear that path and refresh readiness.");
                 return Step(GuidedStepKind.ValidateSources, "Check and register original files",
-                    "Portcove checks the selected paths against their source profiles before registering them. Game-specific revision checks may also occur during setup. Originals remain in place.");
+                    "Portcove checks the selected paths against their source profiles before registering them. Game-specific revision checks may also occur during setup. Originals remain in place." +
+                    (extension == null ? "" : " This runtime requires an uncompressed ." + extension + " original file for launch."));
             }
             if (installed && Json.Boolean(readiness, "launchable") &&
                 (launch == null || launch.Availability == "allowed"))
                 return Step(GuidedStepKind.Play, "Play",
                     "Playnite launches the current installation through Portcove. It does not install or update the game.");
             if (sourceProfile != null && blockers.Any(value => value == "missing_source" ||
-                value == "unreadable_source" || value == "changed_source"))
+                value == "unreadable_source" || value == "changed_source" || value == "incompatible_source"))
                 return Step(GuidedStepKind.ChooseSource, "Choose original files…",
-                    "Choose your own game file, or use Choose folder below. Portcove will validate it before use.");
+                    extension == null ? "Choose your own game file, or use Choose folder below. Portcove will validate it before use." :
+                    "Choose your own uncompressed ." + extension + " original game file. Select the file itself rather than a ZIP containing it. Portcove will validate the selected file before registering it; originals remain in place.");
             if (biosProfile != null && blockers.Any(value => value == "missing_bios" ||
                 value == "unreadable_bios" || value == "changed_bios"))
                 return Step(GuidedStepKind.ChooseBios, "Choose BIOS file…",

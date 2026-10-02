@@ -121,6 +121,13 @@ the outside runtime or grant ownership of it. On another host or after moving
 the external folder, prepare and register it again against an accepted catalog
 entry.
 
+Schema 59 adds optional readiness `required_source_extension` and the
+`incompatible_source` launch blocker/action reason. These describe the effective
+runtime's required original-file representation, including its retained contract
+after registration. An unchanged registered ZIP may have `source: current` while
+launch waits for a validated uncompressed file of that extension. Source identity
+health and runtime compatibility remain separate; status never extracts inputs.
+
 Schema 58 adds optional `external.review`. Read `external preview PORT_ID PATH`
 or `external removal-preview PORT_ID`, show that exact preview and submit
 `external register PORT_ID PATH --expected-preview SHA256 --yes` or

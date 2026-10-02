@@ -120,7 +120,7 @@ async function checkReviewedExternal(cli, library, catalogPath, workspace, env) 
   Object.assign(definition, {
     id: port,
     name: "Owned external consent fixture",
-    source_profile: null,
+    source_profile: "star-fox-64",
     presentation: null,
   });
   definition.executable_hints = { "windows-x86-64": ["game.exe"] };
@@ -131,9 +131,17 @@ async function checkReviewedExternal(cli, library, catalogPath, workspace, env) 
     archive_sha256: createHash("sha256").update(bytes).digest("hex"),
     executable: "game.exe",
     immutable_tree_sha256: tree,
+    source_argument_extension: "z64",
     mutable_paths: ["player.save"],
   };
   catalog.ports.push(definition);
+  const sourceBinding = structuredClone(
+    catalog.source_catalog.contracts.find((value) => value.profile_id === "star-fox-64"),
+  );
+  assert.ok(sourceBinding, "fixture source profile must have an authoritative contract");
+  sourceBinding.port_id = port;
+  sourceBinding.id = `${port}-game-source`;
+  catalog.source_catalog.contracts.push(sourceBinding);
   const publish = () => writeFile(catalogPath, `${JSON.stringify(catalog, null, 2)}\n`);
   await publish();
   const invoke = (...args) =>
@@ -178,6 +186,27 @@ async function checkReviewedExternal(cli, library, catalogPath, workspace, env) 
     "--yes",
   );
   assert.equal((await status()).external_runtime.id, registered.id);
+  const original = path.join(workspace, "owned original.n64");
+  await writeFile(original, "synthetic original source");
+  await run(cli, ["--library", library, "--json", "source", "register", "star-fox-64", original], {
+    env,
+    echo: false,
+  });
+  const blocked = await status();
+  assert.equal(blocked.readiness.source, "current");
+  assert.equal(blocked.readiness.required_source_extension, "z64");
+  assert.equal(blocked.readiness.launchable, false);
+  assert.deepEqual(blocked.readiness.blockers, ["incompatible_source"]);
+  assert.equal(
+    blocked.port_actions.find((action) => action.action === "launch").availability,
+    "waiting",
+  );
+  assert.match(
+    await run(cli, ["--library", library, "status", port], { env, echo: false }),
+    /requires uncompressed \.z64 original file/u,
+  );
+  await run(contract, ["qualification-source-guidance", cli, library, port, original], { env });
+  assert.equal(await readFile(original, "utf8"), "synthetic original source");
   const removal = await read("removal-preview", port);
   assert.equal(removal.external_files_will_be_preserved, true);
   assert.equal((await status()).external_runtime.id, registered.id, "removal preview is read-only");
