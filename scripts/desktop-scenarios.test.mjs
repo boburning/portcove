@@ -3,7 +3,10 @@ import test from "node:test";
 import { mkdtemp, mkdir, readFile, writeFile, rm } from "node:fs/promises";
 import path from "node:path";
 import { fileIdentity } from "./development-evidence.mjs";
-import { verifyNormalPackageEvidence } from "../apps/desktop/scripts/desktop-main-webview-boundary.mjs";
+import {
+  verifyNormalPackageEvidence,
+  assertOwnedBoundaryRequests,
+} from "../apps/desktop/scripts/desktop-main-webview-boundary.mjs";
 import { assertSteamEntryContext } from "../apps/desktop/scripts/desktop-context-contract.mjs";
 import { OwnedNativeSession } from "../apps/desktop/scripts/desktop-owned-native-session.mjs";
 import {
@@ -13,6 +16,19 @@ import {
   DESKTOP_SCENARIOS,
   resolveDesktopSelection,
 } from "./desktop-scenarios.mjs";
+
+test("cancelled navigation permits only observed GETs and never popup or execution traffic", () => {
+  const request = { method: "GET", path: "/untrusted", phase: "navigation-http" };
+  assertOwnedBoundaryRequests([]);
+  assertOwnedBoundaryRequests([request]);
+  for (const invalid of [
+    { ...request, method: "POST" },
+    { ...request, path: "/untrusted/popup" },
+    { ...request, path: "/untrusted/executed-marker" },
+    { ...request, phase: "main-controls" },
+  ])
+    assert.throws(() => assertOwnedBoundaryRequests([invalid]));
+});
 
 test("ordinary package boundary is isolated and rejects stale or substituted evidence", async (t) => {
   const selection = resolveDesktopSelection({

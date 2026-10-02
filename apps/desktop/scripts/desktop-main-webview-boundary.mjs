@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
+import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { fileIdentity } from "../../../scripts/development-evidence.mjs";
 
@@ -62,16 +63,21 @@ export async function normalPackageBoundaryScenario({
 }) {
   const observations = { package: packageEvidence };
   const requests = [];
+  const marker = `__untrustedBoundary_${randomUUID().replaceAll("-", "")}`;
+  const beacon = `/untrusted/executed-${marker}`;
+  let phase = "main-controls";
+  observations.navigationPhases = [];
   const server = createServer((request, response) => {
     requests.push({
       method: request.method,
       path: request.url,
       user_agent: request.headers["user-agent"] ?? null,
       observed_at: new Date().toISOString(),
+      phase,
     });
     response.setHeader("Content-Type", "text/html");
     response.end(
-      "<!doctype html><title>Owned untrusted origin</title><script>window.__untrustedBoundary = true</script>",
+      `<!doctype html><title>Owned untrusted origin</title><script>window[${JSON.stringify(marker)}] = true; new Image().src = ${JSON.stringify(beacon)}</script>`,
     );
   });
   await new Promise((resolve, reject) => {
@@ -101,19 +107,26 @@ export async function normalPackageBoundaryScenario({
     assert.ok(
       observations.assets.every((source) => new URL(source).origin === new URL(initialUrl).origin),
     );
+    const fixtureUrl = `http://127.0.0.1:${server.address().port}/untrusted`;
     await assertMainWebviewContainment({
       browser,
       invoke,
       library,
       observations,
       initialUrl,
-      fixtureUrl: `http://127.0.0.1:${server.address().port}/untrusted`,
+      fixtureUrl,
+      onNavigation: (destination) => {
+        phase = destination === fixtureUrl ? "navigation-http" : "navigation-alias";
+        observations.navigationPhases.push({ destination, started_at: new Date().toISOString() });
+      },
     });
+    phase = "returned-main";
     observations.returnedMain = await invoke("get_bootstrap_status");
     assert.equal(observations.returnedMain.ok, true);
     assert.equal(path.resolve(observations.returnedMain.value.library_root), library);
     observations.remoteMarkerExecuted = await browser.executeScript(
-      () => window.__untrustedBoundary === true,
+      (name) => window[name] === true,
+      marker,
     );
     assert.equal(observations.remoteMarkerExecuted, false);
     const diagnostics = (
@@ -131,19 +144,37 @@ export async function normalPackageBoundaryScenario({
     );
     // WebView2 NavigationStarting cancellation preserves the page but explicitly
     // permits a speculative GET while the host responds. Do not claim network silence.
-    assert.deepEqual(
-      requests.filter((request) => request.path.endsWith("/popup")),
-      [],
-      "Refused popup must receive no fixture request",
-    );
   } finally {
+    observations.fixtureCloseStartedAt = new Date().toISOString();
     await new Promise((resolve, reject) =>
       server.close((error) => (error ? reject(error) : resolve())),
     );
+    observations.fixtureClosedAt = new Date().toISOString();
     observations.fixtureRequests = requests;
+    observations.remoteExecutionBeacon = {
+      path: beacon,
+      requests: requests.filter((request) => request.path === beacon),
+    };
     const report = path.join(output, "normal-package-boundary.json");
     await writeFile(report, JSON.stringify(observations, null, 2), { flag: "wx" });
     artifacts.push(report);
+    assertOwnedBoundaryRequests(requests);
+  }
+}
+
+export function assertOwnedBoundaryRequests(requests) {
+  for (const request of requests) {
+    assert.equal(request.method, "GET", "Unexpected fixture request method");
+    assert.equal(
+      request.path,
+      "/untrusted",
+      "Popup or remote execution beacon must receive no request",
+    );
+    assert.equal(
+      request.phase,
+      "navigation-http",
+      "Fixture requests must belong to attempted HTTP navigation",
+    );
   }
 }
 
@@ -188,6 +219,7 @@ export async function assertMainWebviewContainment({
   observations,
   fixtureUrl,
   initialUrl,
+  onNavigation = () => {},
 }) {
   observations.preservedLocale = await invoke("get_locale_preference");
   assert.equal(observations.preservedLocale.value.locale, "en");
@@ -261,6 +293,7 @@ export async function assertMainWebviewContainment({
   const inactiveAlias = new URL(initialUrl);
   inactiveAlias.protocol = inactiveAlias.protocol === "http:" ? "https:" : "http:";
   for (const destination of [fixtureUrl, inactiveAlias.href]) {
+    onNavigation(destination);
     const previous = (await navigationRefusals()).length;
     await browser.get(destination);
     const deadline = Date.now() + 10_000;
