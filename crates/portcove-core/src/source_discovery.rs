@@ -17,7 +17,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-const CURRENT_SCAN_FORMAT_VERSION: u32 = 3;
+const CURRENT_SCAN_FORMAT_VERSION: u32 = 4;
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct SourceDiscoveryLimits {
@@ -274,7 +274,7 @@ fn current_game_file_scan(
     };
     match snapshot.format_version {
         1 => snapshot.limits = None,
-        2 | 3 => {
+        2 | 3 | 4 => {
             let Some(limits) = snapshot.limits.as_ref() else {
                 return Err(PortcoveError::state(
                     "stored game-file scan snapshot is missing its scan limits",
@@ -347,6 +347,8 @@ struct Discovery<'a> {
     report: SourceDiscoveryReport,
     raw_profiles_by_extension: BTreeMap<String, Vec<&'a SourceProfile>>,
     zip_profile_groups: BTreeMap<Vec<String>, Vec<&'a SourceProfile>>,
+    directory_profiles: Vec<&'a SourceProfile>,
+    hashed_paths: BTreeSet<PathBuf>,
     limits: &'a SourceDiscoveryLimits,
     reached: BTreeSet<SourceDiscoveryLimit>,
     budget: HashBudget,
@@ -490,6 +492,8 @@ fn scan_with_events<'a>(
         },
         raw_profiles_by_extension: BTreeMap::new(),
         zip_profile_groups: BTreeMap::new(),
+        directory_profiles: Vec::new(),
+        hashed_paths: BTreeSet::new(),
         limits: &request.limits,
         reached: BTreeSet::new(),
         budget: HashBudget {
@@ -524,6 +528,11 @@ fn scan_with_events<'a>(
     }
     for id in request.profile_ids.iter().collect::<BTreeSet<_>>() {
         let profile = catalog.source_profile(id)?;
+        if profile.kind == crate::SourceKind::FileSet && catalog.source_catalog().is_some() {
+            discovery.directory_profiles.push(profile);
+            discovery.report.searched_profiles.push(profile.id.clone());
+            continue;
+        }
         let (raw_extensions, zip_extensions) =
             crate::source_inspection::file_scan_extensions(catalog, profile);
         if raw_extensions.is_empty() && zip_extensions.is_empty() {
@@ -550,7 +559,7 @@ fn scan_with_events<'a>(
             discovery.report.searched_profiles.push(profile.id.clone());
         }
     }
-    if !discovery.zip_profile_groups.is_empty() {
+    if !discovery.zip_profile_groups.is_empty() || !discovery.directory_profiles.is_empty() {
         discovery.walk()?;
     }
     discovery.report.hash_bytes = discovery.budget.hashed;
@@ -652,6 +661,9 @@ impl Discovery<'_> {
                     continue;
                 }
             };
+            let mut members = Vec::new();
+            let mut observations = DirectoryObservations::default();
+            let mut complete = true;
             for entry in entries {
                 if let Some(operation) = &self.budget.operation {
                     operation.checkpoint()?;
@@ -682,6 +694,7 @@ impl Discovery<'_> {
                     Ok(entry) => entry,
                     Err(error) => {
                         self.issue(Some(directory.clone()), None, error.to_string());
+                        complete = false;
                         continue;
                     }
                 };
@@ -689,6 +702,7 @@ impl Discovery<'_> {
                     Ok(kind) => kind,
                     Err(error) => {
                         self.issue(Some(entry.path()), None, error.to_string());
+                        complete = false;
                         continue;
                     }
                 };
@@ -701,6 +715,7 @@ impl Discovery<'_> {
                     Ok(canonical) => canonical,
                     Err(error) => {
                         self.issue(Some(path), None, error.to_string());
+                        complete = false;
                         continue;
                     }
                 };
@@ -727,7 +742,17 @@ impl Discovery<'_> {
                         self.reached.insert(SourceDiscoveryLimit::Depth);
                     }
                 } else if kind.is_file() {
-                    if let Err(error) = self.file(&canonical) {
+                    if let Some(name) = entry.file_name().to_str() {
+                        members.push((name.to_owned(), canonical.clone()));
+                    } else if !self.directory_profiles.is_empty() {
+                        complete = false;
+                        self.issue(
+                            Some(canonical.clone()),
+                            None,
+                            "Directory file sets require Unicode member names.".into(),
+                        );
+                    }
+                    if let Err(error) = self.file(&canonical, &mut observations) {
                         if error.code == crate::ErrorCode::Cancelled {
                             return Err(error);
                         }
@@ -739,11 +764,21 @@ impl Discovery<'_> {
                     }
                 }
             }
+            if complete && !self.directory_profiles.is_empty() {
+                self.refresh_output_exclusions(&directory, true)?;
+                if !self.is_excluded(&directory) {
+                    self.directory(&directory, &members, &mut observations)?;
+                }
+                if self.report.candidates.len() >= self.limits.max_candidates as usize {
+                    self.reached.insert(SourceDiscoveryLimit::Candidates);
+                    return Ok(());
+                }
+            }
         }
         Ok(())
     }
 
-    fn file(&mut self, path: &Path) -> Result<()> {
+    fn file(&mut self, path: &Path, observations: &mut DirectoryObservations) -> Result<()> {
         let extension = path
             .extension()
             .and_then(|value| value.to_str())
@@ -782,6 +817,11 @@ impl Discovery<'_> {
                 &mut self.budget,
             ) {
                 Ok(identity) => {
+                    if !identity.archive_member {
+                        observations
+                            .identities
+                            .insert(path.into(), identity.clone());
+                    }
                     for profile in profiles {
                         if let Ok(inspection) = crate::source_inspection::inspect_file_identity(
                             // Discovery and registration now share schema-2 matching.
@@ -813,6 +853,9 @@ impl Discovery<'_> {
                 }
                 Err(error) if error.code == crate::ErrorCode::Cancelled => return Err(error),
                 Err(error) if error.details.contains_key("scan_limit") => {
+                    if !extension.eq_ignore_ascii_case("zip") {
+                        observations.failed.insert(path.into());
+                    }
                     self.reached
                         .insert(if error.details["scan_limit"] == "file_size" {
                             SourceDiscoveryLimit::FileSize
@@ -825,14 +868,167 @@ impl Discovery<'_> {
                         .details
                         .get("zip_match_count")
                         .is_some_and(|count| count == "0") => {}
-                Err(error) => self.issue(Some(path.into()), None, error.message),
+                Err(error) => {
+                    if !extension.eq_ignore_ascii_case("zip") {
+                        observations.failed.insert(path.into());
+                    }
+                    self.issue(Some(path.into()), None, error.message);
+                }
             }
             if self.report.candidates.len() >= self.limits.max_candidates as usize {
                 break;
             }
         }
-        if self.budget.hashed > before {
+        if self.budget.hashed > before && self.hashed_paths.insert(path.into()) {
             self.report.files_hashed += 1;
+        }
+        Ok(())
+    }
+
+    fn directory_member(
+        &mut self,
+        path: &Path,
+        members: &[(String, PathBuf)],
+        observations: &mut DirectoryObservations,
+        names: &[String],
+    ) -> Result<Option<crate::source_inspection::HashedNamedSource>> {
+        let selected = members
+            .iter()
+            .filter(|(name, _)| {
+                names
+                    .iter()
+                    .any(|expected| expected.eq_ignore_ascii_case(name))
+            })
+            .collect::<Vec<_>>();
+        if selected.len() != 1 {
+            return Ok(None);
+        }
+        let (name, member_path) = selected[0];
+        let metadata = fs::symlink_metadata(member_path)?;
+        if !metadata.is_file()
+            || fs::canonicalize(member_path)? != *member_path
+            || member_path.parent() != Some(path)
+            || self.is_excluded(member_path)
+        {
+            return Err(PortcoveError::source(
+                "source member moved outside its scanned directory",
+            ));
+        }
+        if metadata.len() > self.limits.max_file_bytes {
+            return Err(
+                PortcoveError::unsupported("source member exceeds discovery size limit")
+                    .detail("scan_limit", "file_size"),
+            );
+        }
+        if observations.failed.contains(member_path) {
+            return Err(PortcoveError::source(
+                "source member could not be inspected during this scan",
+            ));
+        }
+        if let Some(identity) = observations.identities.get(member_path) {
+            if identity.size != metadata.len() {
+                return Err(PortcoveError::source(
+                    "source member changed after inspection",
+                ));
+            }
+        } else {
+            let before = self.budget.hashed;
+            let result = crate::source_file::read_raw_identity(
+                member_path,
+                metadata.len(),
+                self.limits.max_file_bytes,
+                &mut self.budget,
+            );
+            if (result.is_ok() || self.budget.hashed > before)
+                && self.hashed_paths.insert(member_path.clone())
+            {
+                self.report.files_hashed += 1;
+            }
+            match result {
+                Ok(identity) => {
+                    observations
+                        .identities
+                        .insert(member_path.clone(), identity);
+                }
+                Err(error) => {
+                    observations.failed.insert(member_path.clone());
+                    return Err(error);
+                }
+            }
+        }
+        let identity = &observations.identities[member_path];
+        Ok(Some(crate::source_inspection::HashedNamedSource {
+            name: name.clone(),
+            sha1: identity.sha1.clone(),
+            sha256: identity.sha256.clone(),
+            crc32: identity.crc32.clone(),
+            size: identity.size,
+        }))
+    }
+
+    fn directory(
+        &mut self,
+        path: &Path,
+        members: &[(String, PathBuf)],
+        observations: &mut DirectoryObservations,
+    ) -> Result<()> {
+        let names = members
+            .iter()
+            .map(|(name, _)| name.clone())
+            .collect::<Vec<_>>();
+        for profile in self.directory_profiles.clone() {
+            self.budget
+                .operation
+                .as_ref()
+                .expect("discovery owns operation")
+                .checkpoint()?;
+            let inspection = crate::source_inspection::inspect_directory_file_set(
+                self.catalog,
+                &profile.id,
+                path,
+                &names,
+                &mut |names| self.directory_member(path, members, observations, names),
+            );
+            match inspection {
+                Ok(inspection) => {
+                    if matches!(
+                        inspection.assessment.admission,
+                        crate::SourceAdmission::Admitted {
+                            mode: crate::SourceAdmissionMode::ExactIdentity
+                        }
+                    ) && let Some(candidate) = inspection.record
+                    {
+                        (self.emit)(
+                            self.budget
+                                .operation
+                                .as_ref()
+                                .expect("discovery owns operation")
+                                .source_candidate(&candidate),
+                        );
+                        self.budget
+                            .operation
+                            .as_ref()
+                            .expect("discovery owns operation")
+                            .checkpoint()?;
+                        self.report.candidates.push(candidate);
+                        if self.report.candidates.len() >= self.limits.max_candidates as usize {
+                            break;
+                        }
+                    }
+                }
+                Err(error) if error.code == crate::ErrorCode::Cancelled => return Err(error),
+                Err(error) if error.details.contains_key("scan_limit") => {
+                    self.reached
+                        .insert(if error.details["scan_limit"] == "file_size" {
+                            SourceDiscoveryLimit::FileSize
+                        } else {
+                            SourceDiscoveryLimit::HashBytes
+                        });
+                }
+                Err(error) => {
+                    self.issue(Some(path.into()), Some(profile.id.clone()), error.message)
+                }
+            }
         }
         Ok(())
     }
@@ -848,4 +1044,11 @@ impl Discovery<'_> {
             self.report.issues_omitted += 1;
         }
     }
+}
+
+// Facts and failures are scan-local, never persisted or used as admission decisions.
+#[derive(Default)]
+struct DirectoryObservations {
+    identities: BTreeMap<PathBuf, crate::source_file::FileIdentity>,
+    failed: BTreeSet<PathBuf>,
 }

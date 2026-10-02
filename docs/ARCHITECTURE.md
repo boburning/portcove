@@ -1717,7 +1717,7 @@ Only a verified import changes its journal to published and becomes openable. Th
 
 ## Source discovery
 
-Core owns opt-in discovery requests, traversal and hashing budgets, candidate validation, and explicit acceptance. Search requires selected roots and profiles; it does not infer personal folders. It skips symlinks and entries outside the canonical selected roots, filters extensions and size before hashing, bounds traversal and hashing, and shares original-file/cartridge-ZIP identity validation with manual registration. Equal source contracts share a hashing pass. Schema-2 scans select extensions from current exact file representations rather than their potentially narrower informational schema-1 projection; the shared inspector also accepts those current extensions when reviewing or importing a candidate. Schema-1 catalogs retain their exact-hash lookup. Only a unique exact identity admitted by the shared inspector becomes a candidate. Structural-only files, disc conversion, folder sets, and upstream-validator handoffs continue through manual selection. Results are candidates, never registrations. Acceptance runs current validation under the existing source/dependent-port locks and compares the reviewed normalized digest before writing the registry. CLI and Tauri expose this core operation; React holds only the selected search scope and transient result list.
+Core owns opt-in discovery requests, traversal and hashing budgets, candidate validation, and explicit acceptance. Search requires selected roots and profiles; it does not infer personal folders. It skips symlinks and entries outside the canonical selected roots, filters extensions and size before hashing, bounds traversal and hashing, and shares original-file/cartridge-ZIP identity validation with manual registration. Equal source contracts share a hashing pass. Schema-2 scans select extensions from current exact file representations rather than their potentially narrower informational schema-1 projection; the shared inspector also accepts those current extensions when reviewing or importing a candidate. Schema-1 catalogs retain their exact-hash lookup. Only a unique exact identity admitted by the shared inspector becomes a candidate. Complete schema-2 directory file sets also participate: the shared inspector matches required member names, digests and coherent variants from scan-local observations. Member enumeration and hash work share the request-wide budgets; incomplete directories cannot establish unique membership. Ordinary-file and directory-set matching reuse byte observations without sharing admission. File-set ZIPs, structural-only files, disc conversion and upstream-validator handoffs continue through manual selection. Results are candidates, never registrations. Acceptance runs current validation under the existing source/dependent-port locks and compares the reviewed normalized digest before writing the registry. CLI and Tauri expose this core operation; React holds only the selected search scope and transient result list.
 
 Explicit saved game-file roots are a separate core-owned input authority. A
 catalog-wide foreground scan considers only currently available saved roots and
@@ -1735,11 +1735,11 @@ scan cannot publish a snapshot; the final registry comparison and snapshot
 write share one database transaction. After a successful scan, core atomically
 replaces one bounded versioned snapshot containing
 the exact root identities and states, authoritative catalog digest, discovery report,
-limits and completion time. Current format 3 records the exact validated limits
-and the active schema-2 file-discovery rules. Earlier format-2 snapshots remain
+limits and completion time. Current format 4 records the exact validated limits
+and directory-file-set coverage. Earlier format-3 snapshots retain their original-file/ZIP coverage and are stale until rescanned. Earlier format-2 snapshots remain
 readable with their recorded limits, and format-1 snapshots remain readable with
-unknown limits rather than invented coverage. Both older formats are stale until
-a new scan runs; cancellation or failure preserves the prior snapshot.
+unknown limits rather than invented coverage. All earlier formats are stale until
+a new scan runs; cancellation or failure preserves the prior snapshot. Reached limits remain explicit partial coverage; the current request/report has no continuation token, so another foreground scan starts anew rather than claiming resumable traversal.
 Reads report whether catalog bytes, roots, availability, relink state and scan
 rules still match the recorded inputs. That does not claim the collection stayed byte-identical after
 the scan; the snapshot is local evidence, not a watcher, source registration, setup

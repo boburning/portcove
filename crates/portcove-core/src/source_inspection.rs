@@ -525,8 +525,40 @@ pub(crate) fn inspect_file_set(
     profile_id: &str,
     path: &Path,
 ) -> Result<SourceInspection> {
+    inspect_file_set_observations(catalog, profile_id, path, None)
+}
+
+pub(crate) fn inspect_directory_file_set(
+    catalog: &Catalog,
+    profile_id: &str,
+    path: &Path,
+    names: &[String],
+    read: &mut ReadDirectoryMember<'_>,
+) -> Result<SourceInspection> {
+    inspect_file_set_observations(
+        catalog,
+        profile_id,
+        path,
+        Some(DirectoryMemberReader { names, read }),
+    )
+}
+
+type ReadDirectoryMember<'a> = dyn FnMut(&[String]) -> Result<Option<HashedNamedSource>> + 'a;
+
+struct DirectoryMemberReader<'a> {
+    names: &'a [String],
+    read: &'a mut ReadDirectoryMember<'a>,
+}
+
+fn inspect_file_set_observations(
+    catalog: &Catalog,
+    profile_id: &str,
+    path: &Path,
+    mut directory_member: Option<DirectoryMemberReader<'_>>,
+) -> Result<SourceInspection> {
     let legacy = catalog.source_profile(profile_id)?;
-    let is_zip = path.is_file()
+    let is_zip = directory_member.is_none()
+        && path.is_file()
         && path
             .extension()
             .and_then(|value| value.to_str())
@@ -561,8 +593,13 @@ pub(crate) fn inspect_file_set(
             let SourceRepresentationKind::FileSet { members } = &representation.kind else {
                 continue;
             };
-            let Some((components, record, matched)) =
-                inspect_file_set_representation(profile_id, path, is_zip, members)?
+            let Some((components, record, matched)) = inspect_file_set_representation(
+                profile_id,
+                path,
+                is_zip,
+                members,
+                &mut directory_member,
+            )?
             else {
                 continue;
             };
@@ -954,7 +991,28 @@ fn inspect_file_set_representation(
     path: &Path,
     is_zip: bool,
     members: &[crate::SourceMemberIdentity],
+    directory_member: &mut Option<DirectoryMemberReader<'_>>,
 ) -> Result<Option<(Vec<ObservedSourceComponent>, SourceRecord, bool)>> {
+    // Directory discovery knows the complete, budgeted name inventory. Missing
+    // or ambiguous sets cannot consume hashing budget needed by later directories.
+    if let Some(directory) = directory_member.as_ref() {
+        let mut selected = HashSet::new();
+        for member in members {
+            let names = directory
+                .names
+                .iter()
+                .filter(|name| {
+                    member
+                        .filenames
+                        .iter()
+                        .any(|alias| alias.eq_ignore_ascii_case(name))
+                })
+                .collect::<Vec<_>>();
+            if names.len() != 1 || !selected.insert(names[0].to_ascii_lowercase()) {
+                return Ok(None);
+            }
+        }
+    }
     let mut archive = if is_zip {
         Some(
             zip::ZipArchive::new(File::open(path)?)
@@ -972,7 +1030,11 @@ fn inspect_file_set_representation(
         let Some(source) = (if let Some(archive) = archive.as_mut() {
             read_file_set_zip_member(archive, &member.filenames)?
         } else {
-            read_file_set_directory_member(path, &member.filenames)?
+            if let Some(read) = directory_member.as_mut() {
+                (read.read)(&member.filenames)?
+            } else {
+                read_file_set_directory_member(path, &member.filenames)?
+            }
         }) else {
             return Ok(None);
         };
@@ -1128,12 +1190,12 @@ fn read_file_set_zip_member(
     }))
 }
 
-struct HashedNamedSource {
-    name: String,
-    sha1: String,
-    sha256: String,
-    crc32: String,
-    size: u64,
+pub(crate) struct HashedNamedSource {
+    pub name: String,
+    pub sha1: String,
+    pub sha256: String,
+    pub crc32: String,
+    pub size: u64,
 }
 
 fn hash_source(mut reader: impl Read) -> Result<(String, String, String, u64)> {
