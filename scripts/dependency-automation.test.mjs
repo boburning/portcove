@@ -236,7 +236,7 @@ test("Renovate batches development tools and suppresses only the Aqua registry a
   );
   assert.match(
     quality,
-    /they still retain applicable checksums, protected\s+CI, and human merge authority/u,
+    /they still retain applicable checksums, protected\s+CI, review and authorized guarded merge/u,
   );
 });
 
