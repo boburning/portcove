@@ -190,6 +190,37 @@ isolation boundaries only: failures are not retried and no timeout is enlarged.
 
 ## Local feedback and hosted authority
 
+Before final qualification on an uncertain host, use `just local-check --preflight`
+(`--json` for structured output). It retains the complete selected commands,
+comparison identities and mandatory hosted plan, observes only selected direct
+tool/build prerequisites, and reports each local or missing capability. It does
+not bootstrap, install native libraries, dispatch jobs, create receipts or prove
+that fixture/build-script provisioning will succeed. Storage containment remains
+enforced by the selected execution itself.
+
+For the qualified fixed hosted selected route, supply exact already-trusted
+`--hosted-authority SHA --hosted-controller SHA` revisions from main. Preflight
+uses the controller's existing authority inventory and script boundary; dirty
+sources, unavailable/non-ancestor revisions and changed authority cannot use
+this route to qualify themselves. An eligible route prints the existing exact
+dispatch command; dispatch permission and identified run readback still must be
+established. Missing native Linux libraries can route there without repeated local
+provisioning. If no approved capable route is available, retain the specific
+blocked obligation instead of expanding a product repair into environment work.
+Refresh preflight after the final diff changes. A prerequisite observation is
+neither an execution pass nor evidence equivalent to CI, a full-debug audit,
+native/stateful runs, installed applications or physical devices.
+Observation runs existing cached payloads directly: it never invokes Corepack or
+Aqua's installing command paths. Missing/ambiguous caches remain prerequisites;
+normal execution still owns pinned installation and attestation. Rust observations
+disable toolchain auto-install. Missing/offline Cargo metadata produces a named
+planning blocker with no allegedly complete local plan. Windows/MSBuild Playnite
+work cannot route to the Ubuntu job; platform deferrals retain their owning gates.
+For a policy change, preflight also uses the unchanged audit selector to report
+the required fresh profile and stages. Its complete hosted audit route remains
+separate from selected local-check and reports Linux-applicable stages separately
+from local Windows stages; it cannot supply a Windows installed-package claim.
+
 Portcove uses three validation tiers. The inner loop runs only the test or test
 files that exercise the edit. Bare `just` invokes the same complete diff-selected
 plan as `just local-check`; use `just local-check --plan` to inspect it without
