@@ -53,9 +53,12 @@ function Fixture({ sources = [source] }: { sources?: SourceRecord[] }) {
         id: item.profile_id,
         label: "Synthetic cartridge",
       }))}
-      sourceInspections={state.inspections}
+      sourceInspections={{
+        reports: state.inspections,
+        reads: state.inspectionReads,
+        retry: state.inspectSource,
+      }}
       sourceOutcomes={state.outcomes}
-      sourceInspectionReadback={{ reads: state.inspectionReads, retry: state.inspectSource }}
       verifySources={() => void state.verifyAll()}
     />
   );

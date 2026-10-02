@@ -812,8 +812,8 @@ function CurrentView({
           )
         }
         sourceOutcomes={sourceHealth.outcomes}
-        sourceInspections={sourceHealth.inspections}
-        sourceInspectionReadback={{
+        sourceInspections={{
+          reports: sourceHealth.inspections,
           reads: sourceHealth.inspectionReads,
           retry: sourceHealth.inspectSource,
         }}

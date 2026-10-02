@@ -850,6 +850,12 @@ function SourceRequirements({
   );
 }
 
+type SourceInspectionReadback = {
+  reports: ReadonlyMap<string, SourceInspectionReport>;
+  reads: ReadonlyMap<string, SourceInspectionReadState>;
+  retry: (profileId: string) => Promise<void>;
+};
+
 function SourceHealth({
   generation,
   ports,
@@ -858,9 +864,7 @@ function SourceHealth({
   requirementsState,
   installedCount,
   outcomes,
-  inspections,
-  inspectionReads = new Map(),
-  retryInspection,
+  inspections: inspectionInput,
   busy,
   verify,
   replace,
@@ -881,12 +885,14 @@ function SourceHealth({
   installedCount: number;
   add?: (profile: SourceProfile, archive: boolean) => void;
   profiles: SourceProfile[];
-  inspections: ReadonlyMap<string, SourceInspectionReport>;
-  inspectionReads?: ReadonlyMap<string, SourceInspectionReadState>;
-  retryInspection?: (profileId: string) => Promise<void>;
+  inspections: ReadonlyMap<string, SourceInspectionReport> | SourceInspectionReadback;
   onAdded?: () => Promise<unknown>;
   openEvidence?: (evidenceId: string) => void;
 }) {
+  const inspection =
+    "reports" in inspectionInput
+      ? inspectionInput
+      : { reports: inspectionInput, reads: new Map(), retry: undefined };
   const byProfile = new Map(outcomes.map((outcome) => [outcome.profile_id, outcome]));
   const profilesById = new Map(profiles.map((profile) => [profile.id, profile]));
   return (
@@ -931,9 +937,9 @@ function SourceHealth({
                 generation={generation}
                 ports={ports}
                 onRemoved={onAdded}
-                report={inspections.get(source.profile_id)}
-                inspectionRead={inspectionReads.get(source.profile_id)}
-                retryInspection={retryInspection}
+                report={inspection.reports.get(source.profile_id)}
+                inspectionRead={inspection.reads.get(source.profile_id)}
+                retryInspection={inspection.retry}
                 outcome={byProfile.get(source.profile_id)}
                 busy={busy}
                 replace={replace}
@@ -1419,7 +1425,6 @@ export function SettingsView({
   installedCount = 0,
   sourceOutcomes = [],
   sourceInspections = new Map(),
-  sourceInspectionReadback,
   verifySources,
   replaceSource,
   addSource,
@@ -1462,11 +1467,7 @@ export function SettingsView({
   sourceOutcomes?: SourceVerificationOutcome[];
   verifySources?: () => void;
   replaceSource?: (source: SourceRecord) => void;
-  sourceInspections?: ReadonlyMap<string, SourceInspectionReport>;
-  sourceInspectionReadback?: {
-    reads: ReadonlyMap<string, SourceInspectionReadState>;
-    retry: (profileId: string) => Promise<void>;
-  };
+  sourceInspections?: ReadonlyMap<string, SourceInspectionReport> | SourceInspectionReadback;
   openSourceEvidence?: (evidenceId: string) => void;
   addSource?: (profile: SourceProfile, archive: boolean) => void;
   appearance?: ThemeState;
@@ -1581,8 +1582,6 @@ export function SettingsView({
           installedCount={installedCount}
           outcomes={sourceOutcomes}
           inspections={sourceInspections}
-          inspectionReads={sourceInspectionReadback?.reads}
-          retryInspection={sourceInspectionReadback?.retry}
           busy={busy}
           verify={verifySources}
           replace={replaceSource}
