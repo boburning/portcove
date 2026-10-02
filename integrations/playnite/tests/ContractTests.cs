@@ -157,6 +157,7 @@ internal static class ContractTests
         CheckPersonalLibrary();
         CheckGuidedSetup();
         CheckManagedRemoval();
+        CheckUninstallController();
         CheckInstallationReview();
         var managedStatus = Json.Parse("{\"active\":null}");
         Check(Json.OptionalObjectField(managedStatus, "external_runtime") == null,
@@ -428,6 +429,62 @@ internal static class ContractTests
             Check(catalog.Length > 1 && statuses.Length == catalog.Length, "real standalone CLI discovery through reference consumer");
             Check(await real.Read("launch.show", "launch", "show", Guid.NewGuid().ToString("D")) == null, "real standalone CLI absent launch readback");
         }
+    }
+
+    // The SDK exposes emission to extensions, but subscription only to the host.
+    // This test-only observer checks the actual emitted event; shipping code uses
+    // no reflection or private Playnite application API.
+    private static void ObserveUninstalled(ManagedUninstall controller,
+        EventHandler<Playnite.SDK.Plugins.GameUninstalledEventArgs> handler)
+    {
+        var emitted = typeof(Playnite.SDK.Plugins.UninstallController)
+            .GetEvent("Uninstalled", BindingFlags.Instance | BindingFlags.NonPublic);
+        if (emitted == null) throw new Exception("Pinned SDK uninstall event is missing");
+        emitted.GetAddMethod(true).Invoke(controller, new object[] { handler });
+    }
+
+    private static void CheckUninstallController()
+    {
+        var priorContext = SynchronizationContext.Current;
+        SynchronizationContext.SetSynchronizationContext(new SynchronizationContext());
+        try
+        {
+            var game = new Game { Name = "My game", GameId = "library/shape-a",
+                IsInstalled = true, InstallDirectory = @"H:\Owned installation" };
+            foreach (var failure in new Exception[]
+            {
+                new OperationCanceledException("Removal cancelled"),
+                new InvalidOperationException("Stale preview"),
+                new IOException("Removal failed"),
+                new InvalidOperationException("Active version remains")
+            })
+            {
+                var events = 0;
+                var controller = new ManagedUninstall(game, selected =>
+                {
+                    Check(ReferenceEquals(selected, game), "removal receives the exact selected Playnite game");
+                    throw failure;
+                });
+                ObserveUninstalled(controller, (sender, args) => events++);
+                Exception observed = null;
+                try { controller.Uninstall(new Playnite.SDK.Plugins.UninstallActionArgs()); }
+                catch (Exception error) { observed = error; }
+                Check(ReferenceEquals(observed, failure) && events == 0 && game.IsInstalled &&
+                    game.InstallDirectory == @"H:\Owned installation",
+                    "cancel/failure reaches host cleanup without a false uninstall event: " + failure.Message);
+            }
+            var applied = false;
+            var successEvents = 0;
+            var success = new ManagedUninstall(game, selected => applied = true);
+            ObserveUninstalled(success, (sender, args) =>
+            {
+                Check(applied, "uninstall event follows verified removal completion");
+                successEvents++;
+            });
+            success.Uninstall(new Playnite.SDK.Plugins.UninstallActionArgs());
+            Check(successEvents == 1, "verified removal publishes exactly one uninstall event");
+        }
+        finally { SynchronizationContext.SetSynchronizationContext(priorContext); }
     }
 
     private static void CheckManagedRemoval()
