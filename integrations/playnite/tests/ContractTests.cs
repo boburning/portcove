@@ -1026,8 +1026,11 @@ internal static class ContractTests
         {
             var operation = new OperationCapture();
             var install = client.Manage("ensure", new[] { "ensure", port }, operation.Observe);
-            if (await Task.WhenAny(operation.Root, Task.Delay(TimeSpan.FromSeconds(15))) != operation.Root)
-                throw new Exception("The real install emitted no root operation identity before the qualification timeout.");
+            if (await Task.WhenAny(operation.Downloading, install, Task.Delay(TimeSpan.FromSeconds(15))) != operation.Downloading)
+            {
+                if (install.IsCompleted) await install;
+                throw new Exception("The real install emitted no held download progress before the qualification timeout.");
+            }
 
             var competing = new PublicCli(args[1], args[2]);
             await competing.Connect();
@@ -1195,13 +1198,18 @@ internal static class ContractTests
     private sealed class OperationCapture
     {
         private readonly TaskCompletionSource<string> root = new TaskCompletionSource<string>();
+        private readonly TaskCompletionSource<bool> downloading = new TaskCompletionSource<bool>();
         private string id;
         internal readonly List<string> Events = new List<string>();
         internal Task<string> Root { get { return root.Task; } }
+        internal Task<bool> Downloading { get { return downloading.Task; } }
 
         internal void Observe(Dictionary<string, object> record)
         {
             Events.Add(Json.Text(record, "type"));
+            if (Json.Text(record, "type") == "progress" && Json.Text(record, "phase") == "download" &&
+                Json.Number(record, "completed") > 0)
+                downloading.TrySetResult(true);
             if (Json.Field(record, "parent_operation_id") != null) return;
             var current = Json.Text(record, "operation_id");
             if (id != null && id != current)
