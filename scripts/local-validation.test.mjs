@@ -160,7 +160,15 @@ test("hosted preflight requires exact available ancestor authorities and a froze
   assert.match(eligible.command, /--ref ci\/selected-check /);
   assert.match(eligible.command, new RegExp(`controller_sha=${sha}`));
   assert.equal(inspectHostedLocalRoute(context, sha, sha, invoke()).status, "unverified");
-  for (const name of [sha, "main;echo", "main$(echo)", "--main", "main'quoted"])
+  for (const name of [
+    sha,
+    sha.toUpperCase(),
+    "B" + sha.slice(1),
+    "main;echo",
+    "main$(echo)",
+    "--main",
+    "main'quoted",
+  ])
     assert.throws(() => inspectHostedLocalRoute(context, sha, sha, invoke(), name), /safe branch/);
   for (const refs of ["", "refs/remotes/origin/ci/selected-check\nrefs/tags/ci/selected-check"])
     assert.equal(
@@ -181,6 +189,19 @@ test("hosted preflight requires exact available ancestor authorities and a froze
       (args) =>
         args[0] === "rev-parse" && args[2]?.startsWith("refs/remotes/")
           ? "d".repeat(40)
+          : invoke()(args),
+      "ci/selected-check",
+    ).status,
+    "blocked",
+  );
+  assert.equal(
+    inspectHostedLocalRoute(
+      context,
+      sha,
+      sha,
+      (args) =>
+        args[0] === "for-each-ref"
+          ? "refs/remotes/origin/ci/selected-check\trefs/remotes/origin/main"
           : invoke()(args),
       "ci/selected-check",
     ).status,

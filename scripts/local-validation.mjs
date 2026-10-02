@@ -1520,21 +1520,26 @@ export function inspectHostedLocalRoute(
       next_action:
         "supply --hosted-ref NAME after fetching an existing branch or tag at the exact trusted controller",
     };
-  if (!/^[A-Za-z0-9][A-Za-z0-9._/-]*$/u.test(dispatchRef) || /^[a-f0-9]{40}$/u.test(dispatchRef))
+  if (!/^[A-Za-z0-9][A-Za-z0-9._/-]*$/u.test(dispatchRef) || /^[a-f0-9]{40}$/iu.test(dispatchRef))
     throw new Error("--hosted-ref requires a safe branch or tag name, not a SHA");
   invokeGit(["check-ref-format", "--branch", dispatchRef]);
   const candidates = [`refs/remotes/origin/${dispatchRef}`, `refs/tags/${dispatchRef}`];
-  const advertised = invokeGit(["for-each-ref", "--format=%(refname)", ...candidates])
+  const advertised = invokeGit(["for-each-ref", "--format=%(refname)%09%(symref)", ...candidates])
     .trim()
     .split("\n")
-    .filter((name) => candidates.includes(name));
-  if (advertised.length !== 1)
+    .map((entry) => {
+      const [name, symbolic = ""] = entry.split("\t");
+      return { name, symbolic };
+    })
+    .filter((entry) => candidates.includes(entry.name));
+  if (advertised.length !== 1 || advertised[0].symbolic)
     return {
       status: "blocked",
-      reason: "dispatch ref is missing or ambiguous in the local origin branch/tag inventory",
+      reason:
+        "dispatch ref is missing, ambiguous or symbolic in the local origin branch/tag inventory",
       next_action: "fetch the existing approved named ref and resolve branch/tag ambiguity",
     };
-  if (invokeGit(["rev-parse", "--verify", `${advertised[0]}^{commit}`]).trim() !== controller)
+  if (invokeGit(["rev-parse", "--verify", `${advertised[0].name}^{commit}`]).trim() !== controller)
     return {
       status: "blocked",
       reason: "dispatch ref does not resolve to the exact trusted controller",
