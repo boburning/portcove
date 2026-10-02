@@ -11,6 +11,15 @@ pub(crate) fn recover_published_install(
     store: &OperationStore,
     operation: &mut LifecycleOperation,
 ) -> Result<()> {
+    // Recovery holds the journal owner's lock, not a lock inferred from its payload.
+    // Verify that authority before publishing, registering, or cleaning any tree.
+    if let Some(install) = &operation.install
+        && install.port_id != operation.port_id
+    {
+        return Err(PortcoveError::state(
+            "publication install owner differs from its journal owner",
+        ));
+    }
     if operation.phase == LifecyclePhase::CleanupPending && operation.install.is_none() {
         return crate::cancellation::discard_private_install_with_faults(
             &service.library,
