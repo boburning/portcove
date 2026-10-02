@@ -5,11 +5,15 @@ import { formatBytes } from "../view-model";
 import { Icon } from "./ui";
 import { BackupReviewDialog, type ApplyBackupAction } from "./BackupReview";
 import { Button } from "./ui/button";
+import { FailureDetails } from "./FailureDetails";
+import type { BackupReadState } from "../features/backups/use-port-backups";
 
 export function BackupHistory({
   backups,
   problems = [],
   state = "healthy",
+  readState,
+  retryRead,
   busy,
   generation = 0,
   restore,
@@ -19,6 +23,8 @@ export function BackupHistory({
   backups: BackupRecord[];
   problems?: BackupProblem[];
   state?: BackupInventory["state"];
+  readState?: BackupReadState;
+  retryRead?: () => Promise<void>;
   busy?: string;
   generation?: number;
   restore: ApplyBackupAction;
@@ -27,6 +33,7 @@ export function BackupHistory({
 }) {
   const [expanded, setExpanded] = useState(false);
   const history = useRef<HTMLDivElement>(null);
+  const retryPending = useRef(false);
   const heading = useRef<HTMLSpanElement>(null);
   const [selection, setSelection] = useState<{
     backup: BackupRecord;
@@ -41,9 +48,54 @@ export function BackupHistory({
         <span ref={heading} role="heading" aria-level={3} tabIndex={-1}>
           Backups
         </span>
-        <small>{backupSummary(backups.length, problems.length, state)}</small>
+        <small>{backupSummary(backups.length, problems.length, state, readState)}</small>
       </div>
       <p>Backups include saves and settings managed by Portcove.</p>
+      {readState && readState.status !== "idle" && (
+        <div className="backup-inventory-notice" role="status">
+          {readState.status === "pending" && (
+            <>
+              <strong>
+                {readState.hasInventory ? "Refreshing backup history" : "Loading backup history"}
+              </strong>
+              <p>
+                {readState.hasInventory
+                  ? "Showing the last loaded backup list while the current list is checked."
+                  : "The backup list has not been loaded yet."}
+              </p>
+            </>
+          )}
+          {readState.status === "failed" && (
+            <>
+              <strong>Backup history could not be loaded</strong>
+              <p>
+                {readState.hasInventory
+                  ? "Showing the last loaded backup list. It may have changed since it was read."
+                  : "The backup list is unknown. Retry to read it again."}
+              </p>
+              {readState.failure && (
+                <FailureDetails presentation={readState.failure} showMutationSummary={false} />
+              )}
+            </>
+          )}
+          {retryRead && (
+            <Button
+              data-focusable
+              variant="outline"
+              disabled={readState.status === "pending"}
+              onClick={() => {
+                if (retryPending.current) return;
+                retryPending.current = true;
+                void retryRead().finally(() => {
+                  retryPending.current = false;
+                });
+              }}
+            >
+              {readState.status === "failed" ? "Retry backup history" : "Refresh backup history"}
+            </Button>
+          )}
+        </div>
+      )}
       {(state !== "healthy" || problems.length > 0) && (
         <div className={`backup-inventory-notice ${state}`} role="status">
           <strong>
@@ -206,7 +258,19 @@ function problemLabel(kind: BackupProblem["kind"]) {
   return Object.hasOwn(labels, kind) ? labels[kind] : "Backup information unavailable";
 }
 
-function backupSummary(count: number, problemCount: number, state: BackupInventory["state"]) {
+function backupSummary(
+  count: number,
+  problemCount: number,
+  state: BackupInventory["state"],
+  readState?: BackupReadState,
+) {
+  if (readState && readState.status !== "current") {
+    if (readState.hasInventory)
+      return count
+        ? `${count} last-loaded backup${count === 1 ? "" : "s"}`
+        : "Last-loaded backup list is empty";
+    return readState.status === "pending" ? "Loading backups" : "Backup history unavailable";
+  }
   if (!count)
     return problemCount > 0 || state !== "healthy" ? "Backups need attention" : "No backups yet";
   return `${count} verified backup${count === 1 ? "" : "s"}`;

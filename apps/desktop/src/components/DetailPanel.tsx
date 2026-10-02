@@ -51,6 +51,7 @@ import {
   releaseChannelPresentation,
 } from "../view-model";
 import { BackupHistory } from "./BackupHistory";
+import type { BackupReadState } from "../features/backups/use-port-backups";
 import { GameUpdateControl, UpdatePolicyControl } from "./GameUpdates";
 import type { Perform } from "../features/operations/use-operation-state";
 import { ExternalLink as ProjectLink } from "./ExternalLink";
@@ -92,6 +93,8 @@ interface DetailPanelProps {
   backups?: BackupRecord[];
   backupProblems?: BackupProblem[];
   backupState?: BackupInventory["state"];
+  backupReadState?: BackupReadState;
+  retryBackupRead?: () => Promise<void>;
   source?: SourceRecord;
   sourceInspection?: SourceInspectionReport;
   sourceProfile?: SourceProfile;
@@ -124,6 +127,8 @@ export function DetailPanel(props: DetailPanelProps) {
     backups = [],
     backupProblems = [],
     backupState = "healthy",
+    backupReadState,
+    retryBackupRead,
     source,
     sourceInspection,
     sourceProfile,
@@ -266,6 +271,8 @@ export function DetailPanel(props: DetailPanelProps) {
         backups={backups}
         backupProblems={backupProblems}
         backupState={backupState}
+        backupReadState={backupReadState}
+        retryBackupRead={retryBackupRead}
         busy={effectiveBusy}
         outputExternalBusy={busy}
         libraryGeneration={props.libraryGeneration ?? 0}
@@ -339,6 +346,8 @@ function DetailBody({
   backups,
   backupProblems,
   backupState,
+  backupReadState,
+  retryBackupRead,
   busy,
   outputExternalBusy,
   libraryGeneration,
@@ -368,6 +377,8 @@ function DetailBody({
   backups: BackupRecord[];
   backupProblems: BackupProblem[];
   backupState: BackupInventory["state"];
+  backupReadState?: BackupReadState;
+  retryBackupRead?: () => Promise<void>;
   busy?: string;
   outputExternalBusy?: string;
   libraryGeneration: number;
@@ -455,6 +466,8 @@ function DetailBody({
           backups={backups}
           backupProblems={backupProblems}
           backupState={backupState}
+          backupReadState={backupReadState}
+          retryBackupRead={retryBackupRead}
           libraryGeneration={libraryGeneration}
           busy={busy}
           outputExternalBusy={outputExternalBusy}
@@ -729,6 +742,8 @@ function SavesStorageGroup({
   backups,
   backupProblems,
   backupState,
+  backupReadState,
+  retryBackupRead,
   libraryGeneration,
   busy,
   outputExternalBusy,
@@ -743,6 +758,8 @@ function SavesStorageGroup({
   backups: BackupRecord[];
   backupProblems: BackupProblem[];
   backupState: BackupInventory["state"];
+  backupReadState?: BackupReadState;
+  retryBackupRead?: () => Promise<void>;
   libraryGeneration: number;
   busy?: string;
   outputExternalBusy?: string;
@@ -751,7 +768,11 @@ function SavesStorageGroup({
   actions: DetailActions;
 }) {
   const heading = useRef<HTMLHeadingElement>(null);
-  const hasBackupHistory = installed || backups.length > 0 || backupProblems.length > 0;
+  const hasBackupHistory =
+    installed ||
+    backups.length > 0 ||
+    backupProblems.length > 0 ||
+    (backupReadState !== undefined && backupReadState.status !== "idle");
   const outputLocation = (
     <OutputLocationControl
       key={`${port.id}:${libraryGeneration}`}
@@ -782,6 +803,8 @@ function SavesStorageGroup({
           backups={backups}
           problems={backupProblems}
           state={backupState}
+          readState={backupReadState}
+          retryRead={retryBackupRead}
           busy={busy}
           restore={actions.restoreBackup}
           remove={actions.deleteBackup}

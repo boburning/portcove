@@ -1,53 +1,80 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { desktopApi } from "../../api";
 import type { BackupInventory } from "../../types";
-import { errorText } from "../../view-model";
+import { errorText, failurePresentation, type FailureDisplay } from "../../view-model";
 
-export function usePortBackups(portId: string | undefined, setError: (error?: string) => void) {
-  const emptyInventory = useCallback(
-    (): BackupInventory => ({
-      port_id: portId ?? "",
-      state: "healthy",
-      backups: [],
-      problems: [],
-    }),
-    [portId],
-  );
-  const [inventory, setInventory] = useState<BackupInventory>(() => emptyInventory());
+export type BackupReadState = {
+  status: "idle" | "pending" | "current" | "failed";
+  hasInventory: boolean;
+  failure?: FailureDisplay;
+};
+
+export function usePortBackups(portId: string | undefined, setError?: (error?: string) => void) {
+  const selection = useMemo(() => ({ portId }), [portId]);
+  const [read, setRead] = useState<{
+    selection: typeof selection;
+    inventory?: BackupInventory;
+    status: BackupReadState["status"];
+    failure?: FailureDisplay;
+  }>(() => ({ selection, status: portId ? "pending" : "idle" }));
   const requestId = useRef(0);
-  const currentPortId = useRef(portId);
+  const currentSelection = useRef<typeof selection | undefined>(selection);
   useLayoutEffect(() => {
-    currentPortId.current = portId;
+    currentSelection.current = selection;
     return () => {
-      if (currentPortId.current === portId) currentPortId.current = undefined;
+      if (currentSelection.current === selection) currentSelection.current = undefined;
+      requestId.current += 1;
     };
-  }, [portId]);
-  const refresh = useCallback(async () => {
-    if (!portId || currentPortId.current !== portId) return;
+  }, [selection]);
+  const readInventory = useCallback(() => {
+    if (!portId || currentSelection.current !== selection) return Promise.resolve();
     const request = ++requestId.current;
-    try {
-      const result = await desktopApi.backups(portId);
-      if (request === requestId.current) setInventory(result);
-    } catch (value) {
-      if (request === requestId.current) setError(errorText(value));
-    }
-  }, [portId, setError]);
+    return Promise.resolve()
+      .then(() => desktopApi.backups(portId))
+      .then((inventory) => {
+        if (inventory.port_id !== portId)
+          throw new Error("Backup inventory does not match the selected port.");
+        if (request === requestId.current && currentSelection.current === selection)
+          setRead({ selection, inventory, status: "current" });
+      })
+      .catch((value: unknown) => {
+        if (request === requestId.current && currentSelection.current === selection) {
+          setRead((previous) => ({
+            selection,
+            inventory: previous.selection === selection ? previous.inventory : undefined,
+            status: "failed",
+            failure: failurePresentation(value),
+          }));
+          setError?.(errorText(value));
+        }
+      });
+  }, [portId, selection, setError]);
+  const refresh = useCallback(async () => {
+    if (!portId || currentSelection.current !== selection) return;
+    setRead((previous) => ({
+      selection,
+      inventory: previous.selection === selection ? previous.inventory : undefined,
+      status: "pending",
+    }));
+    await readInventory();
+  }, [portId, selection, readInventory]);
   useEffect(() => {
-    if (portId) {
-      const request = ++requestId.current;
-      void desktopApi
-        .backups(portId)
-        .then((result) => {
-          if (request === requestId.current) setInventory(result);
-        })
-        .catch((value: unknown) => {
-          if (request === requestId.current) setError(errorText(value));
-        });
-    }
+    void readInventory();
     return () => {
       requestId.current += 1;
     };
-  }, [portId, setError]);
-  const currentInventory = inventory.port_id === (portId ?? "") ? inventory : emptyInventory();
-  return { backups: currentInventory.backups, inventory: currentInventory, refresh };
+  }, [readInventory]);
+  const current = read.selection === selection ? read : undefined;
+  const inventory = current?.inventory ?? {
+    port_id: portId ?? "",
+    state: "healthy" as const,
+    backups: [],
+    problems: [],
+  };
+  const readState: BackupReadState = {
+    status: current?.status ?? (portId ? "pending" : "idle"),
+    hasInventory: Boolean(current?.inventory),
+    failure: current?.failure,
+  };
+  return { backups: inventory.backups, inventory, readState, refresh };
 }

@@ -356,7 +356,7 @@ function Workspace({
     model.status?.channel ?? model.port?.channels[0],
     operations.perform,
   );
-  const backups = usePortBackups(model.port?.id, operations.setError);
+  const backups = usePortBackups(model.port?.id);
   useLibrarySelectionLanding(returnToSelection, workspace, consumeLibrarySelectionReturn);
   const { adoptOpen, selectedId, setAdoptOpen, setSelectedId, setView } = ui;
   const availablePortIds = useMemo(
@@ -963,6 +963,8 @@ function SelectedPortPanel({
       backups={backups.backups}
       backupProblems={backups.inventory.problems}
       backupState={backups.inventory.state}
+      backupReadState={backups.readState}
+      retryBackupRead={backups.refresh}
       source={model.source}
       sourceInspection={
         model.port.source_profile
