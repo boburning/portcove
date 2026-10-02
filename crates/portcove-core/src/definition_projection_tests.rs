@@ -13,6 +13,68 @@ fn projection() -> Value {
     })
 }
 
+// Malformed-contract checks need a complete source graph and two siblings,
+// not title-specific catalog contents. Keep projection() for real catalog contracts.
+fn generic_projection() -> Value {
+    let mut document = json!({
+        "schema_version": 2,
+        "source_catalog": {
+            "evidence": [{
+                "id": "fixture-bytes", "role": "byte_identity",
+                "authority": "Synthetic projection fixture", "authority_ref": "fixture-1",
+                "reviewed_at": "2026-09-30", "claim": "Synthetic source byte identity",
+                "immutable_url": "https://example.invalid/fixtures/source-v1"
+            }],
+            "identities": [{
+                "id": "projection-source", "label": "Synthetic source",
+                "kind": "file", "variants": [{
+                    "id": "fixture-1", "title": "Synthetic source",
+                    "representations": [{
+                        "id": "raw", "extensions": ["bin"], "kind": "raw-file",
+                        "identities": [{"scope": "original-file", "sha256": "8".repeat(64)}],
+                        "evidence_ids": ["fixture-bytes"]
+                    }], "evidence_ids": ["fixture-bytes"]
+                }]
+            }],
+            "contracts": [{
+                "id": "projection-fixture-game", "port_id": "projection-fixture",
+                "role": "game", "profile_id": "projection-source",
+                "admission_mode": "enforced", "supported_variant_ids": ["fixture-1"],
+                "evidence_ids": ["fixture-bytes"], "authority_ref": "fixture-1",
+                "reviewed_at": "2026-09-30",
+                "immutable_review_url": "https://example.invalid/fixtures/source-v1"
+            }], "validators": []
+        },
+        "ports": [{
+            "id": "projection-fixture", "name": "Projection fixture",
+            "summary": "Synthetic malformed-contract fixture",
+            "project_url": "https://example.invalid/fixtures/projection", "support_tier": "stable",
+            "channels": ["stable"], "platforms": ["linux-x86-64"],
+            "adapter": "libultraship-portable",
+            "release": {"repository": "fixture/projection"},
+            "source_profile": "projection-source",
+            "executable_hints": {"linux-x86-64": ["fixture"]},
+            "persistent_paths": ["saves", "config.json"]
+        }]
+    });
+    let mut sibling = document["ports"][0].clone();
+    sibling["id"] = json!("projection-sibling");
+    sibling["name"] = json!("Projection sibling");
+    document["ports"].as_array_mut().unwrap().push(sibling);
+    let mut contract = document["source_catalog"]["contracts"][0].clone();
+    contract["id"] = json!("projection-sibling-game");
+    contract["port_id"] = json!("projection-sibling");
+    document["source_catalog"]["contracts"]
+        .as_array_mut()
+        .unwrap()
+        .push(contract);
+    let catalog = Catalog::from_json(&document.to_string()).unwrap();
+    json!({
+        "contract_schema": 1, "representation": "catalog_projection",
+        "catalog": catalog.authoritative_document()
+    })
+}
+
 fn entry(document: &Value, contract: &[u8], port_index: usize) -> Value {
     let port = &document["catalog"]["ports"][port_index];
     let reference = target(contract);
@@ -180,7 +242,7 @@ fn supported_new_id_needs_no_per_port_dispatch_and_does_not_mutate_embedded_cata
 
 #[test]
 fn contract_digest_and_port_agreement_are_independent_requirements() {
-    let document = projection();
+    let document = generic_projection();
     let contract = serde_json::to_vec(&document).unwrap();
     let mut value = entry(&document, &contract, 0);
     let bytes = serde_json::to_vec(&value).unwrap();
@@ -208,7 +270,7 @@ fn contract_digest_and_port_agreement_are_independent_requirements() {
 
 #[test]
 fn roles_must_name_the_single_terminal_contract_without_extra_edges() {
-    let document = projection();
+    let document = generic_projection();
     let contract = serde_json::to_vec(&document).unwrap();
     let value = entry(&document, &contract, 0);
     for field in [
@@ -241,7 +303,7 @@ fn roles_must_name_the_single_terminal_contract_without_extra_edges() {
 
 #[test]
 fn unsupported_contracts_and_unknown_nested_semantics_fail_closed() {
-    let document = projection();
+    let document = generic_projection();
     for field in ["contract_schema", "representation", "unexpected"] {
         let mut changed = document.clone();
         changed[field] = if field == "contract_schema" {
@@ -287,7 +349,7 @@ fn unsupported_contracts_and_unknown_nested_semantics_fail_closed() {
 
 #[test]
 fn duplicate_decoded_fields_are_rejected_inside_the_referenced_contract() {
-    let document = projection();
+    let document = generic_projection();
     let text = serde_json::to_string(&document).unwrap();
     for bytes in [
         text.replacen(
@@ -315,7 +377,7 @@ fn duplicate_decoded_fields_are_rejected_inside_the_referenced_contract() {
 
 #[test]
 fn existing_source_and_persistence_validators_reject_matching_unsafe_bytes() {
-    let document = projection();
+    let document = generic_projection();
     let mut unsafe_path = document.clone();
     unsafe_path["catalog"]["ports"][0]["persistent_paths"] = json!(["../outside"]);
     let bytes = serde_json::to_vec(&unsafe_path).unwrap();
@@ -329,7 +391,7 @@ fn existing_source_and_persistence_validators_reject_matching_unsafe_bytes() {
 
 #[test]
 fn unsupported_entry_does_not_prevent_a_supported_sibling_using_the_same_leaf() {
-    let document = projection();
+    let document = generic_projection();
     let contract = serde_json::to_vec(&document).unwrap();
     let good = entry(&document, &contract, 0);
     let mut unsupported = entry(&document, &contract, 1);
@@ -361,4 +423,53 @@ fn unsupported_entry_does_not_prevent_a_supported_sibling_using_the_same_leaf() 
             )
             .is_ok()
     );
+}
+
+#[test]
+fn generic_projection_retains_complete_validated_source_graph_for_both_siblings() {
+    let document = generic_projection();
+    let catalog = Catalog::from_json(&document["catalog"].to_string()).unwrap();
+    assert_eq!(catalog.ports().len(), 2);
+    let source = catalog.source_catalog().unwrap();
+    assert_eq!(source.identities.len(), 1);
+    assert_eq!(source.contracts.len(), 2);
+    assert_eq!(source.evidence.len(), 1);
+    assert!(source.qualification.is_empty());
+    let contract = serde_json::to_vec(&document).unwrap();
+    for (port_index, id) in ["projection-fixture", "projection-sibling"]
+        .iter()
+        .enumerate()
+    {
+        assert_eq!(&catalog.ports()[port_index].id, id);
+        let result = inspect(&entry(&document, &contract, port_index), &contract).unwrap();
+        assert_eq!(result.entry().port().id, *id);
+        assert_eq!(result.contract_bytes(), contract);
+        assert_eq!(
+            serde_json::to_value(result.catalog().authoritative_document()).unwrap(),
+            document["catalog"]
+        );
+    }
+}
+
+#[test]
+fn generic_projection_source_mutations_fail_after_valid_entry_inspection() {
+    let document = generic_projection();
+    for field in ["profile_id", "unknown_safety_field"] {
+        let mut changed = document.clone();
+        changed["catalog"]["source_catalog"]["contracts"][0][field] = json!("missing-profile");
+        let contract = serde_json::to_vec(&changed).unwrap();
+        let value = entry(&document, &contract, 0);
+        let bytes = serde_json::to_vec(&value).unwrap();
+        let inventory = index(&[(&value, &bytes)], &contract);
+        assert!(
+            inventory
+                .inspect_entry("official", "projection-fixture", &bytes)
+                .is_ok()
+        );
+        assert!(
+            inventory
+                .inspect_catalog_projection("official", "projection-fixture", &bytes, &contract)
+                .is_err()
+        );
+    }
 }
