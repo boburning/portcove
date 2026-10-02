@@ -756,8 +756,24 @@ impl PortcoveService {
         result
     }
 
+    fn catalog_for_installed_fallback(
+        &self,
+        port_id: &str,
+    ) -> Result<std::borrow::Cow<'_, Catalog>> {
+        if self.catalog.port(port_id).is_ok() {
+            return Ok(std::borrow::Cow::Borrowed(&self.catalog));
+        }
+        let durable = self.library.status(port_id, ReleaseChannel::Stable)?;
+        let retained = self
+            .retained_catalog_for_status(&durable)?
+            .ok_or_else(|| PortcoveError::not_found(format!("unknown port id: {port_id}")))?;
+        Ok(std::borrow::Cow::Owned(retained))
+    }
+
     pub fn status(&self, port_id: &str) -> Result<PortStatus> {
-        let port = self.catalog.port(port_id)?;
+        let status_catalog = self.catalog_for_installed_fallback(port_id)?;
+        let catalog = status_catalog.as_ref();
+        let port = catalog.port(port_id)?;
         let (mut statuses, metrics) = self
             .library
             .statuses_with_metrics(&[(port_id.to_owned(), default_channel(port))])?;
@@ -794,14 +810,14 @@ impl PortcoveService {
             "loaded status read model"
         );
         let status = self.with_launch_readiness(
-            &self.catalog,
+            catalog,
             port,
             status,
             &registered_sources,
             &mut HashMap::new(),
             retained_catalog,
         )?;
-        let status = self.with_definition_operations(&self.catalog, port, status)?;
+        let status = self.with_definition_operations(catalog, port, status)?;
         self.with_port_actions(port, status, &registered_sources)
     }
 
@@ -977,9 +993,9 @@ impl PortcoveService {
             )));
         }
         let release = self
-            .releases
-            .resolve(port, selected_channel, platform)
-            .await?;
+            .resolve_release(port, selected_channel, platform)
+            .await?
+            .release;
         let action = self.install_plan_action(&status, &release)?;
         let bundled_runtime = port.bundled_runtime.get(&platform).cloned();
         let download_bytes = release.asset.size.saturating_add(
@@ -1715,12 +1731,49 @@ impl PortcoveService {
         Ok(status)
     }
 
+    async fn resolve_release(
+        &self,
+        port: &PortDefinition,
+        channel: ReleaseChannel,
+        platform: Platform,
+    ) -> Result<crate::ScopedResolvedRelease> {
+        let scope = crate::definition_repository::publisher_policy::acquisition_scope(
+            &self.library,
+            &self.catalog,
+            &port.id,
+        )?;
+        self.releases
+            .resolve_scoped(port, channel, platform, scope.as_ref())
+            .await
+    }
+
+    pub(crate) fn require_definition_adoption(
+        &self,
+        catalog: &Catalog,
+        port: &PortDefinition,
+    ) -> Result<()> {
+        crate::definition_acquisition::refuse_restricted_adoption(catalog, &port.id)?;
+        self.require_definition_operation(
+            catalog,
+            port,
+            DefinitionOperationContext::observed(DefinitionOperation::Install, false, true),
+        )
+    }
+
     pub(crate) fn require_definition_operation(
         &self,
         catalog: &Catalog,
         port: &PortDefinition,
         context: DefinitionOperationContext,
     ) -> Result<()> {
+        if catalog.definition_selection(&port.id).is_none() {
+            // A catalog fallback cannot erase a live restriction on this identity.
+            crate::definition_repository::publisher_policy::acquisition_scope(
+                &self.library,
+                catalog,
+                &port.id,
+            )?;
+        }
         self.require_definition_identity(catalog.definition_selection(&port.id), context)
     }
 
@@ -1802,12 +1855,9 @@ impl PortcoveService {
                 None => self.status(port_id)?,
             };
             let release = operation
-                .interruptible(
-                    self.releases
-                        .resolve(port, status.channel, Platform::current()?),
-                )
+                .interruptible(self.resolve_release(port, status.channel, Platform::current()?))
                 .await?;
-            self.record_update_check(port_id, &status, &release)
+            self.record_update_check(port_id, &status, &release.release)
         }
         .await;
         self.finish_activity(activity, result)
@@ -2304,13 +2354,13 @@ impl PortcoveService {
             }
             let platform = Platform::current()?;
             let release = operation
-                .interruptible(self.releases.resolve(port, selected_channel, platform))
+                .interruptible(self.resolve_release(port, selected_channel, platform))
                 .await?;
             let mut reporter = OperationReporter {
                 operation: &operation,
                 emit: &mut emit,
             };
-            self.apply_resolved_release(port, status, overrides, release, activate, &mut reporter)
+            self.apply_scoped_release(port, status, overrides, release, activate, &mut reporter)
                 .await
         }
         .await;
@@ -2400,17 +2450,14 @@ impl PortcoveService {
                 DefinitionOperationContext::observed(DefinitionOperation::Install, false, true),
             )?;
             let release = operation
-                .interruptible(
-                    self.releases
-                        .resolve(port, status.channel, Platform::current()?),
-                )
+                .interruptible(self.resolve_release(port, status.channel, Platform::current()?))
                 .await?;
-            self.record_update_check(port_id, &status, &release)?;
+            self.record_update_check(port_id, &status, &release.release)?;
             let mut reporter = OperationReporter {
                 operation: &operation,
                 emit: &mut emit,
             };
-            self.apply_resolved_release(
+            self.apply_scoped_release(
                 port,
                 status,
                 InstallOverrides {
@@ -2430,6 +2477,8 @@ impl PortcoveService {
         result
     }
 
+    // Reviewed client plans retain their existing serialized release contract.
+    // A managed grant requires fresh opaque provider evidence for those exact bytes.
     async fn apply_resolved_release<F>(
         &self,
         port: &PortDefinition,
@@ -2442,6 +2491,46 @@ impl PortcoveService {
     where
         F: FnMut(OperationEvent),
     {
+        let scope = crate::definition_repository::publisher_policy::acquisition_scope(
+            &self.library,
+            &self.catalog,
+            &port.id,
+        )?;
+        let resolution = if scope.is_some() {
+            let resolved = reporter
+                .operation
+                .interruptible(self.resolve_release(port, release.channel, Platform::current()?))
+                .await?;
+            if resolved.release.asset != release.asset
+                || resolved.release.version != release.version
+                || resolved.release.channel != release.channel
+                || resolved.release.published_at != release.published_at
+            {
+                return Err(PortcoveError::conflict(
+                    "reviewed release changed; obtain a new review before acquisition",
+                ));
+            }
+            resolved
+        } else {
+            crate::ScopedResolvedRelease::legacy(release)
+        };
+        self.apply_scoped_release(port, status, overrides, resolution, activate, reporter)
+            .await
+    }
+
+    async fn apply_scoped_release<F>(
+        &self,
+        port: &PortDefinition,
+        status: PortStatus,
+        overrides: InstallOverrides<'_>,
+        resolution: crate::ScopedResolvedRelease,
+        activate: bool,
+        reporter: &mut OperationReporter<'_, F>,
+    ) -> Result<InstallRecord>
+    where
+        F: FnMut(OperationEvent),
+    {
+        let release = resolution.release.clone();
         self.require_definition_operation(
             &self.catalog,
             port,
@@ -2485,7 +2574,8 @@ impl PortcoveService {
             return Ok(existing);
         }
         let qualification =
-            InstallQualification::from_catalog(&self.catalog, &port.id, Platform::current()?)?;
+            InstallQualification::from_catalog(&self.catalog, &port.id, Platform::current()?)?
+                .with_acquisition_resolution(resolution)?;
         self.collect_active_user_data_if_launched(&port.id)?;
         let source =
             self.validate_and_remember_source(port, overrides.source, reporter.operation)?;
@@ -2541,7 +2631,7 @@ impl PortcoveService {
                     )));
                 }
                 let release = operation
-                    .interruptible(self.releases.resolve(
+                    .interruptible(self.resolve_release(
                         port,
                         optimistic.channel,
                         Platform::current()?,
@@ -2566,7 +2656,7 @@ impl PortcoveService {
                     )
                     .detail("port_id", port_id));
                 }
-                let check = self.record_update_check(port_id, &status, &release)?;
+                let check = self.record_update_check(port_id, &status, &release.release)?;
                 if !check.update_available {
                     return Ok(ReconcileResult {
                         port_id: port_id.into(),
@@ -2591,7 +2681,7 @@ impl PortcoveService {
                     emit: &mut emit,
                 };
                 let install = self
-                    .apply_resolved_release(
+                    .apply_scoped_release(
                         port,
                         status,
                         InstallOverrides {
@@ -3139,11 +3229,7 @@ impl PortcoveService {
             let qualification =
                 InstallQualification::from_catalog(&self.catalog, &port_id, platform)?;
             let _operation = self.library.try_lock_port(&port_id, "adopt")?;
-            self.require_definition_operation(
-                &self.catalog,
-                port,
-                DefinitionOperationContext::observed(DefinitionOperation::Install, false, true),
-            )?;
+            self.require_definition_adoption(&self.catalog, port)?;
             let locked_preview = self.preview_adoption(source, selected_port_id)?;
             let target = adoption_authorization_target(source, selected_port_id)?;
             self.library.consume_authorization(
@@ -3244,11 +3330,7 @@ impl PortcoveService {
             lifecycle.phase = LifecyclePhase::Prepared;
             store.put(&mut lifecycle)?;
             self.faults.check(LifecycleFaultPoint::AdoptionPrepared)?;
-            self.require_definition_operation(
-                &self.catalog,
-                port,
-                DefinitionOperationContext::observed(DefinitionOperation::Install, false, true),
-            )?;
+            self.require_definition_adoption(&self.catalog, port)?;
             fs::create_dir_all(
                 destination
                     .parent()
@@ -3648,7 +3730,8 @@ impl PortcoveService {
         let mut child_state_uncertain = false;
         let result = (|| {
             self.require_completed_restore(port_id)?;
-            let port = self.catalog.port(port_id)?;
+            let launch_catalog = self.catalog_for_installed_fallback(port_id)?;
+            let port = launch_catalog.port(port_id)?;
             let active = self.library.status(port_id, default_channel(port))?.active;
             let external = self.library.external_runtime_with_port(port_id)?;
             let (install_id, install_root, owner_kind) = match (&active, &external) {
@@ -4316,27 +4399,27 @@ impl PortcoveService {
     }
 
     pub fn collect_user_data(&self, port_id: &str) -> Result<Vec<PathBuf>> {
-        let port = self.catalog.port(port_id)?;
         let _operation = self.library.try_lock_port(port_id, "collect-user-data")?;
         let active = self
             .status(port_id)?
             .active
             .ok_or_else(|| PortcoveError::not_found(format!("{port_id} is not installed")))?;
-        self.collect_user_data_from(port, &active.path)
+        let port = self.installed_mutability_port(&active)?;
+        self.collect_user_data_from(&port, &active.path)
     }
 
     pub(crate) fn collect_active_user_data_if_launched(
         &self,
         port_id: &str,
     ) -> Result<Vec<PathBuf>> {
-        let port = self.catalog.port(port_id)?;
         let Some(active) = self.status(port_id)?.active else {
             return Ok(Vec::new());
         };
         if !active.path.join(LAUNCH_MARKER).is_file() {
             return Ok(Vec::new());
         }
-        self.collect_user_data_from(port, &active.path)
+        let port = self.installed_mutability_port(&active)?;
+        self.collect_user_data_from(&port, &active.path)
     }
 
     pub fn collect_user_data_from_install(
@@ -4344,8 +4427,9 @@ impl PortcoveService {
         port_id: &str,
         install_root: &Path,
     ) -> Result<Vec<PathBuf>> {
-        let port = self.catalog.port(port_id)?;
         let install_root = self.managed_install_root(port_id, install_root)?;
+        let catalog = self.catalog_for_installed_fallback(port_id)?;
+        let port = catalog.port(port_id)?;
         self.collect_user_data_from(port, &install_root)
     }
 

@@ -39,6 +39,12 @@ impl PortabilityCatalogs {
             let mut absolute = install.clone();
             absolute.path = root.join(relative);
             let retained = crate::install::portability_catalog_for_install(&absolute, &embedded)?;
+            if let Some(identity) = retained
+                .as_ref()
+                .and_then(|catalog| catalog.definition_selection(&install.port_id))
+            {
+                crate::definition_acquisition::refuse_restricted_portability(&identity.grant_id)?;
+            }
             let catalog = match retained {
                 Some(catalog) if embedded.port(&install.port_id).is_ok() => {
                     if let Some(admission) =

@@ -35,12 +35,31 @@ pub trait ReleaseProvider: Send + Sync {
         channel: ReleaseChannel,
         platform: Platform,
     ) -> Result<ResolvedRelease>;
+
+    /// A legacy provider cannot silently accept an authenticated acquisition scope.
+    async fn resolve_scoped(
+        &self,
+        port: &PortDefinition,
+        channel: ReleaseChannel,
+        platform: Platform,
+        scope: Option<&crate::DefinitionAcquisitionScope>,
+    ) -> Result<crate::ScopedResolvedRelease> {
+        if scope.is_some() {
+            return Err(PortcoveError::unsupported(
+                "release provider does not implement managed GitHub scope",
+            ));
+        }
+        self.resolve(port, channel, platform)
+            .await
+            .map(crate::ScopedResolvedRelease::legacy)
+    }
 }
 
 #[derive(Clone)]
 pub struct GithubReleaseProvider {
     client: reqwest::Client,
     download_client: reqwest::Client,
+    network_bounds: ProviderNetworkBounds,
     api_root: String,
     web_root: String,
     library: Option<Library>,
@@ -72,11 +91,13 @@ pub(crate) struct ReleaseSelectionCacheKey {
     platform: Platform,
     rolling_tag: Option<String>,
     asset_hints: Vec<String>,
+    scope_binding: Option<String>,
 }
 
 impl ReleaseSelectionCacheKey {
     pub(crate) fn new(port: &PortDefinition, channel: ReleaseChannel, platform: Platform) -> Self {
         Self {
+            scope_binding: None,
             repository: port.release.repository.clone(),
             channel,
             platform,
@@ -169,6 +190,7 @@ impl GithubReleaseProvider {
         Ok(Self {
             client,
             download_client,
+            network_bounds: bounds,
             api_root: api_root.into(),
             web_root: web_root.into(),
             library,
@@ -187,7 +209,10 @@ impl GithubReleaseProvider {
     }
 
     #[cfg(test)]
-    fn with_api_root_and_library(api_root: impl Into<String>, library: Library) -> Result<Self> {
+    pub(crate) fn with_api_root_and_library(
+        api_root: impl Into<String>,
+        library: Library,
+    ) -> Result<Self> {
         let api_root = api_root.into();
         let provider = Self::build(Some(library), &api_root, &api_root)?;
         provider.set_credential(None, GithubAuthSource::Anonymous);
@@ -365,11 +390,60 @@ impl GithubReleaseProvider {
         Ok(parsed)
     }
 
+    async fn scoped_json<T: DeserializeOwned>(
+        &self,
+        url: &str,
+        scope: &crate::DefinitionAcquisitionScope,
+    ) -> Result<T> {
+        scope.require_current()?;
+        let permitted_origin = self.api_root == "https://api.github.com";
+        #[cfg(test)]
+        let permitted_origin =
+            permitted_origin || scope.fixture_origin.as_deref() == Some(self.api_root.as_str());
+        if !permitted_origin
+            || !same_origin(url, &self.api_root)
+            || self
+                .library
+                .as_ref()
+                .is_some_and(|library| library.root() != scope.library.root())
+        {
+            return Err(PortcoveError::verification(
+                "managed GitHub metadata origin or library does not match",
+            ));
+        }
+        // Authenticated cache and ambient credentials are not authority for a new
+        // managed grant. Revalidate public repository identity on the actual API.
+        let response = self
+            .client
+            .get(url)
+            .send()
+            .await
+            .map_err(|error| PortcoveError::network(error.to_string()))?;
+        if !response.status().is_success() {
+            return Err(github_http_error(response.status(), response.headers()));
+        }
+        let bytes =
+            bounded_response_bytes(response, PROVIDER_JSON_MAX_BYTES, "scoped GitHub metadata")
+                .await?;
+        serde_json::from_slice(&bytes).map_err(|error| PortcoveError::network(error.to_string()))
+    }
+
     async fn releases(&self, repository_url: &str) -> Result<Vec<GithubRelease>> {
+        self.releases_scoped(repository_url, None).await
+    }
+
+    async fn releases_scoped(
+        &self,
+        repository_url: &str,
+        scope: Option<&crate::DefinitionAcquisitionScope>,
+    ) -> Result<Vec<GithubRelease>> {
         let mut releases = Vec::new();
         for page in 1..=GITHUB_MAX_RELEASE_PAGES {
             let url = paginated_url(repository_url, "releases", page, PROVIDER_PAGE_SIZE)?;
-            let mut current: Vec<GithubRelease> = self.get_json(&url).await?;
+            let mut current: Vec<GithubRelease> = match scope {
+                Some(scope) => self.scoped_json(&url, scope).await?,
+                None => self.get_json(&url).await?,
+            };
             let has_more = current.len() == PROVIDER_PAGE_SIZE;
             releases.append(&mut current);
             if !has_more {
@@ -656,6 +730,16 @@ impl GithubReleaseProvider {
         assets: &[GithubAsset],
         target: &GithubAsset,
     ) -> Result<Option<String>> {
+        self.checksum_from_sidecar_scoped(assets, target, None)
+            .await
+    }
+
+    async fn checksum_from_sidecar_scoped(
+        &self,
+        assets: &[GithubAsset],
+        target: &GithubAsset,
+        scope: Option<&crate::DefinitionAcquisitionScope>,
+    ) -> Result<Option<String>> {
         let exact_name = format!("{}.sha256", target.name);
         let exact = assets
             .iter()
@@ -680,9 +764,22 @@ impl GithubReleaseProvider {
             .detail("reason", "checksum_source_limit"));
         }
         let mut checksum = None;
+        let client = match scope {
+            Some(scope) => reqwest::Client::builder()
+                .redirect(scope.redirect_policy())
+                .user_agent(concat!("Portcove/", env!("CARGO_PKG_VERSION")))
+                .connect_timeout(self.network_bounds.connect)
+                .read_timeout(self.network_bounds.read_idle)
+                .build()
+                .map_err(|error| PortcoveError::network(error.to_string()))?,
+            None => self.download_client.clone(),
+        };
         for sidecar in sidecars {
-            let response = self
-                .download_client
+            if let Some(scope) = scope {
+                scope.require_current()?;
+                scope.require_asset_url(&sidecar.browser_download_url)?;
+            }
+            let response = client
                 .get(&sidecar.browser_download_url)
                 .send()
                 .await
@@ -747,6 +844,54 @@ impl ReleaseProvider for GithubReleaseProvider {
         channel: ReleaseChannel,
         platform: Platform,
     ) -> Result<ResolvedRelease> {
+        let scope = match &self.library {
+            Some(library) => {
+                let (catalog, _) = library.load_catalog()?;
+                crate::definition_repository::publisher_policy::acquisition_scope(
+                    library, &catalog, &port.id,
+                )?
+            }
+            None => None,
+        };
+        self.resolve_with_scope(port, channel, platform, scope.as_ref())
+            .await
+    }
+
+    async fn resolve_scoped(
+        &self,
+        port: &PortDefinition,
+        channel: ReleaseChannel,
+        platform: Platform,
+        scope: Option<&crate::DefinitionAcquisitionScope>,
+    ) -> Result<crate::ScopedResolvedRelease> {
+        if scope.is_none() {
+            return self
+                .resolve(port, channel, platform)
+                .await
+                .map(crate::ScopedResolvedRelease::legacy);
+        }
+        let release = self
+            .resolve_with_scope(port, channel, platform, scope)
+            .await?;
+        match scope {
+            Some(scope) => crate::ScopedResolvedRelease::managed(release, scope.clone()),
+            None => Ok(crate::ScopedResolvedRelease::legacy(release)),
+        }
+    }
+}
+
+impl GithubReleaseProvider {
+    async fn resolve_with_scope(
+        &self,
+        port: &PortDefinition,
+        channel: ReleaseChannel,
+        platform: Platform,
+        scope: Option<&crate::DefinitionAcquisitionScope>,
+    ) -> Result<ResolvedRelease> {
+        if let Some(scope) = scope {
+            scope.require_current()?;
+            scope.require_port(port)?;
+        }
         if port.release.provider != crate::ReleaseSource::Github {
             return Err(PortcoveError::unsupported(format!(
                 "{} does not use GitHub releases",
@@ -766,16 +911,39 @@ impl ReleaseProvider for GithubReleaseProvider {
             )));
         }
         let repository_url = format!("{}/repos/{}", self.api_root, port.release.repository);
-        let repository: GithubRepository = self.get_json(&repository_url).await?;
+        let repository: GithubRepository = match scope {
+            Some(scope) => self.scoped_json(&repository_url, scope).await?,
+            None => self.get_json(&repository_url).await?,
+        };
+        if let Some(scope) = scope
+            && repository.id != Some(scope.repository_id)
+        {
+            return Err(PortcoveError::verification(
+                "GitHub repository stable identity differs from its publisher grant",
+            ));
+        }
         // Keep metadata validation before cached selection. Archive state is a
         // maintenance fact; it neither revokes exact release authority nor
         // replaces the artifact integrity checks below.
         let _archived = repository.archived;
-        let cache_key = ReleaseSelectionCacheKey::new(port, channel, platform);
+        let mut cache_key = ReleaseSelectionCacheKey::new(port, channel, platform);
+        cache_key.scope_binding = scope.map(|scope| {
+            format!(
+                "{}:{}:{}",
+                scope.anchor_sha256, scope.policy_sha256, scope.port_sha256
+            )
+        });
         if let Some(release) = self.cached_release(&cache_key).await {
+            if let Some(scope) = scope {
+                scope.require_current()?;
+                scope.require_asset_url(&release.asset.url)?;
+            }
             return Ok(release);
         }
-        let releases = self.releases(&repository_url).await?;
+        let releases = match scope {
+            Some(scope) => self.releases_scoped(&repository_url, Some(scope)).await?,
+            None => self.releases(&repository_url).await?,
+        };
         let release = select_channel_candidate(
             &releases,
             channel,
@@ -791,17 +959,25 @@ impl ReleaseProvider for GithubReleaseProvider {
             ))
         })?;
         let asset = choose_asset(port, platform, &release.assets)?;
+        if let Some(scope) = scope {
+            scope.require_current()?;
+            scope.require_asset_url(&asset.browser_download_url)?;
+        }
         let sha256 = match asset.digest.as_deref().and_then(parse_digest) {
             Some(digest) => digest,
-            None => self
-                .checksum_from_sidecar(&release.assets, asset)
-                .await?
-                .ok_or_else(|| {
-                    PortcoveError::verification(format!(
-                        "{} does not publish a SHA-256 digest for {}",
-                        port.name, asset.name
-                    ))
-                })?,
+            None => match scope {
+                Some(scope) => {
+                    self.checksum_from_sidecar_scoped(&release.assets, asset, Some(scope))
+                        .await?
+                }
+                None => self.checksum_from_sidecar(&release.assets, asset).await?,
+            }
+            .ok_or_else(|| {
+                PortcoveError::verification(format!(
+                    "{} does not publish a SHA-256 digest for {}",
+                    port.name, asset.name
+                ))
+            })?,
         };
         let version = release_version(&release.tag_name);
         let resolved = ResolvedRelease {
@@ -983,6 +1159,8 @@ struct DeviceTokenResponse {
 
 #[derive(Debug, Deserialize)]
 struct GithubRepository {
+    #[serde(default)]
+    id: Option<u64>,
     archived: bool,
 }
 
@@ -1587,6 +1765,7 @@ mod tests {
             },
         };
         let oldest_key = ReleaseSelectionCacheKey {
+            scope_binding: None,
             repository: "owner/repository-0".into(),
             channel: ReleaseChannel::Stable,
             platform: Platform::WindowsX86_64,
@@ -1607,6 +1786,7 @@ mod tests {
             provider
                 .store_release(
                     ReleaseSelectionCacheKey {
+                        scope_binding: None,
                         repository: format!("owner/repository-{index}"),
                         channel: ReleaseChannel::Stable,
                         platform: Platform::WindowsX86_64,
