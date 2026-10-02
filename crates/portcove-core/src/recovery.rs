@@ -3,7 +3,7 @@ use std::fs;
 use crate::{
     InstallRecord, Installer, PortcoveError, PortcoveService, Result,
     operation::{LifecycleOperation, LifecycleOperationKind, LifecyclePhase, OperationStore},
-    service::{RestorePhase, copy_tree},
+    service::{RemovalOperation, RemovalPhase, RestorePhase, copy_tree},
 };
 
 pub(crate) fn recover_published_install(
@@ -133,27 +133,19 @@ pub(crate) fn recover_removal(
     store: &OperationStore,
     operation: &mut LifecycleOperation,
 ) -> Result<()> {
-    operation.paths.quarantine.as_ref().ok_or_else(|| {
-        PortcoveError::state("recoverable removal is missing its quarantine path")
-    })?;
-    if operation.phase == LifecyclePhase::Preparing {
+    let mut removal = RemovalOperation::decode(&service.library, operation)?;
+    if removal.phase == RemovalPhase::Quarantining {
         if operation.original_paths.is_empty() {
             store.remove(&operation.id)?;
             return Ok(());
         }
-        for path in &operation.original_paths {
-            let removal = crate::output_root::removal_paths(
-                &service.library,
-                &operation.port_id,
-                &operation.id,
-                path,
-            )?;
-            match (removal.live.exists(), removal.quarantined.exists()) {
+        for paths in removal.paths(&service.library)? {
+            match (paths.live.exists(), paths.quarantined.exists()) {
                 (true, false) => {
-                    if let Some(parent) = removal.quarantined.parent() {
+                    if let Some(parent) = paths.quarantined.parent() {
                         fs::create_dir_all(parent)?;
                     }
-                    crate::durability::rename_noreplace(&removal.live, &removal.quarantined)?;
+                    crate::durability::rename_noreplace(&paths.live, &paths.quarantined)?;
                 }
                 (false, true) => {}
                 (true, true) => {
@@ -168,33 +160,21 @@ pub(crate) fn recover_removal(
                 }
             }
         }
-        operation.phase = LifecyclePhase::PayloadPublished;
-        operation.last_error = None;
-        store.put(operation)?;
+        removal.advance(RemovalPhase::Quarantined, operation, store)?;
     }
-    if operation.phase == LifecyclePhase::PayloadPublished {
+    if removal.phase == RemovalPhase::Quarantined {
         service.library.remove_port(&operation.port_id)?;
-        operation.phase = LifecyclePhase::MetadataCommitted;
-        operation.last_error = None;
-        store.put(operation)?;
+        removal.advance(RemovalPhase::Committed, operation, store)?;
     }
     if matches!(
-        operation.phase,
-        LifecyclePhase::MetadataCommitted | LifecyclePhase::CleanupPending
+        removal.phase,
+        RemovalPhase::Committed | RemovalPhase::CleanupPending
     ) {
-        let cleanup_roots = operation
-            .original_paths
-            .iter()
-            .map(|path| {
-                crate::output_root::removal_paths(
-                    &service.library,
-                    &operation.port_id,
-                    &operation.id,
-                    path,
-                )
-                .map(|removal| removal.cleanup_root)
-            })
-            .collect::<Result<std::collections::BTreeSet<_>>>()?;
+        let cleanup_roots = removal
+            .paths(&service.library)?
+            .into_iter()
+            .map(|paths| paths.cleanup_root)
+            .collect::<std::collections::BTreeSet<_>>();
         for cleanup_root in cleanup_roots {
             if cleanup_root.exists() {
                 fs::remove_dir_all(cleanup_root)?;

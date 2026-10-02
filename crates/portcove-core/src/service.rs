@@ -38,6 +38,8 @@ use crate::{
 
 mod backups;
 pub(crate) use backups::{BackupDeletionPhase, RestorePhase};
+mod removal;
+pub(crate) use removal::{RemovalOperation, RemovalPhase};
 
 const LAUNCH_MARKER: &str = ".portcove-launched";
 const BULK_PROVIDER_CONCURRENCY: usize = 4;
@@ -3350,6 +3352,7 @@ impl PortcoveService {
                 .iter()
                 .map(|removal| removal.live.clone())
                 .collect();
+            let mut removal = RemovalOperation::decode(&self.library, &lifecycle)?;
             store.put(&mut lifecycle)?;
             for removal in &removals {
                 if let Some(parent) = removal.quarantined.parent() {
@@ -3357,22 +3360,23 @@ impl PortcoveService {
                 }
                 crate::durability::rename_noreplace(&removal.live, &removal.quarantined)?;
             }
-            lifecycle.phase = LifecyclePhase::PayloadPublished;
-            store.put(&mut lifecycle)?;
+            removal.advance(RemovalPhase::Quarantined, &mut lifecycle, &store)?;
             self.faults.check(LifecycleFaultPoint::RemovalQuarantined)?;
             self.library.remove_port(port_id)?;
-            lifecycle.phase = LifecyclePhase::MetadataCommitted;
-            store.put(&mut lifecycle)?;
+            removal.advance(RemovalPhase::Committed, &mut lifecycle, &store)?;
             self.faults
                 .check(LifecycleFaultPoint::RemovalMetadataCommitted)?;
             self.faults.check(LifecycleFaultPoint::RemovalCleanup)?;
-            for cleanup_root in removals.iter().map(|removal| &removal.cleanup_root) {
+            for cleanup_root in removal
+                .paths(&self.library)?
+                .iter()
+                .map(|path| &path.cleanup_root)
+            {
                 if cleanup_root.exists()
                     && let Err(error) = fs::remove_dir_all(cleanup_root)
                 {
-                    lifecycle.phase = LifecyclePhase::CleanupPending;
                     lifecycle.last_error = Some(error.to_string());
-                    store.put(&mut lifecycle)?;
+                    removal.advance(RemovalPhase::CleanupPending, &mut lifecycle, &store)?;
                     return Ok(paths);
                 }
             }
@@ -6076,6 +6080,84 @@ mod tests {
     }
 
     #[test]
+    fn removal_recovery_rejects_foreign_family_state_before_mutation() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let install = register_zelda_install(&library, "v1", true);
+        fs::write(install.join("retained.txt"), b"installed bytes").unwrap();
+        let service = service_with_release(library.clone(), "v2");
+        let store = OperationStore::new(library.clone());
+        let mut operation = LifecycleOperation::new(
+            "foreign-family-removal",
+            LifecycleOperationKind::Remove,
+            "zelda64-recomp",
+        );
+        operation.paths.quarantine = Some(library.recovery_dir().join(&operation.id));
+        operation.original_paths.push(install.clone());
+        let active = library
+            .status("zelda64-recomp", ReleaseChannel::Stable)
+            .unwrap()
+            .active
+            .unwrap();
+        let original = temporary.path().join("original.bin");
+        let unrelated = temporary.path().join("unrelated.bin");
+        let saved = library.user_dir("zelda64-recomp").join("saved.bin");
+        fs::create_dir_all(saved.parent().unwrap()).unwrap();
+        for path in [&original, &unrelated, &saved] {
+            fs::write(path, b"preserved bytes").unwrap();
+        }
+        for case in 0..8 {
+            let mut invalid = operation.clone();
+            match case {
+                0 => invalid.preparation_process_quiesced = Some(false),
+                1 => invalid.preparation_process_quiesced = Some(true),
+                2 => invalid.activate = true,
+                3 => invalid.paths.staging = Some(unrelated.clone()),
+                4 => invalid.paths.final_path = Some(unrelated.clone()),
+                5 => invalid.phase = LifecyclePhase::Prepared,
+                6 => invalid.paths.quarantine = Some(unrelated.clone()),
+                7 => invalid.install = Some(active.clone()),
+                _ => unreachable!(),
+            }
+            store.put(&mut invalid).unwrap();
+            let mut persisted = store.get(&operation.id).unwrap().unwrap();
+            let error = service.recover_removal(&store, &mut persisted).unwrap_err();
+            assert_eq!(error.code, crate::ErrorCode::State);
+            assert_eq!(
+                fs::read(install.join("retained.txt")).unwrap(),
+                b"installed bytes"
+            );
+            assert!(
+                library
+                    .status("zelda64-recomp", ReleaseChannel::Stable)
+                    .unwrap()
+                    .active
+                    .is_some()
+            );
+            let retained = store.get(&operation.id).unwrap().unwrap();
+            assert_eq!(retained.phase, invalid.phase);
+            assert_eq!(
+                retained.preparation_process_quiesced,
+                invalid.preparation_process_quiesced
+            );
+            assert_eq!(retained.updated_at, invalid.updated_at);
+            assert_eq!(retained.paths.quarantine, invalid.paths.quarantine);
+            assert!(!library.recovery_dir().join(&operation.id).exists());
+            for path in [&original, &unrelated, &saved] {
+                assert_eq!(fs::read(path).unwrap(), b"preserved bytes");
+            }
+        }
+        store.put(&mut operation).unwrap();
+        let mut valid = store.get(&operation.id).unwrap().unwrap();
+        service.recover_removal(&store, &mut valid).unwrap();
+        assert!(store.get(&operation.id).unwrap().is_none());
+        assert!(!install.exists());
+        for path in [&original, &unrelated, &saved] {
+            assert_eq!(fs::read(path).unwrap(), b"preserved bytes");
+        }
+    }
+
+    #[test]
     fn removal_recovery_resumes_a_preparing_quarantine() {
         let temporary = tempfile::tempdir().unwrap();
         let library = Library::open(temporary.path().join("library")).unwrap();
@@ -6308,7 +6390,7 @@ mod tests {
             LifecycleOperationKind::Remove,
             "zelda64-recomp",
         );
-        operation.paths.quarantine = Some(library.staging_dir().join("unused-quarantine"));
+        operation.paths.quarantine = Some(library.recovery_dir().join(&operation.id));
         store.put(&mut operation).unwrap();
 
         let (entered, observed) = mpsc::channel();
@@ -6346,7 +6428,7 @@ mod tests {
                 LifecycleOperationKind::Remove,
                 "zelda64-recomp",
             );
-            operation.paths.quarantine = Some(library.staging_dir().join("unused-quarantine"));
+            operation.paths.quarantine = Some(library.recovery_dir().join(&operation.id));
             store.put(&mut operation).unwrap();
             let (entered, observed) = mpsc::channel();
             let (proceed, resume) = mpsc::channel();
@@ -6407,7 +6489,7 @@ mod tests {
             LifecycleOperationKind::Remove,
             "zelda64-recomp",
         );
-        operation.paths.quarantine = Some(library.staging_dir().join("unused-quarantine"));
+        operation.paths.quarantine = Some(library.recovery_dir().join(&operation.id));
         store.put(&mut operation).unwrap();
         let (entered, observed) = mpsc::channel();
         let (proceed, resume) = mpsc::channel();
@@ -6441,7 +6523,7 @@ mod tests {
             LifecycleOperationKind::Remove,
             "zelda64-recomp",
         );
-        operation.paths.quarantine = Some(library.staging_dir().join("unused-quarantine"));
+        operation.paths.quarantine = Some(library.recovery_dir().join(&operation.id));
         store.put(&mut operation).unwrap();
 
         let observer = PortcoveService::new_read_only(library.clone()).unwrap();

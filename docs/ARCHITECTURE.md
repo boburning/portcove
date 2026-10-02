@@ -79,6 +79,22 @@ remain authoritative. Publication precedes source registration; registration
 precedes optional original cleanup. Phase writes preserve the existing durable
 ordering and interruption recovery, including publication before its phase write.
 
+## Managed removal interpretation
+
+Normal removal and recovery decode the released lifecycle envelope through the
+same private removal family. Quarantining, quarantined, metadata committed and
+cleanup pending retain their existing stored phases. The unused prepared phase,
+foreign family payloads and incompatible identity/quarantine paths are refused
+before recovery mutation. No journal, SQLite or public contract migration occurs.
+
+This interpreter is not authorization. Normal removal still consumes one-use
+review consent under the port lock and collects promised user data before
+quarantine. Existing output-root ownership and filesystem checks determine live,
+quarantine and cleanup paths; cleanup resolves them again after metadata commit.
+Recovery retains the post-lock journal read and unstarted legacy-intent handling.
+Checked forward transitions preserve quarantine, metadata and cleanup ordering;
+interrupted operations retain their journal and recover under the existing locks.
+
 ## Privileged webview boundary
 
 The Tauri host permits application navigation only within its bundled
