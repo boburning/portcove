@@ -38,6 +38,7 @@ function hostedFixture(t) {
   };
   mkdirSync(source);
   git(source, ["init", "--quiet"]);
+  git(source, ["config", "core.autocrlf", "false"]);
   git(source, ["config", "user.name", "Local binding fixture"]);
   git(source, ["config", "user.email", "fixture@example.invalid"]);
   for (const name of hostedLocalCheckAuthorityPaths) write(source, name, "authority\n");
@@ -58,6 +59,7 @@ function hostedFixture(t) {
   git(source, ["commit", "--quiet", "-m", "reviewed subject"]);
   const head = git(source, ["rev-parse", "HEAD"]);
   git(directory, ["clone", "--quiet", source, controller]);
+  git(controller, ["config", "core.autocrlf", "false"]);
   git(controller, ["config", "user.name", "Local binding fixture"]);
   git(controller, ["config", "user.email", "fixture@example.invalid"]);
   write(controller, ".github/workflows/deep-quality.yml", "name: Reviewed controller\n");
@@ -319,10 +321,15 @@ test("Cargo binding rejects every other tree, mode and dependency-byte change", 
           '[dev-dependencies]\nminisign = "0.10.0"\n',
       ),
     (f) => f.git(f.source, ["rm", f.spec.manifests[0].path]),
-    (f) => chmodSync(path.join(f.source, "Cargo.lock"), 0o755),
+    (f) => {
+      chmodSync(path.join(f.source, "Cargo.lock"), 0o755);
+      f.git(f.source, ["update-index", "--chmod=+x", "Cargo.lock"]);
+    },
   ];
+  const f = cargoFixture(t);
+  const originalHead = f.env.PORTCOVE_LOCAL_SOURCE_SHA;
   for (const mutate of mutations) {
-    const f = cargoFixture(t);
+    f.git(f.source, ["reset", "--hard", originalHead]);
     mutate(f);
     f.commit();
     await assert.rejects(
@@ -333,6 +340,8 @@ test("Cargo binding rejects every other tree, mode and dependency-byte change", 
 });
 
 test("Cargo binding rejects ambiguous or unreviewed declarations and digests", async (t) => {
+  const f = cargoFixture(t);
+  const originalSpec = structuredClone(f.spec);
   for (const update of [
     (s) => {
       s.lock_sha256 = "c".repeat(64);
@@ -365,12 +374,12 @@ test("Cargo binding rejects ambiguous or unreviewed declarations and digests", a
       s.to_checksum = [s.to_checksum];
     },
   ]) {
-    const f = cargoFixture(t);
+    f.spec = structuredClone(originalSpec);
     update(f.spec);
     f.env.PORTCOVE_LOCAL_DEPENDENCY_BINDING = JSON.stringify(f.spec);
     await assert.rejects(runHostedLocalCheck("prepare", f.options), /binding|digest/);
   }
-  const f = cargoFixture(t);
+  f.env.PORTCOVE_LOCAL_DEPENDENCY_BINDING = JSON.stringify(originalSpec);
   f.env.PORTCOVE_LOCAL_DEPENDENCY_BINDING = f.env.PORTCOVE_LOCAL_DEPENDENCY_BINDING.replace(
     "{",
     '{"package":"hidden",',
