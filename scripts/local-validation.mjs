@@ -1454,7 +1454,13 @@ export function inspectPreChangeAudit(
   };
 }
 
-export function inspectHostedLocalRoute(context, authority, controller, invokeGit = git) {
+export function inspectHostedLocalRoute(
+  context,
+  authority,
+  controller,
+  invokeGit = git,
+  dispatchRef,
+) {
   if (!authority || !controller)
     return {
       status: "unverified",
@@ -1507,13 +1513,46 @@ export function inspectHostedLocalRoute(context, authority, controller, invokeGi
         "candidate changes trusted local-check authority; fixed transport cannot qualify itself",
       changed,
     };
+  if (!dispatchRef)
+    return {
+      status: "unverified",
+      reason: "GitHub dispatch requires an advertised branch or tag, not a controller SHA",
+      next_action:
+        "supply --hosted-ref NAME after fetching an existing branch or tag at the exact trusted controller",
+    };
+  if (!/^[A-Za-z0-9][A-Za-z0-9._/-]*$/u.test(dispatchRef) || /^[a-f0-9]{40}$/iu.test(dispatchRef))
+    throw new Error("--hosted-ref requires a safe branch or tag name, not a SHA");
+  invokeGit(["check-ref-format", "--branch", dispatchRef]);
+  const candidates = [`refs/remotes/origin/${dispatchRef}`, `refs/tags/${dispatchRef}`];
+  const advertised = invokeGit(["for-each-ref", "--format=%(refname)%09%(symref)", ...candidates])
+    .trim()
+    .split("\n")
+    .map((entry) => {
+      const [name, symbolic = ""] = entry.split("\t");
+      return { name, symbolic };
+    })
+    .filter((entry) => candidates.includes(entry.name));
+  if (advertised.length !== 1 || advertised[0].symbolic)
+    return {
+      status: "blocked",
+      reason:
+        "dispatch ref is missing, ambiguous or symbolic in the local origin branch/tag inventory",
+      next_action: "fetch the existing approved named ref and resolve branch/tag ambiguity",
+    };
+  if (invokeGit(["rev-parse", "--verify", `${advertised[0].name}^{commit}`]).trim() !== controller)
+    return {
+      status: "blocked",
+      reason: "dispatch ref does not resolve to the exact trusted controller",
+      next_action: "select an existing approved ref at the supplied controller SHA",
+    };
   return {
     status: "eligible",
     authority,
     controller,
+    dispatch_ref: dispatchRef,
     dispatch_authority:
       "not established by this local observation; dispatch and exact run readback must succeed",
-    command: `gh workflow run deep-quality.yml --ref ${controller} -f operation=local-check -f source_sha=${context.headSha} -f base_sha=${context.baseSha} -f merge_base_sha=${context.mergeBase} -f controller_sha=${controller} -f authority_sha=${authority}`,
+    command: `gh workflow run deep-quality.yml --ref ${dispatchRef} -f operation=local-check -f source_sha=${context.headSha} -f base_sha=${context.baseSha} -f merge_base_sha=${context.mergeBase} -f controller_sha=${controller} -f authority_sha=${authority}`,
   };
 }
 
@@ -1732,6 +1771,7 @@ function parseCheckArgs(args) {
   let asJson = false;
   let authority;
   let controller;
+  let dispatchRef;
   for (let index = 0; index < args.length; index += 1) {
     const value = args[index];
     if (value === "--plan") planOnly = true;
@@ -1740,20 +1780,24 @@ function parseCheckArgs(args) {
     else if (value === "--json") asJson = true;
     else if (value === "--hosted-authority") authority = args[++index];
     else if (value === "--hosted-controller") controller = args[++index];
-    else if (value === "--base") {
+    else if (value === "--hosted-ref") {
+      dispatchRef = args[++index];
+      if (!dispatchRef || dispatchRef.startsWith("--"))
+        throw new Error("--hosted-ref requires a branch or tag name");
+    } else if (value === "--base") {
       base = args[++index];
       if (!base) throw new Error("--base requires a Git revision");
     } else throw new Error(`unknown local-check option: ${value}`);
   }
-  if ((asJson || authority || controller) && !preflightOnly)
+  if ((asJson || authority || controller || dispatchRef) && !preflightOnly)
     throw new Error("route/JSON options require --preflight");
-  return { base, planOnly, fresh, preflightOnly, asJson, authority, controller };
+  return { base, planOnly, fresh, preflightOnly, asJson, authority, controller, dispatchRef };
 }
 
 export async function main(argv = process.argv.slice(2), options = {}) {
   if (argv.includes("--help")) {
     console.log(
-      "usage: local-validation.mjs [check [--base REV] [--plan|--preflight [--json] [--hosted-authority SHA --hosted-controller SHA]] [--fresh]|test-rust ARGS|test-ui-related FILES|test-node TESTS]",
+      "usage: local-validation.mjs [check [--base REV] [--plan|--preflight [--json] [--hosted-authority SHA --hosted-controller SHA --hosted-ref NAME]] [--fresh]|test-rust ARGS|test-ui-related FILES|test-node TESTS]",
     );
     return;
   }
@@ -1763,7 +1807,7 @@ export async function main(argv = process.argv.slice(2), options = {}) {
     return;
   }
   if (kind !== "check") throw new Error(`unknown local validation command: ${kind}`);
-  const { base, planOnly, fresh, preflightOnly, asJson, authority, controller } =
+  const { base, planOnly, fresh, preflightOnly, asJson, authority, controller, dispatchRef } =
     parseCheckArgs(args);
   const context = (options.readContext ?? readChangeContext)(base);
   const validationPlan = validateValidationPlan(
@@ -1795,6 +1839,8 @@ export async function main(argv = process.argv.slice(2), options = {}) {
         context,
         authority,
         controller,
+        undefined,
+        dispatchRef,
       );
       const report = {
         format_version: 1,
@@ -1837,7 +1883,7 @@ export async function main(argv = process.argv.slice(2), options = {}) {
   };
   const plan = buildPlan(selection, planContext);
   if (preflightOnly) {
-    const hosted = inspectHostedLocalRoute(context, authority, controller);
+    const hosted = inspectHostedLocalRoute(context, authority, controller, undefined, dispatchRef);
     const audit = inspectPreChangeAudit(context, validationPlan, authority, controller);
     const report = buildExecutionPreflight({
       context,

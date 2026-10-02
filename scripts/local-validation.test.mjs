@@ -115,6 +115,7 @@ test("hosted preflight requires exact available ancestor authorities and a froze
     (paths = "", dirty = "") =>
     (args) => {
       if (args[0] === "status") return dirty;
+      if (args[0] === "for-each-ref") return "refs/remotes/origin/ci/selected-check";
       if (args[0] === "rev-parse") return args[1].includes(":") ? "c".repeat(40) : sha;
       if (args[0] === "show") return "hosted-local-check controller\nhosted-local-check run";
       if (args[0] === "diff")
@@ -151,10 +152,70 @@ test("hosted preflight requires exact available ancestor authorities and a froze
     sha,
     sha,
     invoke("apps/desktop/src-tauri/src/cli_context.rs\0scripts/example.test.mjs\0"),
+    "ci/selected-check",
   );
   assert.equal(eligible.status, "eligible");
   assert.match(eligible.command, new RegExp(`source_sha=${context.headSha}`));
   assert.match(eligible.dispatch_authority, /not established/);
+  assert.match(eligible.command, /--ref ci\/selected-check /);
+  assert.match(eligible.command, new RegExp(`controller_sha=${sha}`));
+  assert.equal(inspectHostedLocalRoute(context, sha, sha, invoke()).status, "unverified");
+  for (const name of [
+    sha,
+    sha.toUpperCase(),
+    "B" + sha.slice(1),
+    "main;echo",
+    "main$(echo)",
+    "--main",
+    "main'quoted",
+  ])
+    assert.throws(() => inspectHostedLocalRoute(context, sha, sha, invoke(), name), /safe branch/);
+  for (const refs of ["", "refs/remotes/origin/ci/selected-check\nrefs/tags/ci/selected-check"])
+    assert.equal(
+      inspectHostedLocalRoute(
+        context,
+        sha,
+        sha,
+        (args) => (args[0] === "for-each-ref" ? refs : invoke()(args)),
+        "ci/selected-check",
+      ).status,
+      "blocked",
+    );
+  assert.equal(
+    inspectHostedLocalRoute(
+      context,
+      sha,
+      sha,
+      (args) =>
+        args[0] === "rev-parse" && args[2]?.startsWith("refs/remotes/")
+          ? "d".repeat(40)
+          : invoke()(args),
+      "ci/selected-check",
+    ).status,
+    "blocked",
+  );
+  assert.equal(
+    inspectHostedLocalRoute(
+      context,
+      sha,
+      sha,
+      (args) =>
+        args[0] === "for-each-ref"
+          ? "refs/remotes/origin/ci/selected-check\trefs/remotes/origin/main"
+          : invoke()(args),
+      "ci/selected-check",
+    ).status,
+    "blocked",
+  );
+  const tagged = inspectHostedLocalRoute(
+    context,
+    sha,
+    sha,
+    (args) => (args[0] === "for-each-ref" ? "refs/tags/ci/selected-check" : invoke()(args)),
+    "ci/selected-check",
+  );
+  assert.equal(tagged.status, "eligible");
+
   const renamed = `:100644 100644 ${"b".repeat(40)} ${"a".repeat(40)} R100\0scripts/owned-authority.mjs\0docs/moved.txt\0`;
   assert.equal(inspectHostedLocalRoute(context, sha, sha, invoke(renamed)).status, "blocked");
   assert.equal(
@@ -171,6 +232,23 @@ test("hosted preflight requires exact available ancestor authorities and a froze
         throw new Error("unavailable comparison authority");
       }),
     /unavailable/,
+  );
+});
+
+test("hosted dispatch-ref arguments fail before discovery when missing or outside preflight", async () => {
+  const options = {
+    readContext: () => {
+      throw new Error("unexpected discovery");
+    },
+  };
+  await assert.rejects(main(["check", "--hosted-ref"], options), /requires a branch or tag/);
+  await assert.rejects(
+    main(["check", "--preflight", "--hosted-ref", "--json"], options),
+    /requires a branch or tag/,
+  );
+  await assert.rejects(
+    main(["check", "--hosted-ref", "ci/selected-check"], options),
+    /require --preflight/,
   );
 });
 
