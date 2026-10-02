@@ -10,6 +10,7 @@ import { Builder, By, Key, until } from "selenium-webdriver";
 import { writeEvidence, fileIdentity } from "../../../scripts/development-evidence.mjs";
 import { spawnCommand } from "../../../scripts/dev-storage.mjs";
 import { cachedDesktopDrivers } from "../../../scripts/tool-cache.mjs";
+import { OwnedNativeSession } from "./desktop-owned-native-session.mjs";
 import { preparationScenarios } from "./desktop-preparation-test.mjs";
 import { nativeConfirmation } from "./desktop-native-confirmation.mjs";
 import { controllerScenario } from "./desktop-controller-test.mjs";
@@ -107,6 +108,7 @@ for (const name of [
   "native-process-tree.ps1",
   "native-startup-observation.ps1",
   "desktop-startup-observation.mjs",
+  "desktop-owned-native-session.mjs",
 ])
   inputs.push(await fileIdentity(fileURLToPath(new URL(name, import.meta.url))));
 inputs.push(await fileIdentity(fileURLToPath(new URL("desktop-reload-test.mjs", import.meta.url))));
@@ -250,9 +252,7 @@ if (backupFocusSession) {
     "The bounded backup-focus qualification must run as one exact scenario",
   );
 }
-let backupFocusDriver;
-let backupFocusCleanupSnapshot;
-let backupFocusCleanup;
+const ownedSession = new OwnedNativeSession();
 const nativeLock = await acquireNativeSessionLock({
   workspace: root,
   profile: selection.profile,
@@ -281,14 +281,14 @@ function stopDriver() {
 }
 
 function stopBackupFocusDriver() {
-  if (backupFocusCleanup || !driver?.pid) return;
+  if (ownedSession.cleanup || !driver?.pid) return;
   const snapshot = captureBackupFocusCleanup();
   const stopped =
     driver.exitCode === null
       ? observeNativeSession("StopDriver", snapshot)
       : { method: "observed-child-exit", exit_code: driver.exitCode };
   const exited = observeNativeSession("Wait", snapshot);
-  backupFocusCleanup = { stopped, exited, snapshot };
+  ownedSession.cleanup = { stopped, exited, snapshot };
   driver = undefined;
 }
 
@@ -328,9 +328,9 @@ function validateBackupFocusInventory(captured) {
 }
 
 function captureBackupFocusCleanup() {
-  if (backupFocusCleanupSnapshot) return backupFocusCleanupSnapshot;
+  if (ownedSession.inventory) return ownedSession.inventory;
   assert.ok(
-    backupFocusDriver && driver?.pid,
+    ownedSession.driver && driver?.pid,
     "Missing initial owned driver identity; refuse unchecked cleanup",
   );
   const suffix = hostInterruptionSession ? `-${driver.pid}` : "";
@@ -339,7 +339,7 @@ function captureBackupFocusCleanup() {
   artifacts.push(original);
   assert.deepEqual(
     captured.driver,
-    backupFocusDriver,
+    ownedSession.driver,
     "Driver identity changed since owned launch",
   );
   try {
@@ -371,7 +371,7 @@ function captureBackupFocusCleanup() {
     { flag: "wx" },
   );
   artifacts.push(checked);
-  backupFocusCleanupSnapshot = checked;
+  ownedSession.inventory = checked;
   return checked;
 }
 async function verifySettingsRows() {
@@ -988,8 +988,8 @@ async function interruptApplication(name, preparationExecutable, assertStillPrep
   const observation = {
     started_at: startedAt,
     shutdown_request: "forced-owned-tree-termination-without-session-delete",
-    driver_stop: backupFocusCleanup.stopped,
-    shutdown: backupFocusCleanup.exited,
+    driver_stop: ownedSession.cleanup.stopped,
+    shutdown: ownedSession.cleanup.exited,
   };
   // The killed session cannot be reused. Recovery runs in a new native host;
   // no durable-state fixture or quiescence flag is written by the harness.
@@ -1042,7 +1042,7 @@ function captureBackupFocusDriverLaunch(launchStarted) {
     created >= launchStarted - 1 && created <= Date.now(),
     "Driver creation must belong to this launch",
   );
-  backupFocusDriver = captured.driver;
+  ownedSession.driver = captured.driver;
 }
 
 async function driverReady() {
@@ -1058,6 +1058,7 @@ async function driverReady() {
 }
 
 async function startDriver(childEnvironment = {}) {
+  ownedSession.beginLaunch();
   const launchStarted = Date.now();
   driver = spawn(
     values.driver,
@@ -1114,10 +1115,6 @@ async function captureSelectedDriverLaunch(launchStarted) {
     driver.once("error", reject);
   });
   captureBackupFocusDriverLaunch(launchStarted);
-  if (hostInterruptionSession) {
-    backupFocusCleanupSnapshot = undefined;
-    backupFocusCleanup = undefined;
-  }
 }
 
 async function verifyCompactSettingsJumps() {
@@ -2529,7 +2526,7 @@ try {
   try {
     if (identityBoundSession) {
       try {
-        if (driver?.pid && !backupFocusCleanup) captureBackupFocusCleanup();
+        if (driver?.pid && !ownedSession.cleanup) captureBackupFocusCleanup();
         let quitError;
         if (browser)
           await browser.quit().catch((error) => {
@@ -2537,15 +2534,12 @@ try {
           });
         browser = undefined;
         stopDriver();
-        assert.ok(
-          backupFocusCleanup,
-          "Positive owned root/application/WebView cleanup is required",
-        );
+        ownedSession.requireQuiescence();
         const report = path.join(output, `${cleanupName}-cleanup.json`);
         await writeFile(
           report,
           JSON.stringify(
-            { ...backupFocusCleanup, session_quit_error: quitError?.message },
+            { ...ownedSession.cleanup, session_quit_error: quitError?.message },
             null,
             2,
           ),
