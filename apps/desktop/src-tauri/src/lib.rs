@@ -2648,7 +2648,7 @@ mod tests {
             .execute(
                 "INSERT INTO lifecycle_operations(id,kind,port_id,phase,quarantine_path,created_at,updated_at)
                  VALUES('external-remove','remove','zelda64-recomp','preparing',?1,1,1)",
-                [root.join("unused-quarantine").to_str().unwrap()],
+                [root.join("recovery").join("external-remove").to_str().unwrap()],
             )
             .unwrap();
         assert!(workspace_changed_at_generation(&state, 1).unwrap());
@@ -2683,7 +2683,7 @@ mod tests {
             .execute(
                 "INSERT INTO lifecycle_operations(id,kind,port_id,phase,quarantine_path,created_at,updated_at)
                  VALUES('next-remove','remove','zelda64-recomp','preparing',?1,1,1)",
-                [next_root.join("unused-quarantine").to_str().unwrap()],
+                [next_root.join("recovery").join("next-remove").to_str().unwrap()],
             )
             .unwrap();
         assert!(discover_orphaned_operations_at_generation(&state, 1).is_err());
