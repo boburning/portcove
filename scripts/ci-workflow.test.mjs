@@ -831,8 +831,8 @@ test("frontend tooling uses the pinned Oxc contracts without legacy quality laye
   );
   assert.equal(desktopPackage.scripts["format:oxfmt"], "node ../../scripts/run-oxfmt.mjs --write");
   assert.equal(desktopPackage.scripts["lint:oxlint"], "node ../../scripts/run-oxlint.mjs");
-  assert.equal(repositoryPackage.devDependencies.oxfmt, "0.70.0");
-  assert.equal(repositoryPackage.devDependencies.oxlint, "1.85.0");
+  assert.equal(repositoryPackage.devDependencies.oxfmt, "0.71.0");
+  assert.equal(repositoryPackage.devDependencies.oxlint, "1.86.0");
   assert.equal(repositoryPackage.devDependencies["oxlint-tsgolint"], "7.0.2003");
   assert.equal(desktopPackage.devDependencies["oxc-parser"], "0.151.0");
   assert.equal(desktopPackage.devDependencies.typescript, "7.0.2");
