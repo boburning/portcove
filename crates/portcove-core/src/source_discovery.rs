@@ -274,7 +274,7 @@ fn current_game_file_scan(
     };
     match snapshot.format_version {
         1 => snapshot.limits = None,
-        2 | 3 | 4 => {
+        2..=4 => {
             let Some(limits) = snapshot.limits.as_ref() else {
                 return Err(PortcoveError::state(
                     "stored game-file scan snapshot is missing its scan limits",
