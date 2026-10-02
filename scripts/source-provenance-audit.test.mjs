@@ -178,6 +178,97 @@ test("superseded collapsed history does not replace the current research blocker
   }
 });
 
+function researchEvidenceInput(body) {
+  const input = fixture();
+  const identity = input.issues[0].body
+    .replace(/^\s*- Source requirements and accepted revisions:.*$/gmu, "")
+    .replace(/^\s*- Release assets and integrity:.*$/gmu, "");
+  input.issues[0].body = `${body}\n${identity}`;
+  input.projectItems[0].content.body = input.issues[0].body;
+  return input;
+}
+
+test("research evidence summaries ignore explicitly superseded history", async (t) => {
+  for (const example of [
+    {
+      name: "obsolete accepted source cannot replace current pending evidence",
+      historical: "- Source requirements and accepted revisions: Reviewed obsolete revision.",
+      active: "- Source requirements and accepted revisions: Pending",
+      expected: { sourceEvidence: "Gap recorded", releaseIntegrity: "Not structurally recorded" },
+    },
+    {
+      name: "historical pending integrity cannot override current verified evidence",
+      historical: "Release integrity: pending",
+      active: "Release integrity: verified",
+      expected: {
+        sourceEvidence: "Not structurally recorded",
+        releaseIntegrity: "Evidence mentioned in issue",
+      },
+    },
+    {
+      name: "superseded checksum alone cannot establish current integrity evidence",
+      historical: "Artifact SHA-256: obsolete reviewed identity.",
+      active: "Current artifact integrity has not been described.",
+      expected: {
+        sourceEvidence: "Not structurally recorded",
+        releaseIntegrity: "Not structurally recorded",
+      },
+    },
+  ]) {
+    await t.test(example.name, () => {
+      const history = `<details>\n<summary>Superseded historical scope</summary>\n${example.historical}\n</details>`;
+      for (const body of [`${history}\n${example.active}`, `${example.active}\n${history}`]) {
+        const input = researchEvidenceInput(body);
+        const first = buildSourceProvenanceAudit(input);
+        const second = buildSourceProvenanceAudit(input);
+        const row = first.research[0];
+        assert.deepEqual(
+          { sourceEvidence: row.sourceEvidence, releaseIntegrity: row.releaseIntegrity },
+          example.expected,
+        );
+        assert.equal(renderSourceProvenanceAudit(first), renderSourceProvenanceAudit(second));
+        const baseline = buildSourceProvenanceAudit(fixture());
+        assert.deepEqual(first.cataloged, baseline.cataloged);
+        assert.deepEqual(first.counts, baseline.counts);
+        assert.deepEqual(first.observations, baseline.observations);
+        assert.deepEqual(
+          {
+            ...row,
+            sourceEvidence: baseline.research[0].sourceEvidence,
+            releaseIntegrity: baseline.research[0].releaseIntegrity,
+          },
+          baseline.research[0],
+        );
+      }
+    });
+  }
+});
+
+test("active ambiguous and malformed research evidence remains visible", () => {
+  const facts =
+    "- Source requirements and accepted revisions: Reviewed current revision.\nRelease integrity: pending";
+  const bodies = [
+    ...[
+      "Current evidence",
+      "Historical context still applicable",
+      "Not superseded",
+      "Superseded?",
+      "Superseded history isn't established",
+      "Superseded historical scope?",
+    ].map((label) => `<details>\n<summary>${label}</summary>\n${facts}\n</details>`),
+    `<details>\n${facts}\n</details>`,
+    `<details><summary>Superseded history</summary>\n${facts}`,
+    `<details><summary>Current scope</summary><details><summary>Superseded history</summary>\n${facts}\n</details>`,
+    `<!-- <details><summary>Superseded history</summary>\n${facts}\n</details> -->`,
+    `\`\`\`html\n<details><summary>Superseded history</summary>\n${facts}\n</details>\n\`\`\``,
+  ];
+  for (const body of bodies) {
+    const row = buildSourceProvenanceAudit(researchEvidenceInput(body)).research[0];
+    assert.equal(row.sourceEvidence, "Evidence mentioned in issue");
+    assert.equal(row.releaseIntegrity, "Gap recorded");
+  }
+});
+
 test("active and unlabeled collapsed details remain authoritative blockers", () => {
   for (const summary of [
     "Current blocker details",

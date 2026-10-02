@@ -136,7 +136,7 @@ function explicitGap(body) {
 }
 
 function releaseIntegrityState(body) {
-  const text = String(body ?? "");
+  const text = withoutSupersededHistory(body);
   if (/release integrity:[^\n]*(?:pending|unknown|blocked)/i.test(text)) return "Gap recorded";
   if (
     /(?:checksum-qualified|release integrity:[^\n]*(?:verified|complete)|artifact[^\n]*sha-256)/i.test(
@@ -149,7 +149,7 @@ function releaseIntegrityState(body) {
 }
 
 function sourceEvidenceState(body) {
-  const value = String(body ?? "")
+  const value = withoutSupersededHistory(body)
     .match(/^\s*- Source requirements and accepted revisions:\s*(.+)$/im)?.[1]
     ?.trim();
   if (!value) return "Not structurally recorded";
