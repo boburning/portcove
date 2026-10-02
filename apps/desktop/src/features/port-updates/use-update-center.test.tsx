@@ -7,6 +7,10 @@ import { failureReport, portDefinition, portStatus } from "../../test-fixtures";
 import type { InstallRecord, PortStatus, UpdateCheckOutcome } from "../../types";
 import { UpdateCenter } from "../../components/UpdateCenter";
 import { useUpdateCenter } from "./use-update-center";
+import { useOperationState } from "../operations/use-operation-state";
+
+vi.mock("@tauri-apps/api/event", () => ({ listen: vi.fn().mockResolvedValue(() => {}) }));
+const refreshWorkspace = async () => {};
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -78,6 +82,7 @@ describe("port update read owner", () => {
   let host: HTMLDivElement;
   let mounted: boolean;
   let state!: ReturnType<typeof useUpdateCenter>;
+  let operations!: ReturnType<typeof useOperationState>;
   const calls = vi.fn();
   const perform = async <T,>(
     name: string,
@@ -93,15 +98,39 @@ describe("port update read owner", () => {
     return <span>{state.outcomes.map((item) => item.port_id).join(",")}</span>;
   }
 
+  function OperatingCenter({ statuses }: { statuses: PortStatus[] }) {
+    operations = useOperationState({ refresh: refreshWorkspace });
+    state = useUpdateCenter(operations.perform, statuses);
+    return (
+      <UpdateCenter
+        generation={1}
+        ports={statuses.map((item) => ({ ...portDefinition(), id: item.port_id }))}
+        statuses={new Map(statuses.map((item) => [item.port_id, item]))}
+        activities={[]}
+        outcomes={state.outcomes}
+        batchRead={state.batchRead}
+        busy={operations.busy}
+        diagnosticsRefreshing={false}
+        diagnosticsStale={false}
+        refreshDiagnostics={refreshWorkspace}
+        checkAll={state.checkAll}
+        onSelect={vi.fn()}
+        onOpenSettings={vi.fn()}
+      />
+    );
+  }
+
   beforeEach(() => {
     vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
     host = document.createElement("div");
+    document.body.append(host);
     root = createRoot(host);
     mounted = true;
   });
 
   afterEach(() => {
     if (mounted) act(() => root.unmount());
+    host.remove();
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
     calls.mockReset();
@@ -347,5 +376,229 @@ describe("port update read owner", () => {
       await expect(run).resolves.toBeUndefined();
     });
     expect(checkInstalled).toHaveBeenCalledTimes(1);
+  });
+
+  it("marks earlier successful results as retained after a later whole-batch failure", async () => {
+    const current = status("alpha", "a".repeat(64));
+    const failure = failureReport();
+    const checkInstalled = vi
+      .spyOn(desktopApi, "checkInstalled")
+      .mockResolvedValueOnce([outcome(current)])
+      .mockRejectedValueOnce(failure)
+      .mockResolvedValueOnce([outcome(current)]);
+    await act(async () => root.render(<OperatingCenter statuses={[current]} />));
+    await act(async () => state.checkAll());
+    expect(host.textContent).not.toContain("Update available at last check");
+    await act(async () => state.checkAll());
+    expect(operations.error).toBe(failure);
+    expect(state.outcomes).toEqual([outcome(current)]);
+    expect(host.textContent).toContain("Update available at last check");
+    expect(host.textContent).toContain("Update check did not finish");
+    const retry = [...host.querySelectorAll("button")].find((button) =>
+      button.textContent?.includes("Retry update check"),
+    );
+    expect(retry).toBeDefined();
+    await act(async () => retry?.click());
+    expect(checkInstalled).toHaveBeenCalledTimes(3);
+    expect(host.textContent).not.toContain("Update check did not finish");
+  });
+
+  it("keeps the current batch unknown after a failed first check without inventing individual failures", async () => {
+    const current = { ...status("alpha", "a".repeat(64)), last_update_check: null };
+    vi.spyOn(desktopApi, "checkInstalled").mockRejectedValueOnce(failureReport());
+    await act(async () => root.render(<OperatingCenter statuses={[current]} />));
+    await act(async () => state.checkAll());
+    expect(state.outcomes).toEqual([]);
+    expect(host.textContent).toContain("Update check did not finish");
+    expect(host.textContent).toContain("Current update results are unavailable");
+    expect(
+      host.querySelector('[data-detail-origin="updates:installed:alpha"]')?.textContent,
+    ).toContain("Not checked");
+  });
+
+  it("distinguishes a pending repeat check from its earlier completed results", async () => {
+    const current = status("alpha", "a".repeat(64));
+    const pending = deferred<UpdateCheckOutcome[]>();
+    vi.spyOn(desktopApi, "checkInstalled")
+      .mockResolvedValueOnce([outcome(current)])
+      .mockReturnValueOnce(pending.promise);
+    await act(async () => root.render(<OperatingCenter statuses={[current]} />));
+    await act(async () => state.checkAll());
+    let run!: Promise<void>;
+    await act(async () => {
+      run = state.checkAll();
+    });
+    expect(host.textContent).toContain("Showing earlier results while the current check runs");
+    expect(host.textContent).toContain("Update available at last check");
+    await act(async () => {
+      pending.resolve([outcome(current)]);
+      await run;
+    });
+  });
+
+  it("retains partial success and individual failures without turning a batch rejection into per-port failures", async () => {
+    const alpha = status("alpha", "a".repeat(64));
+    const beta = status("beta", "b".repeat(64));
+    const perPort: UpdateCheckOutcome = {
+      port_id: "beta",
+      ok: false,
+      result: null,
+      error: failureReport(),
+    };
+    const previous = [outcome(alpha), perPort];
+    vi.spyOn(desktopApi, "checkInstalled")
+      .mockResolvedValueOnce(previous)
+      .mockRejectedValueOnce(failureReport());
+    await act(async () => root.render(<OperatingCenter statuses={[alpha, beta]} />));
+    await act(async () => state.checkAll());
+    expect(state.batchRead).toMatchObject({ status: "current", hasResults: true });
+    expect(host.textContent).toContain("Check failed");
+    expect(host.textContent).toContain("Update results cover 1 of 2 installed games");
+    await act(async () => state.checkAll());
+    expect(state.outcomes).toEqual(previous);
+    expect(state.batchRead).toMatchObject({ status: "failed", hasResults: true });
+    expect(host.textContent).toContain("Earlier check failed");
+    expect(host.textContent).toContain("Earlier update results cover 1 of 2 installed games");
+    expect(host.textContent).toContain("Failed at last check");
+  });
+
+  it("keeps cancellation neutral and retains earlier results without reporting a successful new batch", async () => {
+    const current = status("alpha", "a".repeat(64));
+    vi.spyOn(desktopApi, "checkInstalled")
+      .mockResolvedValueOnce([outcome(current)])
+      .mockRejectedValueOnce({ ...failureReport(), code: "cancelled" });
+    await act(async () => root.render(<OperatingCenter statuses={[current]} />));
+    await act(async () => state.checkAll());
+    await act(async () => state.checkAll());
+    expect(operations.error).toBeUndefined();
+    expect(state.outcomes).toEqual([outcome(current)]);
+    expect(state.batchRead).toMatchObject({ status: "cancelled", hasResults: true });
+    expect(state.batchRead.failure).toBeUndefined();
+    expect(host.textContent).toContain("Update check cancelled");
+    expect(host.textContent).toContain("Update available at last check");
+    expect(host.textContent).not.toContain("Update check did not finish");
+  });
+
+  it("keeps a newer whole-batch failure authoritative over an older success", async () => {
+    const current = status("alpha", "a".repeat(64));
+    const older = deferred<UpdateCheckOutcome[]>();
+    const newer = deferred<UpdateCheckOutcome[]>();
+    const failure = failureReport();
+    vi.spyOn(desktopApi, "checkInstalled")
+      .mockResolvedValueOnce([outcome(current)])
+      .mockReturnValueOnce(older.promise)
+      .mockReturnValueOnce(newer.promise);
+    await act(async () => root.render(<OperatingCenter statuses={[current]} />));
+    await act(async () => state.checkAll());
+    let oldRun!: Promise<void>;
+    let newRun!: Promise<void>;
+    await act(async () => {
+      oldRun = state.checkAll();
+      newRun = state.checkAll();
+    });
+    await act(async () => {
+      newer.reject(failure);
+      await newRun;
+    });
+    await act(async () => {
+      older.resolve([]);
+      await oldRun;
+    });
+    expect(state.batchRead).toMatchObject({ status: "failed", hasResults: true });
+    expect(state.outcomes).toEqual([outcome(current)]);
+    expect(operations.error).toBe(failure);
+  });
+
+  it("does not let an older whole-batch rejection overwrite a newer successful empty result", async () => {
+    const current = status("alpha", "a".repeat(64));
+    const older = deferred<UpdateCheckOutcome[]>();
+    const newer = deferred<UpdateCheckOutcome[]>();
+    vi.spyOn(desktopApi, "checkInstalled")
+      .mockReturnValueOnce(older.promise)
+      .mockReturnValueOnce(newer.promise);
+    await act(async () => root.render(<OperatingCenter statuses={[current]} />));
+    let oldRun!: Promise<void>;
+    let newRun!: Promise<void>;
+    await act(async () => {
+      oldRun = state.checkAll();
+      newRun = state.checkAll();
+    });
+    await act(async () => {
+      newer.resolve([]);
+      await newRun;
+    });
+    await act(async () => {
+      older.reject(failureReport());
+      await oldRun;
+    });
+    expect(state.batchRead).toMatchObject({ status: "current", hasResults: true });
+    expect(state.outcomes).toEqual([]);
+    expect(operations.error).toBeUndefined();
+    expect(host.textContent).not.toContain("Update check did not finish");
+  });
+
+  it("rejects a retained check callback across changed installation identities, return selections and disposal", async () => {
+    const alpha = status("alpha", "a".repeat(64));
+    const beta = status("beta", "b".repeat(64));
+    const checkInstalled = vi.spyOn(desktopApi, "checkInstalled").mockResolvedValue([]);
+    await act(async () => root.render(<Fixture statuses={[alpha]} />));
+    const checkAlpha = state.checkAll;
+    await act(async () => root.render(<Fixture statuses={[beta]} />));
+    await act(async () => checkAlpha());
+    await act(async () => root.render(<Fixture statuses={[alpha]} />));
+    await act(async () => checkAlpha());
+    expect(checkInstalled).not.toHaveBeenCalled();
+    expect(state.batchRead).toMatchObject({ status: "idle", hasResults: false });
+    const disposedCheck = state.checkAll;
+    await act(async () => {
+      root.unmount();
+      mounted = false;
+    });
+    await act(async () => disposedCheck());
+    expect(checkInstalled).not.toHaveBeenCalled();
+  });
+
+  it("retries only checking, keeps focus and suppresses repeated same-turn clicks", async () => {
+    const current = status("alpha", "a".repeat(64));
+    const pending = deferred<UpdateCheckOutcome[]>();
+    const read = vi
+      .spyOn(desktopApi, "checkInstalled")
+      .mockRejectedValueOnce(failureReport())
+      .mockReturnValueOnce(pending.promise);
+    const install = vi.spyOn(desktopApi, "install");
+    const update = vi.spyOn(desktopApi, "applyGameUpdate");
+    const activate = vi.spyOn(desktopApi, "activate");
+    await act(async () => root.render(<OperatingCenter statuses={[current]} />));
+    await act(async () => state.checkAll());
+    const retry = [...host.querySelectorAll("button")].find((button) =>
+      button.textContent?.includes("Retry update check"),
+    )!;
+    await act(async () => {
+      retry.focus();
+      retry.click();
+      retry.click();
+    });
+    expect(read).toHaveBeenCalledTimes(2);
+    expect(retry.disabled).toBe(true);
+    await act(async () => {
+      pending.resolve([outcome(current)]);
+    });
+    expect(retry.disabled).toBe(false);
+    expect(document.activeElement).toBe(retry);
+    expect(state.batchRead.status).toBe("current");
+    expect(install).not.toHaveBeenCalled();
+    expect(update).not.toHaveBeenCalled();
+    expect(activate).not.toHaveBeenCalled();
+  });
+
+  it("does not manufacture a current batch when the operation returns no result", async () => {
+    function NoResult() {
+      state = useUpdateCenter(async () => undefined, [status("alpha", "a".repeat(64))]);
+      return null;
+    }
+    await act(async () => root.render(<NoResult />));
+    await act(async () => state.checkAll());
+    expect(state.batchRead).toMatchObject({ status: "failed", hasResults: false });
+    expect(state.outcomes).toEqual([]);
   });
 });
