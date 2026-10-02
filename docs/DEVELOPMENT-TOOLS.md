@@ -1,5 +1,42 @@
 # Development tools
 
+## Hosted Cargo dependency validation
+
+The existing Deep audit workflow's `local-check` operation accepts an optional
+`dependency_binding` containing canonical compact JSON. Without it, the strict
+authority check, including byte-identical `Cargo.lock`, is unchanged. This opt-in
+profile supports one independently reviewed registry package update, not changes
+to validation policy, tools, features, dependency sources or arbitrary execution.
+
+The binding names `package`, `from_version`, `to_version`, `from_checksum`,
+`to_checksum`, `lock_sha256` and `manifests`. Each manifest entry names `path` and
+`section` (`dependencies` or `dev-dependencies`). Only the existing release-tools
+and desktop Cargo manifests are supported. Full immutable source, comparison
+base, merge-base, separate controller and ancestral authority revisions remain
+required; a candidate cannot appoint itself authority.
+
+The controller permits only the named existing registry lock record's version
+and checksum tokens and the matching simple version tokens in the declared
+existing manifest entries. All other repository bytes and regular file modes
+must match the trusted authority. Transitive changes, extra paths, renamed or
+removed files, features, Git/path dependencies, root manifests, helper changes,
+duplicate or ambiguous bindings and lock digest mismatches fail closed. This is
+an exact transformation of trusted bytes, not permissive TOML normalization.
+The narrow profile rejects multiline TOML strings and noncanonical CRLF inputs
+so table-shaped description text cannot be mistaken for a dependency entry.
+
+Preparation validates before provisioning; execution repeats the validation and
+digest check before and after literal `just local-check --fresh`. Existing pinned
+tools, guarded storage, environment sanitation, read-only job permissions and
+owned cleanup remain in force. Logs bind the reviewed dependency data and source
+identity to the actual execution. Required checks, independent review and
+current-target reconciliation remain separate merge obligations. A later source
+or relevant target change does not inherit this receipt automatically.
+
+Changes to this controller require the protected pre-change qualification and
+independent review. The new dependency profile cannot qualify its own authority
+changes or replace required literal locked commands with a broader audit claim.
+
 `just doctor` reads the current host and emits a concise prerequisite report.
 Use `just doctor --profile desktop` when native desktop automation is required.
 `just doctor --json` emits format version 2: workspace, platform, selected profile,
