@@ -2,8 +2,39 @@ use super::*;
 use serde_json::json;
 use sha2::{Digest, Sha256};
 
+// Generic entry inspection needs one valid port, not the embedded source graph.
+// Real-port byte/projection and catalog semantic contracts keep catalog_fixture().
+fn fixture_catalog() -> crate::Catalog {
+    crate::Catalog::from_json(
+        &json!({
+            "schema_version": 1,
+            "ports": [{
+                "id": "definition-entry-fixture",
+                "name": "Definition entry fixture",
+                "summary": "Synthetic indexed entry inspection fixture",
+                "project_url": "https://example.invalid/definition-entry-fixture",
+                "support_tier": "beta",
+                "channels": ["stable"],
+                "platforms": ["linux-x86-64"],
+                "adapter": "libultraship-portable",
+                "release": {"repository": "fixture/definition-entry"},
+                "executable_hints": {"linux-x86-64": ["fixture"]}
+            }]
+        })
+        .to_string(),
+    )
+    .unwrap()
+}
+
 fn fixture() -> Value {
-    let port = crate::Catalog::embedded().unwrap().ports()[0].clone();
+    entry_for_port(&fixture_catalog().ports()[0])
+}
+
+fn catalog_fixture() -> Value {
+    entry_for_port(&crate::Catalog::embedded().unwrap().ports()[0])
+}
+
+fn entry_for_port(port: &crate::PortDefinition) -> Value {
     let contract = target(b"{}");
     json!({
         "definition_schema": 1, "namespace": "official", "stable_id": port.id,
@@ -52,7 +83,7 @@ fn inspect(value: &Value) -> Result<DefinitionEntryInspection> {
 
 #[test]
 fn exact_bytes_and_existing_port_projection_survive_inspection() {
-    let value = fixture();
+    let value = catalog_fixture();
     let stable_id = value["stable_id"].as_str().unwrap();
     let bytes = serde_json::to_vec_pretty(&value).unwrap();
     let inventory = index(&bytes, stable_id);
@@ -276,10 +307,62 @@ fn an_unsupported_entry_does_not_discard_a_valid_sibling_or_change_the_index() {
 
 #[test]
 fn shape_inspection_does_not_bypass_existing_catalog_semantic_validation() {
-    let mut value = fixture();
+    let mut value = catalog_fixture();
     value["port"]["persistent_paths"] = json!(["../outside"]);
     let inspected = inspect(&value).unwrap();
     let mut catalog = crate::Catalog::embedded().unwrap().authoritative_document();
     catalog.ports[0] = inspected.port().clone();
     assert!(crate::Catalog::from_json(&serde_json::to_string(&catalog).unwrap()).is_err());
+}
+
+#[test]
+fn generic_entry_fixture_crosses_real_catalog_and_index_validation() {
+    let catalog = fixture_catalog();
+    assert_eq!(catalog.document().schema_version, 1);
+    assert_eq!(catalog.ports().len(), 1);
+    assert!(catalog.document().source_profiles.is_empty());
+    assert!(catalog.document().source_catalog.is_none());
+    let value = fixture();
+    assert_eq!(value["stable_id"], "definition-entry-fixture");
+    let inspected = inspect(&value).unwrap();
+    assert_eq!(inspected.port().id, "definition-entry-fixture");
+    assert!(inspected.capabilities().compatible);
+    assert_eq!(
+        serde_json::to_value(inspected.port()).unwrap(),
+        value["port"]
+    );
+
+    let mut invalid = catalog.document().clone();
+    invalid.ports[0].source_profile = Some("missing-source".into());
+    assert!(crate::Catalog::from_json(&serde_json::to_string(&invalid).unwrap()).is_err());
+    let mut invalid = catalog.document().clone();
+    invalid.ports[0].persistent_paths = vec!["../outside".into()];
+    assert!(crate::Catalog::from_json(&serde_json::to_string(&invalid).unwrap()).is_err());
+}
+
+#[test]
+fn unrelated_catalog_port_does_not_change_generic_entry_or_index_bytes() {
+    let catalog = fixture_catalog();
+    let original = fixture();
+    let mut extended = catalog.document().clone();
+    let mut unrelated = extended.ports[0].clone();
+    unrelated.id = "unrelated-port".into();
+    unrelated.release.repository = "unrelated/release".into();
+    extended.ports.push(unrelated);
+    let extended = crate::Catalog::from_json(&serde_json::to_string(&extended).unwrap()).unwrap();
+    let selected = extended.port("definition-entry-fixture").unwrap();
+    let after = entry_for_port(selected);
+    assert_eq!(after, original);
+    let before_bytes = serde_json::to_vec(&original).unwrap();
+    let after_bytes = serde_json::to_vec(&after).unwrap();
+    let stable_id = selected.id.as_str();
+    assert_eq!(
+        index(&before_bytes, stable_id).bytes(),
+        index(&after_bytes, stable_id).bytes()
+    );
+    assert_eq!(
+        inspect(&after).unwrap().bytes(),
+        inspect(&original).unwrap().bytes()
+    );
+    assert_eq!(fixture(), original);
 }
