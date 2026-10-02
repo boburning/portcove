@@ -1,7 +1,7 @@
 Id: 7e856602-b63b-46db-8231-74e4610e4971
 Name: Portcove
 Author: Portcove contributors
-Version: 0.5.0
+Version: 0.5.1
 Module: Portcove.Playnite.dll
 Type: GameLibrary
 Description: Use selected Portcove games and installations through the public CLI.

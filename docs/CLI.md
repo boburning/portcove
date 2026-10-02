@@ -995,3 +995,31 @@ API schema 10 adds `user_data_environment`, `launch_environment`, `runtime_sourc
 API schema 11 changes `backup list` from an array to `BackupInventory`, preserving healthy records while adding overall `healthy`, `degraded`, or `recovery_required` state and structured per-entry problems. It also exposes the durable backup-deletion lifecycle through inventory and doctor repair reporting. Event schema remains 2.
 
 API schema 12 makes launch preparation part of the durable activity cancellation contract. A CLI interrupt before child creation requests cancellation by the launch activity UUID; once the atomic pre-spawn boundary has closed, the pending signal is forwarded to the exact child process group. Durable desktop launch requests retain preparation/running/collection phase, process-start identities, terminal outcome, exit code, and explanation for reconnectable exact-request observation. Event schema remains 2.
+
+## Reviewed first installation
+
+API schema 57 adds the optional `installation.review` capability. Register
+original files separately, then use `installation plan PORT_ID --json` to read
+`GameInstallPlan`: the resolved version/artifact, download bytes, registered
+source requirements, managed versions folder, saved-data location and
+`plan_sha256`. The plan is read-only and does not download game bytes.
+When reusing staged or retained bytes, `selected_install` identifies the actual
+copy, its path and stored version/channel; future output placement is not its
+activation destination. Reuse does not download the resolved artifact again.
+
+After reviewing those consequences, use `installation run PORT_ID
+--expected-plan SHA256 --yes --jsonl`. The executing CLI issues and consumes
+core's ordinary one-use authorization in the same process. Core re-resolves the
+review under the port lock and refuses changed release/runtime, channel,
+destination, definition, registered inputs or retained installation state.
+Capacity and actual source/destination safety remain execution checks. A
+download refuses missing source/BIOS registration instead of discovering an
+unreviewed inbox input. Verified retained reuse needs no new source registration.
+A changed plan requires another review; cancellation may retain private work for
+existing recovery. No source/BIOS/output overrides are accepted on this route.
+
+This route activates a first managed installation. An active installation
+requires separate setup, Play or explicit update; it cannot become an update
+through first-install consent. Existing `install`, `ensure` and `update`
+commands retain their contracts. `ensure` still reuses a ready active version
+without resolving the latest upstream release.

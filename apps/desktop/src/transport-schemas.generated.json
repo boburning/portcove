@@ -6345,6 +6345,423 @@
     ],
     "title": "Nullable_GameFileScanSnapshot"
   },
+  "game_install_plan": {
+    "$defs": {
+      "ArtifactIdentity": {
+        "properties": {
+          "asset_name": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "asset_name",
+          "sha256",
+          "size"
+        ],
+        "type": "object"
+      },
+      "BundledRuntime": {
+        "properties": {
+          "archive_root": {
+            "type": "string"
+          },
+          "asset": {
+            "$ref": "#/$defs/ReleaseAsset"
+          },
+          "executable": {
+            "type": "string"
+          },
+          "target_directory": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "asset",
+          "archive_root",
+          "target_directory",
+          "executable"
+        ],
+        "type": "object"
+      },
+      "InstallPlan": {
+        "properties": {
+          "action": {
+            "$ref": "#/$defs/InstallPlanAction"
+          },
+          "bundled_runtime": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/BundledRuntime"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "channel": {
+            "$ref": "#/$defs/ReleaseChannel"
+          },
+          "download_bytes": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "output_location": {
+            "$ref": "#/$defs/PortOutputLocation"
+          },
+          "platform": {
+            "$ref": "#/$defs/Platform"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "release": {
+            "$ref": "#/$defs/ResolvedRelease"
+          },
+          "source_requirements": {
+            "items": {
+              "$ref": "#/$defs/InstallSourceRequirement"
+            },
+            "type": "array"
+          },
+          "storage": {
+            "$ref": "#/$defs/StorageSummary"
+          }
+        },
+        "required": [
+          "port_id",
+          "channel",
+          "platform",
+          "release",
+          "bundled_runtime",
+          "download_bytes",
+          "action",
+          "source_requirements",
+          "storage",
+          "output_location"
+        ],
+        "type": "object"
+      },
+      "InstallPlanAction": {
+        "enum": [
+          "already_active",
+          "use_staged",
+          "reuse_retained",
+          "blocked_unverified",
+          "download"
+        ],
+        "type": "string"
+      },
+      "InstallRecord": {
+        "properties": {
+          "artifact": {
+            "$ref": "#/$defs/ArtifactIdentity",
+            "default": {
+              "asset_name": "",
+              "sha256": "",
+              "size": 0
+            }
+          },
+          "channel": {
+            "$ref": "#/$defs/ReleaseChannel"
+          },
+          "id": {
+            "type": "string"
+          },
+          "installed_at": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "manifest_sha256": {
+            "default": "",
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "runtime": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/RuntimeIdentity"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "selected_executable": {
+            "default": "",
+            "type": "string"
+          },
+          "staged": {
+            "type": "boolean"
+          },
+          "verified": {
+            "type": "boolean"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "port_id",
+          "version",
+          "path",
+          "channel",
+          "installed_at",
+          "verified",
+          "staged",
+          "artifact",
+          "runtime",
+          "manifest_sha256",
+          "selected_executable"
+        ],
+        "type": "object"
+      },
+      "InstallSourceRequirement": {
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "profile_id": {
+            "type": "string"
+          },
+          "registered": {
+            "type": "boolean"
+          },
+          "role": {
+            "$ref": "#/$defs/SourceRequirementRole"
+          }
+        },
+        "required": [
+          "profile_id",
+          "label",
+          "role",
+          "registered"
+        ],
+        "type": "object"
+      },
+      "OutputLocationSource": {
+        "enum": [
+          "request_override",
+          "port_setting",
+          "library_default"
+        ],
+        "type": "string"
+      },
+      "Platform": {
+        "enum": [
+          "windows-x86-64",
+          "linux-x86-64",
+          "macos-x86-64",
+          "macos-aarch64"
+        ],
+        "type": "string"
+      },
+      "PortOutputLocation": {
+        "properties": {
+          "configured_output_directory": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "default_output_directory": {
+            "type": "string"
+          },
+          "effective_output_directory": {
+            "type": "string"
+          },
+          "library_root": {
+            "type": "string"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "selection_source": {
+            "$ref": "#/$defs/OutputLocationSource"
+          },
+          "user_data_root": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "port_id",
+          "library_root",
+          "default_output_directory",
+          "configured_output_directory",
+          "effective_output_directory",
+          "selection_source",
+          "user_data_root"
+        ],
+        "type": "object"
+      },
+      "ReleaseAsset": {
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "url",
+          "size",
+          "sha256"
+        ],
+        "type": "object"
+      },
+      "ReleaseChannel": {
+        "enum": [
+          "stable",
+          "beta",
+          "rolling"
+        ],
+        "type": "string"
+      },
+      "ResolvedRelease": {
+        "properties": {
+          "asset": {
+            "$ref": "#/$defs/ReleaseAsset"
+          },
+          "channel": {
+            "$ref": "#/$defs/ReleaseChannel"
+          },
+          "published_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "version",
+          "channel",
+          "published_at",
+          "asset"
+        ],
+        "type": "object"
+      },
+      "RuntimeIdentity": {
+        "properties": {
+          "archive_root": {
+            "type": "string"
+          },
+          "artifact": {
+            "$ref": "#/$defs/ArtifactIdentity"
+          },
+          "executable": {
+            "type": "string"
+          },
+          "origin": {
+            "$ref": "#/$defs/RuntimeOrigin"
+          },
+          "target_directory": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "origin",
+          "artifact",
+          "archive_root",
+          "target_directory",
+          "executable"
+        ],
+        "type": "object"
+      },
+      "RuntimeOrigin": {
+        "enum": [
+          "verified_download",
+          "adopted_tree"
+        ],
+        "type": "string"
+      },
+      "SourceRequirementRole": {
+        "enum": [
+          "game_source",
+          "bios"
+        ],
+        "type": "string"
+      },
+      "StorageSummary": {
+        "properties": {
+          "library_root": {
+            "type": "string"
+          },
+          "volume_available_bytes": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "volume_total_bytes": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "library_root",
+          "volume_total_bytes",
+          "volume_available_bytes"
+        ],
+        "type": "object"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "description": "Exact registered-input review for the first managed installation.",
+    "properties": {
+      "plan": {
+        "$ref": "#/$defs/InstallPlan"
+      },
+      "plan_sha256": {
+        "type": "string"
+      },
+      "selected_install": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/InstallRecord"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "The exact existing copy that execution will activate, if any."
+      }
+    },
+    "required": [
+      "plan",
+      "selected_install",
+      "plan_sha256"
+    ],
+    "title": "GameInstallPlan",
+    "type": "object"
+  },
   "game_update_plan": {
     "$defs": {
       "BundledRuntime": {

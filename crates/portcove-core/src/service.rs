@@ -50,6 +50,8 @@ std::thread_local! {
         const { std::cell::RefCell::new(std::collections::BTreeMap::new()) };
 }
 
+#[path = "game_install_review.rs"]
+mod game_install_review;
 #[path = "game_update_review.rs"]
 mod game_update_review;
 

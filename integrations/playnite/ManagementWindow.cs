@@ -369,6 +369,26 @@ namespace Portcove.ReferenceClient
             if (externalRoute) throw new InvalidOperationException("This user-prepared runtime is registered and removed through Portcove Desktop or CLI; Playnite cannot install or update its external files.");
             var status = await cli.Read("status", "status", port);
             DefinitionOperations.RequireEligible(status, "install");
+            if (command == "ensure")
+            {
+                // Preserve network-free current-install reuse; never review latest
+                // upstream bytes while claiming that this action only reuses them.
+                if (StatusInstallation.Current(status) != null) { await Refresh(); return; }
+                if (source.Text.Trim().Length != 0 || bios.Text.Trim().Length != 0)
+                    throw new InvalidOperationException("Check and register the selected original files before reviewing installation.");
+                if (cli.ApiSchemaVersion < 57)
+                    throw new InvalidOperationException("Reviewed installation requires a schema-57 CLI. Existing Play and management remain separate.");
+                var plan = await cli.Read("installation.plan", "installation", "plan", port);
+                technical.Text = Json.Print(plan);
+                var review = InstallationReview.Read(plan, port, cli.LibraryRoot);
+                if (MessageBox.Show(window, review.Description, "Review installation", MessageBoxButton.OKCancel,
+                    MessageBoxImage.Question) != MessageBoxResult.OK) return;
+                CurrentStatus = null;
+                await cli.Manage("installation.run", new[] { "installation", "run", port,
+                    "--expected-plan", review.Fingerprint, "--yes" }, OnProgress);
+                await Refresh();
+                return;
+            }
             var sourcePath = source.Text.Trim();
             var biosPath = bios.Text.Trim();
             if (sourcePath.Length != 0) PublicCli.RequireAbsolute(sourcePath);
@@ -376,9 +396,7 @@ namespace Portcove.ReferenceClient
             var args = new List<string> { command, port };
             if (sourcePath.Length != 0) args.AddRange(new[] { "--source", sourcePath });
             if (biosPath.Length != 0) args.AddRange(new[] { "--bios", biosPath });
-            var prompt = command == "ensure"
-                ? "Use the current installation if present, or download, verify and activate the selected channel's release? This may register the supplied source files."
-                : "Check the selected channel now, then download, verify and activate its eligible update? The release is resolved when you continue. Supplied source files may be registered.";
+            var prompt = "Check the selected channel now, then download, verify and activate its eligible update? The release is resolved when you continue. Supplied source files may be registered.";
             if (MessageBox.Show(window, prompt + "\n\nLibrary: " + cli.LibraryRoot + "\nGame: " + game.Name,
                 "Portcove", MessageBoxButton.OKCancel, MessageBoxImage.Question) != MessageBoxResult.OK) return;
             CurrentStatus = null;
