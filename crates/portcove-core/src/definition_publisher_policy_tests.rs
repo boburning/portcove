@@ -1618,7 +1618,10 @@ async fn managed_policy_expiry_keeps_verified_public_launch_and_holds_fresh_acqu
         )
         .unwrap();
     assert!(scope.require_current().is_err());
-    for service in [current, PortcoveService::new(library.clone()).unwrap()] {
+    for (index, service) in [current, PortcoveService::new(library.clone()).unwrap()]
+        .into_iter()
+        .enumerate()
+    {
         let status = service.status(ID).unwrap();
         assert_eq!(status.active.as_ref().unwrap().id, prepared.id);
         let install = status
@@ -1640,13 +1643,24 @@ async fn managed_policy_expiry_keeps_verified_public_launch_and_holds_fresh_acqu
             DefinitionEligibilityOutcome::Eligible
         );
         let mut started = 0;
+        // An immediately exiting probe may return successfully before macOS
+        // can record a running identity. Use the existing bounded handshake
+        // so this assertion exercises the durable running callback itself.
+        let release = directory.path().join(format!("launch-release-{index}"));
         let outcome = service
             .supervise_launch(
                 ID,
                 None,
-                &["--success".into()],
+                &[
+                    "--game".into(),
+                    "--owned-wait".into(),
+                    release.to_string_lossy().into_owned(),
+                ],
                 crate::LaunchStdio::Null,
-                |_| started += 1,
+                |_| {
+                    started += 1;
+                    fs::write(&release, b"released").unwrap();
+                },
             )
             .unwrap();
         assert!(outcome.successful);
