@@ -108,7 +108,9 @@ test("Renovate is the sole conservative routine update authority", async () => {
   assert.equal(renovate.prHourlyLimit, 2);
   assert.equal(renovate.commitHourlyLimit, 4);
   assert.equal(renovate.rebaseWhen, "conflicted");
-  assert.equal(Object.hasOwn(renovate, "prCreation"), false);
+  assert.equal(renovate.prCreation, "immediate");
+  assert.equal(renovate.updateNotScheduled, true);
+  assert.equal(renovate.timezone, "America/New_York");
   assert.notEqual(renovate.vulnerabilityAlerts?.enabled, false);
   assert.equal(renovate.vulnerabilityAlerts?.prConcurrentLimit, undefined);
   assert.equal(renovate.vulnerabilityAlerts?.branchConcurrentLimit, undefined);
@@ -172,13 +174,13 @@ test("Renovate batches development tools and suppresses only the Aqua registry a
   const renovate = JSON.parse(await read("renovate.json"));
   const aqua = await read("aqua.yaml");
   const quality = await read("docs/QUALITY.md");
-  const weeklySchedule = ["before 6am on monday"];
+  const toolingSchedule = ["* * * * 1,4"];
 
   const npmCadence = renovate.packageRules.find(
     (rule) =>
       rule.matchManagers?.includes("npm") && rule.matchDepTypes?.includes("devDependencies"),
   );
-  assert.deepEqual(npmCadence?.schedule, weeklySchedule);
+  assert.deepEqual(npmCadence?.schedule, toolingSchedule);
 
   const repositoryToolCadence = renovate.packageRules.find(
     (rule) =>
@@ -186,7 +188,7 @@ test("Renovate batches development tools and suppresses only the Aqua registry a
       rule.matchPackageNames?.includes("cargo-nextest") &&
       rule.matchPackageNames?.includes("PSScriptAnalyzer"),
   );
-  assert.deepEqual(repositoryToolCadence?.schedule, weeklySchedule);
+  assert.deepEqual(repositoryToolCadence?.schedule, toolingSchedule);
 
   const aquaPackages = [
     "aquaproj/aqua",
@@ -201,7 +203,7 @@ test("Renovate batches development tools and suppresses only the Aqua registry a
   const aquaGroup = renovate.packageRules.find((rule) => rule.groupName === "aqua-toolchain");
   assert.deepEqual(aquaGroup?.matchManagers, ["custom.regex"]);
   assert.deepEqual(aquaGroup?.matchPackageNames, aquaPackages);
-  assert.deepEqual(aquaGroup?.schedule, weeklySchedule);
+  assert.deepEqual(aquaGroup?.schedule, toolingSchedule);
   assert.notEqual(aquaGroup?.enabled, false);
 
   const registryManager = renovate.customManagers.find(
@@ -269,5 +271,147 @@ test("every Renovate custom manager matches its committed authority", async () =
       }
     }
     assert(matched, `custom manager ${index} does not match a committed authority`);
+  }
+});
+
+test("compatibility families override inherited groups without coupling unrelated tools", async () => {
+  const config = JSON.parse(await read("renovate.json"));
+  const expected = {
+    react: ["react", "react-dom", "@types/react", "@types/react-dom"],
+    tauri: [
+      "tauri",
+      "tauri-build",
+      "tauri-plugin-dialog",
+      "@tauri-apps/api",
+      "@tauri-apps/cli",
+      "@tauri-apps/plugin-dialog",
+    ],
+    vite: ["vite", "@vitejs/plugin-react"],
+    vitest: ["vitest", "@vitest/browser-playwright", "@vitest/browser", "@vitest/mocker"],
+    "oxc-toolchain": ["oxc-parser", "oxfmt", "oxlint", "oxlint-tsgolint"],
+    tailwind: ["tailwindcss", "@tailwindcss/vite"],
+    stylelint: ["stylelint", "stylelint-config-recommended"],
+  };
+  const matches = (pattern, name) =>
+    pattern.startsWith("/") ? new RegExp(pattern.slice(1, -1), "u").test(name) : pattern === name;
+  for (const [group, names] of Object.entries(expected)) {
+    for (const name of names) {
+      // Local packageRules run after the inherited monorepo presets. Exactly one
+      // local compatibility rule must own each package; inspect the engine too
+      // when qualifying a configuration change, rather than calling this a dry run.
+      const rules = config.packageRules.filter(
+        (rule) =>
+          rule.groupName && rule.matchPackageNames?.some((pattern) => matches(pattern, name)),
+      );
+      assert.equal(rules.length, 1, `${name} has ambiguous local group ownership`);
+      assert.equal(rules[0].groupName, group, name);
+    }
+  }
+  assert.equal(
+    config.packageRules.some((rule) => rule.groupName === "frontend-toolchain"),
+    false,
+  );
+  assert.equal(
+    config.packageRules.some(
+      (rule) => rule.matchPackageNames?.includes("typescript") && rule.groupName,
+    ),
+    false,
+  );
+  const desktop = JSON.parse(await read("apps/desktop/package.json"));
+  const lock = await read("pnpm-lock.yaml");
+  const core = desktop.devDependencies.vitest.replace(/^\^/u, "");
+  assert.equal(desktop.devDependencies["@vitest/browser-playwright"], core);
+  assert.match(
+    lock,
+    new RegExp(`'@vitest/browser-playwright@${core.replaceAll(".", "\\.")}'`, "u"),
+  );
+});
+
+test("selective migration intake and security overrides preserve immediate controlled delivery", async () => {
+  const config = JSON.parse(await read("renovate.json"));
+  assert.equal(config.dependencyDashboardApproval, undefined);
+  const migrations = config.packageRules.filter((rule) => rule.dependencyDashboardApproval);
+  assert.equal(migrations.length, 1);
+  assert.deepEqual(migrations[0].matchUpdateTypes, ["major"]);
+  assert.equal(migrations[0].prPriority, -10);
+  assert.deepEqual(config.vulnerabilityAlerts, {
+    enabled: true,
+    automerge: false,
+    minimumReleaseAge: null,
+    dependencyDashboardApproval: false,
+    groupName: null,
+    labels: ["dependencies", "security"],
+  });
+  assert.equal(
+    config.schedule,
+    undefined,
+    "ordinary runtime candidates remain continuously eligible",
+  );
+  assert.deepEqual(config.lockFileMaintenance.schedule, ["before 6am on monday"]);
+  for (const rule of config.packageRules.filter(
+    (rule) => rule.schedule && !["react", "tauri"].includes(rule.groupName),
+  ))
+    assert.deepEqual(rule.schedule, ["* * * * 1,4"]);
+});
+
+test("custom extraction records every exact identity once across supported whitespace and line endings", async () => {
+  const config = JSON.parse(await read("renovate.json"));
+  const quality = JSON.parse(await read(".github/quality-tools.json"));
+  const expected = [
+    ...quality.tools.map((tool) => [tool.crate, tool.version]),
+    ["rust", quality.rust.channel],
+    ["node", (await read(".node-version")).trim()],
+    ["tauri-driver", JSON.parse(await read(".config/tool-bootstrap.json")).desktop.tauri_driver],
+    ["aquaproj/aqua", (await read(".aqua-version")).trim()],
+    ["aquaproj/aqua-registry", (await read("aqua.yaml")).match(/ref:\s*(\S+)/u)[1]],
+    ...[...(await read("aqua.yaml")).matchAll(/- name:\s*([^@\s]+)@(\S+)/gu)].map((match) => [
+      match[1],
+      match[2],
+    ]),
+    [
+      "PSScriptAnalyzer",
+      (await read(".config/powershell-resources.psd1")).match(/version\s*=\s*'([^']+)'/u)[1],
+    ],
+    [
+      "anchore/syft",
+      (await read(".github/workflows/release.yml")).match(/syft-version:\s*v(\S+)/u)[1],
+    ],
+  ];
+  const files = [
+    ".github/quality-tools.json",
+    ".node-version",
+    ".config/tool-bootstrap.json",
+    ".aqua-version",
+    "aqua.yaml",
+    ".config/powershell-resources.psd1",
+    ".github/workflows/release.yml",
+  ];
+  for (const newline of ["\n", "\r\n"]) {
+    const actual = [];
+    for (const manager of config.customManagers) {
+      for (const file of files) {
+        if (
+          !manager.managerFilePatterns.some((pattern) =>
+            new RegExp(pattern.slice(1, -1), "u").test(file),
+          )
+        )
+          continue;
+        const contents = (await read(file)).replace(/\r?\n/gu, newline);
+        for (const pattern of manager.matchStrings) {
+          for (const match of contents.matchAll(new RegExp(pattern.replaceAll('\\"', '"'), "gu")))
+            actual.push([
+              manager.depNameTemplate ?? match.groups.depName,
+              match.groups.currentValue,
+            ]);
+        }
+      }
+    }
+    const sort = (values) => values.map((value) => JSON.stringify(value)).sort();
+    assert.equal(
+      new Set(actual.map((value) => value[0])).size,
+      actual.length,
+      "duplicate extracted identity",
+    );
+    assert.deepEqual(sort(actual), sort(expected));
   }
 });
