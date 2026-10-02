@@ -291,6 +291,20 @@ fn raw_gamecube_profiles_share_bytes_but_keep_conjunctive_and_ambiguous_admissio
     let mut duplicate = variants[0].clone();
     duplicate["id"] = "ambiguous-fixture".into();
     variants.push(duplicate);
+    // Exact duplicate deterministic identities are already rejected by catalog
+    // validation. Independent digest contracts can still both match one input.
+    assert!(Catalog::from_json(&document.to_string()).is_err());
+    let profiles = document["source_catalog"]["identities"]
+        .as_array_mut()
+        .unwrap();
+    let original = profiles
+        .iter_mut()
+        .find(|p| p["id"] == "animal-crossing-gamecube")
+        .unwrap();
+    original["variants"][0]["representations"][0]["identities"][0]["sha256"] =
+        serde_json::Value::Null;
+    original["variants"][1]["representations"][0]["identities"][0]["sha1"] =
+        serde_json::Value::Null;
     let ambiguous = Catalog::from_json(&document.to_string()).unwrap();
     let report = scan(&ambiguous, &selected).unwrap();
     assert_eq!(report.candidates.len(), 1);
