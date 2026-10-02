@@ -315,16 +315,29 @@ pub(crate) fn inspect_file(
         .extension()
         .and_then(|extension| extension.to_str())
         .unwrap_or_default();
-    if !extension.eq_ignore_ascii_case("zip")
-        && compound_scan_eligible(catalog, profile_id, Some(extension))
-    {
-        // The current exact compound representation permits this pathname even
-        // when its informational compatibility projection is narrower.
+    let current_compound_extension_override = !extension.eq_ignore_ascii_case("zip")
+        && !accepted_extensions.is_empty()
+        && !accepted_extensions
+            .iter()
+            .any(|accepted| accepted.eq_ignore_ascii_case(extension))
+        && compound_scan_eligible(catalog, profile_id, Some(extension));
+    let expected_extensions =
+        current_compound_extension_override.then(|| accepted_extensions.join(", "));
+    if current_compound_extension_override {
+        // Hash the current exact compound pathname, but do not let an unrecognized
+        // payload use a broader compatibility structural fallback.
         accepted_extensions.clear();
     }
     let identity = read_identity(path, &accepted_extensions, maximum_size, budget)?;
     let observed = observed_digests(&identity);
     let compound_format = matching_compound_format(catalog, profile_id, &identity, &observed);
+    if let Some(expected) = expected_extensions
+        && compound_format.is_none()
+    {
+        return Err(PortcoveError::source(format!(
+            "source expects one of: {expected}, or a ZIP containing exactly one matching file"
+        )));
+    }
     if let Some(CompoundSourceFormat::StfsLive) = compound_format {
         crate::stfs::validate(path, &|| {
             if let Some(operation) = &budget.operation {
@@ -357,7 +370,6 @@ pub(crate) struct CompoundObservation {
     pub identity: FileIdentity,
     pub validated: Option<CompoundSourceFormat>,
     pub issue: Option<String>,
-    pub rejected_profiles: BTreeSet<String>,
 }
 
 /// Four-byte eligibility probing is bounded by discovery's entry limit. Only a
@@ -397,15 +409,9 @@ pub(crate) fn observe_compound_file(
         budget,
     )?;
     let observed = observed_digests(&identity);
-    let matched_profiles = profiles
+    let format = profiles
         .iter()
-        .filter(|profile| {
-            matching_compound_format(catalog, &profile.id, &identity, &observed)
-                == Some(CompoundSourceFormat::StfsLive)
-        })
-        .map(|profile| profile.id.clone())
-        .collect::<BTreeSet<_>>();
-    let format = (!matched_profiles.is_empty()).then_some(CompoundSourceFormat::StfsLive);
+        .find_map(|profile| matching_compound_format(catalog, &profile.id, &identity, &observed));
     let (validated, issue) = if format == Some(CompoundSourceFormat::StfsLive) {
         match crate::stfs::validate_reader(&mut input, initial.len(), &checkpoint) {
             Ok(()) => (format, None),
@@ -421,11 +427,6 @@ pub(crate) fn observe_compound_file(
         identity,
         validated,
         issue,
-        rejected_profiles: if format.is_some() && validated.is_none() {
-            matched_profiles
-        } else {
-            BTreeSet::new()
-        },
     }))
 }
 
@@ -1538,6 +1539,13 @@ pub(crate) fn inspect_file_identity_with_compound(
 ) -> Result<SourceInspection> {
     let legacy = catalog.source_profile(profile_id)?;
     let observed_digests = observed_digests(identity);
+    if matching_compound_format(catalog, profile_id, identity, &observed_digests)
+        .is_some_and(|format| Some(format) != validated_compound)
+    {
+        return Err(PortcoveError::source(
+            "exact compound identity requires successful structural validation",
+        ));
+    }
     let record = identity.record_without_admission(profile_id, path);
 
     let Some(source_catalog) = catalog.source_catalog() else {

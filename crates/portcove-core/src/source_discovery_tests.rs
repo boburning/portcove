@@ -694,61 +694,128 @@ fn live_compound_current_extensionless_remains_importable_with_narrow_legacy_pro
 
 #[test]
 fn live_compound_failure_rejects_its_profile_but_preserves_independent_raw_admission() {
+    let mut malformed = live_package();
+    malformed[0xc028] = 41;
+    for package in [malformed, b"NOT LIVE bytes".to_vec(), b"LIV".to_vec()] {
+        let temporary = tempfile::tempdir().unwrap();
+        let path = temporary.path().join("package.bin");
+        fs::write(&path, &package).unwrap();
+        let mut document = live_catalog(&package).authoritative_document();
+        let profiles = &mut document.source_catalog.as_mut().unwrap().identities;
+        let profile = profiles.iter_mut().find(|p| p.id == "sotn-xbla").unwrap();
+        let mut raw = profile.variants[0].representations[0].clone();
+        raw.id = "raw-alternative".into();
+        raw.extensions = vec!["bin".into()];
+        raw.kind = crate::SourceRepresentationKind::RawFile {
+            identities: vec![crate::DigestIdentity {
+                scope: crate::DigestScope::OriginalFile,
+                sha1: None,
+                sha256: Some(hex::encode(Sha256::digest(&package))),
+                crc32: None,
+            }],
+        };
+        profile.variants[0].representations.push(raw.clone());
+        let mut independent = profile.clone();
+        independent.id = "raw-only-control".into();
+        independent.variants[0].representations = vec![raw];
+        profiles.push(independent);
+        let catalog = Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap();
+        assert!(
+            crate::source_inspection::inspect_file(
+                &catalog,
+                "sotn-xbla",
+                &path,
+                u64::MAX,
+                &mut HashBudget {
+                    operation: None,
+                    limit: u64::MAX,
+                    hashed: 0,
+                    max_zip_entries: 4096
+                }
+            )
+            .is_err()
+        );
+        let mut selected = request(temporary.path());
+        selected.profile_ids = vec!["sotn-xbla".into(), "raw-only-control".into()];
+        selected.limits.max_hash_bytes = package.len() as u64;
+        let report = scan(&catalog, &selected).unwrap();
+        assert_eq!(
+            report
+                .candidates
+                .iter()
+                .map(|c| c.profile_id.as_str())
+                .collect::<Vec<_>>(),
+            ["raw-only-control"]
+        );
+        assert_eq!(report.hash_bytes, package.len() as u64);
+        assert_eq!(report.files_hashed, 1);
+        if package.starts_with(b"LIVE") {
+            assert_eq!(report.issues.len(), 1);
+        } else {
+            assert!(report.issues.is_empty());
+        }
+        assert_eq!(fs::read(path).unwrap(), package);
+    }
+}
+
+#[test]
+fn live_compound_extension_override_does_not_widen_structural_legacy_admission() {
     let temporary = tempfile::tempdir().unwrap();
-    let mut package = live_package();
-    package[0xc028] = 41;
-    let path = temporary.path().join("package.bin");
-    fs::write(&path, &package).unwrap();
+    let package = live_package();
     let mut document = live_catalog(&package).authoritative_document();
     let profiles = &mut document.source_catalog.as_mut().unwrap().identities;
-    let profile = profiles.iter_mut().find(|p| p.id == "sotn-xbla").unwrap();
-    let mut raw = profile.variants[0].representations[0].clone();
-    raw.id = "raw-alternative".into();
-    raw.extensions = vec!["bin".into()];
-    raw.kind = crate::SourceRepresentationKind::RawFile {
-        identities: vec![crate::DigestIdentity {
-            scope: crate::DigestScope::OriginalFile,
-            sha1: None,
-            sha256: Some(hex::encode(Sha256::digest(&package))),
-            crc32: None,
-        }],
+    let mut profile = profiles
+        .iter()
+        .find(|p| p.id == "sotn-xbla")
+        .unwrap()
+        .clone();
+    profile.id = "structural-fixture".into();
+    let mut legacy = profile.variants[0].clone();
+    legacy.id = "legacy-structural".into();
+    legacy.legacy_projection_only = true;
+    legacy.representations[0].extensions = vec!["bin".into()];
+    legacy.representations[0].kind = crate::SourceRepresentationKind::InformationalExtension {
+        evidence_gap: "synthetic compatibility-only extension contract".into(),
     };
-    profile.variants[0].representations.push(raw.clone());
-    let mut independent = profile.clone();
-    independent.id = "raw-only-control".into();
-    independent.variants[0].representations = vec![raw];
-    profiles.push(independent);
+    profile.variants.push(legacy);
+    profiles.push(profile);
     let catalog = Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap();
-    assert!(
+    let compatibility = catalog.source_profile("structural-fixture").unwrap();
+    assert_eq!(compatibility.accepted_extensions, ["bin"]);
+    assert!(compatibility.accepted_sha1.is_empty());
+    assert!(compatibility.accepted_sha256.is_empty());
+    let path = temporary.path().join("unrelated");
+    fs::write(&path, b"unrelated bytes").unwrap();
+    let inspect = |path: &Path| {
         crate::source_inspection::inspect_file(
             &catalog,
-            "sotn-xbla",
-            &path,
+            "structural-fixture",
+            path,
             u64::MAX,
             &mut HashBudget {
                 operation: None,
                 limit: u64::MAX,
                 hashed: 0,
-                max_zip_entries: 4096
-            }
+                max_zip_entries: 4096,
+            },
         )
-        .is_err()
-    );
-    let mut selected = request(temporary.path());
-    selected.profile_ids = vec!["sotn-xbla".into(), "raw-only-control".into()];
-    selected.limits.max_hash_bytes = package.len() as u64;
-    let report = scan(&catalog, &selected).unwrap();
-    assert_eq!(
-        report
-            .candidates
-            .iter()
-            .map(|c| c.profile_id.as_str())
-            .collect::<Vec<_>>(),
-        ["raw-only-control"]
-    );
-    assert_eq!(report.hash_bytes, package.len() as u64);
-    assert_eq!(report.files_hashed, 1);
-    assert_eq!(report.issues.len(), 1);
+    };
+    assert!(inspect(&path).is_err());
+    let legacy_bin = temporary.path().join("unrelated.bin");
+    fs::write(&legacy_bin, b"unrelated bytes").unwrap();
+    assert!(matches!(
+        inspect(&legacy_bin).unwrap().assessment.admission,
+        crate::SourceAdmission::Admitted {
+            mode: crate::SourceAdmissionMode::StructuralChecks
+        }
+    ));
+    fs::write(&path, &package).unwrap();
+    assert!(matches!(
+        inspect(&path).unwrap().assessment.admission,
+        crate::SourceAdmission::Admitted {
+            mode: crate::SourceAdmissionMode::ExactIdentity
+        }
+    ));
     assert_eq!(fs::read(path).unwrap(), package);
 }
 
