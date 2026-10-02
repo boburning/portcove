@@ -195,16 +195,16 @@ fn build_game_file_scan_with_registry_events(
     emit: &mut dyn FnMut(crate::OperationEvent),
 ) -> Result<(GameFileScanSnapshot, Vec<crate::library::OutputRootRecord>)> {
     let roots = library.game_file_roots()?;
-    if roots.len() > 8 {
-        return Err(PortcoveError::usage(
-            "game-file discovery currently supports at most eight saved roots per scan",
-        ));
-    }
     let available = roots
         .iter()
         .filter(|root| root.availability == GameFileRootAvailability::Available)
         .map(|root| root.path.clone())
         .collect::<Vec<_>>();
+    if available.len() > 8 {
+        return Err(PortcoveError::usage(
+            "game-file discovery currently supports at most eight available saved roots per scan",
+        ));
+    }
     if available.is_empty() {
         return Err(PortcoveError::source(
             "no saved game-file root is currently available",

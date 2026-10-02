@@ -1871,6 +1871,142 @@ fn failed_saved_root_scan_preserves_the_previous_snapshot() {
 }
 
 #[test]
+fn unavailable_saved_roots_do_not_consume_the_available_root_budget() {
+    for (available_count, unavailable_count) in [(1, 8), (8, 1), (1, 65)] {
+        let temporary = tempfile::tempdir().unwrap();
+        let payload = b"synthetic supported source";
+        let catalog = catalog(payload);
+        let library = crate::Library::open(temporary.path().join("library")).unwrap();
+        let mut available = Vec::new();
+        let mut unavailable = Vec::new();
+        for index in 0..available_count + unavailable_count {
+            let root = temporary.path().join(format!("selected-{index}"));
+            fs::create_dir(&root).unwrap();
+            library.add_game_file_root(&root).unwrap();
+            if index < available_count {
+                fs::write(root.join("source.z64"), payload).unwrap();
+                available.push(root);
+            } else {
+                fs::remove_dir(&root).unwrap();
+                unavailable.push(root);
+            }
+        }
+        let limits = SourceDiscoveryLimits {
+            max_entries: available_count as u32,
+            max_hash_bytes: payload.len() as u64 * available_count as u64,
+            ..SourceDiscoveryLimits::default()
+        };
+        let snapshot = super::build_game_file_scan(
+            &catalog,
+            &library,
+            &limits,
+            &crate::OperationCoordinator::new("offline-root-budget", None),
+        )
+        .unwrap();
+        assert_eq!(snapshot.roots.len(), available_count + unavailable_count);
+        assert_eq!(snapshot.report.searched_roots.len(), available_count);
+        assert!(
+            snapshot
+                .report
+                .searched_roots
+                .iter()
+                .all(|root| available.contains(root))
+        );
+        assert_eq!(snapshot.report.files_hashed, available_count as u32);
+        assert_eq!(snapshot.report.hash_bytes, limits.max_hash_bytes);
+        assert_eq!(snapshot.report.candidates.len(), available_count * 2);
+        assert!(snapshot.report.limits_reached.is_empty());
+        assert_eq!(snapshot.report.issues.len(), unavailable_count.min(64));
+        assert_eq!(
+            snapshot.report.issues_omitted,
+            unavailable_count.saturating_sub(64) as u32
+        );
+        assert!(snapshot.report.issues.iter().all(|issue| {
+            issue
+                .path
+                .as_ref()
+                .is_some_and(|root| unavailable.contains(root))
+                && issue.message.contains("not treated as deleted")
+        }));
+        assert_eq!(
+            library.game_file_roots().unwrap().len(),
+            snapshot.roots.len()
+        );
+        library.replace_game_file_scan_snapshot(&snapshot).unwrap();
+        assert_eq!(
+            super::current_game_file_scan(&catalog, &library)
+                .unwrap()
+                .unwrap()
+                .freshness,
+            GameFileScanFreshness::InputsMatch
+        );
+        for root in available {
+            assert_eq!(fs::read(root.join("source.z64")).unwrap(), payload);
+        }
+    }
+}
+
+#[test]
+fn unavailable_saved_root_budget_keeps_online_and_empty_failure_boundaries() {
+    for reconnect in [true, false] {
+        let temporary = tempfile::tempdir().unwrap();
+        let payload = b"synthetic supported source";
+        let catalog = catalog(payload);
+        let library = crate::Library::open(temporary.path().join("library")).unwrap();
+        let first = temporary.path().join("selected-0");
+        fs::create_dir(&first).unwrap();
+        fs::write(first.join("source.z64"), payload).unwrap();
+        library.add_game_file_root(&first).unwrap();
+        let previous = super::build_game_file_scan(
+            &catalog,
+            &library,
+            &SourceDiscoveryLimits::default(),
+            &crate::OperationCoordinator::new("previous-root-budget", None),
+        )
+        .unwrap();
+        library.replace_game_file_scan_snapshot(&previous).unwrap();
+        for index in 1..9 {
+            let root = temporary.path().join(format!("selected-{index}"));
+            fs::create_dir(&root).unwrap();
+            library.add_game_file_root(&root).unwrap();
+            if !reconnect {
+                fs::remove_dir(root).unwrap();
+            }
+        }
+        if !reconnect {
+            fs::remove_file(first.join("source.z64")).unwrap();
+            fs::remove_dir(&first).unwrap();
+        }
+        let error = super::build_game_file_scan(
+            &catalog,
+            &library,
+            &SourceDiscoveryLimits::default(),
+            &crate::OperationCoordinator::new("failed-root-budget", None),
+        )
+        .unwrap_err();
+        assert_eq!(
+            error.code,
+            if reconnect {
+                ErrorCode::Usage
+            } else {
+                ErrorCode::SourceInvalid
+            }
+        );
+        assert!(
+            error
+                .message
+                .contains(if reconnect { "eight" } else { "no saved" })
+        );
+        assert_eq!(library.game_file_roots().unwrap().len(), 9);
+        assert_eq!(
+            serde_json::to_value(library.stored_game_file_scan_snapshot().unwrap().unwrap())
+                .unwrap(),
+            serde_json::to_value(&previous).unwrap()
+        );
+    }
+}
+
+#[test]
 fn cancellation_before_snapshot_publication_preserves_the_previous_snapshot() {
     let temporary = tempfile::tempdir().unwrap();
     let root = temporary.path().join("selected");

@@ -1721,7 +1721,9 @@ Core owns opt-in discovery requests, traversal and hashing budgets, candidate va
 
 Explicit saved game-file roots are a separate core-owned input authority. A
 catalog-wide foreground scan considers only currently available saved roots and
-records unavailable roots as incomplete coverage rather than deletion. When a
+records unavailable roots as incomplete coverage rather than deletion. The
+eight-root scan limit applies to available folders; disconnected saved roots
+retain their identities and coverage issues without consuming that limit. When a
 selected root contains the current Portcove library, the scan skips that tree
 before charging entry or hash budgets and records the omission as a path issue;
 a saved root inside the library is refused. The same rule applies to recorded
