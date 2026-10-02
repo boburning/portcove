@@ -339,7 +339,7 @@ jobs:
           path: .
           format: spdx-json
           output-file: release-assets-aggregate/Portcove-SBOM.spdx.json
-          syft-version: v1.51.1
+          syft-version: v1.52.0
           dependency-snapshot: false
           upload-artifact: false
           upload-release-assets: false
