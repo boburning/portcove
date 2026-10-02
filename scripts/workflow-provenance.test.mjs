@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -162,6 +162,273 @@ test("hosted local execution preserves defaults and removes provisioning credent
     () => hostedLocalCheckEnvironment({ pnpm_config_store_dir: "/unowned/store" }, "1.98.1"),
     /owned source checkout/,
   );
+});
+
+function cargoFixture(t, twoManifests = false) {
+  const f = hostedFixture(t);
+  f.git(f.source, ["reset", "--hard", f.base]);
+  const packageName = twoManifests ? "minisign-verify" : "minisign";
+  const oldVersion = twoManifests ? "0.2.5" : "0.9.1";
+  const newVersion = twoManifests ? "0.3.0" : "0.10.0";
+  const manifests = [
+    {
+      path: "crates/portcove-release-tools/Cargo.toml",
+      section: twoManifests ? "dependencies" : "dev-dependencies",
+    },
+  ];
+  if (twoManifests)
+    manifests.push({ path: "apps/desktop/src-tauri/Cargo.toml", section: "dependencies" });
+  const checksum = "a".repeat(64);
+  const nextChecksum = "b".repeat(64);
+  const lock = `# Generated lock\nversion = 4\n\n[[package]]\nname = "${packageName}"\nversion = "${oldVersion}"\nsource = "registry+https://github.com/rust-lang/crates.io-index"\nchecksum = "${checksum}"\n${twoManifests ? "" : 'dependencies = [\n "ct-codecs",\n]\n'}\n`;
+  f.write(f.source, "Cargo.lock", lock);
+  for (const entry of manifests)
+    f.write(
+      f.source,
+      entry.path,
+      `[package]\nname = "fixture"\nversion = "0.1.0"\n\n[${entry.section}]\n${packageName} = "${oldVersion}"\n`,
+    );
+  f.git(f.source, ["add", "."]);
+  f.git(f.source, ["commit", "--quiet", "-m", "trusted Cargo authority"]);
+  const authority = f.git(f.source, ["rev-parse", "HEAD"]);
+  const nextLock = lock
+    .replace(`version = "${oldVersion}"`, `version = "${newVersion}"`)
+    .replace(checksum, nextChecksum);
+  f.write(f.source, "Cargo.lock", nextLock);
+  for (const entry of manifests)
+    f.write(
+      f.source,
+      entry.path,
+      readFileSync(path.join(f.source, entry.path), "utf8").replace(
+        `"${oldVersion}"`,
+        `"${newVersion}"`,
+      ),
+    );
+  const spec = {
+    package: packageName,
+    from_version: oldVersion,
+    to_version: newVersion,
+    from_checksum: checksum,
+    to_checksum: nextChecksum,
+    lock_sha256: createHash("sha256").update(nextLock).digest("hex"),
+    manifests,
+  };
+  const commit = () => {
+    f.git(f.source, ["add", "."]);
+    f.git(f.source, ["commit", "--quiet", "-m", "reviewed dependency"]);
+    f.env.PORTCOVE_LOCAL_SOURCE_SHA = f.git(f.source, ["rev-parse", "HEAD"]);
+    f.env.PORTCOVE_LOCAL_BASE_SHA = authority;
+    f.env.PORTCOVE_LOCAL_MERGE_BASE_SHA = authority;
+    f.env.PORTCOVE_LOCAL_AUTHORITY_SHA = authority;
+    f.env.PORTCOVE_LOCAL_DEPENDENCY_BINDING = JSON.stringify(spec);
+  };
+  commit();
+  return { ...f, spec, commit };
+}
+
+test("opt-in Cargo binding admits only the reviewed one/two-manifest updates", async (t) => {
+  for (const count of [false, true]) {
+    const f = cargoFixture(t, count);
+    assert.equal(await runHostedLocalCheck("prepare", f.options), 0);
+    const calls = [];
+    assert.equal(
+      await runHostedLocalCheck("run", {
+        ...f.options,
+        spawn: (name, args, options) => {
+          calls.push({ name, args, options });
+          return { status: 0 };
+        },
+      }),
+      0,
+    );
+    assert.deepEqual(
+      calls.map(({ name, args }) => [name, ...args]),
+      [
+        ["just", "local-check", "--plan"],
+        ["just", "local-check", "--fresh"],
+      ],
+    );
+    assert.ok(
+      calls.every(
+        ({ options }) => options.env.GH_TOKEN === undefined && options.env.CARGO_BUILD_JOBS === "4",
+      ),
+    );
+    assert.ok(
+      f.logs.some(
+        (line) =>
+          line.includes('"profile":"cargo-dependency"') && line.includes(f.spec.lock_sha256),
+      ),
+    );
+    delete f.env.PORTCOVE_LOCAL_DEPENDENCY_BINDING;
+    await assert.rejects(runHostedLocalCheck("prepare", f.options), /changes trusted.*authority/);
+  }
+});
+
+test("Cargo binding rejects every other tree, mode and dependency-byte change", async (t) => {
+  const mutations = [
+    (f) => f.write(f.source, "subject.rs", "extra source\n"),
+    (f) => f.write(f.source, "scripts/local-validation.mjs", "altered selector\n"),
+    (f) => f.write(f.source, "Cargo.toml", "altered root\n"),
+    (f) => f.write(f.source, ".cargo/config.toml", "altered flags\n"),
+    (f) =>
+      f.write(
+        f.source,
+        "Cargo.lock",
+        readFileSync(path.join(f.source, "Cargo.lock"), "utf8") +
+          '\n[[package]]\nname = "extra"\nversion = "1.0.0"\n',
+      ),
+    (f) =>
+      f.write(
+        f.source,
+        "Cargo.lock",
+        readFileSync(path.join(f.source, "Cargo.lock"), "utf8") + " \n",
+      ),
+    (f) =>
+      f.write(
+        f.source,
+        "Cargo.lock",
+        readFileSync(path.join(f.source, "Cargo.lock"), "utf8").replace(
+          "registry+https://github.com/rust-lang/crates.io-index",
+          "git+https://example.invalid",
+        ),
+      ),
+    (f) =>
+      f.write(
+        f.source,
+        f.spec.manifests[0].path,
+        readFileSync(path.join(f.source, f.spec.manifests[0].path), "utf8").replace(
+          'minisign = "0.10.0"',
+          'minisign = { version = "0.10.0", default-features = false }',
+        ),
+      ),
+    (f) =>
+      f.write(
+        f.source,
+        f.spec.manifests[0].path,
+        readFileSync(path.join(f.source, f.spec.manifests[0].path), "utf8") +
+          '[dev-dependencies]\nminisign = "0.10.0"\n',
+      ),
+    (f) => f.git(f.source, ["rm", f.spec.manifests[0].path]),
+    (f) => chmodSync(path.join(f.source, "Cargo.lock"), 0o755),
+  ];
+  for (const mutate of mutations) {
+    const f = cargoFixture(t);
+    mutate(f);
+    f.commit();
+    await assert.rejects(
+      runHostedLocalCheck("prepare", f.options),
+      /Invalid reviewed Cargo dependency binding/,
+    );
+  }
+});
+
+test("Cargo binding rejects ambiguous or unreviewed declarations and digests", async (t) => {
+  for (const update of [
+    (s) => {
+      s.lock_sha256 = "c".repeat(64);
+    },
+    (s) => {
+      s.to_checksum = "c".repeat(64);
+    },
+    (s) => {
+      s.to_version = '0.10.0"\npath = "evil';
+    },
+    (s) => {
+      s.manifests.push(s.manifests[0]);
+    },
+    (s) => {
+      s.manifests[0].path = "Cargo.toml";
+    },
+    (s) => {
+      s.manifests[0].section = "build-dependencies";
+    },
+    (s) => {
+      s.extra = "ignored";
+    },
+    (s) => {
+      s.package = [s.package];
+    },
+    (s) => {
+      s.from_version = [s.from_version];
+    },
+    (s) => {
+      s.to_checksum = [s.to_checksum];
+    },
+  ]) {
+    const f = cargoFixture(t);
+    update(f.spec);
+    f.env.PORTCOVE_LOCAL_DEPENDENCY_BINDING = JSON.stringify(f.spec);
+    await assert.rejects(runHostedLocalCheck("prepare", f.options), /binding|digest/);
+  }
+  const f = cargoFixture(t);
+  f.env.PORTCOVE_LOCAL_DEPENDENCY_BINDING = f.env.PORTCOVE_LOCAL_DEPENDENCY_BINDING.replace(
+    "{",
+    '{"package":"hidden",',
+  );
+  await assert.rejects(runHostedLocalCheck("prepare", f.options), /binding/);
+});
+
+test("Cargo binding is rechecked after provisioning and execution", async (t) => {
+  const f = cargoFixture(t);
+  assert.equal(await runHostedLocalCheck("prepare", f.options), 0);
+  f.write(f.source, "Cargo.lock", "tampered provisioning\n");
+  await assert.rejects(runHostedLocalCheck("run", f.options), /dirty/);
+  f.git(f.source, ["checkout", "--", "Cargo.lock"]);
+  await assert.rejects(
+    runHostedLocalCheck("run", {
+      ...f.options,
+      spawn: () => {
+        f.write(f.source, "Cargo.lock", "tampered execution\n");
+        return { status: 0 };
+      },
+    }),
+    /dirty/,
+  );
+});
+
+test("planning cannot change the reviewed lock before fresh execution", async (t) => {
+  const f = cargoFixture(t);
+  const calls = [];
+  await assert.rejects(
+    runHostedLocalCheck("run", {
+      ...f.options,
+      spawn: (_name, args) => {
+        calls.push(args);
+        f.write(f.source, "Cargo.lock", "metadata changed the graph\n");
+        return { status: 0 };
+      },
+    }),
+    /dirty/,
+  );
+  assert.deepEqual(calls, [["local-check", "--plan"]]);
+  assert.ok(!f.logs.some((line) => line.startsWith("Hosted local-check completed:")));
+});
+
+test("multiline TOML descriptions cannot masquerade as dependency tables", async (t) => {
+  for (const delimiter of ['"""', "'''"]) {
+    const f = cargoFixture(t);
+    f.git(f.source, ["reset", "--hard", f.env.PORTCOVE_LOCAL_AUTHORITY_SHA]);
+    const manifest = f.spec.manifests[0].path;
+    const text = `[package]\nname = "fixture"\nversion = "0.1.0"\ndescription = ${delimiter}\n[dev-dependencies]\nminisign = "0.9.1"\n${delimiter}\n\n[dev-dependencies] # actual table\nminisign = "0.9.1"\n`;
+    f.write(f.source, manifest, text);
+    f.git(f.source, ["add", "."]);
+    f.git(f.source, ["commit", "--quiet", "-m", "valid multiline authority"]);
+    const authority = f.git(f.source, ["rev-parse", "HEAD"]);
+    f.write(f.source, manifest, text.replace('minisign = "0.9.1"', 'minisign = "0.10.0"'));
+    const lock = readFileSync(path.join(f.source, "Cargo.lock"), "utf8")
+      .replace('version = "0.9.1"', 'version = "0.10.0"')
+      .replace("a".repeat(64), "b".repeat(64));
+    f.write(f.source, "Cargo.lock", lock);
+    f.spec.lock_sha256 = createHash("sha256").update(lock).digest("hex");
+    f.commit();
+    f.env.PORTCOVE_LOCAL_AUTHORITY_SHA = authority;
+    f.env.PORTCOVE_LOCAL_BASE_SHA = authority;
+    f.env.PORTCOVE_LOCAL_MERGE_BASE_SHA = authority;
+    await assert.rejects(
+      runHostedLocalCheck("prepare", f.options),
+      /Invalid reviewed Cargo dependency binding/,
+    );
+  }
 });
 
 test("hosted execution binds actual Git source, default base, controller and final child", async (t) => {
