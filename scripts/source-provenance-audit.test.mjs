@@ -217,6 +217,8 @@ test("merged findings require actual same-repository unambiguous PR facts", asyn
     ["issue not PR", { type: "Issue" }],
     ["other repository", { url: "https://github.com/other/portcove/pull/31" }],
     ["other host", { url: "https://example.test/boburning/portcove/pull/31" }],
+    ["bare fact URL", { url: "PR #31" }],
+    ["scoped fact URL", { url: "boburning/portcove#31" }],
     ["wrong number", { url: "https://github.com/boburning/portcove/pull/32" }],
   ])
     await t.test(label, () =>
@@ -256,6 +258,9 @@ test("completed, cross-repository and ambiguous prose is not a merge prerequisit
     "PR #31 merged. Waiting for gameplay evidence.",
     "Not waiting for PR #31 to merge; manifest review is pending.",
     "Maybe waiting for PR #31 to merge.",
+    "We aren't waiting for PR #31 to merge; manifest review is pending.",
+    "We aren’t waiting for PR #31 to merge; manifest review is pending.",
+    "Waiting for PR #31 to merge?",
     "Waiting for `PR #31` in this code example.",
     "<!-- Waiting for PR #31 to merge. -->",
   ])
@@ -641,6 +646,7 @@ test("live enrichment calls only bounded read commands and API errors do not exp
   assert.deepEqual(result, {
     issues: [],
     projectItems: [],
+    pullRequests: [],
     projectState: "available",
   });
   assert.deepEqual(
@@ -871,4 +877,120 @@ test("failed later live pages preserve existing snapshots and create no partial 
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
+});
+
+test("live blockers resolve referenced PRs independently of Project membership", async (t) => {
+  for (const [label, response, expected] of [
+    [
+      "merged",
+      {
+        __typename: "PullRequest",
+        number: 31,
+        url: "https://github.com/boburning/portcove/pull/31",
+        state: "MERGED",
+        merged: true,
+      },
+      1,
+    ],
+    [
+      "closed",
+      {
+        __typename: "PullRequest",
+        number: 31,
+        url: "https://github.com/boburning/portcove/pull/31",
+        state: "CLOSED",
+        merged: false,
+      },
+      0,
+    ],
+    ["unknown", null, 0],
+  ])
+    await t.test(label, () => {
+      const input = mergedBlockerFixture("Waiting for PR #31 and PR #31 to merge.");
+      input.projectItems.pop();
+      const baseRun = paginatedLiveRunner(input.issues, []);
+      const requests = [];
+      const live = readLiveSourceProvenance({
+        repository: "boburning/portcove",
+        owner: "boburning",
+        projectNumber: 1,
+        run(args, payload) {
+          if (payload && JSON.parse(payload).query.includes("pullRequest(number:")) {
+            requests.push(JSON.parse(payload).variables);
+            return included({ data: { repository: { pullRequest: response } } });
+          }
+          return baseRun(args, payload);
+        },
+      });
+      assert.deepEqual(requests, [{ owner: "boburning", name: "portcove", number: 31 }]);
+      assert.deepEqual(live.projectItems, []);
+      assert.equal(mergedReferenceObservations({ ...input, ...live }).length, expected);
+    });
+});
+
+test("referenced PR reads fail closed on partial or contradictory facts", async (t) => {
+  for (const response of [
+    undefined,
+    {},
+    { __typename: "PullRequest", number: 31, url: "PR #31", state: "MERGED", merged: true },
+    {
+      __typename: "PullRequest",
+      number: 31,
+      url: "https://github.com/boburning/portcove/pull/31",
+      state: "CLOSED",
+      merged: true,
+    },
+  ]) {
+    await t.test(JSON.stringify(response) ?? "missing", () => {
+      const input = mergedBlockerFixture("Waiting for PR #31 to merge.");
+      const baseRun = paginatedLiveRunner(input.issues, []);
+      assert.throws(
+        () =>
+          readLiveSourceProvenance({
+            repository: "boburning/portcove",
+            owner: "boburning",
+            projectNumber: 1,
+            run(args, payload) {
+              if (payload && JSON.parse(payload).query.includes("pullRequest(number:"))
+                return included({ data: { repository: { pullRequest: response } } });
+              return baseRun(args, payload);
+            },
+          }),
+        /enrichment failed/,
+      );
+    });
+  }
+});
+
+test("live reference lookup bounds work before requesting any PR", () => {
+  const input = researchBlockerInput(
+    "- Current blocker and exact resume condition: Waiting for " +
+      Array.from({ length: 101 }, (_, i) => `PR #${i + 1}`).join(", "),
+  );
+  // The explicit gap deliberately truncates prose at 500 characters. Use one
+  // short reference per issue to exercise the complete collector bound.
+  const issues = Array.from({ length: 101 }, (_, i) => ({
+    ...input.issues[0],
+    number: i + 1,
+    body: input.issues[0].body.replace(
+      /^- Current blocker and exact resume condition:.*$/mu,
+      `- Current blocker and exact resume condition: Waiting for PR #${i + 1} to merge.`,
+    ),
+  }));
+  const baseRun = paginatedLiveRunner(issues, []);
+  let prRequests = 0;
+  assert.throws(
+    () =>
+      readLiveSourceProvenance({
+        repository: "boburning/portcove",
+        owner: "boburning",
+        projectNumber: 1,
+        run(args, payload) {
+          if (payload && JSON.parse(payload).query.includes("pullRequest(number:")) prRequests++;
+          return baseRun(args, payload);
+        },
+      }),
+    /enrichment failed/,
+  );
+  assert.equal(prRequests, 0);
 });
