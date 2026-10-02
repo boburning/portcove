@@ -1944,6 +1944,8 @@ mod tests {
     fn compound_handle_guard_rejects_resize_replacement_and_symlinks() {
         let temporary = tempfile::tempdir().unwrap();
         let path = temporary.path().join("package");
+        fs::write(&path, b"LIVE").unwrap();
+        let path = fs::canonicalize(path).unwrap();
         for size in [2, 6] {
             fs::write(&path, b"LIVE").unwrap();
             let input = File::open(&path).unwrap();
