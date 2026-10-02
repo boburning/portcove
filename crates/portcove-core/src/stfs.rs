@@ -75,20 +75,23 @@ pub(crate) fn extract(source: &Path, destination: &Path) -> Result<()> {
 pub(crate) fn validate(source: &Path, checkpoint: &dyn Fn() -> Result<()>) -> Result<()> {
     let source_size = std::fs::metadata(source)?.len();
     let mut input = File::open(source)?;
-    let info = parse_info(&mut input, source_size)?;
+    validate_reader(&mut input, source_size, checkpoint)
+}
+
+/// Inspect a caller-owned handle without reopening its pathname.
+pub(crate) fn validate_reader(
+    input: &mut File,
+    source_size: u64,
+    checkpoint: &dyn Fn() -> Result<()>,
+) -> Result<()> {
     checkpoint()?;
-    let entries = parse_entries(&mut input, source_size, &info)?;
+    let info = parse_info(input, source_size)?;
+    checkpoint()?;
+    let entries = parse_entries(input, source_size, &info)?;
     let _plans = plan_entries(&entries, source_size)?;
     validate_expanded_size(&entries, source_size)?;
     for entry in entries.iter().filter(|entry| !entry.directory) {
-        read_entry_blocks(
-            &mut input,
-            source_size,
-            &info,
-            entry,
-            checkpoint,
-            |_| Ok(()),
-        )?;
+        read_entry_blocks(input, source_size, &info, entry, checkpoint, |_| Ok(()))?;
     }
     Ok(())
 }

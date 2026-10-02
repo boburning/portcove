@@ -146,6 +146,501 @@ fn schema2_catalog_with_current_n64(bytes: &[u8]) -> Catalog {
     Catalog::from_json(&document.to_string()).unwrap()
 }
 
+fn live_package() -> Vec<u8> {
+    let mut package = vec![0_u8; 0xe000];
+    package[..4].copy_from_slice(b"LIVE");
+    package[0x340..0x344].copy_from_slice(&0xad0e_u32.to_be_bytes());
+    package[0x37b] = 1;
+    package[0x37c..0x37e].copy_from_slice(&1_u16.to_le_bytes());
+    package[0x395..0x399].copy_from_slice(&2_u32.to_be_bytes());
+    package[0xb014..0xb018].copy_from_slice(&0x00ff_ffff_u32.to_be_bytes());
+    package[0xb02c..0xb030].copy_from_slice(&0x00ff_ffff_u32.to_be_bytes());
+    let entry = &mut package[0xc000..0xc040];
+    entry[..11].copy_from_slice(b"default.xex");
+    entry[0x28] = 11;
+    entry[0x29] = 1;
+    entry[0x2f] = 1;
+    entry[0x32..0x34].copy_from_slice(&u16::MAX.to_be_bytes());
+    entry[0x34..0x38].copy_from_slice(&4_u32.to_be_bytes());
+    package[0xd000..0xd004].copy_from_slice(b"XEX2");
+    package
+}
+
+fn live_catalog(package: &[u8]) -> Catalog {
+    let mut document = Catalog::embedded().unwrap().authoritative_document();
+    let profile = document
+        .source_catalog
+        .as_mut()
+        .unwrap()
+        .identities
+        .iter_mut()
+        .find(|profile| profile.id == "sotn-xbla")
+        .unwrap();
+    let crate::SourceRepresentationKind::Compound { identities, .. } =
+        &mut profile.variants[0].representations[0].kind
+    else {
+        panic!("STFS fixture")
+    };
+    identities[0].sha256 = Some(hex::encode(Sha256::digest(package)));
+    Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap()
+}
+
+#[test]
+fn live_compound_discovery_matches_manual_without_registration_or_rewriting() {
+    let temporary = tempfile::tempdir().unwrap();
+    let package = live_package();
+    let catalog = live_catalog(&package);
+    for name in ["extensionless-package", "renamed.bin", "renamed.LIVE"] {
+        let root = temporary.path().join(name);
+        fs::create_dir(&root).unwrap();
+        let path = root.join(name);
+        fs::write(&path, &package).unwrap();
+        let mut selected = request(&root);
+        selected.profile_ids = vec!["sotn-xbla".into()];
+        selected.limits.max_hash_bytes = package.len() as u64;
+        let manual = crate::source_inspection::inspect_file(
+            &catalog,
+            "sotn-xbla",
+            &path,
+            u64::MAX,
+            &mut HashBudget {
+                operation: None,
+                limit: u64::MAX,
+                hashed: 0,
+                max_zip_entries: 4096,
+            },
+        )
+        .unwrap();
+        let report = scan(&catalog, &selected).unwrap();
+        assert_eq!(report.candidates.len(), 1);
+        assert_eq!(report.files_hashed, 1);
+        assert_eq!(report.hash_bytes, package.len() as u64);
+        assert!(report.limits_reached.is_empty());
+        let candidate = &report.candidates[0];
+        assert_eq!(
+            candidate.observed_identity,
+            manual.record.as_ref().unwrap().observed_identity
+        );
+        let manual = manual.require_admitted_record().unwrap();
+        assert_eq!(
+            (candidate.sha256.clone(), candidate.size),
+            (manual.sha256, manual.size)
+        );
+        assert_eq!(
+            (candidate.storage_sha256.clone(), candidate.storage_size),
+            (manual.storage_sha256, manual.storage_size)
+        );
+        assert!(
+            manual
+                .observed_identity
+                .unwrap()
+                .digests
+                .iter()
+                .any(|digest| digest.scope == crate::DigestScope::NormalizedContent)
+        );
+        let mut service = PortcoveService::new(
+            crate::Library::open(temporary.path().join(format!("library-{name}"))).unwrap(),
+        )
+        .unwrap();
+        service.replace_catalog_for_test(catalog.clone());
+        let plan = service
+            .plan_source_import(
+                &candidate.profile_id,
+                &candidate.path,
+                crate::SourceImportMode::UseCurrentLocation,
+            )
+            .unwrap();
+        assert_eq!(
+            plan.admission_mode,
+            crate::SourceAdmissionMode::ExactIdentity
+        );
+        assert!(service.library().sources().unwrap().is_empty());
+        assert_eq!(fs::read(&path).unwrap(), package);
+    }
+}
+
+#[test]
+fn live_compound_profiles_share_one_hash_without_sharing_admission() {
+    let temporary = tempfile::tempdir().unwrap();
+    let package = live_package();
+    let path = temporary.path().join("package.bin");
+    fs::write(&path, &package).unwrap();
+    let mut document = live_catalog(&package).authoritative_document();
+    let profiles = &mut document.source_catalog.as_mut().unwrap().identities;
+    let original = profiles
+        .iter()
+        .find(|p| p.id == "sotn-xbla")
+        .unwrap()
+        .clone();
+    let mut second = original.clone();
+    second.id = "live-second".into();
+    profiles.push(second);
+    let mut rejected = original.clone();
+    rejected.id = "live-rejected".into();
+    let crate::SourceRepresentationKind::Compound { identities, .. } =
+        &mut rejected.variants[0].representations[0].kind
+    else {
+        unreachable!()
+    };
+    identities[0].sha1 = Some(hex::encode(sha1::Sha1::digest(&package)));
+    identities[0].sha256 = Some("0".repeat(64));
+    profiles.push(rejected);
+    let raw = profiles
+        .iter_mut()
+        .find(|p| p.id == "psx-scph-1001-bios")
+        .unwrap();
+    raw.variants.truncate(1);
+    let crate::SourceRepresentationKind::RawFile { identities } =
+        &mut raw.variants[0].representations[0].kind
+    else {
+        unreachable!()
+    };
+    identities[0].sha1 = Some(hex::encode(sha1::Sha1::digest(&package)));
+    identities[0].sha256 = Some(hex::encode(Sha256::digest(&package)));
+    let catalog = Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap();
+    let mut selected = request(temporary.path());
+    selected.profile_ids = vec![
+        "sotn-xbla".into(),
+        "live-second".into(),
+        "live-rejected".into(),
+        "psx-scph-1001-bios".into(),
+        "sotn-xbla".into(),
+    ];
+    selected.limits.max_hash_bytes = package.len() as u64;
+    let report = scan(&catalog, &selected).unwrap();
+    assert_eq!(
+        report
+            .candidates
+            .iter()
+            .map(|c| c.profile_id.as_str())
+            .collect::<Vec<_>>(),
+        ["live-second", "psx-scph-1001-bios", "sotn-xbla"]
+    );
+    assert_eq!(report.files_hashed, 1);
+    assert_eq!(report.hash_bytes, package.len() as u64);
+    selected.limits.max_candidates = 1;
+    assert_eq!(scan(&catalog, &selected).unwrap().candidates.len(), 1);
+    selected.limits.max_candidates = 64;
+    let original = document
+        .source_catalog
+        .as_mut()
+        .unwrap()
+        .identities
+        .iter_mut()
+        .find(|p| p.id == "sotn-xbla")
+        .unwrap();
+    let mut variant = original.variants[0].clone();
+    variant.id = "sha1-only".into();
+    let crate::SourceRepresentationKind::Compound { identities, .. } =
+        &mut variant.representations[0].kind
+    else {
+        unreachable!()
+    };
+    identities[0].sha256 = None;
+    identities[0].sha1 = Some(hex::encode(sha1::Sha1::digest(&package)));
+    original.variants.push(variant);
+    let ambiguous = Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap();
+    let report = scan(&ambiguous, &selected).unwrap();
+    assert_eq!(
+        report
+            .candidates
+            .iter()
+            .map(|c| c.profile_id.as_str())
+            .collect::<Vec<_>>(),
+        ["live-second", "psx-scph-1001-bios"]
+    );
+    assert_eq!(report.hash_bytes, package.len() as u64);
+    assert_eq!(fs::read(path).unwrap(), package);
+}
+
+#[test]
+fn live_compound_detection_does_not_hash_unrelated_or_archive_inputs() {
+    let temporary = tempfile::tempdir().unwrap();
+    let package = live_package();
+    let catalog = live_catalog(&package);
+    for name in ["unrelated", "unrelated.bin", "tiny", "empty"] {
+        fs::write(
+            temporary.path().join(name),
+            if name == "tiny" {
+                &b"LIV"[..]
+            } else if name == "empty" {
+                &b""[..]
+            } else {
+                &b"unrelated bytes"[..]
+            },
+        )
+        .unwrap();
+    }
+    let zip = temporary.path().join("package.zip");
+    let mut writer = zip::ZipWriter::new(fs::File::create(&zip).unwrap());
+    writer
+        .start_file("package", zip::write::SimpleFileOptions::default())
+        .unwrap();
+    writer.write_all(&package).unwrap();
+    writer.finish().unwrap();
+    let mut selected = request(temporary.path());
+    selected.profile_ids = vec!["sotn-xbla".into()];
+    let report = scan(&catalog, &selected).unwrap();
+    assert!(report.candidates.is_empty());
+    assert_eq!(report.files_hashed, 0);
+    assert_eq!(report.hash_bytes, 0);
+    // A LIVE-looking file with no matching digest is hashed, but its invalid
+    // structure is not evaluated and cannot become an admission finding.
+    fs::write(temporary.path().join("lookalike"), b"LIVE unrelated bytes").unwrap();
+    let report = scan(&catalog, &selected).unwrap();
+    assert!(report.candidates.is_empty());
+    assert_eq!(report.files_hashed, 1);
+    assert_eq!(report.hash_bytes, b"LIVE unrelated bytes".len() as u64);
+    assert!(report.issues.is_empty());
+    let mut document = catalog.authoritative_document();
+    let profile = document
+        .source_catalog
+        .as_mut()
+        .unwrap()
+        .identities
+        .iter_mut()
+        .find(|profile| profile.id == "sotn-xbla")
+        .unwrap();
+    profile.variants[0].representations[0].extensions = vec!["live".into()];
+    let restricted = Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap();
+    let report = scan(&restricted, &selected).unwrap();
+    assert_eq!(report.hash_bytes, 0);
+    assert!(report.candidates.is_empty());
+    fs::write(temporary.path().join("eligible.LiVe"), &package).unwrap();
+    assert_eq!(scan(&restricted, &selected).unwrap().candidates.len(), 1);
+}
+
+#[test]
+fn live_compound_exact_digests_cannot_admit_malformed_or_truncated_structure() {
+    let temporary = tempfile::tempdir().unwrap();
+    let path = temporary.path().join("package");
+    let mut malformed = live_package();
+    malformed[0xc028] = 41;
+    for package in [malformed, live_package()[..0xd000].to_vec()] {
+        let catalog = live_catalog(&package);
+        fs::write(&path, &package).unwrap();
+        let mut selected = request(temporary.path());
+        selected.profile_ids = vec!["sotn-xbla".into()];
+        let report = scan(&catalog, &selected).unwrap();
+        assert!(report.candidates.is_empty());
+        assert_eq!(report.files_hashed, 1);
+        assert_eq!(report.hash_bytes, package.len() as u64);
+        assert_eq!(report.issues.len(), 1);
+        assert_eq!(fs::read(&path).unwrap(), package);
+    }
+}
+
+#[test]
+fn live_compound_discovery_retains_file_hash_and_entry_limits() {
+    let temporary = tempfile::tempdir().unwrap();
+    let package = live_package();
+    let catalog = live_catalog(&package);
+    fs::write(temporary.path().join("package"), &package).unwrap();
+    let mut selected = request(temporary.path());
+    selected.profile_ids = vec!["sotn-xbla".into()];
+    selected.limits.max_file_bytes = package.len() as u64 - 1;
+    let report = scan(&catalog, &selected).unwrap();
+    assert!(report.candidates.is_empty());
+    assert_eq!(report.hash_bytes, 0);
+    assert!(
+        report
+            .limits_reached
+            .contains(&SourceDiscoveryLimit::FileSize)
+    );
+    selected.limits.max_file_bytes = package.len() as u64;
+    selected.limits.max_hash_bytes = package.len() as u64 - 1;
+    let report = scan(&catalog, &selected).unwrap();
+    assert!(report.candidates.is_empty());
+    assert_eq!(report.files_hashed, 0);
+    assert_eq!(report.hash_bytes, 0);
+    assert!(
+        report
+            .limits_reached
+            .contains(&SourceDiscoveryLimit::HashBytes)
+    );
+    selected.limits.max_hash_bytes = package.len() as u64;
+    assert_eq!(scan(&catalog, &selected).unwrap().candidates.len(), 1);
+    fs::write(temporary.path().join("other"), b"nothing").unwrap();
+    selected.limits.max_entries = 1;
+    let report = scan(&catalog, &selected).unwrap();
+    assert_eq!(report.entries_examined, 1);
+    assert!(
+        report
+            .limits_reached
+            .contains(&SourceDiscoveryLimit::Entries)
+    );
+    assert!(report.hash_bytes <= package.len() as u64);
+}
+
+#[test]
+fn live_compound_cancellation_preserves_previous_scan_registry_and_originals() {
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path().join("selected");
+    fs::create_dir(&root).unwrap();
+    let package = live_package();
+    let path = root.join("package");
+    fs::write(&path, &package).unwrap();
+    let catalog = live_catalog(&package);
+    let library = crate::Library::open(temporary.path().join("library")).unwrap();
+    library.add_game_file_root(&root).unwrap();
+    let mut prior = build_game_file_scan(
+        &catalog,
+        &library,
+        &SourceDiscoveryLimits::default(),
+        &crate::OperationCoordinator::new("prior-scan", None),
+    )
+    .unwrap();
+    prior.format_version = 6;
+    prior.completed_at = 1;
+    library.replace_game_file_scan_snapshot(&prior).unwrap();
+    assert_eq!(
+        current_game_file_scan(&catalog, &library)
+            .unwrap()
+            .unwrap()
+            .freshness,
+        GameFileScanFreshness::InputsChanged
+    );
+    let mut service = PortcoveService::new(library).unwrap();
+    service.replace_catalog_for_test(catalog);
+    let mut seen = false;
+    let result =
+        service.scan_game_file_roots_with_progress(&SourceDiscoveryLimits::default(), |event| {
+            if let crate::OperationEventKind::SourceCandidate { profile_id, .. } = &event.event
+                && profile_id == "sotn-xbla"
+            {
+                seen = true;
+                service.request_cancellation(&event.operation_id).unwrap();
+            }
+        });
+    assert!(seen);
+    assert_eq!(result.unwrap_err().code, ErrorCode::Cancelled);
+    assert_eq!(
+        service
+            .library()
+            .stored_game_file_scan_snapshot()
+            .unwrap()
+            .unwrap()
+            .completed_at,
+        1
+    );
+    assert!(service.library().sources().unwrap().is_empty());
+    assert_eq!(fs::read(path).unwrap(), package);
+}
+
+#[cfg(unix)]
+#[test]
+fn live_compound_discovery_skips_symlinks_and_library_owned_paths() {
+    let temporary = tempfile::tempdir().unwrap();
+    let package = live_package();
+    let catalog = live_catalog(&package);
+    let outside = temporary.path().join("outside");
+    fs::write(&outside, &package).unwrap();
+    let root = temporary.path().join("selected");
+    fs::create_dir(&root).unwrap();
+    std::os::unix::fs::symlink(&outside, root.join("linked-package")).unwrap();
+    let library = crate::Library::open(root.join("library")).unwrap();
+    fs::write(library.root().join("owned-package"), &package).unwrap();
+    library.add_game_file_root(&root).unwrap();
+    let snapshot = build_game_file_scan(
+        &catalog,
+        &library,
+        &SourceDiscoveryLimits::default(),
+        &crate::OperationCoordinator::new("owned-scan", None),
+    )
+    .unwrap();
+    assert!(snapshot.report.candidates.is_empty());
+    assert_eq!(snapshot.report.hash_bytes, 0);
+    assert_eq!(snapshot.report.symlinks_skipped, 1);
+    assert!(
+        snapshot
+            .report
+            .issues
+            .iter()
+            .any(|issue| issue.message.contains("Portcove"))
+    );
+    assert!(library.sources().unwrap().is_empty());
+    assert_eq!(fs::read(outside).unwrap(), package);
+}
+
+#[test]
+fn live_compound_owned_reader_keeps_existing_hash_bounds_and_cancellation() {
+    let temporary = tempfile::tempdir().unwrap();
+    let package = live_package();
+    let path = temporary.path().join("package");
+    fs::write(&path, &package).unwrap();
+    let mut budget = HashBudget {
+        operation: None,
+        limit: package.len() as u64,
+        hashed: 0,
+        max_zip_entries: 4096,
+    };
+    let ordinary =
+        crate::source_file::read_raw_identity(&path, package.len() as u64, u64::MAX, &mut budget)
+            .unwrap();
+    budget.hashed = 0;
+    let owned = crate::source_file::read_raw_identity_from_reader(
+        &path,
+        &package[..],
+        package.len() as u64,
+        u64::MAX,
+        &mut budget,
+    )
+    .unwrap();
+    assert_eq!(
+        (
+            ordinary.sha1,
+            ordinary.sha256,
+            ordinary.crc32,
+            ordinary.size
+        ),
+        (owned.sha1, owned.sha256, owned.crc32, owned.size)
+    );
+    assert_eq!(budget.hashed, package.len() as u64);
+    for (bytes, expected, message) in [
+        (b"LIV".as_slice(), 4, "shrank"),
+        (b"LIVE!".as_slice(), 4, "grew"),
+    ] {
+        budget.hashed = 0;
+        let error = crate::source_file::read_raw_identity_from_reader(
+            &path,
+            bytes,
+            expected,
+            u64::MAX,
+            &mut budget,
+        )
+        .err()
+        .unwrap();
+        assert!(error.message.contains(message));
+        assert_eq!(budget.hashed, expected.min(bytes.len() as u64));
+    }
+    let service =
+        PortcoveService::new(crate::Library::open(temporary.path().join("library")).unwrap())
+            .unwrap();
+    let (activity, operation) = service
+        .begin_cancellable_activity(
+            ActivityOperation::DiscoverSources,
+            ActivityTargetKind::Library,
+            None,
+        )
+        .unwrap();
+    service.request_cancellation(&activity.id).unwrap();
+    budget.operation = Some(operation);
+    budget.hashed = 0;
+    let catalog = live_catalog(&package);
+    let profile = catalog.source_profile("sotn-xbla").unwrap();
+    let error = crate::source_inspection::observe_compound_file(
+        &catalog,
+        &[profile],
+        &path,
+        u64::MAX,
+        &mut budget,
+    )
+    .err()
+    .unwrap();
+    assert_eq!(error.code, ErrorCode::Cancelled);
+    assert_eq!(budget.hashed, 0);
+}
+
 fn raw_gamecube_catalog(bytes: &[u8]) -> Catalog {
     let mut document: serde_json::Value =
         serde_json::from_str(include_str!("../catalog/catalog.json")).unwrap();
@@ -696,7 +1191,7 @@ fn saved_roots_scan_the_catalog_and_persist_one_current_snapshot() {
         &crate::OperationCoordinator::new("saved-root-scan", None),
     )
     .unwrap();
-    assert_eq!(snapshot.format_version, 6);
+    assert_eq!(snapshot.format_version, 7);
     assert_eq!(snapshot.limits.as_ref().unwrap().max_entries, 10_000);
     assert_eq!(snapshot.roots.len(), 1);
     assert_eq!(snapshot.report.files_hashed, 1);
@@ -1396,7 +1891,7 @@ fn stored_scan_snapshot_accepts_legacy_and_rejects_corrupt_and_future_formats() 
     assert!(error.to_string().contains("invalid scan limits"));
 
     snapshot.limits = Some(SourceDiscoveryLimits::default());
-    snapshot.format_version = 7;
+    snapshot.format_version = 8;
     library.replace_game_file_scan_snapshot(&snapshot).unwrap();
 
     let error = super::current_game_file_scan(&catalog, &library).unwrap_err();

@@ -19,7 +19,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-const CURRENT_SCAN_FORMAT_VERSION: u32 = 6;
+const CURRENT_SCAN_FORMAT_VERSION: u32 = 7;
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct SourceDiscoveryLimits {
@@ -350,6 +350,7 @@ struct Discovery<'a> {
     raw_profiles_by_extension: BTreeMap<String, Vec<&'a SourceProfile>>,
     zip_profile_groups: BTreeMap<Vec<String>, Vec<&'a SourceProfile>>,
     directory_profiles: Vec<&'a SourceProfile>,
+    compound_profiles: Vec<&'a SourceProfile>,
     hashed_paths: BTreeSet<PathBuf>,
     limits: &'a SourceDiscoveryLimits,
     reached: BTreeSet<SourceDiscoveryLimit>,
@@ -495,6 +496,7 @@ fn scan_with_events<'a>(
         raw_profiles_by_extension: BTreeMap::new(),
         zip_profile_groups: BTreeMap::new(),
         directory_profiles: Vec::new(),
+        compound_profiles: Vec::new(),
         hashed_paths: BTreeSet::new(),
         limits: &request.limits,
         reached: BTreeSet::new(),
@@ -537,7 +539,11 @@ fn scan_with_events<'a>(
         }
         let (raw_extensions, zip_extensions) =
             crate::source_inspection::file_scan_extensions(catalog, profile);
-        if raw_extensions.is_empty() && zip_extensions.is_empty() {
+        let compound = crate::source_inspection::compound_scan_eligible(catalog, &profile.id, None);
+        if compound {
+            discovery.compound_profiles.push(profile);
+        }
+        if raw_extensions.is_empty() && zip_extensions.is_empty() && !compound {
             discovery.issue(
                 None,
                 Some(profile.id.clone()),
@@ -564,6 +570,7 @@ fn scan_with_events<'a>(
     if !discovery.raw_profiles_by_extension.is_empty()
         || !discovery.zip_profile_groups.is_empty()
         || !discovery.directory_profiles.is_empty()
+        || !discovery.compound_profiles.is_empty()
     {
         discovery.walk()?;
     }
@@ -802,7 +809,21 @@ impl Discovery<'_> {
                 .map(|profiles| vec![(Vec::new(), profiles.clone())])
                 .unwrap_or_default()
         };
+        let compound_profiles = self
+            .compound_profiles
+            .iter()
+            .copied()
+            .filter(|profile| {
+                !extension.eq_ignore_ascii_case("zip")
+                    && crate::source_inspection::compound_scan_eligible(
+                        self.catalog,
+                        &profile.id,
+                        Some(extension),
+                    )
+            })
+            .collect::<Vec<_>>();
         if groups.is_empty()
+            && compound_profiles.is_empty()
             && !(extension.eq_ignore_ascii_case("zip") && !self.directory_profiles.is_empty())
         {
             return Ok(());
@@ -816,6 +837,25 @@ impl Discovery<'_> {
             return Ok(());
         }
         let before = self.budget.hashed;
+        if !compound_profiles.is_empty() {
+            let result = self.compound_file(path, &compound_profiles, observations);
+            if self.budget.hashed > before && self.hashed_paths.insert(path.into()) {
+                self.report.files_hashed += 1;
+            }
+            match result {
+                Ok(true) => return Ok(()),
+                Ok(false) => {}
+                Err(error) if error.details.contains_key("scan_limit") => {
+                    observations.failed.insert(path.into());
+                    self.reached.insert(SourceDiscoveryLimit::HashBytes);
+                    return Ok(());
+                }
+                Err(error) => {
+                    observations.failed.insert(path.into());
+                    return Err(error);
+                }
+            }
+        }
         for (extensions, profiles) in groups {
             match read_identity(
                 path,
@@ -908,6 +948,79 @@ impl Discovery<'_> {
             self.report.files_hashed += 1;
         }
         Ok(())
+    }
+
+    fn compound_file(
+        &mut self,
+        path: &Path,
+        compound_profiles: &[&SourceProfile],
+        observations: &mut DirectoryObservations,
+    ) -> Result<bool> {
+        let Some(observation) = crate::source_inspection::observe_compound_file(
+            self.catalog,
+            compound_profiles,
+            path,
+            self.limits.max_file_bytes,
+            &mut self.budget,
+        )?
+        else {
+            return Ok(false);
+        };
+        if let Some(issue) = observation.issue {
+            self.issue(Some(path.into()), None, issue);
+        }
+        observations
+            .identities
+            .insert(path.into(), observation.identity.clone());
+        let extension = observation.identity.content_extension.clone();
+        let mut profiles = self
+            .raw_profiles_by_extension
+            .get(&extension)
+            .cloned()
+            .unwrap_or_default();
+        profiles.extend_from_slice(compound_profiles);
+        profiles.sort_by_key(|profile| &profile.id);
+        profiles.dedup_by_key(|profile| &profile.id);
+        for profile in profiles {
+            let inspection = if profile.kind == crate::SourceKind::GamecubeDisc {
+                crate::source_inspection::inspect_file_identity(
+                    self.catalog,
+                    &profile.id,
+                    path,
+                    &observation.identity,
+                )
+            } else {
+                crate::source_inspection::inspect_file_identity_with_compound(
+                    self.catalog,
+                    &profile.id,
+                    path,
+                    &observation.identity,
+                    observation.validated,
+                )
+            };
+            if let Ok(inspection) = inspection
+                && matches!(
+                    inspection.assessment.admission,
+                    crate::SourceAdmission::Admitted {
+                        mode: crate::SourceAdmissionMode::ExactIdentity
+                    }
+                )
+                && let Some(candidate) = inspection.record
+            {
+                let operation = self
+                    .budget
+                    .operation
+                    .as_ref()
+                    .expect("discovery owns operation");
+                operation.checkpoint()?;
+                (self.emit)(operation.source_candidate(&candidate));
+                self.report.candidates.push(candidate);
+                if self.report.candidates.len() >= self.limits.max_candidates as usize {
+                    break;
+                }
+            }
+        }
+        Ok(true)
     }
 
     fn zip_file_sets(&mut self, path: &Path) -> Result<()> {

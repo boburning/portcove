@@ -98,11 +98,23 @@ pub(crate) fn read_raw_identity(
     budget: &mut HashBudget,
 ) -> Result<FileIdentity> {
     crate::path::unicode(path, "source")?;
+    read_raw_identity_from_reader(path, File::open(path)?, expected, maximum_size, budget)
+}
+
+/// Use the existing bounded hasher on a caller-owned stream, starting at byte zero.
+pub(crate) fn read_raw_identity_from_reader(
+    path: &Path,
+    reader: impl Read,
+    expected: u64,
+    maximum_size: u64,
+    budget: &mut HashBudget,
+) -> Result<FileIdentity> {
+    crate::path::unicode(path, "source")?;
     let extension = path
         .extension()
         .and_then(|value| value.to_str())
         .unwrap_or_default();
-    let identity = hash_reader(File::open(path)?, expected, maximum_size, budget, true)?;
+    let identity = hash_reader(reader, expected, maximum_size, budget, true)?;
     Ok(FileIdentity {
         storage_sha256: identity.sha256.clone(),
         storage_size: identity.size,

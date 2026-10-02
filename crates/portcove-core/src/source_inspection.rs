@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use std::{
     collections::{BTreeSet, HashSet},
     fs::File,
-    io::Read,
+    io::{Read, Seek, SeekFrom},
 };
 
 use schemars::JsonSchema;
@@ -323,6 +323,136 @@ pub(crate) fn inspect_file(
         })?;
     }
     inspect_file_identity_with_compound(catalog, profile_id, path, &identity, compound_format)
+}
+
+pub(crate) fn compound_scan_eligible(
+    catalog: &Catalog,
+    profile_id: &str,
+    extension: Option<&str>,
+) -> bool {
+    catalog.source_catalog().into_iter().flat_map(|catalog| &catalog.identities)
+        .filter(|profile| profile.id == profile_id)
+        .flat_map(|profile| &profile.variants)
+        .filter(|variant| !variant.legacy_projection_only)
+        .flat_map(|variant| &variant.representations)
+        .any(|representation| matches!(&representation.kind,
+            SourceRepresentationKind::Compound { format: CompoundSourceFormat::StfsLive, identities }
+                if !identities.is_empty()) && extension.is_none_or(|extension|
+                    representation.extensions.is_empty() || representation.extensions.iter()
+                        .any(|accepted| accepted.eq_ignore_ascii_case(extension))))
+}
+
+pub(crate) struct CompoundObservation {
+    pub identity: FileIdentity,
+    pub validated: Option<CompoundSourceFormat>,
+    pub issue: Option<String>,
+}
+
+/// Four-byte eligibility probing is bounded by discovery's entry limit. Only a
+/// LIVE file gets hashed; exact compound identities alone trigger structural I/O.
+pub(crate) fn observe_compound_file(
+    catalog: &Catalog,
+    profiles: &[&SourceProfile],
+    path: &Path,
+    maximum_size: u64,
+    budget: &mut HashBudget,
+) -> Result<Option<CompoundObservation>> {
+    let operation = budget.operation.clone();
+    let checkpoint = || {
+        if let Some(operation) = &operation {
+            operation.checkpoint()?;
+        }
+        Ok(())
+    };
+    checkpoint()?;
+    let mut input = File::open(path)?;
+    let initial = input.metadata()?;
+    verify_compound_location(path, &input, &initial)?;
+    if initial.len() < 4 || initial.len() > maximum_size {
+        return Ok(None);
+    }
+    let mut magic = [0_u8; 4];
+    input.read_exact(&mut magic)?;
+    if magic != *b"LIVE" {
+        return Ok(None);
+    }
+    input.seek(SeekFrom::Start(0))?;
+    let identity = crate::source_file::read_raw_identity_from_reader(
+        path,
+        &mut input,
+        initial.len(),
+        maximum_size,
+        budget,
+    )?;
+    let observed = observed_digests(&identity);
+    let format = profiles
+        .iter()
+        .find_map(|profile| matching_compound_format(catalog, &profile.id, &identity, &observed));
+    let (validated, issue) = if format == Some(CompoundSourceFormat::StfsLive) {
+        match crate::stfs::validate_reader(&mut input, initial.len(), &checkpoint) {
+            Ok(()) => (format, None),
+            Err(error) if error.code == crate::ErrorCode::Cancelled => return Err(error),
+            Err(error) => (None, Some(error.message)),
+        }
+    } else {
+        (None, None)
+    };
+    checkpoint()?;
+    verify_compound_location(path, &input, &initial)?;
+    Ok(Some(CompoundObservation {
+        identity,
+        validated,
+        issue,
+    }))
+}
+
+fn verify_compound_location(path: &Path, input: &File, initial: &std::fs::Metadata) -> Result<()> {
+    let metadata = std::fs::symlink_metadata(path)?;
+    let current = input.metadata()?;
+    if !metadata.is_file()
+        || std::fs::canonicalize(path)? != path
+        || !same_compound_object(path, input, initial, &metadata)?
+        || initial.len() != current.len()
+        || initial.len() != metadata.len()
+        || initial.modified()? != current.modified()?
+        || initial.modified()? != metadata.modified()?
+    {
+        return Err(PortcoveError::source(
+            "compound source changed during inspection",
+        ));
+    }
+    Ok(())
+}
+
+#[cfg(unix)]
+fn same_compound_object(
+    _path: &Path,
+    _input: &File,
+    initial: &std::fs::Metadata,
+    current: &std::fs::Metadata,
+) -> Result<bool> {
+    use std::os::unix::fs::MetadataExt;
+    Ok(initial.dev() == current.dev() && initial.ino() == current.ino())
+}
+
+#[cfg(windows)]
+fn same_compound_object(
+    path: &Path,
+    input: &File,
+    _initial: &std::fs::Metadata,
+    _current: &std::fs::Metadata,
+) -> Result<bool> {
+    Ok(same_file::Handle::from_file(input.try_clone()?)? == same_file::Handle::from_path(path)?)
+}
+
+#[cfg(not(any(unix, windows)))]
+fn same_compound_object(
+    _path: &Path,
+    _input: &File,
+    _initial: &std::fs::Metadata,
+    _current: &std::fs::Metadata,
+) -> Result<bool> {
+    Ok(false)
 }
 
 /// Extensions of exact file identities that discovery can safely inspect.
@@ -1376,7 +1506,7 @@ pub(crate) fn inspect_file_identity(
     inspect_file_identity_with_compound(catalog, profile_id, path, identity, None)
 }
 
-fn inspect_file_identity_with_compound(
+pub(crate) fn inspect_file_identity_with_compound(
     catalog: &Catalog,
     profile_id: &str,
     path: &Path,
@@ -1777,6 +1907,74 @@ mod tests {
             track_count: tracks,
             volume_id: None,
         }
+    }
+
+    #[test]
+    fn compound_handle_guard_rejects_resize_replacement_and_symlinks() {
+        let temporary = tempfile::tempdir().unwrap();
+        let path = temporary.path().join("package");
+        for size in [2, 6] {
+            fs::write(&path, b"LIVE").unwrap();
+            let input = File::open(&path).unwrap();
+            let initial = input.metadata().unwrap();
+            verify_compound_location(&path, &input, &initial).unwrap();
+            fs::OpenOptions::new()
+                .write(true)
+                .open(&path)
+                .unwrap()
+                .set_len(size)
+                .unwrap();
+            assert!(verify_compound_location(&path, &input, &initial).is_err());
+        }
+        fs::write(&path, b"LIVE").unwrap();
+        let input = File::open(&path).unwrap();
+        let initial = input.metadata().unwrap();
+        let replacement = temporary.path().join("replacement");
+        fs::write(&replacement, b"LIVE").unwrap();
+        fs::remove_file(&path).unwrap();
+        fs::rename(&replacement, &path).unwrap();
+        assert!(verify_compound_location(&path, &input, &initial).is_err());
+        #[cfg(unix)]
+        {
+            fs::remove_file(&path).unwrap();
+            let target = temporary.path().join("target");
+            fs::write(&target, b"LIVE").unwrap();
+            std::os::unix::fs::symlink(target, &path).unwrap();
+            assert!(verify_compound_location(&path, &input, &initial).is_err());
+        }
+    }
+
+    #[test]
+    fn compound_hash_and_validation_keep_the_handle_when_the_path_is_replaced() {
+        let temporary = tempfile::tempdir().unwrap();
+        let path = temporary.path().join("package");
+        let package = stfs_fixture();
+        fs::write(&path, &package).unwrap();
+        let mut input = File::open(&path).unwrap();
+        let initial = input.metadata().unwrap();
+        let identity = crate::source_file::read_raw_identity_from_reader(
+            &path,
+            &mut input,
+            initial.len(),
+            initial.len(),
+            &mut HashBudget {
+                operation: None,
+                limit: initial.len(),
+                hashed: 0,
+                max_zip_entries: 4096,
+            },
+        )
+        .unwrap();
+        assert_eq!(identity.sha256, hex::encode(Sha256::digest(&package)));
+        let replacement = temporary.path().join("replacement");
+        fs::write(&replacement, vec![0_u8; package.len()]).unwrap();
+        fs::remove_file(&path).unwrap();
+        fs::rename(replacement, &path).unwrap();
+        // The validator reads the exact original handle, not the new pathname.
+        crate::stfs::validate_reader(&mut input, initial.len(), &|| Ok(())).unwrap();
+        assert!(crate::stfs::validate(&path, &|| Ok(())).is_err());
+        assert!(verify_compound_location(&path, &input, &initial).is_err());
+        assert_eq!(fs::read(path).unwrap(), vec![0_u8; package.len()]);
     }
 
     fn stfs_fixture() -> Vec<u8> {
