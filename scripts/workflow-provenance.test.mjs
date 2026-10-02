@@ -481,6 +481,7 @@ test("hosted execution binds actual Git source, default base, controller and fin
 });
 
 test("hosted binding rejects frontend validation helper and test-policy changes", async (t) => {
+  const f = hostedFixture(t);
   for (const name of [
     "apps/desktop/scripts/check-copy.mjs",
     "apps/desktop/vitest.config.ts",
@@ -489,7 +490,7 @@ test("hosted binding rejects frontend validation helper and test-policy changes"
     "apps/desktop/i18next.config.ts",
     "apps/desktop/i18next.invalid.config.ts",
   ]) {
-    const f = hostedFixture(t);
+    f.git(f.source, ["reset", "--hard", f.head]);
     f.write(f.source, name, "process.exit(0);\n");
     f.git(f.source, ["add", "."]);
     f.git(f.source, ["commit", "--quiet", "-m", "altered frontend validation"]);
