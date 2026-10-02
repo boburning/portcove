@@ -79,6 +79,30 @@ remain authoritative. Publication precedes source registration; registration
 precedes optional original cleanup. Phase writes preserve the existing durable
 ordering and interruption recovery, including publication before its phase write.
 
+## Output relocation interpretation
+
+Normal relocation and recovery decode the same private checked relocation family.
+Copying, prepared, published, metadata committed and cleanup pending map to the
+existing stored phases without a journal, SQLite or public contract migration.
+The journal owner, reviewed plan and fingerprint, installed-port identities,
+original paths and final destination must agree; other family payloads are
+refused before mutation. Staging must belong to the reviewed destination and
+operation, and existing output-root/marker/symlink guards validate it in every
+phase and again before cleanup. Missing staging remains acceptable after
+publication, when no staging work is requested; copying and publication still
+require it.
+
+This interpretation does not grant consent or filesystem authority. One-use
+review, port locking and the post-lock journal reread remain authoritative.
+Copies are verified before publication; publication precedes the atomic install
+path/output-preference commit; old-copy cleanup follows verified new authority.
+Checked forward transitions retain each existing fault boundary, legal recovery
+phase and cleanup-pending retry, including completed cleanup before its journal
+is retired. Malformed records retain their journal, originals and diagnostic
+failure instead of cleaning a foreign directory or recovering under another
+port's lock. Existing old/new authority, retained-definition, source/save/backup
+and owned-tree checks continue to govern their respective operations.
+
 ## Managed removal interpretation
 
 Normal removal and recovery decode the released lifecycle envelope through the
