@@ -859,7 +859,7 @@ function SourceHealth({
   installedCount,
   outcomes,
   inspections,
-  inspectionReads,
+  inspectionReads = new Map(),
   retryInspection,
   busy,
   verify,
@@ -882,7 +882,7 @@ function SourceHealth({
   add?: (profile: SourceProfile, archive: boolean) => void;
   profiles: SourceProfile[];
   inspections: ReadonlyMap<string, SourceInspectionReport>;
-  inspectionReads: ReadonlyMap<string, SourceInspectionReadState>;
+  inspectionReads?: ReadonlyMap<string, SourceInspectionReadState>;
   retryInspection?: (profileId: string) => Promise<void>;
   onAdded?: () => Promise<unknown>;
   openEvidence?: (evidenceId: string) => void;
@@ -1419,8 +1419,7 @@ export function SettingsView({
   installedCount = 0,
   sourceOutcomes = [],
   sourceInspections = new Map(),
-  sourceInspectionReads = new Map(),
-  retrySourceInspection,
+  sourceInspectionReadback,
   verifySources,
   replaceSource,
   addSource,
@@ -1464,8 +1463,10 @@ export function SettingsView({
   verifySources?: () => void;
   replaceSource?: (source: SourceRecord) => void;
   sourceInspections?: ReadonlyMap<string, SourceInspectionReport>;
-  sourceInspectionReads?: ReadonlyMap<string, SourceInspectionReadState>;
-  retrySourceInspection?: (profileId: string) => Promise<void>;
+  sourceInspectionReadback?: {
+    reads: ReadonlyMap<string, SourceInspectionReadState>;
+    retry: (profileId: string) => Promise<void>;
+  };
   openSourceEvidence?: (evidenceId: string) => void;
   addSource?: (profile: SourceProfile, archive: boolean) => void;
   appearance?: ThemeState;
@@ -1580,8 +1581,8 @@ export function SettingsView({
           installedCount={installedCount}
           outcomes={sourceOutcomes}
           inspections={sourceInspections}
-          inspectionReads={sourceInspectionReads}
-          retryInspection={retrySourceInspection}
+          inspectionReads={sourceInspectionReadback?.reads}
+          retryInspection={sourceInspectionReadback?.retry}
           busy={busy}
           verify={verifySources}
           replace={replaceSource}

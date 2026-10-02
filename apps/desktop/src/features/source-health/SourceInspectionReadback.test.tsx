@@ -55,8 +55,7 @@ function Fixture({ sources = [source] }: { sources?: SourceRecord[] }) {
       }))}
       sourceInspections={state.inspections}
       sourceOutcomes={state.outcomes}
-      sourceInspectionReads={state.inspectionReads}
-      retrySourceInspection={state.inspectSource}
+      sourceInspectionReadback={{ reads: state.inspectionReads, retry: state.inspectSource }}
       verifySources={() => void state.verifyAll()}
     />
   );
