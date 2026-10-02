@@ -930,13 +930,29 @@ impl Discovery<'_> {
                 .as_ref()
                 .expect("discovery owns operation");
             operation.checkpoint()?;
-            let inspection = archive.inspect(
+            let inspection = match archive.inspect(
                 self.catalog,
                 &profile.id,
                 path,
                 self.limits.max_file_bytes,
                 &mut self.budget,
-            )?;
+            ) {
+                Ok(inspection) => inspection,
+                Err(error) if error.code == crate::ErrorCode::Cancelled => return Err(error),
+                Err(error) if error.details.contains_key("scan_limit") => {
+                    self.reached
+                        .insert(if error.details["scan_limit"] == "file_size" {
+                            SourceDiscoveryLimit::FileSize
+                        } else {
+                            SourceDiscoveryLimit::HashBytes
+                        });
+                    continue;
+                }
+                Err(error) => {
+                    self.issue(Some(path.into()), Some(profile.id.clone()), error.message);
+                    continue;
+                }
+            };
             if matches!(
                 inspection.assessment.admission,
                 crate::SourceAdmission::Admitted {

@@ -1735,8 +1735,8 @@ scan cannot publish a snapshot; the final registry comparison and snapshot
 write share one database transaction. After a successful scan, core atomically
 replaces one bounded versioned snapshot containing
 the exact root identities and states, authoritative catalog digest, discovery report,
-limits and completion time. Current format 4 records the exact validated limits
-and directory-file-set coverage. Earlier format-3 snapshots retain their original-file/ZIP coverage and are stale until rescanned. Earlier format-2 snapshots remain
+limits and completion time. Current format 5 records the exact validated limits
+and directory/ZIP-file-set coverage. Earlier format-4 snapshots retain directory-file-set coverage and are stale until rescanned. Earlier format-3 snapshots retain their original-file/ZIP coverage and are stale until rescanned. Earlier format-2 snapshots remain
 readable with their recorded limits, and format-1 snapshots remain readable with
 unknown limits rather than invented coverage. All earlier formats are stale until
 a new scan runs; cancellation or failure preserves the prior snapshot. Reached limits remain explicit partial coverage; the current request/report has no continuation token, so another foreground scan starts anew rather than claiming resumable traversal.

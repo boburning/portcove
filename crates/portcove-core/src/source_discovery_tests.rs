@@ -1975,3 +1975,73 @@ fn zip_file_set_progress_cancellation_keeps_previous_snapshot() {
     );
     assert!(service.library().sources().unwrap().is_empty());
 }
+
+#[test]
+fn zip_profile_limit_does_not_hide_a_later_independent_small_set() {
+    let temporary = tempfile::tempdir().unwrap();
+    let (catalog, fixtures) = directory_set_catalog();
+    let path = temporary.path().join("set.zip");
+    let large = vec![0; 4096];
+    let mut zip = zip::ZipWriter::new(fs::File::create(&path).unwrap());
+    for (name, bytes) in fixtures
+        .iter()
+        .map(|(name, bytes)| (*name, bytes.as_slice()))
+        .chain([("large.bin", large.as_slice())])
+    {
+        zip.start_file(
+            name,
+            zip::write::SimpleFileOptions::default()
+                .compression_method(zip::CompressionMethod::Deflated),
+        )
+        .unwrap();
+        zip.write_all(bytes).unwrap();
+    }
+    zip.finish().unwrap();
+    let original = fs::read(&path).unwrap();
+    assert!(original.len() < 1024);
+    let mut document = catalog.document().clone();
+    let source = document.source_catalog.as_mut().unwrap();
+    let mut earlier = source
+        .identities
+        .iter()
+        .find(|profile| profile.id == "g-diffuser-source-set")
+        .unwrap()
+        .clone();
+    earlier.id = "a-expanded-set".into();
+    let crate::SourceRepresentationKind::FileSet { members } =
+        &mut earlier.variants[0].representations[0].kind
+    else {
+        unreachable!()
+    };
+    members[2].filenames = vec!["large.bin".into()];
+    members[2].identities = vec![crate::DigestIdentity {
+        scope: crate::DigestScope::FileSetMember,
+        sha1: Some(hex::encode(sha1::Sha1::digest(&large))),
+        sha256: Some(hex::encode(Sha256::digest(&large))),
+        crc32: Some(format!("{:08x}", crc32fast::hash(&large))),
+    }];
+    source.identities.push(earlier);
+    let mut json = serde_json::to_value(document).unwrap();
+    json.as_object_mut().unwrap().remove("source_profiles");
+    let catalog = Catalog::from_json(&json.to_string()).unwrap();
+    for (maximum, expected_limit) in [
+        (1024, SourceDiscoveryLimit::FileSize),
+        (6000, SourceDiscoveryLimit::HashBytes),
+    ] {
+        let mut selected = request(temporary.path());
+        selected.profile_ids = vec!["g-diffuser-source-set".into(), "a-expanded-set".into()];
+        selected.limits.max_file_bytes = maximum;
+        selected.limits.max_hash_bytes = original.len() as u64
+            + fixtures
+                .iter()
+                .map(|(_, bytes)| bytes.len() as u64)
+                .sum::<u64>();
+        let report = scan(&catalog, &selected).unwrap();
+        assert_eq!(report.candidates.len(), 1);
+        assert_eq!(report.candidates[0].profile_id, "g-diffuser-source-set");
+        assert_eq!(report.hash_bytes, selected.limits.max_hash_bytes);
+        assert_eq!(report.files_hashed, 1);
+        assert!(report.limits_reached.contains(&expected_limit));
+        assert_eq!(fs::read(&path).unwrap(), original);
+    }
+}
