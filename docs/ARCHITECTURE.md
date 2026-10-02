@@ -1957,8 +1957,14 @@ owner of source matching, verification and typed diagnostic/recovery facts.
 The `features/bootstrap` unit owns the initial bootstrap-status read, normalized
 startup failure state and the choose, switch and reset library handoff. A
 successful result publishes the returned generation so App remounts all
-library-owned state; cancelling the native folder picker leaves the current
-library untouched. Recovery presentation remains application composition. Tauri
+library-owned state. A private synchronous pending guard prevents overlapping
+selection commands and disables the startup recovery selection controls while a
+picker or handoff is pending. Cancelling the native picker releases that guard
+without switching libraries. Disposed or superseded startup reads and obsolete
+picker completions cannot publish state or dispatch another selection; accepted
+host snapshots cannot regress the current generation. Already dispatched native
+mutations are not cancelled by renderer disposal. Recovery presentation remains
+application composition. Tauri
 and core still own library opening, lease exclusion, persistence and generation
 assignment.
 
