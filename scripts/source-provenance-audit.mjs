@@ -70,8 +70,56 @@ function projectContext(item) {
     : "No fields recorded";
 }
 
-function explicitGap(body) {
+// A collapsed section is still current unless its own summary explicitly supersedes it.
+function withoutSupersededHistory(body) {
   const text = String(body ?? "");
+  const stack = [];
+  const ignored = [];
+  let fence;
+  const tokens =
+    /^ {0,3}(?:`{3,}|~{3,})[^\n]*(?:\n|$)|(`+)[\s\S]*?\1|<!--[\s\S]*?(?:-->|$)|<\/?details\b[^>]*>/gimu;
+  for (const match of text.matchAll(tokens)) {
+    const token = match[0];
+    const marker = token.match(/^ {0,3}(`{3,}|~{3,})(.*)/u);
+    if (marker) {
+      if (!fence) fence = marker[1];
+      else if (marker[1][0] === fence[0] && marker[1].length >= fence.length && !marker[2].trim())
+        fence = undefined;
+      continue;
+    }
+    if (fence || token.startsWith("<!--") || token.startsWith("`")) continue;
+    if (!token.startsWith("</")) {
+      stack.push({ start: match.index, content: match.index + token.length });
+      continue;
+    }
+    const opening = stack.pop();
+    if (!opening) continue;
+    const end = match.index + token.length;
+    const content = text.slice(opening.content, match.index);
+    const summary = content.match(
+      /^\s*<summary\b[^>]*>((?:(?!<\/?(?:details|summary)\b)[\s\S])*?)<\/summary\s*>/iu,
+    )?.[1];
+    // Accept complete supersession titles, not arbitrary sentences whose leading
+    // word could introduce a question, negation, or an uncertain decision.
+    const label = summary?.replace(/<!--([\s\S]*?)-->|<[^>]*>/gu, "").trim();
+    if (/^superseded(?:\s+(?:historical\s+scope|history|scope))?$/iu.test(label ?? ""))
+      ignored.push({ start: opening.start, end });
+  }
+  // Do not infer a boundary through malformed/unclosed parent details.
+  const unclosed = stack[0]?.start ?? text.length;
+  const ranges = ignored.filter(({ start }) => start < unclosed).sort((a, b) => a.start - b.start);
+  let result = "";
+  let cursor = 0;
+  for (const { start, end } of ranges) {
+    if (start < cursor) continue;
+    result += `${text.slice(cursor, start)}\n`;
+    cursor = end;
+  }
+  return result + text.slice(cursor);
+}
+
+function explicitGap(body) {
+  const text = withoutSupersededHistory(body);
   const scoped = text.match(/^\s*- Current blocker and exact resume condition:\s*(.+)$/im)?.[1];
   if (scoped) return scoped.trim();
   const section = text.match(
@@ -80,7 +128,7 @@ function explicitGap(body) {
   if (!section) return "No explicit gap recorded";
   return (
     section
-      .replace(/<details>[\s\S]*/i, "")
+      .replace(/<\/?(?:details|summary)\b[^>]*>/giu, "")
       .replace(/\s+/g, " ")
       .trim()
       .slice(0, 500) || "No explicit gap recorded"
