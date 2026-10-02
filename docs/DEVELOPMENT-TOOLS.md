@@ -888,3 +888,10 @@ of retained installed bytes after the isolated installer route, not current
 installed-context, signed production, minimum-version or all-platform evidence.
 Refused navigation does not prove privileged invocation after remote execution;
 earlier instrumented secondary/queued-reply controls remain separate evidence.
+
+WebView2 documents that cancelled `NavigationStarting` can still issue GET
+requests while the host responds. The boundary case records every owned server
+request and requires the popup destination to receive none; it does not promise
+network silence for cancelled navigation. Native refusal, the preserved main
+URL/assets, absent remote fixture execution marker and returned-main IPC establish
+context containment. See the [Microsoft cancellation contract](https://learn.microsoft.com/en-us/microsoft-edge/webview2/reference/win32/icorewebview2navigationstartingeventargs?view=webview2-1.0.4129.50).

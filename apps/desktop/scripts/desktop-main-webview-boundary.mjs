@@ -63,8 +63,16 @@ export async function normalPackageBoundaryScenario({
   const observations = { package: packageEvidence };
   const requests = [];
   const server = createServer((request, response) => {
-    requests.push(request.url);
-    response.end("<!doctype html><title>Owned untrusted origin</title>");
+    requests.push({
+      method: request.method,
+      path: request.url,
+      user_agent: request.headers["user-agent"] ?? null,
+      observed_at: new Date().toISOString(),
+    });
+    response.setHeader("Content-Type", "text/html");
+    response.end(
+      "<!doctype html><title>Owned untrusted origin</title><script>window.__untrustedBoundary = true</script>",
+    );
   });
   await new Promise((resolve, reject) => {
     server.once("error", reject);
@@ -104,6 +112,10 @@ export async function normalPackageBoundaryScenario({
     observations.returnedMain = await invoke("get_bootstrap_status");
     assert.equal(observations.returnedMain.ok, true);
     assert.equal(path.resolve(observations.returnedMain.value.library_root), library);
+    observations.remoteMarkerExecuted = await browser.executeScript(
+      () => window.__untrustedBoundary === true,
+    );
+    assert.equal(observations.remoteMarkerExecuted, false);
     const diagnostics = (
       await readFile(path.join(library, "logs", "portcove-desktop.jsonl"), "utf8")
     )
@@ -117,7 +129,13 @@ export async function normalPackageBoundaryScenario({
       observations.nativePermissionDenials.length > 0,
       "Actual native permission denial is required",
     );
-    assert.deepEqual(requests, [], "Blocked destinations must receive no fixture request");
+    // WebView2 NavigationStarting cancellation preserves the page but explicitly
+    // permits a speculative GET while the host responds. Do not claim network silence.
+    assert.deepEqual(
+      requests.filter((request) => request.path.endsWith("/popup")),
+      [],
+      "Refused popup must receive no fixture request",
+    );
   } finally {
     await new Promise((resolve, reject) =>
       server.close((error) => (error ? reject(error) : resolve())),
