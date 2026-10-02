@@ -188,7 +188,7 @@ async function checkReviewedExternal(cli, library, catalogPath, workspace, env) 
   assert.equal((await status()).external_runtime.id, registered.id);
   const original = path.join(workspace, "owned original.n64");
   await writeFile(original, "synthetic original source");
-  await run(cli, ["--library", library, "--json", "source", "register", "star-fox-64", original], {
+  await run(cli, ["--library", library, "--json", "source", "add", "star-fox-64", original], {
     env,
     echo: false,
   });
