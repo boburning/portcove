@@ -128,7 +128,6 @@ export function UpdateCenter({
   onSelect: (portId: string, originKey?: string) => void;
   onOpenSettings: (target: ActivitySettingsTarget, sourceProfileId?: string) => void;
 }) {
-  const pendingCheck = useRef<typeof checkAll | undefined>(undefined);
   const earlierBatch =
     batchRead !== undefined && ["pending", "failed", "cancelled"].includes(batchRead.status);
   const [nowSeconds, setNowSeconds] = useState(initialActivityNowSeconds);
@@ -200,51 +199,14 @@ export function UpdateCenter({
             warning={failed > 0}
           />
         </div>
-        <div className="update-buttons flex items-center gap-2">
-          <Button
-            data-focusable
-            variant="outline"
-            disabled={Boolean(busy) || batchRead?.status === "pending" || installed.length === 0}
-            onClick={() => {
-              if (pendingCheck.current === checkAll) return;
-              pendingCheck.current = checkAll;
-              void Promise.resolve(checkAll()).finally(() => {
-                if (pendingCheck.current === checkAll) pendingCheck.current = undefined;
-              });
-            }}
-          >
-            <Icon glyph={RefreshCw} />
-            {busy === "check installed" || batchRead?.status === "pending"
-              ? "Checking installed ports…"
-              : batchRead?.status === "failed" || batchRead?.status === "cancelled"
-                ? "Retry update check"
-                : "Check installed ports for updates"}
-          </Button>
-        </div>
+        <UpdateCheckControl
+          busy={busy}
+          status={batchRead?.status}
+          hasInstalled={installed.length > 0}
+          checkAll={checkAll}
+        />
       </div>
-      {earlierBatch && (
-        <div
-          className="update-explainer mb-4 text-xs leading-[var(--leading-comfortable)] text-pc-muted-foreground"
-          role="status"
-        >
-          <strong>
-            {batchRead.status === "pending"
-              ? "Checking for updates"
-              : batchRead.status === "cancelled"
-                ? "Update check cancelled"
-                : "Update check did not finish"}
-          </strong>
-          <p>
-            {batchRead.status === "pending"
-              ? "Showing earlier results while the current check runs, where available."
-              : "Current update results are unavailable. Earlier results remain shown where available."}
-          </p>
-          <p>Retry only checks for updates. Open a game to review any download or installation.</p>
-          {batchRead.status === "failed" && batchRead.failure && (
-            <FailureDetails presentation={batchRead.failure} showMutationSummary={false} />
-          )}
-        </div>
-      )}
+      <UpdateBatchNotice read={batchRead} />
       <p className="update-explainer mb-4 text-xs leading-[var(--leading-comfortable)] text-pc-muted-foreground">
         Checking only looks for updates. Open a game below to review a download or installation.
         Saving its update settings runs no update.
@@ -402,6 +364,70 @@ export function UpdateCenter({
         nowSeconds={nowSeconds}
       />
     </section>
+  );
+}
+
+function UpdateCheckControl({
+  busy,
+  status,
+  hasInstalled,
+  checkAll,
+}: {
+  busy?: string;
+  status?: UpdateBatchRead["status"];
+  hasInstalled: boolean;
+  checkAll: () => void | Promise<void>;
+}) {
+  const pendingCheck = useRef<typeof checkAll | undefined>(undefined);
+  return (
+    <div className="update-buttons flex items-center gap-2">
+      <Button
+        data-focusable
+        variant="outline"
+        disabled={Boolean(busy) || status === "pending" || !hasInstalled}
+        onClick={() => {
+          if (pendingCheck.current === checkAll) return;
+          pendingCheck.current = checkAll;
+          void Promise.resolve(checkAll()).finally(() => {
+            if (pendingCheck.current === checkAll) pendingCheck.current = undefined;
+          });
+        }}
+      >
+        <Icon glyph={RefreshCw} />
+        {busy === "check installed" || status === "pending"
+          ? "Checking installed ports…"
+          : status === "failed" || status === "cancelled"
+            ? "Retry update check"
+            : "Check installed ports for updates"}
+      </Button>
+    </div>
+  );
+}
+
+function UpdateBatchNotice({ read }: { read?: UpdateBatchRead }) {
+  if (!read || read.status === "idle" || read.status === "current") return null;
+  return (
+    <div
+      className="update-explainer mb-4 text-xs leading-[var(--leading-comfortable)] text-pc-muted-foreground"
+      role="status"
+    >
+      <strong>
+        {read.status === "pending"
+          ? "Checking for updates"
+          : read.status === "cancelled"
+            ? "Update check cancelled"
+            : "Update check did not finish"}
+      </strong>
+      <p>
+        {read.status === "pending"
+          ? "Showing earlier results while the current check runs, where available."
+          : "Current update results are unavailable. Earlier results remain shown where available."}
+      </p>
+      <p>Retry only checks for updates. Open a game to review any download or installation.</p>
+      {read.status === "failed" && read.failure && (
+        <FailureDetails presentation={read.failure} showMutationSummary={false} />
+      )}
+    </div>
   );
 }
 
