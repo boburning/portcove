@@ -150,7 +150,7 @@ Requirements:
 
 - Rust 1.98.1
 - Node.js 24.21.0
-- pnpm 12.7.0
+- pnpm 12.8.1
 - the [Tauri 2 platform prerequisites](https://v2.tauri.app/start/prerequisites/)
 
 Development storage defaults are portable: a checkout may use the Windows system drive when its physical paths and free capacity pass preflight. Prefer an SSD for fixture-heavy work. A stricter machine-local policy can impose additional restrictions without changing repository defaults. See [docs/DEVELOPMENT-STORAGE.md](docs/DEVELOPMENT-STORAGE.md) for the storage checks and private-policy boundary.
