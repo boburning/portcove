@@ -694,8 +694,8 @@ function normalizedLock(manager, lock, packageName, version) {
       ),
   );
   return text.replace(
-    new RegExp(String.raw`${escaped}@${gitRegex(version)}(?=[(:'"\s]|$)`, "gu"),
-    packageName + "@<direct-version>",
+    new RegExp(String.raw`(^|[\s'"(])${escaped}@${gitRegex(version)}(?=[(:'"\s]|$)`, "gmu"),
+    (_match, prefix) => `${prefix}${packageName}@<direct-version>`,
   );
 }
 

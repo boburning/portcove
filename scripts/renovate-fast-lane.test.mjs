@@ -480,6 +480,17 @@ test("pnpm masking is confined to the direct artifact and importer entry, includ
   assert.doesNotThrow(() =>
     validateDependencyDelta({ ...change, headLock: change.headLock.replaceAll("\n", "\r\n") }),
   );
+  for (const name of ["not-lucide-react", "@scope/lucide-react"]) {
+    assert.throws(
+      () =>
+        validateDependencyDelta({
+          ...change,
+          baseLock: change.baseLock + `snapshots:\n  '${name}@1.45.0': {}\n`,
+          headLock: change.headLock + `snapshots:\n  '${name}@1.46.0': {}\n`,
+        }),
+      /resolved lock graph/,
+    );
+  }
 });
 
 test("current-base manifest workflow and policy interactions stay manual", () => {
