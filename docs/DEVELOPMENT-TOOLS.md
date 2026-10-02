@@ -423,6 +423,17 @@ The curated profiles are:
 - `full`: smoke, owned lifecycle and artwork. It remains a curated native suite,
   not universal desktop, physical-device, gameplay or human qualification.
 
+`--scenario native-host-interrupted-preparation` is an opt-in Windows proof:
+an owned setup child reaches its live checkpoint, the identified harness tree
+is forcibly terminated without first deleting the WebDriver session, and a new
+native host performs recovery. The run checks source, original executable,
+active-install and save preservation, retained staging, recovered activity and
+cleanup refusal when durable process quiescence is unknown. It does not rewrite
+the recovery journal. The existing `native-interrupted-preparation-recovery`
+remains a separate synthetic durable-state and reviewed-cleanup test. Neither
+scenario proves OS shutdown, another operation family, installed packages or
+another platform.
+
 The runner performs the desktop doctor and storage preflight, verifies that the
 pinned Selenium workspace package resolves, builds or exactly reuses the frontend
 with embedded assets, asks Cargo to validate/reuse the Tauri application, builds the CLI/probe only for owned-fixture

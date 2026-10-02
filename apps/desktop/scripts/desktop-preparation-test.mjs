@@ -13,7 +13,10 @@ import { artworkCorrectionScenario } from "./desktop-artwork-correction-test.mjs
 import { libraryHandoffScenario } from "./desktop-library-handoff-test.mjs";
 import { adoptionReviewScenario } from "./desktop-adoption-review-test.mjs";
 import { sourceRemovalScenario } from "./desktop-source-removal-test.mjs";
-import { interruptedPreparationScenario } from "./desktop-preparation-recovery-test.mjs";
+import {
+  interruptedPreparationScenario,
+  liveInterruptedPreparationScenario,
+} from "./desktop-preparation-recovery-test.mjs";
 import {
   assertCompactReview,
   assertPrimaryReviewAction,
@@ -84,6 +87,7 @@ export async function preparationScenarios({
   tool,
   confirmNative,
   restartApplication,
+  interruptApplication,
 }) {
   const command = (args, selectedLibrary = library) => {
     const result = spawnCommand(
@@ -1008,6 +1012,20 @@ export async function preparationScenarios({
     confirmNative,
     restartApplication,
   });
+  browser = await liveInterruptedPreparationScenario({
+    browser,
+    invoke,
+    scenario,
+    library,
+    output,
+    artifacts,
+    command,
+    activities,
+    seed,
+    open,
+    status,
+    interruptApplication,
+  });
   await scenario("native-update-settings-save-without-execution", async () => {
     const port = command(["catalog", "show", "opengoal-jak1"]);
     const cliBefore = command(["status", port.id]);
@@ -1370,6 +1388,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     tool: "<preflight-tool>",
     confirmNative: async () => {},
     restartApplication: async () => {},
+    interruptApplication: async () => {},
   });
   console.log("Native scenario context preflight passed.");
 }

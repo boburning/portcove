@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import { createHash, randomUUID } from "node:crypto";
 import path from "node:path";
-import { access, writeFile } from "node:fs/promises";
+import { access, mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import { DatabaseSync } from "node:sqlite";
 import { By, Key, until } from "selenium-webdriver";
 import {
@@ -783,6 +783,170 @@ export async function interruptedPreparationScenario({
       'arguments[0].scrollIntoView({ block: "start", inline: "nearest" });',
       finalInterruptedRow,
     );
+  });
+  return browser;
+}
+
+export async function liveInterruptedPreparationScenario({
+  browser,
+  invoke,
+  scenario,
+  library,
+  output,
+  artifacts,
+  command,
+  activities,
+  seed,
+  open,
+  status,
+  interruptApplication,
+}) {
+  await scenario("native-host-interrupted-preparation", async () => {
+    assert.equal(process.platform, "win32", "This scenario qualifies Windows only");
+    assert.equal(path.resolve(library), path.resolve(output, "library"));
+    const { port } = await seed("opengoal-jak3", "wait");
+    const original = path.join(output, `owned-${port.id}`);
+    const executableHint = port.setup_executable_hints["windows-x86-64"][0];
+    const source = path.join(output, `${port.id}.iso`);
+    const digest = async (file) =>
+      createHash("sha256")
+        .update(await readFile(file))
+        .digest("hex");
+    const originalExecutable = path.join(original, executableHint);
+    const active = command(["status", port.id]).active;
+    const save = path.join(active.path, "OpenGOAL", "jak3", "save.bin");
+    await mkdir(path.dirname(save), { recursive: true });
+    await writeFile(save, "owned save must survive interrupted preparation", { flag: "wx" });
+    const before = {
+      active,
+      source_sha256: await digest(source),
+      original_executable_sha256: await digest(originalExecutable),
+      active_setup_sha256: await digest(path.join(active.path, executableHint)),
+      active_game_sha256: await digest(
+        path.join(active.path, port.executable_hints["windows-x86-64"][0]),
+      ),
+      save_sha256: await digest(save),
+    };
+    await open(port);
+    await browser
+      .findElement(By.xpath('//button[normalize-space(.)="Review game preparation"]'))
+      .click();
+    await browser.wait(
+      until.elementLocated(By.xpath('//button[normalize-space(.)="Prepare game data"]')),
+      15_000,
+    );
+    await browser.findElement(By.xpath('//button[normalize-space(.)="Prepare game data"]')).click();
+    let activity;
+    let checkpoint;
+    await browser.wait(
+      async () => {
+        activity = (await activities()).find(
+          (item) =>
+            item.operation === "prepare" && item.target_id === port.id && item.status === "running",
+        );
+        if (!activity) return false;
+        checkpoint = path.join(library, "staging", activity.id, "payload/data/out/setup-ready");
+        return stat(checkpoint).then(
+          (entry) => entry.isFile(),
+          () => false,
+        );
+      },
+      15_000,
+      "Owned setup child must be live before host interruption",
+    );
+    const privatePath = path.join(library, "staging", activity.id);
+    const preparationExecutable = path.join(privatePath, "payload", executableHint);
+    assert.equal(await digest(preparationExecutable), before.original_executable_sha256);
+    const beforeImage = path.join(output, "native-live-preparation-before-interruption.png");
+    await writeFile(beforeImage, await browser.takeScreenshot(), {
+      encoding: "base64",
+      flag: "wx",
+    });
+    artifacts.push(beforeImage);
+    browser = await interruptApplication(
+      "live-preparation-interruption",
+      preparationExecutable,
+      async () => {
+        assert.equal(
+          (await activities()).find((item) => item.id === activity.id)?.status,
+          "running",
+        );
+        assert.deepEqual((await status(port.id)).active, before.active);
+        assert.equal((await status(port.id)).readiness.launchable, false);
+        assert.ok(
+          Date.now() - (await stat(checkpoint)).mtimeMs < 25_000,
+          "Terminate before the owned fixture's 30-second completion window",
+        );
+      },
+    );
+    // Actual host startup owns recovery. These public CLI observations do not
+    // repair SQLite or attest process quiescence on the product's behalf.
+    const recovered = command(["activity"]).records.find((item) => item.id === activity.id);
+    assert.equal(recovered.status, "failed");
+    assert.equal(recovered.failure.presentation.presentation_key, "preparation_interrupted");
+    assert.equal(recovered.failure.presentation.mutation_state, "recovery_required");
+    const repair = command(["doctor"]).repair.items.find(
+      (item) => item.operation_id === activity.id,
+    );
+    assert.equal(repair.kind, "retained_preparation");
+    assert.equal(path.resolve(repair.path), path.resolve(privatePath));
+    assert.deepEqual(command(["status", port.id]).active, before.active);
+    assert.equal(await digest(source), before.source_sha256);
+    assert.equal(await digest(originalExecutable), before.original_executable_sha256);
+    assert.equal(await digest(path.join(active.path, executableHint)), before.active_setup_sha256);
+    assert.equal(
+      await digest(path.join(active.path, port.executable_hints["windows-x86-64"][0])),
+      before.active_game_sha256,
+    );
+    assert.equal(await digest(save), before.save_sha256);
+    await access(checkpoint);
+    const generation = (await invoke("get_bootstrap_status")).value.generation;
+    const cleanup = await invoke("preview_preparation_cleanup", {
+      operationId: activity.id,
+      generation,
+    });
+    assert.equal(cleanup.ok, false);
+    assert.equal(cleanup.error.code, "conflict");
+    assert.equal(cleanup.error.details.recovery_action, "manual_review");
+    assert.match(cleanup.error.message, /process quiescence is not proven/);
+    await browser.findElement(By.xpath('//nav//button[contains(., "Game updates")]')).click();
+    const row = await browser.wait(
+      async () => {
+        for (const candidate of await browser.findElements(By.css(".activity-row.failed"))) {
+          const text = await candidate.getText();
+          if (text.includes(port.name) && text.includes(recovered.failure.presentation.summary))
+            return candidate;
+        }
+        return false;
+      },
+      15_000,
+      "Fresh host must render the recovered durable activity",
+    );
+    assert.ok((await row.getText()).includes("Review game preparation"));
+    const afterImage = path.join(output, "native-live-preparation-after-interruption.png");
+    await writeFile(afterImage, await browser.takeScreenshot(), { encoding: "base64", flag: "wx" });
+    artifacts.push(afterImage);
+    const evidence = path.join(output, "live-preparation-preservation.json");
+    await writeFile(
+      evidence,
+      JSON.stringify(
+        {
+          method:
+            "actual Windows owned host and preparation-child termination followed by fresh native startup",
+          operation_id: activity.id,
+          before,
+          recovered_activity: recovered,
+          retained_private_path: privatePath,
+          cleanup_refusal: cleanup.error,
+          limits:
+            "Owned development fixtures; no OS shutdown, installed package, other operation family, or other platform qualification",
+        },
+        null,
+        2,
+      ),
+      { flag: "wx" },
+    );
+    artifacts.push(evidence);
   });
   return browser;
 }
