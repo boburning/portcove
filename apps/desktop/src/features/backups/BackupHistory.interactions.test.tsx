@@ -472,7 +472,7 @@ it("preserves a completed reviewed delete and its focus after readback fails, th
       backups: backups.slice(1),
       problems: [],
     });
-  const remove = vi.spyOn(desktopApi, "deleteBackup").mockResolvedValueOnce(backups[0]!);
+  const remove = vi.spyOn(desktopApi, "deleteBackup").mockResolvedValueOnce(backups[0]);
   const restore = vi.spyOn(desktopApi, "restoreBackup");
   await act(async () => root.render(<DetailReadHistory />));
   const opener = await openDeletion("backup-1");
@@ -522,7 +522,7 @@ it("preserves a completed reviewed restore and its focus when inventory readback
     .mockResolvedValueOnce({ port_id: "sample", state: "healthy", backups, problems: [] });
   const restore = vi
     .spyOn(desktopApi, "restoreBackup")
-    .mockResolvedValueOnce({ restored_backup: backups[0]!, safety_backup: null });
+    .mockResolvedValueOnce({ restored_backup: backups[0], safety_backup: null });
   const remove = vi.spyOn(desktopApi, "deleteBackup");
   await act(async () => root.render(<DetailReadHistory />));
   const opener = container.querySelector<HTMLButtonElement>(
