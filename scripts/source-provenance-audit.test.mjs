@@ -144,6 +144,121 @@ test("identical offline fixtures produce byte-identical ordered evidence", () =>
   );
 });
 
+function researchBlockerInput(body) {
+  const input = fixture();
+  const identity = input.issues[0].body
+    .replace(/^\s*- Current blocker and exact resume condition:.*$/gmu, "")
+    .replace(/^## Dependencies and blockers\s*$[\s\S]*?(?=^##\s|(?![\s\S]))/gmu, "");
+  input.issues[0].body = `${body}\n${identity}`;
+  input.projectItems[0].content.body = input.issues[0].body;
+  return input;
+}
+
+function researchBlocker(body) {
+  return buildSourceProvenanceAudit(researchBlockerInput(body)).research[0].gap;
+}
+
+test("superseded collapsed history does not replace the current research blocker", () => {
+  const history = `<details>
+<summary>Superseded historical scope</summary>
+- Current blocker and exact resume condition: Wait for an already completed historical PR.
+</details>`;
+  const active = "## Dependencies and blockers\nAccepted-source review is still outstanding.";
+  for (const body of [`${history}\n${active}`, `${active}\n${history}`]) {
+    const input = researchBlockerInput(body);
+    const first = buildSourceProvenanceAudit(input);
+    const second = buildSourceProvenanceAudit(input);
+    assert.equal(first.research[0].gap, "Accepted-source review is still outstanding.");
+    assert.equal(renderSourceProvenanceAudit(first), renderSourceProvenanceAudit(second));
+    assert.deepEqual(first.observations, []);
+    const baseline = buildSourceProvenanceAudit(fixture());
+    assert.deepEqual(first.cataloged, baseline.cataloged);
+    assert.deepEqual(first.counts, baseline.counts);
+    assert.deepEqual({ ...first.research[0], gap: baseline.research[0].gap }, baseline.research[0]);
+  }
+});
+
+test("active and unlabeled collapsed details remain authoritative blockers", () => {
+  for (const summary of [
+    "Current blocker details",
+    "Historical context still applicable",
+    "Not superseded",
+    "Superseded? Review is still pending",
+    "Current blocker supersedes an earlier decision",
+  ]) {
+    assert.equal(
+      researchBlocker(
+        `<details open>\n<summary>${summary}</summary>\n- Current blocker and exact resume condition: Current review remains required.\n</details>`,
+      ),
+      "Current review remains required.",
+    );
+  }
+  assert.equal(
+    researchBlocker(
+      "<details>\n- Current blocker and exact resume condition: Unlabeled review remains required.\n</details>",
+    ),
+    "Unlabeled review remains required.",
+  );
+});
+
+test("section blockers before and after active details are retained", () => {
+  const gap = researchBlocker(`## Dependencies and blockers
+Current source review remains required.
+<details><summary>Current exact resume evidence</summary>
+Artifact bytes have not been assessed.
+</details>
+Fresh accepted records are still required.`);
+  assert.equal(
+    gap,
+    "Current source review remains required. Current exact resume evidence Artifact bytes have not been assessed. Fresh accepted records are still required.",
+  );
+});
+
+test("supersession follows balanced nested boundaries and leaves current neighbors", () => {
+  const history = `<DETAILS open>
+<SUMMARY><strong>Superseded</strong> historical scope</SUMMARY>
+<details><summary>Previous exact blocker</summary>
+- Current blocker and exact resume condition: Historical nested blocker.
+</details>
+</DETAILS>`;
+  assert.equal(
+    researchBlocker(
+      `${history}\n<details><summary>Current review</summary>\n- Current blocker and exact resume condition: Active neighbor remains required.\n</details>`,
+    ),
+    "Active neighbor remains required.",
+  );
+  const nested = researchBlocker(`## Dependencies and blockers
+<details><summary>Current evidence</summary>
+${history}
+Active evidence remains missing.
+</details>`);
+  assert.equal(nested, "Current evidence Active evidence remains missing.");
+});
+
+test("malformed or code/comment examples do not establish a superseded boundary", () => {
+  for (const body of [
+    "<details><summary>Superseded historical scope</summary>\n- Current blocker and exact resume condition: Unclosed evidence remains visible.",
+    "<details><summary>Current scope</summary><details><summary>Superseded history</summary>\n- Current blocker and exact resume condition: Unclosed evidence remains visible.\n</details>",
+    "<details><summary>Superseded historical scope\n- Current blocker and exact resume condition: Unclosed evidence remains visible.\n</details>",
+  ])
+    assert.equal(researchBlocker(body), "Unclosed evidence remains visible.");
+  for (const wrapper of [
+    (text) => `\`\`\`html\n${text}\n\`\`\``,
+    (text) => `~~~~html\n${text}\n~~~~`,
+    (text) => `<!-- ${text} -->`,
+    (text) => `\`${text}\``,
+  ]) {
+    const example = wrapper(
+      "<details><summary>Superseded historical scope</summary>Example facts remain visible.</details>",
+    );
+    const gap = researchBlocker(
+      `## Dependencies and blockers\n${example}\nActual review remains required.`,
+    );
+    assert.ok(gap.includes("Example facts remain visible."));
+    assert.ok(gap.includes("Actual review remains required."));
+  }
+});
+
 test("negative fixtures expose missing tickets, duplicate catalog IDs, stale hashes, and missing evidence", () => {
   const missingIssue = fixture();
   missingIssue.issues = missingIssue.issues.filter((value) => value.number !== 1);
