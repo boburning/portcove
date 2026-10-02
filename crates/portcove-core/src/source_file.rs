@@ -23,9 +23,11 @@ impl HashBudget {
     }
 }
 
+#[derive(Clone)]
 pub(crate) struct FileIdentity {
     pub sha256: String,
     pub sha1: String,
+    pub crc32: String,
     pub size: u64,
     pub storage_sha256: String,
     pub storage_size: u64,
@@ -84,21 +86,37 @@ pub(crate) fn read_identity(
                 extensions.join(", ")
             )));
         }
-        let identity = hash_reader(File::open(path)?, metadata.len(), maximum_size, budget)?;
-        Ok(FileIdentity {
-            storage_sha256: identity.sha256.clone(),
-            storage_size: identity.size,
-            sha256: identity.sha256,
-            sha1: identity.sha1,
-            size: identity.size,
-            content_extension: extension.to_ascii_lowercase(),
-            archive_member: false,
-            archive_member_name: None,
-            canonical_n64_sha256: identity.canonical_n64_sha256,
-            canonical_n64_sha1: identity.canonical_n64_sha1,
-            canonical_n64_size: identity.canonical_n64_size,
-        })
+        read_raw_identity(path, metadata.len(), maximum_size, budget)
     }
+}
+
+/// Original byte facts shared by directory-set and ordinary-file discovery.
+pub(crate) fn read_raw_identity(
+    path: &Path,
+    expected: u64,
+    maximum_size: u64,
+    budget: &mut HashBudget,
+) -> Result<FileIdentity> {
+    crate::path::unicode(path, "source")?;
+    let extension = path
+        .extension()
+        .and_then(|value| value.to_str())
+        .unwrap_or_default();
+    let identity = hash_reader(File::open(path)?, expected, maximum_size, budget)?;
+    Ok(FileIdentity {
+        storage_sha256: identity.sha256.clone(),
+        storage_size: identity.size,
+        sha256: identity.sha256,
+        sha1: identity.sha1,
+        crc32: identity.crc32,
+        size: identity.size,
+        content_extension: extension.to_ascii_lowercase(),
+        archive_member: false,
+        archive_member_name: None,
+        canonical_n64_sha256: identity.canonical_n64_sha256,
+        canonical_n64_sha1: identity.canonical_n64_sha1,
+        canonical_n64_size: identity.canonical_n64_size,
+    })
 }
 
 fn read_zip_identity(
@@ -150,6 +168,7 @@ fn read_zip_identity(
     Ok(FileIdentity {
         sha256: identity.sha256,
         sha1: identity.sha1,
+        crc32: identity.crc32,
         size: identity.size,
         storage_sha256: storage.sha256,
         storage_size: storage.size,
@@ -165,6 +184,7 @@ fn read_zip_identity(
 struct HashedContent {
     sha256: String,
     sha1: String,
+    crc32: String,
     size: u64,
     canonical_n64_sha256: Option<String>,
     canonical_n64_sha1: Option<String>,
@@ -190,6 +210,7 @@ fn hash_reader(
     budget.reserve(expected)?;
     let mut sha256 = Sha256::new();
     let mut sha1 = Sha1::new();
+    let mut crc32 = crc32fast::Hasher::new();
     let mut n64 = N64CanonicalDigest::default();
     let mut size = 0_u64;
     let mut buffer = [0_u8; 128 * 1024];
@@ -206,6 +227,7 @@ fn hash_reader(
         size += read as u64;
         sha256.update(&buffer[..read]);
         sha1.update(&buffer[..read]);
+        crc32.update(&buffer[..read]);
         n64.update(&buffer[..read])?;
     }
     if reader.read(&mut [0_u8; 1])? != 0 {
@@ -215,6 +237,7 @@ fn hash_reader(
     Ok(HashedContent {
         sha256: hex::encode(sha256.finalize()),
         sha1: hex::encode(sha1.finalize()),
+        crc32: format!("{:08x}", crc32.finalize()),
         size,
         canonical_n64_sha256,
         canonical_n64_sha1,
@@ -595,5 +618,36 @@ mod tests {
         assert_eq!(identity.sha256, hex::encode(Sha256::digest(bytes)));
         assert_eq!(identity.size, bytes.len() as u64);
         assert_eq!(budget.hashed, bytes.len() as u64);
+    }
+    #[test]
+    fn raw_member_facts_keep_crc_budget_and_changing_stream_guards() {
+        let bytes = b"facts";
+        let mut budget = HashBudget {
+            operation: None,
+            limit: 5,
+            hashed: 0,
+            max_zip_entries: 4096,
+        };
+        let identity = hash_reader(std::io::Cursor::new(bytes), 5, 5, &mut budget).unwrap();
+        assert_eq!(identity.crc32, format!("{:08x}", crc32fast::hash(bytes)));
+        assert_eq!(identity.sha1, hex::encode(Sha1::digest(bytes)));
+        assert_eq!(identity.sha256, hex::encode(Sha256::digest(bytes)));
+        assert_eq!(budget.hashed, 5);
+        for (data, expected, message) in [
+            (b"ab".as_slice(), 3, "shrank"),
+            (b"abcd".as_slice(), 3, "grew"),
+        ] {
+            let mut budget = HashBudget {
+                operation: None,
+                limit: 3,
+                hashed: 0,
+                max_zip_entries: 4096,
+            };
+            let error = hash_reader(std::io::Cursor::new(data), expected, 3, &mut budget)
+                .err()
+                .unwrap();
+            assert!(error.message.contains(message));
+            assert!(budget.hashed <= 3);
+        }
     }
 }
