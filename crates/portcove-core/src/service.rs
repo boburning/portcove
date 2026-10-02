@@ -2937,21 +2937,22 @@ impl PortcoveService {
         let mut lifecycle =
             LifecycleOperation::new(operation_id, LifecycleOperationKind::Activate, port_id);
         lifecycle.install = Some(staged.clone());
+        let mut activation = crate::recovery::ActivationOperation::decode(self, &lifecycle)?;
         store.put(&mut lifecycle)?;
         let result: Result<InstallRecord> = (|| {
             self.collect_active_user_data_if_launched(port_id)?;
             self.restore_user_data_to(&port, &staged.path)?;
             Installer::new(self.library.clone())?.verify_critical(&staged, &qualification)?;
+            let commit = activation.prepare_commit(self, &mut lifecycle)?;
             let activated = self.library.activate_staged(port_id)?;
-            lifecycle.phase = LifecyclePhase::MetadataCommitted;
-            store.put(&mut lifecycle)?;
+            commit.persist(&store)?;
             self.faults
                 .check(LifecycleFaultPoint::ActivationMetadataCommitted)?;
             store.remove(&lifecycle.id)?;
             Ok(activated)
         })();
         if let Err(error) = &result {
-            if lifecycle.phase == LifecyclePhase::Preparing {
+            if activation.is_preparing() {
                 let _ = store.remove(&lifecycle.id);
             } else {
                 lifecycle.last_error = Some(error.message.clone());
@@ -6285,6 +6286,405 @@ mod tests {
             );
             assert!(recovered.repair_plan().unwrap().items.is_empty());
         }
+    }
+
+    #[test]
+    fn activation_recovery_refuses_foreign_family_before_mutation() {
+        for phase in [LifecyclePhase::Preparing, LifecyclePhase::MetadataCommitted] {
+            let temporary = tempfile::tempdir().unwrap();
+            let library = Library::open(temporary.path().join("library")).unwrap();
+            let active_path = register_zelda_install(&library, "v1", true);
+            let staged_path = register_zelda_install(&library, "v2", false);
+            let status = library
+                .status("zelda64-recomp", ReleaseChannel::Stable)
+                .unwrap();
+            let staged = status.staged.unwrap();
+            let mut operation = LifecycleOperation::new(
+                format!("foreign-activation-{phase}"),
+                LifecycleOperationKind::Activate,
+                "zelda64-recomp",
+            );
+            operation.install = Some(staged.clone());
+            operation.phase = phase;
+            operation.preparation_process_quiesced = Some(true);
+            if phase == LifecyclePhase::MetadataCommitted {
+                library.activate_staged("zelda64-recomp").unwrap();
+            }
+            let expected_active = library
+                .status("zelda64-recomp", ReleaseChannel::Stable)
+                .unwrap()
+                .active
+                .unwrap()
+                .id;
+            fs::write(
+                active_path.join("owned-preservation.txt"),
+                b"original fixture bytes",
+            )
+            .unwrap();
+            fs::write(
+                staged_path.join("owned-preservation.txt"),
+                b"staged fixture bytes",
+            )
+            .unwrap();
+            let store = OperationStore::new(library.clone());
+            store.put(&mut operation).unwrap();
+            let _recovered = service_with_release(library.clone(), "v2");
+            let after = library
+                .status("zelda64-recomp", ReleaseChannel::Stable)
+                .unwrap()
+                .active
+                .unwrap();
+            assert!(
+                store.get(&operation.id).unwrap().is_some(),
+                "{phase}: recovery retired incompatible journal; active version={}",
+                after.version
+            );
+            assert_eq!(after.id, expected_active);
+            assert_eq!(
+                fs::read(active_path.join("owned-preservation.txt")).unwrap(),
+                b"original fixture bytes"
+            );
+            assert_eq!(
+                fs::read(staged_path.join("owned-preservation.txt")).unwrap(),
+                b"staged fixture bytes"
+            );
+        }
+    }
+
+    #[test]
+    fn activation_recovery_refuses_a_verified_foreign_copy_of_the_staged_tree() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        register_zelda_install(&library, "v1", true);
+        let staged_path = register_zelda_install(&library, "v2", false);
+        let status = library
+            .status("zelda64-recomp", ReleaseChannel::Stable)
+            .unwrap();
+        let expected_active = status.active.unwrap().id;
+        let mut foreign = status.staged.unwrap();
+        let copied = library
+            .versions_dir()
+            .join("zelda64-recomp")
+            .join("unregistered-owned-copy");
+        copy_tree(&staged_path, &copied).unwrap();
+        foreign.path = copied.clone();
+        let service = service_with_release(library.clone(), "v2");
+        let qualification = service
+            .installed_mutability_qualification(&foreign)
+            .unwrap();
+        Installer::new(library.clone())
+            .unwrap()
+            .verify_critical(&foreign, &qualification)
+            .unwrap();
+        fs::write(
+            copied.join("owned-preservation.txt"),
+            b"foreign fixture bytes",
+        )
+        .unwrap();
+        let mut operation = LifecycleOperation::new(
+            "foreign-path-activation",
+            LifecycleOperationKind::Activate,
+            "zelda64-recomp",
+        );
+        operation.install = Some(foreign);
+        let store = OperationStore::new(library.clone());
+        store.put(&mut operation).unwrap();
+        let _recovered = service_with_release(library.clone(), "v2");
+        let after = library
+            .status("zelda64-recomp", ReleaseChannel::Stable)
+            .unwrap()
+            .active
+            .unwrap();
+        assert_eq!(
+            after.id, expected_active,
+            "recovery activated despite the journal pointing to a foreign verified copy"
+        );
+        assert!(store.get(&operation.id).unwrap().is_some());
+        assert_eq!(
+            fs::read(copied.join("owned-preservation.txt")).unwrap(),
+            b"foreign fixture bytes"
+        );
+        assert!(staged_path.is_dir());
+    }
+
+    #[test]
+    fn activation_recovery_retains_ambiguous_envelopes_and_unused_phases() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let original = register_zelda_install(&library, "v1", true);
+        let staged_path = register_zelda_install(&library, "v2", false);
+        let status = library
+            .status("zelda64-recomp", ReleaseChannel::Stable)
+            .unwrap();
+        let expected_active = status.active.unwrap().id;
+        let staged = status.staged.unwrap();
+        fs::write(
+            original.join("owned-preservation.txt"),
+            b"original fixture bytes",
+        )
+        .unwrap();
+        let store = OperationStore::new(library.clone());
+        for phase in [LifecyclePhase::Preparing, LifecyclePhase::MetadataCommitted] {
+            for variation in [
+                "owner",
+                "activate",
+                "staging",
+                "final",
+                "quarantine",
+                "original",
+                "quiescence",
+            ] {
+                let mut operation = LifecycleOperation::new(
+                    format!("ambiguous-{phase}-{variation}"),
+                    LifecycleOperationKind::Activate,
+                    "zelda64-recomp",
+                );
+                operation.install = Some(staged.clone());
+                operation.phase = phase;
+                match variation {
+                    "owner" => operation.install.as_mut().unwrap().port_id = "paperboat".into(),
+                    "activate" => operation.activate = true,
+                    "staging" => operation.paths.staging = Some(staged_path.clone()),
+                    "final" => operation.paths.final_path = Some(staged_path.clone()),
+                    "quarantine" => operation.paths.quarantine = Some(staged_path.clone()),
+                    "original" => operation.original_paths.push(original.clone()),
+                    "quiescence" => operation.preparation_process_quiesced = Some(false),
+                    _ => unreachable!(),
+                }
+                store.put(&mut operation).unwrap();
+                let _recovered = service_with_release(library.clone(), "v2");
+                let retained = store.get(&operation.id).unwrap().unwrap();
+                assert_eq!(retained.phase, phase, "{variation}");
+                assert!(retained.last_error.is_some(), "{variation}");
+                assert_eq!(
+                    library
+                        .status("zelda64-recomp", ReleaseChannel::Stable)
+                        .unwrap()
+                        .active
+                        .unwrap()
+                        .id,
+                    expected_active
+                );
+                assert_eq!(
+                    fs::read(original.join("owned-preservation.txt")).unwrap(),
+                    b"original fixture bytes"
+                );
+                assert!(staged_path.is_dir());
+                store.remove(&operation.id).unwrap();
+            }
+        }
+        for phase in [
+            LifecyclePhase::Prepared,
+            LifecyclePhase::PayloadPublished,
+            LifecyclePhase::CleanupPending,
+        ] {
+            let mut operation = LifecycleOperation::new(
+                format!("unused-activation-{phase}"),
+                LifecycleOperationKind::Activate,
+                "zelda64-recomp",
+            );
+            operation.install = Some(staged.clone());
+            operation.phase = phase;
+            store.put(&mut operation).unwrap();
+            let _recovered = service_with_release(library.clone(), "v2");
+            let retained = store.get(&operation.id).unwrap().unwrap();
+            assert_eq!(retained.phase, phase);
+            assert!(retained.last_error.is_some());
+            assert_eq!(
+                library
+                    .status("zelda64-recomp", ReleaseChannel::Stable)
+                    .unwrap()
+                    .active
+                    .unwrap()
+                    .id,
+                expected_active
+            );
+            store.remove(&operation.id).unwrap();
+        }
+    }
+
+    #[test]
+    fn activation_checked_commit_refuses_changed_identity_and_repeated_transition() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        register_zelda_install(&library, "v1", true);
+        register_zelda_install(&library, "v2", false);
+        let service = service_with_release(library.clone(), "v2");
+        let staged = library
+            .status("zelda64-recomp", ReleaseChannel::Stable)
+            .unwrap()
+            .staged
+            .unwrap();
+        let store = OperationStore::new(library.clone());
+        for variation in ["id", "created", "phase"] {
+            let mut operation = LifecycleOperation::new(
+                format!("checked-activation-{variation}"),
+                LifecycleOperationKind::Activate,
+                "zelda64-recomp",
+            );
+            operation.install = Some(staged.clone());
+            store.put(&mut operation).unwrap();
+            let mut activation =
+                crate::recovery::ActivationOperation::decode(&service, &operation).unwrap();
+            let original_id = operation.id.clone();
+            match variation {
+                "id" => operation.id.push_str("-changed"),
+                "created" => operation.created_at += 1,
+                "phase" => operation.phase = LifecyclePhase::MetadataCommitted,
+                _ => unreachable!(),
+            }
+            assert!(activation.prepare_commit(&service, &mut operation).is_err());
+            assert_eq!(
+                store.get(&original_id).unwrap().unwrap().phase,
+                LifecyclePhase::Preparing
+            );
+            assert_eq!(
+                library
+                    .status("zelda64-recomp", ReleaseChannel::Stable)
+                    .unwrap()
+                    .staged
+                    .unwrap()
+                    .id,
+                staged.id
+            );
+            store.remove(&original_id).unwrap();
+        }
+        let mut operation = LifecycleOperation::new(
+            "checked-activation-control",
+            LifecycleOperationKind::Activate,
+            "zelda64-recomp",
+        );
+        operation.install = Some(staged.clone());
+        store.put(&mut operation).unwrap();
+        let mut activation =
+            crate::recovery::ActivationOperation::decode(&service, &operation).unwrap();
+        // These mutable read-model flags may differ from the durable journal snapshot.
+        operation.install.as_mut().unwrap().verified = false;
+        operation.install.as_mut().unwrap().staged = false;
+        let commit = activation.prepare_commit(&service, &mut operation).unwrap();
+        library.activate_staged("zelda64-recomp").unwrap();
+        commit.persist(&store).unwrap();
+        assert_eq!(
+            store.get(&operation.id).unwrap().unwrap().phase,
+            LifecyclePhase::MetadataCommitted
+        );
+        assert!(activation.prepare_commit(&service, &mut operation).is_err());
+        assert_eq!(
+            store.get(&operation.id).unwrap().unwrap().phase,
+            LifecyclePhase::MetadataCommitted
+        );
+        assert_eq!(
+            library
+                .status("zelda64-recomp", ReleaseChannel::Stable)
+                .unwrap()
+                .active
+                .unwrap()
+                .id,
+            staged.id
+        );
+    }
+
+    #[test]
+    fn activation_committed_recovery_keeps_cleanup_only_legacy_behavior() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        register_zelda_install(&library, "v1", true);
+        let old = register_zelda_install(&library, "v2", false);
+        let error = service_with_fault(
+            library.clone(),
+            LifecycleFaultPoint::ActivationMetadataCommitted,
+        )
+        .activate_staged("zelda64-recomp")
+        .unwrap_err();
+        assert!(error.message.contains("injected lifecycle failure"));
+        let store = OperationStore::new(library.clone());
+        let operation = store
+            .all()
+            .unwrap()
+            .into_iter()
+            .find(|operation| operation.kind == LifecycleOperationKind::Activate)
+            .unwrap();
+        assert_eq!(operation.phase, LifecyclePhase::MetadataCommitted);
+        let latest = register_zelda_install(&library, "v3", true);
+        fs::remove_dir_all(&old).unwrap();
+        fs::write(
+            latest.join("owned-preservation.txt"),
+            b"latest fixture bytes",
+        )
+        .unwrap();
+        let _recovered = service_with_release(library.clone(), "v3");
+        assert!(store.get(&operation.id).unwrap().is_none());
+        assert_eq!(
+            library
+                .status("zelda64-recomp", ReleaseChannel::Stable)
+                .unwrap()
+                .active
+                .unwrap()
+                .version,
+            "v3"
+        );
+        assert_eq!(
+            fs::read(latest.join("owned-preservation.txt")).unwrap(),
+            b"latest fixture bytes"
+        );
+        assert!(!old.exists());
+    }
+
+    #[test]
+    fn activation_keeps_its_journal_when_the_committed_phase_write_fails() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        register_zelda_install(&library, "v1", true);
+        register_zelda_install(&library, "v2", false);
+        let service = service_with_release(library.clone(), "v2");
+        library
+            .connection()
+            .unwrap()
+            .execute_batch(
+                "CREATE TRIGGER refuse_activation_phase_write BEFORE UPDATE ON lifecycle_operations
+             WHEN NEW.phase = 'metadata_committed'
+             BEGIN SELECT RAISE(ABORT, 'synthetic activation phase write failure'); END;",
+            )
+            .unwrap();
+        let error = service.activate_staged("zelda64-recomp").unwrap_err();
+        assert!(
+            error
+                .message
+                .contains("synthetic activation phase write failure")
+        );
+        let store = OperationStore::new(library.clone());
+        let operation = store
+            .all()
+            .unwrap()
+            .into_iter()
+            .find(|operation| operation.kind == LifecycleOperationKind::Activate)
+            .unwrap();
+        assert_eq!(operation.phase, LifecyclePhase::Preparing);
+        assert_eq!(
+            library
+                .status("zelda64-recomp", ReleaseChannel::Stable)
+                .unwrap()
+                .active
+                .unwrap()
+                .version,
+            "v2"
+        );
+        library
+            .connection()
+            .unwrap()
+            .execute_batch("DROP TRIGGER refuse_activation_phase_write")
+            .unwrap();
+        let _recovered = service_with_release(library.clone(), "v2");
+        assert!(store.get(&operation.id).unwrap().is_none());
+        assert_eq!(
+            library
+                .status("zelda64-recomp", ReleaseChannel::Stable)
+                .unwrap()
+                .active
+                .unwrap()
+                .version,
+            "v2"
+        );
     }
 
     #[test]
