@@ -22,6 +22,7 @@
     <Compile Include="..\PersonalLibrary.cs" />
     <Compile Include="..\GuidedSetup.cs" />
     <Compile Include="..\InstallationReview.cs" />
+    <Compile Include="..\ExternalRuntimeReview.cs" />
     <Compile Include="..\ManagedUninstall.cs" />
     <Compile Include="ContractTests.cs" />
   </ItemGroup>

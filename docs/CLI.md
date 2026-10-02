@@ -121,6 +121,16 @@ the outside runtime or grant ownership of it. On another host or after moving
 the external folder, prepare and register it again against an accepted catalog
 entry.
 
+Schema 58 adds optional `external.review`. Read `external preview PORT_ID PATH`
+or `external removal-preview PORT_ID`, show that exact preview and submit
+`external register PORT_ID PATH --expected-preview SHA256 --yes` or
+`external remove PORT_ID --expected-preview SHA256 --yes`. Core rejects changed
+runtime/contract or registration identity before issuing its existing one-use
+authorization and rechecks under the operation lock. These commands never grant
+ownership of external files. Omitted fingerprints retain legacy CLI behavior;
+interactive clients must advertise/negotiate this capability and send the
+reviewed fingerprint. Registration alone does not establish launch readiness.
+
 Schema 56 adds the read-only `remove.preview` capability. `remove-preview PORT_ID`
 returns core's exact managed paths, persistent-data preservation statement and
 fingerprint without issuing consent. A client may then show that preview and

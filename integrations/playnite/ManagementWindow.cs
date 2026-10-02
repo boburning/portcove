@@ -220,6 +220,9 @@ namespace Portcove.ReferenceClient
                 case GuidedStepKind.ValidateSources:
                     await Execute(RegisterSources);
                     break;
+                case GuidedStepKind.RegisterExternal:
+                    await Execute(RegisterExternal);
+                    break;
                 case GuidedStepKind.Install:
                     await Execute(() => Manage("ensure"));
                     break;
@@ -304,13 +307,18 @@ namespace Portcove.ReferenceClient
             var blockers = readiness == null ? "Readiness unknown" : string.Join(", ", Json.Array(Json.Field(readiness, "blockers")).Select(value => Convert.ToString(value).Replace('_', ' ')));
             var definitionOperations = DefinitionOperations.Summary(status);
             var portActions = PortActions.Summary(status);
+            var presentation = Json.OptionalObjectField(catalog, "presentation");
+            object preparation;
+            var preparationText = presentation != null && Json.TryField(presentation, "manual_preparation", out preparation)
+                ? preparation as string : null;
             state.Text = (active != null ? "Installed: " + Json.Text(active, "version") + "." :
                 external != null ? "External runtime registered: " + Json.Text(external, "version") + ". Portcove does not own its files." :
-                externalRoute ? "User-prepared runtime not registered. Register it in Portcove Desktop or CLI before launching from Playnite." : "Not installed.") + "\n" +
+                externalRoute ? "User-prepared runtime not registered. Choose its prepared folder below for a checked review." : "Not installed.") + "\n" +
                 (readiness != null && Json.Boolean(readiness, "launchable") ? "Portcove reports this game is ready to launch." : "Setup: " + blockers + ".") +
                 "\nSource profile: " + (Json.Field(catalog, "source_profile") ?? "none") +
                 "\nBIOS profile: " + (Json.Field(catalog, "bios_source_profile") ?? "none") +
                 "\nCatalog support: " + Json.Text(catalog, "support_tier") + ". Gameplay evidence is separate from launch readiness." +
+                (externalRoute && !string.IsNullOrWhiteSpace(preparationText) ? "\nPrepare the runtime: " + preparationText : "") +
                 "\nRetained private preparations: " + repairs.Length + "." +
                 (definitionOperations == null ? "" : "\n" + definitionOperations) +
                 (portActions == null ? "" : "\n" + portActions);
@@ -401,6 +409,33 @@ namespace Portcove.ReferenceClient
                 "Portcove", MessageBoxButton.OKCancel, MessageBoxImage.Question) != MessageBoxResult.OK) return;
             CurrentStatus = null;
             await cli.Manage(command, args.ToArray(), OnProgress);
+            await Refresh();
+        }
+
+        private async Task RegisterExternal()
+        {
+            cli.RequireReviewedExternal();
+            var selected = plugin.PlayniteApi.Dialogs.SelectFolder();
+            if (string.IsNullOrWhiteSpace(selected)) return;
+            PublicCli.RequireAbsolute(selected);
+            await cli.AssertIdentity();
+            var status = await cli.Read("status", "status", port);
+            DefinitionOperations.RequireEligible(status, "register_external");
+            var preview = await cli.Read("external.preview", "external", "preview", port, selected);
+            technical.Text = Json.Print(preview);
+            var review = ExternalRuntimeReview.Read(preview, port, selected);
+            if (MessageBox.Show(window, review.Description, "Review external runtime", MessageBoxButton.OKCancel,
+                MessageBoxImage.Question) != MessageBoxResult.OK) return;
+            await cli.AssertIdentity();
+            CurrentStatus = null;
+            var result = await cli.Manage("external.register", new[] { "external", "register", port, review.Path,
+                "--expected-preview", review.Fingerprint, "--yes" }, OnProgress);
+            var registration = review.RequireRegistered(result);
+            var fresh = await cli.Read("status", "status", port);
+            var record = Json.OptionalObjectField(fresh, "external_runtime");
+            if (Json.Text(fresh, "port_id") != port || Json.Field(fresh, "active") != null || record == null ||
+                review.RequireRegistered(record) != registration)
+                throw new InvalidOperationException("The reviewed registration was not confirmed by current state. Refresh before retrying.");
             await Refresh();
         }
 

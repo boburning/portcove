@@ -317,12 +317,20 @@ enum ExternalCommand {
     Register {
         port_id: String,
         path: PathBuf,
+        /// Require the exact external preview reviewed by the caller.
+        #[arg(long)]
+        expected_preview: Option<String>,
         #[arg(long)]
         yes: bool,
     },
+    /// Review registration removal without changing any external files.
+    RemovalPreview { port_id: String },
     /// Remove only Portcove's registration, preserving every external file.
     Remove {
         port_id: String,
+        /// Require the exact removal preview reviewed by the caller.
+        #[arg(long)]
+        expected_preview: Option<String>,
         #[arg(long)]
         yes: bool,
     },
@@ -960,7 +968,7 @@ fn command_is_observation(command: &Commands) -> bool {
             | Commands::Status { .. }
             | Commands::RemovePreview { .. }
             | Commands::External {
-                command: ExternalCommand::Preview { .. },
+                command: ExternalCommand::Preview { .. } | ExternalCommand::RemovalPreview { .. },
             }
             | Commands::Activity { .. }
             | Commands::Storage
@@ -2068,7 +2076,12 @@ async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
                     service.preview_external_runtime(&port_id, &path)?,
                 )?;
             }
-            ExternalCommand::Register { port_id, path, yes } => {
+            ExternalCommand::Register {
+                port_id,
+                path,
+                expected_preview,
+                yes,
+            } => {
                 let preview = service.preview_external_runtime(&port_id, &path)?;
                 if mode == OutputMode::Human {
                     println!("{}", human::document(&preview)?);
@@ -2081,15 +2094,31 @@ async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
                     yes,
                     cli.non_interactive,
                 )?;
-                let authorization =
-                    service.authorize_external_runtime(&port_id, &path, &preview.preview_sha256)?;
+                let authorization = service.authorize_external_runtime(
+                    &port_id,
+                    &path,
+                    expected_preview
+                        .as_deref()
+                        .unwrap_or(&preview.preview_sha256),
+                )?;
                 render_success(
                     mode,
                     "external.register",
                     service.register_external_runtime(&port_id, &path, &authorization.token)?,
                 )?;
             }
-            ExternalCommand::Remove { port_id, yes } => {
+            ExternalCommand::RemovalPreview { port_id } => {
+                render_success(
+                    mode,
+                    "external.removal-preview",
+                    service.preview_external_removal(&port_id)?,
+                )?;
+            }
+            ExternalCommand::Remove {
+                port_id,
+                expected_preview,
+                yes,
+            } => {
                 let preview = service.preview_external_removal(&port_id)?;
                 if mode == OutputMode::Human {
                     println!("{}", human::document(&preview)?);
@@ -2102,8 +2131,12 @@ async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
                     yes,
                     cli.non_interactive,
                 )?;
-                let authorization =
-                    service.authorize_external_removal(&port_id, &preview.preview_sha256)?;
+                let authorization = service.authorize_external_removal(
+                    &port_id,
+                    expected_preview
+                        .as_deref()
+                        .unwrap_or(&preview.preview_sha256),
+                )?;
                 render_success(
                     mode,
                     "external.remove",
@@ -2914,6 +2947,7 @@ fn command_name(command: &Commands) -> &'static str {
         },
         Commands::External { command } => match command {
             ExternalCommand::Preview { .. } => "external.preview",
+            ExternalCommand::RemovalPreview { .. } => "external.removal-preview",
             ExternalCommand::Register { .. } => "external.register",
             ExternalCommand::Remove { .. } => "external.remove",
         },
@@ -3478,6 +3512,68 @@ mod tests {
     }
 
     #[test]
+    fn external_review_routes_preserve_caller_identity_and_observation_boundary() {
+        let preview = Cli::try_parse_from([
+            "portcove",
+            "external",
+            "removal-preview",
+            "wave-race-64-recomp",
+        ])
+        .unwrap();
+        assert!(super::command_is_observation(&preview.command));
+        assert_eq!(
+            super::command_name(&preview.command),
+            "external.removal-preview"
+        );
+        for action in ["register", "remove"] {
+            let mut arguments = vec!["portcove", "external", action, "wave-race-64-recomp"];
+            if action == "register" {
+                arguments.push("prepared-folder");
+            }
+            arguments.extend(["--expected-preview", "caller-reviewed-digest", "--yes"]);
+            let command = Cli::try_parse_from(arguments).unwrap();
+            assert!(!super::command_is_observation(&command.command));
+            match command.command {
+                super::Commands::External {
+                    command:
+                        super::ExternalCommand::Register {
+                            expected_preview,
+                            yes,
+                            ..
+                        }
+                        | super::ExternalCommand::Remove {
+                            expected_preview,
+                            yes,
+                            ..
+                        },
+                } => {
+                    assert_eq!(expected_preview.as_deref(), Some("caller-reviewed-digest"));
+                    assert!(yes);
+                }
+                _ => panic!("expected an external mutation"),
+            }
+        }
+        let legacy = Cli::try_parse_from([
+            "portcove",
+            "external",
+            "remove",
+            "wave-race-64-recomp",
+            "--yes",
+        ])
+        .unwrap();
+        assert!(matches!(
+            legacy.command,
+            super::Commands::External {
+                command: super::ExternalCommand::Remove {
+                    expected_preview: None,
+                    yes: true,
+                    ..
+                }
+            }
+        ));
+    }
+
+    #[test]
     fn reviewed_installation_routes_keep_plan_read_only_and_require_exact_consent() {
         let plan = Cli::try_parse_from(["portcove", "installation", "plan", "shipwright"]).unwrap();
         assert!(super::command_is_observation(&plan.command));
@@ -3563,7 +3659,7 @@ mod tests {
     #[test]
     fn capabilities_advertise_failure_isolated_batches() {
         let capabilities = CapabilityDocument::current();
-        assert_eq!(capabilities.schema_version, 57);
+        assert_eq!(capabilities.schema_version, 58);
         assert!(
             capabilities
                 .commands

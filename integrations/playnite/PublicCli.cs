@@ -18,6 +18,7 @@ namespace Portcove.ReferenceClient
         internal int MaximumConcurrentCommands => Volatile.Read(ref maximumConcurrentCommands);
         private long operationEventSchemaVersion = 2;
         private long apiSchemaVersion;
+        private bool reviewedExternal;
         private long invocationCount;
         private int activeCommands;
         private int maximumConcurrentCommands;
@@ -46,6 +47,7 @@ namespace Portcove.ReferenceClient
             var capabilities = await Read("capabilities", "capabilities").ConfigureAwait(false);
             apiSchemaVersion = Json.Number(capabilities, "schema_version");
             operationEventSchemaVersion = ProtocolStream.Negotiate(capabilities);
+            reviewedExternal = ProtocolStream.SupportsReviewedExternal(capabilities);
             var identity = await Read("library.identity", "library", "identity").ConfigureAwait(false);
             LibraryId = Json.Text(identity, "id");
             if (LibraryId.Length == 0) throw new InvalidOperationException("The CLI returned an empty library identity.");
@@ -56,6 +58,12 @@ namespace Portcove.ReferenceClient
             var identity = await Read("library.identity", "library", "identity").ConfigureAwait(false);
             if (LibraryId == null || Json.Text(identity, "id") != LibraryId)
                 throw new InvalidOperationException("The selected library changed. Refresh before starting another operation.");
+        }
+
+        internal void RequireReviewedExternal()
+        {
+            if (!reviewedExternal)
+                throw new InvalidOperationException("Reviewed external setup requires a schema-58 CLI with external.review. Update the selected CLI; existing managed Play remains available.");
         }
 
         internal Task<object> Read(string command, params string[] arguments) => Run(command, arguments, false, null);

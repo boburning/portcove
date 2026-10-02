@@ -5,7 +5,7 @@ namespace Portcove.ReferenceClient
 {
     internal enum GuidedStepKind
     {
-        ChooseSource, ChooseBios, ValidateSources, Install, FinishSetup, Play, ReviewProblem
+        ChooseSource, ChooseBios, ValidateSources, RegisterExternal, Install, FinishSetup, Play, ReviewProblem
     }
 
     // A presentation decision over core status. The selected action still rechecks
@@ -45,6 +45,11 @@ namespace Portcove.ReferenceClient
             if (installed && launch != null && launch.Availability == "held")
                 return Step(GuidedStepKind.ReviewProblem, "Review launch hold",
                     "This game is registered, but Portcove has held launch. Review the action reason above before registering more files or retrying.");
+            var external = Json.Text(Json.Field(catalog, "release"), "provider") == "user-prepared";
+            var register = actions.FirstOrDefault(value => value.Action == "register_external");
+            if (external && !installed && register != null && register.Availability == "held")
+                return Step(GuidedStepKind.ReviewProblem, "Review registration hold",
+                    "Portcove has held runtime registration. Review its action reason before selecting another folder.");
             if (!string.IsNullOrWhiteSpace(sourcePath) || !string.IsNullOrWhiteSpace(biosPath))
             {
                 if ((!string.IsNullOrWhiteSpace(sourcePath) && sourceProfile == null) ||
@@ -58,11 +63,6 @@ namespace Portcove.ReferenceClient
                 (launch == null || launch.Availability == "allowed"))
                 return Step(GuidedStepKind.Play, "Play",
                     "Playnite launches the current installation through Portcove. It does not install or update the game.");
-            if (Json.Text(Json.Field(catalog, "release"), "provider") == "user-prepared")
-                return installed ? Step(GuidedStepKind.ReviewProblem, "Review external runtime",
-                    "This player-owned runtime is registered but cannot launch. Review the readiness and launch-action reasons above; refresh after resolving them.") :
-                    Step(GuidedStepKind.ReviewProblem, "Review external setup",
-                        "Register this player-owned runtime in Portcove Desktop or CLI, then refresh Playnite. Portcove does not install its files.");
             if (sourceProfile != null && blockers.Any(value => value == "missing_source" ||
                 value == "unreadable_source" || value == "changed_source"))
                 return Step(GuidedStepKind.ChooseSource, "Choose original files…",
@@ -71,6 +71,11 @@ namespace Portcove.ReferenceClient
                 value == "unreadable_bios" || value == "changed_bios"))
                 return Step(GuidedStepKind.ChooseBios, "Choose BIOS file…",
                     "Choose your own BIOS file. Portcove will validate it before use.");
+            if (external)
+                return installed ? Step(GuidedStepKind.ReviewProblem, "Review external runtime",
+                    "This player-owned runtime is registered but cannot launch. Review the readiness and launch-action reasons above; refresh after resolving them.") :
+                    Step(GuidedStepKind.RegisterExternal, "Choose prepared runtime folder…",
+                        "Choose your already extracted official runtime. Portcove checks the exact accepted package identity and reviews its use in place; it does not install or update these files.");
             if (installed && Json.Boolean(readiness, "pending_setup"))
                 return Step(GuidedStepKind.FinishSetup, "Finish setup",
                     "Review the exact preparation plan before Portcove makes a private playable copy.");

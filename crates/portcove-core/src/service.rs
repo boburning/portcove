@@ -7308,6 +7308,37 @@ fn main() {
             crate::ErrorCode::Verification
         );
         fs::write(&executable, &accepted_bytes).unwrap();
+        let mut changed_review = document.clone();
+        changed_review
+            .ports
+            .iter_mut()
+            .find(|port| port.id == "external-probe")
+            .unwrap()
+            .release
+            .user_prepared
+            .get_mut(&platform)
+            .unwrap()
+            .version = "probe-v2".into();
+        service.replace_catalog_for_test(
+            Catalog::from_json(&serde_json::to_string(&changed_review).unwrap()).unwrap(),
+        );
+        assert_eq!(
+            service
+                .authorize_external_runtime("external-probe", &external, &preview.preview_sha256)
+                .unwrap_err()
+                .code,
+            crate::ErrorCode::Conflict
+        );
+        assert!(
+            service
+                .status("external-probe")
+                .unwrap()
+                .external_runtime
+                .is_none()
+        );
+        service.replace_catalog_for_test(
+            Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap(),
+        );
         let authorization = service
             .authorize_external_runtime("external-probe", &external, &preview.preview_sha256)
             .unwrap();
@@ -7443,6 +7474,32 @@ fn main() {
 
         let removal = reopened.preview_external_removal("external-probe").unwrap();
         assert!(removal.external_files_will_be_preserved);
+        library.remove_external_runtime(&record).unwrap();
+        let mut replacement = record.clone();
+        replacement.id = Uuid::new_v4().to_string();
+        library
+            .register_external_runtime(
+                &replacement,
+                &Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap(),
+            )
+            .unwrap();
+        assert_eq!(
+            reopened
+                .authorize_external_removal("external-probe", &removal.preview_sha256)
+                .unwrap_err()
+                .code,
+            crate::ErrorCode::Conflict
+        );
+        assert_eq!(
+            reopened
+                .status("external-probe")
+                .unwrap()
+                .external_runtime
+                .unwrap()
+                .id,
+            replacement.id
+        );
+        let removal = reopened.preview_external_removal("external-probe").unwrap();
         let authorization = reopened
             .authorize_external_removal("external-probe", &removal.preview_sha256)
             .unwrap();

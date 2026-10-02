@@ -159,6 +159,7 @@ internal static class ContractTests
         CheckManagedRemoval();
         CheckUninstallController();
         CheckInstallationReview();
+        CheckExternalRuntimeReview();
         var managedStatus = Json.Parse("{\"active\":null}");
         Check(Json.OptionalObjectField(managedStatus, "external_runtime") == null,
             "absent external runtime is a valid managed status");
@@ -338,7 +339,7 @@ internal static class ContractTests
         bad["schema_version"] = 55;
         ProtocolStream.Negotiate(bad);
         Check(true, "external runtime API schema negotiated without requiring unused commands");
-        bad["schema_version"] = 58;
+        bad["schema_version"] = 59;
         Reject(() => ProtocolStream.Negotiate(bad), "future schema rejected with migration guidance");
         bad["schema_version"] = 42; bad["commands"] = new object[0];
         Reject(() => ProtocolStream.Negotiate(bad), "missing command capability rejected");
@@ -533,6 +534,56 @@ internal static class ContractTests
         Reject(() => ProtocolStream.Negotiate(capabilities), "schema-56 without removal preview capability rejected");
     }
 
+    private static void CheckExternalRuntimeReview()
+    {
+        const string folder = @"H:\Prepared runtime 雪";
+        var preview = Json.Parse(Json.Print(new
+        {
+            port_id = "shape-b", path = folder, executable = folder + @"\game.exe", version = "v1",
+            archive_sha256 = new string('a', 64), immutable_tree_sha256 = new string('b', 64),
+            immutable_file_count = 2, preview_sha256 = new string('c', 64)
+        }));
+        var review = ExternalRuntimeReview.Read(preview, "shape-b", folder);
+        Check(review.Fingerprint == new string('c', 64) && review.Description.Contains("outside managed save protection"),
+            "external review binds exact consent and explains non-owning saves");
+        Reject(() => ExternalRuntimeReview.Read(preview, "other", folder), "external preview for another port rejected");
+        Reject(() => ExternalRuntimeReview.Read(preview, "shape-b", @"H:\Other folder"), "external preview for another selected folder rejected");
+        var record = Json.Object(Json.Parse(Json.Print(preview)));
+        record["id"] = "registration-a"; record["platform"] = "windows-x86-64";
+        Check(review.RequireRegistered(record) == "registration-a", "external result checks all reviewed identities");
+        foreach (var field in new[] { "port_id", "path", "executable", "version", "archive_sha256", "immutable_tree_sha256", "platform", "id" })
+        {
+            var changed = Json.Object(Json.Parse(Json.Print(record)));
+            changed[field] = field == "path" || field == "executable" ? @"H:\Other\game.exe" :
+                field == "id" ? "" : field.EndsWith("sha256", StringComparison.Ordinal) ? new string('d', 64) : "other";
+            Reject(() => review.RequireRegistered(changed), "changed external " + field + " cannot confirm registration");
+        }
+        foreach (var field in new[] { "archive_sha256", "immutable_tree_sha256", "preview_sha256" })
+        {
+            var invalid = Json.Object(Json.Parse(Json.Print(preview))); invalid[field] = "unbound";
+            Reject(() => ExternalRuntimeReview.Read(invalid, "shape-b", folder), "invalid external " + field + " rejected before consent");
+        }
+        var escaped = Json.Object(Json.Parse(Json.Print(preview))); escaped["executable"] = @"H:\Outside\game.exe";
+        Reject(() => ExternalRuntimeReview.Read(escaped, "shape-b", folder), "external executable outside reviewed folder rejected");
+        var empty = Json.Object(Json.Parse(Json.Print(preview))); empty["immutable_file_count"] = 0;
+        Reject(() => ExternalRuntimeReview.Read(empty, "shape-b", folder), "empty external identity inventory rejected");
+        var removal = Json.Object(Json.Parse(Json.Print(preview))); removal["external_files_will_be_preserved"] = true;
+        var remove = ExternalRuntimeReview.Read(removal, "shape-b", null, true);
+        remove.RequireRemoved(record);
+        Check(remove.Description.Contains("Only Portcove's registration"), "external removal has distinct file-preserving consent");
+        removal["external_files_will_be_preserved"] = false;
+        Reject(() => ExternalRuntimeReview.Read(removal, "shape-b", null, true), "external removal without preservation rejected");
+        var replaced = Json.Object(Json.Parse(Json.Print(record))); replaced["path"] = @"H:\Other";
+        Reject(() => remove.RequireRemoved(replaced), "another external registration cannot confirm removal");
+        var capabilities = Json.Object(Json.Parse(Json.Print(Capabilities())));
+        capabilities["schema_version"] = 57; capabilities["commands"] = new[] { "external", "external.review" };
+        Check(!ProtocolStream.SupportsReviewedExternal(capabilities), "older schema cannot claim caller-bound external review");
+        capabilities["schema_version"] = 58; capabilities["commands"] = new[] { "external" };
+        Check(!ProtocolStream.SupportsReviewedExternal(capabilities), "new schema without review capability cannot register");
+        capabilities["commands"] = new[] { "external", "external.review" };
+        Check(ProtocolStream.SupportsReviewedExternal(capabilities), "exact schema and capability enable reviewed external flow");
+    }
+
     private static void CheckRuntimeSelection()
     {
         var root = Path.Combine(Path.GetTempPath(), "portcove-playnite-selection-" + Guid.NewGuid().ToString("N"));
@@ -656,8 +707,14 @@ internal static class ContractTests
         Check(GuidedSetup.Choose(launchHeldWithMissingSource, catalog, @"C:\owned\game.rom", "").Kind == GuidedStepKind.ReviewProblem,
             "a selected source cannot override an installed game's held launch");
         var external = Json.Parse("{\"source_profile\":null,\"bios_source_profile\":null,\"release\":{\"provider\":\"user-prepared\"}}");
-        Check(GuidedSetup.Choose(missing, external, "", "").Kind == GuidedStepKind.ReviewProblem,
-            "user-prepared runtime keeps its separate registration handoff");
+        Check(GuidedSetup.Choose(missing, external, "", "").Kind == GuidedStepKind.RegisterExternal,
+            "user-prepared runtime selects reviewed folder registration without a Desktop handoff");
+        var externalNeedsSource = Json.Object(Json.Parse(Json.Print(external))); externalNeedsSource["source_profile"] = "original";
+        Check(GuidedSetup.Choose(missing, externalNeedsSource, "", "").Kind == GuidedStepKind.ChooseSource,
+            "external onboarding keeps original-file intake before runtime registration");
+        var registerHeld = Json.Parse("{\"active\":null,\"readiness\":{\"launchable\":false,\"pending_setup\":false,\"blockers\":[]},\"port_actions\":[{\"action\":\"register_external\",\"availability\":\"held\",\"reason\":\"definition_ineligible\",\"definition\":{\"outcome\":\"hold\",\"reason\":\"publisher_revoked\"}}]}");
+        Check(GuidedSetup.Choose(registerHeld, externalNeedsSource, @"C:\owned\game.rom", "").Kind == GuidedStepKind.ReviewProblem,
+            "selected files cannot override a held external registration");
         var registeredExternal = Json.Parse("{\"active\":null,\"external_runtime\":{\"path\":\"C:\\\\owned\\\\runtime\",\"version\":\"1\"},\"readiness\":{\"launchable\":false,\"pending_setup\":false,\"blockers\":[\"invalid_installation\"]},\"port_actions\":[{\"action\":\"launch\",\"availability\":\"held\",\"reason\":\"invalid_installation\"}]}");
         Check(GuidedSetup.Choose(registeredExternal, external, "", "").Detail.Contains("is registered"),
             "registered but held external runtime receives its actual review path");

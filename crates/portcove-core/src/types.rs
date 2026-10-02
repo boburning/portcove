@@ -1398,6 +1398,7 @@ impl CapabilityDocument {
                 "catalog".into(),
                 "catalog.check-capabilities".into(),
                 "external".into(),
+                "external.review".into(),
                 "source".into(),
                 "source.roots".into(),
                 "source.roots.scan".into(),
