@@ -501,6 +501,118 @@ test("Rust setup installs the repository pin instead of an unrelated stable tool
   assert.match(recipes, /node scripts\/run-rust-tests\.mjs --locked --workspace/);
 });
 
+test("release and rehearsal Rust callers preserve repository pin, components, targets and caches", async (t) => {
+  const setup = await readFile(
+    new URL("../.github/actions/setup-rust/action.yml", import.meta.url),
+    "utf8",
+  );
+  const toolchain = await readFile(new URL("../rust-toolchain.toml", import.meta.url), "utf8");
+  const components = JSON.parse(toolchain.match(/^components\s*=\s*(\[[^\n]+\])/m)?.[1]);
+  assert.deepEqual(components.toSorted(), ["clippy", "rust-analyzer", "rustfmt"]);
+  assert.match(setup, /Get-Content rust-toolchain\.toml -Raw/);
+  assert.match(setup, /toolchain: \$\{\{ steps\.repository-toolchain\.outputs\.channel \}\}/);
+  assert.match(setup, /targets: \$\{\{ inputs\.targets \}\}/);
+  // Ordinary shims honor the TOML's component requirements before reporting identity.
+  assert.match(setup, /& rustc --version --verbose/);
+  assert.match(setup, /& cargo --version/);
+  assert.doesNotMatch(setup, /RUSTUP_TOOLCHAIN|& (?:rustc|cargo) \+/);
+  assert.doesNotMatch(toolchain, /^targets\s*=/m);
+
+  function job(source, name) {
+    const section = source.match(
+      new RegExp(`^ {2}${name}:\\r?\\n([\\s\\S]*?)(?=^ {2}\\S|$(?![\\s\\S]))`, "m"),
+    )?.[1];
+    assert.ok(section, `missing ${name} job`);
+    return section;
+  }
+
+  function steps(source, reference) {
+    const escaped = reference.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return (
+      source.match(new RegExp(`^ {6}- uses: ${escaped}\\r?\\n(?: {8}[^\\r\\n]*\\r?\\n)*`, "gm")) ??
+      []
+    );
+  }
+
+  function assertHostSetup(section, cacheKey) {
+    assert.deepEqual(steps(section, "./.github/actions/setup-rust"), [
+      "      - uses: ./.github/actions/setup-rust\n",
+    ]);
+    assert.doesNotMatch(
+      section,
+      /dtolnay\/rust-toolchain|RUSTUP_TOOLCHAIN|(?:rustc|cargo) \+|rustup (?:default|override|toolchain|component|target)/,
+    );
+    const cache = steps(
+      section,
+      "Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2",
+    );
+    assert.deepEqual(cache, [
+      "      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2\n" +
+        (cacheKey ? `        with:\n          key: ${cacheKey}\n` : ""),
+    ]);
+    assert.ok(
+      section.indexOf("uses: ./.github/actions/setup-rust") <
+        section.indexOf("uses: Swatinem/rust-cache@"),
+    );
+  }
+
+  for (const [file, name, cacheKey] of [
+    ["release.yml", "validate", undefined],
+    ["linux-package-ownership-rehearsal.yml", "build", "linux-package-ownership-rehearsal"],
+    ["updater-artifact-rehearsal.yml", "packages", "updater-artifact-rehearsal"],
+  ]) {
+    await t.test(`${file} ${name}`, async () => {
+      const source = await readFile(
+        new URL(`../.github/workflows/${file}`, import.meta.url),
+        "utf8",
+      );
+      const section = job(source, name);
+      assertHostSetup(section, cacheKey);
+      for (const replacement of [
+        "      - uses: dtolnay/rust-toolchain@4360b52568e2003a75bf9bc1d59f33a8e3fc893c\n",
+        "      - uses: ./.github/actions/setup-rust\n        with:\n          toolchain: stable\n",
+        "      - uses: ./.github/actions/setup-rust\n        with:\n          targets: aarch64-unknown-linux-gnu\n",
+        "      - uses: ./.github/actions/setup-rust\n        with:\n          test-fixtures: true\n",
+      ]) {
+        assert.throws(() =>
+          assertHostSetup(
+            section.replace("      - uses: ./.github/actions/setup-rust\n", replacement),
+            cacheKey,
+          ),
+        );
+      }
+      assert.throws(() =>
+        assertHostSetup(
+          section.replace(
+            "Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6",
+            "Swatinem/rust-cache@floating",
+          ),
+          cacheKey,
+        ),
+      );
+      if (cacheKey)
+        assert.throws(() =>
+          assertHostSetup(section.replace(`key: ${cacheKey}`, "key: changed"), cacheKey),
+        );
+      if (file === "release.yml") {
+        for (const [crossJob, target, key] of [
+          ["build", "${{ matrix.target }}", "release-${{ matrix.label }}"],
+          ["build_intel", "x86_64-apple-darwin", "release-macos-x86_64"],
+        ]) {
+          const cross = job(source, crossJob);
+          assert.deepEqual(steps(cross, "./.github/actions/setup-rust"), [
+            `      - uses: ./.github/actions/setup-rust\n        with:\n          targets: ${target}\n`,
+          ]);
+          assert.match(
+            cross,
+            new RegExp(`shared-key: ${key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`),
+          );
+        }
+      }
+    });
+  }
+});
+
 test("Windows Rust keeps exhaustive parallel gates without duplicate setup", () => {
   assert.match(rustTests, /^ {4}name: rust-test \(\$\{\{ matrix\.shard \}\}\)$/m);
   assert.match(rustTests, /runs-on: windows-latest/);
