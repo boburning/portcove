@@ -11,6 +11,7 @@ import { writeEvidence, fileIdentity } from "../../../scripts/development-eviden
 import { spawnCommand } from "../../../scripts/dev-storage.mjs";
 import { cachedDesktopDrivers } from "../../../scripts/tool-cache.mjs";
 import {
+  assertOwnedBoundaryRequests,
   normalPackageBoundaryScenario,
   verifyNormalPackageEvidence,
 } from "./desktop-main-webview-boundary.mjs";
@@ -1292,9 +1293,17 @@ try {
   await requireUnusedPort(port + 1);
   await startDriver();
   await connect();
-  await scenario("native-normal-package-webview-boundary", () =>
-    normalPackageBoundaryScenario({ browser, invoke, library, output, artifacts, packageEvidence }),
-  );
+  await scenario("native-normal-package-webview-boundary", async () => {
+    const requests = await normalPackageBoundaryScenario({
+      browser,
+      invoke,
+      library,
+      output,
+      artifacts,
+      packageEvidence,
+    });
+    assertOwnedBoundaryRequests(requests);
+  });
   await scenario("empty-library", async () => {
     const bootstrap = await invoke("get_bootstrap_status");
     assert.equal(bootstrap.ok, true);

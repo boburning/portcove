@@ -158,8 +158,8 @@ export async function normalPackageBoundaryScenario({
     const report = path.join(output, "normal-package-boundary.json");
     await writeFile(report, JSON.stringify(observations, null, 2), { flag: "wx" });
     artifacts.push(report);
-    assertOwnedBoundaryRequests(requests);
   }
+  return requests;
 }
 
 export function assertOwnedBoundaryRequests(requests) {
