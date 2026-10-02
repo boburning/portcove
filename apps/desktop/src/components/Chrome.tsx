@@ -892,7 +892,11 @@ function SourceHealth({
   const inspection =
     "reports" in inspectionInput
       ? inspectionInput
-      : { reports: inspectionInput, reads: new Map(), retry: undefined };
+      : {
+          reports: inspectionInput,
+          reads: new Map<string, SourceInspectionReadState>(),
+          retry: undefined,
+        };
   const byProfile = new Map(outcomes.map((outcome) => [outcome.profile_id, outcome]));
   const profilesById = new Map(profiles.map((profile) => [profile.id, profile]));
   return (
