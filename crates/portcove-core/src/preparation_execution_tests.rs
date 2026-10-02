@@ -1133,7 +1133,7 @@ fn preparation_recovery_preserves_existing_outcomes_and_rejects_an_owned_activit
 fn preparation_is_explicit_and_play_never_runs_setup_or_recreates_inputs() {
     let fixture = Fixture::native("success");
     let original = crate::library_transfer::reviewed_tree(&fixture.install.path).unwrap();
-    assert!(fixture.service.launch_spec(PORT, None).is_err());
+    assert!(fixture.service.prepare_launch(PORT, None).is_err());
     assert_eq!(
         crate::library_transfer::reviewed_tree(&fixture.install.path).unwrap(),
         original
@@ -1151,14 +1151,14 @@ fn preparation_is_explicit_and_play_never_runs_setup_or_recreates_inputs() {
     let prepared = fixture.run(|_| {}).unwrap();
     let log = prepared.path.join("data/log/setup.log");
     fs::write(&log, b"setup must not run during Play").unwrap();
-    fixture.service.launch_spec(PORT, None).unwrap();
+    fixture.service.prepare_launch(PORT, None).unwrap();
     assert_eq!(fs::read(&log).unwrap(), b"setup must not run during Play");
     let port = fixture.service.catalog().port(PORT).unwrap();
     let materialized = prepared
         .path
         .join(port.runtime_source_filename.as_ref().unwrap());
     fs::remove_file(&materialized).unwrap();
-    assert!(fixture.service.launch_spec(PORT, None).is_err());
+    assert!(fixture.service.prepare_launch(PORT, None).is_err());
     assert!(!materialized.exists());
 }
 
@@ -1214,7 +1214,7 @@ fn retained_definition_survives_catalog_changes_but_missing_receipt_blocks_play(
             .unwrap()
             .launchable
     );
-    assert!(fixture.service.launch_spec(PORT, None).is_ok());
+    assert!(fixture.service.prepare_launch(PORT, None).is_ok());
     fixture.service.replace_catalog_for_test(original_catalog);
     fs::remove_file(prepared.path.join(RECEIPT_FILE)).unwrap();
     assert!(
@@ -1226,7 +1226,7 @@ fn retained_definition_survives_catalog_changes_but_missing_receipt_blocks_play(
             .unwrap()
             .launchable
     );
-    assert!(fixture.service.launch_spec(PORT, None).is_err());
+    assert!(fixture.service.prepare_launch(PORT, None).is_err());
 }
 
 #[test]
@@ -1293,7 +1293,7 @@ fn assert_legacy_setup(nested: bool) {
             .unwrap()
             .launchable
     );
-    fixture.service.launch_spec(PORT, None).unwrap();
+    fixture.service.prepare_launch(PORT, None).unwrap();
     assert_eq!(
         fs::read(working.join("data/log/setup.log")).unwrap(),
         b"legacy sentinel"

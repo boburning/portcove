@@ -82,6 +82,8 @@ test("frontend and primary Rust paths receive focused fast plans", () => {
 test("maintained native scenario consumers retain contracts without unrelated Rust tests", () => {
   const files = [
     "apps/desktop/scripts/desktop-artwork-correction-test.mjs",
+    "apps/desktop/scripts/desktop-default-cover-test.mjs",
+    "apps/desktop/scripts/desktop-install-fixture.test.mjs",
     "apps/desktop/scripts/desktop-preparation-test.mjs",
     "apps/desktop/scripts/desktop-test.mjs",
     "apps/desktop/scripts/testdata/catalog-artwork-blue.jpg",
@@ -126,6 +128,44 @@ test("maintained native scenario consumers retain contracts without unrelated Ru
   ]);
   assert.ok(renamed.groups.includes("rust"));
   assert.equal(plan([change(files[0], { newMode: "120000" })]).mode, "qualification");
+});
+
+test("default-cover harness ownership preserves unknown, renamed, product and policy fallback", () => {
+  const cover = "apps/desktop/scripts/desktop-default-cover-test.mjs";
+  const unknown = "apps/desktop/scripts/future-cover-test.mjs";
+  for (const changes of [
+    [change(cover), change(unknown)],
+    [change(cover, { status: "R", newPath: unknown })],
+    [change(unknown, { status: "R", newPath: cover })],
+  ]) {
+    const selected = plan(changes);
+    assert.deepEqual(selected.groups, fastGroups);
+    assert.ok(selected.fallback.paths.includes(unknown));
+  }
+  const product = plan([change(cover), change("crates/portcove-core/src/artwork.rs")]);
+  assert.deepEqual(product.groups, ["frontend", "rust", "rust-quality"]);
+  for (const protectedFile of ["apps/desktop/src-tauri/src/lib.rs", "scripts/validation-plan.mjs"])
+    assert.equal(plan([change(cover), change(protectedFile)]).mode, "qualification");
+  assert.equal(plan([change(cover, { newMode: "120000" })]).mode, "qualification");
+});
+
+test("install fixture test ownership does not narrow its executable consumers", () => {
+  const assertion = "apps/desktop/scripts/desktop-install-fixture.test.mjs";
+  for (const executable of [
+    "apps/desktop/scripts/desktop-install-fixture.mjs",
+    "apps/desktop/scripts/desktop-install-test.mjs",
+  ]) {
+    const result = plan([change(assertion), change(executable)]);
+    assert.deepEqual(result.groups, fastGroups, executable);
+    assert.ok(result.fallback.paths.includes(executable), executable);
+  }
+  const lifecycle = plan([change(assertion), change("integrations/playnite/lifecycle-check.mjs")]);
+  assert.ok(lifecycle.groups.includes("rust"));
+  assert.deepEqual(lifecycle.platforms, qualificationPlatforms);
+  const unknownTest = "apps/desktop/scripts/future-install-fixture.test.mjs";
+  const renamed = plan([change(assertion, { status: "R", newPath: unknownTest })]);
+  assert.deepEqual(renamed.groups, fastGroups);
+  assert.ok(renamed.fallback.paths.includes(unknownTest));
 });
 
 test("validation authorities and GitHub policy always require qualification", () => {
@@ -277,6 +317,75 @@ test("explicit ownership ignores misleading words and protects real trust bounda
     assert.deepEqual(protectedPlan.groups, fastGroups, path);
     assert.deepEqual(protectedPlan.platforms, qualificationPlatforms, path);
   }
+});
+
+test("documentation raster media retains docs checks without catalog Rust tests", () => {
+  for (const file of [
+    "docs/media/first-play/catalog.png",
+    "docs/media/catalog-cover.jpg",
+    "docs/media/source-provenance.jpeg",
+    "docs/media/retcomm.webp",
+  ]) {
+    const result = plan([change(file)]);
+    assert.equal(result.mode, "fast", file);
+    assert.deepEqual(result.groups, ["catalog", "rust-quality"], file);
+    assert.deepEqual(result.areas, ["documentation"], file);
+  }
+
+  const journey = plan([
+    change("README.md"),
+    change("docs/DOWNLOADS.md"),
+    change("docs/media/first-play/README.md"),
+    change("docs/media/first-play/catalog.png"),
+    change("docs/media/first-play/source-check.png"),
+    change("docs/media/first-play/first-launch.jpg"),
+  ]);
+  assert.equal(journey.mode, "fast");
+  assert.deepEqual(journey.groups, ["catalog", "rust-quality"]);
+});
+
+test("documentation-media routing preserves consequential inputs and both rename sides", () => {
+  for (const file of [
+    "docs/catalog.md",
+    "docs/media/catalog.json",
+    "docs/media/catalog.svg",
+    "docs/media/catalog.png.mjs",
+    "docs/media/catalog.PNG",
+    "docs/other/catalog.png",
+    "catalog.png",
+    "apps/desktop/public/catalog.png",
+    "crates/portcove-core/catalog/catalog.png",
+  ]) {
+    assert.ok(plan([change(file)]).groups.includes("rust"), file);
+  }
+  const mixed = plan([change("docs/media/catalog.png"), change("crates/portcove-core/src/lib.rs")]);
+  assert.ok(mixed.groups.includes("rust"));
+  const rename = plan([
+    change("apps/desktop/public/catalog.png", {
+      status: "R",
+      oldPath: "docs/media/catalog.png",
+      newPath: "apps/desktop/public/catalog.png",
+    }),
+  ]);
+  assert.ok(rename.groups.includes("frontend"));
+  assert.ok(rename.groups.includes("rust"));
+  const schema = plan([change("docs/media/schema.png")]);
+  assert.equal(schema.mode, "qualification");
+  assert.ok(schema.groups.includes("rust"));
+  const windows = plan([change("docs/media/windows/catalog.png")]);
+  assert.ok(windows.groups.includes("rust"));
+  assert.ok(windows.platforms.includes("windows-x86_64"));
+  for (const changes of [
+    [change("docs/media/catalog.png", { newMode: "100755" })],
+    [change("docs/media/catalog.png", { newMode: "120000" })],
+    [change("docs/media/catalog.png"), change("scripts/validation-plan.mjs")],
+  ]) {
+    const result = plan(changes);
+    assert.equal(result.mode, "qualification");
+    assert.deepEqual(result.groups, fastGroups);
+    assert.deepEqual(result.platforms, qualificationPlatforms);
+  }
+  assert.deepEqual(plan([change("unrecognized-media.bin")]).groups, fastGroups);
 });
 
 test("recognized unknown paths use the explicit all-fast primary-host fallback", () => {

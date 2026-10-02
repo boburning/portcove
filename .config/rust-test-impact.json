@@ -23,6 +23,12 @@
           "filter": "test(/^catalog::tests::/) | test(/^catalog_update::tests::/) | test(/^source_catalog::tests::/) | test(/^definition_projection::tests::/) | test(/^definition_policy_tests::/) | test(/^artwork_tests::/)"
         },
         {
+          "id": "artwork-resolution",
+          "reason": "artwork resolution, choice publication and owned-original reads require the complete artwork, import, move and transfer consumer families",
+          "paths": ["crates/portcove-core/src/artwork.rs"],
+          "filter": "test(/^artwork_tests::/) | test(/^import_execution::tests::/) | test(/^library_move::tests::/) | test(/^library_transfer::tests::/)"
+        },
+        {
           "id": "artwork-fixtures",
           "reason": "artwork fixtures exercise default resolution, explicit choices, ingestion, cache and library transfer without narrowing shared implementation changes",
           "paths": ["crates/portcove-core/src/artwork_tests.rs"],
@@ -49,6 +55,18 @@
             "crates/portcove-core/src/installed_contract.rs"
           ],
           "filter": "test(/^definition_capabilities::tests::/) | test(/^definition_entry::tests::/) | test(/^definition_index::tests::/) | test(/^definition_loader::tests::/) | test(/^definition_policy_tests::/) | test(/^definition_projection::tests::/) | test(/^definition_repository::tests::/) | test(/^installed_contract::tests::/)"
+        },
+        {
+          "id": "library-import-fixtures",
+          "reason": "the private library-import test module owns its complete preservation, retained-definition, interruption, recovery and authority assertions; shared implementation changes remain broad",
+          "paths": ["crates/portcove-core/src/import_execution_tests.rs"],
+          "filter": "test(/^import_execution::tests::/)"
+        },
+        {
+          "id": "backup-fixtures",
+          "reason": "the private backup fixture module owns complete creation, inventory, restore, deletion, authorization, preservation and interruption/recovery assertions; shared implementation changes remain broad",
+          "paths": ["crates/portcove-core/src/service/tests/backups.rs"],
+          "filter": "test(/^service::tests::backups::/)"
         },
         {
           "id": "source-import",

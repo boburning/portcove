@@ -2,9 +2,96 @@ use super::*;
 use crate::test_fixture::phase as test_phase;
 use crate::{ArtifactIdentity, ArtworkSlot, BackupAction, Catalog, InstallRecord, ReleaseChannel};
 
+// This graph exercises generic retained-definition import, not a real title's
+// catalog admission. Keep production-catalog transition fixtures separate.
+fn successor_catalog() -> (Catalog, String) {
+    let port_id = "post-client-definition-fixture";
+    let document = serde_json::json!({
+        "schema_version": 2,
+        "source_catalog": {
+            "evidence": [{
+                "id": "fixture-bytes", "role": "byte_identity",
+                "authority": "Synthetic import fixture", "authority_ref": "fixture-1",
+                "reviewed_at": "2026-09-30", "claim": "Synthetic source byte identity",
+                "immutable_url": "https://example.com/fixtures/source-v1"
+            }],
+            "identities": [{
+                "id": "post-client-definition-fixture-source", "label": "Synthetic source",
+                "kind": "file", "variants": [{
+                    "id": "fixture-1", "title": "Synthetic source",
+                    "representations": [{
+                        "id": "raw", "extensions": ["bin"], "kind": "raw-file",
+                        "identities": [{"scope": "original-file", "sha256": "8".repeat(64)}],
+                        "evidence_ids": ["fixture-bytes"]
+                    }], "evidence_ids": ["fixture-bytes"]
+                }]
+            }],
+            "contracts": [{
+                "id": "post-client-definition-fixture-game", "port_id": port_id,
+                "role": "game", "profile_id": "post-client-definition-fixture-source",
+                "admission_mode": "enforced", "supported_variant_ids": ["fixture-1"],
+                "evidence_ids": ["fixture-bytes"], "authority_ref": "fixture-1",
+                "reviewed_at": "2026-09-30",
+                "immutable_review_url": "https://example.com/fixtures/source-v1"
+            }], "validators": []
+        },
+        "ports": [{
+            "id": port_id, "name": "Post-client definition fixture",
+            "summary": "Synthetic retained-definition import contract",
+            "project_url": "https://example.com/fixtures/import", "support_tier": "stable",
+            "channels": ["stable"],
+            "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+            "adapter": "libultraship-portable",
+            "release": {"repository": "boburning/qualification-fixture"},
+            "source_profile": "post-client-definition-fixture-source",
+            "executable_hints": {
+                "windows-x86-64": ["fixture.exe"], "linux-x86-64": ["fixture"],
+                "macos-x86-64": ["fixture"], "macos-aarch64": ["fixture"]
+            }, "persistent_paths": ["saves", "config.json"]
+        }]
+    });
+    (
+        Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap(),
+        port_id.into(),
+    )
+}
+
+#[test]
+fn successor_fixture_retains_a_complete_independent_source_graph() {
+    let (catalog, port_id) = successor_catalog();
+    assert_eq!(catalog.document().ports.len(), 1);
+    let source = catalog.source_catalog().unwrap();
+    assert_eq!(source.identities.len(), 1);
+    assert_eq!(source.contracts.len(), 1);
+    assert_eq!(source.evidence.len(), 1);
+    assert!(source.qualification.is_empty());
+    let indexed = crate::test_fixture::indexed_catalog(&catalog, &port_id);
+    assert_eq!(
+        serde_json::to_value(indexed.authoritative_document()).unwrap(),
+        serde_json::to_value(catalog.authoritative_document()).unwrap()
+    );
+    for platform in &catalog.port(&port_id).unwrap().platforms {
+        InstallQualification::from_catalog(&indexed, &port_id, *platform).unwrap();
+    }
+}
+
+#[test]
+fn successor_fixture_uses_real_graph_and_unknown_field_validation() {
+    let (catalog, _) = successor_catalog();
+    let mut document = serde_json::to_value(catalog.authoritative_document()).unwrap();
+    document["source_catalog"]["contracts"][0]["profile_id"] = serde_json::json!("missing-profile");
+    assert!(Catalog::from_json(&document.to_string()).is_err());
+    let mut document = serde_json::to_value(catalog.authoritative_document()).unwrap();
+    document["source_catalog"]["identities"][0]["unrecognized_authority"] = serde_json::json!(true);
+    assert!(Catalog::from_json(&document.to_string()).is_err());
+}
+
 fn successor_fixture(root: &Path, export: &Path) -> (LibraryMetadata, String) {
     let library = Library::open(root).unwrap();
-    let (post_client, port_id) = crate::test_fixture::post_client_catalog();
+    let (post_client, port_id) = test_phase(
+        "successor fixture: validate synthetic graph",
+        successor_catalog,
+    );
     let catalog = crate::test_fixture::admitted_indexed_catalog(&post_client, &port_id);
     crate::definition_candidate::selection::trust_catalog_selection_for_test(
         &library, &catalog, &port_id,
@@ -304,6 +391,141 @@ fn admitted_post_client_definition_survives_offline_import_with_its_full_graph()
             .successful_launches,
         1
     );
+
+    // The renderer's public input must use destination-owned bytes, even for a
+    // definition that this client did not embed. Metadata equality alone does
+    // not exercise resolution or thumbnail regeneration after import.
+    fs::rename(&source, temp.path().join("source-unavailable")).unwrap();
+    fs::rename(
+        source.with_extension("successor-cover.png"),
+        temp.path().join("original-cover-unavailable.png"),
+    )
+    .unwrap();
+    let expected_choice = expected
+        .artwork
+        .as_ref()
+        .unwrap()
+        .choices
+        .iter()
+        .find(|choice| choice.port_id == port_id && choice.slot == ArtworkSlot::Cover)
+        .unwrap();
+    let service = PortcoveService::new(restored).unwrap();
+    assert!(service.catalog().port(&port_id).is_err());
+    let artwork = service.artwork(&port_id, ArtworkSlot::Cover).unwrap();
+    assert_eq!(&artwork.choice, expected_choice);
+    assert_eq!(artwork.availability, crate::ArtworkAvailability::Available);
+    assert!(matches!(
+        artwork.resolved_source,
+        crate::ArtworkResolvedSource::LocalImport { .. }
+    ));
+    let thumbnail = service
+        .artwork_thumbnail(&port_id, ArtworkSlot::Cover, expected_choice.revision)
+        .unwrap();
+    assert_eq!(
+        Some(&thumbnail.asset_sha256),
+        expected_choice.asset_sha256.as_ref()
+    );
+    assert_eq!(thumbnail.choice_revision, expected_choice.revision);
+    assert_eq!(
+        image::load_from_memory(&thumbnail.png)
+            .unwrap()
+            .to_rgb8()
+            .get_pixel(0, 0),
+        &image::Rgb([12, 34, 56])
+    );
+    service.clear_artwork_cache().unwrap();
+    let restarted = PortcoveService::new(service.library().clone()).unwrap();
+    let regenerated = restarted
+        .artwork_thumbnail(&port_id, ArtworkSlot::Cover, expected_choice.revision)
+        .unwrap();
+    assert_eq!(regenerated.png, thumbnail.png);
+    assert_eq!(
+        &restarted
+            .artwork(&port_id, ArtworkSlot::Cover)
+            .unwrap()
+            .choice,
+        expected_choice
+    );
+
+    let reset = restarted
+        .reset_artwork(&port_id, ArtworkSlot::Cover, expected_choice.revision)
+        .unwrap();
+    assert_eq!(reset.availability, crate::ArtworkAvailability::Fallback);
+    assert!(reset.choice.asset_sha256.is_none());
+    let imported = restarted
+        .import_artwork(
+            &port_id,
+            ArtworkSlot::Cover,
+            &temp.path().join("original-cover-unavailable.png"),
+            reset.choice.revision,
+        )
+        .unwrap();
+    assert_eq!(imported.availability, crate::ArtworkAvailability::Available);
+    assert_eq!(imported.choice.asset_sha256, expected_choice.asset_sha256);
+    assert!(
+        restarted
+            .reset_artwork(&port_id, ArtworkSlot::Cover, reset.choice.revision)
+            .is_err()
+    );
+
+    // A registered installation alone is insufficient: validate the current
+    // manifest and the destination's retained admission before using its title.
+    let manifest_path = install.path.join(".portcove-manifest.json");
+    let manifest = fs::read(&manifest_path).unwrap();
+    fs::write(&manifest_path, b"invalid retained contract").unwrap();
+    assert!(restarted.artwork(&port_id, ArtworkSlot::Cover).is_err());
+    fs::write(&manifest_path, &manifest).unwrap();
+    restarted
+        .library()
+        .connection()
+        .unwrap()
+        .execute(
+            "UPDATE definition_selection_state SET revision=0,replay_floor_json=NULL,active_json=NULL,previous_json=NULL WHERE singleton=1",
+            [],
+        )
+        .unwrap();
+    assert!(restarted.artwork(&port_id, ArtworkSlot::Cover).is_err());
+    assert!(
+        restarted
+            .artwork_thumbnail(&port_id, ArtworkSlot::Cover, imported.choice.revision)
+            .is_err()
+    );
+    assert!(
+        restarted
+            .reset_artwork(&port_id, ArtworkSlot::Cover, imported.choice.revision)
+            .is_err()
+    );
+    assert!(
+        restarted
+            .import_artwork(
+                &port_id,
+                ArtworkSlot::Cover,
+                &temp.path().join("original-cover-unavailable.png"),
+                imported.choice.revision,
+            )
+            .is_err()
+    );
+    assert_eq!(
+        crate::artwork_store::choice(
+            &restarted.library().connection().unwrap(),
+            &port_id,
+            ArtworkSlot::Cover,
+        )
+        .unwrap(),
+        imported.choice
+    );
+
+    // Current catalog presentation wins without consulting the retired install.
+    let mut document = retained.authoritative_document().clone();
+    document.ports[0].name = "Current artwork title".into();
+    let mut restarted = restarted;
+    restarted.replace_catalog_for_test(
+        Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap(),
+    );
+    fs::write(&manifest_path, b"invalid retained contract").unwrap();
+    let current = restarted.artwork(&port_id, ArtworkSlot::Cover).unwrap();
+    assert_eq!(current.generated_fallback.initials, "CA");
+    assert_eq!(current.choice, imported.choice);
 }
 
 #[test]

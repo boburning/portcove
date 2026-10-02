@@ -33,6 +33,11 @@ install folders. **Do not run Alpha 1 against a library already migrated by
 Alpha 2.** See the technical reference below for the retained metadata and
 forward-migration behavior.
 
+For a demonstrated development-build path, see the [actual installed Windows
+update and staging recovery](media/application-update/README.md). It uses a
+disposable test feed and unreleased test versions; it does not enable automatic
+updates in the published Alpha 2.
+
 ### Linux package choice
 
 A DEB or RPM installation stays with the package manager and source that

@@ -1444,6 +1444,86 @@ fn source_discovery_requires_explicit_scope_and_never_registers_implicitly() {
 }
 
 #[test]
+fn human_saved_scan_readback_preserves_recorded_partial_and_unavailable_coverage() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = temporary.path().join("library");
+    let available = temporary.path().join("available");
+    let unavailable = temporary.path().join("unavailable");
+    for root in [&available, &unavailable] {
+        std::fs::create_dir(root).unwrap();
+        let added = portcove(
+            &library,
+            &["--json", "source", "roots", "add", root.to_str().unwrap()],
+        );
+        assert!(added.status.success(), "{added:?}");
+    }
+    std::fs::remove_dir(&unavailable).unwrap();
+    std::fs::write(available.join("first.fixture"), b"first original").unwrap();
+    std::fs::write(available.join("second.fixture"), b"second original").unwrap();
+    let scan = json_stdout(&portcove(
+        &library,
+        &["--json", "source", "roots", "scan", "--max-entries", "1"],
+    ));
+    assert!(
+        scan["data"]["report"]["limits_reached"]
+            .as_array()
+            .unwrap()
+            .contains(&serde_json::json!("entries"))
+    );
+    let issues = scan["data"]["report"]["issues"].as_array().unwrap().len();
+    assert!(issues > 0);
+    assert_eq!(scan["data"]["report"]["issues_omitted"], 0);
+    let before = json_stdout(&portcove(
+        &library,
+        &["--json", "source", "roots", "snapshot"],
+    ));
+    assert_eq!(before["data"]["freshness"], "inputs_match");
+    let human = portcove(&library, &["source", "roots", "snapshot"]);
+    assert!(human.status.success(), "{human:?}");
+    let output = String::from_utf8(human.stdout).unwrap();
+    assert!(output.contains("Scan limits reached: entries; results may be incomplete."));
+    assert!(output.contains("Recorded scan limits: entries=1, depth=6,"));
+    assert!(output.contains(&format!(
+        "Scan issues: {issues} recorded, 0 additional omitted."
+    )));
+    assert!(output.contains("Unavailable folders at scan: 1."));
+    assert!(output.contains("does not mean its files were deleted"));
+    assert!(output.contains("file contents were not revalidated by this readback"));
+    assert!(!output.contains(available.to_str().unwrap()));
+    assert!(!output.contains(unavailable.to_str().unwrap()));
+    let after = json_stdout(&portcove(
+        &library,
+        &["--json", "source", "roots", "snapshot"],
+    ));
+    assert_eq!(after["data"], before["data"]);
+    assert_eq!(
+        std::fs::read(available.join("first.fixture")).unwrap(),
+        b"first original"
+    );
+    assert_eq!(
+        std::fs::read(available.join("second.fixture")).unwrap(),
+        b"second original"
+    );
+    let added = temporary.path().join("new-root");
+    std::fs::create_dir(&added).unwrap();
+    assert!(
+        portcove(
+            &library,
+            &["--json", "source", "roots", "add", added.to_str().unwrap()]
+        )
+        .status
+        .success()
+    );
+    let changed = portcove(&library, &["source", "roots", "snapshot"]);
+    assert!(changed.status.success(), "{changed:?}");
+    let output = String::from_utf8(changed.stdout).unwrap();
+    assert!(
+        output.contains("Recorded inputs changed; run source roots scan to refresh the evidence.")
+    );
+    assert!(output.contains("Unavailable folders at scan: 1."));
+}
+
+#[test]
 fn saved_game_file_roots_survive_unavailability_and_relink_by_stable_identity() {
     let temporary = tempfile::tempdir().unwrap();
     let library = temporary.path().join("library");

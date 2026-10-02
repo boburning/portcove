@@ -80,10 +80,13 @@ const protectedPolicyFiles = withNodeTestCompanions([
 ]);
 
 // Maintained qualification consumers, not Rust/product/catalog inputs. Their
-// Node/context contracts run in frontend CI; actual native acceptance is separate.
+// Node/context and Vitest contracts run in frontend CI; actual native acceptance
+// is separate. A reviewed test path does not grant ownership to its implementation.
 // New or renamed harness files stay unknown until their ownership is reviewed.
 const nativeScenarioFiles = new Set([
   "apps/desktop/scripts/desktop-artwork-correction-test.mjs",
+  "apps/desktop/scripts/desktop-default-cover-test.mjs",
+  "apps/desktop/scripts/desktop-install-fixture.test.mjs",
   "apps/desktop/scripts/desktop-preparation-test.mjs",
   "apps/desktop/scripts/desktop-test.mjs",
   "apps/desktop/scripts/testdata/catalog-artwork-blue.jpg",
@@ -203,6 +206,11 @@ function classifyPath(file) {
     releaseSecurityFiles.has(file) ||
     file.startsWith("crates/portcove-release-tools/") ||
     file.startsWith("apps/desktop/src-tauri/src/application_update_");
+  // Documentation captures are not consumed by the catalog or application.
+  // Keep their documentation checks without interpreting a pictured topic as
+  // executable catalog/source authority. Other formats and locations retain
+  // their existing routes; file modes and rename sides are checked separately.
+  const documentationRaster = /^docs\/media\/.+\.(?:png|jpg|jpeg|webp)$/u.test(file);
 
   const match = (condition, area, selectedGroups, reason, selectedPlatforms = []) => {
     if (!condition) return;
@@ -267,6 +275,7 @@ function classifyPath(file) {
   );
   match(
     !nativeScenarioFiles.has(file) &&
+      !documentationRaster &&
       (file === "crates/portcove-core/catalog/catalog.json" ||
         file.startsWith("crates/portcove-core/catalog/") ||
         /(?:catalog|retcomm|source-provenance)/iu.test(file)),

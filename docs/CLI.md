@@ -142,13 +142,13 @@ Schema 53 adds the `source.roots.scan` capability, the `source roots scan` and
 `source roots snapshot` commands, and the nullable `game_file_scan_snapshot`
 exported schema. Scan uses core's bounded limits and emits the existing
 `discover_sources` operation events under `--jsonl`; snapshot readback reports
-`inputs_match` or `inputs_changed` rather than treating older evidence as current.
+`inputs_match` or `inputs_changed` rather than treating older evidence as current. Human snapshot output also reports recorded limits, issue and omitted-issue counts, and unavailable folders at scan time. Matching recorded inputs does not prove complete coverage or revalidate file contents. Unavailable folders do not mean deleted files; changed inputs require a new scan. Use `--json source roots snapshot` for recorded details; human summaries omit raw issue messages and paths.
 Candidates remain unregistered until separately accepted.
 
 Schema 52 adds the `source.roots` capability, the `source roots` add, list,
 relink and remove commands, and the `game_file_roots` exported schema. Saved
 roots retain stable identities and unavailable paths; consumers must negotiate
-this specific capability rather than infer it from the coarse `source` entry.
+this specific capability rather than infer it from the coarse `source` entry. Adding the same canonical folder from concurrent clients is idempotent: all successful registrations return the same persisted root identity and leave unrelated saved roots unchanged.
 
 Schema 47 adds `definition_operations` to port status results for authenticated
 successor definitions. Each entry identifies install, preparation or launch,
@@ -241,6 +241,12 @@ observed mutation outcome. Older entries without a structured report do not infe
 unchanged files or a resumable operation. Their recorded message and targets no
 longer in the current catalog are available only as requested redacted technical
 details. Use `activity log <activity-id>` to read any retained phase captures.
+Human retained logs preserve newlines, tabs, and Unicode text. Other control
+characters are shown as visible escapes (for example, `\u{1b}` or `\r`) so
+captured tool output cannot issue terminal instructions. Activity and phase
+headers use the same single-line cleaning as other human labels. This display
+format does not rewrite retained captures, observed byte counts, truncation or
+completion flags, JSON/JSONL data, or the raw game streams from `exec`.
 JSON and JSONL keep the original machine error and activity fields.
 A new preparation always starts with fresh private work; it does not consume or
 automatically delete a failed attempt's retained files.
@@ -605,7 +611,7 @@ for the cancelled command. A late request returns `conflict`; it cannot interrup
 publication. Existing failure-isolated batch commands still return per-port
 outcomes, which must be inspected individually.
 
-Ctrl-C requests cancellation of this CLI command's current and queued source discovery, release checks, install, update, ensure, or reconciliation work, then keeps waiting. Unix SIGTERM uses the same path. Another client's operations are unaffected. Downloads and hashing stop cooperatively; extraction, conversion, or compilation may need to finish their current preparation step. Repeated signals do not force an unsafe publication interruption. Restore, library transfer, migration, and game supervision retain their existing recovery/lifetime behavior. Desktop game details and activity history offer the same core cancellation request; source search also keeps its own Cancel search control inside its dialog.
+Ctrl-C requests cancellation of this CLI command's current and queued source discovery, release checks, install, update, ensure, or reconciliation work, then keeps waiting. Unix SIGTERM uses the same path. Another client's operations are unaffected. Downloads and hashing stop cooperatively; extraction, conversion, or compilation may need to finish their current preparation step. Repeated signals do not force an unsafe publication interruption. If requesting cancellation fails, the signal warning uses the core human summary without raw error messages, local paths or technical context, and keeps waiting for a safe terminal result; it does not report the operation as stopped. Restore, library transfer, migration, and game supervision retain their existing recovery/lifetime behavior. Desktop game details and activity history offer the same core cancellation request; source search also keeps its own Cancel search control inside its dialog.
 
 ### Library selection
 

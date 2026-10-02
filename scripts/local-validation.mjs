@@ -139,6 +139,7 @@ const explicitNodeTests = new Map([
     ],
   ],
   ["apps/desktop/scripts/desktop-preparation-test.mjs", ["scripts/desktop-scenarios.test.mjs"]],
+  ["apps/desktop/scripts/desktop-default-cover-test.mjs", ["scripts/desktop-scenarios.test.mjs"]],
   [
     ".github/quality-tools.json",
     ["scripts/quality-tools.test.mjs", "scripts/dependency-automation.test.mjs"],
@@ -381,7 +382,7 @@ function classifyOnePath(selection, input, fileExists, options = {}) {
       file.startsWith("apps/desktop/test/")
     ) {
       selection.uiRelatedFiles.add(file);
-      if (file.startsWith("apps/desktop/src/")) selection.fallow = true;
+      selection.fallow = true;
     } else {
       selection.uiFullTests = true;
     }
@@ -742,13 +743,66 @@ function uiRelatedDurationCommand() {
 
 export function buildPlan(selection, context = {}) {
   if (selection.unknown.size) {
-    throw new Error(
-      `local validation has no selection rule for:\n${sorted(selection.unknown)
-        .map((file) => `- ${file}`)
-        .join(
-          "\n",
-        )}\nAdd and test a focused rule; the required hosted plan must not be replaced by silent local success.`,
-    );
+    const validation = validateValidationPlan(context.validationPlan);
+    const changes = context.changes;
+    if (
+      validation.discovery !== "complete" ||
+      validation.mode === "blocked" ||
+      validation.identities.base !== context.baseSha ||
+      validation.identities.head !== context.headSha ||
+      validation.identities.checkout !== context.headSha ||
+      validation.identities.merge_base !== context.mergeBase ||
+      !Array.isArray(changes) ||
+      changes.length === 0
+    )
+      throw new Error("conservative local fallback requires a complete bound Git comparison");
+    const paths = [
+      ...new Set(
+        changes.flatMap((change) => [
+          normalizePath(change.path),
+          ...(change.previousPath ? [normalizePath(change.previousPath)] : []),
+        ]),
+      ),
+    ].sort();
+    if (
+      JSON.stringify(paths) !== JSON.stringify(validation.changed_files) ||
+      !changes.every((change) => {
+        if (/^[A?]$/u.test(change.status))
+          return change.oldMode === "000000" && change.newMode === "100644";
+        if (change.status === "D")
+          return change.oldMode === "100644" && change.newMode === "000000";
+        return (
+          /^(?:M|R\d*)$/u.test(change.status) &&
+          change.oldMode === "100644" &&
+          change.newMode === "100644"
+        );
+      })
+    )
+      throw new Error("conservative local fallback requires complete regular-file modes and paths");
+    // These are inert inputs to the existing application/tooling, not a newly
+    // executable/configuration authority that the maintained audit cannot own.
+    const inert = new Set([".bin", ".dat", ".txt", ".png", ".jpg", ".jpeg", ".webp"]);
+    for (const file of selection.unknown) {
+      if (
+        !validation.fallback?.paths.includes(file) ||
+        file.split("/").some((part) => part.startsWith(".")) ||
+        !inert.has(path.posix.extname(file).toLowerCase())
+      )
+        throw new Error(
+          `unknown executable or configuration ownership blocks local validation: ${file}; establish its owning validation route`,
+        );
+    }
+    // Retain known consumers, including Playnite/transport/lint fixture checks.
+    // A broad audit is not proof of equivalence for those selected obligations.
+    return [
+      ...buildPlan({ ...selection, unknown: new Set() }, context),
+      command(
+        "conservative-audit",
+        `uncertain inert input impact: ${sorted(selection.unknown).join(", ")}; fresh full-debug repository audit, not cached or focused success`,
+        "just",
+        ["audit", "--fresh"],
+      ),
+    ];
   }
   const mergeBase = context.mergeBase ?? "<merge-base>";
   const commands = [
@@ -907,6 +961,7 @@ export function buildPlan(selection, context = {}) {
       }
     }
     const catalogArtworkInputs = [
+      "crates/portcove-core/src/artwork.rs",
       "crates/portcove-core/catalog/catalog-current-authoring.json",
       "crates/portcove-core/catalog/catalog.json",
     ];
@@ -1002,7 +1057,7 @@ export function buildPlan(selection, context = {}) {
         command(
           "rust-tests:portcove-cli:catalog-artwork-consumer",
           catalogArtworkFocused
-            ? "embedded catalog artwork must also satisfy its public CLI consumer contract"
+            ? "catalog and artwork resolution must also satisfy their public CLI consumer contract"
             : "catalog consumer ownership or changed inputs are uncertain; run the complete CLI inventory",
           process.execPath,
           [
@@ -1167,6 +1222,13 @@ export function localChangesFromRaw(buffer) {
   }));
 }
 
+export function untrackedFileMode(stat, platform = process.platform) {
+  if (stat.isSymbolicLink()) return "120000";
+  if (!stat.isFile())
+    throw new Error("untracked discovery contains an unsupported non-regular object");
+  return platform !== "win32" && (stat.mode & 0o111) !== 0 ? "100755" : "100644";
+}
+
 export function readChangeContext(base = "origin/main") {
   const baseSha = git(["rev-parse", "--verify", `${base}^{commit}`]).trim();
   const headSha = git(["rev-parse", "HEAD"]).trim();
@@ -1186,7 +1248,7 @@ export function readChangeContext(base = "origin/main") {
       status: "?",
       path: file,
       oldMode: "000000",
-      newMode: lstatSync(path.join(projectRoot, file)).isSymbolicLink() ? "120000" : "100644",
+      newMode: untrackedFileMode(lstatSync(path.join(projectRoot, file))),
     }));
   return {
     base,
@@ -1484,8 +1546,8 @@ export function main(argv = process.argv.slice(2)) {
   const selection = classifyChanges(context.changes);
   const planContext =
     selection.packages.size > 0 && !selection.workspaceRustTests
-      ? { ...context, doctestPackages: readDoctestPackages() }
-      : context;
+      ? { ...context, validationPlan, doctestPackages: readDoctestPackages() }
+      : { ...context, validationPlan };
   const plan = buildPlan(selection, planContext);
   printPlan(context, selection, plan, validationPlan);
   if (planOnly) return;

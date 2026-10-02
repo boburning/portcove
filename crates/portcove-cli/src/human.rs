@@ -55,8 +55,25 @@ fn diagnostic_phase(capture: &portcove_core::ActivityDiagnostic) -> String {
     };
     format!(
         "Activity: {}\nPhase: {}\n{status}{truncation}\n\nStandard output:\n{}\n\nStandard error:\n{}",
-        capture.activity_id, capture.phase, capture.stdout.text, capture.stderr.text
+        clean(&capture.activity_id),
+        clean(&capture.phase),
+        diagnostic_text(&capture.stdout.text),
+        diagnostic_text(&capture.stderr.text)
     )
+}
+
+// Captured tool output is data, not terminal instructions. Keep its layout and
+// Unicode text; expose other controls without changing retained machine records.
+fn diagnostic_text(text: &str) -> String {
+    let mut output = String::with_capacity(text.len());
+    for character in text.chars() {
+        if character.is_control() && !matches!(character, '\n' | '\t') {
+            output.extend(character.escape_default());
+        } else {
+            output.push(character);
+        }
+    }
+    output
 }
 
 pub(crate) fn failure(error: &portcove_core::FailureReport, technical: bool) -> String {
@@ -335,7 +352,7 @@ pub(crate) fn game_file_scan_snapshot(snapshot: &Option<GameFileScanSnapshot>) -
     let Some(snapshot) = snapshot else {
         return "No completed game-file folder scan is available.".into();
     };
-    format!(
+    let mut output = format!(
         "Game-file folder scan\nFreshness: {}\nCompleted (Unix): {}\nFolders: {}\nCandidates: {}\nEntries examined: {}\nFiles hashed: {}",
         match snapshot.freshness {
             portcove_core::GameFileScanFreshness::InputsMatch => "inputs_match",
@@ -346,7 +363,66 @@ pub(crate) fn game_file_scan_snapshot(snapshot: &Option<GameFileScanSnapshot>) -
         snapshot.report.candidates.len(),
         snapshot.report.entries_examined,
         snapshot.report.files_hashed,
-    )
+    );
+    output.push_str(match snapshot.freshness {
+        portcove_core::GameFileScanFreshness::InputsMatch => {
+            "\nRecorded inputs match; file contents were not revalidated by this readback."
+        }
+        portcove_core::GameFileScanFreshness::InputsChanged => {
+            "\nRecorded inputs changed; run source roots scan to refresh the evidence."
+        }
+    });
+    if let Some(limits) = &snapshot.limits {
+        output.push_str(&format!(
+            "\nRecorded scan limits: entries={}, depth={}, file bytes={}, hash bytes={}, candidates={}.",
+            limits.max_entries, limits.max_depth, limits.max_file_bytes,
+            limits.max_hash_bytes, limits.max_candidates,
+        ));
+    } else {
+        output.push_str("\nRecorded scan limits: not recorded.");
+    }
+    if snapshot.report.limits_reached.is_empty() {
+        output.push_str("\nNo recorded scan limits reached.");
+    } else {
+        use portcove_core::SourceDiscoveryLimit;
+        let limits = snapshot
+            .report
+            .limits_reached
+            .iter()
+            .map(|limit| match limit {
+                SourceDiscoveryLimit::Entries => "entries",
+                SourceDiscoveryLimit::Depth => "depth",
+                SourceDiscoveryLimit::FileSize => "file size",
+                SourceDiscoveryLimit::HashBytes => "hash bytes",
+                SourceDiscoveryLimit::Candidates => "candidates",
+            })
+            .collect::<Vec<_>>()
+            .join(", ");
+        output.push_str(&format!(
+            "\nScan limits reached: {limits}; results may be incomplete."
+        ));
+    }
+    output.push_str(&format!(
+        "\nScan issues: {} recorded, {} additional omitted.",
+        snapshot.report.issues.len(),
+        snapshot.report.issues_omitted,
+    ));
+    let unavailable = snapshot
+        .roots
+        .iter()
+        .filter(|root| root.availability == portcove_core::GameFileRootAvailability::Unavailable)
+        .count();
+    output.push_str(&format!("\nUnavailable folders at scan: {unavailable}."));
+    if unavailable > 0 {
+        output.push_str("\nAn unavailable folder does not mean its files were deleted.");
+    }
+    if !snapshot.report.limits_reached.is_empty()
+        || !snapshot.report.issues.is_empty()
+        || snapshot.report.issues_omitted > 0
+    {
+        output.push_str("\nUse --json source roots snapshot for recorded scan details.");
+    }
+    output
 }
 
 pub(crate) fn source_inspection(report: &SourceInspectionReport) -> String {
@@ -1390,6 +1466,220 @@ mod tests {
     };
 
     use super::{backup_list, catalog_show, document, storage, table, utc_rate_reset, utc_time};
+
+    fn scan_snapshot_fixture() -> portcove_core::GameFileScanSnapshot {
+        use portcove_core::{
+            GameFileRootAvailability, GameFileScanFreshness, SourceDiscoveryReport,
+        };
+        portcove_core::GameFileScanSnapshot {
+            format_version: 3,
+            catalog_sha256: "a".repeat(64),
+            roots: vec![portcove_core::GameFileRoot {
+                id: "fixture-root".into(),
+                path: PathBuf::from("/private/fixture-path"),
+                availability: GameFileRootAvailability::Unavailable,
+                created_at: 1,
+                updated_at: 1,
+            }],
+            limits: Some(portcove_core::SourceDiscoveryLimits {
+                max_entries: 1,
+                ..portcove_core::SourceDiscoveryLimits::default()
+            }),
+            report: SourceDiscoveryReport {
+                searched_roots: Vec::new(),
+                searched_profiles: Vec::new(),
+                candidates: Vec::new(),
+                entries_examined: 1,
+                files_hashed: 0,
+                hash_bytes: 0,
+                symlinks_skipped: 0,
+                limits_reached: vec![portcove_core::SourceDiscoveryLimit::Entries],
+                issues: vec![portcove_core::SourceDiscoveryIssue {
+                    path: Some(PathBuf::from("/private/fixture-path")),
+                    profile_id: None,
+                    message: "token=fixture-secret\u{1b}[2J\rprivate diagnostic".into(),
+                }],
+                issues_omitted: 7,
+            },
+            completed_at: 2,
+            freshness: GameFileScanFreshness::InputsMatch,
+        }
+    }
+
+    #[test]
+    fn saved_scan_readback_explains_partial_coverage_without_exposing_diagnostics() {
+        let snapshot = scan_snapshot_fixture();
+        let before = serde_json::to_value(&snapshot).unwrap();
+        let output = super::game_file_scan_snapshot(&Some(snapshot.clone()));
+        assert!(output.contains("Scan limits reached: entries"));
+        assert!(output.contains("Recorded scan limits: entries=1, depth=6, file bytes=2147483648, hash bytes=17179869184, candidates=64."));
+        assert!(output.contains("results may be incomplete"));
+        assert!(output.contains("Scan issues: 1 recorded, 7 additional omitted"));
+        assert!(output.contains("Unavailable folders at scan: 1"));
+        assert!(output.contains("does not mean its files were deleted"));
+        assert!(output.contains("file contents were not revalidated by this readback"));
+        for private in ["fixture-path", "fixture-secret", "private diagnostic"] {
+            assert!(!output.contains(private));
+        }
+        assert!(
+            output
+                .chars()
+                .all(|character| !character.is_control() || character == '\n')
+        );
+        assert_eq!(serde_json::to_value(&snapshot).unwrap(), before);
+    }
+
+    #[test]
+    fn saved_scan_readback_names_every_limit_and_changed_input_guidance() {
+        use portcove_core::SourceDiscoveryLimit;
+        let mut snapshot = scan_snapshot_fixture();
+        snapshot.freshness = portcove_core::GameFileScanFreshness::InputsChanged;
+        snapshot.report.limits_reached = vec![
+            SourceDiscoveryLimit::Entries,
+            SourceDiscoveryLimit::Depth,
+            SourceDiscoveryLimit::FileSize,
+            SourceDiscoveryLimit::HashBytes,
+            SourceDiscoveryLimit::Candidates,
+        ];
+        let output = super::game_file_scan_snapshot(&Some(snapshot));
+        assert!(
+            output
+                .contains("Scan limits reached: entries, depth, file size, hash bytes, candidates")
+        );
+        assert!(
+            output.contains(
+                "Recorded inputs changed; run source roots scan to refresh the evidence."
+            )
+        );
+        assert!(!output.contains("Recorded inputs match"));
+    }
+
+    #[test]
+    fn saved_scan_without_recorded_problems_does_not_claim_complete_coverage() {
+        let mut snapshot = scan_snapshot_fixture();
+        snapshot.roots[0].availability = portcove_core::GameFileRootAvailability::Available;
+        snapshot.report.limits_reached.clear();
+        snapshot.report.issues.clear();
+        snapshot.report.issues_omitted = 0;
+        let output = super::game_file_scan_snapshot(&Some(snapshot));
+        assert!(output.contains("No recorded scan limits reached."));
+        assert!(output.contains("Scan issues: 0 recorded, 0 additional omitted."));
+        assert!(output.contains("Unavailable folders at scan: 0."));
+        assert!(output.contains("file contents were not revalidated by this readback"));
+        assert!(!output.contains("results may be incomplete"));
+        assert!(!output.contains("scan is complete"));
+        assert_eq!(
+            super::game_file_scan_snapshot(&None),
+            "No completed game-file folder scan is available."
+        );
+        let mut legacy = scan_snapshot_fixture();
+        legacy.format_version = 1;
+        legacy.limits = None;
+        legacy.freshness = portcove_core::GameFileScanFreshness::InputsChanged;
+        let output = super::game_file_scan_snapshot(&Some(legacy));
+        assert!(output.contains("Recorded scan limits: not recorded."));
+        assert!(!output.contains("Recorded scan limits: entries="));
+    }
+
+    #[test]
+    fn retained_diagnostics_escape_controls_without_changing_captures() {
+        use portcove_core::{ActivityDiagnostic, DiagnosticStream, redact_diagnostic_text};
+        let capture = ActivityDiagnostic {
+            activity_id: "owned-activity-id".into(),
+            phase: "preparation.setup".into(),
+            stdout: DiagnosticStream {
+                text: "first π 日本語\n\tsecond\u{1b}[31m\rprogress\u{8}\0\u{7f}\u{9b}2J".into(),
+                observed_bytes: 4096,
+                truncated: true,
+            },
+            stderr: DiagnosticStream {
+                text: redact_diagnostic_text(
+                    "password=owned-private-value\nsafe\u{1b}]2;owned-title\u{7}\n",
+                ),
+                observed_bytes: 1024,
+                truncated: false,
+            },
+            complete: false,
+            updated_at: 42,
+            stream_limit_bytes: 2048,
+        };
+        let stored = serde_json::to_value(&capture).unwrap();
+        let rendered = super::activity_diagnostic(std::slice::from_ref(&capture));
+        assert!(
+            rendered
+                .chars()
+                .all(|c| !c.is_control() || matches!(c, '\n' | '\t'))
+        );
+        assert!(rendered.contains("first π 日本語\n\tsecond"));
+        assert!(rendered.contains(r"\u{1b}[31m\rprogress\u{8}\u{0}\u{7f}\u{9b}2J"));
+        assert!(rendered.contains(r"safe\u{1b}]2;owned-title\u{7}"));
+        assert!(rendered.contains("password=[REDACTED]"));
+        assert!(!rendered.contains("owned-private-value"));
+        assert!(rendered.contains("Capture is incomplete."));
+        assert!(rendered.contains("Output exceeded the capture limit; some output was omitted."));
+        assert_eq!(serde_json::to_value(&capture).unwrap(), stored);
+        assert!(
+            stored["stdout"]["text"]
+                .as_str()
+                .unwrap()
+                .contains('\u{1b}')
+        );
+        assert_eq!(stored["stdout"]["observed_bytes"], 4096);
+        assert_eq!(stored["stderr"]["observed_bytes"], 1024);
+    }
+
+    #[test]
+    fn diagnostic_text_preserves_layout_and_unicode_but_escapes_all_controls() {
+        let readable = "first π 日本語 🐚\n\tindented\n";
+        assert_eq!(super::diagnostic_text(readable), readable);
+        assert_eq!(super::diagnostic_text(""), "");
+        for code in (0..=0x1f).chain(0x7f..=0x9f) {
+            let control = char::from_u32(code).unwrap();
+            let rendered = super::diagnostic_text(&control.to_string());
+            if matches!(control, '\n' | '\t') {
+                assert_eq!(rendered, control.to_string());
+            } else {
+                assert_eq!(rendered, control.escape_default().to_string());
+                assert!(!rendered.chars().any(char::is_control));
+            }
+        }
+    }
+
+    #[test]
+    fn retained_diagnostic_headers_are_single_line_and_completion_stays_truthful() {
+        use portcove_core::{ActivityDiagnostic, DiagnosticStream};
+        let stream = DiagnosticStream {
+            text: "ordinary π\n\tsecond line\n".into(),
+            observed_bytes: 30,
+            truncated: false,
+        };
+        let capture = ActivityDiagnostic {
+            activity_id: "owned-id\u{1b}[31m\nheader".into(),
+            phase: "preparation.setup\u{8}\tphase".into(),
+            stdout: stream.clone(),
+            stderr: stream,
+            complete: true,
+            updated_at: 42,
+            stream_limit_bytes: 2048,
+        };
+        let rendered = super::activity_diagnostic(&[capture.clone(), capture]);
+        assert!(rendered.contains("Activity: owned-id[31m header\nPhase: preparation.setup phase"));
+        assert_eq!(
+            rendered
+                .matches("Capture reached the end of both streams.")
+                .count(),
+            2
+        );
+        assert_eq!(rendered.matches("ordinary π\n\tsecond line\n").count(), 4);
+        assert!(!rendered.contains("Capture is incomplete"));
+        assert!(!rendered.contains("some output was omitted"));
+        assert!(!rendered.contains('\u{1b}'));
+        assert!(!rendered.contains('\u{8}'));
+        assert_eq!(
+            super::activity_diagnostic(&[]),
+            "No retained diagnostic capture is available for this activity."
+        );
+    }
 
     #[test]
     fn human_times_use_utc_and_report_unrepresentable_values() {

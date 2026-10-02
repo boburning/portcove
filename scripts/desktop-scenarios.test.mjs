@@ -47,13 +47,14 @@ test("smoke includes isolated install cancellation and committed-refresh recover
 });
 
 test("live default-cover observation remains opt-in without fixtures or offline profiles", () => {
-  const id = "native-default-cover-display";
-  for (const ids of Object.values(DESKTOP_PROFILES)) assert.ok(!ids.includes(id));
-  const selection = resolveDesktopSelection({ scenarios: [id] });
-  assert.deepEqual(selection.selected_scenarios, [id]);
-  assert.deepEqual(selection.setup_scenarios, []);
-  assert.deepEqual(selection.prerequisites, ["desktop"]);
-  assert.ok(desktopHarnessDeadlineMs(selection) > 180_000);
+  for (const id of ["native-default-cover-display", "native-default-cover-cache-conditions"]) {
+    for (const ids of Object.values(DESKTOP_PROFILES)) assert.ok(!ids.includes(id));
+    const selection = resolveDesktopSelection({ scenarios: [id] });
+    assert.deepEqual(selection.selected_scenarios, [id]);
+    assert.deepEqual(selection.setup_scenarios, []);
+    assert.deepEqual(selection.prerequisites, ["desktop"]);
+    assert.ok(desktopHarnessDeadlineMs(selection) > 180_000);
+  }
 });
 
 test("exact selections are deduplicated and returned in catalog order", () => {
@@ -191,4 +192,19 @@ test("large lifecycle profiles receive a bounded profile-scale watchdog", () => 
     180_000,
   );
   assert.equal(desktopHarnessDeadlineMs(resolveDesktopSelection({ profile: "full" })), 600_000);
+});
+
+test("backup success-focus acceptance is isolated and exact-selection-only", () => {
+  const id = "native-backup-delete-focus";
+  for (const ids of Object.values(DESKTOP_PROFILES)) assert.ok(!ids.includes(id));
+  const selection = resolveDesktopSelection({ scenarios: [id] });
+  assert.deepEqual(selection.selected_scenarios, [id]);
+  assert.deepEqual(selection.setup_scenarios, []);
+  assert.deepEqual(selection.prerequisites, ["desktop", "owned-fixture", "native-dialog"]);
+  assert.deepEqual(selection.host_resources, [
+    "native-desktop",
+    "keyboard-pointer",
+    "native-dialog",
+  ]);
+  assert.equal(desktopHarnessDeadlineMs(selection), 180_000);
 });

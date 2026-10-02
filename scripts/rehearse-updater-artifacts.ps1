@@ -2,7 +2,7 @@ param(
     [Parameter(Mandatory = $true)]
     [ValidateSet("windows-x86_64", "linux-x86_64", "macos-x86_64", "macos-aarch64")]
     [string]$PlatformLabel,
-    [ValidateSet("legacy-skipped", "preview-final")]
+    [ValidateSet("legacy-adjacent", "legacy-skipped", "preview-final")]
     [string]$TransitionProfile = "legacy-skipped",
     [switch]$DescribeTransition
 )
@@ -14,7 +14,7 @@ $transition = [ordered]@{
     profile = $TransitionProfile
     platform = $PlatformLabel
     predecessor_version = if ($TransitionProfile -eq "preview-final") { "1.0.0-rc.2" } else { "0.1.0" }
-    candidate_version = if ($TransitionProfile -eq "preview-final") { "1.0.0" } else { "0.3.0" }
+    candidate_version = if ($TransitionProfile -eq "preview-final") { "1.0.0" } elseif ($TransitionProfile -eq "legacy-adjacent") { "0.2.0" } else { "0.3.0" }
     candidate_production_eligible = $TransitionProfile -eq "preview-final"
 }
 if ($DescribeTransition) {
