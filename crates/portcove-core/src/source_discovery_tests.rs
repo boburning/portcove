@@ -641,6 +641,117 @@ fn live_compound_owned_reader_keeps_existing_hash_bounds_and_cancellation() {
     assert_eq!(budget.hashed, 0);
 }
 
+#[test]
+fn live_compound_current_extensionless_remains_importable_with_narrow_legacy_projection() {
+    let temporary = tempfile::tempdir().unwrap();
+    let package = live_package();
+    let path = temporary.path().join("extensionless");
+    fs::write(&path, &package).unwrap();
+    let mut document = live_catalog(&package).authoritative_document();
+    let profile = document
+        .source_catalog
+        .as_mut()
+        .unwrap()
+        .identities
+        .iter_mut()
+        .find(|p| p.id == "sotn-xbla")
+        .unwrap();
+    let mut legacy = profile.variants[0].clone();
+    legacy.id = "legacy-bin".into();
+    legacy.legacy_projection_only = true;
+    legacy.representations[0].extensions = vec!["bin".into()];
+    profile.variants.push(legacy);
+    let catalog = Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap();
+    assert_eq!(
+        catalog
+            .source_profile("sotn-xbla")
+            .unwrap()
+            .accepted_extensions,
+        ["bin"]
+    );
+    let mut selected = request(temporary.path());
+    selected.profile_ids = vec!["sotn-xbla".into()];
+    let report = scan(&catalog, &selected).unwrap();
+    assert_eq!(report.candidates.len(), 1);
+    let mut service =
+        PortcoveService::new(crate::Library::open(temporary.path().join("library")).unwrap())
+            .unwrap();
+    service.replace_catalog_for_test(catalog);
+    let plan = service
+        .plan_source_import(
+            "sotn-xbla",
+            &path,
+            crate::SourceImportMode::UseCurrentLocation,
+        )
+        .unwrap();
+    assert_eq!(
+        plan.admission_mode,
+        crate::SourceAdmissionMode::ExactIdentity
+    );
+    assert!(service.library().sources().unwrap().is_empty());
+    assert_eq!(fs::read(path).unwrap(), package);
+}
+
+#[test]
+fn live_compound_failure_rejects_its_profile_but_preserves_independent_raw_admission() {
+    let temporary = tempfile::tempdir().unwrap();
+    let mut package = live_package();
+    package[0xc028] = 41;
+    let path = temporary.path().join("package.bin");
+    fs::write(&path, &package).unwrap();
+    let mut document = live_catalog(&package).authoritative_document();
+    let profiles = &mut document.source_catalog.as_mut().unwrap().identities;
+    let profile = profiles.iter_mut().find(|p| p.id == "sotn-xbla").unwrap();
+    let mut raw = profile.variants[0].representations[0].clone();
+    raw.id = "raw-alternative".into();
+    raw.extensions = vec!["bin".into()];
+    raw.kind = crate::SourceRepresentationKind::RawFile {
+        identities: vec![crate::DigestIdentity {
+            scope: crate::DigestScope::OriginalFile,
+            sha1: None,
+            sha256: Some(hex::encode(Sha256::digest(&package))),
+            crc32: None,
+        }],
+    };
+    profile.variants[0].representations.push(raw.clone());
+    let mut independent = profile.clone();
+    independent.id = "raw-only-control".into();
+    independent.variants[0].representations = vec![raw];
+    profiles.push(independent);
+    let catalog = Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap();
+    assert!(
+        crate::source_inspection::inspect_file(
+            &catalog,
+            "sotn-xbla",
+            &path,
+            u64::MAX,
+            &mut HashBudget {
+                operation: None,
+                limit: u64::MAX,
+                hashed: 0,
+                max_zip_entries: 4096
+            }
+        )
+        .is_err()
+    );
+    let mut selected = request(temporary.path());
+    selected.profile_ids = vec!["sotn-xbla".into(), "raw-only-control".into()];
+    selected.limits.max_hash_bytes = package.len() as u64;
+    let report = scan(&catalog, &selected).unwrap();
+    assert_eq!(
+        report
+            .candidates
+            .iter()
+            .map(|c| c.profile_id.as_str())
+            .collect::<Vec<_>>(),
+        ["raw-only-control"]
+    );
+    assert_eq!(report.hash_bytes, package.len() as u64);
+    assert_eq!(report.files_hashed, 1);
+    assert_eq!(report.issues.len(), 1);
+    assert_eq!(fs::read(path).unwrap(), package);
+}
+
 fn raw_gamecube_catalog(bytes: &[u8]) -> Catalog {
     let mut document: serde_json::Value =
         serde_json::from_str(include_str!("../catalog/catalog.json")).unwrap();

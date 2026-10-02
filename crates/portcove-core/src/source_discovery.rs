@@ -982,6 +982,11 @@ impl Discovery<'_> {
         profiles.sort_by_key(|profile| &profile.id);
         profiles.dedup_by_key(|profile| &profile.id);
         for profile in profiles {
+            if observation.rejected_profiles.contains(&profile.id) {
+                // Manual inspection rejects this profile's exact compound failure;
+                // an unrelated raw-only profile still evaluates its own contract.
+                continue;
+            }
             let inspection = if profile.kind == crate::SourceKind::GamecubeDisc {
                 crate::source_inspection::inspect_file_identity(
                     self.catalog,
