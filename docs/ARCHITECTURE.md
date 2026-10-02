@@ -79,6 +79,27 @@ remain authoritative. Publication precedes source registration; registration
 precedes optional original cleanup. Phase writes preserve the existing durable
 ordering and interruption recovery, including publication before its phase write.
 
+## Staged activation interpretation
+
+Normal staged activation and recovery share one private checked activation family.
+Preparing and metadata committed retain their released phase encodings; unused
+phases, foreign payloads, auxiliary paths and quiescence flags are refused before
+mutation. Journal and install owners must agree. Preparing binds the immutable
+install identity, including its path, to the live active or staged record; mutable
+verified/staged flags may differ during a valid retry.
+
+The family grants no consent or filesystem authority. Review, per-port locking,
+post-lock journal reread, retained qualifications, owned paths and critical-file
+verification remain authoritative. User data is collected/restored and critical
+files rechecked before atomic activation. A checked transition borrows the journal
+across that transaction; metadata success precedes the committed phase write,
+existing fault point and journal retirement. No fallible read is inserted after
+metadata success, and a failed journal write keeps the existing committed error
+handling. Metadata-committed recovery only retires the valid journal, including
+when a later operation replaced or removed its former install. Malformed records
+retain their journal and diagnostics without changing active authority or owned
+files. There is no journal, SQLite or public contract migration.
+
 ## Output relocation interpretation
 
 Normal relocation and recovery decode the same private checked relocation family.

@@ -339,15 +339,153 @@ fn path_exists(path: &std::path::Path) -> Result<bool> {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ActivationPhase {
+    Preparing,
+    Committed,
+}
+
+// Interpret the released activation envelope once for normal execution and recovery.
+// This family does not grant consent, bypass locks or replace filesystem verification.
+pub(crate) struct ActivationOperation {
+    id: String,
+    created_at: i64,
+    install: InstallRecord,
+    phase: ActivationPhase,
+}
+
+impl ActivationOperation {
+    pub(crate) fn decode(
+        service: &PortcoveService,
+        operation: &LifecycleOperation,
+    ) -> Result<Self> {
+        if operation.kind != LifecycleOperationKind::Activate
+            || operation.activate
+            || operation.relocation.is_some()
+            || operation.source_import.is_some()
+            || operation.preparation.is_some()
+            || operation.preparation_process_quiesced.is_some()
+            || operation.paths.staging.is_some()
+            || operation.paths.final_path.is_some()
+            || operation.paths.quarantine.is_some()
+            || !operation.original_paths.is_empty()
+        {
+            return Err(PortcoveError::state(
+                "activation journal has an incompatible lifecycle envelope",
+            ));
+        }
+        let install = operation.install.as_ref().ok_or_else(|| {
+            PortcoveError::state("recoverable activation is missing its staged install identity")
+        })?;
+        if install.port_id != operation.port_id {
+            return Err(PortcoveError::state(
+                "activation journal owner differs from its install identity",
+            ));
+        }
+        let phase = match operation.phase {
+            LifecyclePhase::Preparing => ActivationPhase::Preparing,
+            LifecyclePhase::MetadataCommitted => ActivationPhase::Committed,
+            _ => {
+                return Err(PortcoveError::state(
+                    "activation journal has an incompatible stored phase",
+                ));
+            }
+        };
+        if phase == ActivationPhase::Preparing {
+            let status = service
+                .library
+                .status(&operation.port_id, install.channel)?;
+            let current = status
+                .active
+                .iter()
+                .chain(status.staged.iter())
+                .find(|current| current.id == install.id)
+                .ok_or_else(|| {
+                    PortcoveError::conflict(
+                        "the staged install changed while activation was interrupted",
+                    )
+                })?;
+            if !same_activation_install(current, install) {
+                return Err(PortcoveError::conflict(
+                    "activation journal differs from the registered install identity",
+                ));
+            }
+        }
+        Ok(Self {
+            id: operation.id.clone(),
+            created_at: operation.created_at,
+            install: install.clone(),
+            phase,
+        })
+    }
+
+    pub(crate) fn is_preparing(&self) -> bool {
+        self.phase == ActivationPhase::Preparing
+    }
+
+    pub(crate) fn prepare_commit<'a>(
+        &'a mut self,
+        service: &PortcoveService,
+        operation: &'a mut LifecycleOperation,
+    ) -> Result<ActivationCommit<'a>> {
+        let current = Self::decode(service, operation)?;
+        if self.phase != ActivationPhase::Preparing
+            || current.phase != self.phase
+            || current.id != self.id
+            || current.created_at != self.created_at
+            || !same_activation_install(&current.install, &self.install)
+        {
+            return Err(PortcoveError::state(
+                "activation journal changed before its checked commit transition",
+            ));
+        }
+        Ok(ActivationCommit {
+            activation: self,
+            operation,
+        })
+    }
+}
+
+// Borrow both identities across the metadata transaction: consumers cannot change
+// the checked envelope before persisting the committed phase.
+pub(crate) struct ActivationCommit<'a> {
+    activation: &'a mut ActivationOperation,
+    operation: &'a mut LifecycleOperation,
+}
+
+impl ActivationCommit<'_> {
+    pub(crate) fn persist(self, store: &OperationStore) -> Result<()> {
+        self.operation.phase = LifecyclePhase::MetadataCommitted;
+        self.operation.last_error = None;
+        // No fallible read after metadata commit; retain committed error handling
+        // even if the existing journal write fails.
+        self.activation.phase = ActivationPhase::Committed;
+        store.put(self.operation)
+    }
+}
+
+fn same_activation_install(left: &InstallRecord, right: &InstallRecord) -> bool {
+    // verified/staged are mutable read-model flags, not durable install identity.
+    left.id == right.id
+        && left.port_id == right.port_id
+        && left.version == right.version
+        && left.path == right.path
+        && left.channel == right.channel
+        && left.installed_at == right.installed_at
+        && left.artifact == right.artifact
+        && left.runtime == right.runtime
+        && left.manifest_sha256 == right.manifest_sha256
+        && left.selected_executable == right.selected_executable
+}
+
 pub(crate) fn recover_activation(
     service: &PortcoveService,
     store: &OperationStore,
     operation: &mut LifecycleOperation,
 ) -> Result<()> {
-    let install = operation.install.clone().ok_or_else(|| {
-        PortcoveError::state("recoverable activation is missing its staged install identity")
-    })?;
-    if operation.phase == LifecyclePhase::Preparing {
+    let mut activation = ActivationOperation::decode(service, operation)?;
+    let install = activation.install.clone();
+    if activation.is_preparing() {
         let port = service.installed_port(&install)?;
         let qualification = service.installed_mutability_qualification(&install)?;
         Installer::new(service.library.clone())?.verify_critical(&install, &qualification)?;
@@ -360,16 +498,19 @@ pub(crate) fn recover_activation(
                     "the staged install changed while activation was interrupted",
                 ));
             }
-            service.collect_active_user_data_if_launched(&operation.port_id)?;
+            let commit = activation.prepare_commit(service, operation)?;
+            service.collect_active_user_data_if_launched(&install.port_id)?;
             service.restore_user_data_to(&port, &install.path)?;
             Installer::new(service.library.clone())?.verify_critical(&install, &qualification)?;
-            service.library.activate_staged(&operation.port_id)?;
+            service.library.activate_staged(&install.port_id)?;
+            commit.persist(store)?;
+        } else {
+            activation
+                .prepare_commit(service, operation)?
+                .persist(store)?;
         }
-        operation.phase = LifecyclePhase::MetadataCommitted;
-        operation.last_error = None;
-        store.put(operation)?;
     }
-    if operation.phase == LifecyclePhase::MetadataCommitted {
+    if !activation.is_preparing() {
         store.remove(&operation.id)?;
     }
     Ok(())
