@@ -821,6 +821,10 @@ export async function liveInterruptedPreparationScenario({
       active,
       source_sha256: await digest(source),
       original_executable_sha256: await digest(originalExecutable),
+      active_setup_sha256: await digest(path.join(active.path, executableHint)),
+      active_game_sha256: await digest(
+        path.join(active.path, port.executable_hints["windows-x86-64"][0]),
+      ),
       save_sha256: await digest(save),
     };
     await open(port);
@@ -889,6 +893,11 @@ export async function liveInterruptedPreparationScenario({
     assert.deepEqual(command(["status", port.id]).active, before.active);
     assert.equal(await digest(source), before.source_sha256);
     assert.equal(await digest(originalExecutable), before.original_executable_sha256);
+    assert.equal(await digest(path.join(active.path, executableHint)), before.active_setup_sha256);
+    assert.equal(
+      await digest(path.join(active.path, port.executable_hints["windows-x86-64"][0])),
+      before.active_game_sha256,
+    );
     assert.equal(await digest(save), before.save_sha256);
     await access(checkpoint);
     const generation = (await invoke("get_bootstrap_status")).value.generation;
@@ -905,10 +914,7 @@ export async function liveInterruptedPreparationScenario({
       async () => {
         for (const candidate of await browser.findElements(By.css(".activity-row.failed"))) {
           const text = await candidate.getText();
-          if (
-            text.includes(port.name) &&
-            text.includes("Game preparation stopped before its outcome could be recorded")
-          )
+          if (text.includes(port.name) && text.includes(recovered.failure.presentation.summary))
             return candidate;
         }
         return false;

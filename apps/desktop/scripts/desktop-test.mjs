@@ -233,6 +233,15 @@ let browser;
 let driverLog = "";
 let startupAttempt = 0;
 const backupFocusSession = selection.selected_scenarios.includes("native-backup-delete-focus");
+const hostInterruptionSession = selection.selected_scenarios.includes(
+  "native-host-interrupted-preparation",
+);
+const identityBoundSession = backupFocusSession || hostInterruptionSession;
+const cleanupName = hostInterruptionSession ? "host-interruption" : "backup-focus";
+if (hostInterruptionSession) {
+  assert.equal(process.platform, "win32");
+  assert.deepEqual(selection.selected_scenarios, ["native-host-interrupted-preparation"]);
+}
 if (backupFocusSession) {
   assert.equal(process.platform, "win32", "The exact backup-focus consent route requires Windows");
   assert.deepEqual(
@@ -251,7 +260,7 @@ const nativeLock = await acquireNativeSessionLock({
 });
 const harnessStarted = new Date();
 function stopDriver() {
-  if (backupFocusSession) {
+  if (identityBoundSession) {
     stopBackupFocusDriver();
     return;
   }
@@ -286,7 +295,10 @@ function stopBackupFocusDriver() {
 function validateBackupFocusInventory(captured) {
   if (
     checks.some(
-      (check) => check.scenario === "native-backup-delete-focus" && check.outcome === "passed",
+      (check) =>
+        ["native-backup-delete-focus", "native-host-interrupted-preparation"].includes(
+          check.scenario,
+        ) && check.outcome === "passed",
     )
   ) {
     assert.equal(
@@ -321,7 +333,8 @@ function captureBackupFocusCleanup() {
     backupFocusDriver && driver?.pid,
     "Missing initial owned driver identity; refuse unchecked cleanup",
   );
-  const original = path.join(output, "backup-focus-final-processes.json");
+  const suffix = hostInterruptionSession ? `-${driver.pid}` : "";
+  const original = path.join(output, `${cleanupName}-final-processes${suffix}.json`);
   const captured = observeNativeSession("SnapshotDriverTree", original);
   artifacts.push(original);
   assert.deepEqual(
@@ -342,7 +355,7 @@ function captureBackupFocusCleanup() {
   // Preserve the original snapshot; the existing Wait helper iterates processes.
   // Include the captured driver root in a separate, explicitly derived inventory
   // so positive exit shares the same five-second bound for root and descendants.
-  const checked = path.join(output, "backup-focus-exit-inventory.json");
+  const checked = path.join(output, `${cleanupName}-exit-inventory${suffix}.json`);
   writeFileSync(
     checked,
     JSON.stringify(
@@ -961,10 +974,8 @@ async function restartApplication(name, prepareWhileStopped, childEnvironment = 
 // deleting its WebDriver session or requesting graceful application shutdown.
 async function interruptApplication(name, preparationExecutable, assertStillPreparing) {
   assert.equal(process.platform, "win32", "Live host interruption is Windows qualification");
-  const snapshot = path.join(output, `${name}-processes.json`);
-  const captured = observeNativeSession("SnapshotDriverTree", snapshot);
-  artifacts.push(snapshot);
-  assert.deepEqual(captured.driver, interruptionDriver, "Owned launch identity changed");
+  const inventory = captureBackupFocusCleanup();
+  const captured = JSON.parse(await readFile(inventory, "utf8"));
   const matches = (expected) =>
     captured.processes.filter(
       (entry) => path.resolve(entry.path).toLowerCase() === path.resolve(expected).toLowerCase(),
@@ -972,27 +983,13 @@ async function interruptApplication(name, preparationExecutable, assertStillPrep
   assert.equal(matches(values.app).length, 1, "Capture the live owned application");
   assert.equal(matches(preparationExecutable).length, 1, "Capture the live preparation child");
   await assertStillPreparing();
-  const inventory = path.join(output, `${name}-exit-inventory.json`);
-  await writeFile(
-    inventory,
-    JSON.stringify(
-      {
-        ...captured,
-        source_snapshot: path.basename(snapshot),
-        derivation: "include-captured-driver-root-in-positive-exit-inventory",
-        processes: [captured.driver, ...captured.processes],
-      },
-      null,
-      2,
-    ),
-    { flag: "wx" },
-  );
-  artifacts.push(inventory);
+  const startedAt = new Date().toISOString();
+  stopBackupFocusDriver();
   const observation = {
-    started_at: new Date().toISOString(),
+    started_at: startedAt,
     shutdown_request: "forced-owned-tree-termination-without-session-delete",
-    driver_stop: observeNativeSession("StopDriver", snapshot),
-    shutdown: observeNativeSession("Wait", inventory),
+    driver_stop: backupFocusCleanup.stopped,
+    shutdown: backupFocusCleanup.exited,
   };
   // The killed session cannot be reused. Recovery runs in a new native host;
   // no durable-state fixture or quiescence flag is written by the harness.
@@ -1006,8 +1003,6 @@ async function interruptApplication(name, preparationExecutable, assertStillPrep
   artifacts.push(evidence);
   return browser;
 }
-
-let interruptionDriver;
 
 function observeNativeSession(mode, snapshot) {
   const driverProcessId = mode === "Wait" ? 0 : driver.pid;
@@ -1033,7 +1028,8 @@ function observeNativeSession(mode, snapshot) {
 }
 
 function captureBackupFocusDriverLaunch(launchStarted) {
-  const snapshot = path.join(output, "backup-focus-driver-startup.json");
+  const suffix = hostInterruptionSession ? `-${driver.pid}` : "";
+  const snapshot = path.join(output, `${cleanupName}-driver-startup${suffix}.json`);
   const captured = observeNativeSession("SnapshotDriver", snapshot);
   artifacts.push(snapshot);
   assert.equal(captured.driver.pid, driver.pid);
@@ -1101,29 +1097,7 @@ async function startDriver(childEnvironment = {}) {
     stream.on("data", (chunk) => {
       driverLog = (driverLog + chunk).slice(-1024 * 1024);
     });
-  if (backupFocusSession) {
-    await new Promise((resolve, reject) => {
-      driver.once("spawn", resolve);
-      driver.once("error", reject);
-    });
-    captureBackupFocusDriverLaunch(launchStarted);
-  }
-  if (selection.selected_scenarios.includes("native-host-interrupted-preparation")) {
-    const snapshot = path.join(output, `host-interruption-driver-${driver.pid}.json`);
-    const captured = observeNativeSession("SnapshotDriver", snapshot);
-    artifacts.push(snapshot);
-    assert.equal(captured.driver.pid, driver.pid);
-    assert.equal(
-      path.resolve(captured.driver.path).toLowerCase(),
-      path.resolve(values.driver).toLowerCase(),
-    );
-    const created = Number(BigInt(captured.driver.started_filetime) / 10_000n) - 11_644_473_600_000;
-    assert.ok(
-      created >= launchStarted - 1 && created <= Date.now(),
-      "Driver belongs to owned launch",
-    );
-    interruptionDriver = captured.driver;
-  }
+  await captureSelectedDriverLaunch(launchStarted);
   for (let attempt = 0; attempt < 40; attempt++) {
     if (spawnError) throw spawnError;
     if (driver.exitCode !== null) throw new Error(`tauri-driver exited: ${driver.exitCode}`);
@@ -1131,6 +1105,19 @@ async function startDriver(childEnvironment = {}) {
     if (await driverReady()) return;
   }
   throw new Error("tauri-driver did not become ready within ten seconds");
+}
+
+async function captureSelectedDriverLaunch(launchStarted) {
+  if (!identityBoundSession) return;
+  await new Promise((resolve, reject) => {
+    driver.once("spawn", resolve);
+    driver.once("error", reject);
+  });
+  captureBackupFocusDriverLaunch(launchStarted);
+  if (hostInterruptionSession) {
+    backupFocusCleanupSnapshot = undefined;
+    backupFocusCleanup = undefined;
+  }
 }
 
 async function verifyCompactSettingsJumps() {
@@ -2540,7 +2527,7 @@ try {
   process.exitCode = 1;
 } finally {
   try {
-    if (backupFocusSession) {
+    if (identityBoundSession) {
       try {
         if (driver?.pid && !backupFocusCleanup) captureBackupFocusCleanup();
         let quitError;
@@ -2554,7 +2541,7 @@ try {
           backupFocusCleanup,
           "Positive owned root/application/WebView cleanup is required",
         );
-        const report = path.join(output, "backup-focus-cleanup.json");
+        const report = path.join(output, `${cleanupName}-cleanup.json`);
         await writeFile(
           report,
           JSON.stringify(
