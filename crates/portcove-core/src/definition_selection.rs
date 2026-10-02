@@ -269,9 +269,18 @@ impl PublisherPolicyRecord {
 
     fn observation(
         &self,
+        connection: &Connection,
         candidate: &AuthenticatedDefinitionCandidate,
     ) -> Result<DefinitionPublisherObservation> {
-        if self.root_sha256 != candidate.provenance().root_sha256 {
+        if self.root_sha256 != candidate.provenance().root_sha256
+            || (self.status == DefinitionPublisherStatus::Scoped
+                && !crate::definition_repository::publisher_policy::allows_candidate(
+                    connection,
+                    candidate,
+                    &self.namespace,
+                    &self.stable_id,
+                )?)
+        {
             return DefinitionPublisherObservation::unscoped(
                 candidate,
                 &self.namespace,
@@ -434,7 +443,7 @@ impl Library {
         let transaction = connection.unchecked_transaction()?;
         let state = DefinitionSelectionState::read(&transaction)?;
         let publisher = match PublisherPolicyRecord::read(&transaction, namespace, stable_id)? {
-            Some(policy) => policy.observation(candidate)?,
+            Some(policy) => policy.observation(&transaction, candidate)?,
             None => DefinitionPublisherObservation::unscoped(candidate, namespace, stable_id)?,
         };
         let result = candidate.evaluate_availability(
@@ -475,6 +484,11 @@ impl Library {
         })?;
         if !policy.matches(&candidate.publisher)
             || policy.status != DefinitionPublisherStatus::Scoped
+            || !crate::definition_repository::publisher_policy::allows_projection(
+                &transaction,
+                &candidate.projection,
+                &candidate.provenance,
+            )?
         {
             return Err(PortcoveError::conflict(
                 "definition publisher policy changed; assess it again",
@@ -545,7 +559,13 @@ impl Library {
             .is_some_and(|floor| floor.evaluate(&identity.provenance).is_err());
         let publisher_scoped = policy
             .as_ref()
-            .is_some_and(|policy| policy.status == DefinitionPublisherStatus::Scoped);
+            .is_some_and(|policy| policy.status == DefinitionPublisherStatus::Scoped)
+            && crate::definition_repository::publisher_policy::allows_operation(
+                &transaction,
+                &identity.namespace,
+                &identity.stable_id,
+                context.operation,
+            )?;
         let publisher_revoked = policy
             .as_ref()
             .is_some_and(|policy| policy.status == DefinitionPublisherStatus::Revoked);
@@ -730,6 +750,30 @@ pub(crate) fn load_selected_definition_catalog(
         ));
     }
     require_fresh(&selection.provenance, now_unix)?;
+    if !crate::definition_repository::publisher_policy::allows_projection(
+        connection,
+        &selection.snapshot.projection()?,
+        &selection.provenance,
+    )? {
+        return Err(PortcoveError::conflict(
+            "selected definition differs from its protected publisher scope",
+        ));
+    }
+    let mut expiration = expiration_unix(&selection.provenance)?;
+    if let Some(policy_expiration) =
+        crate::definition_repository::publisher_policy::availability_expiration(
+            connection,
+            &selection.namespace,
+            &selection.stable_id,
+        )?
+    {
+        if policy_expiration <= now_unix {
+            return Err(PortcoveError::verification(
+                "selected publisher policy metadata is expired",
+            ));
+        }
+        expiration = expiration.min(policy_expiration);
+    }
     let mut catalog = selection.snapshot.catalog()?;
     crate::definition_loader::validate_definition_transition(
         baseline,
@@ -737,7 +781,7 @@ pub(crate) fn load_selected_definition_catalog(
         &selection.stable_id,
     )?;
     catalog.retain_definition_selection(std::sync::Arc::new(selection.identity()))?;
-    Ok(Some((catalog, expiration_unix(&selection.provenance)?)))
+    Ok(Some((catalog, expiration)))
 }
 
 pub(crate) fn migrate(transaction: &rusqlite::Transaction<'_>) -> Result<()> {

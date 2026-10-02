@@ -458,6 +458,58 @@ stale metadata, withdrawn content, permission errors and corrupt local files.
 
 ## Protected acceptance and local/community loading
 
+### Exact-definition availability policy
+
+Core can authenticate an inert schema-1 policy target at
+`policy/official/<stable-id>.json`. The direct terminating `official-policy`
+delegation has exactly `policy/official/*.json`; its key material must be distinct
+from the definition role and top-level metadata keys. Authentication uses the
+existing bounded TUF transport, consistent snapshots and expiration enforcement.
+Caller-supplied root bytes do not install trust. A library must already contain
+the independently provisioned matching authority; there is no public root or
+grant setter in this component. Ordinary unprovisioned libraries remain unscoped.
+The existing offline top-level targets authority still appoints and rotates
+delegates. This component does not infer offline custody from public key bytes;
+that custody remains a protected provisioning obligation. Policy fixtures use a
+separate offline delegation signer rather than the timestamp/snapshot signer.
+
+This policy schema authorizes **availability only**, binding the namespace,
+stable ID, grant and monotonic policy revision to the exact index, definition
+revision, definition bytes and implemented template. Unknown fields or decisions
+are refused. It does not grant Install, Update, Prepare, RegisterExternal or
+Launch. Those operations require a later qualified scope implementation: stable
+provider identity must be verified before cached resolution, and permitted
+initial artifact hosts and every redirect must be enforced. The inert upstream
+observation's `provider_authenticated: false` and an exact definition hash cannot
+substitute for that acquisition proof.
+
+`apply_definition_publisher_policy` requires the exact authenticated candidate
+for availability; a `revoked` decision needs no definition candidate. Library
+schema 33 stores bounded independent authority and policy admissions. One
+immediate transaction updates the authority-wide TUF chain replay floor, the
+per-grant revision and exact-byte identity, and the existing publisher status.
+Lower metadata or grant versions and equal-version replacement are refused.
+An exact retry is idempotent; failure preserves the previous grant and replay
+floor. Assessment, selection and runtime loading recheck the installed exact scope
+and freshness, including policy changes between assessment and consumption. Runtime
+cache validity ends at the earlier definition or policy expiration. An admitted
+authority cannot revert to an empty replay floor; advancing another identity does
+not invalidate its still-current exact grants. Adoption also checks Install
+eligibility before staging and publication, so availability cannot manufacture a
+retained lifecycle admission. Existing retained
+contracts and independently admitted historical use keep their separate rules;
+known revocation remains a refusal.
+Uncommitted installation/adoption recovery rechecks the exact manifest-bound
+definition before publishing staged bytes and before registering published bytes.
+A refused operation keeps its journal and recovery evidence; the current fallback
+catalog cannot authorize its retained definition. Committed cleanup remains distinct.
+
+Disposable TUF authority fixtures qualify this component. Production root/grant
+provisioning, scoped acquisition, protected publisher custody and write/signing
+authority, automatic publication and the unchanged-client new-definition,
+next-artifact and correction proof remain distinct #246 acceptance. This is not
+activation of a production feed or whole-issue delivery.
+
 #246 uses the existing strict required checks and distinct review under Protect
 main ruleset 22155633, including its zero approval count. That rule supplies
 routine merge authority, not signing authority. A separately authorized trusted
