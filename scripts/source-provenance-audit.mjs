@@ -135,6 +135,105 @@ function explicitGap(body) {
   );
 }
 
+// PR facts are advisory evidence, never authority to resolve an issue or its
+// remaining acceptance. Project membership is not a repository-wide PR inventory.
+function sameRepositoryPrNumber(reference, repository) {
+  const value = reference.replace(/[.,;:]+$/u, "");
+  const scoped = value.match(/^([\w.-]+\/[\w.-]+)#([1-9]\d*)$/u);
+  if (scoped)
+    return scoped[1].toLowerCase() === repository.toLowerCase() ? Number(scoped[2]) : null;
+  const bare = value.match(/^PR\s*#([1-9]\d*)$/iu);
+  if (bare) return Number(bare[1]);
+  try {
+    const url = new URL(value);
+    const path = url.pathname.match(/^\/([^/]+\/[^/]+)\/pull\/([1-9]\d*)\/?$/u);
+    return url.protocol === "https:" &&
+      url.hostname === "github.com" &&
+      !url.port &&
+      !url.username &&
+      !url.password &&
+      !url.search &&
+      path &&
+      path[1].toLowerCase() === repository.toLowerCase()
+      ? Number(path[2])
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+function knownMergedProjectPrs(items, repository) {
+  const facts = new Map();
+  for (const item of items) {
+    const pr = item.content ?? item;
+    if (![pr.type, pr.__typename].includes("PullRequest")) continue;
+    const number = sameRepositoryPrNumber(String(pr.url ?? ""), repository);
+    if (!Number.isSafeInteger(number) || number !== pr.number) continue;
+    const records = facts.get(number) ?? [];
+    records.push(pr.state === "MERGED" && pr.merged === true);
+    facts.set(number, records);
+  }
+  return new Set(
+    [...facts].filter(([, records]) => records.every(Boolean)).map(([number]) => number),
+  );
+}
+
+function blockerOutsideExamples(body) {
+  const text = withoutSupersededHistory(body).replace(/<!--[\s\S]*?(?:-->|$)/gu, "");
+  let fence;
+  const lines = [];
+  for (const line of text.split("\n")) {
+    const marker = line.match(/^ {0,3}(`{3,}|~{3,})(.*)$/u);
+    if (marker) {
+      if (!fence) fence = marker[1];
+      else if (marker[1][0] === fence[0] && marker[1].length >= fence.length && !marker[2].trim())
+        fence = undefined;
+      lines.push("");
+    } else lines.push(fence ? "" : line);
+  }
+  return explicitGap(lines.join("\n").replace(/(`+)[\s\S]*?\1/gu, ""));
+}
+
+function mergedBlockerObservations(issues, items, repository, projectState, suppliedItems) {
+  if (!["available", "fixture"].includes(projectState)) return [];
+  // Live pagination already fails closed before building a snapshot. Keep an
+  // explicitly partial offline collection from presenting a PR-state conclusion.
+  if (
+    !Array.isArray(suppliedItems) &&
+    ((suppliedItems?.pageInfo && suppliedItems.pageInfo.hasNextPage !== false) ||
+      (suppliedItems?.totalCount !== undefined && suppliedItems.totalCount !== items.length))
+  )
+    return [];
+  const merged = knownMergedProjectPrs(items, repository);
+  const observations = [];
+  for (const issue of issues) {
+    if (String(issue.state).toUpperCase() !== "OPEN") continue;
+    const referenced = new Set();
+    for (const clause of blockerOutsideExamples(issue.body).split(/(?<=[.!?])\s+|[;\n]/u)) {
+      if (/\b(?:not|never|no longer|maybe|might|whether|unless)\b/iu.test(clause)) continue;
+      const waiting = clause.match(/\b(?:waiting|await(?:ing)?|blocked|pending|until)\b/iu);
+      if (!waiting) continue;
+      const references = /https?:\/\/[^\s<>()]+|[\w.-]+\/[\w.-]+#[1-9]\d*|\bPR\s*#[1-9]\d*\b/giu;
+      for (const match of clause.matchAll(references)) {
+        if (match.index < waiting.index) continue;
+        if (
+          /^\s+(?:(?:has|is|was|already|been)\s+)*merged\b/iu.test(
+            clause.slice(match.index + match[0].length),
+          )
+        )
+          continue;
+        const number = sameRepositoryPrNumber(match[0], repository);
+        if (merged.has(number)) referenced.add(number);
+      }
+    }
+    for (const number of referenced)
+      observations.push(
+        `Active blocker references merged PR #${number}: ${issue.url}. Review remaining acceptance; merge alone does not resolve the blocker.`,
+      );
+  }
+  return observations;
+}
+
 function releaseIntegrityState(body) {
   const text = withoutSupersededHistory(body);
   if (/release integrity:[^\n]*(?:pending|unknown|blocked)/i.test(text)) return "Gap recorded";
@@ -345,6 +444,13 @@ export function buildSourceProvenanceAudit({
     .sort((a, b) => a.id.localeCompare(b.id));
 
   const observations = [
+    ...mergedBlockerObservations(
+      portIssues,
+      allProjectItems,
+      repository,
+      projectState,
+      projectItems,
+    ),
     ...catalogDuplicateObservations(catalog),
     ...validatePortIssueCoverage(catalog, allProjectItems, repository, allIssues),
     ...validatePortStageSemantics(catalog, allProjectItems).errors,
@@ -437,7 +543,7 @@ export function renderSourceProvenanceAudit(audit) {
   const projectFingerprint = audit.project.fingerprint
     ? `\`${audit.project.fingerprint}\``
     : "Unavailable";
-  return `# Supported-source provenance and Port-ticket audit\n\n> Dated read-only evidence. This document is not a roadmap, priority authority, live Project mirror, catalog, or support grant. Regenerate it from the current catalog and live read-only GitHub state instead of editing status rows.\n\n- Generated: ${audit.generatedAt}\n- Repository: ${audit.repository}\n- Repository base: \`${audit.baseCommit}\`\n- Generator revision: \`${audit.generatorCommit}\`\n- Snapshot revision: assigned by the commit containing this file\n- Catalog SHA-256: \`${audit.catalogSha256}\`\n- Project state: ${audit.project.state}${audit.project.url ? ` (${audit.project.url})` : ""}\n- Project item count: ${audit.project.itemCount}\n- Project-state fingerprint: ${projectFingerprint}\n\n## Discovered inventory\n\n- Catalog ports: ${audit.counts.catalogPorts}\n- Source profiles: ${audit.counts.sourceProfiles}\n- Source variants: ${audit.counts.sourceVariants}\n- Source representations: ${audit.counts.sourceRepresentations}\n- Source contracts: ${audit.counts.sourceContracts}\n- Source evidence records: ${audit.counts.sourceEvidence}\n- Preservation crosswalk evidence records: ${audit.counts.preservationCrosswalkEvidence}\n- Exact qualification records: ${audit.counts.qualificationRecords}\n- Durable Port issues: ${audit.counts.portIssues}\n- Cataloged Port issues: ${audit.counts.catalogedIssues}\n- Research Port issues: ${audit.counts.researchIssues}\n\n## Drift and explicit gaps\n\n${observations}\n\n## Cataloged support inventory\n\nOnly these catalog entries are player-visible. Exact qualification remains separate from historical platform arrays.\n\n| Catalog ID | Port ticket | Source contracts | Deterministic identity | Upstream evidence | Exact qualification | Project context at generation | Structural gap |\n|---|---|---|---|---|---|---|---|\n${catalogedRows || "| None | None | None | None | None | None | None | None |"}\n\n## Research inventory\n\nThese durable tickets are research/watchlist evidence and are not player-visible catalog support. Their Project values are timestamped context only.\n\n| Port ticket | Durable key | Direct upstream | Source evidence | Release integrity | Project context at generation | Exact gap or resume condition |\n|---|---|---|---|---|---|---|\n${researchRows || "| None | None | None | None | None | None | None |"}\n\n## Interpretation limits\n\n- Deterministic identity completeness means each supported contract variant has an active non-informational representation, or the contract uses a pinned validator. It is not gameplay or ownership evidence.\n- Upstream evidence counts catalog references and reports broken references; it does not re-fetch or reinterpret upstream sources.\n- Exact qualification counts only artifact/source-variant-scoped records. Historical platform arrays stay visible as legacy catalog data and are not promoted into exact claims.\n- Issue prose is reported as issue evidence or a gap. A mention of a checksum is not independently re-certified by this snapshot.\n- Project fields can change after generation and never replace catalog facts or issue acceptance.\n`;
+  return `# Supported-source provenance and Port-ticket audit\n\n> Dated read-only evidence. This document is not a roadmap, priority authority, live Project mirror, catalog, or support grant. Regenerate it from the current catalog and live read-only GitHub state instead of editing status rows.\n\n- Generated: ${audit.generatedAt}\n- Repository: ${audit.repository}\n- Repository base: \`${audit.baseCommit}\`\n- Generator revision: \`${audit.generatorCommit}\`\n- Snapshot revision: assigned by the commit containing this file\n- Catalog SHA-256: \`${audit.catalogSha256}\`\n- Project state: ${audit.project.state}${audit.project.url ? ` (${audit.project.url})` : ""}\n- Project item count: ${audit.project.itemCount}\n- Project-state fingerprint: ${projectFingerprint}\n\n## Discovered inventory\n\n- Catalog ports: ${audit.counts.catalogPorts}\n- Source profiles: ${audit.counts.sourceProfiles}\n- Source variants: ${audit.counts.sourceVariants}\n- Source representations: ${audit.counts.sourceRepresentations}\n- Source contracts: ${audit.counts.sourceContracts}\n- Source evidence records: ${audit.counts.sourceEvidence}\n- Preservation crosswalk evidence records: ${audit.counts.preservationCrosswalkEvidence}\n- Exact qualification records: ${audit.counts.qualificationRecords}\n- Durable Port issues: ${audit.counts.portIssues}\n- Cataloged Port issues: ${audit.counts.catalogedIssues}\n- Research Port issues: ${audit.counts.researchIssues}\n\n## Drift and explicit gaps\n\n${observations}\n\n## Cataloged support inventory\n\nOnly these catalog entries are player-visible. Exact qualification remains separate from historical platform arrays.\n\n| Catalog ID | Port ticket | Source contracts | Deterministic identity | Upstream evidence | Exact qualification | Project context at generation | Structural gap |\n|---|---|---|---|---|---|---|---|\n${catalogedRows || "| None | None | None | None | None | None | None | None |"}\n\n## Research inventory\n\nThese durable tickets are research/watchlist evidence and are not player-visible catalog support. Their Project values are timestamped context only.\n\n| Port ticket | Durable key | Direct upstream | Source evidence | Release integrity | Project context at generation | Exact gap or resume condition |\n|---|---|---|---|---|---|---|\n${researchRows || "| None | None | None | None | None | None | None |"}\n\n## Interpretation limits\n\n- Deterministic identity completeness means each supported contract variant has an active non-informational representation, or the contract uses a pinned validator. It is not gameplay or ownership evidence.\n- Upstream evidence counts catalog references and reports broken references; it does not re-fetch or reinterpret upstream sources.\n- Exact qualification counts only artifact/source-variant-scoped records. Historical platform arrays stay visible as legacy catalog data and are not promoted into exact claims.\n- Issue prose is reported as issue evidence or a gap. A mention of a checksum is not independently re-certified by this snapshot.\n- Project fields can change after generation and never replace catalog facts or issue acceptance.\n- Merged-reference observations use only explicit same-repository PR facts supplied in the Project snapshot. Unlisted, closed, partial or unavailable PR facts are not assumed merged; a finding never resolves remaining issue acceptance.\n`;
 }
 
 export function runReadOnlyGitHubCommand(args, input, spawn = spawnSync) {
