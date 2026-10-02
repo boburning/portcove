@@ -26,38 +26,44 @@ export function usePortBackups(portId: string | undefined, setError?: (error?: s
       requestId.current += 1;
     };
   }, [selection]);
+  const readInventory = useCallback(() => {
+    if (!portId || currentSelection.current !== selection) return Promise.resolve();
+    const request = ++requestId.current;
+    return Promise.resolve()
+      .then(() => desktopApi.backups(portId))
+      .then((inventory) => {
+        if (inventory.port_id !== portId)
+          throw new Error("Backup inventory does not match the selected port.");
+        if (request === requestId.current && currentSelection.current === selection)
+          setRead({ selection, inventory, status: "current" });
+      })
+      .catch((value: unknown) => {
+        if (request === requestId.current && currentSelection.current === selection) {
+          setRead((previous) => ({
+            selection,
+            inventory: previous.selection === selection ? previous.inventory : undefined,
+            status: "failed",
+            failure: failurePresentation(value),
+          }));
+          setError?.(errorText(value));
+        }
+      });
+  }, [portId, selection, setError]);
   const refresh = useCallback(async () => {
     if (!portId || currentSelection.current !== selection) return;
-    const request = ++requestId.current;
     setRead((previous) => ({
       selection,
       inventory: previous.selection === selection ? previous.inventory : undefined,
       status: "pending",
     }));
-    try {
-      const inventory = await desktopApi.backups(portId);
-      if (inventory.port_id !== portId)
-        throw new Error("Backup inventory does not match the selected port.");
-      if (request === requestId.current && currentSelection.current === selection)
-        setRead({ selection, inventory, status: "current" });
-    } catch (value) {
-      if (request === requestId.current && currentSelection.current === selection) {
-        setRead((previous) => ({
-          selection,
-          inventory: previous.selection === selection ? previous.inventory : undefined,
-          status: "failed",
-          failure: failurePresentation(value),
-        }));
-        setError?.(errorText(value));
-      }
-    }
-  }, [portId, selection, setError]);
+    await readInventory();
+  }, [portId, selection, readInventory]);
   useEffect(() => {
-    void refresh();
+    void readInventory();
     return () => {
       requestId.current += 1;
     };
-  }, [refresh]);
+  }, [readInventory]);
   const current = read.selection === selection ? read : undefined;
   const inventory = current?.inventory ?? {
     port_id: portId ?? "",

@@ -418,10 +418,11 @@ it("keeps read retry focused and disables repeated clicks while a read is pendin
   expect(container.textContent).toContain("2 verified backups");
 });
 
-function DetailReadHistory() {
-  const current = usePortBackups("sample");
+function DetailReadHistory({ portId = "sample" }: { portId?: string }) {
+  const port = { ...portDefinition(), id: portId };
+  const current = usePortBackups(portId);
   const actions = detailActions({
-    port: portDefinition(),
+    port,
     status: undefined,
     sourcePath: "",
     biosPath: "",
@@ -432,7 +433,7 @@ function DetailReadHistory() {
   });
   return (
     <DetailPanel
-      port={portDefinition()}
+      port={port}
       backups={current.backups}
       backupProblems={current.inventory.problems}
       backupState={current.inventory.state}
@@ -548,4 +549,28 @@ it("preserves a completed reviewed restore and its focus when inventory readback
     "restore",
     7,
   );
+});
+
+it("lets the next selected port retry while the old port's retry is still pending", async () => {
+  let finishOld!: (inventory: BackupInventory) => void;
+  const read = vi
+    .spyOn(desktopApi, "backups")
+    .mockRejectedValueOnce(failureReport())
+    .mockReturnValueOnce(
+      new Promise<BackupInventory>((resolve) => {
+        finishOld = resolve;
+      }),
+    )
+    .mockRejectedValueOnce(failureReport())
+    .mockResolvedValueOnce({ port_id: "other", state: "healthy", backups: [], problems: [] });
+  await act(async () => root.render(<DetailReadHistory />));
+  await click("Retry backup history");
+  expect(container.textContent).toContain("Loading backup history");
+  await act(async () => root.render(<DetailReadHistory portId="other" />));
+  await click("Retry backup history");
+  expect(read.mock.calls).toEqual([["sample"], ["sample"], ["other"], ["other"]]);
+  expect(container.textContent).toContain("No backups yet");
+  await act(async () => finishOld({ port_id: "sample", state: "healthy", backups, problems: [] }));
+  expect(container.querySelectorAll(".backup-row")).toHaveLength(0);
+  expect(container.textContent).toContain("No backups yet");
 });

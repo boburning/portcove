@@ -263,4 +263,13 @@ describe("backup inventory read owner", () => {
     expect(state.backups).toEqual([]);
     expect(state.readState).toMatchObject({ status: "failed", hasInventory: false });
   });
+
+  it("settles a synchronously thrown read as a failed inventory without inventing a mutation result", async () => {
+    vi.spyOn(desktopApi, "backups").mockImplementationOnce(() => {
+      throw new Error("read could not start");
+    });
+    await act(async () => root?.render(<Fixture portId="game" />));
+    expect(state.readState).toMatchObject({ status: "failed", hasInventory: false });
+    expect(setError).toHaveBeenCalledExactlyOnceWith("read could not start");
+  });
 });
