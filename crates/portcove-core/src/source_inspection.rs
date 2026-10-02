@@ -331,6 +331,34 @@ pub(crate) fn file_scan_extensions(
     catalog: &Catalog,
     profile: &SourceProfile,
 ) -> (Vec<String>, Vec<String>) {
+    if profile.kind == SourceKind::GamecubeDisc {
+        // These representations already are normalized bytes. Compressed discs and
+        // archive members need separate materialization contracts, not this reader.
+        let raw = catalog
+            .source_catalog()
+            .and_then(|catalog| {
+                catalog
+                    .identities
+                    .iter()
+                    .find(|identity| identity.id == profile.id)
+            })
+            .into_iter()
+            .flat_map(|identity| &identity.variants)
+            .filter(|variant| !variant.legacy_projection_only)
+            .flat_map(|variant| &variant.representations)
+            .filter(|representation| {
+                matches!(
+                    &representation.kind,
+                    SourceRepresentationKind::GamecubeNormalizedIso { identities }
+                        if !identities.is_empty()
+                )
+            })
+            .flat_map(|representation| &representation.extensions)
+            .map(|extension| extension.to_ascii_lowercase())
+            .filter(|extension| matches!(extension.as_str(), "iso" | "gcm"))
+            .collect::<BTreeSet<_>>();
+        return (raw.into_iter().collect(), Vec::new());
+    }
     if profile.kind != SourceKind::File {
         return (Vec::new(), Vec::new());
     }
@@ -1307,6 +1335,33 @@ pub(crate) fn inspect_file_identity(
     path: &Path,
     identity: &FileIdentity,
 ) -> Result<SourceInspection> {
+    if catalog.source_profile(profile_id)?.kind == SourceKind::GamecubeDisc {
+        if identity.archive_member || !matches!(identity.content_extension.as_str(), "iso" | "gcm")
+        {
+            return Err(PortcoveError::source(
+                "bounded GameCube discovery requires an uncompressed ISO or GCM",
+            ));
+        }
+        return inspect_disc_observation(
+            catalog,
+            profile_id,
+            path,
+            ObservedDiscSource {
+                record: identity.record_without_admission(profile_id, path),
+                discs: vec![ObservedOpticalDisc {
+                    name: path
+                        .file_name()
+                        .and_then(|name| name.to_str())
+                        .map(str::to_owned),
+                    sha1: identity.sha1.clone(),
+                    sha256: identity.sha256.clone(),
+                    size: identity.size,
+                    track_count: 1,
+                    volume_id: None,
+                }],
+            },
+        );
+    }
     inspect_file_identity_with_compound(catalog, profile_id, path, identity, None)
 }
 

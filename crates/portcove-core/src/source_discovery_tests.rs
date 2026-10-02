@@ -146,6 +146,285 @@ fn schema2_catalog_with_current_n64(bytes: &[u8]) -> Catalog {
     Catalog::from_json(&document.to_string()).unwrap()
 }
 
+fn raw_gamecube_catalog(bytes: &[u8]) -> Catalog {
+    let mut document: serde_json::Value =
+        serde_json::from_str(include_str!("../catalog/catalog.json")).unwrap();
+    let profile = document["source_catalog"]["identities"]
+        .as_array_mut()
+        .unwrap()
+        .iter_mut()
+        .find(|profile| profile["id"] == "animal-crossing-gamecube")
+        .unwrap();
+    let representation = &mut profile["variants"][0]["representations"][0];
+    assert_eq!(representation["kind"], "gamecube-normalized-iso");
+    representation["identities"][0]["sha1"] = hex::encode(sha1::Sha1::digest(bytes)).into();
+    representation["identities"][0]["sha256"] = hex::encode(Sha256::digest(bytes)).into();
+    Catalog::from_json(&document.to_string()).unwrap()
+}
+
+#[test]
+fn raw_gamecube_discovery_matches_manual_inspection_without_registration_or_rewriting() {
+    let temporary = tempfile::tempdir().unwrap();
+    let bytes = b"synthetic normalized GameCube ISO";
+    let catalog = raw_gamecube_catalog(bytes);
+    for extension in ["ISO", "gCm"] {
+        let root = temporary.path().join(extension);
+        fs::create_dir(&root).unwrap();
+        let path = root.join(format!("renamed.{extension}"));
+        fs::write(&path, bytes).unwrap();
+        let mut selected = request(&root);
+        selected.profile_ids = vec!["animal-crossing-gamecube".into()];
+        selected.limits.max_hash_bytes = bytes.len() as u64;
+        let manual =
+            crate::source_inspection::inspect_disc(&catalog, "animal-crossing-gamecube", &path)
+                .unwrap();
+        let report = scan(&catalog, &selected).unwrap();
+        assert_eq!(report.candidates.len(), 1);
+        assert_eq!(report.files_hashed, 1);
+        assert_eq!(report.hash_bytes, bytes.len() as u64);
+        assert!(report.limits_reached.is_empty());
+        let candidate = &report.candidates[0];
+        // Discovery returns the provisional inspection record; only explicit
+        // admission materializes the registration's observed-identity baseline.
+        let manual_record = manual.record.as_ref().unwrap();
+        assert_eq!(candidate.observed_identity, manual_record.observed_identity);
+        let manual = manual.require_admitted_record().unwrap();
+        assert_eq!(candidate.sha256, manual.sha256);
+        assert_eq!(candidate.size, manual.size);
+        assert_eq!(candidate.storage_sha256, manual.storage_sha256);
+        assert_eq!(candidate.storage_size, manual.storage_size);
+        assert!(
+            manual
+                .observed_identity
+                .as_ref()
+                .unwrap()
+                .digests
+                .iter()
+                .all(|digest| { digest.scope == crate::DigestScope::GamecubeNormalizedIso })
+        );
+        let mut service = PortcoveService::new(
+            crate::Library::open(temporary.path().join(format!("library-{extension}"))).unwrap(),
+        )
+        .unwrap();
+        service.replace_catalog_for_test(catalog.clone());
+        assert!(service.library().sources().unwrap().is_empty());
+        let plan = service
+            .plan_source_import(
+                &candidate.profile_id,
+                &candidate.path,
+                crate::SourceImportMode::UseCurrentLocation,
+            )
+            .unwrap();
+        assert_eq!(
+            plan.admission_mode,
+            crate::SourceAdmissionMode::ExactIdentity
+        );
+        assert!(service.library().sources().unwrap().is_empty());
+        assert_eq!(fs::read(&path).unwrap(), bytes);
+    }
+}
+
+#[test]
+fn raw_gamecube_profiles_share_bytes_but_keep_conjunctive_and_ambiguous_admission() {
+    let temporary = tempfile::tempdir().unwrap();
+    let bytes = b"one normalized disc shared by independent profiles";
+    let path = temporary.path().join("renamed.iso");
+    fs::write(&path, bytes).unwrap();
+    let mut document = serde_json::to_value(raw_gamecube_catalog(bytes).document()).unwrap();
+    document.as_object_mut().unwrap().remove("source_profiles");
+    let profiles = document["source_catalog"]["identities"]
+        .as_array_mut()
+        .unwrap();
+    let original = profiles
+        .iter()
+        .find(|p| p["id"] == "animal-crossing-gamecube")
+        .unwrap()
+        .clone();
+    let mut second = original.clone();
+    second["id"] = "second-disc-fixture".into();
+    profiles.push(second);
+    let mut rejected = original.clone();
+    rejected["id"] = "rejected-disc-fixture".into();
+    rejected["variants"][0]["representations"][0]["identities"][0]["sha256"] =
+        "0".repeat(64).into();
+    profiles.push(rejected);
+    let catalog = Catalog::from_json(&document.to_string()).unwrap();
+    let mut selected = request(temporary.path());
+    selected.profile_ids = vec![
+        "second-disc-fixture".into(),
+        "animal-crossing-gamecube".into(),
+        "rejected-disc-fixture".into(),
+        "second-disc-fixture".into(),
+    ];
+    selected.limits.max_hash_bytes = bytes.len() as u64;
+    let report = scan(&catalog, &selected).unwrap();
+    assert_eq!(
+        report
+            .candidates
+            .iter()
+            .map(|c| c.profile_id.as_str())
+            .collect::<Vec<_>>(),
+        ["animal-crossing-gamecube", "second-disc-fixture"]
+    );
+    assert_eq!(report.files_hashed, 1);
+    assert_eq!(report.hash_bytes, bytes.len() as u64);
+    assert!(report.limits_reached.is_empty());
+    assert_eq!(report.searched_profiles.len(), 3);
+    selected.limits.max_candidates = 1;
+    let bounded = scan(&catalog, &selected).unwrap();
+    assert_eq!(bounded.candidates.len(), 1);
+    assert_eq!(bounded.hash_bytes, bytes.len() as u64);
+    assert!(
+        bounded
+            .limits_reached
+            .contains(&SourceDiscoveryLimit::Candidates)
+    );
+    selected.limits.max_candidates = 64;
+    let profiles = document["source_catalog"]["identities"]
+        .as_array_mut()
+        .unwrap();
+    let original = profiles
+        .iter_mut()
+        .find(|p| p["id"] == "animal-crossing-gamecube")
+        .unwrap();
+    let variants = original["variants"].as_array_mut().unwrap();
+    let mut duplicate = variants[0].clone();
+    duplicate["id"] = "ambiguous-fixture".into();
+    variants.push(duplicate);
+    let ambiguous = Catalog::from_json(&document.to_string()).unwrap();
+    let report = scan(&ambiguous, &selected).unwrap();
+    assert_eq!(report.candidates.len(), 1);
+    assert_eq!(report.candidates[0].profile_id, "second-disc-fixture");
+    assert_eq!(report.hash_bytes, bytes.len() as u64);
+    assert_eq!(fs::read(path).unwrap(), bytes);
+}
+
+#[test]
+fn raw_gamecube_discovery_retains_request_size_and_hash_bounds() {
+    let temporary = tempfile::tempdir().unwrap();
+    let bytes = b"bounded normalized disc";
+    let path = temporary.path().join("game.gcm");
+    fs::write(&path, bytes).unwrap();
+    let catalog = raw_gamecube_catalog(bytes);
+    let mut selected = request(temporary.path());
+    selected.profile_ids = vec!["animal-crossing-gamecube".into()];
+    selected.limits.max_file_bytes = bytes.len() as u64 - 1;
+    let size_limited = scan(&catalog, &selected).unwrap();
+    assert!(size_limited.candidates.is_empty());
+    assert_eq!(size_limited.hash_bytes, 0);
+    assert!(
+        size_limited
+            .limits_reached
+            .contains(&SourceDiscoveryLimit::FileSize)
+    );
+    selected.limits.max_file_bytes = bytes.len() as u64;
+    selected.limits.max_hash_bytes = bytes.len() as u64 - 1;
+    let hash_limited = scan(&catalog, &selected).unwrap();
+    assert!(hash_limited.candidates.is_empty());
+    assert_eq!(hash_limited.hash_bytes, 0);
+    assert!(
+        hash_limited
+            .limits_reached
+            .contains(&SourceDiscoveryLimit::HashBytes)
+    );
+    selected.limits.max_hash_bytes = bytes.len() as u64;
+    let complete = scan(&catalog, &selected).unwrap();
+    assert_eq!(complete.candidates.len(), 1);
+    assert_eq!(complete.hash_bytes, bytes.len() as u64);
+    assert_eq!(fs::read(path).unwrap(), bytes);
+}
+
+#[test]
+fn raw_gamecube_discovery_does_not_claim_compressed_archive_or_psx_contracts() {
+    let temporary = tempfile::tempdir().unwrap();
+    let bytes = b"exact raw digest under an unsupported representation";
+    let catalog = raw_gamecube_catalog(bytes);
+    for extension in ["rvz", "ciso", "gcz", "wia", "chd"] {
+        fs::write(temporary.path().join(format!("game.{extension}")), bytes).unwrap();
+    }
+    let archive_path = temporary.path().join("game.zip");
+    let mut archive = zip::ZipWriter::new(fs::File::create(&archive_path).unwrap());
+    archive
+        .start_file("game.iso", zip::write::SimpleFileOptions::default())
+        .unwrap();
+    archive.write_all(bytes).unwrap();
+    archive.finish().unwrap();
+    let mut selected = request(temporary.path());
+    selected.profile_ids = vec![
+        "animal-crossing-gamecube".into(),
+        "masters-of-teras-kasi-psx".into(),
+    ];
+    let report = scan(&catalog, &selected).unwrap();
+    assert!(report.candidates.is_empty());
+    assert_eq!(report.files_hashed, 0);
+    assert_eq!(report.hash_bytes, 0);
+    assert_eq!(report.searched_profiles, ["animal-crossing-gamecube"]);
+    assert!(report.issues.iter().any(|issue| issue.profile_id.as_deref()
+        == Some("masters-of-teras-kasi-psx")
+        && issue.message.contains("Choose them directly")));
+    for extension in ["rvz", "ciso", "gcz", "wia", "chd"] {
+        assert_eq!(
+            fs::read(temporary.path().join(format!("game.{extension}"))).unwrap(),
+            bytes
+        );
+    }
+}
+
+#[test]
+fn raw_gamecube_candidate_cancellation_preserves_previous_snapshot_and_registry() {
+    let temporary = tempfile::tempdir().unwrap();
+    let roots = temporary.path().join("sources");
+    fs::create_dir(&roots).unwrap();
+    let bytes = b"provisional normalized disc";
+    let path = roots.join("game.iso");
+    fs::write(&path, bytes).unwrap();
+    let catalog = raw_gamecube_catalog(bytes);
+    let library = crate::Library::open(temporary.path().join("library")).unwrap();
+    library.add_game_file_root(&roots).unwrap();
+    let mut prior = build_game_file_scan(
+        &catalog,
+        &library,
+        &SourceDiscoveryLimits::default(),
+        &crate::OperationCoordinator::new("disc-prior", None),
+    )
+    .unwrap();
+    prior.format_version = 5;
+    prior.completed_at = 1;
+    library.replace_game_file_scan_snapshot(&prior).unwrap();
+    assert_eq!(
+        current_game_file_scan(&catalog, &library)
+            .unwrap()
+            .unwrap()
+            .freshness,
+        GameFileScanFreshness::InputsChanged
+    );
+    let mut service = PortcoveService::new(library).unwrap();
+    service.replace_catalog_for_test(catalog);
+    let mut seen = false;
+    let result =
+        service.scan_game_file_roots_with_progress(&SourceDiscoveryLimits::default(), |event| {
+            if let crate::OperationEventKind::SourceCandidate { profile_id, .. } = &event.event
+                && profile_id == "animal-crossing-gamecube"
+            {
+                seen = true;
+                service.request_cancellation(&event.operation_id).unwrap();
+            }
+        });
+    assert!(seen);
+    assert_eq!(result.unwrap_err().code, ErrorCode::Cancelled);
+    assert_eq!(
+        service
+            .library()
+            .stored_game_file_scan_snapshot()
+            .unwrap()
+            .unwrap()
+            .completed_at,
+        1
+    );
+    assert!(service.library().sources().unwrap().is_empty());
+    assert_eq!(fs::read(path).unwrap(), bytes);
+}
+
 #[test]
 fn current_schema2_file_identities_and_extensions_are_discoverable_without_legacy_digest() {
     let temporary = tempfile::tempdir().unwrap();
@@ -318,7 +597,7 @@ fn saved_roots_scan_the_catalog_and_persist_one_current_snapshot() {
         &crate::OperationCoordinator::new("saved-root-scan", None),
     )
     .unwrap();
-    assert_eq!(snapshot.format_version, 5);
+    assert_eq!(snapshot.format_version, 6);
     assert_eq!(snapshot.limits.as_ref().unwrap().max_entries, 10_000);
     assert_eq!(snapshot.roots.len(), 1);
     assert_eq!(snapshot.report.files_hashed, 1);
@@ -1018,7 +1297,7 @@ fn stored_scan_snapshot_accepts_legacy_and_rejects_corrupt_and_future_formats() 
     assert!(error.to_string().contains("invalid scan limits"));
 
     snapshot.limits = Some(SourceDiscoveryLimits::default());
-    snapshot.format_version = 6;
+    snapshot.format_version = 7;
     library.replace_game_file_scan_snapshot(&snapshot).unwrap();
 
     let error = super::current_game_file_scan(&catalog, &library).unwrap_err();

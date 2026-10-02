@@ -19,7 +19,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-const CURRENT_SCAN_FORMAT_VERSION: u32 = 5;
+const CURRENT_SCAN_FORMAT_VERSION: u32 = 6;
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct SourceDiscoveryLimits {
@@ -561,7 +561,10 @@ fn scan_with_events<'a>(
             discovery.report.searched_profiles.push(profile.id.clone());
         }
     }
-    if !discovery.zip_profile_groups.is_empty() || !discovery.directory_profiles.is_empty() {
+    if !discovery.raw_profiles_by_extension.is_empty()
+        || !discovery.zip_profile_groups.is_empty()
+        || !discovery.directory_profiles.is_empty()
+    {
         discovery.walk()?;
     }
     discovery.report.hash_bytes = discovery.budget.hashed;
