@@ -533,31 +533,58 @@ pub(crate) fn inspect_directory_file_set(
     profile_id: &str,
     path: &Path,
     names: &[String],
-    read: &mut ReadDirectoryMember<'_>,
+    read: &mut ReadFileSetMember<'_>,
 ) -> Result<SourceInspection> {
     inspect_file_set_observations(
         catalog,
         profile_id,
         path,
-        Some(DirectoryMemberReader { names, read }),
+        Some(ObservedFileSetReader {
+            names,
+            read,
+            storage: None,
+        }),
     )
 }
 
-type ReadDirectoryMember<'a> = dyn FnMut(&[String]) -> Result<Option<HashedNamedSource>> + 'a;
+pub(crate) fn inspect_observed_zip_file_set(
+    catalog: &Catalog,
+    profile_id: &str,
+    path: &Path,
+    names: &[String],
+    storage: (String, u64),
+    read: &mut ReadFileSetMember<'_>,
+) -> Result<SourceInspection> {
+    inspect_file_set_observations(
+        catalog,
+        profile_id,
+        path,
+        Some(ObservedFileSetReader {
+            names,
+            read,
+            storage: Some(storage),
+        }),
+    )
+}
 
-struct DirectoryMemberReader<'a> {
+type ReadFileSetMember<'a> = dyn FnMut(&[String]) -> Result<Option<HashedNamedSource>> + 'a;
+
+struct ObservedFileSetReader<'a> {
     names: &'a [String],
-    read: &'a mut ReadDirectoryMember<'a>,
+    read: &'a mut ReadFileSetMember<'a>,
+    storage: Option<(String, u64)>,
 }
 
 fn inspect_file_set_observations(
     catalog: &Catalog,
     profile_id: &str,
     path: &Path,
-    mut directory_member: Option<DirectoryMemberReader<'_>>,
+    mut directory_member: Option<ObservedFileSetReader<'_>>,
 ) -> Result<SourceInspection> {
     let legacy = catalog.source_profile(profile_id)?;
-    let is_zip = directory_member.is_none()
+    let is_zip = directory_member
+        .as_ref()
+        .is_none_or(|reader| reader.storage.is_some())
         && path.is_file()
         && path
             .extension()
@@ -986,34 +1013,62 @@ fn digest_pair(
     values
 }
 
+pub(crate) fn file_set_names_are_complete(
+    catalog: &Catalog,
+    profile_id: &str,
+    names: &[String],
+) -> bool {
+    let Some(profile) = catalog.source_catalog().and_then(|source| {
+        source
+            .identities
+            .iter()
+            .find(|profile| profile.id == profile_id)
+    }) else {
+        return false;
+    };
+    profile
+        .variants
+        .iter()
+        .filter(|variant| !variant.legacy_projection_only)
+        .flat_map(|variant| &variant.representations)
+        .any(|representation| match &representation.kind {
+            SourceRepresentationKind::FileSet { members } => {
+                file_set_members_present(members, names)
+            }
+            _ => false,
+        })
+}
+
+fn file_set_members_present(members: &[crate::SourceMemberIdentity], names: &[String]) -> bool {
+    let mut selected = HashSet::new();
+    members.iter().all(|member| {
+        let matches = names
+            .iter()
+            .filter(|name| {
+                member
+                    .filenames
+                    .iter()
+                    .any(|alias| alias.eq_ignore_ascii_case(name))
+            })
+            .collect::<Vec<_>>();
+        matches.len() == 1 && selected.insert(matches[0].to_ascii_lowercase())
+    })
+}
+
 fn inspect_file_set_representation(
     profile_id: &str,
     path: &Path,
     is_zip: bool,
     members: &[crate::SourceMemberIdentity],
-    directory_member: &mut Option<DirectoryMemberReader<'_>>,
+    directory_member: &mut Option<ObservedFileSetReader<'_>>,
 ) -> Result<Option<(Vec<ObservedSourceComponent>, SourceRecord, bool)>> {
-    // Directory discovery knows the complete, budgeted name inventory. Missing
-    // or ambiguous sets cannot consume hashing budget needed by later directories.
-    if let Some(directory) = directory_member.as_ref() {
-        let mut selected = HashSet::new();
-        for member in members {
-            let names = directory
-                .names
-                .iter()
-                .filter(|name| {
-                    member
-                        .filenames
-                        .iter()
-                        .any(|alias| alias.eq_ignore_ascii_case(name))
-                })
-                .collect::<Vec<_>>();
-            if names.len() != 1 || !selected.insert(names[0].to_ascii_lowercase()) {
-                return Ok(None);
-            }
-        }
+    // Discovery knows the complete name inventory before consuming hash budget.
+    if let Some(observations) = directory_member.as_ref()
+        && !file_set_members_present(members, observations.names)
+    {
+        return Ok(None);
     }
-    let mut archive = if is_zip {
+    let mut archive = if is_zip && directory_member.is_none() {
         Some(
             zip::ZipArchive::new(File::open(path)?)
                 .map_err(|error| PortcoveError::source(format!("invalid file-set ZIP: {error}")))?,
@@ -1088,7 +1143,12 @@ fn inspect_file_set_representation(
         });
     }
     let aggregate = aggregate_sha256(&hashes);
-    let (storage_sha256, storage_size) = if is_zip {
+    let (storage_sha256, storage_size) = if let Some(storage) = directory_member
+        .as_ref()
+        .and_then(|reader| reader.storage.as_ref())
+    {
+        storage.clone()
+    } else if is_zip {
         let (_, sha256, _, size) = hash_source(File::open(path)?)?;
         (sha256, size)
     } else {
@@ -1190,6 +1250,7 @@ fn read_file_set_zip_member(
     }))
 }
 
+#[derive(Clone)]
 pub(crate) struct HashedNamedSource {
     pub name: String,
     pub sha1: String,

@@ -8,6 +8,8 @@ use crate::{
 #[cfg(test)]
 #[path = "source_discovery_tests.rs"]
 mod tests;
+#[path = "source_discovery_zip.rs"]
+mod zip_file_sets;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -17,7 +19,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-const CURRENT_SCAN_FORMAT_VERSION: u32 = 4;
+const CURRENT_SCAN_FORMAT_VERSION: u32 = 5;
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct SourceDiscoveryLimits {
@@ -274,7 +276,7 @@ fn current_game_file_scan(
     };
     match snapshot.format_version {
         1 => snapshot.limits = None,
-        2..=4 => {
+        2..=CURRENT_SCAN_FORMAT_VERSION => {
             let Some(limits) = snapshot.limits.as_ref() else {
                 return Err(PortcoveError::state(
                     "stored game-file scan snapshot is missing its scan limits",
@@ -797,7 +799,9 @@ impl Discovery<'_> {
                 .map(|profiles| vec![(Vec::new(), profiles.clone())])
                 .unwrap_or_default()
         };
-        if groups.is_empty() {
+        if groups.is_empty()
+            && !(extension.eq_ignore_ascii_case("zip") && !self.directory_profiles.is_empty())
+        {
             return Ok(());
         }
         let size = fs::metadata(path)?.len();
@@ -879,8 +883,79 @@ impl Discovery<'_> {
                 break;
             }
         }
+        if extension.eq_ignore_ascii_case("zip")
+            && !self.directory_profiles.is_empty()
+            && self.report.candidates.len() < self.limits.max_candidates as usize
+        {
+            match self.zip_file_sets(path) {
+                Ok(()) => {}
+                Err(error) if error.code == crate::ErrorCode::Cancelled => return Err(error),
+                Err(error) if error.details.contains_key("scan_limit") => {
+                    self.reached
+                        .insert(if error.details["scan_limit"] == "file_size" {
+                            SourceDiscoveryLimit::FileSize
+                        } else {
+                            SourceDiscoveryLimit::HashBytes
+                        });
+                }
+                Err(error) => self.issue(Some(path.into()), None, error.message),
+            }
+        }
         if self.budget.hashed > before && self.hashed_paths.insert(path.into()) {
             self.report.files_hashed += 1;
+        }
+        Ok(())
+    }
+
+    fn zip_file_sets(&mut self, path: &Path) -> Result<()> {
+        let profile_ids = self
+            .directory_profiles
+            .iter()
+            .map(|profile| profile.id.as_str())
+            .collect::<Vec<_>>();
+        let Some(mut archive) = zip_file_sets::ZipFileSet::open(
+            path,
+            self.catalog,
+            &profile_ids,
+            self.limits.max_file_bytes,
+            &mut self.budget,
+        )?
+        else {
+            return Ok(());
+        };
+        for profile in self.directory_profiles.clone() {
+            let operation = self
+                .budget
+                .operation
+                .as_ref()
+                .expect("discovery owns operation");
+            operation.checkpoint()?;
+            let inspection = archive.inspect(
+                self.catalog,
+                &profile.id,
+                path,
+                self.limits.max_file_bytes,
+                &mut self.budget,
+            )?;
+            if matches!(
+                inspection.assessment.admission,
+                crate::SourceAdmission::Admitted {
+                    mode: crate::SourceAdmissionMode::ExactIdentity
+                }
+            ) && let Some(candidate) = inspection.record
+            {
+                let operation = self
+                    .budget
+                    .operation
+                    .as_ref()
+                    .expect("discovery owns operation");
+                (self.emit)(operation.source_candidate(&candidate));
+                operation.checkpoint()?;
+                self.report.candidates.push(candidate);
+                if self.report.candidates.len() >= self.limits.max_candidates as usize {
+                    break;
+                }
+            }
         }
         Ok(())
     }

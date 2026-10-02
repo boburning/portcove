@@ -1,4 +1,4 @@
-//! Shared original-file and cartridge-ZIP identity validation, with bounded scan hashing.
+//! Shared original-file and ZIP identity validation, with bounded scan hashing.
 use crate::{Library, PortcoveError, Result, SourceProfile, SourceRecord};
 use sha1::Sha1;
 use sha2::{Digest, Sha256};
@@ -102,7 +102,7 @@ pub(crate) fn read_raw_identity(
         .extension()
         .and_then(|value| value.to_str())
         .unwrap_or_default();
-    let identity = hash_reader(File::open(path)?, expected, maximum_size, budget)?;
+    let identity = hash_reader(File::open(path)?, expected, maximum_size, budget, true)?;
     Ok(FileIdentity {
         storage_sha256: identity.sha256.clone(),
         storage_size: identity.size,
@@ -161,7 +161,13 @@ fn read_zip_identity(
             .checked_add(storage_size)
             .ok_or_else(|| PortcoveError::source("source ZIP size overflowed"))?,
     )?;
-    let identity = hash_reader(entry, expected, maximum_size.min(512 * 1024 * 1024), budget)?;
+    let identity = hash_reader(
+        entry,
+        expected,
+        maximum_size.min(512 * 1024 * 1024),
+        budget,
+        true,
+    )?;
     // The outer archive is retained as storage identity only. Its member receives
     // the full content-identity treatment above.
     let storage = hash_storage_reader(File::open(path)?, storage_size, maximum_size, budget)?;
@@ -196,11 +202,49 @@ struct HashedStorage {
     size: u64,
 }
 
+pub(crate) fn read_zip_member_hashes(
+    archive: &mut zip::ZipArchive<File>,
+    index: usize,
+    maximum: u64,
+    budget: &mut HashBudget,
+) -> Result<(String, String, String, u64)> {
+    let entry = archive
+        .by_index(index)
+        .map_err(|error| PortcoveError::source(format!("invalid file-set ZIP entry: {error}")))?;
+    let maximum = maximum.min(512 * 1024 * 1024);
+    let expected = entry.size();
+    if expected > maximum {
+        return Err(
+            PortcoveError::source("expanded source exceeds its size limit")
+                .detail("scan_limit", "file_size"),
+        );
+    }
+    // File-set members use original byte digests, not cartridge canonicalization.
+    let identity = hash_reader(entry, expected, maximum, budget, false)?;
+    Ok((
+        identity.sha1,
+        identity.sha256,
+        identity.crc32,
+        identity.size,
+    ))
+}
+
+pub(crate) fn read_storage_identity(
+    path: &Path,
+    expected: u64,
+    maximum: u64,
+    budget: &mut HashBudget,
+) -> Result<(String, u64)> {
+    let identity = hash_storage_reader(File::open(path)?, expected, maximum, budget)?;
+    Ok((identity.sha256, identity.size))
+}
+
 fn hash_reader(
     mut reader: impl Read,
     expected: u64,
     maximum: u64,
     budget: &mut HashBudget,
+    canonical_n64: bool,
 ) -> Result<HashedContent> {
     if expected > maximum {
         return Err(PortcoveError::source(
@@ -228,7 +272,9 @@ fn hash_reader(
         sha256.update(&buffer[..read]);
         sha1.update(&buffer[..read]);
         crc32.update(&buffer[..read]);
-        n64.update(&buffer[..read])?;
+        if canonical_n64 {
+            n64.update(&buffer[..read])?;
+        }
     }
     if reader.read(&mut [0_u8; 1])? != 0 {
         return Err(PortcoveError::source("source grew while hashing"));
@@ -628,7 +674,7 @@ mod tests {
             hashed: 0,
             max_zip_entries: 4096,
         };
-        let identity = hash_reader(std::io::Cursor::new(bytes), 5, 5, &mut budget).unwrap();
+        let identity = hash_reader(std::io::Cursor::new(bytes), 5, 5, &mut budget, true).unwrap();
         assert_eq!(identity.crc32, format!("{:08x}", crc32fast::hash(bytes)));
         assert_eq!(identity.sha1, hex::encode(Sha1::digest(bytes)));
         assert_eq!(identity.sha256, hex::encode(Sha256::digest(bytes)));
@@ -643,7 +689,7 @@ mod tests {
                 hashed: 0,
                 max_zip_entries: 4096,
             };
-            let error = hash_reader(std::io::Cursor::new(data), expected, 3, &mut budget)
+            let error = hash_reader(std::io::Cursor::new(data), expected, 3, &mut budget, true)
                 .err()
                 .unwrap();
             assert!(error.message.contains(message));
