@@ -5695,6 +5695,193 @@ mod tests {
     }
 
     #[test]
+    fn publication_recovery_refuses_a_foreign_owner_while_the_install_owner_is_locked() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let source = temporary.path().join("existing-install");
+        fs::create_dir_all(&source).unwrap();
+        write_host_test_executable(&source, "zelda64-recomp");
+        fs::write(source.join("general.json"), b"original settings").unwrap();
+        let service = service_with_fault(library.clone(), LifecycleFaultPoint::AdoptionPublished);
+        let preview = service
+            .preview_adoption(&source, Some("zelda64-recomp"))
+            .unwrap();
+        let authorization = service
+            .authorize_adoption(&source, Some("zelda64-recomp"), &preview.plan_sha256)
+            .unwrap();
+        assert!(
+            service
+                .adopt(&source, Some("zelda64-recomp"), &authorization.token)
+                .is_err()
+        );
+        let store = OperationStore::new(library.clone());
+        let mut journal = store.all().unwrap().pop().unwrap();
+        assert_eq!(journal.kind, LifecycleOperationKind::Adopt);
+        assert_eq!(journal.phase, LifecyclePhase::PayloadPublished);
+        let install = journal.install.clone().unwrap();
+        assert!(
+            Installer::new(library.clone())
+                .unwrap()
+                .verify(&install)
+                .unwrap()
+                .valid
+        );
+        let staging = journal.paths.staging.clone().unwrap();
+        let sentinel = staging.join("owner-sentinel");
+        fs::write(&sentinel, b"private publication state").unwrap();
+        // Change only the recorded lock owner; the published install stays valid.
+        journal.port_id = "starship".into();
+        store.put(&mut journal).unwrap();
+        let held = library
+            .try_lock_port("zelda64-recomp", "owned-test-install-lock")
+            .unwrap();
+        assert!(
+            library
+                .try_lock_port("zelda64-recomp", "competing-test-lock")
+                .is_err()
+        );
+        PortcoveService::new(library.clone()).unwrap();
+        assert!(
+            library
+                .status("zelda64-recomp", ReleaseChannel::Stable)
+                .unwrap()
+                .active
+                .is_none(),
+            "startup registered the embedded install without its held owner lock"
+        );
+        let refused = store.get(&journal.id).unwrap().unwrap();
+        assert_eq!(refused.phase, LifecyclePhase::PayloadPublished);
+        assert_eq!(refused.port_id, "starship");
+        assert_eq!(refused.install.as_ref().unwrap().id, install.id);
+        assert!(refused.last_error.as_deref().unwrap().contains("owner"));
+        assert_eq!(fs::read(&sentinel).unwrap(), b"private publication state");
+        assert_eq!(
+            fs::read(source.join("general.json")).unwrap(),
+            b"original settings"
+        );
+        assert!(
+            Installer::new(library.clone())
+                .unwrap()
+                .verify(&install)
+                .unwrap()
+                .valid
+        );
+        assert!(library.all_installs().unwrap().is_empty());
+        // The otherwise-identical valid record is still deferred under its lock.
+        journal.port_id = install.port_id.clone();
+        store.put(&mut journal).unwrap();
+        PortcoveService::new(library.clone()).unwrap();
+        assert!(store.get(&journal.id).unwrap().is_some());
+        assert!(library.all_installs().unwrap().is_empty());
+        assert_eq!(fs::read(&sentinel).unwrap(), b"private publication state");
+        drop(held);
+        PortcoveService::new(library.clone()).unwrap();
+        assert_eq!(
+            library
+                .status("zelda64-recomp", ReleaseChannel::Stable)
+                .unwrap()
+                .active
+                .unwrap()
+                .id,
+            install.id
+        );
+        assert!(store.get(&journal.id).unwrap().is_none());
+        assert!(!staging.exists());
+        assert_eq!(
+            fs::read(library.user_dir("zelda64-recomp").join("general.json")).unwrap(),
+            b"original settings"
+        );
+        assert_eq!(
+            fs::read(source.join("general.json")).unwrap(),
+            b"original settings"
+        );
+    }
+
+    #[test]
+    fn publication_recovery_retains_foreign_install_and_adoption_owners_in_every_phase() {
+        for kind in [
+            LifecycleOperationKind::Install,
+            LifecycleOperationKind::Adopt,
+        ] {
+            for phase in [
+                LifecyclePhase::Preparing,
+                LifecyclePhase::Prepared,
+                LifecyclePhase::PayloadPublished,
+                LifecyclePhase::MetadataCommitted,
+                LifecyclePhase::CleanupPending,
+            ] {
+                let temporary = tempfile::tempdir().unwrap();
+                let library = Library::open(temporary.path().join("library")).unwrap();
+                let live = register_zelda_install(&library, "v1", true);
+                let install = library
+                    .status("zelda64-recomp", ReleaseChannel::Stable)
+                    .unwrap()
+                    .active
+                    .unwrap();
+                let mut journal =
+                    LifecycleOperation::new(Uuid::new_v4().to_string(), kind, "starship");
+                let staging = library.staging_dir().join(&journal.id);
+                fs::create_dir_all(staging.join("user")).unwrap();
+                fs::write(staging.join("user/general.json"), b"private settings").unwrap();
+                fs::create_dir_all(library.user_dir("starship")).unwrap();
+                fs::write(
+                    library.user_dir("starship").join("general.json"),
+                    b"foreign original settings",
+                )
+                .unwrap();
+                journal.phase = phase;
+                journal.install = Some(install.clone());
+                journal.paths.staging = Some(staging.clone());
+                journal.activate = true;
+                let created_at = journal.created_at;
+                let store = OperationStore::new(library.clone());
+                store.put(&mut journal).unwrap();
+                let held = library
+                    .try_lock_port("zelda64-recomp", "owned-test-install-lock")
+                    .unwrap();
+                PortcoveService::new(library.clone()).unwrap();
+                let refused = store.get(&journal.id).unwrap().unwrap();
+                assert_eq!(refused.kind, kind);
+                assert_eq!(refused.phase, phase);
+                assert_eq!(refused.created_at, created_at);
+                assert_eq!(refused.port_id, "starship");
+                assert_eq!(refused.install.as_ref().unwrap().id, install.id);
+                assert_eq!(refused.paths.staging.as_ref().unwrap(), &staging);
+                assert!(refused.last_error.as_deref().unwrap().contains("owner"));
+                assert_eq!(
+                    fs::read(staging.join("user/general.json")).unwrap(),
+                    b"private settings"
+                );
+                assert_eq!(
+                    fs::read(library.user_dir("starship").join("general.json")).unwrap(),
+                    b"foreign original settings"
+                );
+                let after = library
+                    .status("zelda64-recomp", ReleaseChannel::Stable)
+                    .unwrap()
+                    .active
+                    .unwrap();
+                assert_eq!(after.id, install.id);
+                assert_eq!(after.path, live);
+                assert_eq!(library.all_installs().unwrap().len(), 1);
+                assert!(
+                    Installer::new(library.clone())
+                        .unwrap()
+                        .verify(&after)
+                        .unwrap()
+                        .valid
+                );
+                assert!(
+                    library
+                        .try_lock_port("zelda64-recomp", "competing-test-lock")
+                        .is_err()
+                );
+                drop(held);
+            }
+        }
+    }
+
+    #[test]
     fn recovers_adoption_prepared() {
         assert_external_adoption_recovers_after_every_publication_boundary(
             LifecycleFaultPoint::AdoptionPrepared,
