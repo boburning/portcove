@@ -104,7 +104,7 @@ it.each(["unknown", "committed"] as const)(
     expect(primary.textContent).not.toContain("couldn't confirm whether anything changed");
     expect(primary.textContent).not.toContain("The change was saved");
     const technical = row().querySelector("details pre")!;
-    expect(JSON.parse(technical.textContent!)).toMatchObject({
+    expect(JSON.parse(technical.textContent)).toMatchObject({
       code: typedFailure.code,
       mutation_state: mutationState,
       message: typedFailure.presentation.technical_message,
