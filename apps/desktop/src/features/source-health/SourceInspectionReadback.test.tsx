@@ -85,20 +85,34 @@ function retry() {
   expect(button).toBeDefined();
   return button!;
 }
-it("replaces settled loading with the authoritative inspection failure and folded technical details", async () => {
-  const inspect = vi.spyOn(desktopApi, "inspectSource").mockRejectedValue(failure);
-  await act(async () => root.render(createElement(Fixture)));
-  expect(inspect).toHaveBeenCalledTimes(1);
-  expect(row().textContent).not.toContain("Checking file…");
-  expect(row().textContent).toContain(failure.presentation.summary);
-  expect(row().textContent).toContain("Check unavailable");
-  expect(row().querySelector("details[open]")).toBeNull();
-  const primary = row().cloneNode(true) as HTMLElement;
-  primary.querySelectorAll("details").forEach((item) => item.remove());
-  expect(primary.textContent).not.toContain("private/source.z64");
-  expect(primary.textContent).not.toContain(failure.presentation.technical_message);
-  expect(retry().disabled).toBe(false);
-});
+it.each(["unknown", "committed"] as const)(
+  "keeps %s mutation metadata in technical details for a failed inspection read",
+  async (mutationState) => {
+    const typedFailure = structuredClone(failure);
+    typedFailure.presentation.mutation_state = mutationState;
+    const inspect = vi.spyOn(desktopApi, "inspectSource").mockRejectedValue(typedFailure);
+    await act(async () => root.render(createElement(Fixture)));
+    expect(inspect).toHaveBeenCalledTimes(1);
+    expect(row().textContent).not.toContain("Checking file…");
+    expect(row().textContent).toContain(failure.presentation.summary);
+    expect(row().textContent).toContain("Check unavailable");
+    expect(row().querySelector("details[open]")).toBeNull();
+    const primary = row().cloneNode(true) as HTMLElement;
+    primary.querySelectorAll("details").forEach((item) => item.remove());
+    expect(primary.textContent).not.toContain("private/source.z64");
+    expect(primary.textContent).not.toContain(failure.presentation.technical_message);
+    expect(primary.textContent).not.toContain("couldn't confirm whether anything changed");
+    expect(primary.textContent).not.toContain("The change was saved");
+    const technical = row().querySelector("details pre")!;
+    expect(JSON.parse(technical.textContent!)).toMatchObject({
+      code: typedFailure.code,
+      mutation_state: mutationState,
+      message: typedFailure.presentation.technical_message,
+      context: typedFailure.presentation.technical_context,
+    });
+    expect(retry().disabled).toBe(false);
+  },
+);
 it("coalesces same-turn read-only retry and shows the later successful inspection", async () => {
   let resolve!: (value: SourceInspectionReport) => void;
   const pending = new Promise<SourceInspectionReport>((yes) => {
@@ -164,10 +178,9 @@ it("keeps a healthy sibling visible when another current inspection fails", asyn
     registered: bios,
     summary: "Synthetic BIOS inspection",
   };
-  vi.spyOn(desktopApi, "inspectSource").mockImplementation(async (id) => {
-    if (id === "bios") return biosReport;
-    throw failure;
-  });
+  vi.spyOn(desktopApi, "inspectSource").mockImplementation((id) =>
+    id === "bios" ? Promise.resolve(biosReport) : Promise.reject(failure),
+  );
   await act(async () => root.render(createElement(Fixture, { sources: [source, bios] })));
   expect(row().textContent).toContain(failure.presentation.summary);
   const healthy = container.querySelector('[data-source-profile="bios"]')!;

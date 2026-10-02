@@ -1125,7 +1125,13 @@ function SourceInspectionPresentation({
             {message}
           </p>
         )}
-        {read?.failure && <FailureDetails presentation={read.failure} code={read.code} />}
+        {read?.failure && (
+          <FailureDetails
+            presentation={read.failure}
+            code={read.code}
+            showMutationSummary={false}
+          />
+        )}
       </div>
       {read && retry && (
         <Button

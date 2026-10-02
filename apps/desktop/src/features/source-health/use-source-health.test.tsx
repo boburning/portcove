@@ -198,10 +198,10 @@ it("retries only a failed profile and preserves a healthy sibling", async () => 
   const sibling = { ...source("current/bios.bin"), profile_id: "bios" };
   const siblingReport = { ...report(sibling.path), profile_id: "bios", registered: sibling };
   let gameReads = 0;
-  const inspect = vi.spyOn(desktopApi, "inspectSource").mockImplementation(async (id) => {
-    if (id === "bios") return siblingReport;
-    if (++gameReads === 1) throw { code: "state" };
-    return report("current/game.z64");
+  const inspect = vi.spyOn(desktopApi, "inspectSource").mockImplementation((id) => {
+    if (id === "bios") return Promise.resolve(siblingReport);
+    if (++gameReads === 1) return Promise.reject({ code: "state" });
+    return Promise.resolve(report("current/game.z64"));
   });
   await renderHealth([source("current/game.z64"), sibling]);
   expect(state.inspectionReads.get("bios")?.status).toBe("current");
