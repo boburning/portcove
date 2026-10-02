@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { spawn, spawnSync } from "node:child_process";
 import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
@@ -95,6 +96,129 @@ async function editRelease(catalogPath, portId, changes) {
   await writeFile(catalogPath, `${JSON.stringify(catalog, null, 2)}\n`);
 }
 
+async function checkReviewedExternal(cli, library, catalogPath, workspace, env) {
+  const port = "external-consent-fixture";
+  const folder = path.join(workspace, "player-owned external 雪");
+  await mkdir(folder);
+  const bytes = Buffer.from("Owned external registration fixture; never executed.");
+  await writeFile(path.join(folder, "game.exe"), bytes);
+  await writeFile(path.join(folder, "player.save"), "owned player data");
+  const size = Buffer.alloc(8);
+  size.writeBigUInt64BE(BigInt(bytes.length));
+  const tree = createHash("sha256")
+    .update("portcove-external-tree-v1\n")
+    .update("game.exe")
+    .update(Buffer.from([0]))
+    .update(size)
+    .update(createHash("sha256").update(bytes).digest())
+    .digest("hex");
+  const catalog = JSON.parse(await readFile(catalogPath, "utf8"));
+  const definition = structuredClone(
+    catalog.ports.find((value) => value.id === "wave-race-64-recomp"),
+  );
+  assert.ok(definition, "existing user-prepared adapter must be available to the fixture");
+  Object.assign(definition, {
+    id: port,
+    name: "Owned external consent fixture",
+    source_profile: null,
+    presentation: null,
+  });
+  definition.executable_hints = { "windows-x86-64": ["game.exe"] };
+  definition.release.user_prepared["windows-x86-64"] = {
+    version: "fixture-v1",
+    archive_name: "owned.zip",
+    archive_size: bytes.length,
+    archive_sha256: createHash("sha256").update(bytes).digest("hex"),
+    executable: "game.exe",
+    immutable_tree_sha256: tree,
+    mutable_paths: ["player.save"],
+  };
+  catalog.ports.push(definition);
+  const publish = () => writeFile(catalogPath, `${JSON.stringify(catalog, null, 2)}\n`);
+  await publish();
+  const invoke = (...args) =>
+    run(cli, ["--library", library, "--json", "--non-interactive", "external", ...args], {
+      env,
+      echo: false,
+    });
+  const read = async (...args) => JSON.parse(await invoke(...args)).data;
+  const status = async () =>
+    JSON.parse(
+      await run(cli, ["--library", library, "--json", "status", port], { env, echo: false }),
+    ).data;
+  const preview = await read("preview", port, folder);
+  await assert.rejects(
+    invoke("register", port, folder, "--expected-preview", preview.preview_sha256),
+    /confirmation|--yes/u,
+  );
+  assert.equal(
+    (await status()).external_runtime ?? null,
+    null,
+    "declined noninteractive consent cannot register",
+  );
+  definition.release.user_prepared["windows-x86-64"].version = "fixture-v2";
+  await publish();
+  await assert.rejects(
+    invoke("register", port, folder, "--expected-preview", preview.preview_sha256, "--yes"),
+    /conflict/u,
+  );
+  assert.equal(
+    (await status()).external_runtime ?? null,
+    null,
+    "CLI must not replace the caller's stale consent with a fresh digest",
+  );
+  definition.release.user_prepared["windows-x86-64"].version = "fixture-v1";
+  await publish();
+  const registered = await read(
+    "register",
+    port,
+    folder,
+    "--expected-preview",
+    preview.preview_sha256,
+    "--yes",
+  );
+  assert.equal((await status()).external_runtime.id, registered.id);
+  const removal = await read("removal-preview", port);
+  assert.equal(removal.external_files_will_be_preserved, true);
+  assert.equal((await status()).external_runtime.id, registered.id, "removal preview is read-only");
+  await assert.rejects(
+    invoke("remove", port, "--expected-preview", "0".repeat(64), "--yes"),
+    /conflict/u,
+  );
+  assert.equal(
+    (await status()).external_runtime.id,
+    registered.id,
+    "stale CLI removal preserves the registration",
+  );
+  await read("remove", port, "--expected-preview", removal.preview_sha256, "--yes");
+  const replacement = await read("register", port, folder, "--yes");
+  assert.notEqual(
+    replacement.id,
+    registered.id,
+    "legacy omitted-option registration remains supported",
+  );
+  await assert.rejects(
+    invoke("remove", port, "--expected-preview", removal.preview_sha256, "--yes"),
+    /conflict/u,
+  );
+  assert.equal(
+    (await status()).external_runtime.id,
+    replacement.id,
+    "replaced registration invalidates old consent",
+  );
+  await read("remove", port, "--yes");
+  assert.equal(
+    (await status()).external_runtime ?? null,
+    null,
+    "legacy registration-only removal remains supported",
+  );
+  assert.deepEqual(await readFile(path.join(folder, "game.exe")), bytes);
+  assert.equal(await readFile(path.join(folder, "player.save"), "utf8"), "owned player data");
+  process.stdout.write(
+    "PASS actual CLI external preview/register/remove consent binding and external-file preservation\n",
+  );
+}
+
 async function main() {
   if (process.platform !== "win32")
     throw new Error("Playnite lifecycle qualification requires Windows.");
@@ -130,6 +254,7 @@ async function main() {
     ).data.id;
     const phase = (mode, port, ...rest) =>
       run(contract, [mode, cli, library, port, identity, ...rest], { env });
+    await checkReviewedExternal(cli, library, fixture.catalogPath, workspace, env);
     const setDefinitionState = (action) =>
       run(
         "cargo",

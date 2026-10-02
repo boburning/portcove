@@ -32,9 +32,17 @@ namespace Portcove.ReferenceClient
             return digest;
         }
 
+        private static string ComparablePath(string path)
+        {
+            path = path.Replace('/', '\\');
+            if (path.StartsWith(@"\\?\UNC\", StringComparison.OrdinalIgnoreCase)) path = @"\\" + path.Substring(8);
+            else if (path.StartsWith(@"\\?\", StringComparison.Ordinal)) path = path.Substring(4);
+            PublicCli.RequireAbsolute(path);
+            return System.IO.Path.GetFullPath(path).TrimEnd('\\');
+        }
+
         private static bool SamePath(string left, string right) =>
-            string.Equals(System.IO.Path.GetFullPath(left).TrimEnd('\\', '/'),
-                System.IO.Path.GetFullPath(right).TrimEnd('\\', '/'), StringComparison.OrdinalIgnoreCase);
+            string.Equals(ComparablePath(left), ComparablePath(right), StringComparison.OrdinalIgnoreCase);
 
         internal static ExternalRuntimeReview Read(object value, string port, string selectedPath, bool removal = false)
         {
@@ -57,7 +65,7 @@ namespace Portcove.ReferenceClient
             {
                 review.executable = Text(value, "executable");
                 PublicCli.RequireAbsolute(review.executable);
-                if (!review.executable.StartsWith(path.TrimEnd('\\', '/') + System.IO.Path.DirectorySeparatorChar,
+                if (!ComparablePath(review.executable).StartsWith(ComparablePath(path) + System.IO.Path.DirectorySeparatorChar,
                     StringComparison.OrdinalIgnoreCase) || Json.Number(value, "immutable_file_count") <= 0)
                     throw new InvalidOperationException("External-runtime review has an inconsistent executable or inventory.");
                 review.archive = Digest(value, "archive_sha256");

@@ -548,6 +548,17 @@ internal static class ContractTests
             "external review binds exact consent and explains non-owning saves");
         Reject(() => ExternalRuntimeReview.Read(preview, "other", folder), "external preview for another port rejected");
         Reject(() => ExternalRuntimeReview.Read(preview, "shape-b", @"H:\Other folder"), "external preview for another selected folder rejected");
+        var canonical = Json.Object(Json.Parse(Json.Print(preview)));
+        canonical["path"] = @"\\?\" + folder; canonical["executable"] = @"\\?\" + folder + @"\game.exe";
+        Check(ExternalRuntimeReview.Read(canonical, "shape-b", folder).Fingerprint == review.Fingerprint,
+            "core extended drive paths match the ordinary Windows folder picker");
+        canonical["path"] = @"\\?\UNC\server\share\Prepared 雪";
+        canonical["executable"] = @"\\server\share\Prepared 雪\game.exe";
+        Check(ExternalRuntimeReview.Read(canonical, "shape-b", @"\\server\share\Prepared 雪").Fingerprint == review.Fingerprint,
+            "equivalent extended UNC paths preserve reviewed runtime identity");
+        canonical["executable"] = @"\\?\UNC\server\share\Prepared 雪\..\outside.exe";
+        Reject(() => ExternalRuntimeReview.Read(canonical, "shape-b", @"\\server\share\Prepared 雪"),
+            "extended path normalization cannot hide an executable escaping the reviewed folder");
         var record = Json.Object(Json.Parse(Json.Print(preview)));
         record["id"] = "registration-a"; record["platform"] = "windows-x86-64";
         Check(review.RequireRegistered(record) == "registration-a", "external result checks all reviewed identities");
