@@ -14,12 +14,16 @@ import {
 
 test("selected frontend prerequisites do not invoke Rust, native provisioning or bootstrap", async () => {
   const calls = [];
+  let pnpmVersion;
   const report = await collectSelectedPrerequisites([{ id: "oxfmt" }], {
-    pnpmDefinition: (version) => ({ id: "pnpm", version, command: ["cached-pnpm", "--version"] }),
+    pnpmDefinition: (version) => {
+      pnpmVersion = version;
+      return { id: "pnpm", version, command: ["cached-pnpm", "--version"] };
+    },
     run: (command, args, options) => {
       calls.push([command, args]);
       assert.equal(options.env.RUSTUP_AUTO_INSTALL, "0");
-      return { status: 0, stdout: command === "cached-pnpm" ? "12.7.0" : "v24.21.0" };
+      return { status: 0, stdout: command === "cached-pnpm" ? pnpmVersion : "v24.21.0" };
     },
   });
   assert.deepEqual(
@@ -27,6 +31,7 @@ test("selected frontend prerequisites do not invoke Rust, native provisioning or
     ["node", "pnpm", "frontend-dependencies"],
   );
   assert.equal(calls.length, 2);
+  assert.equal(report.find((entry) => entry.id === "pnpm").status, "ok");
   assert.ok(calls.every(([command]) => command !== "cargo" && command !== "rustc"));
 });
 
