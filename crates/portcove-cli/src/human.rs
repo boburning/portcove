@@ -352,6 +352,10 @@ pub(crate) fn game_file_scan_snapshot(snapshot: &Option<GameFileScanSnapshot>) -
     let Some(snapshot) = snapshot else {
         return "No completed game-file folder scan is available.".into();
     };
+    game_file_scan(snapshot)
+}
+
+pub(crate) fn game_file_scan(snapshot: &GameFileScanSnapshot) -> String {
     let mut output = format!(
         "Game-file folder scan\nFreshness: {}\nCompleted (Unix): {}\nFolders: {}\nCandidates: {}\nEntries examined: {}\nFiles hashed: {}",
         match snapshot.freshness {
@@ -1511,6 +1515,7 @@ mod tests {
         let snapshot = scan_snapshot_fixture();
         let before = serde_json::to_value(&snapshot).unwrap();
         let output = super::game_file_scan_snapshot(&Some(snapshot.clone()));
+        assert_eq!(output, super::game_file_scan(&snapshot));
         assert!(output.contains("Scan limits reached: entries"));
         assert!(output.contains("Recorded scan limits: entries=1, depth=6, file bytes=2147483648, hash bytes=17179869184, candidates=64."));
         assert!(output.contains("results may be incomplete"));

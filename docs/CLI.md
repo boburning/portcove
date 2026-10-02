@@ -142,7 +142,7 @@ Schema 53 adds the `source.roots.scan` capability, the `source roots scan` and
 `source roots snapshot` commands, and the nullable `game_file_scan_snapshot`
 exported schema. Scan uses core's bounded limits and emits the existing
 `discover_sources` operation events under `--jsonl`; snapshot readback reports
-`inputs_match` or `inputs_changed` rather than treating older evidence as current. Human snapshot output also reports recorded limits, issue and omitted-issue counts, and unavailable folders at scan time. Matching recorded inputs does not prove complete coverage or revalidate file contents. Unavailable folders do not mean deleted files; changed inputs require a new scan. Use `--json source roots snapshot` for recorded details; human summaries omit raw issue messages and paths.
+`inputs_match` or `inputs_changed` rather than treating older evidence as current. Human scan completion and snapshot readback share a summary of recorded limits, issue and omitted-issue counts, and unavailable folders at scan time. Matching recorded inputs does not prove complete coverage or revalidate file contents. Unavailable folders do not mean deleted files; changed inputs require a new scan. Use `--json source roots snapshot` for recorded details; human summaries omit raw issue messages and paths. The scan result uses the same summary rather than dumping the full serialized record; `--json` and `--jsonl` retain the complete result and operation-event contracts.
 Candidates remain unregistered until separately accepted.
 
 Schema 52 adds the `source.roots` capability, the `source roots` add, list,

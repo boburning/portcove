@@ -1443,11 +1443,12 @@ async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
                 service.library().game_file_roots()?,
                 |roots| human::game_file_roots(roots),
             )?,
-            GameFileRootCommand::Scan(args) => render_success(
+            GameFileRootCommand::Scan(args) => render_read_success(
                 mode,
                 "source.roots.scan",
                 service
                     .scan_game_file_roots_with_progress(&args.limits(), progress_renderer(mode))?,
+                human::game_file_scan,
             )?,
             GameFileRootCommand::Snapshot => render_read_success(
                 mode,
