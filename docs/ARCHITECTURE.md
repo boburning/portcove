@@ -1926,7 +1926,13 @@ library generation and current inputs to `DetailPanel` actions. Its focused test
 cover exact command arguments, refresh modes, cancellation results, close timing
 and backup-list refreshes. The root hook module no longer owns or re-exports that
 adapter. This is UI action composition only; core and Tauri remain authoritative
-for every lifecycle mutation, review and authorization.
+for every lifecycle mutation, review and authorization. The `features/backups`
+read owner distinguishes an initial pending or failed read from a successfully
+loaded empty inventory. A failed refresh retains the last loaded list with an
+explicit stale notice; read-only retry cannot repeat a backup mutation or replace
+its reported outcome. Port selection, newer requests and disposal invalidate
+older readbacks. Core inventory recovery state and fresh backup-action review
+remain authoritative for restore and delete eligibility.
 
 The `features/app-shell` unit owns the remaining ephemeral application UI state:
 primary view, library filter and query, selected detail, source inputs and the

@@ -3,6 +3,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { desktopApi } from "../../api";
+import { failureReport } from "../../test-fixtures";
 import type { BackupInventory } from "../../types";
 import { usePortBackups } from "./use-port-backups";
 
@@ -61,6 +62,20 @@ describe("backup inventory read owner", () => {
 
     expect(backups).not.toHaveBeenCalled();
     expect(state.inventory).toMatchObject({ port_id: "", backups: [], problems: [] });
+  });
+
+  it("distinguishes an unread list, a failed read, and a successful empty inventory", async () => {
+    const initial = deferred<BackupInventory>();
+    vi.spyOn(desktopApi, "backups")
+      .mockReturnValueOnce(initial.promise)
+      .mockResolvedValueOnce({ port_id: "game", state: "healthy", backups: [], problems: [] });
+    await act(async () => root?.render(<Fixture portId="game" />));
+    expect(state.readState).toMatchObject({ status: "pending", hasInventory: false });
+    await act(async () => initial.reject(new Error("read failure")));
+    expect(state.readState).toMatchObject({ status: "failed", hasInventory: false });
+    await act(async () => state.refresh());
+    expect(state.readState).toMatchObject({ status: "current", hasInventory: true });
+    expect(state.backups).toEqual([]);
   });
 
   it("does not publish an older port after the selection changes", async () => {
@@ -137,5 +152,115 @@ describe("backup inventory read owner", () => {
       await pending;
     });
     expect(setError).not.toHaveBeenCalled();
+  });
+
+  it("retains even a last-loaded empty inventory during a pending and failed refresh", async () => {
+    const next = deferred<BackupInventory>();
+    const failure = failureReport();
+    vi.spyOn(desktopApi, "backups")
+      .mockResolvedValueOnce({ port_id: "game", state: "healthy", backups: [], problems: [] })
+      .mockReturnValueOnce(next.promise);
+    await act(async () => root?.render(<Fixture portId="game" />));
+    let pending!: Promise<void>;
+    await act(async () => {
+      pending = state.refresh();
+    });
+    expect(state.readState).toMatchObject({ status: "pending", hasInventory: true });
+    await act(async () => {
+      next.reject(failure);
+      await pending;
+    });
+    expect(state.readState).toMatchObject({
+      status: "failed",
+      hasInventory: true,
+      failure: failure.presentation,
+    });
+    expect(state.backups).toEqual([]);
+  });
+
+  it("keeps the newest rapid refresh authoritative over an older failure", async () => {
+    const older = deferred<BackupInventory>();
+    const newer = deferred<BackupInventory>();
+    const read = vi
+      .spyOn(desktopApi, "backups")
+      .mockResolvedValueOnce(inventory("game", "initial"))
+      .mockReturnValueOnce(older.promise)
+      .mockReturnValueOnce(newer.promise);
+    await act(async () => root?.render(<Fixture portId="game" />));
+    let oldRequest!: Promise<void>;
+    let newRequest!: Promise<void>;
+    await act(async () => {
+      oldRequest = state.refresh();
+      newRequest = state.refresh();
+    });
+    expect(state.backups[0]?.id).toBe("initial");
+    expect(state.readState).toMatchObject({ status: "pending", hasInventory: true });
+    await act(async () => {
+      newer.resolve(inventory("game", "newest"));
+      await newRequest;
+    });
+    await act(async () => {
+      older.reject(new Error("older failure"));
+      await oldRequest;
+    });
+    expect(state.backups[0]?.id).toBe("newest");
+    expect(state.readState.status).toBe("current");
+    expect(setError).not.toHaveBeenCalled();
+    expect(read).toHaveBeenCalledTimes(3);
+  });
+
+  it("does not erase a newer failed refresh with an older successful response", async () => {
+    const older = deferred<BackupInventory>();
+    const newer = deferred<BackupInventory>();
+    vi.spyOn(desktopApi, "backups")
+      .mockResolvedValueOnce(inventory("game", "initial"))
+      .mockReturnValueOnce(older.promise)
+      .mockReturnValueOnce(newer.promise);
+    await act(async () => root?.render(<Fixture portId="game" />));
+    let oldRequest!: Promise<void>;
+    let newRequest!: Promise<void>;
+    await act(async () => {
+      oldRequest = state.refresh();
+      newRequest = state.refresh();
+    });
+    await act(async () => {
+      newer.reject(new Error("newest failure"));
+      await newRequest;
+    });
+    await act(async () => {
+      older.resolve(inventory("game", "older"));
+      await oldRequest;
+    });
+    expect(state.backups[0]?.id).toBe("initial");
+    expect(state.readState).toMatchObject({ status: "failed", hasInventory: true });
+    expect(setError).toHaveBeenCalledExactlyOnceWith("newest failure");
+  });
+
+  it("does not reuse a prior selection's inventory or callback when returning to the same port", async () => {
+    const returned = deferred<BackupInventory>();
+    const read = vi
+      .spyOn(desktopApi, "backups")
+      .mockResolvedValueOnce(inventory("old"))
+      .mockResolvedValueOnce(inventory("other"))
+      .mockReturnValueOnce(returned.promise);
+    await act(async () => root?.render(<Fixture portId="old" />));
+    const oldRefresh = state.refresh;
+    await act(async () => root?.render(<Fixture portId="other" />));
+    await act(async () => root?.render(<Fixture portId="old" />));
+    expect(state.backups).toEqual([]);
+    expect(state.readState).toMatchObject({ status: "pending", hasInventory: false });
+    await act(async () => oldRefresh());
+    expect(read).toHaveBeenCalledTimes(3);
+    await act(async () => returned.resolve(inventory("old", "returned")));
+    expect(state.backups[0]?.id).toBe("returned");
+    expect(state.readState.status).toBe("current");
+  });
+
+  it("does not present another port's response as the selected port's current inventory", async () => {
+    vi.spyOn(desktopApi, "backups").mockResolvedValueOnce(inventory("different"));
+    await act(async () => root?.render(<Fixture portId="game" />));
+    expect(state.inventory.port_id).toBe("game");
+    expect(state.backups).toEqual([]);
+    expect(state.readState).toMatchObject({ status: "failed", hasInventory: false });
   });
 });

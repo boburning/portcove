@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import { BackupHistory } from "../../components/BackupHistory";
-import { portDefinition } from "../../test-fixtures";
+import { failureReport, portDefinition } from "../../test-fixtures";
 
 const port = portDefinition();
 
@@ -184,4 +184,60 @@ describe("backup history presentation", () => {
     expect(html.indexOf("backups/sample/backup-1")).toBeGreaterThan(html.indexOf("<details"));
     expect(html.indexOf("The manifest is missing.")).toBeGreaterThan(html.indexOf("<details"));
   });
+});
+
+it.each(["idle", "pending", "failed"] as const)(
+  "keeps an unread %s list distinct from a current empty inventory",
+  (status) => {
+    const html = renderToStaticMarkup(
+      <BackupHistory
+        backups={[]}
+        readState={{ status, hasInventory: false }}
+        restore={vi.fn()}
+        remove={vi.fn()}
+      />,
+    );
+    expect(html).not.toContain("No backups yet");
+    expect(html).toContain(status === "pending" ? "Loading backup" : "Backup history unavailable");
+  },
+);
+
+it.each(["pending", "failed"] as const)(
+  "discloses a last-loaded empty list during a %s refresh",
+  (status) => {
+    const html = renderToStaticMarkup(
+      <BackupHistory
+        backups={[]}
+        readState={{ status, hasInventory: true }}
+        restore={vi.fn()}
+        remove={vi.fn()}
+      />,
+    );
+    expect(html).toContain("Last-loaded backup list is empty");
+    expect(html).toContain("last loaded backup list");
+    expect(html).not.toContain("No backups yet");
+  },
+);
+
+it("keeps a read failure's private diagnostics behind technical details without asserting a mutation outcome", () => {
+  const failure = failureReport().presentation;
+  failure.technical_message = "private/read/path: detailed failure";
+  failure.technical_context = { path: "private/read/path" };
+  const html = renderToStaticMarkup(
+    <BackupHistory
+      backups={[]}
+      readState={{ status: "failed", hasInventory: false, failure }}
+      retryRead={vi.fn()}
+      restore={vi.fn()}
+      remove={vi.fn()}
+    />,
+  );
+  const primary = html.slice(0, html.indexOf("<details"));
+  expect(primary).toContain("The backup list is unknown");
+  expect(primary).not.toContain("private/read/path");
+  expect(primary).not.toContain("whether anything changed");
+  expect(primary).not.toContain("No files were changed");
+  expect(primary).not.toContain("The change was saved");
+  expect(html).toContain("private/read/path");
+  expect(html).toContain("View technical details");
 });

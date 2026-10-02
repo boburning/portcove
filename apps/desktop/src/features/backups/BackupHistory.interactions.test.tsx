@@ -7,7 +7,10 @@ import { BackupHistory } from "../../components/BackupHistory";
 import { DetailPanel, type DetailActions } from "../../components/DetailPanel";
 import type { ApplyBackupAction } from "../../components/BackupReview";
 import { portDefinition } from "../../test-fixtures";
-import type { BackupRecord, BackupReview } from "../../types";
+import type { BackupInventory, BackupRecord, BackupReview } from "../../types";
+import { failureReport } from "../../test-fixtures";
+import { usePortBackups } from "./use-port-backups";
+import { detailActions } from "../game-details/detail-actions";
 
 const backups: BackupRecord[] = [1, 2].map((index) => ({
   id: `backup-${index}`,
@@ -315,4 +318,234 @@ it("does not open a review when recovery requires backup actions to stay disable
   });
   expect(desktopApi.previewBackupAction).not.toHaveBeenCalled();
   expect(document.body.querySelector('[role="dialog"]')).toBeNull();
+});
+
+const reportReadFailure = vi.fn();
+
+function ReadHistory({
+  remove = vi.fn(),
+  restore = vi.fn(),
+}: {
+  remove?: ApplyBackupAction;
+  restore?: ApplyBackupAction;
+}) {
+  const current = usePortBackups("sample", reportReadFailure);
+  return (
+    <BackupHistory
+      backups={current.backups}
+      problems={current.inventory.problems}
+      state={current.inventory.state}
+      readState={current.readState}
+      retryRead={current.refresh}
+      restore={restore}
+      remove={remove}
+    />
+  );
+}
+
+it("does not present an initial pending read as an empty backup inventory", async () => {
+  vi.spyOn(desktopApi, "backups").mockReturnValue(new Promise<BackupInventory>(() => {}));
+  await act(async () => root.render(<ReadHistory />));
+  expect(container.textContent).not.toContain("No backups yet");
+  expect(container.textContent).toContain("Loading backup history");
+});
+
+it("keeps a failed initial read unknown until a successful read-only retry", async () => {
+  const read = vi
+    .spyOn(desktopApi, "backups")
+    .mockRejectedValueOnce(failureReport())
+    .mockResolvedValueOnce({ port_id: "sample", state: "healthy", backups: [], problems: [] });
+  const remove = vi.fn();
+  const restore = vi.fn();
+  await act(async () => root.render(<ReadHistory remove={remove} restore={restore} />));
+  expect(container.textContent).not.toContain("No backups yet");
+  expect(container.textContent).toContain("The backup list is unknown");
+  await click("Retry backup history");
+  expect(container.textContent).toContain("No backups yet");
+  expect(read).toHaveBeenCalledTimes(2);
+  expect(remove).not.toHaveBeenCalled();
+  expect(restore).not.toHaveBeenCalled();
+  expect(desktopApi.previewBackupAction).not.toHaveBeenCalled();
+});
+
+it("identifies retained rows after a failed refresh and retries only the inventory read", async () => {
+  const read = vi
+    .spyOn(desktopApi, "backups")
+    .mockResolvedValueOnce({ port_id: "sample", state: "healthy", backups, problems: [] })
+    .mockRejectedValueOnce(failureReport())
+    .mockResolvedValueOnce({ port_id: "sample", state: "healthy", backups: [], problems: [] });
+  const remove = vi.fn();
+  const restore = vi.fn();
+  await act(async () => root.render(<ReadHistory remove={remove} restore={restore} />));
+  await click("Refresh backup history");
+  expect(container.querySelectorAll(".backup-row")).toHaveLength(2);
+  expect(container.textContent).toContain("last loaded backup list");
+  expect(container.textContent).not.toContain("2 verified backups");
+  await click("Retry backup history");
+  expect(container.querySelectorAll(".backup-row")).toHaveLength(0);
+  expect(container.textContent).toContain("No backups yet");
+  expect(read).toHaveBeenCalledTimes(3);
+  expect(remove).not.toHaveBeenCalled();
+  expect(restore).not.toHaveBeenCalled();
+  expect(desktopApi.previewBackupAction).not.toHaveBeenCalled();
+});
+
+it("keeps read retry focused and disables repeated clicks while a read is pending", async () => {
+  let finish!: (inventory: BackupInventory) => void;
+  const read = vi
+    .spyOn(desktopApi, "backups")
+    .mockRejectedValueOnce(new Error("private/raw/read/path"))
+    .mockReturnValueOnce(
+      new Promise<BackupInventory>((resolve) => {
+        finish = resolve;
+      }),
+    );
+  await act(async () => root.render(<ReadHistory />));
+  expect(container.textContent).not.toContain("private/raw/read/path");
+  const retry = [...container.querySelectorAll("button")].find(
+    (button) => button.textContent === "Retry backup history",
+  )!;
+  await act(async () => {
+    retry.focus();
+    retry.click();
+    retry.click();
+  });
+  expect(retry.disabled).toBe(true);
+  expect(read).toHaveBeenCalledTimes(2);
+  await act(async () => finish({ port_id: "sample", state: "healthy", backups, problems: [] }));
+  expect(retry.disabled).toBe(false);
+  expect(document.activeElement).toBe(retry);
+  expect(container.textContent).toContain("2 verified backups");
+});
+
+function DetailReadHistory() {
+  const current = usePortBackups("sample");
+  const actions = detailActions({
+    port: portDefinition(),
+    status: undefined,
+    sourcePath: "",
+    biosPath: "",
+    perform: async (_name, task) => task(),
+    close: vi.fn(),
+    backupsChanged: current.refresh,
+    libraryGeneration: 7,
+  });
+  return (
+    <DetailPanel
+      port={portDefinition()}
+      backups={current.backups}
+      backupProblems={current.inventory.problems}
+      backupState={current.inventory.state}
+      backupReadState={current.readState}
+      retryBackupRead={current.refresh}
+      libraryGeneration={7}
+      sourcePath=""
+      setSourcePath={vi.fn()}
+      actions={actions}
+    />
+  );
+}
+
+it("exposes a failed initial read through Saves and storage even without a known backup row", async () => {
+  vi.spyOn(desktopApi, "backups").mockRejectedValueOnce(failureReport());
+  await act(async () => root.render(<DetailReadHistory />));
+  expect(container.querySelector(".backup-history")?.textContent).toContain(
+    "The backup list is unknown",
+  );
+  expect(container.textContent).not.toContain("No backups yet");
+});
+
+it("preserves a completed reviewed delete and its focus after readback fails, then retries only the read", async () => {
+  const read = vi
+    .spyOn(desktopApi, "backups")
+    .mockResolvedValueOnce({
+      port_id: "sample",
+      state: "healthy",
+      backups: backups.slice(0, 1),
+      problems: [],
+    })
+    .mockRejectedValueOnce(failureReport())
+    .mockResolvedValueOnce({
+      port_id: "sample",
+      state: "healthy",
+      backups: backups.slice(1),
+      problems: [],
+    });
+  const remove = vi.spyOn(desktopApi, "deleteBackup").mockResolvedValueOnce(backups[0]!);
+  const restore = vi.spyOn(desktopApi, "restoreBackup");
+  await act(async () => root.render(<DetailReadHistory />));
+  const opener = await openDeletion("backup-1");
+  await click("Delete this backup permanently");
+  expect(remove).toHaveBeenCalledExactlyOnceWith("sample", "backup-1", "reviewed-data", 7);
+  expect(document.body.querySelector('[role="dialog"]')).toBeNull();
+  expect(container.textContent).toContain("last loaded backup list");
+  expect(container.textContent).not.toContain("did not complete");
+  await vi.waitFor(() => expect(document.activeElement).toBe(opener));
+  expect(opener.disabled).toBe(false);
+  await click("Retry backup history");
+  expect(read).toHaveBeenCalledTimes(3);
+  expect(remove).toHaveBeenCalledTimes(1);
+  expect(restore).not.toHaveBeenCalled();
+  expect(desktopApi.previewBackupAction).toHaveBeenCalledExactlyOnceWith(
+    "sample",
+    "backup-1",
+    "delete",
+    7,
+  );
+  expect(container.querySelector('[data-backup-id="backup-1"]')).toBeNull();
+  expect(container.querySelector('[data-backup-id="backup-2"]')).not.toBeNull();
+});
+
+it("keeps the retry control focused when an uninstalled port's unknown list becomes current and empty", async () => {
+  vi.spyOn(desktopApi, "backups")
+    .mockRejectedValueOnce(failureReport())
+    .mockResolvedValueOnce({ port_id: "sample", state: "healthy", backups: [], problems: [] });
+  await act(async () => root.render(<DetailReadHistory />));
+  const retry = [...container.querySelectorAll("button")].find(
+    (button) => button.textContent === "Retry backup history",
+  )!;
+  await act(async () => {
+    retry.focus();
+    retry.click();
+  });
+  expect(container.querySelector(".backup-history")?.textContent).toContain("No backups yet");
+  expect(retry.isConnected).toBe(true);
+  expect(document.activeElement).toBe(retry);
+});
+
+it("preserves a completed reviewed restore and its focus when inventory readback fails", async () => {
+  const read = vi
+    .spyOn(desktopApi, "backups")
+    .mockResolvedValueOnce({ port_id: "sample", state: "healthy", backups, problems: [] })
+    .mockRejectedValueOnce(failureReport())
+    .mockResolvedValueOnce({ port_id: "sample", state: "healthy", backups, problems: [] });
+  const restore = vi
+    .spyOn(desktopApi, "restoreBackup")
+    .mockResolvedValueOnce({ restored_backup: backups[0]!, safety_backup: null });
+  const remove = vi.spyOn(desktopApi, "deleteBackup");
+  await act(async () => root.render(<DetailReadHistory />));
+  const opener = container.querySelector<HTMLButtonElement>(
+    '[data-backup-id="backup-1"] button[data-backup-action="restore"]',
+  )!;
+  await act(async () => {
+    opener.focus();
+    opener.click();
+  });
+  await click("Restore this backup");
+  expect(restore).toHaveBeenCalledExactlyOnceWith("sample", "backup-1", "reviewed-data", 7);
+  expect(document.body.querySelector('[role="dialog"]')).toBeNull();
+  expect(container.textContent).toContain("last loaded backup list");
+  expect(container.textContent).not.toContain("did not complete");
+  await vi.waitFor(() => expect(document.activeElement).toBe(opener));
+  expect(opener.disabled).toBe(false);
+  await click("Retry backup history");
+  expect(read).toHaveBeenCalledTimes(3);
+  expect(restore).toHaveBeenCalledTimes(1);
+  expect(remove).not.toHaveBeenCalled();
+  expect(desktopApi.previewBackupAction).toHaveBeenCalledExactlyOnceWith(
+    "sample",
+    "backup-1",
+    "restore",
+    7,
+  );
 });
