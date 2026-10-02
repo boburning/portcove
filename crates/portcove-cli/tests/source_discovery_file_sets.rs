@@ -1,4 +1,11 @@
-use std::process::Command;
+use portcove_core::{ChildProcessClass, ChildProcessPolicy};
+
+fn cli_binary() -> std::path::PathBuf {
+    // Nextest remaps the companion binary when an archive moves between runners.
+    std::env::var_os("NEXTEST_BIN_EXE_portcove")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|| env!("CARGO_BIN_EXE_portcove").into())
+}
 
 #[test]
 fn public_directory_set_search_is_bounded_and_never_registers_synthetic_members() {
@@ -15,7 +22,9 @@ fn public_directory_set_search_is_bounded_and_never_registers_synthetic_members(
     }
     let library = temporary.path().join("library");
     let run = |args: &[&str]| {
-        let mut command = Command::new(env!("CARGO_BIN_EXE_portcove"));
+        let mut command =
+            ChildProcessPolicy::native_command(ChildProcessClass::HostIntegration, cli_binary())
+                .unwrap();
         command
             .arg("--library")
             .arg(&library)
