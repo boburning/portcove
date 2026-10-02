@@ -84,7 +84,10 @@ recipe.
 
 ## Review and merge boundaries
 
-Every candidate receives actual separate non-writing review. Review may start on
+Except for the verified Renovate fast lane defined above, every candidate receives
+actual separate non-writing review. That existing exception applies only after
+`renovate-check` returns `merge-ready`; it never covers implementation, repaired
+dependency PRs, policy changes or controlled maintenance. Review may start on
 an exact local commit before expensive final qualification; repairs return to the
 same reviewer for the changed delta and affected interactions. A new source head,
 substantive finding, failed or missing check, conflict, or relevant target/policy

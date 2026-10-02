@@ -14,6 +14,7 @@ import {
   inspectCurrentBase,
   parseRenovateUpdates,
   runMetadataValidation,
+  renovateSecurityIntent,
 } from "./renovate-fast-lane.mjs";
 
 const scriptPath = fileURLToPath(import.meta.url);
@@ -72,6 +73,16 @@ export class PullRequestDeliveryClient {
 
   request(method, endpoint, body = null) {
     return this.api.request(method, endpoint, body);
+  }
+
+  openRenovatePulls() {
+    return this.api
+      .paginateRest(`repos/${repository}/pulls?state=open&per_page=100`, {
+        select: (body) => body,
+        identity: (pull) => (Number.isSafeInteger(pull?.number) ? String(pull.number) : null),
+        label: "open pull requests",
+      })
+      .filter((pull) => ["renovate[bot]", "app/renovate"].includes(pull.user?.login));
   }
 
   pull(number) {
@@ -138,6 +149,17 @@ export class PullRequestDeliveryClient {
     if (body?.id !== id || body?.repository?.full_name?.toLowerCase() !== repository)
       throw new Error(`workflow run ${id} identity is incomplete or differs`);
     return body;
+  }
+
+  sourceWorkflowRuns(sha) {
+    const runs = this.paginatedConnection(
+      `repos/${repository}/actions/runs?head_sha=${sha}&per_page=100`,
+      "workflow_runs",
+      (run) => (Number.isSafeInteger(run?.id) ? String(run.id) : null),
+    );
+    if (runs.some((run) => run.head_sha !== sha || !Number.isSafeInteger(run.run_attempt)))
+      throw new Error("source workflow run inventory differs from the exact queue head");
+    return runs;
   }
 
   workflowJobs(run, attempt) {
@@ -539,13 +561,113 @@ export async function watchRequiredChecks(
   }
 }
 
+export function inspectRenovateQueue(client, config, contexts, inspectBase = inspectCurrentBase) {
+  const target = client.branch("main").commit.sha;
+  const candidates = client.openRenovatePulls().map((listed) => {
+    const head = listed.head?.sha;
+    if (!/^[0-9a-f]{40}$/u.test(head ?? "")) throw new Error("queue candidate lacks exact head");
+    const snapshot = client.renovateSnapshot(listed.number, head, contexts);
+    if (snapshot.pull.head.sha !== head || snapshot.target.commit.sha !== target)
+      throw new Error("queue head or target changed; refresh once before selection");
+    const updates = parseRenovateUpdates(snapshot.pull.body);
+    const baseEvidence = inspectBase({
+      projectRoot,
+      number: listed.number,
+      expectedHead: head,
+      currentTarget: target,
+      interactionTerms: updates.flatMap(({ packageName }) => [
+        packageName,
+        packageName.replaceAll("-", "_"),
+      ]),
+    });
+    if (baseEvidence.changedHead) throw new Error("queue candidate changed during base inspection");
+    const result = classifyRenovateSnapshot({
+      ...snapshot,
+      config,
+      expectedHead: head,
+      baseEvidence,
+    });
+    const security = renovateSecurityIntent(snapshot.pull);
+    const failures = snapshot.contexts.filter(({ outcome }) => outcome === "failure");
+    const pending = snapshot.contexts.filter(({ outcome }) => outcome !== "success");
+    const age = snapshot.statuses.filter(({ context }) => context === "renovate/stability-days");
+    const agePending = !security && age.some(({ state }) => state === "pending");
+    const actionable =
+      !snapshot.pull.draft &&
+      snapshot.pull.mergeable === true &&
+      !pending.length &&
+      !agePending &&
+      !["reject", "waiting"].includes(result.verdict);
+    return {
+      number: listed.number,
+      head,
+      target,
+      title: snapshot.pull.title,
+      url: snapshot.pull.html_url,
+      owners: (snapshot.pull.assignees ?? []).map(({ login }) => login),
+      path: security
+        ? "urgent-remediation-assessment"
+        : result.verdict === "metadata-required"
+          ? "routine-fast-lane-candidate"
+          : "controlled-maintenance",
+      verdict: result.verdict,
+      reason: result.reason,
+      actionable,
+      release_age: age,
+      checks: snapshot.contexts,
+      runs: client
+        .sourceWorkflowRuns(head)
+        .map(({ id, run_attempt, name, status, conclusion, run_started_at, html_url }) => ({
+          id,
+          attempt: run_attempt,
+          name,
+          status,
+          conclusion,
+          started_at: run_started_at,
+          url: html_url,
+        })),
+      next_action: snapshot.pull.draft
+        ? "Resume the current owner's draft checkpoint in #793."
+        : failures.length
+          ? "Inspect the first failed exact-head job and retained evidence; repair causally before rerunning."
+          : pending.length
+            ? "Collect the identified source-head run with its original attempt and absolute deadline; do not start duplicate validation."
+            : snapshot.pull.mergeable !== true
+              ? "Resolve actual conflicts or unknown mergeability with the current owner."
+              : agePending
+                ? "Wait for the existing release-age status; missing timestamps need a specific reviewed resolution, never a global cooldown waiver."
+                : ["reject", "waiting"].includes(result.verdict)
+                  ? "Resolve the reported classifier condition before selection."
+                  : result.verdict === "metadata-required"
+                    ? `Confirm #793 ownership, then just renovate-check --pr ${listed.number} --head ${head}; final delivering-agent review and guarded merge follow only merge-ready.`
+                    : "Confirm #793 ownership, inspect advisory/graph/features and select the existing local/hosted/behavior plan; independent review and guarded merge remain.",
+    };
+  });
+  candidates.sort(
+    (a, b) =>
+      Number(b.path === "urgent-remediation-assessment") -
+        Number(a.path === "urgent-remediation-assessment") ||
+      Number(b.actionable) - Number(a.actionable) ||
+      Number(b.path === "routine-fast-lane-candidate") -
+        Number(a.path === "routine-fast-lane-candidate") ||
+      a.number - b.number,
+  );
+  return {
+    target,
+    candidates,
+    selected: candidates.find(({ actionable }) => actionable)?.number ?? null,
+    selection_boundary:
+      "Recommendation only. Existing #793 reservations govern ownership; this command neither approves, rebases, retries nor merges. Refresh after each delivered candidate.",
+  };
+}
+
 export function parseArguments(argv) {
   const command = argv[0];
   const options = {};
   for (let index = 1; index < argv.length; index += 1) {
     const name = argv[index];
     if (Object.hasOwn(options, name)) throw new Error(`duplicate option: ${name}`);
-    if (name === "--json") {
+    if (name === "--json" || name === "--queue") {
       options[name] = true;
       continue;
     }
@@ -574,8 +696,38 @@ async function main(argv) {
     console.log(
       "usage:\n" +
         "  node scripts/pr-delivery.mjs watch --pr <number-or-url> --head <sha> --run <id> --attempt <number> --deadline <UTC-time> [--json]\n" +
+        "  node scripts/pr-delivery.mjs renovate-check --queue [--json]\n" +
         "  node scripts/pr-delivery.mjs renovate-check --pr <number-or-url> --head <sha> [--json]\n" +
         "  node scripts/pr-delivery.mjs merge --pr <number-or-url> --head <sha> [--json]",
+    );
+    return;
+  }
+  if (command === "renovate-check" && options["--queue"]) {
+    exactKeys(options, ["--queue", ...(options["--json"] ? ["--json"] : [])], "queue options");
+    const config = JSON.parse(await readFile(path.join(projectRoot, "renovate.json"), "utf8"));
+    const queue = inspectRenovateQueue(
+      new PullRequestDeliveryClient(),
+      config,
+      await requiredContexts(),
+    );
+    const summary = `Renovate queue: ${queue.candidates.length} complete candidates; recommended selection ${queue.selected ?? "none"}.`;
+    console.log(
+      options["--json"]
+        ? JSON.stringify(
+            githubOperationEnvelope({
+              operation: "pr-delivery.renovate-queue",
+              status: "succeeded",
+              summary,
+              evidence: queue,
+            }),
+          )
+        : [
+            summary,
+            ...queue.candidates.map(
+              (c) => `#${c.number} ${c.head}: ${c.path}; ${c.reason}. ${c.next_action}`,
+            ),
+            queue.selection_boundary,
+          ].join("\n"),
     );
     return;
   }

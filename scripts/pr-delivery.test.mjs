@@ -9,6 +9,7 @@ import {
   requiredCheckContexts,
   requiredContextsFromConfigs,
   watchRequiredChecks,
+  inspectRenovateQueue,
 } from "./pr-delivery.mjs";
 
 const required = ["catalog", "dependency-review", "frontend", "rust", "rust-quality"];
@@ -51,6 +52,152 @@ function successfulRuns() {
     html_url: `https://github.test/check/${index + 1}`,
   }));
 }
+
+test("queue inventory follows all open-PR pages and rejects duplicate identities", () => {
+  const client = new PullRequestDeliveryClient((args) => {
+    if (args[2].includes("page=2"))
+      return included([{ number: 9, user: { login: "app/renovate" } }]);
+    return included(
+      [
+        { number: 7, user: { login: "renovate[bot]" } },
+        { number: 8, user: { login: "contributor" } },
+      ],
+      { link: '<https://api.github.test/pulls?page=2>; rel="next"' },
+    );
+  });
+  assert.deepEqual(
+    client.openRenovatePulls().map(({ number }) => number),
+    [7, 9],
+  );
+  const duplicate = new PullRequestDeliveryClient((args) =>
+    included(
+      [{ number: 7, user: { login: "renovate[bot]" } }],
+      args[2].includes("page=2")
+        ? {}
+        : { link: '<https://api.github.test/pulls?page=2>; rel="next"' },
+    ),
+  );
+  assert.throws(() => duplicate.openRenovatePulls(), /duplicate/);
+});
+
+function queueClient(overrides = {}) {
+  const age = [{ context: "renovate/stability-days", state: "success" }];
+  const snapshot = {
+    pull: pull({
+      number: 7,
+      user: { login: "renovate[bot]" },
+      title: "update crc32fast",
+      labels: [],
+      base: { sha: base, ref: "main" },
+      head: { sha: head, ref: "renovate/crc32fast" },
+      assignees: [],
+      body: "| Package | Update | Change |\n|---|---|---|\n| crc32fast | patch | `1.5.1` → `1.5.2` |\n",
+    }),
+    commits: [{ sha: head, author: { login: "renovate[bot]" } }],
+    files: [
+      { filename: "Cargo.toml", status: "modified" },
+      { filename: "Cargo.lock", status: "modified" },
+    ],
+    statuses: age,
+    contexts: required.map((context) => ({ context, outcome: "success", conclusion: "success" })),
+    target: { commit: { sha: base } },
+    checkRuns: successfulRuns(),
+  };
+  return {
+    branch: () => ({ commit: { sha: base } }),
+    openRenovatePulls: () => [snapshot.pull],
+    sourceWorkflowRuns: () => [
+      {
+        id: 42,
+        run_attempt: 1,
+        name: "CI",
+        status: "completed",
+        conclusion: "success",
+        run_started_at: "2026-10-01T00:00:00Z",
+      },
+    ],
+    renovateSnapshot: () => ({
+      ...snapshot,
+      ...overrides,
+      pull: { ...snapshot.pull, ...overrides.pull },
+    }),
+  };
+}
+const queueConfig = {
+  automerge: false,
+  internalChecksFilter: "strict",
+  minimumReleaseAge: "3 days",
+  minimumReleaseAgeBehaviour: "timestamp-required",
+  packageRules: [],
+};
+const queueBase = () => ({
+  currentTarget: base,
+  currentMergeBase: base,
+  targetPaths: [],
+  targetDependencyPaths: [],
+});
+
+test("queue recommends only an actionable exact-head candidate and never supplies merge authority", () => {
+  const queue = inspectRenovateQueue(queueClient(), queueConfig, required, queueBase);
+  assert.equal(queue.selected, 7);
+  assert.equal(queue.candidates[0].path, "routine-fast-lane-candidate");
+  assert.match(queue.candidates[0].next_action, /renovate-check --pr 7 --head/);
+  assert.equal(queue.candidates[0].runs[0].id, 42);
+  assert.equal(queue.candidates[0].runs[0].attempt, 1);
+  assert.match(queue.selection_boundary, /#793 reservations/);
+  assert.throws(
+    () =>
+      inspectRenovateQueue(
+        queueClient({ target: { commit: { sha: "d".repeat(40) } } }),
+        queueConfig,
+        required,
+        queueBase,
+      ),
+    /target changed/,
+  );
+  assert.throws(
+    () =>
+      inspectRenovateQueue(queueClient(), queueConfig, required, () => ({
+        ...queueBase(),
+        changedHead: "d".repeat(40),
+      })),
+    /candidate changed/,
+  );
+});
+
+test("cooldown draft failed CI and rejected targets cannot become actionable controlled candidates", () => {
+  for (const overrides of [
+    {
+      statuses: [
+        { context: "renovate/stability-days", state: "pending", description: "missing timestamp" },
+      ],
+    },
+    { pull: { draft: true } },
+    { contexts: [{ context: "rust", outcome: "failure", conclusion: "failure" }] },
+    { pull: { base: { sha: base, ref: "different" } } },
+    { pull: { mergeable: null } },
+  ]) {
+    const queue = inspectRenovateQueue(queueClient(overrides), queueConfig, required, queueBase);
+    assert.equal(queue.selected, null);
+    assert.equal(queue.candidates[0].actionable, false);
+    assert.ok(queue.candidates[0].next_action);
+  }
+});
+
+test("branch-only security intent uses controlled expedited assessment without asserting vulnerability", () => {
+  const queue = inspectRenovateQueue(
+    queueClient({
+      pull: { head: { sha: head, ref: "renovate/security/crc32fast" } },
+      statuses: [{ context: "renovate/stability-days", state: "pending" }],
+    }),
+    queueConfig,
+    required,
+    queueBase,
+  );
+  assert.equal(queue.candidates[0].path, "urgent-remediation-assessment");
+  assert.equal(queue.candidates[0].verdict, "manual-review-required");
+  assert.match(queue.candidates[0].next_action, /inspect advisory\/graph\/features/);
+});
 
 test("required contexts are loaded from both checked-in authorities", () => {
   const ruleset = {

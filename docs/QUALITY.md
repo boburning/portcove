@@ -729,8 +729,17 @@ the release Syft version. It groups coupled ecosystems, pins action digests,
 waits three days before proposing new releases, disables automerge, and opens
 eligible product-dependency pull requests immediately so pull-request-only CI
 can evaluate them.
-Non-security development-tool proposals use the existing before-Monday weekly
-window. Aqua itself and the three Aqua-managed quality tools form one
+Non-security development-tool proposals use all-day Monday and Thursday creation
+windows in `America/New_York`. These are eligibility windows, not guaranteed
+service execution times. Ordinary runtime dependencies and the React/Tauri
+compatibility families remain continuously eligible after the cooldown. Weekly
+lockfile maintenance retains its Monday window and controlled delivery. Existing
+branches may receive necessary maintenance outside creation windows.
+Vitest and installed `@vitest/*` providers move together. Vite, Oxc, Tailwind and
+Stylelint have separate compatibility groups, so unrelated families do not block
+each other. React includes React DOM and their declarations; Tauri combines the
+selected JavaScript and Rust framework inputs without requiring equal versions.
+Aqua itself and the three Aqua-managed quality tools form one
 qualification group. The standard Aqua registry ref remains an extracted,
 visible authority but is disabled as an independent update: change it in the
 same reviewed change when a tool version, compatibility repair, integrity update,
@@ -738,7 +747,7 @@ or security response requires a newer registry. Routine updates retain the
 three-day age policy. Renovate vulnerability-alert pull requests bypass the
 ordinary schedule, queue limits, and minimum release age so detected security
 repairs surface immediately; they still retain applicable checksums, protected
-CI, and human merge authority.
+CI, review and authorized guarded merge.
 It automatically recreates an existing branch when that branch conflicts with
 its base, not merely because `main` advanced; the main ruleset does not require
 strict behind-base freshness. A newly available dependency version, lock-file
@@ -748,6 +757,74 @@ The reviewed `rusqlite` Git revision is excluded by its Cargo-extracted URL,
 short dependency name, manager, and datasource. Repository tests reproduce that
 identity and require every nonstandard authority and external action to remain
 covered.
+
+### Bounded dependency delivery
+
+Start one authorized maintenance cycle with
+`just renovate-check --queue [--json]`. It reads the complete current proposal
+inventory, exact source heads, target interactions, required checks and run
+identities. The selected row is a recommendation: confirm existing ownership and
+reservations in #793 before executing it. The command does not retry, approve,
+rebase or merge proposals, assign ownership or maintain another queue. Refresh
+after every delivered outcome. No unattended execution is implied.
+
+Use four delivery paths:
+
+- **Routine fast lane:** run `just renovate-check --pr <number> --head <sha>`.
+  Only `merge-ready` permits the existing #878 exception: exact-head hosted
+  compilation/lint/tests plus locked metadata and dependency-policy validation,
+  followed by concise delivering-agent upstream/diff review and guarded merge.
+  This does not require a duplicate broad local aggregate or separate review.
+- **Controlled maintenance:** compatibility groups, pre-1.0 inputs, tools,
+  Actions, lockfile maintenance, sensitive boundaries and repaired proposals use
+  the ordinary diff-selected local/hosted plan and independent non-writing
+  review. Signing/trust, credential storage/transport, extraction and persistent
+  database inputs require behavior-specific evidence regardless of labels or
+  a small version increment. Inspect enabled features, transitive changes,
+  install/build behavior and relevant compiler/runtime requirements. Browser
+  provider updates include the real browser stage; native/updater changes retain
+  their distinct acceptance. Pure formatter updates do not imply installed-updater
+  qualification.
+- **Planned migrations:** major proposals require selective Dependency Dashboard
+  intake. The authorized runner can approve an owned finite migration within
+  existing authority. Ordinary proposals do not need that approval. Priority
+  orders eligible intake; it cannot evict occupied slots. Preserve finite owners,
+  blocker/resume conditions and failed evidence rather than closing failures to
+  free the queue.
+- **Urgent remediation:** security-intent metadata selects prompt advisory
+  assessment, not an automatic vulnerability finding. Confirm the applicable
+  advisory, locked graph and exposed function. Necessary fixes proceed separately
+  from elective upgrades, without the ordinary release-age or intake delay; review,
+  signatures, required checks and affected native/installed behavior remain.
+
+The fast-lane whole-lock comparison permits only the claimed direct version and
+registry integrity transition. Unknown syntax, other resolution changes, source,
+feature or package metadata changes require controlled review. Missing or ambiguous
+release-age evidence also requires a specific reviewed resolution; do not relax
+timestamp requirements globally. A repaired proposal cannot regain bot-only
+eligibility by changing labels. Convenience batches may be separated when an
+independent member blocks; compatibility families must remain coherent.
+
+Pending CI retains the actual run, attempt, exact source head and one absolute
+execution deadline for `pr-watch`. Collect failures once and repair their cause
+before retrying. Neither a queue refresh nor an unrelated target advance justifies
+mass rebasing or repeating valid evidence. Lockfile resolution is package-manager
+driven: the direct-update cooldown does not prove the age of every newly resolved
+transitive dependency. Cargo and frontend lockfile maintenance are controlled
+units; separate them only through supported Renovate behavior when qualification
+and rollback scope justify it.
+
+Validate configuration with the official pinned client used for the current
+resolved-rule receipt:
+`corepack pnpm --package=renovate@44.125.1 dlx --allow-build=re2 renovate-config-validator --strict renovate.json`.
+Schema validation supplements the repository's rule/extraction/classifier tests;
+it does not prove effective inherited grouping or hosted proposal uptake. Inspect
+resolved presets and rule precedence with the matching official engine, then read
+back actual hosted proposals after delivery. The validator pin is a validation
+client, not a new runtime dependency or tool manager. Deliberately excluded Aqua
+registry and rusqlite authorities retain their existing reviewed resume conditions.
+Renovate proposes repository dependency changes; it cannot accept game releases,
+successor repositories, catalog artifacts or changed trust policy.
 
 Renovate is the sole routine dependency-version update authority. GitHub
 vulnerability alerts and automated Dependabot security fixes remain enabled
