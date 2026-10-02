@@ -157,6 +157,13 @@ uninstalled only after the CLI result matches the reviewed paths and current
 status has no active version. External player-owned runtimes are outside this
 managed removal action. Hiding a Playnite entry retains its files and metadata.
 
+Cancelling the removal review leaves the game installed. Playnite SDK 6 has no
+uninstall-cancel event, so Playnite shows its operation-error dialog with
+“Removal cancelled. Your game remains installed; no files were removed.” After
+acknowledging that dialog, Play becomes available again and removal can be retried.
+Other removal errors use the same host cleanup path. The extension never reports
+an uninstall merely to dismiss a busy indicator.
+
 Progress is best-effort and a single final response must agree with the process
 exit status. The view reads the latest 200 durable activities and displays up to
 eight for the selected port; absence from this bounded view does not prove that
