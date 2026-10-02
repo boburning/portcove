@@ -276,6 +276,35 @@ fn repository_targets() -> (String, Vec<(String, Vec<u8>)>) {
     (port_id.clone(), repository_targets_for(&catalog, &port_id))
 }
 
+// Generic TUF metadata contracts need valid indexed bytes, not real port contents.
+// Eligibility, library selection and real-catalog cases retain repository_targets().
+fn metadata_catalog() -> Catalog {
+    Catalog::from_json(
+        &serde_json::json!({
+            "schema_version": 1,
+            "ports": [{
+                "id": "tuf-metadata-fixture",
+                "name": "TUF metadata fixture",
+                "summary": "Synthetic authenticated metadata fixture",
+                "project_url": "https://example.invalid/tuf-metadata-fixture",
+                "support_tier": "beta",
+                "channels": ["stable"],
+                "platforms": ["linux-x86-64"],
+                "adapter": "libultraship-portable",
+                "release": {"repository": "fixture/tuf-metadata"},
+                "executable_hints": {"linux-x86-64": ["fixture"]}
+            }]
+        })
+        .to_string(),
+    )
+    .unwrap()
+}
+
+fn metadata_targets() -> Vec<(String, Vec<u8>)> {
+    let catalog = metadata_catalog();
+    repository_targets_for(&catalog, &catalog.ports()[0].id)
+}
+
 fn repository_targets_for(catalog: &Catalog, port_id: &str) -> Vec<(String, Vec<u8>)> {
     let bundle = indexed_catalog_bundle(catalog, port_id);
     let mut targets = vec![(INDEX_TARGET.to_owned(), bundle.index)];
@@ -1194,7 +1223,7 @@ async fn selection_rechecks_policy_replay_and_atomic_commit_state() {
 #[tokio::test]
 async fn replay_evaluation_rejects_downgrade_and_same_version_equivocation() {
     let fixture = RepositoryFixture::new();
-    let (_, targets) = repository_targets();
+    let targets = metadata_targets();
     let root = fixture
         .publish(&targets, true, &DEFINITION_ROLE_PATHS, later())
         .await;
@@ -1241,7 +1270,7 @@ async fn replay_evaluation_rejects_downgrade_and_same_version_equivocation() {
 #[tokio::test]
 async fn replay_evaluation_allows_independent_monotonic_metadata_advance() {
     let fixture = RepositoryFixture::new();
-    let (_, targets) = repository_targets();
+    let targets = metadata_targets();
     let root = fixture
         .publish(&targets, true, &DEFINITION_ROLE_PATHS, later())
         .await;
@@ -1353,7 +1382,7 @@ async fn unsupported_sibling_does_not_block_a_supported_definition() {
 async fn tampered_or_missing_content_is_refused() {
     for remove in [false, true] {
         let fixture = RepositoryFixture::new();
-        let (_, targets) = repository_targets();
+        let targets = metadata_targets();
         let root = fixture
             .publish(&targets, true, &DEFINITION_ROLE_PATHS, later())
             .await;
@@ -1383,7 +1412,7 @@ async fn tampered_or_missing_content_is_refused() {
 
 #[tokio::test]
 async fn delegation_scope_and_consistent_snapshots_are_mandatory() {
-    let (_, targets) = repository_targets();
+    let targets = metadata_targets();
     let fixture = RepositoryFixture::new();
     let root = fixture.publish(&targets, true, &["*"], later()).await;
     let scope_error = acquire(&fixture, &root).await.unwrap_err();
@@ -1400,7 +1429,7 @@ async fn delegation_scope_and_consistent_snapshots_are_mandatory() {
 #[tokio::test]
 async fn expired_metadata_is_refused_as_verification_failure() {
     let fixture = RepositoryFixture::new();
-    let (_, targets) = repository_targets();
+    let targets = metadata_targets();
     let root = fixture
         .publish(&targets, true, &DEFINITION_ROLE_PATHS, earlier())
         .await;
@@ -1425,7 +1454,7 @@ async fn authenticated_index_length_is_bounded_before_download() {
 #[tokio::test]
 async fn index_and_tuf_target_metadata_must_agree_before_content_reads() {
     let fixture = RepositoryFixture::new();
-    let (_, mut targets) = repository_targets();
+    let mut targets = metadata_targets();
     let index = targets
         .iter_mut()
         .find(|(name, _)| name == INDEX_TARGET)
@@ -1556,4 +1585,56 @@ async fn qualification_adapter_conformance_definition_state() {
         }
         value => panic!("unsupported qualification definition action {value}"),
     }
+}
+
+#[tokio::test]
+async fn minimal_metadata_fixture_crosses_authenticated_projection_boundaries() {
+    let catalog = metadata_catalog();
+    assert_eq!(catalog.ports().len(), 1);
+    let port = &catalog.ports()[0];
+    assert_eq!(port.id, "tuf-metadata-fixture");
+    let targets = metadata_targets();
+    assert_eq!(targets.len(), 3);
+    let fixture = RepositoryFixture::new();
+    let root = fixture
+        .publish(&targets, true, &DEFINITION_ROLE_PATHS, later())
+        .await;
+    let candidate = acquire(&fixture, &root).await.unwrap();
+    let inspected = candidate
+        .inspect_catalog_projection("official", &port.id)
+        .unwrap();
+    assert_eq!(
+        serde_json::to_value(inspected.catalog().port(&port.id).unwrap()).unwrap(),
+        serde_json::to_value(port).unwrap()
+    );
+    assert_eq!(inspected.catalog().ports().len(), 1);
+    assert_eq!(
+        candidate.evaluate_replay(None).unwrap(),
+        DefinitionReplayDisposition::Initial
+    );
+}
+
+#[test]
+fn minimal_metadata_targets_do_not_depend_on_unrelated_catalog_entries() {
+    let expected = metadata_targets();
+    let real_catalog = Catalog::embedded().unwrap();
+    let real_port_id = &real_catalog.ports()[0].id;
+    let original_real_targets = repository_targets_for(&real_catalog, real_port_id);
+    let mut changed_document = serde_json::to_value(real_catalog.authoritative_document()).unwrap();
+    changed_document["ports"]
+        .as_array_mut()
+        .unwrap()
+        .push(serde_json::to_value(&metadata_catalog().ports()[0]).unwrap());
+    let changed_catalog = Catalog::from_json(&changed_document.to_string()).unwrap();
+    assert_eq!(
+        changed_catalog.ports().len(),
+        real_catalog.ports().len() + 1
+    );
+    assert_ne!(
+        repository_targets_for(&changed_catalog, real_port_id),
+        original_real_targets
+    );
+    assert_eq!(metadata_targets(), expected);
+    assert!(real_catalog.port("tuf-metadata-fixture").is_err());
+    assert!(changed_catalog.port("tuf-metadata-fixture").is_ok());
 }
