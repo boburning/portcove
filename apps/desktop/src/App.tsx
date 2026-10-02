@@ -813,6 +813,8 @@ function CurrentView({
         }
         sourceOutcomes={sourceHealth.outcomes}
         sourceInspections={sourceHealth.inspections}
+        sourceInspectionReads={sourceHealth.inspectionReads}
+        retrySourceInspection={sourceHealth.inspectSource}
         verifySources={() => {
           void sourceHealth.verifyAll();
         }}
