@@ -10,6 +10,10 @@ import { Builder, By, Key, until } from "selenium-webdriver";
 import { writeEvidence, fileIdentity } from "../../../scripts/development-evidence.mjs";
 import { spawnCommand } from "../../../scripts/dev-storage.mjs";
 import { cachedDesktopDrivers } from "../../../scripts/tool-cache.mjs";
+import {
+  normalPackageBoundaryScenario,
+  verifyNormalPackageEvidence,
+} from "./desktop-main-webview-boundary.mjs";
 import { OwnedNativeSession } from "./desktop-owned-native-session.mjs";
 import { preparationScenarios } from "./desktop-preparation-test.mjs";
 import { nativeConfirmation } from "./desktop-native-confirmation.mjs";
@@ -35,6 +39,7 @@ const root = fileURLToPath(new URL("../../..", import.meta.url));
 const { values } = parseArgs({
   options: {
     app: { type: "string" },
+    "package-evidence": { type: "string" },
     driver: { type: "string" },
     "native-driver": { type: "string" },
     output: { type: "string" },
@@ -238,8 +243,32 @@ const backupFocusSession = selection.selected_scenarios.includes("native-backup-
 const hostInterruptionSession = selection.selected_scenarios.includes(
   "native-host-interrupted-preparation",
 );
-const identityBoundSession = backupFocusSession || hostInterruptionSession;
-const cleanupName = hostInterruptionSession ? "host-interruption" : "backup-focus";
+const normalPackageSession = selection.selected_scenarios.includes(
+  "native-normal-package-webview-boundary",
+);
+const identityBoundSession = backupFocusSession || hostInterruptionSession || normalPackageSession;
+const cleanupName = normalPackageSession
+  ? "normal-package-boundary"
+  : hostInterruptionSession
+    ? "host-interruption"
+    : "backup-focus";
+let packageEvidence;
+if (normalPackageSession) {
+  assert.equal(process.platform, "win32");
+  assert.deepEqual(selection.selected_scenarios, ["native-normal-package-webview-boundary"]);
+  packageEvidence = await verifyNormalPackageEvidence(
+    values["package-evidence"],
+    revision,
+    inputs[0],
+    root,
+  );
+  inputs.push(
+    ...packageEvidence.identities,
+    await fileIdentity(
+      fileURLToPath(new URL("./desktop-main-webview-boundary.mjs", import.meta.url)),
+    ),
+  );
+}
 if (hostInterruptionSession) {
   assert.equal(process.platform, "win32");
   assert.deepEqual(selection.selected_scenarios, ["native-host-interrupted-preparation"]);
@@ -296,9 +325,11 @@ function validateBackupFocusInventory(captured) {
   if (
     checks.some(
       (check) =>
-        ["native-backup-delete-focus", "native-host-interrupted-preparation"].includes(
-          check.scenario,
-        ) && check.outcome === "passed",
+        [
+          "native-backup-delete-focus",
+          "native-host-interrupted-preparation",
+          "native-normal-package-webview-boundary",
+        ].includes(check.scenario) && check.outcome === "passed",
     )
   ) {
     assert.equal(
@@ -1261,6 +1292,9 @@ try {
   await requireUnusedPort(port + 1);
   await startDriver();
   await connect();
+  await scenario("native-normal-package-webview-boundary", () =>
+    normalPackageBoundaryScenario({ browser, invoke, library, output, artifacts, packageEvidence }),
+  );
   await scenario("empty-library", async () => {
     const bootstrap = await invoke("get_bootstrap_status");
     assert.equal(bootstrap.ok, true);

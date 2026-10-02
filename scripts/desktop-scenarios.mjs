@@ -16,6 +16,11 @@ function scenario(id, description, options = {}) {
 }
 
 export const DESKTOP_SCENARIOS = Object.freeze([
+  scenario(
+    "native-normal-package-webview-boundary",
+    "Ordinary Windows package enforces effective main-window assets, IPC, CSP, permission and navigation boundaries.",
+    { source: "desktop-main-webview-boundary.mjs", qualification_only: true },
+  ),
   scenario("empty-library", "Native bootstrap uses the isolated empty library."),
   scenario(
     "native-design-system-compatibility",
