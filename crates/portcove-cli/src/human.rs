@@ -2131,10 +2131,12 @@ mod tests {
     #[test]
     fn status_disclosure_keeps_managed_staged_and_external_versions_separate() {
         // Supplied records test formatting only; no runtime is registered or executed.
+        let managed_path = PathBuf::from("fixture-managed");
+        let external_path = PathBuf::from("fixture-external");
         let mut managed = status_disclosure_fixture();
         let install = serde_json::json!({
             "id": "fixture-install", "port_id": managed.port_id,
-            "version": "managed-v1", "path": "/private/managed",
+            "version": "managed-v1", "path": managed_path,
             "channel": "stable", "installed_at": 1, "verified": true, "staged": false
         });
         managed.active = Some(serde_json::from_value(install.clone()).unwrap());
@@ -2147,8 +2149,8 @@ mod tests {
         external.external_runtime = Some(portcove_core::ExternalRuntimeRecord {
             id: "fixture-registration".into(),
             port_id: external.port_id.clone(),
-            path: PathBuf::from("/private/external"),
-            executable: PathBuf::from("/private/external/game"),
+            path: external_path.clone(),
+            executable: external_path.join("game"),
             version: "external\tv3\n\u{1b}".into(),
             platform: portcove_core::Platform::LinuxX86_64,
             archive_sha256: "a".repeat(64),
@@ -2174,7 +2176,8 @@ mod tests {
             .unwrap();
         assert!(external_row.contains("external v3 "));
         assert!(!external_row.contains("managed-v1"));
-        assert!(!output.contains("/private/"));
+        assert!(!output.contains(managed_path.to_str().unwrap()));
+        assert!(!output.contains(external_path.to_str().unwrap()));
         assert!(!output.contains('\u{1b}'));
         assert!(!output.contains('\t'));
         assert_eq!(before, serde_json::to_value((&managed, &external)).unwrap());
