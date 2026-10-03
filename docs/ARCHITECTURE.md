@@ -752,6 +752,16 @@ publication. Catalog-selected saved data is merged with matching files replaced;
 there is no automatic safety backup. Original folders and retained versions remain.
 Existing journal recovery may finish verified publication and saved-data transfer.
 
+The shared saved-data transfer checks destination directories, files and their
+ancestors before creating directories or copying files. It refuses observable
+symbolic links, including dangling links and ordinary Windows junctions, and
+continues to skip source links. These checks are non-atomic and ignore metadata
+errors; they do not provide race-free containment, hard-link protection or coverage
+of every reparse-point class. A refusal after metadata commitment retains the
+registered installation, staged saved data and journal for correction and recovery.
+Earlier matching regular files may already have been replaced; this is neither an
+atomic whole-tree merge nor automatic rollback.
+
 Desktop transports this core preview under the selected library generation and
 retains backend-owned native confirmation. Its detailed review names destination,
 preserved state, lack of a single undo and interruption behavior. When the preview
