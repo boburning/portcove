@@ -584,6 +584,40 @@ function metadataRetryAt(header, now, deadline) {
   } else {
     parsed = Date.parse(header);
   }
+  const parts =
+    header.match(
+      /, ([0-9]{2})[ -]([A-Z][a-z]{2})[ -][0-9]{2,4} ([0-9]{2}):([0-9]{2}):([0-9]{2})/,
+    ) ??
+    (() => {
+      const value = header.match(
+        /^[A-Z][a-z]{2} ([A-Z][a-z]{2}) ( [0-9]|[0-9]{2}) ([0-9]{2}):([0-9]{2}):([0-9]{2}) /,
+      );
+      return value && [value[0], value[2], value[1], ...value.slice(3)];
+    })();
+  const date = new Date(parsed);
+  const months = [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+  ];
+  if (
+    !parts ||
+    date.getUTCDate() !== Number(parts[1]) ||
+    date.getUTCMonth() !== months.indexOf(parts[2]) ||
+    date.getUTCHours() !== Number(parts[3]) ||
+    date.getUTCMinutes() !== Number(parts[4]) ||
+    date.getUTCSeconds() !== Number(parts[5])
+  )
+    return now;
   return Number.isFinite(parsed) ? Math.min(deadline, Math.max(now, parsed)) : now;
 }
 

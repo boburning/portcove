@@ -1066,6 +1066,9 @@ for (const retryAfter of [
   "-1",
   "1.5",
   "0",
+  "Tue, 31 Nov 2026 08:00:00 GMT",
+  "Tuesday, 31-Nov-26 08:00:00 GMT",
+  "Tue Nov 31 08:00:00 2026",
   "Saturday, 03-Oct-76 08:00:01 GMT",
   new Date(providerClockStart - 1000).toUTCString(),
 ]) {
