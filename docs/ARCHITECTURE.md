@@ -2015,6 +2015,14 @@ application composition. Tauri
 and core still own library opening, lease exclusion, persistence and generation
 assignment.
 
+Before the window and library diagnostics exist, host-preference construction
+and application runtime-lease failures have distinct fixed recovery summaries
+and the original semantic error code on stderr. They return a failing process
+status through the normal stack, without printing private error messages or
+details. Preference document loading and library initialization failures still
+use the existing bootstrap recovery window. This early subprocess diagnostic
+does not provide a launcher-visible recovery dialog or a second log location.
+
 The `features/source-intake` unit owns only the catalog-bound request used to
 open the source-intake dialog. Unknown port or profile identities do not open a
 request; known BIOS profiles retain their BIOS purpose, and native-drop paths are
