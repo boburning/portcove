@@ -312,12 +312,16 @@ writeFileSync(path.join(output, "evidence.json"), JSON.stringify({
 }));
 const snapshot=path.join(output,"normal-package-boundary-exit-inventory.json");
 const driver={pid:11,path:"owned-driver-fixture.exe",started_filetime:"133000000000000000"};
-writeFileSync(snapshot,JSON.stringify({driver,application_pid:22,
+const application={pid:22,path:app,started_filetime:"133000000000000001"};
+const processes=process.env.PORTCOVE_FIXTURE_APPLICATION_RECORD === "missing" ? [driver] :
+  process.env.PORTCOVE_FIXTURE_APPLICATION_RECORD === "duplicate" ? [driver,application,{...application,pid:23}] :
+  process.env.PORTCOVE_FIXTURE_APPLICATION_RECORD === "identity" ? [driver,{...application,started_filetime:null}] : [driver,application];
+writeFileSync(snapshot,JSON.stringify({driver,application_pid:null,
   derivation:"include-captured-driver-root-in-positive-exit-inventory",
-  processes:[driver,{pid:22,path:app,started_filetime:"133000000000000001"}]}));
+  processes}));
 writeFileSync(path.join(output, "normal-package-boundary-cleanup.json"), JSON.stringify({
   snapshot,
-  exited: process.env.PORTCOVE_FIXTURE_BOUNDARY_UNPROVEN === "1" ? null : {observed_processes: 2}
+  exited: process.env.PORTCOVE_FIXTURE_BOUNDARY_UNPROVEN === "1" ? null : {observed_processes: processes.length}
 }));
 `,
     );
@@ -364,6 +368,21 @@ writeFileSync(path.join(output, "normal-package-boundary-cleanup.json"), JSON.st
       [
         "unproven",
         { PORTCOVE_FIXTURE_BOUNDARY_UNPROVEN: "1" },
+        /lacks positive owned exit evidence/,
+      ],
+      [
+        "missing-app",
+        { PORTCOVE_FIXTURE_APPLICATION_RECORD: "missing" },
+        /lacks positive owned exit evidence/,
+      ],
+      [
+        "duplicate-app",
+        { PORTCOVE_FIXTURE_APPLICATION_RECORD: "duplicate" },
+        /lacks positive owned exit evidence/,
+      ],
+      [
+        "invalid-app-identity",
+        { PORTCOVE_FIXTURE_APPLICATION_RECORD: "identity" },
         /lacks positive owned exit evidence/,
       ],
       ["locked", {}, /already owned by PID/],
@@ -420,6 +439,12 @@ writeFileSync(path.join(output, "normal-package-boundary-cleanup.json"), JSON.st
         assert.match(result.stderr, expectedError);
         assert.equal(existsSync(path.join(caseRoot, "lifecycle.json")), false);
         assert.equal(existsSync(path.join(caseRoot, "runs")), false);
+        if (name === "preflight") {
+          const doctor = JSON.parse(
+            readFileSync(path.join(caseRoot, "lifecycle.json.native-doctor.json"), "utf8"),
+          );
+          assert.equal(doctor.ok, false);
+        }
         continue;
       }
       const evidence = JSON.parse(readFileSync(path.join(caseRoot, "lifecycle.json"), "utf8"));

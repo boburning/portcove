@@ -1109,7 +1109,8 @@ try {
             @($normalInventory.processes).Count -lt 2 -or
             $normalInventory.derivation -ne 'include-captured-driver-root-in-positive-exit-inventory' -or
             $normalCleanup.exited.observed_processes -ne @($normalInventory.processes).Count -or
-            $normalApplicationRecords.Count -ne 1 -or $normalApplicationRecords[0].pid -ne $normalInventory.application_pid -or
+            $normalApplicationRecords.Count -ne 1 -or $normalApplicationRecords[0].pid -le 0 -or
+            [string]$normalApplicationRecords[0].started_filetime -notmatch '^[1-9][0-9]*$' -or
             $normalDriverRecords.Count -ne 1 -or $normalDriverRecords[0].pid -le 0 -or
             $normalDriverRecords[0].path -ne $normalInventory.driver.path -or
             $normalDriverRecords[0].started_filetime -ne $normalInventory.driver.started_filetime) {

@@ -918,8 +918,10 @@ the same registration/version and executable/uninstaller bytes, and unchanged
 isolated persistent data before uninstall. It does not accept an arbitrary
 callback or replace the retained-byte scenario.
 
-The admission receipt alongside the installer evidence retains the exact tool
-preflight and input bindings. The new sibling `current-installed-boundary` directory retains the immutable
+The exclusive `.native-doctor.json` receipt alongside the installer evidence
+retains tool preflight results, including failed preflight before installation.
+The admission receipt retains successful preflight and exact input bindings.
+The new sibling `current-installed-boundary` directory retains the immutable
 pre-boundary installation receipt, bound package manifest and native evidence.
 Its explicit `current-installed` mode accepts only the pre-uninstall receipt;
 a completed post-uninstall receipt cannot supply that claim. The final ordinary

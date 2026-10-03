@@ -64,6 +64,9 @@ if (args.includes("--current-installed") || args.includes("--verify-installed-ad
       );
       const { collectDoctor } = await import("./dev-doctor.mjs");
       const doctor = await collectDoctor({ profile: "desktop" });
+      await writeFile(`${values.evidence}.native-doctor.json`, JSON.stringify(doctor, null, 2), {
+        flag: "wx",
+      });
       assert.equal(
         doctor.ok,
         true,
