@@ -900,10 +900,15 @@ installed-context, signed production, minimum-version or all-platform evidence.
 Refused navigation does not prove privileged invocation after remote execution;
 earlier instrumented secondary/queued-reply controls remain separate evidence.
 
-For the distinct current-installed Windows case, pass
-`-NormalPackageManifestPath <absolute-ordinary-build-manifest>` to the same
-`test-windows-installer.ps1` route, together with `-ExpectedExecutablePath`,
-`-ExpectedVersion` and a new external `-EvidencePath`. The build manifest has the
+For the distinct current-installed Windows case, use the fixed existing launcher:
+`just desktop-test --current-installed --installer <absolute-nsis> --package-evidence
+<absolute-ordinary-build-manifest> --expected-app <absolute-built-executable>
+--expected-version <version> --test-base <absolute-isolated-base> --evidence
+<new-absolute-installer-receipt>`. It obtains the existing native desktop lock
+and verifies desktop packages, pinned tools and drivers before invoking the
+fixed `test-windows-installer.ps1` route. The installer requires that inherited
+admission, bound to the same inputs and live owner, before any Registry mutation;
+calling its opt-in parameter directly does not bypass preflight. The build manifest has the
 same clean revision, exact ordinary build command, empty qualification features,
 configuration and installer identities described above. The route verifies those
 inputs before installation. It invokes the fixed existing boundary harness after
@@ -913,7 +918,8 @@ the same registration/version and executable/uninstaller bytes, and unchanged
 isolated persistent data before uninstall. It does not accept an arbitrary
 callback or replace the retained-byte scenario.
 
-The new sibling `current-installed-boundary` directory retains the immutable
+The admission receipt alongside the installer evidence retains the exact tool
+preflight and input bindings. The new sibling `current-installed-boundary` directory retains the immutable
 pre-boundary installation receipt, bound package manifest and native evidence.
 Its explicit `current-installed` mode accepts only the pre-uninstall receipt;
 a completed post-uninstall receipt cannot supply that claim. The final ordinary

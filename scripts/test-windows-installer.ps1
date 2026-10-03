@@ -8,6 +8,7 @@ param(
     [string]$RetainExecutablePath,
     [string]$EvidencePath,
     [string]$NormalPackageManifestPath,
+    [string]$NormalPackageAdmissionPath,
     [ValidateSet("Silent", "Passive")]
     [string]$InstallMode = "Silent",
     [string]$ExpectedVersion,
@@ -221,6 +222,11 @@ if ($NormalPackageManifestPath) {
     }
     $normalPackageManifest = Get-Content -LiteralPath $NormalPackageManifestPath -Raw | ConvertFrom-Json
     $normalRepository = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot ".."))
+    if (-not $NormalPackageAdmissionPath) { throw "Current-installed boundary requires the admitted just desktop-test --current-installed route" }
+    & node (Join-Path $normalRepository 'scripts/desktop-test-cli.mjs') `
+        --verify-installed-admission $NormalPackageAdmissionPath --installer $installer `
+        --package-evidence $NormalPackageManifestPath --expected-app $ExpectedExecutablePath
+    if ($LASTEXITCODE -ne 0) { throw "Current-installed boundary native admission was not verified before installation" }
     $normalRevision = (& git -C $normalRepository rev-parse HEAD).Trim()
     if ($LASTEXITCODE -ne 0) { throw "Current-installed package source could not be resolved" }
     $normalDirty = & git -C $normalRepository status --porcelain=v1 --untracked-files=all
@@ -1092,9 +1098,21 @@ try {
         if ($LASTEXITCODE -ne 0) { throw "Current-installed native boundary failed; preserve installation and owned cleanup evidence" }
         $normalCleanupPath = Join-Path $normalBoundaryOutput 'native/normal-package-boundary-cleanup.json'
         $normalCleanup = Get-Content -LiteralPath $normalCleanupPath -Raw | ConvertFrom-Json
+        $normalInventoryPath = Join-Path $normalBoundaryOutput 'native/normal-package-boundary-exit-inventory.json'
+        if ($normalCleanup.snapshot -isnot [string] -or $normalCleanup.snapshot -ne $normalInventoryPath) {
+            throw "Current-installed boundary cleanup does not bind its exact owned inventory"
+        }
+        $normalInventory = Get-Content -LiteralPath $normalInventoryPath -Raw | ConvertFrom-Json
+        $normalApplicationRecords = @($normalInventory.processes | Where-Object { $_.path -eq $application })
+        $normalDriverRecords = @($normalInventory.processes | Where-Object { $_.pid -eq $normalInventory.driver.pid })
         if (-not $normalCleanup.exited -or -not $normalCleanup.snapshot -or
-            @($normalCleanup.snapshot.processes).Count -eq 0 -or
-            $normalCleanup.exited.observed_processes -ne @($normalCleanup.snapshot.processes).Count) {
+            @($normalInventory.processes).Count -lt 2 -or
+            $normalInventory.derivation -ne 'include-captured-driver-root-in-positive-exit-inventory' -or
+            $normalCleanup.exited.observed_processes -ne @($normalInventory.processes).Count -or
+            $normalApplicationRecords.Count -ne 1 -or $normalApplicationRecords[0].pid -ne $normalInventory.application_pid -or
+            $normalDriverRecords.Count -ne 1 -or $normalDriverRecords[0].pid -le 0 -or
+            $normalDriverRecords[0].path -ne $normalInventory.driver.path -or
+            $normalDriverRecords[0].started_filetime -ne $normalInventory.driver.started_filetime) {
             throw "Current-installed boundary lacks positive owned exit evidence; refusing uninstall"
         }
         $normalNativePath = Join-Path $normalBoundaryOutput 'native/evidence.json'
