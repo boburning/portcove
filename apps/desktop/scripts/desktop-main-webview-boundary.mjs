@@ -39,9 +39,35 @@ export async function verifyNormalPackageEvidence(file, revision, executable, ro
     ],
   );
   const receipt = JSON.parse(await readFile(manifest.installer_evidence.path, "utf8"));
-  assert.equal(receipt.phase, "complete");
   assert.equal(receipt.details.installer_sha256, manifest.installer.sha256);
   assert.equal(receipt.details.installed_executable_sha256, executable.sha256);
+  const context = manifest.execution_context ?? "retained-installed-bytes";
+  assert.ok(
+    ["retained-installed-bytes", "current-installed"].includes(context),
+    "Unknown normal package execution context",
+  );
+  if (context === "current-installed") {
+    assert.equal(receipt.phase, "current_installed_boundary_ready");
+    assert.equal(receipt.details.uninstall_registration_count, 1);
+    assert.match(
+      receipt.details.registration_path,
+      /HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\/i,
+    );
+    assert.equal(path.resolve(receipt.details.installed_executable_path), executable.path);
+    assert.equal(
+      path.dirname(executable.path),
+      path.resolve(receipt.details.install_root),
+      "Native executable must remain in the verified installation",
+    );
+    const installed = await fileIdentity(executable.path);
+    assert.equal(installed.sha256, executable.sha256);
+    identities.push(installed);
+    assert.equal(receipt.details.application_responding, true);
+    assert.equal(receipt.details.application_exit_code, 0);
+    assert.equal(receipt.details.persistent_data_preserved, true);
+    return { manifest, receipt, identities, execution_context: context };
+  }
+  assert.equal(receipt.phase, "complete");
   for (const field of [
     "application_responding",
     "persistent_data_preserved",
@@ -50,7 +76,7 @@ export async function verifyNormalPackageEvidence(file, revision, executable, ro
   ])
     assert.equal(receipt.details[field], true, field);
   assert.equal(receipt.details.application_exit_code, 0);
-  return { manifest, receipt, identities };
+  return { manifest, receipt, identities, execution_context: context };
 }
 
 export async function normalPackageBoundaryScenario({
