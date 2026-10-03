@@ -127,13 +127,16 @@ React presents typed host results without choosing arbitrary URLs or policy.
 Preferred execution order is trust/ownership/compatibility/key/recovery design
 (#223), artifacts/signatures (#219), authenticated channel metadata (#220),
 host scheduling/staging (#221), accessible UX (#222), Windows proof (#224),
-Linux AppImage (#225), Deck Gaming Mode integration/proof (#535), macOS Intel and Apple
+ordinary Linux AppImage (#225), macOS Intel and Apple
 Silicon (#226), and consolidated beta acceptance (#52). Early feasibility and
 independent fixture work may run in parallel. Order alone creates no dependency.
 Design closes on reviewed contracts/test-key fixtures, not on future production
 credentials. #46 owns later exact-artifact production requalification; #52 must
 not wait for #46 closure. Existing Deck #51/#213–#217 and Steam route #290 retain
-their owners; #292 is a required selected-game entry-management input to #217's
+their owners for the high-priority Public beta follow-up, Required before 1.0;
+#535 supplies its independently accepted actual Deck updater proof there. Initial
+beta #52 does not wait for #535. #290/#292 retain the Required Desktop Steam
+components and do not wait for physical Deck evidence. #292 is a selected-game entry-management input to #217's
 applicable physical scenarios. Decky #293 and continuous Steam synchronization
 remain optional.
 
@@ -168,6 +171,15 @@ eligible candidate must not receive another installer or a “fully current” c
 Failed/expired checks never disable offline application use.
 
 ## Platform contracts
+
+The Windows, ordinary Linux x86-64 and existing macOS rows remain initial Public
+beta commitments. The Steam Deck row is the later qualified-support contract:
+#51/#213–#217/#535 deliver it during the Public beta follow-up (Beta 2), Required
+before 1.0. Until it passes, the Linux build may run on SteamOS but Deck is
+unqualified, not an officially supported target. Linux CI or Desktop Steam
+results do not establish physical Deck, Gaming Mode or Valve Verified status.
+Shared rootless installation, filesystem/capacity/ownership, controller,
+process/interruption/recovery and desktop Steam safety remain in initial beta.
 
 | Baseline   | Installation and qualification                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |

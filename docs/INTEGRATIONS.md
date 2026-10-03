@@ -171,19 +171,20 @@ interventions—not a minimum integration count.
 
 ## Deliberate frontend sequence
 
-| Environment                                            | Intended first claim                           | Owner and target                                           | Boundary                                                                                                                               |
-| ------------------------------------------------------ | ---------------------------------------------- | ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| Playnite reference                                     | Real lifecycle contract proof                  | #243; integration workstream and Public beta qualification | Developer-loaded regression/author client with preserved evidence; it is not the user-ready package.                                   |
-| Playnite product                                       | Normally installable everyday lifecycle client | #910; required Public beta product                         | Thin over core policy, useful for declared operations, with no marketplace or universal-launcher gate.                                 |
-| Desktop Steam / Big Picture and Steam Deck Gaming Mode | Generic/manual launch-only route               | #290; required Public beta qualification                   | Plugin-free supported fallback and direct-launch baseline.                                                                             |
-| ES-DE                                                  | First reusable library-export profile          | #291; opportunistic early Post-V1                          | Thin profile over supported library/launch data, not a second manager.                                                                 |
-| Steam selected-game entry management                   | Add/Repair/Update-artwork/Remove               | #292 with #527; required Public beta product               | Exact installation/profile and owned-entry/art reconciliation; provider use stays optional and continuous synchronization is excluded. |
-| LaunchBox / Big Box and RetroBat                       | Next Windows candidates                        | #291 evaluation sequence                                   | Proceed only for demonstrated friction, demand, reuse, and maintenance fit.                                                            |
-| EmuDeck and RetroDECK                                  | Separately qualified packaged environments     | #291 evaluation sequence                                   | Inspect actual ES-DE/Steam route and host/sandbox boundaries; do not inherit an ES-DE claim.                                           |
-| Batocera                                               | Deployment feasibility before support          | #291 evaluation sequence                                   | Invocation alone does not prove executable or dependency compatibility.                                                                |
-| Lutris, Heroic, and Pegasus                            | Second-wave candidates                         | #291 evaluation sequence                                   | Prefer community ownership where practical.                                                                                            |
-| PortMaster                                             | Adjacent native-port ecosystem                 | #291 evaluation sequence                                   | Evaluate interoperability separately rather than treating it as only a launcher.                                                       |
-| Decky                                                  | Optional Steam-facing lifecycle client         | #293; opportunistic Post-V1                                | Prefer community maintenance; never required for baseline use or V1.                                                                   |
+| Environment                          | Intended first claim                           | Owner and target                                           | Boundary                                                                                                                               |
+| ------------------------------------ | ---------------------------------------------- | ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| Playnite reference                   | Real lifecycle contract proof                  | #243; integration workstream and Public beta qualification | Developer-loaded regression/author client with preserved evidence; it is not the user-ready package.                                   |
+| Playnite product                     | Normally installable everyday lifecycle client | #910; required Public beta product                         | Thin over core policy, useful for declared operations, with no marketplace or universal-launcher gate.                                 |
+| Desktop Steam / Big Picture          | Generic/manual launch-only route               | #290; Required initial Public beta                         | Plugin-free fallback and stable direct-launch baseline on declared desktop platforms.                                                  |
+| Steam Deck Gaming Mode               | Same shared route, separate device evidence    | #51/#217; Public beta follow-up, Required before 1.0       | Unqualified until actual SteamOS/Gaming Mode evidence passes; no Decky or separate binary/channel required.                            |
+| ES-DE                                | First reusable library-export profile          | #291; opportunistic early Post-V1                          | Thin profile over supported library/launch data, not a second manager.                                                                 |
+| Steam selected-game entry management | Add/Repair/Update-artwork/Remove               | #292 with #527; required Public beta product               | Exact installation/profile and owned-entry/art reconciliation; provider use stays optional and continuous synchronization is excluded. |
+| LaunchBox / Big Box and RetroBat     | Next Windows candidates                        | #291 evaluation sequence                                   | Proceed only for demonstrated friction, demand, reuse, and maintenance fit.                                                            |
+| EmuDeck and RetroDECK                | Separately qualified packaged environments     | #291 evaluation sequence                                   | Inspect actual ES-DE/Steam route and host/sandbox boundaries; do not inherit an ES-DE claim.                                           |
+| Batocera                             | Deployment feasibility before support          | #291 evaluation sequence                                   | Invocation alone does not prove executable or dependency compatibility.                                                                |
+| Lutris, Heroic, and Pegasus          | Second-wave candidates                         | #291 evaluation sequence                                   | Prefer community ownership where practical.                                                                                            |
+| PortMaster                           | Adjacent native-port ecosystem                 | #291 evaluation sequence                                   | Evaluate interoperability separately rather than treating it as only a launcher.                                                       |
+| Decky                                | Optional Steam-facing lifecycle client         | #293; opportunistic Post-V1                                | Prefer community maintenance; never required for baseline use or V1.                                                                   |
 
 These priorities are product-fit choices, not a market-share ranking, mandatory
 matrix, or expansion of Portcove's supported operating systems, architectures,
@@ -257,10 +258,16 @@ assumptions.
 
 ### Plugin-free baseline
 
-[#290](https://github.com/boburning/portcove/issues/290) owns a documented route
-to add/open Portcove from Steam Deck Gaming Mode, navigate its supported
-controller-first experience, launch a representative game, and return to
-Portcove or Steam as appropriate. A clearly explained manual non-Steam entry is
+[#290](https://github.com/boburning/portcove/issues/290) owns the Required
+initial-beta Desktop Steam application and standalone-CLI individual-game manual
+routes on declared supported desktop platforms. It preserves exact runtime,
+library and port identity, ownership and truthful session/recovery outcomes.
+[#217](https://github.com/boburning/portcove/issues/217) consumes the shared route
+for actual Deck Gaming Mode, controller/Desktop handoff, representative launch
+and return evidence during the Public beta follow-up (Beta 2), Required before
+1.0. Until #51's matrix passes, the Linux build may run on SteamOS but Deck remains
+unqualified; neither #290 nor #292 waits for that physical proof to complete
+its desktop outcome. A clearly explained manual non-Steam entry is
 enough; complex setup may hand off to Desktop Mode. It does not promise that
 every file picker or upstream setup tool works inside Gaming Mode.
 [Steam documents adding a non-Steam game](https://help.steampowered.com/en/faqs/view/4B8B-9697-2338-40EC)
@@ -314,8 +321,9 @@ from an extracted path containing spaces and Unicode, selects an explicit
 spaces/Unicode library, verifies exact `invocation` provenance, and confirms the
 packaged `exec`, `launch.show`, and `launch.recover` capability surface. This proves packaged
 executable/path/library admission, not a game session or a Steam-client launch.
-Desktop Steam and Steam Deck remain separate qualification environments,
-beginning with appropriate native Linux routes on SteamOS.
+Desktop Steam and Steam Deck remain separate qualification environments.
+Ordinary Windows/Linux desktop evidence establishes only its exact claimed scope;
+the later Deck matrix uses appropriate native Linux routes on actual SteamOS.
 Windows-only ports, Proton/Wine configuration, additional architectures, and
 other SteamOS devices require their own scope and evidence.
 
@@ -508,10 +516,12 @@ The integration workstream closes bounded public-contract and author-usability
 gaps and proves the real Playnite reference under #243. Public beta additionally
 requires the normally installable Playnite lifecycle product under #910, selected-
 game Steam Add/Repair/Update-artwork/Remove under #292 with the bounded SteamGridDB
-capability under #527, the plugin-free Steam Deck baseline under #51/#290, the same
+capability under #527, the plugin-free Desktop Steam baseline under #290, the same
 Linux application's updater proof under #52, and unchanged-
 reference-client compatibility with independent catalog delivery under #246.
-Exact production/platform requalification continues toward 1.0. The cumulative
+The actual Steam Deck baseline under #51/#213–#217/#535 follows during Public beta
+(Beta 2), Required before 1.0; it is not an initial beta prerequisite. Exact
+production/platform requalification continues toward 1.0. The cumulative
 1.0 contract does not require a universal frontend list, community quota,
 marketplace approval, continuous Steam synchronization or Decky. Other optional
 frontend profiles remain Post-1.0.

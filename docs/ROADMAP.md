@@ -215,8 +215,8 @@ status checklist.
 Alpha 2's onboarding and storage outcomes are released. Subsequent delivery is
 capability-based: small safe previews may ship while cumulative Public beta or
 1.0 commitments remain incomplete. Versions, Stable/Preview channels, workstreams
-and readiness are separate. The complete Windows/Linux/Steam Deck/macOS updater
-is required for Public beta, together with independent catalog delivery and the
+and readiness are separate. The complete Windows/ordinary Linux/macOS updater
+is required for initial Public beta, together with independent catalog delivery and the
 finite preparation, artwork and real reference-client outcomes. These remain
 cumulative 1.0 requirements; exact production qualification stays at 1.0.
 See [Continuous verified delivery](DELIVERY.md).
@@ -329,7 +329,7 @@ their separate later ownership and do not enter beta solely through these links.
 Broader testing is appropriate when representative first-play and recovery are
 usable; fundamental safety, honest limitations and the complete baseline
 application updater are proven. #52 includes Windows per-user NSIS, Linux
-AppImage, that same application on Steam Deck, and installed macOS bundles on
+AppImage on ordinary Linux x86-64, and installed macOS bundles on
 Intel and Apple Silicon. Require real updater-enabled release-to-release and
 skipped-version evidence, safe failure/data preservation, and a provisioned
 bounded release/feed pipeline. Manual reinstall or compiled packages alone do
@@ -434,9 +434,29 @@ routes, and #292 owns bounded user-initiated Add/Repair/Update-artwork/Remove,
 consuming #527 only through #208's shared artwork authority. The manual route
 remains a supported fallback and useful interim path, but it does not complete
 #292. Continuous synchronization, Decky, root modification and a separate Deck
-binary/channel are not required. Qualification starts during implementation,
-including actual Gaming Mode, normal Exit versus Steam Stop, suspend and removable
-storage.
+binary/channel are not required. Initial Public beta does not claim qualified
+Steam Deck support. The ordinary Linux build may function on SteamOS, with Deck
+status explicitly unqualified; no deliberate execution block or universal
+experimental switch is required. Windows, ordinary Linux and existing macOS
+commitments remain unchanged.
+
+Steam Deck qualification is a high-priority Public beta follow-up (Beta 2),
+Required before 1.0. The existing active Target release is 1.0 with High/Next
+selection; the historical Beta 2 field is not reused. #213–#217 and #535 require
+actual SteamOS/Gaming Mode, controller/Desktop handoff, Gamescope focus/lifetime,
+normal Exit versus Steam Stop, suspend, storage, updater and representative-device
+evidence before #51 can claim qualified support. Agent-operated remote real-device
+evidence can establish those behaviors; the owner is not a mandatory tester.
+
+Shared rootless Linux installation/updating remains with #225, reusable desktop
+controller behavior with #44/#206, process/interruption continuity with #21/#1282,
+and generic storage safety with #38/#192. #290 and #292 retain independently
+complete Desktop Steam outcomes for initial beta; #217 consumes their device
+proof later. #52 does not wait for #535 or the Deck matrix. No initial-beta
+component waits for physical Deck access, while Deck qualification consumes the
+shared foundations without waiting for the 1.0 release itself. Missing Deck
+observations do not waive any ordinary Linux safety requirement or establish
+Valve Verified, universal port compatibility or a qualified Gaming Mode claim.
 
 Safety-critical UX, clear game-channel controls and existing early safety
 commitments stay visible. Public beta does not freeze every 1.0 capability or
