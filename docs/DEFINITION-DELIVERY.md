@@ -561,6 +561,14 @@ assessment admission and release after a refused guarded closure. These are
 core/native fixture controls, not gameplay, production publication or whole
 #246/#315 acceptance.
 
+Launch-consumer fixtures use one authenticated port and the existing test-only
+catalog injection; full embedded-compatible discovery remains a separate
+qualified control. Late-hold acceptance runs through the public supervisor after
+preparation. Controlled stored-provenance expiry and an in-process library reopen
+preserve the exact hold, refuse correction while its grant is expired and permit
+an unaffected verified subject. This does not establish a physical restart or
+expired signed-TUF acquisition.
+
 Library schema 34 retains assessment decisions, inventory identity and an
 initialization/revision binding alongside publisher admission. Existing lifetime
 leases require exclusive access for migration, preventing upgrade beneath an

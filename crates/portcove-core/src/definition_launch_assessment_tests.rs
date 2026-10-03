@@ -471,6 +471,12 @@ async fn scoped_launch_verified_late_hold_and_expired_discovery() {
     assert_scoped_native_launch(true).await;
 }
 
+fn scoped_native_service(library: &Library, catalog: &Catalog) -> PortcoveService {
+    let mut service = PortcoveService::new(library.clone()).unwrap();
+    service.replace_catalog_for_test(catalog.clone());
+    service
+}
+
 async fn assert_scoped_native_launch(late_expiry: bool) {
     let phase_clock = std::time::Instant::now();
     use crate::ReleaseProvider;
@@ -481,8 +487,10 @@ async fn assert_scoped_native_launch(late_expiry: bool) {
     } else {
         "fixture"
     };
-    let mut baseline = Catalog::embedded().unwrap().authoritative_document();
-    let mut port = metadata_catalog().ports()[0].clone();
+    // Consumer acceptance needs only this authenticated port. Full embedded
+    // discovery/preservation is qualified by its separate existing fixtures.
+    let mut baseline = metadata_catalog().authoritative_document();
+    let mut port = baseline.ports.remove(0);
     port.platforms = vec![platform];
     port.executable_hints = std::collections::BTreeMap::from([(platform, vec![executable.into()])]);
     baseline.ports.push(port);
@@ -581,7 +589,7 @@ async fn assert_scoped_native_launch(late_expiry: bool) {
                 |row| row.get(0),
             )
             .unwrap();
-        let late_service = PortcoveService::with_faults(
+        let mut late_service = PortcoveService::with_faults(
             library.clone(),
             std::sync::Arc::new(AdmitLaunchHold {
                 library: library.clone(),
@@ -589,6 +597,7 @@ async fn assert_scoped_native_launch(late_expiry: bool) {
             }),
         )
         .unwrap();
+        late_service.replace_catalog_for_test(catalog.clone());
         assert_eq!(
             late_service
                 .status(ID)
@@ -657,7 +666,7 @@ async fn assert_scoped_native_launch(late_expiry: bool) {
             phase_clock.elapsed()
         );
         let reopened = Library::open(directory.path()).unwrap();
-        let reopened_service = PortcoveService::new(reopened.clone()).unwrap();
+        let reopened_service = scoped_native_service(&reopened, &catalog);
         assert_eq!(
             reopened_service
                 .status(ID)
@@ -720,7 +729,7 @@ async fn assert_scoped_native_launch(late_expiry: bool) {
             DefinitionEligibilityReason::MandatoryCheckFailed
         );
         reopened.register_install(&delivered[1], true).unwrap();
-        let unaffected = PortcoveService::new(reopened.clone()).unwrap();
+        let unaffected = scoped_native_service(&reopened, &catalog);
         assert_eq!(
             unaffected
                 .status(ID)
@@ -779,7 +788,7 @@ async fn assert_scoped_native_launch(late_expiry: bool) {
     library
         .apply_definition_launch_assessment(&accepted)
         .unwrap();
-    let service = PortcoveService::new(library.clone()).unwrap();
+    let service = scoped_native_service(&library, &catalog);
     // The ordinary next artifact is unaffected by an exact earlier-release hold.
     let status = service.status(ID).unwrap();
     assert_eq!(status.active.as_ref().unwrap().id, delivered[1].id);
@@ -810,7 +819,7 @@ async fn assert_scoped_native_launch(late_expiry: bool) {
     assert!(outcome.successful);
     assert_eq!(outcome.exit_code, Some(0));
     library.register_install(&delivered[0], true).unwrap();
-    let service = PortcoveService::new(library.clone()).unwrap();
+    let service = scoped_native_service(&library, &catalog);
     let status = service.status(ID).unwrap();
     assert_eq!(
         status
@@ -846,7 +855,7 @@ async fn assert_scoped_native_launch(late_expiry: bool) {
     library
         .apply_definition_launch_assessment(&accepted)
         .unwrap();
-    let service = PortcoveService::new(library.clone()).unwrap();
+    let service = scoped_native_service(&library, &catalog);
     let release = directory.path().join("corrected-release-exit");
     let outcome = service
         .supervise_launch(
