@@ -633,6 +633,9 @@ export function createIgdbInspector(credentialsFile, validateImage, fetchImpl = 
       if (metrics.game_requests >= 800 || metrics.metadata_bytes >= 32 * 1024 * 1024)
         throw new Error("Artwork metadata budget reached.");
       await waitForMetadata();
+      // Another caller can consume the shared budget while this request waits.
+      if (metrics.game_requests >= 800 || metrics.metadata_bytes >= 32 * 1024 * 1024)
+        throw new Error("Artwork metadata budget reached.");
       const requestSignal = signal();
       lastGameRequest = Date.now();
       metrics.game_requests++;
