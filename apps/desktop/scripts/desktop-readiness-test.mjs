@@ -221,6 +221,56 @@ async function observeActionHolds({ browser, output, artifacts, command, port })
   }
 }
 
+async function detailLayout(browser, summary) {
+  return browser.executeScript((expectedSummary) => {
+    const detail = document.querySelector(".detail-panel");
+    const bounds = (selector) => detail?.querySelector(selector)?.getBoundingClientRect();
+    const summaryParagraph = [...(detail?.querySelectorAll(".detail-body > p") ?? [])].find(
+      (paragraph) => paragraph.textContent?.trim() === expectedSummary,
+    );
+    return {
+      state: detail?.querySelector(".detail-hero .hero-state")?.textContent?.trim(),
+      reason: detail?.querySelector(".detail-hero .hero-reason")?.textContent?.trim(),
+      hasReason: Boolean(detail?.querySelector(".detail-hero .hero-reason")),
+      reasonBottom: bounds(".detail-hero .hero-reason")?.bottom,
+      heroBottom: bounds(".detail-hero")?.bottom,
+      actionTop: bounds(".primary-actions button")?.top,
+      actionBottom: bounds(".primary-actions button")?.bottom,
+      summaryTop: summaryParagraph?.getBoundingClientRect().top,
+      artworkTop: bounds(".artwork-controls")?.top,
+      viewportHeight: window.innerHeight,
+    };
+  }, summary);
+}
+
+function assertMeasured(layout, names) {
+  for (const name of names)
+    assert.ok(Number.isFinite(layout[name]), `${name} is missing: ${JSON.stringify(layout)}`);
+}
+
+async function assertUnavailableLayout(browser, summary) {
+  const layout = await detailLayout(browser, summary);
+  assert.equal(layout.state, "Readiness unavailable");
+  assert.equal(
+    layout.reason,
+    "Current launch readiness is unavailable. Reopen Portcove to check again.",
+  );
+  assertMeasured(layout, ["reasonBottom", "actionTop", "summaryTop"]);
+  assert.ok(layout.reasonBottom <= layout.actionTop, JSON.stringify(layout));
+  assert.ok(layout.actionTop < layout.summaryTop, JSON.stringify(layout));
+}
+
+async function assertReadyLayout(browser, summary) {
+  const layout = await detailLayout(browser, summary);
+  assertMeasured(layout, ["heroBottom", "actionTop", "actionBottom", "summaryTop", "artworkTop"]);
+  assert.ok(layout.actionTop >= layout.heroBottom, JSON.stringify(layout));
+  assert.ok(layout.actionTop >= 0, JSON.stringify(layout));
+  assert.ok(layout.actionBottom <= layout.viewportHeight, JSON.stringify(layout));
+  assert.ok(layout.actionBottom <= layout.summaryTop, JSON.stringify(layout));
+  assert.ok(layout.actionBottom < layout.artworkTop, JSON.stringify(layout));
+  assert.equal(layout.hasReason, false, JSON.stringify(layout));
+}
+
 export async function readinessScenario({ browser, scenario, output, artifacts, command, open }) {
   await scenario("native-missing-readiness-recovery", async () => {
     const port = command(["catalog", "show", "opengoal-jak1"]);
@@ -288,20 +338,7 @@ export async function readinessScenario({ browser, scenario, output, artifacts, 
       const primary = await browser.findElement(By.css(".detail-panel .primary-actions button"));
       assert.equal(await primary.isEnabled(), false);
       assert.equal(await primary.getText(), "Play unavailable");
-      const blockerOrder = await browser.executeScript(() => {
-        const bounds = (selector) =>
-          document.querySelector(`.detail-panel ${selector}`)?.getBoundingClientRect();
-        return {
-          reasonBottom: bounds(".readiness-card")?.bottom,
-          actionTop: bounds(".primary-actions button")?.top,
-          summaryTop: bounds(".summary")?.top,
-        };
-      });
-      assert.ok(
-        blockerOrder.reasonBottom <= blockerOrder.actionTop &&
-          blockerOrder.actionTop < blockerOrder.summaryTop,
-        `blocker and next action must lead the detail summary: ${JSON.stringify(blockerOrder)}`,
-      );
+      await assertUnavailableLayout(browser, port.summary);
       await browser.executeScript(axe.source);
       const accessibility = await browser.executeAsyncScript((done) => window.axe.run().then(done));
       const report = path.join(output, "readiness-accessibility.json");
@@ -377,34 +414,13 @@ export async function readinessScenario({ browser, scenario, output, artifacts, 
       await browser.findElement(By.css(".detail-panel .primary-actions button")).isEnabled(),
       true,
     );
-    const readyLayout = await browser.executeScript(() => {
-      const bounds = (selector) =>
-        document.querySelector(`.detail-panel ${selector}`)?.getBoundingClientRect();
-      return {
-        heroBottom: bounds(".detail-hero")?.bottom,
-        actionTop: bounds(".primary-actions button")?.top,
-        actionBottom: bounds(".primary-actions button")?.bottom,
-        summaryTop: bounds(".summary")?.top,
-        artworkTop: bounds(".artwork-controls")?.top,
-        viewportHeight: window.innerHeight,
-        duplicateReadyCard: Boolean(document.querySelector(".detail-panel .readiness-card.ready")),
-      };
-    });
     const readyImage = path.join(output, "native-ready-next-action.png");
     await writeFile(readyImage, await browser.takeScreenshot(), {
       encoding: "base64",
       flag: "wx",
     });
     artifacts.push(readyImage);
-    assert.ok(
-      readyLayout.actionTop >= readyLayout.heroBottom &&
-        readyLayout.actionTop >= 0 &&
-        readyLayout.actionBottom <= readyLayout.viewportHeight &&
-        readyLayout.actionBottom <= readyLayout.summaryTop &&
-        readyLayout.actionBottom < readyLayout.artworkTop &&
-        !readyLayout.duplicateReadyCard,
-      `the ready next action must follow the hero and remain visible before supporting content: ${JSON.stringify(readyLayout)}`,
-    );
+    await assertReadyLayout(browser, port.summary);
     assert.equal(command(["status", port.id]).successful_launches, before.successful_launches);
     if (process.platform === "win32")
       await observeActionHolds({ browser, output, artifacts, command, port });
