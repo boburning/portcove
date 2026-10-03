@@ -2468,3 +2468,85 @@ fn status_disclosure_all_ports_keeps_each_real_action_attached_to_its_port() {
             .trim()
     );
 }
+
+#[test]
+fn catalog_detail_shows_accepted_runtime_and_return_command_without_changing_machine_data() {
+    let root = tempfile::tempdir().unwrap();
+    let library = root.path().join("unused-library");
+    let id = "wave-race-64-recomp";
+    let catalog = portcove_core::Catalog::embedded().unwrap();
+    let port = catalog.port(id).unwrap();
+    let expected = serde_json::to_value(port).unwrap();
+    let mut machine_outputs = Vec::new();
+    for mode in ["--json", "--jsonl"] {
+        let output = portcove(&library, &[mode, "catalog", "show", id]);
+        assert!(output.status.success());
+        assert!(output.stderr.is_empty());
+        let value = json_stdout(&output);
+        assert_eq!(value["schema_version"], portcove_core::API_SCHEMA_VERSION);
+        assert_eq!(value["command"], "catalog.show");
+        assert_eq!(value["ok"], true);
+        assert!(value["error"].is_null());
+        assert_eq!(value["data"], expected);
+        if mode == "--jsonl" {
+            assert_eq!(value["type"], "result");
+        }
+        machine_outputs.push(value["data"].clone());
+    }
+    assert_eq!(machine_outputs[0], machine_outputs[1]);
+    let output = portcove(&library, &["catalog", "show", id]);
+    let human = human_stdout(&output);
+    let runtime = &port.release.user_prepared[&portcove_core::Platform::WindowsX86_64];
+    for fact in [
+        format!("Accepted runtime (windows-x86_64): {}", runtime.version),
+        format!(
+            "Package: {} ({} bytes)",
+            runtime.archive_name, runtime.archive_size
+        ),
+        format!("Package SHA-256: {}", runtime.archive_sha256),
+        format!("Executable: {}", runtime.executable),
+        format!("portcove external preview {id} \"<extracted-folder>\""),
+    ] {
+        assert!(
+            human.contains(&fact),
+            "catalog detail omitted {fact:?}:\n{human}"
+        );
+    }
+    assert!(human.contains("matching platform"));
+    assert!(
+        human
+            .contains("Maintenance: user-owned; Portcove does not download or update this runtime")
+    );
+    assert!(human.contains("Preparation: Extract the official v1.0.2 Windows ZIP"));
+    assert!(human.contains("create an empty portable.txt"));
+    assert!(human.contains("Saves and settings: user-owned"));
+    assert!(!human.contains("Accepted runtime (linux"));
+    assert!(!human.contains("Accepted runtime (macos"));
+    assert!(!human.contains("n64-recomp-portable"));
+    assert!(!library.exists(), "catalog reads must not create a library");
+}
+
+#[test]
+fn catalog_detail_preserves_managed_output_and_library_free_machine_reads() {
+    let root = tempfile::tempdir().unwrap();
+    let library = root.path().join("unused-library");
+    let catalog = portcove_core::Catalog::embedded().unwrap();
+    for id in ["shipwright", "lighthouse"] {
+        let output = portcove(&library, &["catalog", "show", id]);
+        let human = human_stdout(&output);
+        assert!(human.contains("Support:"));
+        assert!(human.contains("Project: https://"));
+        assert!(!human.contains("Accepted runtime ("));
+        assert!(!human.contains("portcove external preview"));
+        assert!(!human.contains("Maintenance: user-owned"));
+        let machine = portcove(&library, &["--json", "catalog", "show", id]);
+        assert!(machine.status.success());
+        let machine = json_stdout(&machine);
+        assert_eq!(machine["schema_version"], portcove_core::API_SCHEMA_VERSION);
+        assert_eq!(
+            machine["data"],
+            serde_json::to_value(catalog.port(id).unwrap()).unwrap()
+        );
+    }
+    assert!(!library.exists(), "catalog reads must not create a library");
+}

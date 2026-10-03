@@ -2319,3 +2319,126 @@ mod tests {
         assert!(!output.contains('\u{1b}'));
     }
 }
+
+#[cfg(test)]
+mod catalog_detail_tests {
+    use super::{catalog_show, clean};
+    use portcove_core::{Catalog, Platform, PortDefinition, ReleaseSource};
+
+    fn external_port() -> PortDefinition {
+        Catalog::embedded()
+            .unwrap()
+            .port("wave-race-64-recomp")
+            .unwrap()
+            .clone()
+    }
+
+    #[test]
+    fn catalog_detail_reads_accepted_runtime_facts_without_presentation() {
+        let mut port = external_port();
+        port.presentation = None;
+        let before = serde_json::to_value(&port).unwrap();
+        let runtime = &port.release.user_prepared[&Platform::WindowsX86_64];
+        let output = catalog_show(&port);
+        assert!(output.contains(&format!(
+            "Accepted runtime (windows-x86_64): {}",
+            runtime.version
+        )));
+        assert!(output.contains(&format!(
+            "Package: {} ({} bytes)",
+            runtime.archive_name, runtime.archive_size
+        )));
+        assert!(output.contains(&format!("Package SHA-256: {}", runtime.archive_sha256)));
+        assert!(output.contains(&format!("Executable: {}", runtime.executable)));
+        assert!(
+            output.contains("portcove external preview wave-race-64-recomp \"<extracted-folder>\"")
+        );
+        assert!(output.contains("matching platform"));
+        assert!(output.contains(
+            "Maintenance: user-owned; Portcove does not download or update this runtime"
+        ));
+        assert!(output.contains("Presentation details: unavailable in this catalog"));
+        assert!(!output.contains("Accepted runtime (linux"));
+        assert_eq!(serde_json::to_value(&port).unwrap(), before);
+    }
+
+    #[test]
+    fn catalog_detail_keeps_each_platform_with_its_distinct_accepted_package() {
+        let mut port = external_port();
+        port.platforms = vec![Platform::LinuxX86_64, Platform::WindowsX86_64];
+        let mut linux = port.release.user_prepared[&Platform::WindowsX86_64].clone();
+        linux.version = "v7.2.1".into();
+        linux.archive_name = "fixture-linux-runtime.zip".into();
+        linux.archive_size = 321;
+        linux.archive_sha256 = "a".repeat(64);
+        linux.executable = "bin/fixture-game".into();
+        port.release
+            .user_prepared
+            .insert(Platform::LinuxX86_64, linux);
+        let output = catalog_show(&port);
+        let windows_heading = "Accepted runtime (windows-x86_64): v1.0.2";
+        let linux_heading = "Accepted runtime (linux-x86_64): v7.2.1";
+        let windows_position = output.find(windows_heading).unwrap();
+        let linux_position = output.find(linux_heading).unwrap();
+        assert!(windows_position < linux_position);
+        let windows = &output[windows_position..linux_position];
+        assert!(windows.contains("WaveRace64Recomp-1.0.2-windows-x64.zip (17397538 bytes)"));
+        assert!(!windows.contains("fixture-linux-runtime"));
+        let linux = &output[linux_position..];
+        assert!(linux.contains("Package: fixture-linux-runtime.zip (321 bytes)"));
+        assert!(linux.contains(&format!("Package SHA-256: {}", "a".repeat(64))));
+        assert!(linux.contains("Executable: bin/fixture-game"));
+        assert!(!linux.contains("WaveRace64Recomp.exe"));
+    }
+
+    #[test]
+    fn catalog_detail_sanitizes_runtime_facts_without_changing_the_definition() {
+        let mut port = external_port();
+        let runtime = port
+            .release
+            .user_prepared
+            .get_mut(&Platform::WindowsX86_64)
+            .unwrap();
+        runtime.version = "v2\nforged\u{1b}".into();
+        runtime.archive_name = "package\r\nforged\u{7}.zip".into();
+        runtime.archive_sha256 = "digest\tforged\u{1b}".into();
+        runtime.executable = "bin/game\nforged\u{7}".into();
+        let before = serde_json::to_value(&port).unwrap();
+        let runtime = &port.release.user_prepared[&Platform::WindowsX86_64];
+        let output = catalog_show(&port);
+        for value in [
+            &runtime.version,
+            &runtime.archive_name,
+            &runtime.archive_sha256,
+            &runtime.executable,
+        ] {
+            assert!(
+                output.contains(&clean(value)),
+                "missing sanitized fact: {output}"
+            );
+            assert!(!output.contains(value));
+        }
+        assert!(!output.contains('\u{1b}'));
+        assert!(!output.contains('\u{7}'));
+        assert_eq!(serde_json::to_value(&port).unwrap(), before);
+    }
+
+    #[test]
+    fn catalog_detail_does_not_invent_an_external_route_for_managed_or_missing_runtime() {
+        let catalog = Catalog::embedded().unwrap();
+        let managed = catalog_show(catalog.port("shipwright").unwrap());
+        assert!(managed.contains("Installation: portable upstream package"));
+        assert!(managed.contains("Saves and settings: managed by Portcove"));
+        let mut absent = external_port();
+        absent.release.user_prepared.clear();
+        absent.presentation = None;
+        let missing = catalog_show(&absent);
+        let mut other_provider = external_port();
+        other_provider.release.provider = ReleaseSource::Github;
+        for output in [managed, missing, catalog_show(&other_provider)] {
+            assert!(!output.contains("Accepted runtime ("));
+            assert!(!output.contains("portcove external preview"));
+            assert!(!output.contains("Maintenance: user-owned"));
+        }
+    }
+}
