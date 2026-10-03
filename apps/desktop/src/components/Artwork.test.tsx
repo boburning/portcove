@@ -6,6 +6,7 @@ import { desktopApi } from "../api";
 import { ArtworkProvider } from "../artwork";
 import * as picker from "../file-picker";
 import { artworkState, portDefinition } from "../test-fixtures";
+import type { ArtworkState } from "../types";
 import { ArtworkControls, ArtworkImage } from "./Artwork";
 
 let container: HTMLDivElement, root: Root;
@@ -93,6 +94,260 @@ describe("local artwork controls", () => {
     await render("sample", 7, "corrected-cover");
     expect(vi.mocked(desktopApi.artwork).mock.calls.length).toBeGreaterThan(before);
   });
+
+  it.each(["import", "reset"] as const)(
+    "reconciles a completed %s with a replacement catalog cache",
+    async (kind) => {
+      let state = artworkState("sample", "cover", kind === "reset" ? 1 : 0, kind === "reset");
+      vi.mocked(desktopApi.artwork).mockImplementation(async (port, slot) =>
+        slot === "cover" ? state : artworkState(port, slot),
+      );
+      let finish!: (value: ArtworkState) => void;
+      const change = vi
+        .spyOn(desktopApi, kind === "import" ? "importArtwork" : "resetArtwork")
+        .mockReturnValue(new Promise((resolve) => (finish = resolve)));
+      vi.spyOn(picker, "pickArtworkPath").mockResolvedValue("E:/owned.png");
+      await render("sample", 7, "old-cover");
+      await open();
+      await click("cover", kind === "import" ? "Choose local image" : "Reset to default");
+      expect(change).toHaveBeenCalledTimes(1);
+      await render("sample", 7, "corrected-cover");
+      expect(button("cover", "Choose local image").disabled).toBe(true);
+      state = artworkState("sample", "cover", state.choice.revision + 1, kind === "import");
+      await act(async () => finish(state));
+      expect(container.querySelector<HTMLElement>(".artwork-image")?.dataset.artworkSource).toBe(
+        state.resolved_source.kind,
+      );
+      expect(button("cover", "Reset to default").disabled).toBe(kind === "reset");
+      expect(button("cover", "Choose local image").disabled).toBe(false);
+      expect(container.textContent).toContain(
+        kind === "import" ? "Local image selected." : "Default artwork restored.",
+      );
+      expect(change).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it("waits for a pre-commit replacement-cache read and then reads the committed choice", async () => {
+    let state = artworkState("sample", "cover");
+    let reads = 0;
+    let deferReplacement = false;
+    let finishRead!: (value: ArtworkState) => void;
+    vi.mocked(desktopApi.artwork).mockImplementation(async (port, slot) => {
+      if (slot !== "cover") return artworkState(port, slot);
+      reads++;
+      if (deferReplacement) {
+        deferReplacement = false;
+        return new Promise((resolve) => (finishRead = resolve));
+      }
+      return state;
+    });
+    let finishChange!: (value: ArtworkState) => void;
+    const change = vi
+      .spyOn(desktopApi, "importArtwork")
+      .mockReturnValue(new Promise((resolve) => (finishChange = resolve)));
+    vi.spyOn(picker, "pickArtworkPath").mockResolvedValue("E:/owned.png");
+    await render("sample", 7, "old-cover");
+    await open();
+    await click("cover", "Choose local image");
+    expect(change).toHaveBeenCalledTimes(1);
+    const readsBefore = reads;
+    deferReplacement = true;
+    await render("sample", 7, "corrected-cover");
+    expect(reads).toBe(readsBefore + 1);
+    const preCommit = state;
+    state = artworkState("sample", "cover", 1, true);
+    await act(async () => finishChange(state));
+    expect(button("cover", "Choose local image").disabled).toBe(true);
+    expect(container.textContent).not.toContain("Local image selected.");
+    await act(async () => finishRead(preCommit));
+    expect(reads).toBe(readsBefore + 2);
+    expect(container.querySelector<HTMLElement>(".artwork-image")?.dataset.artworkSource).toBe(
+      "local_import",
+    );
+    expect(button("cover", "Reset to default").disabled).toBe(false);
+    expect(change).toHaveBeenCalledTimes(1);
+  });
+
+  it("resolves reset against current catalog artwork rather than copying the old change result", async () => {
+    let state: ArtworkState = artworkState("sample", "cover", 1, true);
+    vi.mocked(desktopApi.artwork).mockImplementation(async (port, slot) =>
+      slot === "cover" ? state : artworkState(port, slot),
+    );
+    vi.mocked(desktopApi.artworkThumbnail).mockImplementation(async (_port, _slot, revision) => ({
+      asset_sha256: (revision === 2 ? "b" : "a").repeat(64),
+      choice_revision: revision,
+      png_base64: "iVBORw==",
+    }));
+    let finish!: (value: ArtworkState) => void;
+    vi.spyOn(desktopApi, "resetArtwork").mockReturnValue(
+      new Promise((resolve) => (finish = resolve)),
+    );
+    await render("sample", 7, "old-cover");
+    await open();
+    await click("cover", "Reset to default");
+    await render("sample", 7, "corrected-cover");
+    state = {
+      ...artworkState("sample", "cover", 2),
+      availability: "available",
+      resolved_source: {
+        kind: "igdb_cover",
+        cache_id: "b".repeat(64),
+        artwork: {
+          game_id: 194694,
+          cover_id: 287780,
+          image_id: "corrected-cover",
+          image_sha256: "a".repeat(64),
+          game_slug: "ship-of-harkinian",
+          match_kind: "port",
+        },
+      },
+    };
+    await act(async () => finish(artworkState("sample", "cover", 2)));
+    expect(container.querySelector<HTMLElement>(".artwork-image")?.dataset.artworkSource).toBe(
+      "igdb_cover",
+    );
+    expect(container.textContent).toContain("image corrected-cover");
+    expect(button("cover", "Reset to default").disabled).toBe(true);
+  });
+
+  it.each(["select", "cancel", "reject"] as const)(
+    "discards an obsolete picker %s after an A–B–A catalog change",
+    async (result) => {
+      let finish!: (value: string | null) => void;
+      let reject!: (error: Error) => void;
+      vi.spyOn(picker, "pickArtworkPath").mockReturnValue(
+        new Promise((resolve, fail) => {
+          finish = resolve;
+          reject = fail;
+        }),
+      );
+      const change = vi.spyOn(desktopApi, "importArtwork");
+      await render("sample", 7, "cover-a");
+      await open();
+      await click("cover", "Choose local image");
+      await render("sample", 7, "cover-b");
+      await render("sample", 7, "cover-a");
+      const focus = document.createElement("button");
+      container.append(focus);
+      focus.focus();
+      await act(async () => {
+        if (result === "reject") reject(new Error("Obsolete picker failed."));
+        else finish(result === "select" ? "E:/obsolete.png" : null);
+      });
+      expect(change).not.toHaveBeenCalled();
+      expect(container.textContent).not.toContain("Local image selected.");
+      expect(container.textContent).not.toContain("Obsolete picker failed.");
+      expect(button("cover", "Choose local image").disabled).toBe(false);
+      expect(document.activeElement).toBe(focus);
+    },
+  );
+
+  it("does not dispatch a queued choice after its catalog cache was replaced", async () => {
+    let finishRead!: (value: ArtworkState) => void;
+    vi.mocked(desktopApi.artwork)
+      .mockResolvedValueOnce(artworkState("sample", "cover"))
+      .mockReturnValueOnce(new Promise((resolve) => (finishRead = resolve)));
+    vi.spyOn(picker, "pickArtworkPath").mockResolvedValue("E:/obsolete.png");
+    const change = vi.spyOn(desktopApi, "importArtwork");
+    await render("sample", 7, "old-cover");
+    await open();
+    await click("cover", "Choose local image");
+    await render("sample", 7, "corrected-cover");
+    await act(async () => finishRead(artworkState("sample", "detail")));
+    expect(change).not.toHaveBeenCalled();
+    expect(button("cover", "Choose local image").disabled).toBe(false);
+  });
+
+  it.each(["import", "reset"] as const)(
+    "retains a rejected %s error and refreshes the current cache for retry",
+    async (kind) => {
+      let state = artworkState("sample", "cover", kind === "reset" ? 1 : 0, kind === "reset");
+      vi.mocked(desktopApi.artwork).mockImplementation(async (port, slot) =>
+        slot === "cover" ? state : artworkState(port, slot),
+      );
+      let reject!: (error: Error) => void;
+      const change = vi
+        .spyOn(desktopApi, kind === "import" ? "importArtwork" : "resetArtwork")
+        .mockReturnValueOnce(new Promise((_resolve, fail) => (reject = fail)));
+      vi.spyOn(picker, "pickArtworkPath").mockResolvedValue("E:/owned.png");
+      await render("sample", 7, "old-cover");
+      await open();
+      await click("cover", kind === "import" ? "Choose local image" : "Reset to default");
+      await render("sample", 7, "corrected-cover");
+      state = artworkState("sample", "cover", 5, true);
+      await act(async () => reject(new Error("Choice changed; review the current image.")));
+      expect(container.textContent).toContain("Choice changed; review the current image.");
+      expect(container.textContent).toContain("owned-image.png");
+      expect(button("cover", "Choose local image").disabled).toBe(false);
+      expect(button("cover", "Reset to default").disabled).toBe(false);
+      expect(container.textContent).not.toContain("Local image selected.");
+      change.mockResolvedValueOnce(artworkState("sample", "cover", 6, kind === "import"));
+      await click("cover", kind === "import" ? "Choose local image" : "Reset to default");
+      expect(change).toHaveBeenLastCalledWith(
+        "sample",
+        "cover",
+        ...(kind === "import" ? ["E:/owned.png", 5, 7] : [5, 7]),
+      );
+      expect(container.textContent).not.toContain("Choice changed; review the current image.");
+    },
+  );
+
+  it("discloses a current-cache read failure without treating the committed import as rejected", async () => {
+    let finish!: (value: ArtworkState) => void;
+    vi.spyOn(desktopApi, "importArtwork").mockReturnValue(
+      new Promise((resolve) => (finish = resolve)),
+    );
+    vi.spyOn(picker, "pickArtworkPath").mockResolvedValue("E:/owned.png");
+    await render("sample", 7, "old-cover");
+    await open();
+    await click("cover", "Choose local image");
+    await render("sample", 7, "corrected-cover");
+    vi.mocked(desktopApi.artwork).mockRejectedValue(new Error("Current artwork read failed."));
+    await act(async () => finish(artworkState("sample", "cover", 1, true)));
+    expect(container.textContent).toContain("Local image selected.");
+    expect(container.querySelector('[aria-label="Cover image"] [role="alert"]')?.textContent).toBe(
+      "Current artwork read failed.",
+    );
+    expect(container.textContent).toContain("Artwork information is unavailable.");
+    expect(container.textContent).not.toContain("Updating artwork…");
+  });
+
+  it.each(["port", "library", "close"])(
+    "ignores a dispatched mutation completion after a %s change",
+    async (kind) => {
+      let finish!: (value: ArtworkState) => void;
+      const change = vi
+        .spyOn(desktopApi, "importArtwork")
+        .mockReturnValue(new Promise((resolve) => (finish = resolve)));
+      vi.spyOn(picker, "pickArtworkPath").mockResolvedValue("E:/owned.png");
+      await render();
+      await open();
+      await click("cover", "Choose local image");
+      expect(change).toHaveBeenCalledTimes(1);
+      if (kind === "close") {
+        await act(async () => {
+          const details = container.querySelector<HTMLDetailsElement>(".artwork-controls")!;
+          details.open = false;
+          details.dispatchEvent(new Event("toggle"));
+        });
+      } else await render(kind === "port" ? "another" : "sample", kind === "library" ? 8 : 7);
+      const reads = vi.mocked(desktopApi.artwork).mock.calls.length;
+      await act(async () => finish(artworkState("sample", "cover", 1, true)));
+      expect(vi.mocked(desktopApi.artwork).mock.calls.length).toBe(reads);
+      expect(container.textContent).not.toContain("Local image selected.");
+      if (kind !== "close") await open();
+      const currentButtons = [
+        ...(container.querySelector('[aria-label="Cover image"]')?.querySelectorAll("button") ??
+          []),
+      ];
+      expect(
+        currentButtons.find((item) => item.textContent === "Choose local image")?.disabled,
+      ).toBe(kind === "close" ? undefined : false);
+      expect(currentButtons.find((item) => item.textContent === "Reset to default")?.disabled).toBe(
+        kind === "close" ? undefined : true,
+      );
+    },
+  );
 
   it("renders the mapped IGDB cover and its source on a clean profile", async () => {
     vi.mocked(desktopApi.artwork).mockImplementation(async (port, slot) =>
