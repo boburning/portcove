@@ -765,9 +765,16 @@ impl PortcoveService {
             return Ok(std::borrow::Cow::Borrowed(&self.catalog));
         }
         let durable = self.library.status(port_id, ReleaseChannel::Stable)?;
-        let retained = self
-            .retained_catalog_for_status(&durable)?
-            .ok_or_else(|| PortcoveError::not_found(format!("unknown port id: {port_id}")))?;
+        // Catalog lookup must survive a missing external location so the
+        // subsequent eligibility assessment can return Held, rather than error.
+        let retained = if durable.active.is_none() && durable.external_runtime.is_some() {
+            self.library
+                .external_runtime_with_port(port_id)?
+                .map(|(_, catalog)| catalog)
+        } else {
+            self.retained_catalog_for_status(&durable)?
+        }
+        .ok_or_else(|| PortcoveError::not_found(format!("unknown port id: {port_id}")))?;
         Ok(std::borrow::Cow::Owned(retained))
     }
 
@@ -1399,13 +1406,30 @@ impl PortcoveService {
         if let Some(active) = status.active.as_ref() {
             return self.installed_catalog(active).map(Some);
         }
-        if status.external_runtime.is_some() {
-            return self
+        if let Some(published) = status.external_runtime.as_ref() {
+            let (record, catalog) = self
                 .library
                 .external_runtime_with_port(&status.port_id)?
-                .map(|(_, catalog)| catalog)
-                .ok_or_else(|| PortcoveError::state("external registration disappeared"))
-                .map(Some);
+                .ok_or_else(|| PortcoveError::state("external registration disappeared"))?;
+            if record.id != published.id {
+                return Err(PortcoveError::conflict(
+                    "external registration changed during status read",
+                ));
+            }
+            let spec = catalog
+                .port(&status.port_id)?
+                .release
+                .user_prepared
+                .get(&published.platform)
+                .ok_or_else(|| {
+                    PortcoveError::state("external runtime platform contract is missing")
+                })?;
+            crate::external_runtime::check_registered_location(
+                published,
+                spec,
+                self.library.root(),
+            )?;
+            return Ok(Some(catalog));
         }
         Ok(None)
     }
@@ -7821,6 +7845,280 @@ fn main() {
         fs::remove_file(source).unwrap();
         fs::write(path.join("engine.dll"), b"critical library").unwrap();
         register_existing_test_artifact(library, "zelda64-recomp", version, &path, artifact, active)
+    }
+
+    // Admit an inert regular-file runtime through the production review path;
+    // these status tests grant no executable or gameplay qualification.
+    fn external_location_fixture() -> (tempfile::TempDir, PortcoveService, ExternalRuntimeRecord) {
+        let temporary = tempfile::tempdir().unwrap();
+        let library_root = temporary.path().join("library");
+        let library = Library::open(&library_root).unwrap();
+        let external = temporary.path().join("player-owned");
+        fs::create_dir(&external).unwrap();
+        fs::write(external.join("Game.exe"), b"accepted runtime").unwrap();
+        let platform = Platform::current().unwrap();
+        let mut runtime = crate::UserPreparedRuntimeSpec {
+            version: "probe-v1".into(),
+            archive_name: "probe.zip".into(),
+            archive_size: 1,
+            archive_sha256: "a".repeat(64),
+            executable: "game.exe".into(),
+            immutable_tree_sha256: "0".repeat(64),
+            source_argument_extension: None,
+            mutable_paths: vec!["player-save".into()],
+        };
+        let mismatch =
+            crate::external_runtime::inspect(&external, &runtime, &library_root).unwrap_err();
+        runtime.immutable_tree_sha256 = mismatch.details["actual_tree_sha256"].clone();
+        let mut service = service_with_release(library, "v1");
+        let mut document = service.catalog().authoritative_document();
+        let mut port = document
+            .ports
+            .iter()
+            .find(|port| port.id == "zelda64-recomp")
+            .unwrap()
+            .clone();
+        port.id = "external-location-probe".into();
+        port.name = "External location probe".into();
+        port.platforms = vec![platform];
+        port.automated_tested_platforms.clear();
+        port.manually_validated_platforms.clear();
+        port.source_profile = None;
+        port.bios_source_profile = None;
+        port.runtime_source_filename = None;
+        port.persistent_paths.clear();
+        port.presentation = None;
+        port.release.provider = ReleaseSource::UserPrepared;
+        port.release.asset_hints.clear();
+        port.release.user_prepared.insert(platform, runtime);
+        port.executable_hints = [(platform, vec!["game.exe".into()])].into();
+        document.ports.push(port);
+        service.replace_catalog_for_test(
+            Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap(),
+        );
+        let preview = service
+            .preview_external_runtime("external-location-probe", &external)
+            .unwrap();
+        let authorization = service
+            .authorize_external_runtime(
+                "external-location-probe",
+                &external,
+                &preview.preview_sha256,
+            )
+            .unwrap();
+        let record = service
+            .register_external_runtime("external-location-probe", &external, &authorization.token)
+            .unwrap();
+        (temporary, service, record)
+    }
+
+    fn prepare_external_location_fixture_launch(
+        service: &PortcoveService,
+        record: &ExternalRuntimeRecord,
+    ) -> Result<crate::LaunchSpec> {
+        let (_, catalog) = service
+            .library
+            .external_runtime_with_port(&record.port_id)?
+            .unwrap();
+        service.prepare_launch_for_external(
+            record,
+            &catalog,
+            None,
+            &OperationCoordinator::new("launch", None),
+        )
+    }
+
+    fn assert_external_location_readiness(service: &PortcoveService, held: bool) {
+        let retained_row = || {
+            service.library.connection().unwrap().query_row(
+            "SELECT record_json, retained_catalog_json FROM external_runtime_registrations WHERE port_id = ?1",
+            ["external-location-probe"],
+            |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)),
+        ).unwrap()
+        };
+        let before = retained_row();
+        let status = service.status("external-location-probe").unwrap();
+        let readiness = status.readiness.as_ref().unwrap();
+        assert_eq!(readiness.launchable, !held);
+        assert_eq!(
+            readiness.blockers,
+            if held {
+                vec![LaunchBlocker::InvalidInstallation]
+            } else {
+                vec![]
+            }
+        );
+        let launch = status
+            .port_actions
+            .iter()
+            .find(|item| item.action == crate::PortAction::Launch)
+            .unwrap();
+        assert_eq!(
+            launch.availability,
+            if held {
+                crate::PortActionAvailability::Held
+            } else {
+                crate::PortActionAvailability::Allowed
+            }
+        );
+        if held {
+            assert_eq!(launch.reason, crate::PortActionReason::InvalidInstallation);
+        }
+        let listed = service
+            .statuses()
+            .unwrap()
+            .into_iter()
+            .find(|item| item.port_id == status.port_id);
+        if service.catalog.port(&status.port_id).is_ok() {
+            let listed = listed.unwrap();
+            assert_eq!(listed.readiness, status.readiness);
+            assert_eq!(
+                listed.external_runtime.unwrap().id,
+                status.external_runtime.unwrap().id
+            );
+        } else {
+            // Aggregate status deliberately enumerates current catalog ports;
+            // the direct retained-only status must still return an assessment.
+            assert!(listed.is_none());
+        }
+        assert_eq!(retained_row(), before);
+    }
+
+    #[test]
+    fn external_location_status_missing_executable_and_recovery_preserve_registration() {
+        let (_temporary, service, record) = external_location_fixture();
+        fs::write(record.path.join("player-save"), b"player data").unwrap();
+        assert_external_location_readiness(&service, false);
+        fs::remove_file(&record.executable).unwrap();
+        assert_external_location_readiness(&service, true);
+        assert_eq!(
+            service
+                .library
+                .external_runtime_with_port(&record.port_id)
+                .unwrap()
+                .unwrap()
+                .0
+                .id,
+            record.id
+        );
+        assert_eq!(
+            fs::read(record.path.join("player-save")).unwrap(),
+            b"player data"
+        );
+        assert!(prepare_external_location_fixture_launch(&service, &record).is_err());
+        fs::write(&record.executable, b"accepted runtime").unwrap();
+        assert_external_location_readiness(&service, false);
+        prepare_external_location_fixture_launch(&service, &record).unwrap();
+        assert_eq!(
+            fs::read(record.path.join("player-save")).unwrap(),
+            b"player data"
+        );
+    }
+
+    #[test]
+    fn external_location_retained_only_missing_root_remains_held_and_removable() {
+        let (_temporary, mut service, record) = external_location_fixture();
+        let mut document = service.catalog().authoritative_document();
+        document.ports.retain(|port| port.id != record.port_id);
+        service.replace_catalog_for_test(
+            Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap(),
+        );
+        assert_external_location_readiness(&service, false);
+        fs::remove_dir_all(&record.path).unwrap();
+        assert_external_location_readiness(&service, true);
+        assert!(prepare_external_location_fixture_launch(&service, &record).is_err());
+        let preview = service.preview_external_removal(&record.port_id).unwrap();
+        assert!(preview.external_files_will_be_preserved);
+        let authorization = service
+            .authorize_external_removal(&record.port_id, &preview.preview_sha256)
+            .unwrap();
+        assert_eq!(
+            service
+                .remove_external_runtime(&record.port_id, &authorization.token)
+                .unwrap()
+                .id,
+            record.id
+        );
+        assert!(!record.path.exists());
+        assert!(
+            service
+                .library
+                .external_runtime_with_port(&record.port_id)
+                .unwrap()
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn external_location_replacement_cannot_validate_a_stale_status_snapshot() {
+        let (temporary, service, first) = external_location_fixture();
+        let stale = service
+            .library
+            .status(&first.port_id, ReleaseChannel::Stable)
+            .unwrap();
+        fs::remove_file(&first.executable).unwrap();
+        let removal = service.preview_external_removal(&first.port_id).unwrap();
+        let authorization = service
+            .authorize_external_removal(&first.port_id, &removal.preview_sha256)
+            .unwrap();
+        service
+            .remove_external_runtime(&first.port_id, &authorization.token)
+            .unwrap();
+        let replacement = temporary.path().join("replacement-runtime");
+        fs::create_dir(&replacement).unwrap();
+        fs::write(replacement.join("Game.exe"), b"accepted runtime").unwrap();
+        let preview = service
+            .preview_external_runtime(&first.port_id, &replacement)
+            .unwrap();
+        let authorization = service
+            .authorize_external_runtime(&first.port_id, &replacement, &preview.preview_sha256)
+            .unwrap();
+        let second = service
+            .register_external_runtime(&first.port_id, &replacement, &authorization.token)
+            .unwrap();
+        assert_ne!(first.id, second.id);
+        assert_external_location_readiness(&service, false);
+        let row = || {
+            service.library.connection().unwrap().query_row(
+            "SELECT record_json, retained_catalog_json FROM external_runtime_registrations WHERE port_id = ?1",
+            [&first.port_id],
+            |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)),
+        ).unwrap()
+        };
+        let before = row();
+        let retained_catalog = service.retained_catalog_for_status(&stale);
+        assert!(retained_catalog.is_err());
+        let status = service
+            .with_launch_readiness(
+                &service.catalog,
+                service.catalog.port(&first.port_id).unwrap(),
+                stale,
+                &HashMap::new(),
+                &mut HashMap::new(),
+                retained_catalog,
+            )
+            .unwrap();
+        let status = service
+            .with_port_actions(
+                service.catalog.port(&first.port_id).unwrap(),
+                status,
+                &HashMap::new(),
+            )
+            .unwrap();
+        let launch = status
+            .port_actions
+            .iter()
+            .find(|action| action.action == PortAction::Launch)
+            .unwrap();
+        assert_eq!(launch.availability, PortActionAvailability::Held);
+        assert_eq!(launch.reason, PortActionReason::InvalidInstallation);
+        let readiness = status.readiness.unwrap();
+        assert!(!readiness.launchable);
+        assert_eq!(readiness.blockers, vec![LaunchBlocker::InvalidInstallation]);
+        assert_eq!(status.external_runtime.unwrap().id, first.id);
+        assert_eq!(row(), before);
+        assert_eq!(fs::read(second.executable).unwrap(), b"accepted runtime");
+        assert!(!first.executable.exists());
     }
 
     #[test]

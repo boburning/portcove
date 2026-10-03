@@ -12,7 +12,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
-use crate::{PortcoveError, Result, UserPreparedRuntimeSpec};
+use crate::{ExternalRuntimeRecord, Platform, PortcoveError, Result, UserPreparedRuntimeSpec};
 
 const MAX_FILES: usize = 100_000;
 const MAX_FILE_BYTES: u64 = 8 * 1024 * 1024 * 1024;
@@ -45,6 +45,56 @@ pub struct ExternalRuntimeRemovalPreview {
     pub version: String,
     pub external_files_will_be_preserved: bool,
     pub preview_sha256: String,
+}
+
+/// Observe the registered root and executable without reading or hashing the
+/// player-owned tree. Status is a point-in-time location assessment, not proof
+/// of immutable bytes or execution authority; launch still runs full inspection.
+/// Filesystem permission failures while resolving these paths refuse readiness.
+pub(crate) fn check_registered_location(
+    record: &ExternalRuntimeRecord,
+    spec: &UserPreparedRuntimeSpec,
+    library_root: &Path,
+) -> Result<()> {
+    if record.platform != Platform::current()? {
+        return Err(PortcoveError::unsupported(
+            "external runtime belongs to another platform",
+        ));
+    }
+    crate::path::refuse_symlink_ancestors(&record.path)?;
+    let root = fs::canonicalize(&record.path)?;
+    if root != record.path || !fs::symlink_metadata(&root)?.is_dir() {
+        return Err(PortcoveError::verification(
+            "external runtime root is not its registered directory",
+        ));
+    }
+    let library = fs::canonicalize(library_root)?;
+    if root.starts_with(&library) || library.starts_with(&root) {
+        return Err(PortcoveError::conflict(
+            "external runtime must remain outside the Portcove library",
+        ));
+    }
+    crate::path::refuse_symlink_ancestors(&record.executable)?;
+    let executable = fs::canonicalize(&record.executable)?;
+    if executable != record.executable || !fs::symlink_metadata(&executable)?.is_file() {
+        return Err(PortcoveError::verification(
+            "external executable is not its registered regular file",
+        ));
+    }
+    let relative = executable.strip_prefix(&root).map_err(|_| {
+        PortcoveError::verification("external executable escaped its registered root")
+    })?;
+    let relative = crate::path::unicode(relative, "external executable")?.replace('\\', "/");
+    let (_, actual_key) = crate::archive::validate_relative_path(&relative, false)?;
+    let (_, expected_key) = crate::archive::validate_relative_path(&spec.executable, false)?;
+    // Admission accepts portable case-insensitive keys but records actual
+    // filename spelling. Preserve that contract on case-sensitive filesystems.
+    if actual_key != expected_key {
+        return Err(PortcoveError::verification(
+            "external executable differs from its retained location contract",
+        ));
+    }
+    Ok(())
 }
 
 /// Hash every immutable regular file under one canonical root. Mutable paths
@@ -242,6 +292,142 @@ mod tests {
         let mismatch = inspect(&runtime, &spec, &library).unwrap_err();
         spec.immutable_tree_sha256 = mismatch.details["actual_tree_sha256"].clone();
         (temporary, library, runtime, spec)
+    }
+
+    fn location_record(
+        runtime: &Path,
+        spec: &UserPreparedRuntimeSpec,
+        library: &Path,
+    ) -> ExternalRuntimeRecord {
+        let inspected = inspect(runtime, spec, library).unwrap();
+        ExternalRuntimeRecord {
+            id: "location-probe".into(),
+            port_id: "location-probe".into(),
+            path: inspected.root,
+            executable: inspected.executable,
+            version: spec.version.clone(),
+            platform: Platform::current().unwrap(),
+            archive_sha256: spec.archive_sha256.clone(),
+            immutable_tree_sha256: inspected.immutable_tree_sha256,
+            registered_at: 1,
+            retained_definition: None,
+        }
+    }
+
+    #[test]
+    fn registered_location_observer_preserves_case_contract_and_defers_byte_identity() {
+        let (_temporary, library, runtime, mut spec) = fixture();
+        let record = location_record(&runtime, &spec, &library);
+        spec.executable = "GAME.EXE".into();
+        check_registered_location(&record, &spec, &library).unwrap();
+        fs::write(record.path.join("runtime-state"), b"player data").unwrap();
+        fs::write(&record.executable, b"changed executable").unwrap();
+        // Status observes availability only. Full launch inspection must still
+        // reject changed immutable bytes, even when the same path remains.
+        check_registered_location(&record, &spec, &library).unwrap();
+        assert!(inspect(&runtime, &spec, &library).is_err());
+        assert_eq!(fs::read(record.executable).unwrap(), b"changed executable");
+        assert_eq!(
+            fs::read(runtime.join("runtime-state")).unwrap(),
+            b"player data"
+        );
+    }
+
+    #[test]
+    fn registered_location_observer_refuses_missing_and_nonregular_paths_then_recovers() {
+        let (_temporary, library, runtime, spec) = fixture();
+        let record = location_record(&runtime, &spec, &library);
+        fs::remove_file(&record.executable).unwrap();
+        assert!(check_registered_location(&record, &spec, &library).is_err());
+        fs::create_dir(&record.executable).unwrap();
+        assert!(check_registered_location(&record, &spec, &library).is_err());
+        fs::remove_dir(&record.executable).unwrap();
+        fs::remove_dir(&runtime).unwrap();
+        assert!(check_registered_location(&record, &spec, &library).is_err());
+        fs::write(&runtime, b"not a directory").unwrap();
+        assert!(check_registered_location(&record, &spec, &library).is_err());
+        assert_eq!(fs::read(&runtime).unwrap(), b"not a directory");
+        fs::remove_file(&runtime).unwrap();
+        fs::create_dir(&runtime).unwrap();
+        fs::write(&record.executable, b"accepted executable").unwrap();
+        check_registered_location(&record, &spec, &library).unwrap();
+    }
+
+    #[test]
+    fn registered_location_observer_refuses_platform_containment_and_contract_mismatch() {
+        let (temporary, library, runtime, mut spec) = fixture();
+        let record = location_record(&runtime, &spec, &library);
+        let mut changed = record.clone();
+        changed.platform = if record.platform == Platform::WindowsX86_64 {
+            Platform::LinuxX86_64
+        } else {
+            Platform::WindowsX86_64
+        };
+        assert!(check_registered_location(&changed, &spec, &library).is_err());
+        changed = record.clone();
+        let foreign = temporary.path().join("foreign.exe");
+        fs::write(&foreign, b"foreign runtime").unwrap();
+        changed.executable = foreign.clone();
+        assert!(check_registered_location(&changed, &spec, &library).is_err());
+        changed = record.clone();
+        changed.path = fs::canonicalize(&library).unwrap();
+        assert!(check_registered_location(&changed, &spec, &library).is_err());
+        assert!(check_registered_location(&record, &spec, &runtime).is_err());
+        spec.executable = "different.exe".into();
+        assert!(check_registered_location(&record, &spec, &library).is_err());
+        assert_eq!(fs::read(foreign).unwrap(), b"foreign runtime");
+        assert_eq!(fs::read(record.executable).unwrap(), b"accepted executable");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn registered_location_observer_refuses_symlink_redirection_without_mutation() {
+        use std::os::unix::fs::symlink;
+        let (temporary, library, runtime, spec) = fixture();
+        let record = location_record(&runtime, &spec, &library);
+        let foreign = temporary.path().join("foreign.exe");
+        fs::write(&foreign, b"foreign runtime").unwrap();
+        fs::remove_file(&record.executable).unwrap();
+        symlink(&foreign, &record.executable).unwrap();
+        assert!(check_registered_location(&record, &spec, &library).is_err());
+        assert!(
+            fs::symlink_metadata(&record.executable)
+                .unwrap()
+                .file_type()
+                .is_symlink()
+        );
+        assert_eq!(fs::read(&foreign).unwrap(), b"foreign runtime");
+        fs::remove_file(&record.executable).unwrap();
+        fs::write(&record.executable, b"accepted executable").unwrap();
+        let moved = temporary.path().join("moved-runtime");
+        fs::rename(&runtime, &moved).unwrap();
+        symlink(&moved, &runtime).unwrap();
+        assert!(check_registered_location(&record, &spec, &library).is_err());
+        assert!(
+            fs::symlink_metadata(&runtime)
+                .unwrap()
+                .file_type()
+                .is_symlink()
+        );
+        assert_eq!(
+            fs::read(moved.join("game.exe")).unwrap(),
+            b"accepted executable"
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn registered_location_observer_refuses_inaccessible_directory_then_recovers() {
+        use std::os::unix::fs::PermissionsExt;
+        let (_temporary, library, runtime, spec) = fixture();
+        let record = location_record(&runtime, &spec, &library);
+        let permissions = fs::metadata(&runtime).unwrap().permissions();
+        fs::set_permissions(&runtime, fs::Permissions::from_mode(0o000)).unwrap();
+        let refused = check_registered_location(&record, &spec, &library);
+        fs::set_permissions(&runtime, permissions).unwrap();
+        assert!(refused.is_err());
+        check_registered_location(&record, &spec, &library).unwrap();
+        assert_eq!(fs::read(record.executable).unwrap(), b"accepted executable");
     }
 
     #[test]
