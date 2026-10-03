@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
+import { createGitHubRunner } from "./github-api.mjs";
 
 import {
   RoadmapClient,
@@ -2350,6 +2352,107 @@ test("set-many reconciles an ambiguous mutation response without retrying", asyn
   assert.equal(result.status, "succeeded");
   assert.equal(result.evidence.reconciled_after_error, 2);
   assert.equal(fixture.mutations.length, 1);
+});
+
+test("set-many resumes already-applied assignments with exact readback and no repeated writes", async () => {
+  const fixture = adaptiveSetManyFixture(2);
+  for (const change of fixture.changes) fixture.values.set(change.itemId, change.to);
+  fixture.client.planSetMany = () => ({
+    context: {},
+    pending: [],
+    alreadyApplied: fixture.changes,
+    assignments: 2,
+  });
+  let readbacks = 0;
+  const verify = fixture.client.verifySetMany;
+  fixture.client.verifySetMany = (plan) => {
+    readbacks += 1;
+    return verify(plan);
+  };
+  let doctors = 0;
+  const result = await executeSetMany({
+    client: fixture.client,
+    config,
+    spec: {},
+    apply: true,
+    doctor: async () => {
+      doctors += 1;
+    },
+  });
+  assert.equal(result.status, "succeeded");
+  assert.equal(result.evidence.already_applied_at_start, 2);
+  assert.equal(result.evidence.verified, 2);
+  assert.equal(result.evidence.remaining, 0);
+  assert.equal(result.evidence.doctor, "passed");
+  assert.equal(fixture.mutations.length, 0);
+  assert.equal(readbacks, 1);
+  assert.equal(doctors, 1);
+});
+
+test("the Project reader preserves full bodies and all pages above the ordinary transport limit", () => {
+  const node = (number) => ({
+    id: `PVTI_${number}`,
+    content: { __typename: "Issue", number, body: "x".repeat(22000) },
+    fieldValues: { totalCount: 0, nodes: [], pageInfo: { hasNextPage: false, endCursor: null } },
+  });
+  const first = Array.from({ length: 50 }, (_, i) => node(i + 1));
+  const last = [node(51)];
+  for (const failedLastPage of [false, true]) {
+    const cursors = [];
+    const bytes = [];
+    const run = createGitHubRunner({
+      spawn: (_command, args, options) => {
+        assert.equal(args[0], "api");
+        const request = JSON.parse(options.input);
+        assert.match(request.query, /items\(first: 50/);
+        assert.doesNotMatch(request.query, /mutation/);
+        const cursor = request.variables.after;
+        cursors.push(cursor);
+        const output = JSON.stringify({
+          data: {
+            node: {
+              items: {
+                totalCount: 51,
+                nodes: cursor ? last : first,
+                pageInfo: { hasNextPage: !cursor, endCursor: cursor ? null : "page-two" },
+              },
+            },
+          },
+        });
+        bytes.push(Buffer.byteLength(output));
+        if (cursor && failedLastPage)
+          return {
+            error: Object.assign(new Error("private partial response"), { code: "ENOBUFS" }),
+            status: 0,
+            stdout: output,
+            stderr: "private diagnostics",
+          };
+        return spawnSync(process.execPath, ["-e", "process.stdin.pipe(process.stdout)"], {
+          ...options,
+          input: output,
+        });
+      },
+    });
+    const client = new RoadmapClient(config, run);
+    const collect = () => client.itemList(1, { details: { id: "PVT" } });
+    if (failedLastPage) assert.throws(collect, /collection limit/);
+    else {
+      const items = collect();
+      assert.equal(items.length, 51);
+      assert.equal(new Set(items.map((item) => item.id)).size, 51);
+      assert.deepEqual(
+        items.map(({ id, content }) => ({ id, content })),
+        [...first, ...last].map(({ id, content }) => ({
+          id,
+          content: { ...content, type: "Issue" },
+        })),
+      );
+    }
+    assert.deepEqual(cursors, [null, "page-two"]);
+    assert.ok(bytes[0] > 1024 * 1024);
+    assert.equal(first.length, 50);
+    assert.equal(first[0].content.body.length, 22000);
+  }
 });
 
 test("set-many stops before the next chunk when preserving quota requires a resume", async () => {
