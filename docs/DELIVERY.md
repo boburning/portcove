@@ -77,7 +77,7 @@ preparation and download selection implement this policy as documented in
 suffix-only classification; its protected integration and activation remain
 separate.
 
-Public beta requires usable representative first play/recovery, all four baseline
+Public beta requires usable representative first play/recovery, Windows and ordinary Linux x86-64 baseline
 updater paths, a real updater-enabled release-to-release proof, safe failure and
 data preservation, honest limitations, and the provisioned bounded delivery
 pipeline needed to keep testers current. Compiling packages or manual reinstall
@@ -89,24 +89,30 @@ to implement and permission to publish. Its checked-in compatibility fixture and
 non-publishing qualification work may merge while #993 remains open. Broad screen
 migration begins only after the nested Dialog/Select portal, dismissal, and focus
 case passes in the actual Tauri application on an available native host. A Public
-beta package containing the redesign still requires #993's applicable native-family
+beta package containing the redesign still requires #993's Windows/Linux native-family
 and claimed-minimum evidence for that target; a current hosted runner does not
 prove a historical minimum. Missing beta-critical evidence stays with #993 rather
 than moving to #45, while #45 retains broader 1.0 qualification. No automatic
 release path may convert foundation merge authority into publication authority for
 an unqualified platform.
 
-The expanded beta commitment also includes the complete finite preparation
-boundary (#31), structured presentation/artwork foundation (#208), public CLI
-and real Playnite reference proof (#30/#243), the normally installable user-ready
-Playnite integration (#910), the bounded SteamGridDB capability (#527), selected-
-game Steam Add/Repair/Update-artwork/Remove (#292), and independent catalog
-delivery (#245/#397/#398/#246). These are finite owners with their full scoped
-acceptance, not requirements to migrate every adapter, provide every artwork asset,
-make a provider mandatory at runtime, continuously synchronize Steam or obtain
-marketplace approval. Application and catalog publishers retain separate authority
-and component dependencies; neither parent waits for the other's closure. The
-later production package requalification in #46 remains a 1.0 commitment.
+The initial beta retains the complete preparation boundary (#31), coherent
+design system (#917), development-agility/domain consolidation (#921/#925),
+structured account-free artwork (#1155/#208/#206), frozen feasible backlog rollout
+(#1422), onboarding and truthful limited routes (#254/#1168/#1169), public CLI and
+real reference proof (#30/#243), manual Desktop Steam (#290), and independent
+catalog delivery (#245/#397/#398/#246). These are finite outcomes, not optional
+polish. Shared controller/focus/input safety remains with #29/#206/#917.
+
+Full user-ready Playnite (#910), Steam Add/Repair/Update-artwork/Remove (#292),
+SteamGridDB (#527), physical Xbox evidence (#44), and macOS/Deck qualification
+remain high-priority delivery during beta, Required before 1.0. They consume the
+shared contracts without blocking initial beta. Their complete product/safety
+acceptance remains intact; provider configuration remains optional at runtime.
+No new credentials, permissions or publication authority follow from this timing.
+Application and catalog publishers retain separate authority and component
+dependencies; neither parent waits for the other's closure. #46 owns later
+production package requalification.
 
 1.0 requires the finite outcomes in [Roadmap](ROADMAP.md): unassisted first play,
 management/recovery, a user-controlled library, accessible flagship UX, qualified
@@ -127,18 +133,17 @@ React presents typed host results without choosing arbitrary URLs or policy.
 Preferred execution order is trust/ownership/compatibility/key/recovery design
 (#223), artifacts/signatures (#219), authenticated channel metadata (#220),
 host scheduling/staging (#221), accessible UX (#222), Windows proof (#224),
-ordinary Linux AppImage (#225), macOS Intel and Apple
-Silicon (#226), and consolidated beta acceptance (#52). Early feasibility and
-independent fixture work may run in parallel. Order alone creates no dependency.
-Design closes on reviewed contracts/test-key fixtures, not on future production
-credentials. #46 owns later exact-artifact production requalification; #52 must
-not wait for #46 closure. Existing Deck #51/#213–#217 and Steam route #290 retain
-their owners for the high-priority Public beta follow-up, Required before 1.0;
-#535 supplies its independently accepted actual Deck updater proof there. Initial
-beta #52 does not wait for #535. #290/#292 retain the Required Desktop Steam
-components and do not wait for physical Deck evidence. #292 is a selected-game entry-management input to #217's
-applicable physical scenarios. Decky #293 and continuous Steam synchronization
-remain optional.
+ordinary Linux AppImage (#225), and consolidated initial-beta acceptance (#52).
+Early feasibility and independent fixture work may run in parallel. Order alone
+creates no dependency. Design closes on reviewed contracts/test-key fixtures,
+not future production credentials. #46 owns later exact-artifact production
+requalification; #52 must not wait for its closure. macOS Intel/Apple Silicon
+(#226) and actual Deck updater proof (#535) consume the same foundation during
+beta, Required before 1.0, rather than holding #52. #51/#213–#217 retain the
+Deck-specific matrix. #290's useful manual desktop route remains initial beta;
+#292's automatic selected-game writer and #527 provider follow before 1.0, with
+#217 consuming applicable device evidence later. Decky #293 and continuous Steam
+synchronization remain optional.
 
 ## Consent and safe application
 
@@ -172,9 +177,10 @@ Failed/expired checks never disable offline application use.
 
 ## Platform contracts
 
-The Windows, ordinary Linux x86-64 and existing macOS rows remain initial Public
-beta commitments. The Steam Deck row is the later qualified-support contract:
-#51/#213–#217/#535 deliver it during the Public beta follow-up (Beta 2), Required
+Windows and ordinary Linux x86-64 are the initial Public beta qualification
+commitments. The macOS row is the later qualified-support contract under #45/#226,
+delivered during beta and Required before 1.0. The Steam Deck row is a separate
+later contract: #51/#213–#217/#535 deliver it during the Public beta follow-up (Beta 2), Required
 before 1.0. Until it passes, the Linux build may run on SteamOS but Deck is
 unqualified, not an officially supported target. Linux CI or Desktop Steam
 results do not establish physical Deck, Gaming Mode or Valve Verified status.

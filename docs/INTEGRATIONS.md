@@ -174,11 +174,11 @@ interventions—not a minimum integration count.
 | Environment                          | Intended first claim                           | Owner and target                                           | Boundary                                                                                                                               |
 | ------------------------------------ | ---------------------------------------------- | ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
 | Playnite reference                   | Real lifecycle contract proof                  | #243; integration workstream and Public beta qualification | Developer-loaded regression/author client with preserved evidence; it is not the user-ready package.                                   |
-| Playnite product                     | Normally installable everyday lifecycle client | #910; required Public beta product                         | Thin over core policy, useful for declared operations, with no marketplace or universal-launcher gate.                                 |
+| Playnite product                     | Normally installable everyday lifecycle client | #910; Required before 1.0 during beta                      | Thin over core policy, useful for declared operations, with no marketplace or universal-launcher gate.                                 |
 | Desktop Steam / Big Picture          | Generic/manual launch-only route               | #290; Required initial Public beta                         | Plugin-free fallback and stable direct-launch baseline on declared desktop platforms.                                                  |
 | Steam Deck Gaming Mode               | Same shared route, separate device evidence    | #51/#217; Public beta follow-up, Required before 1.0       | Unqualified until actual SteamOS/Gaming Mode evidence passes; no Decky or separate binary/channel required.                            |
 | ES-DE                                | First reusable library-export profile          | #291; opportunistic early Post-V1                          | Thin profile over supported library/launch data, not a second manager.                                                                 |
-| Steam selected-game entry management | Add/Repair/Update-artwork/Remove               | #292 with #527; required Public beta product               | Exact installation/profile and owned-entry/art reconciliation; provider use stays optional and continuous synchronization is excluded. |
+| Steam selected-game entry management | Add/Repair/Update-artwork/Remove               | #292 with #527; Required before 1.0 during beta            | Exact installation/profile and owned-entry/art reconciliation; provider use stays optional and continuous synchronization is excluded. |
 | LaunchBox / Big Box and RetroBat     | Next Windows candidates                        | #291 evaluation sequence                                   | Proceed only for demonstrated friction, demand, reuse, and maintenance fit.                                                            |
 | EmuDeck and RetroDECK                | Separately qualified packaged environments     | #291 evaluation sequence                                   | Inspect actual ES-DE/Steam route and host/sandbox boundaries; do not inherit an ES-DE claim.                                           |
 | Batocera                             | Deployment feasibility before support          | #291 evaluation sequence                                   | Invocation alone does not prove executable or dependency compatibility.                                                                |
@@ -513,12 +513,13 @@ plugin execution, packaging, permission, or bridge design.
 ## Evidence and release sequence
 
 The integration workstream closes bounded public-contract and author-usability
-gaps and proves the real Playnite reference under #243. Public beta additionally
-requires the normally installable Playnite lifecycle product under #910, selected-
-game Steam Add/Repair/Update-artwork/Remove under #292 with the bounded SteamGridDB
-capability under #527, the plugin-free Desktop Steam baseline under #290, the same
-Linux application's updater proof under #52, and unchanged-
-reference-client compatibility with independent catalog delivery under #246.
+gaps and proves the real Playnite reference under #243. Initial Public beta
+requires the plugin-free Desktop Steam baseline (#290), Windows/ordinary Linux
+updater (#52), and unchanged-reference-client compatible catalog delivery (#246).
+The normally installable full Playnite product (#910), automatic Steam entry
+management (#292) and optional SteamGridDB capability (#527) follow during beta,
+Required before 1.0. Preserve their full consumer/safety acceptance and held
+candidates; they do not block reusable CLI/transport or initial-beta delivery.
 The actual Steam Deck baseline under #51/#213–#217/#535 follows during Public beta
 (Beta 2), Required before 1.0; it is not an initial beta prerequisite. Exact
 production/platform requalification continues toward 1.0. The cumulative

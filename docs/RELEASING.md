@@ -803,18 +803,20 @@ packaging change does not grant it or introduce another manual gate.
 
 Public beta requires the complete verified application updater under
 [#52](https://github.com/boburning/portcove/issues/52): Windows per-user NSIS,
-ordinary Linux x86-64 AppImage, and installed macOS
-bundles on Intel and Apple Silicon. Shared mechanisms are implemented
+ordinary Linux x86-64 AppImage. Installed macOS Intel/Apple Silicon bundle
+qualification (#45/#226) follows during beta, Required before 1.0. Shared mechanisms are implemented
 incrementally, with actual platform upgrade/recovery proof before the beta
 declaration. [#46](https://github.com/boburning/portcove/issues/46) retains later
 exact production package/upgrade/rehearsal evidence for 1.0; #52 does not wait
-for its post-beta closure. Deck qualification and #535's Gaming Mode updater
-proof do not block initial #52/Public beta acceptance. They remain high-priority
+for its post-beta closure. Neither macOS proof nor Deck qualification, including
+#535's Gaming Mode updater proof, blocks initial #52/Public beta acceptance.
+Deck owners remain high-priority
 Public beta follow-up (Beta 2) work under #51/#213–#217/#535, Required before 1.0.
 Until their actual-device matrix passes, the Linux build may be usable on SteamOS
 but Deck is unqualified; release prose must not claim official Deck/Gaming Mode
-support, all-port compatibility or Valve Verified. Ordinary Linux safety and all
-other committed platform proofs remain mandatory. RC stabilizes one exact
+support, all-port compatibility or Valve Verified. Windows/ordinary Linux safety and their
+actual installed upgrade/recovery proofs remain mandatory. Later support claims
+consume the same trust foundation and require their own exact platform evidence. RC stabilizes one exact
 candidate, not all development.
 
 The [delivery contract](DELIVERY.md) separates application/catalog/game updates,
@@ -833,7 +835,7 @@ backed-up libraries. Record package hashes and the unassisted first-play/recover
 scenario outside the development checkout. A preview is not evidence of universal
 catalog or platform qualification, and its plan does not authorize publication.
 
-Missing required platform evidence keeps Public beta open; it does not block
+Missing required Windows/ordinary Linux evidence keeps initial Public beta open; it does not block
 independent implementation or an otherwise eligible incremental preview. A
 successful manual reinstall cannot complete the baseline updater. DEB/RPM remain
 package-manager-mediated; standalone CLI self-updating and optional extra formats
