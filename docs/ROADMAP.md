@@ -628,6 +628,52 @@ planning changes. It is a dated snapshot; current issue scope and Project
 placement remain authoritative. Comparative claims about effort or reliability
 require measured evidence, even when feature lists overlap.
 
+## Planned local-first Android client
+
+Android remains deferred, Post-1.0 and Opportunistic under
+[#410](https://github.com/boburning/portcove/issues/410); it is not a desktop
+Public beta or 1.0 prerequisite. Preserve the shared architecture, design system
+and development-agility foundations already committed to beta. Rust Core owns
+policy, catalog interpretation, trust, plans and durable recovery; Kotlin
+integrates Android packages, installer sessions, documents/grants, activities
+and OS scheduling; React/Tauri owns adaptive presentation. Android provides
+installed-package truth to the same Core workflow. Package identities, activity
+handoffs and document URIs require explicit capabilities and versioned contracts,
+not desktop executable/path semantics or implicit changes to frozen clients.
+
+Platform qualification follows the behaviors and device claims actually offered,
+with controlled fixture APKs and structurally different real integrations.
+The former six-game/three-engine-family minimum is a nonblocking lineup ambition,
+not an absolute release prerequisite. A compatible accepted definition may be
+available with gameplay Not tested after mandatory admission checks pass.
+Unknown package/signer identity, inaccessible required data and known unsafe
+operations remain scoped holds. No owner personal every-game testing queue is
+created; platform readiness, capabilities, device compatibility and per-port
+evidence stay distinct.
+
+[#411](https://github.com/boburning/portcove/issues/411) owns bounded candidate
+identity research. [#412](https://github.com/boburning/portcove/issues/412) owns
+the installed-shell proof: shared Core and app-private storage, document-picker
+validation, user-confirmed installation, package/version/signer observation,
+setup/launch/return, interrupted-operation reconciliation, and compatible
+definitions and externally installed packages added after the client APK was
+built. [#413](https://github.com/boburning/portcove/issues/413) owns useful adaptive
+journeys and partial management. [#414](https://github.com/boburning/portcove/issues/414)
+owns signed GitHub APKs, manual upgrade preservation, optional Obtainium and
+device/distribution evidence. Existing definition foundations stay completed;
+Android-specific claims remain unproven.
+
+Initial implementation targets standalone APKs and ARM64; the proposed Android
+10 minimum, target-SDK/distribution rules and native page-size behavior must be
+validated separately from each game's requirements. Installation and game-data
+setup are separate operations; activity handoff does not prove gameplay or
+process exit. Saves and mods require supported access/import interfaces, reusing
+existing save/profile/provider owners, including GameBanana and Thunderstore.
+No root/broad-access default, APK re-signing, live-library sync, parallel policy
+stack or preemptive second UI framework is implied. Phone/tablet support does not
+qualify handheld/controller or TV/Shield use. Recheck current platform guidance
+when implementation resumes; this direction ships no Android build.
+
 ## Outcome measures
 
 Owners record measurements in existing Completion evidence sections and linked
