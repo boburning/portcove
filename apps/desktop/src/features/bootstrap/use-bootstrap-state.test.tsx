@@ -22,6 +22,13 @@ const ready = (generation: number) => ({ ready: true, generation }) as Bootstrap
 let root: Root;
 let host: HTMLDivElement;
 let state: ReturnType<typeof useBootstrapState>;
+const getGamepads = vi.fn((): Gamepad[] => []);
+let gamepadsDescriptor: PropertyDescriptor | undefined;
+let originalRequestFrame: typeof requestAnimationFrame;
+let originalCancelFrame: typeof cancelAnimationFrame;
+let frames: Map<number, FrameRequestCallback>;
+let frameId: number;
+let timestamp: number;
 
 function Fixture({
   chooseFolder = async () => null,
@@ -43,7 +50,37 @@ async function render(chooseFolder?: () => Promise<string | null>) {
   await act(async () => root.render(createElement(Fixture, { chooseFolder })));
 }
 
+async function frame() {
+  timestamp += 16;
+  await act(async () => {
+    // Advance only this frame's snapshot; polling can queue the next frame.
+    for (const [id, callback] of [...frames.entries()]) {
+      frames.delete(id);
+      callback(timestamp);
+    }
+  });
+}
+
 beforeEach(() => {
+  frames = new Map();
+  frameId = 0;
+  timestamp = 0;
+  getGamepads.mockClear();
+  gamepadsDescriptor = Object.getOwnPropertyDescriptor(navigator, "getGamepads");
+  Object.defineProperty(navigator, "getGamepads", {
+    configurable: true,
+    writable: true,
+    value: getGamepads,
+  });
+  originalRequestFrame = requestAnimationFrame;
+  originalCancelFrame = cancelAnimationFrame;
+  vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
+    frames.set(++frameId, callback);
+    return frameId;
+  });
+  vi.stubGlobal("cancelAnimationFrame", (id: number) => {
+    frames.delete(id);
+  });
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   host = document.createElement("div");
   document.body.append(host);
@@ -51,10 +88,21 @@ beforeEach(() => {
 });
 
 afterEach(async () => {
-  await act(async () => root.unmount());
-  host.remove();
-  vi.restoreAllMocks();
-  vi.unstubAllGlobals();
+  try {
+    await act(async () => root.unmount());
+    expect(frames.size).toBe(0);
+    expect(navigator.getGamepads).toBe(getGamepads);
+  } finally {
+    host.remove();
+    if (gamepadsDescriptor) Object.defineProperty(navigator, "getGamepads", gamepadsDescriptor);
+    else Reflect.deleteProperty(navigator, "getGamepads");
+    frames.clear();
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  }
+  expect(Object.getOwnPropertyDescriptor(navigator, "getGamepads")).toEqual(gamepadsDescriptor);
+  expect(requestAnimationFrame).toBe(originalRequestFrame);
+  expect(cancelAnimationFrame).toBe(originalCancelFrame);
 });
 
 describe("bootstrap state", () => {
@@ -126,10 +174,16 @@ describe("bootstrap state", () => {
     expect(choose.parentElement?.getAttribute("aria-busy")).toBe("true");
     await act(async () => useDefault.click());
     expect(reset).not.toHaveBeenCalled();
+    await frame();
+    expect(getGamepads).toHaveBeenCalledOnce();
+    expect(frames.size).toBe(1);
     await act(async () => selection.resolve(ready(2)));
     expect(state.bootstrap).toEqual(ready(2));
     expect(state.bootstrapError).toBeUndefined();
     expect(state.recoveryPending).toBe(false);
+    expect(frames.size).toBe(0);
+    await frame();
+    expect(getGamepads).toHaveBeenCalledOnce();
   });
 
   it("guards overlapping commands synchronously before React rerenders", async () => {
