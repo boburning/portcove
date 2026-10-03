@@ -581,9 +581,19 @@ function StatusActionsGroup({
         <RetiredNotice port={port} />
         <p role="status">{actionPresentation.reason}</p>
         <div className="actions primary-actions">
-          <Button data-focusable variant="primary" size="lg" disabled>
+          <Button data-focusable className="wide" variant="primary" size="lg" disabled>
             Installation unavailable
           </Button>
+          {installPlan && (
+            <Button
+              data-focusable
+              variant="outline"
+              disabled={Boolean(busy)}
+              onClick={actions.dismissInstallReview}
+            >
+              Cancel review
+            </Button>
+          )}
         </div>
       </DetailGroup>
     );

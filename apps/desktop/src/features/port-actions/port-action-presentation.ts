@@ -58,7 +58,8 @@ function presentAssessment(assessment: Assessment, action: PresentedAction): Act
   if (
     availability === "allowed" &&
     reason === "available" &&
-    (definition == null || definition.outcome === "eligible")
+    (definition == null ||
+      (definition.outcome === "eligible" && definition.reason === "mandatory_checks_passed"))
   )
     return { blocked: false };
   // A newly selected source/BIOS path still needs the existing installation review.

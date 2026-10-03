@@ -1,12 +1,13 @@
 // @vitest-environment jsdom
-import { act } from "react";
+import { act, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, expect, it, vi } from "vitest";
 import { DetailPanel, type DetailActions } from "./components/DetailPanel";
 import { PortBrowser } from "./components/PortBrowser";
+import { desktopApi } from "./api";
 import { portDefinition, portStatus } from "./test-fixtures";
-import type { PortStatus, ReadinessBlocker } from "./types";
+import type { ActivityRecord, InstallPlan, PortStatus, ReadinessBlocker } from "./types";
 import { filterPorts, portReadiness, summarizeLibrary } from "./view-model";
 
 const port = { ...portDefinition(), source_profile: "owned-source" };
@@ -398,4 +399,165 @@ it("explains an unoffered managed platform without asking for game files", () =>
   expect(host.textContent).toContain("This route is unavailable on this platform.");
   expect(host.querySelector<HTMLButtonElement>(".primary-actions button")!.disabled).toBe(true);
   expect(host.textContent).not.toContain("Choose required game files");
+});
+
+const ownedInstallPlan: InstallPlan = {
+  bundled_runtime: null,
+  port_id: "sample",
+  channel: "stable",
+  platform: "windows-x86-64",
+  action: "download",
+  source_requirements: [],
+  download_bytes: 64,
+  release: {
+    published_at: null,
+    version: "2",
+    channel: "stable",
+    asset: {
+      name: "owned.zip",
+      url: "https://example.invalid/owned.zip",
+      size: 64,
+      sha256: "a".repeat(64),
+    },
+  },
+  storage: {
+    library_root: "/owned/library",
+    volume_total_bytes: 1024,
+    volume_available_bytes: 512,
+  },
+  output_location: {
+    configured_output_directory: null,
+    port_id: "sample",
+    library_root: "/owned/library",
+    default_output_directory: "/owned/library/versions/sample",
+    effective_output_directory: "/owned/library/versions/sample",
+    selection_source: "library_default",
+    user_data_root: "/owned/library/user/sample",
+  },
+};
+
+it("lets a held existing review be dismissed before an allowed snapshot returns", async () => {
+  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+  const host = document.createElement("div");
+  document.body.append(host);
+  const root = createRoot(host);
+  const dismiss = vi.fn();
+  const allowed: PortStatus = {
+    ...portStatus(),
+    port_actions: [{ action: "install", availability: "allowed", reason: "available" }],
+  };
+  const held: PortStatus = {
+    ...allowed,
+    port_actions: [
+      {
+        action: "install",
+        availability: "held",
+        reason: "definition_ineligible",
+        definition: { outcome: "hold", reason: "publisher_revoked" },
+      },
+    ],
+  };
+  function Harness({ status }: { status: PortStatus }) {
+    const [plan, setPlan] = useState<InstallPlan | undefined>(ownedInstallPlan);
+    return (
+      <DetailPanel
+        port={portDefinition()}
+        status={status}
+        installPlan={plan}
+        sourcePath=""
+        setSourcePath={vi.fn()}
+        actions={{
+          ...actions,
+          dismissInstallReview: () => {
+            dismiss();
+            setPlan(undefined);
+          },
+        }}
+      />
+    );
+  }
+  const render = (status: PortStatus) => act(async () => root.render(<Harness status={status} />));
+  try {
+    await render(allowed);
+    expect(document.body.querySelector('[role="dialog"]')).not.toBeNull();
+    await render(held);
+    expect(document.body.querySelector('[role="dialog"]')).toBeNull();
+    const cancel = [...host.querySelectorAll("button")].find(
+      (button) => button.textContent?.trim() === "Cancel review",
+    );
+    expect(cancel).toBeDefined();
+    expect(cancel!.disabled).toBe(false);
+    await act(async () => cancel!.click());
+    expect(dismiss).toHaveBeenCalledExactlyOnceWith();
+    await render(allowed);
+    expect(document.body.querySelector('[role="dialog"]')).toBeNull();
+    expect(
+      [...host.querySelectorAll("button")].some(
+        (button) => !button.disabled && button.textContent?.includes("Review installation"),
+      ),
+    ).toBe(true);
+    expect(actions.install).not.toHaveBeenCalled();
+  } finally {
+    await act(async () => root.unmount());
+    host.remove();
+  }
+});
+
+it("keeps an owned installation cancellation reachable when setup becomes held", async () => {
+  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+  const host = document.createElement("div");
+  const root = createRoot(host);
+  const cancel = vi
+    .spyOn(desktopApi, "cancelOperation")
+    .mockResolvedValue({ phase: "preparing", requested: true });
+  const activity: ActivityRecord = {
+    id: "owned-install-operation",
+    operation: "install",
+    target_id: "sample",
+    target_kind: "port",
+    status: "running",
+    started_at: 1,
+    finished_at: null,
+    message: null,
+    failure: null,
+    cancellation: { phase: "preparing", requested: false },
+  };
+  const status: PortStatus = {
+    ...portStatus(),
+    port_actions: [
+      {
+        action: "install",
+        availability: "held",
+        reason: "definition_ineligible",
+        definition: { outcome: "hold", reason: "publisher_revoked" },
+      },
+    ],
+  };
+  try {
+    await act(async () =>
+      root.render(
+        <DetailPanel
+          port={portDefinition()}
+          status={status}
+          installPlan={ownedInstallPlan}
+          cancellableActivities={[activity]}
+          busy="install"
+          sourcePath=""
+          setSourcePath={vi.fn()}
+          actions={actions}
+        />,
+      ),
+    );
+    const button = [...host.querySelectorAll("button")].find(
+      (button) => button.textContent?.trim() === "Cancel operation",
+    )!;
+    expect(button.disabled).toBe(false);
+    await act(async () => button.click());
+    expect(cancel).toHaveBeenCalledExactlyOnceWith(activity.id);
+    expect(host.textContent).toContain("Cancellation requested");
+    expect(actions.install).not.toHaveBeenCalled();
+  } finally {
+    await act(async () => root.unmount());
+    cancel.mockRestore();
+  }
 });

@@ -108,6 +108,36 @@ it("keeps an unoffered platform distinct from player game-file input", () => {
 });
 
 it.each([
+  {
+    port_actions: [
+      {
+        action: "install",
+        availability: "allowed",
+        reason: "available",
+        definition: { outcome: "eligible" },
+      },
+    ],
+  },
+  {
+    port_actions: [
+      {
+        action: "install",
+        availability: "allowed",
+        reason: "available",
+        definition: { outcome: "eligible", reason: "publisher_revoked" },
+      },
+    ],
+  },
+  {
+    port_actions: [
+      {
+        action: "install",
+        availability: "allowed",
+        reason: "available",
+        definition: { outcome: "eligible", reason: "future" },
+      },
+    ],
+  },
   { port_actions: null },
   { port_actions: {} },
   { port_actions: [null] },
@@ -137,4 +167,18 @@ it.each([
     blocked: true,
     reason: "Current setup availability is unavailable. Refresh the workspace to check again.",
   });
+});
+
+it("accepts only the complete eligible definition tuple on an allowed assessment", () => {
+  expect(
+    portActionPresentation(
+      withAssessment({
+        action: "install",
+        availability: "allowed",
+        reason: "available",
+        definition: { outcome: "eligible", reason: "mandatory_checks_passed" },
+      }),
+      "install",
+    ),
+  ).toEqual({ blocked: false });
 });
