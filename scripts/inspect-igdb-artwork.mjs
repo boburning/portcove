@@ -7,6 +7,8 @@ import {
   readSync,
   fstatSync,
   closeSync,
+  copyFileSync,
+  chmodSync,
 } from "node:fs";
 import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
@@ -109,7 +111,7 @@ function websiteKey(value) {
   try {
     const url = new URL(value);
     if (!["https:", "http:"].includes(url.protocol) || url.username || url.password) return null;
-    if (url.hostname === "github.com" && !url.search && !url.hash)
+    if (url.hostname === "github.com" && !url.port && !url.search && !url.hash)
       return `github.com${url.pathname.replace(/\/$/, "").toLowerCase()}`;
     return url.href;
   } catch {
@@ -612,11 +614,12 @@ export function createIgdbInspector(credentialsFile, validateImage, fetchImpl = 
 // Reuse the actual core decoder through its existing CLI import into a fresh
 // task-owned library. No user library/choice or arbitrary provider command.
 export function createCoreImageValidator(cli, scratchRoot) {
-  const artifactSha256 = createHash("sha256")
-    .update(readFileSync(resolve(cli)))
-    .digest("hex");
   mkdirSync(scratchRoot, { recursive: true });
   const root = mkdtempSync(join(resolve(scratchRoot), "core-image-validation-"));
+  const artifact = join(root, process.platform === "win32" ? "validator.exe" : "validator");
+  copyFileSync(resolve(cli), artifact);
+  chmodSync(artifact, 0o500);
+  const artifactSha256 = createHash("sha256").update(readFileSync(artifact)).digest("hex");
   let ordinal = 0;
   return (bytes) => {
     const runRoot = join(root, String(++ordinal));
@@ -627,7 +630,7 @@ export function createCoreImageValidator(cli, scratchRoot) {
       Object.entries(process.env).filter(([name]) => name.toUpperCase() !== "PORTCOVE_LIBRARY"),
     );
     const child = spawnSync(
-      resolve(cli),
+      artifact,
       [
         "--library",
         join(runRoot, "library"),

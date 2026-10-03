@@ -251,6 +251,7 @@ test("ordinary names require exact attributable project evidence, including shar
       { id: "one", name: "One", project_url: "https://github.com/Owner/Shared" },
       { id: "two", name: "Two", project_url: "https://github.com/Owner/Shared" },
       { id: "collision", name: "Collision", project_url: "https://github.com/Owner/Other" },
+      { id: "custom-port", name: "Custom", project_url: "https://github.com/Owner/Shared" },
     ],
   };
   const queries = [];
@@ -263,7 +264,14 @@ test("ordinary names require exact attributable project evidence, including shar
           id: identity.names[0] === "One" ? 1 : 2,
           name: identity.names[0],
           slug: identity.names[0].toLowerCase(),
-          websites: [{ url: "https://github.com/owner/shared/" }],
+          websites: [
+            {
+              url:
+                identity.names[0] === "Custom"
+                  ? "https://github.com:444/owner/shared/"
+                  : "https://github.com/owner/shared/",
+            },
+          ],
           cover: { id: 3, image_id: "co3" },
         },
       ];
@@ -277,16 +285,17 @@ test("ordinary names require exact attributable project evidence, including shar
       validator: "portcove-core",
     }),
   });
-  assert.equal(queries.length, 3);
+  assert.equal(queries.length, 4);
   assert.ok(queries.every((identity) => identity.game_id === null));
   assert.deepEqual(
     result.records.map((record) => record.reason),
-    ["exact-port-cover", "exact-port-cover", "generated-fallback"],
+    ["exact-port-cover", "exact-port-cover", "generated-fallback", "generated-fallback"],
   );
   assert.equal(result.catalog.ports[0].presentation.artwork.game_id, 1);
   assert.equal(result.catalog.ports[1].presentation.artwork.game_id, 2);
   assert.equal(result.metrics.image_queries, 1);
   assert.equal(result.records[2].exceptions[0].reason, "identity-mismatch");
+  assert.equal(result.records[3].exceptions[0].reason, "identity-mismatch");
 });
 
 test("original-game name lookup requires platform and edition evidence and refuses truncated results", async () => {
