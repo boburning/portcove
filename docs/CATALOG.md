@@ -22,7 +22,52 @@ The [2026-09-30 identity receipt](archive/2026-09-30-igdb-catalog-cover-identiti
 records the catalog-wide preparation, accepted port and original identities, and
 port-specific exceptions. It is dated evidence, not another scheduling tracker.
 Preserve accepted mappings when adding entries; investigate only additions or
-changed references. Generate the embedded catalog with
+changed references. Ordinary schema-2 catalog proposals can prepare covers and
+their evidence in the same batch using the existing generator:
+
+```text
+node scripts/generate-catalog.mjs --prepare-artwork PROPOSAL.json --identities FACTS.json --credentials-file PRIVATE.json --validator-cli TRUSTED_PORTCOVE_CLI --output-dir NEW_OUTPUT_DIRECTORY
+```
+
+The optional facts document is keyed by stable port ID. Ordinary port matching
+uses the definition's public name and exact project URL without a supplied IGDB
+ID; a unique exact name/alias plus matching provider project website is required.
+Its optional `port` and `underlying_game` records supply public `names` and
+attributable HTTPS `evidence_url`, with an exact `project_url` for name-based port
+matching or known `platform_ids` and any specific `edition` for original-game
+matching. An independently established positive IGDB `game_id` and exact `slug`
+may pin a known identity. These are proposal inputs, not admission authority.
+Names alone, a sequel, wrong edition or truncated result set cannot establish a
+match. All required identity facts must agree before image acquisition. A coverless port falls
+through to its identified original game. Missing, ambiguous, mismatched or
+unusable assets produce specific nonblocking cover exceptions and generated
+fallback; a decoded image cannot establish semantic identity.
+
+The current authoring catalog is the accepted baseline. Unchanged port/source
+identities reuse accepted mappings without provider requests; distinct ports may
+reuse a uniquely accepted original-game mapping without merging their identities.
+An ordinary executable release does not trigger artwork searches. For an assessed
+reference change, `--refresh-artwork PORT_ID,OTHER_ID` explicitly refreshes those
+batch entries. A failed refresh retains the matching permitted accepted mapping,
+without claiming live validation or processing a known withdrawal.
+
+The new output directory is required to be absent. It receives
+`catalog-proposal.json` and `artwork-evidence.json`, including exact input/baseline
+digests, artwork differences, per-cover reasons/checks/exceptions and request/byte
+counts. No source catalog, client preference, signature or published feed changes.
+Fresh image bytes pass the existing core decoder through the explicitly selected
+trusted CLI and fresh task-owned scratch libraries. No new decoder or publisher
+is introduced. Credentials stay maintainer-side; output carries fixed references
+and digests, never credentials or image payloads. Scratch libraries retain local
+validation material and are not a distributable image archive.
+
+The provider route is sequential, has one lazy authentication attempt, no retries,
+and bounds metadata/image requests, bytes and execution time. Retained references
+are not fresh source-health evidence. This command prepares the cover role only;
+other roles, full backlog coverage, protected acceptance/publication and installed
+or physical-platform evidence retain their own acceptance.
+
+Generate the embedded catalog with
 `node scripts/generate-catalog.mjs`, then run selected local checks and the opt-in
 `just desktop-verify --scenario native-default-cover-display --require-clean`.
 That scenario derives its cover inventory from the actual native catalog, checks

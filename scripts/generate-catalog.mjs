@@ -1,7 +1,13 @@
 import { createHash } from "node:crypto";
-import { readFileSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  prepareCatalogArtwork,
+  createIgdbInspector,
+  createCoreImageValidator,
+  readArtworkJson,
+} from "./inspect-igdb-artwork.mjs";
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const catalogRoot = join(root, "crates", "portcove-core", "catalog");
@@ -83,7 +89,68 @@ function validateCurrentCatalog(catalog) {
 const current = readJson(sourcePath);
 validateCurrentCatalog(current);
 
-if (process.argv.includes("--compare-historical")) {
+function option(name, required = false) {
+  const index = process.argv.indexOf(name);
+  const value = index < 0 ? null : process.argv[index + 1];
+  if ((index >= 0 && (!value || value.startsWith("--"))) || (required && !value))
+    throw new Error(`${name} requires a value.`);
+  return value;
+}
+
+async function prepareArtworkProposal() {
+  if (process.argv.includes("--check") || process.argv.includes("--compare-historical"))
+    throw new Error("Artwork preparation cannot also check or compare historical data.");
+  const input = readArtworkJson(option("--prepare-artwork", true));
+  validateCurrentCatalog(input);
+  const identitiesFile = option("--identities");
+  const identities = identitiesFile ? readArtworkJson(identitiesFile, 1024 * 1024) : {};
+  const refreshPortIds = option("--refresh-artwork")?.split(",") ?? [];
+  const outputRoot = resolve(option("--output-dir", true));
+  // Refuse existing output rather than replacing an earlier proposal, recovery
+  // receipt or private library. No catalog publication or source mutation.
+  mkdirSync(outputRoot);
+  const cli = option("--validator-cli");
+  const validateImage = cli
+    ? createCoreImageValidator(cli, join(outputRoot, "scratch"))
+    : () => {
+        throw new Error("Core image validation requires a selected compatible CLI.");
+      };
+  const inspector = createIgdbInspector(option("--credentials-file"), validateImage);
+  const result = await prepareCatalogArtwork(input, {
+    ...inspector,
+    acceptedCatalog: current,
+    identities,
+    refreshPortIds,
+  });
+  validateCurrentCatalog(result.catalog);
+  const evidence = {
+    format_version: 1,
+    input_sha256: digest(input),
+    accepted_catalog_sha256: digest(current),
+    proposed_catalog_sha256: digest(result.catalog),
+    differences: differences(input, result.catalog),
+    records: result.records,
+    metrics: result.metrics,
+    provider_metrics: inspector.providerMetrics,
+    scope:
+      "Maintainer cover proposal; no admission, signature, publication, runtime or user-choice mutation.",
+  };
+  writeFileSync(
+    join(outputRoot, "catalog-proposal.json"),
+    `${JSON.stringify(result.catalog, null, 2)}\n`,
+    { flag: "wx" },
+  );
+  writeFileSync(
+    join(outputRoot, "artwork-evidence.json"),
+    `${JSON.stringify(evidence, null, 2)}\n`,
+    { flag: "wx" },
+  );
+  process.stdout.write(`${JSON.stringify({ output_dir: outputRoot, metrics: result.metrics })}\n`);
+}
+
+if (process.argv.includes("--prepare-artwork")) {
+  await prepareArtworkProposal();
+} else if (process.argv.includes("--compare-historical")) {
   const historical = readJson(historicalPath);
   const changes = differences(historical, current);
   process.stdout.write(
