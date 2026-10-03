@@ -52,8 +52,9 @@ function differences(before, after, path = "$") {
   const changes = [];
   const keys = new Set([...Object.keys(before), ...Object.keys(after)]);
   for (const key of [...keys].sort()) {
-    if (!(key in before)) changes.push({ path: `${path}.${key}`, after: after[key] });
-    else if (!(key in after)) changes.push({ path: `${path}.${key}`, before: before[key] });
+    if (!Object.hasOwn(before, key)) changes.push({ path: `${path}.${key}`, after: after[key] });
+    else if (!Object.hasOwn(after, key))
+      changes.push({ path: `${path}.${key}`, before: before[key] });
     else changes.push(...differences(before[key], after[key], `${path}.${key}`));
   }
   return changes;
@@ -265,7 +266,19 @@ async function prepareArtworkProposal(fullProposal = false) {
   process.stdout.write(`${JSON.stringify({ output_dir: outputRoot, metrics: result.metrics })}\n`);
 }
 
-if (process.argv.includes("--prepare-proposal") || process.argv.includes("--prepare-artwork")) {
+const arguments_ = process.argv.slice(2);
+const preparing =
+  arguments_.includes("--prepare-proposal") || arguments_.includes("--prepare-artwork");
+if (
+  !preparing &&
+  !(
+    arguments_.length === 0 ||
+    (arguments_.length === 1 && ["--check", "--compare-historical"].includes(arguments_[0]))
+  )
+) {
+  throw new Error("Unknown or combined generator arguments; select one supported mode.");
+}
+if (preparing) {
   await prepareArtworkProposal(process.argv.includes("--prepare-proposal"));
 } else if (process.argv.includes("--compare-historical")) {
   const historical = readJson(historicalPath);

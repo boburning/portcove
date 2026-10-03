@@ -10,6 +10,8 @@ hashes. It runs before host preferences or a library are opened. It does not
 resolve an upstream release, validate an actual artifact/source, qualify gameplay,
 establish publisher trust, change a catalog or permit application. Existing catalog
 parsing semantics remain unchanged; the check is not signed-definition admission.
+Legacy parsing tolerates unknown fields: raw input hashes bind them, but typed
+port hashes and declaration checks do not validate discarded fields.
 Malformed/duplicate-key inputs and unsupported or unsafe declarations fail.
 
 Run `portcove --help` to see commands and `portcove COMMAND --help` to check
