@@ -61,6 +61,14 @@ pub(crate) fn indexed_catalog_bundle(
     catalog: &crate::Catalog,
     port_id: &str,
 ) -> IndexedCatalogBundle {
+    indexed_catalog_bundle_at_revision(catalog, port_id, 7)
+}
+
+pub(crate) fn indexed_catalog_bundle_at_revision(
+    catalog: &crate::Catalog,
+    port_id: &str,
+    revision: u64,
+) -> IndexedCatalogBundle {
     use serde_json::json;
     use sha2::{Digest, Sha256};
     let target = |bytes: &[u8]| format!("sha256/{}.json", hex::encode(Sha256::digest(bytes)));
@@ -72,7 +80,7 @@ pub(crate) fn indexed_catalog_bundle(
     let leaf = target(&contract);
     let port = catalog.port(port_id).unwrap();
     let entry = serde_json::to_vec_pretty(&json!({
-        "definition_schema":1,"namespace":"official","stable_id":port_id,"revision":7,
+        "definition_schema":1,"namespace":"official","stable_id":port_id,"revision":revision,
         "required_capabilities":[{"template":port.adapter,"minimum_version":1,"maximum_version":1}],
         "port":port,"source_contracts":[leaf],"execution_contract":leaf,"persistence_contract":leaf,
         "artifact_bindings":[],"evidence_references":[]
@@ -82,7 +90,7 @@ pub(crate) fn indexed_catalog_bundle(
         "target":target(bytes),"sha256":hex::encode(Sha256::digest(bytes)),"length":bytes.len()
     })).collect();
     let index = serde_json::to_vec_pretty(&json!({
-        "index_schema":1,"definitions":[{"namespace":"official","stable_id":port_id,"revision":7,"target":target(&entry)}],
+        "index_schema":1,"definitions":[{"namespace":"official","stable_id":port_id,"revision":revision,"target":target(&entry)}],
         "contents":contents
     }))
     .unwrap();

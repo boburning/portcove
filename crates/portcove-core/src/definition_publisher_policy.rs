@@ -270,6 +270,46 @@ fn valid_identity(value: &str) -> bool {
 }
 
 impl PolicyDocument {
+    fn continues_managed_authorization(&self, previous: &Self) -> bool {
+        if self.policy_schema != previous.policy_schema
+            || self.namespace != previous.namespace
+            || self.stable_id != previous.stable_id
+            || self.grant_id != previous.grant_id
+        {
+            return false;
+        }
+        match (&self.decision, &previous.decision) {
+            (
+                PolicyDecision::ManagedGithub {
+                    template,
+                    repository_id,
+                    artifact_hosts,
+                    max_redirects,
+                    operations,
+                    ..
+                },
+                PolicyDecision::ManagedGithub {
+                    template: old_template,
+                    repository_id: old_repository_id,
+                    artifact_hosts: old_hosts,
+                    max_redirects: old_redirects,
+                    operations: old_operations,
+                    ..
+                },
+            ) => {
+                let same_set = |left: &[String], right: &[String]| {
+                    left.len() == right.len() && left.iter().all(|value| right.contains(value))
+                };
+                template == old_template
+                    && repository_id == old_repository_id
+                    && same_set(artifact_hosts, old_hosts)
+                    && max_redirects == old_redirects
+                    && same_set(operations, old_operations)
+            }
+            _ => false,
+        }
+    }
+
     fn parse(bytes: &[u8]) -> Result<Self> {
         if bytes.is_empty() || bytes.len() as u64 > MAX_POLICY_BYTES {
             return Err(PortcoveError::verification(
@@ -464,16 +504,16 @@ fn stored_admission(
     connection: &Connection,
     namespace: &str,
     stable_id: &str,
-) -> Result<Option<(PolicyDocument, PolicyProvenance)>> {
-    let row: Option<(String, String, String)> = connection
+) -> Result<Option<(PolicyDocument, PolicyProvenance, u64)>> {
+    let row: Option<(String, String, String, i64)> = connection
         .query_row(
-            "SELECT anchor_sha256,policy_json,provenance_json FROM definition_publisher_admission
+            "SELECT anchor_sha256,policy_json,provenance_json,retained_launch_revision_floor FROM definition_publisher_admission
          WHERE namespace=?1 AND stable_id=?2",
             params![namespace, stable_id],
-            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
         )
         .optional()?;
-    row.map(|(anchor, document, provenance)| {
+    row.map(|(anchor, document, provenance, floor)| {
         if provenance.len() > 16 * 1024 {
             return Err(PortcoveError::state(
                 "stored publisher provenance exceeds its bound",
@@ -493,7 +533,36 @@ fn stored_admission(
                 "stored publisher policy identity differs",
             ));
         }
-        Ok((document, provenance))
+        if floor <= 0 || floor as u64 > document.policy_revision {
+            return Err(PortcoveError::state(
+                "publisher authorization continuity is invalid",
+            ));
+        }
+        let expected_status = if matches!(document.decision, PolicyDecision::Revoked) {
+            "revoked"
+        } else {
+            "scoped"
+        };
+        let matches: bool = connection.query_row(
+            "SELECT EXISTS(SELECT 1 FROM definition_publisher_policy
+             WHERE namespace=?1 AND stable_id=?2 AND root_sha256=?3
+               AND policy_revision=?4 AND grant_id=?5 AND status=?6)",
+            params![
+                namespace,
+                stable_id,
+                provenance.root_sha256,
+                document.policy_revision,
+                document.grant_id,
+                expected_status
+            ],
+            |row| row.get(0),
+        )?;
+        if !matches {
+            return Err(PortcoveError::state(
+                "publisher admission differs from its policy record",
+            ));
+        }
+        Ok((document, provenance, floor as u64))
     })
     .transpose()
 }
@@ -548,6 +617,26 @@ fn installed_authority_floor(
         .transpose()
 }
 
+pub(crate) fn validate_stored_admissions(connection: &Connection) -> Result<()> {
+    let mut statement =
+        connection.prepare("SELECT namespace,stable_id FROM definition_publisher_admission")?;
+    let identities = statement
+        .query_map([], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+        })?
+        .collect::<std::result::Result<Vec<_>, _>>()?;
+    for (namespace, stable_id) in identities {
+        let (_, provenance, _) = stored_admission(connection, &namespace, &stable_id)?
+            .ok_or_else(|| PortcoveError::state("publisher admission disappeared"))?;
+        let floor =
+            installed_authority_floor(connection, &provenance.anchor_sha256)?.ok_or_else(|| {
+                PortcoveError::state("admitted publisher authority has no replay floor")
+            })?;
+        floor.check_advance(&provenance)?;
+    }
+    Ok(())
+}
+
 impl Library {
     /// Admit exact availability bytes or revoke a grant under installed independent authority.
     /// No incoming root or policy can create that authority. Returns false for an exact retry.
@@ -593,7 +682,7 @@ impl Library {
             &policy.document.namespace,
             &policy.document.stable_id,
         )?;
-        if let Some((previous, identity)) = &previous {
+        if let Some((previous, identity, _)) = &previous {
             if identity.anchor_sha256 != policy.provenance.anchor_sha256 {
                 return Err(PortcoveError::conflict("publisher grant authority changed"));
             }
@@ -621,9 +710,22 @@ impl Library {
                 "publisher policy cannot replace retained authority at its revision",
             ));
         }
-        let unchanged = previous.as_ref().is_some_and(|(document, provenance)| {
+        let unchanged = previous.as_ref().is_some_and(|(document, provenance, _)| {
             document == &policy.document && provenance == &policy.provenance
         }) && floor.as_ref() == Some(&policy.provenance);
+        let retained_launch_revision_floor = previous.as_ref().map_or(
+            policy.document.policy_revision,
+            |(document, provenance, floor)| {
+                if policy.document.continues_managed_authorization(document)
+                    && policy.provenance.anchor_sha256 == provenance.anchor_sha256
+                    && policy.provenance.root_sha256 == provenance.root_sha256
+                {
+                    *floor
+                } else {
+                    policy.document.policy_revision
+                }
+            },
+        );
         let status = if matches!(policy.document.decision, PolicyDecision::Revoked) {
             "revoked"
         } else {
@@ -631,17 +733,19 @@ impl Library {
         };
         transaction.execute(
             "INSERT INTO definition_publisher_admission
-             (namespace,stable_id,anchor_sha256,policy_json,provenance_json)
-             VALUES(?1,?2,?3,?4,?5)
+             (namespace,stable_id,anchor_sha256,policy_json,provenance_json,retained_launch_revision_floor)
+             VALUES(?1,?2,?3,?4,?5,?6)
              ON CONFLICT(namespace,stable_id) DO UPDATE SET
              anchor_sha256=excluded.anchor_sha256,policy_json=excluded.policy_json,
-             provenance_json=excluded.provenance_json",
+             provenance_json=excluded.provenance_json,
+             retained_launch_revision_floor=excluded.retained_launch_revision_floor",
             params![
                 policy.document.namespace,
                 policy.document.stable_id,
                 policy.provenance.anchor_sha256,
                 document,
-                provenance
+                provenance,
+                retained_launch_revision_floor
             ],
         )?;
         transaction.execute(
@@ -701,7 +805,7 @@ pub(crate) fn acquisition_scope(
         }
         return Ok(None);
     };
-    let Some((document, provenance)) =
+    let Some((document, provenance, _)) =
         stored_admission(&transaction, &identity.namespace, &identity.stable_id)?
     else {
         if crate::definition_acquisition::restricted_grant(&identity.grant_id)
@@ -773,7 +877,7 @@ pub(crate) fn validate_current_acquisition(
         .ok_or_else(|| PortcoveError::state("acquisition lost its definition identity"))?;
     let connection = scope.library.connection()?;
     let transaction = connection.unchecked_transaction()?;
-    let Some((document, provenance)) =
+    let Some((document, provenance, _)) =
         stored_admission(&transaction, &identity.namespace, &identity.stable_id)?
     else {
         return Err(PortcoveError::conflict(
@@ -806,7 +910,8 @@ pub(crate) fn allows_candidate(
     namespace: &str,
     stable_id: &str,
 ) -> Result<bool> {
-    let Some((document, provenance)) = stored_admission(connection, namespace, stable_id)? else {
+    let Some((document, provenance, _)) = stored_admission(connection, namespace, stable_id)?
+    else {
         // Existing retained/test policy has its own delivered authority path.
         return Ok(!current_restrictive_grant(
             connection, namespace, stable_id,
@@ -829,7 +934,7 @@ pub(crate) fn allows_projection(
     candidate: &crate::AuthenticatedDefinitionProvenance,
 ) -> Result<bool> {
     let entry = projection.entry();
-    let Some((document, provenance)) =
+    let Some((document, provenance, _)) =
         stored_admission(connection, entry.namespace(), &entry.port().id)?
     else {
         return Ok(!current_restrictive_grant(
@@ -853,7 +958,7 @@ pub(crate) fn availability_expiration(
     stable_id: &str,
 ) -> Result<Option<i64>> {
     stored_admission(connection, namespace, stable_id)?
-        .map(|(_, provenance)| {
+        .map(|(_, provenance, _)| {
             OffsetDateTime::parse(&provenance.expires_at, &Rfc3339)
                 .map(|expires| expires.unix_timestamp())
                 .map_err(|_| PortcoveError::state("invalid publisher policy expiration"))
@@ -877,12 +982,36 @@ pub(super) fn install_authority_for_test(library: &Library, root: &[u8]) -> Resu
     Ok(())
 }
 
+pub(crate) fn continues_retained_launch(
+    connection: &Connection,
+    identity: &crate::DefinitionSelectionIdentity,
+) -> Result<bool> {
+    let Some((document, provenance, floor)) =
+        stored_admission(connection, &identity.namespace, &identity.stable_id)?
+    else {
+        return Ok(false);
+    };
+    if !matches!(document.decision, PolicyDecision::ManagedGithub { .. })
+        || provenance.root_sha256 != identity.repository_root_sha256
+        || document.grant_id != identity.grant_id
+        || !(floor..=document.policy_revision).contains(&identity.policy_revision)
+    {
+        return Ok(false);
+    }
+    // The installed contract keeps its exact old identity. Only independently
+    // admitted unchanged authorization can bridge the policy revision here.
+    let authority_floor = installed_authority_floor(connection, &provenance.anchor_sha256)?
+        .ok_or_else(|| PortcoveError::state("admitted publisher authority has no replay floor"))?;
+    authority_floor.check_advance(&provenance)?;
+    Ok(true)
+}
+
 pub(crate) fn allows_operation(
     connection: &Connection,
     identity: &crate::DefinitionSelectionIdentity,
     context: crate::definition_eligibility::DefinitionOperationContext,
 ) -> Result<bool> {
-    let Some((document, provenance)) =
+    let Some((document, provenance, _)) =
         stored_admission(connection, &identity.namespace, &identity.stable_id)?
     else {
         return Ok(
@@ -913,4 +1042,73 @@ pub(crate) fn allows_operation(
         .ok_or_else(|| PortcoveError::state("admitted publisher authority has no replay floor"))?;
     floor.check_advance(&provenance)?;
     Ok(true)
+}
+
+#[cfg(test)]
+mod continuity_tests {
+    use super::*;
+
+    #[test]
+    fn authorization_continuity_excludes_only_definition_bindings_and_revision() {
+        let baseline = PolicyDocument {
+            policy_schema: 2,
+            namespace: "official".into(),
+            stable_id: "owned-fixture".into(),
+            policy_revision: 1,
+            grant_id: "managed-github-v1-fixture".into(),
+            decision: PolicyDecision::ManagedGithub {
+                definition_revision: 7,
+                index_sha256: "a".repeat(64),
+                definition_sha256: "b".repeat(64),
+                template: "n64recomp".into(),
+                repository_id: 1296269,
+                artifact_hosts: vec![
+                    "github.com".into(),
+                    "release-assets.githubusercontent.com".into(),
+                ],
+                max_redirects: 5,
+                operations: vec![
+                    "install".into(),
+                    "update".into(),
+                    "prepare".into(),
+                    "launch".into(),
+                ],
+            },
+        };
+        let encoded = serde_json::to_value(&baseline).unwrap();
+        for (field, value) in [
+            ("policy_schema", serde_json::json!(1)),
+            ("namespace", serde_json::json!("other")),
+            ("stable_id", serde_json::json!("other")),
+            ("grant_id", serde_json::json!("managed-github-v1-other")),
+            ("template", serde_json::json!("libultraship")),
+            ("repository_id", serde_json::json!(1296270)),
+            ("artifact_hosts", serde_json::json!(["github.com"])),
+            ("max_redirects", serde_json::json!(4)),
+            ("operations", serde_json::json!(["launch"])),
+        ] {
+            let mut changed = encoded.clone();
+            if changed.get(field).is_some() {
+                changed[field] = value;
+            } else {
+                changed["decision"][field] = value;
+            }
+            let changed: PolicyDocument = serde_json::from_value(changed).unwrap();
+            assert!(
+                !changed.continues_managed_authorization(&baseline),
+                "{field}"
+            );
+        }
+        let mut corrected = encoded;
+        corrected["policy_revision"] = 2.into();
+        corrected["decision"]["definition_revision"] = 8.into();
+        corrected["decision"]["index_sha256"] = "c".repeat(64).into();
+        corrected["decision"]["definition_sha256"] = "d".repeat(64).into();
+        corrected["decision"]["artifact_hosts"] =
+            serde_json::json!(["release-assets.githubusercontent.com", "github.com"]);
+        corrected["decision"]["operations"] =
+            serde_json::json!(["launch", "prepare", "update", "install"]);
+        let corrected: PolicyDocument = serde_json::from_value(corrected).unwrap();
+        assert!(corrected.continues_managed_authorization(&baseline));
+    }
 }
