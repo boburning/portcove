@@ -900,6 +900,29 @@ installed-context, signed production, minimum-version or all-platform evidence.
 Refused navigation does not prove privileged invocation after remote execution;
 earlier instrumented secondary/queued-reply controls remain separate evidence.
 
+For the distinct current-installed Windows case, pass
+`-NormalPackageManifestPath <absolute-ordinary-build-manifest>` to the same
+`test-windows-installer.ps1` route, together with `-ExpectedExecutablePath`,
+`-ExpectedVersion` and a new external `-EvidencePath`. The build manifest has the
+same clean revision, exact ordinary build command, empty qualification features,
+configuration and installer identities described above. The route verifies those
+inputs before installation. It invokes the fixed existing boundary harness after
+the installed smoke has closed, while the exact current-user registration and
+installed executable remain present, then requires positive owned exit evidence,
+the same registration/version and executable/uninstaller bytes, and unchanged
+isolated persistent data before uninstall. It does not accept an arbitrary
+callback or replace the retained-byte scenario.
+
+The new sibling `current-installed-boundary` directory retains the immutable
+pre-boundary installation receipt, bound package manifest and native evidence.
+Its explicit `current-installed` mode accepts only the pre-uninstall receipt;
+a completed post-uninstall receipt cannot supply that claim. The final ordinary
+installer receipt links the native evidence and its subsequent preservation and
+uninstall result. Failure or unproven owned exit stops before uninstall and
+retains the isolated installation/journal for the existing recovery procedure.
+This supplies only the actual tested unsigned Windows package/current OS row,
+not production authority, minimum Windows, another platform or whole #1280/#993.
+
 WebView2 documents that cancelled `NavigationStarting` can still issue GET
 requests while the host responds. The boundary case records every owned server
 request and requires the popup destination to receive none; it does not promise

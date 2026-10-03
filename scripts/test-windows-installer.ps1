@@ -7,6 +7,7 @@ param(
     [string]$RetainedLibraryRoot,
     [string]$RetainExecutablePath,
     [string]$EvidencePath,
+    [string]$NormalPackageManifestPath,
     [ValidateSet("Silent", "Passive")]
     [string]$InstallMode = "Silent",
     [string]$ExpectedVersion,
@@ -214,6 +215,39 @@ if ($installedUpdate -and (-not $predecessor -or -not $InstalledUpdateMetadataPa
     throw "Installed update qualification requires a predecessor, complete signed repository paths, and absent signing authority"
 }
 $expected = if ($ExpectedExecutablePath) { Get-ExpectedBundledHash (Resolve-Path -LiteralPath $ExpectedExecutablePath).Path } else { $null }
+if ($NormalPackageManifestPath) {
+    if ($installedUpdate -or $predecessor -or $RendererUpdate -or -not $EvidencePath -or -not $expected -or -not $ExpectedVersion) {
+        throw "Current-installed boundary requires an ordinary bootstrap package, expected bytes/version and external evidence"
+    }
+    $normalPackageManifest = Get-Content -LiteralPath $NormalPackageManifestPath -Raw | ConvertFrom-Json
+    $normalRepository = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot ".."))
+    $normalRevision = (& git -C $normalRepository rev-parse HEAD).Trim()
+    if ($LASTEXITCODE -ne 0) { throw "Current-installed package source could not be resolved" }
+    $normalDirty = & git -C $normalRepository status --porcelain=v1 --untracked-files=all
+    if ($LASTEXITCODE -ne 0 -or $normalDirty -or $normalPackageManifest.revision -ne $normalRevision) {
+        throw "Current-installed boundary requires clean exact package source"
+    }
+    if (($normalPackageManifest.build_command -join '|') -ne 'corepack|pnpm|tauri|build|--bundles|nsis' -or
+        @($normalPackageManifest.qualification_features).Count -ne 0) {
+        throw "Current-installed boundary requires an ordinary default-feature NSIS build"
+    }
+    if ([IO.Path]::GetFullPath($normalPackageManifest.installer.path) -ne $installer -or
+        $normalPackageManifest.installer.sha256 -ne (Get-FileHash -LiteralPath $installer -Algorithm SHA256).Hash.ToLowerInvariant()) {
+        throw "Current-installed package manifest does not bind the installer"
+    }
+    $normalConfigurationPaths = @('tauri.conf.json', 'tauri.windows.conf.json', 'Cargo.toml') |
+        ForEach-Object { [IO.Path]::GetFullPath((Join-Path $normalRepository "apps/desktop/src-tauri/$_")) }
+    if (@($normalPackageManifest.configuration).Count -ne $normalConfigurationPaths.Count) {
+        throw "Current-installed package configuration inventory differs"
+    }
+    for ($index = 0; $index -lt $normalConfigurationPaths.Count; $index++) {
+        $binding = $normalPackageManifest.configuration[$index]
+        if ([IO.Path]::GetFullPath($binding.path) -ne $normalConfigurationPaths[$index] -or
+            $binding.sha256 -ne (Get-FileHash -LiteralPath $binding.path -Algorithm SHA256).Hash.ToLowerInvariant()) {
+            throw "Current-installed package configuration identity differs"
+        }
+    }
+}
 if (@(Get-UninstallEntries "").Count -ne 0) {
     throw "A Portcove installer registration already exists. Refusing to replace another installation during qualification."
 }
@@ -256,6 +290,13 @@ $evidence = if ($EvidencePath) {
     $evidenceParent = [System.IO.Path]::GetDirectoryName($evidenceFull)
     if (-not [System.IO.Directory]::Exists($evidenceParent)) { throw "EvidencePath parent must exist" }
     if ([System.IO.File]::Exists($evidenceFull)) { throw "EvidencePath must be new: $evidenceFull" }
+    if ($NormalPackageManifestPath) {
+        $normalBoundaryOutput = Join-Path $evidenceParent "current-installed-boundary"
+        if ([IO.Directory]::Exists($normalBoundaryOutput) -or
+            $evidenceParent.StartsWith($runRoot + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) {
+            throw "Current-installed boundary evidence must be new and outside the disposable installer run"
+        }
+    }
     [ordered]@{
         format = 1
         phase = "initialized"
@@ -1016,6 +1057,81 @@ try {
         preservation_manifest = $beforeUninstallManifest
     })
 
+    $normalBoundary = $null
+    if ($NormalPackageManifestPath) {
+        [IO.Directory]::CreateDirectory($normalBoundaryOutput) | Out-Null
+        $readyReceipt = Join-Path $normalBoundaryOutput "installed-ready.json"
+        [ordered]@{
+            phase = "current_installed_boundary_ready"
+            details = [ordered]@{
+                installer_sha256 = $installerHash
+                installed_executable_sha256 = $installedHash
+                installed_executable_path = $application
+                install_root = $installRoot
+                registration_path = $registryEntries[0].PSPath
+                uninstall_registration_count = @($registryEntries).Count
+                registered_version = $registryEntries[0].DisplayVersion
+                application_responding = $smoke.responding
+                application_exit_code = $smoke.exit_code
+                persistent_data_preserved = $true
+                preservation_manifest = $beforeUninstallManifest
+            }
+        } | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $readyReceipt -Encoding utf8
+        $boundManifest = Join-Path $normalBoundaryOutput "package-evidence.json"
+        $normalPackageManifest | Add-Member -NotePropertyName execution_context -NotePropertyValue 'current-installed' -Force
+        $normalPackageManifest | Add-Member -NotePropertyName installer_evidence -NotePropertyValue ([ordered]@{
+            path = $readyReceipt
+            sha256 = (Get-FileHash -LiteralPath $readyReceipt -Algorithm SHA256).Hash.ToLowerInvariant()
+        }) -Force
+        $normalPackageManifest | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $boundManifest -Encoding utf8
+        Write-InstallerEvidence "current_installed_boundary_running"
+        & node (Join-Path $normalRepository 'apps/desktop/scripts/desktop-test.mjs') `
+            --app $application --output (Join-Path $normalBoundaryOutput 'native') `
+            --scenario native-normal-package-webview-boundary --package-evidence $boundManifest `
+            *> (Join-Path $normalBoundaryOutput 'native-harness.log')
+        if ($LASTEXITCODE -ne 0) { throw "Current-installed native boundary failed; preserve installation and owned cleanup evidence" }
+        $normalCleanupPath = Join-Path $normalBoundaryOutput 'native/normal-package-boundary-cleanup.json'
+        $normalCleanup = Get-Content -LiteralPath $normalCleanupPath -Raw | ConvertFrom-Json
+        if (-not $normalCleanup.exited -or -not $normalCleanup.snapshot -or
+            @($normalCleanup.snapshot.processes).Count -eq 0 -or
+            $normalCleanup.exited.observed_processes -ne @($normalCleanup.snapshot.processes).Count) {
+            throw "Current-installed boundary lacks positive owned exit evidence; refusing uninstall"
+        }
+        $normalNativePath = Join-Path $normalBoundaryOutput 'native/evidence.json'
+        $normalNative = Get-Content -LiteralPath $normalNativePath -Raw | ConvertFrom-Json
+        $normalCheck = @($normalNative.checks | Where-Object { $_.scenario -eq 'native-normal-package-webview-boundary' })
+        if ($normalNative.outcome -ne 'passed' -or $normalNative.revision -ne $normalRevision -or
+            $normalNative.executable.path -ne $application -or $normalNative.executable.sha256 -ne $installedHash -or
+            $normalCheck.Count -ne 1 -or $normalCheck[0].outcome -ne 'passed') {
+            throw "Current-installed native result does not bind this exact installed application"
+        }
+        $afterBoundaryRegistration = @(Get-UninstallEntries $installRoot)
+        if ($afterBoundaryRegistration.Count -ne 1 -or
+            $afterBoundaryRegistration[0].PSPath -ne $registryEntries[0].PSPath -or
+            $afterBoundaryRegistration[0].DisplayVersion -ne $ExpectedVersion -or
+            (Get-FileHash -LiteralPath $application -Algorithm SHA256).Hash.ToLowerInvariant() -ne $installedHash -or
+            (Get-FileHash -LiteralPath $uninstaller -Algorithm SHA256).Hash.ToLowerInvariant() -ne $evidence.uninstaller_sha256) {
+            throw "Native boundary changed installed executable, uninstaller or registration"
+        }
+        $afterBoundaryManifest = Get-PreservationManifest $libraryRoot
+        if (($beforeUninstallManifest | ConvertTo-Json -Depth 6 -Compress) -ne
+            ($afterBoundaryManifest | ConvertTo-Json -Depth 6 -Compress)) {
+            throw "Native boundary changed the isolated persistent-data manifest"
+        }
+        $normalBoundary = [ordered]@{
+            execution_context = 'current-installed'
+            installed_executable_path = $application
+            registration_before = $registryEntries[0].PSPath
+            registration_after = $afterBoundaryRegistration[0].PSPath
+            registered_version = $afterBoundaryRegistration[0].DisplayVersion
+            native_evidence = $normalNativePath
+            cleanup_evidence = $normalCleanupPath
+            package_evidence = $boundManifest
+            preservation_manifest_after = $afterBoundaryManifest
+        }
+        Write-InstallerEvidence "current_installed_boundary_complete" $normalBoundary
+    }
+
     Write-InstallerEvidence "uninstalling"
     # NSIS may continue from an exact self-copy below TEMP. The original bytes
     # are journaled before launch; permit only that same image below this run.
@@ -1094,6 +1210,7 @@ try {
         registration_removed = $true
         preservation_manifest_before_uninstall = $beforeUninstallManifest
         preservation_manifest_after_uninstall = $afterUninstallManifest
+        current_installed_boundary = $normalBoundary
     }
     Write-InstallerEvidence "complete" $result
     $result | ConvertTo-Json -Depth 10 -Compress

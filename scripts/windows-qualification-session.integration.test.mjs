@@ -214,6 +214,7 @@ class Installer {
     using (var key = Registry.CurrentUser.CreateSubKey(${csharpLiteral(keyPath)})) {
       key.SetValue("DisplayName", "Portcove");
       key.SetValue("InstallLocation", install);
+      key.SetValue("DisplayVersion", "0.1.0-alpha.2");
       key.SetValue("UninstallString", "\\"" + Path.Combine(install, "uninstall.exe") + "\\"");
     }
   }
@@ -224,8 +225,164 @@ class Installer {
   execFileSync(csc, ["/nologo", `/out:${installer}`, installerSource], {
     windowsHide: true,
   });
-  return { root, installer, keyPath };
+  return { root, installer, desktop, keyPath };
 }
+
+test(
+  "current-installed boundary runs before uninstall and preserves failed or unproven native outcomes",
+  { skip: process.platform !== "win32", timeout: 90_000 },
+  (t) => {
+    const item = makeInstallerLifecycleFixture(t);
+    const repository = path.join(item.root, "boundary-repository");
+    mkdirSync(path.join(repository, "scripts"), { recursive: true });
+    copyFileSync(
+      installerLifecycleTool,
+      path.join(repository, "scripts", "test-windows-installer.ps1"),
+    );
+    const configurationRoot = path.join(repository, "apps", "desktop", "src-tauri");
+    mkdirSync(configurationRoot, { recursive: true });
+    const configuration = ["tauri.conf.json", "tauri.windows.conf.json", "Cargo.toml"].map(
+      (name) => {
+        const file = path.join(configurationRoot, name);
+        writeFileSync(file, "owned ordinary package configuration fixture");
+        return { path: file, sha256: sha256(file) };
+      },
+    );
+    const harnessRoot = path.join(repository, "apps", "desktop", "scripts");
+    mkdirSync(harnessRoot);
+    // Fixed-path stub: lifecycle ordering/refusal, not actual WebDriver acceptance.
+    writeFileSync(
+      path.join(harnessRoot, "desktop-test.mjs"),
+      String.raw`
+import assert from "node:assert/strict";
+import {readFileSync, writeFileSync, mkdirSync, existsSync} from "node:fs";
+import path from "node:path";
+const value = (name) => process.argv[process.argv.indexOf(name) + 1];
+const app = value("--app"), output = value("--output");
+const manifest = JSON.parse(readFileSync(value("--package-evidence"), "utf8"));
+const ready = JSON.parse(readFileSync(manifest.installer_evidence.path, "utf8"));
+assert.equal(manifest.execution_context, "current-installed");
+assert.equal(ready.phase, "current_installed_boundary_ready");
+assert.equal(ready.details.installed_executable_path, app);
+assert.equal(ready.details.uninstall_registration_count, 1);
+assert.equal(ready.details.application_exit_code, 0);
+assert.ok(existsSync(app));
+assert.ok(existsSync(path.join(path.dirname(app), "uninstall.exe")));
+mkdirSync(output);
+writeFileSync(path.join(output, "callback-observed.json"), JSON.stringify({app, ready}));
+if (process.env.PORTCOVE_FIXTURE_BOUNDARY_FAILURE === "1") process.exit(7);
+writeFileSync(path.join(output, "evidence.json"), JSON.stringify({
+  outcome: "passed", revision: manifest.revision,
+  executable: {path: app, sha256: ready.details.installed_executable_sha256},
+  checks: [{scenario: "native-normal-package-webview-boundary", outcome: "passed"}]
+}));
+writeFileSync(path.join(output, "normal-package-boundary-cleanup.json"), JSON.stringify({
+  snapshot: {processes: [{fixture: true}]},
+  exited: process.env.PORTCOVE_FIXTURE_BOUNDARY_UNPROVEN === "1" ? null : {observed_processes: 1}
+}));
+`,
+    );
+    execFileSync("git", ["init", "--quiet"], { cwd: repository, windowsHide: true });
+    execFileSync("git", ["add", "."], { cwd: repository, windowsHide: true });
+    execFileSync(
+      "git",
+      [
+        "-c",
+        "user.name=Portcove fixture",
+        "-c",
+        "user.email=fixture@portcove.invalid",
+        "commit",
+        "--quiet",
+        "-m",
+        "fixed lifecycle fixture",
+      ],
+      { cwd: repository, windowsHide: true },
+    );
+    const revision = execFileSync("git", ["rev-parse", "HEAD"], {
+      cwd: repository,
+      encoding: "utf8",
+      windowsHide: true,
+    }).trim();
+    const manifestPath = path.join(item.root, "ordinary-package.json");
+    writeFileSync(
+      manifestPath,
+      JSON.stringify({
+        revision,
+        build_command: ["corepack", "pnpm", "tauri", "build", "--bundles", "nsis"],
+        qualification_features: [],
+        configuration,
+        installer: { path: item.installer, sha256: sha256(item.installer) },
+      }),
+    );
+    for (const [name, environment, expectedError] of [
+      ["success", {}, null],
+      ["failed", { PORTCOVE_FIXTURE_BOUNDARY_FAILURE: "1" }, /native boundary failed/],
+      [
+        "unproven",
+        { PORTCOVE_FIXTURE_BOUNDARY_UNPROVEN: "1" },
+        /lacks positive owned exit evidence/,
+      ],
+    ]) {
+      const caseRoot = path.join(item.root, name);
+      mkdirSync(caseRoot);
+      const result = spawnSync(
+        "pwsh.exe",
+        [
+          "-NoLogo",
+          "-NoProfile",
+          "-File",
+          path.join(repository, "scripts", "test-windows-installer.ps1"),
+          "-InstallerPath",
+          item.installer,
+          "-ExpectedExecutablePath",
+          item.desktop,
+          "-ExpectedVersion",
+          "0.1.0-alpha.2",
+          "-TestBase",
+          path.join(caseRoot, "runs"),
+          "-EvidencePath",
+          path.join(caseRoot, "lifecycle.json"),
+          "-NormalPackageManifestPath",
+          manifestPath,
+        ],
+        {
+          encoding: "utf8",
+          windowsHide: true,
+          timeout: 30_000,
+          env: { ...process.env, ...environment },
+        },
+      );
+      const evidence = JSON.parse(readFileSync(path.join(caseRoot, "lifecycle.json"), "utf8"));
+      const observed = JSON.parse(
+        readFileSync(
+          path.join(caseRoot, "current-installed-boundary", "native", "callback-observed.json"),
+          "utf8",
+        ),
+      );
+      assert.equal(observed.ready.details.registration_path.includes("HKEY_CURRENT_USER"), true);
+      if (expectedError) {
+        assert.notEqual(result.status, 0);
+        assert.match(result.stderr, expectedError);
+        assert.equal(evidence.phase, "failed");
+        assert.equal(
+          evidence.process_runs.some((run) => run.role.startsWith("candidate_uninstaller")),
+          false,
+        );
+        assert.ok(existsSync(observed.app));
+        removeInstallerLifecycleRegistration(item);
+      } else {
+        assert.equal(result.status, 0, result.stderr);
+        assert.equal(evidence.phase, "complete");
+        assert.equal(
+          evidence.details.current_installed_boundary.execution_context,
+          "current-installed",
+        );
+        assert.equal(evidence.details.registration_removed, true);
+        assert.equal(existsSync(observed.app), false);
+      }
+    }
+  },
+);
 
 function runInstallerLifecycle(
   item,
