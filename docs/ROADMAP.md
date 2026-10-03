@@ -492,6 +492,37 @@ without private repository knowledge or per-port rules. Marketplace acceptance,
 community adoption, a universal frontend list, catalog counts, continuous Steam
 synchronization, Decky and standalone CLI self-updating are not gates.
 
+## Optional profiles after initial beta
+
+#250 targets an Opportunistic 1.0 first experience with Ship of Harkinian and
+reviewed local packages: clean/customized profiles, native-loader settings,
+separate save handling, retained exact builds, disable/remove and recovery across
+Core, Desktop and the public CLI. The minimum retained-build/reference protection
+is independently deliverable in #1456 under #40; the first profile does not wait for all
+historical browsing or follow-latest controls. Local packages do not need an
+online provider, account, second loader or shared-manifest feature.
+
+Core remains the profile transaction and mutable-state authority. Provider
+adapters supply candidates and provenance; bounded native-loader adapters supply
+reviewed deployment/settings behavior before existing supervised launch. Preserve
+working setups and original files, preview ownership transitions, and separate
+configuration recovery from reverting saved progress. Missing bytes and unknown
+compatibility remain explicit; hashes identify bytes, not publisher authenticity
+or proof of safety. Mod capabilities never gate ordinary launch or admission.
+
+#262 retains both GameBanana and Thunderstore in Post-1.0 Opportunistic scope.
+They may ship independently once each has an evidenced supported loader fit or a
+narrowly owned extension; neither waits for the other or #1457's whole second-family
+proof. #1457's bounded different-loader reuse proof
+and #1458's payload-free profile-manifest sharing are separate follow-ons. #249's ordinary
+library adoption stays independent; recognized mod setups may enter the profile
+engine later only through reviewed inventory, ownership and consent.
+
+These are planned capabilities, not delivered runtime or gameplay qualification.
+No mod-profile or provider outcome is an initial Public beta or mandatory 1.0
+release gate. Existing beta foundations and platform qualification deferrals
+remain unchanged.
+
 ## Post-1.0 principles
 
 Initial value order is:
@@ -519,10 +550,12 @@ Initial value order is:
    prove manual export/import for one persistence family and declared
    version/platform pair with identity-bound snapshots, conflicts, a pre-import
    safety snapshot, and interrupted recovery; transport remains optional.
-5. **Customize safely and reversibly** — #40 where exact-version identity is
-   required, then #250. First prove one clean and one local customized profile,
-   including switching, disabling, removal, compatibility limits, and recovery;
-   no hosted mod marketplace or arbitrary execution authority is implied.
+5. **Extend safe, reversible customization** — reuse #250's optional first-family
+   profile boundary; prove one materially different loader and independently
+   deliver GameBanana and Thunderstore under #262. Full historical selectors
+   remain with #40; sharing recipes is a bounded follow-on that excludes game
+   payloads, credentials and private paths. No hosted marketplace, universal
+   loader or arbitrary execution authority is implied.
 6. **Reduce attention required by larger libraries** — #248. First prove that
    suitable stages resume or safely restart without duplicate destructive work
    or lost consent, reusing existing activity/cancellation/recovery and honoring
