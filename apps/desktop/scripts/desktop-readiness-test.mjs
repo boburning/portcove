@@ -188,8 +188,8 @@ async function observeHeldInstall({ browser, output, artifacts, command, port, h
     held.install_probe = await restoreActionHold(browser, "waiting");
   }
   await browser.wait(async () => {
-    const review = await browser.findElement(controls.button("Review installation"));
-    return await review.isEnabled();
+    const reviews = await browser.findElements(controls.button("Review installation"));
+    return reviews.length === 1 && (await reviews[0].isEnabled());
   }, 10_000);
   await controls.click(controls.button("Review installation"));
   await browser.wait(until.elementLocated(installDialog), 15_000);
