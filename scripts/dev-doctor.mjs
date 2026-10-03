@@ -2,7 +2,13 @@ import { existsSync, readFileSync, lstatSync, realpathSync, readdirSync } from "
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { spawnCommand, getPaths, preflight, minimumFreeGiB } from "./dev-storage.mjs";
+import {
+  spawnCommand,
+  getPaths,
+  preflight,
+  minimumFreeGiB,
+  resolvePhysicalPath,
+} from "./dev-storage.mjs";
 import { loadQualityManifest } from "./quality-tools.mjs";
 import {
   cachedDesktopDrivers,
@@ -173,6 +179,8 @@ export function selectedPrerequisites(entry, platform = process.platform) {
   if (entry.id === "conservative-audit") {
     ids.add("complete-audit-prerequisites");
     ids.add("aqua-state");
+    if (entry.args?.includes("release-unit")) ids.add("pwsh");
+    if (platform === "linux" && entry.args?.includes("rust")) ids.add("unix-socket-path");
   }
   return [...ids];
 }
@@ -312,7 +320,11 @@ export async function collectSelectedPrerequisites(plan, options = {}) {
     ),
     rustc: { id: "rustc", command: ["rustc", "--version"], version: manifest.rust.channel },
     cargo: { id: "cargo", command: ["cargo", "--version"] },
-    pwsh: { id: "pwsh", command: ["pwsh", "--version"] },
+    pwsh: {
+      id: "pwsh",
+      command: ["pwsh", "--version"],
+      remediation: "provide bare pwsh on PATH on the selected host",
+    },
     "rustfmt-component": { id: "rustfmt-component", command: ["cargo", "fmt", "--version"] },
     "clippy-component": { id: "clippy-component", command: ["cargo", "clippy", "--version"] },
     psscriptanalyzer: powershellAnalyzerDefinition(),
@@ -407,7 +419,28 @@ export async function collectSelectedPrerequisites(plan, options = {}) {
         status: "unverified",
         remediation: "just doctor; qualify the complete audit on an approved capable host",
       });
-    else if (definitions[id]) results.push(probeTool(definitions[id], run, { environment }));
+    else if (id === "unix-socket-path") {
+      // The selected Linux Rust stage runs source_import_tests.rs's UnixListener
+      // under tempfile::tempdir(): .tmp plus six ASCII characters, then owned-bus.
+      // Linux sockaddr_un.sun_path holds 108 bytes including its terminator.
+      const remediation =
+        "use a shorter physical temporary directory on the selected Linux audit host";
+      try {
+        const temporary = resolvePhysicalPath(
+          options.temporaryDirectory ?? getPaths("tooling").temporary_directory,
+        );
+        const observedBytes = Buffer.byteLength(path.join(temporary, ".tmpXXXXXX", "owned-bus"));
+        results.push({
+          id,
+          status: observedBytes <= 107 ? "ok" : "unavailable",
+          observed_bytes: observedBytes,
+          maximum_bytes: 107,
+          remediation,
+        });
+      } catch {
+        results.push({ id, status: "unverified", remediation });
+      }
+    } else if (definitions[id]) results.push(probeTool(definitions[id], run, { environment }));
     else if (Object.hasOwn(definitions, id))
       results.push({
         id,
