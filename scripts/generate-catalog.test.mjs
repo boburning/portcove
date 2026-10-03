@@ -1066,6 +1066,7 @@ for (const retryAfter of [
   "-1",
   "1.5",
   "0",
+  "Saturday, 03-Oct-76 08:00:01 GMT",
   new Date(providerClockStart - 1000).toUTCString(),
 ]) {
   test(`unusable or elapsed Retry-After ${retryAfter} preserves the metadata rate floor`, async (context) => {
@@ -1234,6 +1235,8 @@ for (const retryAfter of [
   "901",
   "9".repeat(200),
   "9007199254740991",
+  "Thursday, 01-Jan-60 08:00:00 GMT",
+  "Saturday, 03-Oct-76 08:00:00 GMT",
   new Date(providerClockStart + 901000).toUTCString(),
 ]) {
   test(`Retry-After beyond the finite batch budget refuses another metadata request: ${retryAfter.slice(0, 40)}`, async (context) => {

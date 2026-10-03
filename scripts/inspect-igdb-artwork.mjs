@@ -567,7 +567,23 @@ function metadataRetryAt(header, now, deadline) {
       `${weekday} ${month} (?: \\d|\\d{2}) ${time} \\d{4})$`,
   );
   if (!httpDate.test(header)) return now;
-  const parsed = Date.parse(header);
+  let parsed;
+  const shortYear = header.match(/-([0-9]{2}) /);
+  if (shortYear) {
+    // HTTP's obsolete two-digit year is relative to receipt, not JS's fixed pivot.
+    const latestYear = new Date(now).getUTCFullYear() + 50;
+    const year = Math.floor((latestYear - Number(shortYear[1])) / 100) * 100 + Number(shortYear[1]);
+    parsed = Date.parse(header.replace(/-([0-9]{2}) /, `-${year} `));
+    const futureLimit = new Date(now);
+    futureLimit.setUTCFullYear(latestYear);
+    if (parsed > futureLimit.getTime()) {
+      const earlier = new Date(parsed);
+      earlier.setUTCFullYear(year - 100);
+      parsed = earlier.getTime();
+    }
+  } else {
+    parsed = Date.parse(header);
+  }
   return Number.isFinite(parsed) ? Math.min(deadline, Math.max(now, parsed)) : now;
 }
 
