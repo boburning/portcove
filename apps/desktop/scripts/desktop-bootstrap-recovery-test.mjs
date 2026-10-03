@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 
-export const bootstrapRecoveryScenarioId = "native-startup-library-recovery";
+const bootstrapRecoveryScenarioId = "native-startup-library-recovery";
 
 export function bootstrapRecoverySelection(selection, platform) {
   if (!selection.selected_scenarios.includes(bootstrapRecoveryScenarioId)) return false;

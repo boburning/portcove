@@ -941,7 +941,7 @@ async function scenario(name, action) {
   if (!target.setup) await captureScenarioScreenshot(name);
 }
 
-async function connect() {
+async function connectObservedDriver() {
   const finishObservation =
     process.platform === "win32"
       ? await observeStartup({
@@ -975,6 +975,10 @@ async function connect() {
       if (!observation.successful) process.exitCode = 1;
     }
   }
+}
+
+async function connect() {
+  await connectObservedDriver();
   await browser.manage().setTimeouts({ script: 15_000 });
   const initialRecovery = bootstrapRecoverySession && connectedLaunches === 0;
   const readyRoot = initialRecovery
