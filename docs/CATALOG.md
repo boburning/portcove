@@ -86,7 +86,13 @@ and digests, never credentials or image payloads. Scratch libraries retain local
 validation material and are not a distributable image archive.
 
 The provider route is sequential, has one lazy authentication attempt, no retries,
-and bounds metadata/image requests, bytes and execution time. Retained references
+and bounds metadata/image requests, bytes and execution time. A valid `Retry-After`
+on a captured metadata 429 or 503 postpones the next metadata request, preserving
+the normal 300 ms floor. Decimal seconds and HTTP dates stay within the existing
+15 minute batch deadline; a pause reaching that deadline refuses further metadata
+requests without sleeping past the budget. Waits remain cancellable, failed
+identities are not retried, and uncertain failures retain eligible accepted
+metadata. Image requests retain their existing policy. Retained references
 are not fresh source-health evidence. This command prepares the cover role only;
 other roles, full backlog coverage, protected acceptance/publication and installed
 or physical-platform evidence retain their own acceptance.

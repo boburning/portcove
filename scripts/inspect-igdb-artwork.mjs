@@ -14,7 +14,7 @@ import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { setTimeout as delay } from "node:timers/promises";
+import timers from "node:timers/promises";
 
 const maximumImageBytes = 16 * 1024 * 1024;
 const maximumBatchBytes = 512 * 1024 * 1024;
@@ -548,11 +548,87 @@ function readCredentials(file) {
   }
 }
 
+function metadataRetryAt(header, now, deadline) {
+  if (header === null) return now;
+  // Bound parsing and arithmetic before provider input reaches a timer.
+  if (/^\d+$/.test(header)) {
+    if (header.length > 128) return deadline;
+    const seconds = Number(header);
+    if (!Number.isSafeInteger(seconds) || seconds >= (deadline - now) / 1000) return deadline;
+    return now + seconds * 1000;
+  }
+  if (header.length > 128) return now;
+  const weekday = "(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)";
+  const month = "(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)";
+  const time = "\\d{2}:\\d{2}:\\d{2}";
+  const httpDate = new RegExp(
+    `^(?:${weekday}, \\d{2} ${month} \\d{4} ${time} GMT|` +
+      `(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday), \\d{2}-${month}-\\d{2} ${time} GMT|` +
+      `${weekday} ${month} (?: \\d|\\d{2}) ${time} \\d{4})$`,
+  );
+  if (!httpDate.test(header)) return now;
+  let parsed;
+  const shortYear = header.match(/-([0-9]{2}) /);
+  if (shortYear) {
+    // HTTP's obsolete two-digit year is relative to receipt, not JS's fixed pivot.
+    const latestYear = new Date(now).getUTCFullYear() + 50;
+    const year = Math.floor((latestYear - Number(shortYear[1])) / 100) * 100 + Number(shortYear[1]);
+    parsed = Date.parse(header.replace(/-([0-9]{2}) /, `-${year} `));
+    const futureLimit = new Date(now);
+    futureLimit.setUTCFullYear(latestYear);
+    if (parsed > futureLimit.getTime()) {
+      const earlier = new Date(parsed);
+      earlier.setUTCFullYear(year - 100);
+      parsed = earlier.getTime();
+    }
+  } else {
+    parsed = Date.parse(header);
+  }
+  const parts =
+    header.match(
+      /, ([0-9]{2})[ -]([A-Z][a-z]{2})[ -][0-9]{2,4} ([0-9]{2}):([0-9]{2}):([0-9]{2})/,
+    ) ??
+    (() => {
+      const value = header.match(
+        /^[A-Z][a-z]{2} ([A-Z][a-z]{2}) ( [0-9]|[0-9]{2}) ([0-9]{2}):([0-9]{2}):([0-9]{2}) /,
+      );
+      return value && [value[0], value[2], value[1], ...value.slice(3)];
+    })();
+  const date = new Date(parsed);
+  const explicitYear = header.match(/(?:^| )([0-9]{4})(?: |$)/)?.[1];
+  const months = [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+  ];
+  if (
+    !parts ||
+    (!shortYear && date.getUTCFullYear() !== Number(explicitYear)) ||
+    date.getUTCDate() !== Number(parts[1]) ||
+    date.getUTCMonth() !== months.indexOf(parts[2]) ||
+    date.getUTCHours() !== Number(parts[3]) ||
+    date.getUTCMinutes() !== Number(parts[4]) ||
+    date.getUTCSeconds() !== Number(parts[5])
+  )
+    return now;
+  return Number.isFinite(parsed) ? Math.min(deadline, Math.max(now, parsed)) : now;
+}
+
 // One lazy authentication attempt, sequential requests, no retries. Credentials
 // and response bodies never enter proposal evidence or error messages.
 export function createIgdbInspector(credentialsFile, validateImage, fetchImpl = fetch) {
   let tokenPromise;
   let lastGameRequest = 0;
+  let gameRetryAt = 0;
   const metrics = {
     authentication_requests: 0,
     game_requests: 0,
@@ -566,6 +642,18 @@ export function createIgdbInspector(credentialsFile, validateImage, fetchImpl = 
     return AbortSignal.timeout(Math.min(15000, Math.max(1, deadline - Date.now())));
   };
   const credentials = () => readCredentials(credentialsFile);
+  async function waitForMetadata() {
+    for (;;) {
+      const now = Date.now();
+      const due = Math.max(lastGameRequest + 300, gameRetryAt);
+      if (now >= deadline || due >= deadline)
+        throw new Error("Artwork provider batch deadline reached.");
+      if (due <= now) return;
+      await timers.setTimeout(due - now, undefined, {
+        signal: AbortSignal.timeout(deadline - now),
+      });
+    }
+  }
   async function token() {
     if (!tokenPromise)
       tokenPromise = (async () => {
@@ -594,15 +682,19 @@ export function createIgdbInspector(credentialsFile, validateImage, fetchImpl = 
     async inspectGame(identity) {
       const verified = declaredIdentity(identity);
       const auth = await token();
-      await delay(Math.max(0, 300 - (Date.now() - lastGameRequest)));
-      lastGameRequest = Date.now();
       if (metrics.game_requests >= 800 || metrics.metadata_bytes >= 32 * 1024 * 1024)
         throw new Error("Artwork metadata budget reached.");
+      await waitForMetadata();
+      // Another caller can consume the shared budget while this request waits.
+      if (metrics.game_requests >= 800 || metrics.metadata_bytes >= 32 * 1024 * 1024)
+        throw new Error("Artwork metadata budget reached.");
+      const requestSignal = signal();
+      lastGameRequest = Date.now();
       metrics.game_requests++;
       const response = await fetchImpl("https://api.igdb.com/v4/games", {
         method: "POST",
         redirect: "error",
-        signal: signal(),
+        signal: requestSignal,
         headers: {
           "Client-ID": auth.clientId,
           Authorization: `Bearer ${auth.token}`,
@@ -619,6 +711,11 @@ export function createIgdbInspector(credentialsFile, validateImage, fetchImpl = 
                 .join(" | ")
         }; limit 21;`,
       });
+      if (response.status === 429 || response.status === 503)
+        gameRetryAt = Math.max(
+          gameRetryAt,
+          metadataRetryAt(response.headers.get("retry-after"), Date.now(), deadline),
+        );
       if (!response.ok) throw new Error("IGDB identity request unavailable.");
       return JSON.parse(
         (
