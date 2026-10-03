@@ -75,6 +75,56 @@ fn consequential_help_explains_actions_and_review_arguments() {
 }
 
 #[test]
+fn installation_and_external_help_explain_review_binding_and_file_ownership() {
+    for (args, phrases) in [
+        (
+            &["installation", "plan", "--help"][..],
+            &["without mutation", "Catalog port ID", "managed install"][..],
+        ),
+        (
+            &["installation", "run", "--help"][..],
+            &[
+                "--expected-plan",
+                "Plan SHA-256 returned by `installation plan`",
+                "changed inputs refuse the install",
+                "--yes",
+                "plan check still applies",
+            ][..],
+        ),
+        (
+            &["external", "preview", "--help"][..],
+            &["already prepared runtime", "no files are copied"][..],
+        ),
+        (
+            &["external", "register", "--help"][..],
+            &[
+                "use-in-place runtime registration",
+                "Portcove uses it in place",
+                "--yes",
+                "files are rechecked",
+            ][..],
+        ),
+        (
+            &["external", "remove", "--help"][..],
+            &[
+                "registration should be forgotten",
+                "external files stay in place",
+            ][..],
+        ),
+    ] {
+        let output = Command::new(cli_binary()).args(args).output().unwrap();
+        assert!(output.status.success(), "{args:?}: {output:?}");
+        let help = std::str::from_utf8(&output.stdout).unwrap();
+        for phrase in phrases {
+            assert!(
+                help.contains(phrase),
+                "{args:?}: missing {phrase:?} in {help}"
+            );
+        }
+    }
+}
+
+#[test]
 fn first_use_help_identifies_player_and_external_client_routes() {
     let root = Command::new(cli_binary()).arg("--help").output().unwrap();
     assert!(root.status.success());
