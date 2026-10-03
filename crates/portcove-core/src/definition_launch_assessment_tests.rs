@@ -716,8 +716,7 @@ async fn assert_scoped_native_launch(late_expiry: bool) {
             .unwrap();
         assert_eq!(retained_sha, held_sha);
         assert_eq!(
-            PortcoveService::new(reopened.clone())
-                .unwrap()
+            reopened_service
                 .status(ID)
                 .unwrap()
                 .definition_operations
@@ -729,9 +728,8 @@ async fn assert_scoped_native_launch(late_expiry: bool) {
             DefinitionEligibilityReason::MandatoryCheckFailed
         );
         reopened.register_install(&delivered[1], true).unwrap();
-        let unaffected = scoped_native_service(&reopened, &catalog);
         assert_eq!(
-            unaffected
+            reopened_service
                 .status(ID)
                 .unwrap()
                 .definition_operations
@@ -744,7 +742,7 @@ async fn assert_scoped_native_launch(late_expiry: bool) {
         );
         let release = directory.path().join("expired-unaffected-exit");
         assert!(
-            unaffected
+            reopened_service
                 .supervise_launch(
                     ID,
                     None,
@@ -819,7 +817,6 @@ async fn assert_scoped_native_launch(late_expiry: bool) {
     assert!(outcome.successful);
     assert_eq!(outcome.exit_code, Some(0));
     library.register_install(&delivered[0], true).unwrap();
-    let service = scoped_native_service(&library, &catalog);
     let status = service.status(ID).unwrap();
     assert_eq!(
         status
@@ -855,7 +852,6 @@ async fn assert_scoped_native_launch(late_expiry: bool) {
     library
         .apply_definition_launch_assessment(&accepted)
         .unwrap();
-    let service = scoped_native_service(&library, &catalog);
     let release = directory.path().join("corrected-release-exit");
     let outcome = service
         .supervise_launch(
