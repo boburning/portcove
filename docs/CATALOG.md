@@ -2,6 +2,20 @@
 
 ## Default covers
 
+For a whole ordinary catalog proposal, use
+`node scripts/generate-catalog.mjs --prepare-proposal PROPOSAL.json --validator-cli TRUSTED_PORTCOVE_CLI --output-dir NEW_OUTPUT_DIRECTORY`.
+Optional artwork facts/credentials/refresh flags are the same as below. This
+mode snapshots the explicitly selected CLI, checks accepted/input/output catalog
+declarations through `catalog inspect-proposal`, and prepares existing artwork in
+the same output. `proposal-evidence.json` adds exact input-byte/core receipts,
+typed per-port declaration hashes and the complete accepted-to-proposed diff;
+`artwork-evidence.json` retains its distinct cover reasons and provider costs.
+All files remain unsigned proposals. No publisher grant, artifact authenticity,
+actual source/operation/gameplay qualification or production delivery is inferred.
+An unavailable validator or failed declaration check stops this proposal, retains
+its process receipts and leaves the accepted catalog/libraries unchanged. A new
+output directory is required; an interrupted or prior batch is never overwritten.
+
 Prepare a cover beside each new port definition. Search its public project name
 and known aliases first; accept an exact port record only after checking the
 underlying title and project identity. Keep the original-game identity separate.

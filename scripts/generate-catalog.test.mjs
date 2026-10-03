@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { readFileSync, mkdtempSync, writeFileSync } from "node:fs";
+import { readFileSync, mkdtempSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { tmpdir } from "node:os";
 import test from "node:test";
@@ -15,6 +15,60 @@ function run(...args) {
     encoding: "utf8",
   });
 }
+
+test("full proposal preparation cannot combine with ordinary catalog writes or checks", () => {
+  const result = run("--prepare-proposal", "unused.json", "--check");
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /cannot.*check|cannot.*combine/i);
+  for (const flag of ["--apply", "--sign", "--publisher-grant", "--prepare-proposal"]) {
+    const refused = run("--prepare-proposal", "unused.json", flag, "untrusted");
+    assert.notEqual(refused.status, 0);
+    assert.match(refused.stderr, /Unknown or repeated proposal option/);
+  }
+});
+
+test("captured proposal bytes remain exact after the caller path changes", async () => {
+  const { readArtworkInput } = await import("./inspect-igdb-artwork.mjs");
+  const scratch = mkdtempSync(join(tmpdir(), "portcove-proposal-bytes-"));
+  const path = join(scratch, "input.json");
+  const original = Buffer.from('{ "name": "é", "duplicate": 1, "duplicate": 2 }\n');
+  writeFileSync(path, original);
+  const captured = readArtworkInput(path);
+  writeFileSync(path, '{"replacement":true}');
+  assert.deepEqual(captured.bytes, original);
+  assert.equal(captured.document.name, "é");
+  assert.equal(captured.document.duplicate, 2);
+  // Core receives the captured duplicate-key bytes, not JSON.stringify's loss.
+  assert.match(captured.bytes.toString(), /"duplicate": 1, "duplicate": 2/);
+});
+
+test("full preparation requires an explicit validator and preserves prior output and authoring", () => {
+  const scratch = mkdtempSync(join(tmpdir(), "portcove-proposal-refusal-"));
+  const input = join(catalogRoot, "catalog-current-authoring.json");
+  const before = readFileSync(input);
+  const output = join(scratch, "output");
+  const missing = run("--prepare-proposal", input, "--output-dir", output);
+  assert.notEqual(missing.status, 0);
+  assert.match(missing.stderr, /--validator-cli requires a value/);
+  assert.equal(existsSync(output), false);
+  mkdirSync(output);
+  writeFileSync(join(output, "retained.txt"), "retained interruption evidence");
+  const refused = run(
+    "--prepare-proposal",
+    input,
+    "--validator-cli",
+    join(scratch, "absent"),
+    "--output-dir",
+    output,
+  );
+  assert.notEqual(refused.status, 0);
+  assert.match(refused.stderr, /EEXIST/);
+  assert.equal(
+    readFileSync(join(output, "retained.txt"), "utf8"),
+    "retained interruption evidence",
+  );
+  assert.deepEqual(readFileSync(input), before);
+});
 
 test("current schema-2 authoring deterministically owns the embedded catalog", () => {
   const result = run("--check");

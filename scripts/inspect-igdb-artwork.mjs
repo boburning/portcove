@@ -25,6 +25,10 @@ const positiveId = (value) => Number.isSafeInteger(value) && value > 0;
 const matchesString = (pattern, value) => typeof value === "string" && pattern.test(value);
 
 export function readArtworkJson(file, maximum = 8 * 1024 * 1024) {
+  return readArtworkInput(file, maximum).document;
+}
+
+export function readArtworkInput(file, maximum = 8 * 1024 * 1024) {
   const fd = openSync(file, "r");
   try {
     if (!fstatSync(fd).isFile()) throw new Error("Artwork input must be a regular file.");
@@ -37,7 +41,8 @@ export function readArtworkJson(file, maximum = 8 * 1024 * 1024) {
       if (!read) break;
     }
     try {
-      return JSON.parse(buffer.subarray(0, length).toString("utf8"));
+      const bytes = Buffer.from(buffer.subarray(0, length));
+      return { document: JSON.parse(bytes.toString("utf8")), bytes };
     } catch {
       throw new Error("Artwork input is not valid JSON.");
     }

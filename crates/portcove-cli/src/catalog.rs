@@ -36,6 +36,8 @@ pub(crate) enum CatalogCommand {
     Show { port_id: String },
     /// Check an inert requirements file against installed engine template versions.
     CheckCapabilities { file: PathBuf },
+    /// Validate inert catalog declarations without changing the trusted catalog.
+    InspectProposal { file: PathBuf },
     /// Interpret an inert upstream observation against the embedded catalog.
     InspectObservation {
         port_id: String,
@@ -91,6 +93,7 @@ impl CatalogCommand {
             Self::Export => "catalog.export",
             Self::Show { .. } => "catalog.show",
             Self::CheckCapabilities { .. } => "catalog.check-capabilities",
+            Self::InspectProposal { .. } => "catalog.inspect-proposal",
             Self::InspectObservation { .. } => "catalog.inspect-observation",
             Self::Status => "catalog.status",
             Self::TrustKey { .. } => "catalog.trust-key",
@@ -130,6 +133,9 @@ pub(crate) async fn execute(
         }
         CatalogCommand::CheckCapabilities { .. } => {
             unreachable!("capability inspection executes before opening a library")
+        }
+        CatalogCommand::InspectProposal { .. } => {
+            unreachable!("proposal inspection executes before opening a library")
         }
         CatalogCommand::TrustKey { public_key, yes } => {
             let key = portcove_core::CatalogTrustKey::from_public_key(&public_key)?;

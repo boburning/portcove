@@ -974,7 +974,8 @@ fn command_is_observation(command: &Commands) -> bool {
                 command: CatalogCommand::List
                     | CatalogCommand::Export
                     | CatalogCommand::Show { .. }
-                    | CatalogCommand::Status,
+                    | CatalogCommand::Status
+                    | CatalogCommand::InspectProposal { .. },
             }
             | Commands::Backup {
                 command: BackupCommand::List { .. },
@@ -1074,6 +1075,17 @@ fn requested_output_mode(args: &[std::ffi::OsString]) -> OutputMode {
 }
 
 async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
+    if let Commands::Catalog {
+        command: CatalogCommand::InspectProposal { file },
+    } = &cli.command
+    {
+        render_success(
+            mode,
+            "catalog.inspect-proposal",
+            portcove_core::Catalog::inspect_proposal(file)?,
+        )?;
+        return Ok(ExitCode::SUCCESS);
+    }
     let preferences = host_preference_store()?;
     let _application_runtime =
         ApplicationRuntimeGuard::acquire(&HostPreferenceStore::application_runtime_lock_path()?)?;
@@ -3476,6 +3488,30 @@ mod tests {
                 command: CatalogCommand::Export
             }
         ));
+    }
+
+    #[test]
+    fn catalog_proposal_inspection_is_inert_and_cannot_apply_or_establish_trust() {
+        let cli = Cli::try_parse_from(["portcove", "catalog", "inspect-proposal", "proposal.json"])
+            .unwrap();
+        assert!(super::command_is_observation(&cli.command));
+        assert_eq!(
+            super::command_name(&cli.command),
+            "catalog.inspect-proposal"
+        );
+        for flag in ["--apply", "--yes", "--expected-plan", "--public-key"] {
+            assert!(
+                Cli::try_parse_from([
+                    "portcove",
+                    "catalog",
+                    "inspect-proposal",
+                    "proposal.json",
+                    flag
+                ])
+                .is_err(),
+                "{flag}"
+            );
+        }
     }
 
     #[test]
