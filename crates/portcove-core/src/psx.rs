@@ -304,46 +304,471 @@ pub(crate) fn prepare_install(root: &Path, preparation: &PsxManagedPreparation) 
 }
 
 pub(crate) fn rewrite_game_discs(config: &Path, sources: &[PathBuf]) -> Result<()> {
+    if sources.is_empty() {
+        return Err(config_error("no verified disc sources"));
+    }
     let body = fs::read_to_string(config)?;
-    let mut output = Vec::new();
-    let mut in_game = false;
-    let mut skipping_discs = false;
-    for line in body.lines() {
-        let trimmed = line.trim();
-        if trimmed.starts_with('[') {
-            in_game = trimmed == "[game]";
-            skipping_discs = false;
+    let (tokens, comments) = config_tokens(&body)?;
+    let (header_end, field) = config_disc_field(&body, &tokens)?;
+    let newline = if body.contains("\r\n") { "\r\n" } else { "\n" };
+    let sources = sources
+        .iter()
+        .map(|source| {
+            // JSON and TOML 1.0 basic strings share these escapes, except that
+            // TOML also requires DEL to be escaped.
+            Ok(
+                serde_json::to_string(&crate::path::unicode(source, "PS1 source")?)?
+                    .replace('\u{7f}', "\\u007F"),
+            )
+        })
+        .collect::<Result<Vec<_>>>()?;
+    let key = if sources.len() == 1 { "disc" } else { "discs" };
+    let retained_comments = field
+        .as_ref()
+        .map(|(_, value)| {
+            comments
+                .iter()
+                .filter(|comment| value.start <= comment.start && comment.end <= value.end)
+                .map(|comment| &body[comment.clone()])
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    let mut value = if sources.len() == 1 {
+        sources[0].clone()
+    } else {
+        format!("[{newline}")
+    };
+    if sources.len() > 1 {
+        for source in &sources {
+            value.push_str(&format!("    {source},{newline}"));
         }
-        if in_game && (trimmed.starts_with("disc =") || trimmed.starts_with("discs =")) {
-            skipping_discs = trimmed.starts_with("discs =") && !trimmed.contains(']');
-            continue;
+        for comment in &retained_comments {
+            value.push_str(&format!("    {comment}{newline}"));
         }
-        if skipping_discs {
-            if trimmed.contains(']') {
-                skipping_discs = false;
-            }
-            continue;
-        }
-        output.push(line.to_string());
-        if trimmed == "[game]" {
-            if sources.len() == 1 {
-                output.push(format!(
-                    "disc = {}",
-                    serde_json::to_string(&crate::path::unicode(&sources[0], "PS1 source")?)?
-                ));
-            } else {
-                output.push("discs = [".into());
-                for source in sources {
-                    output.push(format!(
-                        "    {},",
-                        serde_json::to_string(&crate::path::unicode(source, "PS1 source")?)?
-                    ));
-                }
-                output.push("]".into());
-            }
+        value.push(']');
+    } else if !retained_comments.is_empty() {
+        value.push_str(newline);
+        value.push_str(&retained_comments.join(newline));
+        // Keep the original trailing comment separate from comments that were
+        // inside the replaced array; leave the original EOF/newline untouched.
+        let suffix = &body[field.as_ref().expect("comments have a field").1.end..];
+        if suffix.trim_start_matches([' ', '\t']).starts_with('#') {
+            value.push_str(newline);
         }
     }
-    fs::write(config, format!("{}\n", output.join("\n")))?;
+
+    // Only the key/value spans change. UTF-8, unrelated text, line endings and
+    // the final newline are retained; comments within old values remain in order.
+    // This is an editor for the fixed game/disc contract, not a TOML validator.
+    let mut output = body.clone();
+    if let Some((old_key, old_value)) = field {
+        output.replace_range(old_value, &value);
+        if config_key(&body, tokens_for_range(&tokens, &old_key))? != [key] {
+            let replacement = match body.as_bytes()[old_key.start] {
+                b'\'' => format!("'{key}'"),
+                b'"' => format!("\"{key}\""),
+                _ => key.to_string(),
+            };
+            output.replace_range(old_key, &replacement);
+        }
+    } else {
+        let separator = if body[..header_end].ends_with('\n') {
+            ""
+        } else {
+            newline
+        };
+        let ending = if header_end < body.len() || body.ends_with('\n') {
+            newline
+        } else {
+            ""
+        };
+        output.insert_str(header_end, &format!("{separator}{key} = {value}{ending}"));
+    }
+    fs::write(config, output)?;
+    Ok(())
+}
+
+#[derive(Clone, Copy, PartialEq)]
+enum ConfigTokenKind {
+    Text,
+    String,
+    Symbol(u8),
+    Newline,
+}
+
+struct ConfigToken {
+    kind: ConfigTokenKind,
+    span: std::ops::Range<usize>,
+}
+
+fn config_error(reason: &str) -> PortcoveError {
+    PortcoveError::install(format!("cannot rewrite PS1 disc configuration: {reason}"))
+}
+
+fn config_escape(body: &str, start: usize) -> Result<(usize, char)> {
+    let bytes = body.as_bytes();
+    let escaped = *bytes
+        .get(start + 1)
+        .ok_or_else(|| config_error("unfinished escape"))?;
+    let simple = match escaped {
+        b'b' => Some('\u{8}'),
+        b't' => Some('\t'),
+        b'n' => Some('\n'),
+        b'f' => Some('\u{c}'),
+        b'r' => Some('\r'),
+        b'"' => Some('"'),
+        b'\\' => Some('\\'),
+        _ => None,
+    };
+    if let Some(character) = simple {
+        return Ok((start + 2, character));
+    }
+    let digits = match escaped {
+        b'u' => 4,
+        b'U' => 8,
+        _ => return Err(config_error("invalid TOML 1.0 escape")),
+    };
+    let end = start + 2 + digits;
+    let hexadecimal = body
+        .get(start + 2..end)
+        .ok_or_else(|| config_error("unfinished Unicode escape"))?;
+    if !hexadecimal.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+        return Err(config_error("invalid Unicode escape"));
+    }
+    let character = u32::from_str_radix(hexadecimal, 16)
+        .ok()
+        .and_then(char::from_u32)
+        .ok_or_else(|| config_error("invalid Unicode scalar"))?;
+    Ok((end, character))
+}
+
+fn config_string_end(body: &str, start: usize) -> Result<usize> {
+    let bytes = body.as_bytes();
+    let quote = bytes[start];
+    let multiline = bytes
+        .get(start..start + 3)
+        .is_some_and(|run| run == [quote; 3]);
+    let mut cursor = start + if multiline { 3 } else { 1 };
+    while cursor < bytes.len() {
+        let byte = bytes[cursor];
+        if byte == quote {
+            let count = bytes[cursor..]
+                .iter()
+                .take_while(|byte| **byte == quote)
+                .count();
+            if !multiline {
+                return Ok(cursor + 1);
+            }
+            if count >= 3 {
+                if count > 5 {
+                    return Err(config_error("invalid multiline string delimiter"));
+                }
+                return Ok(cursor + count);
+            }
+            cursor += count;
+        } else if byte == b'\\' && quote == b'"' {
+            let mut next = cursor + 1;
+            while multiline
+                && bytes
+                    .get(next)
+                    .is_some_and(|byte| matches!(byte, b' ' | b'\t'))
+            {
+                next += 1;
+            }
+            if multiline
+                && bytes
+                    .get(next)
+                    .is_some_and(|byte| matches!(byte, b'\r' | b'\n'))
+            {
+                while bytes
+                    .get(next)
+                    .is_some_and(|byte| matches!(byte, b' ' | b'\t' | b'\r' | b'\n'))
+                {
+                    if bytes[next] == b'\r' && bytes.get(next + 1) != Some(&b'\n') {
+                        return Err(config_error("invalid newline"));
+                    }
+                    next += 1;
+                }
+                cursor = next;
+            } else {
+                cursor = config_escape(body, cursor)?.0;
+            }
+        } else if byte == b'\n' || byte == b'\r' {
+            if !multiline || (byte == b'\r' && bytes.get(cursor + 1) != Some(&b'\n')) {
+                return Err(config_error("invalid string newline"));
+            }
+            cursor += if byte == b'\r' { 2 } else { 1 };
+        } else {
+            if matches!(byte, 0..=8 | 11..=31 | 127) {
+                return Err(config_error("invalid string control character"));
+            }
+            cursor += 1;
+        }
+    }
+    Err(config_error("unterminated string"))
+}
+
+type ConfigSpans = (Vec<ConfigToken>, Vec<std::ops::Range<usize>>);
+
+fn config_tokens(body: &str) -> Result<ConfigSpans> {
+    let bytes = body.as_bytes();
+    let mut tokens = Vec::new();
+    let mut comments = Vec::new();
+    let mut cursor = 0;
+    while cursor < bytes.len() {
+        let start = cursor;
+        let kind = match bytes[cursor] {
+            b' ' | b'\t' => {
+                cursor += 1;
+                continue;
+            }
+            b'\r' | b'\n' => {
+                if bytes[cursor] == b'\r' {
+                    if bytes.get(cursor + 1) != Some(&b'\n') {
+                        return Err(config_error("invalid newline"));
+                    }
+                    cursor += 1;
+                }
+                cursor += 1;
+                ConfigTokenKind::Newline
+            }
+            b'#' => {
+                while cursor < bytes.len() && !matches!(bytes[cursor], b'\r' | b'\n') {
+                    if matches!(bytes[cursor], 0..=8 | 11..=31 | 127) {
+                        return Err(config_error("invalid comment control character"));
+                    }
+                    cursor += 1;
+                }
+                comments.push(start..cursor);
+                continue;
+            }
+            b'\'' | b'"' => {
+                cursor = config_string_end(body, cursor)?;
+                ConfigTokenKind::String
+            }
+            symbol @ (b'[' | b']' | b'{' | b'}' | b'=' | b'.' | b',') => {
+                cursor += 1;
+                ConfigTokenKind::Symbol(symbol)
+            }
+            _ => {
+                while cursor < bytes.len()
+                    && !matches!(
+                        bytes[cursor],
+                        b' ' | b'\t'
+                            | b'\r'
+                            | b'\n'
+                            | b'#'
+                            | b'\''
+                            | b'"'
+                            | b'['
+                            | b']'
+                            | b'{'
+                            | b'}'
+                            | b'='
+                            | b'.'
+                            | b','
+                    )
+                {
+                    if bytes[cursor].is_ascii_control() {
+                        return Err(config_error("invalid control character"));
+                    }
+                    cursor += 1;
+                }
+                ConfigTokenKind::Text
+            }
+        };
+        tokens.push(ConfigToken {
+            kind,
+            span: start..cursor,
+        });
+    }
+    Ok((tokens, comments))
+}
+
+fn tokens_for_range<'a>(
+    tokens: &'a [ConfigToken],
+    span: &std::ops::Range<usize>,
+) -> &'a [ConfigToken] {
+    let start = tokens.partition_point(|token| token.span.start < span.start);
+    let end = tokens.partition_point(|token| token.span.end <= span.end);
+    &tokens[start..end]
+}
+
+fn config_key(body: &str, tokens: &[ConfigToken]) -> Result<Vec<String>> {
+    let mut parts = Vec::new();
+    for (index, token) in tokens.iter().enumerate() {
+        if index % 2 == 1 {
+            if token.kind != ConfigTokenKind::Symbol(b'.') {
+                return Err(config_error("invalid dotted key"));
+            }
+            continue;
+        }
+        let text = &body[token.span.clone()];
+        let part = match token.kind {
+            ConfigTokenKind::Text
+                if text
+                    .bytes()
+                    .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'-')) =>
+            {
+                text.to_string()
+            }
+            ConfigTokenKind::String if !text.starts_with("\"\"\"") && !text.starts_with("'''") => {
+                let mut part = String::new();
+                let mut cursor = token.span.start + 1;
+                while cursor < token.span.end - 1 {
+                    if body.as_bytes()[cursor] == b'\\' && text.starts_with('"') {
+                        let (next, character) = config_escape(body, cursor)?;
+                        part.push(character);
+                        cursor = next;
+                    } else {
+                        let character = body[cursor..].chars().next().expect("character in string");
+                        part.push(character);
+                        cursor += character.len_utf8();
+                    }
+                }
+                part
+            }
+            _ => return Err(config_error("invalid key")),
+        };
+        parts.push(part);
+    }
+    if tokens.is_empty() || tokens.len().is_multiple_of(2) {
+        return Err(config_error("unfinished key"));
+    }
+    Ok(parts)
+}
+
+type ConfigDiscField = (
+    usize,
+    Option<(std::ops::Range<usize>, std::ops::Range<usize>)>,
+);
+
+fn config_disc_field(body: &str, tokens: &[ConfigToken]) -> Result<ConfigDiscField> {
+    let mut cursor = 0;
+    let mut in_game = false;
+    let mut header_end = None;
+    let mut field = None;
+    while cursor < tokens.len() {
+        if tokens[cursor].kind == ConfigTokenKind::Newline {
+            cursor += 1;
+            continue;
+        }
+        let start = cursor;
+        if tokens[cursor].kind == ConfigTokenKind::Symbol(b'[') {
+            let end = tokens[cursor..]
+                .iter()
+                .position(|token| token.kind == ConfigTokenKind::Newline)
+                .map_or(tokens.len(), |offset| cursor + offset);
+            let array = tokens
+                .get(cursor + 1)
+                .is_some_and(|token| token.kind == ConfigTokenKind::Symbol(b'['));
+            let delimiters = if array { 2 } else { 1 };
+            if end <= cursor + delimiters * 2
+                || !tokens[end - delimiters..end]
+                    .iter()
+                    .all(|token| token.kind == ConfigTokenKind::Symbol(b']'))
+            {
+                return Err(config_error("invalid table header"));
+            }
+            let key = config_key(body, &tokens[cursor + delimiters..end - delimiters])?;
+            in_game = key == ["game"];
+            if key.first().is_some_and(|key| key == "game")
+                && key
+                    .get(1)
+                    .is_some_and(|key| matches!(key.as_str(), "disc" | "discs"))
+            {
+                return Err(config_error("disc field is a table"));
+            }
+            if in_game {
+                if array || header_end.is_some() {
+                    return Err(config_error("ambiguous game table"));
+                }
+                header_end = Some(tokens.get(end).map_or(body.len(), |token| token.span.end));
+            }
+            cursor = end;
+            continue;
+        }
+        while cursor < tokens.len()
+            && !matches!(
+                tokens[cursor].kind,
+                ConfigTokenKind::Symbol(b'=') | ConfigTokenKind::Newline
+            )
+        {
+            cursor += 1;
+        }
+        if tokens
+            .get(cursor)
+            .is_none_or(|token| token.kind != ConfigTokenKind::Symbol(b'='))
+        {
+            return Err(config_error("missing assignment"));
+        }
+        let equals = cursor;
+        let key = config_key(body, &tokens[start..equals])?;
+        cursor += 1;
+        let value_start = cursor;
+        let mut nesting = Vec::new();
+        while cursor < tokens.len() {
+            match tokens[cursor].kind {
+                ConfigTokenKind::Newline if nesting.is_empty() => break,
+                ConfigTokenKind::Symbol(b'[') => nesting.push(b']'),
+                ConfigTokenKind::Symbol(b'{') => nesting.push(b'}'),
+                ConfigTokenKind::Symbol(close @ (b']' | b'}')) if nesting.pop() != Some(close) => {
+                    return Err(config_error("mismatched value delimiter"));
+                }
+                _ => {}
+            }
+            cursor += 1;
+        }
+        if !nesting.is_empty() || cursor == value_start {
+            return Err(config_error("unfinished value"));
+        }
+        if in_game
+            && key
+                .first()
+                .is_some_and(|key| matches!(key.as_str(), "disc" | "discs"))
+        {
+            if key.len() != 1 || field.is_some() {
+                return Err(config_error("ambiguous disc field"));
+            }
+            validate_disc_tokens(&tokens[value_start..cursor], key[0] == "discs")?;
+            field = Some((
+                tokens[start].span.start..tokens[equals - 1].span.end,
+                tokens[value_start].span.start..tokens[cursor - 1].span.end,
+            ));
+        }
+    }
+    Ok((
+        header_end.ok_or_else(|| config_error("missing game table"))?,
+        field,
+    ))
+}
+
+fn validate_disc_tokens(tokens: &[ConfigToken], plural: bool) -> Result<()> {
+    if !plural {
+        return if tokens.len() == 1 && tokens[0].kind == ConfigTokenKind::String {
+            Ok(())
+        } else {
+            Err(config_error("disc must be a string"))
+        };
+    }
+    if tokens
+        .first()
+        .is_none_or(|token| token.kind != ConfigTokenKind::Symbol(b'['))
+        || tokens
+            .last()
+            .is_none_or(|token| token.kind != ConfigTokenKind::Symbol(b']'))
+    {
+        return Err(config_error("discs must be a string array"));
+    }
+    let mut expect_string = true;
+    for token in &tokens[1..tokens.len() - 1] {
+        match token.kind {
+            ConfigTokenKind::Newline => {}
+            ConfigTokenKind::String if expect_string => expect_string = false,
+            ConfigTokenKind::Symbol(b',') if !expect_string => expect_string = true,
+            _ => return Err(config_error("invalid disc array member")),
+        }
+    }
     Ok(())
 }
 
@@ -693,5 +1118,174 @@ mod tests {
         assert!(body.contains(r#"    "runtime-discs/disc-01.cue","#));
         assert!(body.contains(r#"    "runtime-discs/disc-02.cue","#));
         assert!(!body.contains("maintainer"));
+    }
+
+    fn rewrite_config_fixture(body: &str, sources: &[&str]) -> String {
+        let temporary = tempfile::tempdir().unwrap();
+        let config = temporary.path().join("game.toml");
+        fs::write(&config, body).unwrap();
+        let sources = sources.iter().map(PathBuf::from).collect::<Vec<_>>();
+        rewrite_game_discs(&config, &sources).unwrap();
+        fs::read_to_string(config).unwrap()
+    }
+
+    #[test]
+    fn runtime_config_rewrite_handles_brackets_inside_disc_strings() {
+        let body = "[game]\ndiscs = [\n  'maintainer[Disc 1].cue',\n  \"maintainer[Disc 2].cue\",\n]\ndisc_serials = ['ONE', 'TWO']\n";
+        let rewritten = rewrite_config_fixture(body, &["verified/one.cue", "verified/two.cue"]);
+        assert_eq!(
+            rewritten,
+            "[game]\ndiscs = [\n    \"verified/one.cue\",\n    \"verified/two.cue\",\n]\ndisc_serials = ['ONE', 'TWO']\n"
+        );
+    }
+
+    #[test]
+    fn runtime_config_rewrite_preserves_array_comments_with_brackets() {
+        let body = "[game]\ndiscs = [ # ordered discs ]\n  # first ]\n  'old-one.cue', # first disc\n  \"old#two].cue\", # second disc\n] # accepted list\nname = 'Example'\n";
+        let rewritten = rewrite_config_fixture(body, &["verified/one.cue", "verified/two.cue"]);
+        assert_eq!(
+            rewritten,
+            "[game]\ndiscs = [\n    \"verified/one.cue\",\n    \"verified/two.cue\",\n    # ordered discs ]\n    # first ]\n    # first disc\n    # second disc\n] # accepted list\nname = 'Example'\n"
+        );
+    }
+
+    #[test]
+    fn runtime_config_rewrite_accepts_compact_and_quoted_keys() {
+        for assignment in [
+            "discs=['old.cue']",
+            "'discs' = ['old.cue']",
+            "\"di\\u0073cs\"\t=\t['old.cue']",
+        ] {
+            let body = format!("[game]\n{assignment} # preserved\n[runtime]\ndisc='unrelated.cue'");
+            let rewritten = rewrite_config_fixture(&body, &["verified/one.cue"]);
+            assert!(!rewritten.contains("old.cue"));
+            assert!(rewritten.contains("\"verified/one.cue\" # preserved\n"));
+            assert!(rewritten.ends_with("[runtime]\ndisc='unrelated.cue'"));
+            assert!(!rewritten.contains("discs"));
+        }
+    }
+
+    #[test]
+    fn runtime_config_rewrite_accepts_commented_game_header() {
+        let body = "[game] # selected project\nname = 'Example'\ndisc='old.cue'\n";
+        assert_eq!(
+            rewrite_config_fixture(body, &["verified/one.cue"]),
+            "[game] # selected project\nname = 'Example'\ndisc=\"verified/one.cue\"\n"
+        );
+    }
+
+    #[test]
+    fn runtime_config_rewrite_accepts_spaced_and_quoted_game_headers() {
+        for header in [
+            " [ game ]\t",
+            "['game']",
+            r#"["g\u0061me"]"#,
+            r#"["g\U00000061me"]"#,
+        ] {
+            let body = format!("{header}\ndisc = 'old.cue'\n");
+            assert_eq!(
+                rewrite_config_fixture(&body, &["verified/one.cue"]),
+                format!("{header}\ndisc = \"verified/one.cue\"\n")
+            );
+        }
+    }
+
+    #[test]
+    fn runtime_config_rewrite_preserves_utf8_crlf_and_unrelated_multiline_values() {
+        let prefix = "# 日本語\r\n[metadata]\r\nnotes = '''\r\n[game]\r\ndisc='text, not a field'\r\n'''\r\nquoted = \"\"\"escaped \\\" ] # text\r\n[game]\r\n\"\"\"\r\n[game.extra]\r\ndisc = 'unrelated.cue'\r\n[ game ] # retained header\r\n";
+        let suffix =
+            " # retained field comment\r\nname = '例'\r\n[runtime]\r\nwindow_title = '原文'";
+        let body = format!("{prefix}disc='old.cue'{suffix}");
+        assert_eq!(
+            rewrite_config_fixture(&body, &["verified/日本語.cue"]),
+            format!("{prefix}disc=\"verified/日本語.cue\"{suffix}")
+        );
+    }
+
+    #[test]
+    fn runtime_config_rewrite_preserves_comments_when_changing_disc_count() {
+        let body =
+            "[game]\ndiscs = [ # list comment\n 'old.cue', # member comment\n] # closing comment\n";
+        assert_eq!(
+            rewrite_config_fixture(body, &["verified/one.cue"]),
+            "[game]\ndisc = \"verified/one.cue\"\n# list comment\n# member comment\n # closing comment\n"
+        );
+        assert_eq!(
+            rewrite_config_fixture(
+                "[game]\ndisc = 'old.cue' # single comment",
+                &["one.cue", "two.cue"]
+            ),
+            "[game]\ndiscs = [\n    \"one.cue\",\n    \"two.cue\",\n] # single comment"
+        );
+    }
+
+    #[test]
+    fn runtime_config_rewrite_rejects_ambiguous_or_unbounded_fields_without_writing() {
+        let temporary = tempfile::tempdir().unwrap();
+        let config = temporary.path().join("game.toml");
+        for body in [
+            "[runtime]\ndisc='old.cue'\n",
+            "[game]\ndisc='one.cue'\ndiscs=['two.cue']\n",
+            "[game]\ndisc='one.cue'\n[ 'game' ]\ndisc='two.cue'\n",
+            "[game]\ndisc = 42\n",
+            "[game]\ndiscs = ['one.cue' 'two.cue']\n",
+            "[game]\ndiscs = [\n 'unterminated.cue\n]\n",
+            "[game]\ndiscs = [\n 'one.cue'\n",
+            "[game]\ndisc.extra = 'not a disc field'\n",
+        ] {
+            fs::write(&config, body).unwrap();
+            assert!(
+                rewrite_game_discs(&config, &[PathBuf::from("verified.cue")]).is_err(),
+                "{body}"
+            );
+            assert_eq!(fs::read_to_string(&config).unwrap(), body);
+        }
+        let body = "[game]\ndisc='old.cue'\n";
+        fs::write(&config, body).unwrap();
+        assert!(rewrite_game_discs(&config, &[]).is_err());
+        assert_eq!(fs::read_to_string(config).unwrap(), body);
+    }
+
+    #[test]
+    fn runtime_config_rewrite_seeds_missing_fields_and_is_idempotent() {
+        for body in [
+            "[game]",
+            "[game] # EOF",
+            "[game]\r\nname='例'\r\n",
+            "[game]\nname='Example'\n[runtime]\ndisc='unrelated'",
+        ] {
+            let temporary = tempfile::tempdir().unwrap();
+            let config = temporary.path().join("game.toml");
+            fs::write(&config, body).unwrap();
+            let sources = [PathBuf::from("verified.cue")];
+            rewrite_game_discs(&config, &sources).unwrap();
+            let once = fs::read_to_string(&config).unwrap();
+            assert!(once.contains("disc = \"verified.cue\""));
+            assert_eq!(once.ends_with('\n'), body.ends_with('\n'));
+            rewrite_game_discs(&config, &sources).unwrap();
+            assert_eq!(fs::read_to_string(config).unwrap(), once);
+        }
+    }
+
+    #[test]
+    fn runtime_config_rewrite_handles_multiline_string_delimiters_and_line_folding() {
+        let body = "[metadata]\nnotes = ''''quoted' [game] disc='not a field' ''''\nfolded = \"\"\"one\\\n  two \"\"\"\n[game]\ndiscs = [\n '''old[one].cue''',\n \"\"\"old\\\n two].cue\"\"\",\n]\n";
+        let rewritten = rewrite_config_fixture(body, &["verified/one.cue", "verified/two.cue"]);
+        assert_eq!(
+            rewritten,
+            "[metadata]\nnotes = ''''quoted' [game] disc='not a field' ''''\nfolded = \"\"\"one\\\n  two \"\"\"\n[game]\ndiscs = [\n    \"verified/one.cue\",\n    \"verified/two.cue\",\n]\n"
+        );
+    }
+
+    #[test]
+    fn runtime_config_rewrite_escapes_del_and_keeps_comment_eof() {
+        assert_eq!(
+            rewrite_config_fixture("[game]\ndisc='old.cue'", &["disc\u{7f}é.cue"]),
+            "[game]\ndisc=\"disc\\u007Fé.cue\""
+        );
+        assert_eq!(
+            rewrite_config_fixture("[game]\ndiscs=[ # retained\n 'old.cue'\n]", &["new.cue"]),
+            "[game]\ndisc=\"new.cue\"\n# retained"
+        );
     }
 }
