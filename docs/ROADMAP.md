@@ -1,9 +1,12 @@
 # Product roadmap
 
-Public beta and 1.0 are cumulative product-readiness commitments. They are
-not frozen port lists and have no catalog-count requirement. The catalog may
-grow continuously; each port carries its own channel, platform, and
-qualification state without automatically becoming a global 1.0 blocker.
+Public beta and 1.0 are cumulative product-readiness commitments. Public beta
+includes the finite existing-backlog availability rollout authorized on October 2,
+2026, alongside reusable onboarding capabilities. Every feasible candidate in
+that snapshot needs a useful integration; individual genuine exceptions need
+evidence and a reconsideration condition. This is not a catalog-card or gameplay
+quota. Later discoveries enter continuous intake without moving that finish line.
+Each port retains its own channel, platform, operations and qualification state.
 
 Current priority, horizon, target release, blockers, and detailed scope live in
 the [Portcove Roadmap](https://github.com/users/boburning/projects/1).
@@ -296,6 +299,33 @@ automatic game installation or application-channel coupling follows.
 
 ## Public beta
 
+Availability-first onboarding and the full finite existing-backlog rollout are
+Required Public beta outcomes. #254 owns repeatable data-first authoring and
+evidence preparation; #1168 the common assessments and retained ownership needed
+by offered routes; #1169 useful official existing-runtime/user-prepared routes;
+and #315 authorized curated exact-byte acquisition where required. #1167's
+completed policy remains a foundation. The finite rollout owner [#1422](https://github.com/boburning/portcove/issues/1422) uses
+these capabilities across all feasible snapshot candidates. Tooling, placeholders
+or two pilot ports do not complete the rollout. See the
+[dated inventory and limitations](archive/2026-10-02-availability-beta-rollout.md).
+
+Admission and qualification remain separate. Eligible untested integrations are
+discoverable in the normal catalog with truthful per-operation actions and
+limitations. Missing personal playtesting or runner-owned game data is not an
+admission gate; applicable identity, integrity, source, executable, ownership,
+consent and recovery checks still apply. Known mandatory failures hold only their
+affected scope. Unknown save locations cannot authorize destructive management,
+but need not prevent a reviewed non-owning launch. A pinned no-update route does
+not require an update demonstration. #42 retains representative later
+qualification and exact scoped evidence; it is not an all-port beta playtest.
+The owner need not operate macOS hardware.
+
+#246 retains its independent protected unchanged-client delivery minimum. Local
+capability and definition work can proceed before final production provisioning;
+neither its demonstration nor a shared-route pilot substitutes for the cohort.
+General proposal automation, preservation and full lifecycle expansion retain
+their separate later ownership and do not enter beta solely through these links.
+
 Broader testing is appropriate when representative first-play and recovery are
 usable; fundamental safety, honest limitations and the complete baseline
 application updater are proven. #52 includes Windows per-user NSIS, Linux
@@ -442,11 +472,12 @@ synchronization, Decky and standalone CLI self-updating are not gates.
 
 Initial value order is:
 
-1. **More coverage without proportional maintainer work** — #246, #177, #247,
-   #254, and #268. First prove one additional reusable family or one narrow
-   local-definition flow with exact identity, repeated completion, rejection,
-   recovery, budgets, and explicit local trust; stop before arbitrary scripts,
-   false official endorsement, or a broad feed network.
+1. **Extend coverage beyond the beta snapshot without proportional maintainer
+   work** — #177, #247 and #268, reusing #254's beta authoring foundation and
+   #246's beta delivery path. Later advanced proposal/disappearance collection
+   and local/community origins retain separate scope. Prove each extension with
+   exact identity, repeated completion, rejection, recovery, budgets and explicit
+   trust; stop before arbitrary scripts, false official endorsement or broad feeds.
 2. **Discover what the user can actually play** — #251 with existing
    identity/source discovery owners. First compare two implementations and
    connect explicitly selected-file matches to readiness while keeping source
