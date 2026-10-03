@@ -223,12 +223,18 @@ enum ActivityCommand {
 #[derive(Debug, Subcommand)]
 enum InstallationCommand {
     /// Resolve the exact release, destination and registered inputs without mutation.
-    Plan { port_id: String },
+    Plan {
+        /// Catalog port ID whose managed install should be reviewed.
+        port_id: String,
+    },
     /// Install only when the reviewed inputs still match under the port lock.
     Run {
+        /// Catalog port ID used for the preceding installation plan.
         port_id: String,
+        /// Plan SHA-256 returned by `installation plan`; changed inputs refuse the install.
         #[arg(long)]
         expected_plan: String,
+        /// Confirm this reviewed install without a prompt; the plan check still applies.
         #[arg(long)]
         yes: bool,
     },
@@ -312,17 +318,27 @@ enum LaunchCommand {
 #[derive(Debug, Subcommand)]
 enum ExternalCommand {
     /// Compare a player-owned runtime with the exact accepted package contract.
-    Preview { port_id: String, path: PathBuf },
+    Preview {
+        /// Catalog port ID offering use-in-place runtime registration.
+        port_id: String,
+        /// Root folder of the already prepared runtime; no files are copied.
+        path: PathBuf,
+    },
     /// Register a reviewed runtime; no external file becomes Portcove-owned.
     Register {
+        /// Catalog port ID offering use-in-place runtime registration.
         port_id: String,
+        /// Root folder of the already prepared runtime; Portcove uses it in place.
         path: PathBuf,
+        /// Confirm the freshly reviewed registration without a prompt; files are rechecked.
         #[arg(long)]
         yes: bool,
     },
     /// Remove only Portcove's registration, preserving every external file.
     Remove {
+        /// Catalog port ID whose external registration should be forgotten.
         port_id: String,
+        /// Confirm forgetting the registration without a prompt; external files stay in place.
         #[arg(long)]
         yes: bool,
     },
