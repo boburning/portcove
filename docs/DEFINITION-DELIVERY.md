@@ -544,6 +544,23 @@ expired metadata. Only a fresh independently accepted exact correction clears
 them; Unknown, NotRun, a user report or a grant refresh cannot do so. An initialized
 grant cannot downgrade to a managed format that ignores these decisions.
 
+The final managed authority read and child creation share an immediate database
+transaction that excludes concurrent admission. A committed hold therefore
+precedes the final read or follows child creation; the guard releases before
+session writes and child waiting, including on refusal. Explicit publisher
+revocation retains its typed refusal even when expressed by schema 2, without
+resetting the scoped ledger. A later regrant preserves recorded-identity-change
+refusal for the old retained grant and cannot erase its accepted subject holds.
+
+Controlled native fixtures acquire and install two ordinary release archives
+containing the already-built host-tool probe. They check the retained manifest
+subject, shared status, unaffected next-release launch, exact held-release
+refusal and accepted correction followed by successful supervised launch.
+Separate database contention controls prove writer exclusion, delayed actual
+assessment admission and release after a refused guarded closure. These are
+core/native fixture controls, not gameplay, production publication or whole
+#246/#315 acceptance.
+
 Library schema 34 retains assessment decisions, inventory identity and an
 initialization/revision binding alongside publisher admission. Existing lifetime
 leases require exclusive access for migration, preventing upgrade beneath an

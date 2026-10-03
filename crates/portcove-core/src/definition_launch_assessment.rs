@@ -9,6 +9,17 @@ use crate::{Library, Platform, PortcoveError, ReleaseChannel, Result};
 
 const MAX_DECISIONS: usize = 128;
 
+/// Order the final managed authority read and child creation against admission.
+/// No session writes or child waiting belong in this bounded interval.
+pub(crate) fn with_launch_admission<T>(
+    library: &Library,
+    launch: impl FnOnce() -> Result<T>,
+) -> Result<T> {
+    let mut connection = library.connection()?;
+    let _guard = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+    launch()
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Artifact {
@@ -521,6 +532,25 @@ fn inventory(
 }
 
 /// None is a missing supported assessment/subject, never an accepted failure.
+pub(crate) fn requires_subject(
+    connection: &Connection,
+    identity: &crate::DefinitionSelectionIdentity,
+) -> Result<bool> {
+    Ok(
+        super::stored_admission(connection, &identity.namespace, &identity.stable_id)?.is_some_and(
+            |(grant, _)| {
+                matches!(
+                    grant.decision,
+                    PolicyDecision::ManagedGithub {
+                        launch_checks: Some(1),
+                        ..
+                    }
+                ) && grant.policy_schema == 3
+            },
+        ),
+    )
+}
+
 pub(crate) fn checks_passed(
     connection: &Connection,
     identity: &crate::DefinitionSelectionIdentity,
@@ -534,6 +564,11 @@ pub(crate) fn checks_passed(
     else {
         return Ok(Some(true));
     };
+    // Explicit revocation remains the typed refusal; its lower-schema document
+    // does not clear or reset any accepted subject decision or revision floor.
+    if matches!(grant.decision, PolicyDecision::Revoked) {
+        return Ok(Some(true));
+    }
     let established = established_revision(connection, &identity.namespace, &identity.stable_id)?;
     if grant.policy_schema != 3 && established > 0 {
         return Err(PortcoveError::state(

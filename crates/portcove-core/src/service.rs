@@ -1532,11 +1532,7 @@ impl PortcoveService {
         }
         let launch = self.library.assess_definition_operation(
             identity,
-            DefinitionOperationContext::observed(
-                DefinitionOperation::Launch,
-                true,
-                active.verified,
-            ),
+            self.managed_launch_context(Some(identity), active)?,
         )?;
         if launch.outcome != DefinitionEligibilityOutcome::Eligible
             && let Some(readiness) = status.readiness.as_mut()
@@ -3877,14 +3873,39 @@ impl PortcoveService {
             session.phase = LaunchSessionPhase::Spawning;
             session.updated_at = Library::now();
             self.faults.check(LifecycleFaultPoint::LaunchReadyToSpawn)?;
-            let mut child = match command.spawn() {
-                Ok(child) => child,
-                Err(error) => {
-                    return Err(PortcoveError::launch(format!(
-                        "failed to start {}: {error}",
-                        spec.executable.display()
-                    )));
+            // Admission uses immediate transactions too. Keep the final read
+            // and child creation in one writer exclusion interval; a hold is
+            // ordered either before this launch or after child creation.
+            // Release it before publishing subsequent session database writes.
+            let mut spawn = || {
+                if let Some(install) = active.as_ref() {
+                    let retained_catalog = self.installed_catalog(install)?;
+                    let retained_port = retained_catalog.port(&install.port_id)?;
+                    self.require_definition_operation(
+                        &retained_catalog,
+                        retained_port,
+                        self.managed_launch_context(
+                            retained_catalog.definition_selection(&install.port_id),
+                            install,
+                        )?,
+                    )?;
                 }
+                Ok(match command.spawn() {
+                    Ok(child) => child,
+                    Err(error) => {
+                        return Err(PortcoveError::launch(format!(
+                            "failed to start {}: {error}",
+                            spec.executable.display()
+                        )));
+                    }
+                })
+            };
+            let mut child = if active.is_some() {
+                crate::definition_repository::publisher_policy::launch_assessment::with_launch_admission(
+                    &self.library, spawn,
+                )?
+            } else {
+                spawn()?
             };
             let child_pid = child.id();
             let child_identity = match crate::launch::process_identity_for_child(&child) {
