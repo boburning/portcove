@@ -512,6 +512,17 @@ export async function prepareCatalogArtwork(catalog, options) {
   return { catalog: result, records, metrics: context.metrics };
 }
 
+function cancelBody(body) {
+  try {
+    // Start abandonment now; an untrusted cancellation promise must neither
+    // delay fallback nor replace its original failure. Fetch cancellation
+    // aborts the owned transfer without draining its remaining bytes.
+    void body?.cancel().catch(() => {});
+  } catch {
+    // Preserve the operation's result even if cancellation throws immediately.
+  }
+}
+
 async function readBounded(response, maximum, observeBytes = () => {}) {
   if (Number(response.headers.get("content-length")) > maximum || !response.body)
     throw new Error("Response exceeds its byte contract.");
@@ -528,7 +539,8 @@ async function readBounded(response, maximum, observeBytes = () => {}) {
       chunks.push(value);
     }
   } finally {
-    await reader.cancel();
+    cancelBody(reader);
+    reader.releaseLock();
   }
 }
 
@@ -671,11 +683,15 @@ export function createIgdbInspector(credentialsFile, validateImage, fetchImpl = 
             grant_type: "client_credentials",
           }),
         });
-        if (!response.ok) throw new Error("Twitch authentication unavailable.");
-        const value = JSON.parse((await readBounded(response, 64 * 1024)).toString("utf8"));
-        if (typeof value.access_token !== "string" || !value.access_token)
-          throw new Error("Twitch authentication unavailable.");
-        return { clientId: privateValue.client_id, token: value.access_token };
+        try {
+          if (!response.ok) throw new Error("Twitch authentication unavailable.");
+          const value = JSON.parse((await readBounded(response, 64 * 1024)).toString("utf8"));
+          if (typeof value.access_token !== "string" || !value.access_token)
+            throw new Error("Twitch authentication unavailable.");
+          return { clientId: privateValue.client_id, token: value.access_token };
+        } finally {
+          cancelBody(response.body);
+        }
       })();
     return tokenPromise;
   }
@@ -713,23 +729,27 @@ export function createIgdbInspector(credentialsFile, validateImage, fetchImpl = 
                 .join(" | ")
         }; limit 21;`,
       });
-      if (response.status === 429 || response.status === 503)
-        gameRetryAt = Math.max(
-          gameRetryAt,
-          metadataRetryAt(response.headers.get("retry-after"), Date.now(), deadline),
+      try {
+        if (response.status === 429 || response.status === 503)
+          gameRetryAt = Math.max(
+            gameRetryAt,
+            metadataRetryAt(response.headers.get("retry-after"), Date.now(), deadline),
+          );
+        if (!response.ok) throw new Error("IGDB identity request unavailable.");
+        return JSON.parse(
+          (
+            await readBounded(
+              response,
+              Math.min(1024 * 1024, 32 * 1024 * 1024 - metrics.metadata_bytes),
+              (bytes) => {
+                metrics.metadata_bytes += bytes;
+              },
+            )
+          ).toString("utf8"),
         );
-      if (!response.ok) throw new Error("IGDB identity request unavailable.");
-      return JSON.parse(
-        (
-          await readBounded(
-            response,
-            Math.min(1024 * 1024, 32 * 1024 * 1024 - metrics.metadata_bytes),
-            (bytes) => {
-              metrics.metadata_bytes += bytes;
-            },
-          )
-        ).toString("utf8"),
-      );
+      } finally {
+        cancelBody(response.body);
+      }
     },
     async inspectImage(imageId, remainingBytes = maximumBatchBytes) {
       if (!matchesString(imagePattern, imageId)) throw new Error("Invalid image identity.");
@@ -740,23 +760,27 @@ export function createIgdbInspector(credentialsFile, validateImage, fetchImpl = 
         `https://images.igdb.com/igdb/image/upload/t_cover_big/${imageId}.jpg`,
         { redirect: "error", signal: signal() },
       );
-      if (response.status === 410) {
-        const error = new Error("IGDB image is gone.");
-        goneImageObservations.set(error, imageId);
-        throw error;
+      try {
+        if (response.status === 410) {
+          const error = new Error("IGDB image is gone.");
+          goneImageObservations.set(error, imageId);
+          throw error;
+        }
+        if (!response.ok || !response.headers.get("content-type")?.startsWith("image/jpeg"))
+          throw new Error("IGDB image unavailable.");
+        const bytes = await readBounded(
+          response,
+          Math.min(maximumImageBytes, remainingBytes, maximumBatchBytes - metrics.image_bytes),
+          (length) => {
+            metrics.image_bytes += length;
+          },
+        );
+        const sha256 = createHash("sha256").update(bytes).digest("hex");
+        const validated = await validateImage(bytes);
+        return observedContent({ ...validated, sha256, bytes: bytes.length });
+      } finally {
+        cancelBody(response.body);
       }
-      if (!response.ok || !response.headers.get("content-type")?.startsWith("image/jpeg"))
-        throw new Error("IGDB image unavailable.");
-      const bytes = await readBounded(
-        response,
-        Math.min(maximumImageBytes, remainingBytes, maximumBatchBytes - metrics.image_bytes),
-        (length) => {
-          metrics.image_bytes += length;
-        },
-      );
-      const sha256 = createHash("sha256").update(bytes).digest("hex");
-      const validated = await validateImage(bytes);
-      return observedContent({ ...validated, sha256, bytes: bytes.length });
     },
   };
 }
