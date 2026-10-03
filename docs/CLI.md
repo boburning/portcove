@@ -2,6 +2,18 @@
 
 ## Using the CLI
 
+Maintainer proposal checks use `portcove --json catalog inspect-proposal FILE`.
+This inert command reads at most 4 MiB and uses core's existing catalog/schema,
+source-reference and declared path/contract validators. Its separate format-1
+receipt binds the exact input bytes and canonical typed per-port declaration
+hashes. It runs before host preferences or a library are opened. It does not
+resolve an upstream release, validate an actual artifact/source, qualify gameplay,
+establish publisher trust, change a catalog or permit application. Existing catalog
+parsing semantics remain unchanged; the check is not signed-definition admission.
+Legacy parsing tolerates unknown fields: raw input hashes bind them, but typed
+port hashes and declaration checks do not validate discarded fields.
+Malformed/duplicate-key inputs and unsupported or unsafe declarations fail.
+
 Run `portcove --help` to see commands and `portcove COMMAND --help` to check
 arguments before a consequential action. The commands below use `PORT_ID` from
 `catalog list`. For a source command, `portcove --json catalog show PORT_ID`

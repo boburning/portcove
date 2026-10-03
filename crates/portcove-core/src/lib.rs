@@ -95,7 +95,7 @@ pub use auth::{
 };
 pub use authorization::DestructiveAuthorization;
 pub use cancellation::{CancellationPhase, CancellationState};
-pub use catalog::Catalog;
+pub use catalog::{Catalog, CatalogProposalInspection, CatalogProposalPortInspection};
 pub use catalog_store::CatalogStatus;
 pub use catalog_update::{CatalogUpdatePlan, CatalogUpdateSource};
 pub use definition_acquisition::{DefinitionAcquisitionScope, ScopedResolvedRelease};

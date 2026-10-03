@@ -1,6 +1,13 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { readFileSync, mkdtempSync, writeFileSync } from "node:fs";
+import {
+  readFileSync,
+  mkdtempSync,
+  writeFileSync,
+  mkdirSync,
+  existsSync,
+  copyFileSync,
+} from "node:fs";
 import { dirname, join } from "node:path";
 import { tmpdir } from "node:os";
 import test from "node:test";
@@ -15,6 +22,123 @@ function run(...args) {
     encoding: "utf8",
   });
 }
+
+function isolatedGenerator() {
+  const scratch = mkdtempSync(join(tmpdir(), "portcove-generator-dispatch-"));
+  mkdirSync(join(scratch, "scripts"));
+  for (const name of ["generate-catalog.mjs", "inspect-igdb-artwork.mjs"])
+    copyFileSync(join(root, "scripts", name), join(scratch, "scripts", name));
+  const catalogs = join(scratch, "crates", "portcove-core", "catalog");
+  mkdirSync(catalogs, { recursive: true });
+  for (const name of ["catalog-current-authoring.json", "catalog-schema2-migration-fixture.json"])
+    copyFileSync(join(catalogRoot, name), join(catalogs, name));
+  return {
+    catalogs,
+    run: (...args) =>
+      spawnSync(process.execPath, ["scripts/generate-catalog.mjs", ...args], {
+        cwd: scratch,
+        encoding: "utf8",
+      }),
+  };
+}
+
+test("semantic diff retains own fields colliding with Object.prototype", () => {
+  const fixture = isolatedGenerator();
+  const currentPath = join(fixture.catalogs, "catalog-current-authoring.json");
+  const before = readFileSync(currentPath, "utf8");
+  writeFileSync(join(fixture.catalogs, "catalog-schema2-migration-fixture.json"), before);
+  const current = JSON.parse(before);
+  for (const [key, value] of Object.entries(
+    JSON.parse('{"__proto__":{},"constructor":{},"toString":{}}'),
+  ))
+    Object.defineProperty(current, key, { value, enumerable: true });
+  writeFileSync(currentPath, JSON.stringify(current));
+  const result = fixture.run("--compare-historical");
+  assert.equal(result.status, 0, result.stderr);
+  assert.deepEqual(JSON.parse(result.stdout).differences, [
+    { path: "$.__proto__", after: {} },
+    { path: "$.constructor", after: {} },
+    { path: "$.toString", after: {} },
+  ]);
+});
+
+test("malformed generator mode arguments refuse before embedded catalog writes", () => {
+  const fixture = isolatedGenerator();
+  const embedded = join(fixture.catalogs, "catalog.json");
+  const retained = "retained embedded catalog sentinel";
+  writeFileSync(embedded, retained);
+  for (const args of [
+    ["--prepare-proposal=input.json", "--validator-cli", "cli", "--output-dir", "out"],
+    ["--prepare-artwork=input.json"],
+    ["--unexpected"],
+    ["--check", "--unexpected"],
+    ["--compare-historical", "--check"],
+  ]) {
+    const result = fixture.run(...args);
+    assert.notEqual(result.status, 0, JSON.stringify(args));
+    assert.equal(readFileSync(embedded, "utf8"), retained);
+  }
+  const ordinary = fixture.run();
+  assert.equal(ordinary.status, 0, ordinary.stderr);
+  assert.equal(
+    readFileSync(embedded, "utf8"),
+    `${JSON.stringify(JSON.parse(readFileSync(join(fixture.catalogs, "catalog-current-authoring.json"))), null, 2)}\n`,
+  );
+});
+
+test("full proposal preparation cannot combine with ordinary catalog writes or checks", () => {
+  const result = run("--prepare-proposal", "unused.json", "--check");
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /cannot.*check|cannot.*combine/i);
+  for (const flag of ["--apply", "--sign", "--publisher-grant", "--prepare-proposal"]) {
+    const refused = run("--prepare-proposal", "unused.json", flag, "untrusted");
+    assert.notEqual(refused.status, 0);
+    assert.match(refused.stderr, /Unknown or repeated proposal option/);
+  }
+});
+
+test("captured proposal bytes remain exact after the caller path changes", async () => {
+  const { readArtworkInput } = await import("./inspect-igdb-artwork.mjs");
+  const scratch = mkdtempSync(join(tmpdir(), "portcove-proposal-bytes-"));
+  const path = join(scratch, "input.json");
+  const original = Buffer.from('{ "name": "é", "duplicate": 1, "duplicate": 2 }\n');
+  writeFileSync(path, original);
+  const captured = readArtworkInput(path);
+  writeFileSync(path, '{"replacement":true}');
+  assert.deepEqual(captured.bytes, original);
+  assert.equal(captured.document.name, "é");
+  assert.equal(captured.document.duplicate, 2);
+  // Core receives the captured duplicate-key bytes, not JSON.stringify's loss.
+  assert.match(captured.bytes.toString(), /"duplicate": 1, "duplicate": 2/);
+});
+
+test("full preparation requires an explicit validator and preserves prior output and authoring", () => {
+  const scratch = mkdtempSync(join(tmpdir(), "portcove-proposal-refusal-"));
+  const input = join(catalogRoot, "catalog-current-authoring.json");
+  const before = readFileSync(input);
+  const output = join(scratch, "output");
+  const missing = run("--prepare-proposal", input, "--output-dir", output);
+  assert.notEqual(missing.status, 0);
+  assert.match(missing.stderr, /--validator-cli requires a value/);
+  assert.equal(existsSync(output), false);
+  mkdirSync(output);
+  writeFileSync(join(output, "retained.txt"), "retained interruption evidence");
+  const refused = run(
+    "--prepare-proposal",
+    input,
+    "--validator-cli",
+    join(scratch, "absent"),
+    "--output-dir",
+    output,
+  );
+  assert.notEqual(refused.status, 0);
+  assert.match(refused.stderr, /EEXIST/);
+  assert.equal(
+    readFileSync(join(output, "retained.txt"), "utf8"),
+    "retained interruption evidence",
+  );
+  assert.deepEqual(readFileSync(input), before);
+});
 
 test("current schema-2 authoring deterministically owns the embedded catalog", () => {
   const result = run("--check");
