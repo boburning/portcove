@@ -34,10 +34,13 @@ The dependency requirement, Portcove support promise, and observed environment a
 | Windows x64         | Tailwind/Base UI need a Chromium-family engine at least Chrome/Edge 111                      | Unchanged while #993 establishes an explicit WebView2/OS floor | Run `native-design-system-compatibility` in the actual Tauri app and record the exact WebView2 runtime; a current runtime pass is not minimum proof |
 | Linux x64           | Wry 0.55.1 requires WebKitGTK 2.40+; Tailwind does not publish a WebKitGTK minimum guarantee | Unchanged while #993 proves an explicit Linux/WebKitGTK floor  | Use the existing Linux Tauri/WebKitWebDriver harness on the exact environment                                                                       |
 | Steam Deck          | Must satisfy the proven Linux engine requirement in the actual SteamOS runtime               | Unqualified at initial beta; follow-up required before 1.0     | #51/#217 run the retained fixture on actual Deck and record SteamOS/WebKitGTK identity; #993 beta closure does not wait for this device proof       |
-| macOS Intel         | Tailwind/Base UI require Safari/WebKit 16.4-era features                                     | Unchanged; no macOS minimum is raised by this foundation       | Use the qualification-only embedded WebdriverIO route on an exact Intel WKWebView host                                                              |
-| macOS Apple silicon | Tailwind/Base UI require Safari/WebKit 16.4-era features                                     | Unchanged; architecture does not itself establish an OS floor  | Use the qualification-only embedded WebdriverIO route on an exact Apple-silicon WKWebView host                                                      |
+| macOS Intel         | Tailwind/Base UI require Safari/WebKit 16.4-era features                                     | Unqualified initial beta; qualify before 1.0 during beta       | #45/#226 use the existing qualification route on an exact Intel WKWebView host                                                                      |
+| macOS Apple silicon | Tailwind/Base UI require Safari/WebKit 16.4-era features                                     | Unqualified initial beta; qualify before 1.0 during beta       | #45/#226 use the existing qualification route on an exact Apple-silicon WKWebView host                                                              |
 
-Vite's `es2021`, `chrome105`, and `safari13` transform targets remain unchanged and are not an operating-system support declaration. A support-policy reduction requires a separate reviewed change reconciling build targets, packages, updater behavior, and stable support documentation. Until #993 records the required native-family and claimed-minimum evidence, an affected platform remains unqualified for redesign publication even though this non-publishing foundation may be developed and merged. #45 retains broader 1.0 qualification.
+Vite's `es2021`, `chrome105`, and `safari13` transform targets remain unchanged and are not an operating-system support declaration. A support-policy reduction requires a separate reviewed change reconciling build targets, packages, updater behavior, and stable support documentation. Until #993 records the required native-family and claimed-minimum evidence, an affected platform remains unqualified for redesign publication even though this non-publishing foundation may be developed and merged. #993 retains the bounded selected-stack architecture/portability decision and
+Windows/Linux native/minimum proof required by #917. Keep practical macOS CI/build
+health; full Intel/Apple Silicon native/package qualification belongs to #45/#226
+during beta before 1.0, without holding the initial Windows/Linux foundation.
 
 ## Foundations
 
@@ -291,8 +294,9 @@ Public beta outcome. #206 retains information
 architecture, navigation, interaction, focus, content ordering, and domain-driven
 presentation. #203 retains labels, localization, formatting, and safe unknowns.
 #208 retains shared artwork selection/provenance/fallback/ingestion/cache, and
-#527 retains SteamGridDB provider behavior. #29/#44 retain controller performance,
-physical-Xbox, controller-navigation, and minimum-width qualification; #47
+#527 retains SteamGridDB provider behavior before 1.0 during beta, not an initial
+beta gate. #29 retains shared controller performance/navigation/focus/accessibility
+for initial beta; #44 owns later actual Xbox qualification before 1.0. #47
 retains intrinsically packaged human comprehension/controller observations.
 
 Use three levels when reviewing every surface:

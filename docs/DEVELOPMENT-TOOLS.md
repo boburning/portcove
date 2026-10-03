@@ -414,8 +414,10 @@ For an unavailable minimum-version host or Steam Deck, build the candidate at th
 exact revision with `VITE_PORTCOVE_DESIGN_COMPATIBILITY_FIXTURE=1`, retain the
 desktop executable/package and source revision, then run the same exact scenario
 through the platform route above. Record the artifact SHA-256, OS/architecture,
-WebView engine/version and result. Record initial-beta Windows, ordinary Linux
-and macOS negative/minimum evidence gaps under #993. Steam Deck/SteamOS procedure
+WebView engine/version and result. Record initial-beta Windows and ordinary Linux negative/minimum evidence gaps
+under #993. Preserve macOS CI/build and bounded architecture compatibility work;
+full Intel/Apple Silicon platform observations belong to #45/#226 during beta
+before 1.0, using appropriate native/hosted routes without owner-operated hardware. Steam Deck/SteamOS procedure
 preparation and actual-device evidence gaps belong to #51/#217 for the Public beta
 follow-up, Required before 1.0; they consume the shared engine baseline without
 becoming #993 initial-beta closure conditions. Do not stop fixture development or
