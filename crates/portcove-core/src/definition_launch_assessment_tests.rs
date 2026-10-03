@@ -2,6 +2,21 @@
 use super::*;
 use policy::launch_assessment as launch;
 
+struct AdmitLaunchHold {
+    library: Library,
+    accepted: crate::AuthenticatedDefinitionLaunchAssessment,
+}
+
+impl crate::operation::LifecycleFaultInjector for AdmitLaunchHold {
+    fn check(&self, point: crate::operation::LifecycleFaultPoint) -> crate::Result<()> {
+        if point == crate::operation::LifecycleFaultPoint::LaunchReadyToSpawn {
+            self.library
+                .apply_definition_launch_assessment(&self.accepted)?;
+        }
+        Ok(())
+    }
+}
+
 fn assessment_document(policy_sha256: &str, revision: u64, assessments: Vec<Value>) -> Value {
     serde_json::json!({
         "assessment_schema":1, "namespace":"official", "stable_id":ID,
@@ -448,6 +463,16 @@ async fn scoped_launch_revocation_is_typed_and_regrant_preserves_hold() {
 
 #[tokio::test]
 async fn scoped_launch_verified_ordinary_artifact_hold_correction_and_next_release() {
+    assert_scoped_native_launch(false).await;
+}
+
+#[tokio::test]
+async fn scoped_launch_verified_late_hold_and_expired_discovery() {
+    assert_scoped_native_launch(true).await;
+}
+
+async fn assert_scoped_native_launch(late_expiry: bool) {
+    let phase_clock = std::time::Instant::now();
     use crate::ReleaseProvider;
     use std::io::{Cursor, Write};
     let platform = crate::Platform::current().unwrap();
@@ -526,6 +551,224 @@ async fn scoped_launch_verified_ordinary_artifact_hold_correction_and_next_relea
             launch::verified_subject_key(&installed, platform).unwrap()
         );
         delivered.push(installed);
+    }
+    println!(
+        "ordinary native fixture ready at {:?}",
+        phase_clock.elapsed()
+    );
+    if late_expiry {
+        let empty = assessment_document(&scope.policy_sha256, 2, vec![]);
+        let baseline = publish_assessment(&fixture, &key, &root, &authored, 3, &empty)
+            .await
+            .unwrap();
+        library
+            .apply_definition_launch_assessment(&baseline)
+            .unwrap();
+        library.register_install(&delivered[0], true).unwrap();
+        let mut started = 0;
+        let late_failure = held(&delivered[0], "launch-integrity", 3);
+        let document = assessment_document(&scope.policy_sha256, 3, vec![late_failure.clone()]);
+        let accepted = publish_assessment(&fixture, &key, &root, &authored, 4, &document)
+            .await
+            .unwrap();
+        let held_sha = accepted.decision_sha256s().unwrap().remove(0);
+        let before_children: i64 = library
+            .connection()
+            .unwrap()
+            .query_row(
+                "SELECT COUNT(*) FROM launch_sessions WHERE child_pid IS NOT NULL",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        let late_service = PortcoveService::with_faults(
+            library.clone(),
+            std::sync::Arc::new(AdmitLaunchHold {
+                library: library.clone(),
+                accepted,
+            }),
+        )
+        .unwrap();
+        assert_eq!(
+            late_service
+                .status(ID)
+                .unwrap()
+                .definition_operations
+                .iter()
+                .find(|a| a.operation == DefinitionOperation::Launch)
+                .unwrap()
+                .eligibility
+                .outcome,
+            DefinitionEligibilityOutcome::Eligible
+        );
+        let refused = late_service
+            .supervise_launch(
+                ID,
+                None,
+                &["--game".into()],
+                crate::LaunchStdio::Null,
+                |_| started += 1,
+            )
+            .unwrap_err();
+        assert_eq!(refused.code, crate::ErrorCode::Conflict);
+        assert_eq!(refused.details["definition_operation"], "launch");
+        assert_eq!(refused.details["definition_eligibility"], "hold");
+        assert_eq!(
+            refused.details["definition_reason"],
+            "mandatory_check_failed"
+        );
+        assert_eq!(started, 0);
+        assert!(library.launch_sessions().unwrap().is_empty());
+        let after_children: i64 = library
+            .connection()
+            .unwrap()
+            .query_row(
+                "SELECT COUNT(*) FROM launch_sessions WHERE child_pid IS NOT NULL",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(after_children, before_children);
+
+        // Existing expiry simulation changes discovery time, not authenticated
+        // bytes, exact retained subjects or authority replay floors.
+        let connection = library.connection().unwrap();
+        for table in [
+            "definition_publisher_admission",
+            "definition_launch_assessments",
+        ] {
+            let encoded: String = connection
+                .query_row(&format!("SELECT provenance_json FROM {table}"), [], |row| {
+                    row.get(0)
+                })
+                .unwrap();
+            let mut proof: Value = serde_json::from_str(&encoded).unwrap();
+            proof["expires_at"] = "2000-01-01T00:00:00Z".into();
+            connection
+                .execute(
+                    &format!("UPDATE {table} SET provenance_json=?1"),
+                    [proof.to_string()],
+                )
+                .unwrap();
+        }
+        drop(connection);
+        println!(
+            "late hold accepted and expired at {:?}",
+            phase_clock.elapsed()
+        );
+        let reopened = Library::open(directory.path()).unwrap();
+        let reopened_service = PortcoveService::new(reopened.clone()).unwrap();
+        assert_eq!(
+            reopened_service
+                .status(ID)
+                .unwrap()
+                .definition_operations
+                .iter()
+                .find(|a| a.operation == DefinitionOperation::Launch)
+                .unwrap()
+                .eligibility
+                .reason,
+            DefinitionEligibilityReason::MandatoryCheckFailed
+        );
+        assert!(
+            reopened_service
+                .supervise_launch(
+                    ID,
+                    None,
+                    &["--game".into()],
+                    crate::LaunchStdio::Null,
+                    |_| started += 1
+                )
+                .is_err()
+        );
+        assert_eq!(started, 0);
+        let mut stale_correction = late_failure;
+        stale_correction["revision"] = 4.into();
+        stale_correction["decision"] = serde_json::json!({"status":"cleared",
+        "previous_decision_sha256":held_sha, "correction_sha256":"e".repeat(64)});
+        let document = assessment_document(&scope.policy_sha256, 4, vec![stale_correction]);
+        let correction = publish_assessment(&fixture, &key, &root, &authored, 5, &document)
+            .await
+            .unwrap();
+        assert!(
+            reopened
+                .apply_definition_launch_assessment(&correction)
+                .is_err()
+        );
+        assert_eq!(count(&reopened, "definition_launch_decisions"), 1);
+        let retained_sha: String = reopened
+            .connection()
+            .unwrap()
+            .query_row(
+                "SELECT decision_sha256 FROM definition_launch_decisions",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(retained_sha, held_sha);
+        assert_eq!(
+            PortcoveService::new(reopened.clone())
+                .unwrap()
+                .status(ID)
+                .unwrap()
+                .definition_operations
+                .iter()
+                .find(|a| a.operation == DefinitionOperation::Launch)
+                .unwrap()
+                .eligibility
+                .reason,
+            DefinitionEligibilityReason::MandatoryCheckFailed
+        );
+        reopened.register_install(&delivered[1], true).unwrap();
+        let unaffected = PortcoveService::new(reopened.clone()).unwrap();
+        assert_eq!(
+            unaffected
+                .status(ID)
+                .unwrap()
+                .definition_operations
+                .iter()
+                .find(|a| a.operation == DefinitionOperation::Launch)
+                .unwrap()
+                .eligibility
+                .outcome,
+            DefinitionEligibilityOutcome::Eligible
+        );
+        let release = directory.path().join("expired-unaffected-exit");
+        assert!(
+            unaffected
+                .supervise_launch(
+                    ID,
+                    None,
+                    &[
+                        "--game".into(),
+                        "--owned-wait".into(),
+                        release.to_string_lossy().into_owned()
+                    ],
+                    crate::LaunchStdio::Null,
+                    |_| {
+                        started += 1;
+                        fs::write(&release, b"released").unwrap();
+                    }
+                )
+                .unwrap()
+                .successful
+        );
+        assert_eq!(started, 1);
+        assert_eq!(
+            fs::read(delivered[0].path.join(executable)).unwrap(),
+            payload
+        );
+        assert_eq!(
+            fs::read(delivered[1].path.join(executable)).unwrap(),
+            payload
+        );
+        assert_eq!(server.requests.lock().unwrap().len(), 6);
+        assert!(server.responses.lock().unwrap().is_empty());
+        println!(
+            "late hold/expired discovery completed at {:?}",
+            phase_clock.elapsed()
+        );
+        return;
     }
     let failure = held(&delivered[0], "launch-integrity", 1);
     let document = assessment_document(&scope.policy_sha256, 1, vec![failure.clone()]);
