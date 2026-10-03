@@ -310,7 +310,7 @@ impl Library {
         accepted.provenance.require_fresh()?;
         let mut connection = self.connection()?;
         let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
-        let (grant, grant_provenance) =
+        let (grant, grant_provenance, _) =
             super::stored_admission(&transaction, &document.namespace, &document.stable_id)?
                 .ok_or_else(|| {
                     PortcoveError::conflict("launch assessment requires its installed grant")
@@ -537,7 +537,7 @@ pub(crate) fn requires_subject(
 ) -> Result<bool> {
     Ok(
         super::stored_admission(connection, &identity.namespace, &identity.stable_id)?.is_some_and(
-            |(grant, _)| {
+            |(grant, _, _)| {
                 matches!(
                     grant.decision,
                     PolicyDecision::ManagedGithub {
@@ -558,7 +558,7 @@ pub(crate) fn checks_passed(
     if context.operation != crate::DefinitionOperation::Launch {
         return Ok(Some(true));
     }
-    let Some((grant, provenance)) =
+    let Some((grant, provenance, _)) =
         super::stored_admission(connection, &identity.namespace, &identity.stable_id)?
     else {
         return Ok(Some(true));

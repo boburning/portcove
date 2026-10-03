@@ -330,21 +330,44 @@ links alone never block a release. Unrelated unscheduled intake is not a gate.
 Keep optional work Opportunistic at the release where it may ship or Post-1.0
 where that is its real target; do not distort forecasts merely to avoid a gate.
 
-Public beta requires the complete #52 Windows/Linux/Steam Deck/macOS updater,
-including actual beta platform safety evidence. #46 owns later production
-requalification for 1.0; it is not a reverse dependency of #52. Independent
-catalog delivery, the finite preparation/artwork outcomes and the real Playnite
-reference proof are also Required for Public beta. The user-ready Playnite
-lifecycle product (#910), bounded SteamGridDB capability (#527), selected-game
-Steam Add/Repair/Update-artwork/Remove (#292), and the reusable public-CLI gaps
-they consume (#30) are likewise Required. Provider delivery does not make provider
-configuration, credentials, network access or a match mandatory at runtime. Their
-finite owners and one-way component dependencies remain intact; component owners
-close on independently testable evidence rather than waiting for downstream
-publication, and #52 and #246 remain independent outcomes without reciprocal
-blockers. Paid signing, marketplace approval, continuous Steam synchronization,
-Decky and optional package integrations do not become blockers. See
-[Delivery](DELIVERY.md).
+Initial Public beta officially targets Windows and ordinary Linux x86-64, with
+actual qualification required before claiming support. #52 closes on the shared
+verified updater and #224/#225 evidence for those platforms. Its authenticated
+feed, trust, staging, busy-session, interruption, recovery, rollback/schema and
+preservation requirements remain intact; #534's separately provisioned protected
+delivery authority remains required. #52 and #246 have no reciprocal blocker.
+
+The #917 design system, #921 development-agility consolidation, #925 domain and
+lifecycle foundations and genuinely required supporting work remain Required
+initial beta. Prioritize changes that improve development speed, explicit
+ownership, deterministic testing and safe iteration. The frozen feasible backlog
+rollout (#1422), repeatable onboarding (#254), truthful operation availability
+(#1168/#1169), account-free artwork (#1155/#208/#206), compatible definition
+delivery (#246), reusable public CLI/reference contracts (#30/#243), manual
+plugin-free Desktop Steam route (#290) and shared Linux/controller/storage/process
+safety remain required. Completed foundations remain consumed proof, not reopened
+work. A representative pilot does not substitute for the committed rollout.
+
+Steam Deck (#51/#213–#217/#535), macOS Intel/Apple Silicon (#45/#226), full
+user-ready Playnite (#910), automatic Steam entry management (#292), physical Xbox
+qualification (#44) and SteamGridDB (#527) are high-priority work during Public
+beta, Required before 1.0. Their active target is 1.0; Deck's follow-up may be
+described as Beta 2 without reusing the historical Project option. They do not
+gate initial beta directly or transitively. #993 still owns the bounded selected-
+stack/WebView compatibility decision and Windows/Linux evidence needed by #917;
+practical macOS CI/build health and portable architecture remain. Qualification
+of macOS packages/devices and Deck/Gaming Mode follows later. Neither Linux CI
+nor desktop observations establish physical-device or Valve Verified claims.
+Until qualified, those platforms are unqualified support targets even if an
+available build works; no deliberate execution block is introduced.
+
+Later owners consume shared foundations one way. #46 owns final production
+requalification, including the intended later platform claims, without reopening
+completed Windows/Linux beta acceptance. Provider usage stays optional at runtime;
+default artwork needs no personal provider credentials. Independent component
+proofs permit useful work before complete downstream product acceptance. Paid
+signing, marketplace approval, continuous Steam synchronization, Decky and optional
+package integrations do not become blockers. See [Delivery](DELIVERY.md).
 
 Migrations are additive: retain historical options and completed targets, capture
 a dated before-state, map affected active identities explicitly, read back each

@@ -61,6 +61,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } f
 import { Input } from "./ui/input";
 import { SourceIdentityPanel } from "./SourceIdentity";
 import { installPlanActionLabel } from "../install-plan-presentation";
+import { portActionPresentation } from "../features/port-actions/port-action-presentation";
 
 export interface DetailActions {
   activate: AsyncAction;
@@ -149,14 +150,15 @@ export function DetailPanel(props: DetailPanelProps) {
   const effectiveBusy = busy ?? (outputApplying ? "storage location" : undefined);
   const selectedChannel = status?.channel ?? port.channels[0];
   const policy = status?.update_policy ?? "notify";
-  const { sourceReady, biosReady, launchReady, installed, pendingSetup } = detailReadiness(
-    port,
-    status,
-    source,
-    sourcePath,
-    bios,
-    biosPath,
-  );
+  const {
+    sourceReady,
+    biosReady,
+    launchReady: readinessLaunchReady,
+    installed,
+    pendingSetup,
+  } = detailReadiness(port, status, source, sourcePath, bios, biosPath);
+  const actionPresentation = portActionPresentation(status, installed ? "launch" : "install");
+  const launchReady = readinessLaunchReady && (!installed || !actionPresentation.blocked);
   const selectedRequirement = selectedSourceRequirement(source, sourcePath, bios, biosPath);
   const missingRequirement: SelectedRequirement | undefined =
     !sourceReady && !biosReady ? "both" : !sourceReady ? "game" : !biosReady ? "bios" : undefined;
@@ -167,33 +169,41 @@ export function DetailPanel(props: DetailPanelProps) {
   const runtimeUpdateAvailable = currentUpdateSnapshot(status)?.check.update_available === true;
   const installReviewVisible = Boolean(
     installPlan &&
+    !actionPresentation.blocked &&
     !installed &&
     launchReady &&
     !status?.readiness?.blockers.includes("invalid_installation") &&
     !status?.readiness?.blockers.includes("missing_runtime"),
   );
   const state =
-    installed && typeof status?.readiness?.launchable !== "boolean"
+    !installed && port.release.provider !== "user-prepared" && actionPresentation.blocked
       ? {
-          title: "Readiness unavailable",
-          description: "Current launch readiness is unavailable. Reopen Portcove to check again.",
+          title: "Setup unavailable",
+          description: actionPresentation.reason,
           tone: "setup",
           icon: AlertTriangle,
         }
-      : detailState(
-          installed,
-          launchReady,
-          status?.staged?.version,
-          pendingSetup,
-          Boolean(status?.readiness?.blockers.includes("missing_runtime")),
-          runtimeUpdateAvailable,
-          status?.readiness?.source,
-          status?.readiness?.bios,
-          selectedRequirement,
-          missingRequirement,
-          Boolean(status?.readiness?.blockers.includes("invalid_installation")),
-          port.release.provider === "user-prepared",
-        );
+      : installed && typeof status?.readiness?.launchable !== "boolean"
+        ? {
+            title: "Readiness unavailable",
+            description: "Current launch readiness is unavailable. Reopen Portcove to check again.",
+            tone: "setup",
+            icon: AlertTriangle,
+          }
+        : detailState(
+            installed,
+            launchReady,
+            status?.staged?.version,
+            pendingSetup,
+            Boolean(status?.readiness?.blockers.includes("missing_runtime")),
+            runtimeUpdateAvailable,
+            status?.readiness?.source,
+            status?.readiness?.bios,
+            selectedRequirement,
+            missingRequirement,
+            Boolean(status?.readiness?.blockers.includes("invalid_installation")),
+            port.release.provider === "user-prepared",
+          );
   const sources: SourceControls = {
     port,
     source,
@@ -537,10 +547,14 @@ function StatusActionsGroup({
   actions: DetailActions;
   openLibraryStorage?: () => void;
 }) {
+  const actionPresentation = portActionPresentation(status, installed ? "launch" : "install");
   if (port.release.provider === "user-prepared" || status?.external_runtime) {
     return (
       <DetailGroup title="Status and actions">
         <RetiredNotice port={port} />
+        {status?.external_runtime && actionPresentation.blocked && (
+          <p role="status">{actionPresentation.reason}</p>
+        )}
         {status?.external_runtime && (
           <InstalledPlayActions
             preparationRequired={false}
@@ -561,9 +575,32 @@ function StatusActionsGroup({
       </DetailGroup>
     );
   }
+  if (!installed && actionPresentation.blocked)
+    return (
+      <DetailGroup title="Status and actions">
+        <RetiredNotice port={port} />
+        <p role="status">{actionPresentation.reason}</p>
+        <div className="actions primary-actions">
+          <Button data-focusable className="wide" variant="primary" size="lg" disabled>
+            Installation unavailable
+          </Button>
+          {installPlan && (
+            <Button
+              data-focusable
+              variant="outline"
+              disabled={Boolean(busy)}
+              onClick={() => actions.dismissInstallReview()}
+            >
+              Cancel review
+            </Button>
+          )}
+        </div>
+      </DetailGroup>
+    );
   return (
     <DetailGroup title="Status and actions">
       <RetiredNotice port={port} />
+      {actionPresentation.blocked && <p role="status">{actionPresentation.reason}</p>}
       <PrimaryActions
         installCancellations={installCancellations}
         sources={sources}
@@ -1808,7 +1845,12 @@ export function InstallAction({
                   Review installation again
                 </Button>
               )}
-              <Button data-focusable variant="outline" disabled={Boolean(busy)} onClick={dismiss}>
+              <Button
+                data-focusable
+                variant="outline"
+                disabled={Boolean(busy)}
+                onClick={() => dismiss()}
+              >
                 Cancel review
               </Button>
             </DialogFooter>

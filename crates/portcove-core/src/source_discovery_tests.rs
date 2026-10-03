@@ -3309,3 +3309,258 @@ fn zip_profile_limit_does_not_hide_a_later_independent_small_set() {
         assert_eq!(fs::read(&path).unwrap(), original);
     }
 }
+
+#[test]
+fn one_off_discovery_excludes_owned_trees_before_budgets_and_preserves_saved_state() {
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path().join("selected");
+    fs::create_dir(&root).unwrap();
+    let payload = b"synthetic supported source";
+    let library = crate::Library::open(root.join("owned-library")).unwrap();
+    let output = root.join("owned-output");
+    crate::output_root::prepare_for_install(
+        &library,
+        "sample",
+        &output,
+        &uuid::Uuid::new_v4().to_string(),
+        0,
+    )
+    .unwrap();
+    let healthy = root.join("original.z64");
+    let library_file = library.root().join("copied.z64");
+    let output_file = output.join("generated.z64");
+    for path in [&healthy, &library_file, &output_file] {
+        fs::write(path, payload).unwrap();
+    }
+    library.add_game_file_root(&root).unwrap();
+    let mut service = PortcoveService::new(library).unwrap();
+    service.replace_catalog_for_test(catalog(payload));
+    service.register_source("star-fox-64", &healthy).unwrap();
+    service
+        .scan_game_file_roots(&SourceDiscoveryLimits::default())
+        .unwrap();
+    let sources_before = serde_json::to_vec(&service.library().sources().unwrap()).unwrap();
+    let snapshot_before =
+        serde_json::to_vec(&service.library().stored_game_file_scan_snapshot().unwrap()).unwrap();
+    let mut selected = request(&root);
+    selected.limits.max_entries = 1;
+    selected.limits.max_depth = 0;
+    selected.limits.max_hash_bytes = payload.len() as u64;
+    let report = service.discover_sources(&selected).unwrap();
+    assert_eq!(report.entries_examined, 1);
+    assert_eq!(report.files_hashed, 1);
+    assert_eq!(report.hash_bytes, payload.len() as u64);
+    assert_eq!(report.candidates.len(), 2);
+    assert!(report.limits_reached.is_empty());
+    let original = fs::canonicalize(&healthy).unwrap();
+    assert!(
+        report
+            .candidates
+            .iter()
+            .all(|candidate| candidate.path == original)
+    );
+    for (path, message) in [
+        (service.library().root(), "own library is excluded"),
+        (output.as_path(), "managed game output is excluded"),
+    ] {
+        let expected = fs::canonicalize(path).unwrap();
+        assert!(report.issues.iter().any(|issue| {
+            issue.path.as_ref() == Some(&expected) && issue.message.contains(message)
+        }));
+    }
+    for path in [&healthy, &library_file, &output_file] {
+        assert_eq!(fs::read(path).unwrap(), payload);
+    }
+    assert_eq!(
+        serde_json::to_vec(&service.library().sources().unwrap()).unwrap(),
+        sources_before
+    );
+    assert_eq!(
+        serde_json::to_vec(&service.library().stored_game_file_scan_snapshot().unwrap(),).unwrap(),
+        snapshot_before
+    );
+}
+
+fn assert_one_off_owned_root_is_refused(managed_output: bool) {
+    let temporary = tempfile::tempdir().unwrap();
+    let payload = b"synthetic supported source";
+    let library = crate::Library::open(temporary.path().join("library")).unwrap();
+    let root = if managed_output {
+        let output = temporary.path().join("owned-output");
+        crate::output_root::prepare_for_install(
+            &library,
+            "sample",
+            &output,
+            &uuid::Uuid::new_v4().to_string(),
+            0,
+        )
+        .unwrap();
+        output
+    } else {
+        library.root().to_path_buf()
+    };
+    let path = root.join("copied.z64");
+    fs::write(&path, payload).unwrap();
+    let mut service = PortcoveService::new(library).unwrap();
+    service.replace_catalog_for_test(catalog(payload));
+    let mut events = Vec::new();
+    let error = service
+        .discover_sources_with_progress(&request(&root), |event| {
+            events.push(event.event);
+        })
+        .unwrap_err();
+    assert_eq!(error.code, ErrorCode::Usage);
+    assert!(error.message.contains(if managed_output {
+        "Portcove-managed game output"
+    } else {
+        "Portcove library"
+    }));
+    assert!(matches!(
+        events.first(),
+        Some(crate::OperationEventKind::Started)
+    ));
+    assert!(matches!(
+        events.last(),
+        Some(crate::OperationEventKind::Finished { .. })
+    ));
+    assert!(
+        !events
+            .iter()
+            .any(|event| matches!(event, crate::OperationEventKind::SourceCandidate { .. }))
+    );
+    assert!(service.library().sources().unwrap().is_empty());
+    assert!(
+        service
+            .library()
+            .stored_game_file_scan_snapshot()
+            .unwrap()
+            .is_none()
+    );
+    assert_eq!(fs::read(path).unwrap(), payload);
+}
+
+#[test]
+fn one_off_discovery_refuses_an_owned_library_root() {
+    assert_one_off_owned_root_is_refused(false);
+}
+
+#[test]
+fn one_off_discovery_refuses_a_registered_managed_output_root() {
+    assert_one_off_owned_root_is_refused(true);
+}
+
+#[test]
+fn one_off_discovery_refreshes_a_claim_before_visiting_the_output_subtree() {
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path().join("selected");
+    fs::create_dir(&root).unwrap();
+    let output = root.join("future-output");
+    fs::create_dir(&output).unwrap();
+    let payload = b"synthetic supported source";
+    let healthy = root.join("original.z64");
+    let output_file = output.join("generated.z64");
+    fs::write(&healthy, payload).unwrap();
+    let mut service =
+        PortcoveService::new(crate::Library::open(temporary.path().join("library")).unwrap())
+            .unwrap();
+    service.replace_catalog_for_test(catalog(payload));
+    let mut claimed = false;
+    let report = service
+        .discover_sources_with_progress(&request(&root), |event| {
+            if !claimed
+                && matches!(
+                    event.event,
+                    crate::OperationEventKind::SourceCandidate { .. }
+                )
+            {
+                crate::output_root::prepare_for_install(
+                    service.library(),
+                    "sample",
+                    &output,
+                    &uuid::Uuid::new_v4().to_string(),
+                    0,
+                )
+                .unwrap();
+                fs::write(&output_file, payload).unwrap();
+                claimed = true;
+            }
+        })
+        .unwrap();
+    assert!(claimed);
+    assert_eq!(report.files_hashed, 1);
+    assert_eq!(report.hash_bytes, payload.len() as u64);
+    assert_eq!(report.candidates.len(), 2);
+    let original = fs::canonicalize(&healthy).unwrap();
+    assert!(
+        report
+            .candidates
+            .iter()
+            .all(|candidate| candidate.path == original)
+    );
+    assert!(report.limits_reached.is_empty());
+    assert!(
+        report
+            .issues
+            .iter()
+            .any(|issue| issue.message.contains("managed game output is excluded"))
+    );
+    assert!(service.library().sources().unwrap().is_empty());
+    assert!(
+        service
+            .library()
+            .stored_game_file_scan_snapshot()
+            .unwrap()
+            .is_none()
+    );
+    assert_eq!(fs::read(healthy).unwrap(), payload);
+    assert_eq!(fs::read(output_file).unwrap(), payload);
+}
+
+#[test]
+fn one_off_discovery_cancellation_preserves_originals_sources_and_saved_scan() {
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path().join("selected");
+    fs::create_dir(&root).unwrap();
+    let payload = b"synthetic supported source";
+    let first = root.join("first.z64");
+    let second = root.join("second.z64");
+    fs::write(&first, payload).unwrap();
+    fs::write(&second, payload).unwrap();
+    let library = crate::Library::open(temporary.path().join("library")).unwrap();
+    library.add_game_file_root(&root).unwrap();
+    let mut service = PortcoveService::new(library).unwrap();
+    service.replace_catalog_for_test(catalog(payload));
+    service.register_source("star-fox-64", &first).unwrap();
+    service
+        .scan_game_file_roots(&SourceDiscoveryLimits::default())
+        .unwrap();
+    let sources_before = serde_json::to_vec(&service.library().sources().unwrap()).unwrap();
+    let snapshot_before =
+        serde_json::to_vec(&service.library().stored_game_file_scan_snapshot().unwrap()).unwrap();
+    let mut cancelled = false;
+    let error = service
+        .discover_sources_with_progress(&request(&root), |event| {
+            if !cancelled
+                && matches!(
+                    event.event,
+                    crate::OperationEventKind::SourceCandidate { .. }
+                )
+            {
+                service.request_cancellation(&event.operation_id).unwrap();
+                cancelled = true;
+            }
+        })
+        .unwrap_err();
+    assert!(cancelled);
+    assert_eq!(error.code, ErrorCode::Cancelled);
+    assert_eq!(
+        serde_json::to_vec(&service.library().sources().unwrap()).unwrap(),
+        sources_before
+    );
+    assert_eq!(
+        serde_json::to_vec(&service.library().stored_game_file_scan_snapshot().unwrap(),).unwrap(),
+        snapshot_before
+    );
+    assert_eq!(fs::read(first).unwrap(), payload);
+    assert_eq!(fs::read(second).unwrap(), payload);
+}

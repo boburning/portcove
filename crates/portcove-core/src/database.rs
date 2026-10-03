@@ -14,7 +14,7 @@ use crate::{PortcoveError, Result};
 #[path = "database_concurrency_tests.rs"]
 mod concurrency_tests;
 
-pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 34;
+pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 35;
 
 struct Migration {
     version: i64,
@@ -224,13 +224,42 @@ const MIGRATIONS: &[Migration] = &[
     },
     Migration {
         version: 34,
-        name: "accepted exact managed launch decisions",
+        name: "retained publisher authorization continuity",
         apply: migration_34,
         verify: verify_migration_34,
+    },
+    Migration {
+        version: 35,
+        name: "accepted exact managed launch decisions",
+        apply: migration_35,
+        verify: verify_migration_35,
     },
 ];
 
 fn migration_34(transaction: &Transaction<'_>) -> Result<()> {
+    transaction.execute_batch(
+        "ALTER TABLE definition_publisher_admission ADD COLUMN
+           retained_launch_revision_floor INTEGER NOT NULL DEFAULT 1
+           CHECK(retained_launch_revision_floor > 0);
+         UPDATE definition_publisher_admission SET retained_launch_revision_floor=(
+           SELECT policy_revision FROM definition_publisher_policy
+           WHERE definition_publisher_policy.namespace=definition_publisher_admission.namespace
+             AND definition_publisher_policy.stable_id=definition_publisher_admission.stable_id
+         );",
+    )?;
+    verify_migration_34(transaction)?;
+    crate::definition_repository::publisher_policy::validate_stored_admissions(transaction)
+}
+
+fn verify_migration_34(connection: &Connection) -> Result<()> {
+    require_columns(
+        connection,
+        "definition_publisher_admission",
+        &["retained_launch_revision_floor"],
+    )
+}
+
+fn migration_35(transaction: &Transaction<'_>) -> Result<()> {
     transaction.execute_batch(
         "CREATE TABLE definition_launch_assessments (
             namespace TEXT NOT NULL,
@@ -253,10 +282,10 @@ fn migration_34(transaction: &Transaction<'_>) -> Result<()> {
          ALTER TABLE definition_publisher_admission ADD COLUMN launch_assessment_revision
             INTEGER NOT NULL DEFAULT 0 CHECK(launch_assessment_revision>=0);",
     )?;
-    verify_migration_34(transaction)
+    verify_migration_35(transaction)
 }
 
-fn verify_migration_34(connection: &Connection) -> Result<()> {
+fn verify_migration_35(connection: &Connection) -> Result<()> {
     require_columns(
         connection,
         "definition_publisher_admission",
@@ -1704,6 +1733,112 @@ mod tests {
         schema_31: 31,
         schema_32: 32,
         schema_33: 33,
+        schema_34: 34,
+    }
+
+    #[test]
+    fn continuity_upgrade_failure_preserves_schema_33_and_admission_bytes() {
+        let temporary = tempdir().unwrap();
+        let root = temporary.path();
+        prepare_root(root);
+        migrate_to(root, 33).unwrap();
+        let connection = connect(root).unwrap();
+        let anchor = "a".repeat(64);
+        connection
+            .execute(
+                "INSERT INTO definition_publisher_authority(anchor_sha256,trusted_root_json)
+             VALUES(?1,'{}')",
+                [&anchor],
+            )
+            .unwrap();
+        // A missing corresponding policy record cannot supply a current bound.
+        connection
+            .execute(
+                "INSERT INTO definition_publisher_admission
+             (namespace,stable_id,anchor_sha256,policy_json,provenance_json)
+             VALUES('official','owned-fixture',?1,'owned policy bytes','owned provenance bytes')",
+                [&anchor],
+            )
+            .unwrap();
+        drop(connection);
+        let error = migrate(root).unwrap_err();
+        assert_eq!(error.details["migration_version"], "34");
+        let connection = connect(root).unwrap();
+        assert_eq!(
+            recorded_versions(&connection).unwrap(),
+            (1..=33).collect::<Vec<_>>()
+        );
+        assert!(
+            connection
+                .prepare(
+                    "SELECT retained_launch_revision_floor FROM definition_publisher_admission"
+                )
+                .is_err()
+        );
+        let bytes: String = connection
+            .query_row(
+                "SELECT policy_json FROM definition_publisher_admission",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(bytes, "owned policy bytes");
+    }
+
+    #[test]
+    fn launch_assessment_upgrade_preserves_schema_34_continuity_and_admission_bytes() {
+        let temporary = tempdir().unwrap();
+        let root = temporary.path();
+        prepare_root(root);
+        migrate_to(root, 34).unwrap();
+        let connection = connect(root).unwrap();
+        let anchor = "a".repeat(64);
+        connection
+            .execute(
+                "INSERT INTO definition_publisher_authority(anchor_sha256,trusted_root_json)
+                 VALUES(?1,'{}')",
+                [&anchor],
+            )
+            .unwrap();
+        // Opaque owned database bytes exercise migration preservation only;
+        // authenticated policy admission is qualified by the policy fixtures.
+        connection
+            .execute(
+                "INSERT INTO definition_publisher_admission
+                 (namespace,stable_id,anchor_sha256,policy_json,provenance_json,
+                  retained_launch_revision_floor)
+                 VALUES('official','owned-fixture',?1,'owned policy bytes',
+                        'owned provenance bytes',7)",
+                [&anchor],
+            )
+            .unwrap();
+        drop(connection);
+
+        migrate(root).unwrap();
+        let connection = connect(root).unwrap();
+        let preserved: (String, String, i64, i64) = connection
+            .query_row(
+                "SELECT policy_json,provenance_json,retained_launch_revision_floor,
+                        launch_assessment_revision FROM definition_publisher_admission",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+            )
+            .unwrap();
+        assert_eq!(
+            preserved,
+            (
+                "owned policy bytes".into(),
+                "owned provenance bytes".into(),
+                7,
+                0
+            )
+        );
+        assert_eq!(
+            recorded_versions(&connection).unwrap(),
+            (1..=35).collect::<Vec<_>>()
+        );
+        verify_migration_34(&connection).unwrap();
+        verify_migration_35(&connection).unwrap();
     }
 
     #[test]

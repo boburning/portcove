@@ -79,6 +79,62 @@ test("stale Windows Aqua state is an actionable prerequisite failure", async () 
   assert.ok(!selectedPrerequisites({ id: "playnite-contract" }).includes("dotnet"));
 });
 
+test("selected release audit observes the bare PowerShell executable on every executing host", async () => {
+  const selected = { id: "conservative-audit", args: ["rust", "release-unit"] };
+  assert.ok(selectedPrerequisites(selected, "linux").includes("pwsh"));
+  assert.ok(selectedPrerequisites(selected, "win32").includes("pwsh"));
+  assert.ok(
+    !selectedPrerequisites({ id: "conservative-audit", args: ["rust"] }, "linux").includes("pwsh"),
+  );
+  const commands = [];
+  const report = await collectSelectedPrerequisites([selected], {
+    platform: "linux",
+    run: (command) => {
+      commands.push(command);
+      return command === "pwsh"
+        ? { status: null, error: { code: "ENOENT" }, stdout: "" }
+        : { status: 0, stdout: "v24.21.0" };
+    },
+  });
+  assert.equal(report.find((item) => item.id === "pwsh")?.status, "unavailable");
+  assert.ok(commands.includes("pwsh"));
+});
+
+test("selected Linux Rust audit observes the physical fixture socket pathname budget", async () => {
+  const prefix = mkdtempSync(path.join(os.tmpdir(), "pcv-socket-"));
+  try {
+    const long = path.join(prefix, "a".repeat(100));
+    const run = async (temporaryDirectory, platform = "linux", stages = ["rust"]) =>
+      collectSelectedPrerequisites([{ id: "conservative-audit", args: stages }], {
+        platform,
+        temporaryDirectory,
+        run: () => ({ status: 0, stdout: "v24.21.0" }),
+      });
+    const tooLong = await run(long);
+    const socket = tooLong.find((item) => item.id === "unix-socket-path");
+    assert.equal(socket?.status, "unavailable");
+    assert.ok(socket.observed_bytes > socket.maximum_bytes);
+    assert.match(socket.remediation, /shorter.*temporary/i);
+    if (process.platform === "linux") {
+      const multibyte = await run(path.join(prefix, "é".repeat(45)));
+      assert.equal(multibyte.find((item) => item.id === "unix-socket-path")?.status, "unavailable");
+    }
+    const short = await run(path.parse(prefix).root);
+    assert.equal(short.find((item) => item.id === "unix-socket-path")?.status, "ok");
+    mkdirSync(long);
+    const alias = path.join(prefix, "short-alias");
+    symlinkSync(long, alias, process.platform === "win32" ? "junction" : "dir");
+    const physical = await run(alias);
+    assert.equal(physical.find((item) => item.id === "unix-socket-path")?.status, "unavailable");
+    assert.ok(!(await run(long, "win32")).some((item) => item.id === "unix-socket-path"));
+    assert.ok(
+      !(await run(long, "linux", ["release-unit"])).some((item) => item.id === "unix-socket-path"),
+    );
+  } finally {
+    rmSync(prefix, { recursive: true, force: true });
+  }
+});
+
 test("selected fixtures retain their actual direct tools and platform deferrals", () => {
   const fixtures = (names, platform) =>
     selectedPrerequisites(

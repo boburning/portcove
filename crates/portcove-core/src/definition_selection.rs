@@ -569,9 +569,17 @@ impl Library {
         let publisher_revoked = policy
             .as_ref()
             .is_some_and(|policy| policy.status == DefinitionPublisherStatus::Revoked);
-        let same_identity_changed = policy
-            .as_ref()
-            .is_some_and(|policy| !policy.matches_identity(identity));
+        let retained_launch_continues = context.operation == crate::DefinitionOperation::Launch
+            && context.retained_contract
+            && publisher_scoped
+            && crate::definition_repository::publisher_policy::continues_retained_launch(
+                &transaction,
+                identity,
+            )?;
+        let same_identity_changed = !retained_launch_continues
+            && policy
+                .as_ref()
+                .is_some_and(|policy| !policy.matches_identity(identity));
         let launch_checks =
             crate::definition_repository::publisher_policy::launch_assessment::checks_passed(
                 &transaction,

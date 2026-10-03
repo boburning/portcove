@@ -191,7 +191,23 @@ where
     Ok(destination)
 }
 
-pub(crate) fn prepare_install(root: &Path, preparation: &PsxManagedPreparation) -> Result<()> {
+pub(crate) fn prepare_install(
+    root: &Path,
+    preparation: &PsxManagedPreparation,
+    operation: &OperationCoordinator,
+) -> (Result<()>, bool) {
+    let mut quiesced = true;
+    let result = prepare_install_inner(root, preparation, operation, &mut quiesced);
+    (result, quiesced)
+}
+
+fn prepare_install_inner(
+    root: &Path,
+    preparation: &PsxManagedPreparation,
+    operation: &OperationCoordinator,
+    quiesced: &mut bool,
+) -> Result<()> {
+    operation.checkpoint()?;
     crate::adapter::verify_source_storage_identity(&preparation.source, "PS1 source")?;
     if let Some(bios) = &preparation.bios {
         crate::adapter::verify_source_storage_identity(bios, "PS1 BIOS")?;
@@ -204,13 +220,16 @@ pub(crate) fn prepare_install(root: &Path, preparation: &PsxManagedPreparation) 
         ));
     }
     let python = toolchain_python(&preparation.toolchain_root)?;
-    let temporary = tempfile::Builder::new()
-        .prefix("psx-source-")
-        .tempdir_in(root.parent().unwrap_or(root))?;
     let primary_source = preparation.source_paths.first().ok_or_else(|| {
         PortcoveError::source("managed PS1 preparation has no verified disc source")
     })?;
-    let cue = materialize_psx_chd(primary_source, temporary.path())?;
+    operation.checkpoint()?;
+    let temporary = retained_source_workspace(root)?;
+    // This existing CHD helper exposes no quiescence observer. A later builder
+    // callback cannot erase its uncertainty, even on a contained platform.
+    *quiesced = false;
+    let cue = materialize_psx_chd(primary_source, &temporary)?;
+    operation.checkpoint()?;
     crate::adapter::verify_source_storage_identity(&preparation.source, "PS1 source")?;
     let config_path = crate::path::unicode(&config, "managed build config")?;
     let project_root = crate::path::unicode(root, "managed build root")?;
@@ -236,6 +255,8 @@ pub(crate) fn prepare_install(root: &Path, preparation: &PsxManagedPreparation) 
         root,
         &preparation.toolchain_root,
         generate_arguments,
+        operation,
+        quiesced,
     )?;
     if let Some(bios) = &preparation.bios {
         crate::adapter::verify_source_storage_identity(bios, "PS1 BIOS")?;
@@ -265,6 +286,8 @@ pub(crate) fn prepare_install(root: &Path, preparation: &PsxManagedPreparation) 
             "build-intermediates".into(),
             "--json-progress".into(),
         ],
+        operation,
+        quiesced,
     )?;
     let executable = platform_executable(&build_dir, &preparation.executable_basename);
     if !executable.is_file() {
@@ -274,6 +297,8 @@ pub(crate) fn prepare_install(root: &Path, preparation: &PsxManagedPreparation) 
         )));
     }
     let runtime_sources = if let Some(relative) = &preparation.runtime_source_directory {
+        operation.checkpoint()?;
+        *quiesced = false;
         materialize_runtime_raw_set(&build_dir, relative, preparation)?
     } else {
         preparation.source_paths.clone()
@@ -827,29 +852,73 @@ fn materialize_runtime_raw_set(
     Ok(runtime_sources)
 }
 
+fn retained_source_workspace(root: &Path) -> Result<PathBuf> {
+    // Disarm automatic removal before any possible native owner, including
+    // unwind. The Install journal owns this directory beneath staging.
+    Ok(tempfile::Builder::new()
+        .prefix("psx-source-")
+        .tempdir_in(root.parent().unwrap_or(root))?
+        .keep())
+}
+
 fn run_cli(
     python: &Path,
     cli: &Path,
     project_root: &Path,
     toolchain_root: &Path,
     arguments: impl IntoIterator<Item = String>,
+    operation: &OperationCoordinator,
+    quiesced: &mut bool,
 ) -> Result<()> {
-    let output = ChildProcessPolicy::native_command(ChildProcessClass::ManagedBuilder, python)?
+    let mut command =
+        ChildProcessPolicy::native_command(ChildProcessClass::ManagedBuilder, python)?;
+    command
         .arg(cli)
         .args(arguments)
         .current_dir(project_root)
         .env("RETCOMM_TOOLCHAIN_DIR", toolchain_root)
-        .env("PSXRECOMP_TOOLCHAIN_DIR", toolchain_root)
-        .output()
-        .map_err(|error| PortcoveError::install(format!("could not start PS1 builder: {error}")))?;
+        .env("PSXRECOMP_TOOLCHAIN_DIR", toolchain_root);
+    let previous_quiescence = *quiesced;
+    *quiesced = false;
+    let mut command_quiesced = false;
+    let mut captured = None;
+    let output = crate::tool_process::run_tool(
+        &mut command,
+        &|| operation.checkpoint(),
+        crate::tool_process::ToolProcessObserver {
+            diagnostics: Some(crate::tool_process::ToolDiagnosticSink {
+                activity_id: operation.operation_id(),
+                phase: "install.ps1.builder",
+                record: &mut |snapshot| {
+                    captured = Some(snapshot.clone());
+                    Ok(())
+                },
+            }),
+            quiesced: Some(&mut || {
+                command_quiesced = true;
+                Ok(())
+            }),
+        },
+    );
+    *quiesced = previous_quiescence && command_quiesced;
+    let output = output.map_err(|error| {
+        if error.code == crate::ErrorCode::Launch {
+            PortcoveError::install(format!("could not run PS1 builder: {error}"))
+        } else {
+            error
+        }
+    })?;
     if output.status.success() {
         return Ok(());
     }
-    let stderr = String::from_utf8_lossy(&output.stderr);
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    let detail = stderr
+    // Preserve the builder's stderr/stdout failure ordering while using the
+    // existing bounded, redacted per-stream capture, not unbounded output().
+    let captured = captured.expect("supervisor provides final builder capture");
+    let mut detail = captured
+        .stderr
+        .text
         .lines()
-        .chain(stdout.lines())
+        .chain(captured.stdout.text.lines())
         .rev()
         .take(20)
         .collect::<Vec<_>>()
@@ -857,9 +926,16 @@ fn run_cli(
         .rev()
         .collect::<Vec<_>>()
         .join("\n");
+    let mut end = detail.len().min(64 * 1024);
+    while !detail.is_char_boundary(end) {
+        end -= 1;
+    }
+    let truncated = captured.stdout.truncated || captured.stderr.truncated || end < detail.len();
+    detail.truncate(end);
     Err(
         PortcoveError::install(format!("PS1 builder exited with {}", output.status))
-            .detail("output_tail", detail),
+            .detail("output_tail", detail)
+            .detail("output_truncated", truncated.to_string()),
     )
 }
 
@@ -1001,6 +1077,285 @@ fn locate_pack_root(unpacked: &Path) -> Result<PathBuf> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::{
+        thread,
+        time::{Duration, Instant},
+    };
+
+    const BUILDER_FIXTURE: &str = "psx::tests::managed_builder_fixture_child";
+
+    // Execute this repository's native test binary through the production
+    // builder boundary. No upstream Python, compiler, game or source is run.
+    fn run_builder_fixture(root: &Path, operation: &OperationCoordinator) -> Result<()> {
+        run_cli(
+            &std::env::current_exe().unwrap(),
+            Path::new("--exact"),
+            root,
+            &root.join("owned-toolchain"),
+            [BUILDER_FIXTURE.into(), "--nocapture".into()],
+            operation,
+            &mut true,
+        )
+    }
+
+    #[test]
+    fn managed_builder_fixture_child() {
+        let Ok(mode) = fs::read_to_string("owned-builder-mode") else {
+            return;
+        };
+        fs::write("owned-builder-ready", std::process::id().to_string()).unwrap();
+        match mode.as_str() {
+            "generation" | "rebuild" => {
+                // This finite fallback bounds a failing-before run and ensures
+                // an assertion cannot leave a permanent owned fixture process.
+                thread::sleep(Duration::from_secs(3));
+                fs::write("owned-builder-completed", b"unexpected completion").unwrap();
+            }
+            "success" => println!("owned builder success"),
+            "failure" => {
+                eprintln!("owned builder failure detail");
+                std::process::exit(23);
+            }
+            "flood-failure" | "same-stream-flood" | "clip-failure" => {
+                use std::io::Write;
+                let block = [b'x'; 8192];
+                let blocks = if mode == "clip-failure" { 10 } else { 320 };
+                for _ in 0..blocks {
+                    std::io::stdout().write_all(&block).unwrap();
+                }
+                if mode == "same-stream-flood" {
+                    println!("owned late stdout failure omitted by bounded capture");
+                } else {
+                    eprintln!("owned stderr after verbose stdout");
+                }
+                std::process::exit(23);
+            }
+            _ => panic!("unknown owned builder mode"),
+        }
+    }
+
+    fn assert_builder_cancellation(phase: &str) {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path().join("owned-build");
+        fs::create_dir(&root).unwrap();
+        fs::write(root.join("owned-builder-mode"), phase).unwrap();
+        let player_source = temporary.path().join("player-source");
+        fs::write(&player_source, b"unchanged external source").unwrap();
+        let service =
+            crate::PortcoveService::new(Library::open(temporary.path().join("library")).unwrap())
+                .unwrap();
+        let (activity, operation) = service
+            .begin_cancellable_activity(
+                crate::ActivityOperation::Install,
+                crate::ActivityTargetKind::Library,
+                None,
+            )
+            .unwrap();
+        let observer = crate::PortcoveService::new(service.library().clone()).unwrap();
+        let id = activity.id.clone();
+        let ready = root.join("owned-builder-ready");
+        let request = thread::spawn(move || {
+            let deadline = Instant::now() + Duration::from_secs(6);
+            while !ready.is_file() {
+                assert!(Instant::now() < deadline, "owned builder did not start");
+                thread::sleep(Duration::from_millis(5));
+            }
+            observer.request_cancellation(&id).unwrap();
+        });
+        let started = Instant::now();
+        let result = run_builder_fixture(&root, &operation);
+        let elapsed = started.elapsed();
+        request.join().unwrap();
+        assert_eq!(
+            fs::read(&player_source).unwrap(),
+            b"unchanged external source"
+        );
+        assert!(
+            operation.checkpoint().is_err(),
+            "real cancellation was accepted"
+        );
+        println!("phase={phase} elapsed={elapsed:?} result={result:?}");
+        let result = service.finish_activity(activity, result);
+        assert_eq!(result.unwrap_err().code, crate::ErrorCode::Cancelled);
+        assert!(
+            elapsed < Duration::from_secs(2),
+            "builder ignored cancellation"
+        );
+        assert!(!root.join("owned-builder-completed").exists());
+    }
+
+    #[test]
+    fn managed_builder_generation_observes_active_cancellation() {
+        assert_builder_cancellation("generation");
+    }
+
+    #[test]
+    fn managed_builder_rebuild_observes_active_cancellation() {
+        assert_builder_cancellation("rebuild");
+    }
+
+    #[test]
+    fn managed_builder_preserves_success_and_nonzero_failure() {
+        let temporary = tempfile::tempdir().unwrap();
+        let operation = OperationCoordinator::new("owned-builder", None);
+        fs::write(temporary.path().join("owned-builder-mode"), "success").unwrap();
+        run_builder_fixture(temporary.path(), &operation).unwrap();
+        fs::write(temporary.path().join("owned-builder-mode"), "failure").unwrap();
+        let error = run_builder_fixture(temporary.path(), &operation).unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Install);
+        assert!(error.message.contains("23"));
+        assert!(error.details["output_tail"].contains("owned builder failure detail"));
+        assert_eq!(error.details["output_truncated"], "false");
+    }
+
+    #[test]
+    fn managed_builder_pre_spawn_cancellation_preserves_prior_uncertainty() {
+        let temporary = tempfile::tempdir().unwrap();
+        let service =
+            crate::PortcoveService::new(Library::open(temporary.path().join("library")).unwrap())
+                .unwrap();
+        let (activity, operation) = service
+            .begin_cancellable_activity(
+                crate::ActivityOperation::Install,
+                crate::ActivityTargetKind::Port,
+                Some("sample"),
+            )
+            .unwrap();
+        service.request_cancellation(&activity.id).unwrap();
+        for previous in [true, false] {
+            let mut quiesced = previous;
+            let result = run_cli(
+                &std::env::current_exe().unwrap(),
+                Path::new("--exact"),
+                temporary.path(),
+                temporary.path(),
+                [BUILDER_FIXTURE.into(), "--nocapture".into()],
+                &operation,
+                &mut quiesced,
+            );
+            assert_eq!(result.unwrap_err().code, crate::ErrorCode::Cancelled);
+            assert_eq!(quiesced, previous);
+            assert!(!temporary.path().join("owned-builder-ready").exists());
+        }
+    }
+
+    #[test]
+    fn managed_builder_bounded_output_keeps_both_streams_and_status() {
+        let temporary = tempfile::tempdir().unwrap();
+        fs::write(temporary.path().join("owned-builder-mode"), "flood-failure").unwrap();
+        let error = run_builder_fixture(
+            temporary.path(),
+            &OperationCoordinator::new("owned-builder", None),
+        )
+        .unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Install);
+        assert!(error.message.contains("23"));
+        assert!(error.details["output_tail"].contains("owned stderr after verbose stdout"));
+        assert!(error.details["output_tail"].len() <= 64 * 1024);
+    }
+
+    #[test]
+    fn managed_builder_reports_capture_and_error_detail_truncation() {
+        let temporary = tempfile::tempdir().unwrap();
+        let operation = OperationCoordinator::new("owned-builder", None);
+        for mode in ["same-stream-flood", "clip-failure"] {
+            fs::write(temporary.path().join("owned-builder-mode"), mode).unwrap();
+            let error = run_builder_fixture(temporary.path(), &operation).unwrap_err();
+            assert_eq!(error.code, crate::ErrorCode::Install);
+            assert!(error.message.contains("23"));
+            assert!(error.details["output_tail"].len() <= 64 * 1024);
+            if mode == "same-stream-flood" {
+                assert!(!error.details["output_tail"].contains("owned late stdout failure"));
+            }
+            assert_eq!(
+                error.details.get("output_truncated").map(String::as_str),
+                Some("true"),
+                "{mode}"
+            );
+        }
+    }
+
+    #[test]
+    fn managed_builder_workspace_survives_worker_error_and_unwind() {
+        let staging = tempfile::tempdir().unwrap();
+        let root = staging.path().join("payload");
+        fs::create_dir(&root).unwrap();
+        let workspace = retained_source_workspace(&root).unwrap();
+        fs::write(workspace.join("owned-input"), b"retain across error").unwrap();
+        let result = run_cli(
+            Path::new("missing-owned-builder"),
+            Path::new("fixed-cli"),
+            &root,
+            &root,
+            [],
+            &OperationCoordinator::new("owned-builder", None),
+            &mut true,
+        );
+        assert_eq!(result.unwrap_err().code, crate::ErrorCode::Install);
+        assert_eq!(
+            fs::read(workspace.join("owned-input")).unwrap(),
+            b"retain across error"
+        );
+        let panic = std::panic::catch_unwind(|| {
+            let owned = retained_source_workspace(&root).unwrap();
+            fs::write(owned.join("owned-panic-input"), b"retain on unwind").unwrap();
+            panic!("owned worker unwind");
+        });
+        assert!(panic.is_err());
+        let retained = fs::read_dir(staging.path())
+            .unwrap()
+            .filter_map(|entry| entry.ok())
+            .any(|entry| entry.path().join("owned-panic-input").is_file());
+        assert!(retained);
+    }
+
+    #[test]
+    fn managed_builder_stops_ordinary_native_descendants() {
+        let native = tempfile::tempdir().unwrap();
+        let program = crate::test_fixture::build_probe(native.path());
+        let root = tempfile::tempdir().unwrap();
+        let marker = root.path().join("owned-descendant-output");
+        let mut quiesced = true;
+        run_cli(
+            &program,
+            Path::new("--setup-tree"),
+            root.path(),
+            root.path(),
+            [marker.display().to_string(), "exit".into()],
+            &OperationCoordinator::new("owned-builder", None),
+            &mut quiesced,
+        )
+        .unwrap();
+        assert_eq!(quiesced, cfg!(windows));
+        thread::sleep(Duration::from_millis(1200));
+        assert!(!marker.exists());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn managed_builder_escaped_descendant_retains_workspace_without_proof() {
+        let native = tempfile::tempdir().unwrap();
+        let program = crate::test_fixture::build_probe(native.path());
+        let staging = tempfile::tempdir().unwrap();
+        let workspace = retained_source_workspace(&staging.path().join("payload")).unwrap();
+        let marker = workspace.join("owned-escaped-output");
+        let ready = workspace.join("owned-escaped-ready");
+        let mut quiesced = true;
+        run_cli(
+            &program,
+            Path::new("--setup-tree-escape"),
+            &workspace,
+            &workspace,
+            [marker.display().to_string(), ready.display().to_string()],
+            &OperationCoordinator::new("owned-builder", None),
+            &mut quiesced,
+        )
+        .unwrap();
+        assert!(!quiesced);
+        assert!(workspace.is_dir());
+        thread::sleep(Duration::from_millis(1200));
+        assert!(marker.is_file());
+    }
 
     #[test]
     fn toolchain_marker_is_bound_to_current_critical_file_bytes() {

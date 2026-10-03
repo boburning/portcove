@@ -104,10 +104,17 @@ impl PortcoveService {
             None,
         )?;
         emit(operation.started());
-        let result = self.finish_activity(
-            activity,
-            scan_with_events(self.catalog(), request, &operation, vec![], None, &mut emit),
-        );
+        let scan = discovery_exclusions(self.library()).and_then(|(exclusions, _)| {
+            scan_with_events(
+                self.catalog(),
+                request,
+                &operation,
+                exclusions,
+                Some(self.library()),
+                &mut emit,
+            )
+        });
+        let result = self.finish_activity(activity, scan);
         emit(operation.finished(crate::OperationResult::from_result(&result)));
         result
     }
@@ -154,6 +161,26 @@ impl PortcoveService {
     pub fn game_file_scan_snapshot(&self) -> Result<Option<GameFileScanSnapshot>> {
         current_game_file_scan(self.catalog(), self.library())
     }
+}
+
+fn discovery_exclusions(
+    library: &crate::Library,
+) -> Result<(
+    Vec<DiscoveryExclusion>,
+    Vec<crate::library::OutputRootRecord>,
+)> {
+    let mut exclusions = vec![DiscoveryExclusion {
+        path: fs::canonicalize(library.root())?,
+        kind: DiscoveryExclusionKind::Library,
+    }];
+    // Claimed custom roots are stored under their canonical identity. Retain
+    // the exclusion even when the volume is temporarily unavailable.
+    let expected_outputs = library.output_roots()?;
+    exclusions.extend(expected_outputs.iter().map(|record| DiscoveryExclusion {
+        path: fs::canonicalize(&record.path).unwrap_or_else(|_| record.path.clone()),
+        kind: DiscoveryExclusionKind::ManagedOutput,
+    }));
+    Ok((exclusions, expected_outputs))
 }
 
 fn publish_game_file_scan(
@@ -220,17 +247,7 @@ fn build_game_file_scan_with_registry_events(
             .collect(),
         limits: limits.clone(),
     };
-    let mut exclusions = vec![DiscoveryExclusion {
-        path: fs::canonicalize(library.root())?,
-        kind: DiscoveryExclusionKind::Library,
-    }];
-    // Claimed custom roots are stored under their canonical identity. Retain
-    // the exclusion even when the volume is temporarily unavailable.
-    let expected_outputs = library.output_roots()?;
-    exclusions.extend(expected_outputs.iter().map(|record| DiscoveryExclusion {
-        path: fs::canonicalize(&record.path).unwrap_or_else(|_| record.path.clone()),
-        kind: DiscoveryExclusionKind::ManagedOutput,
-    }));
+    let (exclusions, expected_outputs) = discovery_exclusions(library)?;
     let mut report = scan_with_events(
         catalog,
         &request,
@@ -409,9 +426,9 @@ fn path_within(path: &Path, parent: &Path) -> bool {
 impl DiscoveryExclusionKind {
     fn root_error(&self) -> &'static str {
         match self {
-            Self::Library => "saved game-file roots cannot be inside the Portcove library",
+            Self::Library => "source discovery roots cannot be inside the Portcove library",
             Self::ManagedOutput => {
-                "saved game-file roots cannot be inside a Portcove-managed game output"
+                "source discovery roots cannot be inside a Portcove-managed game output"
             }
         }
     }

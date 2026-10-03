@@ -163,10 +163,10 @@ files without redistribution permission. Defaults need actual permission;
 attribution, public availability and local hashes are not rights evidence.
 
 [#527](https://github.com/boburning/portcove/issues/527) owns the bounded
-SteamGridDB capability for Portcove's picker and the Public beta Steam artwork
+SteamGridDB capability for Portcove's picker and the pre-1.0 Steam artwork
 handoff, using one user-supplied credential subject to verified application-use,
 same-user Steam installation, cache/retention, withdrawal and attribution
-conditions. Delivering that provider capability is Required; configuring or using
+conditions. Delivering that provider capability is Required before 1.0 during beta; configuring or using
 it remains optional for each user. Provider failure or unresolved access never
 blocks foundational artwork, catalog delivery, game lifecycle, or #292 Add/Repair
 without remote art. #292 alone owns Steam destination writes through #208's shared
@@ -215,8 +215,8 @@ status checklist.
 Alpha 2's onboarding and storage outcomes are released. Subsequent delivery is
 capability-based: small safe previews may ship while cumulative Public beta or
 1.0 commitments remain incomplete. Versions, Stable/Preview channels, workstreams
-and readiness are separate. The complete Windows/Linux/Steam Deck/macOS updater
-is required for Public beta, together with independent catalog delivery and the
+and readiness are separate. The complete Windows/ordinary Linux/macOS updater
+is required for initial Public beta, together with independent catalog delivery and the
 finite preparation, artwork and real reference-client outcomes. These remain
 cumulative 1.0 requirements; exact production qualification stays at 1.0.
 See [Continuous verified delivery](DELIVERY.md).
@@ -329,26 +329,28 @@ their separate later ownership and do not enter beta solely through these links.
 Broader testing is appropriate when representative first-play and recovery are
 usable; fundamental safety, honest limitations and the complete baseline
 application updater are proven. #52 includes Windows per-user NSIS, Linux
-AppImage, that same application on Steam Deck, and installed macOS bundles on
-Intel and Apple Silicon. Require real updater-enabled release-to-release and
+AppImage on ordinary Linux x86-64. Installed macOS Intel/Apple Silicon bundles
+are Required before 1.0 under #226 during beta, not part of initial #52 closure. Require real updater-enabled release-to-release and
 skipped-version evidence, safe failure/data preservation, and a provisioned
 bounded release/feed pipeline. Manual reinstall or compiled packages alone do
 not satisfy the gate. Missing platform evidence keeps the milestone open.
 
-The expanded commitment includes the complete finite preparation-boundary proof
-in #31, structured presentation and local-first artwork in #208/#206, the bounded
-SteamGridDB capability in #527, the public CLI and independent-consumer proof in
-#30/#243, the user-ready Playnite lifecycle integration in #910, selected-game
-Steam Add/Repair/Update-artwork/Remove in #292, and the protected unchanged-client
-catalog path in #245/#397/#398/#246. This explicitly
-supersedes the earlier beta wording that limited Playnite to its developer-loaded
-reference or deferred all Steam entry management until after 1.0. Preserve the
-existing owners, completed reference evidence, and each new owner's full scoped
-acceptance. Additional artwork providers, provider-mandatory runtime behavior,
-full adapter migration, broad discovery, additional frontends and general
-autonomous engineering are not implied.
-Application updater and catalog delivery are independent Required outcomes, with
-no reciprocal parent blocker.
+Initial beta retains the complete preparation boundary (#31), structured local-
+first/account-free artwork (#1155/#208/#206), public CLI and independent reference
+proof (#30/#243), manual plugin-free Steam launch (#290), and protected unchanged-
+client catalog delivery (#245/#397/#398/#246). The frozen full feasible backlog
+rollout and its shared onboarding capabilities remain Required; pilots prove
+machinery, not the rollout quota. Application updater and catalog delivery are
+independent Required outcomes without reciprocal parent blockers.
+
+Full user-ready Playnite (#910), automatic Steam Add/Repair/Update-artwork/Remove
+(#292), SteamGridDB (#527) and physical Xbox qualification (#44) are high-priority
+work during Public beta, Required before 1.0. Preserve their complete safety,
+ownership and consumer acceptance. They do not gate initial beta. Practical
+cross-platform CI/build health and reusable public/runtime contracts remain;
+ordinary provider use stays optional and account-free defaults stay required.
+This supersedes earlier beta timing for those peripheral outcomes without
+weakening the core product or its architecture.
 
 The finite [#921](https://github.com/boburning/portcove/issues/921) architecture
 and development-agility initiative is also Required for Public beta. It adds five
@@ -396,9 +398,10 @@ no-Tailwind, no-shadcn direction. It is an organizational child of #200; the
 parent relationship does not make closure of the broader
 1.0 workstream a beta prerequisite; #917 itself remains Required for Public beta.
 #206 retains information architecture and interaction behavior; #203 retains
-labels, formatting, localization and safe unknowns; #208/#527 retain artwork and
-provider authority; #29/#44/#47 retain their controller, minimum-width, physical
-and intrinsic human qualification. No broad owner closure blocks the finite
+labels, formatting, localization and safe unknowns; #208 retains beta artwork,
+with #527 provider authority before 1.0. #29 retains beta controller/focus and
+accessibility; #44 physical Xbox and #47 distinct packaged product observations follow
+before 1.0. No broad owner closure blocks the finite
 visual outcome.
 
 [#1040](https://github.com/boburning/portcove/issues/1040) is the finite Required
@@ -434,13 +437,34 @@ routes, and #292 owns bounded user-initiated Add/Repair/Update-artwork/Remove,
 consuming #527 only through #208's shared artwork authority. The manual route
 remains a supported fallback and useful interim path, but it does not complete
 #292. Continuous synchronization, Decky, root modification and a separate Deck
-binary/channel are not required. Qualification starts during implementation,
-including actual Gaming Mode, normal Exit versus Steam Stop, suspend and removable
-storage.
+binary/channel are not required. Initial Public beta does not claim qualified
+Steam Deck support. The ordinary Linux build may function on SteamOS, with Deck
+status explicitly unqualified; no deliberate execution block or universal
+experimental switch is required. Windows and ordinary Linux x86-64 are the official initial-beta targets once
+qualified. macOS Intel/Apple Silicon qualification (#45/#226) follows during beta,
+Required before 1.0; practical build health and portable code remain.
+
+Steam Deck qualification is a high-priority Public beta follow-up (Beta 2),
+Required before 1.0. The existing active Target release is 1.0 with High/Next
+selection; the historical Beta 2 field is not reused. #213–#217 and #535 require
+actual SteamOS/Gaming Mode, controller/Desktop handoff, Gamescope focus/lifetime,
+normal Exit versus Steam Stop, suspend, storage, updater and representative-device
+evidence before #51 can claim qualified support. Agent-operated remote real-device
+evidence can establish those behaviors; the owner is not a mandatory tester.
+
+Shared rootless Linux installation/updating remains with #225, reusable desktop
+controller behavior with #29/#206/#917, process/interruption continuity with #21/#1282,
+and generic storage safety with #38/#192. #290 retains the independently complete manual Desktop Steam outcome for initial
+beta; #292 automatic mutation follows before 1.0, with #217 consuming applicable
+device proof later. #52 does not wait for #226, #535 or the Deck matrix. No initial-beta
+component waits for physical Deck access, while Deck qualification consumes the
+shared foundations without waiting for the 1.0 release itself. Missing Deck
+observations do not waive any ordinary Linux safety requirement or establish
+Valve Verified, universal port compatibility or a qualified Gaming Mode claim.
 
 Safety-critical UX, clear game-channel controls and existing early safety
 commitments stay visible. Public beta does not freeze every 1.0 capability or
-require paid certificates, every Linux distro/format, every port or flawless
+require paid certificates, every Linux distro/format, every port fully qualified or flawless
 first-download OS trust. Automatic mode uses one-time consent and safe-time
 application with a single restart action when apply-on-exit is not safely
 supported. [Delivery](DELIVERY.md) defines acceptance and platform limits.
@@ -468,6 +492,37 @@ without private repository knowledge or per-port rules. Marketplace acceptance,
 community adoption, a universal frontend list, catalog counts, continuous Steam
 synchronization, Decky and standalone CLI self-updating are not gates.
 
+## Optional profiles after initial beta
+
+#250 targets an Opportunistic 1.0 first experience with Ship of Harkinian and
+reviewed local packages: clean/customized profiles, native-loader settings,
+separate save handling, retained exact builds, disable/remove and recovery across
+Core, Desktop and the public CLI. The minimum retained-build/reference protection
+is independently deliverable in #1456 under #40; the first profile does not wait for all
+historical browsing or follow-latest controls. Local packages do not need an
+online provider, account, second loader or shared-manifest feature.
+
+Core remains the profile transaction and mutable-state authority. Provider
+adapters supply candidates and provenance; bounded native-loader adapters supply
+reviewed deployment/settings behavior before existing supervised launch. Preserve
+working setups and original files, preview ownership transitions, and separate
+configuration recovery from reverting saved progress. Missing bytes and unknown
+compatibility remain explicit; hashes identify bytes, not publisher authenticity
+or proof of safety. Mod capabilities never gate ordinary launch or admission.
+
+#262 retains both GameBanana and Thunderstore in Post-1.0 Opportunistic scope.
+They may ship independently once each has an evidenced supported loader fit or a
+narrowly owned extension; neither waits for the other or #1457's whole second-family
+proof. #1457's bounded different-loader reuse proof
+and #1458's payload-free profile-manifest sharing are separate follow-ons. #249's ordinary
+library adoption stays independent; recognized mod setups may enter the profile
+engine later only through reviewed inventory, ownership and consent.
+
+These are planned capabilities, not delivered runtime or gameplay qualification.
+No mod-profile or provider outcome is an initial Public beta or mandatory 1.0
+release gate. Existing beta foundations and platform qualification deferrals
+remain unchanged.
+
 ## Post-1.0 principles
 
 Initial value order is:
@@ -485,7 +540,7 @@ Initial value order is:
 3. **Bring existing libraries and preferred frontends along** — first #291's
    reusable ES-DE export profile, then demand-led Windows/environment profiles;
    #249 remains the bounded existing-library importer. #292's selected-game Steam
-   entry management is already a cumulative beta commitment, while continuous
+   entry management is Required before 1.0 during beta, while continuous
    synchronization remains later scope. #293 is a separate optional/community
    Decky opportunity.
    Use inspect/preview, consent, stable ownership, duplicate prevention,
@@ -495,10 +550,12 @@ Initial value order is:
    prove manual export/import for one persistence family and declared
    version/platform pair with identity-bound snapshots, conflicts, a pre-import
    safety snapshot, and interrupted recovery; transport remains optional.
-5. **Customize safely and reversibly** — #40 where exact-version identity is
-   required, then #250. First prove one clean and one local customized profile,
-   including switching, disabling, removal, compatibility limits, and recovery;
-   no hosted mod marketplace or arbitrary execution authority is implied.
+5. **Extend safe, reversible customization** — reuse #250's optional first-family
+   profile boundary; prove one materially different loader and independently
+   deliver GameBanana and Thunderstore under #262. Full historical selectors
+   remain with #40; sharing recipes is a bounded follow-on that excludes game
+   payloads, credentials and private paths. No hosted marketplace, universal
+   loader or arbitrary execution authority is implied.
 6. **Reduce attention required by larger libraries** — #248. First prove that
    suitable stages resume or safely restart without duplicate destructive work
    or lost consent, reusing existing activity/cancellation/recovery and honoring
@@ -570,6 +627,52 @@ preserves the historical findings, owner mapping, source gaps, and observed
 planning changes. It is a dated snapshot; current issue scope and Project
 placement remain authoritative. Comparative claims about effort or reliability
 require measured evidence, even when feature lists overlap.
+
+## Planned local-first Android client
+
+Android remains deferred, Post-1.0 and Opportunistic under
+[#410](https://github.com/boburning/portcove/issues/410); it is not a desktop
+Public beta or 1.0 prerequisite. Preserve the shared architecture, design system
+and development-agility foundations already committed to beta. Rust Core owns
+policy, catalog interpretation, trust, plans and durable recovery; Kotlin
+integrates Android packages, installer sessions, documents/grants, activities
+and OS scheduling; React/Tauri owns adaptive presentation. Android provides
+installed-package truth to the same Core workflow. Package identities, activity
+handoffs and document URIs require explicit capabilities and versioned contracts,
+not desktop executable/path semantics or implicit changes to frozen clients.
+
+Platform qualification follows the behaviors and device claims actually offered,
+with controlled fixture APKs and structurally different real integrations.
+The former six-game/three-engine-family minimum is a nonblocking lineup ambition,
+not an absolute release prerequisite. A compatible accepted definition may be
+available with gameplay Not tested after mandatory admission checks pass.
+Unknown package/signer identity, inaccessible required data and known unsafe
+operations remain scoped holds. No owner personal every-game testing queue is
+created; platform readiness, capabilities, device compatibility and per-port
+evidence stay distinct.
+
+[#411](https://github.com/boburning/portcove/issues/411) owns bounded candidate
+identity research. [#412](https://github.com/boburning/portcove/issues/412) owns
+the installed-shell proof: shared Core and app-private storage, document-picker
+validation, user-confirmed installation, package/version/signer observation,
+setup/launch/return, interrupted-operation reconciliation, and compatible
+definitions and externally installed packages added after the client APK was
+built. [#413](https://github.com/boburning/portcove/issues/413) owns useful adaptive
+journeys and partial management. [#414](https://github.com/boburning/portcove/issues/414)
+owns signed GitHub APKs, manual upgrade preservation, optional Obtainium and
+device/distribution evidence. Existing definition foundations stay completed;
+Android-specific claims remain unproven.
+
+Initial implementation targets standalone APKs and ARM64; the proposed Android
+10 minimum, target-SDK/distribution rules and native page-size behavior must be
+validated separately from each game's requirements. Installation and game-data
+setup are separate operations; activity handoff does not prove gameplay or
+process exit. Saves and mods require supported access/import interfaces, reusing
+existing save/profile/provider owners, including GameBanana and Thunderstore.
+No root/broad-access default, APK re-signing, live-library sync, parallel policy
+stack or preemptive second UI framework is implied. Phone/tablet support does not
+qualify handheld/controller or TV/Shield use. Recheck current platform guidance
+when implementation resumes; this direction ships no Android build.
 
 ## Outcome measures
 

@@ -187,6 +187,69 @@ test("ordinary package boundary is isolated and rejects stale or substituted evi
   await assert.rejects(
     verifyNormalPackageEvidence(manifestPath, manifest.revision, executable, root),
   );
+  await mkdir(path.join(root, "installed"));
+  const installedPath = path.join(root, "installed", "portcove-desktop.exe");
+  await writeFile(installedPath, "owned installed executable");
+  const installedExecutable = await fileIdentity(installedPath);
+  const ready = {
+    phase: "current_installed_boundary_ready",
+    details: {
+      installer_sha256: installer.sha256,
+      installed_executable_sha256: installedExecutable.sha256,
+      installed_executable_path: installedPath,
+      install_root: path.dirname(installedPath),
+      registration_path:
+        "Microsoft.PowerShell.Core\\Registry::HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\PortcoveFixture",
+      uninstall_registration_count: 1,
+      application_responding: true,
+      application_exit_code: 0,
+      persistent_data_preserved: true,
+    },
+  };
+  manifest.execution_context = "current-installed";
+  const bindReady = async (receipt) => {
+    await writeFile(receiptPath, JSON.stringify(receipt));
+    manifest.installer_evidence = await fileIdentity(receiptPath);
+    await writeFile(manifestPath, JSON.stringify(manifest));
+  };
+  await bindReady(ready);
+  const verified = await verifyNormalPackageEvidence(
+    manifestPath,
+    manifest.revision,
+    installedExecutable,
+    root,
+  );
+  assert.equal(verified.execution_context, "current-installed");
+  for (const [field, value] of [
+    ["uninstall_registration_count", 0],
+    ["uninstall_registration_count", 2],
+    [
+      "registration_path",
+      ready.details.registration_path.replace("HKEY_CURRENT_USER", "HKEY_LOCAL_MACHINE"),
+    ],
+    ["installed_executable_path", path.join(root, "copied.exe")],
+    ["install_root", root],
+    ["application_responding", false],
+    ["application_exit_code", 1],
+    ["persistent_data_preserved", false],
+  ]) {
+    await bindReady({ ...ready, details: { ...ready.details, [field]: value } });
+    await assert.rejects(
+      verifyNormalPackageEvidence(manifestPath, manifest.revision, installedExecutable, root),
+      `${field} must refuse current-installed credit`,
+    );
+  }
+  await bindReady({ ...ready, phase: "complete" });
+  await assert.rejects(
+    verifyNormalPackageEvidence(manifestPath, manifest.revision, installedExecutable, root),
+    "Post-uninstall evidence must not claim a current installation",
+  );
+  await bindReady(ready);
+  await writeFile(installedPath, "changed after installation");
+  await assert.rejects(
+    verifyNormalPackageEvidence(manifestPath, manifest.revision, installedExecutable, root),
+    "Changed installed bytes must fail even when the manifest still matches",
+  );
 });
 
 test("desktop scenario catalog is nonempty, unique, and fully profiled", () => {

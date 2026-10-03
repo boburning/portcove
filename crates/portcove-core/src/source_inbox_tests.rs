@@ -18,27 +18,44 @@ fn hashes(bytes: &[u8], scope: DigestScope) -> DigestIdentity {
 
 fn catalog_with(
     profile_id: &str,
-    mutate: impl FnOnce(&mut crate::SourceRepresentation),
+    source_kind: &str,
+    representation: crate::SourceRepresentation,
 ) -> Catalog {
-    let mut document = Catalog::embedded().unwrap().authoritative_document();
-    let profile = document
-        .source_catalog
-        .as_mut()
-        .unwrap()
-        .identities
-        .iter_mut()
-        .find(|profile| profile.id == profile_id)
-        .unwrap();
-    let representation = profile
-        .variants
-        .iter_mut()
-        .find(|variant| !variant.legacy_projection_only)
-        .unwrap()
-        .representations
-        .first_mut()
-        .unwrap();
-    mutate(representation);
-    Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap()
+    let document = serde_json::json!({
+        "schema_version": 2,
+        "source_catalog": {
+            "evidence": [{
+                "id": "inbox-fixture-bytes", "role": "byte_identity",
+                "authority": "Synthetic inbox fixture", "authority_ref": "fixture-1",
+                "reviewed_at": "2026-10-01", "claim": "Synthetic exact source bytes",
+                "immutable_url": "https://example.com/fixtures/inbox-v1"
+            }],
+            "identities": [{
+                "id": profile_id, "label": "Synthetic inbox source",
+                "kind": source_kind, "variants": [{
+                    "id": "fixture-1", "title": "Synthetic inbox source",
+                    "representations": [representation],
+                    "evidence_ids": ["inbox-fixture-bytes"]
+                }]
+            }],
+            "contracts": [], "validators": []
+        },
+        "ports": []
+    });
+    Catalog::from_json(&document.to_string()).unwrap()
+}
+
+fn assert_small_generic_catalog(catalog: &Catalog, profile_id: &str) {
+    catalog.validate().unwrap();
+    assert!(catalog.ports().is_empty());
+    let source = catalog.source_catalog().unwrap();
+    assert_eq!(source.identities.len(), 1);
+    assert_eq!(source.evidence.len(), 1);
+    assert!(source.contracts.is_empty());
+    assert!(source.validators.is_empty());
+    assert!(source.qualification.is_empty());
+    assert_eq!(source.identities[0].id, profile_id);
+    assert_eq!(catalog.document().source_profiles.len(), 1);
 }
 
 fn service(catalog: Catalog) -> (tempfile::TempDir, PortcoveService) {
@@ -50,33 +67,20 @@ fn service(catalog: Catalog) -> (tempfile::TempDir, PortcoveService) {
 }
 
 // These resolver cases need an exact identity, not a real port's admission contract.
-// Keep catalog_with and the embedded informational/representation cases separate.
+// Keep the synthetic graphs and the embedded informational case separate.
 fn exact_bios_catalog(bytes: &[u8]) -> Catalog {
-    let document = serde_json::json!({
-        "schema_version": 2,
-        "source_catalog": {
-            "evidence": [{
-                "id": "inbox-fixture-bytes", "role": "byte_identity",
-                "authority": "Synthetic inbox fixture", "authority_ref": "fixture-1",
-                "reviewed_at": "2026-10-01", "claim": "Synthetic exact source bytes",
-                "immutable_url": "https://example.com/fixtures/inbox-v1"
-            }],
-            "identities": [{
-                "id": "psx-scph-1001-bios", "label": "Synthetic inbox source",
-                "kind": "file", "variants": [{
-                    "id": "fixture-1", "title": "Synthetic inbox source",
-                    "representations": [{
-                        "id": "raw", "extensions": ["bin"], "kind": "raw-file",
-                        "identities": [hashes(bytes, DigestScope::OriginalFile)],
-                        "evidence_ids": ["inbox-fixture-bytes"]
-                    }], "evidence_ids": ["inbox-fixture-bytes"]
-                }]
-            }],
-            "contracts": [], "validators": []
+    catalog_with(
+        "psx-scph-1001-bios",
+        "file",
+        crate::SourceRepresentation {
+            id: "raw".into(),
+            extensions: vec!["bin".into()],
+            kind: SourceRepresentationKind::RawFile {
+                identities: vec![hashes(bytes, DigestScope::OriginalFile)],
+            },
+            evidence_ids: vec!["inbox-fixture-bytes".into()],
         },
-        "ports": []
-    });
-    Catalog::from_json(&document.to_string()).unwrap()
+    )
 }
 
 #[test]
@@ -302,12 +306,19 @@ fn zero_one_multiple_and_registered_precedence_are_deterministic() {
 #[test]
 fn zip_members_file_sets_and_gamecube_images_use_the_shared_inspector() {
     let zip_bytes = b"synthetic archived BIOS";
-    let zip_catalog = catalog_with("psx-scph-1001-bios", |representation| {
-        representation.extensions = vec!["bin".into()];
-        representation.kind = SourceRepresentationKind::RawFile {
-            identities: vec![hashes(zip_bytes, DigestScope::NormalizedContent)],
-        };
-    });
+    let zip_catalog = catalog_with(
+        "psx-scph-1001-bios",
+        "file",
+        crate::SourceRepresentation {
+            id: "raw".into(),
+            extensions: vec!["bin".into()],
+            kind: SourceRepresentationKind::RawFile {
+                identities: vec![hashes(zip_bytes, DigestScope::NormalizedContent)],
+            },
+            evidence_ids: vec!["inbox-fixture-bytes".into()],
+        },
+    );
+    assert_small_generic_catalog(&zip_catalog, "psx-scph-1001-bios");
     let (_temporary, zip_service) = service(zip_catalog);
     let zip_inbox = profile_dir(&zip_service, "psx-scph-1001-bios");
     let zip_path = zip_inbox.join("bios.zip");
@@ -331,15 +342,35 @@ fn zip_members_file_sets_and_gamecube_images_use_the_shared_inspector() {
     );
 
     let member_bytes: [&[u8]; 3] = [b"synthetic cartridge", b"synthetic disk", b"synthetic IPL"];
-    let file_set_catalog = catalog_with("g-diffuser-source-set", |representation| {
-        representation.extensions = Vec::new();
-        let SourceRepresentationKind::FileSet { members } = &mut representation.kind else {
-            panic!("g-diffuser uses a file-set source")
-        };
-        for (member, bytes) in members.iter_mut().zip(member_bytes) {
-            member.identities = vec![hashes(bytes, DigestScope::FileSetMember)];
-        }
-    });
+    let file_set_catalog = catalog_with(
+        "g-diffuser-source-set",
+        "file-set",
+        crate::SourceRepresentation {
+            id: "file-set".into(),
+            extensions: Vec::new(),
+            kind: SourceRepresentationKind::FileSet {
+                members: [
+                    ("cartridge", "baserom.us.rev0.z64", member_bytes[0]),
+                    (
+                        "expansion-kit",
+                        "baserom.translated.ek.ndd",
+                        member_bytes[1],
+                    ),
+                    ("ipl", "N64DDIPLROM.n64", member_bytes[2]),
+                ]
+                .into_iter()
+                .map(|(id, filename, bytes)| crate::SourceMemberIdentity {
+                    id: id.into(),
+                    label: id.into(),
+                    filenames: vec![filename.into()],
+                    identities: vec![hashes(bytes, DigestScope::FileSetMember)],
+                })
+                .collect(),
+            },
+            evidence_ids: vec!["inbox-fixture-bytes".into()],
+        },
+    );
+    assert_small_generic_catalog(&file_set_catalog, "g-diffuser-source-set");
     let (_temporary, file_set_service) = service(file_set_catalog);
     let file_set_inbox = profile_dir(&file_set_service, "g-diffuser-source-set");
     let set = file_set_inbox.join("owned-files");
@@ -361,12 +392,19 @@ fn zip_members_file_sets_and_gamecube_images_use_the_shared_inspector() {
     );
 
     let disc_bytes = b"synthetic GameCube image";
-    let gamecube_catalog = catalog_with("animal-crossing-gamecube", |representation| {
-        representation.extensions = vec!["iso".into()];
-        representation.kind = SourceRepresentationKind::GamecubeNormalizedIso {
-            identities: vec![hashes(disc_bytes, DigestScope::GamecubeNormalizedIso)],
-        };
-    });
+    let gamecube_catalog = catalog_with(
+        "animal-crossing-gamecube",
+        "optical-disc",
+        crate::SourceRepresentation {
+            id: "normalized-gamecube-iso".into(),
+            extensions: vec!["iso".into()],
+            kind: SourceRepresentationKind::GamecubeNormalizedIso {
+                identities: vec![hashes(disc_bytes, DigestScope::GamecubeNormalizedIso)],
+            },
+            evidence_ids: vec!["inbox-fixture-bytes".into()],
+        },
+    );
+    assert_small_generic_catalog(&gamecube_catalog, "animal-crossing-gamecube");
     let (_temporary, gamecube_service) = service(gamecube_catalog);
     let gamecube_inbox = profile_dir(&gamecube_service, "animal-crossing-gamecube");
     let disc = gamecube_inbox.join("game.iso");

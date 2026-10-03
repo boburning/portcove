@@ -401,6 +401,16 @@ same policy before publication, persistent-data work or child-process preparatio
 Retained launch may use its exact verified contract after metadata expiration or a
 newer replay floor; preparation and new installation require current metadata.
 Known revocation and changed publisher authorization continue to hold retained use.
+Library schema 34 records a retained-launch policy-revision interval in the
+existing protected admission transaction. A compatible definition correction
+preserves that interval only while the authenticated managed authorization is
+unchanged: namespace, stable identity, authority/root, grant, schema, template,
+repository ID, permitted hosts, redirect bound and operations. An authorization
+change or withdrawal starts a new interval; restoring an earlier scope does not
+revive its old interval. Existing schema-33 admissions start at their current
+revision on upgrade, without inferred historical permission. Only verified
+retained Launch can use an older revision in that interval. Install, Update,
+Prepare, acquisition and selection retain their exact current-policy checks.
 
 | Client/content combination                            | Required behavior                                                                                                                                               |
 | ----------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -569,7 +579,7 @@ preserve the exact hold, refuse correction while its grant is expired and permit
 an unaffected verified subject. This does not establish a physical restart or
 expired signed-TUF acquisition.
 
-Library schema 34 retains assessment decisions, inventory identity and an
+Library schema 35 retains assessment decisions, inventory identity and an
 initialization/revision binding alongside publisher admission. Existing lifetime
 leases require exclusive access for migration, preventing upgrade beneath an
 older open client; older clients refuse an upgraded library on reopen. An old

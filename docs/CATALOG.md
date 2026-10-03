@@ -62,8 +62,18 @@ identities reuse accepted mappings without provider requests; distinct ports may
 reuse a uniquely accepted original-game mapping without merging their identities.
 An ordinary executable release does not trigger artwork searches. For an assessed
 reference change, `--refresh-artwork PORT_ID,OTHER_ID` explicitly refreshes those
-batch entries. A failed refresh retains the matching permitted accepted mapping,
-without claiming live validation or processing a known withdrawal.
+batch entries. A failed refresh retains the matching permitted accepted mapping
+for uncertain or transient failures, including HTTP404, authentication/network
+errors and rate limits, without claiming live validation. HTTP410 from the fixed
+IGDB image request identifies that exact image as Gone: preparation excludes it
+from every reference in the output batch, regardless of record order, and records
+its image identity/status. Existing exact-port/original selection can supply a
+checked replacement; otherwise the generated/text fallback applies. Gone for a
+different candidate image does not invalidate an accepted mapping. Unchanged
+entries still make no provider requests. This bounded observation changes only
+the unsigned proposal; accepted inputs, client choices/cache and protected
+acceptance remain unchanged. It does not establish live provider removal or a
+legal withdrawal.
 
 The new output directory is required to be absent. It receives
 `catalog-proposal.json` and `artwork-evidence.json`, including exact input/baseline
@@ -76,8 +86,22 @@ and digests, never credentials or image payloads. Scratch libraries retain local
 validation material and are not a distributable image archive.
 
 The provider route is sequential, has one lazy authentication attempt, no retries,
-and bounds metadata/image requests, bytes and execution time. Retained references
-are not fresh source-health evidence. This command prepares the cover role only;
+and bounds metadata/image requests, bytes and execution time. A valid `Retry-After`
+on a captured metadata 429 or 503 postpones the next metadata request, preserving
+the normal 300 ms floor. All three HTTP-date forms are interpreted in UTC,
+including the zoneless asctime form, independently of the authoring host timezone.
+Decimal seconds and HTTP dates stay within the existing
+15 minute batch deadline; a pause reaching that deadline refuses further metadata
+requests without sleeping past the budget. Waits remain cancellable, failed
+identities are not retried, and uncertain failures retain eligible accepted
+metadata. Image requests retain their existing policy. Fixed OAuth, metadata and image responses
+are consumed within those byte bounds or their unfinished bodies are cancelled
+when refused, including status, content-type and early length checks. Cleanup
+does not drain rejected payloads or await an arbitrary cancellation promise;
+reader locks are released and the original result or failure is preserved.
+Request signals, deadlines, request/byte counters and authentication policy
+remain unchanged. Retained references are not fresh source-health evidence.
+This command prepares the cover role only;
 other roles, full backlog coverage, protected acceptance/publication and installed
 or physical-platform evidence retain their own acceptance.
 

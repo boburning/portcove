@@ -5001,6 +5001,7 @@ pub(crate) fn sha256_file(path: &Path) -> Result<String> {
 }
 
 pub(crate) fn copy_tree(source: &Path, destination: &Path) -> Result<()> {
+    refuse_symlink_ancestors(destination)?;
     fs::create_dir_all(destination)?;
     for entry in fs::read_dir(source)? {
         let entry = entry?;
@@ -5019,6 +5020,7 @@ fn copy_entry(source: &Path, destination: &Path) -> Result<()> {
     if source.is_dir() {
         copy_tree(source, destination)
     } else if source.is_file() {
+        refuse_symlink_ancestors(destination)?;
         if let Some(parent) = destination.parent() {
             fs::create_dir_all(parent)?;
         }
@@ -5943,6 +5945,503 @@ mod tests {
         assert_external_adoption_recovers_after_every_publication_boundary(
             LifecycleFaultPoint::AdoptionMetadataCommitted,
         );
+    }
+
+    #[derive(Clone, Copy)]
+    enum AdoptionDestinationLink {
+        File,
+        DanglingFile,
+        Directory,
+        Root,
+        Ancestor,
+        #[cfg(windows)]
+        JunctionDirectory,
+        #[cfg(windows)]
+        JunctionRoot,
+    }
+
+    impl AdoptionDestinationLink {
+        fn includes_source_file_link(self) -> bool {
+            match self {
+                #[cfg(windows)]
+                Self::JunctionDirectory | Self::JunctionRoot => false,
+                _ => true,
+            }
+        }
+    }
+
+    struct AdoptionDestinationFixture {
+        temporary: tempfile::TempDir,
+        library: Library,
+        source: PathBuf,
+        user: PathBuf,
+        outside: PathBuf,
+        previous: InstallRecord,
+        source_file_link: bool,
+    }
+
+    impl AdoptionDestinationFixture {
+        fn new(kind: AdoptionDestinationLink) -> Self {
+            let temporary = tempfile::tempdir().unwrap();
+            let source_file_link = kind.includes_source_file_link();
+            let source = temporary.path().join("existing-install");
+            let outside = temporary.path().join("outside-user-parent/zelda64-recomp");
+            fs::create_dir_all(&source).unwrap();
+            fs::create_dir_all(&outside).unwrap();
+            fs::write(outside.join("graphics.json"), b"outside source-link target").unwrap();
+            if source_file_link {
+                create_adoption_test_symlink(
+                    &outside.join("graphics.json"),
+                    &source.join("graphics.json"),
+                    false,
+                );
+            }
+            let library = Library::open(temporary.path().join("library")).unwrap();
+            register_zelda_install(&library, "v1", true);
+            let previous = library
+                .status("zelda64-recomp", ReleaseChannel::Stable)
+                .unwrap()
+                .active
+                .unwrap();
+            let user = library.user_dir("zelda64-recomp");
+            for root in [&source, &user, &outside] {
+                fs::create_dir_all(root.join("saves")).unwrap();
+            }
+            write_host_test_executable(&source, "zelda64-recomp");
+            fs::write(source.join("general.json"), b"incoming settings").unwrap();
+            fs::write(source.join("saves/slot.bin"), b"incoming save").unwrap();
+            fs::write(user.join("general.json"), b"current settings").unwrap();
+            fs::write(user.join("saves/slot.bin"), b"current save").unwrap();
+            fs::write(user.join("unrelated-save"), b"preserved unrelated save").unwrap();
+            fs::write(outside.join("general.json"), b"outside settings").unwrap();
+            fs::write(outside.join("saves/slot.bin"), b"outside save").unwrap();
+            Self {
+                temporary,
+                library,
+                source,
+                user,
+                outside,
+                previous,
+                source_file_link,
+            }
+        }
+
+        fn link_destination(&self, kind: AdoptionDestinationLink) -> (PathBuf, PathBuf, bool) {
+            let (link, target, directory) = match kind {
+                AdoptionDestinationLink::File => (
+                    self.user.join("general.json"),
+                    self.outside.join("general.json"),
+                    false,
+                ),
+                AdoptionDestinationLink::DanglingFile => (
+                    self.user.join("general.json"),
+                    self.outside.join("missing.json"),
+                    false,
+                ),
+                AdoptionDestinationLink::Directory => {
+                    (self.user.join("saves"), self.outside.join("saves"), true)
+                }
+                AdoptionDestinationLink::Root => (self.user.clone(), self.outside.clone(), true),
+                AdoptionDestinationLink::Ancestor => (
+                    self.user.parent().unwrap().to_path_buf(),
+                    self.outside.parent().unwrap().to_path_buf(),
+                    true,
+                ),
+                #[cfg(windows)]
+                AdoptionDestinationLink::JunctionDirectory => {
+                    (self.user.join("saves"), self.outside.join("saves"), true)
+                }
+                #[cfg(windows)]
+                AdoptionDestinationLink::JunctionRoot => {
+                    (self.user.clone(), self.outside.clone(), true)
+                }
+            };
+            let retained = self.temporary.path().join("retained-destination");
+            fs::rename(&link, &retained).unwrap();
+            #[cfg(windows)]
+            if matches!(
+                kind,
+                AdoptionDestinationLink::JunctionDirectory | AdoptionDestinationLink::JunctionRoot
+            ) {
+                create_adoption_test_junction(&target, &link);
+            } else {
+                create_adoption_test_symlink(&target, &link, directory);
+            }
+            #[cfg(unix)]
+            create_adoption_test_symlink(&target, &link, directory);
+            assert!(
+                fs::symlink_metadata(&link)
+                    .unwrap()
+                    .file_type()
+                    .is_symlink()
+            );
+            (link, retained, directory)
+        }
+
+        fn assert_outside_and_source_intact(&self) {
+            assert_eq!(
+                fs::read(self.outside.join("general.json")).unwrap(),
+                b"outside settings"
+            );
+            assert_eq!(
+                fs::read(self.outside.join("saves/slot.bin")).unwrap(),
+                b"outside save"
+            );
+            assert_eq!(
+                fs::read(self.outside.join("graphics.json")).unwrap(),
+                b"outside source-link target"
+            );
+            assert!(!self.outside.join("missing.json").exists());
+            assert_eq!(
+                fs::read(self.source.join("general.json")).unwrap(),
+                b"incoming settings"
+            );
+            assert_eq!(
+                fs::read(self.source.join("saves/slot.bin")).unwrap(),
+                b"incoming save"
+            );
+            let source_link = fs::symlink_metadata(self.source.join("graphics.json"));
+            if self.source_file_link {
+                assert!(source_link.unwrap().file_type().is_symlink());
+            } else {
+                assert_eq!(
+                    source_link.unwrap_err().kind(),
+                    std::io::ErrorKind::NotFound
+                );
+            }
+            assert_eq!(
+                fs::read(self.previous.path.join("engine.dll")).unwrap(),
+                b"critical library"
+            );
+        }
+
+        fn assert_committed_refusal(&self, journal: &LifecycleOperation) {
+            self.assert_outside_and_source_intact();
+            let retained = OperationStore::new(self.library.clone())
+                .get(&journal.id)
+                .unwrap()
+                .expect("refused save transfer must retain its journal");
+            assert_eq!(retained.kind, LifecycleOperationKind::Adopt);
+            assert_eq!(retained.phase, journal.phase);
+            assert_eq!(
+                retained.install.as_ref().unwrap().id,
+                journal.install.as_ref().unwrap().id
+            );
+            assert!(retained.last_error.as_deref().unwrap().contains("symlink"));
+            let staged_user = retained.paths.staging.unwrap().join("user");
+            assert_eq!(
+                fs::read(staged_user.join("general.json")).unwrap(),
+                b"incoming settings"
+            );
+            assert_eq!(
+                fs::read(staged_user.join("saves/slot.bin")).unwrap(),
+                b"incoming save"
+            );
+            assert!(!staged_user.join("graphics.json").exists());
+            let active = self
+                .library
+                .status("zelda64-recomp", ReleaseChannel::Stable)
+                .unwrap()
+                .active
+                .unwrap();
+            assert_eq!(active.id, journal.install.as_ref().unwrap().id);
+            assert!(
+                Installer::new(self.library.clone())
+                    .unwrap()
+                    .verify(&active)
+                    .unwrap()
+                    .valid
+            );
+            assert_eq!(self.library.all_installs().unwrap().len(), 2);
+            assert!(self.previous.path.is_dir());
+        }
+
+        fn assert_unrelated_save_retained(&self, link: &Path, retained: &Path) {
+            let original_user = match self.user.strip_prefix(link) {
+                Ok(relative) => retained.join(relative),
+                Err(_) => self.user.clone(),
+            };
+            assert_eq!(
+                fs::read(original_user.join("unrelated-save")).unwrap(),
+                b"preserved unrelated save"
+            );
+        }
+
+        fn correct_destination_and_recover(
+            &self,
+            link: &Path,
+            retained: &Path,
+            directory: bool,
+            journal: &LifecycleOperation,
+        ) {
+            #[cfg(windows)]
+            if directory {
+                fs::remove_dir(link).unwrap();
+            } else {
+                fs::remove_file(link).unwrap();
+            }
+            #[cfg(unix)]
+            {
+                let _ = directory;
+                fs::remove_file(link).unwrap();
+            }
+            fs::rename(retained, link).unwrap();
+            PortcoveService::new(self.library.clone()).unwrap();
+            assert!(
+                OperationStore::new(self.library.clone())
+                    .all()
+                    .unwrap()
+                    .is_empty()
+            );
+            assert!(!journal.paths.staging.as_ref().unwrap().exists());
+            assert_eq!(
+                fs::read(self.user.join("general.json")).unwrap(),
+                b"incoming settings"
+            );
+            assert_eq!(
+                fs::read(self.user.join("saves/slot.bin")).unwrap(),
+                b"incoming save"
+            );
+            assert_eq!(
+                fs::read(self.user.join("unrelated-save")).unwrap(),
+                b"preserved unrelated save"
+            );
+            assert!(!self.user.join("graphics.json").exists());
+            assert_eq!(
+                self.library
+                    .status("zelda64-recomp", ReleaseChannel::Stable)
+                    .unwrap()
+                    .active
+                    .unwrap()
+                    .id,
+                journal.install.as_ref().unwrap().id
+            );
+            self.assert_outside_and_source_intact();
+            assert_eq!(self.library.all_installs().unwrap().len(), 2);
+        }
+    }
+
+    fn create_adoption_test_symlink(target: &Path, link: &Path, directory: bool) {
+        #[cfg(unix)]
+        {
+            let _ = directory;
+            std::os::unix::fs::symlink(target, link).unwrap();
+        }
+        #[cfg(windows)]
+        if directory {
+            std::os::windows::fs::symlink_dir(target, link).unwrap_or_else(|error| {
+                panic!(
+                    "Windows directory symlink fixture requires a symlink-capable executor: {error}"
+                )
+            });
+        } else {
+            std::os::windows::fs::symlink_file(target, link).unwrap_or_else(|error| {
+                panic!("Windows file symlink fixture requires a symlink-capable executor: {error}")
+            });
+        }
+    }
+
+    #[cfg(windows)]
+    fn create_adoption_test_junction(target: &Path, link: &Path) {
+        use std::os::windows::process::CommandExt;
+
+        let target = target.to_str().unwrap();
+        let link = link.to_str().unwrap();
+        for path in [target, link] {
+            assert!(!path.contains(['"', '%', '!', '&', '|', '<', '>', '^', '\r', '\n']));
+        }
+        let mut command =
+            ChildProcessPolicy::native_command(ChildProcessClass::HostTool, "cmd.exe").unwrap();
+        command.raw_arg(format!("/D /V:OFF /C mklink /J \"{link}\" \"{target}\""));
+        let started = std::time::Instant::now();
+        let checkpoint = || {
+            if started.elapsed() >= Duration::from_secs(2) {
+                Err(PortcoveError::state(
+                    "junction fixture construction exceeded two seconds",
+                ))
+            } else {
+                Ok(())
+            }
+        };
+        let output =
+            crate::tool_process::run_tool(&mut command, &checkpoint, Default::default()).unwrap();
+        assert!(
+            output.status.success(),
+            "junction fixture construction failed: {}",
+            output.output
+        );
+        assert!(!output.truncated);
+    }
+
+    fn assert_adoption_refuses_destination_link(kind: AdoptionDestinationLink) {
+        let fixture = AdoptionDestinationFixture::new(kind);
+        let (link, retained, directory) = fixture.link_destination(kind);
+        let service = service_with_release(fixture.library.clone(), "v2");
+        let preview = service
+            .preview_adoption(&fixture.source, Some("zelda64-recomp"))
+            .unwrap();
+        let authorization = service
+            .authorize_adoption(
+                &fixture.source,
+                Some("zelda64-recomp"),
+                &preview.plan_sha256,
+            )
+            .unwrap();
+        let result = service.adopt(
+            &fixture.source,
+            Some("zelda64-recomp"),
+            &authorization.token,
+        );
+        fixture.assert_outside_and_source_intact();
+        let error = result.unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Conflict);
+        assert!(error.message.contains("symlink"));
+        let journal = OperationStore::new(fixture.library.clone())
+            .all()
+            .unwrap()
+            .pop()
+            .unwrap();
+        assert_eq!(journal.phase, LifecyclePhase::MetadataCommitted);
+        fixture.assert_committed_refusal(&journal);
+        fixture.assert_unrelated_save_retained(&link, &retained);
+        fixture.correct_destination_and_recover(&link, &retained, directory, &journal);
+    }
+
+    fn assert_adoption_recovery_refuses_destination_link(kind: AdoptionDestinationLink) {
+        for phase in [
+            LifecyclePhase::MetadataCommitted,
+            LifecyclePhase::CleanupPending,
+        ] {
+            let fixture = AdoptionDestinationFixture::new(kind);
+            let service = service_with_fault(
+                fixture.library.clone(),
+                LifecycleFaultPoint::AdoptionMetadataCommitted,
+            );
+            let preview = service
+                .preview_adoption(&fixture.source, Some("zelda64-recomp"))
+                .unwrap();
+            let authorization = service
+                .authorize_adoption(
+                    &fixture.source,
+                    Some("zelda64-recomp"),
+                    &preview.plan_sha256,
+                )
+                .unwrap();
+            let error = service
+                .adopt(
+                    &fixture.source,
+                    Some("zelda64-recomp"),
+                    &authorization.token,
+                )
+                .unwrap_err();
+            assert!(error.message.contains("injected lifecycle failure"));
+            let store = OperationStore::new(fixture.library.clone());
+            let mut journal = store.all().unwrap().pop().unwrap();
+            assert_eq!(journal.phase, LifecyclePhase::MetadataCommitted);
+            journal.phase = phase;
+            store.put(&mut journal).unwrap();
+            let (link, retained, directory) = fixture.link_destination(kind);
+            // Recovery must retain the persisted transfer while another owner holds the port.
+            let held = fixture
+                .library
+                .try_lock_port("zelda64-recomp", "adoption-save-owner")
+                .unwrap();
+            PortcoveService::new(fixture.library.clone()).unwrap();
+            assert_eq!(store.get(&journal.id).unwrap().unwrap().phase, phase);
+            fixture.assert_outside_and_source_intact();
+            drop(held);
+            PortcoveService::new(fixture.library.clone()).unwrap();
+            fixture.assert_committed_refusal(&journal);
+            fixture.assert_unrelated_save_retained(&link, &retained);
+            fixture.correct_destination_and_recover(&link, &retained, directory, &journal);
+        }
+    }
+
+    #[test]
+    fn adoption_refuses_existing_destination_file_link() {
+        assert_adoption_refuses_destination_link(AdoptionDestinationLink::File);
+    }
+
+    #[test]
+    fn adoption_refuses_existing_destination_directory_link() {
+        assert_adoption_refuses_destination_link(AdoptionDestinationLink::Directory);
+    }
+
+    #[test]
+    fn adoption_refuses_dangling_destination_file_link() {
+        assert_adoption_refuses_destination_link(AdoptionDestinationLink::DanglingFile);
+    }
+
+    #[test]
+    fn adoption_preview_refuses_destination_root_and_ancestor_links() {
+        for kind in [
+            AdoptionDestinationLink::Root,
+            AdoptionDestinationLink::Ancestor,
+        ] {
+            let fixture = AdoptionDestinationFixture::new(kind);
+            fixture.link_destination(kind);
+            let service = service_with_release(fixture.library.clone(), "v2");
+            assert_eq!(
+                service
+                    .preview_adoption(&fixture.source, Some("zelda64-recomp"))
+                    .unwrap_err()
+                    .code,
+                crate::ErrorCode::Conflict
+            );
+            fixture.assert_outside_and_source_intact();
+            assert!(
+                OperationStore::new(fixture.library.clone())
+                    .all()
+                    .unwrap()
+                    .is_empty()
+            );
+            assert_eq!(fixture.library.all_installs().unwrap().len(), 1);
+        }
+    }
+
+    #[test]
+    fn adoption_recovery_refuses_existing_destination_file_link() {
+        assert_adoption_recovery_refuses_destination_link(AdoptionDestinationLink::File);
+    }
+
+    #[test]
+    fn adoption_recovery_refuses_existing_destination_directory_link() {
+        assert_adoption_recovery_refuses_destination_link(AdoptionDestinationLink::Directory);
+    }
+
+    #[test]
+    fn adoption_recovery_refuses_dangling_destination_file_link() {
+        assert_adoption_recovery_refuses_destination_link(AdoptionDestinationLink::DanglingFile);
+    }
+
+    #[test]
+    fn adoption_recovery_refuses_existing_destination_root_link() {
+        assert_adoption_recovery_refuses_destination_link(AdoptionDestinationLink::Root);
+    }
+
+    #[test]
+    fn adoption_recovery_refuses_existing_destination_ancestor_link() {
+        assert_adoption_recovery_refuses_destination_link(AdoptionDestinationLink::Ancestor);
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn adoption_refuses_existing_destination_directory_junction() {
+        assert_adoption_refuses_destination_link(AdoptionDestinationLink::JunctionDirectory);
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn adoption_recovery_refuses_existing_destination_directory_junction() {
+        assert_adoption_recovery_refuses_destination_link(
+            AdoptionDestinationLink::JunctionDirectory,
+        );
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn adoption_recovery_refuses_existing_destination_root_junction() {
+        assert_adoption_recovery_refuses_destination_link(AdoptionDestinationLink::JunctionRoot);
     }
 
     #[test]

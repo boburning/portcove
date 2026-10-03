@@ -14,7 +14,7 @@ import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { setTimeout as delay } from "node:timers/promises";
+import timers from "node:timers/promises";
 
 const maximumImageBytes = 16 * 1024 * 1024;
 const maximumBatchBytes = 512 * 1024 * 1024;
@@ -23,6 +23,13 @@ const imagePattern = /^[a-z0-9]{1,128}$/;
 const hashPattern = /^[a-f0-9]{64}$/;
 const positiveId = (value) => Number.isSafeInteger(value) && value > 0;
 const matchesString = (pattern, value) => typeof value === "string" && pattern.test(value);
+// Only this module's fixed image request can establish a Gone observation.
+// Provider metadata, generic errors and caller-supplied status properties cannot.
+const goneImageObservations = new WeakMap();
+
+function goneImageException(kind, imageId) {
+  return { ...exception(kind, "image-gone"), image_id: imageId, http_status: 410 };
+}
 
 export function readArtworkJson(file, maximum = 8 * 1024 * 1024) {
   return readArtworkInput(file, maximum).document;
@@ -269,6 +276,7 @@ function acceptedOriginal(declared, context) {
     .filter(
       (mapping) =>
         validMapping(mapping) &&
+        !context.goneImages.has(mapping.image_id) &&
         mapping.match_kind === "underlying-game" &&
         mapping.game_id === declared.game_id &&
         mapping.game_slug === declared.slug,
@@ -354,8 +362,13 @@ async function selectCover(identity, kind, context, exceptions) {
   let content;
   try {
     content = await context.images.get(imageId);
-  } catch {
-    exceptions.push(exception(kind, "image-unavailable-or-invalid"));
+  } catch (error) {
+    if (goneImageObservations.get(error) === imageId) {
+      context.goneImages.add(imageId);
+      exceptions.push(goneImageException(kind, imageId));
+    } else {
+      exceptions.push(exception(kind, "image-unavailable-or-invalid"));
+    }
     return null;
   }
   return {
@@ -369,6 +382,29 @@ async function selectCover(identity, kind, context, exceptions) {
     },
     checks: { identity: declared, content },
   };
+}
+
+function applyGoneImageFallbacks(catalog, records, context) {
+  for (const [index, record] of records.entries()) {
+    const mapping = record.mapping;
+    if (!mapping || !context.goneImages.has(mapping.image_id)) continue;
+    delete catalog.ports[index].presentation.artwork;
+    if (
+      ["accepted-mapping-reused", "accepted-mapping-retained-after-unavailable-refresh"].includes(
+        record.reason,
+      )
+    ) {
+      context.metrics.reused--;
+    } else {
+      context.metrics.selected--;
+      if (record.reason === "accepted-original-game-reused") context.metrics.original_reused--;
+    }
+    context.metrics.fallback++;
+    record.reason = "generated-fallback";
+    record.mapping = null;
+    record.checks = null;
+    record.exceptions.push(goneImageException(mapping.match_kind, mapping.image_id));
+  }
 }
 
 // Proposal preparation only. The accepted baseline is caller-selected trusted
@@ -391,6 +427,7 @@ export async function prepareCatalogArtwork(catalog, options) {
     ...options,
     games: new Map(),
     images: new Map(),
+    goneImages: new Set(),
     acceptedPorts: options.acceptedCatalog?.ports ?? [],
     metrics: {
       ports: catalog.ports.length,
@@ -433,7 +470,7 @@ export async function prepareCatalogArtwork(catalog, options) {
     const selected =
       (await selectCover(declarations?.port, "port", context, exceptions)) ??
       (await selectCover(declarations?.underlying_game, "underlying-game", context, exceptions));
-    if (!selected && reused) {
+    if (!selected && reused && !context.goneImages.has(reused.image_id)) {
       port.presentation = { ...port.presentation, artwork: reused };
       context.metrics.reused++;
       records.push({
@@ -469,7 +506,21 @@ export async function prepareCatalogArtwork(catalog, options) {
       exceptions,
     });
   }
+  // A later refreshed record can observe Gone for an earlier reused mapping.
+  // Apply that exact-image fact to every output reference without extra requests.
+  applyGoneImageFallbacks(result, records, context);
   return { catalog: result, records, metrics: context.metrics };
+}
+
+function cancelBody(body) {
+  try {
+    // Start abandonment now; an untrusted cancellation promise must neither
+    // delay fallback nor replace its original failure. Fetch cancellation
+    // aborts the owned transfer without draining its remaining bytes.
+    void body?.cancel().catch(() => {});
+  } catch {
+    // Preserve the operation's result even if cancellation throws immediately.
+  }
 }
 
 async function readBounded(response, maximum, observeBytes = () => {}) {
@@ -488,7 +539,8 @@ async function readBounded(response, maximum, observeBytes = () => {}) {
       chunks.push(value);
     }
   } finally {
-    await reader.cancel();
+    cancelBody(reader);
+    reader.releaseLock();
   }
 }
 
@@ -508,11 +560,89 @@ function readCredentials(file) {
   }
 }
 
+function metadataRetryAt(header, now, deadline) {
+  if (header === null) return now;
+  // Bound parsing and arithmetic before provider input reaches a timer.
+  if (/^\d+$/.test(header)) {
+    if (header.length > 128) return deadline;
+    const seconds = Number(header);
+    if (!Number.isSafeInteger(seconds) || seconds >= (deadline - now) / 1000) return deadline;
+    return now + seconds * 1000;
+  }
+  if (header.length > 128) return now;
+  const weekday = "(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)";
+  const month = "(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)";
+  const time = "\\d{2}:\\d{2}:\\d{2}";
+  const httpDate = new RegExp(
+    `^(?:${weekday}, \\d{2} ${month} \\d{4} ${time} GMT|` +
+      `(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday), \\d{2}-${month}-\\d{2} ${time} GMT|` +
+      `${weekday} ${month} (?: \\d|\\d{2}) ${time} \\d{4})$`,
+  );
+  if (!httpDate.test(header)) return now;
+  let parsed;
+  const shortYear = header.match(/-([0-9]{2}) /);
+  if (shortYear) {
+    // HTTP's obsolete two-digit year is relative to receipt, not JS's fixed pivot.
+    const latestYear = new Date(now).getUTCFullYear() + 50;
+    const year = Math.floor((latestYear - Number(shortYear[1])) / 100) * 100 + Number(shortYear[1]);
+    parsed = Date.parse(header.replace(/-([0-9]{2}) /, `-${year} `));
+    const futureLimit = new Date(now);
+    futureLimit.setUTCFullYear(latestYear);
+    if (parsed > futureLimit.getTime()) {
+      const earlier = new Date(parsed);
+      earlier.setUTCFullYear(year - 100);
+      parsed = earlier.getTime();
+    }
+  } else {
+    // HTTP's zoneless asctime form is UTC, not the host's local timezone.
+    // Only grammar-accepted input reaches this normalization.
+    parsed = Date.parse(header.endsWith("GMT") ? header : `${header} GMT`);
+  }
+  const parts =
+    header.match(
+      /, ([0-9]{2})[ -]([A-Z][a-z]{2})[ -][0-9]{2,4} ([0-9]{2}):([0-9]{2}):([0-9]{2})/,
+    ) ??
+    (() => {
+      const value = header.match(
+        /^[A-Z][a-z]{2} ([A-Z][a-z]{2}) ( [0-9]|[0-9]{2}) ([0-9]{2}):([0-9]{2}):([0-9]{2}) /,
+      );
+      return value && [value[0], value[2], value[1], ...value.slice(3)];
+    })();
+  const date = new Date(parsed);
+  const explicitYear = header.match(/(?:^| )([0-9]{4})(?: |$)/)?.[1];
+  const months = [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+  ];
+  if (
+    !parts ||
+    (!shortYear && date.getUTCFullYear() !== Number(explicitYear)) ||
+    date.getUTCDate() !== Number(parts[1]) ||
+    date.getUTCMonth() !== months.indexOf(parts[2]) ||
+    date.getUTCHours() !== Number(parts[3]) ||
+    date.getUTCMinutes() !== Number(parts[4]) ||
+    date.getUTCSeconds() !== Number(parts[5])
+  )
+    return now;
+  return Number.isFinite(parsed) ? Math.min(deadline, Math.max(now, parsed)) : now;
+}
+
 // One lazy authentication attempt, sequential requests, no retries. Credentials
 // and response bodies never enter proposal evidence or error messages.
 export function createIgdbInspector(credentialsFile, validateImage, fetchImpl = fetch) {
   let tokenPromise;
   let lastGameRequest = 0;
+  let gameRetryAt = 0;
   const metrics = {
     authentication_requests: 0,
     game_requests: 0,
@@ -526,6 +656,18 @@ export function createIgdbInspector(credentialsFile, validateImage, fetchImpl = 
     return AbortSignal.timeout(Math.min(15000, Math.max(1, deadline - Date.now())));
   };
   const credentials = () => readCredentials(credentialsFile);
+  async function waitForMetadata() {
+    for (;;) {
+      const now = Date.now();
+      const due = Math.max(lastGameRequest + 300, gameRetryAt);
+      if (now >= deadline || due >= deadline)
+        throw new Error("Artwork provider batch deadline reached.");
+      if (due <= now) return;
+      await timers.setTimeout(due - now, undefined, {
+        signal: AbortSignal.timeout(deadline - now),
+      });
+    }
+  }
   async function token() {
     if (!tokenPromise)
       tokenPromise = (async () => {
@@ -541,11 +683,15 @@ export function createIgdbInspector(credentialsFile, validateImage, fetchImpl = 
             grant_type: "client_credentials",
           }),
         });
-        if (!response.ok) throw new Error("Twitch authentication unavailable.");
-        const value = JSON.parse((await readBounded(response, 64 * 1024)).toString("utf8"));
-        if (typeof value.access_token !== "string" || !value.access_token)
-          throw new Error("Twitch authentication unavailable.");
-        return { clientId: privateValue.client_id, token: value.access_token };
+        try {
+          if (!response.ok) throw new Error("Twitch authentication unavailable.");
+          const value = JSON.parse((await readBounded(response, 64 * 1024)).toString("utf8"));
+          if (typeof value.access_token !== "string" || !value.access_token)
+            throw new Error("Twitch authentication unavailable.");
+          return { clientId: privateValue.client_id, token: value.access_token };
+        } finally {
+          cancelBody(response.body);
+        }
       })();
     return tokenPromise;
   }
@@ -554,15 +700,19 @@ export function createIgdbInspector(credentialsFile, validateImage, fetchImpl = 
     async inspectGame(identity) {
       const verified = declaredIdentity(identity);
       const auth = await token();
-      await delay(Math.max(0, 300 - (Date.now() - lastGameRequest)));
-      lastGameRequest = Date.now();
       if (metrics.game_requests >= 800 || metrics.metadata_bytes >= 32 * 1024 * 1024)
         throw new Error("Artwork metadata budget reached.");
+      await waitForMetadata();
+      // Another caller can consume the shared budget while this request waits.
+      if (metrics.game_requests >= 800 || metrics.metadata_bytes >= 32 * 1024 * 1024)
+        throw new Error("Artwork metadata budget reached.");
+      const requestSignal = signal();
+      lastGameRequest = Date.now();
       metrics.game_requests++;
       const response = await fetchImpl("https://api.igdb.com/v4/games", {
         method: "POST",
         redirect: "error",
-        signal: signal(),
+        signal: requestSignal,
         headers: {
           "Client-ID": auth.clientId,
           Authorization: `Bearer ${auth.token}`,
@@ -579,18 +729,27 @@ export function createIgdbInspector(credentialsFile, validateImage, fetchImpl = 
                 .join(" | ")
         }; limit 21;`,
       });
-      if (!response.ok) throw new Error("IGDB identity request unavailable.");
-      return JSON.parse(
-        (
-          await readBounded(
-            response,
-            Math.min(1024 * 1024, 32 * 1024 * 1024 - metrics.metadata_bytes),
-            (bytes) => {
-              metrics.metadata_bytes += bytes;
-            },
-          )
-        ).toString("utf8"),
-      );
+      try {
+        if (response.status === 429 || response.status === 503)
+          gameRetryAt = Math.max(
+            gameRetryAt,
+            metadataRetryAt(response.headers.get("retry-after"), Date.now(), deadline),
+          );
+        if (!response.ok) throw new Error("IGDB identity request unavailable.");
+        return JSON.parse(
+          (
+            await readBounded(
+              response,
+              Math.min(1024 * 1024, 32 * 1024 * 1024 - metrics.metadata_bytes),
+              (bytes) => {
+                metrics.metadata_bytes += bytes;
+              },
+            )
+          ).toString("utf8"),
+        );
+      } finally {
+        cancelBody(response.body);
+      }
     },
     async inspectImage(imageId, remainingBytes = maximumBatchBytes) {
       if (!matchesString(imagePattern, imageId)) throw new Error("Invalid image identity.");
@@ -601,18 +760,27 @@ export function createIgdbInspector(credentialsFile, validateImage, fetchImpl = 
         `https://images.igdb.com/igdb/image/upload/t_cover_big/${imageId}.jpg`,
         { redirect: "error", signal: signal() },
       );
-      if (!response.ok || !response.headers.get("content-type")?.startsWith("image/jpeg"))
-        throw new Error("IGDB image unavailable.");
-      const bytes = await readBounded(
-        response,
-        Math.min(maximumImageBytes, remainingBytes, maximumBatchBytes - metrics.image_bytes),
-        (length) => {
-          metrics.image_bytes += length;
-        },
-      );
-      const sha256 = createHash("sha256").update(bytes).digest("hex");
-      const validated = await validateImage(bytes);
-      return observedContent({ ...validated, sha256, bytes: bytes.length });
+      try {
+        if (response.status === 410) {
+          const error = new Error("IGDB image is gone.");
+          goneImageObservations.set(error, imageId);
+          throw error;
+        }
+        if (!response.ok || !response.headers.get("content-type")?.startsWith("image/jpeg"))
+          throw new Error("IGDB image unavailable.");
+        const bytes = await readBounded(
+          response,
+          Math.min(maximumImageBytes, remainingBytes, maximumBatchBytes - metrics.image_bytes),
+          (length) => {
+            metrics.image_bytes += length;
+          },
+        );
+        const sha256 = createHash("sha256").update(bytes).digest("hex");
+        const validated = await validateImage(bytes);
+        return observedContent({ ...validated, sha256, bytes: bytes.length });
+      } finally {
+        cancelBody(response.body);
+      }
     },
   };
 }

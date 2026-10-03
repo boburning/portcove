@@ -752,6 +752,16 @@ publication. Catalog-selected saved data is merged with matching files replaced;
 there is no automatic safety backup. Original folders and retained versions remain.
 Existing journal recovery may finish verified publication and saved-data transfer.
 
+The shared saved-data transfer checks destination directories, files and their
+ancestors before creating directories or copying files. It refuses observable
+symbolic links, including dangling links and ordinary Windows junctions, and
+continues to skip source links. These checks are non-atomic and ignore metadata
+errors; they do not provide race-free containment, hard-link protection or coverage
+of every reparse-point class. A refusal after metadata commitment retains the
+registered installation, staged saved data and journal for correction and recovery.
+Earlier matching regular files may already have been replaced; this is neither an
+atomic whole-tree merge nor automatic rollback.
+
 Desktop transports this core preview under the selected library generation and
 retains backend-owned native confirmation. Its detailed review names destination,
 preserved state, lack of a single undo and interruption behavior. When the preview
@@ -1963,6 +1973,16 @@ its reported outcome. Port selection, newer requests and disposal invalidate
 older readbacks. Core inventory recovery state and fresh backup-action review
 remain authoritative for restore and delete eligibility.
 
+The `features/port-updates` read owner keeps a whole installed-update check's
+pending, completed, failed or cancelled outcome separate from individual port
+results. Earlier completed results remain available during a later check or
+batch failure, with explicit prior-check labels and current-read unavailability.
+A batch failure does not invent individual port failures. Retry repeats only the
+existing update check, never an install, download or update. Newer requests,
+changed installation identity and disposal invalidate older readbacks; current
+saved-check identity, release comparisons and fresh update reviews remain owned
+by their existing core and presentation authorities.
+
 The `features/app-shell` unit owns the remaining ephemeral application UI state:
 primary view, library filter and query, selected detail, source inputs and the
 adoption overlay inputs. Changing the primary view resets the library filter;
@@ -1994,6 +2014,14 @@ mutations are not cancelled by renderer disposal. Recovery presentation remains
 application composition. Tauri
 and core still own library opening, lease exclusion, persistence and generation
 assignment.
+
+Before the window and library diagnostics exist, host-preference construction
+and application runtime-lease failures have distinct fixed recovery summaries
+and the original semantic error code on stderr. They return a failing process
+status through the normal stack, without printing private error messages or
+details. Preference document loading and library initialization failures still
+use the existing bootstrap recovery window. This early subprocess diagnostic
+does not provide a launcher-visible recovery dialog or a second log location.
 
 The `features/source-intake` unit owns only the catalog-bound request used to
 open the source-intake dialog. Unknown port or profile identities do not open a

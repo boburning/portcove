@@ -1329,6 +1329,13 @@ export function buildExecutionPreflight({
   )
     throw new Error("execution preflight requires the current complete comparison");
   const observations = new Map(prerequisites.map((item) => [item.id, item]));
+  const localAuditStages = audit?.local_stages ?? audit?.stages ?? [];
+  const localAuditPrerequisites = audit
+    ? selectedPrerequisites(
+        { id: "conservative-audit", args: localAuditStages.map((stage) => stage.id) },
+        platform,
+      ).map((id) => observations.get(id) ?? { id, status: "unverified" })
+    : [];
   const obligations = plan.map((entry) => {
     const required = selectedPrerequisites(entry, platform);
     const missing = required.filter((id) => observations.get(id)?.status !== "ok");
@@ -1365,7 +1372,15 @@ export function buildExecutionPreflight({
     prerequisites,
     hosted,
     obligations,
-    pre_change_audit: audit,
+    pre_change_audit: audit
+      ? {
+          ...audit,
+          local_prerequisites: localAuditPrerequisites,
+          missing_local_prerequisites: localAuditPrerequisites
+            .filter((item) => item.status !== "ok")
+            .map((item) => item.id),
+        }
+      : null,
     storage_scope: storageScopeForPlan(plan),
     hosted_ci: {
       groups: validationPlan.groups,
@@ -1890,7 +1905,15 @@ export async function main(argv = process.argv.slice(2), options = {}) {
       plan,
       validationPlan,
       prerequisites: await collectSelectedPrerequisites(
-        audit ? [...plan, { id: "conservative-audit" }] : plan,
+        audit
+          ? [
+              ...plan,
+              {
+                id: "conservative-audit",
+                args: (audit.local_stages ?? audit.stages).map((stage) => stage.id),
+              },
+            ]
+          : plan,
       ),
       hosted,
       audit,
@@ -1905,8 +1928,15 @@ export async function main(argv = process.argv.slice(2), options = {}) {
         console.log(
           `${entry.id}: ${entry.route}; missing ${entry.missing.join(", ") || "none observed"}; next ${entry.next_action}`,
         );
-      if (audit)
+      if (audit) {
         console.log(`Pre-change ${audit.profile} audit: ${audit.route}; next ${audit.next_action}`);
+        for (const item of report.pre_change_audit.local_prerequisites.filter(
+          (entry) => entry.status !== "ok",
+        ))
+          console.log(
+            `  Local audit prerequisite ${item.id}: ${item.status}; ${item.remediation ?? "establish on the selected host"}`,
+          );
+      }
       console.log(report.limits);
     }
     if (

@@ -277,7 +277,29 @@ impl PortcoveService {
                     Err(error) if error.code == ErrorCode::Conflict => continue,
                     Err(error) => return Err(error),
                 };
-                discard_private_install(self.library(), operation)?;
+                let Some(current) = interrupted_install_journal(self.library(), &store, operation)?
+                else {
+                    continue;
+                };
+                match discard_private_install(self.library(), &current) {
+                    Ok(()) => {}
+                    Err(error)
+                        if error.code == ErrorCode::Conflict
+                            && error.details.get("cleanup_hold").map(String::as_str)
+                                == Some("unproven_process_quiescence")
+                            && error.details.get("operation_id") == Some(&id)
+                            && error.details.get("recovery_action").map(String::as_str)
+                                == Some("manual_review") =>
+                    {
+                        self.library().finish_activity_once(
+                            &id,
+                            ActivityStatus::Failed,
+                            "PS1 preparation was interrupted; process quiescence is unproven and private work is retained for manual review",
+                        )?;
+                        continue;
+                    }
+                    Err(error) => return Err(error),
+                }
             }
             let (status, message) = if state.requested {
                 (
@@ -294,6 +316,45 @@ impl PortcoveService {
         }
         Ok(())
     }
+}
+
+// Caller holds the activity and inventoried port locks. Inventory is discovery,
+// not authority to delete a journal that changed owner, phase or private paths.
+fn interrupted_install_journal(
+    library: &Library,
+    store: &OperationStore,
+    operation: &LifecycleOperation,
+) -> Result<Option<LifecycleOperation>> {
+    let Some(current) = store.get(&operation.id)? else {
+        return Ok(None);
+    };
+    if current.id != operation.id
+        || current.kind != operation.kind
+        || current.port_id != operation.port_id
+        || current.created_at != operation.created_at
+        || current.phase != operation.phase
+        || current.paths.staging != operation.paths.staging
+        || current.paths.final_path != operation.paths.final_path
+        || current.paths.quarantine != operation.paths.quarantine
+        || current.install.is_some() != operation.install.is_some()
+    {
+        return Err(PortcoveError::verification(
+            "interrupted install journal changed ownership or private state",
+        )
+        .detail("operation_id", &operation.id));
+    }
+    let activity_owns_install: bool = database::connect(library.root())?.query_row(
+        "SELECT EXISTS(SELECT 1 FROM activity_history WHERE id=?1 AND status='running' AND operation IN ('install','update','reconcile') AND target_kind='port' AND target_id=?2)",
+        params![operation.id, current.port_id],
+        |row| row.get(0),
+    )?;
+    if !activity_owns_install {
+        return Err(PortcoveError::verification(
+            "interrupted install activity differs from its journal owner",
+        )
+        .detail("operation_id", &operation.id));
+    }
+    Ok(Some(current))
 }
 
 pub(crate) fn discard_private_install(
@@ -330,19 +391,439 @@ pub(crate) fn discard_private_install_with_faults(
         &operation.id,
         expected,
     )?;
-    match std::fs::symlink_metadata(expected) {
+    let staging_exists = match std::fs::symlink_metadata(expected) {
         Ok(metadata) => {
             if !metadata.is_dir() || metadata.file_type().is_symlink() {
                 return Err(PortcoveError::conflict(
                     "private staging directory changed identity",
                 ));
             }
-            faults.check(LifecycleFaultPoint::InstallPrivateCleanup)?;
-            std::fs::remove_dir_all(expected)?;
+            true
         }
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => false,
         Err(error) => return Err(error.into()),
+    };
+    // The existing field also tracks managed PS1 Install workers. Unknown
+    // process ownership retains both the private tree and journal, even when
+    // the path is currently absent. Legacy/non-managed None keeps its contract.
+    if operation.preparation_process_quiesced == Some(false) {
+        if operation.install.is_some() {
+            return Err(PortcoveError::conflict(
+                "tracked private builder operation contains publication metadata",
+            )
+            .detail("operation_id", &operation.id));
+        }
+        return Err(PortcoveError::conflict(
+            "private builder process quiescence is unproven; cleanup requires review",
+        )
+        .detail("operation_id", &operation.id)
+        .detail("cleanup_hold", "unproven_process_quiescence")
+        .detail("recovery_action", "manual_review"));
+    }
+    if staging_exists {
+        faults.check(LifecycleFaultPoint::InstallPrivateCleanup)?;
+        std::fs::remove_dir_all(expected)?;
     }
     faults.check(LifecycleFaultPoint::InstallPrivateCleanupJournalRemoval)?;
     OperationStore::new(library.clone()).remove(&operation.id)
+}
+
+#[cfg(test)]
+mod managed_builder_tests {
+    use super::*;
+    use std::fs;
+
+    fn fixture(
+        activity_kind: ActivityOperation,
+        phase: LifecyclePhase,
+        quiesced: Option<bool>,
+    ) -> (
+        tempfile::TempDir,
+        PortcoveService,
+        OperationCoordinator,
+        LifecycleOperation,
+    ) {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let service = PortcoveService::new(library).unwrap();
+        let (activity, operation) = service
+            .begin_cancellable_activity(activity_kind, ActivityTargetKind::Port, Some("sample"))
+            .unwrap();
+        let mut journal =
+            LifecycleOperation::new(&activity.id, LifecycleOperationKind::Install, "sample");
+        journal.phase = phase;
+        journal.preparation_process_quiesced = quiesced;
+        let staging = service.library().staging_dir().join(&activity.id);
+        fs::create_dir_all(&staging).unwrap();
+        fs::write(staging.join("owned-private"), b"retained builder input").unwrap();
+        journal.paths.staging = Some(staging);
+        OperationStore::new(service.library().clone())
+            .put(&mut journal)
+            .unwrap();
+        (temporary, service, operation, journal)
+    }
+
+    #[test]
+    fn interrupted_builder_checks_fresh_journal_and_activity_ownership() {
+        for changed_field in [
+            "owner",
+            "created",
+            "phase",
+            "staging",
+            "final",
+            "quarantine",
+            "kind",
+        ] {
+            let (_temporary, service, _operation, original) = fixture(
+                ActivityOperation::Install,
+                LifecyclePhase::Preparing,
+                Some(false),
+            );
+            let _port = service
+                .library()
+                .try_lock_port("sample", "owned-recovery-test")
+                .unwrap();
+            let store = OperationStore::new(service.library().clone());
+            let mut changed = original.clone();
+            match changed_field {
+                "owner" => changed.port_id = "different-owner".into(),
+                "created" => changed.created_at += 1,
+                "phase" => changed.phase = LifecyclePhase::Prepared,
+                "staging" => {
+                    changed.paths.staging = Some(service.library().staging_dir().join("changed"))
+                }
+                "final" => {
+                    changed.paths.final_path =
+                        Some(service.library().versions_dir().join("changed"))
+                }
+                "quarantine" => {
+                    changed.paths.quarantine =
+                        Some(service.library().staging_dir().join("changed-quarantine"))
+                }
+                "kind" => changed.kind = LifecycleOperationKind::Prepare,
+                _ => unreachable!(),
+            }
+            if changed_field == "created" {
+                // Upsert preserves created_at. Reinsert the owned row to
+                // simulate identifier reuse, rather than an ineffective update.
+                store.remove(&original.id).unwrap();
+            }
+            store.put(&mut changed).unwrap();
+            assert_eq!(
+                interrupted_install_journal(service.library(), &store, &original)
+                    .unwrap_err()
+                    .code,
+                ErrorCode::Verification
+            );
+            assert!(
+                original
+                    .paths
+                    .staging
+                    .as_ref()
+                    .unwrap()
+                    .join("owned-private")
+                    .is_file()
+            );
+            assert!(store.get(&original.id).unwrap().is_some());
+        }
+        for wrong_activity in ["port", "operation"] {
+            let (_temporary, service, _operation, journal) = fixture(
+                ActivityOperation::Install,
+                LifecyclePhase::Preparing,
+                Some(false),
+            );
+            let _port = service
+                .library()
+                .try_lock_port("sample", "owned-recovery-test")
+                .unwrap();
+            let sql = if wrong_activity == "port" {
+                "UPDATE activity_history SET target_id='different-port' WHERE id=?1"
+            } else {
+                "UPDATE activity_history SET operation='register-source' WHERE id=?1"
+            };
+            database::connect(service.library().root())
+                .unwrap()
+                .execute(sql, [&journal.id])
+                .unwrap();
+            let store = OperationStore::new(service.library().clone());
+            let error =
+                interrupted_install_journal(service.library(), &store, &journal).unwrap_err();
+            assert_eq!(error.code, ErrorCode::Verification);
+            assert!(!error.details.contains_key("cleanup_hold"));
+            assert!(journal.paths.staging.as_ref().unwrap().is_dir());
+        }
+    }
+
+    #[test]
+    fn interrupted_builder_uses_current_proof_and_skips_retired_journal() {
+        let (_temporary, service, _operation, original) = fixture(
+            ActivityOperation::Install,
+            LifecyclePhase::Preparing,
+            Some(false),
+        );
+        let _port = service
+            .library()
+            .try_lock_port("sample", "owned-recovery-test")
+            .unwrap();
+        let store = OperationStore::new(service.library().clone());
+        let mut completed = original.clone();
+        completed.preparation_process_quiesced = Some(true);
+        store.put(&mut completed).unwrap();
+        let fresh = interrupted_install_journal(service.library(), &store, &original)
+            .unwrap()
+            .unwrap();
+        assert_eq!(fresh.preparation_process_quiesced, Some(true));
+        store.remove(&original.id).unwrap();
+        assert!(
+            interrupted_install_journal(service.library(), &store, &original)
+                .unwrap()
+                .is_none()
+        );
+        assert!(original.paths.staging.as_ref().unwrap().is_dir());
+    }
+
+    #[test]
+    fn tracked_builder_publication_metadata_is_a_hard_envelope_error() {
+        let (_temporary, service, _operation, mut journal) = fixture(
+            ActivityOperation::Install,
+            LifecyclePhase::Preparing,
+            Some(false),
+        );
+        journal.install = Some(crate::InstallRecord {
+            id: "owned-install".into(),
+            port_id: "sample".into(),
+            version: "v1".into(),
+            path: service.library().versions_dir().join("sample"),
+            channel: crate::ReleaseChannel::Stable,
+            installed_at: 1,
+            verified: true,
+            staged: true,
+            artifact: crate::ArtifactIdentity {
+                asset_name: "owned.zip".into(),
+                sha256: "a".repeat(64),
+                size: 1,
+            },
+            runtime: None,
+            manifest_sha256: "b".repeat(64),
+            selected_executable: "owned.exe".into(),
+        });
+        let error = discard_private_install(service.library(), &journal).unwrap_err();
+        assert_eq!(error.code, ErrorCode::Conflict);
+        assert!(!error.details.contains_key("cleanup_hold"));
+        assert!(
+            journal
+                .paths
+                .staging
+                .as_ref()
+                .unwrap()
+                .join("owned-private")
+                .is_file()
+        );
+        assert!(
+            OperationStore::new(service.library().clone())
+                .get(&journal.id)
+                .unwrap()
+                .is_some()
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn tracked_builder_symlink_error_preserves_external_tree_and_journal() {
+        let (temporary, service, _operation, journal) = fixture(
+            ActivityOperation::Install,
+            LifecyclePhase::Preparing,
+            Some(false),
+        );
+        let external = temporary.path().join("external");
+        fs::create_dir(&external).unwrap();
+        fs::write(external.join("sentinel"), b"external bytes").unwrap();
+        let staging = journal.paths.staging.as_ref().unwrap();
+        fs::remove_dir_all(staging).unwrap();
+        std::os::unix::fs::symlink(&external, staging).unwrap();
+        let error = discard_private_install(service.library(), &journal).unwrap_err();
+        assert!(!error.details.contains_key("cleanup_hold"));
+        assert_eq!(
+            fs::read(external.join("sentinel")).unwrap(),
+            b"external bytes"
+        );
+        assert!(
+            OperationStore::new(service.library().clone())
+                .get(&journal.id)
+                .unwrap()
+                .is_some()
+        );
+    }
+
+    #[test]
+    fn unproven_builder_retains_tree_and_journal_even_when_staging_is_absent() {
+        for exists in [true, false] {
+            let (_temporary, service, _operation, journal) = fixture(
+                ActivityOperation::Install,
+                LifecyclePhase::Preparing,
+                Some(false),
+            );
+            let staging = journal.paths.staging.as_ref().unwrap();
+            if !exists {
+                fs::remove_dir_all(staging).unwrap();
+            }
+            let error = discard_private_install(service.library(), &journal).unwrap_err();
+            assert_eq!(error.code, ErrorCode::Conflict);
+            assert_eq!(
+                error.details.get("cleanup_hold").map(String::as_str),
+                Some("unproven_process_quiescence")
+            );
+            assert_eq!(staging.exists(), exists);
+            assert_eq!(
+                OperationStore::new(service.library().clone())
+                    .get(&journal.id)
+                    .unwrap()
+                    .unwrap()
+                    .preparation_process_quiesced,
+                Some(false)
+            );
+        }
+    }
+
+    #[test]
+    fn interrupted_builder_retains_work_for_install_update_and_reconcile() {
+        for kind in [
+            ActivityOperation::Install,
+            ActivityOperation::Update,
+            ActivityOperation::Reconcile,
+        ] {
+            for requested in [false, true] {
+                let (_temporary, service, operation, journal) =
+                    fixture(kind, LifecyclePhase::Preparing, Some(false));
+                if requested {
+                    service.request_cancellation(&journal.id).unwrap();
+                }
+                drop(operation);
+                let recovered = PortcoveService::new(service.library().clone()).unwrap();
+                assert!(
+                    journal
+                        .paths
+                        .staging
+                        .as_ref()
+                        .unwrap()
+                        .join("owned-private")
+                        .is_file()
+                );
+                let retained = OperationStore::new(recovered.library().clone())
+                    .get(&journal.id)
+                    .unwrap()
+                    .unwrap();
+                assert_eq!(retained.preparation_process_quiesced, Some(false));
+                let activities = recovered.library().activities(1).unwrap();
+                assert_eq!(activities[0].operation, kind);
+                assert_eq!(activities[0].status, ActivityStatus::Failed);
+                assert!(
+                    activities[0]
+                        .message
+                        .as_deref()
+                        .unwrap()
+                        .contains("retained for manual review")
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn failed_builder_cleanup_pending_stays_retained_across_restarts() {
+        let (_temporary, service, operation, journal) = fixture(
+            ActivityOperation::Install,
+            LifecyclePhase::CleanupPending,
+            Some(false),
+        );
+        drop(operation);
+        let first = PortcoveService::new(service.library().clone()).unwrap();
+        let store = OperationStore::new(first.library().clone());
+        let retained = store.get(&journal.id).unwrap().unwrap();
+        assert!(
+            journal
+                .paths
+                .staging
+                .as_ref()
+                .unwrap()
+                .join("owned-private")
+                .is_file()
+        );
+        let message = retained.last_error.unwrap();
+        assert!(message.contains("quiescence"));
+        let second = PortcoveService::new(first.library().clone()).unwrap();
+        let retained_again = OperationStore::new(second.library().clone())
+            .get(&journal.id)
+            .unwrap()
+            .unwrap();
+        assert_eq!(retained_again.last_error.as_deref(), Some(message.as_str()));
+        assert_eq!(retained_again.preparation_process_quiesced, Some(false));
+        assert!(journal.paths.staging.as_ref().unwrap().is_dir());
+    }
+
+    #[test]
+    fn proven_and_legacy_install_cleanup_keep_their_contract() {
+        for quiesced in [None, Some(true)] {
+            for kind in [
+                ActivityOperation::Install,
+                ActivityOperation::Update,
+                ActivityOperation::Reconcile,
+            ] {
+                let (_temporary, service, operation, journal) =
+                    fixture(kind, LifecyclePhase::Preparing, quiesced);
+                service.request_cancellation(&journal.id).unwrap();
+                drop(operation);
+                let recovered = PortcoveService::new(service.library().clone()).unwrap();
+                assert!(!journal.paths.staging.as_ref().unwrap().exists());
+                assert!(
+                    OperationStore::new(recovered.library().clone())
+                        .get(&journal.id)
+                        .unwrap()
+                        .is_none()
+                );
+                assert_eq!(
+                    recovered.library().activities(1).unwrap()[0].status,
+                    ActivityStatus::Cancelled
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn private_builder_validation_errors_never_become_quiescence_holds() {
+        let (temporary, service, _operation, journal) = fixture(
+            ActivityOperation::Install,
+            LifecyclePhase::Preparing,
+            Some(false),
+        );
+        let external = temporary.path().join("external");
+        fs::create_dir(&external).unwrap();
+        fs::write(external.join("sentinel"), b"external bytes").unwrap();
+        for invalid in ["kind", "uuid", "path", "phase", "file"] {
+            let mut changed = journal.clone();
+            match invalid {
+                "kind" => changed.kind = LifecycleOperationKind::Prepare,
+                "uuid" => changed.id = "invalid identity".into(),
+                "path" => changed.paths.staging = Some(external.clone()),
+                "phase" => changed.phase = LifecyclePhase::Prepared,
+                "file" => {
+                    let staging = changed.paths.staging.as_ref().unwrap();
+                    fs::remove_dir_all(staging).unwrap();
+                    fs::write(staging, b"changed object").unwrap();
+                }
+                _ => unreachable!(),
+            }
+            let error = discard_private_install(service.library(), &changed).unwrap_err();
+            assert!(!error.details.contains_key("cleanup_hold"), "{invalid}");
+            assert!(
+                OperationStore::new(service.library().clone())
+                    .get(&journal.id)
+                    .unwrap()
+                    .is_some()
+            );
+            assert_eq!(
+                fs::read(external.join("sentinel")).unwrap(),
+                b"external bytes"
+            );
+        }
+    }
 }

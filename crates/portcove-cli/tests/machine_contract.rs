@@ -75,6 +75,56 @@ fn consequential_help_explains_actions_and_review_arguments() {
 }
 
 #[test]
+fn installation_and_external_help_explain_review_binding_and_file_ownership() {
+    for (args, phrases) in [
+        (
+            &["installation", "plan", "--help"][..],
+            &["without mutation", "Catalog port ID", "managed install"][..],
+        ),
+        (
+            &["installation", "run", "--help"][..],
+            &[
+                "--expected-plan",
+                "Plan SHA-256 returned by `installation plan`",
+                "changed inputs refuse the install",
+                "--yes",
+                "plan check still applies",
+            ][..],
+        ),
+        (
+            &["external", "preview", "--help"][..],
+            &["already prepared runtime", "no files are copied"][..],
+        ),
+        (
+            &["external", "register", "--help"][..],
+            &[
+                "use-in-place runtime registration",
+                "Portcove uses it in place",
+                "--yes",
+                "files are rechecked",
+            ][..],
+        ),
+        (
+            &["external", "remove", "--help"][..],
+            &[
+                "registration should be forgotten",
+                "external files stay in place",
+            ][..],
+        ),
+    ] {
+        let output = Command::new(cli_binary()).args(args).output().unwrap();
+        assert!(output.status.success(), "{args:?}: {output:?}");
+        let help = std::str::from_utf8(&output.stdout).unwrap();
+        for phrase in phrases {
+            assert!(
+                help.contains(phrase),
+                "{args:?}: missing {phrase:?} in {help}"
+            );
+        }
+    }
+}
+
+#[test]
 fn first_use_help_identifies_player_and_external_client_routes() {
     let root = Command::new(cli_binary()).arg("--help").output().unwrap();
     assert!(root.status.success());
@@ -2382,4 +2432,177 @@ fn about_is_branded_for_people_and_structured_for_automation_without_opening_a_l
     assert_eq!(response["ok"], true);
     assert_eq!(response["command"], "about");
     assert_eq!(response["data"]["product"], "Portcove");
+}
+
+#[test]
+fn status_disclosure_explains_real_core_decisions_without_changing_machine_output() {
+    let root = tempfile::tempdir().unwrap();
+    let machine = json_stdout(&portcove(root.path(), &["--json", "status", "lighthouse"]));
+    let stream = json_stdout(&portcove(root.path(), &["--jsonl", "status", "lighthouse"]));
+    assert_eq!(machine["schema_version"], portcove_core::API_SCHEMA_VERSION);
+    assert_eq!(stream["type"], "result");
+    assert_eq!(machine["data"], stream["data"]);
+    let install = machine["data"]["port_actions"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|assessment| assessment["action"] == "install")
+        .unwrap();
+    assert_eq!(install["availability"], "waiting");
+    assert_eq!(install["reason"], "missing_source");
+    let output = portcove(root.path(), &["status", "lighthouse"]);
+    let human = human_stdout(&output);
+    assert!(
+        human.contains(
+            "install: waiting (missing_source): Add the required game files with source add."
+        ),
+        "actual CLI output has no explanation for the core's missing-game-files decision:\n{human}"
+    );
+    assert!(human.contains("EXTERNAL (USER-OWNED)"), "{human}");
+}
+
+#[test]
+fn status_disclosure_all_ports_keeps_each_real_action_attached_to_its_port() {
+    let root = tempfile::tempdir().unwrap();
+    let machine = json_stdout(&portcove(root.path(), &["--json", "status"]));
+    let stream = json_stdout(&portcove(root.path(), &["--jsonl", "status"]));
+    assert_eq!(machine["schema_version"], portcove_core::API_SCHEMA_VERSION);
+    assert_eq!(stream["type"], "result");
+    assert_eq!(machine["data"], stream["data"]);
+    let output = portcove(root.path(), &["status"]);
+    let human = human_stdout(&output);
+    let statuses = machine["data"].as_array().unwrap();
+    assert!(!statuses.is_empty());
+    for status in statuses {
+        let id = status["port_id"].as_str().unwrap();
+        let heading = format!("\n{id}:\n");
+        let assessments = status["port_actions"].as_array();
+        if assessments.is_none_or(|assessments| assessments.is_empty()) {
+            assert!(!human.contains(&heading), "{id}: {human}");
+            continue;
+        }
+        assert!(
+            human.contains(&heading),
+            "actual all-port CLI output omitted the core action group for {id}:\n{human}"
+        );
+        let group = human.split_once(&heading).unwrap().1;
+        let group = group.split("\n\n").next().unwrap();
+        for assessment in assessments.unwrap() {
+            let reason = assessment["definition"]["reason"]
+                .as_str()
+                .or_else(|| assessment["reason"].as_str())
+                .unwrap();
+            let prefix = format!(
+                "  {}: {} ({reason}): ",
+                assessment["action"].as_str().unwrap(),
+                assessment["availability"].as_str().unwrap()
+            );
+            let explanation = group
+                .lines()
+                .find_map(|line| line.strip_prefix(&prefix))
+                .unwrap_or_else(|| panic!("{id}: {group}"));
+            assert!(!explanation.trim().is_empty(), "{id}: {group}");
+        }
+    }
+    let single = portcove(root.path(), &["status", "lighthouse"]);
+    let single = human_stdout(&single);
+    assert_eq!(
+        single.split_once("\nlighthouse:\n").unwrap().1.trim(),
+        human
+            .split_once("\nlighthouse:\n")
+            .unwrap()
+            .1
+            .split("\n\n")
+            .next()
+            .unwrap()
+            .trim()
+    );
+}
+
+#[test]
+fn catalog_detail_shows_accepted_runtime_and_return_command_without_changing_machine_data() {
+    let root = tempfile::tempdir().unwrap();
+    let library = root.path().join("catalog-library");
+    let player_file = root.path().join("synthetic-player-file.bin");
+    let player_bytes = b"synthetic player bytes outside the selected library";
+    std::fs::write(&player_file, player_bytes).unwrap();
+    let id = "wave-race-64-recomp";
+    let catalog = portcove_core::Catalog::embedded().unwrap();
+    let port = catalog.port(id).unwrap();
+    let expected = serde_json::to_value(port).unwrap();
+    let mut machine_outputs = Vec::new();
+    for mode in ["--json", "--jsonl"] {
+        let output = portcove(&library, &[mode, "catalog", "show", id]);
+        assert!(output.status.success());
+        assert!(output.stderr.is_empty());
+        let value = json_stdout(&output);
+        assert_eq!(value["schema_version"], portcove_core::API_SCHEMA_VERSION);
+        assert_eq!(value["command"], "catalog.show");
+        assert_eq!(value["ok"], true);
+        assert!(value["error"].is_null());
+        assert_eq!(value["data"], expected);
+        if mode == "--jsonl" {
+            assert_eq!(value["type"], "result");
+        }
+        machine_outputs.push(value["data"].clone());
+    }
+    assert_eq!(machine_outputs[0], machine_outputs[1]);
+    let output = portcove(&library, &["catalog", "show", id]);
+    let human = human_stdout(&output);
+    let runtime = &port.release.user_prepared[&portcove_core::Platform::WindowsX86_64];
+    for fact in [
+        format!("Accepted runtime (windows-x86_64): {}", runtime.version),
+        format!(
+            "Package: {} ({} bytes)",
+            runtime.archive_name, runtime.archive_size
+        ),
+        format!("Package SHA-256: {}", runtime.archive_sha256),
+        format!("Executable: {}", runtime.executable),
+        format!("portcove external preview {id} \"<extracted-folder>\""),
+    ] {
+        assert!(
+            human.contains(&fact),
+            "catalog detail omitted {fact:?}:\n{human}"
+        );
+    }
+    assert!(human.contains("matching platform"));
+    assert!(
+        human
+            .contains("Maintenance: user-owned; Portcove does not download or update this runtime")
+    );
+    assert!(human.contains("Preparation: Extract the official v1.0.2 Windows ZIP"));
+    assert!(human.contains("create an empty portable.txt"));
+    assert!(human.contains("Saves and settings: user-owned"));
+    assert!(!human.contains("Accepted runtime (linux"));
+    assert!(!human.contains("Accepted runtime (macos"));
+    assert!(!human.contains("n64-recomp-portable"));
+    assert_eq!(std::fs::read(&player_file).unwrap(), player_bytes);
+}
+
+#[test]
+fn catalog_detail_preserves_managed_output_machine_reads_and_a_player_file() {
+    let root = tempfile::tempdir().unwrap();
+    let library = root.path().join("catalog-library");
+    let player_file = root.path().join("synthetic-player-file.bin");
+    let player_bytes = b"synthetic player bytes outside the selected library";
+    std::fs::write(&player_file, player_bytes).unwrap();
+    let catalog = portcove_core::Catalog::embedded().unwrap();
+    for id in ["shipwright", "lighthouse"] {
+        let output = portcove(&library, &["catalog", "show", id]);
+        let human = human_stdout(&output);
+        assert!(human.contains("Support:"));
+        assert!(human.contains("Project: https://"));
+        assert!(!human.contains("Accepted runtime ("));
+        assert!(!human.contains("portcove external preview"));
+        assert!(!human.contains("Maintenance: user-owned"));
+        let machine = portcove(&library, &["--json", "catalog", "show", id]);
+        assert!(machine.status.success());
+        let machine = json_stdout(&machine);
+        assert_eq!(machine["schema_version"], portcove_core::API_SCHEMA_VERSION);
+        assert_eq!(
+            machine["data"],
+            serde_json::to_value(catalog.port(id).unwrap()).unwrap()
+        );
+    }
+    assert_eq!(std::fs::read(&player_file).unwrap(), player_bytes);
 }

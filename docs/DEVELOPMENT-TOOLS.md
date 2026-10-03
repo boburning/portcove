@@ -1,5 +1,19 @@
 # Development tools
 
+## Bounded GitHub subprocess collection
+
+The shared GitHub API runner limits each ordinary `gh` subprocess to 15 seconds
+and 16 MiB of collected output. Timeout terminates that owned subprocess with
+`SIGKILL` and refuses its output, even if it contains complete JSON. It reports a
+sanitized failure without retrying. These are per-subprocess limits, not a deadline
+for an entire paginated inventory. The CI watcher's existing 60-second observation
+budget and retained execution deadline remain separate.
+
+A timed-out mutation may already have reached GitHub. Delivery still requires
+remote state readback before any retry; unavailable readback remains an unknown
+outcome. A local timeout is neither rollback nor proof of server-side failure.
+No global GitHub CLI configuration or additional execution authority is required.
+
 ## Hosted Cargo dependency validation
 
 The existing Deep audit workflow's `local-check` operation accepts an optional
@@ -414,8 +428,14 @@ For an unavailable minimum-version host or Steam Deck, build the candidate at th
 exact revision with `VITE_PORTCOVE_DESIGN_COMPATIBILITY_FIXTURE=1`, retain the
 desktop executable/package and source revision, then run the same exact scenario
 through the platform route above. Record the artifact SHA-256, OS/architecture,
-WebView engine/version, result, and any unavailable negative/minimum proof under
-#993. Do not stop fixture development or turn missing evidence into a pass.
+WebView engine/version and result. Record initial-beta Windows and ordinary Linux negative/minimum evidence gaps
+under #993. Preserve macOS CI/build and bounded architecture compatibility work;
+full Intel/Apple Silicon platform observations belong to #45/#226 during beta
+before 1.0, using appropriate native/hosted routes without owner-operated hardware. Steam Deck/SteamOS procedure
+preparation and actual-device evidence gaps belong to #51/#217 for the Public beta
+follow-up, Required before 1.0; they consume the shared engine baseline without
+becoming #993 initial-beta closure conditions. Do not stop fixture development or
+turn missing evidence into a pass.
 
 The curated profiles are:
 
@@ -899,6 +919,37 @@ of retained installed bytes after the isolated installer route, not current
 installed-context, signed production, minimum-version or all-platform evidence.
 Refused navigation does not prove privileged invocation after remote execution;
 earlier instrumented secondary/queued-reply controls remain separate evidence.
+
+For the distinct current-installed Windows case, use the fixed existing launcher:
+`just desktop-test --current-installed --installer <absolute-nsis> --package-evidence
+<absolute-ordinary-build-manifest> --expected-app <absolute-built-executable>
+--expected-version <version> --test-base <absolute-isolated-base> --evidence
+<new-absolute-installer-receipt>`. It obtains the existing native desktop lock
+and verifies desktop packages, pinned tools and drivers before invoking the
+fixed `test-windows-installer.ps1` route. The installer requires that inherited
+admission, bound to the same inputs and live owner, before any Registry mutation;
+calling its opt-in parameter directly does not bypass preflight. The build manifest has the
+same clean revision, exact ordinary build command, empty qualification features,
+configuration and installer identities described above. The route verifies those
+inputs before installation. It invokes the fixed existing boundary harness after
+the installed smoke has closed, while the exact current-user registration and
+installed executable remain present, then requires positive owned exit evidence,
+the same registration/version and executable/uninstaller bytes, and unchanged
+isolated persistent data before uninstall. It does not accept an arbitrary
+callback or replace the retained-byte scenario.
+
+The exclusive `.native-doctor.json` receipt alongside the installer evidence
+retains tool preflight results, including failed preflight before installation.
+The admission receipt retains successful preflight and exact input bindings.
+The new sibling `current-installed-boundary` directory retains the immutable
+pre-boundary installation receipt, bound package manifest and native evidence.
+Its explicit `current-installed` mode accepts only the pre-uninstall receipt;
+a completed post-uninstall receipt cannot supply that claim. The final ordinary
+installer receipt links the native evidence and its subsequent preservation and
+uninstall result. Failure or unproven owned exit stops before uninstall and
+retains the isolated installation/journal for the existing recovery procedure.
+This supplies only the actual tested unsigned Windows package/current OS row,
+not production authority, minimum Windows, another platform or whole #1280/#993.
 
 WebView2 documents that cancelled `NavigationStarting` can still issue GET
 requests while the host responds. The boundary case records every owned server

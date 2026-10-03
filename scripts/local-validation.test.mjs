@@ -108,6 +108,46 @@ test("preflight selects the approved capable route without claiming execution or
   );
 });
 
+test("preflight reports local prerequisites of the already selected audit stages", () => {
+  const inputs = preflightFixture();
+  const audit = {
+    profile: "complete",
+    route: "hosted-deep-audit",
+    stages: [
+      { id: "rust", command: "just check-rust" },
+      { id: "release-unit", command: "just release-check" },
+    ],
+    local_stages: [
+      { id: "rust", command: "just check-rust" },
+      { id: "release-unit", command: "just release-check" },
+    ],
+  };
+  const prerequisites = inputs.prerequisites.concat([
+    { id: "complete-audit-prerequisites", status: "unverified" },
+    { id: "aqua-state", status: "ok" },
+    { id: "pwsh", status: "unavailable", remediation: "provide bare pwsh" },
+    { id: "unix-socket-path", status: "unavailable", remediation: "shorten temporary path" },
+  ]);
+  const report = buildExecutionPreflight({
+    ...inputs,
+    prerequisites,
+    hosted: { status: "blocked" },
+    audit,
+    platform: "linux",
+  });
+  assert.equal(report.pre_change_audit.profile, "complete");
+  assert.equal(report.pre_change_audit.route, "hosted-deep-audit");
+  assert.deepEqual(report.pre_change_audit.missing_local_prerequisites, [
+    "complete-audit-prerequisites",
+    "pwsh",
+    "unix-socket-path",
+  ]);
+  assert.deepEqual(
+    report.pre_change_audit.local_prerequisites.map((entry) => entry.id),
+    ["node", "complete-audit-prerequisites", "aqua-state", "pwsh", "unix-socket-path"],
+  );
+});
+
 test("hosted preflight requires exact available ancestor authorities and a frozen clean source", () => {
   const { context } = preflightFixture();
   const sha = "b".repeat(40);

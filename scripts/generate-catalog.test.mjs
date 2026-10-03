@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
+import { once } from "node:events";
+import { createServer } from "node:http";
 import {
   readFileSync,
   mkdtempSync,
@@ -664,6 +667,901 @@ test("an unavailable explicit refresh retains permitted accepted metadata", asyn
   assert.equal(result.records[0].reason, "accepted-mapping-retained-after-unavailable-refresh");
   assert.equal(result.records[0].checks.live_refresh_passed, false);
 });
+
+async function capturedArtworkRefresh({ status = 410, imageId = "coexisting", fault } = {}) {
+  const { prepareCatalogArtwork, createIgdbInspector } = await import("./inspect-igdb-artwork.mjs");
+  const scratch = mkdtempSync(join(tmpdir(), "portcove-artwork-refresh-"));
+  const credentials = join(scratch, "private-fixture.json");
+  writeFileSync(credentials, JSON.stringify({ client_id: "fixture", client_secret: "fixture" }));
+  const mapping = {
+    game_id: 101,
+    cover_id: 202,
+    image_id: "coexisting",
+    image_sha256: "a".repeat(64),
+    game_slug: "refresh-probe",
+    match_kind: "port",
+  };
+  const accepted = {
+    ports: [
+      {
+        id: "refresh-probe",
+        name: "Refresh Probe",
+        project_url: "https://example.org/refresh-probe",
+        presentation: { artwork: mapping },
+      },
+    ],
+  };
+  const games = [
+    {
+      id: 101,
+      name: "Refresh Probe",
+      slug: "refresh-probe",
+      cover: { id: 202, image_id: imageId },
+    },
+  ];
+  const requests = [];
+  let decodes = 0;
+  const inspector = createIgdbInspector(
+    credentials,
+    () => {
+      decodes++;
+      return { width: 12, height: 24, format: "jpeg", validator: "portcove-core" };
+    },
+    async (url, options) => {
+      requests.push(url);
+      assert.equal(options.redirect, "error");
+      if (url === "https://id.twitch.tv/oauth2/token")
+        return Response.json({ access_token: "fixture" }, { status: fault === "auth" ? 403 : 200 });
+      if (url === "https://api.igdb.com/v4/games")
+        return Response.json(
+          games.filter((game) => options.body.includes(`id = ${game.id};`)),
+          {
+            status: fault === "identity-gone" ? 410 : 200,
+          },
+        );
+      assert.ok(
+        /^https:\/\/images\.igdb\.com\/igdb\/image\/upload\/t_cover_big\/[a-z0-9]+\.jpg$/.test(url),
+      );
+      if (fault === "network") throw new Error("fixture network failure");
+      return new Response(
+        readFileSync(join(root, "apps/desktop/scripts/testdata/catalog-artwork-red.jpg")),
+        {
+          status: url.endsWith("/coexisting.jpg")
+            ? status
+            : imageId === "coexisting"
+              ? 200
+              : status,
+          headers: { "content-type": "image/jpeg" },
+        },
+      );
+    },
+  );
+  const options = {
+    ...inspector,
+    acceptedCatalog: accepted,
+    refreshPortIds: ["refresh-probe"],
+    identities: {
+      "refresh-probe": {
+        port: {
+          game_id: 101,
+          slug: "refresh-probe",
+          names: ["Refresh Probe"],
+          evidence_url: "https://example.org/refresh-probe",
+        },
+      },
+    },
+  };
+  return {
+    accepted,
+    games,
+    requests,
+    options,
+    inspector,
+    decodes: () => decodes,
+    run: (input = accepted) => prepareCatalogArtwork(input, options),
+  };
+}
+
+test("a confirmed Gone response for the accepted image chooses generated fallback", async () => {
+  const fixture = await capturedArtworkRefresh();
+  const before = structuredClone(fixture.accepted);
+  const result = await fixture.run();
+  assert.equal(result.catalog.ports[0].presentation.artwork, undefined);
+  assert.equal(result.records[0].reason, "generated-fallback");
+  assert.deepEqual(result.records[0].exceptions[0], {
+    kind: "port",
+    reason: "image-gone",
+    resume:
+      "Correct the exact identity or asset fact, or retry after a confirmed provider/environment change.",
+    image_id: "coexisting",
+    http_status: 410,
+  });
+  assert.equal(result.records[0].mapping, null);
+  assert.equal(result.metrics.fallback, 1);
+  assert.equal(result.metrics.reused, 0);
+  assert.equal(fixture.inspector.providerMetrics.image_bytes, 0);
+  assert.deepEqual(fixture.accepted, before);
+  assert.equal(fixture.decodes(), 0);
+});
+
+for (const status of [404, 503, 429]) {
+  test(`HTTP${status} retains permitted accepted artwork metadata`, async () => {
+    const fixture = await capturedArtworkRefresh({ status });
+    const before = structuredClone(fixture.accepted);
+    const result = await fixture.run();
+    assert.deepEqual(result.catalog, before);
+    assert.deepEqual(fixture.accepted, before);
+    assert.equal(result.records[0].reason, "accepted-mapping-retained-after-unavailable-refresh");
+    assert.equal(fixture.decodes(), 0);
+  });
+}
+
+test("an unchanged accepted mapping makes no source-health claim or provider request", async () => {
+  const fixture = await capturedArtworkRefresh();
+  fixture.options.refreshPortIds = [];
+  const result = await fixture.run();
+  assert.deepEqual(result.catalog, fixture.accepted);
+  assert.equal(result.records[0].reason, "accepted-mapping-reused");
+  assert.equal(fixture.requests.length, 0);
+});
+
+test("Gone for a different candidate image cannot withdraw accepted artwork", async () => {
+  const fixture = await capturedArtworkRefresh({ imageId: "codifferent" });
+  const result = await fixture.run();
+  assert.deepEqual(result.catalog, fixture.accepted);
+  assert.equal(fixture.decodes(), 0);
+  assert.equal(result.records[0].reason, "accepted-mapping-retained-after-unavailable-refresh");
+});
+
+for (const fault of ["auth", "network", "identity-gone"]) {
+  test(`${fault} failure does not establish Gone for an accepted image`, async () => {
+    const fixture = await capturedArtworkRefresh({ fault });
+    const result = await fixture.run();
+    assert.deepEqual(result.catalog, fixture.accepted);
+    assert.ok(result.records[0].exceptions.every((item) => item.reason !== "image-gone"));
+    assert.equal(fixture.decodes(), 0);
+  });
+}
+
+test("unclassified status properties and another image's Gone error cannot withdraw metadata", async () => {
+  const fixture = await capturedArtworkRefresh({ imageId: "codifferent" });
+  const unrelated = await fixture.inspector.inspectImage("codifferent").catch((error) => error);
+  for (const error of [
+    Object.assign(new Error("IGDB image is gone."), { status: 410, image_id: "coexisting" }),
+    unrelated,
+  ]) {
+    fixture.games[0].cover.image_id = "coexisting";
+    fixture.options.inspectImage = async () => {
+      throw error;
+    };
+    const result = await fixture.run();
+    assert.deepEqual(result.catalog, fixture.accepted);
+    assert.equal(result.records[0].exceptions[0].reason, "image-unavailable-or-invalid");
+  }
+});
+
+for (const refreshedFirst of [true, false]) {
+  test(`same-image accepted references fall back with refreshed entry ${refreshedFirst ? "first" : "last"}`, async () => {
+    const fixture = await capturedArtworkRefresh();
+    const reused = { ...structuredClone(fixture.accepted.ports[0]), id: "reused", name: "Reused" };
+    fixture.accepted.ports = refreshedFirst
+      ? [...fixture.accepted.ports, reused]
+      : [reused, ...fixture.accepted.ports];
+    const before = structuredClone(fixture.accepted);
+    const result = await fixture.run();
+    assert.ok(result.catalog.ports.every((port) => !port.presentation.artwork));
+    assert.ok(
+      result.records.every(
+        (record) => record.reason === "generated-fallback" && record.mapping === null,
+      ),
+    );
+    assert.ok(
+      result.records.every((record) =>
+        record.exceptions.some(
+          (item) => item.image_id === "coexisting" && item.http_status === 410,
+        ),
+      ),
+    );
+    assert.deepEqual(fixture.accepted, before);
+    assert.deepEqual(result.metrics, {
+      ports: 2,
+      reused: 0,
+      original_reused: 0,
+      selected: 0,
+      fallback: 2,
+      game_queries: 1,
+      image_queries: 1,
+      image_bytes: 0,
+    });
+    assert.equal(fixture.requests.length, 3);
+    assert.equal(fixture.inspector.providerMetrics.image_requests, 1);
+    assert.equal(fixture.decodes(), 0);
+  });
+}
+
+for (const refreshedFirst of [true, false]) {
+  test(`accepted original-game reuse cannot restore Gone with refreshed entry ${refreshedFirst ? "first" : "last"}`, async () => {
+    const fixture = await capturedArtworkRefresh();
+    const original = {
+      game_id: 102,
+      game_slug: "original",
+      cover_id: 203,
+      image_id: "coexisting",
+      image_sha256: "b".repeat(64),
+      match_kind: "underlying-game",
+    };
+    fixture.accepted.ports.push({ id: "accepted-original", presentation: { artwork: original } });
+    fixture.games.push(
+      { id: 102, slug: "original", name: "Original", cover: { id: 203, image_id: "coexisting" } },
+      { id: 103, slug: "new", name: "New" },
+    );
+    fixture.options.identities.new = {
+      port: { game_id: 103, slug: "new", names: ["New"], evidence_url: "https://example.org/new" },
+      underlying_game: {
+        game_id: 102,
+        slug: "original",
+        names: ["Original"],
+        evidence_url: "https://example.org/original",
+      },
+    };
+    const added = { id: "new", name: "New", project_url: "https://example.org/new" };
+    const refreshed = fixture.accepted.ports[0];
+    const before = structuredClone(fixture.accepted);
+    const result = await fixture.run({
+      ports: refreshedFirst ? [refreshed, added] : [added, refreshed],
+    });
+    assert.ok(result.catalog.ports.every((port) => !port.presentation?.artwork));
+    assert.ok(
+      result.records.every(
+        (record) => record.reason === "generated-fallback" && record.mapping === null,
+      ),
+    );
+    assert.ok(
+      result.records.every((record) =>
+        record.exceptions.some(
+          (item) => item.image_id === "coexisting" && item.http_status === 410,
+        ),
+      ),
+    );
+    assert.deepEqual(fixture.accepted, before);
+    assert.equal(result.metrics.selected, 0);
+    assert.equal(result.metrics.original_reused, 0);
+    assert.equal(result.metrics.reused, 0);
+    assert.equal(result.metrics.fallback, 2);
+    assert.equal(result.metrics.image_queries, 1);
+    assert.equal(fixture.inspector.providerMetrics.image_requests, 1);
+    assert.equal(fixture.decodes(), 0);
+  });
+}
+
+test("Gone for the port cover still permits a checked exact original-game replacement", async () => {
+  const fixture = await capturedArtworkRefresh();
+  fixture.games.push({
+    id: 102,
+    slug: "original",
+    name: "Original",
+    cover: { id: 203, image_id: "coreplacement" },
+  });
+  fixture.options.identities["refresh-probe"].underlying_game = {
+    game_id: 102,
+    slug: "original",
+    names: ["Original"],
+    evidence_url: "https://example.org/original",
+  };
+  const before = structuredClone(fixture.accepted);
+  const result = await fixture.run();
+  const bytes = readFileSync(join(root, "apps/desktop/scripts/testdata/catalog-artwork-red.jpg"));
+  const { createHash } = await import("node:crypto");
+  assert.equal(result.records[0].reason, "exact-original-game-cover");
+  assert.equal(result.catalog.ports[0].presentation.artwork.image_id, "coreplacement");
+  assert.equal(result.catalog.ports[0].presentation.artwork.match_kind, "underlying-game");
+  assert.equal(
+    result.catalog.ports[0].presentation.artwork.image_sha256,
+    createHash("sha256").update(bytes).digest("hex"),
+  );
+  assert.equal(result.records[0].exceptions[0].http_status, 410);
+  assert.equal(result.records[0].checks.content.bytes, bytes.length);
+  assert.equal(result.metrics.image_bytes, bytes.length);
+  assert.equal(fixture.inspector.providerMetrics.image_bytes, bytes.length);
+  assert.equal(fixture.inspector.providerMetrics.image_requests, 2);
+  assert.equal(fixture.decodes(), 1);
+  assert.deepEqual(fixture.accepted, before);
+});
+
+test("Gone observations still consume the existing finite image-request budget", async () => {
+  const fixture = await capturedArtworkRefresh();
+  for (let request = 0; request < 400; request++)
+    await assert.rejects(fixture.inspector.inspectImage("coexisting"), /image is gone/);
+  await assert.rejects(fixture.inspector.inspectImage("coexisting"), /image budget reached/);
+  assert.equal(fixture.requests.length, 400);
+  assert.equal(fixture.inspector.providerMetrics.image_requests, 400);
+  assert.equal(fixture.inspector.providerMetrics.image_bytes, 0);
+  assert.equal(fixture.decodes(), 0);
+});
+
+test("a successful HTTP image exceeding its remaining byte budget retains accepted metadata", async () => {
+  const fixture = await capturedArtworkRefresh({ status: 200 });
+  fixture.options.inspectImage = (imageId) => fixture.inspector.inspectImage(imageId, 1);
+  const result = await fixture.run();
+  assert.deepEqual(result.catalog, fixture.accepted);
+  assert.equal(result.records[0].exceptions[0].reason, "image-unavailable-or-invalid");
+  assert.equal(fixture.inspector.providerMetrics.image_requests, 1);
+  assert.equal(fixture.decodes(), 0);
+});
+
+const lifecycleIdentity = {
+  game_id: 101,
+  slug: "probe",
+  names: ["Probe"],
+  evidence_url: "https://example.org/probe",
+};
+
+function lifecycleCredentials() {
+  const scratch = mkdtempSync(join(tmpdir(), "portcove-response-lifecycle-"));
+  const file = join(scratch, "private-fixture.json");
+  writeFileSync(file, JSON.stringify({ client_id: "fixture", client_secret: "fixture" }));
+  return file;
+}
+
+async function boundedLifecycleResult(operation) {
+  let timer;
+  try {
+    return await Promise.race([
+      operation,
+      new Promise((_, reject) => {
+        timer = setTimeout(() => reject(new Error("Owned response cleanup did not settle.")), 1000);
+      }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+for (const spec of [
+  { name: "OAuth status", route: "token", status: 403, error: /authentication unavailable/ },
+  { name: "OAuth length", route: "token", status: 200, length: 65537, error: /byte contract/ },
+  { name: "metadata429", route: "games", status: 429, retry: "1", error: /identity request/ },
+  { name: "metadata503", route: "games", status: 503, error: /identity request/ },
+  {
+    name: "metadata batch refusal",
+    route: "games",
+    status: 429,
+    retry: "900",
+    error: /identity request/,
+    refusesNext: true,
+  },
+  { name: "metadata length", route: "games", status: 200, length: 1048577, error: /byte contract/ },
+  { name: "image Gone", route: "image", status: 410, error: /image is gone/ },
+  { name: "image status", route: "image", status: 503, error: /image unavailable/ },
+  {
+    name: "image MIME",
+    route: "image",
+    status: 200,
+    mime: "text/plain",
+    error: /image unavailable/,
+  },
+  { name: "image length", route: "image", status: 200, length: 4096, error: /byte contract/ },
+  { name: "image streaming limit", route: "image", status: 200, error: /byte contract/ },
+]) {
+  test(`provider response lifecycle closes unfinished ${spec.name} before request timeout`, async () => {
+    const { createIgdbInspector } = await import("./inspect-igdb-artwork.mjs");
+    const sockets = new Set();
+    let selectedResponse;
+    let closeTransfer;
+    const closed = new Promise((resolve) => {
+      closeTransfer = resolve;
+    });
+    const routes = [];
+    const server = createServer((request, response) => {
+      const route = request.url.slice(1);
+      routes.push(route);
+      if (route !== spec.route) {
+        response.writeHead(200, { "Content-Type": "application/json" });
+        response.end(JSON.stringify({ access_token: "fixture" }));
+        return;
+      }
+      response.on("close", closeTransfer);
+      response.writeHead(spec.status, {
+        "Content-Type": spec.mime ?? (route === "image" ? "image/jpeg" : "application/json"),
+        ...(spec.retry ? { "Retry-After": spec.retry } : {}),
+        ...(spec.length ? { "Content-Length": String(spec.length) } : {}),
+      });
+      response.flushHeaders();
+      // The transfer deliberately stays incomplete; cleanup must not drain it.
+      response.write(Buffer.alloc(2048, 0x65));
+    });
+    server.on("connection", (socket) => {
+      sockets.add(socket);
+      socket.on("close", () => sockets.delete(socket));
+    });
+    server.listen(0, "127.0.0.1");
+    await once(server, "listening");
+    try {
+      const origin = `http://127.0.0.1:${server.address().port}`;
+      const inspector = createIgdbInspector(
+        lifecycleCredentials(),
+        () => assert.fail("refused response must not reach the decoder"),
+        async (url, options) => {
+          assert.equal(options.redirect, "error");
+          assert.equal(options.signal.aborted, false);
+          const route =
+            url === "https://id.twitch.tv/oauth2/token"
+              ? "token"
+              : url === "https://api.igdb.com/v4/games"
+                ? "games"
+                : "image";
+          const response = await fetch(`${origin}/${route}`, options);
+          if (route === spec.route) selectedResponse = response;
+          return response;
+        },
+      );
+      await assert.rejects(
+        spec.route === "image"
+          ? inspector.inspectImage("coprobe", 1024)
+          : inspector.inspectGame(lifecycleIdentity),
+        spec.error,
+      );
+      // Observe cancellation before test-owned socket teardown can supply it.
+      await boundedLifecycleResult(closed);
+      assert.equal(selectedResponse.body.locked, false);
+      assert.equal(selectedResponse.bodyUsed, true);
+      if (spec.refusesNext) {
+        await assert.rejects(inspector.inspectGame(lifecycleIdentity), /batch deadline reached/);
+        assert.deepEqual(routes, ["token", "games"]);
+      }
+      if (spec.name === "image streaming limit") {
+        // Fetch may split the server's write: account for the consumed chunks,
+        // stopping as soon as the remaining budget is exceeded.
+        assert.ok(inspector.providerMetrics.image_bytes > 1024);
+        assert.ok(inspector.providerMetrics.image_bytes <= 2048);
+      } else assert.equal(inspector.providerMetrics.image_bytes, 0);
+      assert.equal(
+        inspector.providerMetrics.authentication_requests,
+        spec.route === "image" ? 0 : 1,
+      );
+    } finally {
+      for (const socket of sockets) socket.destroy();
+      await new Promise((resolve) => server.close(resolve));
+    }
+  });
+}
+
+for (const refusal of ["status", "length", "streaming"]) {
+  for (const cancellation of ["resolve", "reject", "throw", "pending"]) {
+    test(`provider response lifecycle retains ${refusal} failure with ${cancellation} cancellation`, async () => {
+      const { createIgdbInspector } = await import("./inspect-igdb-artwork.mjs");
+      let cancellations = 0;
+      const response = new Response(
+        new ReadableStream({
+          start(controller) {
+            controller.enqueue(new Uint8Array(2));
+          },
+          cancel() {
+            cancellations++;
+            if (cancellation === "reject") return Promise.reject(new Error("cleanup failure"));
+            if (cancellation === "throw") throw new Error("cleanup failure");
+            if (cancellation === "pending") return new Promise(() => {});
+          },
+        }),
+        {
+          status: refusal === "status" ? 503 : 200,
+          headers: {
+            "Content-Type": "image/jpeg",
+            ...(refusal === "length" ? { "Content-Length": "2" } : {}),
+          },
+        },
+      );
+      const inspector = createIgdbInspector(
+        lifecycleCredentials(),
+        () => assert.fail("refused response must not reach the decoder"),
+        async () => response,
+      );
+      await assert.rejects(boundedLifecycleResult(inspector.inspectImage("coprobe", 1)), {
+        message:
+          refusal === "status" ? "IGDB image unavailable." : "Response exceeds its byte contract.",
+      });
+      assert.equal(cancellations, 1);
+      assert.equal(response.body.locked, false);
+      assert.equal(inspector.providerMetrics.image_requests, 1);
+      assert.equal(inspector.providerMetrics.image_bytes, refusal === "streaming" ? 2 : 0);
+    });
+  }
+}
+
+test("provider response lifecycle releases an aborted reader without changing its error", async () => {
+  const { createIgdbInspector } = await import("./inspect-igdb-artwork.mjs");
+  const primary = new DOMException("fixture request aborted", "AbortError");
+  const response = new Response(
+    new ReadableStream({
+      pull(controller) {
+        controller.error(primary);
+      },
+    }),
+    { headers: { "Content-Type": "image/jpeg" } },
+  );
+  const inspector = createIgdbInspector(
+    lifecycleCredentials(),
+    () => assert.fail("aborted response must not decode"),
+    async () => response,
+  );
+  await assert.rejects(inspector.inspectImage("coprobe"), (error) => error === primary);
+  assert.equal(response.body.locked, false);
+  assert.equal(inspector.providerMetrics.image_bytes, 0);
+});
+
+test("provider response lifecycle preserves consumed JSON and exact image bytes", async () => {
+  const { createIgdbInspector } = await import("./inspect-igdb-artwork.mjs");
+  const bytes = readFileSync(join(root, "apps/desktop/scripts/testdata/catalog-artwork-red.jpg"));
+  const responses = [
+    Response.json({ access_token: "fixture" }),
+    Response.json([]),
+    new Response(bytes, { headers: { "Content-Type": "image/jpeg" } }),
+  ];
+  let requests = 0;
+  let decodes = 0;
+  const inspector = createIgdbInspector(
+    lifecycleCredentials(),
+    (value) => {
+      decodes++;
+      assert.deepEqual(value, bytes);
+      return { width: 12, height: 24, format: "jpeg", validator: "portcove-core" };
+    },
+    async () => responses[requests++],
+  );
+  assert.deepEqual(await inspector.inspectGame(lifecycleIdentity), []);
+  const image = await inspector.inspectImage("coprobe");
+  assert.equal(image.bytes, bytes.length);
+  assert.equal(image.sha256, createHash("sha256").update(bytes).digest("hex"));
+  assert.equal(decodes, 1);
+  assert.equal(requests, 3);
+  assert.ok(responses.every((response) => response.bodyUsed && !response.body.locked));
+  assert.equal(inspector.providerMetrics.authentication_requests, 1);
+  assert.equal(inspector.providerMetrics.game_requests, 1);
+  assert.equal(inspector.providerMetrics.image_bytes, bytes.length);
+});
+
+test("provider response lifecycle preserves malformed JSON and missing-body failures", async () => {
+  const { createIgdbInspector } = await import("./inspect-igdb-artwork.mjs");
+  const response = new Response("{");
+  const inspector = createIgdbInspector(
+    lifecycleCredentials(),
+    () => assert.fail("invalid response must not decode"),
+    async () => response,
+  );
+  const failure = await inspector.inspectGame(lifecycleIdentity).catch((error) => error);
+  assert.ok(failure instanceof SyntaxError);
+  await assert.rejects(inspector.inspectGame(lifecycleIdentity), (error) => error === failure);
+  assert.equal(inspector.providerMetrics.authentication_requests, 1);
+  assert.equal(response.body.locked, false);
+  const empty = createIgdbInspector(
+    lifecycleCredentials(),
+    () => assert.fail("missing response must not decode"),
+    async () => new Response(null, { headers: { "Content-Type": "image/jpeg" } }),
+  );
+  await assert.rejects(empty.inspectImage("coprobe"), /byte contract/);
+});
+
+const providerClockStart = Date.UTC(2026, 9, 3, 8);
+
+async function flushProviderTimers(context) {
+  await new Promise((resolve) => setImmediate(resolve));
+  context.mock.timers.tick(0);
+  await new Promise((resolve) => setImmediate(resolve));
+}
+
+async function capturedMetadataBackoff(
+  context,
+  { status = 429, retryAfter = "2", responseDelay = 0 } = {},
+) {
+  const { createIgdbInspector } = await import("./inspect-igdb-artwork.mjs");
+  const scratch = mkdtempSync(join(tmpdir(), "portcove-metadata-backoff-"));
+  const privateFile = join(scratch, "private-fixture.json");
+  writeFileSync(privateFile, JSON.stringify({ client_id: "fixture", client_secret: "fixture" }));
+  context.mock.timers.enable({ apis: ["setTimeout", "Date"], now: providerClockStart });
+  const calls = [];
+  const inspector = createIgdbInspector(
+    privateFile,
+    () => assert.fail("metadata must not decode"),
+    async (url, options) => {
+      assert.equal(options.redirect, "error");
+      assert.equal(options.signal.aborted, false);
+      if (url === "https://id.twitch.tv/oauth2/token")
+        return Response.json({ access_token: "fixture" });
+      assert.equal(url, "https://api.igdb.com/v4/games");
+      calls.push(Date.now());
+      if (calls.length === 1) context.mock.timers.tick(responseDelay);
+      return Response.json([], {
+        status: calls.length === 1 ? status : 200,
+        headers: calls.length === 1 && retryAfter !== null ? { "Retry-After": retryAfter } : {},
+      });
+    },
+  );
+  const request = (id) =>
+    inspector.inspectGame({
+      game_id: id,
+      slug: `probe-${id}`,
+      names: [`Probe ${id}`],
+      evidence_url: "https://example.org/probe",
+    });
+  const first = request(101).catch((error) => error);
+  await flushProviderTimers(context);
+  await first;
+  return { inspector, calls, request };
+}
+
+for (const [status, retryAfter] of [
+  [429, "2"],
+  [503, "2"],
+  [429, new Date(providerClockStart + 2000).toUTCString()],
+  [503, "Saturday, 03-Oct-26 08:00:02 GMT"],
+  [429, "Sat Oct  3 08:00:02 2026"],
+  [503, "Sat Oct 03 08:00:02 2026"],
+]) {
+  test(`metadata${status} honors Retry-After ${retryAfter}`, async (context) => {
+    const fixture = await capturedMetadataBackoff(context, { status, retryAfter });
+    const next = fixture.request(102);
+    await flushProviderTimers(context);
+    context.mock.timers.tick(300);
+    await flushProviderTimers(context);
+    assert.equal(fixture.calls.length, 1, "request must not escape at the ordinary300ms floor");
+    context.mock.timers.tick(1699);
+    await flushProviderTimers(context);
+    assert.equal(fixture.calls.length, 1, "request must not escape before the full provider pause");
+    context.mock.timers.tick(1);
+    await flushProviderTimers(context);
+    await next;
+    assert.deepEqual(fixture.calls, [providerClockStart, providerClockStart + 2000]);
+    assert.equal(fixture.inspector.providerMetrics.game_requests, 2);
+    assert.equal(fixture.inspector.providerMetrics.authentication_requests, 1);
+  });
+}
+
+test("HTTP-date metadata backoff preserves UTC semantics across process timezones", (context) => {
+  const env = { ...process.env };
+  // The outer runner marks its workers; a new independent runner must not
+  // inherit that marker and silently refuse recursive discovery.
+  delete env.NODE_TEST_CONTEXT;
+  for (const [timezone, offset] of [
+    ["Etc/UTC", 0],
+    ["America/New_York", 240],
+    ["Asia/Tokyo", -540],
+    ["Pacific/Kiritimati", -840],
+    ["Asia/Kathmandu", -345],
+  ]) {
+    // A fresh process prevents timezone changes from affecting other tests.
+    // Observe the actual timezone so an ignored TZ cannot manufacture coverage.
+    const verifyTimezone = `import assert from "node:assert/strict"; assert.equal(new Date("2026-10-03T08:00:00Z").getTimezoneOffset(), ${offset});`;
+    const result = spawnSync(
+      process.execPath,
+      [
+        `--import=data:text/javascript,${encodeURIComponent(verifyTimezone)}`,
+        "--test",
+        "--test-timeout=30000",
+        "--test-reporter=spec",
+        "--test-name-pattern=^(metadata.*honors Retry-After|unusable or elapsed Retry-After|Retry-After beyond the finite batch budget)",
+        "scripts/generate-catalog.test.mjs",
+      ],
+      { cwd: root, env: { ...env, TZ: timezone }, encoding: "utf8", timeout: 5000 },
+    );
+    assert.equal(result.error, undefined, `${timezone}: ${result.error}`);
+    assert.equal(result.status, 0, `${timezone}: ${result.stdout}\n${result.stderr}`);
+    assert.match(result.stdout, /metadata429 honors Retry-After Sat Oct  3 08:00:02 2026/);
+    assert.match(result.stdout, /unusable or elapsed Retry-After Sat Oct  3 07:59:59 2026/);
+    assert.match(
+      result.stdout,
+      /Retry-After beyond the finite batch budget.*Sat Oct 03 08:15:01 2026/,
+    );
+    const passed = result.stdout.match(/ℹ pass (\d+)/);
+    assert.ok(passed, `${timezone}: child must report executed tests`);
+    context.diagnostic(
+      `${timezone}: ${passed[1]} selected cases passed; observed offset ${offset}`,
+    );
+  }
+});
+
+for (const retryAfter of [
+  null,
+  "invalid",
+  "-1",
+  "1.5",
+  "0",
+  "Sat, 03 Oct 0030 08:00:00 GMT",
+  "Sat Oct  3 08:00:00 0030",
+  "Tue, 31 Nov 2026 08:00:00 GMT",
+  "Tuesday, 31-Nov-26 08:00:00 GMT",
+  "Tue Nov 31 08:00:00 2026",
+  "Saturday, 03-Oct-76 08:00:01 GMT",
+  "Sat Oct  3 07:59:59 2026",
+  new Date(providerClockStart - 1000).toUTCString(),
+]) {
+  test(`unusable or elapsed Retry-After ${retryAfter} preserves the metadata rate floor`, async (context) => {
+    const fixture = await capturedMetadataBackoff(context, { retryAfter });
+    const next = fixture.request(102);
+    await flushProviderTimers(context);
+    context.mock.timers.tick(299);
+    await flushProviderTimers(context);
+    assert.equal(fixture.calls.length, 1);
+    context.mock.timers.tick(1);
+    await flushProviderTimers(context);
+    await next;
+    assert.deepEqual(fixture.calls, [providerClockStart, providerClockStart + 300]);
+    assert.equal(fixture.inspector.providerMetrics.authentication_requests, 1);
+  });
+}
+
+test("successful metadata ignores Retry-After and preserves ordinary pacing", async (context) => {
+  const fixture = await capturedMetadataBackoff(context, { status: 200, retryAfter: "900" });
+  const next = fixture.request(102);
+  await flushProviderTimers(context);
+  context.mock.timers.tick(300);
+  await flushProviderTimers(context);
+  await next;
+  assert.deepEqual(fixture.calls, [providerClockStart, providerClockStart + 300]);
+});
+
+test("Retry-After seconds start when the unavailable response arrives", async (context) => {
+  const fixture = await capturedMetadataBackoff(context, { responseDelay: 500 });
+  const next = fixture.request(102);
+  await flushProviderTimers(context);
+  context.mock.timers.tick(1999);
+  await flushProviderTimers(context);
+  assert.equal(fixture.calls.length, 1);
+  context.mock.timers.tick(1);
+  await flushProviderTimers(context);
+  await next;
+  assert.deepEqual(fixture.calls, [providerClockStart, providerClockStart + 2500]);
+});
+
+test("deadline expiry while a metadata wait resolves does not count or send a request", async (context) => {
+  const fixture = await capturedMetadataBackoff(context);
+  const next = fixture.request(102).catch((error) => error);
+  await flushProviderTimers(context);
+  context.mock.timers.tick(15 * 60 * 1000);
+  await flushProviderTimers(context);
+  assert.match((await next).message, /batch deadline/);
+  assert.equal(fixture.calls.length, 1);
+  assert.equal(fixture.inspector.providerMetrics.game_requests, 1);
+});
+
+test("metadata pacing preserves the800request cap without repeated authentication", async (context) => {
+  const fixture = await capturedMetadataBackoff(context, { retryAfter: null });
+  for (let request = 1; request < 799; request++) {
+    const next = fixture.request(101 + request);
+    await flushProviderTimers(context);
+    context.mock.timers.tick(300);
+    await flushProviderTimers(context);
+    await next;
+  }
+  const last = Promise.allSettled([fixture.request(900), fixture.request(901)]);
+  await flushProviderTimers(context);
+  context.mock.timers.tick(300);
+  await flushProviderTimers(context);
+  const results = await last;
+  assert.equal(results.filter((result) => result.status === "fulfilled").length, 1);
+  assert.match(
+    results.find((result) => result.status === "rejected").reason.message,
+    /metadata budget/,
+  );
+  await assert.rejects(fixture.request(901), /metadata budget/);
+  assert.equal(fixture.calls.length, 800);
+  assert.equal(fixture.inspector.providerMetrics.game_requests, 800);
+  assert.equal(fixture.inspector.providerMetrics.authentication_requests, 1);
+});
+
+test("metadata backoff uses the existing batch cancellation signal", async (context) => {
+  const { createIgdbInspector } = await import("./inspect-igdb-artwork.mjs");
+  const scratch = mkdtempSync(join(tmpdir(), "portcove-metadata-cancel-"));
+  const privateFile = join(scratch, "private-fixture.json");
+  writeFileSync(privateFile, JSON.stringify({ client_id: "fixture", client_secret: "fixture" }));
+  let requests = 0;
+  const inspector = createIgdbInspector(
+    privateFile,
+    () => assert.fail("metadata must not decode"),
+    async (url) => {
+      if (url === "https://id.twitch.tv/oauth2/token")
+        return Response.json({ access_token: "fixture" });
+      assert.equal(url, "https://api.igdb.com/v4/games");
+      requests++;
+      return Response.json([], { status: 503, headers: { "Retry-After": "600" } });
+    },
+  );
+  const identity = {
+    game_id: 101,
+    slug: "probe",
+    names: ["Probe"],
+    evidence_url: "https://example.org/probe",
+  };
+  await assert.rejects(inspector.inspectGame(identity), /identity request unavailable/);
+  const controller = new AbortController();
+  const timeout = AbortSignal.timeout.bind(AbortSignal);
+  let waitSignals = 0;
+  context.mock.method(AbortSignal, "timeout", (milliseconds) => {
+    if (milliseconds <= 15000) return timeout(milliseconds);
+    waitSignals++;
+    return controller.signal;
+  });
+  const pending = inspector.inspectGame(identity);
+  setImmediate(() => controller.abort());
+  await assert.rejects(pending, { name: "AbortError" });
+  assert.equal(waitSignals, 1);
+  assert.equal(requests, 1);
+  assert.equal(inspector.providerMetrics.game_requests, 1);
+  assert.equal(inspector.providerMetrics.authentication_requests, 1);
+});
+
+test("over-budget metadata backoff retains accepted mappings and leaves authoring input unchanged", async (context) => {
+  const { prepareCatalogArtwork } = await import("./inspect-igdb-artwork.mjs");
+  const fixture = await capturedMetadataBackoff(context, { retryAfter: "900" });
+  const accepted = {
+    ports: [
+      {
+        id: "probe",
+        name: "Probe",
+        project_url: "https://example.org/probe",
+        presentation: {
+          artwork: {
+            game_id: 101,
+            cover_id: 202,
+            image_id: "coexisting",
+            image_sha256: "a".repeat(64),
+            game_slug: "probe",
+            match_kind: "port",
+          },
+        },
+      },
+    ],
+  };
+  const before = structuredClone(accepted);
+  const result = await prepareCatalogArtwork(accepted, {
+    ...fixture.inspector,
+    acceptedCatalog: accepted,
+    refreshPortIds: ["probe"],
+    identities: {
+      probe: {
+        port: {
+          game_id: 101,
+          slug: "probe",
+          names: ["Probe"],
+          evidence_url: "https://example.org/probe",
+        },
+      },
+    },
+  });
+  assert.deepEqual(result.catalog, accepted);
+  assert.deepEqual(accepted, before);
+  assert.equal(result.records[0].reason, "accepted-mapping-retained-after-unavailable-refresh");
+  assert.equal(result.records[0].checks.live_refresh_passed, false);
+  assert.equal(fixture.calls.length, 1);
+  assert.equal(fixture.inspector.providerMetrics.image_requests, 0);
+});
+
+for (const retryAfter of [
+  "900",
+  "901",
+  "9".repeat(200),
+  "9007199254740991",
+  "Thursday, 01-Jan-60 08:00:00 GMT",
+  "Saturday, 03-Oct-76 08:00:00 GMT",
+  "Sat Oct  3 08:15:00 2026",
+  "Sat Oct 03 08:15:01 2026",
+  new Date(providerClockStart + 901000).toUTCString(),
+]) {
+  test(`Retry-After beyond the finite batch budget refuses another metadata request: ${retryAfter.slice(0, 40)}`, async (context) => {
+    const fixture = await capturedMetadataBackoff(context, { retryAfter });
+    const next = fixture.request(102).then(
+      () => assert.fail("over-budget pause cannot send"),
+      (error) => error,
+    );
+    await flushProviderTimers(context);
+    context.mock.timers.tick(300);
+    await flushProviderTimers(context);
+    assert.equal(fixture.calls.length, 1);
+    assert.match((await next).message, /batch deadline/);
+    assert.equal(Date.now(), providerClockStart + 300, "no unbounded sleep");
+    assert.equal(fixture.inspector.providerMetrics.game_requests, 1);
+    assert.equal(fixture.inspector.providerMetrics.authentication_requests, 1);
+  });
+}
 
 test("ordinary generator prepares one complete retained batch and refuses output overwrite", () => {
   const scratch = mkdtempSync(join(tmpdir(), "portcove-artwork-generator-"));

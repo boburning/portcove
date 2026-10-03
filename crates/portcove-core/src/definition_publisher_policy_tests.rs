@@ -1229,7 +1229,7 @@ async fn managed_installer_requires_resolver_proof_and_refuses_artifact_redirect
 }
 
 #[tokio::test]
-async fn managed_ordinary_artifacts_install_next_version_and_retain_exact_contract() {
+async fn managed_ordinary_artifacts_and_compatible_correction_retain_exact_contract() {
     use crate::ReleaseProvider;
     use std::io::{Cursor, Write};
     let platform = crate::Platform::current().unwrap();
@@ -1244,7 +1244,7 @@ async fn managed_ordinary_artifacts_install_next_version_and_retain_exact_contra
     port.executable_hints = std::collections::BTreeMap::from([(platform, vec![executable.into()])]);
     baseline.ports.push(port);
     let authored = Catalog::from_json(&serde_json::to_string(&baseline).unwrap()).unwrap();
-    let (_fixture, _key, _root, _directory, library, catalog, mut scope) =
+    let (fixture, key, root, _directory, library, catalog, mut scope) =
         managed_fixture_for(authored).await;
     assert!(
         library
@@ -1332,12 +1332,392 @@ async fn managed_ordinary_artifacts_install_next_version_and_retain_exact_contra
     );
     assert_eq!(server.requests.lock().unwrap().len(), 6);
     assert!(server.responses.lock().unwrap().is_empty());
+
+    // The same capable service must consume a signed presentation correction
+    // without changing either previously admitted installation contract.
+    let before = PortcoveService::new(library.clone())
+        .unwrap()
+        .status(ID)
+        .unwrap();
+    let launch = before
+        .definition_operations
+        .iter()
+        .find(|assessment| assessment.operation == DefinitionOperation::Launch)
+        .unwrap();
+    assert!(launch.retained);
+    assert_eq!(
+        launch.eligibility.outcome,
+        DefinitionEligibilityOutcome::Eligible
+    );
+    let retained_trees: Vec<_> = delivered
+        .iter()
+        .map(|installed| crate::library_transfer::reviewed_tree(&installed.path).unwrap())
+        .collect();
+    let user = library.user_dir(ID);
+    fs::create_dir_all(user.join("saves")).unwrap();
+    fs::create_dir_all(user.join("config")).unwrap();
+    fs::write(user.join("saves/progress.bin"), b"owned retained progress").unwrap();
+    fs::write(user.join("config/settings.json"), b"{\"owned\":true}").unwrap();
+    let user_tree = crate::library_transfer::reviewed_tree(&user).unwrap();
+
+    for definition_revision in [8, 9] {
+        let policy_revision = definition_revision - 6;
+        let mut corrected = catalog.authoritative_document();
+        corrected
+            .ports
+            .iter_mut()
+            .find(|port| port.id == ID)
+            .unwrap()
+            .summary = "Reviewed presentation correction".into();
+        let corrected = Catalog::from_json(&serde_json::to_string(&corrected).unwrap()).unwrap();
+        let bundle = crate::test_fixture::indexed_catalog_bundle_at_revision(
+            &corrected,
+            ID,
+            definition_revision,
+        );
+        let mut targets = vec![(INDEX_TARGET.to_owned(), bundle.index)];
+        targets.extend(bundle.contents);
+        let mut document = availability_for(&targets, ID, policy_revision);
+        document["policy_schema"] = serde_json::json!(2);
+        document["grant_id"] = serde_json::json!("managed-github-v1-fixture");
+        for field in [
+            "status",
+            "repository_id",
+            "artifact_hosts",
+            "max_redirects",
+            "operations",
+        ] {
+            document["decision"][field] = managed_github(2)["decision"][field].clone();
+        }
+        targets.push((
+            format!("policy/official/{ID}.json"),
+            serde_json::to_vec(&document).unwrap(),
+        ));
+        let corrected_root = fixture
+            .publish_with_policy(
+                &targets,
+                true,
+                &DEFINITION_ROLE_PATHS,
+                later(),
+                Some((&key, policy_revision)),
+            )
+            .await;
+        assert_eq!(corrected_root, root);
+        let candidate = acquire(&fixture, &root).await.unwrap();
+        let admission = acquire_policy(&fixture, &root, ID).await.unwrap();
+        library
+            .apply_definition_publisher_policy(&admission, Some(&candidate))
+            .unwrap();
+        let eligible = library
+            .assess_definition_candidate(&candidate, "official", ID)
+            .unwrap()
+            .into_eligible()
+            .unwrap();
+        library.select_definition_candidate(eligible).unwrap();
+
+        let reopened = PortcoveService::new(library.clone()).unwrap();
+        assert_eq!(
+            reopened.catalog().port(ID).unwrap().summary,
+            "Reviewed presentation correction"
+        );
+        let after = reopened.status(ID).unwrap();
+        assert_eq!(after.active.as_ref().unwrap().id, delivered[1].id);
+        assert_eq!(after.previous.as_ref().unwrap().id, delivered[0].id);
+        for (installed, tree) in delivered.iter().zip(&retained_trees) {
+            assert_eq!(
+                crate::library_transfer::reviewed_tree(&installed.path).unwrap(),
+                *tree
+            );
+            let retained = installer.retained_catalog(installed).unwrap().unwrap();
+            assert_eq!(
+                retained.definition_selection(ID),
+                catalog.definition_selection(ID)
+            );
+        }
+        assert_eq!(
+            crate::library_transfer::reviewed_tree(&user).unwrap(),
+            user_tree
+        );
+        let launch = after
+            .definition_operations
+            .iter()
+            .find(|assessment| assessment.operation == DefinitionOperation::Launch)
+            .unwrap();
+        assert!(launch.retained);
+        assert_eq!(
+            launch.eligibility.outcome,
+            DefinitionEligibilityOutcome::Eligible
+        );
+        let old_identity = catalog.definition_selection(ID).unwrap();
+        for operation in [
+            DefinitionOperation::Install,
+            DefinitionOperation::Update,
+            DefinitionOperation::Prepare,
+        ] {
+            assert_eq!(
+                library
+                    .assess_definition_operation(
+                        old_identity,
+                        DefinitionOperationContext::observed(operation, true, true)
+                    )
+                    .unwrap()
+                    .reason,
+                DefinitionEligibilityReason::MetadataReplay
+            );
+        }
+        assert!(policy::validate_current_acquisition(&scope).is_err());
+        assert!(policy::acquisition_scope(&library, &catalog, ID).is_err());
+        assert_eq!(
+            library
+                .assess_definition_operation(
+                    old_identity,
+                    DefinitionOperationContext::observed(DefinitionOperation::Launch, true, false)
+                )
+                .unwrap()
+                .reason,
+            DefinitionEligibilityReason::LocalIntegrityFailed
+        );
+        let mut changed = old_identity.clone();
+        changed.grant_id = "managed-github-v1-different".into();
+        assert_eq!(
+            library
+                .assess_definition_operation(
+                    &changed,
+                    DefinitionOperationContext::observed(DefinitionOperation::Launch, true, true)
+                )
+                .unwrap()
+                .reason,
+            DefinitionEligibilityReason::RecordedIdentityChanged
+        );
+        let selection = library.definition_selection_status().unwrap();
+        assert!(
+            !library
+                .apply_definition_publisher_policy(&admission, Some(&candidate))
+                .unwrap()
+        );
+        assert_eq!(
+            serde_json::to_value(library.definition_selection_status().unwrap()).unwrap(),
+            serde_json::to_value(selection).unwrap()
+        );
+    }
+    // Recreate the exact historical schema-33 admission, retaining its signed
+    // bytes and current policy but removing information that schema never knew.
+    library.connection().unwrap().execute_batch(
+        "BEGIN IMMEDIATE;
+         CREATE TABLE historical_admission (
+           namespace TEXT NOT NULL,stable_id TEXT NOT NULL,
+           anchor_sha256 TEXT NOT NULL REFERENCES definition_publisher_authority(anchor_sha256),
+           policy_json TEXT NOT NULL CHECK(length(policy_json)<=65536),
+           provenance_json TEXT NOT NULL CHECK(length(provenance_json)<=16384),
+           PRIMARY KEY(namespace,stable_id));
+         INSERT INTO historical_admission SELECT namespace,stable_id,anchor_sha256,policy_json,provenance_json
+           FROM definition_publisher_admission;
+         DROP TABLE definition_publisher_admission;
+         ALTER TABLE historical_admission RENAME TO definition_publisher_admission;
+         DELETE FROM schema_migrations WHERE version=34;
+         COMMIT;"
+    ).unwrap();
+    let historical_root = library.root().to_path_buf();
     assert!(
-        crate::operation::OperationStore::new(library)
+        Library::open(&historical_root).is_err(),
+        "migration must respect live library users"
+    );
+    drop(installer);
+    drop(scope);
+    drop(library);
+    let upgraded = Library::open(&historical_root).unwrap();
+    let floor: u64 = upgraded
+        .connection()
+        .unwrap()
+        .query_row(
+            "SELECT retained_launch_revision_floor FROM definition_publisher_admission",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap();
+    assert_eq!(
+        floor, 3,
+        "an upgrade cannot invent prior authorization continuity"
+    );
+    assert_eq!(
+        upgraded
+            .assess_definition_operation(
+                catalog.definition_selection(ID).unwrap(),
+                DefinitionOperationContext::observed(DefinitionOperation::Launch, true, true)
+            )
+            .unwrap()
+            .reason,
+        DefinitionEligibilityReason::RecordedIdentityChanged
+    );
+    for (installed, tree) in delivered.iter().zip(&retained_trees) {
+        assert_eq!(
+            crate::library_transfer::reviewed_tree(&installed.path).unwrap(),
+            *tree
+        );
+    }
+    assert_eq!(
+        crate::library_transfer::reviewed_tree(&user).unwrap(),
+        user_tree
+    );
+    assert!(
+        crate::operation::OperationStore::new(upgraded)
             .all()
             .unwrap()
             .is_empty()
     );
+}
+
+#[tokio::test]
+async fn managed_authorization_changes_and_restoration_cannot_revive_old_launch() {
+    for change in [
+        "repository_id",
+        "artifact_hosts",
+        "max_redirects",
+        "grant_id",
+        "revoked",
+        "availability",
+    ] {
+        let (fixture, key, root, _directory, library, catalog, _scope) = managed_fixture().await;
+        let identity = catalog.definition_selection(ID).unwrap();
+        for revision in [2, 3] {
+            let mut targets = repository_targets_for(&catalog, ID);
+            let mut document = availability_for(&targets, ID, revision);
+            document["policy_schema"] = 2.into();
+            document["grant_id"] = "managed-github-v1-fixture".into();
+            for field in [
+                "status",
+                "repository_id",
+                "artifact_hosts",
+                "max_redirects",
+                "operations",
+            ] {
+                document["decision"][field] = managed_github(revision)["decision"][field].clone();
+            }
+            if revision == 2 {
+                match change {
+                    "repository_id" => document["decision"][change] = 1296270.into(),
+                    "artifact_hosts" => {
+                        document["decision"][change] = serde_json::json!(["github.com"])
+                    }
+                    "max_redirects" => document["decision"][change] = 4.into(),
+                    "grant_id" => document[change] = "managed-github-v1-replacement".into(),
+                    "revoked" => document["decision"] = serde_json::json!({"status":"revoked"}),
+                    "availability" => {
+                        document = availability_for(&targets, ID, revision);
+                    }
+                    _ => unreachable!(),
+                }
+            }
+            targets.push((
+                format!("policy/official/{ID}.json"),
+                serde_json::to_vec(&document).unwrap(),
+            ));
+            assert_eq!(
+                fixture
+                    .publish_with_policy(
+                        &targets,
+                        true,
+                        &DEFINITION_ROLE_PATHS,
+                        later(),
+                        Some((&key, revision))
+                    )
+                    .await,
+                root
+            );
+            let candidate = acquire(&fixture, &root).await.unwrap();
+            let admission = acquire_policy(&fixture, &root, ID).await.unwrap();
+            if revision == 2 {
+                library.connection().unwrap().execute_batch(
+                    "CREATE TRIGGER interrupt_continuity BEFORE UPDATE ON definition_publisher_policy
+                     BEGIN SELECT RAISE(ABORT,'owned continuity interruption'); END;"
+                ).unwrap();
+                assert!(
+                    library
+                        .apply_definition_publisher_policy(&admission, Some(&candidate))
+                        .is_err()
+                );
+                assert!(
+                    policy::continues_retained_launch(&library.connection().unwrap(), identity)
+                        .unwrap()
+                );
+                library
+                    .connection()
+                    .unwrap()
+                    .execute_batch("DROP TRIGGER interrupt_continuity")
+                    .unwrap();
+            }
+            library
+                .apply_definition_publisher_policy(&admission, Some(&candidate))
+                .unwrap();
+            assert!(
+                !policy::continues_retained_launch(&library.connection().unwrap(), identity)
+                    .unwrap(),
+                "{change} at {revision}"
+            );
+            let eligibility = library
+                .assess_definition_operation(
+                    identity,
+                    DefinitionOperationContext::observed(DefinitionOperation::Launch, true, true),
+                )
+                .unwrap();
+            assert_ne!(
+                eligibility.outcome,
+                DefinitionEligibilityOutcome::Eligible,
+                "{change} at {revision}"
+            );
+            let floor: u64 = library
+                .connection()
+                .unwrap()
+                .query_row(
+                    "SELECT retained_launch_revision_floor FROM definition_publisher_admission",
+                    [],
+                    |row| row.get(0),
+                )
+                .unwrap();
+            assert_eq!(floor, revision, "{change} at {revision}");
+            assert!(
+                !library
+                    .apply_definition_publisher_policy(&admission, Some(&candidate))
+                    .unwrap()
+            );
+        }
+    }
+}
+
+#[tokio::test]
+async fn retained_launch_refuses_invalid_continuity_and_mismatched_policy() {
+    let (_fixture, _key, _root, _directory, library, catalog, _scope) = managed_fixture().await;
+    let identity = catalog.definition_selection(ID).unwrap();
+    let connection = library.connection().unwrap();
+    for floor in [0, 2] {
+        connection
+            .execute_batch("PRAGMA ignore_check_constraints=ON")
+            .unwrap();
+        connection
+            .execute(
+                "UPDATE definition_publisher_admission SET retained_launch_revision_floor=?1",
+                [floor],
+            )
+            .unwrap();
+        assert!(policy::continues_retained_launch(&connection, identity).is_err());
+    }
+    connection
+        .execute(
+            "UPDATE definition_publisher_admission SET retained_launch_revision_floor=1",
+            [],
+        )
+        .unwrap();
+    connection
+        .execute(
+            "UPDATE definition_publisher_policy SET grant_id='managed-github-v1-other'",
+            [],
+        )
+        .unwrap();
+    assert!(policy::continues_retained_launch(&connection, identity).is_err());
+    connection
+        .execute("DELETE FROM definition_publisher_admission", [])
+        .unwrap();
+    assert!(!policy::continues_retained_launch(&connection, identity).unwrap());
 }
 
 struct WithdrawPreparation {
