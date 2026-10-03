@@ -3076,6 +3076,82 @@ fn zip_file_set_inventory_limit_precedes_hashing() {
 }
 
 #[test]
+fn zip_file_set_identity_retains_the_opened_artifact_after_path_replacement() {
+    let temporary = tempfile::tempdir().unwrap();
+    let (catalog, fixtures) = directory_set_catalog();
+    let path = temporary.path().join("set.zip");
+    let displaced = temporary.path().join("original.zip");
+    write_file_set_zip(&path, &fixtures);
+    let path = fs::canonicalize(path).unwrap();
+    let original = fs::read(&path).unwrap();
+    let file = fs::File::open(&path).unwrap();
+    fs::rename(&path, &displaced).unwrap();
+    // Same-length replacement must not provide the retained archive's storage facts.
+    let mut replacement = original.clone();
+    let name = fixtures[0].0.as_bytes();
+    let locations = replacement
+        .windows(name.len())
+        .enumerate()
+        .filter_map(|(index, bytes)| (bytes == name).then_some(index))
+        .collect::<Vec<_>>();
+    assert_eq!(locations.len(), 2);
+    for index in locations {
+        replacement[index] = replacement[index].to_ascii_uppercase();
+    }
+    fs::write(&path, &replacement).unwrap();
+    let member_bytes = fixtures
+        .iter()
+        .map(|(_, bytes)| bytes.len() as u64)
+        .sum::<u64>();
+    let mut budget = HashBudget {
+        operation: None,
+        limit: original.len() as u64 + member_bytes,
+        hashed: 0,
+        max_zip_entries: 4096,
+    };
+    let mut archive = super::zip_file_sets::ZipFileSet::open_file(
+        file,
+        &catalog,
+        &["g-diffuser-source-set"],
+        1_000_000,
+        &mut budget,
+    )
+    .unwrap()
+    .unwrap();
+    let first = archive
+        .inspect(
+            &catalog,
+            "g-diffuser-source-set",
+            &path,
+            1_000_000,
+            &mut budget,
+        )
+        .unwrap();
+    let record = first.record.unwrap();
+    assert_eq!(
+        record.storage_sha256,
+        hex::encode(Sha256::digest(&original))
+    );
+    assert_eq!(record.storage_size, original.len() as u64);
+    assert_eq!(record.size, member_bytes);
+    assert_eq!(budget.hashed, budget.limit);
+    // Each by_index must seek correctly after the cloned handle's storage pass.
+    let repeated = archive
+        .inspect(
+            &catalog,
+            "g-diffuser-source-set",
+            &path,
+            1_000_000,
+            &mut budget,
+        )
+        .unwrap();
+    assert_eq!(repeated.record.unwrap().sha256, record.sha256);
+    assert_eq!(budget.hashed, budget.limit);
+    assert_eq!(fs::read(&path).unwrap(), replacement);
+    assert_eq!(fs::read(&displaced).unwrap(), original);
+}
+
+#[test]
 fn zip_file_set_changed_length_invalidates_observed_candidate() {
     for grows in [true, false] {
         let temporary = tempfile::tempdir().unwrap();

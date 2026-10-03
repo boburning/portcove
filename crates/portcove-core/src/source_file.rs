@@ -2,7 +2,11 @@
 use crate::{Library, PortcoveError, Result, SourceProfile, SourceRecord};
 use sha1::Sha1;
 use sha2::{Digest, Sha256};
-use std::{fs::File, io::Read, path::Path};
+use std::{
+    fs::File,
+    io::{Read, Seek},
+    path::Path,
+};
 
 pub(crate) struct HashBudget {
     pub operation: Option<crate::OperationCoordinator>,
@@ -74,7 +78,7 @@ pub(crate) fn read_identity(
         .and_then(|value| value.to_str())
         .unwrap_or_default();
     if extension.eq_ignore_ascii_case("zip") {
-        read_zip_identity(path, extensions, maximum_size, metadata.len(), budget)
+        read_zip_identity(path, extensions, maximum_size, budget)
     } else {
         if !extensions.is_empty()
             && !extensions
@@ -135,6 +139,18 @@ fn read_zip_identity(
     path: &Path,
     extensions: &[String],
     maximum_size: u64,
+    budget: &mut HashBudget,
+) -> Result<FileIdentity> {
+    let file = File::open(path)?;
+    // Bind length to the same opened artifact as both digest passes.
+    let storage_size = file.metadata()?.len();
+    read_zip_identity_from_file(file, extensions, maximum_size, storage_size, budget)
+}
+
+fn read_zip_identity_from_file(
+    file: File,
+    extensions: &[String],
+    maximum_size: u64,
     storage_size: u64,
     budget: &mut HashBudget,
 ) -> Result<FileIdentity> {
@@ -144,7 +160,7 @@ fn read_zip_identity(
                 .detail("scan_limit", "file_size"),
         );
     }
-    let mut archive = zip::ZipArchive::new(File::open(path)?)
+    let mut archive = zip::ZipArchive::new(file)
         .map_err(|error| PortcoveError::source(format!("invalid source ZIP: {error}")))?;
     if archive.len() > budget.max_zip_entries {
         return Err(PortcoveError::source(
@@ -182,7 +198,9 @@ fn read_zip_identity(
     )?;
     // The outer archive is retained as storage identity only. Its member receives
     // the full content-identity treatment above.
-    let storage = hash_storage_reader(File::open(path)?, storage_size, maximum_size, budget)?;
+    let mut storage_file = archive.into_inner();
+    storage_file.rewind()?;
+    let storage = hash_storage_reader(storage_file, storage_size, maximum_size, budget)?;
     Ok(FileIdentity {
         sha256: identity.sha256,
         sha1: identity.sha1,
@@ -242,12 +260,13 @@ pub(crate) fn read_zip_member_hashes(
 }
 
 pub(crate) fn read_storage_identity(
-    path: &Path,
+    mut file: File,
     expected: u64,
     maximum: u64,
     budget: &mut HashBudget,
 ) -> Result<(String, u64)> {
-    let identity = hash_storage_reader(File::open(path)?, expected, maximum, budget)?;
+    file.rewind()?;
+    let identity = hash_storage_reader(file, expected, maximum, budget)?;
     Ok((identity.sha256, identity.size))
 }
 
@@ -550,6 +569,121 @@ pub(crate) fn single_zip_source_index(
 mod tests {
     use super::*;
     use std::io::Cursor;
+
+    #[test]
+    fn zip_identity_retains_member_and_storage_from_the_opened_archive() {
+        use std::io::Write;
+        let temporary = tempfile::tempdir().unwrap();
+        let path = temporary.path().join("source.zip");
+        let displaced = temporary.path().join("original.zip");
+        let write = |payload: &[u8]| {
+            let mut archive = zip::ZipWriter::new(File::create(&path).unwrap());
+            archive
+                .start_file(
+                    "source.bin",
+                    zip::write::SimpleFileOptions::default()
+                        .compression_method(zip::CompressionMethod::Stored),
+                )
+                .unwrap();
+            archive.write_all(payload).unwrap();
+            archive.finish().unwrap();
+        };
+        write(b"original source!");
+        let original = std::fs::read(&path).unwrap();
+        let file = File::open(&path).unwrap();
+        // Renaming away first also supports platforms that cannot replace an
+        // existing destination. The original handle remains open throughout.
+        std::fs::rename(&path, &displaced).unwrap();
+        write(b"replaced source!");
+        let replacement = std::fs::read(&path).unwrap();
+        assert_eq!(original.len(), replacement.len());
+        assert_ne!(original, replacement);
+        let mut budget = HashBudget {
+            operation: None,
+            limit: 1_000_000,
+            hashed: 0,
+            max_zip_entries: 8,
+        };
+        let identity = read_zip_identity_from_file(
+            file,
+            &["bin".into()],
+            1_000_000,
+            original.len() as u64,
+            &mut budget,
+        )
+        .unwrap();
+        assert_eq!(
+            identity.sha256,
+            hex::encode(Sha256::digest(b"original source!"))
+        );
+        assert_eq!(
+            identity.storage_sha256,
+            hex::encode(Sha256::digest(&original))
+        );
+        assert_eq!(identity.storage_size, original.len() as u64);
+        assert_eq!(budget.hashed, original.len() as u64 + 16);
+        assert_eq!(std::fs::read(&path).unwrap(), replacement);
+        assert_eq!(std::fs::read(&displaced).unwrap(), original);
+    }
+
+    #[test]
+    fn retained_storage_reader_rewinds_and_preserves_limits_and_length_guards() {
+        let temporary = tempfile::tempdir().unwrap();
+        let path = temporary.path().join("storage.zip");
+        let bytes = b"original storage";
+        std::fs::write(&path, bytes).unwrap();
+        let mut file = File::open(&path).unwrap();
+        file.seek(std::io::SeekFrom::End(0)).unwrap();
+        let expected = file.metadata().unwrap().len();
+        let mut budget = HashBudget {
+            operation: None,
+            limit: expected,
+            hashed: 0,
+            max_zip_entries: 8,
+        };
+        let (digest, size) =
+            read_storage_identity(file.try_clone().unwrap(), expected, expected, &mut budget)
+                .unwrap();
+        assert_eq!(digest, hex::encode(Sha256::digest(bytes)));
+        assert_eq!(size, expected);
+        assert_eq!(budget.hashed, expected);
+        assert_eq!(std::fs::read(&path).unwrap(), bytes);
+        for (limit, maximum, message) in [
+            (expected - 1, expected, "budget"),
+            (expected, expected - 1, "size limit"),
+        ] {
+            let mut budget = HashBudget {
+                operation: None,
+                limit,
+                hashed: 0,
+                max_zip_entries: 8,
+            };
+            let error =
+                read_storage_identity(file.try_clone().unwrap(), expected, maximum, &mut budget)
+                    .unwrap_err();
+            assert!(error.message.contains(message), "{}", error.message);
+            assert_eq!(budget.hashed, 0);
+        }
+        for (changed, message) in [
+            (b"short".as_slice(), "shrank"),
+            (b"original storage plus".as_slice(), "grew"),
+        ] {
+            // In-place changes affect the original handle, unlike pathname replacement.
+            std::fs::write(&path, changed).unwrap();
+            let mut budget = HashBudget {
+                operation: None,
+                limit: expected,
+                hashed: 0,
+                max_zip_entries: 8,
+            };
+            let error =
+                read_storage_identity(file.try_clone().unwrap(), expected, expected, &mut budget)
+                    .unwrap_err();
+            assert!(error.message.contains(message), "{}", error.message);
+            assert!(budget.hashed <= expected);
+            assert_eq!(std::fs::read(&path).unwrap(), changed);
+        }
+    }
 
     fn canonical_digest(input_chunks: &[&[u8]]) -> (N64CanonicalDigest, Vec<u8>) {
         let mut digest = N64CanonicalDigest::default();
