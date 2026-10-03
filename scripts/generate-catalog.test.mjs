@@ -1119,13 +1119,23 @@ test("deadline expiry while a metadata wait resolves does not count or send a re
 
 test("metadata pacing preserves the800request cap without repeated authentication", async (context) => {
   const fixture = await capturedMetadataBackoff(context, { retryAfter: null });
-  for (let request = 1; request < 800; request++) {
+  for (let request = 1; request < 799; request++) {
     const next = fixture.request(101 + request);
     await flushProviderTimers(context);
     context.mock.timers.tick(300);
     await flushProviderTimers(context);
     await next;
   }
+  const last = Promise.allSettled([fixture.request(900), fixture.request(901)]);
+  await flushProviderTimers(context);
+  context.mock.timers.tick(300);
+  await flushProviderTimers(context);
+  const results = await last;
+  assert.equal(results.filter((result) => result.status === "fulfilled").length, 1);
+  assert.match(
+    results.find((result) => result.status === "rejected").reason.message,
+    /metadata budget/,
+  );
   await assert.rejects(fixture.request(901), /metadata budget/);
   assert.equal(fixture.calls.length, 800);
   assert.equal(fixture.inspector.providerMetrics.game_requests, 800);
