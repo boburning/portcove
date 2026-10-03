@@ -1,0 +1,256 @@
+# PROPOSAL ONLY. One explicitly authorized push; never merge or acceptance authority.
+name: Linux query discriminator (diagnostic only)
+
+on:
+  push:
+    branches: [diagnostic/225-query-73325d2]
+    paths: [.github/workflows/linux-query-diagnostic.yml]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: linux-query-discriminator-73325d2
+  cancel-in-progress: false
+
+jobs:
+  observe:
+    if: github.repository == 'boburning/portcove' && github.event.repository.private == false && github.run_attempt == 1
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: 73325d2495683447ba0682ac839c3a38cdd786e4
+          path: source
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: source/.node-version
+          package-manager-cache: false
+      - uses: dtolnay/rust-toolchain@4360b52568e2003a75bf9bc1d59f33a8e3fc893c
+        with:
+          toolchain: 1.98.1
+      - uses: taiki-e/install-action@c3ec0de9ae7f1019cea21aa96aa0a895b9552063 # v2
+        with:
+          tool: cargo-nextest@0.9.100
+      - name: Existing Ubuntu native prerequisites; no cloud system changes
+        working-directory: source
+        timeout-minutes: 15
+        run: ./scripts/install-linux-desktop-prerequisites.sh
+      - name: Bind untouched source and exact pins
+        working-directory: source
+        shell: bash
+        run: |
+          test "$(git rev-parse HEAD)" = 73325d2495683447ba0682ac839c3a38cdd786e4
+          test -z "$(git status --porcelain)"
+          test "$(node --version)" = v24.21.0
+          test "$(rustc --version | cut -d ' ' -f 2)" = 1.98.1
+          node scripts/quality-tools.mjs --verify cargo-nextest
+          pkg-config --atleast-version=2.70 glib-2.0
+          pkg-config --modversion gtk+-3.0 webkit2gtk-4.1
+          python3 - <<'PY_DIAGNOSTIC'
+          import json
+          from pathlib import Path
+          pins = json.loads(Path('.github/quality-tools.json').read_text())
+          assert pins['rust']['channel'] == '1.98.1'
+          assert next(tool['version'] for tool in pins['tools'] if tool['id'] == 'cargo-nextest') == '0.9.100'
+          PY_DIAGNOSTIC
+      - name: Exactly one A1 B A2 batch; retain every outcome in logs
+        working-directory: source
+        shell: bash
+        run: |
+          observer="$RUNNER_TEMP/portcove-query-discriminator.py"
+          cat > "$observer" <<'PY_DIAGNOSTIC'
+          """PROPOSAL ONLY: fixed three-condition observation; never acceptance authority."""
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+          import platform
+          import stat
+          import subprocess
+          import sys
+          import threading
+          import time
+
+          SOURCE = "73325d2495683447ba0682ac839c3a38cdd786e4"
+          OWNER = "application_update_linux::tests::installed_deb_query_tool_has_one_deb_owner_when_present"
+          SIBLING = "application_update_status::tests::corrupt_stores_are_reported_and_repaired_only_while_invalid"
+          COMMAND = ["node", "scripts/dev-storage.mjs", "run", "--", "node", "scripts/run-rust-tests.mjs", "--locked", "-p", "portcove-desktop"]
+          SEQUENCE = [("A1", 1, f"test(/^{OWNER}$/)"), ("B", 2, f"test(/^{OWNER}$/) | test(/^{SIBLING}$/)"), ("A2", 1, f"test(/^{OWNER}$/)")]
+          OBSERVATION_FAILURES = []
+
+
+          def emit(kind, **fields):
+              print("PORTCOVE_QUERY_DIAGNOSTIC " + json.dumps(dict(kind=kind, monotonic_ns=time.monotonic_ns(), **fields)), flush=True)
+
+
+          def read(path):
+              try:
+                  with Path(path).open() as stream:
+                      value = stream.read(4097)
+                  return value if len(value) <= 4096 else value[:4096] + " [observation truncated]"
+              except (OSError, UnicodeError):
+                  return None
+
+
+          def digest(path):
+              try:
+                  return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+              except OSError:
+                  return None
+
+
+          def cgroup_counters(pid):
+              membership = read(f"/proc/{pid}/cgroup")
+              if membership is None:
+                  return None
+              for line in membership.splitlines():
+                  if line.startswith("0::/"):
+                      relative = Path(line[4:])
+                      if ".." in relative.parts:
+                          return None
+                      directory = Path("/sys/fs/cgroup") / relative
+                      return {name:read(directory / name) for name in ["cpu.stat", "io.stat", "cpu.pressure", "io.pressure", "memory.pressure"]}
+              return None
+
+
+          def system_identity():
+              files = ["apps/desktop/src-tauri/src/application_update_linux.rs", "crates/portcove-core/src/process.rs", ".config/nextest.toml", "scripts/run-rust-tests.mjs", "scripts/dev-storage.mjs", ".github/workflows/deep-quality.yml", ".github/quality-tools.json", "Cargo.lock", "rust-toolchain.toml", ".node-version"]
+              tools = {}
+              for name in ["/usr/bin/dpkg-query", "/usr/bin/rpm"]:
+                  try:
+                      stat = Path(name).lstat()
+                      tools[name] = dict(uid=stat.st_uid, gid=stat.st_gid, mode=oct(stat.st_mode), size=stat.st_size, sha256=digest(name))
+                  except OSError:
+                      tools[name] = None
+              emit("identity", source=SOURCE, os=read("/etc/os-release"), kernel=platform.release(), cpu_count=os.cpu_count(), tools=tools, hashes={p:digest(p) for p in files}, limitations=["Original runner image 20260927.320.1 cannot be selected immutably; actual image comes from setup log.", "External /proc samples do not expose exact helper entry/spawn/deadline/kill/reap/join boundaries.", "Read counters can be unavailable and fast child lifetimes can escape sampling.", "A1 includes cold compile/startup; only child samples can separate it from query execution."])
+
+
+          def require_trusted_tool(path):
+              metadata = Path(path).lstat()
+              if not stat.S_ISREG(metadata.st_mode) or stat.S_ISLNK(metadata.st_mode) or metadata.st_uid != 0 or metadata.st_mode & 0o022 != 0 or metadata.st_mode & 0o111 == 0:
+                  raise RuntimeError("The diagnostic requires the unchanged production system-tool trust predicate.")
+
+
+          def observe(root_pid, stop, phase):
+              # Fixed observation budget; never pause, signal or modify another process.
+              records = 0
+              seen = set()
+              while not stop.wait(0.02):
+                  start = time.monotonic_ns()
+                  processes = {}
+                  for entry in Path("/proc").iterdir():
+                      if not entry.name.isdigit():
+                          continue
+                      raw = read(entry / "stat")
+                      if raw is None or ") " not in raw:
+                          continue
+                      columns = raw.rsplit(") ", 1)[1].split()
+                      if len(columns) >= 40:
+                          processes[int(entry.name)] = (int(columns[1]), columns)
+                  owned = {root_pid}
+                  for _ in range(16):
+                      updated = owned | {pid for pid, (parent, _) in processes.items() if parent in owned}
+                      if updated == owned:
+                          break
+                      owned = updated
+                  active_tests = []
+                  children = []
+                  selected = {}
+                  commands = {}
+                  for pid in sorted(owned):
+                      try:
+                          command = Path(f"/proc/{pid}/cmdline").read_bytes().split(b"\0")
+                      except OSError:
+                          continue
+                      # Do not emit arbitrary arguments or the environment.
+                      tests = [name for name in [OWNER, SIBLING] if name.encode() in command]
+                      if tests:
+                          active_tests.extend(dict(pid=pid, test=name) for name in tests)
+                          selected[pid] = tests
+                      commands[pid] = command
+                  for pid, command in commands.items():
+                      if not command or command[0] not in [b"/usr/bin/dpkg-query", b"/usr/bin/rpm"]:
+                          continue
+                      stat = processes.get(pid)
+                      if stat is None:
+                          continue
+                      columns = stat[1]
+                      parent = stat[0]
+                      ancestor = parent
+                      attribution = []
+                      for _ in range(16):
+                          if ancestor in selected:
+                              attribution = [dict(pid=ancestor, test=name) for name in selected[ancestor]]
+                              break
+                          entry = processes.get(ancestor)
+                          if entry is None or ancestor == root_pid:
+                              break
+                          ancestor = entry[0]
+                      children.append(dict(pid=pid, ppid=parent, selected_test_ancestors=attribution or None, attribution_unavailable=not attribution, tool=command[0].decode(), state=columns[0], minflt=columns[7], majflt=columns[9], utime_ticks=columns[11], stime_ticks=columns[12], start_ticks=columns[19], blkio_ticks=columns[39], io=read(f"/proc/{pid}/io"), schedstat=read(f"/proc/{pid}/schedstat"), cgroup=read(f"/proc/{pid}/cgroup"), cgroup_counters=cgroup_counters(pid)))
+                      seen.add(pid)
+                  if children or active_tests:
+                      emit("sample", phase=phase, tests=active_tests, children=children, pressure={p:read("/proc/pressure/"+p) for p in ["cpu", "io", "memory"]}, observer_ns=time.monotonic_ns()-start)
+                      records += 1
+                      if records >= 300:
+                          emit("observation_limit", phase=phase, records=records)
+                          break
+              emit("observation_end", phase=phase, records=records, query_pids=sorted(seen))
+
+
+          def observe_guarded(root_pid, stop, phase):
+              try:
+                  observe(root_pid, stop, phase)
+              except Exception as error:
+                  OBSERVATION_FAILURES.append(dict(phase=phase, error_type=type(error).__name__))
+                  emit("observation_failure", phase=phase, error_type=type(error).__name__)
+
+
+          def main():
+              head = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
+              if head != SOURCE or subprocess.check_output(["git", "status", "--porcelain"], text=True).strip():
+                  raise RuntimeError("The diagnostic requires the unchanged clean frozen source.")
+              system_identity()
+              require_trusted_tool("/usr/bin/dpkg-query")
+              for args in [["node", "--version"], ["rustc", "--version"], ["cargo-nextest", "--version"], ["/usr/bin/dpkg-query", "--version"]]:
+                  result = subprocess.run(args, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=15)
+                  emit("tool_version", tool=args[0], rc=result.returncode, output=result.stdout[:4096])
+                  if result.returncode:
+                      raise RuntimeError("Pinned tool observation failed.")
+              outcomes = []
+              for phase, slots, expression in SEQUENCE:
+                  argv = COMMAND + ["--test-threads", str(slots), "-E", expression]
+                  emit("condition_start", phase=phase, argv=argv)
+                  child = subprocess.Popen(argv)
+                  stop = threading.Event()
+                  sampler = threading.Thread(target=observe_guarded, args=(child.pid, stop, phase))
+                  sampler.start()
+                  rc = child.wait()
+                  stop.set()
+                  sampler.join()
+                  outcomes.append(dict(phase=phase, rc=rc))
+                  emit("condition_end", phase=phase, rc=rc)
+              # Database content reads run AFTER the batch, avoiding intentional preload.
+              lists = sorted(Path("/var/lib/dpkg/info").glob("*.list"))
+              identity = hashlib.sha256()
+              total = 0
+              failures = 0
+              for entry in lists:
+                  try:
+                      data = entry.read_bytes()
+                      total += len(data)
+                      identity.update(entry.name.encode()+b"\0"+hashlib.sha256(data).digest())
+                  except OSError:
+                      failures += 1
+              emit("database_after", status_sha256=digest("/var/lib/dpkg/status"), diversions_sha256=digest("/var/lib/dpkg/diversions"), list_count=len(lists), list_bytes=total, list_content_identity=identity.hexdigest(), unavailable=failures)
+              emit("batch_end", outcomes=outcomes, observer_failures=OBSERVATION_FAILURES, qualification=False, cause_established=False, interpretation="All passes, no observed B overlap or observer limitations leave the original failure unresolved; no automatic rerun or merge.")
+              return 1 if OBSERVATION_FAILURES or any(outcome["rc"] != 0 for outcome in outcomes) else 0
+
+
+          if __name__ == "__main__":
+              sys.exit(main())
+          PY_DIAGNOSTIC
+          printf '%s  %s\n' 'a55afc7476361a0ec028f159e7cde694b5e5b08879cb2e5e5984a7642eb493eb' "$observer" | sha256sum --check
+          python3 "$observer"
