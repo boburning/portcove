@@ -1,5 +1,19 @@
 # Development tools
 
+## Bounded GitHub subprocess collection
+
+The shared GitHub API runner limits each ordinary `gh` subprocess to 15 seconds
+and 16 MiB of collected output. Timeout terminates that owned subprocess with
+`SIGKILL` and refuses its output, even if it contains complete JSON. It reports a
+sanitized failure without retrying. These are per-subprocess limits, not a deadline
+for an entire paginated inventory. The CI watcher's existing 60-second observation
+budget and retained execution deadline remain separate.
+
+A timed-out mutation may already have reached GitHub. Delivery still requires
+remote state readback before any retry; unavailable readback remains an unknown
+outcome. A local timeout is neither rollback nor proof of server-side failure.
+No global GitHub CLI configuration or additional execution authority is required.
+
 ## Hosted Cargo dependency validation
 
 The existing Deep audit workflow's `local-check` operation accepts an optional
