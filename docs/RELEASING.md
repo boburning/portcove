@@ -803,12 +803,19 @@ packaging change does not grant it or introduce another manual gate.
 
 Public beta requires the complete verified application updater under
 [#52](https://github.com/boburning/portcove/issues/52): Windows per-user NSIS,
-Linux AppImage, that same Linux application on Steam Deck, and installed macOS
+ordinary Linux x86-64 AppImage, and installed macOS
 bundles on Intel and Apple Silicon. Shared mechanisms are implemented
 incrementally, with actual platform upgrade/recovery proof before the beta
 declaration. [#46](https://github.com/boburning/portcove/issues/46) retains later
 exact production package/upgrade/rehearsal evidence for 1.0; #52 does not wait
-for its post-beta closure. RC stabilizes one exact candidate, not all development.
+for its post-beta closure. Deck qualification and #535's Gaming Mode updater
+proof do not block initial #52/Public beta acceptance. They remain high-priority
+Public beta follow-up (Beta 2) work under #51/#213–#217/#535, Required before 1.0.
+Until their actual-device matrix passes, the Linux build may be usable on SteamOS
+but Deck is unqualified; release prose must not claim official Deck/Gaming Mode
+support, all-port compatibility or Valve Verified. Ordinary Linux safety and all
+other committed platform proofs remain mandatory. RC stabilizes one exact
+candidate, not all development.
 
 The [delivery contract](DELIVERY.md) separates application/catalog/game updates,
 Stable/Preview eligibility, updater authenticity, SHA-256 reconciliation, OS

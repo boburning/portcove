@@ -330,8 +330,17 @@ links alone never block a release. Unrelated unscheduled intake is not a gate.
 Keep optional work Opportunistic at the release where it may ship or Post-1.0
 where that is its real target; do not distort forecasts merely to avoid a gate.
 
-Public beta requires the complete #52 Windows/Linux/Steam Deck/macOS updater,
-including actual beta platform safety evidence. #46 owns later production
+Initial Public beta requires the complete #52 Windows/ordinary Linux/macOS updater,
+including actual safety evidence for those committed platforms. Steam Deck remains
+unqualified at initial beta: the shared Linux build may work there, but Linux CI,
+catalog presence and Desktop Steam evidence do not establish Deck support. #51,
+#213–#217 and #535 retain High/Next qualification during the Public beta follow-up
+(Beta 2), Required before 1.0. Their active Target release is 1.0, not the historical
+Beta 2 option. Shared Linux packaging/updater, desktop controller, storage,
+process/recovery and Desktop Steam outcomes remain initial-beta requirements.
+#52 and the desktop #290/#292 components close without physical Deck, Gaming Mode
+or Gamescope proof; the later Deck owners consume those foundations one way.
+#46 owns later production
 requalification for 1.0; it is not a reverse dependency of #52. Independent
 catalog delivery, the finite preparation/artwork outcomes and the real Playnite
 reference proof are also Required for Public beta. The user-ready Playnite
