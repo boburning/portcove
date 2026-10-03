@@ -14,7 +14,7 @@ use crate::{PortcoveError, Result};
 #[path = "database_concurrency_tests.rs"]
 mod concurrency_tests;
 
-pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 33;
+pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 34;
 
 struct Migration {
     version: i64,
@@ -222,7 +222,36 @@ const MIGRATIONS: &[Migration] = &[
         apply: migration_33,
         verify: verify_migration_33,
     },
+    Migration {
+        version: 34,
+        name: "retained publisher authorization continuity",
+        apply: migration_34,
+        verify: verify_migration_34,
+    },
 ];
+
+fn migration_34(transaction: &Transaction<'_>) -> Result<()> {
+    transaction.execute_batch(
+        "ALTER TABLE definition_publisher_admission ADD COLUMN
+           retained_launch_revision_floor INTEGER NOT NULL DEFAULT 1
+           CHECK(retained_launch_revision_floor > 0);
+         UPDATE definition_publisher_admission SET retained_launch_revision_floor=(
+           SELECT policy_revision FROM definition_publisher_policy
+           WHERE definition_publisher_policy.namespace=definition_publisher_admission.namespace
+             AND definition_publisher_policy.stable_id=definition_publisher_admission.stable_id
+         );",
+    )?;
+    verify_migration_34(transaction)?;
+    crate::definition_repository::publisher_policy::validate_stored_admissions(transaction)
+}
+
+fn verify_migration_34(connection: &Connection) -> Result<()> {
+    require_columns(
+        connection,
+        "definition_publisher_admission",
+        &["retained_launch_revision_floor"],
+    )
+}
 
 fn migration_33(transaction: &Transaction<'_>) -> Result<()> {
     transaction.execute_batch(
@@ -1639,6 +1668,56 @@ mod tests {
         schema_30: 30,
         schema_31: 31,
         schema_32: 32,
+        schema_33: 33,
+    }
+
+    #[test]
+    fn continuity_upgrade_failure_preserves_schema_33_and_admission_bytes() {
+        let temporary = tempdir().unwrap();
+        let root = temporary.path();
+        prepare_root(root);
+        migrate_to(root, 33).unwrap();
+        let connection = connect(root).unwrap();
+        let anchor = "a".repeat(64);
+        connection
+            .execute(
+                "INSERT INTO definition_publisher_authority(anchor_sha256,trusted_root_json)
+             VALUES(?1,'{}')",
+                [&anchor],
+            )
+            .unwrap();
+        // A missing corresponding policy record cannot supply a current bound.
+        connection
+            .execute(
+                "INSERT INTO definition_publisher_admission
+             (namespace,stable_id,anchor_sha256,policy_json,provenance_json)
+             VALUES('official','owned-fixture',?1,'owned policy bytes','owned provenance bytes')",
+                [&anchor],
+            )
+            .unwrap();
+        drop(connection);
+        let error = migrate(root).unwrap_err();
+        assert_eq!(error.details["migration_version"], "34");
+        let connection = connect(root).unwrap();
+        assert_eq!(
+            recorded_versions(&connection).unwrap(),
+            (1..=33).collect::<Vec<_>>()
+        );
+        assert!(
+            connection
+                .prepare(
+                    "SELECT retained_launch_revision_floor FROM definition_publisher_admission"
+                )
+                .is_err()
+        );
+        let bytes: String = connection
+            .query_row(
+                "SELECT policy_json FROM definition_publisher_admission",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(bytes, "owned policy bytes");
     }
 
     #[test]
