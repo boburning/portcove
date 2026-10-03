@@ -38,6 +38,7 @@ use crate::{
 
 mod backups;
 pub(crate) use backups::{BackupDeletionPhase, RestorePhase};
+mod launch_preparation;
 mod removal;
 pub(crate) use removal::{RemovalOperation, RemovalPhase};
 
@@ -4158,103 +4159,6 @@ impl PortcoveService {
             .active
             .ok_or_else(|| PortcoveError::not_found(format!("{port_id} is not installed")))?;
         self.prepare_launch_for_install(port, &active, source_override, None)
-    }
-
-    fn prepare_launch_for_install(
-        &self,
-        port: &PortDefinition,
-        active: &InstallRecord,
-        source_override: Option<&Path>,
-        operation: Option<&OperationCoordinator>,
-    ) -> Result<crate::LaunchSpec> {
-        if port.id != active.port_id {
-            return Err(PortcoveError::verification(
-                "launch installation belongs to another port",
-            ));
-        }
-        let catalog = self.installed_catalog(active)?;
-        let port = catalog.port(&active.port_id)?;
-        let qualification = self.installed_mutability_qualification(active)?;
-        let checkpoint = || operation.map_or(Ok(()), OperationCoordinator::checkpoint);
-        checkpoint()?;
-        crate::runtime::require_ready(port, Platform::current()?, active)?;
-        checkpoint()?;
-        self.managed_install_root(&port.id, &active.path)?;
-        checkpoint()?;
-        Installer::new(self.library.clone())?.verify_critical(active, &qualification)?;
-        checkpoint()?;
-        let source = if let Some(path) = source_override {
-            let profile_id = port.source_profile.as_deref().ok_or_else(|| {
-                PortcoveError::usage(format!("{} does not accept a source override", port.name))
-            })?;
-            let source = Some(
-                crate::source_inspection::inspect(&catalog, profile_id, path)?
-                    .require_admitted_record()?,
-            );
-            checkpoint()?;
-            source
-        } else if let Some(profile) = &port.source_profile {
-            if self.library.source(profile)?.is_some() {
-                Some(self.verified_source_record_with_checkpoint(&catalog, profile, &checkpoint)?)
-            } else {
-                None
-            }
-        } else {
-            None
-        };
-        self.require_definition_operation(
-            &catalog,
-            port,
-            DefinitionOperationContext::observed(
-                DefinitionOperation::Launch,
-                true,
-                active.verified,
-            ),
-        )?;
-        if crate::preparation::managed(port) {
-            self.validate_preparation_receipt(port, active, source.as_ref())?;
-            if !Installer::new(self.library.clone())?
-                .verify_managed(active, &qualification)?
-                .valid
-            {
-                return Err(PortcoveError::verification(
-                    "prepared game data changed; repair or prepare it again",
-                ));
-            }
-        }
-        if active.path.join(LAUNCH_MARKER).is_file() {
-            self.collect_user_data_from(port, &active.path)?;
-            checkpoint()?;
-        }
-        self.restore_user_data_to(port, &active.path)?;
-        checkpoint()?;
-        let selected_executable =
-            Installer::new(self.library.clone())?.verify_critical(active, &qualification)?;
-        checkpoint()?;
-        let spec = self
-            .adapters
-            .get(port.adapter)
-            .prepare_launch_with_executable(
-                crate::LaunchSpecRequest {
-                    library: &self.library,
-                    port,
-                    platform: Platform::current()?,
-                    install_root: &active.path,
-                    selected_executable: &selected_executable,
-                    source: source.as_ref().map(|record| record.path.as_path()),
-                    source_record: source.as_ref(),
-                },
-                &checkpoint,
-            )?;
-        self.faults.check(LifecycleFaultPoint::SourcePrepared)?;
-        checkpoint()?;
-        if let Some(source) = &source {
-            Self::verify_source_record_with_checkpoint(&catalog, source, &checkpoint)?;
-        }
-        checkpoint()?;
-        self.refresh_upstream_setup_manifest(port, active, &spec.working_directory)?;
-        checkpoint()?;
-        Ok(spec)
     }
 
     fn prepare_launch_for_external(
@@ -8924,6 +8828,80 @@ fn main() {
             paths.output_location.effective_output_directory,
             library.versions_dir().join("zelda64-recomp")
         );
+    }
+
+    #[test]
+    fn managed_launch_observation_preserves_files_before_explicit_preparation() {
+        fn inventory(root: &Path) -> std::collections::BTreeMap<PathBuf, Option<Vec<u8>>> {
+            fn visit(
+                root: &Path,
+                directory: &Path,
+                entries: &mut std::collections::BTreeMap<PathBuf, Option<Vec<u8>>>,
+            ) {
+                for entry in fs::read_dir(directory).unwrap() {
+                    let path = entry.unwrap().path();
+                    let bytes = path.is_file().then(|| fs::read(&path).unwrap());
+                    entries.insert(path.strip_prefix(root).unwrap().to_path_buf(), bytes);
+                    if path.is_dir() {
+                        visit(root, &path, entries);
+                    }
+                }
+            }
+            let mut entries = std::collections::BTreeMap::new();
+            visit(root, root, &mut entries);
+            entries
+        }
+
+        for previously_launched in [false, true] {
+            let temporary = tempfile::tempdir().unwrap();
+            let library = Library::open(temporary.path().join("library")).unwrap();
+            let install = register_zelda_install(&library, "v1", true);
+            let user_data = library.user_dir("zelda64-recomp");
+            fs::create_dir_all(&user_data).unwrap();
+            fs::write(user_data.join("general.json"), b"durable-settings").unwrap();
+            fs::write(install.join("general.json"), b"last-session-settings").unwrap();
+            if previously_launched {
+                fs::write(install.join(LAUNCH_MARKER), b"1").unwrap();
+            }
+            let service = PortcoveService::new(library.clone()).unwrap();
+            let port = service.catalog.port("zelda64-recomp").unwrap();
+            let before = library.status(&port.id, ReleaseChannel::Stable).unwrap();
+            let active = before.active.as_ref().unwrap();
+            let files = inventory(temporary.path());
+
+            let observed = service
+                .observe_managed_launch_inputs(port, active, None, None)
+                .unwrap();
+            drop(observed);
+
+            assert_eq!(inventory(temporary.path()), files, "{previously_launched}");
+            assert_eq!(
+                serde_json::to_value(library.status(&port.id, ReleaseChannel::Stable).unwrap())
+                    .unwrap(),
+                serde_json::to_value(&before).unwrap(),
+            );
+            let executable = active.path.join(&active.selected_executable);
+            let original = fs::read(&executable).unwrap();
+            fs::write(&executable, b"changed executable").unwrap();
+            let invalid_files = inventory(temporary.path());
+            let refusal = service
+                .observe_managed_launch_inputs(port, active, None, None)
+                .err()
+                .expect("changed executable must fail observation");
+            assert_eq!(refusal.code, crate::ErrorCode::Verification);
+            assert_eq!(inventory(temporary.path()), invalid_files);
+            fs::write(&executable, original).unwrap();
+
+            let prepared = service.prepare_launch(&port.id, None).unwrap();
+            assert_eq!(prepared.install_root, install);
+            let expected = if previously_launched {
+                b"last-session-settings".as_slice()
+            } else {
+                b"durable-settings".as_slice()
+            };
+            assert_eq!(fs::read(install.join("general.json")).unwrap(), expected);
+            assert_eq!(fs::read(user_data.join("general.json")).unwrap(), expected);
+        }
     }
 
     #[test]
