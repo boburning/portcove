@@ -53,6 +53,63 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
+it("shows a core-held managed setup reason before installation review", () => {
+  const status: PortStatus = {
+    ...portStatus(),
+    port_actions: [
+      {
+        action: "install",
+        availability: "held",
+        reason: "definition_ineligible",
+        definition: { outcome: "hold", reason: "publisher_revoked" },
+      },
+    ],
+  };
+  const host = document.createElement("div");
+  host.innerHTML = renderToStaticMarkup(
+    <DetailPanel
+      port={portDefinition()}
+      status={status}
+      sourcePath=""
+      setSourcePath={vi.fn()}
+      actions={actions}
+    />,
+  );
+  expect(host.textContent).toContain("Setup is on hold. The catalog publisher was revoked.");
+  expect(
+    [...host.querySelectorAll("button")].some(
+      (button) => !button.disabled && button.textContent?.includes("Review installation"),
+    ),
+  ).toBe(false);
+});
+
+it("explains a retained launch hold without presenting it as missing game files", () => {
+  const status: PortStatus = {
+    ...installed({ launchable: false, pending_setup: false, blockers: [], source: "current" }),
+    port_actions: [
+      {
+        action: "launch",
+        availability: "held",
+        reason: "definition_ineligible",
+        definition: { outcome: "hold", reason: "publisher_revoked" },
+      },
+    ],
+  };
+  const host = document.createElement("div");
+  host.innerHTML = renderToStaticMarkup(
+    <DetailPanel
+      port={port}
+      status={status}
+      sourcePath=""
+      setSourcePath={vi.fn()}
+      actions={actions}
+    />,
+  );
+  expect(host.textContent).toContain("Launch is on hold. The catalog publisher was revoked.");
+  expect(host.querySelector<HTMLButtonElement>(".primary-actions button")!.disabled).toBe(true);
+  expect(host.textContent).not.toContain("Choose required game files");
+});
+
 it.each([undefined, null])(
   "keeps an installed game out of Ready when the core assessment is %s",
   (readiness) => {
@@ -211,4 +268,134 @@ it("restores Continue only after a new positive core assessment without changing
   } finally {
     await act(async () => root.unmount());
   }
+});
+
+it("restores managed installation review only after an allowed snapshot", async () => {
+  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+  const host = document.createElement("div");
+  const root = createRoot(host);
+  const held: PortStatus = {
+    ...portStatus(),
+    port_actions: [
+      {
+        action: "install",
+        availability: "held",
+        reason: "definition_ineligible",
+        definition: { outcome: "hold", reason: "publisher_revoked" },
+      },
+    ],
+  };
+  const allowed: PortStatus = {
+    ...held,
+    port_actions: [{ action: "install", availability: "allowed", reason: "available" }],
+  };
+  const original = JSON.stringify([held, allowed]);
+  const render = (status: PortStatus) =>
+    act(async () =>
+      root.render(
+        <DetailPanel
+          port={portDefinition()}
+          status={status}
+          sourcePath=""
+          setSourcePath={vi.fn()}
+          actions={actions}
+        />,
+      ),
+    );
+  try {
+    await render(held);
+    expect(host.querySelector<HTMLButtonElement>(".primary-actions button")!.disabled).toBe(true);
+    await act(async () =>
+      host.querySelector<HTMLButtonElement>(".primary-actions button")!.click(),
+    );
+    expect(actions.reviewInstall).not.toHaveBeenCalled();
+    await render(allowed);
+    expect(host.textContent).not.toContain("publisher was revoked");
+    const button = [...host.querySelectorAll("button")].find((button) =>
+      button.textContent?.includes("Review installation"),
+    )!;
+    expect(button.disabled).toBe(false);
+    await act(async () => button.click());
+    expect(actions.reviewInstall).toHaveBeenCalledExactlyOnceWith();
+    expect(actions.install).not.toHaveBeenCalled();
+    expect(JSON.stringify([held, allowed])).toBe(original);
+  } finally {
+    await act(async () => root.unmount());
+  }
+});
+
+it.each(["missing_source", "missing_bios"] as const)(
+  "keeps review of newly selected input available for core waiting reason %s",
+  (reason) => {
+    const selectedPort = {
+      ...portDefinition(),
+      source_profile: "game-profile",
+      bios_source_profile: "bios-profile",
+    };
+    const status: PortStatus = {
+      ...portStatus(),
+      port_actions: [{ action: "install", availability: "waiting", reason }],
+    };
+    const host = document.createElement("div");
+    host.innerHTML = renderToStaticMarkup(
+      <DetailPanel
+        port={selectedPort}
+        status={status}
+        sourcePath="/owned/game"
+        biosPath="/owned/bios"
+        setSourcePath={vi.fn()}
+        setBiosPath={vi.fn()}
+        actions={actions}
+      />,
+    );
+    const button = [...host.querySelectorAll("button")].find((button) =>
+      button.textContent?.includes("Review installation"),
+    )!;
+    expect(button.disabled).toBe(false);
+    expect(host.textContent).not.toContain("Setup unavailable");
+  },
+);
+
+it("keeps malformed current setup availability from opening an installation review", () => {
+  const status = { ...portStatus(), port_actions: null } as unknown as PortStatus;
+  const host = document.createElement("div");
+  host.innerHTML = renderToStaticMarkup(
+    <DetailPanel
+      port={portDefinition()}
+      status={status}
+      sourcePath=""
+      setSourcePath={vi.fn()}
+      actions={actions}
+    />,
+  );
+  expect(host.textContent).toContain(
+    "Current setup availability is unavailable. Refresh the workspace to check again.",
+  );
+  expect(
+    [...host.querySelectorAll("button")].some(
+      (button) => !button.disabled && button.textContent?.includes("Review installation"),
+    ),
+  ).toBe(false);
+});
+
+it("explains an unoffered managed platform without asking for game files", () => {
+  const host = document.createElement("div");
+  const status: PortStatus = {
+    ...portStatus(),
+    port_actions: [
+      { action: "install", availability: "not_offered", reason: "unsupported_platform" },
+    ],
+  };
+  host.innerHTML = renderToStaticMarkup(
+    <DetailPanel
+      port={portDefinition()}
+      status={status}
+      sourcePath=""
+      setSourcePath={vi.fn()}
+      actions={actions}
+    />,
+  );
+  expect(host.textContent).toContain("This route is unavailable on this platform.");
+  expect(host.querySelector<HTMLButtonElement>(".primary-actions button")!.disabled).toBe(true);
+  expect(host.textContent).not.toContain("Choose required game files");
 });

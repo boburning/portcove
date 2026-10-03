@@ -1,6 +1,7 @@
 import { FolderOpen } from "lucide-react";
 import { useState } from "react";
 import { desktopApi } from "../api";
+import { definitionHoldReason } from "../features/port-actions/port-action-presentation";
 import { pickInstallFolder } from "../file-picker";
 import type { PortDefinition, PortStatus } from "../types";
 import { useActionReview } from "../use-action-review";
@@ -19,26 +20,7 @@ function ReviewCancelButton({ pending, dismiss }: { pending: boolean; dismiss: (
 function externalSetupReason(availability?: string, reason?: string, definitionReason?: string) {
   if (availability === "not_offered" && reason === "unsupported_platform")
     return "This installation route is unavailable on this platform.";
-  if (reason === "definition_ineligible") {
-    const reasons: Record<string, string> = {
-      publisher_revoked: "The catalog publisher was revoked.",
-      unknown_safety_semantics:
-        "This definition has safety requirements Portcove cannot interpret.",
-      publisher_scope_required: "This publisher is not approved for this port.",
-      engine_capability_required: "This version of Portcove cannot use this route.",
-      ownership_migration_required: "An existing installation needs ownership review.",
-      metadata_replay: "The catalog update is older than the accepted version.",
-      refresh_incomplete: "The catalog update did not finish.",
-      metadata_stale: "The catalog information needs refreshing.",
-      recorded_identity_changed: "The accepted file identity changed.",
-      authenticated_integrity_required: "The required file integrity evidence is missing.",
-      local_integrity_failed: "A required local file check failed.",
-      mandatory_check_failed: "A required check failed.",
-      source_identity_mismatch: "The game files do not match the required edition.",
-      required_source_missing: "Required game files are missing.",
-    };
-    return `Setup is on hold. ${definitionReason && Object.hasOwn(reasons, definitionReason) ? reasons[definitionReason] : "Check this port's current requirements."}`;
-  }
+  if (reason === "definition_ineligible") return definitionHoldReason("Setup", definitionReason);
   if (reason === "already_registered") return "This installation is already in your library.";
   if (reason === "review_required") return "Choose a folder to review before using it.";
   return "This installation route is unavailable. Check the port details for current requirements.";
